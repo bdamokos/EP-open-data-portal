@@ -954,3 +954,23 @@ test('a new recital continuing the published sequence follows the last recital',
   assert.equal(place('Recital C (new)','After recital C').reason,'conflicting_target_evidence','B-10-2026-0386 AM1 vote list names a later recital');
   assert.equal(place('Recital D (new)').status,'unresolved');
 });
+
+test('negative first provisions precede the first published sibling of their kind',()=>{
+  const text=document(['The European Parliament,','–\thaving regard to its earlier resolution,','A.\twhereas one;','B.\twhereas two;','General considerations','1.\tStresses one:','(a)\tfirst point;','(b)\tsecond point;','2.\tStresses two;'],{textLanguage:'en'});
+  const place=(targetLabel,proposedText,referenceText)=>resolveAmendmentPlacement(text,{language:'en',baseline:'motion-resolution',originalText:'',proposedText,targetLabel,referenceText});
+  for(const [label,printed] of [['Paragraph -1 (new)','-1.\tNew;'],['Paragraph −1 a (new)','−1a.\tNew;'],['Paragraph -1','–\t1. New;']]) {
+    const placed=place(label,printed,'Before § 1');
+    assert.equal(placed.status,'placed',label);assert.equal(placed.insertBefore,5,label);
+  }
+  assert.equal(place('Recital -A (new)','-A.\twhereas new;').insertBefore,2);
+  assert.equal(place('Paragraph 1 – point ‑a (new)','(-a)\tnew point;','§ 1, before point a').insertBefore,6);
+  assert.equal(place('Paragraph -1 (new)','-1.\tNew;','After § 2').reason,'conflicting_target_evidence');
+  assert.equal(place('Paragraph 1 – point ‑a (new)','(-a)\tnew point;','§ 2 – point -a').reason,'conflicting_target_evidence','a reference naming another parent conflicts');
+  assert.equal(place('Paragraph 1 – point ‑a (new)','(-a)\tnew point;','§ 1 – point -a').insertBefore,6);
+  const hidden=document(['The European Parliament,','A.\twhereas one;','1.\tEarlier first \uFFFC;','Heading','1.\tComplete first;','2.\tSecond.'],{textLanguage:'en',sources:{2:{complete:false}}});
+  assert.equal(resolveAmendmentPlacement(hidden,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'-1.\tNew;',targetLabel:'Paragraph -1 (new)',referenceText:'Before § 1'}).status,'unresolved','an incomplete earlier paragraph 1 makes the first anchor ambiguous');
+  const twoOnes=document(['The European Parliament,','A.\twhereas one;','1.\tFirst one;','2.\tTwo;','1.\tSecond one:','(a)\tpoint;','(b)\tpoint.'],{textLanguage:'en'});
+  assert.equal(resolveAmendmentPlacement(twoOnes,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'(-a)\tnew;',targetLabel:'Paragraph 1 – point ‑a (new)',referenceText:'§ 1, before point a'}).status,'unresolved','two paragraphs 1 leave the parent ambiguous');
+  const opinion=document(['The European Parliament,','–\thaving regard to its rules,','1.\tRecalls one;','2.\tRecalls two;','A.\twhereas the opinion;'],{textLanguage:'en'});
+  assert.equal(resolveAmendmentPlacement(opinion,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'-A.\twhereas new;',targetLabel:'Recital -A (new)'}).status,'unresolved');
+});

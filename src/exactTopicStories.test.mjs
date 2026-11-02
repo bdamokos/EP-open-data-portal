@@ -29,8 +29,109 @@ test('paged decision evidence retains show-of-hands outcomes',()=>{assert.equal(
 
 test('featured place debates do not turn the primary-first selection into a busiest claim',()=>{const x=base();x.periodCounts=[{period:'2026-Q1',questions:0}];x.periodWinners['2026-Q1']={leadingPlaceDebates3Plus:[{id:'D',meps:3}]};x.debates=[{id:'D',title:'Place debate',date:'2026-01-01',q:'2026-Q1',meps:3,docs:[],places:{IRN:['title']}}];const row=buildExactTopicStories(x,{place:'IRN',period:'2026-Q1'})[0];assert.equal(row.id,'topics.story.exact.placeDebates');});
 
-test('closest-vote display keeps the reviewed sub-100-vote threshold',()=>{const x=base();x.periodCounts=[{period:'2026-Q1',groups:1,adoptedTexts:3}];x.periodWinners['2026-Q1']={closestAdoptedTexts:[{id:'R',margin:100}]};x.docs=[{id:'R',title:'REPORT on Exact',type:'REPORT',date:'2026-01-01',keywords:[],places:[],outcome:{outcome:'ADOPTED',for:200,against:100}}];assert(!buildExactTopicStories(x,{topic:'oeil:1.10',period:'2026-Q1'}).some(r=>r.id.endsWith('exact.closest')));x.periodWinners['2026-Q1'].closestAdoptedTexts[0].margin=99;assert(buildExactTopicStories(x,{topic:'oeil:1.10',period:'2026-Q1'}).some(r=>r.id.endsWith('exact.closest')));});
+test('closest-vote display keeps the reviewed sub-100-vote threshold',()=>{const x=base();x.periodCounts=[{period:'2026-Q1',groups:1,adoptedTexts:3}];x.periodWinners['2026-Q1']={closestAdoptedTexts:[{id:'R',margin:100}]};x.docs=[{id:'R',title:'REPORT on Exact',type:'REPORT',date:'2026-01-01',keywords:[],places:[],outcome:{outcome:'ADOPTED',for:200,against:100}}];assert(!buildExactTopicStories(x,{topic:'oeil:1.10',period:'2026-Q1'}).some(r=>/exact\.closest(One)?$/.test(r.id)));x.periodWinners['2026-Q1'].closestAdoptedTexts[0].margin=99;assert(buildExactTopicStories(x,{topic:'oeil:1.10',period:'2026-Q1'}).some(r=>r.id.endsWith('exact.closestOne')),'one closest text uses the singular sentence');});
 
-test('unknown joint authorship does not become an exact group count',()=>{const x=base();x.periodCounts=[{period:'2026-Q1'}];x.periodWinners['2026-Q1']={busiestNonUrgencyDebates:[{id:'D',meps:5}]};x.debates=[{id:'D',title:'Exact debate',date:'2026-01-01',meps:5,places:{IRN:['title']},docs:['R']}];x.docs=[{id:'R',title:'Exact joint text',type:'RESOLUTION_MOTION_JOINT',groups:['PPE','ECR'],groupsAvailable:false,outcome:{outcome:'ADOPTED',for:100,against:20}}];const line=buildExactTopicStories(x,{period:'2026-Q1'})[0];assert.equal(line.values.debates[0].values.outcome.values.value.message,'topics.story.outcome.passed');delete x.docs[0].groupsAvailable;assert.equal(buildExactTopicStories(x,{period:'2026-Q1'})[0].values.debates[0].values.outcome.values.value.message,'topics.story.outcome.passed');x.docs[0].groupsAvailable=true;assert.equal(buildExactTopicStories(x,{period:'2026-Q1'})[0].values.debates[0].values.outcome.values.value.message,'topics.story.outcome.jointPassed');});
+test('unknown joint authorship does not become an exact group count',()=>{const x=base();x.periodCounts=[{period:'2026-Q1'}];x.periodWinners['2026-Q1']={busiestNonUrgencyDebates:[{id:'D',meps:5}]};x.debates=[{id:'D',title:'Exact debate',date:'2026-01-01',meps:5,places:{IRN:['title']},docs:['R']}];x.docs=[{id:'R',title:'Exact joint text',type:'RESOLUTION_MOTION_JOINT',groups:['PPE','ECR'],groupsAvailable:false,outcome:{outcome:'ADOPTED',for:100,against:20}}];const line=buildExactTopicStories(x,{period:'2026-Q1'})[0];assert.equal(line.values.outcome.values.value.message,'topics.story.outcome.passed');delete x.docs[0].groupsAvailable;assert.equal(buildExactTopicStories(x,{period:'2026-Q1'})[0].values.outcome.values.value.message,'topics.story.outcome.passed');x.docs[0].groupsAvailable=true;assert.equal(buildExactTopicStories(x,{period:'2026-Q1'})[0].values.outcome.values.value.message,'topics.story.outcome.jointPassed');});
 
 test('headline winners below three linked MEP speakers cannot feature',()=>{const x=base();x.periodCounts=[{period:'2026-Q1',adoptedTexts:3}];x.periodWinners['2026-Q1']={headlineAdoptedTexts3Plus:[{id:'R',debateMeps:0}]};x.docs=[{id:'R',title:'Exact adopted text',type:'REPORT',outcome:{outcome:'ADOPTED',for:100,against:20}}];const row=()=>buildExactTopicStories(x,{topic:'oeil:1.10',period:'2026-Q1'}).find(r=>r.id==='topics.story.exact.adopted');assert.equal(row().values.texts,null);x.periodWinners['2026-Q1'].headlineAdoptedTexts3Plus[0].debateMeps=3;assert.equal(row().values.texts.message,'topics.story.exact.including');});
+
+test('a missing concept label remains plain text rather than a story reference',()=>{
+ const payload=base();payload.topic={key:'oeil:9.99',label:'oeil:9.99',labelLanguage:null};
+ const line=buildExactTopicStories(payload,{topic:'oeil:9.99'})[0];assert.equal(line.values.topic,'oeil:9.99');
+ payload.topic={label:'Élargissement',labelLanguage:'fr'};assert.equal(buildExactTopicStories(payload,{topic:'oeil:8.20'})[0].values.topic.labelLanguage,'fr');
+ assert.equal(new URLSearchParams(storyFactsRoute({topic:'oeil:8.20',language:'fr'}).split('?')[1]).get('lang'),'fr');
+});
+
+// Wording: render lines to plain English with the shipped catalogue.
+const en=JSON.parse(await (await import('node:fs/promises')).readFile(new URL('./ui-locales/en.json',import.meta.url),'utf8'));
+const say=v=>v==null?'':typeof v==='string'?v:Array.isArray(v)?new Intl.ListFormat('en-GB',{type:'conjunction'}).format(v.map(say)):v.message?(v.counts?.count===1&&en[v.message+'One']?en[v.message+'One']:en[v.message]).replace(/\{(\w+)\}/g,(_,k)=>say(v.values?.[k])):v.text!==undefined?say(v.text):'';
+const lineText=rows=>rows.map(r=>en[r.id].replace(/\{(\w+)\}/g,(_,k)=>say(r.values[k]))).join(' ');
+const quarter=x=>{x.periodCounts=[{period:'2026-Q1'}];x.periodWinners['2026-Q1']={};x.periods=['2025-Q3','2025-Q4','2026-Q1','2026-Q2'];x.partial={first:null,last:null};x.series={};return x;};
+const joint={id:'RC-10-2026-0110',title:'JOINT MOTION FOR A RESOLUTION on the systemic oppression in Iran',type:'RESOLUTION_MOTION_JOINT',groups:['PPE','S_D','RENEW','ECR','VERTS_ALE','THE_LEFT'],groupsAvailable:true,date:'2026-02-11',outcome:{outcome:'ADOPTED',for:524,against:3,date:'2026-02-12'}};
+
+test('wording: the busiest debate leads with its place, tallies are digits and the resolution takes "the"',()=>{
+ const x=quarter(base());x.debates=[{id:'D',title:'Brutal repression against protesters in Iran (joint debate)',date:'2026-01-20',meps:63,places:{IRN:['title']},primaryPlace:'IRN',docs:[joint.id]}];x.docs=[joint];x.periodWinners['2026-Q1'].busiestNonUrgencyDebates=[{id:'D',meps:63}];
+ const text=lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{IRN:'Iran'}}));
+ assert.match(text,/^Iran drew the busiest debate on the map: 63 MEPs spoke on Brutal repression against protesters in Iran \(20 January\); the resolution, a joint text by six groups, passed 524 to 3\./);
+ x.debates[0].places={};x.debates[0].primaryPlace=null;assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1'})),/^The busiest debate on the map was Brutal repression against protesters in Iran \(20 January\), with 63 MEPs speaking; /);
+});
+test('wording: urgency debates list countries only, in date order, and say when others were not placed',()=>{
+ const x=quarter(base());x.periodCounts[0].urgencyDebates=3;x.debates=[['U3','2026-03-11','Case of Elene Khoshtaria','GEO'],['U1','2026-01-21','Execution spree in Iran','IRN'],['U2','2026-02-11','Freedom of religion worldwide',null]].map(([id,date,title,p])=>({id,date,title,meps:12,format:'urgency',places:p?{[p]:['title']}:{},primaryPlace:p,docs:[]}));x.sets={urgencyDebates:{'2026-Q1':['U3','U1','U2']}};
+ const text=lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{IRN:'Iran',GEO:'Georgia'}}));
+ assert.match(text,/Three urgency debates on human rights took up Iran and Georgia, among other cases\./);assert(!text.includes('Freedom of religion'));
+ x.debates.forEach(d=>{d.places={};d.primaryPlace=null;});assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1'})),/Three urgency debates on human rights were held\./);
+});
+test('wording: names that take "the" read naturally at the start and inside sentences',()=>{
+ const x=quarter(base());x.periodWinners['2026-Q1']={mostQuestionedPlaces:[{id:'USA',count:43}],risingQuestionPlaces:[{id:'GBR',count:12,ratio:3,baselineMean:4}]};
+ const text=lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{USA:'United States',GBR:'United Kingdom'}}));
+ assert.match(text,/Questions about the United Kingdom rose to 12, from an average of 4 a quarter\./);assert.match(text,/The United States was the most asked-about place \(43 questions\)\./);
+});
+test('wording: places with the same change share one sentence, others get their own, averages say "a quarter"',()=>{
+ const x=quarter(base());x.periodWinners['2026-Q1']={risingQuestionPlaces:[{id:'ROU',count:9,ratio:4.5,baselineMean:2},{id:'TUN',count:9,ratio:4.5,baselineMean:2}]};
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{ROU:'Romania',TUN:'Tunisia'}})),/Questions about Romania and Tunisia each jumped to nine, from an average of 2 a quarter\./);
+ x.periodWinners['2026-Q1'].risingQuestionPlaces[1]={id:'TUN',count:8,ratio:2,baselineMean:4};const text=lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{ROU:'Romania',TUN:'Tunisia'}}));
+ assert.match(text,/Questions about Romania jumped to nine, from an average of 2 a quarter\. Questions about Tunisia rose to eight, from an average of 4 a quarter\./);assert(!/ and Questions/.test(text));
+ x.periodWinners['2026-Q1'].risingQuestionPlaces=[{id:'ROU',count:9,ratio:9,baselineMean:0.6}];assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{ROU:'Romania'}})),/from fewer than one a quarter\./);
+});
+test('wording: Texts mode names the top four places and never writes "(one)"',()=>{
+ const x=quarter(base());x.periodCounts[0].placesWithAdoptedTexts=27;x.periodWinners['2026-Q1']={topAdoptedPlaces:[['RUS',3],['UKR',3],['ESP',2],['AGO',1],['AZE',1],['BEL',1]].map(([id,count])=>({id,count}))};
+ const text=lineText(buildExactTopicStories(x,{period:'2026-Q1',mode:'d',labels:{RUS:'Russia',UKR:'Ukraine',ESP:'Spain',AGO:'Angola',AZE:'Azerbaijan',BEL:'Belgium'}}));
+ assert.match(text,/Parliament adopted texts naming Russia \(three\), Ukraine \(three\), Spain \(two\) and Angola, among 27 places\./);assert(!text.includes('(one)'));
+});
+test('wording: a resolution told with its debate is not repeated on a place quarter',()=>{
+ const x=quarter(base());x.periodCounts[0].adoptedTexts=2;const other={id:'RC-10-2026-0071',title:'JOINT MOTION FOR A RESOLUTION on the brutal repression against protesters in Iran',type:'RESOLUTION_MOTION_JOINT',groups:[],date:'2026-01-21',outcome:{outcome:'ADOPTED',for:562,against:9,date:'2026-01-22'}};
+ x.debates=[{id:'D',title:'Systemic oppression',date:'2026-02-11',meps:28,format:'urgency',places:{IRN:['title']},primaryPlace:'IRN',docs:[joint.id]}];x.docs=[joint,other];x.periodWinners['2026-Q1'].leadingPlaceDebates3Plus=[{id:'D',meps:28}];x.sets={adoptedTexts:{'2026-Q1':[joint.id,other.id]}};
+ const text=lineText(buildExactTopicStories(x,{place:'IRN',period:'2026-Q1',labels:{IRN:'Iran'}}));
+ assert.match(text,/Parliament also adopted one text: the brutal repression against protesters in Iran \(562–9\)\./);assert.equal(text.match(/524/g).length,1);
+});
+test('wording: a topic quarter tells its busiest debate and that dossier\'s adoption once',()=>{
+ const x=quarter(base());x.periodCounts[0].adoptedTexts=5;const edip={id:'A-10-2025-0200',title:'REPORT on the proposal for a regulation of the European Parliament and of the Council establishing the European Defence Industry Programme',type:'REPORT_PLENARY',date:'2026-01-15',outcome:{outcome:'ADOPTED',for:457,against:148,date:'2026-01-20'}};
+ x.debates=[{id:'D',title:'European Defence Industry Programme (EDIP)',date:'2026-01-20',meps:57,places:{},docs:[edip.id]}];x.docs=[edip];x.periodWinners['2026-Q1']={busiestDebates:[{id:'D',meps:57}],headlineAdoptedTexts3Plus:[{id:edip.id,debateMeps:57}],closestAdoptedTexts:[]};
+ const text=lineText(buildExactTopicStories(x,{topic:'eurovoc:2499',period:'2026-Q1'}));
+ assert.match(text,/The busiest debate, on European Defence Industry Programme \(EDIP\) \(20 January, 57 MEPs\), ended in its adoption, 457 to 148\./);assert.match(text,/Parliament also adopted four texts\./);assert(!/biggest debate/.test(text));
+});
+test('wording: legislative boilerplate is dropped from text titles',async()=>{const {cleanStoryTitle}=await import('./topicStoryModel.mjs');assert.equal(cleanStoryTitle('REPORT on the proposal for a regulation of the European Parliament and of the Council establishing the European Defence Industry Programme'),'regulation establishing the European Defence Industry Programme');assert.notEqual(cleanStoryTitle('REPORT on the proposal for a regulation on cross-border services'),cleanStoryTitle('REPORT on the proposal for a directive on cross-border services'),'the instrument stays');assert.equal(cleanStoryTitle('REPORT on the proposal for a directive on cross-border services'),'directive on cross-border services');assert.equal(cleanStoryTitle('REPORT on the proposal for a directive amending Directive 2003/87/EC'),'the proposal for a directive amending Directive 2003/87/EC');assert.equal(cleanStoryTitle('Ukraine (joint debate)'),'Ukraine');});
+test('wording: English story lists use British punctuation',async()=>{const fs=await import('node:fs/promises');for(const f of ['./TopicStories.tsx','./TopicStory.tsx'])assert.match(await fs.readFile(new URL(f,import.meta.url),'utf8'),/Intl\.ListFormat\(ui\.language==='en'\?'en-GB'/);});
+
+test('wording: deduplication leaves out only a text narrated, adopted and counted in this quarter',()=>{
+ const x=quarter(base());x.periodCounts[0].adoptedTexts=1;const prior={...joint,id:'RC-10-2025-0300',outcome:{...joint.outcome,date:'2025-12-18'}},current={id:'RC-10-2026-0071',title:'JOINT MOTION FOR A RESOLUTION on the brutal repression against protesters in Iran',type:'RESOLUTION_MOTION_JOINT',groups:[],date:'2026-01-21',outcome:{outcome:'ADOPTED',for:562,against:9,date:'2026-01-22'}};
+ x.debates=[{id:'D',title:'Follow-up debate',date:'2026-02-11',meps:28,places:{IRN:['title']},primaryPlace:'IRN',docs:[prior.id]}];x.docs=[prior,current];x.periodWinners['2026-Q1'].leadingPlaceDebates3Plus=[{id:'D',meps:28}];x.sets={adoptedTexts:{'2026-Q1':[current.id]}};
+ const text=lineText(buildExactTopicStories(x,{place:'IRN',period:'2026-Q1',labels:{IRN:'Iran'}}));
+ assert.match(text,/Parliament adopted one text: the brutal repression against protesters in Iran \(562–9\)\./,'a prior-quarter resolution linked to a debate does not hide this quarter\'s adoption');assert(!/also adopted/.test(text));
+});
+test('wording: counted claims are whole phrases with plural forms',async()=>{
+ const pairs=JSON.parse(await (await import('node:fs/promises')).readFile(new URL('./ui-locales/plural-pairs.json',import.meta.url),'utf8'));assert(pairs.some(p=>p.one==='topics.story.count.urgencyDebatesOne'&&p.other==='topics.story.count.urgencyDebates'));
+ for(const id of ['topics.story.map.urgency.many','topics.story.exact.urgencyPartial','topics.story.exact.urgencyCount'])assert(en[id].startsWith('{urgencyDebates} on human rights'),id);
+ for(const id of ['topics.story.exact.questionRare','topics.story.exact.questionRareEach'])assert(en[id].includes('drew {questions}')&&!en[id].includes('{count} questions'),id);
+ const x=quarter(base());x.periodCounts[0].urgencyDebates=1;x.debates=[{id:'U1',date:'2026-01-21',title:'Execution spree in Iran',meps:12,format:'urgency',places:{IRN:['title']},primaryPlace:'IRN',docs:[]},{id:'U2',date:'2026-02-21',title:'Case in Georgia',meps:12,format:'urgency',places:{GEO:['title']},primaryPlace:'GEO',docs:[]}];x.periodCounts[0].urgencyDebates=2;x.sets={urgencyDebates:{'2026-Q1':['U1','U2']}};
+ const row=buildExactTopicStories(x,{period:'2026-Q1',labels:{IRN:'Iran',GEO:'Georgia'}}).find(r=>r.id==='topics.story.map.urgency.many');assert.equal(row.values.urgencyDebates.text.message,'topics.story.count.urgencyDebates');assert.deepEqual(row.values.urgencyDebates.text.counts,{count:2});assert(row.values.urgencyDebates.records.length>0);
+ x.periodWinners['2026-Q1'].risingQuestionPlaces=[{id:'ROU',count:8,ratio:8,baselineMean:0.2}];const rare=buildExactTopicStories(x,{period:'2026-Q1',labels:{ROU:'Romania'}}).find(r=>r.id==='topics.story.exact.rises');assert.equal(rare.values.changes[0].values.questions.text.message,'topics.story.count.questions');assert.match(lineText([rare]),/Romania, rarely asked about before, drew eight questions\./);
+});
+
+test('wording: without proof of membership a narrated text is not subtracted from the adopted count',()=>{
+ const x=quarter(base());x.periodCounts[0].adoptedTexts=3;const unrelated={...joint,id:'RC-10-2026-0099',outcome:{...joint.outcome,date:'2026-02-12'}};
+ x.debates=[{id:'D',title:'Busy topic debate',date:'2026-02-11',meps:40,places:{},docs:[unrelated.id]}];x.docs=[unrelated];x.periodWinners['2026-Q1']={busiestDebates:[{id:'D',meps:40}]};
+ // Topic payloads omit the adopted set above two adoptions: no positive evidence, so nothing is subtracted.
+ assert.match(lineText(buildExactTopicStories(x,{topic:'eurovoc:584',period:'2026-Q1'})),/Parliament adopted three texts\./);
+ x.periodWinners['2026-Q1'].headlineAdoptedTexts3Plus=[{id:unrelated.id,debateMeps:40}];const proven=lineText(buildExactTopicStories(x,{topic:'eurovoc:584',period:'2026-Q1'}));assert.match(proven,/ended in its adoption, 524 to 3\. Parliament also adopted two texts\./,'a winner drawn from the counted texts proves membership');
+});
+test('wording: exclusions follow the final narration after the headline fusion',()=>{
+ const x=quarter(base());x.periodCounts[0].adoptedTexts=2;const A={...joint,id:'RC-10-2026-0100',title:'JOINT MOTION FOR A RESOLUTION on text A',outcome:{...joint.outcome,date:'2026-02-12'}},B={id:'A-10-2026-0010',title:'REPORT on text B',type:'REPORT_PLENARY',date:'2026-02-10',outcome:{outcome:'ADOPTED',for:400,against:200,date:'2026-02-12'}};
+ x.debates=[{id:'D',title:'Debate on B',date:'2026-02-11',meps:40,places:{},docs:[A.id,B.id]}];x.docs=[A,B];x.sets={adoptedTexts:{'2026-Q1':[A.id,B.id]}};x.periodWinners['2026-Q1']={busiestDebates:[{id:'D',meps:40}],headlineAdoptedTexts3Plus:[{id:B.id,debateMeps:40}]};
+ const text=lineText(buildExactTopicStories(x,{topic:'eurovoc:584',period:'2026-Q1'}));
+ assert.match(text,/ended in its adoption, 400 to 200\./);assert.match(text,/Parliament also adopted one text: text A \(524–3\)\./,'A is no longer narrated, so it stays in the adoption sentence');
+});
+
+test('story records and title references preserve a non-English fallback language',()=>{
+ const x=base();x.docs=[{id:'R',title:'MOTION FOR A RESOLUTION on Titre français',titleLanguage:'fr',type:'REPORT',outcome:{outcome:'ADOPTED',for:100,against:20}}];x.counts.adoptedTexts=1;x.winners={headlineAdoptedTexts3Plus:[{id:'R',debateMeps:3}]};
+ assert.equal(storyRecord(x.docs[0],'document').titleLanguage,'fr');
+ const lines=buildExactTopicStories(x,{topic:'oeil:9.99'});assert(JSON.stringify(lines).includes('"titleLanguage":"fr"'));
+});
+
+test('months: the busiest-quarter reference names months in the interface language',async()=>{
+ const {monthRangeLabel}=await import('./topicPresentation.mjs');
+ assert.match(monthRangeLabel('2026-Q1','en'),/^January\s*[–-]\s*March 2026$/);assert.match(monthRangeLabel('2026-Q4','fr'),/octobre.*décembre 2026/);assert.equal(monthRangeLabel('bad','en'),'bad');
+ const x=base();x.periodCounts=[{period:'2026-Q1',debateSpeakerAppearances:40},{period:'2026-Q2',debateSpeakerAppearances:10}];
+ const row=buildExactTopicStories(x,{place:'IRN',language:'en',labels:{IRN:'Iran'}}).find(r=>r.id==='topics.story.place.summary.peak');
+ assert.match(lineText([row]),/^Busiest quarter: January\s*[–-]\s*March 2026\.$/);assert.equal(row.values.quarter[0].period,'2026-Q1','links keep the quarter key');
+});
