@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {SpeechCloudInsights,speechCloudQuery} from './speech-cloud.mjs';
 import {HttpError} from './http-utils.mjs';
+import {runWithRequestSignal} from './request-budget.mjs';
 
 const now=()=>Date.parse('2026-10-26T00:00:00Z'),date='2026-10-07',sitting='MTG-PL-'+date;
 const store={status:()=>({servingGeneration:1}),db:{prepare:()=>({all:()=>[]})}};
@@ -55,4 +56,19 @@ test('unavailable retained pages resume the saved cursor and preserve missing-te
   assert.equal(recovered.coverage.missingLanguage,1);assert.equal(recovered.coverage.unreadableText,1);
   assert.equal(recovered.coverage.complete,false);assert.equal(recovered.nextPage,null);
   assert.deepEqual(recovered.coverage.sourceRecords,{unique:120,declared:null,retained:120,duplicates:0,issues:[]});
+});
+
+test('a public build cancelled during analysis restarts instead of serving a result behind its cursor',async()=>{
+  const long='<root><p>'+Array.from({length:700},(_,i)=>'Climate Energy Union transport market '+i).join(' ')+'</p></root>',controller=new AbortController();
+  const page=offset=>({...source(offset),payload:{meta:{total:120},data:Array.from({length:Math.min(50,120-offset)},(_,i)=>({...activity(offset+i),recorded_in_a_realization_of:[{'api:xmlFragment':{en:long}}]}))}});
+  const cloud=new SpeechCloudInsights(store,{clock:now,legislation,readCorpusPage:null,request:async(endpoint,{offset})=>{
+    // The owner's budget expires once analysis has started yielding.
+    if(offset===50&&!controller.signal.aborted)setTimeout(()=>controller.abort(new Error('owner timed out')),0);
+    return page(offset);
+  }});
+  const first=await cloud.query(query),state=[...cloud.states.values()][0];
+  await assert.rejects(runWithRequestSignal(controller.signal,()=>cloud.build(state,query,1)),/owner timed out/);
+  assert.equal(state.dirty,true);assert.equal(state.page,1);assert.equal(state.result.nextPage,first.nextPage);
+  const restarted=await cloud.query({...query,page:1});
+  assert.equal(restarted.coverage.transcripts,100);assert.equal(restarted.nextPage,2);assert.notEqual([...cloud.states.values()][0],state);
 });
