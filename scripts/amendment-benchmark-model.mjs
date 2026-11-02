@@ -188,10 +188,11 @@ const pointBase = unit => {
   const value = String(unit.label?.value ?? ''), suffix = unit.label?.suffix || '';
   return suffix && value.endsWith(suffix) ? value.slice(0,-suffix.length) : value;
 };
+const canonicalRoman = value => /^[ivxlc]+$/u.test(value) && /^c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/u.test(value);
 function pointFamilyPosition(bases, wanted) {
   const all = [...bases, wanted];
   if (bases[0] === 'a' && all.every(base => /^[a-z]$/u.test(base))) return base => base.charCodeAt(0)-96;
-  if (bases[0] === 'i' && all.every(base => romanValue(base) !== null) && bases.every((base,index) => romanValue(base) === index+1)) return romanValue;
+  if (bases[0] === 'i' && all.every(canonicalRoman) && bases.every((base,index) => romanValue(base) === index+1)) return romanValue;
   return null;
 }
 // Published addresses may omit an article's sole unnumbered paragraph 1
@@ -380,7 +381,11 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
     const identities = siblings.map(u => String(u.label?.value ?? ''));
     if ((lettered || omitted) && (new Set(identities).size !== identities.length || siblings.some(u => u.pathConflict) || !anchor.complete)) return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
     if (lettered) {
-      const position = pointFamilyPosition(siblings.sort((a,b) => a.start-b.start).map(pointBase), label.base);
+      const bases = siblings.sort((a,b) => a.start-b.start).map(pointBase);
+      // An observed malformed Roman family is ambiguous, so a different raw
+      // grammar must not override this identity failure.
+      if (bases[0] === 'i' && bases.some(base => /^[ivxlc]+$/u.test(base) && !canonicalRoman(base))) return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+      const position = pointFamilyPosition(bases, label.base);
       if (!position) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
       // Ordinals alone conflate spellings (iiii, iv); the anchor's exact base must match.
       if (pointBase(anchor) !== String(label.base)) return fail('oracle-anchor-label-mismatch');
