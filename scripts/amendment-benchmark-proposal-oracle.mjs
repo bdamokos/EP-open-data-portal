@@ -152,7 +152,9 @@ export function rawProposalAssertion({proposal,wording,placement}) {
     before=anchor.end;
   } else {
     const rank=number(last.value);
-    if(last.value==='i'&&parent?.kind==='point'&&!siblings.length)before=scope.end;
+    // A childless lettered point can only receive new Roman children at its end.
+    const roman=/^(?:i{1,3}|iv|vi{0,3}|ix|xi{0,3}|xiv|xvi{0,3}|xix|xx)$/u.test(last.value);
+    if((last.value==='i'||roman&&/^[a-z]$/u.test(parent?.value??''))&&parent?.kind==='point'&&!siblings.length)before=scope.end;
     else if(rank!==null&&rank>1) {
       const preceding=siblings.filter(node=>number(node.value)===rank-1);
       if(preceding.length!==1||siblings.some(node=>node.value===last.value))return unknown('oracle-raw-anchor-unavailable');

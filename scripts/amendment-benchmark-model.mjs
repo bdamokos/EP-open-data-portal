@@ -3,7 +3,7 @@ import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
 import {assertFootnoteComparison} from './amendment-footnote-oracle.mjs';
-import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
+import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-grammar.mjs';
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
@@ -205,6 +205,17 @@ function verifyResolutionInsertion(text,wording,target,placement) {
   const kind=label.after?'paragraph':label.kind;
   if(!['paragraph','recital','citation','point'].includes(kind))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   const bases=units.filter(unit=>unit.kind===kind&&unit.label===String(label.base)&&owns(unit));
+  // A new recital continuing the raw A, B, C… sequence before the operative
+  // paragraphs follows the last raw recital; its printed letter must match.
+  if(!bases.length&&kind==='recital'&&!label.suffix&&!label.after&&!parents.length&&/^[A-Z]$/u.test(label.value)) {
+    const recitals=units.filter(unit=>unit.kind==='recital').sort((a,b)=>a.start-b.start),paragraphs=units.filter(unit=>unit.kind==='paragraph');
+    const last=recitals.at(-1);
+    if(!last||!recitals.every((unit,index)=>unit.label===String.fromCharCode(65+index))||label.value!==String.fromCharCode(65+recitals.length)||!paragraphs.length||last.start>Math.min(...paragraphs.map(unit=>unit.start)))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    if(!new RegExp(`^${label.value}[.)]\\s`,'u').test(oracleFold(wording.proposedText)))return {status:'unverified',reason:'oracle-insertion-label-unverified'};
+    if(!last.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    if(placement.insertBefore!==last.end+1||placement.insertAfter!==last.end)return fail('oracle-insertion-boundary-mismatch');
+    return verified('oracle-sequence-append-boundary');
+  }
   if(!bases.length&&kind==='point'){
     const indented=rawResolutionPointUnits(text).units;
     const anchors=indented.filter(unit=>unit.label===label.base&&pathKey(unit.path.slice(0,-1))===pathKey(parents));
