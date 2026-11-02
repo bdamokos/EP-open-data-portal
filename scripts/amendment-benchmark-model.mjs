@@ -191,7 +191,11 @@ function verifyResolutionInsertion(text,wording,target,placement) {
     return verified('oracle-negative-first-paragraph-boundary');
   }
   if(!label.isNew)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
-  const raw=rawResolutionUnits(text,wording.language);
+  // Another language edition of the same document: only a single suffixed
+  // paragraph or recital label, read against the edition's own structure.
+  const edition=text?.textLanguage&&text.textLanguage!==wording.language?text.textLanguage:null;
+  if(edition&&(target.segments.length!==1||!['paragraph','recital'].includes(label.kind)||!label.suffix||label.after))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  const raw=rawResolutionUnits(text,edition??wording.language);
   if(raw.reason)return {status:'unverified',reason:raw.reason};
   const units=raw.units,parents=target.segments.slice(0,-1);
   const owns=unit=>{

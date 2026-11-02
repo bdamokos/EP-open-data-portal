@@ -77,3 +77,12 @@ test('cached automatic recital and paragraph numbers independently certify blank
  assert.equal(visible.filter(row=>row.numberingLabel).map(row=>row.numberingLabel).join(','),'A.,B.,C.,D.,E.,F.,1.,2.,3.,4.,5.,6.,7.,8.,9.');
  const units=rawResolutionUnits(text,'en').units;for(const label of ['D','1','2','5'])assert.equal(units.find(unit=>unit.label===label&&unit.kind===(label==='D'?'recital':'paragraph'))?.complete,true,label);
 });
+test('another language edition verifies a suffixed insertion by its own structure',()=>{
+ const paragraphs=['El Parlamento Europeo,','A.\tConsiderando que…;','8.\tPide al Gobierno español…;','9.\tExpresa su preocupación…;'];
+ const text={textLanguage:'es',paragraphs,paragraphFormats:paragraphs.map(()=>({})),paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
+ const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 8 a (new)',originalText:'',proposedText:'8a. Calls on…;'};
+ const at=before=>({status:'placed',operation:'insert',insertBefore:before,insertAfter:before-1});
+ assert.deepEqual(verifyPlacement({text,wording,placement:at(3)}),{status:'verified',reason:'oracle-sibling-boundary'});
+ assert.equal(verifyPlacement({text,wording,placement:at(2)}).status,'failed');
+ assert.equal(verifyPlacement({text,wording:{...wording,targetLabel:'Paragraph 8 – point a (new)'},placement:at(3)}).status,'unverified');
+});
