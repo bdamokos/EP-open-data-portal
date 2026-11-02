@@ -532,3 +532,15 @@ test('debate groups fall back to the retained debate snapshot, then to no title'
  assert.equal(groupTitle(store,id,'en').title,'17. Imminent death penalty threats in Iran in the light of the latest executions (debate)');
  const missing=groupTitle(store,other,'en');assert.equal(missing.title,null,'no held title gives null, not the raw ID');assert.equal(missing.key,other,'the ID stays in the key');
 });
+
+test('untitled verbatim items are looked up in one snapshot query per write batch',async t=>{
+ const {prepareSittingSnapshots}=await import('./sitting-snapshot-store.mjs'),{putTopicRecords,topicTables}=await import('./topics-store.mjs'),{gzipSync}=await import('node:zlib');
+ const {store}=await fixture(t);topicTables(store.db);prepareSittingSnapshots(store);const day='2026-03-25',ids=Array.from({length:300},(_,i)=>'MTG-PL-'+day+'-PVCRE-ITM-'+(i+1));
+ for(const id of ids.slice(0,3))store.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,complete,next_check,body) VALUES (?,?,?,1,0,?)').run('debate',1,id,gzipSync(JSON.stringify({payload:{data:[{activity_id:id,activity_label:{en:'Item '+id.split('-').at(-1)}}]}})));
+ let prepares=0,runs=0;const prepare=store.db.prepare.bind(store.db);store.db.prepare=sql=>{const st=prepare(sql);if(!/sitting_snapshots/.test(sql))return st;prepares++;return new Proxy(st,{get(target,key){const v=target[key];return typeof v==='function'?(...a)=>{runs++;return v.apply(target,a);}:v;}});};
+ putTopicRecords(store,1,ids.map(id=>({id,kind:'event',activityType:'def/ep-activities/PLENARY_DEBATE',date:day,titles:{},assignments:[],parentIds:[],procedureIds:[],agendaIds:[],members:[]})));
+ putTopicRecords(store,1,ids.slice(0,10).map(id=>({id,kind:'event',activityType:'def/ep-activities/PLENARY_DEBATE',date:day,titles:{},assignments:[],parentIds:[],procedureIds:[],agendaIds:[],members:[]})));
+ store.db.prepare=prepare;
+ assert.equal(prepares,1,'prepared once');assert.equal(runs,2,'one query per batch');
+ assert.equal(JSON.parse(store.db.prepare('SELECT body FROM record_topic_records WHERE generation=1 AND id=?').get(ids[0]).body).titles.en,'Item 1');
+});

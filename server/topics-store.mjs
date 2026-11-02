@@ -36,15 +36,23 @@ export function topicTables(db){questionPlaceTables(db);db.exec(`
 const eventTypeEvidence=(store,id)=>{try{return storyEventType(store,id);}catch(error){if(/no such table/.test(error.message))return null;throw error;}};
 // A verbatim item without held titles takes them from its retained debate snapshot (the /events
 // record for that exact item ID), in every language it holds.
-const snapshotTitles=(store,id)=>{if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-/.test(id))return null;try{const row=store.db.prepare("SELECT body FROM sitting_snapshots WHERE kind='debate' AND version=1 AND id=? AND complete=1 AND error IS NULL").get(id);const saved=row?.body?JSON.parse(gunzipSync(row.body,{maxOutputLength:SNAPSHOT_MAX_BYTES}).toString('utf8')):null;const work=(saved?.payload?.data||[]).find(w=>(w.activity_id||String(w.id||'').split('/').at(-1))===id);const t=work?.activity_label;return t&&typeof t==='object'&&Object.keys(t).length?t:null;}catch{return null;}};// unreadable local evidence counts as absent
+const snapshotStatements=new WeakMap(),itemId=/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-/;
+// One query per write batch: complete, error-free debate snapshots for the batch's untitled items.
+const snapshotTitles=(store,records)=>{const ids=records.filter(r=>itemId.test(r.id)&&!(r.titles&&Object.keys(r.titles).length)).map(r=>r.id),found=new Map();if(!ids.length)return found;
+ let statement=snapshotStatements.get(store.db);
+ if(statement===undefined){try{statement=store.db.prepare("SELECT id,body FROM sitting_snapshots WHERE kind='debate' AND version=1 AND complete=1 AND error IS NULL AND id IN (SELECT value FROM json_each(?))");}catch{statement=null;}snapshotStatements.set(store.db,statement);}
+ if(!statement)return found;
+ for(const row of statement.all(JSON.stringify(ids))){try{const saved=JSON.parse(gunzipSync(row.body,{maxOutputLength:SNAPSHOT_MAX_BYTES}).toString('utf8')),work=(saved?.payload?.data||[]).find(w=>(w.activity_id||String(w.id||'').split('/').at(-1))===row.id),t=work?.activity_label;if(t&&typeof t==='object'&&Object.keys(t).length)found.set(row.id,t);}catch{/* unreadable local evidence counts as absent */}}
+ return found;};
 const topicWriteStatements=new WeakMap();
 export function putTopicRecords(store,generation,records){
  const db=store.db;let statements=topicWriteStatements.get(db);if(!statements){statements={remove:db.prepare('DELETE FROM record_topic_memberships WHERE generation=? AND record_id=?'),group:db.prepare('SELECT group_key FROM record_topic_records WHERE generation=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO record_topic_records VALUES (?,?,?,?,?,?,?)'),member:db.prepare('INSERT OR IGNORE INTO record_topic_memberships VALUES (?,?,?,?,?,?)')};topicWriteStatements.set(db,statements);}const {remove,group,put,member}=statements;
  // Proceeding markers (catch-the-eye starts/ends, notes) and chair announcements are not records anyone reads as debates.
+ const heldSnapshots=snapshotTitles(store,records);
  for(const record of records){if(record.kind==='event'&&/\/(?:PROCEEDING_ACTIVITY|MEETING_NAME_CHAIR)$/.test(record.activityType||'')){remove.run(generation,record.id);continue;}
  // Same evidence as story debates: retained type observations first; conflicting evidence keeps a debate.
  const evidence=record.kind==='event'?eventTypeEvidence(store,record.id):null;
- const held=record.titles&&Object.keys(record.titles).length?record.titles:snapshotTitles(store,record.id);
+ const held=record.titles&&Object.keys(record.titles).length?record.titles:heldSnapshots.get(record.id)||null;
  const r={...record,titles:held||record.titles||{},kind:record.kind==='event'?!evidence?.conflicted&&voteActivity(evidence?evidence.type:record.activityType)?'vote':'debate':record.kind};
  const parents=r.kind==='speech'?r.parentIds:r.kind==='debate'?r.agendaIds:r.eventIds||[];
  const resolvedParents=[...new Set((parents||[]).map(id=>group.get(generation,id)?.group_key||id))];
