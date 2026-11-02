@@ -33,6 +33,7 @@ test('the small shell enhancement selects only supported headings and keeps the 
     ['?lang=hu&view=questions&q-search=climate','Questions','questions'],
     ['?view=groups','Group voices','groups'],
     ['?view=legislation&pl-mode=dossier','Plenary agenda','legislation'],
+    ['?view=legislation&pl-mode=dossier&dossier-ref=%20','Plenary agenda','legislation'],
     ['?view=geopolitics','Geopolitics','geopolitics'],
     ['?view=legislation&pl-mode=topics&topic=oeil:1','Topics','legislation'],
     ['?view=legislation&pl-mode=constructor','Plenary agenda','legislation'],

@@ -105,6 +105,10 @@ test('startup shell uses explicit owned bindings and keeps numeric member IDs li
   localizeInitialShell(window.document,new URLSearchParams({lang:'hu'}));
   assert.equal(window.document.querySelector('h1').textContent,'Európai parlamenti képviselők');
   assert.equal(window.document.querySelector('a[data-view="members"]').textContent,'Képviselők');
+  for(const [query,title] of [['view=geopolitics','Geopolitics'],['view=legislation&pl-mode=topics','Topics'],['view=legislation&pl-mode=dossier','Plenary agenda']]){
+    localizeInitialShell(window.document,new URLSearchParams(query));
+    assert.equal(window.document.querySelector('h1').textContent,title);
+  }
   localizeInitialShell(window.document,new URLSearchParams({lang:'hu',member:'1234567'}));
   assert.equal(window.document.querySelector('h1').textContent,'EP-képviselő 1234567');
   window.document.getElementById('initial-shell').remove();

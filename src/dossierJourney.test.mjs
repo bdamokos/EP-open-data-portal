@@ -92,6 +92,8 @@ test('topic journeys wait for the exact restored content before restoring focus'
   assert.equal(h.journey.dossierJourneyRestoring(),true,'the persistent shell is not the restored content');
   content.dataset.topicKey='oeil:2.10';h.container.querySelector('main').append(content);await h.frames();
   assert.equal(h.journey.dossierJourneyRestoring(),true,'a different topic cannot consume restoration');
-  content.dataset.topicKey='oeil:1.10';await h.frames();await h.frames();
+  content.dataset.topicsPending='true';content.dataset.topicKey='oeil:1.10';await h.frames();
+  assert.equal(h.journey.dossierJourneyRestoring(),true,'cold detail data must settle before focus restoration');
+  delete content.dataset.topicsPending;await h.frames();await h.frames();
   assert.equal(h.journey.dossierJourneyRestoring(),false);assert.equal(document.activeElement.id,'topic-origin');
 });

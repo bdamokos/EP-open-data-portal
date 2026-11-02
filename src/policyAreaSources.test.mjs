@@ -76,3 +76,14 @@ test('fallback story titles and their opened records carry the actual French lan
  await wait(()=>node.querySelector('i[lang=fr]'));assert.equal(node.querySelector('i[lang=fr]').textContent,'Titre français');
  await act(async()=>node.querySelector('i[lang=fr]').closest('a').click());assert.equal(new URLSearchParams(location.search).get('t-record'),'R');const {TopicStoryDocument}=await load('/src/TopicStories.tsx');await act(async()=>root.render(h(TopicStoryDocument,{selection:{periods:[],topic:'oeil:9.99'},id:'R'})));await wait(()=>node.querySelector('.topic-story-records article a[lang=fr]'));assert.equal(node.querySelector('.topic-story-records article a[lang=fr]').textContent,'Titre français');
 });
+
+
+test('cold topic details mark pending until the response settles, including an unavailable response',async t=>{
+ const {node,root,load,wait}=await harness(t,'http://localhost/?view=legislation&pl-mode=topics&topic=oeil%3A9.99');
+ let release;const gate=new Promise(resolve=>{release=resolve;});t.after(()=>release?.());
+ t.mock.method(globalThis,'fetch',async()=>{await gate;throw new Error('Unavailable');});
+ const {Topics}=await load('/src/Topics.tsx');await act(async()=>root.render(h(Topics,{})));
+ await wait(()=>node.querySelector('[data-topics-pending="true"]'));
+ release();await wait(()=>node.querySelector('.insight-error'));
+ assert.equal(node.querySelector('[data-topics-pending="true"]'),null);
+});

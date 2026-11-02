@@ -90,7 +90,7 @@ function Detail({topic,place,language,mode,zoom}:{topic:string;place:string;lang
  const pageData=records.data||(records.loading&&offset>0&&lastPage.current?.scope===scope?lastPage.current.data:null);
  const merged=shown?{...shown,...shown.chart}:null,data=merged?{...merged,series:merged.series.map(s=>({...s,questionNotHome:s.questionNotHome??(s.questionElsewhere||0)+(s.questionUnknown||0)}))}:null;
  usePolicyAreaLabels(data?.ready?[data.concept,...(place?data.facets.topics:[]).filter(f=>f.key!==key).slice(0,more?undefined:10)]:[]);
- if(!data?.ready||!data.concept)return <><InsightStatus loading={chart.loading} error={chart.error} retry={chart.retry}/>{!chart.loading&&<p><UiMessage id="topics.unavailable"/> <button onClick={chart.retry}><UiMessage id="insightshared.reload.cce715"/></button></p>}</>;
+ if(!data?.ready||!data.concept)return <div data-topics-pending={chart.loading?'true':undefined}><InsightStatus loading={chart.loading} error={chart.error} retry={chart.retry}/>{!chart.loading&&<p><UiMessage id="topics.unavailable"/> <button onClick={chart.retry}><UiMessage id="insightshared.reload.cce715"/></button></p>}</div>;
  const metrics=place?(eu?[own==='1'||askers==='not-home'?'questionNotHome':'questionElsewhere','questionHome','document']:['question','document']):['groups'];
 
  const last=lastFullQuarter({...data,items:[]});
