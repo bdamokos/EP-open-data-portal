@@ -1,3 +1,4 @@
+import {prepareWeekClouds,readWeekCloud} from './week-cloud-projection.mjs';
 import {corpusTextVersion,prepareCorpusTexts} from './corpus-text-schema.mjs';
 import {availabilityHistoryVersion,initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,historyStatus} from './availability-history.mjs';
 import {sourceAvailability} from './source-availability.mjs';
@@ -35,6 +36,7 @@ export const CORPUS_SCHEMA_GATES=Object.freeze([
   {key:'speechMemberIndex',value:2},
   {key:'questionDiscoveryVersion',value:1},
   {key:'corpusTextVersion',value:corpusTextVersion},
+  {key:'weekCloudSchema',value:2,constructorGate:false},
 ].map(Object.freeze));
 
 const KINDS=['speech','question','answer'];
@@ -224,6 +226,7 @@ export class CorpusStore {
         this.db.exec('CREATE TABLE IF NOT EXISTS question_discovery (source_key TEXT PRIMARY KEY,signature TEXT NOT NULL,policy TEXT NOT NULL)');
         this.set('questionDiscoveryVersion',1);initialized=true;
       }
+      if(this.get('weekCloudSchema')!==2){prepareWeekClouds(this.db);this.set('weekCloudSchema',2);initialized=true;}
       // The writer reservation prevents takeover even if initialization exceeds
       // its original TTL. Renew ownership before publishing the transaction.
       if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner).changes!==1)throw new Error('Corpus writer lease was lost.');
@@ -547,6 +550,7 @@ export class CorpusStore {
     return {...metadata,speakers:speakers.map(person=>({...person,roleSource:{speechId:metadata.summary.id,date:metadata.summary.date,
       url:metadata.sourceUrl,fetchedAt:metadata.fetchedAt,historyComplete,...(Number.isSafeInteger(evidenceRevision)?{evidenceRevision}:{})}}))};
   }
+  weekCloud(params){return this.snapshot(()=>readWeekCloud(this,params));}
   speechData(params){return this.snapshot(()=>this.speechDataSnapshot(params));}
   speechDataSnapshot({sourceIds,language=null,metadataOnly=false}) {
     if(!Array.isArray(sourceIds)||sourceIds.length>100||sourceIds.some(id=>!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id)))throw new Error('Invalid retained speech selection.');
@@ -572,7 +576,8 @@ export class CorpusStore {
     }
     return {records,truncated:false};
   }
-  speechPage(params){return this.snapshot(()=>{
+  speechPage(params){return this.snapshot(()=>this.speechPageSnapshot(params));}
+  speechPageSnapshot(params){
     if(!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_catalog'").get())return null;
     // A projection is usable only after the existing writer has visited every
     // retained metadata row. This is not a claim of complete upstream coverage.
@@ -624,7 +629,7 @@ export class CorpusStore {
       availability={metadata:sourceAvailability({...args,sourceKey:'speech-metadata',latestObservedDate:latestKindDate}),metadataSources:kinds.map(kind=>sourceAvailability({...args,sourceKey:kind,subtype:kind,latestObservedDate:dates.get(kind)||null})),text:params.metadataOnly?null:sourceAvailability({...args,sourceKey:'speech-text',subtype:kinds.length===1?kinds[0]:null,stage:'text',language:params.language,latestObservedDate:latestTextDate})};
     }
     return {...result,total,offset,revision,missingRetainedLanguage,nextOffset,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate,availability}};
-  });}
+  }
 
   speechTranscript({sourceId,language,allowFallback=false}) {
     return this.snapshot(()=>{
