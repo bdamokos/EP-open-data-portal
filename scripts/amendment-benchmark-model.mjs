@@ -3,7 +3,7 @@ import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
 import {assertFootnoteComparison} from './amendment-footnote-oracle.mjs';
-import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
+import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-grammar.mjs';
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
@@ -206,8 +206,49 @@ function omittedSoleParagraph(all, anchor, parent) {
   return paragraphs.length === 1 && paragraphs[0].implicit === true && paragraphs[0].label?.value === '1' && pathKey(paragraphs[0].path) === pathKey(path.slice(0,at+1));
 }
 
+// A negative first provision (-1, -1a, -A, point -a) goes immediately before
+// the first raw sibling of its kind: paragraph 1, recital A before the
+// operative paragraphs, or point (a) of the named paragraph. The printed
+// label in the proposed column must carry the same negative number.
+function verifyNegativeFirst(text,wording,target,placement) {
+  const label=target.segments.at(-1),first={paragraph:'1',recital:'A',point:'a'}[label.kind];
+  const negative=first&&new RegExp(`^-${first}([a-z]?)$`,'u').exec(label.value);
+  if(!negative||wording.originalText!==''||target.segments.slice(0,-1).some(segment=>segment.isNew||segment.negative))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  const dash='[-−–‑]\\s*',suffix=negative[1];
+  const printed={paragraph:new RegExp(`^${dash}1${suffix}[.)]\\s`,'u'),recital:new RegExp(`^${dash}A${suffix}[.)]\\s`,'u'),point:new RegExp(`^\\(${dash}a${suffix}\\)\\s`,'u')}[label.kind];
+  if(!printed.test(oracleFold(wording.proposedText).replace(/^[-−–‑]\s+(?=\d)/u,'-')))return {status:'unverified',reason:'oracle-insertion-label-unverified'};
+  const raw=rawResolutionUnits(text,wording.language);
+  if(raw.reason)return {status:'unverified',reason:raw.reason};
+  const paragraphs=raw.units.filter(unit=>unit.kind==='paragraph');
+  let family;
+  if(label.kind==='point') {
+    const owners=paragraphs.filter(unit=>target.segments.length===2&&target.segments[0].kind==='paragraph'&&unit.label===target.segments[0].value);
+    if(owners.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    family=raw.units.filter(unit=>unit.kind==='point'&&unit.parent===owners[0].start);
+  } else family=raw.units.filter(unit=>unit.kind===label.kind);
+  if(target.segments.length!==1&&label.kind!=='point')return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  const anchor=family.sort((a,b)=>a.start-b.start)[0];
+  if(anchor?.label!==first||family.filter(unit=>unit.label===first).length!==1||anchor.start<1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  if(label.kind==='recital'&&!(paragraphs.length&&anchor.start<Math.min(...paragraphs.map(unit=>unit.start))))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  // Incomplete or non-body rows before the anchor can hide another first label.
+  // Points also need the only printed owner paragraph from the resolution start.
+  const from=raw.start,owner=label.kind==='point'?anchor.parent:null;
+  const printedFirst={paragraph:/^1[.)]\s/u,recital:/^A[.)]\s/u,point:/^\(a\)\s|^a\)\s/u}[label.kind];
+  const printedOwner=owner===null?null:new RegExp(`^${target.segments[0].value}[.)]\\s`,'u');
+  if(!Number.isInteger(from)||owner!==null&&!(from<=owner))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  for(let row=from;row<anchor.start;row++) {
+    const source=text.paragraphSources?.[row],value=String(text.paragraphs[row]??'').trim();
+    if(source?.complete!==true||source.container!=='body'||(owner===null||row>owner)&&printedFirst.test(value)||printedOwner&&row!==owner&&printedOwner.test(value))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  }
+  const before=text.paragraphSources?.[anchor.start-1],at=text.paragraphSources?.[anchor.start];
+  if(!anchor.complete||before?.complete!==true||before.container!=='body'||at?.complete!==true)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+  if(placement.insertBefore!==anchor.start||placement.insertAfter!==anchor.start-1)return fail('oracle-insertion-boundary-mismatch');
+  return verified('oracle-negative-first-boundary');
+}
+
 function verifyResolutionInsertion(text,wording,target,placement) {
   const label=target.segments.at(-1);
+  if(label.negative&&!(wording.language==='fi'&&label.kind==='paragraph'))return verifyNegativeFirst(text,wording,target,placement);
   if(label.negative) {
     // Literal Finnish published pre-first paragraph family. Derive the boundary
     // from raw resolution rows, never the returned anchor/evidence or server ref.
