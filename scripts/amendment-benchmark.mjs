@@ -15,7 +15,7 @@ import {documentContextPlacement} from '../server/document-context-placement.mjs
 import {DOCUMENT_CONTEXT_VERSION} from '../server/document-context.mjs';
 import {PROPOSAL_PARSER_VERSION} from '../server/proposal-structure.mjs';
 import {DOCX_EXTRACTION_VERSION} from '../server/docx-source-structure.mjs';
-import {HybridInputs} from './amendment-benchmark-hybrid.mjs';
+import {HybridInputs,compactHybridReceipt} from './amendment-benchmark-hybrid.mjs';
 import {RetainedInputs,retainedSummary} from './amendment-benchmark-retained.mjs';
 import {InputCache,apiOrigin,digest,outsideRepository,allowedInput} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,sourceReplay,publicDocumentUrl} from './amendment-benchmark-replay.mjs';
@@ -300,7 +300,8 @@ export async function main(args=process.argv.slice(2)) {
   if(snapshot.schemaVersion!==3||snapshot.apiBase!==opts.apiBase)throw new Error('Snapshot origin/schema mismatch; legacy live-projection snapshots need upstream acquisition in a new cache directory.');
   if(opts.sourceSelection&&!snapshot.snapshotId)throw new Error('--source-selection requires an existing sealed snapshot.');
   if(snapshot.snapshotId)await cache.seal(snapshot.manifest);
-  cache.hybridRows=snapshot.hybrid?.rows;
+  const hybridReceipt=compactHybridReceipt(snapshot.hybrid);
+  cache.hybridRows=hybridReceipt?.rows;
   opts.asOf=opts.asOf||snapshot.asOf;
   spool=await mkdtemp(path.join(output,'spool-'));
   const index=await catalogue(cache,opts,spool);
@@ -352,7 +353,7 @@ export async function main(args=process.argv.slice(2)) {
   if(JSON.stringify(code)!==JSON.stringify(await checkoutIdentity(runtimeRoot,runtime))||JSON.stringify(harness)!==JSON.stringify(await harnessIdentity(root)))throw new Error('Checkout changed during the run; replay the cached inputs offline before reporting a score.');
   const compatibility={...projectionCompatibility(resultRows,code),projectionMode:'cached-source-replay'};
   const scope=selection?'retained-source-selection-cached-sources':'full-pipeline-cached-sources';
-  const result={schemaVersion:3,scope,projectionMode:'cached-source-replay',verificationProtocols:[CITATION_NATIVE_PROTOCOL],liveComparison:{metrics:metrics(liveRows),rows:liveRows},snapshotId:resultSnapshotId,...(selection?{sourceSnapshotId:snapshotId,sourceSelection:selection.receipt()}:{}),sample,...(snapshot.hybrid?{hybrid:snapshot.hybrid}:{}),code,harness,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,...(diagnostics?{sourceDiagnostics:diagnostics}:{}),acquisition:{...(manifest.some(input=>input.acquisitionUnavailable||input.retainedSource)?{retained:retainedSummary(manifest)}:{}),amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
+  const result={schemaVersion:3,scope,projectionMode:'cached-source-replay',verificationProtocols:[CITATION_NATIVE_PROTOCOL],liveComparison:{metrics:metrics(liveRows),rows:liveRows},snapshotId:resultSnapshotId,...(selection?{sourceSnapshotId:snapshotId,sourceSelection:selection.receipt()}:{}),sample,...(hybridReceipt?{hybrid:hybridReceipt}:{}),code,harness,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,...(diagnostics?{sourceDiagnostics:diagnostics}:{}),acquisition:{...(manifest.some(input=>input.acquisitionUnavailable||input.retainedSource)?{retained:retainedSummary(manifest)}:{}),amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
   if(opts.baseline){const baseline=JSON.parse(await readFile(opts.baseline,'utf8'));result.comparison=(selection||baseline.sourceSelection?compareSelection:compareBaseline)(result,baseline,{placementOnly:opts.placementOnly});for(const warning of result.comparison.warnings||[])process.stderr.write('WARNING: '+warning+'\n');if(result.comparison.refused)process.stderr.write('BASELINE REFUSED: '+result.comparison.reason+'\n');}
 
   const stamp=digest(JSON.stringify({sample,inputs:result.inputs,code:result.code,harness,scope,diagnostics,...(selection?{selectionId:selection.id}:{})})).slice(0,16),jsonPath=path.join(output,'benchmark-'+stamp+'.json'),mdPath=path.join(output,'benchmark-'+stamp+'.md');
