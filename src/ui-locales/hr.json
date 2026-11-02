@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} zastupnika u Europskom parlamentu",
   "topics.story.count.mepsOne": "{count} zastupnik u Europskom parlamentu",
   "topics.policyAreaSource": "Nazivi područja politike: {source}.",
-  "topics.explorerTranslation": "Nazive područja politika preveo je preglednik."
+  "topics.explorerTranslation": "Nazive područja politika preveo je preglednik.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Izlaganja po mjesecima",
+  "groupvoices.contributions_by_sitting_day.77a719": "Izlaganja po danima zasjedanja"
 }

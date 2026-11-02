@@ -2657,5 +2657,8 @@
   "votegroups.all_agree.abstaining": "Every group's majority abstained.",
   "votegroups.line.split": "Split: {groups}",
   "topics.explorerTranslation": "Policy-area names translated by the explorer.",
-  "topics.policyAreaSource": "Policy-area names: {source}."
+  "topics.policyAreaSource": "Policy-area names: {source}.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Contributions by month",
+  "groupvoices.contributions_by_sitting_day.77a719": "Contributions by sitting day"
 }

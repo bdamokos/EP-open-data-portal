@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} EP-képviselő",
   "topics.story.count.mepsOne": "{count} EP-képviselő",
   "topics.policyAreaSource": "A szakpolitikai területek nevei: {source}.",
-  "topics.explorerTranslation": "A szakpolitikai területek nevét az adatböngésző fordította le."
+  "topics.explorerTranslation": "A szakpolitikai területek nevét az adatböngésző fordította le.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Felszólalások havonta",
+  "groupvoices.contributions_by_sitting_day.77a719": "Felszólalások ülésnaponként"
 }

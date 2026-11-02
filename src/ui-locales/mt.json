@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} Membru tal-PE",
   "topics.story.count.mepsOne": "{count} Membru tal-PE",
   "topics.policyAreaSource": "Ismijiet tal-oqsma ta’ politika: {source}.",
-  "topics.explorerTranslation": "L-ismijiet tal-oqsma ta’ politika ġew tradotti mill-għodda tal-esplorazzjoni."
+  "topics.explorerTranslation": "L-ismijiet tal-oqsma ta’ politika ġew tradotti mill-għodda tal-esplorazzjoni.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Interventi skont ix-xahar",
+  "groupvoices.contributions_by_sitting_day.77a719": "Interventi skont il-jum tas-seduta"
 }
