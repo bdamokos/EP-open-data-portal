@@ -191,7 +191,7 @@ const pointBase = unit => {
 function pointFamilyPosition(bases, wanted) {
   const all = [...bases, wanted];
   if (bases[0] === 'a' && all.every(base => /^[a-z]$/u.test(base))) return base => base.charCodeAt(0)-96;
-  if (bases[0] === 'i' && all.every(base => romanValue(base) !== null)) return romanValue;
+  if (bases[0] === 'i' && all.every(base => romanValue(base) !== null) && bases.every((base,index) => romanValue(base) === index+1)) return romanValue;
   return null;
 }
 // Published addresses may omit an article's sole unnumbered paragraph 1
@@ -382,6 +382,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
     if (lettered) {
       const position = pointFamilyPosition(siblings.sort((a,b) => a.start-b.start).map(pointBase), label.base);
       if (!position) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+      // Ordinals alone conflate spellings (iiii, iv); the anchor's exact base must match.
+      if (pointBase(anchor) !== String(label.base)) return fail('oracle-anchor-label-mismatch');
       siblings = siblings.map(u => ({...u, number:position(pointBase(u))}));
       anchor = {...anchor, number:position(pointBase(anchor))};
       wanted = position(label.base);

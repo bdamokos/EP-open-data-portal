@@ -72,3 +72,12 @@ test('a numeric family reached through the omitted paragraph rejects repeated la
   const placement=insert(twos[0].extent.end,twos[0].id);
   assert.notEqual(verifyPlacement({placement,wording:wording('Article 2 – point 2 a (new)'),items:[{proposal:p}]}).status,'verified');
 });
+
+test('Roman ordinals never stand in for a different spelling', () => {
+  const paragraphs=['Article 2','Lead:','(i) One;','(ii) Two;','(iiii) Four;','(v) Five.','Article 3'],styles=['Titrearticle','Normal','Point0','Point0','Point0','Point0','Titrearticle'];
+  const p=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),paragraphProperties:paragraphs.map((_,i)=>({styleId:styles[i],numberingComplete:true,notesComplete:true}))});
+  const flat=units=>units.flatMap(unit=>[unit,...flat(unit.children||[])]);
+  const odd=flat(p.units).find(unit=>unit.kind==='point'&&unit.label?.value==='iiii');
+  assert(odd);
+  assert.notEqual(verifyPlacement({placement:insert(odd.extent.end,odd.id),wording:wording('Article 2 – point iv a (new)'),items:[{proposal:p}]}).status,'verified');
+});
