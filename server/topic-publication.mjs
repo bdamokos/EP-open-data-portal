@@ -33,7 +33,7 @@ export async function rebuildTopicProjection(store,{generation=store.get('active
  const projectionBytes=Math.max(0,usedPages()-before)*store.db.prepare('PRAGMA page_size').get().page_size;
  store.transaction(()=>{store.assertWriter();if(store.get('active')!==generation)throw Error('Index generation changed during topic publication.');
   for(const [key,value] of staged){if(value&&typeof value==='object'&&value.generation===epoch)store.set(key,{...value,generation,...(['recordTopicProjection','storyProjection'].includes(key)?{dataGeneration:epoch}:{})});else store.set(key,value);}
-  store.set('previousTopicDataGeneration',null);store.set('topicProjectionDirty',false);store.set('storyProjectionDirty',false);store.set('topicProjectionPublishedAt',store.clock());store.set('topicProjectionSize',{bytes:projectionBytes,dataGeneration:epoch,measuredAt:new Date(store.clock()).toISOString()});
+  store.set('previousTopicDataGeneration',null);store.set('topicProjectionDirty',store.get('storyInputsAfterClassification')===true);store.set('storyInputsAfterClassification',false);store.set('storyProjectionDirty',false);store.set('topicProjectionPublishedAt',store.clock());store.set('topicProjectionSize',{bytes:projectionBytes,dataGeneration:epoch,measuredAt:new Date(store.clock()).toISOString()});
  });
  onProgress('published');
  // Readers already in a transaction retain the old publication through MVCC.

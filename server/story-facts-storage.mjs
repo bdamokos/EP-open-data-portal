@@ -75,21 +75,29 @@ export function* storyTopicObservations(store){
  }
 }
 
-// A held debate snapshot is the exact /events/{id} response. Pending story event jobs adopt
-// complete, error-free snapshots for the same ID at the snapshot's own fetch time and the
-// collector's rank, through the normal staging path, and settle without a network read.
-export function adoptHeldEventSnapshots(store,ids=null){
- const db=store.db;if(!db.prepare("SELECT 1 FROM sqlite_master WHERE name='sitting_snapshots'").get())return {adopted:0};
- const wanted=ids??db.prepare("SELECT id FROM story_jobs WHERE kind='event' AND state IN ('pending','unavailable')").all().map(r=>r.id);
+// A held debate snapshot is the exact /events/{id} response. Story event jobs adopt complete,
+// error-free snapshots for the same ID at the snapshot's own fetch time and the collector's rank,
+// through the normal staging path: pending jobs settle without a network read, and settled jobs
+// follow a newer held snapshot. Refresh intent stays with the debate collector. Each batch commits
+// on its own under the writer lease.
+export function adoptHeldEventSnapshots(store,{ids=null}={}){
+ const db=store.db;if(!db.prepare("SELECT 1 FROM sqlite_master WHERE name='sitting_snapshots'").get())return {adopted:0,changed:false};
+ const wanted=ids??db.prepare("SELECT id FROM story_jobs WHERE kind='event'").all().map(r=>r.id);
  const select=db.prepare("SELECT id,body FROM sitting_snapshots WHERE kind='debate' AND version=1 AND complete=1 AND error IS NULL AND id IN (SELECT value FROM json_each(?))");
+ const input=db.prepare("SELECT fetched_at FROM story_inputs WHERE kind='event' AND id=?");
  const settle=db.prepare("UPDATE story_jobs SET attempts=0,state='available',next_read=NULL,error=NULL WHERE key=? AND state IN ('pending','unavailable')");
  let adopted=0,changed=false;
  for(let i=0;i<wanted.length;i+=200){const batch=wanted.slice(i,i+200);
-  for(const row of select.all(JSON.stringify(batch))){let saved;try{saved=JSON.parse(gunzipSync(row.body,{maxOutputLength:SNAPSHOT_MAX_BYTES}).toString('utf8'));}catch{continue;}
-   const works=array(saved?.payload?.data),own=works.filter(w=>(w.activity_id||tail(w.id))===row.id);
-   if(own.length!==1||!saved.url||!saved.fetchedAt)continue;// only the exact item's own record
-   for(const w of works)changed=Boolean(stageStoryInput(store,w,{url:saved.url,fetchedAt:saved.fetchedAt},{rank:4}))||changed;
-   if(settle.run('event:'+row.id).changes)adopted++;}}
+  store.transaction(()=>{store.assertWriter();
+   for(const row of select.all(JSON.stringify(batch))){let saved;try{saved=JSON.parse(gunzipSync(row.body,{maxOutputLength:SNAPSHOT_MAX_BYTES}).toString('utf8'));}catch{continue;}
+    // Same identity check as a network read: exactly one root record, for this item.
+    const data=saved?.payload?.data;if(!Array.isArray(data)||data.length!==1||(data[0]?.activity_id||tail(data[0]?.id))!==row.id||!saved.url||!saved.fetchedAt)continue;
+    const at=sourceTime(saved.fetchedAt)||'',held=input.get(row.id);
+    if(!held||held.fetched_at<=at)changed=Boolean(stageStoryInput(store,data[0],{url:saved.url,fetchedAt:saved.fetchedAt},{rank:4}))||changed;
+    if(settle.run('event:'+row.id).changes)adopted++;}
+  });
+  store.renew?.();
+ }
  if(changed||adopted)store.set('topicProjectionDirty',true);
- return {adopted};
+ return {adopted,changed:changed||adopted>0};
 }
