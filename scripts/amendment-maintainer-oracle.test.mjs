@@ -25,3 +25,11 @@ test('a quoted numbered paragraph stops at the next paragraph with native double
  i.proposal.paragraphs[0].text='Article 1\nAmending provisions';i.placement.insertBefore=4;i.placement.insertAfter=3;
  assert.equal(assertMaintainerPrinciple(i).status,'verified');
 });
+
+test('a placed English amendment without an extracted target label stays unverified',()=>{
+ for(const label of [null,undefined]){
+  const i=input('(1a) New paragraph.',['(2) Article 4 is replaced by the following:','‘Article 4','Literacy','‘The Commission shall provide training.’;']);
+  i.wording.targetLabel=label;
+  assert.deepEqual(assertMaintainerPrinciple(i),{status:'unverified',reason:'oracle-maintainer-grammar-unavailable'});
+ }
+});
