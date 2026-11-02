@@ -2442,6 +2442,7 @@
   "topics.kind": "Records",
   "topics.allKinds": "All kinds",
   "topics.records": "Records",
+  "topics.untitled": "Untitled item",
   "topics.allQuarters": "All quarters",
   "topics.empty": "No matching records.",
   "topics.speechSummary": "Speeches: {count}",
