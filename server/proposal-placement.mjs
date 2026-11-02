@@ -226,6 +226,10 @@ function insertionPlacement(items,target,candidatesFor,eligible) {
   // the preceding new points (A-10-2026-0257 AM114-116 add i, ii and iii).
   if(!siblings.length&&!label.suffix&&!label.negative&&(label.value==='i'||/^[ivx]+$/u.test(label.value)&&romanNumber(label.value)<=30&&/^[a-z]$/u.test(parent?.unit.label?.value??''))&&parent?.unit.kind==='point'&&!parent.unit.children.length){
     if(!completeBoundary(parent.proposal,parent.unit))return {reason:'source_passage_incomplete'};
+    // Repeated Word styles can flatten a nested (i) beside (a) and (b): only an
+    // unbroken a, b, c... peer sequence establishes that the parent is childless.
+    const peers=flat(parent.proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind==='point'&&parentKey(unit)===parentKey(parent.unit)).sort((a,b)=>a.extent.start-b.extent.start);
+    if(!peers.every((unit,index)=>unit.label?.value===String.fromCharCode(97+index)))return {reason:'source_structure_unavailable'};
     return {itemIndex:parent.itemIndex,insertBefore:parent.unit.extent.end,anchor:parent.unit,basis:'childless-parent-end'};
   }
   let anchors;
