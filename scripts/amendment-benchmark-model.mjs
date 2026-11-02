@@ -67,6 +67,23 @@ export function parseBenchmarkTarget(wording) {
  return {raw,language:wording.language,complete:Boolean(segments),segments:segments||[],unparsed:segments?[]:['unsupported-oracle-grammar']};
 }
 
+// A present-text amendment that adds a numbered amending instruction is
+// asserted at the proposal address only: an insertion of that instruction,
+// printed with the same number at the start of the proposed column.
+export function instructionFrameWording(wording) {
+ if(wording?.baseline!=='present-text'||typeof wording.proposedText!=='string')return null;
+ const paths=wording.targetPath?.proposal||[];
+ if(paths.length>1)return null;
+ const raw=(paths.length?paths[0].raw:wording.targetLabel||'').split('\n')[0].trim();
+ if(!raw||raw.includes('—'))return null;
+ const segments=oracleAddress(raw,wording.language,{resolution:false}),last=segments?.at(-1);
+ if(segments?.[0]?.kind!=='article'||!last||!(last.isNew||last.negative)||!['point','article'].includes(last.kind))return null;
+ const number=String(last.value).replace(/^(-?\d+)([a-z]+)$/u,'$1 ?$2');
+ const printed=last.kind==='article'?new RegExp('^(?:Article|Artykuł) '+number+'(?![\\p{L}\\p{N}])','u'):new RegExp('^\\('+number+'\\)\\s|^'+number+'\\)\\s','u');
+ if(!printed.test(wording.proposedText.trim()))return null;
+ return {...wording,baseline:'commission-proposal',originalText:'',targetLabel:raw,targetPath:{...wording.targetPath,proposal:[{raw}],underlying:[]}};
+}
+
 // Fixed oracle policy, deliberately independent of the placer's normaliser.
 // Preserve case, accents, words and numbers. Strip only a published provision
 // prefix, enclosing quotes, whitespace and comparison-column terminators.
