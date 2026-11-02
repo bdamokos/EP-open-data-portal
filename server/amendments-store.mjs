@@ -7,6 +7,7 @@ import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import {committeeAmendmentReference,committeeScopeKey} from './committee-amendments.mjs';
+import {copyGenerationRows} from './generation-copy.mjs';
 const parse=value=>JSON.parse(value);
 export const amendmentLinkIndexVersion=1;
 export const amendmentParserUpgradeKey='amendment:parser-upgrade';
@@ -201,7 +202,7 @@ export function amendmentsCopy(db,generation,active) {
     db.prepare('INSERT OR IGNORE INTO amendment_dependency_bootstrap SELECT ?,stage,after_key,ready FROM amendment_dependency_bootstrap WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_member_current SELECT ?,target FROM amendment_member_current WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_member_pending SELECT ?,target FROM amendment_member_pending WHERE generation=?').run(generation,source);
-    db.prepare('INSERT OR IGNORE INTO amendment_targets SELECT ?,id,body FROM amendment_targets WHERE generation=?').run(generation,source);
+    copyGenerationRows(db,{table:'amendment_targets',key:'id',select:'INSERT OR IGNORE INTO amendment_targets SELECT ?,id,body FROM amendment_targets'},generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_jobs SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM amendment_jobs WHERE generation=? AND done=0').run(generation,source);
   }
   db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run('amendmentSnapshotGeneration',JSON.stringify(generation));
