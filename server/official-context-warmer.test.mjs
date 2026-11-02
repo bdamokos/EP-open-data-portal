@@ -152,3 +152,14 @@ test('retained pages are published and counted independently of a cancelled read
   const capacity=await cache.capacity();
   assert.equal(capacity.entries,1);assert(capacity.bytes>1000);assert.equal(capacity.state,'capacity');
 });
+
+test('discovery inside the step transaction enqueues procedures without nesting BEGIN',t=>{
+  const dir=mkdtempSync(path.join(os.tmpdir(),'official-warmer-nested-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const now=Date.parse('2026-11-01T12:00Z'),store=new ActivityStore(dir,{clock:()=>now});t.after(()=>store.close());store.acquire();store.set('active',1);
+  store.putSource(1,'/questions/1','document',{document_date:'2026-10-01',label:'2024/0001(COD)'},new Date(now).toISOString());
+  const warmer=new OfficialContextWarmer(store,{clock:()=>now});warmer.initialize();
+  // step() runs discover() inside one transaction, exactly as in production.
+  store.transaction(()=>warmer.discover());
+  assert.equal(store.db.prepare('SELECT count(*) n FROM official_context_jobs').get().n,24*3);
+  assert(store.get('officialContextCursor'),'the discovery cursor commits');
+});
