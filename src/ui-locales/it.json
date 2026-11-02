@@ -2363,5 +2363,6 @@
   "questionanswerer.signatory": "Risposta di: {person}, {institution}",
   "questionanswerer.institution": "Risposta di: {institution}",
   "questionanswerer.institution.commission": "Commissione europea",
-  "questionanswerer.institution.council": "Consiglio"
+  "questionanswerer.institution.council": "Consiglio",
+  "textsearch.advanced_options": "Altre opzioni"
 }

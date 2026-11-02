@@ -1,3 +1,4 @@
+import {defaultInterfaceLanguage} from './interfaceLanguage.mjs';
 import {reportUiError} from './errorDiagnostics.mjs';
 import {useUiI18n} from './UiI18nReact';
 import {Component,Fragment,useEffect,useId,useRef,useState,useSyncExternalStore,type ReactNode} from 'react';
@@ -8,8 +9,8 @@ import {LazyViewError} from './lazyView';
 import './recovery.css';
 
 function urlLanguage() {
-  const language=new URLSearchParams(location.search).get('lang')||'en';
-  return interfaceLanguages.includes(language) ? language : 'en';
+  const language=new URLSearchParams(location.search).get('lang')||'';
+  return interfaceLanguages.includes(language) ? language : defaultInterfaceLanguage();
 }
 
 function Recovery({language=urlLanguage(),navigation,retry}:{language?:string;navigation?:ReactNode;retry?:()=>void}) {

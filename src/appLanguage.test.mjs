@@ -153,7 +153,7 @@ for(const language of ['en','hu','fr']) {
     assert.equal(document.title,c.shell.replace('{title}',c.title));assert.equal(document.querySelector('title').lang,language);
     assert.equal(effectiveLanguage(exactText(h.container,'h1',c.title)),language);
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-filters input')),language);
-    const footerSelect=h.container.querySelector('.explorer-footer select');
+    const footerSelect=h.container.querySelector('.explorer-language-control select');
     assert.equal(effectiveLanguage(footerSelect),language);assert.equal(footerSelect.getAttribute('aria-label'),c.interface);
     for(const code of ['en','hu','fr','ga','mt'])assert.equal(effectiveLanguage(footerSelect.querySelector(`[value="${code}"]`)),code);
     const countries=[...h.container.querySelectorAll('.explorer-filter-line label')].find(node=>node.firstChild.textContent===c.country);
@@ -187,13 +187,13 @@ for(const language of ['en','hu','fr']) {
     assert.equal(body.textContent,'Texte français du discours.');assert.equal(effectiveLanguage(body.querySelector('p')),'fr');
     assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
     assert.equal(effectiveLanguage(detail.querySelector('h3')),language);
-    assert.equal(effectiveLanguage(detail.querySelector('.explorer-text-meta')),language);assert(detail.querySelector('.explorer-text-meta').textContent.includes(c.machine));
+    assert.equal(effectiveLanguage(detail.querySelector('.text-language-line')),language);assert(detail.querySelector('.text-language-line').textContent.includes(c.machine));
     assert.equal(effectiveLanguage(exactText(detail,'small',c.saved)),language);
     assert.equal(detail.querySelector('.explorer-source-link a'),null);
     assert.equal(effectiveLanguage(detail.querySelector('button.explorer-search-icon')),language);assert.equal(detail.querySelector('button.explorer-search-icon').getAttribute('aria-label'),c.find);
     await h.click(rows[1].querySelector('button'));
     const unknown=rows[1].querySelector('.explorer-transcript');assert.equal(effectiveLanguage(unknown.querySelector('p')),'');assert.equal(unknown.textContent,'Unspecified source transcript.');
-    assert.equal(rows[1].querySelector('.explorer-text-meta').textContent,'');
+    assert.equal(rows[1].querySelector('.text-language-line').textContent,'');
 
     await h.click(exactText(h.container,'.explorer-tabs button',c.profile));
     const born=[...h.container.querySelectorAll('.explorer-profile-body p')].find(node=>node.textContent===c.born.replace('{date}',date('1969-05-02',language)).replace('{place}','Jämsänkoski'));
@@ -258,6 +258,16 @@ test('linked-source fallback skips empty titles while preserving source language
   const title=fallback.querySelector('h3');assert.equal(title.textContent,'Do not select a later entry');assert.equal(effectiveLanguage(title),'fr');
   assert(fallback.querySelector('#document-'+questionId));
   assert.equal(fallback.querySelector('.explorer-publication-files a').href,download);
+  assert(fallback.querySelector('.explorer-publication-files small'),'English files under a Hungarian interface say the interface language is unavailable');
+});
+
+test('unlabelled publication files do not claim the interface language is unavailable',async t=>{
+  const h=await harness(t,'hu',{items:[],query:{member:String(member.id),module:'activities',activity:questionId},linkedDocument:{titles:{fr:'Titre'},files:[{format:'DOCX',url:download}]}});
+  const fallback=h.container.querySelector('aside.explorer-notice');
+  await h.click(exactText(fallback,'button',copy.hu.lookup));
+  const files=fallback.querySelector('.explorer-publication-files');
+  assert.equal(files.querySelector('a').href,download);assert.equal(Boolean(files.querySelector('small')),false,'no unavailable-language notice');
+  assert.equal(files.querySelectorAll('select').length,0,'files follow the interface language without a selector');
 });
 
 test('oral-question deep links show the body first and retain header, note and link provenance',async t=>{
@@ -286,11 +296,11 @@ const transcriptCases=[
   {name:'readable unknown language and original provenance',xml:readableXml,textLanguage:null,translationType:'original',prefix:'',provenance:'Original text',readable:true},
   {name:'readable unknown language and machine provenance',xml:readableXml,textLanguage:null,translationType:'machine',prefix:'',provenance:'Machine translation',readable:true},
   {name:'readable unknown language with an XML machine marker',xml:readableXml.replace('<speech>','<speech xml:lang="en-t-hu-mtec">'),textLanguage:null,translationType:'unspecified',prefix:'',provenance:'Machine translation',readable:true},
-  {name:'unavailable transcript',xml:null,textLanguage:null,translationType:'unspecified',prefix:'Text unavailable'},
+  {name:'unavailable transcript',xml:null,textLanguage:null,translationType:'unspecified',prefix:''},
   {name:'empty transcript with supplied language',xml:'<speech/>',textLanguage:'en',translationType:'original',prefix:'EN',provenance:'Original text'},
   // Happy DOM exposes a parser-error document directly; the browser fixture
   // separately exercises native DOMParser with malformed XML.
-  {name:'unreadable transcript with unknown language',xml:'<parsererror>Invalid XML fixture</parsererror>',textLanguage:null,translationType:'unspecified',prefix:'Text unavailable',unreadable:true},
+  {name:'unreadable transcript with unknown language',xml:'<parsererror>Invalid XML fixture</parsererror>',textLanguage:null,translationType:'unspecified',prefix:'',unreadable:true},
   {name:'unreadable transcript with supplied language',xml:'<parsererror>Invalid XML fixture</parsererror>',textLanguage:'fr',translationType:'original',prefix:'FR',provenance:'Original text',unreadable:true},
 ];
 for(const language of ['en','hu','fr'])test(language+': transcript availability stays distinct from language and provenance',async t=>{
@@ -299,7 +309,7 @@ for(const language of ['en','hu','fr'])test(language+': transcript availability 
     const prefix=metadataPrefix==='Text unavailable'?c.unavailable:metadataPrefix;
     const provenance=provenanceLabel==='Machine translation'?c.machine:provenanceLabel==='Original text'?c.original:provenanceLabel;
     const h=await harness(t,language,{items:[speeches[0]],query:{member:String(member.id),module:'speeches',speech:speeches[0].sourceId},speechResponse:{...response,availableTextLanguages:[]}});
-    const detail=h.container.querySelector('.explorer-speech-detail'),metadata=detail.querySelector('.explorer-text-meta');
+    const detail=h.container.querySelector('.explorer-speech-detail'),metadata=detail.querySelector('.text-language-line');
     assert.equal(effectiveLanguage(metadata),language);assert(metadata.textContent.startsWith(prefix));
     if(provenance)assert(metadata.textContent.includes(provenance));
     else assert.equal(metadata.textContent,prefix,'no language or provenance is inferred from readable text');

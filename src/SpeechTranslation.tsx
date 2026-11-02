@@ -28,5 +28,15 @@ export function useSpeechTranslation(id:string,requested:string) {
     {original ? <button type="button" onClick={()=>setChoice(null)}><UiMessage id="batch6.speechtranslation.show.translation.26"/>{current!.translation ? (` (${name(current!.translation)})`) : null}</button> : (source ? <button type="button" onClick={()=>setChoice({key,source,translation:body?.textLanguage??null})}><UiMessage id="batch6.speechtranslation.show.original.language.27" values={{language: name(source)}}/></button> : <span><UiMessage id="batch6.speechtranslation.original.language.unavailable.28"/></span>)}
   </span> : null;
   return {state:{...state,transcript:exactOriginal ? body : null},selected,control,reset:()=>setChoice(null),
-    originalGap:original&&!state.loading&&!exactOriginal};
+    showingOriginal:original,originalGap:original&&!state.loading&&!exactOriginal};
+}
+
+// The shown edition's code and provenance: "DE · Original text" or
+// "HU · Machine translation · Show original (German)".
+export function SpeechTextStatus({translation}:{translation:ReturnType<typeof useSpeechTranslation>}) {
+  const ui = useUiI18n();
+  const body=translation.state.transcript;
+  const provenance=translation.control||((body?.translationType==='original') ? ui.t("textsearch.original_text") : null);
+  if(!body?.textLanguage)return provenance;
+  return <span className="speech-text-status"><span lang="">{body.textLanguage.toUpperCase()}</span>{provenance&&<> · {provenance}</>}</span>;
 }

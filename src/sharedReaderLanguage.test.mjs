@@ -73,9 +73,13 @@ test('comparison source wording keeps exact actual/unknown metadata while Englis
     assert.equal(h.container.querySelector('.explorer-diff-reference').textContent,'Original');assert.equal(h.container.querySelectorAll('.explorer-diff-reference')[1].textContent,'Joint · Recital A');
     const sourceDate=h.container.querySelector('.explorer-diff-documents > div > span');assert.equal(effective(sourceDate),locale);
     assert.equal(sourceDate.textContent,new Intl.DateTimeFormat(locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date('2026-03-25')));
-    const selects=h.container.querySelectorAll('select');
-    assert.equal(effective(selects[0].querySelector('option')),'en');assert.equal(effective(selects[1]),'en');
-    for(const option of selects[1].options){assert.equal(effective(option),option.value);assert.equal(option.textContent,new Intl.DisplayNames([option.value],{type:'language'}).of(option.value));}
+    const stage=h.container.querySelector('.explorer-diff-controls select'),picker=h.container.querySelector('.text-language-line select');
+    assert.equal(effective(stage.querySelector('option')),'en');
+    // Only an admitted fallback edition offers a picker; unknown metadata keeps the requested choice.
+    if(actual&&actual!==locale&&['en','hu','fr'].includes(actual)) {
+      assert.equal(effective(picker),'en');
+      for(const option of picker.options){assert.equal(effective(option),option.value);assert.equal(option.textContent,new Intl.DisplayNames([option.value],{type:'language'}).of(option.value));}
+    } else assert.equal(picker,null);
     const fallback=h.container.querySelector('.text-language-note');
     if(actual&&actual!==locale){assert.equal(effective(fallback),'en');assert([...fallback.querySelectorAll('span')].every(node=>effective(node)===locale));assert.equal(fallback.textContent,new Intl.DisplayNames([locale],{type:'language'}).of(locale)+' unavailable in one or both texts · showing '+new Intl.DisplayNames([locale],{type:'language'}).of(actual));}
     else assert.equal(fallback,null,'unknown metadata never invents a fallback-language notice');

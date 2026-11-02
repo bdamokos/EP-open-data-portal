@@ -434,9 +434,11 @@ test('a failed adopted lookup offers retry without claiming that the selected te
 });
 
 test('references keep the interface language when the source text language changes',async t=>{
-  const h=await harness(t,(_route,params)=>response(report,sourceDocument(report,['Regulation (EU) 2021/2116.'],{textLanguage:params.get('lang'),availableTextLanguages:['en','fr']}),{requestedLanguage:params.get('lang')}));
+  // English is unavailable, so the reader falls back to German and offers the other editions.
+  const h=await harness(t,(_route,params)=>response(report,sourceDocument(report,['Regulation (EU) 2021/2116.'],{textLanguage:params.get('lang')==='en'?'de':params.get('lang'),availableTextLanguages:['de','fr']}),{requestedLanguage:params.get('lang')}));
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
-  await h.change(h.container.querySelector('select'),'fr');
+  assert.equal(h.container.querySelector('.document-context-text').lang,'de');
+  await h.change(h.container.querySelector('.text-language-line select'),'fr');
   assert.equal(h.container.querySelector('.document-context-text').lang,'fr');
   const lookups=h.requests.filter(route=>route.startsWith('references?'));
   assert(lookups.length>0);assert(lookups.every(route=>new URLSearchParams(route.split('?')[1]).get('lang')==='en'));
@@ -460,7 +462,7 @@ test('a verified matching-document translation renders its own wording and actua
   const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
   const block=h.container.querySelector('[data-amendment-block="true"][data-context-target="true"]');
   assert(block);assert(block.textContent.includes('Texte proposé'));assert(!block.textContent.includes('Proposed wording.'));
-  assert(h.container.querySelector('.document-context-language').textContent.includes('French'));
+  assert.equal(h.container.querySelector('.text-language-note').textContent,'English unavailable · showing French');
   assert.equal(h.container.querySelector('.document-context-text').lang,'fr');
 });
 
@@ -841,7 +843,7 @@ test('follow-up links prefer PDF per expression language, show dates and disclos
   assert.equal(rows[0].querySelector('time').textContent,'11 May 2026');assert.equal(rows[0].querySelector('time').dateTime,'2026-05-11');assert.equal(rows[1].querySelector('time'),null);
   const primary=rows[0].querySelector('a');assert.equal(primary.textContent,'English · PDF ↗');assert.equal(primary.hreflang,'en');assert.equal(primary.hasAttribute('lang'),false);assert.equal(primary.querySelector('span').lang,'en');assert.equal(primary.target,'_blank');assert.equal(primary.rel,'noreferrer');assert.equal(primary.getAttribute('aria-label'),'Commission follow-up, English, PDF');
   const disclosure=rows[0].querySelector('details');assert.equal(disclosure.querySelector('summary').textContent,'Other languages');assert.equal(disclosure.querySelectorAll('a').length,2);assert.equal(disclosure.querySelector('a').textContent,'French · PDF ↗');assert.equal(rows[1].querySelector('a').textContent,'English · Word document ↗');
-  assert.equal(h.container.querySelector('.document-context-language').nextElementSibling.className,'commission-followups');assert(!h.container.textContent.includes('92679'));assert(!h.container.textContent.includes('10 June'));
+  assert.equal(h.container.querySelector('.text-language-line').nextElementSibling.className,'commission-followups');assert(!h.container.textContent.includes('92679'));assert(!h.container.textContent.includes('10 June'));
 });
 test('follow-up file language labels use the interface language and preserve the target language',async t=>{
   const h=await harness(t,()=>response(adopted,sourceDocument(adopted),{requestedLanguage:'fr'}),()=>({status:'available',items:[followupItem('SP-one',[followupFile('fr'),followupFile('en')])],gaps:[]}));

@@ -2377,5 +2377,6 @@
   "questionanswerer.signatory": "Atsakė: {person}, {institution}",
   "questionanswerer.institution": "Atsakė: {institution}",
   "questionanswerer.institution.commission": "Europos Komisija",
-  "questionanswerer.institution.council": "Taryba"
+  "questionanswerer.institution.council": "Taryba",
+  "textsearch.advanced_options": "Daugiau parinkčių"
 }
