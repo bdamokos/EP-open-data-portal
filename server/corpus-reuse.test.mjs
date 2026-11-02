@@ -19,6 +19,7 @@ import {speechMedia} from './mmc.mjs';
 import {CorpusReader} from './corpus-reader.mjs';
 import {allowSlowCorpusReaders} from './test-support/corpus-reader.mjs';
 import {periodAvailability} from './source-availability.mjs';
+import {runWithRequestSignal} from './request-budget.mjs';
 
 const fetchedAt='2026-10-17T10:00:00Z',now=()=>Date.parse(fetchedAt),url='https://data.europarl.europa.eu/api/v2/speeches?include-output=xml_fragment';
 // One saved page per request, for tests of cursor and restart mechanics.
@@ -195,6 +196,16 @@ test('cloud requests read several saved pages, analyse once and stop a batch at 
   let calls=0;const busy=new SpeechCloudInsights(index,{clock:now,walkMs:{first:60_000,next:60_000},readCorpusPage:params=>++calls===2?null:retainedSpeechPage(params)});
   const partial=await busy.query(query);assert.equal(partial.coverage.transcripts,50);assert.equal(partial.nextPage,1);
   const resumed=await busy.query({...query,page:1});assert.equal(resumed.coverage.transcripts,121);assert.equal(resumed.nextPage,null);
+});
+test('a cancelled cloud batch restarts instead of serving a result behind its cursor',async t=>{
+  const {index,add}=fixture(t);for(let n=1;n<=121;n++)add(activity(n));
+  const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()}),controller=new AbortController();let reads=0;
+  const cloud=new SpeechCloudInsights(index,{clock:now,walkMs:{first:0,next:60_000},readCorpusPage:async params=>{if(++reads===3)controller.abort(new Error('owner timed out'));return retainedSpeechPage(params);}});
+  const first=await cloud.query(query),state=[...cloud.states.values()][0];
+  await assert.rejects(runWithRequestSignal(controller.signal,()=>cloud.buildCorpus(state,query,1,{pages:20,textBytes:4*1024*1024})),/owner timed out/);
+  assert.equal(state.dirty,true);assert.equal(state.result.nextPage,first.nextPage);
+  const restarted=await cloud.query({...query,page:first.nextPage});
+  assert.equal(restarted.coverage.transcripts,100);assert.equal(restarted.nextPage,2);assert.notEqual([...cloud.states.values()][0],state);
 });
 test('an unavailable corpus retains the existing public pagination fallback',async t=>{
   const {index}=fixture(t);let calls=0;

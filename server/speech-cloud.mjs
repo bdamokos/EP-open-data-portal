@@ -18,7 +18,7 @@ import {retainedSpeechPage} from './corpus-speeches.mjs';
 // A finished walk only serves its published result; keep no speech text in memory.
 const releaseTexts=state=>{if(!state.cursor)for(const record of state.records.values())record.text=null;};
 const calendarEvidence=scope=>scope.catalogue?{catalogueComplete:scope.catalogueComplete,catalogue:scope.catalogue}:{};
-export const SPEECH_CLOUD_VERSION=4;
+export const SPEECH_CLOUD_VERSION=5;
 const alternativeLanguages=state=>[...state.missingLanguageAlternatives].sort(([a],[b])=>a.localeCompare(b)).map(([language,count])=>({language,count}));
 function recordAlternatives(state,languages,requested) {
   for(const language of new Set(languages))if(language!==requested&&speechWordLanguages.includes(language))
@@ -106,6 +106,8 @@ export class SpeechCloudInsights {
     if(!state) {state={at:this.clock(),availabilityRevision:status.availabilityRevision,scope:null,cursor:{date:0,offset:0},page:-1,records:new Map(),seen:new Set(),scans:new Map(),sourceIssues:new Set(),duplicates:0,sources:[],rawRecords:0,missingLanguage:0,missingLanguageAlternatives:new Map(),invalidText:0,xmlBytes:0,textBytes:0,truncated:false,pending:null,result:null};this.states.set(key,state);while(this.states.size>CLOUD_LIMITS.queries)this.states.delete(this.states.keys().next().value);}
     try {
       if(state.pending)await waitForRequest(state.pending);
+      // A cancelled batch read pages past its published result: start again.
+      if(state.dirty){if(this.states.get(key)===state)this.states.delete(key);return await this.query(query,restarts);}
       if(state.result&&(state.page>=page||state.cursor===null))return state.result;
       const job=sharedRequest(()=>this.build(state,query,page)).finally(()=>{if(state.pending===job)state.pending=null;});state.pending=job;
       return await waitForRequest(job);
@@ -217,7 +219,7 @@ export class SpeechCloudInsights {
       try {
         result=state.corpusFirst||await this.readCorpusPage(this.corpusSelection(state,query,state.cursor.offset,read===0));
         requestSignal()?.throwIfAborted();
-      }catch(error){if(read)break;throw error;}
+      }catch(error){if(read&&!requestSignal()?.aborted)break;throw error;}
       if(!result){if(read)break;throw new HttpError(503,'corpus_unavailable','Saved speeches are temporarily unavailable. Please retry.');}
       if(result.changed)throw new HttpError(409,'corpus_changed','Saved speeches changed during loading. Please retry.');
       state.corpusRevision=result.revision;state.availability=result.coverage?.availability?.text||state.availability||null;state.corpusFirst=null;state.storedTotal=result.total;
@@ -241,20 +243,20 @@ export class SpeechCloudInsights {
             return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),role:header?.role||null,roleLanguage:header?.roleLanguage||null,roleLabels:header?.roleLabels||{},roleSource:header?.roleSource||{speechId:record.id,date:saved.summary.date,url:saved.sourceUrl,fetchedAt:saved.fetchedAt}};
           })});
       }
-      state.page++;read++;
+      state.page++;read++;state.dirty=true;
       if(result.truncated){state.sourceIssues.add('text-byte-limit');state.cursor=null;}
       if(state.cursor)state.cursor=result.nextOffset===null?null:{date:0,offset:result.nextOffset};
       if(state.page>=limits.pages-1&&state.cursor){state.sourceIssues.add('page-limit');state.cursor=null;}
     }
     const records=[...state.records.values()];state.truncated=state.sourceIssues.size>0;
-    const analysed=performance.now(),words=await cooperativeWork(analyzeSpeechCloudSteps(records,query.language));state.analysisMs=performance.now()-analysed;
+    const analysed=performance.now(),words=await cooperativeWork(analyzeSpeechCloudSteps(records,query.language),{signal:requestSignal()});state.analysisMs=performance.now()-analysed;
     state.result={view:'speech-cloud',availability:state.availability||sourceAvailability({sourceKey:'speech-text',family:'speeches',stage:'text',language:query.language,start:state.scope.dates[0]?.start,end:state.scope.dates.at(-1)?.end,limited:true,route:'public-api',observedRecords:records.length,checkedAt:state.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1),retention:state.corpusFirst?.missingRetainedLanguage?{reason:'language-not-retained',policy:state.corpusFirst.coverage?.availability?.text?.retention||null}:null}),scope:{kind:state.scope.kind,member:query.member,sitting:query.sitting,week:query.week,topic:query.topic,title:state.scope.title,titleLanguage:state.scope.titleLanguage,phase:state.scope.phase},
       language:query.language,availableAnalysisLanguages:speechWordLanguages,window:{start:state.scope.dates[0].start,end:state.scope.dates.at(-1).end,days:query.days},country:query.country,
       words,speeches:records.map(({text,analysisTitle,...speech})=>speech),
       coverage:{...calendarEvidence(state.scope),basis:'retained-corpus',transcripts:records.length,matchedSpeechRecords:state.rawRecords,missingLanguage:state.missingLanguage,missingLanguageAlternatives:alternativeLanguages(state),unreadableText:state.invalidText,complete:false,truncated:state.truncated,
         sourceRecords:{unique:state.rawRecords,declared:null,retained:state.storedTotal,duplicates:state.duplicates,issues:[...state.sourceIssues]},associationUnavailable:false,xmlBytes:state.xmlBytes,textBytes:state.textBytes},
       nextPage:state.cursor?state.page+1:null,sources:[...new Map(state.sources.map(source=>[JSON.stringify(source),source])).values()],computedAt:new Date(this.clock()).toISOString()};
-    releaseTexts(state);
+    state.dirty=false;releaseTexts(state);
     return state.result;
   }
 }
