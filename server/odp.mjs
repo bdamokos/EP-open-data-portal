@@ -1,3 +1,4 @@
+import {backfillContext,checkBackfillCapacity} from './base-source-backfill-context.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {retainedSpeechPage} from './corpus-speeches.mjs';
 import {organizationMembershipSnapshot,organizationMembershipStatus} from './organization-memberships.mjs';
@@ -54,7 +55,7 @@ const pending = new Map();
 // API v2 paths/IDs/queries. Reserve 100 starts (20%) for readers and other foreground work.
 export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:100});
 const pacing=odpPacing(process.env.ODP_REQUEST_MODE||'normal');
-const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing});
+const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing,backgroundPacing:pacing.mode==='backfill'});
 const observations=new OdpObservations({queue:()=>({...upstreamQueue.quotaSnapshot(),mode:pacing.mode}),onResponse:status=>upstreamQueue.recordResponse(status)});
 let upstreamBridge;
 export function setUpstreamBridge(bridge){upstreamBridge=bridge;}
@@ -77,9 +78,9 @@ wireCollectorAdmission(upstreamQueue);
 function sourceQueue(source,{backgroundRank=0}={}) {
   if(!['odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu'].includes(source))throw new Error('Unknown upstream source.');
   if(upstreamBridge)return upstreamBridge.queue(source);
-  if(!sourceQueues.has(source))sourceQueues.set(source,wireCollectorAdmission(new UpstreamQueue(source==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:{})));
+  if(!sourceQueues.has(source))sourceQueues.set(source,wireCollectorAdmission(new UpstreamQueue(source==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:source==='https://publications.europa.eu'?{rateLimit:{maximum:500,windowMs:300_000,foregroundReserve:100},interval:750,adaptive:true,backgroundPacing:true}:{})));
   const queue=sourceQueues.get(source);
-  if(source==='odp'&&backgroundRank>0&&!queue.adaptive){const mode=odpPacing('backfill');Object.assign(pacing,mode);queue.adaptive=true;queue.interval=Math.max(queue.interval,mode.interval);queue.minimumInterval=queue.interval;}
+  if(source==='odp'&&backgroundRank>0&&!queue.adaptive){const mode=odpPacing('backfill');Object.assign(pacing,mode);queue.adaptive=true;queue.backgroundPacing=true;queue.interval=Math.max(queue.interval,mode.interval);queue.minimumInterval=queue.interval;}
   return queue;
 }
 export const upstreamPortServices=()=>({queueFor:sourceQueue,observations});
@@ -169,7 +170,7 @@ export function odpLanguage(value) {
     );
   return value;
 }
-export async function boundedUpstream(operation, {source='odp',priority='interactive',signal=priority==='background'?undefined:requestSignal(),backgroundRank=0}={}) {
+export async function boundedUpstream(operation, {source='odp',priority=backfillContext()?'background':'interactive',signal=priority==='background'?undefined:requestSignal(),backgroundRank=backfillContext()?1:0}={}) {
   const queue=sourceQueue(source,{backgroundRank});
   return queue.run(operation,{priority,signal,backgroundRank});
 }
@@ -177,9 +178,9 @@ export function backoffUpstream(seconds,{source='odp'}={}) {
   sourceQueue(source).backoff(seconds);
 }
 export function upstreamResponseError(response,{source='odp'}={}) {
+  sourceQueue(source).recordResponse?.(response.status??response.statusCode);
   if(![429,503].includes(response.status??response.statusCode))return null;
   const seconds=retryAfterSeconds(response.headers?.get?response.headers.get('retry-after'):response.headers?.['retry-after']);
-  sourceQueue(source).recordResponse?.(response.status??response.statusCode);
   backoffUpstream(seconds,{source});
   return Object.assign(new HttpError(503,'upstream_busy','The public source is temporarily limiting requests. Please try again after the pause.'),{retryAfter:seconds,retryAt:Date.now()+seconds*1000});
 }
@@ -342,9 +343,11 @@ function observeSource(entry,priority,signal) {
 export async function odp(
   endpoint,
   params = {},
-  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, retain=true, cacheGroup=null,priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
+  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, retain=true, cacheGroup=null,priority=backfillContext()?'background':'interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
+  checkBackfillCapacity();
+  if(backfillContext()){ttl=Infinity;staleWhileRevalidate=false;}
   // All agenda consumers share one policy, including live-status and vote reads.
   // Explicit maintenance refreshes still use force; cache age alone never
   // re-downloads a completed week's agenda.
@@ -372,6 +375,10 @@ export async function odp(
         else if(saved.cacheGroup==='plenary')plenaryBudget.used(path.basename(filename(key,'plenary')));
       }
     } catch { /* Missing or invalid reproducible cache. */ }
+  }
+  if(!stored&&backfillContext()){
+    const held=await backfillContext().held?.({url:key,accept:'application/ld+json'});
+    if(held)stored={url:key,payload:JSON.parse(held.buffer),fetchedAt:Date.parse(held.record.fetchedAt)};
   }
   signal?.throwIfAborted();
   if(stored&&validate) {
@@ -410,7 +417,7 @@ export async function odp(
       const reschedule=new AbortController();
       try {
         // Each attempt is admitted separately, including background retries.
-        const response = await sourceQueue('odp').runHeld(releaseSlot=>{
+        const response = await sourceQueue('odp',{backgroundRank:backfillContext()?1:0}).runHeld(releaseSlot=>{
           // Retain the connection through status handling and body consumption.
           release=releaseSlot;
           return observedOdpFetch(url, {
@@ -422,7 +429,7 @@ export async function odp(
           signal: AbortSignal.any([reschedule.signal,AbortSignal.timeout(25_000),...(budget.signal?[budget.signal]:[])]),
           redirect: 'error',
           });
-        },{priority:entry.readers>0||!entry.backgroundOwner?'interactive':'background',signal:budget.signal,owner:entry,backgroundOwner:entry.backgroundOwner,yieldBackground:()=>reschedule.abort()});
+        },{priority:entry.readers>0||!entry.backgroundOwner?'interactive':'background',signal:budget.signal,owner:entry,backgroundOwner:entry.backgroundOwner,backgroundRank:backfillContext()?1:0,yieldBackground:()=>reschedule.abort()});
         if(response.status===429||response.status===503){
           const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
           rateFailures++;

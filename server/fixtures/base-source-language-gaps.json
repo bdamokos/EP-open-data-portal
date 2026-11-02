@@ -1,0 +1,78 @@
+{
+  "scope": "Exact public URLs and observation states supplied in the scoped inventory; test DOCX packages and distribution metadata are synthetic.",
+  "snapshotId": "b4b11eb1cfa9491196d8ed34c01a513dee716637db8152997e516359c17bf188",
+  "cases": [
+    {
+      "target": "B-10-2026-0406",
+      "listId": "B-10-2026-0406-AM-001-006",
+      "language": "fr",
+      "listObservation": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0406-AM-001-006/B-10-2026-0406-AM-001-006_fr.docx",
+        "state": "absent"
+      },
+      "baseObservation": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe/B-10-2026-0406/B-10-2026-0406_fr.docx",
+        "state": "observed",
+        "nativeUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe/B-10-2026-0406/B-10-2026-0406_fr.docx",
+        "bytes": 48709,
+        "sha256": "82b1ba902c8f8208183f01c669c9c15f0af2cf253f647b9c05df1ed115c80d8e",
+        "hashVerified": true,
+        "ok": true
+      }
+    },
+    {
+      "target": "A-10-2026-0103",
+      "listId": "A-10-2026-0103-AM-016-019",
+      "language": "fr",
+      "listObservation": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0103-AM-016-019/A-10-2026-0103-AM-016-019_fr.docx",
+        "state": "absent"
+      },
+      "baseObservation": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0103/A-10-2026-0103_fr.docx",
+        "state": "observed",
+        "nativeUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0103/A-10-2026-0103_fr.docx",
+        "bytes": 75439,
+        "sha256": "68fc98f61d851f354cd2acfd05d7997686d93419b0ad0d56e2da4a1149b426cc",
+        "hashVerified": true,
+        "ok": true
+      }
+    },
+    {
+      "target": "A-10-2026-0170",
+      "listId": "A-10-2026-0170-AM-001-001",
+      "language": "de",
+      "listObservation": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0170-AM-001-001/A-10-2026-0170-AM-001-001_de.docx",
+        "state": "absent"
+      },
+      "baseObservation": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0170/A-10-2026-0170_de.docx",
+        "state": "observed",
+        "nativeUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0170/A-10-2026-0170_de.docx",
+        "bytes": 44578,
+        "sha256": "22f6d103b1d2f2fbda9c47ff6ce1bcc05d890c785bf4d661ee69547fdd3c3f2c",
+        "hashVerified": true,
+        "ok": true
+      }
+    },
+    {
+      "target": "A-10-2026-0171",
+      "listId": "A-10-2026-0171-AM-001-007",
+      "language": "fr",
+      "listObservation": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0171-AM-001-007/A-10-2026-0171-AM-001-007_fr.docx",
+        "state": "absent"
+      },
+      "baseObservation": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0171/A-10-2026-0171_fr.docx",
+        "state": "observed",
+        "nativeUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0171/A-10-2026-0171_fr.docx",
+        "bytes": 54646,
+        "sha256": "ab5c7a026f3f43c9a8b59f92e28d283560bde07076285793c6f1712ac15e548d",
+        "hashVerified": true,
+        "ok": true
+      }
+    }
+  ]
+}

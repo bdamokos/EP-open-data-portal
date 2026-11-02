@@ -1,3 +1,4 @@
+import {prepareBaseBackfill} from './base-source-backfill.mjs';
 export const OFFICIAL_CONTEXT_STATUS_VERSION=1;
 export const DOCUMENT_BODY_STATUS_VERSION=1;
 import {prepareDocumentBodies} from './document-body-collector.mjs';
@@ -28,10 +29,12 @@ import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches,GAP_LIMIT} from './refresh-policy.mjs';
+import {copyGenerationRows} from './generation-copy.mjs';
 
 // Defaults gate both normal construction and writer acquisition. The explicit
 // exceptions preserve preparations historically allowed during normal acquire().
 export const ACTIVITY_SCHEMA_GATES=Object.freeze([
+  {key:'baseBackfillSchema',value:1,constructorGate:false},
   {key:'resourceIndexes',value:1},
   {key:'availabilityHistoryVersion',value:availabilityHistoryVersion,constructorGate:false,writerGate:false},
   {key:'fastReadSchemaVersion',value:1,constructorGate:false,writerGate:false},
@@ -135,6 +138,7 @@ export class ActivityStore {
       if(!this.initializeIndexes&&ACTIVITY_SCHEMA_GATES.some(gate=>gate.writerGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       initializeAvailabilityHistory(this);
+      if(this.get('baseBackfillSchema')!==1){prepareBaseBackfill(this);initialized=true;}
       if(this.get('documentBodySchema')!==1){prepareDocumentBodies(this);initialized=true;}
       if(this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA){prepareSittingSnapshots(this);initialized=true;}
       // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
@@ -258,7 +262,7 @@ export class ActivityStore {
       if (active) {
         this.pruneGenerations(active);
         this.set('previous',null);
-        this.db.prepare('INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources WHERE generation=?').run(generation,active);
+        copyGenerationRows(this.db,{table:'sources',key:'key',select:'INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources'},generation,active);
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
         copyQuestionFiles(this.db,generation,active);
         this.db.prepare('INSERT INTO refresh_gaps SELECT ?,key,kind,body,priority,error,attempts,failed_at,retry_at,sitting_id FROM refresh_gaps WHERE generation=?').run(generation,active);
