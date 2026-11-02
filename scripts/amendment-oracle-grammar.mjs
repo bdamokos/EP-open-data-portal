@@ -153,7 +153,7 @@ const instructionVerbs={
  ga:'leasaítear|cuirtear|cuirfear|scriostar|ionadaítear',hr:'mijenja se|zamjenjuje se|zamjenjuju se|umeće se|umeću se|dodaje se|dodaju se|briše se',
  hu:'módosul|helyébe|egészül ki|el kell hagyni|kiegészül',it:'è così modificato|è sostituit|sono sostituit|è inserit|sono inserit|sono aggiunt|è aggiunt|è soppres',
  lt:'keičiamas|keičiama|pakeičiam|įterpiam|pridedam|išbraukiam|papildomas|papildoma',lv:'groza šādi|aizstāj|iekļauj|pievieno|svītro',
- mt:'emendat|sostitwit|jiddaħħal|jiddaħħlu|jiżdied|jiżdiedu|jitħassar|tiddaħħal',nl:'wordt als volgt gewijzigd|wordt vervangen|worden vervangen|wordt ingevoegd|worden ingevoegd|worden toegevoegd|wordt toegevoegd|wordt geschrapt|vervangen door|alinea toegevoegd|lid toegevoegd|punten toegevoegd|artikelen ingevoegd|afdelingen ingevoegd|afdeling II ingevoegd|lid 2 geschrapt',
+ mt:'emendat|sostitwit|jiddaħħal|jiddaħħlu|jiżdied|jiżdiedu|jitħassar|tiddaħħal',nl:'wordt als volgt gewijzigd|wordt vervangen|worden vervangen|wordt ingevoegd|worden ingevoegd|worden toegevoegd|wordt toegevoegd|wordt geschrapt|vervangen door|alinea toegevoegd|lid toegevoegd|punten toegevoegd|artikelen ingevoegd|afdelingen ingevoegd|afdeling II ingevoegd|lid 2 geschrapt|lid \\d+ toegevoegd',
  pl:'wprowadza się|otrzymuje brzmienie|dodaje się|zastępuje się|uchyla się|otrzymują brzmienie',pt:'é alterad|são alterad|passa a ter|passam a ter|é aditad|são aditad|é substituíd|são substituíd|é suprimid|é inserido|é inserida|são inseridos|são inseridas',
  ro:'se modifică|se înlocuiește|se înlocuiesc|se introduce|se introduc|se adaugă|sunt înlocuite|sunt adăugate|se elimină',
  sk:'sa mení|sa nahrádza|sa nahrádzajú|sa vkladá|sa vkladajú|sa dopĺňa|sa dopĺňajú|dopĺňajú sa|sa vypúšťa|nahrádza|nahrádzajú|vkladá|vkladajú',
