@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} europoslancov",
   "topics.story.count.mepsOne": "{count} europoslanec",
   "topics.policyAreaSource": "Názvy oblastí politiky: {source}.",
-  "topics.explorerTranslation": "Názvy oblastí politiky preložené prieskumníkom."
+  "topics.explorerTranslation": "Názvy oblastí politiky preložené prieskumníkom.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Vystúpenia podľa mesiacov",
+  "groupvoices.contributions_by_sitting_day.77a719": "Vystúpenia podľa rokovacích dní"
 }

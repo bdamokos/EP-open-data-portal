@@ -2513,5 +2513,8 @@
   "topics.story.count.meps": "{count} EP narių",
   "topics.story.count.mepsOne": "{count} EP narys",
   "topics.policyAreaSource": "Politikos sričių pavadinimai: {source}.",
-  "topics.explorerTranslation": "Politikos sričių pavadinimus išvertė duomenų naršymo priemonė."
+  "topics.explorerTranslation": "Politikos sričių pavadinimus išvertė duomenų naršymo priemonė.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Pasisakymai pagal mėnesius",
+  "groupvoices.contributions_by_sitting_day.77a719": "Pasisakymai pagal posėdžių dienas"
 }

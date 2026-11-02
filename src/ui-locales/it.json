@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} deputati",
   "topics.story.count.mepsOne": "{count} deputato",
   "topics.policyAreaSource": "Nomi dei settori d’intervento: {source}.",
-  "topics.explorerTranslation": "Nomi dei settori di intervento tradotti dall’esploratore."
+  "topics.explorerTranslation": "Nomi dei settori di intervento tradotti dall’esploratore.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Interventi per mese",
+  "groupvoices.contributions_by_sitting_day.77a719": "Interventi per giorno di seduta"
 }
