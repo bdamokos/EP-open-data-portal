@@ -4,7 +4,9 @@ import {mkdtemp,mkdir,writeFile,readFile,rm,readdir,symlink} from 'node:fs/promi
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {amendmentReadVersion} from '../server/amendments-store.mjs';
+import {amendmentsPage,amendmentReadVersion} from '../server/amendments-store.mjs';
+import {AMENDMENT_EXTRACTION_VERSION} from '../server/amendment-documents.mjs';
+import {AMENDMENT_LINKS_VERSION} from '../server/activity-index-model.mjs';
 import {RetainedInputs} from './amendment-benchmark-retained.mjs';
 import {InputCache,digest} from './amendment-benchmark-cache.mjs';
 import {options,evaluateReport,main} from './amendment-benchmark.mjs';
@@ -18,6 +20,7 @@ async function fixture(t){
 c=sqlite3.connect(sys.argv[1])
 for key,value in {'active':21,'working':{'generation':22},'refreshPolicyGeneration':21,'amendmentSnapshotGeneration':22,'amendmentReadVersion':sys.argv[2]}.items(): c.execute('INSERT INTO meta VALUES (?,?)',(key,json.dumps(value)))
 for sql in [
+ 'CREATE VIRTUAL TABLE question_title_search USING fts5(body)',
  'CREATE TABLE amendments(generation INTEGER,target TEXT,id TEXT,date TEXT,outcome TEXT,body TEXT)',
  'CREATE TABLE amendment_targets(generation INTEGER,id TEXT,body TEXT)',
  'CREATE TABLE amendment_read_flags(generation INTEGER,target TEXT,wording INTEGER,proposer INTEGER,splits INTEGER,freshness INTEGER)',
@@ -26,7 +29,8 @@ for sql in [
  'CREATE TABLE sources(generation INTEGER,key TEXT,kind TEXT,body TEXT,fetched_at TEXT)',
  'CREATE TABLE tasks(generation INTEGER,kind TEXT,done INTEGER)',
  'CREATE TABLE amendment_split_failures(body TEXT)']: c.execute(sql)
-c.commit();c.close()`,path.join(root,'index/activities-v1.sqlite'),String(amendmentReadVersion)]);
+# VACUUM copies place FTS shadow tables before their virtual-table entry.
+c.commit();c.execute('VACUUM');c.close()`,path.join(root,'index/activities-v1.sqlite'),'93a347b84b2a87bb3c9d3964bb35d892af0094c30be64db77d546d5fc47ca6e2']);
  const body=Buffer.from('exact retained bytes'),language='http://publications.europa.eu/resource/authority/language/ENG',celex='52026PC0001',itemId=url.replace('https:','http:'),identity=JSON.stringify([celex,language,itemId,'docx']),key=digest(identity);
  const source={schemaVersion:1,key,identity,celex,language,itemId,url,resolvedSourceUrl:url,format:'DOCX',accept,contentType:accept,sha256:digest(body),fetchedAt:'2026-10-30T12:00:00Z',checkedAt:'2026-10-30T12:00:00Z'};
  const file=path.join(root,'cache/commission-proposals-v1',key+'.json');
@@ -246,4 +250,38 @@ c.commit();c.close()`,path.join(f.root,'index/activities-v1.sqlite'),document]);
  const metadata=await cache.get('https://data.europarl.europa.eu/api/v2/plenary-documents/'+document+'?format=application%2Fld%2Bjson',{accept:'application/ld+json'});
  assert.equal(metadata.status,null);assert.equal(metadata.fetchedAt,null);assert.equal(metadata.localProjection.sourceFetchedAt,'2026-10-30T00:00:00Z');
  const manifest=cache.manifest();await cache.seal(manifest);assert.deepEqual(await tree(f.root),before);
+});
+
+
+test('stale published proof flags are derived with current guards without touching the copy',async t=>{
+ const f=await fixture(t),document='B-10-2026-0001';
+ const rows=Array.from({length:51},(_,i)=>({id:document+'-AM-'+(i+1),targetDocumentId:document,number:i+1,language:'en',decisions:[]}));
+ Object.assign(rows[50],{listId:document+'-AM-001-051',textParserVersion:AMENDMENT_EXTRACTION_VERSION-1,originalText:'Old wording',proposedText:'Old proposal',authors:[{name:'Unverified',status:'resolved',personId:'1'}],decisions:[{id:'split',partId:'part-1'}],sourceFreshness:{version:0,status:'fresh'}});
+ await seed(f,rows);
+ execFileSync('python3',['-c',`import sqlite3,sys,json
+c=sqlite3.connect(sys.argv[1])
+c.execute('UPDATE amendment_targets SET body=?',(json.dumps({'id':sys.argv[2],'complete':True,'listProjectionVersion':int(sys.argv[3])}),))
+for generation in [21,22]:
+ for i in range(51): c.execute('INSERT INTO amendment_read_flags VALUES (?,?,?,?,?,?)',(generation,sys.argv[2],0 if generation==21 else 1,0,0,0))
+c.execute("UPDATE amendments SET body=json_remove(body,'$.listId','$.textParserVersion','$.originalText','$.proposedText','$.authors','$.decisions','$.sourceFreshness') WHERE generation=22")
+c.commit();c.close()`,path.join(f.root,'index/activities-v1.sqlite'),document,String(AMENDMENT_LINKS_VERSION)]);
+ const before=await tree(f.root),reader=await RetainedInputs.open(f.root);t.after(()=>reader.close());
+ const directory=await mkdtemp(path.join(os.tmpdir(),'retained-stale-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+ const cache=new InputCache(directory,{retained:reader,apiBase:'https://explorer.test',cap:0,fetcher:()=>assert.fail('network denied')});
+ for(const offset of [0,50]) {
+  const {value}=await cache.json('https://explorer.test/api/amendments?'+new URLSearchParams({document,limit:'50',offset:String(offset)}));
+  assert.equal(value.total,51);assert.equal(value.items.length,offset?1:50);assert.equal(value.coverage.servingGeneration,21);
+  assert.equal(value.coverage.observationComplete,false);assert.ok(value.items.every(row=>row.title==='Generation 21'));
+  for(const pattern of [/current document parser/,/proposer date/,/split/i,/wording source distributions/])assert.ok(value.coverage.gaps.some(gap=>pattern.test(gap)),String(pattern));
+  if(offset) {assert.equal(value.items[0].originalText,null);assert.equal(value.items[0].authors[0].personId,null);assert.equal(value.items[0].sourceFreshness.status,'unverified');}
+ }
+ const flags=reader.projections.db.prepare('SELECT generation,id,wording,proposer,splits,freshness FROM amendment_read_flags ORDER BY id').all();
+ assert.equal(flags.length,51);assert.ok(flags.every(row=>row.generation===21));
+ const bad=flags.find(row=>row.id===rows[50].id);assert.deepEqual([bad.wording,bad.proposer,bad.splits,bad.freshness],[1,1,1,1]);
+ assert.ok(flags.filter(row=>row!==bad).every(row=>!row.wording&&!row.proposer&&!row.splits&&!row.freshness));
+ assert.equal(reader.projections.get('amendmentReadVersion'),amendmentReadVersion);
+ assert.throws(()=>reader.projections.db.prepare('UPDATE amendments SET body=body'),/SELECT-only/);
+ assert.throws(()=>reader.projections.db.prepare('PRAGMA query_only=OFF'),/SELECT-only/);
+ assert.throws(()=>amendmentsPage({get:()=> 'stale'}),/preparing its local query indexes/);
+ assert.deepEqual(await tree(f.root),before);
 });
