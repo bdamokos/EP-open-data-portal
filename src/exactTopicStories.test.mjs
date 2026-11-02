@@ -135,3 +135,7 @@ test('months: the busiest-quarter reference names months in the interface langua
  const row=buildExactTopicStories(x,{place:'IRN',language:'en',labels:{IRN:'Iran'}}).find(r=>r.id==='topics.story.place.summary.peak');
  assert.match(lineText([row]),/^Busiest quarter: January\s*[–-]\s*March 2026\.$/);assert.equal(row.values.quarter[0].period,'2026-Q1','links keep the quarter key');
 });
+
+test('record page month ranges cover complete baseline periods without changing quarter keys',async()=>{
+ const {monthRangeLabel}=await import('./topicPresentation.mjs');assert.match(monthRangeLabel('2026-Q1,2026-Q2','en'),/January.*June 2026/);assert.match(monthRangeLabel('2024-Q4,2026-Q2','en'),/October 2024.*June 2026/);assert.equal(monthRangeLabel('bad','en'),'bad');
+});

@@ -27,7 +27,8 @@ export function legacyTopics(query){if(query.get('view')!=='legislation'||query.
 export function withBoundaryTies(rows,limit,score){if(rows.length<=limit)return rows;const cut=score(rows[limit-1]);let end=limit;while(end<rows.length&&score(rows[end])===cut)end++;return rows.slice(0,end);}
 
 // "January–March 2026" in the interface language; URLs and compact labels keep "2026-Q1".
-export function monthRangeLabel(period,language='en'){const m=/^(\d{4})-Q([1-4])$/.exec(String(period||''));if(!m)return String(period||'');
- const year=Number(m[1]),first=(Number(m[2])-1)*3,start=new Date(Date.UTC(year,first,15)),end=new Date(Date.UTC(year,first+2,15));
+export function monthRangeLabel(period,language='en'){
+ const periods=String(period||'').split(',').sort(),bounds=periods.map(quarterBounds);if(bounds.some(value=>!value))return String(period||'');
+ const start=new Date(bounds[0].from+'T12:00:00Z'),end=new Date(bounds.at(-1).to+'T12:00:00Z');
  const format=new Intl.DateTimeFormat(language==='en'?'en-GB':language,{month:'long',year:'numeric',timeZone:'UTC'});
  return typeof format.formatRange==='function'?format.formatRange(start,end):format.format(start)+' – '+format.format(end);}

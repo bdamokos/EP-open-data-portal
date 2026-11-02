@@ -1,3 +1,4 @@
+import {storyLinkClick,focusStoryLink} from './storyLinkNavigation';
 import {usePolicyAreaLabels} from './PolicyAreaSources';
 import {buildExactTopicStories,storyFactsRoute,storyRecord} from './exactTopicStories.mjs';
 import {useInsightData} from './InsightData';
@@ -6,7 +7,7 @@ import {UiMessage,useUiI18n} from './UiI18nReact';
 import {updateExplorerQuery,useExplorerParam} from './explorerUrl';
 import {buildReferenceTopicStories,normalizeReferenceStoryFacts,type StoryRecord,type StoryFacts,type StorySelection,type StoryValue,type StoryReference} from './topicStoryModel.mjs';
 import {storyLinkClaims,storySetKey,parseStorySetKey} from './storyLinkModel.mjs';
-import {topicsHref} from './topicPresentation.mjs';
+import {topicsHref,monthRangeLabel,quarterBounds} from './topicPresentation.mjs';
 import {recordHref} from './TopicsLinks';
 import {dossierLinkClick} from './dossierJourney';
 import {InsightQuestionReader} from './InsightReaders';
@@ -21,7 +22,7 @@ export function TopicStories({selection,fallback,facts:provided,onRecords}:{sele
  const facts=provided?normalizeReferenceStoryFacts(provided):null;
  const lines=provided?storyLinkClaims(buildReferenceTopicStories(facts,{...selection,language:ui.language,proseLanguage:ui.messageLocale('topics.story.ordinal.other')}),selection):buildExactTopicStories(response.data,{...selection,language:ui.language});
  const heading=useRef<HTMLParagraphElement>(null);
- useEffect(()=>{if(selected)return;const id=history.state?.storyLinkId;if(id){const link=document.getElementById(id);if(link){link.focus({preventScroll:true});window.scrollTo?.(0,history.state.storyScroll||0);}}},[selected,lines.length]);
+ useEffect(()=>{if(!selected)focusStoryLink();},[selected,lines.length]);
  if(selected)return <TopicStoryRecords key={selected} selection={selection}/>;
  if(!lines.length)return <>{response.error||response.data?.ready===false||!response.data?fallback:null}</>;
  const text=(v:StoryValue):string=>v==null?'':typeof v==='string'?v:Array.isArray(v)?new Intl.ListFormat(ui.language==='en'?'en-GB':ui.locale,{type:'conjunction'}).format(v.map(text)):'text'in v?text(v.text):ui.t(v.message,Object.fromEntries(Object.entries(v.values).map(([k,x])=>[k,text(x)])),v.counts);
@@ -36,12 +37,12 @@ export function TopicStories({selection,fallback,facts:provided,onRecords}:{sele
   const id='story-link-'+encodeURIComponent(v.setKey||storySetKey(v,{...selection,period:v.period||selection.period}));
   const visible=text(v.text),count=(typeof v.text==='object'?v.text.counts?.count:undefined)??v.expected,b=v.browse,placeName=b?.places?new Intl.ListFormat(ui.language==='en'?'en-GB':ui.locale,{type:'conjunction'}).format(b.places.split(',').map(p=>selection.labels?.[p]||p)):selection.labels?.[b?.place||selection.place||'']||b?.place||selection.place;
   const pageName=count&&b&&placeName?ui.t(b.places?'topics.story.links.tieHeading':'topics.story.links.heading',{count,kind:ui.t('topics.story.links.kind.'+b.list,{count},{count}),place:placeName,places:placeName}):'';
-  const accessible=pageName.toLocaleLowerCase().includes(visible.toLocaleLowerCase())?pageName+(selection.period?', '+selection.period.replace('-',' '):''):undefined;
+  const accessible=pageName.toLocaleLowerCase().includes(visible.toLocaleLowerCase())?pageName+(selection.period?', '+monthRangeLabel(selection.period,ui.language):''):undefined;
   return <a id={id} href={href} aria-label={accessible} onClick={e=>{
    if(e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
    if(v.pageRecords&&onRecords){e.preventDefault();onRecords(v.period,text(v.text),id);return;}
    if(v.period){e.preventDefault();setQuarter(v.period);requestAnimationFrame(()=>{heading.current?.focus();});return;}
-   history.replaceState({...history.state,storyLinkId:id,storyScroll:window.scrollY},'');dossierLinkClick(e);
+   storyLinkClick(e,id);
   }}>{v.italic?<i lang={v.titleLanguage===undefined?'en':v.titleLanguage||''}>{label}</i>:label}</a>;
  };
  return <div className="topic-stories"><p className="topic-story" ref={heading} tabIndex={-1}>{lines.map((line,i)=><span key={line.id+'-'+i}><UiMessage id={line.id} values={renderValues(line.values,String(i))} counts={line.counts}/>{' '}</span>)}</p>{selection.mode==='d'&&<p className="topic-muted"><UiMessage id="topics.story.jointOnce"/></p>}</div>;
@@ -82,10 +83,11 @@ export function TopicStoryRecords({selection}:{selection:StorySelection}){
  const idKinds=parsed?.ids?.split(',').map(v=>v.split('~')[0])||[],knownKind=idKinds.includes('debate')?'debates':idKinds.length&&idKinds.every(k=>k==='document')?'documents':idKinds.length&&idKinds.every(k=>k==='question')?'questions':'records';
  const kind=parsed?.list==='urgency-debates'?'debates':parsed?.list==='records'?parsed.kind||knownKind:parsed?.list||'records',kindLabel=(count:number)=><UiMessage id={'topics.story.links.kind.'+kind} values={{count}} counts={{count}}/>;
  const tieTotal=places.length>1&&places.every(p=>tieCounts[p]>0)?tieCounts[places[0]]:null;
- const title=parsed?.list==='places'&&total?<UiMessage id="topics.story.links.placesHeading" values={{count:total}} counts={{count:total}}/>:parsed?.list==='urgency-debates'&&total?<UiMessage id="topics.story.links.urgencyHeading" values={{count:total}} counts={{count:total}}/>:tieTotal?<UiMessage id="topics.story.links.tieHeading" values={{count:tieTotal,kind:kindLabel(tieTotal),places:label}}/>:baseline?<UiMessage id={'topics.story.links.before.'+kind} values={{place:label,period:selection.period?.replace('-',' ')||''}}/>:total?<UiMessage id="topics.story.links.heading" values={{count:total,kind:kindLabel(total),place:label}}/>:<UiMessage id="topics.story.records"/>;
+ const comparedBounds=quarterBounds(selection.period||''),beforeMonth=comparedBounds?new Intl.DateTimeFormat(ui.locale,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(comparedBounds.from+'T12:00:00Z')):'';
+ const title=parsed?.list==='places'&&total?<UiMessage id="topics.story.links.placesHeading" values={{count:total}} counts={{count:total}}/>:parsed?.list==='urgency-debates'&&total?<UiMessage id="topics.story.links.urgencyHeading" values={{count:total}} counts={{count:total}}/>:tieTotal?<UiMessage id="topics.story.links.tieHeading" values={{count:tieTotal,kind:kindLabel(tieTotal),places:label}}/>:baseline?<UiMessage id={'topics.story.links.before.'+kind} values={{place:label,period:beforeMonth}}/>:total?<UiMessage id="topics.story.links.heading" values={{count:total,kind:kindLabel(total),place:label}}/>:<UiMessage id="topics.story.records"/>;
  const headingReady=labelsReady&&(!parsed||baseline||(places.length>1?places.every(p=>Object.hasOwn(tieCounts,p)):total!==null));
  useEffect(()=>{if(headingReady){heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start'});}},[key,headingReady]);
- const back=storyHref({...selection,mode:resolvedSelection.mode,zoom:resolvedSelection.zoom,excludeOwn:new URLSearchParams(location.search).has('t-own')?selection.excludeOwn:resolvedSelection.excludeOwn}),meta=period?(baseline?periods[0].replace('-',' ')+' – '+periods.at(-1)!.replace('-',' '):period.replace('-',' ')):ui.t('topics.thisTerm');
+ const back=storyHref({...selection,mode:resolvedSelection.mode,zoom:resolvedSelection.zoom,excludeOwn:new URLSearchParams(location.search).has('t-own')?selection.excludeOwn:resolvedSelection.excludeOwn}),meta=period?(monthRangeLabel(parsed!.period,ui.language)):ui.t('topics.thisTerm');
  const ids=parsed?.ids?.split(',').map(x=>x.split('~')[1])||[];
  const found:StoryRecord[]=parsed?.list==='urgency-debates'?(data.data?.sets?.urgencyDebates?.[period||'']||[]).map((id:string)=>data.data.debates.find((r:any)=>r.id===id)).filter(Boolean).map((r:any)=>storyRecord(r,'debate')):ids.map(id=>{const r=data.data?.debates?.find((r:any)=>r.id===id)||data.data?.docs?.find((r:any)=>r.id===id)||data.data?.questions?.find((r:any)=>r.id===id);return r?storyRecord(r,data.data?.debates?.includes(r)?'debate':data.data?.docs?.includes(r)?'document':'question'):null;}).filter(Boolean);
  const records=parsed?.list==='records'&&kind==='debates'?found.filter(r=>r.kind==='debate'):found;
@@ -100,7 +102,7 @@ export function TopicStoryRecords({selection}:{selection:StorySelection}){
 function Baseline({selection,places,periods,list,askers}:{selection:StorySelection;places:string[];periods:string[];list:string;askers:string}){
  const ui=useUiI18n(),facts=useInsightData<any>(storyFactsRoute({...selection,language:ui.language,place:/^[A-Z]{3}$/.test(places[0])?places[0]:undefined,topic:/^[A-Z]{3}$/.test(places[0])?undefined:places[0],period:undefined})),counts=periods.map(period=>facts.data?.periodCounts?.find((r:any)=>r.period===period)?.[list]),known=counts.every(n=>typeof n==='number'),total=known?counts.reduce((a,b)=>a+b,0):null;
  const compared={text:'',records:[],browse:{list,place:/^[A-Z]{3}$/.test(places[0])?places[0]:'',period:selection.period||'',askers}};
- return <>{total!==null&&<p><UiMessage id="topics.story.links.arithmetic" values={{total,kind:ui.t('topics.story.links.kind.'+list,{count:total},{count:total}),quarters:periods.length,mean:new Intl.NumberFormat(ui.locale,{maximumFractionDigits:1}).format(total/periods.length)}}/></p>}{periods.map((p,i)=><ExpandableRecords key={p} selection={selection} browse={{list,place:/^[A-Z]{3}$/.test(places[0])?places[0]:'',period:p,askers}} label={p.replace('-',' ')+(known?' · '+counts[i]:'')}/>)}{selection.period&&<p><a href={setHref(compared,selection)} onClick={dossierLinkClick}>{selection.period.replace('-',' ')}</a></p>}</>;
+ return <>{total!==null&&<p><UiMessage id="topics.story.links.arithmetic" values={{total,kind:ui.t('topics.story.links.kind.'+list,{count:total},{count:total}),quarters:periods.length,mean:new Intl.NumberFormat(ui.locale,{maximumFractionDigits:1}).format(total/periods.length)}}/></p>}{periods.map((p,i)=><ExpandableRecords key={p} selection={selection} browse={{list,place:/^[A-Z]{3}$/.test(places[0])?places[0]:'',period:p,askers}} label={monthRangeLabel(p,ui.language)+(known?' · '+counts[i]:'')}/>)}{selection.period&&<p><a href={setHref(compared,selection)} onClick={dossierLinkClick}>{monthRangeLabel(selection.period,ui.language)}</a></p>}</>;
 }
 
 export function TopicStoryDocument({selection,id}:{selection:StorySelection;id:string}){const ui=useUiI18n(),facts=useInsightData<any>(storyFactsRoute({...selection,language:ui.language})),record=facts.data?.docs?.find((r:any)=>r.id===id),heading=useRef<HTMLHeadingElement>(null);useEffect(()=>{heading.current?.focus();},[id]);return <section className="topic-story-records"><a href={storyHref(selection)} onClick={storyBackClick}><UiMessage id="topics.story.links.back"/></a><h1 lang={record?.titleLanguage===undefined?'en':record.titleLanguage||''} tabIndex={-1} ref={heading}>{record?.title||ui.t('topics.kind.document')}</h1>{record&&<RecordRow record={storyRecord(record,'document')}/>}<InsightQuestionReader id={id} language={ui.language} heading={ui.t('topics.kind.document')}/></section>;}
