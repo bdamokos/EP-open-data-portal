@@ -136,13 +136,16 @@ test('voting-time groups keep their event link and are never captioned as a deba
  assert(captions.some(c=>c.includes('Support for Ukraine')),'the real debate keeps its peak caption'); assert(!captions.some(c=>/Untitled|MTG-PL-2026-01-22/.test(c)),'an untitled peak group gets no caption');assert(!captions.some(c=>c.includes('(vote)')),'no caption names the voting-time item: '+captions.join(' | '));assert.equal(captions.length,1);
 });
 
-async function placesHarness(t,url,respond){
+async function placesHarness(t,url,respond,{language='en'}={}){
  const window=new Window({url}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
  let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  t.mock.method(globalThis,'fetch',async input=>respond(new URL(String(input),location.href)));
  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
  const wait=async predicate=>{for(let i=0;i<80&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
- await act(async()=>root.render(createElement(Topics,{language:'en'})));return {node,wait};
+ let view=createElement(Topics,{language});
+ if(language!=='en'){const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await import('./uiCatalogues.mjs'),locale=Object.fromEntries(Object.entries((await import('./ui-locales/'+language+'.json',{with:{type:'json'}})).default).filter(([k])=>!k.startsWith('votegroups.unity')));// unrelated catalogue entry under repair on main
+view=createElement(UiI18nProvider,{i18n:createAppUiI18n({[language]:locale}),language},view);}
+ await act(async()=>root.render(view));return {node,wait};
 }
 const placesData=(sittingQ4,label='Iran')=>({ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':sittingQ4},items:[{key:'place:IRN',id:'IRN',iso3:'IRN',label,series:[{period:'2026-Q2',question:5},{period:'2026-Q3',question:6},{period:'2026-Q4',question:2}]}]});
 test('Topics opens on the map; an explicit t-tab=topics keeps the heat strip',async t=>{
@@ -198,4 +201,24 @@ test('a standalone story keeps its links on the displayed selection while new fa
  await act(async()=>root.render(createElement(TopicStories,{selection:selection(false)})));await act(async()=>new Promise(r=>setTimeout(r,60)));
  assert.equal(own(),'1','links keep the displayed selection until the new facts arrive');
  release();await wait(()=>own()==='0');
+});
+
+const swapData=period=>({overview:{ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':3},items:[{key:'place:TUR',id:'TUR',iso3:'TUR',label:'Türkiye',series:[{period,question:13,document:1}]},{key:'place:FRA',id:'FRA',iso3:'FRA',label:'France',series:[{period,question:4,document:9}]}]},
+ facts:mode=>({ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{},counts:{},periodCounts:[{period,placesWithAdoptedTexts:2}],winners:{},sets:{},questions:[],debates:[],docs:[],series:{},periodWinners:{[period]:mode==='d'?{topAdoptedPlaces:[{id:'FRA',count:9},{id:'TUR',count:1}]}:{mostQuestionedPlaces:[{id:'TUR',count:13}]}}})});
+test('in French the swap and the story share one story-facts request',async t=>{
+ const period='2026-Q3',{overview,facts}=swapData(period),seen=[];
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=topics&t-tab=places&t-q='+period,async u=>{if(u.pathname==='/api/topics/story-facts'){seen.push(u.searchParams.get('mode')+':'+u.searchParams.get('lang'));return Response.json(facts(u.searchParams.get('mode')));}return Response.json(overview);},{language:'fr'});
+ await wait(()=>node.querySelector('.places-ranking'));
+ const texts=node.querySelectorAll('.insight-chart-switch button')[1];await act(async()=>texts.click());await wait(()=>/France\s*9/.test(node.querySelector('.places-ranking li').textContent));
+ assert(seen.length&&seen.every(k=>k.endsWith(':fr')),'every story-facts request uses the interface language: '+seen.join(' '));assert.equal(seen.filter(k=>k.startsWith('d:')).length,1,'one request for the new selection');
+});
+test('a failed story-facts request keeps the displayed view and offers Retry',async t=>{
+ const period='2026-Q3',{overview,facts}=swapData(period);let fail=true;
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=topics&t-tab=places&t-q='+period,async u=>{if(u.pathname==='/api/topics/story-facts'){if(u.searchParams.get('mode')==='d'&&fail)return Response.json({error:{message:'Story facts unavailable'}},{status:500});return Response.json(facts(u.searchParams.get('mode')));}return Response.json(overview);});
+ await wait(()=>/most asked-about place/.test(node.querySelector('.places-caption').textContent));
+ const texts=[...node.querySelectorAll('.insight-chart-switch button')].find(b=>/Texts on/.test(b.textContent));await act(async()=>texts.click());
+ await wait(()=>[...node.querySelectorAll('button')].some(b=>/Reload|Retry|Try again/i.test(b.textContent)));
+ assert.match(node.querySelector('.places-ranking li').textContent,/Türkiye\s*13/,'the map and list are not switched on failure');assert.match(node.querySelector('.places-caption').textContent,/most asked-about place/);
+ fail=false;await act(async()=>[...node.querySelectorAll('button')].find(b=>/Reload|Retry|Try again/i.test(b.textContent)).click());
+ await wait(()=>/France\s*9/.test(node.querySelector('.places-ranking li').textContent));assert(/adopted texts naming/.test(node.querySelector('.places-caption').textContent));
 });
