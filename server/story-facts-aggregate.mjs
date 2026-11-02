@@ -102,5 +102,5 @@ export async function finishStoryProjection(store,generation){
    for(const zoom of eu.has(place.key)?['world','eu']:['world'])placePut.run(generation,zoom,place.askers,periods[i],metric,place.key,ratio,n,JSON.stringify({count:n,baselineTotal:sum,baselinePeriods:quarters,baselineMean:mean,ratio}));
   }
  }} )());
- store.set('storyProjection',{generation,version:STORY_FACTS_VERSION,builtAt:new Date().toISOString()});store.set('storyProjectionDirty',false);
+ store.set('storyProjection',{generation,version:STORY_FACTS_VERSION,europe:[...europe.ids],builtAt:new Date().toISOString()});store.set('storyProjectionDirty',false);
 }

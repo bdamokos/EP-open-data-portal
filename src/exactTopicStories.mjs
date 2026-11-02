@@ -15,7 +15,7 @@ export function storyRecord(r,kind){return {id:r.id,kind,titleLanguage:r.titleLa
 export function buildExactTopicStories(payload,s={}){
  if(!payload?.ready||!payload.counts||!payload.winners)return [];
  s={language:'en',...s};
- const has=s.hasMessage||(()=>String(s.language).split('-')[0]==='en'),inView=p=>s.zoom!=='eu'||EUROPE.has(p),startForms=new Map();
+ const has=s.hasMessage||(()=>String(s.language).split('-')[0]==='en'),europe=Array.isArray(payload.europe)?new Set(payload.europe):EUROPE,inView=p=>s.zoom!=='eu'||europe.has(p),startForms=new Map();
  const f=normalizeReferenceStoryFacts(payload),period=s.period,c={...(period?payload.periodCounts.find(r=>r.period===period)||{}:payload.counts)},w=period?payload.periodWinners[period]||{}:payload.winners,labels=s.labels||{},num=n=>storyNumber(n,s.language),digits=n=>Number(n).toLocaleString(s.language==='en'?'en-GB':s.language),name=(p,start=false)=>{const text=storyPlaceName(p,labels[p]||p,{language:s.language,start});if(start)startForms.set(text,storyPlaceName(p,labels[p]||p,{language:s.language}));return text;};
  const byDate=(a,b)=>String(a.date).localeCompare(String(b.date))||String(a.id).localeCompare(String(b.id));
 

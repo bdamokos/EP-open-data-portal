@@ -244,3 +244,9 @@ test('zoom: Russia is in the Europe view and named in its urgency debates',()=>{
  const x=quarter(base());x.periodCounts[0].urgencyDebates=2;x.debates=[['U1','2026-01-21','Case in Russia','RUS'],['U2','2026-02-11','Case in Georgia','GEO']].map(([id,date,title,p])=>({id,date,title,meps:9,format:'urgency',places:{[p]:['title']},primaryPlace:p,docs:[]}));x.sets={urgencyDebates:{'2026-Q1':['U1','U2']}};
  assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{RUS:'Russia',GEO:'Georgia'},...baseWording})),/^In Europe and its neighbours, two urgency debates on human rights took up Russia and Georgia\.$/);
 });
+
+test('zoom: places in view follow the Europe set reported with the story facts',()=>{
+ const x=quarter(base());x.periodCounts[0].urgencyDebates=2;x.debates=[['U1','2026-01-21','Case in Russia','RUS'],['U2','2026-02-11','Case in Georgia','GEO']].map(([id,date,title,p])=>({id,date,title,meps:9,format:'urgency',places:{[p]:['title']},primaryPlace:p,docs:[]}));x.sets={urgencyDebates:{'2026-Q1':['U1','U2']}};
+ x.europe=['GEO','UKR'];
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{RUS:'Russia',GEO:'Georgia'},...baseWording})),/^In Europe and its neighbours, two urgency debates on human rights took up Georgia, among other cases\.$/);
+});

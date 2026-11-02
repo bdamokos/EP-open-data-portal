@@ -221,3 +221,15 @@ test('a failed story-facts request keeps the displayed view and offers Retry',as
  fail=false;await act(async()=>[...node.querySelectorAll('button')].find(b=>/Reload|Retry|Try again/i.test(b.textContent)).click());
  await wait(()=>/France\s*9/.test(node.querySelector('.places-ranking li').textContent));assert(/adopted texts naming/.test(node.querySelector('.places-caption').textContent));
 });
+// Russia 50, Ukraine 20: the Europe list follows the projection the story was built from.
+const europeSwitch=(published)=>{const period='2026-Q3',overview={ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':3},items:[{key:'place:RUS',id:'RUS',iso3:'RUS',label:'Russia',series:[{period,question:50}]},{key:'place:UKR',id:'UKR',iso3:'UKR',label:'Ukraine',series:[{period,question:20}]}]};
+ return {period,overview,facts:{ready:true,europe:published,periods:overview.periods,partial:{},counts:{},periodCounts:[{period}],winners:{},sets:{},questions:[],debates:[],docs:[],series:{},periodWinners:{[period]:{mostQuestionedPlaces:published.includes('RUS')?[{id:'RUS',count:50}]:[{id:'UKR',count:20}]}}}};};
+for(const [name,version] of [['before',13],['after',14]])test(`Europe list and story agree ${name} the version 14 projection publishes`,async t=>{
+ const {europeBeforeV14}=await import('../server/story-europe.mjs'),{default:europe}=await import('../server/story-europe-countries.json',{with:{type:'json'}});
+ const {period,overview,facts}=europeSwitch(version===13?[...europeBeforeV14]:europe.ids);
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=topics&t-tab=places&t-zoom=eu&t-q='+period,async u=>Response.json(u.pathname==='/api/topics/story-facts'?facts:overview));
+ const story=()=>node.querySelector('.places-caption').textContent,list=()=>[...node.querySelectorAll('.places-ranking li')].map(li=>li.textContent.replace(/\s+/g,' ').trim());
+ await wait(()=>/In Europe and its neighbours/.test(story()));
+ if(version===13){assert.match(story(),/Ukraine was (?:the most asked-about|asked about more than any other) place \(20 questions\)/);assert.match(list()[0],/^Ukraine\s*20/);assert(!list().some(row=>/Russia/.test(row)),'the list leaves Russia out with the story');}
+ else{assert.match(story(),/Russia was (?:the most asked-about|asked about more than any other) place \(50 questions\)/);assert.match(list()[0],/^Russia\s*50/);}
+});
