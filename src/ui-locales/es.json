@@ -2469,6 +2469,7 @@
   "votegroups.split": "Sin mayoría",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} de {total}",
+  "votegroups.whole_group": "Todo el grupo",
   "votegroups.voted_differently.one": "{count} eurodiputado votó de forma distinta a la mayoría de su grupo.",
   "votegroups.voted_differently": "{count} eurodiputados votaron de forma distinta a la mayoría de su grupo.",
   "votegroups.delegations.heading": "Delegaciones que votaron en sentido contrario a su grupo",
