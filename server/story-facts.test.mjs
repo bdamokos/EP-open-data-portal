@@ -619,3 +619,13 @@ test('inputs adopted after classification keep the publication dirty for a follo
  await rebuildTopicProjection(store,{cache:null});
  assert.equal(store.get('topicProjectionDirty'),false);assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE kind='debate' AND id=? ORDER BY generation DESC").get(id)?.p,1);
 });
+test('an interrupted adoption leaves the projection dirty for the batches it committed',async t=>{
+ const {store}=await fixture(t),ids=Array.from({length:250},(_,i)=>'MTG-PL-2026-07-09-PVCRE-ITM-'+(100+i));
+ for(const id of ids){queueStoryRead(store,'event',id);await heldSnapshot(store,id,{type:'PLENARY_DEBATE'});}
+ store.set('topicProjectionDirty',false);
+ const renew=store.renew;let calls=0;store.renew=function(...a){if(++calls===1)throw Error('lease lost');return renew.apply(this,a);};
+ assert.throws(()=>adoptHeldEventSnapshots(store),/lease lost/);store.renew=renew;
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM story_jobs WHERE kind='event' AND state='available'").get().n,200,'the first batch committed');
+ assert.equal(store.get('topicProjectionDirty'),true,'its dirty marker committed with it');
+ store.set('topicProjectionDirty',false);const retry=adoptHeldEventSnapshots(store);assert.equal(retry.adopted,50);assert.equal(store.get('topicProjectionDirty'),true);
+});

@@ -95,9 +95,10 @@ export function adoptHeldEventSnapshots(store,{ids=null}={}){
     const at=sourceTime(saved.fetchedAt)||'',held=input.get(row.id);
     if(!held||held.fetched_at<=at)changed=Boolean(stageStoryInput(store,data[0],{url:saved.url,fetchedAt:saved.fetchedAt},{rank:4}))||changed;
     if(settle.run('event:'+row.id).changes)adopted++;}
+   // The dirty marker commits with the batch that changed inputs or settled jobs.
+   if(changed||adopted)store.set('topicProjectionDirty',true);
   });
   store.renew?.();
  }
- if(changed||adopted)store.set('topicProjectionDirty',true);
  return {adopted,changed:changed||adopted>0};
 }
