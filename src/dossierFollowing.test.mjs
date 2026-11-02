@@ -8,12 +8,13 @@ async function harness(t) {
   const window=new Window({url:'http://localhost/?view=saved'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let generation=1,root,loader;const requests=[];
+  let generation=1,failing=false,root,loader;const requests=[];
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(loader)await loader.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href),path=url.pathname.split('/').at(-1);requests.push(url);
     if(path==='following-status')return Response.json({epoch,generation,marksReady:true});
     if(path==='following-dossiers')return Response.json({epoch,generation,indexComplete:true,items:[{reference,status:'available',entries:generation===1?[]:[{id:'recorded-stage',mark:generation,eventKind:'stage',title:'Parliament position adopted',titleLanguage:'en',date:'2026-07-07'}]}]});
+    if(path==='procedure-progress'&&failing)return Response.json({error:{code:'fixture_failure',message:'Unavailable'}},{status:503});
     if(path==='procedure-progress')return Response.json({reference,state:'mapped',coverage:{},events:[],source:{fetchedAt:'2026-10-23T10:00:00Z'}});
     if(path==='press-releases')return Response.json({reference,watermark:1,items:[],coverage:{followingSince:'2026-10-20',feeds:[],procedureLinks:{status:'available'}},dossier:{title:'Public dossier title',language:'en',summaries:[],source:{fetchedAt:'2026-10-23T10:00:00Z'}}});
     if(path==='procedure-context')return Response.json({reference,title:'Public dossier title',language:'en',summary:null,summaries:[],topics:[],subjects:[],source:{url:'https://oeil.europarl.europa.eu/'}});
@@ -25,7 +26,7 @@ async function harness(t) {
   const flush=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
   const renderSaved=()=>act(async()=>root.render(createElement(StrictMode,null,createElement(SavedNav,{onClick(){}}),createElement(Saved,{language:'en',onBack(){},onMember(){},renderActivity(){return null;}}))));
   const click=async label=>{await act(async()=>{const button=[...container.querySelectorAll('button')].find(button=>button.textContent.trim()===label);assert(button,'Missing '+label+' in '+container.textContent);button.click();});await flush();};
-  return {controls,container,requests,flush,renderSaved,click,generation:value=>generation=value,renderCards:()=>act(async()=>root.render(createElement('section',null,...controls.dossierStore.snapshot().items.map(item=>createElement(DossierCard,{key:item.id,item,language:'en',now:Date.now()}))))),renderContext:()=>act(async()=>root.render(createElement(ProcedureContext,{reference,language:'en',showTitle:true})))};
+  return {controls,container,requests,flush,renderSaved,click,generation:value=>generation=value,fail:value=>failing=value,renderCards:()=>act(async()=>root.render(createElement('section',null,...controls.dossierStore.snapshot().items.map(item=>createElement(DossierCard,{key:item.id,item,language:'en',now:Date.now()}))))),renderContext:()=>act(async()=>root.render(createElement(ProcedureContext,{reference,language:'en',showTitle:true})))};
 }
 test('Following uses neutral event subtitles for COD, RSP and budgetary dossiers while retaining published titles',async t=>{
   const h=await harness(t),store=h.controls.dossierStore;
@@ -74,4 +75,13 @@ test('an opened row stays read when bounded history drops its stored entry',asyn
   assert(!h.controls.dossierStore.snapshot().items[0].entries.some(entry=>entry.id==='recorded-stage'));
   const pinned=[...h.container.querySelectorAll('.dossier-update-disclosure')].find(row=>row.textContent.includes('Parliament position adopted'));
   assert(pinned);assert.equal(pinned.querySelector('.explorer-saved-new'),null);
+});
+
+test('a failed dossier source check offers a retry that recovers before the automatic interval',async t=>{
+  const h=await harness(t);h.fail(true);h.controls.dossierStore.toggle({id:reference});await h.renderSaved();await h.flush();
+  assert.match(h.container.textContent,/Some sources couldn't be checked/);
+  const progressReads=()=>h.requests.filter(url=>url.pathname.endsWith('/procedure-progress')).length,before=progressReads();
+  h.fail(false);await h.click('Retry');
+  assert.equal(progressReads(),before+1,'retry forces the source read inside the automatic interval');
+  assert.doesNotMatch(h.container.textContent,/Some sources couldn't be checked|Retry/);
 });
