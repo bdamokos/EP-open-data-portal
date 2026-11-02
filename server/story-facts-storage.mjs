@@ -14,6 +14,8 @@ export function storyTables(db){db.exec(`
  CREATE TABLE IF NOT EXISTS story_parents(generation INTEGER,parent TEXT,speech TEXT,PRIMARY KEY(generation,parent,speech));
  CREATE INDEX IF NOT EXISTS story_parent_speech ON story_parents(generation,speech,parent);
  `);}
+// Fields whose values depend on the parser revision (STORY_DOCUMENT_PARSER).
+const PARSER_DERIVED={document:['groups']};
 const statements=new WeakMap();
 function prepared(db){let p=statements.get(db);if(!p){p={queue:db.prepare('INSERT OR IGNORE INTO story_jobs(key,kind,id,state,next_read,error) VALUES (?,?,?,?,?,?)'),input:db.prepare('SELECT body,source FROM story_inputs WHERE kind=? AND id=?'),get:db.prepare('SELECT body,source,fetched_at,rank FROM story_inputs WHERE kind=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO story_inputs VALUES (?,?,?,?,?,?)')};statements.set(db,p);}return p;}
 export function stageStoryInput(store,w,source,{rank=1}={}){
@@ -30,7 +32,10 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
  if(old&&(old.fetched_at>at||old.fetched_at===at&&old.rank>rank))return;
  // New projection fields may enrich an older retained shape at the same
  // source timestamp. Compare its known fields; preserve actual conflicts.
- if(old&&old.fetched_at===at&&old.rank===rank){const prior=JSON.parse(old.body);if(prior.conflicted||Object.entries(prior).some(([key,v])=>key!=='conflicted'&&JSON.stringify(v)!==JSON.stringify(value[key])))value={...value,conflicted:true};}
+ // A newer parser revision may change only its own derived fields when it re-parses the
+ // same retained source; any other difference, or an earlier conflict, still conflicts.
+ if(old&&old.fetched_at===at&&old.rank===rank){const prior=JSON.parse(old.body),derived=(prior.parser??0)!==(value.parser??0)?PARSER_DERIVED[kind]||[]:[];
+  if(prior.conflicted||Object.entries(prior).some(([key,v])=>key!=='conflicted'&&key!=='parser'&&!derived.includes(key)&&JSON.stringify(v)!==JSON.stringify(value[key])))value={...value,conflicted:true};}
  const saved=JSON.stringify({...value,source:undefined}),encodedSource=JSON.stringify(source);
  if(old&&old.fetched_at===at&&old.rank===rank&&old.body===saved&&old.source===encodedSource)return;
  p.put.run(kind,value.id,saved,encodedSource,at,rank);return !old||old.body!==saved;
