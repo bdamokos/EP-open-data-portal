@@ -4,6 +4,7 @@ import {comparisonHeading} from './amendment-baseline.mjs';
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
 import {resolutionPointPlacement} from './resolution-points.mjs';
+import {resolutionFootnoteMatch} from './resolution-footnotes.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
 const result = (status, reason, fields = {}) => ({
@@ -610,7 +611,9 @@ export function resolveAmendmentPlacement(text, options = {}) {
     const numberedCitation = unit.kind === 'citation'
       && /^([1-9]\d*)\.\s+/u.exec(whitespace(options.originalText))?.[1] === unit.label
       && complete(structure.start, unit.end);
-    const wordingMatches = sourceKey === originalKey
+    const footnotes = sourceKey !== originalKey && ['paragraph', 'recital', 'point'].includes(unit.kind)
+      && resolutionFootnoteMatch(text, unit.start, unit.end, options.originalText, options.originalFormatting);
+    const wordingMatches = sourceKey === originalKey || footnotes
       || numberedCitation && sourceKey.replace(/^[–—−\-•]\s*/u, '') === originalKey;
     // Exact whole-unit wording independently proves a labelled paragraph or
     // recital's extent, even when the following boundary is unclassified.
@@ -625,7 +628,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
       const decision = placementReference(referenceText);
       if (!decision || decision.kind !== ref.kind || decision.label !== ref.label || decision.kind === 'point' && decision.paragraph !== ref.paragraph) return unresolved('conflicting_target_evidence');
     }
-    evidence.push({basis: 'published-reference', label: ref.label}, {basis: 'quoted-original'});
+    evidence.push({basis: 'published-reference', label: ref.label}, {basis: footnotes ? 'quoted-original-source-notes' : 'quoted-original'});
     return placed({span: span(unit)});
   }
   const quotes = quotedTargets(rows.slice(structure.start + 1, structure.end + 1), whitespace(options.originalText));
