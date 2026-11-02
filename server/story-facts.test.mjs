@@ -8,9 +8,9 @@ import {DatabaseSync} from 'node:sqlite';
 import {ActivityStore} from './activity-index-store.mjs';
 import {buildTopics} from './topics-project.mjs';
 import {RecordTopics,writeTopicProjection} from './topics-store.mjs';
-import {storyTables,stageStoryInput,queueStoryRead,storyInput} from './story-facts-storage.mjs';
+import {storyTables,stageStoryInput,queueStoryRead,storyInput,storyEventType} from './story-facts-storage.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
-import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,votingItem,votingDebate} from './story-facts-model.mjs';
+import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,votingItem,votingDebate,voteActivity} from './story-facts-model.mjs';
 import {collectStorySource,STORY_PAGE_SIZE} from './story-facts-collector.mjs';
 import {eurovocCountries} from './topic-roles.mjs';
 const stamp='2026-11-01T12:00:00Z',source={url:'https://data.europarl.europa.eu/api/v2/events/example',fetchedAt:stamp};
@@ -384,4 +384,43 @@ test('vote-typed items leave story and topic counters, events read before types 
  putTopicRecords(store,1,[record(marker,'PROCEEDING_ACTIVITY'),record('MTG-PL-'+day+'-OTH-2017087113160','MEETING_NAME_CHAIR'),record('MTG-PL-'+day+'-PVCRE-ITM-11','PLENARY_DEBATE')]);
  for(const id of [marker,'MTG-PL-'+day+'-OTH-2017087113160']){assert.equal(store.db.prepare('SELECT COUNT(*) n FROM record_topic_records WHERE generation=1 AND id=?').get(id).n,0,'proceeding markers are not debate records');assert.equal(store.db.prepare('SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=?').get(id).n,0);}
  assert.equal(store.db.prepare('SELECT kind FROM record_topic_records WHERE generation=1 AND id=?').get('MTG-PL-'+day+'-PVCRE-ITM-11').kind,'debate','real debates keep their kind');
+});
+
+test('a held legacy event takes its type from the retained raw observation with no network read',async t=>{
+ const {store}=await fixture(t),day='2026-03-26',id='MTG-PL-'+day+'-PVCRE-ITM-9-2';
+ // Legacy collector input (rank 4) without a type key, and its completed read job.
+ const legacy={id,executed:[],executedKnown:true,titles:{en:'Explanations of vote'},date:day,relationships:{executed:[]}};
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('event',id,JSON.stringify(legacy),JSON.stringify(source),stamp,4);
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+id,'event',id);
+ // The same observation retained as raw bytes (rank 3) carries the type.
+ assert(stageStoryInput(store,{activity_id:id,activity_date:day,activity_label:{en:'Explanations of vote'},had_activity_type:'def/ep-activities/PLENARY_VOTE_EXPLANATIONS',executed:[]},source,{rank:3}));
+ const d=storyInput(store,'event',id);assert.equal(d.type,'PLENARY_VOTE_EXPLANATIONS');assert.equal(d.conflicted,undefined,'enrichment of the same observation is not a conflict');
+ for(const person of ['1','2','3']){const sid='MTG-PL-'+day+'-OTH-7'+person;store.putSource(1,'/speeches/'+sid,'speech',{outside:{id:sid,date:day,titles:{en:'Explanations of vote'},participants:[person],parentIds:[id],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+sid,sid,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}
+ await buildTopics(store);
+ assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+id).state,'available','no network read is queued for a held event');
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM story_facts WHERE generation=1 AND kind='debate' AND id=? AND json_extract(body,'$.procedural')=0").get(id).n,0,'explanations of vote are not a debate');
+ // A legacy input whose type is held only by an older retained observation keeps its body, yet is typed and not read again.
+ const other='MTG-PL-'+day+'-PVCRE-ITM-9-3';store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('event',other,JSON.stringify({...legacy,id:other}),JSON.stringify(source),stamp,4);
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+other,'event',other);
+ stageStoryInput(store,{id:other,date:day,kind:'PLENARY_VOTE_EXPLANATIONS'},{...source,fetchedAt:'2026-01-01T00:00:00Z'},{rank:2});assert.equal(storyEventType(store,other).type,'PLENARY_VOTE_EXPLANATIONS');assert.equal(Object.hasOwn(storyInput(store,'event',other),'type'),false);
+ for(const person of ['1','2','3']){const sid='MTG-PL-'+day+'-OTH-6'+person;store.putSource(1,'/speeches/'+sid,'speech',{outside:{id:sid,date:day,titles:{en:'Explanations of vote'},participants:[person],parentIds:[other],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+sid,sid,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}
+ await buildTopics(store);
+ assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+other).state,'available','retained type evidence prevents a re-download');
+ assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE generation=1 AND kind='debate' AND id=?").get(other)?.p,1,'the retained type excludes it');
+});
+test('every vote-related type in the retained vocabulary is excluded and non-vote types are not',async()=>{
+ const fs=await import('node:fs/promises'),dir=new URL('./fixtures/',import.meta.url),terms=new Set();
+ for(const f of await fs.readdir(dir))if(f.endsWith('.json'))for(const m of (await fs.readFile(new URL(f,dir),'utf8')).matchAll(/ep-activities\/([A-Z_]+)/g))terms.add(m[1]);
+ const vote=[...terms].filter(t=>/VOTE|OUTCOME|DECISION/.test(t));assert(vote.includes('PLENARY_VOTE_EXPLANATIONS'));
+ for(const t of vote)assert(voteActivity(t),t);
+ for(const t of ['PLENARY_DEBATE','PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT','PROCEEDING_ACTIVITY','MEETING_PART','MEETING_NAME_CHAIR','PLENARY_SITTING','PLENARY_ACTIVITY'])assert.equal(voteActivity(t),false,t);
+ assert.equal(votingDebate({titles:{en:'Explanations of vote'},type:'PLENARY_VOTE_EXPLANATIONS'}),true);
+});
+test('conflicting type evidence from any source never excludes',async t=>{
+ const {store}=await fixture(t),id='MTG-PL-2026-03-26-PVCRE-ITM-5';
+ stageStoryInput(store,{activity_id:id,activity_label:{en:'Item'},had_activity_type:'def/ep-activities/PLENARY_VOTE'},{...source,url:'a'},{rank:3});
+ stageStoryInput(store,{activity_id:id,activity_label:{en:'Item'},had_activity_type:'def/ep-activities/PLENARY_DEBATE'},{...source,url:'b'},{rank:3});
+ const evidence=storyEventType(store,id);assert.equal(evidence.conflicted,1,'same-time opposite types conflict whatever their order');
+ assert.equal(votingDebate(storyInput(store,'event',id),['Item (vote)'],evidence.type,Boolean(evidence.conflicted)),false);
+ assert.equal(votingDebate({titles:{en:'Item'},type:'PLENARY_DEBATE',conflicted:true},[],'PLENARY_VOTE',false),false,'a conflicted story event never excludes, even with a vote type elsewhere');
 });

@@ -11,6 +11,7 @@ export function storyTables(db){db.exec(`
  CREATE TABLE IF NOT EXISTS story_places(generation INTEGER,place TEXT,kind TEXT,id TEXT,date TEXT,basis TEXT,PRIMARY KEY(generation,place,kind,id));
  CREATE INDEX IF NOT EXISTS story_place_record ON story_places(generation,kind,id,place);
  CREATE TABLE IF NOT EXISTS story_topics(generation INTEGER,key TEXT,kind TEXT,id TEXT,date TEXT,PRIMARY KEY(generation,key,kind,id));
+ CREATE TABLE IF NOT EXISTS story_event_types(id TEXT PRIMARY KEY,type TEXT,fetched_at TEXT,conflicted INTEGER DEFAULT 0);
  CREATE TABLE IF NOT EXISTS story_parents(generation INTEGER,parent TEXT,speech TEXT,PRIMARY KEY(generation,parent,speech));
  CREATE INDEX IF NOT EXISTS story_parent_speech ON story_parents(generation,speech,parent);
  `);}
@@ -26,9 +27,16 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
   if(id.includes('OJ-ITM-')){kind='agenda';value=storyAgenda(w,source);}
   else if(/-DEC-/.test(id)){kind='decision';value=storyDecision(w,source);}
   else if(/-VOT-ITM-/.test(id)){kind='result';value={id,date:w.activity_date||null,type:tail(w.had_activity_type)||'PLENARY_VOTE_RESULTS',decisions:refs(w.consists_of),executed:refs(w.executed),basedOn:refs(w.based_on_a_realization_of),relationships:Object.fromEntries(['executed','based_on_a_realization_of'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
-  else if(/-PVCRE-ITM-/.test(id)){kind='event';value={id,type:tail(w.had_activity_type)||null,executed:refs(w.executed),executedKnown:Object.hasOwn(w,'executed'),titles:w.activity_label||{},date:w.activity_date||null,relationships:Object.fromEntries(['executed','based_on_a_realization_of','inverse_consists_of','inverse_was_scheduled_in'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
+  else if(/-PVCRE-ITM-/.test(id)){kind='event';
+   // Retained outside-agenda records keep had_activity_type as their exact `kind`.
+   const typed=Object.hasOwn(w,'had_activity_type')?tail(w.had_activity_type)||null:typeof w.kind==='string'&&/^[A-Z_]+$/.test(w.kind)?w.kind:undefined;
+   if(typed)recordEventType(store,id,typed,sourceTime((w.outside?.source||source)?.fetchedAt)||'');
+   value={id,...(typed!==undefined?{type:typed}:{type:null}),executed:refs(w.executed),executedKnown:Object.hasOwn(w,'executed'),titles:w.activity_label||{},date:w.activity_date||null,relationships:Object.fromEntries(['executed','based_on_a_realization_of','inverse_consists_of','inverse_was_scheduled_in'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
  }
  if(!value)return;source=value.source||source;const p=prepared(store.db),old=p.get.get(kind,value.id),at=sourceTime(source.fetchedAt)||'';
+ // The same observation may fill a field that an older stored shape lacked (event type) without a conflict.
+ if(old&&kind==='event'&&old.fetched_at===at&&old.rank>rank&&value.type){const prior=JSON.parse(old.body);
+  if(!Object.hasOwn(prior,'type')&&!prior.conflicted&&Object.entries(prior).every(([k,v])=>JSON.stringify(v)===JSON.stringify(value[k]))){p.put.run(kind,value.id,JSON.stringify({...prior,type:value.type}),old.source,old.fetched_at,old.rank);return true;}}
  if(old&&(old.fetched_at>at||old.fetched_at===at&&old.rank>rank))return;
  // New projection fields may enrich an older retained shape at the same
  // source timestamp. Compare its known fields; preserve actual conflicts.
@@ -40,6 +48,11 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
  if(old&&old.fetched_at===at&&old.rank===rank&&old.body===saved&&old.source===encodedSource)return;
  p.put.run(kind,value.id,saved,encodedSource,at,rank);return !old||old.body!==saved;
 }
+// Every retained observation of an event's type, from any source; same-time disagreement is a conflict.
+function recordEventType(store,id,type,at){const db=store.db,old=db.prepare('SELECT type,fetched_at,conflicted FROM story_event_types WHERE id=?').get(id);
+ if(!old||old.fetched_at<at)db.prepare('INSERT OR REPLACE INTO story_event_types VALUES (?,?,?,0)').run(id,type,at);
+ else if(old.fetched_at===at&&old.type!==type&&!old.conflicted)db.prepare('UPDATE story_event_types SET conflicted=1 WHERE id=?').run(id);}
+export function storyEventType(store,id){return store.db.prepare('SELECT type,conflicted FROM story_event_types WHERE id=?').get(id)||null;}
 export function storyInput(store,kind,id){const row=prepared(store.db).input.get(kind,id);return row?{...JSON.parse(row.body),source:JSON.parse(row.source)}:null;}
 export function queueStoryRead(store,kind,id,{unavailable=false,refresh=false}={}){
  const key=kind+':'+id;
