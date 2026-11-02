@@ -154,7 +154,7 @@ function groupVoicesSnapshot(store,query){
     })};
   if(query.part==='summary'){
     const grouped=new Map();
-    for(const row of rows){let person=grouped.get(row.person);if(!person){person={...identity(store,generation,row.person,row.speech),total:0,subjects:{}};grouped.set(row.person,person)}person.total++;for(const key of row.topicKeys)person.subjects[key]=(person.subjects[key]||0)+1;}
+    for(const row of rows){let person=grouped.get(row.person);if(!person){person={...identity(store,generation,row.person,row.speech),total:0,subjects:{},days:{}};grouped.set(row.person,person)}person.total++;person.days[row.date]=(person.days[row.date]||0)+1;for(const key of row.topicKeys)person.subjects[key]=(person.subjects[key]||0)+1;}
     return {...page,ready:Boolean(topics.state),groupSubjects:Object.keys(GROUP_VOICE_GROUPS).map(id=>{
       // One indexed aggregate per group; counts stay exact over the same rows.
       const subjects={},args=scope(id);if(sql)for(const r of sql.counts.all(...args))subjects[label(r.key)]=r.n;

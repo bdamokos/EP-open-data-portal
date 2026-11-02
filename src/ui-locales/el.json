@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} ευρωβουλευτές",
   "topics.story.count.mepsOne": "{count} ευρωβουλευτής",
   "topics.policyAreaSource": "Ονομασίες τομέων πολιτικής: {source}.",
-  "topics.explorerTranslation": "Οι ονομασίες των τομέων πολιτικής μεταφράστηκαν από το εργαλείο εξερεύνησης."
+  "topics.explorerTranslation": "Οι ονομασίες των τομέων πολιτικής μεταφράστηκαν από το εργαλείο εξερεύνησης.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Παρεμβάσεις ανά μήνα",
+  "groupvoices.contributions_by_sitting_day.77a719": "Παρεμβάσεις ανά ημέρα συνεδρίασης"
 }

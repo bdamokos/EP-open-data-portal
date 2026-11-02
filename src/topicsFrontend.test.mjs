@@ -122,7 +122,7 @@ test('riser ratios use the max(1, average) baseline shared with stories',()=>{
 
 test('legacy timeline redirects keep the interface language',()=>{
  assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&trend-key=123&lang=fr')),'?view=topics&topic=eurovoc%3A123&lang=fr');
- assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&lang=de')),'?view=topics&lang=de');
+ assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&lang=de')),'?view=topics&t-tab=topics&lang=de','old topic timelines keep landing on the heat strip');
 });
 
 test('legacy prose requires parent and quantity coverage while other panels stay native',async t=>{
@@ -137,8 +137,8 @@ test('legacy prose requires parent and quantity coverage while other panels stay
   // these Finnish fixtures; unrelated absent messages still use production EN.
   const fixture=createUiI18n({source,translations:{fi:messages}}).forLocale('fi'),ui={...defaultUi,...fixture},i18n={sourceLocale:'en',forLocale:()=>ui};
   const html=renderToStaticMarkup(h(UiI18nProvider,{i18n},h('div',null,h(TopicStory,{data,index:0,mode:'q',own:true}),h('aside',null,h(UiMessage,{id:'topics.story.count.questions',values:{count:2},counts:{count:2}})))));
-  assert.match(html,new RegExp('lang="'+(native?'fi':'en')+'"'));assert.match(html,native?/Türkiye<\/a><\/span> ja /:/Türkiye<\/a><\/span> and /);
-  assert(html.includes(native?'1 234 kysymystä':'1,234 questions'),html);assert.match(html,/place=TUR/);assert.match(html,/t-own=1/);assert(html.includes('Türkiye'));
+  assert.match(html,new RegExp('lang="'+(native?'fi':'en')+'"'));assert.match(html,native?/Türkiye<\/span> ja /:/Türkiye<\/span> and /);
+  assert(html.includes(native?'1 234 kysymystä':'1,234 questions'),html);assert.match(html,/t-records=.*TUR/);assert.match(html,/t-own=1/);assert(html.includes('Türkiye'));
   if(messages===child)assert.match(html,/<aside>2 kysymystä<\/aside>/);
  }
 });

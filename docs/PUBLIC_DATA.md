@@ -75,6 +75,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 - Addressees come only from explicit `ADDRESSEE` participations. `org/HRVP` is shown as “Vice-President / High Representative”, following Parliament’s [questions page](https://www.europarl.europa.eu/plenary/en/parliamentary-questions.html?tabType=wq).
 - API author arrays are unordered. Publication order comes from the DOCX byline, matched to the API authors by exact full name.
 - The answering institution comes from the answer’s `creator` or `AUTHOR` organisation. The API doesn’t name the office holder; the English answer header does (“Answer given by High Representative/Vice-President Kallas on behalf of the European Commission”). Council replies have no named signatory.
+- Story question lists include exact answer references from retained metadata in one bounded local read, without upstream requests. An unavailable answer observation is `null`; an observed empty list is `[]`.
 - Commission answers (`…-ASW`) are separate records linked by `inverse_answers_to`. A question or document with fewer than 24 language versions, or still unanswered, can still change.
 
 ### Speeches and debates
@@ -93,6 +94,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 ### Votes, attendance and outcomes
 
+- Actual plenary event links resolve exact `executed` relationships to scheduled items. Joint debates merge their agenda context and retain each contributor’s scheduled-item provenance. Retained vote types use the same vocabulary and conflict handling as story counts; vote links require one exact scheduled vote target.
 - Votes come from `/meetings/{sitting}/decisions`, `/vote-results` and `/foreseen-activities`. Named roll calls use `vote-method=ROLL_CALL_EV`; add `filter-output=voters` when named voters aren’t needed.
 - Actual positions (`had_voter_favor`, `had_voter_against`, `had_voter_abstention`) are separate from declared intentions (`had_voter_intended_*`), which never change the result.
 - Show-of-hands (`VOTE_HAND`), electronic non-roll-call (`VOTE_ELECTRONIC`) and secret ballots (`VOTE_ELECTRONIC_SECRET`, `VOTE_SECRET`, `VOTE_SECRET_BALLOT`) have no individual positions and can have no published tally. A missing position is not an absence.
@@ -147,7 +149,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 - Council first-reading positions are identified by ST number, `POSIT` type and the first-reading event, and read from the same-language XHTML.
 - Existing law comes from dated consolidations of the cited basic act. Consolidations are documentation texts, not official versions ([EUR-Lex guide](https://eur-lex.europa.eu/collection/eu-law/consleg.html?locale=en)).
 - EuroVoc topics: document `is_about` descriptors become keywords, and procedures get their initiating act’s EuroVoc. Countries use EuroVoc `skos:exactMatch` links to the country authority (`server/topic-country-*.json` record the queries and retrieval dates). EuroVoc 5695 (Kosovo) points to `XKX` while the authority uses `1A0`, so it maps to no place.
-- Stories and topic records classify a verbatim item by its own ODP activity type: the newest retained observation decides, and a same-time disagreement keeps it a debate. Vote-family types are not debates. Without a type, an item whose own English label ends in “(vote)” is a voting-time item. `PROCEEDING_ACTIVITY` markers and chair announcements are not topic records.
+- Stories and topic records classify a verbatim item by its own ODP activity type: the newest retained observation decides, and a same-time disagreement keeps it a debate. Vote-family types are not debates. Without a type, an item whose own English label ends in “(vote)” is a voting-time item. `PROCEEDING_ACTIVITY` markers and chair announcements are not topic records. A story event read adopts the held complete debate snapshot for the same item (the same `/events/{id}` response) instead of fetching it again.
 - Legal references in questions and answers (CELEX, ELI, COM/SWD/JOIN and procedure numbers) are resolved by SPARQL; a reference links only when exactly one work matches.
 - `src/terms.json` holds procedure-phase labels in all 24 languages with their concept URIs. The interface labels **Vote** and **Amendment** are app-owned machine translations, because EuroVoc 4750 (electoral voting) has the wrong sense.
 

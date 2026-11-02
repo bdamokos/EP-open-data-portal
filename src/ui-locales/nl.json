@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} Europarlementariërs",
   "topics.story.count.mepsOne": "{count} Europarlementariër",
   "topics.policyAreaSource": "Namen van beleidsterreinen: {source}.",
-  "topics.explorerTranslation": "Namen van beleidsterreinen vertaald door de verkenner."
+  "topics.explorerTranslation": "Namen van beleidsterreinen vertaald door de verkenner.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Bijdragen per maand",
+  "groupvoices.contributions_by_sitting_day.77a719": "Bijdragen per vergaderdag"
 }

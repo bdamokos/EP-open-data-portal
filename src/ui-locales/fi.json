@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} meppiä",
   "topics.story.count.mepsOne": "{count} meppi",
   "topics.policyAreaSource": "Politiikan alojen nimet: {source}.",
-  "topics.explorerTranslation": "Politiikan alojen nimet on kääntänyt selailusovellus."
+  "topics.explorerTranslation": "Politiikan alojen nimet on kääntänyt selailusovellus.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Puheenvuorot kuukausittain",
+  "groupvoices.contributions_by_sitting_day.77a719": "Puheenvuorot istuntopäivittäin"
 }

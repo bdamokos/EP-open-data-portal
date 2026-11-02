@@ -1,6 +1,6 @@
 import {rootSourceValues,sourceByteChunks} from './topic-source-stream.mjs';
 import {TopicDiskMap,topicBatches} from './topic-disk-map.mjs';
-import {storyTables,stageStoryInput,storyInput,queueStoryRead,storyEventType} from './story-facts-storage.mjs';
+import {storyTables,stageStoryInput,storyInput,queueStoryRead,storyEventType,adoptHeldEventSnapshots} from './story-facts-storage.mjs';
 import {array,tail,unique,titles,storyReference,wholeTextOutcome,debateAgenda,debateFormat,debatePlaces,speakerEligible,proceduralAgenda,votingDebate} from './story-facts-model.mjs';
 import {speechParentDocumentId} from './speech-agenda.mjs';
 import {countryLabels} from './topic-roles.mjs';
@@ -102,6 +102,9 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
   yield;const body=JSON.parse(row.body),ids=row.kind==='document'?[row.id]:unique([row.id,body.agendaId,...body.docs].filter(Boolean));
   for(const key of topicKeys.all(JSON.stringify(ids),generation))topic.run(generation,key.key,row.kind,row.id,row.date);
  }} )());
+ // Event reads queued by this pass that a held debate snapshot already answers settle now. Their inputs
+ // arrive after classification, so the publication stays dirty for a follow-up rebuild.
+ if(adoptHeldEventSnapshots(store).changed)store.set('storyInputsAfterClassification',true);
  onProgress('story-facts');
  await applyStrongPlaces(store,generation,{concepts,fact,docsFor});onProgress('story-places');
  const jobs={};for(const row of store.db.prepare('SELECT kind,state,COUNT(*) n FROM story_jobs GROUP BY kind,state').iterate())(jobs[row.kind]??={})[row.state]=row.n;

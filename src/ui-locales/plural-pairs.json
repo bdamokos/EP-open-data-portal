@@ -414,11 +414,74 @@
     "other": "topics.story.tally.abstentions",
     "count": "count"
   },
-  {"one":"topics.mapDocument","other":"topics.mapDocuments","count":"count"},
-  {"one":"topics.speechCount","other":"topics.speechesCount","count":"count"},
+  {
+    "one": "topics.mapDocument",
+    "other": "topics.mapDocuments",
+    "count": "count"
+  },
+  {
+    "one": "topics.speechCount",
+    "other": "topics.speechesCount",
+    "count": "count"
+  },
   {
     "one": "votegroups.voted_differently.one",
     "other": "votegroups.voted_differently",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.kind.questionsOne",
+    "other": "topics.story.links.kind.questions",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.kind.debatesOne",
+    "other": "topics.story.links.kind.debates",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.kind.documentsOne",
+    "other": "topics.story.links.kind.documents",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.kind.adoptedTextsOne",
+    "other": "topics.story.links.kind.adoptedTexts",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.kind.recordsOne",
+    "other": "topics.story.links.kind.records",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.moreOne",
+    "other": "topics.story.links.more",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.urgencyHeadingOne",
+    "other": "topics.story.links.urgencyHeading",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.placesHeadingOne",
+    "other": "topics.story.links.placesHeading",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.urgencyOne",
+    "other": "topics.story.links.urgency",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.debatesEachOne",
+    "other": "topics.story.links.debatesEach",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.placesOne",
+    "other": "topics.story.links.places",
     "count": "count"
   }
 ]

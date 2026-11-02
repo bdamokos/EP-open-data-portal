@@ -651,7 +651,7 @@ test('real PVCRE procedural, explanation and debate shapes recover from old pars
     h.store.db.prepare("DELETE FROM meta WHERE key='sittingDebateParser'").run();
     assert(h.collector.due());h.collector.admit();
     const row=h.store.db.prepare("SELECT next_check FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id);
-    assert.equal(row.next_check,h.clock()+pastSittingRecheckDelay(id.slice(7,17),h.clock(),DAY));
+    assert.equal(row.next_check,h.clock());
     h.collector.readCached=async()=>record;
     h.worker.fetchRecord=()=>assert.fail('valid held bytes must not download again');
     h.advance(row.next_check-h.clock());await h.collector.step(h.worker);
@@ -709,4 +709,38 @@ test('PVCRE collection follows exact declared sub-items and accepts absolute ide
   const retained=h.store.db.prepare("SELECT next_check,body FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id);
   h.store.db.prepare("DELETE FROM meta WHERE key='sittingDebateParser'").run();h.collector.admit();
   assert.deepEqual(h.store.db.prepare("SELECT next_check,body FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id),retained);
+});
+
+test('parser upgrades immediately requeue never-collected rejections at every age, preserving held rows and other backoffs',t=>{
+  const h=setup(t);h.collector.admit();
+  const next=h.clock()+180*DAY,body=gzipSync(JSON.stringify({held:'observation'}));
+  const metadataError='Collection source has invalid metadata.',linksError='Exact debate links unavailable.';
+  const cases=[
+    {date:'2026-10-07',error:metadataError,requeue:true},
+    {date:'2026-04-01',error:metadataError,requeue:true},
+    {date:'2025-04-01',error:linksError,requeue:true},
+    {date:'2024-07-17',error:metadataError,requeue:true},
+    {error:metadataError,body},
+    {error:metadataError,complete:1,body},
+    {error:metadataError,complete:1},
+    {complete:1,body},
+    {error:'Upstream returned 429'},
+    {error:'Service unavailable'},
+    {error:metadataError,kind:'agenda'},
+    {},
+  ];
+  const insert=h.store.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,complete,checked_at,next_check,attempts,error,body) VALUES (?,1,?,?,?,?,12,?,?)');
+  const read=h.store.db.prepare('SELECT * FROM sitting_snapshots WHERE kind=? AND version=1 AND id=?');
+  for(const [i,c] of cases.entries()){
+    c.kind??='debate';c.id='MTG-PL-'+(c.date||'2024-07-17')+'-PVCRE-ITM-'+(i+1);
+    insert.run(c.kind,c.id,c.complete||0,h.clock()-DAY,next,c.error??null,c.body??null);
+    c.before=read.get(c.kind,c.id);
+  }
+  h.store.set('sittingDebateParser',2);assert(h.collector.due());h.collector.admit();
+  assert.equal(h.store.get('sittingDebateParser'),3);
+  for(const c of cases)assert.deepEqual({...read.get(c.kind,c.id)},{...c.before,next_check:c.requeue?h.clock():next},c.id);
+  assert.equal(h.fixture.calls.length,0,'admission only changes due times; shared collection still controls requests');
+  // Ordinary retries after this upgrade retain their schedule on every admission.
+  const c=cases[0];h.store.db.prepare("UPDATE sitting_snapshots SET next_check=? WHERE kind='debate' AND id=?").run(next,c.id);
+  h.collector.admit();assert.equal(read.get(c.kind,c.id).next_check,next);
 });
