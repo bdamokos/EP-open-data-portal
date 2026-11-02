@@ -196,9 +196,9 @@ test('daytime publication defers graph work while retaining dirty input state',a
  assert.equal(await run(t,store,'publish',{generation:cycle.generation,createWorker}).promise,'published');assert.deepEqual(steps,['publish']);assert(store.get('topicProjectionDirty'));assert.deepEqual(await run(t,store,'topics',{generation:cycle.generation,createWorker:()=>assert.fail('daytime graph worker started')}).promise,{deferred:true,generation:cycle.generation});store.assertWriter();
 });
 
-test('a graph build that reaches the window boundary exits without publishing',async t=>{
- const {store}=fixture(t);store.clock=()=>Date.parse('2026-11-02T03:59:59.999Z');store.acquire();store.set('active',1);readableProjection(store);let terminated=false;const createWorker=()=>{const thread=new EventEmitter();thread.terminate=async()=>{terminated=true;queueMicrotask(()=>thread.emit('exit',1));};return thread;},keepAlive=setTimeout(()=>{},100);
- try{await assert.rejects(run(t,store,'topics',{generation:1,createWorker}).promise,/window closed/);}finally{clearTimeout(keepAlive);}assert(terminated);assert.equal(store.get('recordTopicProjection').version,RECORD_TOPICS_VERSION);store.assertWriter();assert.equal(store.generationTaskActive,false);
+for(const operation of ['topics','stories','publish'])test(operation+' refresh started inside the window completes after it closes',async t=>{
+ const {store}=fixture(t);let now=Date.parse('2026-11-02T03:59:59.999Z');store.clock=()=>now;store.acquire();readableProjection(store);const generation=operation==='publish'?store.beginCycle().generation:store.get('active'),steps=[];let terminated=false;const createWorker=(_url,options)=>{const thread=new EventEmitter(),step=options.workerData.operation;steps.push(step);thread.terminate=async()=>{terminated=true;thread.emit('exit',1);};if(step==='publish')queueMicrotask(()=>{store.finalize(generation);thread.emit('message',{type:'complete',value:'published'});thread.emit('exit',0);});else setTimeout(()=>{now+=50;thread.emit('message',{type:'complete',value:'built'});thread.emit('exit',0);},25);return thread;};
+ assert.equal(await run(t,store,operation,{generation,createWorker}).promise,'built');assert.equal(terminated,false);assert.deepEqual(steps,operation==='publish'?['publish','topics']:[operation]);store.assertWriter();assert.equal(store.generationTaskActive,false);
 });
 
 
@@ -221,4 +221,10 @@ test('a real background bootstrap publishes readable topics and stories outside 
  initializeGroupVoices({store,clock:Date.now},store.get('active'),[]);store.setMembers([{id:'101',name:'Member',countryCode:'CY'}]);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(store.get('active'),'/questions/E-10-2026-000001','E-10-2026-000001','101','written-questions','2026-10-28',JSON.stringify({titles:{en:'Greece'}}));
  const createWorker=(url,options)=>new Worker(url,{...options,env:{...process.env,ODP_CACHE_DIR:''}});await run(t,store,'topics',{generation:store.get('active'),rebuildWindow,createWorker}).promise;
  assert.equal(new RecordTopics(store).query(new URLSearchParams(),'overview').ready,true);assert.equal(new RecordTopics(store).query(new URLSearchParams('ids=B-10-2026-0001')).ready,true);assert.equal(storyFacts(store,new URLSearchParams('scope=map&askers=not-home')).ready,true);assert.equal(new RecordTopics(store).query(new URLSearchParams('role=place&askers=not-home'),'overview').items[0].id,'GRC');assert.equal(storyFacts(store,new URLSearchParams('scope=place&key=GRC&askers=not-home')).counts.questions,1);assert(groupVoicesPage(store,groupVoicesQuery(new URLSearchParams('group=PPE'))).ready);assert.equal(store.get('topicProjectionDirty'),false);store.assertWriter();
+});
+
+
+test('explicit refresh cancellation still waits for worker exit and logs one cancelled build',async t=>{
+ const {store}=fixture(t);store.clock=()=>Date.parse('2026-11-02T03:59:59Z');store.acquire();readableProjection(store);const logs=[];t.mock.method(console,'info',(...args)=>logs.push(args));let terminated=false,exit;const createWorker=()=>{const thread=new EventEmitter();exit=()=>thread.emit('exit',1);thread.terminate=async()=>{terminated=true;};return thread;},task=run(t,store,'topics',{generation:store.get('active'),createWorker});
+ task.controller.abort(new Error('service shutdown'));assert(terminated);assert(store.generationTaskActive);store.assertWriter();assert.equal(logs.length,0);exit();await assert.rejects(task.promise,/service shutdown/);assert.equal(store.generationTaskActive,false);store.assertWriter();assert.equal(logs.length,1);assert.equal(logs[0][0],'[topics-build]');assert.equal(JSON.parse(logs[0][1]).outcome,'cancelled');
 });
