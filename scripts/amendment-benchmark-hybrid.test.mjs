@@ -170,3 +170,25 @@ test('row provenance references preserve source keys while full identity proofs 
  const legacy={...f.h.receipt(),rows:{example:{inputs:[{...reference,identity:{proof:'x'.repeat(100000)}}]}}},before=JSON.stringify(legacy),compact=compactHybridReceipt(legacy);
  assert.equal(compact.rows.example.inputs[0].identity,undefined);assert.deepEqual(compact.rows.example.inputs[0],reference);assert.equal(JSON.stringify(legacy),before);assert.deepEqual(compactHybridReceipt(compact),compact);assert(JSON.stringify(compact).length<1000);
 });
+
+for(const conflict of ['none','url','edition'])test('sparse shared Czech metadata proves report edition but historical languages stay scoped: '+conflict,async t=>{
+ const f=await fixture(t),copy=structuredClone(work);copy.is_realized_by[0].language='cs';if(conflict==='edition')copy.epNumberVersion='1';
+ const old=structuredClone(copy);old.epNumberVersion='2';if(conflict==='url')old.is_realized_by[0].is_embodied_by[0].is_exemplified_by+='other';old.is_realized_by.push({language:'ro',is_embodied_by:[{...file,is_exemplified_by:url+'.ro'}]});
+ const request={accept:'application/ld+json'},m={...record(publicDocumentUrl(id),{data:[copy]},request),status:null,fetchedAt:null,localProjection:{representation:'retained-index-projection'}};
+ await seal(f.a,[m,gap(url)]);await seal(f.b,[record(m.url,{data:[old]},request),record(url+'.ro','HISTORICAL')]);const h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;
+ assert.equal(Boolean(await h.metadataProof(m)),conflict==='none');assert.equal(await h.epProof({documentId:id,file:{url:url+'.ro',language:'ro'}}),null);
+});
+for(const mode of ['good','legacy','corrupt','wrong-id','alias','missing','unapproved','four-hops'])test('identity-bound wording redirects: '+mode,async t=>{
+ const f=await fixture(t),target='https://redmapl3.europarl.europa.eu/RedmapFront/media/test/wording.docx',hash=digest(Buffer.from('OLD BASE'));
+ const row={id:id+'-AM-1',targetDocumentId:id,number:1,listId:id+'-AM-001-001',language:'en',wordingSource:{url,sha256:hash}},old=structuredClone(row);if(mode==='wrong-id')old.id+='x';
+ const catalogue=apiBase+'/api/amendments?limit=50',redirect=(from,to)=>({...record(from,''),status:302,ok:false,headers:{location:to},redirectUrl:to});
+ let chain=[redirect(url,mode==='unapproved'?'https://example.org/wording.docx':target),record(target,mode==='corrupt'?'CORRUPT':'OLD BASE')];
+ if(mode==='legacy')delete chain[0].headers;if(mode==='missing')chain.pop();if(mode==='four-hops')chain=[redirect(url,target),redirect(target,target+'1'),redirect(target+'1',target+'2'),redirect(target+'2',target+'3'),record(target+'3','OLD BASE')];
+ await seal(f.b,[record(catalogue,{items:[old]}),...chain,record(target.replace('.docx','-alias.docx'),'OLD BASE')]);const before=await Promise.all([tree(f.a),tree(f.b)]),h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;h.trackRows([row]);const cache=new InputCache(f.out,{apiBase,cap:0,retained:h,fetcher:()=>assert.fail('zero requests')});
+ const input=await cache.get(mode==='alias'?target.replace('.docx','-alias.docx'):url,{officialRedirect:true});assert.equal(Boolean(input.acquisitionUnavailable),!['good','legacy'].includes(mode));if(['good','legacy'].includes(mode)){assert.equal(input.sha256,hash);assert.equal(input.hybridSource.identity.proof.redirects[0].status,302);assert.equal(input.resolvedSourceUrl,target);assert.equal((await h.nativeSelections(id,'en')).length,1);}assert.equal(cache.requests,0);assert.deepEqual(await Promise.all([tree(f.a),tree(f.b)]),before);
+});
+for(const mode of ['good','wrong-id','wrong-selected','wrong-language','conflicting-url','hash','edition'])test('sparse metadata uses exact frozen context file declaration: '+mode,async t=>{
+ const copy=structuredClone(work);if(mode==='edition')copy.epNumberVersion='1';const f=await fixture(t,old=>{old.is_realized_by[0].language=mode==='conflicting-url'?'en':'cs';if(mode==='conflicting-url')old.is_realized_by[0].is_embodied_by[0].is_exemplified_by+='other';if(mode==='edition')old.epNumberVersion='2';},copy);
+ const context=apiBase+'/api/document-context/'+id+'?lang=en',value={documentId:mode==='wrong-id'?id+'9':id,document:{selectedDocumentId:mode==='wrong-selected'?id+'9':id,files:[{url,language:mode==='wrong-language'?'fr':'en',format:'DOCX',...(mode==='hash'?{sha256:'a'.repeat(64)}:{})}]}};
+ const records=await Promise.all(f.sb.manifest.map(m=>f.h.b.read(m.url,m.request)));await seal(f.b,[...records,record(context,value)]);const before=await Promise.all([tree(f.a),tree(f.b)]),h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;const cache=new InputCache(f.out,{apiBase,cap:0,retained:h,fetcher:()=>assert.fail('zero requests')});const input=await h.baseScope(f.identity,()=>cache.get(url));assert.equal(Boolean(input.acquisitionUnavailable),mode!=='good');if(mode==='good'){const contexts=input.hybridSource.identity.proof.declaration.contexts.base;assert.equal(contexts[0].url,context);assert(contexts[0].sha256);assert(contexts[0].fetchedAt);}assert.equal(cache.requests,0);assert.deepEqual(await Promise.all([tree(f.a),tree(f.b)]),before);
+});

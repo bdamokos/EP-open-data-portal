@@ -106,6 +106,15 @@ export function replaySourceClients(cache,runtime) {
   return {sources,documents};
 }
 
+// Shared exact-ID frozen context declaration protocol for replay and hybrid proof.
+export function contextFileDeclarations(id,language,value,input,runtime) {
+  const document=value?.document;
+  if(value?.documentId!==id||document?.selectedDocumentId&&document.selectedDocumentId!==id)return [];
+  const files=(document?.files||[]).filter(file=>file.language===language&&file.format==='DOCX'&&runtime.allowedDownload(file.url));
+  if(new Set(files.map(file=>file.url)).size!==1)return [];
+  return files.map(file=>({...file,catalogue:{url:input.url,sha256:input.sha256,fetchedAt:input.fetchedAt},upstreamSources:value.sources||[]}));
+}
+
 export function sourceReplay(cache,runtime) {
   const observedFiles=new Map();
   const textWork=(work,language)=>{
@@ -185,11 +194,8 @@ export function sourceReplay(cache,runtime) {
     proposalRequiresSelection,
     observeFiles(id,contexts) {
       for(const [language,{plain}] of contexts) {
-        const document=plain.value?.document;
-        if(plain.value?.documentId!==id||document?.selectedDocumentId&&document.selectedDocumentId!==id)continue;
-        const files=(document?.files||[]).filter(file=>file.language===language&&file.format==='DOCX'&&runtime.allowedDownload(file.url));
-        const urls=[...new Set(files.map(file=>file.url))];
-        if(urls.length===1)observedFiles.set(language,{url:urls[0],language,catalogue:{url:plain.input.url,sha256:plain.input.sha256,fetchedAt:plain.input.fetchedAt},upstreamSources:plain.value.sources||[]});
+        const files=contextFileDeclarations(id,language,plain.value,plain.input,runtime);
+        if(files.length)observedFiles.set(language,files[0]);
       }
     },
     references:buffer=>{
