@@ -1,6 +1,4 @@
 {
-  "topics.geopolitics": "Geopolitics",
-  "topics.plenaryMode": "Topics",
   "documentcontext.council.quotation": "Council text as quoted in the report.",
   "amendment.rejects_proposal": "Rejects the proposal",
   "amendment.rejects_council_position": "Rejects the Council position",
@@ -2386,6 +2384,10 @@
   "topics.topic": "Topic",
   "topics.place": "Place",
   "topics.keywords": "Keywords",
+  "topics.geopolitics": "Geopolitics",
+  "topics.plenaryMode": "Topics",
+  "topics.findPlace": "Find a place",
+  "topics.findTopic": "Find a topic",
   "topics.find": "Find a topic or place",
   "topics.unavailable": "Unavailable",
   "topics.pending": "Topic not yet collected",

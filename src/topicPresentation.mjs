@@ -23,7 +23,7 @@ export function titleParts(title,language){if(language!=='en')return ['',title];
 export function topicsHref(key,filters={}){const place=key.startsWith('place:'),q=new URLSearchParams({view:place?'geopolitics':'legislation'});if(!place)q.set('pl-mode','topics');q.set(place?'place':'topic',key.replace(/^place:/,''));for(const [k,v] of Object.entries(filters))if(v)q.set(k,String(v));return '?'+q;}
 export function emptyDossierRedirect(query){
  if(query.get('view')!=='legislation'||query.get('pl-mode')!=='dossier'||query.get('dossier-ref')?.trim())return null;
- const q=new URLSearchParams(query);q.delete('pl-mode');return '?'+q;
+ const q=new URLSearchParams(query);q.delete('pl-mode');q.delete('dossier-ref');return '?'+q;
 }
 
 // Rows are already sorted by score; a preview includes every boundary tie.

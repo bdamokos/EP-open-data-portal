@@ -1,4 +1,3 @@
-import {Topics} from './Topics';
 import {groupMajorities,delegationBreaks} from './voteGroupMetrics.mjs';
 import {GroupUnity,VoteGroupSummary} from './VoteGroupSummary';
 import {topicsHref,agendaTitle} from './topicPresentation.mjs';
@@ -10,7 +9,7 @@ import {committeeAmendmentList,committeeAmendmentTarget} from './amendmentModel.
 import {PersonName,usePersonName} from './PersonName';
 import {selectLanguageText} from './language.mjs';
 import {matchesCountry} from './countries.mjs';
-import {useExplorerParam} from './explorerUrl';
+import {useExplorerParam,updateExplorerQuery} from './explorerUrl';
 import {PlenaryLiveBanner,ScheduledNow} from './PlenaryLive';
 import {lazy,Suspense,useState,useEffect,useLayoutEffect,useRef,useCallback,useId} from 'react';
 import {plenaryModes,plenaryModeTitles,type PlenaryMode, plenaryModeTitlesUi} from './plenaryModes';
@@ -33,6 +32,7 @@ import type {DossierReference} from './DossierActivityTypes';
 import type {LegislationResponse,LegislationNavigationResponse,NamedVote} from './LegislationTypes';
 import type {DirectoryMember} from './explorerTypes';
 import {brusselsDate,plenaryAvailability} from './plenaryAvailability.mjs';
+const Topics=lazy(()=>import('./Topics').then(module=>({default:module.Topics})));
 function usePlenaryDate() {
   const [today,setToday]=useState(brusselsDate);
   useEffect(()=>{const timer=setInterval(()=>setToday(brusselsDate()),60_000);return()=>clearInterval(timer);},[]);
@@ -230,9 +230,9 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   }
   function chooseAgendaPeriod(period:string){resetSearchPosition();setAgendaPeriod(period);setSitting(period.startsWith('sitting:') ? period.slice(8) : '');setTopic('');setVote('');}
   function chooseCountry(value:string|null){if(value!==country)resetSearchPosition();setCountry(value);}
-  function chooseMode(next:typeof mode){if(next!==mode)resetSearchPosition();setMode(next);}
+  function chooseMode(next:typeof mode){if(next!==mode)resetSearchPosition();updateExplorerQuery(url=>{for(const key of [...url.searchParams.keys()])if(key==='topic'||key.startsWith('t-'))url.searchParams.delete(key);url.hash='';});setMode(next);}
   return <InsightShell {...props} view="legislation" title={pageTitle} hideTitle={mode==='topics'&&Boolean(policyTopic||policyRecord||policyRecords)}><PlenaryLiveBanner language={language}/><nav className="insight-chart-switch insight-mode-nav" lang={ui.language} aria-label={ui.t("legislation.explore_plenary.294d91")}><button aria-pressed={mode==='agenda'} onClick={()=>chooseMode('agenda')}><UiMessage id="legislation.agenda.891e9d"/></button><button aria-pressed={mode==='participation'} onClick={()=>chooseMode('participation')}><UiMessage id="plenarymodes.what_s_hot"/></button><button aria-pressed={mode==='cloud'} onClick={()=>chooseMode('cloud')}><UiMessage id="legislation.word_cloud.e3f724"/></button><button aria-pressed={mode==='topics'} onClick={()=>chooseMode('topics')}><UiMessage id="topics.plenaryMode"/></button></nav>{mode==='agenda'&&<div className="insight-controls" lang={ui.language}><PlenaryPeriodSelect value={selectedPeriod} sittings={navigation?.sittings||agendaSittings} language={language} onChange={chooseAgendaPeriod} includeLatest/>{data&&<span>{ui.t(agendaSummaryKey(Boolean(data.coverage.agendaError&&!data.topics.length),Boolean(data.week&&!data.coverage.agendaComplete),(data.agendaSittings||[data.sitting]).every(day=>day.phase==='upcoming')),{count:data.topics.length})}</span>}</div>}{mode==='agenda'&&(('selectionUnavailable' in (navigation||{})) ? <p lang={ui.language}><UiMessage id="legislation.latest_week_unavailable_choose_a_period.103440"/></p> : <SittingCalendarNotice complete={navigation?.coverage.catalogueComplete}/>)} {['agenda','cloud','participation'].includes(mode)&&<InsightStatus loading={base.loading&&!data} error={base.error} retry={base.retry} loadingMessage={(mode==='agenda') ? ui.t("legislation.loading_agenda.26ee57") : undefined} errorMessage={(mode==='agenda') ? ui.t("legislation.could_not_load_this_agenda_choose_another_period_or_reload.214ba9") : undefined}/>}
-    {mode==='topics'&&<Topics {...props} contentOnly/>}
+    {mode==='topics'&&<Suspense fallback={<p data-view-loading role="status"><UiMessage id="insightshared.loading"/></p>}><Topics {...props} contentOnly/></Suspense>}
     {mode==='dossier'&&<section className="insight-dossier-finder" lang={ui.language}>{reference&&<ProcedureContext key={reference} reference={reference} language={language} showTitle fallbackTitle={(dossierMetadata?.reference===reference) ? dossierMetadata : null} onTopic={topic=>{navigateDossier(topicsHref('eurovoc:'+topic.id.replace(/^.*\//,'')));}}><DossierActivity key={'activity:'+reference+':'+language} reference={reference} language={language} onProcedure={setDossierMetadata}/></ProcedureContext>}</section>}
     {data&&mode==='agenda'&&data.coverage.agendaError&&<p role="alert" lang={ui.language}>{data.week ? <><UiMessage id="legislation.agenda_unavailable_for_dates.3383b8" values={{dates: <span lang={language}>{data.agendaSittings?.filter(day=>day.agendaError).map(day=>humanDate(day.date,language)).join(', ')}</span>}}/></> : ui.t("legislation.agenda_unavailable_for_this_sitting.aac90b")} <button onClick={base.retry}><UiMessage id="insightshared.reload.cce715"/></button></p>}
     {navigation&&mode==='cloud'&&<SittingCloud latestAvailable={navigation.coverage.latestAvailable} sitting={sitting} agendaPeriod={agendaPeriod} sittings={navigation.sittings} language={language} onSearchScopeChange={resetSearchPosition}/>}

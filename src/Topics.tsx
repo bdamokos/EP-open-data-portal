@@ -1,7 +1,7 @@
 import {PolicyAreaSourcesPage,usePolicyAreaLabels} from './PolicyAreaSources';
 import {cleanStoryTitle} from './topicStoryModel.mjs';
 import {europeStoryIso3} from './storyEurope.mjs';
-import {dossierLinkClick,navigateDossier,useDossierReaderState} from './dossierJourney';
+import {dossierLinkClick,navigateDossier,useDossierReaderState,dossierJourneyRestoring} from './dossierJourney';
 import {TopicStoryDocument,TopicStoryRecords,TopicStories} from './TopicStories';
 import {storyFactsRoute} from './exactTopicStories.mjs';
 import {InsightQuestionReader} from './InsightReaders';
@@ -75,7 +75,7 @@ function Detail({topic,place,language,mode,zoom}:{topic:string;place:string;lang
  const eu=isEuPlace(shown?.concept?.iso3),ownGap=false;
  useEffect(()=>{if(invalidQuarter)updateExplorerQuery(url=>url.searchParams.set('t-q',quarter),true);},[invalidQuarter,quarter]);
 
- useEffect(()=>{if(!focusRecords.current)heading.current?.focus({preventScroll:true});},[key,Boolean(shown?.concept)]);
+ useEffect(()=>{if(!focusRecords.current&&!dossierJourneyRestoring())heading.current?.focus({preventScroll:true});},[key,Boolean(shown?.concept)]);
  useEffect(()=>{const origin=focusRecords.current;if(!origin||records.loading||!chart.data?.ready||!recordsHeading.current)return;if(records.data||records.error){focusRecords.current=null;if(document.activeElement===origin||document.activeElement===document.body){recordsHeading.current?.focus({preventScroll:true});recordsHeading.current?.scrollIntoView({block:'start'});}}},[records.loading,records.data,records.error,chart.data]);
  type SavedGroup={group:TopicGroup;offset:number};
  const [retainedGroups,setRetainedGroups]=useDossierReaderState<SavedGroup[]>('topic-group-pages',[]);
@@ -124,7 +124,7 @@ export function Topics({language='en',contentOnly=false,...props}:InsightProps&{
  const shownOverview=useRef<{tab:string;own:string;data:TopicOverview}|null>(null);if(overview.data?.ready)shownOverview.current={tab,own:mapOwn,data:overview.data};
  const overviewData=overview.data?.ready?overview.data:overview.loading&&shownOverview.current?.tab===tab?shownOverview.current.data:null;
  // Geopolitics puts the map and its story before the ranked list and finder.
- const finder=<TopicFinder language={language} onSelect={i=>{navigateDossier(topicsHref(i.key));}}/>;
+ const finder=<TopicFinder language={language} scope={tab==='places'?'places':'topics'} onSelect={i=>{navigateDossier(topicsHref(i.key));}}/>;
  const content=<PolicyAreaSourcesPage><div className="topics-content" data-topic-key={topic||place||''} data-tab={!topic&&!place?tab:undefined} data-topics-pending={!topic&&!place&&overview.loading&&!overviewData?'true':undefined}>{documentRecord?<TopicStoryDocument id={documentRecord} selection={{periods:[],mode:storyMode,zoom:storyZoom,excludeOwn:mapOwn==='1',place:place||undefined,topic:topic||undefined,period:new URLSearchParams(location.search).get('t-q')||undefined}}/>:recordSet?<TopicStoryRecords key={recordSet} selection={{periods:overviewData?.periods||[],mode:storyMode,zoom:storyZoom,period:new URLSearchParams(location.search).get('t-q')||undefined,place:place||undefined,topic:topic||undefined,excludeOwn:mapOwn==='1',labels:Object.fromEntries((overviewData?.items||[]).map(i=>[i.id||i.key.replace(/^place:/,''),i.label]))}}/>:!topic&&!place?<>{tab==='topics'&&finder}<InsightStatus loading={overview.loading&&!overviewData} error={overview.error} retry={overview.retry}/>{overviewData?(tab==='places'?<Places data={overviewData} dataOwn={overview.data?.ready?mapOwn:shownOverview.current?.own||mapOwn} finder={finder}/>:<HeatStrip data={overviewData}/>):<>{tab==='places'&&finder}{!overview.loading&&<p><UiMessage id="topics.unavailable"/> <button onClick={overview.retry}><UiMessage id="insightshared.reload.cce715"/></button></p>}</>}</>:<Detail key={topic||place} topic={topic} place={place} language={language} mode={storyMode} zoom={storyZoom}/>}</div></PolicyAreaSourcesPage>;
  return contentOnly?content:<InsightShell {...props} language={language} view={tab==='places'?'geopolitics':'legislation'} hideTitle={Boolean(topic||place||recordSet||documentRecord)} title={ui.t(tab==='places'?'topics.geopolitics':'topics.topics')}>{content}</InsightShell>;
 }

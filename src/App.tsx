@@ -14,7 +14,7 @@ import {QuestionAnswerer} from './QuestionAnswerer';
 import {useSpeechTranslation,SpeechTextStatus} from './SpeechTranslation';
 import {MemberAffiliation} from './components/MemberAffiliation';
 import {ActivityDossierLinks} from './DossierActivity';
-import {useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
+import {navigateDossier,useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
 import {matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
 import {AvailabilityNote} from './AvailabilityNote';
 import {coverageStore} from './SavedControls';
@@ -676,7 +676,13 @@ export default function App() {
     (value === "MEMBER_SUBSTITUTE") ? label("substitute", c.substitutes) : ((value === "MEMBER") ? label("member", c.members) : ((value === "CHAIR") ? ((lang === "en") ? ui.t("batch4.speechinterventions.tsx.chair") : label("chair", ui.t("batch4.speechinterventions.tsx.chair"))) : ((value === "CHAIR_VICE") ? ((lang === "en") ? ui.t("interfaceLabels.viceChair") : label("viceChair", ui.t("interfaceLabels.viceChair"))) : value.toLowerCase().replaceAll("_", " "))));
   function navigateView(next:typeof view) {
     next=publicExplorerView(next);
-    if(next===view)return;
+    if(next===view){
+      const url=new URL(location.href);
+      if(!['legislation','geopolitics'].includes(next||'')||!['topic','place','t-record','t-records'].some(key=>url.searchParams.has(key)))return;
+      for(const key of [...url.searchParams.keys()])if(key==='topic'||key==='place'||key.startsWith('t-'))url.searchParams.delete(key);
+      if(next==='legislation')url.searchParams.set('pl-mode','topics');
+      url.hash='';navigateDossier(url.pathname+url.search);return;
+    }
     votes.remember();
     motions.remember();
     const active=(document.activeElement instanceof HTMLElement) ? document.activeElement : null;

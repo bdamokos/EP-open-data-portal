@@ -50,7 +50,9 @@ test('finder selects the active result with arrows and Enter and closes with Esc
  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-finder'});const {TopicFinder}=await load('/src/TopicFinder.tsx'),{createRoot}=await import('react-dom/client');const node=window.document.createElement('div');window.document.body.append(node);root=createRoot(node);let selected;
  await act(async()=>root.render(h(TopicFinder,{onSelect:item=>selected=item})));const input=node.querySelector('input');await act(async()=>input.focus());await act(async()=>new Promise(r=>setTimeout(r,30)));
  const press=key=>act(async()=>input.dispatchEvent(new window.KeyboardEvent('keydown',{key,bubbles:true})));
- await press('ArrowDown');assert(input.getAttribute('aria-activedescendant'));await press('ArrowDown');await press('Enter');assert.equal(selected.key,'place:IRN');assert.equal(input.getAttribute('aria-expanded'),'false');await press('ArrowDown');await press('Escape');assert.equal(input.getAttribute('aria-expanded'),'false');
+ await press('ArrowDown');assert(input.getAttribute('aria-activedescendant'));await press('ArrowDown');await press('Enter');assert.equal(selected.key,'place:IRN');assert.equal(input.getAttribute('aria-expanded'),'false');
+ for(const [scope,label,expected] of [['places','Find a place',['Iran']],['topics','Find a topic',['Trade']]]){await act(async()=>root.render(h(TopicFinder,{scope,onSelect:item=>selected=item})));await act(async()=>{input.blur();input.focus();});await act(async()=>new Promise(r=>setTimeout(r,30)));assert.equal(input.placeholder,label);assert.deepEqual([...node.querySelectorAll('[role=option]>span')].map(n=>n.textContent),expected);await press('ArrowDown');await press('Enter');assert.equal(selected.role,scope==='places'?'place':'topic');}
+await press('ArrowDown');await press('Escape');assert.equal(input.getAttribute('aria-expanded'),'false');
 });
 
 test('malformed quarter URLs cannot silently select an unfiltered record list',async()=>{const {readExplorerParam}=await import('./explorerQuery.mjs');assert.equal(readExplorerParam(new URLSearchParams('t-q=2026-Q8'),'t-q',''),'');assert.equal(readExplorerParam(new URLSearchParams('t-q=2026-Q3'),'t-q',''),'2026-Q3');});
@@ -146,7 +148,7 @@ test('topic and place links select their canonical navigation context and retain
 test('empty dossier entry returns to agenda while referenced dossiers and other parameters survive',()=>{
  for(const suffix of ['', '&dossier-ref=', '&dossier-ref=%20']){
   const q=new URLSearchParams('view=legislation&pl-mode=dossier&lang=fr&agenda-period=week%3A2026-10-05'+suffix),redirect=new URL(emptyDossierRedirect(q),'http://localhost').searchParams;
-  assert.equal(redirect.get('view'),'legislation');assert.equal(redirect.has('pl-mode'),false);assert.equal(redirect.get('lang'),'fr');assert.equal(redirect.get('agenda-period'),'week:2026-10-05');
+  assert.equal(redirect.get('view'),'legislation');assert.equal(redirect.has('pl-mode'),false);assert.equal(redirect.has('dossier-ref'),false);assert.equal(redirect.get('lang'),'fr');assert.equal(redirect.get('agenda-period'),'week:2026-10-05');
  }
  assert.equal(emptyDossierRedirect(new URLSearchParams('view=legislation&pl-mode=dossier&dossier-ref=2025%2F0407(COD)')),null);
 });

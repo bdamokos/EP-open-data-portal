@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {topicLinkDetail,placeLinkFacts,recordLinkPage} from './test-support/storyLinksFixtures.mjs';
+import {storyQuery} from '../server/story-facts-reader.mjs';
 import {viewReady} from './test-support/viewReady.mjs';
 
 const ref='2025/0176(COD)',documentId='A-10-2026-0010',source={url:'https://data.europarl.europa.eu/api/v2/procedures/2025-0176',fetchedAt:'2026-10-24T08:00:00Z',language:'en'};
@@ -16,7 +18,7 @@ const person={id:'257727',name:'Named Member',currentMep:true,personUri:'person/
 const sitting={id:'MTG-PL-2026-09-15',date:'2026-09-15',phase:'past'};
 const legislation={sitting,sittings:[sitting],topics:[topic],coverage:{agendaError:null,catalogueComplete:true},detail:{...topic,phase:'past',procedures:[{...procedure,label:ref,websiteUrl:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference='+ref,apiUrl:source.url}],committeeWork:[],people:[person],roles:[{...person,role:'RAPPORTEUR'}],speeches:[],stats:{denominator:0,dimensions:{country:[],group:[],gender:[],age:[]}},votes:[],voteCoverage:{},coverage:{gaps:[],speechAssociations:{sources:[]}}}};
 
-async function harness(t,url) {
+async function harness(t,url,respond) {
   const window=new Window({url:'http://localhost/'+url}),originals=new Map(),calls=[];
   for(const [key,value] of Object.entries({window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,DOMParser:window.DOMParser,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:390,IS_REACT_ACT_ENVIRONMENT:true})){
     originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
@@ -25,6 +27,7 @@ async function harness(t,url) {
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href),route=url.pathname.split('/api/')[1];calls.push(url);
+    const custom=respond?.(url);if(custom!==undefined)return custom instanceof Response?custom:Response.json(custom);
     if(route==='directory')return Response.json({day:'2026-10-24',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}});
     if(route?.startsWith('profile/'))return Response.json(member);
     if(route?.startsWith('portrait/'))return new Response(null,{status:404});
@@ -67,4 +70,51 @@ test('agenda participant keeps profile action and a secondary dossier action; re
   const restoredRead=[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Hide '+documentId);assert(restoredRead);assert.equal(restoredRead.getAttribute('aria-expanded'),'true');
   assert.equal(document.getElementById(restoredRead.getAttribute('aria-controls')).querySelector('[data-reader-source]').getAttribute('data-reader-source'),documentId);
   assert.equal(h.container.querySelector('main').scrollTop,820);assert.equal(document.activeElement.textContent,'Work on this dossier');
+});
+
+
+function topicResponse(url){
+ const path=url.pathname;
+ if(path==='/api/topics/detail')return {...topicLinkDetail(url.searchParams.get('key')),groups:[{key:'2025-0176',reference:ref,kind:'procedure',title:'Open the exact dossier',date:'2026-09-15',items:[],speechCount:0,speakers:[]}]};
+ if(path==='/api/topics/overview')return {ready:true,items:[],periods:['2026-Q3'],partial:{},sittingDays:{}};
+ if(path==='/api/topics/story-facts')return {ready:false};
+ if(path==='/api/insights/record-topics')return {ready:true,records:[]};
+}
+async function waitFor(h,predicate){for(let i=0;i<100&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,10)));assert(predicate(),h.container.textContent);}
+test('real Plenary topic → dossier → Back restores the clicked dossier link, rather than the topic H1',async t=>{
+ const h=await harness(t,'?view=legislation&pl-mode=topics&topic=oeil:1.10',topicResponse);
+ await waitFor(h,()=>h.container.querySelector('.topic-record-group h3 a'));
+ const link=h.container.querySelector('.topic-record-group h3 a');await h.click(link);await waitFor(h,()=>h.container.querySelector('.dossier-back'));
+ await h.click(h.container.querySelector('.dossier-back'));await waitFor(h,()=>h.container.querySelector('.topic-record-group h3 a'));await h.frames();
+ assert.equal(document.activeElement,h.container.querySelector('.topic-record-group h3 a'));
+ assert.equal(h.container.querySelector('.topic-detail-header h1').textContent,'Climate policy');
+});
+test('mode and current-section controls return detail pages to their overviews without leaking topic filters',async t=>{
+ const h=await harness(t,'?view=legislation&pl-mode=topics&topic=oeil:1.10&t-q=2026-Q3&t-kind=document',topicResponse);
+ const button=text=>[...h.container.querySelectorAll('button')].find(b=>b.textContent===text);
+ await waitFor(h,()=>h.container.querySelector('.topic-detail-header'));
+ await h.click(button('Agenda'));
+ assert(!new URLSearchParams(location.search).has('topic'));assert(![...new URLSearchParams(location.search).keys()].some(k=>k.startsWith('t-')));
+ await h.click(button('Topics'));await waitFor(h,()=>h.container.querySelector('.topic-heat'));
+ for(const control of ['Topics','Plenary agenda']){
+  await act(async()=>{history.replaceState({},'','?view=legislation&pl-mode=topics&topic=oeil:1.10&t-q=2026-Q3');window.dispatchEvent(new window.PopStateEvent('popstate'));});
+  await waitFor(h,()=>h.container.querySelector('.topic-detail-header'));await h.click(button(control));await waitFor(h,()=>h.container.querySelector('.topic-heat'));
+  assert.equal(new URLSearchParams(location.search).get('pl-mode'),'topics');assert(!new URLSearchParams(location.search).has('topic'));
+ }
+ await act(async()=>{history.replaceState({},'','?view=geopolitics&place=IRN&t-mode=d');window.dispatchEvent(new window.PopStateEvent('popstate'));});
+ await waitFor(h,()=>h.container.querySelector('.topic-detail-header'));await h.click(button('Geopolitics'));await waitFor(h,()=>h.container.querySelector('.places-map'));assert(!new URLSearchParams(location.search).has('place'));
+});
+
+
+test('real single-record reader Back restores its list and clicked record link',async t=>{
+ const origin='?view=geopolitics&place=IRN&t-records='+encodeURIComponent('documents:IRN:2026-Q1:all');
+ const h=await harness(t,origin,url=>{
+  if(url.pathname==='/api/topics/story-facts'){const p=new URLSearchParams(url.search);p.delete('v');const q=storyQuery(p);return q.list?recordLinkPage(q):placeLinkFacts('IRN');}
+  return topicResponse(url);
+ });
+ const recordLink=()=>[...h.container.querySelectorAll('.topic-story-records article a')].find(a=>a.href.includes('t-record='));
+ await waitFor(h,recordLink);const text=recordLink().textContent;await h.click(recordLink());await waitFor(h,()=>new URLSearchParams(location.search).has('t-record'));
+ t.mock.method(history,'back',()=>{history.replaceState({},'',origin);window.dispatchEvent(new window.PopStateEvent('popstate'));});
+ await h.click(h.container.querySelector('.topic-story-records > a'));await waitFor(h,recordLink);await h.frames();
+ assert.equal(document.activeElement.textContent,text);assert.equal(document.activeElement,recordLink());assert(new URLSearchParams(location.search).has('t-records'));
 });
