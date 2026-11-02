@@ -213,8 +213,19 @@ function verifyAnnexTable({proposal,wording,placement}) {
   const run=rows.slice(starts[0],starts[0]+lines.length);
   if(run.some(row=>row.broken))return {status:'unverified',reason:'oracle-table-rows-incomplete'};
   const first=run[0].indexes[0],last=run.at(-1).indexes.at(-1);
-  const heading=rows.slice(0,starts[0]).reverse().find(row=>!row.key&&/^ANNEX\s+[IVXLC]+$/u.test(row.cells[0]));
-  if(heading?.cells[0]!=='ANNEX '+address[1])return {status:'unverified',reason:'oracle-annex-identity-unverified'};
+  const before=rows.slice(0,starts[0]),headingAt=before.map(row=>!row.key&&/^ANNEX\s+[IVXLC]+$/u.test(row.cells[0])).lastIndexOf(true);
+  if(headingAt<0||before[headingAt].cells[0]!=='ANNEX '+address[1])return {status:'unverified',reason:'oracle-annex-identity-unverified'};
+  // Subordinate addresses: only 'paragraph 1' (no other numbered paragraph
+  // before the run) or 'point N' (nearest preceding numbered point is N).
+  const lead=before.slice(headingAt+1).filter(row=>!row.key).map(row=>row.cells[0]);
+  const sub=String(wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel).split('\n')[0].replace(/\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u,'').split(/\s+[–—-]\s+/u).slice(1);
+  if(sub.length>1)return {status:'unverified',reason:'oracle-table-address-unsupported'};
+  if(sub.length===1) {
+    const paragraph=/^paragraph 1$/u.test(sub[0]),point=/^point (\d+)$/u.exec(sub[0]);
+    if(paragraph&&lead.some(text=>/^(\d+)[.)]\s/u.exec(text)?.[1]&&!/^1[.)]\s/u.test(text)))return {status:'unverified',reason:'oracle-table-address-unverified'};
+    if(point&&[...lead].reverse().map(text=>/^\((\d+)\)\s/u.exec(text)?.[1]).find(Boolean)!==point[1])return {status:'unverified',reason:'oracle-table-address-unverified'};
+    if(!paragraph&&!point)return {status:'unverified',reason:'oracle-table-address-unsupported'};
+  }
   if(placement.span?.start!==first||placement.span?.end!==last)return fail('oracle-address-span-mismatch');
   return verified('oracle-annex-table-rows');
 }

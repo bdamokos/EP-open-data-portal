@@ -18,3 +18,10 @@ test('annex table rows verify cell for cell inside the named annex', () => {
   assert.equal(check(wording('Annex III – paragraph 1 – table','Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide'),replace(7,11)).status,'unverified','a cell that differs never matches');
   assert.equal(check(wording('Annex III – paragraph 1 – table','CN code\tGreenhouse gas'),replace(8,9)).status,'unverified','repeated rows are not unique');
 });
+
+test('a subordinate address other than the owning provision stays unverified', () => {
+  const original='Aluminium\nCN code\tGreenhouse gas\nex 7602 Aluminium waste\tCarbon dioxide';
+  assert.equal(check(wording('Annex III – paragraph 2 – table',original),replace(7,11)).status,'unverified');
+  assert.equal(check(wording('Annex III – point 1 – table',original),replace(7,11)).status,'unverified');
+  assert.equal(check(wording('Annex III – paragraph 1 – point 1 – table',original),replace(7,11)).status,'unverified');
+});

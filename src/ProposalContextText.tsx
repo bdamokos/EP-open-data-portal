@@ -111,8 +111,11 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
     // A splice over whole table rows replaces those rows: omit them instead of
     // leaving empty cells, and show the amendment after any remaining rows.
     const splice=active ? placement.splice : undefined;
-    const spliced=(index:number)=>!!splice&&index>=splice.start.paragraph&&index<=splice.end.paragraph;
-    const replacedRows=new Set(table.rows.flatMap((tr,ri)=>{const indices=tr.cells.flatMap(cell=>cell.paragraphs);return indices.length&&indices.every(spliced)&&tr.cells.every(cell=>cell.verticalMerge!=='continue'&&cell.verticalMerge!=='start') ? [ri] : [];}));
+    // Only paragraphs consumed in full, boundary offsets included, leave a row.
+    const consumed=(index:number)=>!!splice&&index>=splice.start.paragraph&&index<=splice.end.paragraph
+      &&(index>splice.start.paragraph||splice.start.offset===0)&&(index<splice.end.paragraph||splice.end.offset>=proposal.paragraphs[index].text.length);
+    const merged=table.rows.some(tr=>tr.cells.some(cell=>cell.verticalMerge==='start'||cell.verticalMerge==='continue'));
+    const replacedRows=new Set(merged ? [] : table.rows.flatMap((tr,ri)=>{const indices=tr.cells.flatMap(cell=>cell.paragraphs);return indices.length&&indices.every(consumed) ? [ri] : [];}));
     const startsHere=!!splice&&[...replacedRows].some(ri=>table.rows[ri].cells.some(cell=>cell.paragraphs.includes(splice.start.paragraph)));
     let previous=new Map<string,GridCell>();
     const rows=table.rows.map((tr,ri)=>{
@@ -135,11 +138,13 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
       }
       previous=continuing;return rendered;
     });
-    const kept=rows.flatMap((cells,ri)=>replacedRows.has(ri) ? [] : [{cells,ri}]);
-    const content=kept.length ? <div className="proposal-table-scroll" key={table.sourcePath}><table className="proposal-table"><tbody>{kept.map(({cells,ri})=><tr key={ri}>{cells.map(cell=>
+    const part=(kept:{cells:GridCell[];ri:number}[],key:string)=>kept.length ? <div className="proposal-table-scroll" key={table.sourcePath+key}><table className="proposal-table"><tbody>{kept.map(({cells,ri})=><tr key={ri}>{cells.map(cell=>
       <td key={cell.column} colSpan={cell.colSpan} rowSpan={cell.rowSpan}>{cellContent([...new Set(cell.paragraphs)].sort((a,b)=>a-b))}</td>
     )}</tr>)}</tbody></table></div> : null;
-    if(startsHere)return [content,block(true,proposal)];
+    const kept=rows.flatMap((cells,ri)=>replacedRows.has(ri) ? [] : [{cells,ri}]);
+    // Keep reading order: rows before the replaced run, the amendment, rows after.
+    if(startsHere){const first=Math.min(...replacedRows);return [part(kept.filter(row=>row.ri<first),':before'),block(true,proposal),part(kept.filter(row=>row.ri>first),':after')];}
+    const content=part(kept,'');
     return (insertionTable?.sourcePath===table.sourcePath) ? ([content,block(true,proposal)]) : content;
   }
   const tableParagraphs=new Set(topTables.flatMap(t=>t.paragraphs));
