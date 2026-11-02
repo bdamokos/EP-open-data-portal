@@ -28,6 +28,7 @@ import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches,GAP_LIMIT} from './refresh-policy.mjs';
+import {copyGenerationRows} from './generation-copy.mjs';
 
 // Defaults gate both normal construction and writer acquisition. The explicit
 // exceptions preserve preparations historically allowed during normal acquire().
@@ -258,7 +259,7 @@ export class ActivityStore {
       if (active) {
         this.pruneGenerations(active);
         this.set('previous',null);
-        this.db.prepare('INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources WHERE generation=?').run(generation,active);
+        copyGenerationRows(this.db,{table:'sources',key:'key',select:'INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources'},generation,active);
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
         copyQuestionFiles(this.db,generation,active);
         this.db.prepare('INSERT INTO refresh_gaps SELECT ?,key,kind,body,priority,error,attempts,failed_at,retry_at,sitting_id FROM refresh_gaps WHERE generation=?').run(generation,active);
