@@ -8,6 +8,13 @@ import {allowedDownload} from '../server/document-text.mjs';
 const key=(url,request)=>request?JSON.stringify([url,request]):url;
 const actual=input=>input?.ok&&!input.acquisitionUnavailable&&input.bytes>0&&input.sha256!==digest(Buffer.alloc(0));
 const stable=value=>JSON.stringify(value,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))):v);
+// Optional declaration facts constrain only observations present on both sides.
+const compatible=(a,b)=>{
+  if(a==null||b==null)return true;
+  if(typeof a==='object'&&typeof b==='object'&&!Array.isArray(a)&&!Array.isArray(b))return Object.keys(a).every(k=>compatible(a[k],b[k]));
+  return stable(a)===stable(b);
+};
+const hashes=value=>value&&typeof value==='object'?Object.entries(value).flatMap(([k,v])=>['sha256','contentHash','hash'].includes(k)&&v!=null?[v]:v&&typeof v==='object'?hashes(v):[]):[];
 async function source(directory) {
   directory=await realpath(directory);
   const snapshot=JSON.parse(await readFile(path.join(directory,'snapshot.json'),'utf8'));
@@ -51,10 +58,10 @@ export class HybridInputs {
       const matches=b.filter(v=>['id','documentId','listId','language'].every(k=>row[k]&&row[k]===v[k])&&v.wordingSource?.url===url);
       if(matches.length!==1)return null;
       const old=matches[0];
-      for(const k of ['sha256','contentHash','byteSize','issued','sourceVersion'])if(row.wordingSource[k]!=null&&old.wordingSource[k]!=null&&stable(row.wordingSource[k])!==stable(old.wordingSource[k]))return null;
+      for(const k of ['sha256','contentHash','byteSize','issued','sourceVersion','edition','epNumberVersion','isVersionOf','descriptor'])if(row.wordingSource[k]!=null&&old.wordingSource[k]!=null&&!compatible(row.wordingSource[k],old.wordingSource[k]))return null;
       proof.push({copy:row,base:old});
     }
-    return proof.length?{bindings:proof,sourceHashes:proof.flatMap(p=>[p.copy.wordingSource.sha256,p.base.wordingSource.sha256,p.copy.wordingSource.contentHash,p.base.wordingSource.contentHash].filter(hash=>hash!=null))}:null;
+    return proof.length?{bindings:proof,sourceHashes:proof.flatMap(p=>[...hashes(p.copy.wordingSource),...hashes(p.base.wordingSource)])}:null;
   }
   async nativeSelections(documentId,language){
     const rows=await this.catalogue(this.b),result=[];
