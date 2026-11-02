@@ -33,13 +33,13 @@ async function fixture(t){
  const root=await mkdtemp(path.join(os.tmpdir(),'base-delta-'));t.after(()=>rm(root,{recursive:true,force:true}));
  for(const name of ['index','corpus','cache'])await mkdir(path.join(root,name));
  for(const file of ['index/activities-v1.sqlite','corpus/corpus-v1.sqlite']){const db=new DatabaseSync(path.join(root,file));db.exec('CREATE TABLE meta(key TEXT,value TEXT)');db.close();}
- const store=new ActivityStore(path.join(root,'writer-index'));assert(store.acquire());t.after(()=>store.close());
+ const store=new ActivityStore(path.join(root,'writer-index'));assert(store.acquire());store.set('active',1);t.after(()=>store.close());
  const directory=path.join(root,'cache'),retention=new BaseSourceStore(path.join(directory,'base-sources-v1'));
  setRetentionForwarder(({observation,body})=>retention.save(observation,body));t.after(()=>setRetentionForwarder(null));
  const worker=new BaseSourceBackfill(store,{directory,retention,log:()=>{}});worker.hits=0;
  return {root,directory,retention,store,worker,context:{held:q=>worker.held(q),hit:()=>worker.hits++,full:false}};
 }
-function selection(decision){return {url:'base-selection:proposal:fixture',status:200,fetchedAt:at,request:{accept:'application/json'},selection:{type:'proposal',input:{reportId:target,language:'en'}}};}
+function selection(decision){return {url:'base-selection:proposal:fixture',status:200,fetchedAt:at,request:{accept:'application/json'},selection:{type:'proposal',input:{reportId:target,language:'en',documentReferences:[]}}};}
 for(const status of ['unavailable','partial'])test(`saved ${status} acquisition retries after restart, including omitted items`,async t=>{
  const f=await fixture(t);let now=1000,calls=0;
  const decision={status,celex:'52025PC0990',workId:work,items:[],gaps:[{code:'cellar_limited',itemId:work+'.0001.01/DOC_1'}]};

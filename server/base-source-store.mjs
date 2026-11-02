@@ -104,10 +104,18 @@ function selectionFacts(value) {
   if(!value||typeof value!=='object')return value;
   return Object.fromEntries(Object.entries(value).filter(([key])=>!['buffer','paragraphs','text','raw','title','titles','score','similarity'].includes(key)).map(([key,v])=>[key,selectionFacts(v)]));
 }
-export async function retainBaseSelection(type,input,result,{directory=process.env.ODP_CACHE_DIR}={}) {
+export function baseSelectionInput(input) {
   const {nativeReferencePair,documentReferences,...ids}=input;
-  const identity=selectionFacts({...ids,...(documentReferences?{documentReferences:documentReferences.map(r=>({field:r.field,reference:r.raw}))}:{}),...(nativeReferencePair?{nativeReferencePair:{report:nativeReferencePair.report?.source,listId:nativeReferencePair.list?.listId,list:nativeReferencePair.list?.source,selection:nativeReferencePair.selection}}:{})}),decision=selectionFacts(result);
-  const url='base-selection:'+type;
+  return selectionFacts({...ids,...(documentReferences?{documentReferences:documentReferences.map(r=>({field:r.field,reference:r.raw}))}:{}),...(nativeReferencePair?{nativeReferencePair:{report:nativeReferencePair.report?.source,listId:nativeReferencePair.list?.listId,list:nativeReferencePair.list?.source,selection:nativeReferencePair.selection}}:{})});
+}
+// Object property order and omitted undefined fields do not create variants.
+export function baseSelectionInputKey(identity) {
+  const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().filter(key=>value[key]!==undefined).map(key=>[key,stable(value[key])])):value;
+  return JSON.stringify(stable(identity));
+}
+export async function retainBaseSelection(type,input,result,{directory=process.env.ODP_CACHE_DIR}={}) {
+  const identity=baseSelectionInput(input),decision=selectionFacts(result);
+  const url='base-selection:'+type+':'+hash(JSON.stringify(identity));
   await retainBaseObservation({url,status:200,fetchedAt:new Date().toISOString(),request:{accept:'application/json'},headers:{'content-type':'application/json'},selection:{type,input:identity}},Buffer.from(JSON.stringify(decision)),{directory});
   return result;
 }
