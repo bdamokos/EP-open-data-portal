@@ -2,7 +2,10 @@ import {agendaTitle,isEuPlace} from './topicPresentation.mjs';
 // Reference-only templates over the complete research fixture. Production uses
 // exactTopicStories counters; returned evidence lists never supply totals.
 import {europeStoryIso3} from './storyEurope.mjs';
-export const cleanStoryTitle=title=>agendaTitle(String(title||'')).replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)\s+(?:on\s+)?/i,'').replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)(?=[A-Z][a-z]|[‘’“”"'])/,'');
+export const cleanStoryTitle=title=>agendaTitle(String(title||'')).replace(/\s+\((?:joint debate|topical debate|continuation of debate)\)$/i,'').replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)\s+(?:on\s+)?/i,'').replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)(?=[A-Z][a-z]|[‘’“”"'])/,'').replace(/^(?:the )?proposal for an? (?:regulation|directive|decision)(?: of the European Parliament and of the Council)? (?:on|establishing) (?=\S)/i,'');
+// English country names that take the definite article in running text.
+const THE_PLACES=new Set(['USA','GBR','NLD','PHL','COD','CAF','ARE','GMB','BHS','VAT','MDV','SYC','SLB','MHL','COM']);
+export function storyPlaceName(id,label,{language='en',start=false}={}){if(language.split('-')[0]!=='en'||!THE_PLACES.has(id)||/^the /i.test(label))return label;return (start?'The ':'the ')+label;}
 export function storyNumber(n,language='en'){const words=['zero','one','two','three','four','five','six','seven','eight','nine'];return language.split('-')[0]==='en'&&Number.isInteger(n)&&n>0&&n<10?words[n]:Number(n).toLocaleString(language==='en'?'en-GB':language);}
 export function primaryStoryPlace(d){const keys=Object.keys(d.places),t=keys.filter(p=>d.places[p].includes('title')),o=keys.filter(p=>d.places[p].includes('official'));if(t.length===1)return t[0];const both=t.filter(p=>o.includes(p));if(both.length===1)return both[0];return d.format==='urgency'&&!t.length&&o.length===1?o[0]:null;}
 export const strongStoryPlace=(d,p)=>Boolean(d.places[p]?.includes('title')||primaryStoryPlace(d)===p);
@@ -46,7 +49,8 @@ export function buildReferenceTopicStories(facts,selection={}){
  const format=d=>['council-commission','commission','hrvp','eucouncil','president','topical','oral-question','urgency'].includes(d.format)?msg('format.'+d.format):null;
  const avgText=(a,records)=>msg(a<1?'average.lessThanOne':'average.value',a<1?{}:{average:link(records,num(a<10?Math.round(a*10)/10:Math.round(a)))});
  const hasTally=o=>o?.for!=null&&o?.against!=null;
- const tally=d=>{const o=d.outcome,records=docSet(d);return msg(o.abst?'tally.abstentions':'tally.simple',{for:link(records,num(o.for)),against:link(records,num(o.against)),...(o.abst?{abstentions:link(records,num(o.abst))}:{})},{count:o.abst||0});};
+ const digits=n=>Number(n).toLocaleString('en-GB');// vote counts are always digits
+ const tally=d=>{const o=d.outcome,records=docSet(d);return msg(o.abst?'tally.abstentions':'tally.simple',{for:link(records,digits(o.for)),against:link(records,digits(o.against)),...(o.abst?{abstentions:link(records,digits(o.abst))}:{})},{count:o.abst||0});};
  const outcomeClause=(d,joint=false)=>{const r=resolution(d);if(!r)return null;const o=r.outcome,records=docSet(r),resolutionLink=link(records,msg('resolution'));
   if(o.outcome==='ADOPTED'&&hasTally(o))return msg(joint&&r.type==='RESOLUTION_MOTION_JOINT'&&groupsOf(r).length>=2?'outcome.jointPassed':'outcome.passed',{resolution:resolutionLink,tally:tally(r),groups:link(records,num(groupsOf(r).length))});
   if(o.outcome==='REJECTED'&&hasTally(o))return msg('outcome.rejected',{resolution:resolutionLink,tally:tally(r)});
