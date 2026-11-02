@@ -375,6 +375,11 @@
     "count": "count"
   },
   {
+    "one": "topics.story.count.urgencyDebatesOne",
+    "other": "topics.story.count.urgencyDebates",
+    "count": "count"
+  },
+  {
     "one": "topics.story.count.questionsEachOne",
     "other": "topics.story.count.questionsEach",
     "count": "count"
