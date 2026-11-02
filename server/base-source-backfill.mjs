@@ -50,10 +50,10 @@ export class BaseSourceBackfill {
   }
   due(){return !this.stopped&&Boolean(this.directory)&&(!this.store.get('baseBackfillListSourcesVersion')||!this.store.get('baseBackfillNativeInputsVersion')||!this.store.get('baseBackfillSeeded')||Boolean(this.store.db.prepare("SELECT 1 FROM base_backfill_jobs WHERE state='pending' AND retry_at<=? LIMIT 1").get(this.clock())));}
   seed(){
-    const s=this.store,g=s.get('baseBackfillGeneration')||s.get('active');if(!g)return false;
+    const s=this.store,g=s.get('baseBackfillGeneration')||s.get('baseBackfillListSourcesGeneration')||s.get('active');if(!g)return false;
     const cursor=s.get('baseBackfillCursor')||'',rows=s.db.prepare("SELECT key,body FROM sources WHERE generation=? AND key>? AND key LIKE 'amendment:list:%' ORDER BY key LIMIT 100").all(g,cursor);
     const save=()=>{s.assertWriter();s.set('baseBackfillGeneration',g);for(const row of rows)for(const job of this.jobsForList(g,JSON.parse(row.body))){const body=JSON.stringify(job);s.db.prepare('INSERT OR IGNORE INTO base_backfill_jobs(key,target,body) VALUES (?,?,?)').run(hash(body),job.target,body);}if(rows.length)s.set('baseBackfillCursor',rows.at(-1).key);if(rows.length<100)s.set('baseBackfillSeeded',true);};
-    if(s.db.isTransaction)save();else s.transaction(save);return rows.length===100;
+    if(s.db.isTransaction)save();else s.transaction(save);this.log(this.status());return rows.length===100;
   }
   jobsForList(g,list){
     if(!exact(list.targetDocumentId))return [];
@@ -128,10 +128,10 @@ export class BaseSourceBackfill {
     const {kind,target,nativeReference,...input}=job;return input;
   }
   seedListSources(){
-    const s=this.store,g=s.get('active')||s.get('baseBackfillGeneration');if(!g)return false;
+    const s=this.store,g=s.get('baseBackfillListSourcesGeneration')||s.get('baseBackfillGeneration')||s.get('active');if(!g)return false;
     const rows=s.db.prepare("SELECT key,body FROM sources WHERE generation=? AND key>? AND key LIKE 'amendment:list:%' ORDER BY key LIMIT 100").all(g,s.get('baseBackfillListSourcesCursor')||'');
     const save=()=>{
-      s.assertWriter();
+      s.assertWriter();s.set('baseBackfillListSourcesGeneration',g);
       for(const row of rows){const list=JSON.parse(row.body),listId=row.key.slice('amendment:list:'.length);
         if(!exact(list.targetDocumentId)||!new RegExp('^'+list.targetDocumentId+'-AM-\\d{1,5}-\\d{1,5}$').test(listId))continue;
         const job={kind:'amendment-list',target:list.targetDocumentId,listId},body=JSON.stringify(job);
@@ -141,7 +141,7 @@ export class BaseSourceBackfill {
       if(rows.length<100)s.set('baseBackfillListSourcesVersion',1);
     };
     if(s.db.isTransaction)save();else s.transaction(save);
-    return rows.length===100;
+    this.log(this.status());return rows.length===100;
   }
   async collectListSource(job,signal){
     const g=this.store.get('active')||this.store.get('baseBackfillGeneration');
@@ -224,14 +224,16 @@ export class BaseSourceBackfill {
   }
   async step(signal){
     this.store.assertWriter();
-    await (this.retention.ready??=this.retention.reconcile());
     if(!this.store.get('baseBackfillListSourcesVersion')){if(this.seedListSources())return true;if(!this.store.get('baseBackfillListSourcesVersion'))return false;}
     if(!this.store.get('baseBackfillNativeInputsVersion')){
-      this.store.db.prepare("UPDATE base_backfill_jobs SET state='pending',retry_at=0,reason=NULL WHERE state='unresolved' AND (reason LIKE '%native-nle-%' OR reason LIKE '%ambiguous-retained-selection%')").run();
+      const recovered=this.store.db.prepare("UPDATE base_backfill_jobs SET state='pending',retry_at=0,reason=NULL WHERE key IN (SELECT key FROM base_backfill_jobs WHERE state='unresolved' AND (reason LIKE '%native-nle-%' OR reason LIKE '%ambiguous-retained-selection%') LIMIT 100)").run().changes;
+      if(recovered===100){this.log(this.status());return true;}
       this.store.set('baseBackfillNativeInputsVersion',1);
     }
     if(!this.store.get('baseBackfillSeeded')){if(this.seed())return true;if(!this.store.get('baseBackfillSeeded'))return false;}
     const row=this.store.db.prepare("SELECT * FROM base_backfill_jobs WHERE state='pending' AND retry_at<=? ORDER BY retry_at,key LIMIT 1").get(this.clock());if(!row)return false;
+    // Discovery is local and must not spend its first turn on a full disk scan.
+    if(!this.retention.reconciled){this.log(this.status('inventory'));await (this.retention.ready??=this.retention.reconcile());}
     const context={held:query=>this.held(query),hit:()=>this.hits++,full:false};this.hits=0;let state='done',reason=null,retry=0;
     try{
       const result=await runBaseBackfill(context,()=>runWithRequestSignal(signal,()=>this.collect(JSON.parse(row.body),signal)));
@@ -245,10 +247,10 @@ export class BaseSourceBackfill {
     this.store.assertWriter();this.store.db.prepare('UPDATE base_backfill_jobs SET state=?,retry_at=?,reason=? WHERE key=?').run(state,retry,reason,row.key);
     this.store.set('baseBackfillStop',null);this.log(this.status());return true;
   }
-  status(){
+  status(phase){
     const counts={total:0,done:0,'skipped-held':0,unresolved:0,failed:0,pending:0};
     for(const row of this.store.db.prepare(`SELECT state,COUNT(*) n FROM (SELECT target,CASE WHEN SUM(state='pending')>0 THEN 'pending' WHEN SUM(state='failed')>0 THEN 'failed' WHEN SUM(state='unresolved')>0 THEN 'unresolved' WHEN SUM(state='done')>0 THEN 'done' ELSE 'skipped-held' END state FROM base_backfill_jobs GROUP BY target) GROUP BY state`).all()){counts[row.state]=row.n;counts.total+=row.n;}
     const amendmentSources=this.store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amendment_sources'").get()?this.store.db.prepare('SELECT COUNT(*) AS files,COALESCE(SUM(size),0) AS bytes FROM (SELECT sha256,MAX(size) size FROM amendment_sources GROUP BY sha256)').get():{files:0,bytes:0};
-    return {targets:counts,amendmentSources,stop:this.stopped?'storage-full':null,bytes:[...this.retention.blobs.values()].reduce((n,b)=>n+b.bytes,0),diskBytes:this.retention.totalBytes,files:this.retention.blobs.size,bindings:this.retention.records.size};
+    return {phase:phase||(!this.store.get('baseBackfillListSourcesVersion')?'list-discovery':!this.store.get('baseBackfillNativeInputsVersion')?'recovery':!this.store.get('baseBackfillSeeded')?'base-discovery':counts.pending?'acquisition':'complete'),discovery:{listGeneration:this.store.get('baseBackfillListSourcesGeneration')??null,listCursor:this.store.get('baseBackfillListSourcesCursor')??null,baseGeneration:this.store.get('baseBackfillGeneration')??null,baseCursor:this.store.get('baseBackfillCursor')??null},targets:counts,amendmentSources,stop:this.stopped?'storage-full':null,bytes:this.retention.reconciled?[...this.retention.blobs.values()].reduce((n,b)=>n+b.bytes,0):null,diskBytes:this.retention.reconciled?this.retention.totalBytes:null,files:this.retention.reconciled?this.retention.blobs.size:null,bindings:this.retention.reconciled?this.retention.records.size:null};
   }
 }
