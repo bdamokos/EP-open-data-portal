@@ -527,3 +527,113 @@ test('rewinding a preliminary cursor preserves already held post-week pages',asy
   h.worker.fetchRecord=async(_endpoint,params)=>{offsets.push(params.offset);assert.equal(params.offset,50);return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[]}};};
   await h.collector.step(h.worker);assert.deepEqual(offsets,[50]);assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING).pages.length,2);
 });
+
+test('a historical calendar needs post-year confirmation after worker downtime',async t=>{
+  const h=setup(t);isolateJob(h,'calendar','2026');let calls=0;
+  const late={id:'eli/dl/event/MTG-PL-2026-12-20',activity_id:'MTG-PL-2026-12-20',activity_date:'2026-12-20',had_activity_type:'def/ep-activities/PLENARY_SITTING',consists_of:[]};
+  h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:calls===1?[]:[late]}};};
+  await h.collector.step(h.worker);assert.equal(calls,1);
+  h.advance(Date.parse('2027-01-02T12:00Z')-h.clock());isolateJob(h,'calendar','2026');
+  h.store.db.prepare("UPDATE sitting_snapshots SET next_check=? WHERE kind='calendar' AND id='2026'").run(h.clock()-1);
+  await h.collector.step(h.worker);
+  assert.equal(calls,2);assert.equal(h.reader.read('calendar',1,'2026').nodes[0].activity_id,late.activity_id);
+  assert.equal(h.store.db.prepare("SELECT next_check FROM sitting_snapshots WHERE kind='calendar' AND id='2026'").get().next_check,Number.MAX_SAFE_INTEGER);
+});
+test('calendar staging cannot carry pre-year pages across the year boundary',async t=>{
+  const h=setup(t);isolateJob(h,'calendar','2026');const offsets=[];
+  h.worker.fetchRecord=async(_endpoint,params)=>{offsets.push(params.offset);return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:params.offset===0?Array.from({length:50},(_,i)=>({id:'eli/dl/event/item-'+i})):[]}};};
+  assert.equal(await h.collector.step(h.worker,{requestBudget:1}),false);
+  h.advance(Date.parse('2027-01-02T12:00Z')-h.clock());isolateJob(h,'calendar','2026');
+  await h.collector.step(h.worker);assert.deepEqual(offsets,[0,0,50]);
+  assert(h.reader.read('calendar',1,'2026').coverage.sources.every(source=>Date.parse(source.fetchedAt)>=Date.parse('2027-01-01T00:00Z')));
+});
+test('calendar pages above the reader bound cannot pin retries or discard accepted predecessors',async t=>{
+  const h=setup(t);isolateJob(h,'calendar','2026');let healthy=false;const offsets=[];
+  h.collector.readCached=async(_endpoint,params)=>healthy&&params.offset===50?{fetchedAt:h.clock(),payload:{data:[]}}:null;
+  h.worker.fetchRecord=async(_endpoint,params)=>{offsets.push(params.offset);return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:params.offset===0?Array.from({length:50},(_,i)=>({id:'eli/dl/event/item-'+i})):[{id:'eli/dl/event/oversize',padding:'x'.repeat(9*1024*1024)}]}};};
+  await h.collector.step(h.worker);assert.equal(h.reader.read('calendar',1,'2026'),null);
+  healthy=true;h.advance(DAY);await h.collector.step(h.worker);
+  assert(h.reader.read('calendar',1,'2026'));assert.deepEqual(offsets,[0,50]);
+});
+
+test('a confirmed post-year calendar stays held while an old frozen calendar is reopened',async t=>{
+  const h=setup(t);isolateJob(h,'calendar','2026');let calls=0;
+  h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[]}};};
+  await h.collector.step(h.worker);
+  h.store.db.prepare("UPDATE sitting_snapshots SET next_check=? WHERE kind='calendar' AND id='2026'").run(Number.MAX_SAFE_INTEGER);
+  h.advance(Date.parse('2027-01-02T12:00Z')-h.clock());h.collector.admit();
+  assert.equal(h.store.db.prepare("SELECT next_check FROM sitting_snapshots WHERE kind='calendar' AND id='2026'").get().next_check,0);
+  isolateJob(h,'calendar','2026');await h.collector.step(h.worker);assert.equal(calls,2);
+  h.advance(DAY);isolateJob(h,'calendar','2026');
+  h.store.db.prepare("UPDATE sitting_snapshots SET next_check=? WHERE kind='calendar' AND id='2026'").run(h.clock()-1);
+  await h.collector.step(h.worker);assert.equal(calls,2,'confirmed historical data must not download again');
+});
+test('calendar confirmation waits for the year boundary without rejecting fresh boundary-hour data',async t=>{
+  const h=setup(t);h.advance(Date.parse('2026-12-31T23:30Z')-h.clock());isolateJob(h,'calendar','2026');let calls=0;
+  h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[]}};};
+  await h.collector.step(h.worker);
+  assert.equal(h.store.get('sittingSnapshotRejection:'+JSON.stringify(['calendar',1,'2026'])),null);
+  assert.equal(h.reader.read('calendar',1,'2026'),null,'Brussels year rollover alone must not freeze an unconfirmed calendar');
+  h.advance(2*60*60_000);isolateJob(h,'calendar','2026');await h.collector.step(h.worker);
+  assert.equal(calls,2);assert(h.reader.read('calendar',1,'2026'));
+});
+test('the worker and calendar reader share the exact per-page byte bound',async t=>{
+  const {MeetingsReader,MEETINGS_SOURCE_MAX_BYTES}=await import('./meetings-reader.mjs');
+  assert.equal(new MeetingsReader().limits.sourceBytes,MEETINGS_SOURCE_MAX_BYTES);
+  for(const extra of [0,1]){
+    const h=setup(t);isolateJob(h,'calendar','2026');
+    const payload={data:[{id:'eli/dl/event/item',padding:''}]};
+    payload.data[0].padding='x'.repeat(MEETINGS_SOURCE_MAX_BYTES-Buffer.byteLength(JSON.stringify(payload))+extra);
+    h.worker.fetchRecord=async()=>({fetchedAt:new Date(h.clock()).toISOString(),payload});
+    await h.collector.step(h.worker);
+    assert.equal(Boolean(h.reader.read('calendar',1,'2026')),extra===0);
+    assert.equal(h.store.db.prepare("SELECT COUNT(*) n FROM sitting_snapshot_staging WHERE kind='calendar'").get().n,0);
+    if(extra)assert.equal(h.store.get('sittingSnapshotRejection:'+JSON.stringify(['calendar',1,'2026'])).count,1);
+  }
+});
+test('legacy oversized calendar staging can be replaced by a valid held observation',async t=>{
+  const h=setup(t);isolateJob(h,'calendar','2026');const job={kind:'calendar',version:1,id:'2026'};
+  h.collector.writer.stage(job,JSON.stringify(['/meetings',{year:2026,limit:50,offset:0}]),{fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[{id:'eli/dl/event/big',padding:'x'.repeat(9*1024*1024)}]}},h.clock());
+  h.collector.readCached=async()=>({fetchedAt:h.clock(),payload:{data:[]}});
+  h.worker.fetchRecord=()=>assert.fail('valid held replacement must be used');
+  await h.collector.step(h.worker);assert(h.reader.read('calendar',1,'2026'));assert.equal(h.worker.requests,0);
+});
+test('legacy negative collection staging and new held observations cannot pin retries',async t=>{
+  for(const kind of ['agenda','debate']){
+    const h=setup(t),id=kind==='agenda'?SNAPSHOT_SITTING:SNAPSHOT_SITTING+'-PVCRE-ITM-99';isolateJob(h,kind,id);
+    const endpoint=kind==='agenda'?'/meetings/'+id+'/foreseen-activities':'/events/'+id,params=kind==='agenda'?{limit:50,offset:0}:{};
+    h.collector.writer.stage({kind,version:1,id},JSON.stringify([endpoint,params]),{failure:{message:'old missing observation',code:'odp_unavailable',upstreamStatus:404}},h.clock());
+    h.collector.readCached=async()=>{h.advance(1000);return {fetchedAt:h.clock(),payload:{data:kind==='agenda'?[]:[{id:'eli/dl/event/'+id,activity_date:SNAPSHOT_SITTING.slice(7),had_activity_type:'def/ep-activities/PLENARY_DEBATE',consists_of:[]}]}};};
+    h.worker.fetchRecord=()=>assert.fail('a valid observation published during cache lookup must be reused');
+    await h.collector.step(h.worker);assert(h.reader.read(kind,1,id));assert.equal(h.worker.requests,0);
+  }
+});
+test('agenda assembly revalidates pages instead of trusting a terminal cursor',async t=>{
+  const h=setup(t);isolateJob(h,'agenda',SNAPSHOT_SITTING);const job={kind:'agenda',version:1,id:SNAPSHOT_SITTING};
+  const endpoint='/meetings/'+SNAPSHOT_SITTING+'/foreseen-activities';
+  h.collector.writer.stage(job,JSON.stringify([endpoint,{limit:50,offset:0}]),{fetchedAt:'2026-10-08T12:00Z',payload:{data:[]}},h.clock());
+  h.collector.writer.stage(job,'agenda:cursor',{offset:50,settled:true,terminal:true},h.clock());let calls=0;
+  h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[]}};};
+  await h.collector.step(h.worker);assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING),null);
+  await h.collector.step(h.worker);assert(h.reader.read('agenda',1,SNAPSHOT_SITTING));assert.equal(calls,1);
+});
+
+test('agenda settlement requires a real terminal page even when its cursor claims completion',async t=>{
+  const h=setup(t);isolateJob(h,'agenda',SNAPSHOT_SITTING);const job={kind:'agenda',version:1,id:SNAPSHOT_SITTING};
+  const endpoint='/meetings/'+SNAPSHOT_SITTING+'/foreseen-activities';
+  h.collector.writer.stage(job,JSON.stringify([endpoint,{limit:50,offset:0}]),{fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:50},(_,i)=>({id:'item-'+i}))}},h.clock());
+  h.collector.writer.stage(job,'agenda:cursor',{offset:50,settled:true,terminal:true},h.clock());const offsets=[];
+  h.worker.fetchRecord=async(_endpoint,params)=>{offsets.push(params.offset);return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[]}};};
+  await h.collector.step(h.worker);assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING),null);
+  await h.collector.step(h.worker);assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING).pages.length,2);assert.deepEqual(offsets,[50]);
+});
+test('reader-level calendar conflicts unstage only the rejected page through source classification',async t=>{
+  const h=setup(t);isolateJob(h,'calendar','2026');const offsets=[];let healthy=false;
+  h.collector.readCached=async(_endpoint,params)=>healthy&&params.offset===50?{fetchedAt:h.clock(),payload:{data:[]}}:null;
+  h.worker.fetchRecord=async(_endpoint,params)=>{offsets.push(params.offset);return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:params.offset===0?Array.from({length:50},(_,i)=>({id:'eli/dl/event/item-'+i,label:'original'})):[{id:'eli/dl/event/item-0',label:'changed'}]}};};
+  await h.collector.step(h.worker);assert.equal(h.reader.read('calendar',1,'2026'),null);
+  assert.equal(h.store.db.prepare("SELECT COUNT(*) n FROM sitting_snapshot_staging WHERE kind='calendar'").get().n,1);
+  assert.equal(h.store.get('sittingSnapshotRejection:'+JSON.stringify(['calendar',1,'2026'])).count,1);
+  healthy=true;h.advance(DAY);await h.collector.step(h.worker);
+  assert(h.reader.read('calendar',1,'2026'));assert.deepEqual(offsets,[0,50]);
+});

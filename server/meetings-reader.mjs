@@ -6,7 +6,8 @@ import {calendarYears,currentTermSittings,isPlenarySitting,identifiedPlenarySitt
 import {VoteSourceReader} from './vote-source-reader.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 
-const LIMITS=Object.freeze({pageSize:50,cataloguePages:10,maxRows:4000,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,sourceMs:15*60_000,cacheMs:60_000,cacheEntries:8,cacheBytes:32*1024*1024,timeoutMs:50_000});
+export const MEETINGS_SOURCE_MAX_BYTES=8*1024*1024;
+const LIMITS=Object.freeze({pageSize:50,cataloguePages:10,maxRows:4000,sourceBytes:MEETINGS_SOURCE_MAX_BYTES,periodBytes:24*1024*1024,sourceMs:15*60_000,cacheMs:60_000,cacheEntries:8,cacheBytes:32*1024*1024,timeoutMs:50_000});
 export const calendarNeedsRefresh=coverage=>coverage?.status!=='complete'||coverage.years.some(year=>year.sources.some(source=>source.stale||source.refreshInProgress||source.refreshError));
 export const catalogueCoverage=years=>({status:years.every(y=>y.state==='complete')?'complete':years.some(y=>y.pages>0)?'partial':'unavailable',years});
 export const missingSitting=catalogue=>{if(catalogue.complete===false)throw new HttpError(503,'sitting_calendar_unavailable','Sitting dates unavailable. Try again.');throw new HttpError(404,'sitting_not_found','Choose a listed plenary week or sitting.');};
