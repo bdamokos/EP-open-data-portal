@@ -48,6 +48,9 @@ test('unsupported families and duplicated labels never verify', () => {
   assert.equal(check(gapped,6,'Article 1 – paragraph 1 – point 25 – point b a (new)',insert(3,id('point:25','point:b'))).status,'unverified');
   const existing=[unit('article','1',[],0,8,[child('paragraph','1',1,8,[child('point','25',1,8,[child('point','a',1,3),child('point','b',3,5),child('point','ba',5,6),child('point','c',6,8)])])])];
   assert.equal(check(existing,8,'Article 1 – paragraph 1 – point 25 – point b a (new)',insert(5,id('point:25','point:b'))).status,'failed');
+  // A repeated base label is ambiguous even when the next sibling looks right.
+  const repeated=[unit('article','1',[],0,9,[child('paragraph','1',1,9,[child('point','25',1,9,[child('point','a',1,3),child('point','b',3,5,[],{pathConflict:true,complete:false}),child('point','c',5,7),child('point','b',7,9,[],{pathConflict:true,complete:false,id:'p/dup-b'})])])])];
+  assert.equal(check(repeated,9,'Article 1 – paragraph 1 – point 25 – point b a (new)',insert(5,id('point:25','point:b'))).status,'unverified');
 });
 
 test('an address may omit only an article\'s sole implicit paragraph 1', () => {

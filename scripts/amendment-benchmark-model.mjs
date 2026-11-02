@@ -375,6 +375,9 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
     anchor = {...anchor, number:anchor.label?.number, suffix:anchor.label?.suffix || '', start:anchor.extent.start};
     end = anchor.extent.end;
     if (lettered) {
+      // Repeated sibling labels make the address ambiguous (parser pathConflict).
+      const identities = siblings.map(u => String(u.label?.value ?? ''));
+      if (new Set(identities).size !== identities.length || siblings.some(u => u.pathConflict) || !anchor.complete) return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
       const position = pointFamilyPosition(siblings.sort((a,b) => a.start-b.start).map(pointBase), label.base);
       if (!position) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
       siblings = siblings.map(u => ({...u, number:position(pointBase(u))}));
