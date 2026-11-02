@@ -462,6 +462,22 @@ const wordingNormal = value => whitespace(value).normalize('NFC').replace(/\u00a
 export const resolutionReference = (value, language) => english(language)
   && (parseReference(value) || placementReference(value)) ? value : undefined;
 
+// A lost paragraph mark can print a provision inside its predecessor's row
+// (A-10-2026-0237 "…Un;L.", A-10-2026-0042 "…services;72."). Plain numbers and
+// single Latin or Cyrillic capitals only: the neighbours are one ordinal below
+// and above, adjacent, and the lower one's last row carries the merged label.
+function numberingGapAnchor(text, family, base) {
+  const ordinalOf = value => /^\d+$/u.test(value) ? Number(value) : /^[A-Z\u0410-\u042f]$/u.test(value) ? value.codePointAt(0) : null;
+  const wanted = ordinalOf(base);
+  if (wanted === null || family.some(unit => unit.label.startsWith(base))) return null;
+  const ordered = [...family].sort((a, b) => a.start - b.start);
+  const anchors = ordered.filter((unit, i) => ordinalOf(unit.label) === wanted - 1 && ordinalOf(ordered[i + 1]?.label ?? '') === wanted + 1
+    && ordered[i + 1].start === unit.end + 1 && ordered[i + 1].parent === unit.parent);
+  if (anchors.length !== 1 || ordered.filter(unit => unit.label === anchors[0].label).length !== 1) return null;
+  const merged = new RegExp(`[;.:]\\s*${base}[.)]\\s*\\S`, 'u');
+  return merged.test(text.paragraphs[anchors[0].end] ?? '') ? anchors[0] : null;
+}
+
 export function resolveAmendmentPlacement(text, options = {}) {
   const operation = amendmentOperation(options), evidence = [];
   const referenceText = resolutionReference(options.referenceText, options.language);
@@ -542,7 +558,14 @@ export function resolveAmendmentPlacement(text, options = {}) {
     };
     const siblings = units.filter(unit => unit.kind === ref.kind && parentMatches(unit, ref)
       && (unit.label === ref.base || !ref.after && unit.label.startsWith(ref.base) && rank(unit.label.slice(ref.base.length)) !== null && rank(unit.label.slice(ref.base.length)) < rank(ref.suffix)));
-    if (!siblings.some(unit => unit.label === ref.base)) return unresolved('relative_target_not_found');
+    // A base label merged into its predecessor's row (K then M, 71 then 73)
+    // ends where that row ends, directly before the next neighbour.
+    const gap = !siblings.length && !ref.after && !ref.parents?.length && ['paragraph', 'recital'].includes(ref.kind)
+      && !structure.incompleteLabels.has(ref.base) ? numberingGapAnchor(text, units.filter(unit => unit.kind === ref.kind), ref.base) : null;
+    if (gap) {
+      siblings.push(gap);
+      evidence.push({basis: 'merged-provision', merged: ref.base, anchor: gap.label});
+    } else if (!siblings.some(unit => unit.label === ref.base)) return unresolved('relative_target_not_found');
     const ordered = siblings.sort((a, b) => a.start - b.start), anchor = ordered.at(-1);
     if (new Set(siblings.map(unit => unit.label)).size !== siblings.length || siblings.some(unit => unit.parent !== anchor.parent)) return unresolved('multiple_published_targets');
     evidence.push({basis: 'published-reference', label: ref.label, anchor: anchor.label});
