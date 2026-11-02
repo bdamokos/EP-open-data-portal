@@ -5,7 +5,7 @@ import {prepareFastReads,registerFastReads,fastReadsReady,backfillFastReads} fro
 import {prepareSittingSnapshots,SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
 import {generationGroupOn} from './group-attribution.mjs';
 import {activityAffiliation} from './group-aggregation.mjs';
-import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,touchAvailability,historyStatus} from './availability-history.mjs';
+import {availabilityHistoryVersion,initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,touchAvailability,historyStatus} from './availability-history.mjs';
 import {activityAvailability,activityAvailabilityIndexVersion,prepareActivityAvailability} from './availability-evidence.mjs';
 import {groupHistorySchema,freezeGroupHistory} from './group-history.mjs';
 import {historyReadiness} from './history-readiness.mjs';
@@ -28,6 +28,25 @@ import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches,GAP_LIMIT} from './refresh-policy.mjs';
+
+// Defaults gate both normal construction and writer acquisition. The explicit
+// exceptions preserve preparations historically allowed during normal acquire().
+export const ACTIVITY_SCHEMA_GATES=Object.freeze([
+  {key:'resourceIndexes',value:1},
+  {key:'availabilityHistoryVersion',value:availabilityHistoryVersion,constructorGate:false,writerGate:false},
+  {key:'fastReadSchemaVersion',value:1,constructorGate:false,writerGate:false},
+  {key:'recoveryScheduleVersion',value:1},
+  {key:'committeeAmendmentIndexVersion',value:committeeAmendmentIndexVersion},
+  {key:'amendmentReadVersion',value:amendmentReadVersion},
+  {key:'amendmentLinkIndexVersion',value:amendmentLinkIndexVersion},
+  {key:'motionLinksIndexVersion',value:1,writerGate:false},
+  {key:'activityReadVersion',value:activityReadVersion},
+  {key:'refreshPolicyVersion',value:1},
+  {key:'followMarksVersion',value:followMarksVersion},
+  {key:'activityAvailabilityIndexVersion',value:activityAvailabilityIndexVersion},
+  {key:'sittingSnapshotSchema',value:SITTING_SNAPSHOT_SCHEMA},
+  {key:'documentBodySchema',value:1,constructorGate:false},
+].map(Object.freeze));
 
 const parse = value => value == null ? null : JSON.parse(value);
 const motionReferenceValue = `CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END`;
@@ -58,7 +77,7 @@ export class ActivityStore {
     this.db = observeSqlite(new DatabaseSync(this.filename,{readOnly}),'activity');registerFastReads(this.db);
     if(!this.initializeIndexes) {
       try {
-        if(this.get('recoveryScheduleVersion')!==1||this.get('committeeAmendmentIndexVersion')!==committeeAmendmentIndexVersion||this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion||this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion||this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA)throw new Error('Unprepared activity indexes.');
+        if(ACTIVITY_SCHEMA_GATES.some(gate=>gate.constructorGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Unprepared activity indexes.');
       } catch {this.db.close();throw new Error('Activity indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(this.initializeIndexes)this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
@@ -113,7 +132,7 @@ export class ActivityStore {
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
       assertRefreshSnapshot(this);
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion,initializeLinks=this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion;
-      if((this.get('committeeAmendmentIndexVersion')!==committeeAmendmentIndexVersion||initialize||initializeProofs||initializeLinks||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion||this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion||this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA||this.get('documentBodySchema')!==1)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      if(!this.initializeIndexes&&ACTIVITY_SCHEMA_GATES.some(gate=>gate.writerGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       initializeAvailabilityHistory(this);
       if(this.get('documentBodySchema')!==1){prepareDocumentBodies(this);initialized=true;}
@@ -138,7 +157,6 @@ export class ActivityStore {
       }
       if(this.get('fastReadSchemaVersion')!==1){prepareFastReads(this.db);this.set('fastReadSchemaVersion',1);}
       if(this.get('refreshPolicyVersion')!==1) {
-        if(!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
         refreshPolicySchema(this);initialized=true;refresh();
       }
       if(this.get('followMarksVersion')!==followMarksVersion) {
@@ -149,7 +167,6 @@ export class ActivityStore {
         this.set('activityAvailabilityIndexVersion',activityAvailabilityIndexVersion);initialized=true;refresh();
       }
       if(this.get('recoveryScheduleVersion')!==1) {
-        if(!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
         // Adopt already queued legacy mutable refreshes without resetting cursors.
         this.db.exec(`INSERT OR IGNORE INTO mutable_refresh_admissions
           SELECT task.generation,task.key FROM tasks task JOIN mutable_documents mutable
