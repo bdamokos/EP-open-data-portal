@@ -129,6 +129,8 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 - Procedure files and document summaries are parsed from visible HTML, reached through exact procedure references from the API. Final-act summaries are preferred over proposal summaries.
 - Procedure progress reads the printed status and the Key events table. OEIL events have no identifiers, so they’re keyed by procedure, date and label.
 - Policy areas (topics) come only from OEIL procedure pages.
+- Policy-area names: `server/oeil-subjects.json` holds the official English and French labels and hierarchy (450 codes), taken from the subject filter of the [English](https://oeil.europarl.europa.eu/oeil/en/search) and [French](https://oeil.europarl.europa.eu/oeil/fr/search) search pages, with its retrieval date. The list grows each year: budget and discharge subjects get annual codes with irregular suffixes, so their translations use templates that substitute only a year stated in the official label.
+- The explorer's own translations for other languages live in `server/oeil-subject-translations.json`, each marked `explorer-translation`; they never override English or French. Missing names follow the shared text-language preference order. Pages show a collapsed Sources note only while a policy-area name is displayed, and mention the explorer translation only when one is shown.
 
 ### Press releases
 

@@ -202,6 +202,7 @@ test('topic stories retain placed oral questions from their exact policy members
  writeTopicProjection(store,{records:[record],concepts:[{key:'place:CYP',role:'place',labels:{en:'Cyprus'}},{key:'oeil:8.20',role:'topic',labels:{en:'Enlargement'}}]});await finishStoryProjection(store,1);
  const selected=storyFacts(store,new URLSearchParams('scope=topic&key=oeil:8.20&askers=elsewhere&list=questions'));assert.equal(selected.questions[0].id,record.id);assert.equal(selected.questions[0].askers.CYP,'elsewhere');
  assert.equal(storyFacts(store,new URLSearchParams('scope=topic&key=oeil:4.40')).questions.length,0);
+ const french=storyFacts(store,new URLSearchParams('scope=topic&key=oeil:8.20&lang=fr')).topic;assert.equal(french.labelLanguage,'fr');assert(!('source' in french));assert(!french.labelSource);assert.equal(french.label,"Elargissement de l'Union");
 });
 
 test('retained unavailable procedure reads propagate through exact document, debate and speech links',async t=>{
@@ -352,4 +353,19 @@ test('the projection queues vote decisions only for sittings before today',async
  const queued=()=>store.db.prepare("SELECT COUNT(*) n FROM story_jobs WHERE kind='decisions'").get().n;
  await buildTopics(store);assert.equal(queued(),0,'no decision read is queued on the sitting day');
  now=Date.parse('2026-10-29T10:00:00Z');store.acquire();await buildTopics(store);assert.equal(queued(),1);
+});
+
+test('French story requests keep English document, question and joint debate titles with French policy labels',async t=>{
+ const {store}=await fixture(t),key='oeil:8.20',date='2025-03-12',question='O-10-2025-000001',doc='RC-10-2025-0010',debate='MTG-PL-2025-03-12-PVCRE-ITM-1';
+ const assignments=[{key,role:'topic',paths:[]}];
+ writeTopicProjection(store,{concepts:[{key,role:'topic',labels:{en:'Enlargement'}}],records:[{id:question,kind:'question',date,titles:{en:'English question',fr:'Question française'},members:[],status:'classified',assignments},{id:doc,kind:'document',date,titles:{en:'English motion',fr:'Motion française'},status:'classified',assignments},{id:debate,kind:'debate',date,titles:{en:'English debate',fr:'Débat français'},status:'classified',assignments}]});
+ const facts=[['document',doc,{id:doc,date,reference:'RC-B10-0010/2025',type:'RESOLUTION_MOTION_JOINT',titles:{en:'JOINT MOTION FOR A RESOLUTION on English motion',fr:'Motion française'},rule:[],groups:['PPE','RENEW'],groupsAvailable:true,places:[],keywords:[],procedures:[],derivedFrom:[],outcomeStatus:'known',outcome:{decisionId:'decision',date,outcome:'ADOPTED',for:100,against:20,abstentions:0,labels:{en:'English decision',fr:'Décision française'},references:{en:'English reference',fr:'Référence française'}}}],['debate',debate,{id:debate,date,titles:{en:'19. English debate',fr:'19. Débat français'},jointHeadings:{en:'English joint heading',fr:'Intitulé français'},places:[],docs:[doc],procedures:[],meps:5,speeches:5,format:'council-commission',joint:true}]];
+ for(const [kind,id,body] of facts){store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?)').run(1,kind,id,date,JSON.stringify(body));store.db.prepare('INSERT INTO story_topics VALUES (?,?,?,?,?)').run(1,key,kind,id,date);}
+ await finishStoryProjection(store,1);
+ const result=storyFacts(store,new URLSearchParams({scope:'topic',key,lang:'fr',period:'2025-Q1',list:'questions'}));
+ assert.equal(result.topic.labelLanguage,'fr');assert.equal(result.topic.label,"Elargissement de l'Union");
+ assert.equal(result.questions[0].title,'English question');assert.equal(result.questions[0].titleLanguage,'en');
+ assert.equal(result.docs[0].title,'JOINT MOTION FOR A RESOLUTION on English motion');assert.equal(result.docs[0].titleLanguage,'en');
+ assert.equal(result.debates[0].title,'English debate');assert.equal(result.debates[0].titleLanguage,'en');assert.equal(result.debates[0].jointHeading,'English joint heading');
+ assert.equal(result.docs[0].outcome.label,'English decision');
 });
