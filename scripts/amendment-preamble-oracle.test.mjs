@@ -30,3 +30,11 @@ test('a citation continued on a second row withholds ordinal verification', () =
   const split=proposal(['THE EUROPEAN PARLIAMENT AND THE COUNCIL OF THE EUROPEAN UNION,','Having regard to the Treaty on the Functioning of the European Union,','and in particular Article 192(1) thereof,','Having regard to the proposal from the European Commission,','Whereas:']);
   assert.notEqual(check(wording('Citation 1 a (new)','','Having regard to the opinion,'),insert(2),split).status,'verified');
 });
+
+test('a citation replacement must splice exactly the original wording', () => {
+  const w=wording('Citation 2','Having regard to the proposal from the European Commission,','Changed,');
+  const at=(paragraph,start,end)=>({status:'placed',operation:'replace',itemIndex:0,span:{start:2,end:2},splice:{start:{paragraph,offset:start},end:{paragraph,offset:end}}});
+  assert.equal(check(w,at(1,0,rows[1].length)).status,'failed','a splice on another citation');
+  assert.equal(check(w,at(2,0,6)).status,'failed','a partial splice');
+  assert.equal(check(w,at(2,0,rows[2].length)).status,'verified');
+});
