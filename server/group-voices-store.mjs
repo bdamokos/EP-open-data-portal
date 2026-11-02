@@ -116,12 +116,29 @@ function localized(titles,language){
 // most once per person for a name, and only for the bounded contribution page.
 // Nothing here reads raw XML, refreshes a source or infers group membership.
 export function groupVoicesPage(store,query){return store.readSnapshot(()=>groupVoicesSnapshot(store,query));}
+// Topic keys come from indexed memberships and resolution from the record
+// status index; full records are never read per contribution. CROSS JOIN keeps
+// the bounded designation range as the outer loop over membership probes.
+const scopeSql=`SELECT speech,person FROM group_voice_designations WHERE generation=? AND group_id=? AND date>=? AND date<=? ORDER BY date DESC,speech,person LIMIT ${GROUP_VOICE_LIMITS.rows}`;
+const unresolvedSql="(r.id IS NULL OR COALESCE(json_extract(r.body,'$.status'),'') IN ('unavailable','not-observed','parent-not-retained','ambiguous','pending','not-linked'))";
+function topicSql(store){
+  const statusIndex=store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name='topic_record_status'").get()?' INDEXED BY topic_record_status':'';
+  return {
+    keys:store.db.prepare(`SELECT DISTINCT d.speech,m.key FROM (${scopeSql}) d CROSS JOIN record_topic_memberships m ON m.generation=? AND m.record_id=d.speech JOIN record_topic_concepts c ON c.generation=m.generation AND c.key=m.key AND c.role='topic'`),
+    unresolved:store.db.prepare(`SELECT DISTINCT d.speech FROM (${scopeSql}) d LEFT JOIN record_topic_records r${statusIndex} ON r.generation=? AND r.id=d.speech WHERE ${unresolvedSql}`),
+    counts:store.db.prepare(`SELECT m.key,COUNT(DISTINCT d.speech) n FROM (${scopeSql}) d CROSS JOIN record_topic_memberships m ON m.generation=? AND m.record_id=d.speech JOIN record_topic_concepts c ON c.generation=m.generation AND c.key=m.key AND c.role='topic' GROUP BY m.key`),
+    totals:store.db.prepare(`SELECT COUNT(DISTINCT d.speech) contributions,COUNT(DISTINCT d.person) speakers,COUNT(DISTINCT CASE WHEN ${unresolvedSql} THEN d.speech END) unresolved FROM (${scopeSql}) d LEFT JOIN record_topic_records r${statusIndex} ON r.generation=? AND r.id=d.speech`),
+  };
+}
 function groupVoicesSnapshot(store,query){
   const generation=generationOf(store),range=scopeRows(store,generation,query),truncated=range.truncated;
-  const topics=new RecordTopics(store),topicRecords=new Map(topics.state?range.rows.map(r=>[r.speech,topics.record(r.speech,query.language,{rankKeywords:false})]):[]),topicLabels={};
-  const known=r=>Boolean(r&&!['unavailable','not-observed','parent-not-retained','ambiguous','pending','not-linked'].includes(r.status));
-  const decorate=rows=>rows.map(r=>{const record=topicRecords.get(r.speech),topicKnown=known(record),keys=record?.topics.map(a=>{topicLabels[a.key]=a.label;return a.key;})||[];return {...r,topicKnown,topicKeys:keys};});
-  const rows=decorate(range.rows),unknownTopics=new Set(rows.filter(r=>!r.topicKnown).map(r=>r.speech)).size;
+  const topics=new RecordTopics(store),topicGeneration=topics.state?.generation,sql=topicGeneration?topicSql(store):null,topicLabels={};
+  const label=key=>{if(!(key in topicLabels))topicLabels[key]=topics.concept(key,query.language)?.label||key;return key;};
+  const scope=group=>[generation,group,query.from,query.to,topicGeneration];
+  const keys=new Map(),unresolved=new Set(sql?sql.unresolved.all(...scope(query.group)).map(r=>r.speech):range.rows.map(r=>r.speech));
+  if(sql)for(const r of sql.keys.all(...scope(query.group))){if(!keys.has(r.speech))keys.set(r.speech,[]);keys.get(r.speech).push(label(r.key));}
+  for(const list of keys.values())list.sort((a,b)=>a.localeCompare(b));
+  const rows=range.rows.map(r=>({...r,topicKnown:!unresolved.has(r.speech),topicKeys:keys.get(r.speech)||[]})),unknownTopics=new Set(rows.filter(r=>!r.topicKnown).map(r=>r.speech)).size;
   const topicAvailability={state:!topics.state?'unavailable':unknownTopics?'partial':'available',unresolvedContributions:unknownTopics};
   const state=coverage(store,generation,query,truncated);
   const failed=store.db.prepare('SELECT key,body FROM group_voice_jobs WHERE generation=? AND done=0 AND error IS NOT NULL LIMIT 501').all(generation);
@@ -138,7 +155,11 @@ function groupVoicesSnapshot(store,query){
   if(query.part==='summary'){
     const grouped=new Map();
     for(const row of rows){let person=grouped.get(row.person);if(!person){person={...identity(store,generation,row.person,row.speech),total:0,subjects:{}};grouped.set(row.person,person)}person.total++;for(const key of row.topicKeys)person.subjects[key]=(person.subjects[key]||0)+1;}
-    return {...page,ready:Boolean(topics.state),groupSubjects:Object.keys(GROUP_VOICE_GROUPS).map(id=>{const scope=scopeRows(store,generation,{...query,group:id}),subjects={},topicSets=new Map(),contributions=new Set(),speakers=new Set(),unresolvedIds=new Set();for(const row of scope.rows){contributions.add(row.speech);speakers.add(row.person);const record=topics.state?topics.record(row.speech,query.language,{rankKeywords:false}):null;if(!known(record))unresolvedIds.add(row.speech);for(const topic of record?.topics||[]){topicLabels[topic.key]=topic.label;if(!topicSets.has(topic.key))topicSets.set(topic.key,new Set());topicSets.get(topic.key).add(row.speech);}}for(const [key,ids] of topicSets)subjects[key]=ids.size;return {id,total:contributions.size,speakerTotal:speakers.size,subjects,unresolvedContributions:unresolvedIds.size,truncated:scope.truncated};}),groups:Object.entries(GROUP_VOICE_GROUPS).map(([id,label])=>({id,label})),subjects:Object.entries(topicLabels).map(([id,label])=>({id,label})),
+    return {...page,ready:Boolean(topics.state),groupSubjects:Object.keys(GROUP_VOICE_GROUPS).map(id=>{
+      // One indexed aggregate per group; counts stay exact over the same rows.
+      const subjects={},args=scope(id);if(sql)for(const r of sql.counts.all(...args))subjects[label(r.key)]=r.n;
+      const totals=sql?sql.totals.get(...args):(t=>({...t,unresolved:t.contributions}))(store.db.prepare(`SELECT COUNT(DISTINCT speech) contributions,COUNT(DISTINCT person) speakers FROM (${scopeSql})`).get(generation,id,query.from,query.to));
+      return {id,total:totals.contributions,speakerTotal:totals.speakers,subjects,unresolvedContributions:totals.unresolved,truncated:Boolean(store.db.prepare('SELECT 1 FROM group_voice_designations WHERE generation=? AND group_id=? AND date>=? AND date<=? ORDER BY date DESC,speech,person LIMIT 1 OFFSET ?').get(generation,id,query.from,query.to,GROUP_VOICE_LIMITS.rows))};}),groups:Object.entries(GROUP_VOICE_GROUPS).map(([id,label])=>({id,label})),subjects:Object.entries(topicLabels).map(([id,label])=>({id,label})),
       people:[...grouped.values()].sort((a,b)=>b.total-a.total||(a.name||a.id).localeCompare(b.name||b.id)),
       months:store.db.prepare("SELECT DISTINCT substr(date,1,7) AS month FROM group_voice_observations WHERE generation=? AND date>='2024-07-16' ORDER BY month DESC LIMIT 100").all(generation).map(r=>r.month),
       subjectMethod:'Official document classifications and exact debate or procedure context. Topic counts can overlap; totals count distinct speaking designations.'};

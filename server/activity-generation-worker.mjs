@@ -1,10 +1,13 @@
 import {rebuildTopicProjection} from './topic-publication.mjs';
 import {parentPort,workerData} from 'node:worker_threads';
+import {getHeapStatistics} from 'node:v8';
 import {existsSync} from 'node:fs';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 
-let store,message;
+let store,message,peakHeap=0;
+// Graph builds report their own heap high-water mark to size the thread limit.
+const sampleHeap=()=>{peakHeap=Math.max(peakHeap,getHeapStatistics().used_heap_size);},heapTimer=['topics','stories'].includes(workerData.operation)?setInterval(sampleHeap,250):null;heapTimer?.unref();
 try {
   const {directory,owner,operation,generation}=workerData;
   if(!existsSync(path.join(directory,'activities-v1.sqlite')))throw new Error('Prepared activity database is unavailable.');
@@ -14,9 +17,10 @@ try {
   // logical owner; begin/publish check it after obtaining BEGIN IMMEDIATE.
   store.owner=owner;
   let value;if(operation==='begin')value=store.beginCycle();else if(operation==='publish')value=store.finalize(generation);else value=await rebuildTopicProjection(store,{generation});
-  message={type:'complete',value};
-} catch(error){message={type:'failed',error:error.message};}
+  message={type:'complete',value,...(heapTimer?{peakHeapMiB:(sampleHeap(),Math.round(peakHeap/10485.76)/100)}:{})};
+} catch(error){message={type:'failed',error:error.message,...(heapTimer?{peakHeapMiB:(sampleHeap(),Math.round(peakHeap/10485.76)/100)}:{})};}
 finally {
+  clearInterval(heapTimer);
   // close() would release the caller's lease. Only this connection is closed;
   // the caller resumes ownership after the thread exits.
   store?.db.close();

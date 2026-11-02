@@ -186,3 +186,21 @@ test('official topics overlap without inflating distinct group contributions',as
  writeTopicProjection(store,{records:[{id:p.id,kind:'speech',date:p.date,titles:{en:'Heading'},members:['42'],status:'classified',assignments:concepts.map(c=>({key:c.key,role:'topic',paths:[{basis:'debate',steps:[],sources:[]}]}))}],concepts});
  const result=groupVoicesPage(store,query());const group=result.groupSubjects.find(g=>g.id==='S_D');assert.equal(group.total,1);assert.equal(group.speakerTotal,1);assert.equal(group.subjects['oeil:7.30.30.06'],1);assert.equal(group.subjects['oeil:3.10.01'],1);assert.equal(result.total,1);assert.equal(groupVoicesPage(store,query('subject=foreign')).retiredSubject,true);
 });
+test('group topic counts use indexed joins and stay exact across statuses without reading records per contribution',async t=>{
+ const {writeTopicProjection}=await import('./topics-store.mjs');
+ const store=setup(t),cycle=store.beginCycle();initializeGroupVoices({store,clock:now},cycle.generation,[]);
+ const voices=[speech('1','2026-10-06'),speech('2','2026-10-06',[participation('43','S_D')]),speech('3','2026-10-07'),speech('4','2026-10-07',[participation('44','PPE')])].map(a=>groupVoiceProjection(a,{fetchedAt:stamp}));
+ for(const p of voices)store.putSource(cycle.generation,'/speeches/'+p.id,'speech',{id:p.id,groupVoices:p,outside:{titles:{en:'Heading'}}},stamp);store.publish(cycle.generation);
+ const concepts=['oeil:3.10.01','oeil:7.30.30.06'].map(key=>({key,role:'topic',labels:{en:'Label '+key},uri:'https://oeil.europarl.europa.eu/oeil/en'})),keyword={key:'eurovoc:245',role:'keyword',labels:{en:'Keyword'}};
+ const assign=keys=>keys.map(key=>({key,role:key.startsWith('oeil:')?'topic':'keyword',paths:[{basis:'debate',steps:[],sources:[]}]}));
+ writeTopicProjection(store,{records:[{id:voices[0].id,kind:'speech',date:voices[0].date,members:['42'],status:'classified',assignments:assign([...concepts.map(c=>c.key),keyword.key])},{id:voices[1].id,kind:'speech',date:voices[1].date,members:['43'],status:'pending',assignments:[]},{id:voices[3].id,kind:'speech',date:voices[3].date,members:['44'],status:'classified',assignments:assign([concepts[0].key])}],concepts:[...concepts,keyword]});
+ const prepare=store.db.prepare.bind(store.db),statements=[];store.db.prepare=sql=>{statements.push(sql);return prepare(sql);};
+ const summary=groupVoicesPage(store,query());store.db.prepare=prepare;
+ assert(!statements.some(sql=>/SELECT body FROM record_topic_records WHERE generation=\? AND id=\?/.test(sql)),'no per-contribution record reads');
+ assert.deepEqual(summary.groupSubjects.find(g=>g.id==='S_D'),{id:'S_D',total:3,speakerTotal:2,subjects:{'oeil:3.10.01':1,'oeil:7.30.30.06':1},unresolvedContributions:2,truncated:false});
+ assert.deepEqual(summary.groupSubjects.find(g=>g.id==='PPE'),{id:'PPE',total:1,speakerTotal:1,subjects:{'oeil:3.10.01':1},unresolvedContributions:0,truncated:false});
+ assert.deepEqual(summary.topicAvailability,{state:'partial',unresolvedContributions:2});assert.deepEqual(summary.subjects,concepts.map(c=>({id:c.key,label:c.labels.en})));
+ assert.deepEqual(summary.people.find(p=>p.id==='42').subjects,{'oeil:3.10.01':1,'oeil:7.30.30.06':1});
+ const page=groupVoicesPage(store,query('part=contributions&subject=oeil:7.30.30.06'));assert.equal(page.knownTotal,1);assert.equal(page.total,null);assert.deepEqual(page.contributions.map(c=>[c.id,c.topics]),[[voices[0].id,['oeil:3.10.01','oeil:7.30.30.06']]]);
+ const plan=store.db.prepare("EXPLAIN QUERY PLAN SELECT json_extract(r.body,'$.status') FROM record_topic_records r INDEXED BY topic_record_status WHERE r.generation=? AND r.id=?").all(1,'x');assert(plan.some(p=>/COVERING INDEX topic_record_status/.test(p.detail)));
+});

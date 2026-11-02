@@ -266,3 +266,30 @@ test('retained story shapes gain new fields without inventing a same-source conf
  const {store}=await fixture(t),id='MTG-PL-2025-03-12-VOT-ITM-1',work={activity_id:id,activity_date:'2025-03-12',based_on_a_realization_of:['eli/dl/doc/B-10-2025-0010']};stageStoryInput(store,work,source,{rank:2});const get=()=>JSON.parse(store.db.prepare("SELECT body FROM story_inputs WHERE kind='result' AND id=?").get(id).body),old=get();delete old.date;delete old.type;delete old.relationships;store.db.prepare("UPDATE story_inputs SET body=? WHERE kind='result' AND id=?").run(JSON.stringify(old),id);
  stageStoryInput(store,work,source,{rank:2});assert.equal(get().conflicted,undefined);assert.equal(get().date,'2025-03-12');assert.equal(get().type,'PLENARY_VOTE_RESULTS');stageStoryInput(store,{...work,based_on_a_realization_of:[]},source,{rank:2});assert.equal(get().conflicted,true);
 });
+test('vote decisions wait for the sitting day to pass and recheck empty replies on a decaying schedule',async t=>{
+ const {store}=await fixture(t),{decisionRecheck}=await import('./story-facts-collector.mjs'),DAY=86400_000,sitting='MTG-PL-2026-11-02',start=Date.parse('2026-11-02T00:00:00Z');let now=Date.parse('2026-11-02T15:00:00Z'),reply={status:204,payload:{data:[]}},calls=0;
+ const worker={store,clock:()=>now,requests:0,budget:100,controller:new AbortController(),request:async()=>{calls++;return {url:'https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/decisions',fetchedAt:new Date(now).toISOString(),...reply};}};
+ const job=()=>store.db.prepare('SELECT state,next_read,error FROM story_jobs WHERE key=?').get('decisions:'+sitting);
+ queueStoryRead(store,'decisions',sitting);assert.equal(await collectStorySource(worker),false);assert.equal(calls,0,'no read on the sitting day');assert.equal(job().next_read,start+DAY);
+ store.set('storyProjectionDirty',false);now=start+DAY;store.acquire();assert(await collectStorySource(worker));assert.equal(calls,1);assert.deepEqual({...job()},{state:'unavailable',next_read:start+3*DAY,error:'http-204'});assert(store.get('storyProjectionDirty'));
+ store.set('storyProjectionDirty',false);now=start+3*DAY;store.acquire();reply={payload:{data:[]}};assert(await collectStorySource(worker));assert.deepEqual({...job()},{state:'unavailable',next_read:start+7*DAY,error:'empty-response'});
+ store.set('storyProjectionDirty',false);now=start+7*DAY;store.acquire();assert(await collectStorySource(worker));assert.equal(job().next_read,start+30*DAY);assert.equal(store.get('storyProjectionDirty'),false,'an unchanged recheck does not dirty stories');
+ now=start+30*DAY;store.acquire();assert(await collectStorySource(worker));assert.deepEqual({...job()},{state:'available',next_read:null,error:null});assert.equal(calls,4);
+ now+=365*DAY;store.acquire();assert.equal(await collectStorySource(worker),false);assert.equal(calls,4,'the final observation is kept');
+ assert.deepEqual([0,1,2,3,6,7,29,30].map(d=>decisionRecheck(sitting,start+d*DAY)),[1,3,3,7,7,30,30,null].map(d=>d===null?null:start+d*DAY));
+ const held='MTG-PL-2025-03-12';queueStoryRead(store,'decisions',held);reply={payload:{data:[{activity_id:held+'-DEC-1'}]}};assert(await collectStorySource(worker));assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('decisions:'+held).state,'available');
+});
+test('each committed agenda batch marks the projection dirty',async t=>{
+ const {store}=await fixture(t),sitting='MTG-PL-2025-03-12';queueStoryRead(store,'agenda',sitting);store.set('topicProjectionDirty',false);
+ const items=Array.from({length:30},(_,i)=>({activity_id:sitting+'-OJ-ITM-D-'+(i+1),activity_date:'2025-03-12',activity_label:{en:'Item '+i}}));let commits=0;
+ const transaction=store.transaction.bind(store);store.transaction=fn=>transaction(()=>{const result=fn();commits++;if(commits===1)assert.equal(store.get('topicProjectionDirty'),true,'the first batch commit carries the dirty flag');return result;});
+ const worker={store,clock:Date.now,requests:0,budget:10,controller:new AbortController(),request:async()=>({url:'https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/foreseen-activities',fetchedAt:new Date().toISOString(),payload:{data:items}})};
+ assert(await collectStorySource(worker));assert(commits>=2);assert(store.get('topicProjectionDirty'));
+});
+test('the projection queues vote decisions only for sittings before today',async t=>{
+ let now=Date.parse('2026-10-28T10:00:00Z');const {store}=await fixture(t,{clock:()=>now}),day='2026-10-28',vote='MTG-PL-'+day+'-VOT-ITM-10',id='B-10-2026-0400';
+ store.putSource(1,'/plenary-documents/'+id,'document',{id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION'},creator:['org/PPE'],inverse_based_on_a_realization_of:['eli/dl/event/'+vote]},stamp);
+ const queued=()=>store.db.prepare("SELECT COUNT(*) n FROM story_jobs WHERE kind='decisions'").get().n;
+ await buildTopics(store);assert.equal(queued(),0,'no decision read is queued on the sitting day');
+ now=Date.parse('2026-10-29T10:00:00Z');store.acquire();await buildTopics(store);assert.equal(queued(),1);
+});

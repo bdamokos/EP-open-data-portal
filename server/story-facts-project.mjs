@@ -5,6 +5,7 @@ import {array,tail,unique,titles,storyReference,wholeTextOutcome,debateAgenda,de
 import {speechParentDocumentId} from './speech-agenda.mjs';
 import {countryLabels} from './topic-roles.mjs';
 import {quarter} from './topics-store.mjs';
+import {brusselsDay} from './story-facts-collector.mjs';
 
 // Retain vote observations before resolving the shared timestamp-aware graph.
 export async function stageStoryOutcomes(store,sourceGeneration){
@@ -24,6 +25,8 @@ export async function buildStoryFacts(store,generation,options={}){
  try{return await projectStoryFacts(store,generation,options);}finally{store.db.exec('PRAGMA cache_size='+Number(previous));}
 }
 async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},sourceGeneration=generation,nodes}={}){
+ // Decisions for today's or later sittings are not read before the vote.
+ const today=brusselsDay(store.clock());
  storyTables(store.db);store.assertWriter();store.set('storyProjection',null);
  onProgress('story-inputs');
  for(const table of tables){let changes;do{store.transaction(()=>{store.assertWriter();changes=store.db.prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE generation=? LIMIT 500)`).run(generation).changes;});store.renew();await new Promise(setImmediate);}while(changes);}
@@ -54,7 +57,7 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
   for(const oj of events.filter(id=>id.includes('OJ-ITM-V-')))for(const vote of fromIds('result-executed',oj))votes.add(vote);
   const candidates=unique([...votes].flatMap(id=>toIds('result-decision',id))).map(id=>storyInput(store,'decision',id)).filter(Boolean);
   Object.assign(d,wholeTextOutcome(d,candidates));d.supersededBy=fromIds('document-original',d.id);
-  if(d.outcomeStatus==='unknown')for(const event of events.filter(id=>id.includes('VOT-ITM-')||id.includes('OJ-ITM-V-')))queueStoryRead(store,'decisions','MTG-PL-'+event.slice(7,17));
+  if(d.outcomeStatus==='unknown')for(const event of events.filter(id=>(id.includes('VOT-ITM-')||id.includes('OJ-ITM-V-'))&&id.slice(7,17)<today))queueStoryRead(store,'decisions','MTG-PL-'+event.slice(7,17));
   put.run(generation,'document',d.id,d.date,JSON.stringify(d));for(const id of d.places)place.run(generation,id,'document',d.id,d.date,'official');
  }} )());
  onProgress('story-documents');

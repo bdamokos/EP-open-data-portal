@@ -30,7 +30,8 @@ export async function collectTopicProcedure(worker,{sources=worker.officialConte
  const held=sources.cache?.stored?await sources.cache.stored(sources.cache.key(['official-context-v1',url])):null;
  let page;
  if(held?.value?.html&&held.value.url===url&&Number.isFinite(Date.parse(held.value.fetchedAt))){const hints=procedurePageHints(held.value.html,row.reference,now);policy=procedureRefresh(metadata,{...hints,source:{fetchedAt:held.value.fetchedAt}},now);if(policy.completed||!policy.changed&&policy.next>now)page=held.value;}
- if(!page){worker.requests++;page=await sources.get(url,{priority:'background',freshMs:policy.changed?0:policy.freshMs,waitForFresh:true});}
+ // The writer's source wrapper counts each HTTP start against the run budget.
+ if(!page)page=await sources.get(url,{priority:'background',freshMs:policy.changed?0:policy.freshMs,waitForFresh:true,dailyLimit:false});
  worker.controller.signal.throwIfAborted();s.assertWriter();if(page.viewCache?.stale)return true;
  let parsed;try{parsed=parseProcedurePage(page.html,row.reference,'en');}catch(error){if(error.code)throw error;throw Object.assign(new Error(error.message),{code:'official_document_invalid',cause:error});}
  const hints=procedurePageHints(page.html,row.reference,now),source={url:page.url,fetchedAt:page.fetchedAt};policy=procedureRefresh(metadata,{...hints,source},now);
@@ -42,7 +43,10 @@ export async function collectTopicProcedure(worker,{sources=worker.officialConte
   s.transaction(()=>{s.assertWriter();
    s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(retry.next,row.id);
    if(!retry.paused)s.db.prepare('INSERT OR REPLACE INTO topic_procedure_attempts VALUES (?,?,?)').run(row.id,retry.attempts,String(error.message).slice(0,200));
-   if(retry.permanent){const url=row.reference?'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference:row.reference}):'https://data.europarl.europa.eu/api/v2/procedures/'+row.id;const prior=s.db.prepare('SELECT body FROM topic_procedure_pages WHERE id=?').get(row.id),next={state:'unavailable',reason:error.code==='official_source_size'?'source-too-large':error.code||'source-unavailable',subjects:[],url,checkedAt:new Date(worker.clock()).toISOString(),retryAt:retry.next};s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify(next));if(observationChanged(prior?JSON.parse(prior.body):null,next))s.set('topicProjectionDirty',true);}
+   // A permanent failure never replaces the last good page; the attempts row
+   // records it and the retained subjects stay in use until a later read.
+   const prior=retry.permanent?s.db.prepare('SELECT body FROM topic_procedure_pages WHERE id=?').get(row.id):null,good=prior&&JSON.parse(prior.body).state!=='unavailable';
+   if(retry.permanent&&!good){const url=row.reference?'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference:row.reference}):'https://data.europarl.europa.eu/api/v2/procedures/'+row.id,next={state:'unavailable',reason:error.code==='official_source_size'?'source-too-large':error.code||'source-unavailable',subjects:[],url,checkedAt:new Date(worker.clock()).toISOString(),retryAt:retry.next};s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify(next));if(observationChanged(prior?JSON.parse(prior.body):null,next))s.set('topicProjectionDirty',true);}
   });
  }
 
