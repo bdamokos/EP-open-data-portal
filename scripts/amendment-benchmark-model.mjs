@@ -187,6 +187,8 @@ function rawPreambleCitations(proposal) {
   if(!close)return null;
   const run=rows.filter(row=>row.index>opens[0].index&&row.index<close.index);
   if(!run.length||run.some(row=>row.complete===false||row.source?.complete!==true||row.source?.container!=='body'||!String(row.text).trim()))return null;
+  // Every counted row must open a citation; continuations shift the ordinals.
+  if(run.some(row=>!/^(?:Having regard to|After (?:transmission|consulting|consultation)|Acting in accordance with)\b/u.test(String(row.text).trim())))return null;
   return run;
 }
 function verifyPreambleCitation({proposal,wording,placement,target}) {

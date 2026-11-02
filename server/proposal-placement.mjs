@@ -520,6 +520,9 @@ function preambleCitationPlacement(items,label,operation,originalText,evidence,u
   if(preambles.length!==1)return unresolved('source_structure_unavailable');
   const {itemIndex,proposal,open,close,citations}=preambles[0];
   const run=proposal.paragraphs.slice(open.index,close.index+1);
+  // Each citation opens with a fixed phrase; a continuation row or heading
+  // would shift every ordinal, so such preambles are withheld.
+  if(citations.some(row=>!/^(?:Having regard to|After (?:transmission|consulting|consultation)|Acting in accordance with)\b/u.test(row.text.trim())))return unresolved('source_structure_unavailable');
   if(!citations.length||run.some((row,index)=>!row.complete||!row.source||row.source.complete===false||row.source.container!=='body'||!row.text.trim()
     ||index&&(row.source.containerPath!==run[index-1].source.containerPath||row.source.segment!==run[index-1].source.segment||row.source.ordinal!==run[index-1].source.ordinal+1)))return unresolved('source_passage_incomplete');
   const row=citations[label.number-1];

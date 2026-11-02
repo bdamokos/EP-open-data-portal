@@ -442,6 +442,8 @@ test('preamble citations are addressed in order and Article -1 follows the enact
   assert.equal(resolve(projection,'Citation 4 a (new)','','The European Parliament rejects the Commission proposal.').reason,'conflicting_target_evidence','A-10-2026-0104 AM90');
   placed=resolve(projection,'Article -1','','Article -1\nIn Article 3 of Regulation (EU) 2021/1232, point (a) is replaced.');
   assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,8);
+  const split=source(['THE EUROPEAN PARLIAMENT AND THE COUNCIL OF THE EUROPEAN UNION,','Having regard to the Treaty on the Functioning of the European Union,','and in particular Article 192(1) thereof,','Having regard to the proposal from the European Commission,','Whereas:'],['Institutionquiagit','Normal','Normal','Normal','Normal']);
+  assert.equal(resolve(split,'Citation 1 a (new)','','Having regard to the opinion,').status,'unresolved','a continuation row would shift the ordinals');
   const later=source(['HAVE ADOPTED THIS REGULATION:','Article 2','1. Text.'],['Formuledadoption','Titrearticle','ManualNumPar1']);
   assert.equal(resolve(later,'Article -1','','Article -1\nNew article.').status,'unresolved');
 });

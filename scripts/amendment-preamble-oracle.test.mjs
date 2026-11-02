@@ -25,3 +25,8 @@ test('Article -1 goes immediately before Article 1 after the enacting formula', 
   const gap=proposal(['HAVE ADOPTED THIS REGULATION:','Recital-like note.','Article 1','1. Text.']);
   assert.equal(check(wording('Article -1','','Article -1\nNew article.'),insert(2),gap).status,'unverified');
 });
+
+test('a citation continued on a second row withholds ordinal verification', () => {
+  const split=proposal(['THE EUROPEAN PARLIAMENT AND THE COUNCIL OF THE EUROPEAN UNION,','Having regard to the Treaty on the Functioning of the European Union,','and in particular Article 192(1) thereof,','Having regard to the proposal from the European Commission,','Whereas:']);
+  assert.notEqual(check(wording('Citation 1 a (new)','','Having regard to the opinion,'),insert(2),split).status,'verified');
+});
