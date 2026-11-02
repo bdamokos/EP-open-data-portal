@@ -2469,6 +2469,7 @@
   "votegroups.split": "Sem maioria",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} de {total}",
+  "votegroups.whole_group": "Todo o grupo",
   "votegroups.voted_differently.one": "{count} deputado votou de forma diferente da maioria do seu grupo.",
   "votegroups.voted_differently": "{count} deputados votaram de forma diferente da maioria do seu grupo.",
   "votegroups.delegations.heading": "Delegações que votaram em sentido contrário ao seu grupo",

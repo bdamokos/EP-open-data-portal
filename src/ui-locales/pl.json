@@ -2469,6 +2469,7 @@
   "votegroups.split": "Podzieleni",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} z {total}",
+  "votegroups.whole_group": "Cała grupa",
   "votegroups.voted_differently.one": "{count} poseł do PE zagłosował inaczej niż większość jego grupy.",
   "votegroups.voted_differently": "Liczba posłów do PE głosujących inaczej niż większość ich grupy: {count}.",
   "votegroups.delegations.heading": "Delegacje, które zagłosowały inaczej niż ich grupa",
