@@ -3,7 +3,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {countryConcepts,eurovocCountries} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 import {GROUP_VOICE_GROUPS} from '../src/groupVoiceTerms.mjs';
-export const STORY_FACTS_VERSION=12;
+export const STORY_FACTS_VERSION=13;
 // Parser revision of staged document inputs. A re-parse of retained bytes under a
 // newer revision replaces the staged input instead of reading as a source conflict.
 export const STORY_DOCUMENT_PARSER=2;
@@ -99,7 +99,16 @@ export const votingItem=title=>/\(vote\)\s*$/i.test(String(title||''));
 // The verbatim item's own English label decides (its /events activity_label). Before
 // that record is read, the speeches' copy of the item label is used only when every
 // speech carries the same English label. Without an English label the item stays a debate.
-export function votingDebate(event,speechLabels=[]){
+// Vote-related ODP activity types (ep-activities vocabulary in retained fixtures): votes, vote results,
+// outcomes and decisions, vote requests, and explanations of vote.
+export const voteActivity=type=>/^(?:PLENARY_(?:VOTE(?:_[A-Z_]+)?|OUTCOME|DECISION)|REQUEST_VOTE_[A-Z_]+|VOTE_[A-Z_]+|[A-Z_]*EXPLANATIONS?_OF_VOTES?)$/.test(tail(type||''));
+// The event's own published type is exact evidence: a vote type excludes, PLENARY_DEBATE keeps it a debate.
+// Conflicting evidence from any source never excludes. Labels decide only when no type is retained.
+export function votingDebate(event,speechLabels=[],type=null,typeConflicted=false){
+ // One resolver for stories and topic records: the retained type evidence (newest observation,
+ // same-time disagreement is a conflict) decides. The stored input's own type is used only without it.
+ if(type||typeConflicted){if(typeConflicted)return false;const t=tail(type);if(voteActivity(t))return true;if(t==='PLENARY_DEBATE')return false;}
+ else{if(event?.conflicted)return false;const t=tail(event?.type||'');if(voteActivity(t))return true;if(t==='PLENARY_DEBATE')return false;}
  // A read item decides by its own English label; conflicted or missing labels keep it a debate.
  if(event){if(event.conflicted)return false;const own=event.titles?.en;return typeof own==='string'&&Boolean(own.trim())&&votingItem(own);}
  if(!speechLabels.length||speechLabels.some(l=>typeof l!=='string'||!l.trim()))return false;

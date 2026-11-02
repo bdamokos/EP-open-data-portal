@@ -1,3 +1,4 @@
+import {dispatchBaseBackfill} from './base-source-backfill-dispatch.mjs';
 import {topicBootstrapRequired} from './topic-projection-state.mjs';
 import {topicBuildWindowOpen} from './topic-build-window.mjs';
 import {topicRebuildDue} from './topic-publication.mjs';
@@ -811,11 +812,6 @@ export class ActivityWorker {
         await projectionYield(undefined,{signal:this.controller.signal});
       }
       await this.fillProjectionBatch();
-      const baseBackfillDeadline=Math.min(this.runDeadline,this.monotonic()+10_000);
-      if(baseBackfillDue)do {
-        if(this.stopped||this.controller.signal.aborted||this.monotonic()>=baseBackfillDeadline)break;
-        if(!await this.baseBackfill.step(this.controller.signal))break;
-      }while(this.baseBackfill.due());
       // Persist the optional lane's share across one-request iterations.
       const bodyTurn=Number(this.store.get('documentBodyTurn')||0)+1;
       this.store.set('documentBodyTurn',bodyTurn);
@@ -832,6 +828,15 @@ export class ActivityWorker {
         }while(!due&&this.sittingSnapshots.due());
       }
       if(!due) {
+        // Re-evaluate after every whole step: a refresh boundary or another
+        // collector becoming ready must yield back to the normal scheduler.
+        const idle=()=>!this.due()&&!this.sittingSnapshots?.due()&&!this.press?.due()&&!this.officialContext?.due();
+        while(!this.stopped&&!this.controller.signal.aborted&&this.requests<this.budget&&this.monotonic()<this.runDeadline&&this.baseBackfill?.due()){
+          if(!idle())return;
+          if(!await dispatchBaseBackfill(this))break;
+          if(!idle())return;
+          if(this.documentBodies.due())await this.documentBodies.step(this,{requestBudget:1});
+        }
         // Local migrations must progress even when no upstream job is due.
         // Yield between commits and keep each idle turn within one second.
         const localDeadline=Math.min(this.runDeadline,this.monotonic()+1000);
@@ -978,7 +983,7 @@ export class ActivityWorker {
           // checkpoint until the cursor completes or this run reaches a bound.
           if(!dispatchTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
           const task=voiceTask?.groupVoiceJob?voiceTask:dispatchTask;
-          // Reserve one of 32 busy dispatches; idle capacity still fills sources.
+          // One optional slot covers backfill and the topic/story collectors.
           if(await dispatchCollector(this,{busy:Boolean(task)}))continue;
           if(!task)break;
           ordinaryCollectorTurn(this);
