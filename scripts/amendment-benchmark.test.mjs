@@ -482,3 +482,50 @@ test('proposal oracle rejects an implicit paragraph extent swallowing a publishe
   assert.equal(checked.status,'failed');assert.equal(checked.reason,'oracle-published-paragraph-boundary-mismatch');
   assert.equal(classify({...stages(),S5:placement,S6:checked}).outcome,'false-placement');
 });
+
+test('a new suffixed annex is asserted before the next raw annex heading',()=>{
+  const rows=['ANNEX I','Annex I is amended as follows:','(1) first change;','ANNEX II','Annex IV is amended as follows:','ANNEX III','Annex VII is amended as follows:'];
+  const proposal={paragraphs:rows.map((text,index)=>({index,text,complete:true,source:{complete:true},properties:{styleId:/^ANNEX [IVX]+$/u.test(text)?'Annexetitre':'Normal'}})),units:[],gaps:[]};
+  const wording={language:'en',baseline:'commission-proposal',targetLabel:'Annex I a (new)',targetPath:{proposal:[{raw:'Annex I a (new)'}]},originalText:'',proposedText:'In point 1 of ANNEX II the following exception is added:'};
+  const at=before=>({status:'placed',operation:'insert',itemIndex:0,insertBefore:before,insertAfter:before-1,evidence:[]});
+  assert.deepEqual(verifyPlacement({placement:at(3),wording,items:[{kind:'annex',proposal}]}),{status:'verified',reason:'oracle-annex-boundary'});
+  assert.equal(verifyPlacement({placement:at(1),wording,items:[{kind:'annex',proposal}]}).status,'failed');
+  const incomplete={...proposal,paragraphs:proposal.paragraphs.map(row=>row.index===2?{...row,complete:false}:row)};
+  assert.equal(verifyPlacement({placement:at(3),wording,items:[{kind:'annex',proposal:incomplete}]}).status,'unverified');
+  const skipped={...proposal,paragraphs:proposal.paragraphs.map(row=>row.index===3?{...row,text:'ANNEX III'}:row)};
+  assert.equal(verifyPlacement({placement:at(3),wording,items:[{kind:'annex',proposal:skipped}]}).status,'unverified');
+});
+
+test('annex assertions ignore quoted headings and recognise spaced suffix duplicates',()=>{
+  // '#' marks a row printed in the Commission's annex-title style.
+  const build=rows=>({paragraphs:rows.map((text,index)=>({index,text:text.replace(/^#/u,''),complete:true,source:{complete:true},properties:{styleId:text.startsWith('#')?'Annexetitre':'Normal'}})),units:[],gaps:[]});
+  const wording={language:'en',baseline:'commission-proposal',targetLabel:'Annex I a (new)',targetPath:{proposal:[{raw:'Annex I a (new)'}]},originalText:'',proposedText:'New annex.'};
+  const at=before=>({status:'placed',operation:'insert',itemIndex:0,insertBefore:before,insertAfter:before-1,evidence:[]});
+  const check=(rows,before)=>verifyPlacement({placement:at(before),wording,items:[{kind:'annex',proposal:build(rows)}]});
+  // A quoted ANNEX II inside Annex I's instruction is not the outer boundary.
+  const quoted=['#ANNEX I','Annex I is replaced by the following:','‘ANNEX I','text of the replacement','ANNEX II','more replacement text’;','#ANNEX II','Annex IV is amended as follows:'];
+  assert.deepEqual(check(quoted,6),{status:'verified',reason:'oracle-annex-boundary'});
+  assert.equal(check(quoted,4).status,'failed');
+  assert.equal(check(quoted.slice(0,5),4).status,'unverified','an unclosed quotation leaves the scope unknown');
+  // Inline openers are tracked; an unclosed nested quotation leaves scope unknown.
+  const inline=['#ANNEX I','Annex I is replaced by the following: ‘ANNEX I','text of the replacement','ANNEX II','more replacement text’;','#ANNEX II','Annex IV.'];
+  assert.equal(check(inline,3).status,'failed','inline opener: the quoted heading is not outer');
+  assert.deepEqual(check(inline,5),{status:'verified',reason:'oracle-annex-boundary'});
+  const nested=['#ANNEX I','Annex I is replaced by the following:','‘ANNEX I','the term means “operator”','ANNEX II','more replacement text','#ANNEX II','Annex IV.'];
+  for(const before of [4,6])assert.equal(check(nested,before).status,'unverified','nested quotation '+before);
+  // Review round 3: a styled heading inside inline or nested replacement text.
+  const styledInline=['#ANNEX I','Annex I is replaced by the following: ‘ANNEX VIII','replacement text','#ANNEX II','more replacement text’;','#ANNEX II','Second annex.'];
+  assert.equal(check(styledInline,3).status,'failed','the styled heading inside the quotation is not outer');
+  assert.deepEqual(check(styledInline,5),{status:'verified',reason:'oracle-annex-boundary'});
+  assert.equal(check(styledInline.map(row=>row.replace('’;',';')),3).status,'unverified','an unclosed inline quotation');
+  const styledNested=['#ANNEX I','Annex I is replaced by the following:','‘ANNEX I','the term means “operator”','#ANNEX II','more replacement text’;','#ANNEX II','Second annex.'];
+  assert.equal(check(styledNested,4).status,'failed','an inner closing mark does not end the outer quotation');
+  assert.deepEqual(check(styledNested,6),{status:'verified',reason:'oracle-annex-boundary'});
+  assert.equal(check(['#ANNEX I','Text with a "straight" quote.','#ANNEX II','x'],2).status,'unverified','straight quotes are ambiguous');
+  assert.deepEqual(check(['#ANNEX I','The Member States’ authorities and the Parliament’s role.','#ANNEX II','x'],2),{status:'verified',reason:'oracle-annex-boundary'},'apostrophes are not quotation marks');
+  // An existing Annex Ia, printed compactly or spaced, makes the insertion a duplicate.
+  for(const heading of ['#ANNEX Ia','#ANNEX I a'])
+    assert.equal(check(['#ANNEX I','First.',heading,'Existing.','#ANNEX II','Second.'],4).status,'failed',heading);
+  assert.equal(check(['#ANNEX I','First.','#ANNEX I b','Existing.','#ANNEX II','Second.'],2).status,'unverified','a later suffix leaves the order to the placer');
+  assert.equal(check(['ANNEX I','First.','ANNEX II','Second.'],2).status,'unverified','unstyled headings are not outer annexes');
+});

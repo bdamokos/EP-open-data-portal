@@ -324,6 +324,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
     return verified('oracle-subparagraph-point-boundary');
   }
   const label = target.segments.at(-1), rank = suffixOrder(label.suffix);
+  if (proposal && label.kind === 'annex' && target.segments.length === 1) return assertAnnexInsertion(proposal,label,placement);
   if (!label.isNew || !rank || label.number == null) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   let siblings, anchor, end;
   if (proposal) {
@@ -360,6 +361,47 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if(previous&&(ordinal(previous.number)>ordinal(anchor.number)||ordinal(previous.number)===ordinal(anchor.number)&&suffixOrder(previous.suffix)>=suffixOrder(anchor.suffix)))return fail('oracle-previous-sibling-order');
   if (next && (next.start < end || ordinal(next.number) < wantedOrdinal || ordinal(next.number) === wantedOrdinal && (suffixOrder(next.suffix) == null || suffixOrder(next.suffix) <= rank))) return fail('oracle-next-sibling-order');
   return verified('oracle-sibling-boundary');
+}
+
+// A new suffixed annex follows its base annex: before the next printed
+// "ANNEX <numeral>" heading row of the same item, read from raw rows.
+function assertAnnexInsertion(proposal,label,placement) {
+  const roman=value=>/^[IVXLCDM]+$/u.test(value)?[...value].reduce((sum,c,i,all)=>{const d={I:1,V:5,X:10,L:50,C:100,D:500,M:1000};return sum+(d[c]<(d[all[i+1]]??0)?-d[c]:d[c]);},0):null;
+  if(!label.isNew||!label.suffix||!/^[a-z]$/u.test(label.suffix)||roman(label.base)===null)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  // Only headings outside every quotation are outer annexes. Quotation marks
+  // are tracked anywhere in a row; apostrophes inside words are skipped. Any
+  // unmatched or unclosed mark leaves the outer scope unknown.
+  const pairs={'‘':'’','“':'”','«':'»','„':'“”'},stack=[],outer=[];
+  for(const row of proposal.paragraphs){
+    if(!stack.length)outer.push(row);
+    const text=row.text;
+    for(let i=0;i<text.length;i++){
+      const c=text[i];
+      if(c==='"')return {status:'unverified',reason:'oracle-annex-scope-unavailable'};
+      if(pairs[c]&&!(c==='“'&&stack.at(-1)==='„')){stack.push(c);continue;}
+      if(!['’','”','»','“'].includes(c))continue;
+      if(c==='’'&&(/\p{L}/u.test(text[i-1]||'')&&/\p{L}/u.test(text[i+1]||'')||text[i-1]==='s'&&/\s/u.test(text[i+1]||'')&&stack.at(-1)!=='‘'))continue;
+      if(!stack.length||!pairs[stack.at(-1)].includes(c))return {status:'unverified',reason:'oracle-annex-scope-unavailable'};
+      stack.pop();
+    }
+  }
+  if(stack.length)return {status:'unverified',reason:'oracle-annex-scope-unavailable'};
+  // Quote marks alone cannot establish scope (inline openers, nested quotes),
+  // so an outer heading must also carry the Commission's annex-title style.
+  const headings=outer.flatMap(row=>{const m=/^ANNEX\s+([IVXLCDM]+)(?:\s?([a-z]))?$/u.exec(row.text.trim());return m&&/^Annexetitre$/iu.test(row.properties?.styleId||'')?[{index:row.index,value:m[1],suffix:m[2]??'',row}]:[];});
+  const unstyled=outer.filter(row=>/^ANNEX\s+[IVXLCDM]+/u.test(row.text.trim())&&!/^Annexetitre$/iu.test(row.properties?.styleId||''));
+  const base=headings.filter(h=>h.value===label.base&&!h.suffix);
+  if(headings.some(h=>h.value===label.base&&h.suffix===label.suffix))return fail('oracle-duplicate-insertion-label');
+  if(base.length!==1||headings.some(h=>h.value===label.base&&h.suffix&&h.suffix>label.suffix))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  const later=headings.filter(h=>h.index>base[0].index);
+  if(later.some(h=>roman(h.value)<roman(label.base)))return fail('oracle-next-sibling-order');
+  const next=later.find(h=>!(h.value===label.base&&h.suffix&&h.suffix<label.suffix));
+  // An unstyled heading-like row between the two leaves the outer scope unknown.
+  if(next&&unstyled.some(row=>row.index>base[0].index&&row.index<next.index))return {status:'unverified',reason:'oracle-annex-scope-unavailable'};
+  if(!next||roman(next.value)!==roman(label.base)+1||next.suffix)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+  const last=proposal.paragraphs.find(row=>row.index===next.index-1);
+  if(!next.row.complete||!last?.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+  return placement.insertBefore===next.index&&placement.insertAfter===next.index-1?verified('oracle-annex-boundary'):fail('oracle-insertion-boundary-mismatch');
 }
 
 export function targetPatterns(wording = {}, gaps = []) {
