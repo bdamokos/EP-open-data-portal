@@ -2,6 +2,7 @@ export const testDirectories = ['src', 'server', 'scripts'];
 
 // Subprocess startup and isolated cache/restart checks are kept in the slow profile.
 export const slow = [
+  {file: 'server/base-source-worker.test.mjs', reason: 'Starts the production source-writer thread to verify fixture-only retention routing.'},
   {file: 'scripts/amendment-benchmark-retained.test.mjs', reason: 'Spawns SQLite and CLI processes to verify read-only retained-source acquisition and offline replay.'},
   {file: 'server/source-writers.test.mjs', reason: 'Spawns the production server to verify HTTP isolation during a blocking activity writer iteration.'},
   {file: 'scripts/read-benchmark.test.mjs', reason: 'Spawns SQLite to verify read metrics and an actual lost-index regression.'},

@@ -22,7 +22,7 @@ async function runtimeIdentity(directory) {
   return {head:git(['rev-parse','HEAD']),dirty:Boolean(git(['status','--porcelain'])),treeHash:digest(JSON.stringify(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(directory,file)))]))))};
 }
 async function oracleIdentity() {
-  return digest(Buffer.concat(await Promise.all(['amendment-language-oracle.mjs','amendment-language-raw.py','amendment-language-vocabulary.mjs','amendment-benchmark-operation-oracle.mjs','amendment-benchmark-scope-oracle.mjs','fixtures/amendment-language-scope-oracle.json','amendment-oracle-grammar.mjs','amendment-benchmark-proposal-oracle.mjs'].map(file=>readFile(new URL(file,import.meta.url))))));
+  return digest(Buffer.concat(await Promise.all(['amendment-language-quoted-oracle.mjs','amendment-benchmark-quoted-oracle.mjs','amendment-language-oracle.mjs','amendment-language-raw.py','amendment-language-vocabulary.mjs','amendment-benchmark-operation-oracle.mjs','amendment-benchmark-scope-oracle.mjs','fixtures/amendment-language-scope-oracle.json','amendment-oracle-grammar.mjs','amendment-benchmark-proposal-oracle.mjs'].map(file=>readFile(new URL(file,import.meta.url))))));
 }
 async function immutableJson(file,value) {
   const bytes=JSON.stringify(value,null,2)+'\n';
@@ -134,9 +134,9 @@ async function evaluate(publications,cache,runtime) {
   for(const publication of publications) {
     await cache.json(publicDocumentUrl(publication.documentId));
     for(const e of publication.editions) {
-      let extraction,extractionError,rawAmendments,rawText,text,items=[],rawItems=[];
+      let extraction,extractionError,rawAmendments,rawText,text,amendmentBuffer,items=[],rawItems=[],nativeItems=[];
       if(e.body){const input=await cache.get(e.body.url);if(input.ok){rawText={...rawDocument(input.body),motionDocument:['motion','joint-motion'].includes(publication.type)};text={...runtime.docxContent(input.body),textLanguage:e.language,sourceUrl:input.url,status:'available'};}}
-      if(e.wording){const input=await cache.get(e.wording.url);if(input.ok){rawAmendments=rawDocument(input.body).amendments;try{extraction=runtime.extractAmendments(input.body,{listId:publication.listId,targetDocumentId:publication.documentId,language:e.language,sourceUrl:input.url,fetchedAt:input.fetchedAt});}catch{extractionError='amendment-parser-error';}}}
+      if(e.wording){const input=await cache.get(e.wording.url);if(input.ok){amendmentBuffer=input.body;rawAmendments=rawDocument(input.body).amendments;try{extraction=runtime.extractAmendments(input.body,{listId:publication.listId,targetDocumentId:publication.documentId,language:e.language,sourceUrl:input.url,fetchedAt:input.fetchedAt});}catch{extractionError='amendment-parser-error';}}}
       for(const number of publication.numbers) {
         const identity=publication.listId+':'+number,key=identity+':'+e.language,expectedMatches=rawAmendments?.filter(a=>a.number===number)||[],matches=extraction?.amendments.filter(a=>a.number===number)||[];
         const expected=expectedMatches.length===1?rawExpected(expectedMatches[0],e.language):null,wording=matches.length===1?matches[0]:null;
@@ -144,10 +144,10 @@ async function evaluate(publications,cache,runtime) {
         if(wording&&(text||expected?.scope)&&typeof wording.originalText==='string'&&typeof wording.proposedText==='string'&&!runtime.amendmentTextLosses(extraction,wording).length) {
           if(wording.baseline==='commission-proposal'&&!items.length) {
             const proposal=await replay.proposal({reportId:publication.documentId,language:e.language,documentReferences:wording.documentReferences});items=proposal.items;
-            for(const item of proposal.baseline.items||[]) {const input=await cache.get(item.source.url,{accept:runtime.CELLAR_DOCX_MIME,language:item.languageUri.split('/').at(-1).toLowerCase()});rawItems.push(rawDocument(input.body));}
+            for(const item of proposal.baseline.items||[]) {const input=await cache.get(item.source.url,{accept:runtime.CELLAR_DOCX_MIME,language:item.languageUri.split('/').at(-1).toLowerCase()});rawItems.push(rawDocument(input.body));nativeItems.push(input.body);}
           }
           placement=runtime.documentContextPlacement({chosen:{...wording,targetLabelLanguage:e.language},text,items:wording.baseline==='commission-proposal'?items:null,resolutionDocument:true});
-          verification=verifyLanguagePlacement({expected,placement,text,items:wording.baseline==='commission-proposal'?items:null,rawText,rawItems});
+          verification=verifyLanguagePlacement({expected,placement,text,items:wording.baseline==='commission-proposal'?items:null,rawText,rawItems,nativeQuoted:nativeItems[placement.itemIndex]?{proposalBuffer:nativeItems[placement.itemIndex],amendmentBuffer,number}:undefined});
         } else if(wording)placement.reason='wording-unavailable';
         const outcome=verification.status==='failed'?'false-placement':placement.status==='placed'?(verification.status==='verified'?'correct':'placed-unverified'):placement.status==='not-applicable'&&verification.status==='verified'?'not-applicable':'withheld';
         const savedPlacement={...placement};delete savedPlacement.originalText;

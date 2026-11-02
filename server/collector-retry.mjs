@@ -1,5 +1,5 @@
 const DAY=86400_000;
-export const collectorPaused=error=>error?.code==='official_context_capacity'||/cache capacity reached/i.test(error?.message||'');
+export const collectorPaused=error=>['official_context_capacity','admission_paused','source_admission_paused'].includes(error?.code)||/cache capacity reached|admission paused/i.test(error?.message||'');
 export function collectorPermanent(error){
  for(let e=error,n=0;e&&n<4;e=e.cause,n++)if([404,410].includes(e.status)||[404,410].includes(e.sourceStatus))return true;
  return ['official_source_size','official_source_type','official_source_identity','official_document_invalid','procedure_identity','topic_source_identity','story_source_identity'].includes(error?.code)||error instanceof SyntaxError||/identit(?:y|ies)|reference unavailable|do(?:es)? not match|no readable content|(?:no|invalid) data array/i.test(error?.message||'');

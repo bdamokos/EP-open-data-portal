@@ -1,11 +1,8 @@
 import { validAudioMapping } from './playerAudio.mjs';
-// Refresh timestamps do not change a playing frame. A replay or changed
-// channel map starts a new, official player.
-export function speechFrameKey(speechId, language, audio, attempt, mapping) {
-  return JSON.stringify([speechId, language, audio, attempt, mapping?.channels ?? null]);
-}
-export function replayNeedsMediaRefresh(data, error) {
-  return Boolean(error || !data?.available);
+// Refresh timestamps do not change a playing frame. A changed channel map
+// starts a new, official player.
+export function speechFrameKey(speechId, language, audio, mapping) {
+  return JSON.stringify([speechId, language, audio, mapping?.channels ?? null]);
 }
 export function speechEmbedUrl(media, speechId, language, audio) {
   if (!media?.available || media.status !== 'matched' || media.speechId !== speechId || media.requestedAudio !== audio || !media.recording || !media.clip || !media.embedUrl) return null;

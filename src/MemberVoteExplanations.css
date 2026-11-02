@@ -11,4 +11,4 @@
 .vote-explanation-tools svg{width:18px;height:18px;vertical-align:middle;margin-right:6px}
 .vote-explanation-reader .explorer-video{border:1px solid var(--line);padding:12px;margin:12px 0}
 .vote-explanation-reader .explorer-video iframe{width:100%;aspect-ratio:16/9;border:0}
-.vote-explanation-reader .explorer-video-heading,.vote-explanation-reader .explorer-video-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.vote-explanation-reader .explorer-video-heading{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}

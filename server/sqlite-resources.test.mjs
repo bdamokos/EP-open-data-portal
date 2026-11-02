@@ -188,3 +188,12 @@ test('SQLite memory limits and slow logs exclude bindings and caller time betwee
   assert.equal(logs.length,1);assert.equal(logs[0][0],'[background-slow]');
   db.close();
 });
+test('every writer start-up gate is satisfied by startup preparation',t=>{
+  const store=fixture(t,ActivityStore),directory=path.dirname(store.filename);
+  // Production upgrade state: all other preparations done, a newly gated schema missing.
+  store.db.prepare("DELETE FROM meta WHERE key='documentBodySchema'").run();store.release();
+  const result=prepareIndexes({activityDirectory:directory,clock:instant,log:()=>{}});
+  assert.equal(result[0].noop,false,'a missing writer gate is not reported as prepared');
+  const writer=new ActivityStore(directory,{clock:instant});t.after(()=>writer.close());
+  assert.equal(writer.acquire(),true,'the writer can start after preparation');
+});
