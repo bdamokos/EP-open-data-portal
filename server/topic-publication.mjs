@@ -1,3 +1,4 @@
+import {topicBuildWindowOpen} from './topic-build-window.mjs';
 import {buildTopics} from './topics-project.mjs';
 import {topicCollectionDue} from './topics-collector.mjs';
 import {storyCollectionDue} from './story-facts-collector.mjs';
@@ -5,7 +6,8 @@ import {storyCollectionDue} from './story-facts-collector.mjs';
 // Publishing swaps only metadata in one fenced commit; no live rows are rewritten.
 const keys=new Set(['recordTopicProjection','recordTopicCoverage','recordTopicCalendar','recordTopicAskerCoverage','storyProjection','storyCoverage','storyProjectionDirty','topicProjectionDirty']);
 export const projectionTables=['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary','record_topic_question_places','record_topic_author_countries','record_topic_filtered_totals','record_topic_filtered_groups','story_facts','story_links','story_places','story_topics','story_parents','story_scope_records','story_scope_counts','story_rank','story_place_rank','story_map_groups'];
-export function topicRebuildDue(store,now=store.clock()){
+export function topicRebuildDue(store,now=store.clock(),window){
+ if(!topicBuildWindowOpen(now,window))return false;
  if(!store.get('topicProjectionDirty')&&!store.get('storyProjectionDirty'))return false;
  const last=store.get('topicProjectionPublishedAt')||0;
  return !last||now-last>=3*3600_000||!topicCollectionDue(store,now)&&!storyCollectionDue(store,now);
@@ -13,15 +15,18 @@ export function topicRebuildDue(store,now=store.clock()){
 export async function rebuildTopicProjection(store,{generation=store.get('active'),onProgress=()=>{},...options}={}){
  store.assertWriter();const old=store.get('recordTopicProjection'),previous=old?.dataGeneration||old?.generation;
  let epoch;store.transaction(()=>{store.assertWriter();epoch=Math.max(1_000_000_000,store.get('topicProjectionSequence')||0)+1;store.set('topicProjectionSequence',epoch);});
- await pruneTopicData(store,[previous,store.get('previousTopicDataGeneration')].filter(Boolean));
+ // Older read snapshots retain their rows through SQLite MVCC. Only the
+ // current publication must survive while its replacement is built.
+ await pruneTopicData(store,[previous].filter(Boolean));
  const staged=new Map(),shadow=new Proxy(store,{get(target,key){if(key==='get')return k=>staged.has(k)?staged.get(k):store.get(k);if(key==='set')return(k,v)=>keys.has(k)?staged.set(k,v):store.set(k,v);const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});
  const result=await buildTopics(shadow,{...options,generation:epoch,sourceGeneration:generation,prune:false,onProgress});
  store.transaction(()=>{store.assertWriter();if(store.get('active')!==generation)throw Error('Index generation changed during topic publication.');
   for(const [key,value] of staged){if(value&&typeof value==='object'&&value.generation===epoch)store.set(key,{...value,generation,...(['recordTopicProjection','storyProjection'].includes(key)?{dataGeneration:epoch}:{})});else store.set(key,value);}
-  store.set('previousTopicDataGeneration',previous||null);store.set('topicProjectionDirty',false);store.set('storyProjectionDirty',false);store.set('topicProjectionPublishedAt',store.clock());
+  store.set('previousTopicDataGeneration',null);store.set('topicProjectionDirty',false);store.set('storyProjectionDirty',false);store.set('topicProjectionPublishedAt',store.clock());
  });
  onProgress('published');
- await pruneTopicData(store,[epoch,previous||epoch]);
+ // Readers already in a transaction retain the old publication through MVCC.
+ await pruneTopicData(store,[epoch]);
  return {...result,generation,dataGeneration:epoch};
 }
 

@@ -23,13 +23,14 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
  else {const id=w.activity_id||tail(w.id);if(!id)return;
   if(id.includes('OJ-ITM-')){kind='agenda';value=storyAgenda(w,source);}
   else if(/-DEC-/.test(id)){kind='decision';value=storyDecision(w,source);}
-  else if(/-VOT-ITM-/.test(id)){kind='result';value={id,decisions:refs(w.consists_of),executed:refs(w.executed),basedOn:refs(w.based_on_a_realization_of),relationships:Object.fromEntries(['executed','based_on_a_realization_of'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
+  else if(/-VOT-ITM-/.test(id)){kind='result';value={id,date:w.activity_date||null,type:tail(w.had_activity_type)||'PLENARY_VOTE_RESULTS',decisions:refs(w.consists_of),executed:refs(w.executed),basedOn:refs(w.based_on_a_realization_of),relationships:Object.fromEntries(['executed','based_on_a_realization_of'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
   else if(/-PVCRE-ITM-/.test(id)){kind='event';value={id,executed:refs(w.executed),executedKnown:Object.hasOwn(w,'executed'),titles:w.activity_label||{},date:w.activity_date||null,relationships:Object.fromEntries(['executed','based_on_a_realization_of','inverse_consists_of','inverse_was_scheduled_in'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
  }
  if(!value)return;source=value.source||source;const p=prepared(store.db),old=p.get.get(kind,value.id),at=sourceTime(source.fetchedAt)||'';
  if(old&&(old.fetched_at>at||old.fetched_at===at&&old.rank>rank))return;
- const body=JSON.stringify({...value,source:undefined});
- if(old&&old.fetched_at===at&&old.rank===rank&&old.body!==body){value={...value,conflicted:true};}
+ // New projection fields may enrich an older retained shape at the same
+ // source timestamp. Compare its known fields; preserve actual conflicts.
+ if(old&&old.fetched_at===at&&old.rank===rank){const prior=JSON.parse(old.body);if(prior.conflicted||Object.entries(prior).some(([key,v])=>key!=='conflicted'&&JSON.stringify(v)!==JSON.stringify(value[key])))value={...value,conflicted:true};}
  const saved=JSON.stringify({...value,source:undefined}),encodedSource=JSON.stringify(source);
  if(old&&old.fetched_at===at&&old.rank===rank&&old.body===saved&&old.source===encodedSource)return;
  p.put.run(kind,value.id,saved,encodedSource,at,rank);return !old||old.body!==saved;
@@ -42,6 +43,6 @@ export function queueStoryRead(store,kind,id,{unavailable=false}={}){
 export function* storyTopicObservations(store){
  for(const row of store.db.prepare("SELECT kind,id,body,source FROM story_inputs WHERE kind IN ('agenda','event','result') ORDER BY kind,id").iterate()){
   const v=JSON.parse(row.body);if(v.conflicted)continue;
-  yield {work:{activity_id:v.id,activity_date:v.date||undefined,activity_label:v.titles||{},...(v.type?{had_activity_type:'def/ep-activities/'+v.type}:{}),...(v.relationships||(row.kind==='result'?{executed:v.executed,based_on_a_realization_of:v.basedOn}:{}))},source:JSON.parse(row.source),projection:'embedded-event'};
+  yield {work:{activity_id:v.id,activity_date:v.date||undefined,activity_label:v.titles||{},...(v.type||row.kind==='result'?{had_activity_type:'def/ep-activities/'+(v.type||'PLENARY_VOTE_RESULTS')}:{}),...(v.relationships||(row.kind==='result'?{executed:v.executed,based_on_a_realization_of:v.basedOn}:{}))},source:JSON.parse(row.source),projection:'embedded-event'};
  }
 }

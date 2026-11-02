@@ -1,3 +1,4 @@
+import {topicBuildWindowOpen} from './topic-build-window.mjs';
 import {topicRebuildDue} from './topic-publication.mjs';
 import {dispatchCollector,ordinaryCollectorTurn} from './collector-dispatch.mjs';
 import {odp} from './odp.mjs';
@@ -142,7 +143,7 @@ export class ActivityWorker {
   }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
-    if(storyCollectionDue(this.store,this.clock())||topicRebuildDue(this.store,this.clock())||this.generationExecutor&&this.store.get('active')&&this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION||topicCollectionDue(this.store,this.clock())||this.generationExecutor&&this.store.get('active')&&(this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))return true;
+    if(storyCollectionDue(this.store,this.clock())||topicCollectionDue(this.store,this.clock())||topicRebuildDue(this.store,this.clock())||topicBuildWindowOpen(this.clock())&&this.generationExecutor&&this.store.get('active')&&(this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION||this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))return true;
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('recoveryScheduleVersion')!==1||this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
@@ -822,8 +823,8 @@ export class ActivityWorker {
       let sittingSnapshotTurn=0;
       this.controller.signal.throwIfAborted();
       const active=this.store.get('active') || 0,existing=this.store.get('working');
-      if(active&&this.generationExecutor&&(this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))await this.generationExecutor('topics',{generation:active,signal:this.controller.signal});
-      else if(active&&this.generationExecutor&&this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION)await this.generationExecutor('stories',{generation:active,signal:this.controller.signal});
+      if(topicBuildWindowOpen(this.clock())&&active&&this.generationExecutor&&(this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))await this.generationExecutor('topics',{generation:active,signal:this.controller.signal});
+      else if(topicBuildWindowOpen(this.clock())&&active&&this.generationExecutor&&this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION)await this.generationExecutor('stories',{generation:active,signal:this.controller.signal});
       if(!existing && active) {
         // A rollback may have advanced the core generation while leaving the
         // additive amendment snapshot behind. Adopt it before reading sources.

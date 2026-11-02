@@ -47,13 +47,13 @@ test('story projection links exact records, excludes institutions and statements
  for(const [id,type,groups,extra] of [['B-10-2025-0010','RESOLUTION_MOTION',['PPE'],{}],['B-10-2025-0011','RESOLUTION_MOTION',['ECR'],{}],[joint,'RESOLUTION_MOTION_JOINT',['RENEW'],{is_derivative_of:['eli/dl/doc/B-10-2025-0010','eli/dl/doc/B-10-2025-0011'],inverse_based_on_a_realization_of:['eli/dl/event/'+debate,'eli/dl/event/'+agenda]}]])store.putSource(1,'/plenary-documents/'+id,'document',makeDoc(id,type,groups,extra),stamp);
  stageStoryInput(store,{activity_id:agenda,activity_date:day,activity_label:{en:'Support for Ukraine'},headingLabel:{en:'Joint debate - Support for Ukraine'},structuredContent:{en:'<root><type>Council and Commission statements</type></root>'},inverse_was_scheduled_in:['eli/dl/proc/'+proc]},source,{rank:4});
  stageStoryInput(store,{activity_id:debate,activity_date:day,executed:['eli/dl/event/'+agenda]},source,{rank:4});
- stageStoryInput(store,{activity_id:vote,consists_of:['eli/dl/event/'+decision]},source,{rank:4});
+ stageStoryInput(store,{activity_id:vote,activity_date:day,consists_of:['eli/dl/event/'+decision]},source,{rank:4});
  stageStoryInput(store,{activity_id:decision,activity_date:day,inverse_consists_of:['eli/dl/event/'+vote],activity_label:{en:'RC-B10-0010/2025 – Motion for a resolution (as a whole)'},decision_outcome:'def/ep-decision-outcomes/ADOPTED',decision_method:'def/ep-decision-methods/VOTE_HAND'},source,{rank:4});
  for(const [n,person,kind,capacity,role] of [[1,'1','PLENARY_DEBATE_SPEECH',null,null],[2,'2','PLENARY_DEBATE_SPEECH','commission',null],[3,'3','PLENARY_DEBATE_WRITTEN_STATEMENT',null,null],[4,'4','PLENARY_DEBATE_SPEECH',null,'CHAIR'],[5,'1','PLENARY_DEBATE_SPEECH',null,null]]){
   const id='MTG-PL-'+day+'-OTH-'+n;store.putSource(1,'/speeches/'+id,'speech',{outside:{id,date:day,titles:{en:'1. Support for Ukraine (debate)'},participants:[person],parentIds:[debate],parentDocumentIds:['CRE-10-'+day+'-ITM-001'],parentDocumentId:'CRE-10-'+day+'-ITM-001',headers:[{personId:person,capacity}],source}},stamp);
   store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+id,id,person,'plenary-contributions',day,JSON.stringify({speechKind:kind,speechRole:role}));
  }
- await buildTopics(store);const result=storyFacts(store,new URLSearchParams('scope=place&key=place:UKR&period=2025-Q1'));
+ await buildTopics(store);assert.equal(new RecordTopics(store).record(vote,'en').kind,'vote');const result=storyFacts(store,new URLSearchParams('scope=place&key=place:UKR&period=2025-Q1'));
  const keywordStory=storyFacts(store,new URLSearchParams('scope=topic&key=eurovoc:245'));assert.equal(keywordStory.debates.length,1);assert.equal(keywordStory.docs.length,3,'topic joins are ready on the first full build');
  assert(result.ready);assert.equal(result.debates.length,1);const d=result.debates[0];assert.equal(d.meps,1);assert.equal(d.speeches,2);assert.equal(d.agendaVia,'executed');assert.equal(d.format,'council-commission');assert.equal(d.creId,'CRE-10-'+day+'-ITM-001');assert.deepEqual(d.places.map(p=>p.id),['UKR']);assert.deepEqual(d.procedures,[proc]);assert.equal(new RecordTopics(store).record('MTG-PL-'+day+'-OTH-1','en').places.find(p=>p.id==='UKR').basis,'title','inherited title places never become official classifications');
  const j=result.docs.find(d=>d.id===joint);assert.deepEqual(j.groups,['RENEW']);assert.equal(j.outcome.decisionId,decision);assert.equal(j.outcome.for,null);assert.equal(result.docs.find(d=>d.id==='B-10-2025-0010').outcome,null);
@@ -259,4 +259,10 @@ test('stories use reconciled document-event edges and preserve absent versus emp
   if(scenario==='fallback'){assert.equal(d.agendaId,agenda);assert.equal(d.agendaVia,'document');assert.equal(body.outcomeStatus,'known');}
   else {assert.equal(d.agendaId,null);if(scenario==='empty-executed')assert(d.docs.includes(doc));else {assert(!d.docs.includes(doc));assert(!body.events.includes(debate));assert(!body.events.includes(vote));assert.equal(body.outcome,null);assert.equal(body.outcomeStatus,'unknown');}}
  });
+});
+
+
+test('retained story shapes gain new fields without inventing a same-source conflict',async t=>{
+ const {store}=await fixture(t),id='MTG-PL-2025-03-12-VOT-ITM-1',work={activity_id:id,activity_date:'2025-03-12',based_on_a_realization_of:['eli/dl/doc/B-10-2025-0010']};stageStoryInput(store,work,source,{rank:2});const get=()=>JSON.parse(store.db.prepare("SELECT body FROM story_inputs WHERE kind='result' AND id=?").get(id).body),old=get();delete old.date;delete old.type;delete old.relationships;store.db.prepare("UPDATE story_inputs SET body=? WHERE kind='result' AND id=?").run(JSON.stringify(old),id);
+ stageStoryInput(store,work,source,{rank:2});assert.equal(get().conflicted,undefined);assert.equal(get().date,'2025-03-12');assert.equal(get().type,'PLENARY_VOTE_RESULTS');stageStoryInput(store,{...work,based_on_a_realization_of:[]},source,{rank:2});assert.equal(get().conflicted,true);
 });
