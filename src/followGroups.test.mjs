@@ -10,6 +10,21 @@ function fixture() {
  const store=createGroupsStore(storage,()=>{},()=>now);
  return {store,data,storage,time:value=>now=value};
 }
+test('group discoveries share one time per observation with an advancing clock',()=>{
+ let now=1000;const store=createGroupsStore(null,()=>{},()=>now++);
+ store.observe(snapshot(),items);
+ const older=event('42',6,'2026-06-16'),first=event(),second=event('42',6,'2026-06-17','3'),otherMember=event('43');
+ store.observe(snapshot(6,[older,second,first,otherMember]),items);
+ const added=structuredClone(store.snapshot().entries);
+ assert.equal(new Set(added.map(entry=>entry.discoveredAt)).size,1);
+ assert.deepEqual(groupEntries(store.snapshot(),'42',now).fresh.map(entry=>entry.id),[first.id,second.id,older.id]);
+ store.markRead('42',first.id);const retained=structuredClone(store.snapshot().entries);
+ const later=event('42',7,'2026-06-15','4');
+ store.observe(snapshot(7,[older,second,first,otherMember,later]),items);
+ assert(store.snapshot().entries.at(-1).discoveredAt>added[0].discoveredAt);
+ assert.equal(groupEntries(store.snapshot(),'42',now).fresh[0].id,later.id);
+ assert.deepEqual(store.snapshot().entries.slice(0,4),retained);
+});
 test('C upgrade and old-tab writes leave independent group state and suppress historical switches',()=>{
  const {store,data,storage}=fixture();store.observe(snapshot(5,[event('42',5)]),items);assert.equal(store.snapshot().entries.length,0);assert.equal(data.get('ep.following.membership.v1'),'existing C state');
  storage.setItem('ep.following.membership.v1','old tab C update');storage.setItem('ep.following.v2','old tab activity update');store.reload();assert.equal(store.snapshot().baselines['42'].generation,5);
