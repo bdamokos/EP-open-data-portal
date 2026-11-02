@@ -61,3 +61,27 @@ test('new families preserve unknown units, lower-bound display and quoted occurr
   assert.deepEqual(amendmentPlanSummary({type:'text',quote:'exact {source}',expectedCount:1},ui),['The text “exact {source}” · 1 expected occurrence']);
   assert.deepEqual(amendmentPlanSummary({type:'text',quote:'exact',occurrences:[21]},ui),['The text “exact” · occurrence 21']);
 });
+
+test('Topics count fragments retain reviewed noun phrases and neutral singular wording',async()=>{
+  const i18n=createAppUiI18n(await nativeCatalogues());
+  const cases=[
+    ['ga','questions',0,'0 de cheisteanna'],['ga','questions',1,'1 cheist'],
+    ['ga','questions',2,'2 cheist'],['ga','questions',7,'7 gceist'],
+    ['ga','questions',11,'11 de cheisteanna'],['ga','questions',19,'19 de cheisteanna'],
+    ['ga','questions',21,'21 de cheisteanna'],['ga','meps',7,'7 bhFeisire'],
+    ['ga','meps',11,'11 d’Fheisirí'],
+    ['ga','groups',11,'11 de dhíospóireachtaí agus de shainchomhaid'],
+    ['ga','groups',21,'21 de dhíospóireachtaí agus de shainchomhaid'],
+    ['de','meps',1,'1 Mitglied des Europäischen Parlaments'],
+    ['mt','questions',0,'0 mistoqsijiet'],['mt','questions',1,'1 mistoqsija'],
+    ['mt','questions',2,'2 mistoqsijiet'],['mt','questions',11,'11-il mistoqsija'],
+    ['mt','questions',19,'19-il mistoqsija'],['mt','questions',21,'21 mistoqsija'],
+    ['mt','questions',111,'111-il mistoqsija'],
+    ['mt','meps',11,'11-il Membru tal-PE'],['mt','meps',21,'21 Membru tal-PE'],
+  ];
+  for(const [language,noun,count,expected] of cases){
+    const actual=i18n.forLocale(language).t('topics.story.count.'+noun,{count},{count});
+    assert.equal(actual,expected,language+'/'+noun+'/'+count);
+    assert(!actual.includes(':'),'count fragments must not turn into label/value headings inside prose');
+  }
+});
