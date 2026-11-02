@@ -2011,7 +2011,7 @@
   "questionStatus.1": "Cu răspuns",
   "questionStatus.2": "Încă fără răspuns",
   "questions.earlierInTerm": "Afișați întrebările anterioare din legislatura actuală",
-  "questions.periodEnd": "Nu mai sunt întrebări din perioada {dates}.",
+  "questions.periodEnd": "Sfârșitul listei pentru perioada {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} minut",
   "readerretry.minutes_minutes.24f934": "{minutes} de minute",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Reîncercarea a fost suspendată după o solicitare eșuată. Încercați din nou peste {wait}.",

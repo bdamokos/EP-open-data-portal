@@ -2011,7 +2011,7 @@
   "questionStatus.1": "Beantwoord",
   "questionStatus.2": "Nog geen antwoord",
   "questions.earlierInTerm": "Eerdere vragen uit de huidige zittingsperiode tonen",
-  "questions.periodEnd": "Geen vragen meer uit {dates}.",
+  "questions.periodEnd": "Einde van de lijst voor {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} minuut",
   "readerretry.minutes_minutes.24f934": "{minutes} minuten",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Opnieuw proberen gepauzeerd na een mislukt verzoek. Probeer het over {wait} opnieuw.",

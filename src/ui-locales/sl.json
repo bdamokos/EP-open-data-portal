@@ -2011,7 +2011,7 @@
   "questionStatus.1": "Odgovorjeno",
   "questionStatus.2": "Odgovora še ni",
   "questions.earlierInTerm": "Prikaži starejša vprašanja iz sedanjega mandata",
-  "questions.periodEnd": "Ni več vprašanj iz obdobja {dates}.",
+  "questions.periodEnd": "Konec seznama za obdobje {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} min",
   "readerretry.minutes_minutes.24f934": "{minutes} min",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Ponovni poskusi so po neuspešni zahtevi začasno ustavljeni. Poskusite znova čez {wait}.",

@@ -2011,7 +2011,7 @@
   "questionStatus.1": "Απαντήθηκε",
   "questionStatus.2": "Δεν υπάρχει ακόμη απάντηση",
   "questions.earlierInTerm": "Εμφάνιση παλαιότερων ερωτήσεων της τρέχουσας κοινοβουλευτικής περιόδου",
-  "questions.periodEnd": "Δεν υπάρχουν άλλες ερωτήσεις για το διάστημα {dates}.",
+  "questions.periodEnd": "Τέλος της λίστας για το διάστημα {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} λεπτό",
   "readerretry.minutes_minutes.24f934": "{minutes} λεπτά",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Η επανάληψη τέθηκε σε παύση μετά από αποτυχημένο αίτημα. Δοκιμάστε ξανά σε {wait}.",

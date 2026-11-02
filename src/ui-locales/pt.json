@@ -2011,7 +2011,7 @@
   "questionStatus.1": "Respondida",
   "questionStatus.2": "Ainda sem resposta",
   "questions.earlierInTerm": "Mostrar perguntas anteriores da legislatura atual",
-  "questions.periodEnd": "Não há mais perguntas do período {dates}.",
+  "questions.periodEnd": "Fim da lista do período {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} minuto",
   "readerretry.minutes_minutes.24f934": "{minutes} minutos",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Nova tentativa suspensa após um pedido falhado. Tente novamente dentro de {wait}.",

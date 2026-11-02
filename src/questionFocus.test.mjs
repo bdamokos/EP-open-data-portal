@@ -216,7 +216,7 @@ test('the end of a shorter period continues into the term after the questions al
   const response=deferred();
   const h=await harness(t,url=>url.searchParams.get('days')==='term'?response.promise:questions(25),{query:'?view=questions&q-subject=USA&q-country=IT&q-offset=25'});
   assert.match(h.container.querySelector('.insight-question-results .insight-section-heading>span').textContent,/^27 questions · 3 MEP authors elected in Italy · Jul 1, 2026 — Sep 30, 2026$/);
-  assert.match(h.container.querySelector('.insight-period-more').textContent,/^No more questions from Jul 1, 2026 — Sep 30, 2026\. Show earlier questions from the current term$/);
+  assert.match(h.container.querySelector('.insight-period-more').textContent,/^End of the list for Jul 1, 2026 — Sep 30, 2026\. Show earlier questions from the current term$/);
   const oldLength=history.length;await h.click('Show earlier questions from the current term');
   const request=h.calls.at(-1),query=new URL(location.href).searchParams;
   assert.equal(request.searchParams.get('days'),'term');assert.equal(request.searchParams.get('offset'),'27');
