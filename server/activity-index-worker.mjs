@@ -776,9 +776,9 @@ export class ActivityWorker {
     if(this.stopped)return;
     const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
     const officialDue=Boolean(this.officialContext?.due());
-    const documentBodiesDue=this.documentBodies.due();
+    const documentBodiesDue=this.documentBodies.due(),baseBackfillDue=this.baseBackfill?.due();
     const projectionDue=this.projectionGenerations().length>0||this.questionFileGenerations().length>0;
-    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!officialDue&&!documentBodiesDue || !this.store.acquire())return;
+    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!officialDue&&!documentBodiesDue&&!baseBackfillDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
     this.controller=new AbortController();
@@ -791,6 +791,11 @@ export class ActivityWorker {
         await projectionYield(undefined,{signal:this.controller.signal});
       }
       await this.fillProjectionBatch();
+      const baseBackfillDeadline=Math.min(this.runDeadline,this.monotonic()+10_000);
+      if(baseBackfillDue)do {
+        if(this.stopped||this.controller.signal.aborted||this.monotonic()>=baseBackfillDeadline)break;
+        if(!await this.baseBackfill.step(this.controller.signal))break;
+      }while(this.baseBackfill.due());
       // Persist the optional lane's share across one-request iterations.
       const bodyTurn=Number(this.store.get('documentBodyTurn')||0)+1;
       this.store.set('documentBodyTurn',bodyTurn);

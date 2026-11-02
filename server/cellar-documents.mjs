@@ -1,3 +1,5 @@
+import {upstreamResponseError} from './odp.mjs';
+import {backfillContext,checkBackfillCapacity} from './base-source-backfill-context.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,stat} from 'node:fs/promises';
@@ -92,6 +94,9 @@ export class CellarDocuments {
     this.disk=directory?new CacheDiskBudget(directory,{clock,maxBytes:CELLAR_LIMITS.diskBytes,maxEntries:4096,pattern:/^[a-f0-9]{64}\.(?:json|blob)$/}):null;
   }
   async request(input,{accept,language,validators={},maximum=CELLAR_LIMITS.metadataBytes}={}) {
+    checkBackfillCapacity();
+    const held=await backfillContext()?.held?.({url:cellarTransportUrl(input),accept,language});
+    if(held)return {status:200,url:held.record.resolvedSourceUrl||held.record.url,accept:held.record.request?.accept||accept,contentType:held.record.headers?.['content-type'],buffer:held.buffer};
     const initial=cellarTransportUrl(input),owner=requestSignal();owner?.throwIfAborted();
     const budget=createRequestBudget(20_000),signal=owner?AbortSignal.any([owner,budget.signal]):budget.signal;
     let target=initial,selectedAccept=accept,selectedValidators=validators,redirects=0,negotiation=null;
@@ -101,6 +106,7 @@ export class CellarDocuments {
         // Each hop/negotiation reacquires admission and any origin pause, within
         // the same deadline. No retry follows throttling or a multipart reply.
         const result=await this.sources.schedule(async()=>{
+          if(contentRequest&&backfillContext())backfillContext().downloaded=true;
           signal.throwIfAborted();
           const response=await this.fetchSource(target,{headers:{Accept:selectedAccept,'User-Agent':userAgent('Commission proposal context'),...(language?{'Accept-Language':language}:{}),...(selectedValidators.etag?{'If-None-Match':selectedValidators.etag}:{}),...(selectedValidators.lastModified?{'If-Modified-Since':selectedValidators.lastModified}:{})},redirect:'manual',signal});
           if([301,302,303,307,308].includes(response.status)) {
@@ -111,7 +117,7 @@ export class CellarDocuments {
             return {redirect:next};
           }
           if([429,503].includes(response.status)) {
-            const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));this.sources.queues.get(new URL(initial).origin)?.backoff(retryAfter);await response.body?.cancel();
+            const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));if(backfillContext())upstreamResponseError(response,{source:new URL(initial).origin});this.sources.queues.get(new URL(initial).origin)?.backoff(retryAfter);await response.body?.cancel();
             throw Object.assign(failure('cellar_limited','CELLAR is temporarily limiting requests.'),{retryAfter});
           }
           const contentType=response.headers.get('content-type')||null;
@@ -128,8 +134,8 @@ export class CellarDocuments {
             await retainBaseObservation({url:initial,resolvedSourceUrl:target,status:200,fetchedAt:new Date(this.clock()).toISOString(),request:{accept:selectedAccept,...(language?{language}:{})},headers:{'content-type':contentType},descriptor:{url:initial,language:language??null,byteSize:null,issued:null}},buffer,{directory:this.directory&&path.dirname(this.directory)});
             return {status:200,url:target,accept:selectedAccept,contentType,buffer,etag:response.headers.get('etag'),lastModified:response.headers.get('last-modified')};
           } else await response.body?.cancel();
-          throw failure(response.status===300?'cellar_multipart':response.status===404||response.status===406?'cellar_unavailable':'cellar_http','The requested CELLAR representation is unavailable.');
-        },{origin:new URL(initial).origin,priority:'interactive',signal});
+          throw failure(response.status===300?'cellar_multipart':[404,406,410].includes(response.status)?'cellar_unavailable':'cellar_http','The requested CELLAR representation is unavailable.');
+        },{origin:new URL(initial).origin,priority:backfillContext()?'background':'interactive',signal});
         if(result.redirect){target=result.redirect;redirects++;continue;}
         if(result.advertisement){negotiation=result.advertisement;selectedAccept=negotiation.advertisedAccept;selectedValidators={};continue;}
         return {...result,...(negotiation?{negotiation}:{})};
@@ -139,7 +145,7 @@ export class CellarDocuments {
   async candidates(celex) {
     const query=proposalCandidatesSparql(celex),url=new URL('https://publications.europa.eu/webapi/rdf/sparql');
     url.searchParams.set('query',query);url.searchParams.set('format','application/sparql-results+json');
-    return this.sources.get(url.href,{freshMs:CELLAR_LIMITS.metadataFreshMs,validate:record=>{
+    return this.sources.get(url.href,{freshMs:backfillContext()?Infinity:CELLAR_LIMITS.metadataFreshMs,validate:record=>{
       if(!Array.isArray(record.data?.results?.bindings)||record.data.results.bindings.length>65||record.data.results.bindings.some(row=>!row||row.work?.type!=='uri'||!CELLAR_WORK_PATTERN.test(row.work.value)||['celex','version'].some(key=>row[key]&&(row[key].type!=='literal'||typeof row[key].value!=='string'))))throw failure('cellar_candidates','Invalid proposal candidate metadata.');
     }});
   }
@@ -151,7 +157,7 @@ export class CellarDocuments {
       if(result.status!==200)throw failure('cellar_metadata','The proposal metadata is unavailable.');
       const xml=result.buffer.toString('utf8');validateTree(xml,celex);
       return {url,resolvedSourceUrl:result.url,fetchedAt:new Date(this.clock()).toISOString(),xml};
-    },{freshMs:CELLAR_LIMITS.metadataFreshMs,validate:record=>{if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw failure('cellar_metadata','Invalid saved proposal metadata.');validateTree(record.xml,celex);}}));
+    },{freshMs:backfillContext()?Infinity:CELLAR_LIMITS.metadataFreshMs,validate:record=>{if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw failure('cellar_metadata','Invalid saved proposal metadata.');validateTree(record.xml,celex);}}));
   }
   async metadataByWork(workId,{celex}={}) {
     proposalCelex(celex);
@@ -163,7 +169,7 @@ export class CellarDocuments {
       if(result.status!==200)throw failure('cellar_metadata','The proposal metadata is unavailable.');
       const xml=result.buffer.toString('utf8');validate(xml);
       return {url,resolvedSourceUrl:result.url,fetchedAt:new Date(this.clock()).toISOString(),xml};
-    },{freshMs:CELLAR_LIMITS.metadataFreshMs,validate:record=>{
+    },{freshMs:backfillContext()?Infinity:CELLAR_LIMITS.metadataFreshMs,validate:record=>{
       if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw failure('cellar_metadata','Invalid saved proposal metadata.');
       validate(record.xml);
     }}));
@@ -210,7 +216,8 @@ export class CellarDocuments {
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     const task=sharedRequest(async owner=>{
       const old=await this.stored(key,identity),age=old?this.clock()-Date.parse(old.source.checkedAt):Infinity;
-      if(old&&age>=0&&age<=this.freshMs)return {...old,source:{...old.source,stale:false,refreshError:null}};
+      if(old&&backfillContext())backfillContext().hit?.();
+      if(old&&(backfillContext()||age>=0&&age<=this.freshMs))return {...old,source:{...old.source,stale:false,refreshError:null}};
       const failureAt=this.failures.get(key);
       if(old&&failureAt&&this.clock()-failureAt.at<60_000)return {...old,source:{...old.source,stale:true,refreshError:failureAt.code}};
       try {

@@ -1,3 +1,4 @@
+import {backfillContext,checkBackfillCapacity} from './base-source-backfill-context.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {integerFromEnvironment} from './config.mjs';
 import {boundedUpstream,backoffUpstream} from './odp.mjs';
@@ -31,7 +32,7 @@ export class OfficialContextSources {
     // Keep memory bounded separately from the retained historical source pages.
     this.cache=new InsightViewCache({clock,directory,writable,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024,maxDiskEntries:1000000,maxDiskBytes,retainDisk:true});
   }
-  async schedule(operation,{origin,priority='interactive',signal}) {
+  async schedule(operation,{origin,priority=backfillContext()?'background':'interactive',signal}) {
     let queue=this.queues.get(origin);
     // OEIL and Publications Office have no ODP quota. These are local resource
     // caps per origin; their own Retry-After pauses still apply.
@@ -44,9 +45,14 @@ export class OfficialContextSources {
     }
     try{signal?.throwIfAborted();return await boundedUpstream(()=>waitForRequest(operation(),signal),{source:origin,priority,signal});}finally{release();}
   }
-  async get(input,{freshMs=this.cache.freshMs,validate,cacheScope,includeRetryAt=false,priority='interactive'}={}) {
+  async get(input,{freshMs=this.cache.freshMs,validate,cacheScope,includeRetryAt=false,priority=backfillContext()?'background':'interactive'}={}) {
+    checkBackfillCapacity();if(backfillContext())freshMs=Infinity;
     requestSignal()?.throwIfAborted();
     const source=officialSourceUrl(input),url=source.href;
+    if(backfillContext()&&url.includes('/webapi/')){
+      const held=await backfillContext().held?.({url,accept:'application/sparql-results+json'});
+      if(held){const record={url,fetchedAt:held.record.fetchedAt,data:JSON.parse(held.buffer)};validate?.(record);return record;}
+    }
     const key=['official-context-v1',url];if(cacheScope)key.push(cacheScope);
     if(priority!=='background') {
       const saved=await this.cache.stored(this.cache.key(key));

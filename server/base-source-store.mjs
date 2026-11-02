@@ -1,3 +1,4 @@
+import {backfillContext} from './base-source-backfill-context.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,readdir,unlink,stat} from 'node:fs/promises';
 import {isMainThread,workerData} from 'node:worker_threads';
@@ -11,8 +12,8 @@ export const BASE_SOURCE_DEFAULT_MIB=128;
 // Unlike a reproducible cache, current observations are never evicted. Refuse
 // admission when their union fills the budget; only orphan/superseded bytes go.
 export class BaseSourceStore {
-  constructor(directory,{maxBytes=integerFromEnvironment('BASE_SOURCE_MAX_DISK_MIB',BASE_SOURCE_DEFAULT_MIB,1,8192)*1024*1024,readOnly=false,io={readFile,readdir,unlink,stat},write=writeCacheFile}={}) {
-    Object.assign(this,{directory,maxBytes,readOnly,io,write});
+  constructor(directory,{maxBytes=integerFromEnvironment('BASE_SOURCE_MAX_DISK_MIB',BASE_SOURCE_DEFAULT_MIB,1,8192)*1024*1024,maxBindings=integerFromEnvironment('BASE_SOURCE_MAX_BINDINGS',4096,1,1000000),readOnly=false,io={readFile,readdir,unlink,stat},write=writeCacheFile}={}) {
+    Object.assign(this,{directory,maxBytes,maxBindings,readOnly,io,write});
     this.records=new Map();this.blobs=new Map();this.totalBytes=0;this.ready=null;
   }
   save(observation,body) {
@@ -60,7 +61,7 @@ export class BaseSourceStore {
     const record={...observation,schemaVersion:1,key,sha256:hash(body),bytes:body.length};
     const json=JSON.stringify(record),bytes=Buffer.byteLength(json);if(bytes>256*1024)return false;
     const old=this.records.get(key),existing=this.blobs.get(record.sha256);
-    if(!old&&this.records.size>=4096)return false;
+    if(!old&&this.records.size>=this.maxBindings)return false;
     const oldBlob=old&&this.blobs.get(old.record.sha256);
     const reclaim=oldBlob?.refs===1&&old.record.sha256!==record.sha256?oldBlob.bytes:0;
     const total=this.totalBytes-(old?.bytes||0)-reclaim+(existing?0:body.length)+bytes;
@@ -89,8 +90,10 @@ export async function retainBaseObservation(observation,body,{directory=process.
     if(observation.selection&&observation.url==='base-selection:'+observation.selection.type)observation={...observation,url:observation.url+':'+hash(JSON.stringify(observation.selection.input))};
     const folder=path.join(directory,'base-sources-v1');
     let store=stores.get(folder);if(!store){store=new BaseSourceStore(folder);stores.set(folder,store);}
-    return await store.save(observation,Buffer.from(body));
-  }catch{return false;}
+    const saved=await store.save(observation,Buffer.from(body));
+    if(!saved&&backfillContext())backfillContext().full=true;
+    return saved;
+  }catch{if(backfillContext())backfillContext().full=true;return false;}
 }
 
 // Selection records contain observed identifiers and deterministic decisions,
@@ -106,4 +109,9 @@ export async function retainBaseSelection(type,input,result,{directory=process.e
   const url='base-selection:'+type;
   await retainBaseObservation({url,status:200,fetchedAt:new Date().toISOString(),request:{accept:'application/json'},headers:{'content-type':'application/json'},selection:{type,input:identity}},Buffer.from(JSON.stringify(decision)),{directory});
   return result;
+}
+
+export function baseSourceStore(directory=process.env.ODP_CACHE_DIR) {
+  const folder=path.join(directory,'base-sources-v1');
+  let store=stores.get(folder);if(!store){store=new BaseSourceStore(folder);stores.set(folder,store);}return store;
 }

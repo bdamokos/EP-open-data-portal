@@ -1,3 +1,4 @@
+import {BaseSourceBackfill} from './base-source-backfill.mjs';
 import {serveRetention} from './base-source-rpc.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {acceptOfficialHints} from './official-context-hints.mjs';
@@ -43,6 +44,7 @@ if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED')){
   // same writer's lease. Notify after its committed result is visible here.
   const execute=service.worker.generationExecutor;
   service.worker.generationExecutor=async(...args)=>{const value=await execute(...args);service.store.onCommit?.();return value;};
+  if(booleanFromEnvironment('BASE_SOURCE_BACKFILL'))service.worker.baseBackfill=new BaseSourceBackfill(service.store);
   stopActivity=startActivityIndex();
 }
 if(booleanFromEnvironment('CORPUS_ENABLED')){

@@ -1,3 +1,4 @@
+import {backfillContext,checkBackfillCapacity} from './base-source-backfill-context.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {retainedSpeechPage} from './corpus-speeches.mjs';
 import {organizationMembershipSnapshot,organizationMembershipStatus} from './organization-memberships.mjs';
@@ -70,7 +71,7 @@ const sourceQueues=new Map([['odp',upstreamQueue]]);
 function sourceQueue(source) {
   if(!['odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu'].includes(source))throw new Error('Unknown upstream source.');
   if(upstreamBridge)return upstreamBridge.queue(source);
-  if(!sourceQueues.has(source))sourceQueues.set(source,new UpstreamQueue());
+  if(!sourceQueues.has(source))sourceQueues.set(source,new UpstreamQueue(source==='https://publications.europa.eu'?{rateLimit:{maximum:500,windowMs:300_000,foregroundReserve:100},adaptive:true}:{}));
   return sourceQueues.get(source);
 }
 export const upstreamPortServices=()=>({queueFor:sourceQueue,observations});
@@ -160,7 +161,7 @@ export function odpLanguage(value) {
     );
   return value;
 }
-export async function boundedUpstream(operation, {source='odp',priority='interactive',signal=priority==='background'?undefined:requestSignal()}={}) {
+export async function boundedUpstream(operation, {source='odp',priority=backfillContext()?'background':'interactive',signal=priority==='background'?undefined:requestSignal()}={}) {
   return sourceQueue(source).run(operation,{priority,signal});
 }
 export function backoffUpstream(seconds,{source='odp'}={}) {
@@ -332,9 +333,11 @@ function observeSource(entry,priority,signal) {
 export async function odp(
   endpoint,
   params = {},
-  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, retain=true, cacheGroup=null,priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
+  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, retain=true, cacheGroup=null,priority=backfillContext()?'background':'interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
+  checkBackfillCapacity();
+  if(backfillContext()){ttl=Infinity;staleWhileRevalidate=false;}
   // All agenda consumers share one policy, including live-status and vote reads.
   // Explicit maintenance refreshes still use force; cache age alone never
   // re-downloads a completed week's agenda.
@@ -362,6 +365,10 @@ export async function odp(
         else if(saved.cacheGroup==='plenary')plenaryBudget.used(path.basename(filename(key,'plenary')));
       }
     } catch { /* Missing or invalid reproducible cache. */ }
+  }
+  if(!stored&&backfillContext()){
+    const held=await backfillContext().held?.({url:key,accept:'application/ld+json'});
+    if(held)stored={url:key,payload:JSON.parse(held.buffer),fetchedAt:Date.parse(held.record.fetchedAt)};
   }
   signal?.throwIfAborted();
   if(stored&&validate) {
