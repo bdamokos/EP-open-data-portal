@@ -1,3 +1,4 @@
+import {backfillSelectionMatches} from './base-source-backfill-context.mjs';
 import path from 'node:path';
 import {retainBaseSelection} from './base-source-store.mjs';
 import {CellarDocuments,cellarGraph,CELLAR_WORK_PATTERN,CELLAR_LIMITS,cellarTransportUrl,existingLawCelex} from './cellar-documents.mjs';
@@ -98,6 +99,7 @@ export function createExistingLawBaseline({documents=new CellarDocuments()}={}) 
       const metadata=await documents.metadata(selected.celex),resolved=resolveExistingLawTree(metadata.xml,{...identity,...selected,language});
       evidence.push(...resolved.evidence,{kind:'cellar-source',url:metadata.url,fetchedAt:metadata.fetchedAt});
       if(resolved.status!=='resolved')return unavailable(resolved.gaps[0]);
+      if(!backfillSelectionMatches({...resolved,workId:selected.workId,celex:selected.celex}))return unavailable('retained-selection-conflict');
       const items=[];for(const item of resolved.items)items.push({...item,...await documents.content({celex:selected.celex,...item,language:item.languageUri})});
       const gaps=[];if(versions.viewCache?.stale||metadata.viewCache?.stale)gaps.push('stale-metadata');if(items.some(item=>item.source.stale))gaps.push('stale-content');
       return {...selected,status:gaps.length?'partial':'available',baseCelex:identity.baseCelex,amendmentDate:identity.amendmentDate,language,items,gaps,evidence};

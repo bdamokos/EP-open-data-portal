@@ -1,3 +1,4 @@
+import {backfillContext} from './base-source-backfill-context.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {documentBodyHints} from './document-body-hints.mjs';
 import {publishDocumentImages} from './document-image-store.mjs';
@@ -405,6 +406,7 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expec
   throw new Error('Too many document download redirects.');
 }
 export async function downloadDocx(sourceUrl,options={}) {
+  if(backfillContext())backfillContext().downloaded=true;
   const {buffer,resolvedSourceUrl,fetchedAt,requests}=await downloadDocxBuffer(sourceUrl,options);
   if(options.retainedDescriptor)await retainBaseObservation({url:sourceUrl,resolvedSourceUrl,fetchedAt,status:200,request:{accept:'*/*',language:options.retainedDescriptor.language},headers:{'content-type':requests.at(-1)?.response.contentType},descriptor:options.retainedDescriptor},buffer,{directory:options.directory});
   const sourceHash=createHash('sha256').update(buffer).digest('hex');
