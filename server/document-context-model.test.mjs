@@ -852,8 +852,9 @@ test('partial emphasis, missing numbering, incomplete rows and source gaps do no
   const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
   for(const change of ['bold-only','partial','prose','incomplete','gap','table']) {
     const text=emphasizeRow(motion(['19. Calls for;', 'Prevention and detection', '20. Next;']),4);
-    if(change==='bold-only')text.paragraphFormats[4].marks.pop();
-    if(change==='partial')text.paragraphFormats[4].marks[0].end=4;
+    // Single whole-row emphasis needs consecutive numbers on both sides.
+    if(change==='bold-only'){text.paragraphFormats[4].marks.pop();text.paragraphs[5]='21. Next;';}
+    if(change==='partial')for(const mark of text.paragraphFormats[4].marks)mark.end=4;
     if(change==='prose')text.paragraphs[5]='unclassified continuation;';
     if(change==='incomplete')text.paragraphSources[5].complete=false;
     if(change==='gap')text.paragraphSources[5].ordinal++;
@@ -944,4 +945,26 @@ test('Finnish published negative paragraph insertions require a unique first par
  const result=resolveAmendmentPlacement(text,options);assert.equal(result.status,'placed',row.id);assert.equal(result.insertBefore,3);
  assert.equal(resolveAmendmentPlacement({...text,paragraphs:text.paragraphs.map(v=>v.startsWith('1.')?'2. Changed first;':v)},options).status,'unresolved');
  }
+});
+
+test('a bold-only or italic-only title closes the provision between consecutive numbers',()=>{
+  // A-10-2026-0085 alternates italic "Recommendations" with bold heading
+  // titles; neither carries both marks, unlike the 0080 subheadings.
+  const insert={originalText:'',proposedText:'81a. New;',targetLabel:'Paragraph 81 a (new)'};
+  const titled=(kind,before='81. Recalls the findings;',after='82. Calls on the Commission to:')=>{
+    const text=motion([before,'Recommendations',after,'(i) first point;','(ii) second point;','Security and Defence','83. Notes;']);
+    text.paragraphFormats=text.paragraphs.map((value,index)=>index===4?{marks:[{kind,start:0,end:value.length}]}:index===8?{marks:[{kind:'bold',start:0,end:value.length}]}:{});
+    return text;
+  };
+  for(const kind of ['bold','italic']) {
+    const text=titled(kind),placed=placement(text,insert);
+    assert.equal(placed.status,'placed',kind);assert.equal(placed.insertAfter,3);assert.equal(placed.insertBefore,4);
+    assert.deepEqual(placement(text,{originalText:'(ii) second point;',proposedText:'(ii) changed point;',targetLabel:'Paragraph 82 – point ii'}).span,{start:7,end:7});
+    assert.equal(placement(titled(kind,'81. Recalls the findings;','83. Calls on the Commission to:'),insert).reason,'resolution_extent_uncertain','a skipped number keeps the title ambiguous');
+    assert.equal(placement(titled(kind,'81. Recalls the following:'),insert).reason,'resolution_extent_uncertain','an introduction may continue past the title');
+  }
+  const partial=titled('italic');partial.paragraphFormats[4]={marks:[{kind:'italic',start:0,end:5}]};
+  assert.equal(placement(partial,insert).reason,'resolution_extent_uncertain');
+  const plain=titled('italic');plain.paragraphFormats[4]={};
+  assert.equal(placement(plain,insert).reason,'resolution_extent_uncertain');
 });

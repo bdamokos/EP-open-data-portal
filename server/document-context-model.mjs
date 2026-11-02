@@ -300,6 +300,11 @@ const headingLike = value => value.length > 0 && value.length < 180 && /\p{L}/u.
 const structuralRow = (row, format) => row.normal === '°' || row.normal === '° °'
   || row.normal.length < 180 && /^\p{Lu}/u.test(row.normal) && !/[.;!?]$/u.test(row.normal)
     && format?.marks?.some(mark => mark.kind === 'bold' && mark.start === 0 && mark.end === row.value.length);
+const emphasisedRow = (value, format) => {
+  const start = value.search(/\S/u), end = value.trimEnd().length;
+  return start >= 0 && ['bold', 'italic'].some(kind => (format?.marks || []).some(mark => mark.kind === kind
+    && Number.isInteger(mark.start) && Number.isInteger(mark.end) && mark.start <= start && mark.end >= end));
+};
 function motionStructure(text, language) {
   const paragraphs = text?.paragraphs || [], selection = motionBodySelection(paragraphs, language), {start} = selection, rows = sourceStructure(text);
   const formats = Array.isArray(text?.paragraphFormats) && text.paragraphFormats.length === paragraphs.length ? text.paragraphFormats : [];
@@ -366,7 +371,15 @@ function motionStructure(text, language) {
       // complete numbered provision closes the preceding extent. Plain or
       // partially emphasized heading-like prose remains ambiguous.
       const next = rows[index + 1];
-      const certain = resolutionSubheading(row.value, formats[index]) && next?.complete
+      const nextNumber = next && /^([1-9]\d{0,5})\s*[a-zα-ωа-я]{0,3}[.)]\s+/u.exec(next.normal)?.[1];
+      // A-10-2026-0081/0085/0087/0105 mark section titles with bold or italic
+      // alone. Whole-row emphasis is certain only between consecutive numbers,
+      // after a provision that does not introduce further content.
+      const previous = units.findLast(unit => unit.kind === 'paragraph');
+      const successorTitle = !recordedHeading && emphasisedRow(row.value, formats[index]) && nextNumber
+        && previous && Number.parseInt(previous.label, 10) + 1 === Number(nextNumber)
+        && !/:\s*$/u.test(rows[index - 1].normal);
+      const certain = (resolutionSubheading(row.value, formats[index]) || successorTitle) && next?.complete
         && next.source.container === 'body' && consecutive(row, next)
         && /^[1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3}[.)]\s+/u.test(next.normal);
       if (certain) certainHeadings.add(index);
