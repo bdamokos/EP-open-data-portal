@@ -1,3 +1,4 @@
+import {readFile} from 'node:fs/promises';
 import {viewReady} from './test-support/viewReady.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,9 +18,10 @@ const members=[
 const directory={day:'2026-10-17',members,committees:[{id:'6567',code:'BUDG',names:{en:'Budgets',hu:'Költségvetés'},classification:'COMMITTEE'}],index:{complete:true,loaded:members.length,total:members.length,failed:0,error:null}};
 const selection='committee=6567&country=HU&group=PfE';
 
-async function harness(t,query='lang=en&'+selection+'&role=member',sourceDirectory=directory) {
+async function harness(t,query='lang=en&'+selection+'&role=member',sourceDirectory=directory,{stored=null}={}) {
   const window=new Window({url:'http://localhost/?'+query}),unexpected=[];
-  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
+  if(stored)window.localStorage.setItem('ep.interface-language.v1',stored);
+  const globals={window,document:window.document,location:window.location,history:window.history,localStorage:window.localStorage,Event:window.Event,HTMLElement:window.HTMLElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let root,loadModule;
@@ -52,11 +54,11 @@ async function harness(t,query='lang=en&'+selection+'&role=member',sourceDirecto
     try{history.go(delta);await popped;}finally{clearTimeout(timer);window.removeEventListener('popstate',listener);}
   });
   const filters=()=>[...container.querySelectorAll('.explorer-filters select')];
-  const language=()=>container.querySelector('.explorer-footer select');
-  function agree(role,lang='en') {
+  const language=()=>container.querySelector('.explorer-language-control select');
+  function agree(role,lang='en',urlLang=(lang==='en') ? null : lang) {
     const query=new URLSearchParams(location.search);
     assert.deepEqual(filters().map(node=>node.value),['6567',role,'HU','PfE'],'rendered filter controls');
-    assert.deepEqual(['committee','role','country','group','lang'].map(key=>query.get(key)),['6567',role==='both'?null:role,'HU','PfE',lang==='en'?null:lang],'URL filters omit defaults');
+    assert.deepEqual(['committee','role','country','group','lang'].map(key=>query.get(key)),['6567',role==='both'?null:role,'HU','PfE',urlLang],'URL filters omit defaults');
     assert.equal(language().value,lang);assert.equal(document.documentElement.lang,lang);
     const expected=role==='member'?[members[0]]:role==='substitute'?[members[1]]:members.slice(0,2);
     assert.deepEqual([...container.querySelectorAll('[data-member-id]')].map(node=>Number(node.dataset.memberId)),expected.map(row=>row.id),'actual filtered member identities');
@@ -91,9 +93,28 @@ for(const query of [selection,selection+'&role=invalid&lang=invalid'])test('hist
   const h=await harness(t,query);h.agree('both');
   await h.click({en:'Following',hu:'Követve',fr:'Suivi'}[h.language().value]);await h.click({en:'MEPs',hu:'Képviselők',fr:'Députés'}[h.language().value]);
   await h.select(h.filters()[1],'substitute');await h.select(h.language(),'hu');
-  // Retain the raw old URL so popstate must validate absent/unsupported values.
+  // Retain the raw old URL so popstate must validate absent/unsupported values;
+  // a missing or unsupported language resolves to the saved choice.
   await act(async()=>{history.replaceState(null,'','/?'+query);h.window.dispatchEvent(new h.window.PopStateEvent('popstate'));});
-  h.agree('both');
+  h.agree('both','hu');
+});
+
+test('an explicit English link stays English in the URL and on reload when the saved choice differs',async t=>{
+  const h=await harness(t,'lang=en&'+selection+'&role=member',directory,{stored:'de'});
+  h.agree('member','en','en');
+  const script=await readFile(new URL('../public/assets/interface-language.js',import.meta.url),'utf8');
+  new h.window.Function(script)();
+  assert.equal(new URLSearchParams(location.search).get('lang'),'en','the startup script keeps the explicit English link');
+  await h.select(h.language(),'fr');h.agree('member','fr');
+  await h.select(h.language(),'en');h.agree('member','en');
+  assert.equal(h.window.localStorage.getItem('ep.interface-language.v1'),'en','choosing English saves it, so English is implicit again');
+});
+
+test('Back to an entry without a language follows the saved choice',async t=>{
+  const h=await harness(t,selection+'&role=member');h.agree('member');
+  await h.click('Following');await h.select(h.language(),'fr');
+  assert.equal(new URLSearchParams(location.search).get('lang'),'fr');
+  await h.go(-1);h.agree('member','fr');
 });
 
 test('opening and leaving an MEP from the member wall are Back/Forward steps',async t=>{

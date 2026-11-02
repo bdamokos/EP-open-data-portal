@@ -15,7 +15,8 @@
 .explorer-insights .parliament-header { margin-inline:calc(-1 * var(--insight-gutter)); }
 .parliament-brand { display:flex; align-items:center; gap:9px; font-size:17px; font-weight:700; }
 .parliament-mark { flex:none; width:28px; height:18px; fill:var(--accent); }
-.parliament-header nav { display:flex; flex-wrap:wrap; gap:2px; margin-left:auto; }
+/* The destinations fill the row so the tools sit beside them, and wrap whole before the tools do. */
+.parliament-header nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:2px; flex:1 0 auto; margin-left:auto; }
 .parliament-header nav button {
   display:flex;
   align-items:center;
@@ -27,6 +28,15 @@
 .parliament-header nav button:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
 .parliament-header nav button small { font-size:13px; }
 .parliament-header .explorer-saved-count { margin-left:0; }
+/* Theme, language and search stay together when the header wraps. */
+.parliament-header-tools { display:flex; align-items:center; gap:2px; margin-left:auto; flex:none; }
+/* Narrow desktops, or labels too long for one row: brand and tools share the first row; destinations get their own. */
+@media(min-width:768px) and (max-width:1199px) {
+  .parliament-header nav { order:3; flex-basis:100%; justify-content:flex-start; margin-left:0; }
+}
+@media(min-width:768px) {
+  .parliament-header[data-stacked] nav { order:3; flex-basis:100%; justify-content:flex-start; margin-left:0; }
+}
 @media(max-width:767px) {
   .parliament-header { gap:6px 8px; padding:10px 16px 0; font-size:13px; }
   .parliament-brand { flex:1 1 160px; min-width:0; font-size:14px; line-height:1.25; }
@@ -38,6 +48,12 @@
 .parliament-header .explorer-scheme-toggle:hover { background:var(--surface-2); border-color:var(--line); }
 .parliament-header .explorer-scheme-toggle:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
 .explorer-scheme-toggle svg { width:21px; height:21px; flex:none; }
+.parliament-header .explorer-language-control { position:relative; display:inline-flex; flex-direction:row; align-items:center; gap:5px; flex:none; height:var(--control-height); min-height:var(--control-height); padding:0 7px; border:1px solid transparent; border-radius:var(--radius-sm); color:inherit; font-size:13px; font-weight:600; letter-spacing:.02em; cursor:pointer; }
+.parliament-header .explorer-language-control:hover { background:var(--surface-2); border-color:var(--line); }
+.parliament-header .explorer-language-control:focus-within { outline:3px solid var(--focus); outline-offset:2px; }
+.parliament-header .explorer-language-control svg { width:21px; height:21px; flex:none; }
+.parliament-header .explorer-language-control select { position:absolute; inset:0; width:100%; height:100%; min-height:0; padding:0; border:0; opacity:0; cursor:pointer; font-size:16px; }
+.parliament-header .explorer-language-control select:focus-visible { outline:none; }
 
 @media(max-width:620px){
  .parliament-header nav {grid-template-columns:repeat(4,minmax(0,1fr))}

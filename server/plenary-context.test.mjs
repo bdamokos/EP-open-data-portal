@@ -23,9 +23,10 @@ test('speech cloud validates exact scope, dates, page limits and countries',()=>
   const q=value=>speechCloudQuery(new URLSearchParams(value),{now:now()});
   assert.equal(q('member=125065&days=365').start,'2025-10-16');assert.equal(q('member=125065&country=GR').country,'EL');
   assert.equal(q('member=125065&days=term').start,'2024-07-16');assert.equal(q('member=125065&days=366').start,'2025-10-15');
+  assert.equal(q('member=125065&lang=mt').language,'mt');
   assert.equal(q('week=2026-10-05').week,'2026-10-05');assert.equal(q('week=2026-10-05&page=99').page,99);
   for(const value of ['week=2026-10-06','week=2026-02-30','week=2026-10-05&sitting=MTG-PL-2026-10-08','week=2026-10-05&days=90','week=2026-10-05&topic=MTG-PL-2026-10-08-OJ-ITM-D-72','week=2026-10-05&page=100'])assert.throws(()=>q(value),error=>error.status===400,value);
-  for(const value of ['','member=125065&sitting=MTG-PL-2026-10-08','member=0','member=125065&days=823','member=125065&page=20','member=125065&lang=mt','member=125065&foo=x','member=125065&member=4465','sitting=MTG-PL-2026-10-08&days=90','sitting=MTG-PL-2026-10-08&topic=MTG-PL-2026-10-07-OJ-ITM-D-72'])assert.throws(()=>q(value),error=>error.status===400,value);
+  for(const value of ['','member=125065&sitting=MTG-PL-2026-10-08','member=0','member=125065&days=823','member=125065&page=20','member=125065&lang=xx','member=125065&foo=x','member=125065&member=4465','sitting=MTG-PL-2026-10-08&days=90','sitting=MTG-PL-2026-10-08&topic=MTG-PL-2026-10-07-OJ-ITM-D-72'])assert.throws(()=>q(value),error=>error.status===400,value);
 });
 test('actual Vrionidi speech batch builds seven English transcripts with one request and no SQL writes',()=>storeFor(async store=>{
   store.db.exec('PRAGMA query_only=ON');let calls=0;const cloud=new SpeechCloudInsights(store,{clock:now,request:async(endpoint,params)=>{calls++;assert.equal(endpoint,'/speeches');assert.equal(params['person-id'],'125065');assert.equal(params['include-output'],'xml_fragment');assert.equal(params.language,'en');assert.equal(params['sitting-date'],'2024-07-16');assert.equal(params['sitting-date-end'],'2026-10-15');return fixture.speeches;}}),query=speechCloudQuery(new URLSearchParams('member=125065&days=term'),{now:now()});

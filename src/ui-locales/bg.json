@@ -2363,5 +2363,6 @@
   "questionanswerer.signatory": "Отговор от: {person}, {institution}",
   "questionanswerer.institution": "Отговор от: {institution}",
   "questionanswerer.institution.commission": "Европейска комисия",
-  "questionanswerer.institution.council": "Съвет"
+  "questionanswerer.institution.council": "Съвет",
+  "textsearch.advanced_options": "Още опции"
 }

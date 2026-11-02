@@ -33,7 +33,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
       return Response.json(legislation(params));
     }
     if(url.pathname.endsWith('/insights/procedure-context'))return Response.json(summary);
-    if(url.pathname.includes('/document/'))return Response.json({selectedDocumentId:topic.documentIds[0],files:[],answers:[],selectedText:{status:'available',paragraphs:['Document text'],textLanguage:params.get('lang'),availableTextLanguages:['en','fr']}});
+    if(url.pathname.includes('/document/'))return Response.json({selectedDocumentId:topic.documentIds[0],files:[],answers:[],selectedText:{status:'available',paragraphs:['Document text'],textLanguage:['de','fr'].includes(params.get('lang'))?params.get('lang'):'de',availableTextLanguages:['de','fr']}});
     if(url.pathname.includes('/speech-transcript/'))return Response.json({id:url.pathname.split('/').at(-1),available:false});
     if(url.pathname.includes('/speech-context/'))return Response.json({speechId:url.pathname.split('/').at(-1),unavailable:true,debates:[]});
     if(url.pathname.includes('/speech/'))return Response.json({id:url.pathname.split('/').at(-1),xml:`<root><p>Speech text ${url.pathname.split('/').at(-1)}</p></root>`,websiteUrl:'https://example.test/'+url.pathname.split('/').at(-1),speakers:[],availableTextLanguages:['en'],textLanguage:'en'});

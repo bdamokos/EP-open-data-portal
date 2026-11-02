@@ -2363,5 +2363,6 @@
   "questionanswerer.signatory": "Beantwoord door: {person}, {institution}",
   "questionanswerer.institution": "Beantwoord door: {institution}",
   "questionanswerer.institution.commission": "Europese Commissie",
-  "questionanswerer.institution.council": "Raad"
+  "questionanswerer.institution.council": "Raad",
+  "textsearch.advanced_options": "Meer opties"
 }

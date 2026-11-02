@@ -1,3 +1,4 @@
+import {interfaceLanguageInUrl} from './interfaceLanguage.mjs';
 // Shared with the Members list: chairs and vice-chairs count as members.
 export function matchesCommittee(member, committee, role='both') {
   return !committee || !!member.memberships?.some(value=>value.current && value.id===committee &&
@@ -11,7 +12,7 @@ export function matchesOrganization(member, id) {
 export function membershipHref(id, language='en', name='') {
   const query=new URLSearchParams({organization:organizationId(id)});
   if(name)query.set('organization-name',name.slice(0,512));
-  if(language!=='en')query.set('lang',language);
+  if(interfaceLanguageInUrl(language))query.set('lang',language);
   return '?'+query;
 }
 

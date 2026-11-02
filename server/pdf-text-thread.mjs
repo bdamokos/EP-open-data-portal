@@ -28,7 +28,9 @@ export async function extractPdfText(buffer,{signal}={}) {
   } finally {if(worker)await worker.terminate();active=false;}
 }
 
-if(!isMainThread&&workerData?.type==='question-pdf-text') {
+// Worker bodies run inside a function so this module has no top-level await;
+// see activity-generation-worker.mjs.
+if(!isMainThread&&workerData?.type==='question-pdf-text')void (async()=>{
   let task;
   try {
     const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -60,4 +62,4 @@ if(!isMainThread&&workerData?.type==='question-pdf-text') {
     parentPort.postMessage({paragraphs,pages:pdf.numPages});
   } catch(error) {parentPort.postMessage({error:String(error.message).slice(0,250)});}
   finally {await task?.destroy();}
-}
+})();

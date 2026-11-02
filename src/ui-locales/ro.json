@@ -2380,5 +2380,6 @@
   "questionanswerer.signatory": "Răspuns dat de: {person}, {institution}",
   "questionanswerer.institution": "Răspuns dat de: {institution}",
   "questionanswerer.institution.commission": "Comisia Europeană",
-  "questionanswerer.institution.council": "Consiliul"
+  "questionanswerer.institution.council": "Consiliul",
+  "textsearch.advanced_options": "Mai multe opțiuni"
 }

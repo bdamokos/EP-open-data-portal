@@ -1,3 +1,4 @@
 .speech-translation {display:inline;font-size:.85rem;color:var(--ink-muted)}
 :is(.explorer,.explorer-insights,.insight-inline-reader) .speech-translation button {border:0;border-radius:0;background:none;padding:.5rem 0;min-height:var(--control-height);color:var(--accent);font:inherit;text-decoration:underline;text-underline-offset:.15em;cursor:pointer}
 .speech-translation button:focus-visible {outline:2px solid currentColor;outline-offset:3px}
+.text-language-line .speech-translation {font-size:inherit}
