@@ -51,7 +51,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 ### Open Data API
 
 - The current term (term 10) starts on 16 July 2024. `/meetings` accepts comma-separated years and offset pagination; speech and date-range filters have no span limit.
-- `/meps/show-current?mandate-date=YYYY-MM-DD` gives the roster on a date. Use it, not today’s roster, to classify historical speakers.
+- `/meps/show-current?mandate-date=YYYY-MM-DD` gives the roster on a date. Use it, not today’s roster, to classify historical speakers. On a term’s first sitting day it omits newly elected members (`2024-07-16` fails with HTTP 500; `2019-07-02` returns 288 members with HTTP 200), so speakers on those days are checked against their own `MEMBER_PARLIAMENT` dates.
 - `/plenary-documents/feed`, `/committee-documents/feed` and `/parliamentary-questions/feed` are fixed last-month Atom feeds without date parameters. `/procedures/feed` and `/adopted-texts/feed` accept `timeframe=custom&start-date=YYYY-MM-DD` but no end date. None documents pagination or an entry limit, so a missed month can’t be recovered from the feeds; the indexer pages catalogues instead.
 - HTTP 204 is the API’s empty or terminal-page response. Treat it as an empty result only after a successful first page; otherwise it is unavailable.
 - Records contain fields such as `notation_codictPersonId`. These are fields of the API, not calls to another service.

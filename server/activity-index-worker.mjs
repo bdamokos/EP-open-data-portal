@@ -51,6 +51,8 @@ import { HttpError } from './http-utils.mjs';
 import {outsideSpeech,outsideAgenda} from './outside-model.mjs';
 import {procedureClassification} from './procedure-types.mjs';
 import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade} from './outside-store.mjs';
+import {parliamentaryService} from './parliamentary-service.mjs';
+import {CURRENT_TERM_START} from './analysis-period.mjs';
 
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
 import { userAgent } from './user-agent.mjs';
@@ -60,6 +62,8 @@ import {ruleVersionRecoveryDue,reopenRuleVersions,observeRuleGap,scheduleMutable
 import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere,scheduleAdoptedFollowups,followupAdmissionRepairDue,scheduleFollowupAdmissionRepairs,markFollowupAdmissionRepair} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
+// First sitting days of the terms Outside voices covers. Add the next term's day when it is known.
+const TERM_FIRST_DAYS=new Set(['2019-07-02',CURRENT_TERM_START]);
 const PUBLICATION_RECOVERY_BATCHES=4;
 const pendingTasks='(task.done IN (-1,0) OR task.done IS NULL)';
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -561,6 +565,7 @@ export class ActivityWorker {
   async outsideTask(task) {
     const {generation,body}=task;
     if(task.kind==='outside-roster') {
+      if(TERM_FIRST_DAYS.has(body.date)){await this.mandateRoster(task);return;}
       // Old workers persisted a short first page, then retried its boundary
       // member forever. Re-read that page rather than publish stale partial IDs.
       const prior=body.offset>0 && body.ids.length<1000?{...body,offset:0,ids:[],sources:[]}:body;
@@ -580,10 +585,7 @@ export class ActivityWorker {
       }
       if(!members.length)throw new Error('Dated MEP roster is unavailable.');
       this.store.putSource(generation,'outside:roster:'+body.date,'outside-roster',{date:body.date,ids:members,sources},r.fetchedAt);
-      for(const source of this.store.db.prepare("SELECT key,kind,body FROM sources WHERE generation=? AND kind IN ('speech','outside-speech') AND json_extract(body,'$.outside.date')=?").all(generation,body.date)) {
-        const speech=JSON.parse(source.body).outside;recordOutside(this.store,generation,speech);
-        if(source.kind==='outside-speech' && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,speech.id))this.store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(generation,source.key);
-      }
+      this.classifyRetainedOutside(generation,body.date);
     } else if(task.kind==='outside-detail') {
       const endpoint='/speeches/'+body.id;
       const params={'include-output':'xml_fragment',language:body.language || 'mul'};
@@ -613,6 +615,45 @@ export class ActivityWorker {
       const work=exactProcedure(r,body.id);
       this.saveOutsideProcedure(generation,body.id,work,r.fetchedAt);
     } else throw new Error('Unknown outside-speaker task.');
+    this.store.finishTask(task);
+  }
+  retainedOutsideSpeeches(generation,date) {
+    return this.store.db.prepare("SELECT key,kind,body FROM sources WHERE generation=? AND kind IN ('speech','outside-speech') AND json_extract(body,'$.outside.date')=?").all(generation,date);
+  }
+  classifyRetainedOutside(generation,date) {
+    for(const source of this.retainedOutsideSpeeches(generation,date)) {
+      const speech=JSON.parse(source.body).outside;recordOutside(this.store,generation,speech);
+      if(source.kind==='outside-speech' && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,speech.id))this.store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(generation,source.key);
+    }
+  }
+  // On a term's first sitting day the dated roster omits newly elected members:
+  // HTTP 500 at 1,000 per page, short HTTP 200 pages at smaller limits. Each
+  // retained speaker's own mandate periods establish membership on that day.
+  async mandateRoster(task) {
+    const {generation,body}=task,date=body.date,checked=body.checked||[],ids=body.ids||[],sources=body.sources||[];
+    const speakers=[...new Set(this.retainedOutsideSpeeches(generation,date).flatMap(source=>JSON.parse(source.body).outside.participants||[]))].sort();
+    const next=speakers.find(id=>!checked.includes(id));
+    if(next) {
+      const url=ODP_BASE+'/meps/'+next+'?format=application%2Fld%2Bjson';
+      let member=false,fetchedAt;
+      try {
+        const r=await this.request('/meps/'+next);
+        const person=array(r.payload.data).find(person=>String(person.identifier||tail(person.id))===next);
+        if(!person)throw new Error('MEP record has no matching person.');
+        const service=parliamentaryService(person,date,null);
+        member=service.periods.some(period=>period.start<=date&&(!period.end||period.end>=date));
+        if(!member&&!service.complete)throw new Error(service.error);
+        fetchedAt=r.fetchedAt;
+      } catch(error) {
+        // Only Parliament's observed 404 for the person establishes that they hold no mandate.
+        if(error.upstreamStatus!==404||error.source?.httpStatus!==404)throw error;
+        fetchedAt=error.source.fetchedAt;
+      }
+      this.store.taskProgress(task,{...body,checked:[...checked,next],ids:member?[...ids,next]:ids,sources:[...sources,{url,fetchedAt:new Date(fetchedAt).toISOString()}]});
+      return;
+    }
+    this.store.putSource(generation,'outside:roster:'+date,'outside-roster',{date,basis:'member-mandates',ids,checked,sources},new Date(this.clock()).toISOString());
+    this.classifyRetainedOutside(generation,date);
     this.store.finishTask(task);
   }
   finishOutsideGap(task) {

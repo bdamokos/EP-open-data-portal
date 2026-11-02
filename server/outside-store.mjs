@@ -52,6 +52,11 @@ export function recordOutside(store, generation, speech) {
     store.enqueue(generation, 'outside:roster:' + speech.date, 'outside-roster', {date:speech.date, offset:0, ids:[], sources:[]}, 102);
     return;
   }
+  // A mandate-based roster covers only the speakers it checked; resume it for new ones.
+  if (roster.work.basis === 'member-mandates' && speech.participants.some(id => !roster.work.checked.includes(id))) {
+    store.enqueue(generation, 'outside:roster:' + speech.date, 'outside-roster', {date:speech.date, ids:roster.work.ids, checked:roster.work.checked, sources:roster.work.sources}, 102, true);
+    return;
+  }
   const members = new Set(roster.work.ids);
   // Reclassification removes any row previously accepted against older evidence.
   store.db.prepare('DELETE FROM outside_contributions WHERE generation=? AND speech=?').run(generation,speech.id);
