@@ -6,7 +6,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {RECORD_TOPICS_VERSION,validTopicKey} from './record-topics.mjs';
-export const TOPICS_VERSION=15;
+export const TOPICS_VERSION=16;
 export const topicKinds=['debate','document','question','speech','vote'];
 export const quarter=date=>date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3);
 export function topicPeriods(now=Date.now()){
@@ -129,7 +129,7 @@ export class RecordTopics{
  if(from&&to&&from>to)throw new HttpError(400,'invalid_query','Choose a date range.');
  if(!generation||askers==='not-home'&&view!=='detail'&&!this.state.askerSubsets?.includes('not-home'))return {ready:false};
  if(view==='records')return {ready:true,records:[...new Set(ids)].map(id=>this.record(id,language))};
- const periods=topicPeriods(),summary=new Map(),coverage=this.store.get('recordTopicCoverage'),calendar=this.store.get('recordTopicCalendar')||{},extras={sittingDays:calendar.sittingDays||{},periodTotals:calendar.periodTotals||{},partial:calendar.partial||{first:'2024-07-16',last:null}};
+ const periods=topicPeriods(),summary=new Map(),storedCoverage=this.store.get('recordTopicCoverage'),coverage=storedCoverage?{...storedCoverage,pending:storedCoverage.pending??Math.max(0,storedCoverage.referenced-storedCoverage.read-storedCoverage.unavailable)}:storedCoverage,calendar=this.store.get('recordTopicCalendar')||{},extras={sittingDays:calendar.sittingDays||{},periodTotals:calendar.periodTotals||{},partial:calendar.partial||{first:'2024-07-16',last:null}};
  const top=value=>{if(!value)return undefined;const t=typeof value==='string'?JSON.parse(value):value;return {key:t.key,title:t.titles?.[languagePreference(Object.keys(t.titles||{}),language)[0]]||t.key,date:t.date};};
  if(view!=='detail'){
  for(const row of this.db.prepare('SELECT key,period,kind,n FROM '+(askers==='all'?'record_topic_totals':'record_topic_filtered_totals')+' WHERE generation=?'+(askers==='all'?'':' AND askers=?')).iterate(generation,...(askers==='all'?[]:[askers]))){

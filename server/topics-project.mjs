@@ -125,7 +125,7 @@ export async function buildTopics(store,{generation=store.get('active'),sourceGe
 
  store.transaction(()=>{store.assertWriter();for(const row of store.db.prepare('SELECT id FROM topic_procedure_queue').iterate())if(!referenced.has(row.id))store.db.prepare('DELETE FROM topic_procedure_queue WHERE id=?').run(row.id);for(const id of referenced){const n=byId.get(id);store.db.prepare('INSERT INTO topic_procedure_queue(id,reference,next_read) VALUES (?,?,0) ON CONFLICT(id) DO UPDATE SET reference=COALESCE(excluded.reference,reference),next_read=CASE WHEN excluded.reference IS NOT NULL AND reference IS NOT excluded.reference THEN 0 ELSE next_read END').run(id,n?.reference||null);}});
 
- const coverage={referenced:referenced.size,withSubjects:[...referenced].filter(id=>procedureTopics.get(id)?.assignments.some(a=>a.concept.key.startsWith('oeil:'))).length,read:[...referenced].filter(id=>procedureTopics.get(id)?.oeilRead).length,unavailable:[...referenced].filter(id=>procedureTopics.get(id)?.oeilUnavailable).length};
+ const coverage={referenced:referenced.size,withSubjects:[...referenced].filter(id=>procedureTopics.get(id)?.assignments.some(a=>a.concept.key.startsWith('oeil:'))).length,read:[...referenced].filter(id=>procedureTopics.get(id)?.oeilRead&&!procedureTopics.get(id)?.oeilUnavailable).length,pending:pendingProcedures.size,unavailable:[...referenced].filter(id=>procedureTopics.get(id)?.oeilUnavailable).length};
  store.set('recordTopicCoverage',{generation,...coverage});
  onProgress('speeches');
  // Story topic joins need the concept roles before their indexed memberships

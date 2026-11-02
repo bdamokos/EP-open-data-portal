@@ -18,7 +18,7 @@ test('offline generation build reports pending, coverage and durable collector a
  store.putSource(c.generation,'/events/'+event,'outside-agenda',{activity_id:event,activity_date:'2026-10-07',based_on_a_realization_of:['eli/dl/doc/'+oral],inverse_consists_of:['eli/dl/proc/2026-2790']},stamp);
  store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(c.generation,'/parliamentary-questions/'+oral,oral,'1','oral-questions','2026-10-07',JSON.stringify({titles:{en:'Oral question'}}));
  store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(c.generation,'/parliamentary-questions/E-10-2026-000001','E-10-2026-000001','1','written-questions','2026-10-07',JSON.stringify({titles:{en:'Written question'}}));
- store.publish(c.generation);const result=await buildTopics(store);assert.deepEqual(result.coverage,{referenced:1,withSubjects:0,read:0,unavailable:0});assert.equal(new RecordTopics(store).record('B-10-2026-0423','en').status,'pending');assert.equal(new RecordTopics(store).record('E-10-2026-000001','en').status,'not-classified');assert.equal(new RecordTopics(store).record(oral,'en').status,'pending');
+ store.publish(c.generation);const result=await buildTopics(store);assert.deepEqual(result.coverage,{referenced:1,withSubjects:0,read:0,pending:1,unavailable:0});assert.equal(new RecordTopics(store).record('B-10-2026-0423','en').status,'pending');assert.equal(new RecordTopics(store).record('E-10-2026-000001','en').status,'not-classified');assert.equal(new RecordTopics(store).record(oral,'en').status,'pending');
  const now=Date.parse(stamp),worker={store,clock:()=>now,requests:0,budget:5,controller:new AbortController()};let calls=0;
  assert(topicCollectionDue(store,now));await collectTopicProcedure(worker,{sources:{get:async(url,options)=>{calls++;assert.equal(options.priority,'background');assert(url.includes('2026%2F2790'));throw Error('offline');}}});assert.equal(calls,1);assert.equal(worker.requests,1);assert(!topicCollectionDue(store,now));
  store.db.prepare('UPDATE topic_procedure_queue SET next_read=0').run();store.set('topicCollectorBudget',{day:'2026-11-01',used:10000});assert(topicCollectionDue(store,now));worker.requests=worker.budget;assert.equal(await collectTopicProcedure(worker,{sources:{get:()=>assert.fail()}}),false);
@@ -65,4 +65,14 @@ test('topic collector defers at retained-source capacity without fetching or mar
  const dir=await mkdtemp(path.join(tmpdir(),'topic-capacity-')),store=new ActivityStore(dir,{initializeIndexes:true});t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});store.acquire();topicCollectorTables(store.db);store.db.prepare('INSERT INTO topic_procedure_queue VALUES (?,?,0)').run('2023-0284','2023/0284(COD)');
  const now=Date.parse('2026-11-01T12:00Z'),sources={cache:{capacity:async()=>({state:'capacity'})},get:()=>assert.fail('capacity pauses source reads')},worker={store,clock:()=>now,requests:0,budget:10,controller:new AbortController(),officialContext:{sources}};
  assert.equal(await collectTopicProcedure(worker),false);assert.equal(worker.requests,0);assert.equal(store.db.prepare('SELECT next_read FROM topic_procedure_queue').get().next_read,now+60_000);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM topic_procedure_pages').get().n,0);assert.equal(store.get('topicProjectionDirty'),null);
+});
+
+
+test('overview coverage partitions referenced dossiers into read, unavailable and pending',async t=>{
+ const dir=await mkdtemp(path.join(tmpdir(),'topic-coverage-')),store=new ActivityStore(dir,{initializeIndexes:true});store.acquire();t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});store.set('active',1);topicCollectorTables(store.db);
+ const stamp='2026-11-01T12:00:00Z';for(let n=1;n<=3;n++){
+  const id='2026-000'+n,reference='2026/000'+n+'(INI)';store.putSource(1,'/procedures/'+id,'procedure',{id:'eli/dl/proc/'+id,label:reference},stamp);store.putSource(1,'/plenary-documents/B-10-2026-00000'+n,'document',{identifier:'B-10-2026-00000'+n,work_type:'def/ep-document-types/MOTION',document_date:'2026-10-07',inverse_created_a_realization_of:['eli/dl/proc/'+id]},stamp);
+  if(n<3)store.db.prepare('INSERT INTO topic_procedure_pages VALUES (?,?,?)').run(id,reference,JSON.stringify(n===1?{state:'read',subjects:[],language:'en'}:{state:'unavailable',reason:'404'}));
+ }
+ await buildTopics(store,{cache:null});const result=new RecordTopics(store).query(new URLSearchParams(),'overview');assert(result.ready);assert.deepEqual(result.coverage,{generation:1,referenced:3,withSubjects:0,read:1,pending:1,unavailable:1});assert.equal(result.coverage.read+result.coverage.unavailable,2);
 });
