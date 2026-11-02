@@ -1,5 +1,9 @@
 import {parseSync} from 'vite';
 
+// Starting the server entry point in a subprocess listens as well.
+const launchers = new Set(['spawn', 'spawnSync', 'fork', 'exec', 'execSync', 'execFile', 'execFileSync', 'execFileAsync', 'execProcessGroupAsync']);
+const entryPoint = /(?:^|\/)index\.mjs$/;
+
 // Parse without running tests, so strings/comments and nested test callbacks
 // cannot hide an unguarded listener or produce false positives.
 export function listenerIssues(source) {
@@ -35,8 +39,16 @@ export function listenerIssues(source) {
         property.type === 'SpreadElement' && property.argument.name === 'loopback');
   }
   const calls = nodes.filter(({node}) => isTest(node));
-  const listeners = nodes.filter(({node}) => node.type === 'CallExpression'
-    && node.callee.type === 'MemberExpression' && node.callee.property.name === 'listen');
+  const calleeName = ({callee}) => callee.type === 'Identifier' ? callee.name : callee.type === 'MemberExpression' ? callee.property.name : undefined;
+  const launches = new Map();
+  for (const {node, ancestors} of nodes) {
+    const value = node.type === 'Literal' ? node.value : node.type === 'TemplateElement' ? node.value.cooked : undefined;
+    if (typeof value !== 'string' || !entryPoint.test(value)) continue;
+    const index = ancestors.findLastIndex(parent => parent.type === 'CallExpression' && launchers.has(calleeName(parent)));
+    if (index >= 0) launches.set(ancestors[index], {node: ancestors[index], ancestors: ancestors.slice(0, index)});
+  }
+  const listeners = [...nodes.filter(({node}) => node.type === 'CallExpression'
+    && node.callee.type === 'MemberExpression' && node.callee.property.name === 'listen'), ...launches.values()];
   const issues = [];
   if (listeners.length && !importsHelper) issues.push('must import loopback from the capability helper');
   for (const {node, ancestors} of listeners) {
