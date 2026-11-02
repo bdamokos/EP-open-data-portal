@@ -52,7 +52,7 @@ test('story prose fallback covers nested helpers, model grammar and headings wit
  const opener=node.querySelector('.topic-story a'),href=opener.getAttribute('href'),origin=location.href,id=opener.id;
  await act(async()=>opener.click());await wait('Exact source title — Türkiye');assert.equal(document.activeElement,node.querySelector('.topic-story-records h1'));assert.equal(node.querySelector('aside').dataset.language,'fi');
  const target=new URL(node.querySelector('article > a').href);assert.equal(target.searchParams.get('view'),'questions');assert.equal(target.searchParams.get('q-read'),'E-10-2026-000001');assert(calls.some(u=>u.searchParams.get('lang')==='fi'));
- const saved=history.state;t.mock.method(history,'back',()=>{history.replaceState(saved,'',origin);window.dispatchEvent(new window.Event('popstate'));});
+ const saved={storyLinkId:id,storyScroll:0};t.mock.method(history,'back',()=>{history.replaceState(saved,'',origin);window.dispatchEvent(new window.Event('popstate'));});
  await act(async()=>node.querySelector('.topic-story-records > a').click());await wait('two questions');assert.equal(document.activeElement.id,id);assert.equal(document.getElementById(id).getAttribute('href'),href);
  await render(parent);assert.equal(node.querySelector('.topic-story').lang,'en');assert.match(node.querySelector('.topic-story').textContent,/two questions named Türkiye/);
  await render({...parent,...child});assert.equal(node.querySelector('.topic-story').lang,'fi');assert.equal(node.querySelector('.topic-story').textContent,'2 kysymystä mainitsi kohteen Türkiye tällä kaudella. ');

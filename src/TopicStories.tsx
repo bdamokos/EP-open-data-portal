@@ -14,7 +14,7 @@ import {dossierLinkClick} from './dossierJourney';
 import {InsightQuestionReader} from './InsightReaders';
 import {sourcePageUrl} from './SourceLink';
 function storyHref(s:StorySelection){const filters={'t-q':s.period||'','t-mode':s.mode||'q','t-own':s.excludeOwn?'1':'0','t-zoom':s.zoom||'world'};return s.place||s.topic?topicsHref(s.place?'place:'+s.place:s.topic!,filters):'?'+new URLSearchParams({view:'topics','t-tab':'places',...filters});}
-function storyBackClick(e:MouseEvent<HTMLAnchorElement>){if(e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey&&history.state?.storyLinkId){e.preventDefault();history.back();}else dossierLinkClick(e);}
+function storyBackClick(e:MouseEvent<HTMLAnchorElement>){if(e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey&&history.state?.storyReturn){e.preventDefault();history.back();}else dossierLinkClick(e);}
 function setHref(ref:StoryReference,s:StorySelection){const u=new URL(storyHref(s),location.href);u.searchParams.set('t-records',ref.setKey||storySetKey(ref,s));return u.pathname+u.search;}
 function recordTarget(r:StoryRecord){if(r.kind==='document'){const u=new URL(location.href);u.searchParams.delete('t-records');u.searchParams.set('t-record',r.id);return u.pathname+u.search;}return r.kind==='press'?sourcePageUrl(r.url)||'':recordHref(r.id,r.kind==='answer'?'question':r.kind);}
 export function TopicStories({selection,fallback,facts:provided,onRecords}:{selection:StorySelection;fallback?:ReactNode;facts?:StoryFacts;onRecords?:(period?:string,claim?:string,linkId?:string)=>void}){
@@ -44,7 +44,7 @@ export function TopicStories({selection,fallback,facts:provided,onRecords}:{sele
   const accessible=pageName.toLocaleLowerCase().includes(visible.toLocaleLowerCase())?pageName+(selection.period?', '+monthRangeLabel(selection.period,ui.language):''):undefined;
   return <a id={id} href={href} aria-label={accessible} onClick={e=>{
    if(e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
-   if(v.pageRecords&&onRecords){e.preventDefault();onRecords(v.period,text(v.text),id);return;}
+   if(v.pageRecords&&onRecords){e.preventDefault();onRecords(v.period||selection.period,text(v.text),id);return;}
    if(v.period){e.preventDefault();setQuarter(v.period);requestAnimationFrame(()=>{heading.current?.focus();});return;}
    storyLinkClick(e,id);
   }}>{v.italic?<i lang={v.titleLanguage===undefined?'en':v.titleLanguage||''}>{label}</i>:label}</a>;
