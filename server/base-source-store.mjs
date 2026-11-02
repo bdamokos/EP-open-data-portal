@@ -1,3 +1,5 @@
+import {baseSourceKey} from './base-source-descriptor.mjs';
+import {backfillContext} from './base-source-backfill-context.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,readdir,unlink,stat} from 'node:fs/promises';
 import {isMainThread,workerData} from 'node:worker_threads';
@@ -11,9 +13,9 @@ export const BASE_SOURCE_DEFAULT_MIB=128;
 // Unlike a reproducible cache, current observations are never evicted. Refuse
 // admission when their union fills the budget; only orphan/superseded bytes go.
 export class BaseSourceStore {
-  constructor(directory,{maxBytes=integerFromEnvironment('BASE_SOURCE_MAX_DISK_MIB',BASE_SOURCE_DEFAULT_MIB,1,8192)*1024*1024,readOnly=false,io={readFile,readdir,unlink,stat},write=writeCacheFile}={}) {
-    Object.assign(this,{directory,maxBytes,readOnly,io,write});
-    this.records=new Map();this.blobs=new Map();this.totalBytes=0;this.ready=null;
+  constructor(directory,{maxBytes=integerFromEnvironment('BASE_SOURCE_MAX_DISK_MIB',BASE_SOURCE_DEFAULT_MIB,1,8192)*1024*1024,maxBindings=integerFromEnvironment('BASE_SOURCE_MAX_BINDINGS',4096,1,1000000),readOnly=false,io={readFile,readdir,unlink,stat},write=writeCacheFile}={}) {
+    Object.assign(this,{directory,maxBytes,maxBindings,readOnly,io,write});
+    this.records=new Map();this.blobs=new Map();this.totalBytes=0;this.ready=null;this.reconciled=false;
   }
   save(observation,body) {
     if(!this.directory||this.readOnly)return Promise.resolve(false);
@@ -42,6 +44,7 @@ export class BaseSourceStore {
       blob.refs++;
     }
     for(const [sha,blob] of this.blobs)if(!blob.refs)await this.removeBlob(sha);
+    this.reconciled=true;
   }
   async removeBlob(sha) {
     const blob=this.blobs.get(sha);if(!blob||blob.refs)return;
@@ -56,11 +59,11 @@ export class BaseSourceStore {
     // A failed reconciliation remains failed, rather than admitting against a
     // partially reconstructed index. Restart can retry it safely.
     await (this.ready??=this.reconcile());
-    const key=hash(JSON.stringify([url,request.accept??null,request.language??null]));
+    const key=baseSourceKey(url,request);
     const record={...observation,schemaVersion:1,key,sha256:hash(body),bytes:body.length};
     const json=JSON.stringify(record),bytes=Buffer.byteLength(json);if(bytes>256*1024)return false;
     const old=this.records.get(key),existing=this.blobs.get(record.sha256);
-    if(!old&&this.records.size>=4096)return false;
+    if(!old&&this.records.size>=this.maxBindings)return false;
     const oldBlob=old&&this.blobs.get(old.record.sha256);
     const reclaim=oldBlob?.refs===1&&old.record.sha256!==record.sha256?oldBlob.bytes:0;
     const total=this.totalBytes-(old?.bytes||0)-reclaim+(existing?0:body.length)+bytes;
@@ -89,8 +92,10 @@ export async function retainBaseObservation(observation,body,{directory=process.
     if(observation.selection&&observation.url==='base-selection:'+observation.selection.type)observation={...observation,url:observation.url+':'+hash(JSON.stringify(observation.selection.input))};
     const folder=path.join(directory,'base-sources-v1');
     let store=stores.get(folder);if(!store){store=new BaseSourceStore(folder);stores.set(folder,store);}
-    return await store.save(observation,Buffer.from(body));
-  }catch{return false;}
+    const saved=await store.save(observation,Buffer.from(body));
+    if(!saved&&backfillContext())backfillContext().full=true;
+    return saved;
+  }catch{if(backfillContext())backfillContext().full=true;return false;}
 }
 
 // Selection records contain observed identifiers and deterministic decisions,
@@ -100,10 +105,23 @@ function selectionFacts(value) {
   if(!value||typeof value!=='object')return value;
   return Object.fromEntries(Object.entries(value).filter(([key])=>!['buffer','paragraphs','text','raw','title','titles','score','similarity'].includes(key)).map(([key,v])=>[key,selectionFacts(v)]));
 }
-export async function retainBaseSelection(type,input,result,{directory=process.env.ODP_CACHE_DIR}={}) {
+export function baseSelectionInput(input) {
   const {nativeReferencePair,documentReferences,...ids}=input;
-  const identity=selectionFacts({...ids,...(documentReferences?{documentReferences:documentReferences.map(r=>({field:r.field,reference:r.raw}))}:{}),...(nativeReferencePair?{nativeReferencePair:{report:nativeReferencePair.report?.source,listId:nativeReferencePair.list?.listId,list:nativeReferencePair.list?.source,selection:nativeReferencePair.selection}}:{})}),decision=selectionFacts(result);
-  const url='base-selection:'+type;
+  return selectionFacts({...ids,...(documentReferences?{documentReferences:documentReferences.map(r=>({field:r.field,reference:r.raw}))}:{}),...(nativeReferencePair?{nativeReferencePair:{report:nativeReferencePair.report?.source,listId:nativeReferencePair.list?.listId,list:nativeReferencePair.list?.source,selection:nativeReferencePair.selection}}:{})});
+}
+// Object property order and omitted undefined fields do not create variants.
+export function baseSelectionInputKey(identity) {
+  const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().filter(key=>value[key]!==undefined).map(key=>[key,stable(value[key])])):value;
+  return JSON.stringify(stable(identity));
+}
+export async function retainBaseSelection(type,input,result,{directory=process.env.ODP_CACHE_DIR}={}) {
+  const identity=baseSelectionInput(input),decision=selectionFacts(result);
+  const url='base-selection:'+type+':'+hash(JSON.stringify(identity));
   await retainBaseObservation({url,status:200,fetchedAt:new Date().toISOString(),request:{accept:'application/json'},headers:{'content-type':'application/json'},selection:{type,input:identity}},Buffer.from(JSON.stringify(decision)),{directory});
   return result;
+}
+
+export function baseSourceStore(directory=process.env.ODP_CACHE_DIR) {
+  const folder=path.join(directory,'base-sources-v1');
+  let store=stores.get(folder);if(!store){store=new BaseSourceStore(folder);stores.set(folder,store);}return store;
 }

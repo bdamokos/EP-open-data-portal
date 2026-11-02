@@ -22,3 +22,5 @@
 @media(max-width:600px) {.explorer-amendments .amendment-named-votes__group>summary {grid-template-columns:1fr;gap:7px;}.amendment-group-counts {gap:4px 16px;}}
 .amendment-named-votes__group>summary>span:first-child::before {content:'▸';display:inline-block;margin-right:7px;color:var(--ink-muted);}
 .amendment-named-votes__group[open]>summary>span:first-child::before {content:'▾';}
+
+.amendment-named-votes__group>summary>.vote-group-unity {grid-column:1 / -1;}
