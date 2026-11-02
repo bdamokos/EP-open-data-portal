@@ -4,12 +4,25 @@ import {execFileSync} from 'node:child_process';
 import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {compareCatalogues, renderReport, markdown, annotation, readRevision, run, LANGUAGES, MARKER} from './translation-coverage-report.mjs';
+import {compareCatalogues, renderReport, markdown, annotation, readRevision, diffBase, run, LANGUAGES, MARKER} from './translation-coverage-report.mjs';
 
 function snapshot(english = {label: 'Old'}) {
   return {english, locales: Object.fromEntries(LANGUAGES.map(language => [language, Object.fromEntries(Object.keys(english).map(key => [key, 'Native']))])), pairs: [], forms: {}};
 }
 const clone = value => structuredClone(value);
+
+test('a stale feature branch does not report unrelated English changes added later on main',t=>{
+  const dir=mkdtempSync(join(process.env.TEST_TMPDIR||tmpdir(),'translation-branches-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const git=args=>execFileSync('git',args,{cwd:dir,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+  const commit=()=>{git(['add','.']);git(['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-m','fixture']);return git(['rev-parse','HEAD']);};
+  git(['init']);mkdirSync(join(dir,'src/ui-locales'),{recursive:true});const file=join(dir,'src/ui-locales/en.json');
+  writeFileSync(file,JSON.stringify({label:'Original'}));const common=commit();
+  writeFileSync(file,JSON.stringify({label:'Changed only on main'}));const main=commit();
+  git(['checkout','-b','feature',common]);writeFileSync(join(dir,'unrelated.txt'),'Feature');const head=commit();
+  assert.equal(diffBase(main,head,dir),common);
+  assert(compareCatalogues(readRevision(main,dir),readRevision(head,dir)).length>0);
+  assert.deepEqual(compareCatalogues(readRevision(diffBase(main,head,dir),dir),readRevision(head,dir)),[]);
+});
 
 test('added English keys name selected missing locales, including Topics and vote groups', () => {
   const base = snapshot({}), head = snapshot({'topics.new': 'New', 'votegroups.new': 'New'});

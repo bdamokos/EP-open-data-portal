@@ -121,11 +121,18 @@ export function readRevision(revision, cwd = process.cwd()) {
   return {english, locales, pairs, forms};
 }
 
+export function diffBase(base, head, cwd = process.cwd()) {
+  if (![base, head].every(value => /^[a-f0-9]{40}$/i.test(value ?? ''))) throw new Error('Expected exact commit SHAs');
+  // PRs compare from their common ancestor, not unrelated changes later added to main.
+  return execFileSync('git', ['merge-base', base, head], {cwd, encoding:'utf8', stdio:['ignore','pipe','pipe']}).trim();
+}
+
 export function run(env = process.env) {
   let report;
   try {
-    const findings = compareCatalogues(readRevision(env.TRANSLATION_BASE), readRevision(env.TRANSLATION_HEAD));
-    report = renderReport(findings, {base: env.TRANSLATION_BASE, head: env.TRANSLATION_HEAD});
+    const base = diffBase(env.TRANSLATION_BASE, env.TRANSLATION_HEAD);
+    const findings = compareCatalogues(readRevision(base), readRevision(env.TRANSLATION_HEAD));
+    report = renderReport(findings, {base, head: env.TRANSLATION_HEAD});
     for (const row of findings.slice(0, 40)) {
       const message = `${row.drift.length ? DRIFT + '. Verification before merge is required. ' : ''}${row.key}: missing ${row.missing.join(', ') || 'none'}; potential drift ${row.drift.join(', ') || 'none'}. Translations may be added in this PR or a follow-up; CI remains non-blocking.`;
       process.stdout.write(`::warning file=src/ui-locales/en.json::${annotation(message)}\n`);
