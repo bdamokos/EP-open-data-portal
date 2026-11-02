@@ -2430,6 +2430,7 @@
   "topics.kind": "Poster",
   "topics.allKinds": "Alla typer",
   "topics.records": "Poster",
+  "topics.untitled": "Namnlös post",
   "topics.allQuarters": "Alla kvartal",
   "topics.empty": "Inga matchande poster.",
   "topics.speechSummary": "Anföranden: {count}",

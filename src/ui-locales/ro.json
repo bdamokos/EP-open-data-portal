@@ -2447,6 +2447,7 @@
   "topics.kind": "Înregistrări",
   "topics.allKinds": "Toate tipurile",
   "topics.records": "Înregistrări",
+  "topics.untitled": "Element fără titlu",
   "topics.allQuarters": "Toate trimestrele",
   "topics.empty": "Nicio înregistrare corespunzătoare.",
   "topics.speechSummary": "Intervenții: {count}",

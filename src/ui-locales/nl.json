@@ -2430,6 +2430,7 @@
   "topics.kind": "Resultaten",
   "topics.allKinds": "Alle typen",
   "topics.records": "Resultaten",
+  "topics.untitled": "Item zonder titel",
   "topics.allQuarters": "Alle kwartalen",
   "topics.empty": "Geen overeenkomende resultaten.",
   "topics.speechSummary": "Bijdragen: {count}",

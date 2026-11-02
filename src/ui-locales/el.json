@@ -2430,6 +2430,7 @@
   "topics.kind": "Καταχωρίσεις",
   "topics.allKinds": "Όλοι οι τύποι",
   "topics.records": "Καταχωρίσεις",
+  "topics.untitled": "Στοιχείο χωρίς τίτλο",
   "topics.allQuarters": "Όλα τα τρίμηνα",
   "topics.empty": "Δεν βρέθηκαν αντίστοιχες καταχωρίσεις.",
   "topics.speechSummary": "Ομιλίες: {count}",

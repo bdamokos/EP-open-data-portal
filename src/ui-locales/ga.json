@@ -2430,6 +2430,7 @@
   "topics.kind": "Taifid",
   "topics.allKinds": "Gach cineál",
   "topics.records": "Taifid",
+  "topics.untitled": "Mír gan teideal",
   "topics.allQuarters": "Gach ráithe",
   "topics.empty": "Níl aon taifid mheaitseála ann.",
   "topics.speechSummary": "Óráidí: {count}",

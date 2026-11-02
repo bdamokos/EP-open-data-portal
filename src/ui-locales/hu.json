@@ -2430,6 +2430,7 @@
   "topics.kind": "Bejegyzések",
   "topics.allKinds": "Minden típus",
   "topics.records": "Bejegyzések",
+  "topics.untitled": "Cím nélküli elem",
   "topics.allQuarters": "Minden negyedév",
   "topics.empty": "Nincs megfelelő bejegyzés.",
   "topics.speechSummary": "Felszólalások: {count}",

@@ -2430,6 +2430,7 @@
   "topics.kind": "Záznamy",
   "topics.allKinds": "Všechny druhy",
   "topics.records": "Záznamy",
+  "topics.untitled": "Položka bez názvu",
   "topics.allQuarters": "Všechna čtvrtletí",
   "topics.empty": "Žádné odpovídající záznamy.",
   "topics.speechSummary": "Vystoupení: {count}",

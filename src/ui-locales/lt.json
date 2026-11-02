@@ -2444,6 +2444,7 @@
   "topics.kind": "Įrašai",
   "topics.allKinds": "Visi tipai",
   "topics.records": "Įrašai",
+  "topics.untitled": "Įrašas be pavadinimo",
   "topics.allQuarters": "Visi ketvirčiai",
   "topics.empty": "Atitinkančių įrašų nėra.",
   "topics.speechSummary": "Kalbos: {count}",

@@ -2430,6 +2430,7 @@
   "topics.kind": "Zapisi",
   "topics.allKinds": "Vse vrste",
   "topics.records": "Zapisi",
+  "topics.untitled": "Postavka brez naslova",
   "topics.allQuarters": "Vsa četrtletja",
   "topics.empty": "Ni ustreznih zapisov.",
   "topics.speechSummary": "Govori: {count}",

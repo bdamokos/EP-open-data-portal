@@ -2430,6 +2430,7 @@
   "topics.kind": "Ieraksti",
   "topics.allKinds": "Visi veidi",
   "topics.records": "Ieraksti",
+  "topics.untitled": "Vienums bez nosaukuma",
   "topics.allQuarters": "Visi ceturkšņi",
   "topics.empty": "Nav atbilstošu ierakstu.",
   "topics.speechSummary": "Runas: {count}",

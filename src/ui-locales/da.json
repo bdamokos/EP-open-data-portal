@@ -2430,6 +2430,7 @@
   "topics.kind": "Poster",
   "topics.allKinds": "Alle typer",
   "topics.records": "Poster",
+  "topics.untitled": "Element uden titel",
   "topics.allQuarters": "Alle kvartaler",
   "topics.empty": "Ingen matchende poster.",
   "topics.speechSummary": "Indlæg: {count}",

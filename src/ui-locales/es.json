@@ -2430,6 +2430,7 @@
   "topics.kind": "Registros",
   "topics.allKinds": "Todos los tipos",
   "topics.records": "Registros",
+  "topics.untitled": "Elemento sin título",
   "topics.allQuarters": "Todos los trimestres",
   "topics.empty": "No hay registros coincidentes.",
   "topics.speechSummary": "Intervenciones: {count}",

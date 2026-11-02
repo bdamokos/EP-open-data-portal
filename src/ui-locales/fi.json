@@ -2430,6 +2430,7 @@
   "topics.kind": "Tietueet",
   "topics.allKinds": "Kaikki tyypit",
   "topics.records": "Tietueet",
+  "topics.untitled": "Nimetön kohde",
   "topics.allQuarters": "Kaikki vuosineljännekset",
   "topics.empty": "Ei vastaavia tietueita.",
   "topics.speechSummary": "Puheenvuorot: {count}",

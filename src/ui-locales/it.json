@@ -2430,6 +2430,7 @@
   "topics.kind": "Voci",
   "topics.allKinds": "Tutti i tipi",
   "topics.records": "Voci",
+  "topics.untitled": "Elemento senza titolo",
   "topics.allQuarters": "Tutti i trimestri",
   "topics.empty": "Nessuna voce corrispondente.",
   "topics.speechSummary": "Interventi: {count}",

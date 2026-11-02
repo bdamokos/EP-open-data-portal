@@ -2430,6 +2430,7 @@
   "topics.kind": "Zapisi",
   "topics.allKinds": "Sve vrste",
   "topics.records": "Zapisi",
+  "topics.untitled": "Stavka bez naslova",
   "topics.allQuarters": "Sva tromjesečja",
   "topics.empty": "Nema odgovarajućih zapisa.",
   "topics.speechSummary": "Govori: {count}",

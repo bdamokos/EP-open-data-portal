@@ -2430,6 +2430,7 @@
   "topics.kind": "Kirjed",
   "topics.allKinds": "Kõik liigid",
   "topics.records": "Kirjed",
+  "topics.untitled": "Pealkirjata kirje",
   "topics.allQuarters": "Kõik kvartalid",
   "topics.empty": "Vastavaid kirjeid pole.",
   "topics.speechSummary": "Sõnavõtud: {count}",

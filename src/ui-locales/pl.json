@@ -2430,6 +2430,7 @@
   "topics.kind": "Rekordy",
   "topics.allKinds": "Wszystkie rodzaje",
   "topics.records": "Rekordy",
+  "topics.untitled": "Pozycja bez tytułu",
   "topics.allQuarters": "Wszystkie kwartały",
   "topics.empty": "Brak pasujących rekordów.",
   "topics.speechSummary": "Wystąpienia: {count}",

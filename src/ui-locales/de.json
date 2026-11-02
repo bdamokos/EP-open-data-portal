@@ -2430,6 +2430,7 @@
   "topics.kind": "Einträge",
   "topics.allKinds": "Alle Typen",
   "topics.records": "Einträge",
+  "topics.untitled": "Eintrag ohne Titel",
   "topics.allQuarters": "Alle Quartale",
   "topics.empty": "Keine passenden Einträge.",
   "topics.speechSummary": "Redebeiträge: {count}",

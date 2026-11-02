@@ -2430,6 +2430,7 @@
   "topics.kind": "Записи",
   "topics.allKinds": "Всички видове",
   "topics.records": "Записи",
+  "topics.untitled": "Елемент без заглавие",
   "topics.allQuarters": "Всички тримесечия",
   "topics.empty": "Няма съответстващи записи.",
   "topics.speechSummary": "Изказвания: {count}",
