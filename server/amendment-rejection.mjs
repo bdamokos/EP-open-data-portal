@@ -9,11 +9,13 @@ const forms={
   it:new Map([['Il Parlamento europeo respinge la proposta della Commissione.','commission-proposal']]),
   fr:new Map([['Le Parlement européen rejette la proposition de la Commission.','commission-proposal']]),
 };
+// The published whole-document rejection scope of a complete proposed cell.
+export const rejectionWordingScope=(language,text)=>typeof text==='string'?forms[language]?.get(text.normalize('NFC').replace(/\s+/gu,' ').trim())??null:null;
 export function amendmentRejection(variant={}) {
   if(typeof variant.originalText!=='string'||variant.originalText.trim()||typeof variant.proposedText!=='string'||variant.gaps?.length)return null;
   // A numbered provision conflicts with whole-document scope, even when its
   // complete proposed cell contains a rejection sentence.
   if(!/^[–—−-]$/u.test((variant.targetLabel||'').trim()))return null;
-  const scope=forms[variant.language]?.get(variant.proposedText.normalize('NFC').replace(/\s+/gu,' ').trim());
+  const scope=rejectionWordingScope(variant.language,variant.proposedText);
   return scope?{operation:'reject',status:'document-operation',scope,reason:scope==='commission-proposal'?'rejects_proposal':'rejects_council_position',evidence:[{basis:'published-rejection-wording',field:'proposedText',language:variant.language}]}:null;
 }
