@@ -129,6 +129,8 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 - Procedure files and document summaries are parsed from visible HTML, reached through exact procedure references from the API. Final-act summaries are preferred over proposal summaries.
 - Procedure progress reads the printed status and the Key events table. OEIL events have no identifiers, so they’re keyed by procedure, date and label.
 - Policy areas (topics) come only from OEIL procedure pages.
+- Policy-area names: `server/oeil-subjects.json` holds the official English and French labels and hierarchy (450 codes), taken from the subject filter of the [English](https://oeil.europarl.europa.eu/oeil/en/search) and [French](https://oeil.europarl.europa.eu/oeil/fr/search) search pages, with its retrieval date. The list grows each year: budget and discharge subjects get annual codes with irregular suffixes, so their translations use templates that substitute only a year stated in the official label.
+- The explorer's own translations for other languages live in `server/oeil-subject-translations.json`, each marked `explorer-translation`; they never override English or French. Missing names follow the shared text-language preference order. Pages show a collapsed Sources note only while a policy-area name is displayed, and mention the explorer translation only when one is shown.
 
 ### Press releases
 
@@ -145,6 +147,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 - Council first-reading positions are identified by ST number, `POSIT` type and the first-reading event, and read from the same-language XHTML.
 - Existing law comes from dated consolidations of the cited basic act. Consolidations are documentation texts, not official versions ([EUR-Lex guide](https://eur-lex.europa.eu/collection/eu-law/consleg.html?locale=en)).
 - EuroVoc topics: document `is_about` descriptors become keywords, and procedures get their initiating act’s EuroVoc. Countries use EuroVoc `skos:exactMatch` links to the country authority (`server/topic-country-*.json` record the queries and retrieval dates). EuroVoc 5695 (Kosovo) points to `XKX` while the authority uses `1A0`, so it maps to no place.
+- Stories and topic records classify a verbatim item by its own ODP activity type: the newest retained observation decides, and a same-time disagreement keeps it a debate. Vote-family types are not debates. Without a type, an item whose own English label ends in “(vote)” is a voting-time item. `PROCEEDING_ACTIVITY` markers and chair announcements are not topic records.
 - Legal references in questions and answers (CELEX, ELI, COM/SWD/JOIN and procedure numbers) are resolved by SPARQL; a reference links only when exactly one work matches.
 - `src/terms.json` holds procedure-phase labels in all 24 languages with their concept URIs. The interface labels **Vote** and **Amendment** are app-owned machine translations, because EuroVoc 4750 (electoral voting) has the wrong sense.
 

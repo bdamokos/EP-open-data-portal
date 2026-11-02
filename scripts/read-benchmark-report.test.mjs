@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {baselineRegressions,renderReadBenchmarkReport,readBenchmarkRows,reportMarker} from './read-benchmark-report.mjs';
+import {renderReadBenchmarkReport,readBenchmarkRows,reportMarker} from './read-benchmark-report.mjs';
 
 const profile={sqliteVersion:'pinned',nodeVersion:'v26.12.1',nodeSqliteVersion:'pinned'};
 const row=(name,overrides={})=>({name,pageFetches:100,plan:['SEARCH items USING INDEX lookup (mep=?)'],fullScanTables:[],...overrides});
@@ -36,15 +36,11 @@ test('plan changes and new full scans count as changes without page growth',()=>
   ]);
 });
 
-test('gate verdict comes from the gate baseline, not the comparison baseline',()=>{
-  const main=baseline([row('query')]);
+test('gate verdict uses the measured base',()=>{
+  const before=baseline([row('query')]);
   const after=result([row('query',{pageFetches:200})]);
-  const failed=renderReadBenchmarkReport({before:main,after,gateBaseline:main});
-  assert.match(failed,/\*\*Gate failed\*\* \(1\)/);
-  assert.match(failed,/- query: page fetches exceed baseline/);
-  const passed=renderReadBenchmarkReport({before:main,after,gateBaseline:baseline([row('query',{pageFetches:200})])});
-  assert.match(passed,/\*\*Gate passed\*\*/);
-  assert.match(passed,/\| query \| 100 \| 200 \| \+100 \(\+100\.0%\) \|/);
+  assert.match(renderReadBenchmarkReport({before,after}),/\*\*Gate failed\*\* \(1\)/);
+  assert.match(renderReadBenchmarkReport({before,after:result([row('query',{pageFetches:130})])}),/\*\*Gate passed\*\*/);
 });
 
 test('missing inputs stay explicit',()=>{
@@ -59,33 +55,18 @@ test('scenario names cannot break the table',()=>{
   assert.match(renderReadBenchmarkReport({before:baseline([row('a|b')]),after:result([row('a|b',{pageFetches:1})])}),/\| a\\\|b \|/);
 });
 
-test('baseline refresh accepts only improvements and plan changes without growth',()=>{
-  const committed=baseline([row('a'),row('b'),row('c',{fullScanTables:['items']})]);
-  assert.deepEqual(baselineRegressions(committed,result([
-    row('a',{pageFetches:60}),
-    row('b',{plan:['SEARCH items USING INDEX other (mep=?)']}),
-    row('c',{fullScanTables:['items']}),
-  ])),[]);
-  assert.deepEqual(baselineRegressions(committed,{...result([
-    row('a',{pageFetches:101}),
-    row('b',{fullScanTables:['sources']}),
-    row('new'),
-  ]),nodeSqliteVersion:'other'}),[
-    'Toolchain changed (nodeSqliteVersion): pinned → other',
-    'a: page fetches 100 → 101',
-    'b: new full scan of sources',
-    'new: scenario has no committed baseline',
-    'c: scenario missing from main',
-  ]);
-  assert.equal(baselineRegressions(undefined,result([row('a')])).length,1);
-  assert.equal(baselineRegressions(committed,undefined).length,1);
+test('new and removed scenarios pass and both toolchains are recorded',()=>{
+  const before={...baseline([row('removed')]),sqliteVersion:'old-cli',nodeSqliteVersion:'old-node'};
+  const after={...result([row('new')]),sqliteVersion:'new-cli',nodeSqliteVersion:'new-node'};
+  const report=renderReadBenchmarkReport({before,after});
+  assert.match(report,/Gate passed/);
+  for(const value of ['old-cli','old-node','new-cli','new-node','removed','new scenario'])assert.ok(report.includes(value));
 });
 
-test('report shows the regression verdict and list when requested',()=>{
-  const committed=baseline([row('a')]),grown=result([row('a',{pageFetches:101})]);
-  const failed=renderReadBenchmarkReport({before:committed,after:grown,regressions:baselineRegressions(committed,grown)});
-  assert.match(failed,/\*\*Regressions\*\* \(1\)/);
-  assert.match(failed,/- a: page fetches 100 → 101/);
-  assert.match(renderReadBenchmarkReport({before:committed,after:result([row('a',{pageFetches:90})]),regressions:[]}),/\*\*No regressions\*\*/);
-  assert.doesNotMatch(renderReadBenchmarkReport({before:committed,after:grown}),/egressions/);
+test('report identifies content and cache provenance for both sides',()=>{
+  const before={...baseline([row('a')]),commit:'base-sha',tree:'base-tree'};
+  const after={...result([row('a')]),commit:'head-sha',tree:'head-tree'};
+  const report=renderReadBenchmarkReport({before,after,beforeSource:'restored from cache',afterSource:'measured'});
+  assert.match(report,/Before: restored from cache; commit base-sha; tree base-tree/);
+  assert.match(report,/After: measured; commit head-sha; tree head-tree/);
 });
