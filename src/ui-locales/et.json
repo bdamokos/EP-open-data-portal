@@ -2364,5 +2364,6 @@
   "questionanswerer.institution": "Vastaja: {institution}",
   "questionanswerer.institution.commission": "Euroopa Komisjon",
   "questionanswerer.institution.council": "Nõukogu",
-  "textsearch.advanced_options": "Rohkem valikuid"
+  "textsearch.advanced_options": "Rohkem valikuid",
+  "topics.explorerTranslation": "Poliitikavaldkondade nimed on tõlkinud sirvija."
 }

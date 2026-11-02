@@ -2364,5 +2364,6 @@
   "questionanswerer.institution": "Respondida por: {institution}",
   "questionanswerer.institution.commission": "Comisión Europea",
   "questionanswerer.institution.council": "Consejo",
-  "textsearch.advanced_options": "Más opciones"
+  "textsearch.advanced_options": "Más opciones",
+  "topics.explorerTranslation": "Nombres de ámbitos políticos traducidos por el explorador."
 }

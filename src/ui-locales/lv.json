@@ -2364,5 +2364,6 @@
   "questionanswerer.institution": "Atbildētājs: {institution}",
   "questionanswerer.institution.commission": "Eiropas Komisija",
   "questionanswerer.institution.council": "Padome",
-  "textsearch.advanced_options": "Vairāk iespēju"
+  "textsearch.advanced_options": "Vairāk iespēju",
+  "topics.explorerTranslation": "Politikas jomu nosaukumus tulkojis izpētes rīks."
 }

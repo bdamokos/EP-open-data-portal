@@ -2364,5 +2364,6 @@
   "questionanswerer.institution": "Vastaaja: {institution}",
   "questionanswerer.institution.commission": "Euroopan komissio",
   "questionanswerer.institution.council": "Neuvosto",
-  "textsearch.advanced_options": "Lisää valintoja"
+  "textsearch.advanced_options": "Lisää valintoja",
+  "topics.explorerTranslation": "Politiikan alojen nimet on kääntänyt Explorer."
 }

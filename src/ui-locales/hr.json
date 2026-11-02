@@ -2364,5 +2364,6 @@
   "questionanswerer.institution": "Odgovara: {institution}",
   "questionanswerer.institution.commission": "Europska komisija",
   "questionanswerer.institution.council": "Vijeće",
-  "textsearch.advanced_options": "Više mogućnosti"
+  "textsearch.advanced_options": "Više mogućnosti",
+  "topics.explorerTranslation": "Nazive područja politika preveo je preglednik."
 }

@@ -2364,5 +2364,6 @@
   "questionanswerer.institution": "Odpowiedzi udziela: {institution}",
   "questionanswerer.institution.commission": "Komisja Europejska",
   "questionanswerer.institution.council": "Rada",
-  "textsearch.advanced_options": "Więcej opcji"
+  "textsearch.advanced_options": "Więcej opcji",
+  "topics.explorerTranslation": "Nazwy obszarów polityki przetłumaczone przez eksplorator."
 }

@@ -2364,5 +2364,6 @@
   "questionanswerer.institution": "Tweġiba minn: {institution}",
   "questionanswerer.institution.commission": "Il-Kummissjoni Ewropea",
   "questionanswerer.institution.council": "Il-Kunsill",
-  "textsearch.advanced_options": "Aktar għażliet"
+  "textsearch.advanced_options": "Aktar għażliet",
+  "topics.explorerTranslation": "L-ismijiet tal-oqsma ta’ politika ġew tradotti mill-għodda tal-esplorazzjoni."
 }

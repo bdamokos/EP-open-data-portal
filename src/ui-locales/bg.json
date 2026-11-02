@@ -2364,5 +2364,6 @@
   "questionanswerer.institution": "Отговор от: {institution}",
   "questionanswerer.institution.commission": "Европейска комисия",
   "questionanswerer.institution.council": "Съвет",
-  "textsearch.advanced_options": "Още опции"
+  "textsearch.advanced_options": "Още опции",
+  "topics.explorerTranslation": "Наименованията на областите на политиката са преведени от инструмента за разглеждане."
 }

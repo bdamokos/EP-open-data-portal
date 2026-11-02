@@ -2364,5 +2364,6 @@
   "questionanswerer.institution": "Odpovídá: {institution}",
   "questionanswerer.institution.commission": "Evropská komise",
   "questionanswerer.institution.council": "Rada",
-  "textsearch.advanced_options": "Další možnosti"
+  "textsearch.advanced_options": "Další možnosti",
+  "topics.explorerTranslation": "Názvy oblastí politik přeložené průzkumníkem."
 }

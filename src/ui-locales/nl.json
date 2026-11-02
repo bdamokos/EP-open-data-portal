@@ -2364,5 +2364,6 @@
   "questionanswerer.institution": "Beantwoord door: {institution}",
   "questionanswerer.institution.commission": "Europese Commissie",
   "questionanswerer.institution.council": "Raad",
-  "textsearch.advanced_options": "Meer opties"
+  "textsearch.advanced_options": "Meer opties",
+  "topics.explorerTranslation": "Namen van beleidsterreinen vertaald door de verkenner."
 }
