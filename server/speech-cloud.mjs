@@ -1,3 +1,4 @@
+import {weekCloudMemberDigest} from './week-cloud-projection.mjs';
 import {sourceAvailability} from './source-availability.mjs';
 import {missingSitting,calendarNeedsRefresh} from './meetings-reader.mjs';
 import {languagePreference} from './language-order.mjs';
@@ -19,7 +20,7 @@ import {retainedWeekCloud,retainedSpeechPage} from './corpus-speeches.mjs';
 const releaseTexts=state=>{if(!state.cursor)for(const record of state.records.values())record.text=null;};
 const publicSpeech=speech=>Object.fromEntries(Object.keys(speech).filter(key=>key!=='text'&&key!=='analysisTitle').map(key=>[key,speech[key]]));
 const calendarEvidence=scope=>scope.catalogue?{catalogueComplete:scope.catalogueComplete,catalogue:scope.catalogue}:{};
-export const SPEECH_CLOUD_VERSION=6;
+export {SPEECH_CLOUD_VERSION} from './speech-cloud-version.mjs';
 const alternativeLanguages=state=>[...state.missingLanguageAlternatives].sort(([a],[b])=>a.localeCompare(b)).map(([language,count])=>({language,count}));
 function recordAlternatives(state,languages,requested) {
   for(const language of new Set(languages))if(language!==requested&&speechWordLanguages.includes(language))
@@ -99,14 +100,18 @@ export class SpeechCloudInsights {
   }
   async query(query,restarts=0) {
     requestSignal()?.throwIfAborted();
+    let projectionMiss=false;
     if(query.week&&!query.country&&this.readWeekCloud) {
+      projectionMiss=true;
       const scope=await this.scope(query);
       if(scope.dates.length) {
-        const projected=await this.readWeekCloud({week:query.week,language:query.language,dates:scope.dates.map(d=>d.start),generation:this.store.status().servingGeneration,demographicRevision:this.store.get?.('demographicRevision')||0});
+        const projected=await this.readWeekCloud({week:query.week,language:query.language,dates:scope.dates.map(d=>d.start),generation:this.store.status().servingGeneration,demographicRevision:this.store.get?.('demographicRevision')||0,members:weekCloudMemberDigest(this.store.db)});
+        projectionMiss=!projected;
         if(projected)return {...projected,scope:{...projected.scope,phase:scope.phase},coverage:{...projected.coverage,...calendarEvidence(scope)}};
       }
     }
     const status=this.store.status(),{page,...selection}=query,key=JSON.stringify([status.servingGeneration,this.store.get?.('demographicRevision')||0,selection]);let state=this.states.get(key);
+    if(projectionMiss&&page===0){this.states.delete(key);state=null;}
     // A fresh visit refreshes coverage, while an ongoing walk keeps its cursor.
     if(state&&page===0&&state.availabilityRevision!==status.availabilityRevision){this.states.delete(key);state=null;}
     if(state?.scope?.catalogue&&calendarNeedsRefresh(state.scope.catalogue)&&this.clock()-state.at>=60_000){this.states.delete(key);return {...await this.query({...query,page:0},restarts),restarted:true};}
