@@ -1,40 +1,44 @@
-import {fileURLToPath} from 'node:url';
-import {execFileSync} from 'node:child_process';
-import {amendmentsPage,amendmentById} from '../server/amendments-store.mjs';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {DatabaseSync} from 'node:sqlite';
+import {amendmentsPage,amendmentById,amendmentReadProjectionSql,amendmentReadVersion} from '../server/amendments-store.mjs';
 import {amendmentQuery} from '../server/amendments.mjs';
 import {DocumentContext,documentContextQuery} from '../server/document-context.mjs';
 import {replayRuntime,replaySourceClients} from './amendment-benchmark-replay.mjs';
 import {digest} from './amendment-benchmark-cache.mjs';
 
-// Use the serving projections, with a deliberately tiny SELECT-only store.
-// TEMP views live in memory and hide every unpublished generation, including
-// from legacy MAX(generation) fallbacks. The supplied file is always immutable.
-const queryScript=`import sqlite3,sys,pathlib,json
-c=sqlite3.connect(pathlib.Path(sys.argv[1]).as_uri()+'?mode=ro&immutable=1',uri=True)
-c.row_factory=sqlite3.Row
-try:
- active=json.loads(c.execute("SELECT value FROM meta WHERE key='active'").fetchone()[0])
- if type(active)!=int or active<=0: raise ValueError('Published generation unavailable')
- if sys.argv[4] and active!=int(sys.argv[4]): raise ValueError('Retained published generation changed')
- c.execute('PRAGMA temp_store=MEMORY')
- tables=c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
- for row in tables:
-  name=row[0]
-  quoted='"'+name.replace('"','""')+'"'
-  if any(col[1]=='generation' for col in c.execute('PRAGMA main.table_info('+quoted+')')):
-   c.execute('CREATE TEMP VIEW '+quoted+' AS SELECT * FROM main.'+quoted+' WHERE generation='+str(active))
- c.set_authorizer(lambda action,*args: sqlite3.SQLITE_OK if action in (sqlite3.SQLITE_SELECT,sqlite3.SQLITE_READ,sqlite3.SQLITE_FUNCTION,sqlite3.SQLITE_RECURSIVE) else sqlite3.SQLITE_DENY)
- print(json.dumps([dict(r) for r in c.execute(sys.argv[2],json.loads(sys.argv[3]))]))
-finally: c.close()
-`;
+// The supplied file is attached read-only and immutable. Only the compact proof
+// flags are rebuilt in memory; all other views hide unpublished generations,
+// including from legacy MAX(generation) fallbacks.
 export class RetainedProjections {
   constructor(filename) {
-    const all=(sql,args=[])=>JSON.parse(execFileSync('python3',['-c',queryScript,filename,sql,JSON.stringify(args),String(this.generation??'')],{encoding:'utf8',maxBuffer:64*1024*1024,stdio:['ignore','pipe','pipe']}));
-    this.db={isTransaction:true,prepare:sql=>({all:(...args)=>all(sql,args),get:(...args)=>all(sql,args)[0]})};
-    const meta=Object.fromEntries(all('SELECT key,value FROM meta').map(row=>[row.key,JSON.parse(row.value)]));
-    this.generation=meta.active;
-    this.meta={...meta,working:null,active:meta.active,amendmentSnapshotGeneration:meta.active};
-    this.readSnapshot=operation=>operation();
+    const db=new DatabaseSync(':memory:');
+    try {
+      db.prepare('ATTACH DATABASE ? AS retained').run(pathToFileURL(filename).href+'?mode=ro&immutable=1');
+      const meta=Object.fromEntries(db.prepare('SELECT key,value FROM retained.meta').all().map(row=>[row.key,JSON.parse(row.value)]));
+      const active=meta.active;
+      if(!Number.isSafeInteger(active)||active<=0)throw new Error('Published generation unavailable');
+      db.exec('PRAGMA temp_store=MEMORY');
+      for(const {name} of db.prepare("SELECT name FROM retained.sqlite_master WHERE type='table'").all()) {
+        if(name==='amendment_read_flags')continue;
+        const quoted='"'+name.replaceAll('"','""')+'"';
+        const scoped=db.prepare('PRAGMA retained.table_info('+quoted+')').all().some(col=>col.name==='generation');
+        db.exec('CREATE TEMP VIEW '+quoted+' AS SELECT * FROM retained.'+quoted+(scoped?' WHERE generation='+active:''));
+      }
+      // Derive current flags from published rows before advertising readiness.
+      // No wording/source bodies or database-sized duplicate are materialized.
+      db.exec('CREATE TABLE amendment_read_flags AS '+amendmentReadProjectionSql);
+      db.exec('CREATE INDEX amendment_read_scope ON amendment_read_flags(generation,target,wording,proposer,splits,freshness)');
+      db.exec('PRAGMA query_only=ON');
+      this.db={isTransaction:true,prepare:sql=>{
+        if(!/^\s*(SELECT|WITH)\b/i.test(sql))throw new Error('Retained projections are SELECT-only');
+        const statement=db.prepare(sql);
+        return {all:(...args)=>statement.all(...args),get:(...args)=>statement.get(...args)};
+      }};
+      this.close=()=>db.close();
+      this.generation=active;
+      this.meta={...meta,working:null,active,amendmentSnapshotGeneration:active,amendmentReadVersion};
+      this.readSnapshot=operation=>operation();
+    } catch(error) {db.close();throw error;}
   }
   get(key){return this.meta[key];}
   sourceMetadata(generation,key){

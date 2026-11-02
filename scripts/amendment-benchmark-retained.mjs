@@ -66,6 +66,7 @@ finally: c.close()
     }
     return reader;
   }
+  close(){this.projections?.close();this.projections=null;}
   async file(relative) {
     const file=await realpath(path.join(this.root,relative));
     if(!inside(this.root,file))throw new Error('Retained source escapes supplied directory');
