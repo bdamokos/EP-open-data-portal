@@ -50,7 +50,7 @@ test('integrated group navigation preserves the independent People selector, exa
  const h=await harness(t),name=()=>h.container.querySelector('[data-gv-person="42"]'),first=name();
  assert.equal(h.container.querySelectorAll('.gv-person').length,23);assert.match(h.container.textContent,/Foreign affairs 2/);
  await h.click(first);assert.equal(new URLSearchParams(location.search).get('gv-person'),'42');assert.equal(h.container.querySelectorAll('.gv-person').length,23);assert.equal(document.activeElement,first);assert.equal(name(),first);
- await h.click(h.container.querySelector('.gv-person.is-selected .gv-person-subjects button'));assert.match(h.container.querySelector('.gv-person.is-selected').textContent,/2Also this period: Climate & energy 1/);assert.match(h.container.querySelector('.gv-summary').textContent,/2recorded oral contributions1speaker1Topic/);
+ await h.click(h.container.querySelector('.gv-person.is-selected .gv-person-subjects button'));assert.match(h.container.querySelector('.gv-person.is-selected').textContent,/2Also this period: Climate & energy 1/);assert.match(h.container.querySelector('.gv-summary').textContent,/^2recorded oral contributions1Topic$/);
  await h.click(name());assert.equal(new URLSearchParams(location.search).get('gv-person'),null);assert.equal(new URLSearchParams(location.search).get('gv-subject'),'foreign');
  await h.click(name());await h.click(h.container.querySelector('.gv-jump'));assert.equal(document.activeElement,h.container.querySelector('.gv-contributions h2'));assert.equal(location.hash,'');
  const before=location.href;await h.click(name());await act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await popped;});assert.equal(location.href,before);assert.equal(new URLSearchParams(location.search).get('gv-person'),'42');
@@ -181,4 +181,26 @@ test('Group voices policy labels retain their language and share one conditional
  const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=subjects',{response:{people,subjects,contributions:[],total:1,topicAvailability:{state:'available',unresolvedContributions:0}}});
  assert.equal(h.container.querySelector('.gv-subject-title button').getAttribute('lang'),'fr');
  const box=h.container.querySelector('.policy-area-sources');assert(box);assert.equal(box.open,false);assert.match(box.textContent,/Legislative Observatory/);assert.match(box.textContent,/translated by the explorer/);assert.equal(h.container.querySelectorAll('.policy-area-sources').length,1);
+});
+
+test('activity strips share one scale across rows',async t=>{
+ const people=[{id:'42',name:'Éva Example',total:3,subjects:{},days:{'2026-09-08':2,'2026-10-06':1}},{id:'43',name:'Other Example',total:1,subjects:{},days:{'2026-10-06':1}}];
+ const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=people',{response:{people,window:{from:'2026-09-01',to:'2026-10-17'}}});
+ const strips=[...h.container.querySelectorAll('.gv-person .gv-strip')];assert.equal(strips.length,2);
+ assert.deepEqual([...strips[0].children].map(c=>c.dataset.level),['4','3']);assert.deepEqual([...strips[1].children].map(c=>c.dataset.level),['0','3']);
+ assert.match(strips[0].getAttribute('aria-label'),/^Contributions by month: Sep 2026: 2, Oct 2026: 1$/);
+ assert.deepEqual([...h.container.querySelectorAll('.gv-overview .gv-strip i')].map(c=>c.dataset.level),['4','4']);
+});
+test('a selected person shares the row scale and a topic filter hides day counts that cover all topics',async t=>{
+ const people=[{id:'42',name:'Éva Example',total:3,subjects:{foreign:1},days:{'2026-09-08':2,'2026-10-06':1}},{id:'43',name:'Other Example',total:6,subjects:{},days:{'2026-09-08':6}}];
+ const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=people&gv-person=42',{response:{people,window:{from:'2026-09-01',to:'2026-10-17'}}});
+ const levels=node=>[...node.querySelectorAll('i')].map(c=>c.dataset.level);
+ assert.deepEqual(levels(h.container.querySelector('.gv-overview .gv-strip')),levels(h.container.querySelector('.gv-person.is-selected .gv-strip')));
+ await h.restore('/?view=groups&gv-group=PPE&gv-tab=people&gv-subject=foreign');await viewReady(h.container);
+ assert(h.container.querySelector('.gv-person'));assert.equal(h.container.querySelector('.gv-strip'),null);
+});
+test('activity strips stay hidden on a capped selection',async t=>{
+ const people=[{id:'42',name:'Éva Example',total:3,subjects:{},days:{'2026-09-08':2,'2026-10-06':1}}];
+ const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=people',{response:{people,coverage:{...coverage,truncated:true}}});
+ assert(h.container.querySelector('.gv-person'));assert.equal(h.container.querySelector('.gv-strip'),null);
 });

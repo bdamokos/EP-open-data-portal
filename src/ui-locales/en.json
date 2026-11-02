@@ -2709,5 +2709,8 @@
   "topics.story.links.away": "{count} asked only by MEPs from other countries",
   "topics.story.links.urgencyOne": "{count} urgency debate",
   "topics.story.links.debatesEachOne": "{count} debate each",
-  "topics.story.links.placesOne": "{count} place"
+  "topics.story.links.placesOne": "{count} place",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Contributions by month",
+  "groupvoices.contributions_by_sitting_day.77a719": "Contributions by sitting day"
 }

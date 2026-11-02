@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} députés",
   "topics.story.count.mepsOne": "{count} député",
   "topics.policyAreaSource": "Noms des domaines d’action : {source}.",
-  "topics.explorerTranslation": "Noms des domaines d’action traduits par l’explorateur."
+  "topics.explorerTranslation": "Noms des domaines d’action traduits par l’explorateur.",
+  "groupvoices.date_count.692412": "{date} : {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Interventions par mois",
+  "groupvoices.contributions_by_sitting_day.77a719": "Interventions par jour de séance"
 }
