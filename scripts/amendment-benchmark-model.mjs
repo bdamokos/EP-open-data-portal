@@ -216,6 +216,22 @@ function verifyNegativeFirst(text,wording,target,placement) {
   return verified('oracle-negative-first-boundary');
 }
 
+// Single Latin or Cyrillic capitals and plain numbers only. Both neighbours
+// must be adjacent in source order, one ordinal either side, and the lower
+// neighbour's last row must print the missing label after a terminator.
+export function numberingGap(text,units,base){
+  const position=value=>/^\d+$/u.test(value)?Number(value):/^[A-Z\u0410-\u042f]$/u.test(value)?value.codePointAt(0):null;
+  const wanted=position(base);
+  if(wanted==null||units.some(unit=>unit.label.startsWith(base)))return null;
+  const ordered=[...units].sort((a,b)=>a.start-b.start),hits=[];
+  for(let i=1;i<ordered.length;i++){
+    const before=ordered[i-1],after=ordered[i];
+    if(before.group===after.group&&position(before.label)===wanted-1&&position(after.label)===wanted+1&&after.start===before.end+1)hits.push(before);
+  }
+  if(hits.length!==1||ordered.filter(unit=>unit.label===hits[0].label).length!==1)return null;
+  const row=text.paragraphs[hits[0].end]??'',at=row.lastIndexOf(base);
+  return at>0&&/[;.:]\s*$/u.test(row.slice(0,at))&&/^[.)]\s*\S/u.test(row.slice(at+base.length))?hits[0]:null;
+}
 function verifyResolutionInsertion(text,wording,target,placement) {
   const label=target.segments.at(-1);
   if(label.negative&&!(wording.language==='fi'&&label.kind==='paragraph'))return verifyNegativeFirst(text,wording,target,placement);
@@ -255,6 +271,14 @@ function verifyResolutionInsertion(text,wording,target,placement) {
     if(family.some(unit=>unit.label===label.value))return fail('oracle-duplicate-insertion-label');
     if(placement.insertAfter!==anchor.end||placement.insertBefore!==anchor.end+1)return fail('oracle-insertion-boundary-mismatch');
     return verified('oracle-indented-point-boundary');
+  }
+  // A provision printed inside its predecessor's row (lost paragraph mark)
+  // ends with that row, directly before the next ordinal neighbour.
+  const gap=!bases.length&&!label.after&&!parents.length&&['paragraph','recital'].includes(kind)?numberingGap(text,units.filter(unit=>unit.kind===kind),String(label.base)):null;
+  if(gap){
+    if(!gap.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    if(placement.insertBefore!==gap.end+1||placement.insertAfter!==gap.end)return fail('oracle-insertion-boundary-mismatch');
+    return verified('oracle-merged-provision-boundary');
   }
   if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   const base=bases[0],family=units.filter(unit=>unit.kind===kind&&unit.parent===base.parent&&unit.group===base.group);
