@@ -176,14 +176,14 @@ test('map, list, story and story links swap together once the requested story fa
  const facts=(mode)=>({ready:true,periods:overview.periods,partial:{},counts:{},periodCounts:[{period,placesWithAdoptedTexts:2}],winners:{},sets:{},questions:[],debates:[],docs:[],series:{},periodWinners:{[period]:mode==='d'?{topAdoptedPlaces:[{id:'IRN',count:9},{id:'TUR',count:1}]}:{mostQuestionedPlaces:[{id:'TUR',count:13}]}}});
  const {node,wait}=await placesHarness(t,'http://localhost/?view=topics&t-tab=places&t-q='+period,async u=>{if(u.pathname==='/api/topics/story-facts'){if(u.searchParams.get('mode')==='d'){await pending;return Response.json(facts('d'));}return Response.json(facts('q'));}return Response.json(overview);});
  const story=()=>node.querySelector('.places-caption').textContent,first=()=>node.querySelector('.places-ranking li').textContent;
- await wait(()=>/most asked-about place/.test(story()));const link=()=>[...node.querySelectorAll('.places-caption a')].find(a=>/13 questions/.test(a.textContent));assert.equal(new URL(link().getAttribute('href'),location.href).searchParams.get('t-mode'),'q');
+ await wait(()=>/(?:most asked-about|asked about more than any other) place/.test(story()));const link=()=>[...node.querySelectorAll('.places-caption a')].find(a=>/13 questions/.test(a.textContent));assert.equal(new URL(link().getAttribute('href'),location.href).searchParams.get('t-mode'),'q');
  const texts=[...node.querySelectorAll('.insight-chart-switch button')].find(b=>/Texts on/.test(b.textContent));await act(async()=>texts.click());
  await act(async()=>new Promise(r=>setTimeout(r,60)));
  assert.equal(texts.getAttribute('aria-pressed'),'true','the control shows the requested choice');
- assert.match(first(),/Türkiye\s*13/,'the list keeps the displayed questions');assert.match(story(),/Türkiye was the most asked-about place/,'the story keeps the displayed questions');
+ assert.match(first(),/Türkiye\s*13/,'the list keeps the displayed questions');assert.match(story(),/Türkiye was (?:the most asked-about|asked about more than any other) place/,'the story keeps the displayed questions');
  assert.equal(new URL(link().getAttribute('href'),location.href).searchParams.get('t-mode'),'q','retained story links keep the displayed selection');
  release();await wait(()=>/adopted texts naming/.test(story()));
- assert.match(first(),/Iran\s*9/,'the list switches with the story');assert(!/most asked-about/.test(story()));
+ assert.match(first(),/Iran\s*9/,'the list switches with the story');assert(!/most asked-about|more than any other place/.test(story()));
 });
 test('a standalone story keeps its links on the displayed selection while new facts load',async t=>{
  const window=new Window({url:'http://localhost/?view=topics&place=TUR&t-q=2026-Q3'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
@@ -214,10 +214,10 @@ test('in French the swap and the story share one story-facts request',async t=>{
 test('a failed story-facts request keeps the displayed view and offers Retry',async t=>{
  const period='2026-Q3',{overview,facts}=swapData(period);let fail=true;
  const {node,wait}=await placesHarness(t,'http://localhost/?view=topics&t-tab=places&t-q='+period,async u=>{if(u.pathname==='/api/topics/story-facts'){if(u.searchParams.get('mode')==='d'&&fail)return Response.json({error:{message:'Story facts unavailable'}},{status:500});return Response.json(facts(u.searchParams.get('mode')));}return Response.json(overview);});
- await wait(()=>/most asked-about place/.test(node.querySelector('.places-caption').textContent));
+ await wait(()=>/(?:most asked-about|asked about more than any other) place/.test(node.querySelector('.places-caption').textContent));
  const texts=[...node.querySelectorAll('.insight-chart-switch button')].find(b=>/Texts on/.test(b.textContent));await act(async()=>texts.click());
  await wait(()=>[...node.querySelectorAll('button')].some(b=>/Reload|Retry|Try again/i.test(b.textContent)));
- assert.match(node.querySelector('.places-ranking li').textContent,/Türkiye\s*13/,'the map and list are not switched on failure');assert.match(node.querySelector('.places-caption').textContent,/most asked-about place/);
+ assert.match(node.querySelector('.places-ranking li').textContent,/Türkiye\s*13/,'the map and list are not switched on failure');assert.match(node.querySelector('.places-caption').textContent,/(?:most asked-about|asked about more than any other) place/);
  fail=false;await act(async()=>[...node.querySelectorAll('button')].find(b=>/Reload|Retry|Try again/i.test(b.textContent)).click());
  await wait(()=>/France\s*9/.test(node.querySelector('.places-ranking li').textContent));assert(/adopted texts naming/.test(node.querySelector('.places-caption').textContent));
 });
