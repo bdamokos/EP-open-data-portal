@@ -2358,5 +2358,9 @@
   "ui.speechStat.groupOrations": "wystąpienia w imieniu grupy",
   "ui.speechStat.total": "wystąpienia łącznie",
   "ui.speechStat.written": "oświadczenia pisemnego",
-  "ui.subjectUnit": "tematu"
+  "ui.subjectUnit": "tematu",
+  "questionanswerer.signatory": "Odpowiedzi udziela: {person}, {institution}",
+  "questionanswerer.institution": "Odpowiedzi udziela: {institution}",
+  "questionanswerer.institution.commission": "Komisja Europejska",
+  "questionanswerer.institution.council": "Rada"
 }

@@ -2358,5 +2358,9 @@
   "ui.speechStat.blueQuestions": "tõstetud sinist kaarti",
   "ui.speechStat.blueAnswers": "vastatud sinist kaarti",
   "ui.speechStat.blueReactions": "sinise kaardi vasturepliiki",
-  "ui.speechStat.chair": "juhataja kaastööd"
+  "ui.speechStat.chair": "juhataja kaastööd",
+  "questionanswerer.signatory": "Vastaja: {person}, {institution}",
+  "questionanswerer.institution": "Vastaja: {institution}",
+  "questionanswerer.institution.commission": "Euroopa Komisjon",
+  "questionanswerer.institution.council": "Nõukogu"
 }

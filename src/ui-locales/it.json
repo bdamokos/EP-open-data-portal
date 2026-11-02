@@ -2358,5 +2358,9 @@
   "ui.speechStat.blueAnswers": "Cartellini blu con risposta",
   "ui.speechStat.blueReactions": "Reazioni con cartellino blu",
   "ui.speechStat.chair": "Interventi della presidenza",
-  "ui.speechStat.groupOrations": "A nome di un gruppo"
+  "ui.speechStat.groupOrations": "A nome di un gruppo",
+  "questionanswerer.signatory": "Risposta di: {person}, {institution}",
+  "questionanswerer.institution": "Risposta di: {institution}",
+  "questionanswerer.institution.commission": "Commissione europea",
+  "questionanswerer.institution.council": "Consiglio"
 }

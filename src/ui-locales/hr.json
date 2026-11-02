@@ -2358,5 +2358,9 @@
   "ui.speechStat.groupOrations": "doprinosa u ime kluba",
   "ui.speechStat.total": "doprinosa ukupno",
   "ui.speechStat.written": "pisanih izjava",
-  "ui.subjectUnit": "tema"
+  "ui.subjectUnit": "tema",
+  "questionanswerer.signatory": "Odgovara: {person}, {institution}",
+  "questionanswerer.institution": "Odgovara: {institution}",
+  "questionanswerer.institution.commission": "Europska komisija",
+  "questionanswerer.institution.council": "Vijeće"
 }

@@ -2358,5 +2358,9 @@
   "ui.speechStat.groupOrations": "Im Namen einer Fraktion",
   "ui.speechStat.total": "Beiträge insgesamt",
   "ui.speechStat.written": "Schriftliche Erklärungen",
-  "ui.subjectUnit": "Sachgebiete"
+  "ui.subjectUnit": "Sachgebiete",
+  "questionanswerer.signatory": "Beantwortet von: {person}, {institution}",
+  "questionanswerer.institution": "Beantwortet von: {institution}",
+  "questionanswerer.institution.commission": "Europäische Kommission",
+  "questionanswerer.institution.council": "Rat"
 }

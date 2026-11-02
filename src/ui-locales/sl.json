@@ -2358,5 +2358,9 @@
   "ui.speechStat.groupOrations": "prispevkov v imenu skupine",
   "ui.speechStat.total": "prispevkov skupaj",
   "ui.speechStat.written": "pisnih izjav",
-  "ui.subjectUnit": "zadev"
+  "ui.subjectUnit": "zadev",
+  "questionanswerer.signatory": "Odgovarja: {person}, {institution}",
+  "questionanswerer.institution": "Odgovarja: {institution}",
+  "questionanswerer.institution.commission": "Evropska komisija",
+  "questionanswerer.institution.council": "Svet"
 }

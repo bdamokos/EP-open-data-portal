@@ -2358,5 +2358,9 @@
   "ui.speechStat.blueQuestions": "cárta gorm ardaithe",
   "ui.speechStat.blueAnswers": "cárta gorm freagartha",
   "ui.speechStat.blueReactions": "freagairt cárta ghoirm",
-  "ui.speechStat.chair": "rannchuidiú cathaoirleachta"
+  "ui.speechStat.chair": "rannchuidiú cathaoirleachta",
+  "questionanswerer.signatory": "Freagra ó: {person}, {institution}",
+  "questionanswerer.institution": "Freagra ó: {institution}",
+  "questionanswerer.institution.commission": "An Coimisiún Eorpach",
+  "questionanswerer.institution.council": "An Chomhairle"
 }

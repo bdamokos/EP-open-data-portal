@@ -2358,5 +2358,9 @@
   "ui.speechStat.groupOrations": "Ryhmän puolesta",
   "ui.speechStat.total": "Puheenvuoroa yhteensä",
   "ui.speechStat.written": "Kirjallista lausumaa",
-  "ui.subjectUnit": "aihetta"
+  "ui.subjectUnit": "aihetta",
+  "questionanswerer.signatory": "Vastaaja: {person}, {institution}",
+  "questionanswerer.institution": "Vastaaja: {institution}",
+  "questionanswerer.institution.commission": "Euroopan komissio",
+  "questionanswerer.institution.council": "Neuvosto"
 }

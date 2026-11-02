@@ -2358,5 +2358,9 @@
   "ui.speechStat.blueQuestions": "felmutatott kék kártya",
   "ui.speechStat.blueAnswers": "megválaszolt kék kártya",
   "ui.speechStat.blueReactions": "kék kártyás reakció",
-  "ui.speechStat.chair": "elnöki felszólalás"
+  "ui.speechStat.chair": "elnöki felszólalás",
+  "questionanswerer.signatory": "Válaszadó: {person}, {institution}",
+  "questionanswerer.institution": "Válaszadó: {institution}",
+  "questionanswerer.institution.commission": "Európai Bizottság",
+  "questionanswerer.institution.council": "Tanács"
 }

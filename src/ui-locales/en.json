@@ -2375,5 +2375,9 @@
   "ui.speechStat.blueQuestions": "Blue cards raised",
   "ui.speechStat.blueAnswers": "Blue cards answered",
   "ui.speechStat.blueReactions": "Blue-card reactions",
-  "ui.speechStat.chair": "Chairing contributions"
+  "ui.speechStat.chair": "Chairing contributions",
+  "questionanswerer.signatory": "Answered by: {person}, {institution}",
+  "questionanswerer.institution": "Answered by: {institution}",
+  "questionanswerer.institution.commission": "European Commission",
+  "questionanswerer.institution.council": "Council"
 }

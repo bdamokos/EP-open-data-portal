@@ -2358,5 +2358,9 @@
   "ui.speechStat.groupOrations": "För en grupp",
   "ui.speechStat.total": "Bidrag totalt",
   "ui.speechStat.written": "Skriftliga förklaringar",
-  "ui.subjectUnit": "ämnen"
+  "ui.subjectUnit": "ämnen",
+  "questionanswerer.signatory": "Besvarad av: {person}, {institution}",
+  "questionanswerer.institution": "Besvarad av: {institution}",
+  "questionanswerer.institution.commission": "Europeiska kommissionen",
+  "questionanswerer.institution.council": "Rådet"
 }

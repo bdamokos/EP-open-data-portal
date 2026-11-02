@@ -236,7 +236,10 @@ for(const language of ['en','hu','fr']) {
         assert.equal(answer.querySelector('.explorer-coauthors'),null,'answers do not repeat question authors');
         assert.equal(answer.querySelector('.explorer-reader-download'),null);
         assert.equal(answer.querySelector('h3').textContent,answerHeading);assert.equal(effectiveLanguage(answer.querySelector('h3 span')),language);
-        const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),c.textLanguage);assert.equal(effectiveLanguage(answerSelect),language);
+        // The English answer offers other editions only when the interface language is missing.
+        const answerSelect=answer.querySelector('select');
+        if(language==='en')assert.equal(answerSelect,null);
+        else {assert.equal(answerSelect.getAttribute('aria-label'),c.textLanguage);assert.equal(effectiveLanguage(answerSelect),language);}
         await h.click(save);
         const saved=JSON.parse(h.window.localStorage.getItem('ep.following.v2')).items[0];
         assert.equal(saved.id,questionId);assert.equal(saved.title,questions[0].title);assert.equal(saved.titleLanguage,'fr');assert.deepEqual(saved.baseline.answerIds,[]);
