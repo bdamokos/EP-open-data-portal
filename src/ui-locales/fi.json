@@ -2469,6 +2469,7 @@
   "votegroups.split": "Jakautunut",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count}/{total}",
+  "votegroups.whole_group": "Koko ryhmä",
   "votegroups.voted_differently.one": "{count} meppi äänesti eri tavalla kuin oman ryhmänsä enemmistö.",
   "votegroups.voted_differently": "{count} meppiä äänesti eri tavalla kuin oman ryhmänsä enemmistö.",
   "votegroups.delegations.heading": "Ryhmiensä enemmistöstä poikenneet valtuuskunnat",

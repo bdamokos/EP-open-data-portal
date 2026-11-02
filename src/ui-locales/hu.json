@@ -2469,6 +2469,7 @@
   "votegroups.split": "Megosztott",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} / {total}",
+  "votegroups.whole_group": "A teljes képviselőcsoport",
   "votegroups.voted_differently.one": "{count} EP-képviselő a képviselőcsoportja többségétől eltérően szavazott.",
   "votegroups.voted_differently": "{count} EP-képviselő a képviselőcsoportja többségétől eltérően szavazott.",
   "votegroups.delegations.heading": "A képviselőcsoportjuktól eltérően szavazó delegációk",

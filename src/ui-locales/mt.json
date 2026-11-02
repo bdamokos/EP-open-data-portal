@@ -2469,6 +2469,7 @@
   "votegroups.split": "Maqsum",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} minn {total}",
+  "votegroups.whole_group": "Il-grupp kollu",
   "votegroups.voted_differently.one": "Għadd ta’ Membri tal-PE li vvotaw b’mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
   "votegroups.voted_differently": "Għadd ta’ Membri tal-PE li vvotaw b’mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
   "votegroups.delegations.heading": "Delegazzjonijiet li vvotaw b'mod differenti mill-grupp tagħhom",
