@@ -392,6 +392,16 @@ test('quoted sibling insertion follows the complete paragraph and preserves the 
  assert.equal(resolveProposalPlacement([item(source(texts,styles))],amendment).status,'unresolved');
 });
 
+test('a sibling of paragraphs inserted into a named article follows the provision text, before its asterisk note',()=>{
+ const texts=['Article 1','Directive 2003/87/EC is amended as follows:','(1)\tin Article 10a, the following paragraphs 2a and 2b are inserted after paragraph 2:','‘2a. First provision.','2b. Second provision under Regulation (EC) No 1893/2006*.','______','* Regulation (EC) No 1893/2006 of the European Parliament.’','Article 2'];
+ const styles=['Titrearticle','Normal','Point0','Normal','Normal','Normal','Normal','Titrearticle'];
+ const amendment={language:'en',targetLabel:'Article 1 – paragraph 1 – point 1',originalText:'',proposedText:'2ba.\tA new paragraph.'};
+ const result=resolveProposalPlacement([item(source(texts,styles))],amendment);
+ assert.equal(result.status,'placed',result.reason);assert.equal(result.insertBefore,5);
+ texts[2]='(1)\tin Article 10a, the second subparagraph is replaced by the following:';
+ assert.equal(resolveProposalPlacement([item(source(texts,styles))],amendment).status,'unresolved');
+});
+
 test('detached footnotes cannot enable a whole-article deletion without extent verification',()=>{
  const proposal=structuredClone(item(source(['Article 1','1. Public body.','Article 2'],['Titrearticle','Normal','Titrearticle'])).proposal);
  proposal.notes=[{id:'native',label:'6',text:'Public note.',complete:true}];proposal.anchors=[{paragraph:1,offset:14,note:'native',label:'6'}];
