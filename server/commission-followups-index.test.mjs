@@ -352,3 +352,19 @@ test('an unknown retained retrieval date stays explicit and cannot become an ups
   const service=new CommissionFollowups({request:async()=>assert.fail('no upstream lookup'),readCached:async()=>({payload:{data:[adopted([])]},fetchedAt:now})});
   const result=await service.query(query,{store});assert.equal(result.status,'unavailable');assert.equal(result.declaredCount,null);assert.equal(result.sources[0].fetchedAt,null);assert(result.gaps.some(gap=>gap.reason==='record-unverified'));assert.equal(service.cache.size,0);
 });
+
+test('a current projection without relationships reads as none listed, without a gap',async t=>{
+  const {store,generation}=setup(t),work=projected();delete work.followupRelationships;
+  store.putSource(generation,rootKey,'document',work,stamp);const {service,requests}=reader();
+  const result=await service.query(query,{store});assert.equal(requests(),0);assert.equal(result.status,'none-listed');assert.equal(result.relationshipObservation,'observed');assert.equal(result.declaredCount,0);assert.deepEqual(result.gaps,[]);
+});
+
+test('ingesting an adopted text without inverse_answers_to stores an empty relationship list',async t=>{
+  const {store,worker,generation,clock}=setup(t),languages='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ');
+  const files=languages.map(language=>({language,is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/'+language+'.docx'}]}));
+  store.putSource(generation,rootKey,'document',{...projected([]),languageVersionsObserved:true,is_realized_by:files},stamp);
+  store.release();clock.now+=8*86400_000;store.acquire();scheduleMutable(worker,generation);
+  const raw=store.db.prepare('SELECT * FROM tasks WHERE key=?').get(rootKey),work={...adopted(),is_realized_by:files};delete work.inverse_answers_to;
+  worker.fetchRecord=async()=>({fetchedAt:new Date(clock.now).toISOString(),payload:{data:[work]}});
+  await worker.task({...raw,body:JSON.parse(raw.body)});assert.deepEqual(store.source(generation,rootKey).work.followupRelationships,[]);assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE key=?').get(spKey),undefined);
+});

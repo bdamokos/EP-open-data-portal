@@ -25,24 +25,21 @@ export function CommissionFollowups({id,language,interfaceLanguage}:{id:string;l
   const ui = useUiI18n();
   const state=useData<FollowupResponse>('commission-followups/'+encodeURIComponent(id)+'?'+new URLSearchParams({lang:language}));
   const data=((state.data?.documentId===id) && (state.data.requestedLanguage===language)) ? state.data : null;
-  const retryable=Boolean(data?.gaps?.some(gap=>gap.reason==='lookup-failed'||gap.reason==='time-budget'));
-  const recordGap=Boolean(data?.gaps?.some(gap=>!gap.reason.startsWith('file-')));
-  if(state.loading&&!data)return null;
   const items=data?.items||[];
-  const failed=Boolean(state.error)||(!items.length&&retryable);
-  const status=failed ? ui.t("commissionfollowups.commission_follow_up_could_not_be_checked") : ((items.length && recordGap) ? ui.t("commissionfollowups.some_follow_up_documents_could_not_be_checked") : null);
-  if(!items.length&&!status)return null;
+  // Only an exact listed reply is shown; the server owns lookup retries.
+  if(!items.length)return null;
+  const recordGap=Boolean(data?.gaps?.some(gap=>!gap.reason.startsWith('file-')));
   return <div className="commission-followups" lang={ui.language}>
     {items.map(item=>{
       const [primary,...others]=preferredFiles(item.files,language);
       const formattedDate=item.documentDate ? dateLabel(item.documentDate,interfaceLanguage) : null;
       return <div className="commission-followup" key={item.id}>
-        <p><UiMessage id="commissionfollowups.commission_follow_up"/>{formattedDate&&<> · <time dateTime={item.documentDate!} lang={interfaceLanguage}>{formattedDate}</time></>}{' · '}
+        <p><strong><UiMessage id="commissionfollowups.commission_follow_up"/></strong>{formattedDate&&<> · <time dateTime={item.documentDate!} lang={interfaceLanguage}>{formattedDate}</time></>}{' · '}
           {primary ? <><FileLink file={primary} locale={interfaceLanguage}/>{' '}<TextLanguageFallback requested={language} actual={primary.language} interfaceLanguage={interfaceLanguage}/></> : <><UiMessage id="commissionfollowups.file_unavailable_here"/></>}
         </p>
         {others.length>0&&<details><summary><UiMessage id="commissionfollowups.other_languages"/></summary><ul>{others.map(file=><li key={file.language}><FileLink file={file} locale={interfaceLanguage}/></li>)}</ul></details>}
       </div>;
     })}
-    {status&&<p role="status">{status}{(failed||retryable)&&<> <button type="button" onClick={state.retry}><UiMessage id="commissionfollowups.try_again"/></button></>}</p>}
+    {recordGap&&<p role="status"><UiMessage id="commissionfollowups.some_follow_up_documents_could_not_be_checked"/></p>}
   </div>;
 }

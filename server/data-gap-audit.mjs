@@ -1,6 +1,6 @@
 import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
-import {adoptedTextProjectionVersion,spId,validateTA,validateReply} from './commission-followups-model.mjs';
+import {adoptedTextProjectionVersion,followupReferences,spId,validateTA,validateReply} from './commission-followups-model.mjs';
 import {mutableDocumentCandidates,mutableBackfillCutoff} from './mutable-document-recovery.mjs';
 
 export function failureClass(message='') {
@@ -66,10 +66,11 @@ export function auditFollowupMetadata(db,generation) {
     const work=JSON.parse(row.body);
     if(work.adoptionProjectionVersion!==adoptedTextProjectionVersion){counts.legacyRoots++;continue;}
     try{validateTA({data:[work]},row.key.slice('/adopted-texts/'.length));}catch{counts.malformedRoots++;continue;}
-    if(work.followupRelationships==null){counts.unobservedRoots++;continue;}
-    if(!Array.isArray(work.followupRelationships)){counts.malformedRoots++;continue;}
+    const relationships=followupReferences(work,'followupRelationships');
+    if(relationships==null){counts.unobservedRoots++;continue;}
+    if(!Array.isArray(relationships)){counts.malformedRoots++;continue;}
     counts.observedRoots++;
-    for(const value of work.followupRelationships){const id=spId(value);if(id)relations.set(JSON.stringify([work.identifier,id]),{adoptedId:work.identifier,id,key:'/external-documents/'+id});else counts.unrecognisedRelationships++;}
+    for(const value of relationships){const id=spId(value);if(id)relations.set(JSON.stringify([work.identifier,id]),{adoptedId:work.identifier,id,key:'/external-documents/'+id});else counts.unrecognisedRelationships++;}
   }
   const missing=[],retainedSources=new Map();
   for(const [identity,relation] of [...relations].sort(([a],[b])=>a.localeCompare(b))) {

@@ -979,7 +979,6 @@
   "batch6.speechtranslation.show.translation.language.26": "Mostrar tradução ({language})",
   "bookmarks.question_reference.4863d7": "Pergunta {reference}",
   "commissionfollowups.commission_follow_up": "Seguimento da Comissão",
-  "commissionfollowups.commission_follow_up_could_not_be_checked": "Não foi possível verificar o seguimento da Comissão.",
   "commissionfollowups.commission_follow_up_date_file_unavailable_here.2f2d31": "Seguimento da Comissão · {date} · Ficheiro indisponível aqui.",
   "commissionfollowups.commission_follow_up_date_filelink.c1e29e": "Seguimento da Comissão · {date} · {fileLink}",
   "commissionfollowups.commission_follow_up_file_unavailable_here.6257de": "Seguimento da Comissão · Ficheiro indisponível aqui.",
