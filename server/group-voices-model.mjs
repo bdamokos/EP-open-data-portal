@@ -3,7 +3,7 @@ import {GROUP_VOICE_GROUPS,GROUP_VOICE_SUBJECTS} from '../src/groupVoiceTerms.mj
 import {HttpError} from './http-utils.mjs';
 
 export const GROUP_VOICE_VERSION=1;
-export const GROUP_VOICE_TOPICS_VERSION=2;
+export const GROUP_VOICE_TOPICS_VERSION=3;
 export const GROUP_VOICE_LIMITS=Object.freeze({rows:20000,contributions:50,offset:20000});
 const relative=value=>String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
 const personId=value=>relative(value).match(/^person\/([1-9]\d{0,12})$/)?.[1];
