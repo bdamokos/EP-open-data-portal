@@ -519,6 +519,26 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const matching = reference => units.filter(unit => unit.kind === reference.kind && unit.label === reference.label && parentMatches(unit, reference));
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
   const span = unit => ({start: unit.start, end: unit.end});
+  const tableIntroduction = anchor => {
+    if (anchor.kind !== 'paragraph' || anchor.parent !== null && units.find(unit => unit.start === anchor.parent)?.kind !== 'heading'
+      || !/^[1-9]\d{0,5}$/u.test(anchor.label) || structure.incompleteLabels.has(anchor.label) || structure.uncertain.has(anchor.start) || !complete(anchor.start, anchor.end)
+      || !/:\s*$/u.test(rows[anchor.end].value)) return null;
+    let next = anchor.end + 1;
+    while (rows[next]?.source.container === 'table-cell' && rows[next].complete) next++;
+    const following = units.find(unit => unit.start === next);
+    // The extractor advances the segment once per omitted blank paragraph,
+    // table and cell boundary. Any other skipped block breaks this equality.
+    const tables = (text.tables || []).filter(table => table.rows.flat().some(cell => cell.start > anchor.end && cell.start < next));
+    const cells = tables[0]?.rows.flat() || [];
+    const omitted = (rows[next]?.source.ordinal ?? 0) - rows[anchor.end].source.ordinal - (next - anchor.end);
+    if (tables.length !== 1 || cells[0]?.start !== anchor.end + 1 || cells.at(-1)?.end !== next || cells.some(cell => cell.gap)
+      || rows[next]?.source.segment - rows[anchor.end].source.segment !== omitted + 2 + 2 * cells.length) return null;
+    if (next === anchor.end + 1 || rows[next]?.source.container !== 'body' || !rows[next].complete
+      // The table's source break also closes an enclosing section heading.
+      || following?.kind !== 'paragraph' || ![anchor.parent, null].includes(following.parent) || following.label !== String(Number(anchor.label) + 1)
+      || units.filter(unit => unit.kind === 'paragraph' && unit.label === following.label).length !== 1) return null;
+    return {next};
+  };
   if (operation === 'insert') {
     if(ref?.negative&&ref.isNew&&ref.kind==='paragraph'&&options.language==='fi'&&/^-1[a-z]?$/u.test(ref.label)&&!referenceText) {
       const paragraphs=units.filter(unit=>unit.kind==='paragraph');
@@ -555,6 +575,13 @@ export function resolveAmendmentPlacement(text, options = {}) {
     // An ordinal citation also needs the complete preceding preamble: a lost
     // dash item would renumber every later citation.
     if (ref.kind === 'citation' && !complete(structure.start, anchor.end)) return unresolved('source_passage_incomplete');
+    // A-10-2026-0081 paragraph 149 introduces a table with a colon; the next
+    // body row is paragraph 150. The insertion follows the whole table.
+    const table = tableIntroduction(anchor);
+    if (table) {
+      evidence.push({basis: 'table-introduction', anchor: anchor.label, next: table.next});
+      return placed({insertAfter: table.next - 1, insertBefore: table.next});
+    }
     if (structure.invalid.has(anchor.start) || structure.incompleteLabels.has(anchor.label) || !complete(anchor.start, anchor.end)) return unresolved('source_passage_incomplete');
     if (structure.uncertain.has(anchor.start) && !(anchor.kind === 'point'
       && !structure.extentUncertain.has(anchor.start)

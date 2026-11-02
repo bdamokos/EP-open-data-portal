@@ -945,3 +945,23 @@ test('Finnish published negative paragraph insertions require a unique first par
  assert.equal(resolveAmendmentPlacement({...text,paragraphs:text.paragraphs.map(v=>v.startsWith('1.')?'2. Changed first;':v)},options).status,'unresolved');
  }
 });
+
+test('an insertion after a colon-introduced table follows the whole table',()=>{
+  // A-10-2026-0081 AM58/59: paragraph 149 introduces a table; 150 follows it.
+  // Segments advance once per table and cell boundary, as the extractor counts.
+  const build=({intro='149. Notes the following appropriations:',next='150. Notes the next item;',cellComplete=true,skipped=0}={})=>{
+    const text=motion(['GROUPS','148. Earlier;',intro,'Party','Total',next]);
+    for(const [index,segment] of [[6,2],[7,4]])Object.assign(text.paragraphSources[index],{container:'table-cell',containerPath:'table/'+index,segment,complete:cellComplete});
+    text.paragraphSources[8].segment=6+skipped;
+    text.tables=[{rows:[[{start:6,end:7},{start:7,end:8}]]}];
+    return text;
+  };
+  const insert=label=>({originalText:'',proposedText:'New;',targetLabel:label});
+  for(const label of ['Paragraph 149 a (new)','Paragraph 149 b (new)']) {
+    const placed=placement(build(),insert(label));
+    assert.equal(placed.status,'placed',label);assert.equal(placed.insertAfter,7);assert.equal(placed.insertBefore,8);
+    assert.deepEqual(placed.evidence.at(-1),{basis:'table-introduction',anchor:'149',next:8});
+  }
+  for(const changes of [{intro:'149. Notes the appropriations.'},{next:'151. Notes the next item;'},{cellComplete:false},{skipped:1}])
+    assert.equal(placement(build(changes),insert('Paragraph 149 a (new)')).reason,'source_passage_incomplete',JSON.stringify(changes));
+});
