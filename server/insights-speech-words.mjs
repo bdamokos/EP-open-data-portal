@@ -37,14 +37,21 @@ export function speechWordTokens(text,language){
     .filter(match=>!/[\d%][-‐‑–]?$/u.test(normalized.slice(Math.max(0,match.index-4),match.index)));
   if(language!=='mt')return matches.map(match=>match[0]).filter(word=>!filter.has(filterKey(word,language)));
   // A final apostrophe after a vowel is lexical (sema' "heard", not sema "sky")
-  // unless it closes a quotation opened earlier in the same sentence.
-  let quoted=false,previousEnd=0;
-  return matches.map(match=>{
-    if(/[.!?\n]/u.test(normalized.slice(previousEnd,match.index)))quoted=false;
-    previousEnd=match.index+match[0].length;
+  // unless it closes a quotation: the last such apostrophe before punctuation
+  // or another quotation opens. 'l and 'il before a space are elisions.
+  const end=match=>match.index+match[0].length,boundary=(from,to)=>/[.!?\n]/u.test(normalized.slice(from,to));
+  const opens=match=>normalized[match.index-1]==="'"&&!(/^(?:l|il)$/u.test(match[0])&&normalized[end(match)]!=='-');
+  const closedLater=index=>{for(let next=index+1;next<matches.length;next++){if(/[^\s\-‐‑]/u.test(normalized.slice(end(matches[next-1]),matches[next].index))||opens(matches[next]))return false;if(matches[next][0].endsWith("'"))return true;}return false;};
+  let quoted=false;
+  return matches.map((match,index)=>{
+    if(index&&boundary(end(matches[index-1]),match.index))quoted=false;
+    if(opens(match))quoted=true;
     let word=match[0];
-    if(normalized[match.index-1]==="'"&&!/^(?:l|il)$/u.test(word))quoted=true;
-    if(word.endsWith("'")&&(quoted||!/[aeiou]'$/u.test(word))){word=word.slice(0,-1);quoted=false;}
+    if(word.endsWith("'")){
+      const lexical=/[aeiou]'$/u.test(word);
+      if(quoted&&!(lexical&&closedLater(index))){word=word.slice(0,-1);quoted=false;}
+      else if(!quoted&&!lexical)word=word.slice(0,-1);
+    }
     return word.replace(/^[bfmst]'/u,'');
   }).filter(word=>{const letters=[...word.replace(/'/gu,'')].length;return letters>=3&&letters<=40&&!filter.has(filterKey(word,language));});
 }
