@@ -204,7 +204,11 @@ function quotedConflictBoundary(proposal,unit,next) {
     row.source.containerPath===rows[index-1].source.containerPath&&row.source.segment===rows[index-1].source.segment&&row.source.ordinal===rows[index-1].source.ordinal+1));
 }
 function insertionPlacement(items,target,candidatesFor,eligible) {
-  const label=target.segments.at(-1),rank=suffixRank(label.suffix,label.suffix),preceding=target.segments.slice(0,-1);
+  const label=target.segments.at(-1),preceding=target.segments.slice(0,-1);
+  // A two-letter suffix (Article 4ba) follows its first letter in drafting
+  // order. Without suffixed siblings of the same base, it follows the base.
+  const twoLetter=suffixRank(label.suffix,label.suffix)<0&&!label.negative&&/^[a-z]{2}$/u.test(label.suffix);
+  const rank=twoLetter?suffixes.length:suffixRank(label.suffix,label.suffix);
   if(!label.isNew||rank<0||(!label.suffix&&label.kind!=='point'))return {reason:'insertion_reference_unavailable'};
   const parents=preceding.length?candidatesFor(preceding):null;
   if(parents&&parents.length!==1)return {reason:'parent_target_not_found'};
@@ -216,9 +220,11 @@ function insertionPlacement(items,target,candidatesFor,eligible) {
     if(parent&&(itemIndex!==parent.itemIndex||parentKey(unit)!==JSON.stringify(parent.unit.path.map(({kind,value,occurrence})=>[kind,value,occurrence??null]))))continue;
     siblings.push({itemIndex,unit});
   }
-  // A new first Roman point can start a list under an existing childless point.
-  // Other missing predecessors cannot be inferred from the amendment sequence.
-  if(!siblings.length&&!label.suffix&&!label.negative&&label.value==='i'&&parent?.unit.kind==='point'&&!parent.unit.children.length){
+  if(twoLetter&&siblings.some(({unit})=>labelBase(unit.label)===labelBase(label)&&unit.label.suffix))return {reason:'insertion_reference_unavailable'};
+  // New Roman points can start a list under an existing childless point. The
+  // parent's end is their only source position, whichever amendment tables
+  // the preceding new points (A-10-2026-0257 AM114-116 add i, ii and iii).
+  if(!siblings.length&&!label.suffix&&!label.negative&&(label.value==='i'||/^[ivx]+$/u.test(label.value)&&romanNumber(label.value)<=30&&/^[a-z]$/u.test(parent?.unit.label?.value??''))&&parent?.unit.kind==='point'&&!parent.unit.children.length){
     if(!completeBoundary(parent.proposal,parent.unit))return {reason:'source_passage_incomplete'};
     return {itemIndex:parent.itemIndex,insertBefore:parent.unit.extent.end,anchor:parent.unit,basis:'childless-parent-end'};
   }

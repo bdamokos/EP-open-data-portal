@@ -945,3 +945,12 @@ test('Finnish published negative paragraph insertions require a unique first par
  assert.equal(resolveAmendmentPlacement({...text,paragraphs:text.paragraphs.map(v=>v.startsWith('1.')?'2. Changed first;':v)},options).status,'unresolved');
  }
 });
+
+test('a new recital continuing the published sequence follows the last recital',()=>{
+  const text=document(['The European Parliament,','–\thaving regard to Rule 136(2),','A.\twhereas one;','B.\twhereas two;','1.\tWelcomes;','2.\tInstructs.'],{textLanguage:'en'});
+  const place=(targetLabel,referenceText)=>resolveAmendmentPlacement(text,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'C.\twhereas three;',targetLabel,referenceText});
+  const placed=place('Recital C (new)','After recital B');
+  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,4);
+  assert.equal(place('Recital C (new)','After recital C').reason,'conflicting_target_evidence','B-10-2026-0386 AM1 vote list names a later recital');
+  assert.equal(place('Recital D (new)').status,'unresolved');
+});

@@ -252,12 +252,25 @@ test('alphabetic and Roman suffix insertions follow the full existing predecesso
   assert.equal(resolve(reversed,'Article 5 – paragraph 1 – point b b (new)').reason,'source_structure_unavailable');
 });
 
-test('unsuffixed points need a predecessor; only the first Roman point can start below a childless point',()=>{
+// A-10-2026-0069 AM40: Article 4ba (new) beside new Articles 4a-4d.
+test('a two-letter suffix follows its base only when that base has no suffixed siblings',()=>{
+  const projection=source(['Article 4','1. Committee.','Article 5','1. Origin.'],['Titrearticle','','Titrearticle','']);
+  const placed=resolve(projection,'Article 4 ba (new)');
+  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,2);
+  const suffixed=source(['Article 4','1. Committee.','Article 4a','1. Added.','Article 5','1. Origin.'],['Titrearticle','','Titrearticle','','Titrearticle','']);
+  assert.equal(resolve(suffixed,'Article 4 ba (new)').reason,'insertion_reference_unavailable');
+});
+
+test('unsuffixed points need a predecessor; new Roman points start below a childless lettered point',()=>{
   const projection=source(['Article 4','4. Lead:','(a) First;','(b) Last.']);
   let placed=resolve(projection,'Article 4 – paragraph 4 – point c (new)');assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,4);
   assert.equal(resolve(projection,'Article 4 – paragraph 4 – point d (new)').reason,'relative_target_not_found');
   placed=resolve(projection,'Article 4 – paragraph 4 – point a – point i (new)');assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,3);assert.equal(placed.evidence.at(-1).basis,'childless-parent-end');
-  assert.equal(resolve(projection,'Article 4 – paragraph 4 – point a – point ii (new)').status,'unresolved','AM115/116 cannot use an absent first Roman point as a baseline anchor');
+  // A-10-2026-0257 AM114-116: a childless point has one end boundary for every new Roman child.
+  placed=resolve(projection,'Article 4 – paragraph 4 – point a – point ii (new)');assert.equal(placed.insertBefore,3);assert.equal(placed.evidence.at(-1).basis,'childless-parent-end');
+  assert.equal(resolve(projection,'Article 4 – paragraph 4 – point a – point c (new)').status,'unresolved','a lettered child is no Roman list start');
+  const nested=source(['Article 4','4. Lead:','(a) First:','(i) Nested;','(b) Last.'],['Titrearticle','','Point1','Point2','Point1']);
+  assert.equal(resolve(nested,'Article 4 – paragraph 4 – point a – point iii (new)').status,'unresolved','an existing Roman list needs its predecessor');
   assert.equal(resolve(projection,'Article 4 – paragraph 9 – point a – point i (new)').reason,'parent_target_not_found');
 });
 

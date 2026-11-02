@@ -527,6 +527,22 @@ export function resolveAmendmentPlacement(text, options = {}) {
       evidence.push({basis:'published-reference',label:ref.label,anchor:first.label});
       return {operation,status:'placed',insertAfter:first.start-1,insertBefore:first.start,evidence};
     }
+    // A new recital that continues the published A, B, C… sequence (G after
+    // F) follows the last recital, which must precede the operative paragraphs.
+    if(ref?.kind==='recital'&&ref.isNew&&!ref.negative&&!ref.suffix&&!ref.after&&/^[A-Z]$/u.test(ref.label)) {
+      const paragraphs=units.filter(unit=>unit.kind==='paragraph'),recitals=units.filter(unit=>unit.kind==='recital').sort((a,b)=>a.start-b.start);
+      const last=recitals.at(-1);
+      if(last&&recitals.every((unit,index)=>unit.label===String.fromCharCode(65+index))&&ref.label===String.fromCharCode(65+recitals.length)&&paragraphs.length&&last.start<paragraphs[0].start) {
+        if(referenceText) {
+          const relative=parseReference(referenceText);
+          if(!relative||relative.kind!=='recital'||relative.relation!=='after'||relative.letter!==last.label)return unresolved('conflicting_target_evidence');
+          evidence.push({basis:'relative-reference',reference:referenceText});
+        }
+        if(structure.invalid.has(last.start)||structure.uncertain.has(last.start)||!complete(last.start,last.end))return unresolved('source_passage_incomplete');
+        evidence.push({basis:'published-sequence',label:ref.label,anchor:last.label});
+        return {operation,status:'placed',insertAfter:last.end,insertBefore:last.end+1,evidence};
+      }
+    }
     if (!ref || ref.negative || (!ref.suffix && !ref.after) || !['paragraph', 'recital', 'point', 'citation'].includes(ref.kind)) return unresolved('insertion_reference_unavailable');
     if (!ref.after && matching(ref).length) return unresolved('duplicate_target_label');
     if (ref.kind === 'point') {
