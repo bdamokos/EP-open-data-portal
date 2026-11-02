@@ -57,3 +57,9 @@ test('detail has no arbitrary offset ceiling and long searches fail explicitly',
  const beyond=reader.query(new URLSearchParams('key=oeil:7.30.30.06&offset=20020'),'detail');assert.equal(beyond.total,3);assert.deepEqual(beyond.groups,[]);assert.equal(beyond.nextOffset,null);
  assert.throws(()=>reader.query(new URLSearchParams({q:'x'.repeat(121)}),'search'),/shorter search/);
 });
+
+test('not-home includes elsewhere and unknown, with exact detail groups and overview counts',t=>{
+ const store=fixture(t);store.setMembers([{id:'1',countryCode:'GR'},{id:'2',countryCode:'CY'}]);const ns=['1','2','99'].map((id,n)=>({id:'E-10-2026-00000'+(n+1),kind:'question',date:'2026-10-07',titles:{en:'Greece'},members:[id]}));writeTopicProjection(store,projectRecordTopics(ns));const reader=new RecordTopics(store);
+ const detail=reader.query(new URLSearchParams('key=place:GRC&askers=not-home'),'detail');assert.equal(detail.total,2);assert.equal(detail.groupsTotal,2);assert.equal(detail.series[0].questionHome,0);assert.equal(detail.series[0].questionElsewhere,1);assert.equal(detail.series[0].questionUnknown,1);assert.deepEqual(new Set(detail.groups.flatMap(g=>g.items.map(i=>i.id))),new Set(ns.slice(1).map(n=>n.id)));
+ const overview=reader.query(new URLSearchParams('role=place&askers=not-home'),'overview');assert.equal(overview.items[0].counts.question,2);assert.equal(overview.items[0].series[0].questionUnknown,1);assert.equal(reader.query(new URLSearchParams('key=place:GRC&askers=elsewhere'),'detail').total,1);
+});

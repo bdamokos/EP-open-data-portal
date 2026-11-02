@@ -6,7 +6,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {RECORD_TOPICS_VERSION,validTopicKey} from './record-topics.mjs';
-export const TOPICS_VERSION=13;
+export const TOPICS_VERSION=14;
 export const topicKinds=['debate','document','question','speech','vote'];
 export const quarter=date=>date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3);
 export function topicPeriods(now=Date.now()){
@@ -50,12 +50,12 @@ export function finishTopicProjection(store,generation,concepts,{questionCountri
  const groupSummarySql=`INSERT INTO record_topic_group_summary SELECT g.generation,g.key,g.period,COUNT(*),(SELECT json_object('key',t.group_key,'date',t.date,'titles',json(COALESCE((SELECT NULLIF(json_extract(r.body,'$.titles'),'{}') FROM record_topic_records r WHERE r.generation=t.generation AND r.id=t.group_key),(SELECT json_extract(r.body,'$.titles') FROM record_topic_records r WHERE r.generation=t.generation AND r.group_key=t.group_key ORDER BY r.date DESC,r.id LIMIT 1),'{}'))) FROM record_topic_groups t WHERE t.generation=g.generation AND t.key=g.key AND t.period=g.period ORDER BY t.n DESC,t.date DESC,t.group_key LIMIT 1) FROM record_topic_groups g WHERE generation=? GROUP BY key,period`;store.db.prepare(groupSummarySql).run(generation);
  store.db.prepare(`INSERT INTO record_topic_group_summary SELECT generation,key,'',COUNT(DISTINCT group_key),NULL FROM record_topic_groups WHERE generation=? GROUP BY key`).run(generation);
  store.db.prepare('DELETE FROM record_topic_filtered_totals WHERE generation=?').run(generation);store.db.prepare('DELETE FROM record_topic_filtered_groups WHERE generation=?').run(generation);
- const askerFilter=" AND (m.kind<>'question' OR EXISTS (SELECT 1 FROM record_topic_question_places q WHERE q.generation=m.generation AND q.record_id=m.record_id AND q.askers=? AND (m.key NOT LIKE 'place:%' OR q.key=m.key)))";
+ const askerFilter=" AND (m.kind<>'question' OR EXISTS (SELECT 1 FROM record_topic_question_places q WHERE q.generation=m.generation AND q.record_id=m.record_id AND q.askers IN (SELECT value FROM json_each(?)) AND (m.key NOT LIKE 'place:%' OR q.key=m.key)))";
  store.db.exec('DROP TABLE IF EXISTS temp.topic_filtered_group_counts;CREATE TEMP TABLE topic_filtered_group_counts(generation INTEGER,key TEXT,period TEXT,group_key TEXT,date TEXT,n INTEGER,body TEXT,PRIMARY KEY(generation,key,period,group_key));CREATE INDEX temp.topic_filtered_top ON topic_filtered_group_counts(generation,key,period,n DESC,date DESC,group_key)');
- for(const askers of ['home','elsewhere']){
-  store.db.prepare(`INSERT INTO record_topic_filtered_totals SELECT m.generation,?,m.key,substr(m.date,1,4)||'-Q'||CAST((CAST(substr(m.date,6,2) AS INTEGER)+2)/3 AS INTEGER),m.kind,COUNT(*) FROM record_topic_memberships m WHERE m.generation=? AND m.date BETWEEN '2024-07-16' AND ? AND m.kind IN ('debate','document','question','speech','vote')`+askerFilter+' GROUP BY m.key,4,m.kind').run(askers,generation,end,askers);
+ for(const askers of ['home','elsewhere','not-home']){
+  store.db.prepare(`INSERT INTO record_topic_filtered_totals SELECT m.generation,?,m.key,substr(m.date,1,4)||'-Q'||CAST((CAST(substr(m.date,6,2) AS INTEGER)+2)/3 AS INTEGER),m.kind,COUNT(*) FROM record_topic_memberships m WHERE m.generation=? AND m.date BETWEEN '2024-07-16' AND ? AND m.kind IN ('debate','document','question','speech','vote')`+askerFilter+' GROUP BY m.key,4,m.kind').run(askers,generation,end,JSON.stringify(askers==='not-home'?['elsewhere','unknown']:[askers]));
   store.db.exec('DELETE FROM temp.topic_filtered_group_counts');
-  store.db.prepare(`INSERT INTO topic_filtered_group_counts SELECT m.generation,m.key,substr(m.date,1,4)||'-Q'||CAST((CAST(substr(m.date,6,2) AS INTEGER)+2)/3 AS INTEGER),m.group_key,MAX(m.date),COUNT(*),NULL FROM record_topic_memberships m WHERE m.generation=? AND m.date BETWEEN '2024-07-16' AND ? AND m.kind IN ('debate','document','question','speech','vote')`+askerFilter+' GROUP BY m.key,3,m.group_key').run(generation,end,askers);
+  store.db.prepare(`INSERT INTO topic_filtered_group_counts SELECT m.generation,m.key,substr(m.date,1,4)||'-Q'||CAST((CAST(substr(m.date,6,2) AS INTEGER)+2)/3 AS INTEGER),m.group_key,MAX(m.date),COUNT(*),NULL FROM record_topic_memberships m WHERE m.generation=? AND m.date BETWEEN '2024-07-16' AND ? AND m.kind IN ('debate','document','question','speech','vote')`+askerFilter+' GROUP BY m.key,3,m.group_key').run(generation,end,JSON.stringify(askers==='not-home'?['elsewhere','unknown']:[askers]));
   store.db.prepare(groupSummarySql.replace('record_topic_group_summary SELECT g.generation','record_topic_filtered_groups SELECT g.generation,?').replaceAll('record_topic_groups','topic_filtered_group_counts')).run(askers,generation);
   store.db.prepare(`INSERT INTO record_topic_filtered_groups SELECT generation,?,key,'',COUNT(DISTINCT group_key),NULL FROM topic_filtered_group_counts WHERE generation=? GROUP BY key`).run(askers,generation);
  }
@@ -65,7 +65,7 @@ export function finishTopicProjection(store,generation,concepts,{questionCountri
  for(const r of store.db.prepare(`SELECT substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,COUNT(DISTINCT substr(id,8,10)) n FROM record_topic_records WHERE generation=? AND date BETWEEN '2024-07-16' AND ? AND id LIKE 'MTG-PL-%' AND kind IN ('debate','vote') GROUP BY period`).iterate(generation,end))if(r.n)sittingDays[r.period]=r.n;
  const last=store.db.prepare("SELECT MAX(date) date FROM record_topic_records WHERE generation=? AND date<=? AND kind IN ('debate','document','question','speech','vote')").get(generation,end).date;
  store.set('recordTopicCalendar',{generation,periodTotals,sittingDays,partial:{first:'2024-07-16',last:last||null}});
- store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation,builtAt:new Date().toISOString()});});
+ store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation,askerSubsets:['all','home','elsewhere','not-home'],builtAt:new Date().toISOString()});});
 }
 export function writeTopicProjection(store,projection,generation=store.get('active')||store.get('working')?.generation){topicTables(store.db);store.transaction(()=>{store.assertWriter();store.set('recordTopicProjection',null);for(const t of ['record_topic_records','record_topic_concepts','record_topic_memberships','record_topic_totals'])store.db.prepare('DELETE FROM '+t+' WHERE generation=?').run(generation);putTopicRecords(store,generation,[...projection.records].sort((a,b)=>(a.kind==='event'?-1:1)-(b.kind==='event'?-1:1)));});finishTopicProjection(store,generation,projection.concepts);}
 // Production finalization is stepped by topicBatches; each key uses covering
@@ -86,10 +86,10 @@ function* finishTopicSteps(store,generation,concepts,{questionCountries}={}){
   yield;db.prepare(`INSERT INTO record_topic_groups SELECT m.generation,m.key,${periodSql},m.group_key,MAX(m.date),COUNT(*),NULL${scope} GROUP BY 3,m.group_key`).run(generation,key,end);
   yield;db.prepare(summary('record_topic_group_summary','record_topic_groups',false)).run(generation,key);
   yield;db.prepare("INSERT INTO record_topic_group_summary SELECT generation,key,'',COUNT(DISTINCT group_key),NULL FROM record_topic_groups WHERE generation=? AND key=? GROUP BY key").run(generation,key);
-  for(const askers of ['home','elsewhere']){
-   const filter=" AND (m.kind<>'question' OR EXISTS (SELECT 1 FROM record_topic_question_places q WHERE q.generation=m.generation AND q.record_id=m.record_id AND q.askers=? AND (m.key NOT LIKE 'place:%' OR q.key=m.key)))";
-   yield;db.prepare(`INSERT INTO record_topic_filtered_totals SELECT m.generation,?,m.key,${periodSql},m.kind,COUNT(*)${scope}${filter} GROUP BY 4,m.kind`).run(askers,generation,key,end,askers);
-   yield;db.exec('DELETE FROM temp.topic_filtered_group_counts');db.prepare(`INSERT INTO topic_filtered_group_counts SELECT m.generation,m.key,${periodSql},m.group_key,MAX(m.date),COUNT(*),NULL${scope}${filter} GROUP BY 3,m.group_key`).run(generation,key,end,askers);
+  for(const askers of ['home','elsewhere','not-home']){
+   const filter=" AND (m.kind<>'question' OR EXISTS (SELECT 1 FROM record_topic_question_places q WHERE q.generation=m.generation AND q.record_id=m.record_id AND q.askers IN (SELECT value FROM json_each(?)) AND (m.key NOT LIKE 'place:%' OR q.key=m.key)))";
+   yield;db.prepare(`INSERT INTO record_topic_filtered_totals SELECT m.generation,?,m.key,${periodSql},m.kind,COUNT(*)${scope}${filter} GROUP BY 4,m.kind`).run(askers,generation,key,end,JSON.stringify(askers==='not-home'?['elsewhere','unknown']:[askers]));
+   yield;db.exec('DELETE FROM temp.topic_filtered_group_counts');db.prepare(`INSERT INTO topic_filtered_group_counts SELECT m.generation,m.key,${periodSql},m.group_key,MAX(m.date),COUNT(*),NULL${scope}${filter} GROUP BY 3,m.group_key`).run(generation,key,end,JSON.stringify(askers==='not-home'?['elsewhere','unknown']:[askers]));
    yield;db.prepare(summary('record_topic_filtered_groups','topic_filtered_group_counts',true)).run(askers,generation,key);
    yield;db.prepare("INSERT INTO record_topic_filtered_groups SELECT generation,?,key,'',COUNT(DISTINCT group_key),NULL FROM topic_filtered_group_counts WHERE generation=? AND key=? GROUP BY key").run(askers,generation,key);
   }
@@ -102,7 +102,7 @@ function* finishTopicSteps(store,generation,concepts,{questionCountries}={}){
  }
  let last=null;for(const kind of topicKinds){yield;const date=db.prepare('SELECT MAX(date) date FROM record_topic_records WHERE generation=? AND kind=? AND date<=?').get(generation,kind,end).date;if(date&&(!last||date>last))last=date;}
  store.set('recordTopicCalendar',{generation,periodTotals,sittingDays,partial:{first:'2024-07-16',last}});
- store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation,builtAt:new Date().toISOString()});
+ store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation,askerSubsets:['all','home','elsewhere','not-home'],builtAt:new Date().toISOString()});
 }
 
 const counts=()=>Object.fromEntries(topicKinds.map(k=>[k,0]));
@@ -119,7 +119,7 @@ export class RecordTopics{
  querySnapshot(params,view){
  const allowed=view==='records'?['ids','lang']:view==='search'?['q','lang','askers']:view==='overview'?['role','lang','askers']:['key','lang','kind','keyword','place','from','to','offset','askers'];
  for(const k of params.keys())if(!allowed.includes(k)||params.getAll(k).length!==1)throw new HttpError(400,'invalid_query','Unsupported topic parameter.');
- const language=params.get('lang')||'en',generation=this.state?.generation,askers=params.get('askers')||'all';if(!['all','home','elsewhere'].includes(askers))throw new HttpError(400,'invalid_query','Choose question authors.');
+ const language=params.get('lang')||'en',generation=this.state?.generation,askers=params.get('askers')||'all';if(!['all','home','elsewhere','not-home'].includes(askers))throw new HttpError(400,'invalid_query','Choose question authors.');
  const ids=params.get('ids')?.split(',')||[];
  if(view==='records'&&(ids.length>50||ids.some(id=>!/^[-A-Za-z0-9_]{1,150}$/.test(id))))throw new HttpError(400,'invalid_query','Choose up to 50 records.');
  const role=params.get('role')||'topic';if(view==='overview'&&!['topic','place'].includes(role))throw new HttpError(400,'invalid_query','Choose topics or places.');
@@ -127,7 +127,7 @@ export class RecordTopics{
  if(view==='detail'&&(!validTopicKey(key)||key.startsWith('subject-matter:')||kind&&!topicKinds.includes(kind)||!Number.isSafeInteger(offset)||offset<0||keyword&&(!validTopicKey(keyword)||!/^eurovoc:/.test(keyword))||place&&(!validTopicKey(place)||!/^place:/.test(place))))throw new HttpError(400,'invalid_query','Choose a topic.');
  for(const d of [from,to])if(d&&(!/^\d{4}-\d{2}-\d{2}$/.test(d)||!Number.isFinite(Date.parse(d))||new Date(d).toISOString().slice(0,10)!==d))throw new HttpError(400,'invalid_query','Choose a date.');
  if(from&&to&&from>to)throw new HttpError(400,'invalid_query','Choose a date range.');
- if(!generation)return {ready:false};
+ if(!generation||askers==='not-home'&&view!=='detail'&&!this.state.askerSubsets?.includes('not-home'))return {ready:false};
  if(view==='records')return {ready:true,records:[...new Set(ids)].map(id=>this.record(id,language))};
  const periods=topicPeriods(),summary=new Map(),coverage=this.store.get('recordTopicCoverage'),calendar=this.store.get('recordTopicCalendar')||{},extras={sittingDays:calendar.sittingDays||{},periodTotals:calendar.periodTotals||{},partial:calendar.partial||{first:'2024-07-16',last:null}};
  const top=value=>{if(!value)return undefined;const t=typeof value==='string'?JSON.parse(value):value;return {key:t.key,title:t.titles?.[languagePreference(Object.keys(t.titles||{}),language)[0]]||t.key,date:t.date};};
@@ -137,7 +137,7 @@ export class RecordTopics{
  }
  for(const r of this.db.prepare('SELECT key,period,groups,top FROM '+(askers==='all'?'record_topic_group_summary':'record_topic_filtered_groups')+' WHERE generation=?'+(askers==='all'?'':' AND askers=?')).iterate(generation,...(askers==='all'?[]:[askers]))){const item=summary.get(r.key);if(!item)continue;if(!r.period)item.groupsTotal=r.groups;else {const period=item.series.find(s=>s.period===r.period);if(period)Object.assign(period,{groups:r.groups,top:top(r.top)});}}
  for(const item of summary.values())if(item.role==='place')for(const s of item.series)Object.assign(s,{questionHome:0,questionElsewhere:0,questionUnknown:0});
- for(const r of this.db.prepare("SELECT key,substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,askers,COUNT(*) n FROM record_topic_question_places WHERE generation=? AND date>='2024-07-16' AND date<=?"+(askers==='all'?'':' AND askers=?')+' GROUP BY key,period,askers').iterate(generation,calendar.partial?.last||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(Date.now()),...(askers==='all'?[]:[askers]))){const s=summary.get(r.key)?.series.find(s=>s.period===r.period);if(s)s['question'+r.askers[0].toUpperCase()+r.askers.slice(1)]=r.n;}
+ for(const r of this.db.prepare("SELECT key,substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,askers,COUNT(*) n FROM record_topic_question_places WHERE generation=? AND date>='2024-07-16' AND date<=?"+(askers==='all'?'':" AND askers IN (SELECT value FROM json_each(?))")+' GROUP BY key,period,askers').iterate(generation,calendar.partial?.last||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(Date.now()),...(askers==='all'?[]:[JSON.stringify(askers==='not-home'?['elsewhere','unknown']:[askers])]))){const s=summary.get(r.key)?.series.find(s=>s.period===r.period);if(s)s['question'+r.askers[0].toUpperCase()+r.askers.slice(1)]=r.n;}
  const items=[...summary.values()].sort((a,b)=>b.total-a.total||a.key.localeCompare(b.key));
  if(view==='overview')return {ready:true,coverage,...extras,periods,items:items.filter(c=>c.role===role).map(({key,label,id,iso3,deprecated,total,counts,series,groupsTotal})=>({key,label,...(id?{id,iso3,...(deprecated?{deprecated:true}:{})}:{}),total,groupsTotal,counts,series}))};
  const text=params.get('q')||'';if(text.length>120)throw new HttpError(400,'invalid_query','Use a shorter search.');const q=fold(text),limits={topic:0,keyword:0,place:0};return {ready:true,results:items.filter(c=>(!q?c.role==='topic':fold(c.label).includes(q))&&limits[c.role]++<8).map(({key,role,label,id,iso3,deprecated,total,counts})=>({key,role,label,...(id?{id,iso3,...(deprecated?{deprecated:true}:{})}:{}),total,counts}))};
@@ -145,7 +145,7 @@ export class RecordTopics{
  const concept=this.concept(key,language);if(concept?.role==='hidden')throw new HttpError(400,'invalid_topic','Choose a topic.');
  const where=['m.generation=?','m.key=?',"m.kind IN ('debate','document','question','speech','vote')","m.date>=?","m.date<=?"],args=[generation,key,from&&from>'2024-07-16'?from:'2024-07-16',to||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(Date.now())];
  if(kind){where.push('m.kind=?');args.push(kind);}for(const filter of [keyword,place])if(filter){where.push('EXISTS (SELECT 1 FROM record_topic_memberships f WHERE f.generation=m.generation AND f.record_id=m.record_id AND f.key=?)');args.push(filter);}
- if(askers!=='all'){where.push("(m.kind<>'question' OR EXISTS (SELECT 1 FROM record_topic_question_places q WHERE q.generation=m.generation AND q.record_id=m.record_id AND q.askers=?"+(key.startsWith('place:')||place?' AND q.key=?':'')+'))');args.push(askers,...(key.startsWith('place:')||place?[key.startsWith('place:')?key:place]:[]));}
+ if(askers!=='all'){where.push("(m.kind<>'question' OR EXISTS (SELECT 1 FROM record_topic_question_places q WHERE q.generation=m.generation AND q.record_id=m.record_id AND q.askers IN (SELECT value FROM json_each(?))"+(key.startsWith('place:')||place?' AND q.key=?':'')+'))');args.push(JSON.stringify(askers==='not-home'?['elsewhere','unknown']:[askers]),...(key.startsWith('place:')||place?[key.startsWith('place:')?key:place]:[]));}
  const selection='FROM record_topic_memberships m WHERE '+where.join(' AND ');
  const totals=this.db.prepare('SELECT COUNT(*) records,COUNT(DISTINCT group_key) groups '+selection).get(...args),total=totals.records,groupTotal=totals.groups;
  const series=this.db.prepare("SELECT substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,kind,COUNT(*) n "+selection+' GROUP BY period,kind').all(...args).reduce((out,r)=>{let s=out.find(s=>s.period===r.period);if(!s){s={period:r.period,...counts()};out.push(s);}s[r.kind]=r.n;return out;},[]);

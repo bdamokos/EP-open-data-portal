@@ -237,3 +237,9 @@ test('place evidence fetches the exact two primary-first leaders and the qualifi
  const q2=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q2'));assert.equal(q2.winners.headlineAdoptedTexts[0].id,'B-10-2025-0001');assert.deepEqual(q2.winners.headlineAdoptedTexts3Plus,[]);
  store.db.prepare('INSERT INTO story_links VALUES (?,?,?,?)').run(1,'debate-document',ids[2],'B-10-2025-0001');await finishStoryProjection(store,1);const qualified=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q2'));assert.deepEqual(qualified.winners.headlineAdoptedTexts3Plus,[{id:'B-10-2025-0001',debateMeps:20,votesFor:10}]);
 });
+
+test('not-home story questions combine elsewhere and unknown without changing their flags',async t=>{
+ const {store}=await fixture(t);store.setMembers([{id:'1',countryCode:'GR'},{id:'2',countryCode:'CY'}]);
+ for(const [n,mep] of [[1,'1'],[2,'2'],[3,'99']])store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/questions/E-10-2025-00000'+n,'E-10-2025-00000'+n,mep,'written-questions','2025-03-12',JSON.stringify({titles:{en:'Greece'}}));await buildTopics(store);
+ const read=askers=>storyFacts(store,new URLSearchParams({scope:'place',key:'GRC',askers,list:'questions',period:'2025-Q1'}));const all=read('all'),away=read('not-home');assert.equal(away.counts.questions,all.counts.questions-all.counts.questionHome);assert.equal(away.counts.questions,2);assert.equal(away.counts.questionHome,0);assert.equal(away.counts.questionElsewhere,1);assert.equal(away.counts.questionUnknown,1);assert.equal(away.page.total,2);assert.deepEqual(new Set(away.questions.map(q=>q.askers.GRC)),new Set(['elsewhere','unknown']));assert.equal(read('elsewhere').counts.questions,1);
+});
