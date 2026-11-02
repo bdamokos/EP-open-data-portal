@@ -1,3 +1,4 @@
+import {sittingSnapshots} from './sitting-snapshot-store.mjs';
 import {topicAmendments} from './topic-involvement.mjs';
 import {contributionGroup,groupContributions} from './group-aggregation.mjs';
 import {oralAvailability,indexAvailability} from './availability-evidence.mjs';
@@ -18,7 +19,7 @@ import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v15-whole-proposal';
+export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v16-retained-links';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -49,7 +50,7 @@ function reusableRecord(endpoint,work) {
   return Array.isArray(work.inverse_based_on_a_realization_of);
 }
 export class LegislationInsights {
-  constructor(store,{request=odp,clock=Date.now,loadMetadata=savedMetadata,readSpeechMetadata=request===odp?retainedSpeechMetadata:null,meetings}={}) {this.meetings=meetings||(request===odp&&clock===Date.now?meetingsReader:new MeetingsReader({request,clock}));this.store=store;this.request=request;this.clock=clock;this.loadMetadata=loadMetadata;this.readSpeechMetadata=readSpeechMetadata;this.cache=new Map();this.pending=new Map();this.failures=new Map();}
+  constructor(store,{request=odp,clock=Date.now,loadMetadata=savedMetadata,readSpeechMetadata=request===odp?retainedSpeechMetadata:null,meetings,snapshots=request===odp?sittingSnapshots:null}={}) {this.snapshots=snapshots;this.meetings=meetings||(request===odp&&clock===Date.now?meetingsReader:new MeetingsReader({request,clock,snapshots}));this.store=store;this.request=request;this.clock=clock;this.loadMetadata=loadMetadata;this.readSpeechMetadata=readSpeechMetadata;this.cache=new Map();this.pending=new Map();this.failures=new Map();}
   async record(endpoint,params={}) {
     requestSignal()?.throwIfAborted();
     if(!Object.keys(params).length) {
@@ -65,6 +66,8 @@ export class LegislationInsights {
         if(saved)return {url:saved.sourceUrl,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.activity]},...sourceCacheState(saved)};
       }
     }
+    const agendaId=endpoint.match(/^\/meetings\/(MTG-PL-\d{4}-\d{2}-\d{2})\/foreseen-activities$/)?.[1];
+    if(this.snapshots&&agendaId){const saved=this.snapshots.read('agenda',1,agendaId);const page=saved?.pages.find(page=>Number(new URL(page.url).searchParams.get('offset'))===Number(params.offset||0));if(page)return {...page,fetchedAt:Date.parse(page.fetchedAt)};}
     const key=JSON.stringify([endpoint,params]);const old=this.cache.get(key),agendaMs=agendaFreshMs(endpoint,this.clock());
     const revision=agendaMs===null?null:await agendaCacheRevision();
     if(old&&sourceIsTransient(old.value))this.cache.delete(key);

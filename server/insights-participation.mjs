@@ -1,3 +1,4 @@
+import {sittingSnapshots} from './sitting-snapshot-store.mjs';
 import {generationGroupOn} from './group-attribution.mjs';
 import {groupContributions} from './group-aggregation.mjs';
 import {sourceAvailability,periodAvailability} from './source-availability.mjs';
@@ -23,7 +24,9 @@ export function participationQuery(search) {
   return {language:odpLanguage(search.get('lang')||'en'),sitting,week,country:country?countryCode(country):null};
 }
 // Exact existing raw-cache keys only. No directory scan or upstream parent fan-out.
-export async function cachedEvent(id,directory=process.env.ODP_CACHE_DIR) {
+export async function cachedEvent(id,directory=process.env.ODP_CACHE_DIR,snapshots=sittingSnapshots) {
+  const saved=snapshots.read('debate',1,id);
+  if(saved)return {...saved,fetchedAt:Date.parse(saved.fetchedAt)};
   if(!directory)return null;
   const url='https://data.europarl.europa.eu/api/v2/events/'+id+'?format=application%2Fld%2Bjson';
   const names=[createHash('sha256').update(url).digest('hex')+'.json'],legacy=Buffer.from(url).toString('base64url')+'.json';if(legacy.length<=255)names.push(legacy);
@@ -84,7 +87,7 @@ export async function participation(legislation,store,query,{clock=Date.now,read
         const proof=declaredSpeechEvidence({children,parentId:id,parentDate:event.activity_date,nodes:[...array(event.consists_of),...record.payload.data]});
         const missing=new Set();
         for(const [child,observation] of proof.speeches)if(observation.kind==='PLENARY_DEBATE_SPEECH')for(const person of observation.people)if(members.has(person)&&!rows.some(row=>row.sourceId===child&&row.speechKind===observation.kind&&String(row.mepId)===person))missing.add(person);
-        for(const target of refs(event.executed)){const topic=base.topics.find(t=>t.uri===target);if(topic){speechRows.set(topic.id,[...(speechRows.get(topic.id)||[]),...rows]);speechProjectionGaps.set(topic.id,new Set([...(speechProjectionGaps.get(topic.id)||[]),...missing]));if(declared.length>children.length||projected.length>rows.length)speechProjectionLimits.add(topic.id);}}
+        for(const target of refs(event.executed)){const topic=base.topics.find(t=>t.uri===target);if(topic){if(rows.length)speechRows.set(topic.id,[...(speechRows.get(topic.id)||[]),...rows]);speechProjectionGaps.set(topic.id,new Set([...(speechProjectionGaps.get(topic.id)||[]),...missing]));if(declared.length>children.length||projected.length>rows.length)speechProjectionLimits.add(topic.id);}}
       }
     }
     all.push(...participationRows(base.topics,results,decisions,speechRows,members,groupOn,id=>!query.country||countryOf(id)===query.country).map(row=>({...row,sittingId:sitting.activity_id,upcoming:sitting.activity_date>today})));

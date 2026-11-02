@@ -1,3 +1,4 @@
+import {sittingSnapshots} from './sitting-snapshot-store.mjs';
 import path from 'node:path';
 import {amendmentGeneration} from './amendments-store.mjs';
 import {topicAmendmentsCacheable} from './topic-involvement.mjs';
@@ -74,7 +75,7 @@ export function createInsights(store,options={}) {
     if(!status.currentMeps||!status.servingGeneration)return 60_000;
     if(!warmReader){
       const request=(endpoint,params,settings)=> (options.request||odp)(endpoint,params,{...settings,priority:'background',cacheGroup:'plenary',signal:requestSignal()});
-      warmReader=new LegislationInsights(store,{...shared,request,readSpeechMetadata:legislation.readSpeechMetadata,meetings:new MeetingsReader({request,clock})});
+      warmReader=new LegislationInsights(store,{...shared,request,readSpeechMetadata:legislation.readSpeechMetadata,snapshots:sittingSnapshots,meetings:new MeetingsReader({request,clock,snapshots:sittingSnapshots})});
       warmCloud=new SpeechCloudInsights(store,{...shared,request,legislation:warmReader,readCorpusPage:speechCloud.readCorpusPage});
     }
     const catalogue=await warmReader.catalogue(),weeks=recentPlenaryWeeks(catalogue,clock()),values=[];
