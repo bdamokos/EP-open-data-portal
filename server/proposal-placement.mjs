@@ -181,8 +181,10 @@ const romanNumber=value=>{
 };
 function siblingOrder(siblings,label) {
   const bases=[...siblings.map(unit=>labelBase(unit.label)),labelBase(label)];
-  const family=bases.every(base=>/^\d+$/u.test(base))?'number':bases.every(base=>/^[a-z]$/u.test(base))?'letter':bases.every(base=>romanNumber(base)!==null)?'roman':null;
-  const ordinal=base=>family==='number'?Number(base):family==='letter'?base.charCodeAt(0):romanNumber(base);
+  // Annexes print upper-case Roman numerals. Other upper-case containers
+  // (chapters, sections) have no independent boundary assertion yet.
+  const family=bases.every(base=>/^\d+$/u.test(base))?'number':bases.every(base=>/^[a-z]$/u.test(base))?'letter':bases.every(base=>romanNumber(base)!==null)?'roman':label.kind==='annex'&&bases.every(base=>/^[IVXLCDM]+$/u.test(base)&&romanNumber(base.toLowerCase())!==null)?'upper-roman':null;
+  const ordinal=base=>family==='number'?Number(base):family==='letter'?base.charCodeAt(0):romanNumber(family==='upper-roman'?base.toLowerCase():base);
   return family?unitLabel=>({number:ordinal(labelBase(unitLabel)),rank:suffixRank(unitLabel.suffix,label.suffix)}):null;
 }
 function completeBoundary(proposal,unit) {

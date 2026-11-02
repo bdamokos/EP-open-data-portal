@@ -429,3 +429,19 @@ test('similarity recovery withholds table-cell passages without independent tabl
  const placed=resolveProposalPlacement([{kind:'act',proposal}],{targetLabel:'Article 1 – paragraph 1 – point 1',originalText:text.replace('system','systen'),proposedText:'New text.',language:'en'});
  assert.equal(placed.status,'unresolved');
 });
+
+test('a new suffixed annex follows its upper-case Roman base annex',()=>{
+  // A-10-2026-0201 AM85/96 insert Annex Ia into the CBAM proposal's annexes.
+  const projection=source(['ANNEX I','Annex I is amended as follows:','(1) first change;','ANNEX II','Annex IV is amended as follows:','ANNEX III','Annex VII is amended as follows:']);
+  const annex=[{kind:'annex',index:1,proposal:parseProposal(projection,{item:'annex'})}];
+  const placed=resolveProposalPlacement(annex,{targetLabel:'Annex I a (new)',originalText:'',proposedText:'In point 1 of ANNEX II the following exception is added:',language:'en'});
+  assert.equal(placed.status,'placed');assert.equal(placed.itemIndex,0);assert.equal(placed.insertAfter,2);assert.equal(placed.insertBefore,3);
+  assert.equal(resolveProposalPlacement(annex,{targetLabel:'Annex III a (new)',originalText:'',proposedText:'New annex.',language:'en'}).insertBefore,7);
+  assert.equal(resolveProposalPlacement(annex,{targetLabel:'Annex II (new)',originalText:'',proposedText:'New annex.',language:'en'}).status,'unresolved');
+});
+
+test('upper-case Roman ordering is limited to annexes',()=>{
+  const projection=source(['CHAPTER IV','Section I','Article 10','1. First.','Section II','Article 11','1. Second.']);
+  const placed=resolveProposalPlacement([item(projection)],{targetLabel:'Chapter IV – Section I a (new)',originalText:'',proposedText:'New section.',language:'en'});
+  assert.notEqual(placed.status,'placed');
+});
