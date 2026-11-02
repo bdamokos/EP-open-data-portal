@@ -1,9 +1,10 @@
+import {defaultUi} from './uiDefault.mjs';
 import {storyLinkClick,focusStoryLink} from './storyLinkNavigation';
 import {usePolicyAreaLabels} from './PolicyAreaSources';
 import {buildExactTopicStories,storyFactsRoute,storyRecord} from './exactTopicStories.mjs';
 import {useInsightData} from './InsightData';
 import {useEffect,useRef,useState,type ReactNode,type MouseEvent} from 'react';
-import {UiMessage,useUiI18n} from './UiI18nReact';
+import {UiI18nProvider,UiMessage,useUiI18n} from './UiI18nReact';
 import {updateExplorerQuery,useExplorerParam} from './explorerUrl';
 import {buildReferenceTopicStories,normalizeReferenceStoryFacts,type StoryRecord,type StoryFacts,type StorySelection,type StoryValue,type StoryReference} from './topicStoryModel.mjs';
 import {storyLinkClaims,storySetKey,parseStorySetKey} from './storyLinkModel.mjs';
@@ -20,16 +21,19 @@ export function TopicStories({selection,fallback,facts:provided,onRecords}:{sele
  const ui=useUiI18n(),[,setQuarter]=useExplorerParam<string>('t-q',''),[selected]=useExplorerParam<string>('t-records','');
  const response=useInsightData<any>(provided?null:storyFactsRoute({...selection,language:ui.language,period:undefined}));
  const facts=provided?normalizeReferenceStoryFacts(provided):null;
- const lines=provided?storyLinkClaims(buildReferenceTopicStories(facts,{...selection,language:ui.language,proseLanguage:ui.messageLocale('topics.story.ordinal.other')}),selection):buildExactTopicStories(response.data,{...selection,language:ui.language});
+ const build=(locale:string)=>provided?storyLinkClaims(buildReferenceTopicStories(facts,{...selection,language:locale,proseLanguage:locale}),selection):buildExactTopicStories(response.data,{...selection,language:locale});
+ const nativeValue=(value:StoryValue):boolean=>value==null||typeof value==='string'||(Array.isArray(value)?value.every(nativeValue):'message'in value?ui.messageLocale(value.message)===ui.locale&&Object.values(value.values).every(nativeValue):nativeValue(value.text));
+ const candidate=build(ui.locale),proseUi=candidate.every(line=>ui.messageLocale(line.id)===ui.locale&&Object.values(line.values).every(nativeValue))?ui:defaultUi;
+ const lines=proseUi===ui?candidate:build(proseUi.locale),proseI18n={sourceLocale:'en',forLocale:()=>proseUi};
  const heading=useRef<HTMLParagraphElement>(null);
  useEffect(()=>{if(!selected)focusStoryLink();},[selected,lines.length]);
  if(selected)return <TopicStoryRecords key={selected} selection={selection}/>;
  if(!lines.length)return <>{response.error||response.data?.ready===false||!response.data?fallback:null}</>;
- const text=(v:StoryValue):string=>v==null?'':typeof v==='string'?v:Array.isArray(v)?new Intl.ListFormat(ui.language==='en'?'en-GB':ui.locale,{type:'conjunction'}).format(v.map(text)):'text'in v?text(v.text):ui.t(v.message,Object.fromEntries(Object.entries(v.values).map(([k,x])=>[k,text(x)])),v.counts);
+ const text=(v:StoryValue):string=>v==null?'':typeof v==='string'?v:Array.isArray(v)?new Intl.ListFormat(proseUi.language==='en'?'en-GB':proseUi.locale,{type:'conjunction'}).format(v.map(text)):'text'in v?text(v.text):proseUi.t(v.message,Object.fromEntries(Object.entries(v.values).map(([k,x])=>[k,text(x)])),v.counts);
  const renderValues=(values:Record<string,StoryValue>,path:string):Record<string,ReactNode>=>Object.fromEntries(Object.entries(values).map(([k,v])=>[k,render(v,path+'-'+k)]));
  const render=(v:StoryValue,path:string):ReactNode=>{
   if(v==null||typeof v==='string')return v;
-  if(Array.isArray(v))return new Intl.ListFormat(ui.language==='en'?'en-GB':ui.locale,{type:'conjunction'}).formatToParts(v.map((_,i)=>String(i))).map((p,i)=>p.type==='element'?<span key={i}>{render(v[Number(p.value)],path+'-'+p.value)}</span>:p.value);
+  if(Array.isArray(v))return new Intl.ListFormat(proseUi.language==='en'?'en-GB':proseUi.locale,{type:'conjunction'}).formatToParts(v.map((_,i)=>String(i))).map((p,i)=>p.type==='element'?<span key={i}>{render(v[Number(p.value)],path+'-'+p.value)}</span>:p.value);
   if('text'in v&&v.labelLanguage)return <span lang={v.labelLanguage}>{typeof v.text==='string'?v.text:render(v.text,path+'-label')}</span>;
   if('message'in v)return <UiMessage id={v.message} values={renderValues(v.values,path)} counts={v.counts}/>;
   const label=typeof v.text==='string'?v.text:render(v.text,path+'-label'),single=!v.browse&&!v.pageRecords&&v.records.length===1;
@@ -45,13 +49,13 @@ export function TopicStories({selection,fallback,facts:provided,onRecords}:{sele
    storyLinkClick(e,id);
   }}>{v.italic?<i lang={v.titleLanguage===undefined?'en':v.titleLanguage||''}>{label}</i>:label}</a>;
  };
- return <div className="topic-stories"><p className="topic-story" ref={heading} tabIndex={-1}>{lines.map((line,i)=><span key={line.id+'-'+i}><UiMessage id={line.id} values={renderValues(line.values,String(i))} counts={line.counts}/>{' '}</span>)}</p>{selection.mode==='d'&&<p className="topic-muted"><UiMessage id="topics.story.jointOnce"/></p>}</div>;
+ return <div className="topic-stories"><p className="topic-story" lang={proseUi.language} ref={heading} tabIndex={-1}><UiI18nProvider i18n={proseI18n}>{lines.map((line,i)=><span key={line.id+'-'+i}><UiMessage id={line.id} values={renderValues(line.values,String(i))} counts={line.counts}/>{' '}</span>)}</UiI18nProvider></p>{selection.mode==='d'&&<p className="topic-muted" lang={ui.messageLocale('topics.story.jointOnce')}><UiMessage id="topics.story.jointOnce"/></p>}</div>;
 }
 function RecordRow({record:r,children}:{record:StoryRecord;children?:ReactNode}){
  const ui=useUiI18n(),o=r.outcome,date=r.date?new Intl.DateTimeFormat(ui.language==='en'?'en-GB':ui.locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(r.date+'T12:00:00Z')):ui.t('topics.story.dateUnavailable');
  const kindId=/^JOINT MOTION FOR A RESOLUTION/i.test(r.title)?'jointMotion':/^MOTION FOR A RESOLUTION/i.test(r.title)?'motion':/^(?:INTERIM )?REPORT/i.test(r.title)?'report':/^RECOMMENDATION/i.test(r.title)?'recommendation':null;
- const title=r.title.replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)\s*(?:on\s+)?/i,'');
- return <article><small>{ui.t(kindId?'topics.story.links.row.'+kindId:'topics.kind.'+r.kind)} · {date}</small><a lang={r.titleLanguage===undefined?'en':r.titleLanguage||''} href={recordTarget(r)} onClick={dossierLinkClick}>{title}</a>{o&&['ADOPTED','REJECTED'].includes(o.outcome)&&<p><UiMessage id={'topics.story.records.'+(o.outcome==='REJECTED'?(o.for!=null?'rejectedTally':'rejected'):o.for!=null?'passed':/VOTE_HAND/.test(o.method||'')?'showOfHands':'adopted')} values={{for:o.for??'',against:o.against??''}}/></p>}{Boolean(children||r.supporting?.length)&&<div className="story-supporting">{children||r.supporting?.map(child=><RecordRow key={child.id} record={child}/>)}</div>}</article>;
+ const title=r.title.replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)\s*(?:on\s+)?/i,'')||ui.t('topics.untitled');
+ return <article><small>{ui.t(kindId?'topics.story.links.row.'+kindId:'topics.kind.'+r.kind)} · {date}</small><a lang={r.title.trim()?(r.titleLanguage===undefined?'en':r.titleLanguage||''):ui.messageLocale('topics.untitled')} href={recordTarget(r)} onClick={dossierLinkClick}>{title}</a>{o&&['ADOPTED','REJECTED'].includes(o.outcome)&&<p><UiMessage id={'topics.story.records.'+(o.outcome==='REJECTED'?(o.for!=null?'rejectedTally':'rejected'):o.for!=null?'passed':/VOTE_HAND/.test(o.method||'')?'showOfHands':'adopted')} values={{for:o.for??'',against:o.against??''}}/></p>}{Boolean(children||r.supporting?.length)&&<div className="story-supporting">{children||r.supporting?.map(child=><RecordRow key={child.id} record={child}/>)}</div>}</article>;
 }
 export function StoryBrowse({selection,browse,onTotal,singleRecord=false}:{selection:StorySelection;browse:Record<string,string>;onTotal?:(total:number|null)=>void;singleRecord?:boolean}){
  const ui=useUiI18n(),[cursor,setCursor]=useState(''),[items,setItems]=useState<StoryRecord[]>([]),[total,setTotal]=useState<number|null>(null),[reload,setReload]=useState(false),[missing,setMissing]=useState(false);
