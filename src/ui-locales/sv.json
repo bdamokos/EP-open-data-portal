@@ -2501,5 +2501,7 @@
   "topics.explorerTranslation": "Politikområdenas namn har översatts av utforskaren.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Anföranden per månad",
-  "groupvoices.contributions_by_sitting_day.77a719": "Anföranden per sammanträdesdag"
+  "groupvoices.contributions_by_sitting_day.77a719": "Anföranden per sammanträdesdag",
+  "membervotespresentation.votes_not_yet_published": "Omröstningarna har ännu inte offentliggjorts",
+  "membervotespresentation.votes_start_at": "Omröstningarna börjar kl. {time}"
 }

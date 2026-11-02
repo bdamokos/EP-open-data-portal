@@ -2501,5 +2501,7 @@
   "topics.explorerTranslation": "Nomi dei settori di intervento tradotti dall’esploratore.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Interventi per mese",
-  "groupvoices.contributions_by_sitting_day.77a719": "Interventi per giorno di seduta"
+  "groupvoices.contributions_by_sitting_day.77a719": "Interventi per giorno di seduta",
+  "membervotespresentation.votes_not_yet_published": "Votazioni non ancora pubblicate",
+  "membervotespresentation.votes_start_at": "Le votazioni iniziano alle {time}"
 }

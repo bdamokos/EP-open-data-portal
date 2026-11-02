@@ -3,7 +3,7 @@ import {odp} from './odp.mjs';
 import {array,tail} from './activity-index-model.mjs';
 import {SittingSnapshotReader} from './sitting-snapshot-store.mjs';
 import {statSync} from 'node:fs';
-import {MemberVotes,MEMBER_VOTES_VERSION} from './member-votes.mjs';
+import {MemberVotes,MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
 import {MemberAttendance,MEMBER_ATTENDANCE_VERSION} from './member-attendance.mjs';
 import {MeetingsReader,MEETINGS_SOURCE_MAX_BYTES} from './meetings-reader.mjs';
 import {calendarYears,currentTermSittings,isPlenarySitting,identifiedPlenarySitting} from './plenary-calendar.mjs';
@@ -17,7 +17,7 @@ import {SittingSnapshotWriter,sittingSnapshotHints,SITTING_CALENDAR_VERSION,SITT
 const SIX_HOURS=6*60*60_000;
 const agendaEndpoint=id=>'/meetings/'+id.slice(0,17)+'/foreseen-activities';
 const settledLinks=(id,now)=>agendaFreshMs(agendaEndpoint(id),now)===Infinity;
-const readerVersions={votes:MEMBER_VOTES_VERSION,attendance:MEMBER_ATTENDANCE_VERSION,calendar:SITTING_CALENDAR_VERSION};
+const readerVersions={votes:MEMBER_VOTE_SNAPSHOT_VERSION,attendance:MEMBER_ATTENDANCE_VERSION,calendar:SITTING_CALENDAR_VERSION};
 const discoveryKey=now=>[3,brusselsDay(now).slice(0,4),...Object.values(readerVersions)].join(':');
 const agendaCursorKey='agenda:cursor',agendaDispatchPages=8;
 // These jobs retain PVCRE agenda items, including procedural items and votes.
@@ -251,7 +251,7 @@ export class SittingSnapshotCollector {
           next=now+(complete?(historical?Number.MAX_SAFE_INTEGER-now:SIX_HOURS):retryDelay(job,now,missingSourceDelay(job.attempts)));
           this.discoverSittings(currentTermSittings(value.nodes,brusselsDay(now)));
           for(const node of currentTermSittings(value.nodes,brusselsDay(now))){
-            this.writer.enqueue('votes',MEMBER_VOTES_VERSION,node.activity_id);
+            this.writer.enqueue('votes',MEMBER_VOTE_SNAPSHOT_VERSION,node.activity_id);
             this.writer.enqueue('attendance',MEMBER_ATTENDANCE_VERSION,node.activity_id);
           }
         }else if(job.kind==='votes'){

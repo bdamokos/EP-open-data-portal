@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {projectMemberSitting} from '../server/member-votes-model.mjs';
 import {knownVoteMethodLabel,voteMethodLabel} from './voteMethod.mjs';
-import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,memberVotesRoute,validateMemberVotesResponse,groupMemberVotes,displayVoteTitle,memberVoteLabel,memberVotePosition,memberVoteOutcome,memberVoteTotals,votingRecordUrl,topLevelVoteDocuments,exactAmendmentTargets} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,memberVotesAllPending,memberVotesCoverageNotice,memberVotesRoute,validateMemberVotesResponse,groupMemberVotes,displayVoteTitle,memberVoteLabel,memberVotePosition,memberVoteOutcome,memberVoteTotals,votingRecordUrl,topLevelVoteDocuments,exactAmendmentTargets} from './memberVotesPresentation.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/member-votes.json',import.meta.url)));
 const memberId=197591,snapshotId='a'.repeat(64),sittingId='MTG-PL-2026-10-07';
@@ -11,7 +11,7 @@ const projection=projectMemberSitting(fixture.snapshots[0],String(memberId),'en'
 const clone=value=>structuredClone(value);
 function response(overrides={}) {
   const items=projection.items.filter(item=>item.actualPosition.status==='recorded');
-  return {version:11,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
+  return {version:12,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
 }
 const state={week:'latest',sittingId,positions:'recorded',offset:0,decisionId:null,snapshotId:null};
 const accepts=(data,requestState=state)=>validateMemberVotesResponse(data,{memberId,state:requestState});
@@ -207,6 +207,20 @@ test('coverage notices preserve calendar gaps, unavailable records and missing s
   assert.equal(memberVotesCoverageNotice(missing,{decisionId:sittingId+'-DEC-999',context:{documentId:'A-10-2026-0001'}}),null);
 });
 
+
+test('days with scheduled but unpublished votes say so instead of reporting incomplete records',()=>{
+  const day={sittingId,state:'partial',pendingVotes:{scheduledVoteCount:8,startsAt:'2026-10-07T12:00:00+02:00'}};
+  const coverage={status:'partial',failedSittingIds:[],incompleteSittingIds:[sittingId],sittings:[day],catalogue:{state:'complete'}};
+  assert.equal(memberVotesCoverageNotice({coverage},{},undefined,Date.parse('2026-10-07T08:00:00Z')),'Votes start at 12:00 CEST · 7 Oct 2026');
+  assert.equal(memberVotesCoverageNotice({coverage},{},undefined,Date.parse('2026-10-07T13:00:00Z')),'Votes not yet published · 7 Oct 2026');
+  assert.equal(memberVotesCoverageNotice({coverage:{...coverage,sittings:[{...day,pendingVotes:{scheduledVoteCount:8,startsAt:null}}]}},{},undefined,0),'Votes not yet published · 7 Oct 2026');
+  const other='MTG-PL-2026-10-06';
+  assert.equal(memberVotesCoverageNotice({coverage:{...coverage,incompleteSittingIds:[other,sittingId],sittings:[{sittingId:other,state:'partial',pendingVotes:null},day]}},{},undefined,Date.parse('2026-10-07T13:00:00Z')),'Votes not yet published · 7 Oct 2026. Incomplete voting records · 6 Oct 2026');
+  assert.equal(memberVotesAllPending({coverage}),true);
+  assert.equal(memberVotesAllPending({coverage:{...coverage,sittings:[{sittingId:other,state:'complete',pendingVotes:null},day]}}),false);
+  assert.equal(memberVotesAllPending({coverage:{...coverage,sittings:[{sittingId:other,state:'complete',pendingVotes:null},day]}},sittingId),true);
+  assert.equal(memberVotesAllPending({coverage:{...coverage,sittings:[]}}),false);
+});
 
 test('selected position gaps use the existing summary without a duplicate notice',()=>{
   const item={id:sittingId+'-DEC-1',method:'VOTE_ELECTRONIC_ROLLCALL',actualPosition:{status:'unavailable',position:null},evidenceGaps:[],sourceConflicts:null};

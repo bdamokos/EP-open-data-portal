@@ -2501,5 +2501,7 @@
   "topics.explorerTranslation": "Imena področij politike je prevedel raziskovalnik.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Govori po mesecih",
-  "groupvoices.contributions_by_sitting_day.77a719": "Govori po dnevih zasedanja"
+  "groupvoices.contributions_by_sitting_day.77a719": "Govori po dnevih zasedanja",
+  "membervotespresentation.votes_not_yet_published": "Glasovanja še niso objavljena",
+  "membervotespresentation.votes_start_at": "Glasovanje se začne ob {time}"
 }

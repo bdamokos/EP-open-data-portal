@@ -2749,5 +2749,7 @@
   "topics.story.map.lead.soFar.eu": "In Europe and its neighbours, MEPs have so far asked most about {place} ({questions}).",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Contributions by month",
-  "groupvoices.contributions_by_sitting_day.77a719": "Contributions by sitting day"
+  "groupvoices.contributions_by_sitting_day.77a719": "Contributions by sitting day",
+  "membervotespresentation.votes_not_yet_published": "Votes not yet published",
+  "membervotespresentation.votes_start_at": "Votes start at {time}"
 }
