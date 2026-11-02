@@ -115,7 +115,8 @@
   .explorer-insights .insight-vote-totals h3 { font-size:16px; }
   .insight-vote-totals h3 strong { font-size:24px; }
   .insight-vote-matrix-head,.insight-vote-group-row { grid-template-columns:minmax(63px,1fr) repeat(3,minmax(46px,.65fr)) minmax(82px,1fr); gap:6px; }
-  .insight-vote-matrix-head { font-size:12px; }
+  .insight-vote-matrix-head { font-size:11px; }
+  .insight-vote-matrix-head>span:nth-child(n+2):nth-child(-n+4) { white-space:nowrap; }
   .insight-vote-group-row>span { font-size:13px; gap:5px; }
   .explorer-insights .explorer-video-actions button { flex:1 1 140px; min-width:0; }
   .insight-reader-text { font-size:16px; }
