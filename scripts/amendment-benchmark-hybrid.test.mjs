@@ -125,3 +125,20 @@ test('one-sided optional size, date and edition evidence stays unknown while exa
  const f=await fixture(t,()=>{},copy),input=await f.h.baseScope(f.identity,()=>f.cache.get(url));assert.equal(input.body.toString(),'OLD BASE');
  const proof=input.hybridSource.identity.proof.declaration;assert.equal(proof.descriptor.copy.byteSize,null);assert.equal(proof.descriptor.base.byteSize,10);assert.deepEqual(proof.edition,{copy:{epNumberVersion:'0200'},base:{}});assert.equal(f.cache.requests,0);
 });
+
+test('raw null publisher size stays unknown instead of the canonical numeric zero',async t=>{
+ const copy=structuredClone(work);copy.is_realized_by[0].is_embodied_by[0].byteSize=null;
+ const f=await fixture(t,()=>{},copy),input=await f.h.baseScope(f.identity,()=>f.cache.get(url));assert.equal(input.body.toString(),'OLD BASE');
+ assert.equal(input.hybridSource.identity.proof.declaration.descriptor.copy.byteSize,null);assert.equal(f.cache.requests,0);
+});
+for(const corrupt of [false,true])test('native hashes validate final bytes after a nonempty cached redirect'+(corrupt?' and reject corrupt targets':''),async t=>{
+ const f=await fixture(t),redirectUrl='https://redmapl3.europarl.europa.eu/RedmapFront/media/test/base.docx',hash=digest(Buffer.from('OLD BASE'));
+ const withHash=records=>records.map(r=>{if(r.url!==publicDocumentUrl(id))return r;const payload=JSON.parse(r.body);payload.data[0].is_realized_by[0].is_embodied_by[0].sha256=hash;return record(r.url,payload,r.request);});
+ await seal(f.a,withHash(await Promise.all(f.sa.manifest.map(m=>f.h.a.read(m.url,m.request)))));
+ const records=withHash(await Promise.all(f.sb.manifest.filter(m=>m.url!==url).map(m=>f.h.b.read(m.url,m.request))));
+ const redirect={...record(url,'<html>Moved</html>'),status:302,ok:true,headers:{location:redirectUrl},redirectUrl};await seal(f.b,[...records,redirect,record(redirectUrl,corrupt?'CORRUPT':'OLD BASE')]);
+ const before=await Promise.all([tree(f.a),tree(f.b)]),h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;const cache=new InputCache(f.out,{apiBase,cap:0,retained:h,fetcher:()=>assert.fail('no network')});
+ const input=await h.baseScope(f.identity,()=>cache.get(url));
+ if(corrupt){assert.equal(input.acquisitionUnavailable,true);assert.equal(input.hybridSource.reason,'base-source-hash-mismatch');}else{assert.equal(input.body.toString(),'OLD BASE');assert.equal(input.sha256,hash);assert.equal(input.resolvedSourceUrl,redirectUrl);}
+ assert.equal(cache.requests,0);assert.deepEqual(await Promise.all([tree(f.a),tree(f.b)]),before);
+});
