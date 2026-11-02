@@ -36,3 +36,5 @@ export async function retainedSpeechMetadata(id) {
   const result=await retainedSpeechData({sourceIds:[id],metadataOnly:true});
   return result?.records[0]?.metadata||null;
 }
+
+export const retainedWeekCloud=params=>read('speech-cloud',params);
