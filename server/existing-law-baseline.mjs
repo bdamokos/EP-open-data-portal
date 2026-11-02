@@ -1,3 +1,5 @@
+import path from 'node:path';
+import {retainBaseSelection} from './base-source-store.mjs';
 import {CellarDocuments,cellarGraph,CELLAR_WORK_PATTERN,CELLAR_LIMITS,cellarTransportUrl,existingLawCelex} from './cellar-documents.mjs';
 import {languageCode} from './ep-links.mjs';
 import {sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
@@ -100,7 +102,7 @@ export function createExistingLawBaseline({documents=new CellarDocuments()}={}) 
       const gaps=[];if(versions.viewCache?.stale||metadata.viewCache?.stale)gaps.push('stale-metadata');if(items.some(item=>item.source.stale))gaps.push('stale-content');
       return {...selected,status:gaps.length?'partial':'available',baseCelex:identity.baseCelex,amendmentDate:identity.amendmentDate,language,items,gaps,evidence};
     }catch(error){if(isLocalRequestFailure(error))throw error;return unavailable(error.code||error.message||'existing-law-source-unavailable');}
-  },60_000));
+  },60_000).then(result=>retainBaseSelection('existing-law',options,result,{directory:documents.directory&&path.dirname(documents.directory)})));
 }
 let defaultBaseline;
 export function existingLawBaseline(options){defaultBaseline??=createExistingLawBaseline();return defaultBaseline(options);}

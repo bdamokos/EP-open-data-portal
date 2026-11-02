@@ -1,0 +1,148 @@
+name: Read benchmark baseline
+
+# Measures main once a week (Monday) if main had commits in the past seven days, and compares
+# it with the committed baseline. Any regression (page growth, a new full scan, a toolchain or
+# scenario change) fails the run without proposing a new baseline. Improvements alone open or
+# update one refresh pull request. It never opens issues. Manual dispatch always measures.
+on:
+  schedule:
+    # Monday 08:23 UTC: 09:23 in Brussels in winter, 10:23 in summer.
+    - cron: '23 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: read-benchmark-baseline
+  cancel-in-progress: false
+
+env:
+  BASELINE_FILE: server/test-support/read-benchmark-baseline.json
+  REFRESH_BRANCH: automation/read-benchmark-baseline
+
+jobs:
+  activity:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      active: ${{ steps.recent.outputs.active }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check for commits on main in the past seven days
+        id: recent
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          last=$(git log -1 --format=%ct)
+          if [ "$EVENT" != schedule ] || [ $(( $(date +%s) - last )) -lt $(( 7 * 24 * 3600 )) ]; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "No commits on main since $(git log -1 --format=%cI); skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  measure:
+    needs: activity
+    if: ${{ needs.activity.outputs.active == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.compare.outputs.changed }}
+      baseline: ${{ steps.compare.outputs.baseline }}
+      report: ${{ steps.compare.outputs.report }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Build pinned SQLite CLI (3.45.1)
+        uses: ./.github/actions/sqlite-cli
+      - run: cp "$BASELINE_FILE" "$RUNNER_TEMP/main-baseline.json"
+      - run: npm run bench:reads -- --update-baseline
+        env:
+          TMPDIR: ${{ runner.temp }}
+      - name: Compare with the committed baseline
+        id: compare
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if git diff --quiet -- "$BASELINE_FILE"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "The committed baseline matches main." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          status=0
+          node scripts/read-benchmark-report.mjs --check-regressions \
+            --title 'Read benchmark baseline refresh' \
+            --before "$RUNNER_TEMP/main-baseline.json" --before-label committed \
+            --after "$RUNNER_TEMP/read-benchmark-result.json" --after-label main \
+            --run-url "$RUN_URL" > "$RUNNER_TEMP/report.md" || status=$?
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Main regressed against the committed read benchmark baseline. No refresh pull request was proposed; see the run summary."
+            exit 1
+          fi
+          delimiter="eof_$(openssl rand -hex 16)"
+          {
+            echo "changed=true"
+            echo "baseline<<$delimiter"; cat "$BASELINE_FILE"; echo "$delimiter"
+            echo "report<<$delimiter"; cat "$RUNNER_TEMP/report.md"; echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+  # Writes from a separate job so dependency code never runs with a write token.
+  publish:
+    needs: measure
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Open, update or close the refresh pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGED: ${{ needs.measure.outputs.changed }}
+          BASELINE: ${{ needs.measure.outputs.baseline }}
+          REPORT: ${{ needs.measure.outputs.report }}
+        run: |
+          pr=$(gh pr list --head "$REFRESH_BRANCH" --base main --state open --json number --jq '.[0].number // empty')
+          if [ "$CHANGED" != true ]; then
+            # Main already matches its baseline, so an open refresh is stale.
+            if [ -n "$pr" ]; then gh pr close "$pr" --delete-branch; fi
+            exit 0
+          fi
+
+          printf '%s\n' "$BASELINE" > "$BASELINE_FILE"
+          { printf '%s\n' "$REPORT"; echo; echo 'Opened by the weekly Read benchmark baseline workflow. Merging makes these numbers the baseline for pull request comparisons and the CI gate.'; } > "$RUNNER_TEMP/body.md"
+
+          if git fetch --quiet --depth=2 origin "$REFRESH_BRANCH" 2>/dev/null \
+            && [ "$(git rev-parse FETCH_HEAD^1)" = "$(git rev-parse HEAD)" ] \
+            && git diff --quiet FETCH_HEAD -- "$BASELINE_FILE"; then
+            echo "The refresh branch already holds this baseline."
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git switch --create "$REFRESH_BRANCH"
+            git commit --quiet --message 'Refresh read benchmark baseline from main' --message 'Automated by the Read benchmark baseline workflow.' -- "$BASELINE_FILE"
+            git push --force origin "$REFRESH_BRANCH"
+            # Pushes with the workflow token do not trigger pull_request runs.
+            gh workflow run checks.yml --ref "$REFRESH_BRANCH"
+          fi
+
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --body-file "$RUNNER_TEMP/body.md"
+          elif ! gh pr create --base main --head "$REFRESH_BRANCH" --title 'Refresh read benchmark baseline' --body-file "$RUNNER_TEMP/body.md"; then
+            compare="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/main...$REFRESH_BRANCH?expand=1"
+            echo "::warning::Could not open the refresh pull request. Open it from $compare"
+            { echo "Pushed \`$REFRESH_BRANCH\`. [Open the refresh pull request]($compare)."; echo; cat "$RUNNER_TEMP/body.md"; } >> "$GITHUB_STEP_SUMMARY"
+          fi

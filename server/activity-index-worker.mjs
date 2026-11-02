@@ -1,5 +1,8 @@
+import {topicBuildWindowOpen} from './topic-build-window.mjs';
+import {topicRebuildDue} from './topic-publication.mjs';
 import {dispatchCollector,ordinaryCollectorTurn} from './collector-dispatch.mjs';
 import {odp} from './odp.mjs';
+import {indexErrorEvent,indexErrorLog} from './index-error-log.mjs';
 import {OfficialContextWarmer} from './official-context-warmer.mjs';
 import {LegalReferences} from './legal-references.mjs';
 import {DocumentBodyCollector} from './document-body-collector.mjs';
@@ -132,7 +135,8 @@ export function alternateAmendmentDispatch(store,generation,ordinaryTask,amendme
 }
 
 export class ActivityWorker {
-  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null,officialContext=null}={}) {
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null,officialContext=null,diagnostics=indexErrorLog}={}) {
+    this.diagnostics=diagnostics;
     this.officialContext=officialContext;this.store=store;this.documentBodies=new DocumentBodyCollector(store);this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
@@ -141,7 +145,7 @@ export class ActivityWorker {
   }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
-    if(storyCollectionDue(this.store,this.clock())||this.store.get('storyProjectionDirty')||this.generationExecutor&&this.store.get('active')&&this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION||topicCollectionDue(this.store,this.clock())||this.store.get('topicProjectionDirty')||this.generationExecutor&&this.store.get('active')&&(this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))return true;
+    if(storyCollectionDue(this.store,this.clock())||topicCollectionDue(this.store,this.clock())||topicRebuildDue(this.store,this.clock())||topicBuildWindowOpen(this.clock())&&this.generationExecutor&&this.store.get('active')&&(this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION||this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))return true;
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('recoveryScheduleVersion')!==1||this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
@@ -727,7 +731,7 @@ export class ActivityWorker {
   async run() {
     if(this.stopped || this.running)return;
     const iteration=loopTimer('activity');
-    try {await this.runIteration();}finally {iteration({requests:this.requests||0});}
+    try {await this.runIteration();}finally {iteration({requests:this.requests||0});try{await this.diagnostics.flush();}catch{/* Diagnostics cannot stop indexing. */}}
   }
   // Press following shares the writer lease, request budget and deadline but none
   // of the index work. While index work is also due, press takes a tenth of the
@@ -821,8 +825,8 @@ export class ActivityWorker {
       let sittingSnapshotTurn=0;
       this.controller.signal.throwIfAborted();
       const active=this.store.get('active') || 0,existing=this.store.get('working');
-      if(active&&this.generationExecutor&&(this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))await this.generationExecutor('topics',{generation:active,signal:this.controller.signal});
-      else if(active&&this.generationExecutor&&this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION)await this.generationExecutor('stories',{generation:active,signal:this.controller.signal});
+      if(topicBuildWindowOpen(this.clock())&&active&&this.generationExecutor&&(this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))await this.generationExecutor('topics',{generation:active,signal:this.controller.signal});
+      else if(topicBuildWindowOpen(this.clock())&&active&&this.generationExecutor&&this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION)await this.generationExecutor('stories',{generation:active,signal:this.controller.signal});
       if(!existing && active) {
         // A rollback may have advanced the core generation while leaving the
         // additive amendment snapshot behind. Adopt it before reading sources.
@@ -961,13 +965,20 @@ export class ActivityWorker {
           if(await dispatchCollector(this,{busy:Boolean(task)}))continue;
           if(!task)break;
           ordinaryCollectorTurn(this);
-          try {await this.task(task);this.controller.signal.throwIfAborted();this.finishOutsideGap(task);}catch(error){if(this.stopped||this.controller.signal.aborted)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)||recordTaskGap(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
+          try {await this.task(task);this.controller.signal.throwIfAborted();this.finishOutsideGap(task);}
+          catch(error) {
+            if(this.stopped||this.controller.signal.aborted)break;
+            try {const event=indexErrorEvent(task,error);if(event)this.diagnostics.write(event);}
+            catch {/* Diagnostics cannot change retry handling. */}
+            if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)||recordTaskGap(this,task,error)))continue;
+            this.store.failTask(task,error);
+            if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);
+          }
           finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
         } finally {taskIteration();}
       }
       if(!this.stopped)this.controller.signal.throwIfAborted();
-      if(!this.stopped&&this.store.get('topicProjectionDirty')&&this.generationExecutor)await this.generationExecutor('topics',{generation:this.store.get('active'),signal:this.controller.signal});
-      else if(!this.stopped&&this.store.get('storyProjectionDirty')&&this.generationExecutor)await this.generationExecutor('stories',{generation:this.store.get('active'),signal:this.controller.signal});
+      if(!this.stopped&&topicRebuildDue(this.store,this.clock())&&this.generationExecutor)await this.generationExecutor('topics',{generation:this.store.get('active'),signal:this.controller.signal});
       if(!this.stopped&&cycle&&this.store.get('working'))publishMissingHistory(this.store,generation);
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }

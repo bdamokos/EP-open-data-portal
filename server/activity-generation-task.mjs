@@ -1,23 +1,28 @@
+import {topicBuildWindowOpen,topicBuildWindowRemaining} from './topic-build-window.mjs';
 import {Worker} from 'node:worker_threads';
 import path from 'node:path';
 import {loopTimer} from './sqlite-observability.mjs';
 
 // One logical writer delegates only its atomic generation work. Network reads,
 // request admission and their shared quotas remain in the API process.
-export async function activityGenerationTask(store,operation,{generation,signal,createWorker=(url,options)=>new Worker(url,options)}={}) {
+export async function activityGenerationTask(store,operation,{generation,signal,rebuildWindow,createWorker=(url,options)=>new Worker(url,options)}={}) {
   if(!['begin','publish','topics','stories'].includes(operation)||operation!=='begin'&&(!Number.isSafeInteger(generation)||generation<1))throw new Error('Invalid activity generation operation.');
   signal?.throwIfAborted();
   if(store.db.isTransaction||store.generationTaskActive)throw new Error('An activity generation operation is already active.');
-  store.assertWriter();store.generationTaskActive=true;
+  store.assertWriter();const buildNow=topicBuildWindowOpen(store.clock(),rebuildWindow);
+  if(['topics','stories'].includes(operation)&&!buildNow){store.set('topicProjectionDirty',true);return {deferred:true,generation};}
+  store.generationTaskActive=true;
   const elapsed=loopTimer('activity-generation');
   try {
     let value;
-    for(const step of operation==='publish'?['publish','topics']:[operation]){
+    for(const step of operation==='publish'?['publish',...(buildNow?['topics']:[])]:[operation]){
     signal?.throwIfAborted();
+    if(['topics','stories'].includes(step)&&!topicBuildWindowOpen(store.clock(),rebuildWindow)){store.set('topicProjectionDirty',true);continue;}
     value=await new Promise((resolve,reject)=>{
-      let thread,result,failure,complete=false;
+      let thread,result,failure,windowTimer,complete=false;
       try {thread=createWorker(new URL('./activity-generation-worker.mjs',import.meta.url),{...(['topics','stories'].includes(step)?{resourceLimits:{maxOldGenerationSizeMb:26,maxYoungGenerationSizeMb:2}}:{}),workerData:{directory:path.dirname(store.filename),owner:store.owner,operation:step,generation}});}
       catch(error){reject(error);return;}
+      if(['topics','stories'].includes(step)){const remaining=topicBuildWindowRemaining(store.clock(),rebuildWindow);if(Number.isFinite(remaining)){windowTimer=setTimeout(()=>{failure=new Error('Topic rebuild window closed.');void thread.terminate();},remaining);windowTimer.unref();}}
       const abort=()=>{failure=signal.reason||new Error('Activity generation operation aborted.');void thread.terminate();};
       thread.on('message',message=>{
         if(message?.type==='complete'){result=message.value;complete=true;}
@@ -27,7 +32,7 @@ export async function activityGenerationTask(store,operation,{generation,signal,
       // Never release the logical lease or resume writes before the thread has
       // exited and SQLite has committed or rolled back its transaction.
       thread.once('exit',code=>{
-        signal?.removeEventListener('abort',abort);
+        clearTimeout(windowTimer);signal?.removeEventListener('abort',abort);
         if(failure)reject(failure);
         else if(code!==0||!complete)reject(new Error('Activity generation operation exited without completion.'));
         else resolve(result);
@@ -40,6 +45,7 @@ export async function activityGenerationTask(store,operation,{generation,signal,
     // an expired or replaced owner must reacquire on a later ordinary tick.
     if(!store.renew())throw new Error('Activity-index writer lease was lost.');
     }
+    if(operation==='publish'&&!buildNow)store.set('topicProjectionDirty',true);
     return value;
   } finally {store.generationTaskActive=false;store.invalidateMemberProfiles?.();elapsed({operation});}
 }

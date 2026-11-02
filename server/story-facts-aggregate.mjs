@@ -29,14 +29,13 @@ export async function finishStoryProjection(store,generation){
  for(const table of ['story_scope_records','story_scope_counts','story_rank','story_place_rank','story_map_groups']){
   let n;do{store.transaction(()=>{store.assertWriter();n=db.prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE generation=? LIMIT 500)`).run(generation).changes;});store.renew();await new Promise(setImmediate);}while(n);
  }
- const bulk=(sql,...args)=>store.generationTransaction(()=>{store.assertWriter();return db.prepare(sql).run(...args);});
  const insert=db.prepare('INSERT OR IGNORE INTO story_scope_records VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
  const topicKeys=db.prepare('SELECT key FROM story_topics WHERE generation=? AND kind=? AND id=?');
  const add=(scope,key,askers,kind,id,date,{meps=0,urgency=0,primary=0,home=0,elsewhere=0,unknown=0,known=0,tallies=0,votes=null,margin=null,period=date?quarter(date):''}={})=>insert.run(generation,scope,key,askers,kind,id,period,date,meps,urgency,primary,home,elsewhere,unknown,1,known,tallies,votes,margin);
  await topicBatches(store,(function*(){for(const row of db.prepare('SELECT kind,id,date,body FROM story_facts WHERE generation=? ORDER BY kind,id').iterate(generation)){
   yield;const f=JSON.parse(row.body);if(row.kind==='debate'&&f.procedural)continue;
   const places=row.kind==='debate'?f.places.map(p=>p.id):f.places,topics=topicKeys.all(generation,row.kind,row.id).map(r=>r.key);
-  for(const [scope,key] of lanes(places,topics))for(const askers of ['all','elsewhere']){
+  for(const [scope,key] of lanes(places,topics))for(const askers of ['all','elsewhere','not-home']){
    if(row.kind==='debate')add(scope,key,askers,'debate',row.id,row.date,{meps:f.meps,known:Number(Boolean(f.agendaClassified)),urgency:Number(f.format==='urgency'),primary:Number(Boolean(f.primaryPlace&&(scope==='place'?key===f.primaryPlace:scope!=='map'||key==='world'||eu.has(f.primaryPlace))))});
    else {
     add(scope,key,askers,'document',row.id,row.date,{known:Number(f.outcomeStatus==='known')});
@@ -51,8 +50,8 @@ export async function finishStoryProjection(store,generation){
  const questionTopics=db.prepare("SELECT m.key FROM record_topic_memberships m JOIN record_topic_concepts c ON c.generation=m.generation AND c.key=m.key WHERE m.generation=? AND m.record_id=? AND c.role IN ('topic','keyword')");
  await topicBatches(store,(function*(){for(const r of db.prepare("SELECT id,date FROM record_topic_records WHERE generation=? AND kind='question' AND date BETWEEN '2024-07-16' AND ? ORDER BY date,id").iterate(generation,end)){
   yield;const places=questionPlaces.all(generation,r.id),topics=questionTopics.all(generation,r.id).map(x=>x.key);
-  for(const askers of ['all','elsewhere']){
-   const selected=places.filter(p=>askers==='all'||p.askers==='elsewhere');
+  for(const askers of ['all','elsewhere','not-home']){
+   const selected=places.filter(p=>askers==='all'||(askers==='not-home'?p.askers!=='home':p.askers==='elsewhere'));
    for(const [scope,key] of lanes(selected.map(p=>p.id),askers==='all'||selected.length?topics:[])){
     const relevant=selected.filter(p=>scope==='place'?p.id===key:scope==='map'&&key==='eu'?eu.has(p.id):true),flags={home:0,elsewhere:0,unknown:0};for(const p of relevant)flags[p.askers]++;
     add(scope,key,askers,'question',r.id,r.date,flags);
@@ -60,21 +59,24 @@ export async function finishStoryProjection(store,generation){
   }
  }} )());
  // A joint text replaces only originals that also qualify for this same scope.
- bulk(`UPDATE story_scope_records AS original SET canonical=0 WHERE generation=? AND kind IN ('document','adopted') AND EXISTS(SELECT 1 FROM story_links l JOIN story_scope_records joint ON joint.generation=l.generation AND joint.scope=original.scope AND joint.key=original.key AND joint.askers=original.askers AND joint.kind='document' AND joint.id=l.from_id WHERE l.generation=original.generation AND l.relation='document-original' AND l.to_id=original.id)`,generation);store.renew();await new Promise(setImmediate);
+ const lanesRead=db.prepare('SELECT DISTINCT scope,key,askers FROM story_scope_records WHERE generation=? ORDER BY scope,key,askers');
+ await topicBatches(store,(function*(){for(const lane of lanesRead.iterate(generation)){yield;for(const row of db.prepare(`SELECT kind,id FROM story_scope_records AS original WHERE generation=? AND scope=? AND key=? AND askers=? AND kind IN ('document','adopted') AND EXISTS(SELECT 1 FROM story_links l JOIN story_scope_records joint ON joint.generation=l.generation AND joint.scope=original.scope AND joint.key=original.key AND joint.askers=original.askers AND joint.kind='document' AND joint.id=l.from_id WHERE l.generation=original.generation AND l.relation='document-original' AND l.to_id=original.id)`).iterate(generation,lane.scope,lane.key,lane.askers)){yield;db.prepare('UPDATE story_scope_records SET canonical=0 WHERE generation=? AND scope=? AND key=? AND askers=? AND kind=? AND id=?').run(generation,lane.scope,lane.key,lane.askers,row.kind,row.id);}}})());
  const aggregate=()=>`json_object('questions',SUM(kind='question'),'questionMentions',SUM(home+elsewhere+unknown),'questionHome',SUM(home),'questionElsewhere',SUM(elsewhere),'questionUnknown',SUM(unknown),'documents',SUM(kind='document'),'documentsWithKnownOutcome',SUM(kind='document' AND known=1),'documentsWithUnknownOutcome',SUM(kind='document' AND known=0),'adoptedTexts',SUM(kind='adopted'),'adoptedTextsWithTallies',SUM(kind='adopted' AND tallies=1),'adoptedTextsUndated',SUM(kind='adopted' AND date=''),'debates',SUM(kind='debate'),'debatesWithUnknownAgenda',SUM(kind='debate' AND known=0),'debates3Plus',SUM(kind='debate' AND meps>=3),'urgencyDebates',SUM(kind='debate' AND urgency=1),'urgencyDebates3Plus',SUM(kind='debate' AND urgency=1 AND meps>=3),'debateSpeakerAppearances',SUM(CASE WHEN kind='debate' THEN meps ELSE 0 END),'debateSpeakerAppearances3Plus',SUM(CASE WHEN kind='debate' AND meps>=3 THEN meps ELSE 0 END),'groups',0)`;
- bulk(`INSERT INTO story_scope_counts SELECT generation,scope,key,askers,period,${aggregate()} FROM story_scope_records INDEXED BY story_count_input WHERE generation=? AND canonical=1 AND period<>'' GROUP BY scope,key,askers,period`,generation);
- bulk(`INSERT INTO story_scope_counts SELECT generation,scope,key,askers,'',${aggregate()} FROM story_scope_records INDEXED BY story_count_input WHERE generation=? AND canonical=1 GROUP BY scope,key,askers`,generation);store.renew();await new Promise(setImmediate);
+ await topicBatches(store,(function*(){for(const lane of lanesRead.iterate(generation)){
+  const args=[generation,lane.scope,lane.key,lane.askers];yield;db.prepare(`INSERT INTO story_scope_counts SELECT generation,scope,key,askers,period,${aggregate()} FROM story_scope_records INDEXED BY story_count_input WHERE generation=? AND scope=? AND key=? AND askers=? AND canonical=1 AND period<>'' GROUP BY period`).run(...args);
+  yield;db.prepare(`INSERT INTO story_scope_counts SELECT generation,scope,key,askers,'',${aggregate()} FROM story_scope_records INDEXED BY story_count_input WHERE generation=? AND scope=? AND key=? AND askers=? AND canonical=1 GROUP BY scope,key,askers`).run(...args);
+ }})(),10);
  const zero=JSON.stringify(emptyStoryCounts()),putGroups=db.prepare("INSERT INTO story_scope_counts VALUES (?,?,?,?,?,json_set(?,'$.groups',?)) ON CONFLICT(generation,scope,key,askers,period) DO UPDATE SET body=json_set(story_scope_counts.body,'$.groups',?)");
- for(const [askers,table] of [['all','record_topic_group_summary'],['elsewhere','record_topic_filtered_groups']]){
-  await topicBatches(store,(function*(){for(const r of db.prepare(`SELECT s.key,s.period,s.groups,c.role FROM ${table} s JOIN record_topic_concepts c ON c.generation=s.generation AND c.key=s.key WHERE s.generation=? ${askers==='all'?'':"AND s.askers='elsewhere'"} AND c.role IN ('topic','keyword','place')`).iterate(generation)){
+ for(const [askers,table] of [['all','record_topic_group_summary'],['elsewhere','record_topic_filtered_groups'],['not-home','record_topic_filtered_groups']]){
+  await topicBatches(store,(function*(){for(const r of db.prepare(`SELECT s.key,s.period,s.groups,c.role FROM ${table} s JOIN record_topic_concepts c ON c.generation=s.generation AND c.key=s.key WHERE s.generation=? ${askers==='all'?'':`AND s.askers='${askers}'`} AND c.role IN ('topic','keyword','place')`).iterate(generation)){
    yield;putGroups.run(generation,r.role==='place'?'place':'topic',r.role==='place'?r.key.slice(6):r.key,askers,r.period,zero,r.groups,r.groups);
   }} )());
  }
- for(const zoom of ['world','eu'])for(const askers of ['all','elsewhere']){
-  const geo=zoom==='eu'?" AND substr(m.key,7) IN (SELECT value FROM json_each(?))":'',filter=askers==='elsewhere'?" AND (m.kind<>'question' OR EXISTS(SELECT 1 FROM record_topic_question_places q WHERE q.generation=m.generation AND q.record_id=m.record_id AND q.key=m.key AND q.askers='elsewhere'))":'',args=[generation,zoom,askers,generation,end,...(zoom==='eu'?[JSON.stringify(europe.ids)]:[])];
+ for(const zoom of ['world','eu'])for(const askers of ['all','elsewhere','not-home']){
+  const geo=zoom==='eu'?" AND substr(m.key,7) IN (SELECT value FROM json_each(?))":'',filter=askers!=='all'?` AND (m.kind<>'question' OR EXISTS(SELECT 1 FROM record_topic_question_places q WHERE q.generation=m.generation AND q.record_id=m.record_id AND q.key=m.key AND q.askers ${askers==='not-home'?"IN ('elsewhere','unknown')":"='elsewhere'"}))`:'',args=[generation,end,...(zoom==='eu'?[JSON.stringify(europe.ids)]:[])];
   const where=`FROM record_topic_memberships m WHERE m.generation=? AND m.key LIKE 'place:%' AND m.kind IN ('question','document','debate','speech','vote') AND m.date BETWEEN '2024-07-16' AND ?${geo}${filter}`;
-  bulk(`INSERT OR IGNORE INTO story_map_groups SELECT ?,?,?,substr(m.date,1,4)||'-Q'||CAST((CAST(substr(m.date,6,2) AS INTEGER)+2)/3 AS INTEGER),m.group_key ${where}`,...args);
-  bulk(`INSERT OR IGNORE INTO story_map_groups SELECT ?,?,?,'',m.group_key ${where}`,...args);store.renew();await new Promise(setImmediate);
+  const insertMap=db.prepare('INSERT OR IGNORE INTO story_map_groups VALUES (?,?,?,?,?)');
+  await topicBatches(store,(function*(){for(const r of db.prepare(`SELECT DISTINCT substr(m.date,1,4)||'-Q'||CAST((CAST(substr(m.date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,m.group_key ${where}`).iterate(...args)){yield;insertMap.run(generation,zoom,askers,r.period,r.group_key);insertMap.run(generation,zoom,askers,'',r.group_key);}})());
  }
  for(const r of db.prepare('SELECT zoom,askers,period,COUNT(*) n FROM story_map_groups WHERE generation=? GROUP BY zoom,askers,period').iterate(generation))putGroups.run(generation,'map',r.zoom,r.askers,r.period,zero,r.n,r.n);
  const rank=db.prepare('INSERT OR REPLACE INTO story_rank VALUES (?,?,?,?,?,?,?,?,?,?,?)');

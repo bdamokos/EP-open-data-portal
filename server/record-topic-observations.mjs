@@ -22,7 +22,7 @@ export function* topicObservationSteps(observations,{map=()=>new Map(),stream=fa
   const event=Boolean(w.activity_id&&!speech);
   if(event){
    const values=eventFields.get(id)||{};
-   for(const field of fields){if(projection==='embedded-event'&&!Object.hasOwn(w,field))continue;const value=refs(w[field]).sort(),old=values[field];if(!old||at(s)>at(old.source))saveField(values,field,{value,source:s,procedureIds:arr(w[field]).filter(v=>/(?:^|\/)eli\/dl\/proc\//.test(String(v?.id||v))).map(tail)});else if(at(s)===at(old.source)&&JSON.stringify(value)!==JSON.stringify(old.value))saveField(values,field,{...old,conflicted:true});}
+   for(const field of fields){if(!Object.hasOwn(w,field))continue;const value=refs(w[field]).sort(),old=values[field];if(!old||at(s)>at(old.source))saveField(values,field,{value,source:s,procedureIds:arr(w[field]).filter(v=>/(?:^|\/)eli\/dl\/proc\//.test(String(v?.id||v))).map(tail)});else if(at(s)===at(old.source)&&JSON.stringify(value)!==JSON.stringify(old.value))saveField(values,field,{...old,conflicted:true});}
    eventFields.set(id,values);
   }
   const map=projection==='outside-agenda'?compact:latest,old=map.get(id);
@@ -52,7 +52,7 @@ export function* topicObservationSteps(observations,{map=()=>new Map(),stream=fa
   }
  }
  function event(id,s){if(!nodes.has(id))nodes.set(id,{id,kind:'event',titles:{},source:s});return nodes.get(id);}
- for(const [id,values] of eventFields){yield;const e=event(id,Object.values(values)[0]?.source);e.conflicted=Object.values(values).some(v=>v.conflicted);const executed=values.executed;e.executed=e.conflicted?[]:executed?.value||[];e.executedSource=executed?.source;nodes.set(id,e);}
+ for(const [id,values] of eventFields){yield;const e=event(id,Object.values(values)[0]?.source);e.conflicted=Object.values(values).some(v=>v.conflicted);const executed=values.executed;e.executed=e.conflicted?[]:executed?.value||[];e.executedSource=executed?.source;e.executedKnown=Boolean(executed);nodes.set(id,e);}
  function documentEdge(eventId,docId,field,s){
   const e=event(eventId,s),own=eventFields.get(eventId)?.based_on_a_realization_of,doc=latest.get(docId);if(e.conflicted||doc?.conflicted)return;
   if(own&&at(own.source)>=at(s)&&!own.value.includes(docId))return;

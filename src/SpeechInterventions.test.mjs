@@ -52,6 +52,19 @@ test('every contribution opens from its header while type badges remain informat
     await act(async()=>button.click());
     assert.equal(button.getAttribute('aria-expanded'),'false');assert.equal(container.querySelector('.intervention-connected-text'),null);
   }
+  // Opening a later contribution closes the earlier one; the tapped header stays where it was on screen.
+  const [first,second]=entries.map(entry=>entry.querySelector('.intervention-read'));
+  await act(async()=>first.click());
+  const tops=[600,200];second.getBoundingClientRect=()=>({top:tops.shift()??200});
+  const scrolls=[];window.scrollBy=(x,y)=>scrolls.push(y);
+  await act(async()=>second.click());
+  assert.equal(second.getAttribute('aria-expanded'),'true');assert.deepEqual(scrolls,[-400]);
+  // A header tapped at the bottom edge reveals the opening lines of its contribution.
+  const third=entries[2].querySelector('.intervention-read');scrolls.length=0;
+  const originalRect=window.HTMLElement.prototype.getBoundingClientRect;
+  window.HTMLElement.prototype.getBoundingClientRect=function(){return this.id ? {top:window.innerHeight-20,bottom:window.innerHeight+200} : originalRect.call(this);};
+  try{await act(async()=>third.click());}finally{window.HTMLElement.prototype.getBoundingClientRect=originalRect;}
+  assert.equal(third.getAttribute('aria-expanded'),'true');assert.deepEqual(scrolls,[140]);
 });
 
 test('procedural notes explain later contributions without speech controls, while trailing notes are omitted',async t=>{

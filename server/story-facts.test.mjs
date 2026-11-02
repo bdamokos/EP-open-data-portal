@@ -33,7 +33,7 @@ test('unlabelled whole motions and show-of-hands decisions preserve unknown tall
  assert.equal(o.decisionId,'hand');assert.equal(o.decisionMethod,'VOTE_HAND');assert.equal(o.for,null);assert.equal(o.against,null);assert.equal(o.abstentions,null);assert.equal(wholeTextOutcome(doc,[]).outcome,null);
 });
 test('agenda links and country claims withhold ambiguous and incidental associations',()=>{
- const docs=[{events:['MTG-PL-2025-03-12-OJ-ITM-D-1']}];assert.equal(debateAgenda(null,docs).agendaVia,'document');
+ const docs=[{events:['MTG-PL-2025-03-12-OJ-ITM-D-1']}];assert.equal(debateAgenda(null,docs).agendaVia,'document');assert.equal(debateAgenda({executed:[],executedKnown:false},docs).agendaVia,'document');assert.equal(debateAgenda({executed:[],executedKnown:true},docs).agendaId,null);
  assert.equal(debateAgenda({executed:['OJ-ITM-D-2']},docs).agendaId,'OJ-ITM-D-2');assert.equal(debateAgenda({executed:['OJ-ITM-D-2','OJ-ITM-D-3']},docs).agendaId,null);assert.equal(debateAgenda(null,[...docs,{events:['MTG-PL-2025-03-12-OJ-ITM-D-2']}]).agendaId,null);
  assert.deepEqual(debatePlaces('Support for Ukraine',['UKR','HUN'],null).places.map(p=>p.id),['UKR']);assert.equal(debatePlaces('The steel market',['UKR'],'report').places.length,0);assert.equal(debatePlaces('Human rights',['IRN'],'urgency').primaryPlace,'IRN');assert.equal(debatePlaces('Human rights',['IRN','UKR'],'urgency').places.length,0);
 });
@@ -47,13 +47,13 @@ test('story projection links exact records, excludes institutions and statements
  for(const [id,type,groups,extra] of [['B-10-2025-0010','RESOLUTION_MOTION',['PPE'],{}],['B-10-2025-0011','RESOLUTION_MOTION',['ECR'],{}],[joint,'RESOLUTION_MOTION_JOINT',['RENEW'],{is_derivative_of:['eli/dl/doc/B-10-2025-0010','eli/dl/doc/B-10-2025-0011'],inverse_based_on_a_realization_of:['eli/dl/event/'+debate,'eli/dl/event/'+agenda]}]])store.putSource(1,'/plenary-documents/'+id,'document',makeDoc(id,type,groups,extra),stamp);
  stageStoryInput(store,{activity_id:agenda,activity_date:day,activity_label:{en:'Support for Ukraine'},headingLabel:{en:'Joint debate - Support for Ukraine'},structuredContent:{en:'<root><type>Council and Commission statements</type></root>'},inverse_was_scheduled_in:['eli/dl/proc/'+proc]},source,{rank:4});
  stageStoryInput(store,{activity_id:debate,activity_date:day,executed:['eli/dl/event/'+agenda]},source,{rank:4});
- stageStoryInput(store,{activity_id:vote,consists_of:['eli/dl/event/'+decision]},source,{rank:4});
+ stageStoryInput(store,{activity_id:vote,activity_date:day,consists_of:['eli/dl/event/'+decision]},source,{rank:4});
  stageStoryInput(store,{activity_id:decision,activity_date:day,inverse_consists_of:['eli/dl/event/'+vote],activity_label:{en:'RC-B10-0010/2025 – Motion for a resolution (as a whole)'},decision_outcome:'def/ep-decision-outcomes/ADOPTED',decision_method:'def/ep-decision-methods/VOTE_HAND'},source,{rank:4});
  for(const [n,person,kind,capacity,role] of [[1,'1','PLENARY_DEBATE_SPEECH',null,null],[2,'2','PLENARY_DEBATE_SPEECH','commission',null],[3,'3','PLENARY_DEBATE_WRITTEN_STATEMENT',null,null],[4,'4','PLENARY_DEBATE_SPEECH',null,'CHAIR'],[5,'1','PLENARY_DEBATE_SPEECH',null,null]]){
   const id='MTG-PL-'+day+'-OTH-'+n;store.putSource(1,'/speeches/'+id,'speech',{outside:{id,date:day,titles:{en:'1. Support for Ukraine (debate)'},participants:[person],parentIds:[debate],parentDocumentIds:['CRE-10-'+day+'-ITM-001'],parentDocumentId:'CRE-10-'+day+'-ITM-001',headers:[{personId:person,capacity}],source}},stamp);
   store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+id,id,person,'plenary-contributions',day,JSON.stringify({speechKind:kind,speechRole:role}));
  }
- await buildTopics(store);const result=storyFacts(store,new URLSearchParams('scope=place&key=place:UKR&period=2025-Q1'));
+ await buildTopics(store);assert.equal(new RecordTopics(store).record(vote,'en').kind,'vote');const result=storyFacts(store,new URLSearchParams('scope=place&key=place:UKR&period=2025-Q1'));
  const keywordStory=storyFacts(store,new URLSearchParams('scope=topic&key=eurovoc:245'));assert.equal(keywordStory.debates.length,1);assert.equal(keywordStory.docs.length,3,'topic joins are ready on the first full build');
  assert(result.ready);assert.equal(result.debates.length,1);const d=result.debates[0];assert.equal(d.meps,1);assert.equal(d.speeches,2);assert.equal(d.agendaVia,'executed');assert.equal(d.format,'council-commission');assert.equal(d.creId,'CRE-10-'+day+'-ITM-001');assert.deepEqual(d.places.map(p=>p.id),['UKR']);assert.deepEqual(d.procedures,[proc]);assert.equal(new RecordTopics(store).record('MTG-PL-'+day+'-OTH-1','en').places.find(p=>p.id==='UKR').basis,'title','inherited title places never become official classifications');
  const j=result.docs.find(d=>d.id===joint);assert.deepEqual(j.groups,['RENEW']);assert.equal(j.outcome.decisionId,decision);assert.equal(j.outcome.for,null);assert.equal(result.docs.find(d=>d.id==='B-10-2025-0010').outcome,null);
@@ -236,4 +236,33 @@ test('place evidence fetches the exact two primary-first leaders and the qualifi
  const q1=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q1'));assert.deepEqual(q1.winners.leadingPlaceDebates3Plus.map(r=>r.id),[ids[1],ids[2],ids[3]]);assert(q1.winners.leadingPlaceDebates3Plus.every(r=>r.primaryPlace));assert.equal(q1.winners.busiestDebates[0].id,ids[4]);
  const q2=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q2'));assert.equal(q2.winners.headlineAdoptedTexts[0].id,'B-10-2025-0001');assert.deepEqual(q2.winners.headlineAdoptedTexts3Plus,[]);
  store.db.prepare('INSERT INTO story_links VALUES (?,?,?,?)').run(1,'debate-document',ids[2],'B-10-2025-0001');await finishStoryProjection(store,1);const qualified=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q2'));assert.deepEqual(qualified.winners.headlineAdoptedTexts3Plus,[{id:'B-10-2025-0001',debateMeps:20,votesFor:10}]);
+});
+
+test('not-home story questions combine elsewhere and unknown without changing their flags',async t=>{
+ const {store}=await fixture(t);store.setMembers([{id:'1',countryCode:'GR'},{id:'2',countryCode:'CY'}]);
+ for(const [n,mep] of [[1,'1'],[2,'2'],[3,'99']])store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/questions/E-10-2025-00000'+n,'E-10-2025-00000'+n,mep,'written-questions','2025-03-12',JSON.stringify({titles:{en:'Greece'}}));await buildTopics(store);
+ const read=askers=>storyFacts(store,new URLSearchParams({scope:'place',key:'GRC',askers,list:'questions',period:'2025-Q1'}));const all=read('all'),away=read('not-home');assert.equal(away.counts.questions,all.counts.questions-all.counts.questionHome);assert.equal(away.counts.questions,2);assert.equal(away.counts.questionHome,0);assert.equal(away.counts.questionElsewhere,1);assert.equal(away.counts.questionUnknown,1);assert.equal(away.page.total,2);assert.deepEqual(new Set(away.questions.map(q=>q.askers.GRC)),new Set(['elsewhere','unknown']));assert.equal(read('elsewhere').counts.questions,1);
+});
+
+test('stories use reconciled document-event edges and preserve absent versus empty executed',async t=>{
+ const day='2025-03-12',debate='MTG-PL-'+day+'-PVCRE-ITM-1',agenda='MTG-PL-'+day+'-OJ-ITM-D-1',vote='MTG-PL-'+day+'-VOT-ITM-1',doc='B-10-2025-0010',decision='MTG-PL-'+day+'-DEC-1';
+ for(const scenario of ['fallback','empty-executed','event-retracted','document-retracted'])await t.test(scenario,async t=>{
+  const {store}=await fixture(t),old={...source,fetchedAt:'2026-10-01T12:00:00Z'},newer={...source,fetchedAt:'2026-10-02T12:00:00Z'};
+  const work={identifier:doc,work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'Ukraine'},is_about:[geo('UKR')],inverse_based_on_a_realization_of:(scenario==='document-retracted'?[]:[debate,agenda,vote]).map(id=>'eli/dl/event/'+id)};
+  store.putSource(1,'/plenary-documents/'+doc,'document',work,scenario==='document-retracted'?newer.fetchedAt:old.fetchedAt);
+  const retracted=scenario==='event-retracted';for(const id of [debate,vote])stageStoryInput(store,{activity_id:id,activity_date:day,based_on_a_realization_of:retracted?[]:['eli/dl/doc/'+doc],...(scenario==='empty-executed'&&id===debate?{executed:[]}:{}),...(id===vote?{consists_of:['eli/dl/event/'+decision]}:{})},retracted?newer:old,{rank:4});
+  stageStoryInput(store,{activity_id:agenda,activity_date:day,structuredContent:{en:'<type>Commission statement</type>'}},old,{rank:4});
+  stageStoryInput(store,{activity_id:decision,inverse_consists_of:['eli/dl/event/'+vote],activity_label:{en:'B10-0010/2025 – Motion for a resolution (as a whole)'},decision_outcome:'def/ep-decision-outcomes/ADOPTED'},old,{rank:4});
+  const speech='MTG-PL-'+day+'-OTH-1';store.putSource(1,'/speeches/'+speech,'speech',{outside:{id:speech,date:day,titles:{en:'Ukraine'},participants:['1'],parentIds:[debate],headers:[],source:old}},old.fetchedAt);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+speech,speech,'1','plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));
+  await buildTopics(store,{cache:null});const result=storyFacts(store,new URLSearchParams('scope=place&key=UKR'));
+  const d=result.debates[0],body=JSON.parse(store.db.prepare("SELECT body FROM story_facts WHERE generation=1 AND kind='document' AND id=?").get(doc).body);
+  if(scenario==='fallback'){assert.equal(d.agendaId,agenda);assert.equal(d.agendaVia,'document');assert.equal(body.outcomeStatus,'known');}
+  else {assert.equal(d.agendaId,null);if(scenario==='empty-executed')assert(d.docs.includes(doc));else {assert(!d.docs.includes(doc));assert(!body.events.includes(debate));assert(!body.events.includes(vote));assert.equal(body.outcome,null);assert.equal(body.outcomeStatus,'unknown');}}
+ });
+});
+
+
+test('retained story shapes gain new fields without inventing a same-source conflict',async t=>{
+ const {store}=await fixture(t),id='MTG-PL-2025-03-12-VOT-ITM-1',work={activity_id:id,activity_date:'2025-03-12',based_on_a_realization_of:['eli/dl/doc/B-10-2025-0010']};stageStoryInput(store,work,source,{rank:2});const get=()=>JSON.parse(store.db.prepare("SELECT body FROM story_inputs WHERE kind='result' AND id=?").get(id).body),old=get();delete old.date;delete old.type;delete old.relationships;store.db.prepare("UPDATE story_inputs SET body=? WHERE kind='result' AND id=?").run(JSON.stringify(old),id);
+ stageStoryInput(store,work,source,{rank:2});assert.equal(get().conflicted,undefined);assert.equal(get().date,'2025-03-12');assert.equal(get().type,'PLENARY_VOTE_RESULTS');stageStoryInput(store,{...work,based_on_a_realization_of:[]},source,{rank:2});assert.equal(get().conflicted,true);
 });

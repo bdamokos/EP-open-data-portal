@@ -181,5 +181,21 @@ test('publication exits before a memory-bounded topics follow-up under the same 
   else {assert.equal(store.get('active'),cycle.generation);assert.equal(store.get('working'),null);assert.deepEqual(options.resourceLimits,{maxOldGenerationSizeMb:26,maxYoungGenerationSizeMb:2});}
   queueMicrotask(()=>{if(step==='publish')store.finalize(cycle.generation);thread.emit('message',{type:'complete',value:step});thread.emit('exit',0);});return thread;
  };
- assert.equal(await run(t,store,'publish',{generation:cycle.generation,createWorker}).promise,'topics');assert.deepEqual(steps,['publish','topics']);store.assertWriter();assert.equal(store.generationTaskActive,false);
+ assert.equal(await run(t,store,'publish',{generation:cycle.generation,createWorker,rebuildWindow:'00:00-24:00'}).promise,'topics');assert.deepEqual(steps,['publish','topics']);store.assertWriter();assert.equal(store.generationTaskActive,false);
+});
+
+
+test('daytime publication defers graph work while retaining dirty input state',async t=>{
+ const {store}=fixture(t),cycle=store.beginCycle();store.clock=()=>Date.parse('2026-11-02T11:00:00Z');store.acquire();const steps=[];const createWorker=(_url,options)=>{const thread=new EventEmitter();steps.push(options.workerData.operation);queueMicrotask(()=>{store.finalize(cycle.generation);thread.emit('message',{type:'complete',value:'published'});thread.emit('exit',0);});return thread;};
+ assert.equal(await run(t,store,'publish',{generation:cycle.generation,createWorker}).promise,'published');assert.deepEqual(steps,['publish']);assert(store.get('topicProjectionDirty'));assert.deepEqual(await run(t,store,'topics',{generation:cycle.generation,createWorker:()=>assert.fail('daytime graph worker started')}).promise,{deferred:true,generation:cycle.generation});store.assertWriter();
+});
+
+test('a graph build that reaches the window boundary exits without publishing',async t=>{
+ const {store}=fixture(t);store.clock=()=>Date.parse('2026-11-02T03:59:59.999Z');store.acquire();store.set('active',1);let terminated=false;const createWorker=()=>{const thread=new EventEmitter();thread.terminate=async()=>{terminated=true;queueMicrotask(()=>thread.emit('exit',1));};return thread;},keepAlive=setTimeout(()=>{},100);
+ try{await assert.rejects(run(t,store,'topics',{generation:1,createWorker}).promise,/window closed/);}finally{clearTimeout(keepAlive);}assert(terminated);assert.equal(store.get('recordTopicProjection'),null);store.assertWriter();assert.equal(store.generationTaskActive,false);
+});
+
+
+test('core publication finishing after the window does not start its graph follow-up',async t=>{
+ const {store}=fixture(t);let now=Date.parse('2026-11-02T03:59:59Z');store.clock=()=>now;store.acquire();const cycle=store.beginCycle(),steps=[];const createWorker=(_url,options)=>{const thread=new EventEmitter();steps.push(options.workerData.operation);queueMicrotask(()=>{store.finalize(cycle.generation);now+=2000;thread.emit('message',{type:'complete',value:'published'});thread.emit('exit',0);});return thread;};assert.equal(await run(t,store,'publish',{generation:cycle.generation,createWorker}).promise,'published');assert.deepEqual(steps,['publish']);assert(store.get('topicProjectionDirty'));
 });

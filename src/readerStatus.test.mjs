@@ -155,17 +155,47 @@ test('a mismatched response identifier is announced as unavailable instead of re
 });
 
 
+test('question readers show the answerer and omit the page viewer and a redundant language picker',async t=>{
+  const h=await harness(t),answer=questionId+'-ASW';
+  await h.render(h.reader('question',{id:answer}));
+  const result=question(answer);
+  await h.finish(`document/${answer}?lang=en`,{...result,answerer:{institution:'org/EU_COMMISSION',signatory:{statement:'High Representative/Vice-President Kallas',title:'High Representative/Vice-President',name:'Kallas',onBehalfOf:'European Commission',language:'en',sourceUrl:null}}});await h.wait();
+  assert.equal(h.container.querySelector('select'),null,'the interface-language edition needs no picker');
+  assert.equal(h.container.querySelector('.document-pages'),null);
+  const answerer=h.container.querySelector('.question-answerer');
+  assert.equal(answerer.textContent,'Answered by: High Representative/Vice-President Kallas, European Commission');
+  assert.equal(answerer.querySelector('span[lang="en"]').textContent,'High Representative/Vice-President Kallas');
+  await h.render(null);
+  // A requested edition other than the interface language keeps the picker.
+  await h.render(h.reader('question',{id:answer,language:'fr'}));
+  await h.finish(`document/${answer}?lang=fr`,question(answer,'fr'));await h.wait();
+  assert(h.container.querySelector('select'),'French text under an English interface offers other editions');
+});
+
+test('a focused question language picker survives an uncached language request',async t=>{
+  const h=await harness(t);
+  await h.render(h.reader('question',{language:'hu'}));
+  await h.finish(`document/${questionId}?lang=hu`,question());await h.wait();
+  const select=h.container.querySelector('select');
+  await act(async()=>{select.focus();select.value='fr';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+  assert.equal(h.container.querySelector('select'),select,'the picker stays while the French edition loads');assert.equal(document.activeElement,select);
+  await h.finish(`document/${questionId}?lang=fr`,question(questionId,'fr'));await h.wait();
+  assert.equal(h.container.querySelector('select'),select);assert.equal(document.activeElement,select);assert.equal(select.value,'fr');
+});
+
 test('inline retries recover the same ID and chosen language once, retaining local keyboard focus',async t=>{
   for(const kind of ['question','speech'])await t.test(kind,async t=>{
     const h=await harness(t),id=kind==='question'?questionId:speechId,prefix=kind==='question'?'document':'speech';
-    await h.render(h.reader(kind));
-    await h.finish(`${prefix}/${id}?lang=en`,kind==='question'?question():speech());
+    // Questions offer other languages only when the requested language is unavailable.
+    const requested=kind==='question'?'hu':'en';
+    await h.render(h.reader(kind,{language:requested}));
+    await h.finish(`${prefix}/${id}?lang=${requested}`,kind==='question'?question():speech());
     const select=h.container.querySelector('select');
     await act(async()=>{select.value='fr';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
     const route=`${prefix}/${id}?lang=fr`;
     await h.finish(route,Response.json({error:{code:'upstream_busy',message:'Busy.'}},{status:503}));await h.wait();
     const retry=h.container.querySelector('.reader-retry button'),heading=h.container.querySelector('h3'),section=heading.closest('section');
-    assert(retry,'the failed reader has a local retry');assert.equal(retry.lang,'en');
+    assert(retry,'the failed reader has a local retry');assert.equal(retry.lang,requested);
     const originalSection=section,href=h.window.location.href;section.scrollTop=147;
     assert.equal(h.container.querySelectorAll('[role="status"],[role="alert"]').length,1);
     await act(async()=>{retry.focus();retry.click();retry.click();});

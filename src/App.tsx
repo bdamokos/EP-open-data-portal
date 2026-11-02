@@ -10,6 +10,7 @@ import {UiI18nProvider} from './UiI18nReact';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {DocumentObjectText} from './DocumentObjectText';
 import {DocumentPages} from './DocumentPages';
+import {QuestionAnswerer} from './QuestionAnswerer';
 import {useSpeechTranslation} from './SpeechTranslation';
 import {MemberAffiliation} from './components/MemberAffiliation';
 import {ActivityDossierLinks} from './DossierActivity';
@@ -20,7 +21,7 @@ import {coverageStore} from './SavedControls';
 import {FormerMemberNotice} from './MembershipUpdates';
 import {PersonName,PersonNamesProvider} from './PersonName';
 import {languagePreference} from '../server/language-order.mjs';
-import {TextLanguagePicker,TextLanguageFallback} from './TextLanguagePicker';
+import {TextLanguagePicker,TextLanguageFallback,useRetainedText} from './TextLanguagePicker';
 import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
 import {lazyView} from './lazyView';
 import {filterCountry,matchesCountry} from './countries.mjs';
@@ -31,7 +32,7 @@ import {FindInText,TextSearch} from './TextSearch';
 import {InterventionBadges,SpeechContextPanel,InterventionStatistics,speechCategories,matchesSpeechCategory, speechCategoriesUi} from './SpeechInterventions';
 import type {SpeechCategory} from './SpeechInterventions';
 import {SpeakerName,SpeakerRoleLine} from './SpeakerIdentity';
-import {publicationBody,publicationCoverLogo} from './publication-body.mjs';
+import {publicationBody,publicationCoverLogo,repeatedSubmittedLine} from './publication-body.mjs';
 import {CommitteeMemberships} from './CommitteeMemberships';
 import {ParliamentaryService} from './ParliamentaryService';
 import {ProfileMemberships} from './ProfileMemberships';
@@ -150,8 +151,8 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
   const ui = useUiI18n();
   const c = interfaceCopy(lang);
   const transcriptText=useRef<HTMLDivElement>(null);
-  const translation=useSpeechTranslation(speech.id,transcriptLanguage,lang);
-  const video=useSpeechVideo(speech,lang,translation.originalAudio);
+  const translation=useSpeechTranslation(speech.id,transcriptLanguage);
+  const video=useSpeechVideo(speech,lang);
   const state = translation.state;
   const body=state.transcript;
   const text = useMemo(
@@ -209,23 +210,25 @@ function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member
   if(!people.length)return null;
   return <details className="explorer-coauthors" lang={ui.language}><summary><UiMessage id={people.some(person=>person.role==='QUESTION_AUTHOR') ? "app.questionAuthors" : "app.mepAuthors"} values={{count:people.length}}/></summary><ul>{people.map(person=><li key={person.id} lang="">{(person.id===member) ? <strong><PersonName id={person.id} label={person.name}/></strong> : <a href={coAuthorProfileUrl(lang,person.id)}><PersonName id={person.id} label={person.name}/></a>}</li>)}</ul></details>;
 }
-function PublicationText({ sourceId, member, lang, heading, headingDate, includeAnswers = false,question, showDownloads = true }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string};showDownloads?:boolean }) {
+function PublicationText({ sourceId, member, lang, heading, headingDate, shownDate, includeAnswers = false,question, showDownloads = true }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; shownDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string};showDownloads?:boolean }) {
   const ui = useUiI18n();
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang,sourceId]);
   const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`);
   const text=(state.data?.selectedDocumentId===sourceId) ? state.data.selectedText : null;
   const questionDocument=/^[EPHO]-\d+-\d{4}-\d+(?:-ASW)?$/.test(sourceId);
+  const pickerText=useRetainedText(sourceId,text);
   const files=sourceId.endsWith('-ASW') ? (state.data?.answers.find(answer=>answer.id===sourceId)?.files||[]) : (state.data?.files||[]);
-  const body=publicationBody(text?.paragraphs||[],sourceId,text?.textLanguage),notePrefix='notes'+useId().replace(/[^A-Za-z0-9_-]/g,'');
+  const body=publicationBody(text?.paragraphs||[],sourceId,text?.textLanguage),repeatedDate=repeatedSubmittedLine(body,sourceId,text?.textLanguage,shownDate),notePrefix='notes'+useId().replace(/[^A-Za-z0-9_-]/g,'');
   const logo=publicationCoverLogo(text,sourceId,text?.textLanguage);
   const notes=text?.notes||[],anchors=body.exact ? (text?.noteAnchors||[]) : ([]),documentLinks=body.exact ? (text?.documentLinks||[]) : ([]);
   const failed=Boolean(state.error||text?.status==='error'||text?.refreshError||state.data&&!text),retryAt=state.retryAt??(text?.nextRetryAt ? Date.parse(text.nextRetryAt) : undefined);
   return <section className="explorer-document-text" lang={ui.language} id={'document-'+sourceId}><RecordTopics id={sourceId} full language={lang}/>
     <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={failed ? ui.t("app.documentStatusUnavailable", {heading: String(heading)}) : (state.data ? ((text?.status==='available') ? ui.t("app.documentStatusLoaded", {heading: String(heading)}) : ui.t("app.documentStatusNoText", {heading: String(heading)})) : null)}/>
-    <div className="explorer-reader-heading"><h3>{headingDate ? <><UiMessage id="batch4.questiontopics.tsx.answer.date" values={{date: <span lang={lang}>{date(headingDate,lang)}</span>}}/></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang={ui.language}><UiMessage id="textsearch.read_question"/></span></a>}{text&&<TextLanguagePicker available={text.availableTextLanguages} requested={lang} value={text.textLanguage} onChange={setRequestedLanguage} visibleLabel={false} title={(text.translationType==='original') ? ui.t("textsearch.original_text") : undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text.textLanguage} interfaceLanguage={lang}/>}/>}</div>
+    <div className="explorer-reader-heading"><h3>{headingDate ? <><UiMessage id="batch4.questiontopics.tsx.answer.date" values={{date: <span lang={lang}>{date(headingDate,lang)}</span>}}/></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang={ui.language}><UiMessage id="textsearch.read_question"/></span></a>}{pickerText&&<TextLanguagePicker show={!questionDocument||pickerText.textLanguage!==ui.language||pickerText.textLanguage!==lang} available={pickerText.availableTextLanguages} requested={lang} value={text ? text.textLanguage : requestedLanguage} onChange={setRequestedLanguage} visibleLabel={false} title={(text?.translationType==='original') ? ui.t("textsearch.original_text") : undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text?.textLanguage??null} interfaceLanguage={lang}/>}/>}</div>
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}><UiMessage id="app.amendments_to_this_document"/></AmendmentTrailLink>}
+    {sourceId.endsWith('-ASW')&&<QuestionAnswerer answerer={state.data?.answerer}/>}
     {state.loading&&!text&&<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}{failed&&!state.loading&&<ReaderRetry message={ui.t("app.text_temporarily_unavailable")} language={lang} retry={state.retry} retryAt={retryAt}/>}
-    {text&&<DocumentPages documentId={sourceId} language={text.textLanguage||requestedLanguage}/>}{(text?.status==='available') ? <ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers showDownloads={showDownloads}/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><DocumentObjectText logo={logo} text={paragraph} paragraph={source} from={from} to={to} final={final} marks={marks} objects={text.documentObjects||[]} assets={text.imageAssets} sourceUrl={text.sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} notePrefix={notePrefix} renderText={(a,b,last)=><AuthorMention text={paragraph.slice(a,b)} offset={a} final={last} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),a,b)} marks={marks} notePrefix={notePrefix}/>}/>}/><DocumentNotes assets={text.imageAssets} notes={notes} prefix={notePrefix}/></div></ReferenceScope> : (text&&!failed&&<p><UiMessage id="batch5.dossiervotetext.tsx.24.50"/></p>)}
+    {text&&!questionDocument&&<DocumentPages documentId={sourceId} language={text.textLanguage||requestedLanguage}/>}{(text?.status==='available') ? <ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers showDownloads={showDownloads}/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} renderParagraph={(source,paragraph)=>(source===repeatedDate) ? null : paragraph} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><DocumentObjectText logo={logo} text={paragraph} paragraph={source} from={from} to={to} final={final} marks={marks} objects={text.documentObjects||[]} assets={text.imageAssets} sourceUrl={text.sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} notePrefix={notePrefix} renderText={(a,b,last)=><AuthorMention text={paragraph.slice(a,b)} offset={a} final={last} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),a,b)} marks={marks} notePrefix={notePrefix}/>}/>}/><DocumentNotes assets={text.imageAssets} notes={notes} prefix={notePrefix}/></div></ReferenceScope> : (text&&!failed&&<p><UiMessage id="batch5.dossiervotetext.tsx.24.50"/></p>)}
     {text&&<>{!sourceId.endsWith('-ASW')&&<CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/>}{showDownloads&&!questionDocument&&<details className="explorer-reader-download"><summary><UiMessage id="app.document_download"/></summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details>}</>}
     {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={answer.date ? ui.t("batch4.questiontopics.tsx.answer.date", {date: String(date(answer.date,lang))}) : ui.t("textsearch.answer")} headingDate={answer.date} showDownloads={showDownloads}/>)}
     {includeAnswers&&state.data&&!failed&&!state.loading&&!state.data.answers.length&&<p><UiMessage id="app.no_answer_published"/></p>}
@@ -250,7 +253,7 @@ function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionCh
     </Suspense>}
     {(item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer') && <>
       {item.recordKind!=='answer'&&<SaveButton language={lang} item={{kind:'question',id:item.sourceId,title:item.title,titleLanguage:item.titleLanguage,memberId:String(member),date:item.date,baseline:item.answerIds ? ({answerIds:item.answerIds}) : undefined}}/>}
-      <PublicationText sourceId={item.sourceId} member={member} lang={lang} heading={(item.recordKind==='answer') ? ui.t("textsearch.answer") : ui.t("textsearch.question")} includeAnswers={item.recordKind!=='answer'} question={((item.recordKind==='answer') && item.relatedQuestionId) ? ({id:item.relatedQuestionId,title:item.relatedQuestionTitle}) : undefined} showDownloads={showDownloads} />
+      <PublicationText sourceId={item.sourceId} member={member} lang={lang} shownDate={(item.recordKind==='answer') ? null : item.date} heading={(item.recordKind==='answer') ? ui.t("textsearch.answer") : ui.t("textsearch.question")} includeAnswers={item.recordKind!=='answer'} question={((item.recordKind==='answer') && item.relatedQuestionId) ? ({id:item.relatedQuestionId,title:item.relatedQuestionTitle}) : undefined} showDownloads={showDownloads} />
       {item.recordKind==='answer' && item.relatedQuestionId && <PublicationText sourceId={item.relatedQuestionId} member={member} lang={lang} heading={ui.t("app.linked_question")} showDownloads={showDownloads} />}
     </>}
     {!hasText && (motion ? <details className="explorer-reader-download" lang={ui.language} onToggle={event=>setDocumentOpen(event.currentTarget.open)}><summary>{item.relatedJointMotions?.length ? <UiMessage id="app.original_motion_document_and_authors"/> : <UiMessage id="app.document_and_authors"/>}</summary>
@@ -402,7 +405,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
           {isOpen(item) && <JoinedDetails item={item} lang={lang} member={id} memberName={memberName} motionQuery={motionQuery} onMotionChange={onMotionChange} />}
         </article>;
       })}</TopicBatch>
-      {state.data && <div className="explorer-category-top">{offset>0 && <button onClick={()=>{moveToResults.current=true;onOffset(Math.max(0,offset-10));onOpen(null);}}><UiMessage id="textsearch.previous"/></button>}{state.data.nextOffset!==null && <button onClick={()=>{moveToResults.current=true;onOffset(state.data!.nextOffset!);onOpen(null);}}><UiMessage id="app.next_10"/></button>}<button onClick={state.retry}><UiMessage id="app.refresh_list"/></button></div>}
+      {state.data && <div className="explorer-category-top">{offset>0 && <button onClick={()=>{moveToResults.current=true;onOffset(Math.max(0,offset-10));onOpen(null);}}><UiMessage id="textsearch.previous"/></button>}{state.data.nextOffset!==null && <button onClick={()=>{moveToResults.current=true;onOffset(state.data!.nextOffset!);onOpen(null);}}><UiMessage id="app.next_10"/></button>}</div>}
       {page.cache.lastSuccessfulRefresh&&<p className="explorer-source-join"><UiMessage id="outsidevoices.updated_tolocaledatestring.62ed42" values={{date:<span lang={lang}>{date(page.cache.lastSuccessfulRefresh,lang)}</span>}}/></p>}
     </>}
     {open && state.error && !state.data && <LinkedActivityFallback key={sourceId} sourceId={sourceId} member={id} lang={lang} complete={false} />}
@@ -424,6 +427,10 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const ui = useUiI18n();
   const c=interfaceCopy(lang);
   const calendar=useData<VotePeriodsResponse>('vote-periods');
+  useEffect(()=>{
+    if(!calendar.error || calendar.loading)return;
+    const timer=setTimeout(calendar.retry,30_000);return ()=>clearTimeout(timer);
+  },[calendar.error,calendar.loading,calendar.retry]);
   const sittingLocations=new Map(validateVotePeriods(calendar.data) ? calendar.data.weeks.flatMap(week=>week.sittings.map(sitting=>[sitting.sittingId,sitting.location] as const)) : []);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
@@ -457,6 +464,10 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     return()=>{document.removeEventListener('focusin',cancel);speechOrigin.current=null;};
   },[id,initialSpeech]);
   const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`);
+  useEffect(()=>{
+    if(!state.data || state.data.cache.complete || initialSpeech)return;
+    const timer=window.setInterval(state.retry,30_000);return ()=>window.clearInterval(timer);
+  },[state.data?.cache.complete,initialSpeech,state.retry]);
   const pinned=useData<JoinedActivityPage>(((initialSpeech && state.data) && (!state.data.items.some(item=>item.sourceId===initialSpeech))) ? (`latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}`) : null);
   useEffect(()=>{setOffset(0);setSpeechLanguage(null);},[id,lang]);
   useEffect(()=>{setEnrichedSpeeches([]);},[id]);
@@ -488,7 +499,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
       {!open&&<div className="explorer-speech-list-badges"><InterventionBadges value={speech.intervention} language={lang}/></div>}
       {open && <Detail speech={speech} lang={lang} transcriptLanguage={speechLanguage||lang} />}
     </article>})}</TopicBatch>
-    {filtered ? <div className="explorer-category-top" lang={ui.language}>{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}><UiMessage id="app.newer"/></button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}><UiMessage id="app.older"/></button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}><UiMessage id="app.clear_filter"/></button></div> : (state.data && <div className="explorer-category-top" lang={ui.language}>{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}><UiMessage id="app.newer"/></button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}><UiMessage id="app.older"/></button>}<button onClick={()=>{state.retry();calendar.retry();}}><UiMessage id="app.refresh_list"/></button></div>)}
+    {filtered ? <div className="explorer-category-top" lang={ui.language}>{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}><UiMessage id="app.newer"/></button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}><UiMessage id="app.older"/></button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}><UiMessage id="app.clear_filter"/></button></div> : (state.data && <div className="explorer-category-top" lang={ui.language}>{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}><UiMessage id="app.newer"/></button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}><UiMessage id="app.older"/></button>}</div>)}
     </>}
   </section>;
 }

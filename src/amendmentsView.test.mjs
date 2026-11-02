@@ -105,17 +105,19 @@ test('refresh removes a corrected decision binding when split descriptions are u
   t.mock.method(globalThis,'fetch',async input=>{
     assert(new URL(input,window.location.href).pathname.endsWith('/amendments'));
     const decisions=++reads===1?[first,second]:[second];
-    return Response.json({items:[{id:'A-10-2026-0254-AM-1',number:1,targetDocumentId:'A-10-2026-0254',splitParts:[],decisions,outcome:reads===1?'mixed':'REJECTED'}],total:1,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:['Split descriptions unavailable.']}});
+    return Response.json({items:[{id:'A-10-2026-0254-AM-1',number:1,targetDocumentId:'A-10-2026-0254',splitParts:[],decisions,outcome:reads===1?'mixed':'REJECTED'}],total:1,offset:0,limit:20,coverage:{complete:false,pending:reads===1,gaps:['Split descriptions unavailable.']}});
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const polls=[];t.mock.method(window,'setInterval',(callback,delay)=>polls.push({callback,delay}));
   await act(async()=>root.render(createElement(Amendments,{document:'A-10-2026-0254'})));
   assert.equal(container.querySelectorAll('.explorer-amendment-decision').length,2);
   assert.equal(container.querySelectorAll('.explorer-amendment-card [data-outcome="ADOPTED"]').length,1);
   assert.equal(container.querySelectorAll('.explorer-amendment-decision a').length,0,'candidate pages are not rendered as exact decision sources');
-  await act(async()=>[...container.querySelectorAll('button')].find(button=>button.textContent==='Refresh').click());
+  assert(![...container.querySelectorAll('button')].some(button=>button.textContent==='Refresh'),'amendments have no manual refresh');
+  assert.deepEqual(polls.map(poll=>poll.delay),[10_000]);await act(async()=>polls[0].callback());
   assert.equal(reads,2);
   assert.equal(container.querySelectorAll('.explorer-amendment-decision').length,1);
   assert.equal(container.querySelectorAll('.explorer-amendment-card [data-outcome="ADOPTED"]').length,0,'the removed binding cannot leave an adopted row mounted');

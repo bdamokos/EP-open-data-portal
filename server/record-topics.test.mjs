@@ -57,3 +57,19 @@ test('detail has no arbitrary offset ceiling and long searches fail explicitly',
  const beyond=reader.query(new URLSearchParams('key=oeil:7.30.30.06&offset=20020'),'detail');assert.equal(beyond.total,3);assert.deepEqual(beyond.groups,[]);assert.equal(beyond.nextOffset,null);
  assert.throws(()=>reader.query(new URLSearchParams({q:'x'.repeat(121)}),'search'),/shorter search/);
 });
+
+test('not-home includes elsewhere and unknown, with exact detail groups and overview counts',t=>{
+ const store=fixture(t);store.setMembers([{id:'1',countryCode:'GR'},{id:'2',countryCode:'CY'}]);const ns=['1','2','99'].map((id,n)=>({id:'E-10-2026-00000'+(n+1),kind:'question',date:'2026-10-07',titles:{en:'Greece'},members:[id]}));writeTopicProjection(store,projectRecordTopics(ns));const reader=new RecordTopics(store);
+ const detail=reader.query(new URLSearchParams('key=place:GRC&askers=not-home'),'detail');assert.equal(detail.total,2);assert.equal(detail.groupsTotal,2);assert.equal(detail.series[0].questionHome,0);assert.equal(detail.series[0].questionElsewhere,1);assert.equal(detail.series[0].questionUnknown,1);assert.deepEqual(new Set(detail.groups.flatMap(g=>g.items.map(i=>i.id))),new Set(ns.slice(1).map(n=>n.id)));
+ const overview=reader.query(new URLSearchParams('role=place&askers=not-home'),'overview');assert.equal(overview.items[0].counts.question,2);assert.equal(overview.items[0].series[0].questionUnknown,1);assert.equal(reader.query(new URLSearchParams('key=place:GRC&askers=elsewhere'),'detail').total,1);
+});
+
+test('one detail response carries scoped records, whole-term chart and every tied metric peak title',t=>{
+ const store=fixture(t);store.setMembers([{id:'1',countryCode:'GR'},{id:'2',countryCode:'CY'}]);const key='place:GRC',assignment=basis=>[{key,role:'place',paths:[{basis,steps:[],sources:[]}]}];
+ const questions=[['1','2025-01-01'],['2','2025-01-02'],['99','2025-04-01'],['2','2025-04-02']].map(([mep,date],n)=>({id:'E-10-2025-00000'+(n+1),kind:'question',date,members:[mep],titles:{en:'Question '+n},assignments:assignment('title'),status:'classified'}));
+ const docs=[1,2,3].map(n=>({id:'B-10-2025-00000'+n,kind:'document',date:'2025-08-0'+n,titles:{en:'Document '+n},procedureIds:n<3?['2025-0001']:[],assignments:assignment('official'),status:'classified'}));
+ const debates=['2025-08-10','2025-10-10'].map((date,n)=>({id:'MTG-PL-'+date+'-OJ-ITM-D-1',kind:'debate',date,titles:{en:'Greece debate '+n},assignments:assignment('official'),status:'classified'}));
+ writeTopicProjection(store,{records:[...questions,...docs,...debates,{id:'2025-0001',kind:'procedure',date:null,titles:{en:'Exact dossier',fr:'Procédure exacte'},assignments:[]}],concepts:[{key,role:'place',labels:{en:'Greece',fr:'Grèce'},uri:'http://publications.europa.eu/resource/authority/country/GRC'}]});
+ const result=new RecordTopics(store).query(new URLSearchParams('key=place:GRC&kind=question&from=2025-04-01&to=2025-06-30&askers=not-home&lang=fr'),'detail');assert.equal(result.total,2);assert.equal(result.groups.length,2);assert.equal(result.series.length,1);assert.equal(result.series[0].period,'2025-Q2');assert.deepEqual(result.peaks.document,[]);
+ assert.equal(result.chart.total,9);assert.deepEqual(result.chart.peaks.question.map(p=>p.period),['2025-Q1','2025-Q2']);assert(result.chart.peaks.question.every(p=>p.groups.length===2));assert.deepEqual(result.chart.peaks.debate.map(p=>p.period),['2025-Q3','2025-Q4']);const peak=result.chart.peaks.document[0];assert.equal(peak.period,'2025-Q3');assert.equal(peak.n,3);assert.equal(peak.groups.length,1);assert.equal(peak.groups[0].title,'Procédure exacte');assert.equal(peak.groups[0].language,'fr');assert.equal(peak.groups[0].kind,'procedure');assert.equal(peak.groups[0].n,2);assert.equal(result.chart.peaks.questionNotHome[0].period,'2025-Q2');assert.equal(result.chart.peaks.questionNotHome[0].n,2);
+});

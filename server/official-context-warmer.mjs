@@ -62,7 +62,9 @@ export class OfficialContextWarmer {
     this.store.db.prepare('INSERT INTO official_context_jobs(kind,value,language,date) VALUES (?,?,?,?) ON CONFLICT(kind,value,language) DO UPDATE SET date=MAX(date,excluded.date)').run(kind,value,language,date);
   }
   procedure(reference,date) {
-    this.store.transaction(()=>{for(const language of CONTEXT_LANGUAGES)for(const kind of ['context','events','documents'])this.enqueue(kind,reference,language,date);});
+    // discover() already runs inside one transaction; never nest BEGIN.
+    const enqueueAll=()=>{for(const language of CONTEXT_LANGUAGES)for(const kind of ['context','events','documents'])this.enqueue(kind,reference,language,date);};
+    if(this.store.db.isTransaction)enqueueAll();else this.store.transaction(enqueueAll);
   }
   discover() {
     const generation=this.store.get('active');if(!generation)return;
