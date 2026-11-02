@@ -16,6 +16,7 @@ test('Maltese letters and apostrophes survive while articles and particles are f
     ['ġnien','ħaddiema','ambjent','tibdil','ċertezza','ilma']);
   assert.deepEqual(speechWordTokens('Ċittadini Ġustizzja Ħarsien Żgħażagħ'.normalize('NFD'),'mt'),['ċittadini','ġustizzja','ħarsien','żgħażagħ']);
   assert.deepEqual(speechWordTokens("ta' ma’ taʼ min minn tiegħu tagħha tagħna tagħhom",'mt'),[]);
+  assert.deepEqual(speechWordTokens("‘ambjent’ 'ambjent' ambjent ta’ ma’ x’jiġri",'mt'),['ambjent','ambjent','ambjent',"x'jiġri"]);
   const words=analyzeSpeechCloud([{id:'one',text:'L-ambjent u l-ambjent.'},{id:'two',text:'Fl-ambjent.'}],'mt');
   assert.equal(words.find(w=>w.word==='ambjent').speechCount,2);
   assert.equal(words.find(w=>w.word==='ambjent').occurrences,3);

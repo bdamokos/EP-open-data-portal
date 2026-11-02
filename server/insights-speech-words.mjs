@@ -35,7 +35,7 @@ export function speechWordTokens(text,language){
   const pattern=language==='mt'?/\p{L}[\p{L}\p{M}]*(?:'[\p{L}\p{M}]+)*'?/gu:/(?:\bai\b|\p{L}[\p{L}\p{M}]{2,39})/gu;
   return [...normalized.matchAll(pattern)]
     .filter(match=>!/[\d%][-‐‑–]?$/u.test(normalized.slice(Math.max(0,match.index-4),match.index)))
-    .map(match=>language==='mt'?match[0].replace(/^[bfmst]'/u,''):match[0])
+    .map(match=>language==='mt'?match[0].replace(/^[bfmst]'/u,'').replace(/'$/u,''):match[0])
     .filter(word=>(language!=='mt'||[...word].length>=3&&[...word].length<=40)&&!filter.has(filterKey(word,language)));
 }
 export const speechWordStopwords=language=>new Set(filters.get(language)||[]);
