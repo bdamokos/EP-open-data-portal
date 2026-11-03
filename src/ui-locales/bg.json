@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Търсене на тема",
   "topics.plenaryMode": "Теми",
   "topics.findPlace": "Търсене на място",
-  "topics.geopolitics": "Геополитика"
+  "topics.geopolitics": "Геополитика",
+  "topics.story.map.outside": "Също в пленарна зала: {speakers}.",
+  "topics.story.map.outside.eu": "Изказвания в пленарна зала от Европа и съседните ѝ страни: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} се изказа в пленарна зала ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

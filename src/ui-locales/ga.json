@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Aimsigh ábhar",
   "topics.plenaryMode": "Ábhair",
   "topics.findPlace": "Aimsigh áit",
-  "topics.geopolitics": "Geopholaitíocht"
+  "topics.geopolitics": "Geopholaitíocht",
+  "topics.story.map.outside": "Sa seisiún iomlánach freisin: {speakers}.",
+  "topics.story.map.outside.eu": "Óráidí sa seisiún iomlánach ón Eoraip agus ó na tíortha comharsanacha: {speakers}.",
+  "topics.story.place.outside": "{place}: labhair {speaker} sa seisiún iomlánach ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

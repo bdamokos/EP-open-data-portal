@@ -1,3 +1,4 @@
+import {collectOutsideWikidata} from './outside-wikidata-collector.mjs';
 import {collectVotingList} from './voting-list-collector.mjs';
 import {collectUpcomingAmendments} from './upcoming-amendments-collector.mjs';
 import {dispatchBaseBackfill} from './base-source-backfill-dispatch.mjs';
@@ -13,6 +14,7 @@ export async function dispatchCollector(worker,{busy=false,every=collectorTurnEv
  const lanes=worker.baseBackfill?[['topic',topic],['story',story],['backfill',dispatchBaseBackfill]]:[['topic',topic],['story',story]];
  if(worker.votingLists)lanes.push(['voting-lists',collectVotingList]);
  lanes.push(['upcoming',upcoming]);
+ if(worker.outsideWikidata)lanes.push(['wikidata',collectOutsideWikidata]);
  const start=Math.max(0,lanes.findIndex(([name])=>name===s.next));
  for(let offset=0;offset<lanes.length;offset++){
   const index=(start+offset)%lanes.length,[,collect]=lanes[index];

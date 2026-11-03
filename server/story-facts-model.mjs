@@ -3,7 +3,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {countryConcepts,eurovocCountries} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 import {GROUP_VOICE_GROUPS} from '../src/groupVoiceTerms.mjs';
-export const STORY_FACTS_VERSION=15;
+export const STORY_FACTS_VERSION=16;
 // Parser revision of staged document inputs. A re-parse of retained bytes under a
 // newer revision replaces the staged input instead of reading as a source conflict.
 export const STORY_DOCUMENT_PARSER=2;
