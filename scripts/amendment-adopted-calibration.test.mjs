@@ -32,7 +32,7 @@ test('binding requires exact adopted document and date; absent AM stays inconclu
 });
 test('order inversions are surfaced; equal gaps never invent within-gap order',()=>{
  const c=new AdoptedCalibration({snapshot:{snapshotId:'test'}});
- c.rows=[0,1].map(n=>({id:String(n),documentId:'d',taId:'t',ordinal:n,coordinate:5-n,placed:true,itemIndex:0,mode:'amendment-list',status:'agree'}));
+ c.rows=[0,1].map(n=>({id:String(n),documentId:'d',taId:'t',ordinal:n,coordinate:5-n,placed:true,itemIndex:0,mode:'amendment-list',status:'agree',coordinateSpace:'sha256:same'}));
  assert.equal(c.report().placedDisagreements.length,2);c.rows.forEach(r=>r.coordinate=5);assert.equal(c.report().rows[0].order.reason,'same-gap-order-not-exposed');
 });
 // Native STI.AMD excerpts: TA-10-2026-0276 EN, AM77–80, public declared
@@ -48,4 +48,13 @@ test('unparsed native amended-act headings cannot collapse to the outer instruct
 test('a printed resolution number alone cannot truncate a multiline unit',()=>{
  const source={paragraphs:['The European Parliament,','7. Allocates resources as follows:','(a) first allocation;','(b) second allocation;','and the remaining funds.','8. Next paragraph.']};
  for(const span of [{start:1,end:4},{start:1,end:1}])assert.equal(compareFinalPath({headings:['Paragraph 7'],placement:{status:'placed',operation:'replace',span},text:source,language:'en'}).reason,'resolution-unit-extent-unavailable');
+});
+
+test('order never compares different source bytes or unmapped structural paths',()=>{
+ const c=new AdoptedCalibration({snapshot:{snapshotId:'test'}});
+ const rows=[0,1].map(n=>({id:String(n),documentId:'d',taId:'t',ordinal:n,coordinate:5-n,placed:true,itemIndex:0,mode:'amendment-list',status:'agree',coordinateSpace:'sha256:'+n}));
+ c.rows=rows;assert.equal(c.report().placedDisagreements.length,0);assert.equal(rows[0].order.reason,'no-comparable-peer');
+ rows[1].coordinateSpace=rows[0].coordinateSpace;rows[1].status='inconclusive';assert.equal(c.report().placedDisagreements.length,0);
+ rows[1].status='agree';assert.equal(c.report().placedDisagreements.length,2);
+ rows[1].status='inconclusive';assert.equal(c.report().placedDisagreements.length,0,'a recomputed report clears previous order verdicts');
 });

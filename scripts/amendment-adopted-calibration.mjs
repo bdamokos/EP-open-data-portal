@@ -104,14 +104,19 @@ export class AdoptedCalibration {
       }else observation=unknown('ta-xml-unavailable');
     }
     const coordinate=placement?.operation==='insert'?placement.insertBefore:placement?.span?.start;
-    const coordinateSpace=items?.length?items[placement?.itemIndex??0]?.source?.url:text?.sourceUrl;
+    // Coordinates are comparable only inside the same captured source bytes.
+    // Replay items expose provenance on proposal, not item.source.
+    const sourceHash=items?.[placement?.itemIndex??0]?.proposal?.sourceHash;
+    const coordinateSpace=sourceHash?'sha256:'+sourceHash:null;
     this.rows.push({id:row.id,decisionIds:decisions.map(d=>d.id),decisionDates:dates,language:wording?.language??row.language,coordinateSpace:coordinateSpace??null,finalHeadings:headings,observedPlacement:placement,taSource:this.sealed.snapshot.inputs?.find(i=>i.file===taId+'_en.xml')??null,documentId:row.targetDocumentId,taId,ordinal,mode,placed:placement?.status==='placed',itemIndex:placement?.itemIndex??0,coordinate,...observation,order:unknown('order-not-comparable')});
   }
   report() {
     // Equal gaps do not establish runtime insertion order. Report them explicitly
     // instead of treating AM number or label suffix as the observed order.
-    for(const row of this.rows.filter(r=>r.mode==='amendment-list'&&r.placed&&r.ordinal!==null&&Number.isInteger(r.coordinate))) {
-      const peers=this.rows.filter(p=>p!==row&&p.placed&&p.documentId===row.documentId&&p.taId===row.taId&&p.itemIndex===row.itemIndex&&p.language===row.language&&p.coordinateSpace===row.coordinateSpace&&p.ordinal!==null&&Number.isInteger(p.coordinate));
+    for(const row of this.rows)row.order=unknown('order-not-comparable');
+    // An unmapped amended-act path cannot establish an outer document order.
+    for(const row of this.rows.filter(r=>r.mode==='amendment-list'&&r.status==='agree'&&r.coordinateSpace&&r.placed&&r.ordinal!==null&&Number.isInteger(r.coordinate))) {
+      const peers=this.rows.filter(p=>p!==row&&p.status==='agree'&&p.placed&&p.documentId===row.documentId&&p.taId===row.taId&&p.itemIndex===row.itemIndex&&p.language===row.language&&p.coordinateSpace===row.coordinateSpace&&p.ordinal!==null&&Number.isInteger(p.coordinate));
       const inversion=peers.find(p=>(row.ordinal-p.ordinal)*(row.coordinate-p.coordinate)<0);
       row.order=inversion?result('disagree','document-order-inversion',{other:inversion.id}):peers.some(p=>p.coordinate===row.coordinate&&p.ordinal!==row.ordinal)?unknown('same-gap-order-not-exposed'):peers.length?result('agree','document-order'):unknown('no-comparable-peer');
     }
