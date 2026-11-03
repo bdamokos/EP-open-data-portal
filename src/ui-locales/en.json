@@ -2751,5 +2751,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Contributions by month",
   "groupvoices.contributions_by_sitting_day.77a719": "Contributions by sitting day",
   "membervotespresentation.votes_not_yet_published": "Votes not yet published",
-  "membervotespresentation.votes_start_at": "Votes start at {time}"
+  "membervotespresentation.votes_start_at": "Votes start at {time}",
+  "topics.story.links.elsewhereOne": "{count} of them asked only by MEPs from other countries",
+  "topics.story.links.homeOne": "{count} had an author elected there",
+  "topics.story.links.awayOne": "{count} asked only by MEPs from other countries",
+  "topics.story.ordinal.many": "{count}th"
 }
