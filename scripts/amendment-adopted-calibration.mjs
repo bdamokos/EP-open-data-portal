@@ -41,7 +41,11 @@ const flatten=units=>(units??[]).flatMap(u=>[u,...flatten(u.children)]);
 export function compareFinalPath({headings,placement,items,text:source,language}) {
   if(placement?.status!=='placed')return unknown('pipeline-withheld');
   if(language!=='en')return unknown('source-language-not-en');
-  const paths=headings.map(calibrationPath).filter(Boolean);
+  // Count structural headings before parsing: unsupported inner-law labels
+  // must never disappear and leave only the outer amending instruction.
+  const structural=headings.filter(h=>/^(?:Recital|Article|Paragraph|Subparagraph|Point|Annex)\b/i.test(norm(h)));
+  if(structural.length>1)return unknown('amended-act-path-requires-mapping');
+  const paths=structural.map(calibrationPath).filter(Boolean);
   if(paths.length!==1)return unknown(paths.length?'amended-act-path-requires-mapping':'final-path-unparsed');
   const path=paths[0],leaf=path.at(-1),expected=path.map(s=>({...s}));
   if(leaf.isNew) {
@@ -52,8 +56,11 @@ export function compareFinalPath({headings,placement,items,text:source,language}
   if(items?.length) {
     const proposal=items[placement.itemIndex??0]?.proposal;
     candidates=flatten(proposal?.units).filter(u=>u.scope==='proposal'&&!u.pathConflict&&pathKey(u.path)===pathKey(expected)).map(u=>({start:u.extent.start,end:u.extent.end-1}));
-  }else if(path.length===1&&['paragraph','recital'].includes(leaf.kind)) {
-    candidates=(source?.paragraphs??[]).flatMap((s,i)=>new RegExp('^\\s*'+expected[0].value+'[.\\t]\\s*').test(s)?[{start:i,end:i}]:[]);
+  }else {
+    // A printed number establishes the start only. Continuations, subpoints
+    // and section boundaries need an independent full-extent proof; until
+    // that exists, raw resolution paragraphs cannot establish this check.
+    return unknown('resolution-unit-extent-unavailable');
   }
   if(candidates.length!==1)return unknown('source-path-unavailable-or-ambiguous');
   const target=candidates[0],matches=leaf.isNew?placement.operation==='insert'&&placement.insertAfter===target.end:placement.operation!=='insert'&&placement.span?.start===target.start&&placement.span?.end===target.end;

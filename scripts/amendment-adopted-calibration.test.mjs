@@ -35,3 +35,17 @@ test('order inversions are surfaced; equal gaps never invent within-gap order',(
  c.rows=[0,1].map(n=>({id:String(n),documentId:'d',taId:'t',ordinal:n,coordinate:5-n,placed:true,itemIndex:0,mode:'amendment-list',status:'agree'}));
  assert.equal(c.report().placedDisagreements.length,2);c.rows.forEach(r=>r.coordinate=5);assert.equal(c.report().rows[0].order.reason,'same-gap-order-not-exposed');
 });
+// Native STI.AMD excerpts: TA-10-2026-0276 EN, AM77–80, public declared
+// https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0276_en.xml
+// Retrieved 2026-11-03; wording retained in the sealed external TA snapshot.
+test('unparsed native amended-act headings cannot collapse to the outer instruction',()=>{
+ const unit={scope:'proposal',path:[{kind:'article',value:'1'},{kind:'paragraph',value:'1'},{kind:'point',value:'20'}],extent:{start:5,end:10}};
+ for(const suffix of ['a','b','c','d'])for(const span of [{start:5,end:9},{start:7,end:8}]) {
+  const headings=['Proposal for a regulation','Article 1 – paragraph 1 – point 20','Regulation (EU) 2023/956',`Article 30 – paragraph 6 – subparagraph 2 – point b – point ii ${suffix} (new)`];
+  assert.equal(compareFinalPath({headings,placement:{status:'placed',operation:'replace',span},items:[{proposal:{units:[unit]}}],language:'en'}).reason,'amended-act-path-requires-mapping');
+ }
+});
+test('a printed resolution number alone cannot truncate a multiline unit',()=>{
+ const source={paragraphs:['The European Parliament,','7. Allocates resources as follows:','(a) first allocation;','(b) second allocation;','and the remaining funds.','8. Next paragraph.']};
+ for(const span of [{start:1,end:4},{start:1,end:1}])assert.equal(compareFinalPath({headings:['Paragraph 7'],placement:{status:'placed',operation:'replace',span},text:source,language:'en'}).reason,'resolution-unit-extent-unavailable');
+});
