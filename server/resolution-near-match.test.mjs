@@ -55,3 +55,8 @@ test('existing recital anchors survive Greek lookalikes in later source labels',
  assert.equal(placement.status,'placed',placement.reason);assert.equal(placement.insertAfter,1);
  assert.equal(verifyPlacement({placement,wording:amendment,text}).status,'verified');
 });
+
+test('a quoted lead alone does not replace following unrelated source content',()=>{
+ const text=source(['The European Parliament,','1. '+original,'(Ex AM 49 (Or. EN) of FdR editorial reference in the source document)','2. Another paragraph;']);
+ assert.equal(resolveAmendmentPlacement(text,wording).status,'unresolved');
+});

@@ -632,7 +632,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if(sourceKey!==originalKey&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
       const score=value=>{
         let prefix=0;while(prefix<Math.min(value.length,originalKey.length)&&value[prefix]===originalKey[prefix])prefix++;
-        return {similarity:characterSimilarity(value,originalKey,.93),prefix:prefix>=80?prefix/Math.min(value.length,originalKey.length):0};
+        return {similarity:characterSimilarity(value,originalKey,.93),prefix:prefix>=80&&prefix<Math.min(value.length,originalKey.length)?prefix/Math.min(value.length,originalKey.length):0};
       };
       const own=score(sourceKey),others=units.filter(candidate=>candidate.kind===unit.kind&&candidate!==unit)
         .map(candidate=>score(wordingNormal(text.paragraphs.slice(candidate.start,candidate.end+1).join(' '))));
