@@ -22,3 +22,10 @@ test('opaque native source content and unknown table structures cannot create ne
 test('clipped and conflicting projection evidence remains withheld',()=>{
  for(const mutate of [x=>x.items[1].proposal.paragraphs[x.placement.span.end].complete=false,x=>x.items[1].proposal.paragraphs[x.placement.span.start+2].source.ordinal++,x=>x.items[1].proposal.sourceHash='wrong',x=>x.nativeQuoted.proposalBuffers[1]=Buffer.from('wrong'),x=>x.items.push(x.items[1])]){const input=wholeInstructionNative();mutate(input);assert.equal(place(input).status,'unresolved');}
 });
+
+test('hidden native duplicates and parent counters outside the selected frame cannot disappear',()=>{
+ const hidden=text=>'<w:p><w:r><w:rPr><w:vanish/></w:rPr><w:t>'+text+'</w:t></w:r></w:p>',instruction='in point 2, the table ‘Iron and Steel’ is replaced by the following:';
+ for(const changes of [{actChange:xml=>xml.replace('</w:body>',hidden('Regulation (EU) 2023/956 is amended as follows:')+'</w:body>')},{sourceChange:xml=>xml.replace('</w:body>',hidden(instruction)+'</w:body>')},{sourceChange:xml=>xml.replace('</w:body>',hidden('ANNEX I')+'</w:body>')}]){const input=wholeInstructionNative(changes);assert.equal(place(input).status,'unresolved');assert.notEqual(verifyPlacement(input).status,'verified');}
+ const counter='<w:p><w:pPr><w:pStyle w:val="Point0number"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="5"/></w:numPr></w:pPr><w:r><w:rPr><w:vanish/></w:rPr><w:t>Competing parent;</w:t></w:r></w:p>';
+ for(const content of [counter,'<w:tbl><w:tr><w:tc>'+counter+'</w:tc></w:tr></w:tbl>']){const input=wholeInstructionNative({sourceChange:xml=>xml.replace('<w:p><w:pPr><w:pStyle w:val="Annexetitre"/></w:pPr><w:r><w:t>ANNEX II</w:t>',content+'<w:p><w:pPr><w:pStyle w:val="Annexetitre"/></w:pPr><w:r><w:t>ANNEX II</w:t>')});assert.equal(place(input).status,'unresolved');assert.notEqual(verifyPlacement(input).status,'verified');}
+});
