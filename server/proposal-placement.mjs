@@ -1,4 +1,5 @@
 import {similarPassage} from './proposal-similarity.mjs';
+import {firstAnnexInsertion} from './proposal-first-annex.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
@@ -744,7 +745,7 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:matched.map(row=>row.text).join('\n'),evidence};
 }
 
-export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline}={}) {
+export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline}={},{nativeProposalInputs}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
   const mixedScope=amendmentMixedLanguageScope({originalText,proposedText,language});
@@ -754,6 +755,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(!operation)return unresolved('amendment_wording_unavailable');
   if([originalText,proposedText].some(text=>text.length>MAX_COLUMN_CHARACTERS))return unresolved('matching_budget');
   if([originalText,proposedText].some(text=>text.includes('\uFFFC')))return unresolved('math_comparison_unavailable');
+  const firstAnnex=firstAnnexInsertion(items,{originalText,proposedText,targetLabel,targetPath,language,baseline},nativeProposalInputs);
+  if(firstAnnex)return firstAnnex.reason?unresolved(firstAnnex.reason):firstAnnex;
   // Lists without structured location tags still publish the location as a
   // heading in the same document and language; that heading is the target.
   const paths=targetPath?.proposal?.length?targetPath.proposal:null;

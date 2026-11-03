@@ -122,7 +122,7 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 - Committee amendment numbers are local to their list; the internal identity `committee:{list-id}:{number}` is never an official URI.
 - An omitted distribution isn’t an unpublished file. B-10-2026-0435 and B-10-2026-0436 have public English DOCX files on the website, but their API records omit `is_realized_by`. Don’t construct file URLs.
 - Greek and Cyrillic bylines are linked to members through the same amendment in a Latin-script edition of the same list, never by transliteration.
-- Comparison column headings identify the baseline (Commission proposal, present text, Council position, motion text) and are language-specific.
+- Comparison column headings identify the baseline (Commission proposal, present text, Council position, motion text) and are language-specific. An empty original column can introduce a first annex when the complete proposed column supplies its ANNEX frame. An English Commission act with no native annex can place it after a unique complete signature block and before the separate legislative financial statement. Native source bytes must prove both boundaries and the absence of competing annex evidence.
 
 ### Documents (DOCX and PDF)
 
