@@ -214,6 +214,10 @@ function insertionPlacement(items,target,candidatesFor,eligible) {
   // (including its points) once, then each directly owned continuation.
   if(label.kind==='subparagraph'&&label.suffix==='a'&&parent?.unit.kind==='paragraph'&&!parent.unit.implicit&&!parent.unit.instruction) {
     const {unit,proposal,itemIndex}=parent;
+    // The raw oracle recognises explicit NumPar rows. Word Point styles can
+    // denote paragraphs in the placer but do not establish that raw grammar.
+    const lead=proposal.paragraphs[unit.extent.start];
+    if(target.language!=='en'||!/^(?:Manual)?NumPar1$/iu.test(lead?.properties?.styleId??'')||!/^\s*\d+[a-z]*[.)]\s/u.test(lead.text))return {reason:'source_structure_unavailable'};
     if(!completeBoundary(proposal,unit)||unit.children.some(child=>!['point','subparagraph'].includes(child.kind)))return {reason:'source_passage_incomplete'};
     const continuations=unit.children.filter(child=>child.kind==='subparagraph');
     const parts=[...(unit.content.length?[{start:unit.content[0],end:continuations[0]?.extent.start??unit.extent.end}]:[]),...continuations.map(child=>child.extent)];

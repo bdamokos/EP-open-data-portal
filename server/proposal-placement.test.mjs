@@ -142,7 +142,7 @@ test('published heading locates amendments when the list has no structured locat
 });
 
 test('numbered subparagraphs place only within their own paragraphs',()=>{
-  const projection=source(['Article 1','1. Lead subparagraph text.','Second subparagraph text.','2. Next paragraph.']);
+  const projection=source(['Article 1','1. Lead subparagraph text.','Second subparagraph text.','2. Next paragraph.'],['Titrearticle','ManualNumPar1','Text1','ManualNumPar1']);
   let placed=resolve(projection,'Article 1 – paragraph 1 – subparagraph 1','Lead subparagraph text.');
   assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:1});assert.equal(placed.evidence.at(-1).basis,'subparagraph-wording-match');
   placed=resolve(projection,'Article 1 – paragraph 1 – subparagraph 2','Second subparagraph text.');
@@ -441,4 +441,12 @@ test('new unnumbered subparagraphs follow their ordinal source subtree',()=>{
   assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 b (new)').status,'unresolved');
   p.paragraphSources[4].ordinal++;
   assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 a (new)').status,'unresolved');
+});
+
+
+test('new subparagraph placement withholds Point-style paragraph labels outside the raw oracle grammar',()=>{
+ const p=source(['Article 16','Financial support','1. First paragraph.','2. Second paragraph.','Article 17'],['Titrearticle','Normal','Point0','Point0','Titrearticle']);
+ assert.equal(resolve(p,'Article 16 – paragraph 1 – subparagraph 1 a (new)').status,'unresolved');
+ const literal=structuredClone(p);literal.paragraphProperties[2].styleId='Normal';literal.paragraphProperties[3].styleId='Normal';
+ assert.equal(resolve(literal,'Article 16 – paragraph 1 – subparagraph 1 a (new)').status,'unresolved');
 });
