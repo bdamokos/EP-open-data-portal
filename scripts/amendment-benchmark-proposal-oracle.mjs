@@ -172,3 +172,22 @@ export function rawProposalAssertion({proposal,wording,placement}) {
   if(placement.insertBefore!==before||placement.insertAfter!==before-1)return {...failed('oracle-raw-insertion-boundary-mismatch'),expectedBefore:before,actualBefore:placement.insertBefore,rawSourceRows:[article.heading.index,scope.start,before]};
   return verified('oracle-raw-sibling-boundary',[article.heading.index,scope.start,before]);
 }
+
+// EP may print “1.” for the sole unnumbered paragraph of an article. Prove
+// that address and the complete literal wording independently of parser units.
+export function assertImplicitParagraphLabel({proposal,wording,placement}) {
+ const unavailable=()=>unknown('oracle-implicit-paragraph-label-unavailable');
+ if(!proposal||wording.language!=='en'||wording.baseline!=='commission-proposal'||placement.operation!=='replace')return unavailable();
+ const target=address(wording.targetLabel||'','en');
+ if(target?.length!==2||target[0].kind!=='article'||target[1].kind!=='paragraph'||target[1].value!=='1')return unavailable();
+ const original=/^1\.\s+([\s\S]+)$/u.exec(wording.originalText||'');
+ if(!original||!/^1\.\s+\S/u.test(wording.proposedText||''))return unavailable();
+ const article=publishedContainer(proposal,target[0],'en'),node=article?.nodes[0];
+ if(!node?.implicit||article.nodes.length!==1||node.kind!=='paragraph'||node.value!=='1'||node.end!==node.start+1)return unavailable();
+ const row=proposal.paragraphs.find(p=>p.index===node.start),next=proposal.paragraphs.find(p=>p.index===node.end);
+ if(!row||!next||!body(row)||!body(next)||row.properties?.styleId!=='Normal'||next.source.ordinal!==row.source.ordinal+1||next.source.containerPath!==row.source.containerPath||next.source.segment!==row.source.segment||row.properties.numberingLabel||/^[\d'‘“«"]/u.test(row.text.trim()))return unavailable();
+ const compact=s=>s.normalize('NFC').replace(/\s+/gu,' ').trim();
+ if(compact(original[1])!==compact(row.text))return failed('oracle-implicit-paragraph-wording-mismatch');
+ if(placement.status!=='placed'||placement.span?.start!==row.index||placement.span?.end!==row.index||placement.splice?.start.paragraph!==row.index||placement.splice.start.offset!==0||placement.splice?.end.paragraph!==row.index||placement.splice.end.offset!==row.text.length)return failed('oracle-implicit-paragraph-boundary-mismatch');
+ return verified('oracle-implicit-paragraph-label',[article.heading.index,row.index,next.index]);
+}
