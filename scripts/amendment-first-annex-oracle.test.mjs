@@ -3,6 +3,7 @@ import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {firstAnnexNative,firstAnnexZip} from './fixtures/first-annex-native.mjs';
 import {createHash} from 'node:crypto';
 import {quotedWordParts} from './amendment-benchmark-quoted-oracle.mjs';
+import {makeAnnexIndentCase} from './fixtures/bare-annex-indent-native.mjs';
 test('first annex binds the complete native signature and separate financial statement',()=>{
  const input=firstAnnexNative();Object.defineProperty(input.proposal,'units',{get(){throw Error('Production hierarchy accessed');}});assert.equal(assertFirstAnnex(input).status,'verified');
  for(const target of ['Annex I - Indicators','Annex - Indicators','Annex'])assert.equal(assertFirstAnnex(firstAnnexNative({target})).status,'verified');
@@ -60,4 +61,8 @@ test('native amendment-number uniqueness includes wrapped and hidden paragraphs'
  for(const wrap of [p=>'<w:sdt><w:sdtContent>'+p+'</w:sdtContent></w:sdt>',p=>'<w:ins w:id="999">'+p+'</w:ins>',p=>'<w:tbl><w:tr><w:tc>'+p+'</w:tc></w:tr></w:tbl>'])for(const hidden of [false,true]){
   const extra=wrap(hidden?p.replace('<w:r>','<w:r><w:rPr><w:vanish/></w:rPr>'):p),input=firstAnnexNative({amendmentChange:xml=>xml.replace('<w:body>','<w:body>'+extra)});input.wording=firstAnnexNative().wording;assert.notEqual(assertFirstAnnex(input).status,'verified');
  }
+});
+
+test('interior annex amendments stay outside the first-annex oracle',()=>{
+ assert.equal(assertFirstAnnex(makeAnnexIndentCase()),null);
 });

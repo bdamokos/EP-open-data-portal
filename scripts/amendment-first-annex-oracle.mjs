@@ -69,7 +69,7 @@ function comparison(bytes,wording,number) {
 // First annexes belong after the legislative signature, before its separate
 // financial statement. No adopted-text data or production hierarchy is read.
 export function assertFirstAnnex({proposal,items,wording,placement,nativeQuoted}) {
- if(!/^Annex(?: (?:1|I))?(?: \(new\))?(?: [–-] [^\n\t]+)?$/u.test(wording?.targetLabel||'')||wording.originalText!=='')return null;
+ if(!/^Annex(?: (?:1|I))?(?: \(new\))?(?: [–-] [^\n\t]+)?$/u.test(wording?.targetLabel||'')||wording.originalText!==''||!/^ANNEX\b/u.test(wording.proposedText?.split('\n')[0]||''))return null;
  const unknown=()=>({status:'unverified',reason:'oracle-first-annex-unavailable'});
  const classes=(wording.documentReferences||[]).filter(ref=>ref.field==='DocumentClass'&&ref.scope==='amendment');if(classes.length!==1||classes[0].raw!=='Proposal for a regulation')return unknown();
  if(!annexPayload(wording)||wording.targetPath?.underlying?.length||wording.targetPath?.proposal?.length&&(wording.targetPath.proposal.length!==1||wording.targetPath.proposal[0].raw!==wording.targetLabel)||items?.length!==1||items[0].kind!=='act'||proposal!==items[0].proposal||placement?.operation!=='insert'||!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash||!Buffer.isBuffer(nativeQuoted.amendmentBuffer)||nativeQuoted.number!==wording.number)return unknown();
