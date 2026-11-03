@@ -525,7 +525,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if(ref?.kind==='recital'&&ref.isNew&&!ref.parents.length) {
       const recitals=units.filter(unit=>unit.kind==='recital'),first=units.find(unit=>unit.kind==='paragraph');
       const ordinal=value=>/^[A-Z]+$/u.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
-      const beyond=recitals.length&&!recitals.some(unit=>unit.label===ref.base)&&ordinal(ref.base)>ordinal(recitals.at(-1).label);
+      const beyond=recitals.length&&!recitals.some(unit=>unit.label===ref.base)&&ordinal(ref.base)!==null&&ordinal(recitals.at(-1).label)!==null&&ordinal(ref.base)>ordinal(recitals.at(-1).label);
       if(first?.label==='1'&&(!recitals.length&&['-A','A'].includes(ref.label)||beyond)) {
         const last=recitals.at(-1);
         if(first.start<1||!complete(structure.start,first.start)||recitals.some((unit,i)=>ordinal(unit.label)!==i+1||structure.invalid.has(unit.start)||structure.uncertain.has(unit.start))||last&&last.end!==first.start-1)return unresolved('source_passage_incomplete');

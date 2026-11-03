@@ -47,3 +47,11 @@ for(const example of JSON.parse(readFileSync(new URL('./fixtures/resolution-near
  assert.equal(placement.status,'placed',placement.reason);assert.deepEqual(placement.span,{start:2,end:2});
  assert.equal(verifyPlacement({placement,wording:amendment,text}).status,'verified');
 });
+
+test('existing recital anchors survive Greek lookalikes in later source labels',()=>{
+ const text=source(['The European Parliament,','A. First recital;','B. Second recital;','Ν. Greek lookalike in a later label;','1. First operative paragraph;','2. Last paragraph;']);
+ const amendment={...wording,targetLabel:'Recital A a (new)',originalText:''};
+ const placement=resolveAmendmentPlacement(text,amendment);
+ assert.equal(placement.status,'placed',placement.reason);assert.equal(placement.insertAfter,1);
+ assert.equal(verifyPlacement({placement,wording:amendment,text}).status,'verified');
+});

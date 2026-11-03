@@ -252,7 +252,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
     const raw=rawResolutionUnits(text,wording.language),recitals=raw.units.filter(unit=>unit.kind==='recital');
     const first=raw.units.find(unit=>unit.kind==='paragraph');
     const ordinal=value=>/^[A-Z]+$/u.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
-    const beyond=recitals.length&&ordinal(String(label.base))>ordinal(recitals.at(-1).label);
+    const beyond=recitals.length&&!recitals.some(unit=>unit.label===String(label.base))&&ordinal(String(label.base))!==null&&ordinal(recitals.at(-1).label)!==null&&ordinal(String(label.base))>ordinal(recitals.at(-1).label);
     if(!raw.reason&&first?.label==='1'&&(!recitals.length&&['-A','A'].includes(label.value)||beyond)) {
       const last=recitals.at(-1),from=last?.start??raw.units[0]?.start;
       const sources=text.paragraphSources;
