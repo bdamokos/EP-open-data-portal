@@ -32,23 +32,28 @@ export async function ballotInputs(query,{store,request=odp,reader=memberVotes,l
     // date must never probe the per-meeting ODP endpoint.
     const calendar=await meetings.catalogue();
     if(!calendar.nodes.some(n=>n.activity_id===query.sitting))missingSitting({complete:calendar.coverage.status==='complete'});
+    const revisionBefore=await agendaCacheRevision(),records=[];
     const meeting=await request('/meetings/'+query.sitting,{}, {priority:'interactive'});
     if(!meeting.payload?.data?.some(n=>n.activity_id===query.sitting&&tail(n.had_activity_type)==='PLENARY_SITTING'))throw new HttpError(404,'sitting_not_found','Sitting unavailable.');
+    records.push(meeting);
     const agenda=[];
-    for(let page=0;page<4;page++){const response=await request('/meetings/'+query.sitting+'/foreseen-activities',{limit:50,offset:page*50},{priority:'interactive'});agenda.push(...response.payload.data);if(response.payload.data.length<50)break;}
-    day={sittingId:query.sitting,agenda,decisions:[],results:[],requests:[]};sourceRevision=await agendaCacheRevision();
+    for(let page=0;page<4;page++){const response=await request('/meetings/'+query.sitting+'/foreseen-activities',{limit:50,offset:page*50},{priority:'interactive'});records.push(response);agenda.push(...response.payload.data);if(response.payload.data.length<50)break;}
+    day={sittingId:query.sitting,agenda,decisions:[],results:[],requests:[]};
+    const revisionAfter=await agendaCacheRevision();
+    // Never pin a stale payload to a newly published source revision.
+    sourceRevision=revisionBefore===revisionAfter&&!records.some(r=>r.stale||r.refreshInProgress||r.refreshError)?revisionAfter:null;
   }
   if(!day)throw new HttpError(503,'ballot_unavailable','Ballot unavailable.');
   let amendmentData;
   const loadAmendments=()=>{
     if(amendmentData)return amendmentData;
-  const documents=[...new Set(day.agenda.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE').flatMap(n=>list(n.based_on_a_realization_of).map(tail)))];
-  const amendmentPages=documents.map(document=>({document,page:amendmentsPage(store,{document,limit:1000,language:query.language})}));
-  const amendments=amendmentPages.flatMap(({page})=>page.items),partialDocuments=amendmentPages.filter(({page})=>page.items.length<page.total||page.scheduledLists===null||page.items.some(row=>row.scheduledVotes===null)||!page.items.length&&!page.coverage.observationComplete).map(({document})=>document);
+    const documents=[...new Set(day.agenda.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE').flatMap(n=>list(n.based_on_a_realization_of).map(tail)))];
+    const amendmentPages=documents.map(document=>({document,page:amendmentsPage(store,{document,limit:1000,language:query.language})}));
+    const amendments=amendmentPages.flatMap(({page})=>page.items),partialDocuments=amendmentPages.filter(({page})=>page.items.length<page.total||page.scheduledLists===null||page.items.some(row=>row.scheduledVotes===null)||!page.items.length&&!page.coverage.observationComplete).map(({document})=>document);
     return amendmentData={amendments,partialDocuments};
   };
   const votingLists=lists?await lists(query.sitting):ballotVotingLists(store,query.sitting),bindings=readSittingBallotBindings(store.db,query.sitting);
-  const revision=createHash('sha256').update(JSON.stringify([sourceRevision,store.status().servingGeneration,store.get('amendmentMutationRevision'),votingLists.map(v=>[v.documentId,v.agendaItemId,v.revision?.sha256]),bindings])).digest('hex');
+  const revision=sourceRevision?createHash('sha256').update(JSON.stringify([sourceRevision,store.status().servingGeneration,store.get('amendmentMutationRevision'),votingLists.map(v=>[v.documentId,v.agendaItemId,v.revision?.sha256]),bindings])).digest('hex'):null;
   return {day,loadAmendments,lists:votingLists,bindings,revision};
 }
 export async function upcomingVotes(query,{store=null,inputs=ballotInputs,cache=ballotResponseCache(store),makeContext=ballotContext,...options}={}) {
