@@ -1,7 +1,7 @@
 import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
 const fold=value=>value.replace(/\s+/gu,' ').trim();
 // Adjacent list numbering does not alter whether the intervening row is blank.
-const contentUnsafe=nodes=>nodes.some(node=>Object.entries(node).some(([key,value])=>['w:del','w:moveFrom','w:vanish','w:webHidden','w:instrText','w:fldChar','w:drawing','w:pict','w:object','m:oMath','w:footnoteReference','w:endnoteReference'].includes(key)||Array.isArray(value)&&contentUnsafe(value))); 
+const contentUnsafe=nodes=>nodes.some(node=>Object.entries(node).some(([key,value])=>['w:del','w:moveFrom','w:vanish','w:webHidden','w:instrText','w:fldChar','w:drawing','w:pict','w:object','m:oMath','w:footnoteReference','w:endnoteReference'].includes(key)||Array.isArray(value)&&contentUnsafe(value)));
 function annexBlankPairs(proposal,buffer) {
   const pairs=new Set();let body;try{body=quotedWordBody(buffer);}catch{return pairs;}
   const paths=new Map(body.map((row,i)=>[row.path,i]));

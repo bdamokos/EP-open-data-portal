@@ -203,6 +203,21 @@ function quotedConflictBoundary(proposal,unit,next) {
   return rows.every((row,index)=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&(!index||
     row.source.containerPath===rows[index-1].source.containerPath&&row.source.segment===rows[index-1].source.segment&&row.source.ordinal===rows[index-1].source.ordinal+1));
 }
+// Amendments call a proposal's sole bare ANNEX 'Annex I'. Keep that alias
+// local to a new sibling insertion; it never renumbers the published source.
+function bareAnnexInsertion(items,target,language) {
+  const label=target.segments[0];
+  if(language!=='en'||target.segments.length!==1||label.kind!=='annex'||!label.isNew||label.base!=='I'||!label.suffix||!/^[a-z]{1,3}$/u.test(label.suffix))return null;
+  const annexes=items.flatMap((item,itemIndex)=>flat(item.proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind==='annex').map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  if(annexes.length!==1||annexes[0].unit.label?.value!=='')return null;
+  const {itemIndex,unit,proposal}=annexes[0],rows=proposal.paragraphs.slice(unit.extent.start);
+  const headings=items.flatMap(item=>item.proposal.paragraphs.filter(row=>/^Annexetitre$/iu.test(row.properties?.styleId||'')));
+  if(headings.length!==1||headings[0].text.split(/\r?\n/u)[0].trim()!=='ANNEX')return null;
+  if(proposal.sourceKind!=='docx'||unit.extent.end!==proposal.paragraphs.length||!completeBoundary(proposal,unit)
+    ||!rows.every((row,i)=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&(!i||row.source.containerPath===rows[i-1].source.containerPath&&(row.source.segment===rows[i-1].source.segment&&row.source.ordinal===rows[i-1].source.ordinal+1||row.source.previousParagraph===rows[i-1].source.path&&row.source.ordinal>rows[i-1].source.ordinal&&row.source.segment-rows[i-1].source.segment===row.source.ordinal-rows[i-1].source.ordinal-1))))return {reason:'source_passage_incomplete'};
+  return {itemIndex,insertBefore:unit.extent.end,anchor:unit,basis:'sole-bare-annex-end'};
+}
+
 function insertionPlacement(items,target,candidatesFor,eligible) {
   const label=target.segments.at(-1),preceding=target.segments.slice(0,-1);
   // A two-letter suffix (Article 4ba) follows its first letter in drafting
@@ -670,7 +685,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
-    const insertion=insertionPlacement(items,target,candidatesFor,eligible);
+    const insertion=bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible);
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
