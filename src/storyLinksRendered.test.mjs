@@ -164,20 +164,21 @@ test('retained story links browse their displayed mode, zoom and authors while r
 for(const replace of [false,true])test('unrelated query updates preserve story return state ('+replace+')',async t=>{
  await harness(t,{props:{selection}});
  const saved={storyLinkId:'story-origin',storyScroll:380,storyReturn:true,other:'retained'};
- history.replaceState(saved,'');
+ history.replaceState(saved,'');const length=history.length;
  const {updateExplorerQuery}=await load('/src/explorerUrl.ts');
  await act(async()=>{updateExplorerQuery(url=>url.searchParams.set('t-q','2026-Q1'),replace);updateExplorerQuery(url=>url.searchParams.set('t-mode','d'),replace);});
- assert.deepEqual(history.state,saved);assert.equal(new URL(location.href).searchParams.get('t-mode'),'d');
+ assert.deepEqual(history.state,saved);assert.equal(new URL(location.href).searchParams.get('t-q'),'2026-Q1');assert.equal(new URL(location.href).searchParams.get('t-mode'),'d');assert.equal(history.length,length+(replace?0:1));
 });
 
-test('paginated records focus the first appended row after the final Show more',async t=>{
+for(const intermediate of [false,true])test('paginated records focus the first appended row after Show more (intermediate='+intermediate+')',async t=>{
  let finish;const pending=new Promise(resolve=>{finish=resolve;});
- const page=q=>{const f=recordLinkPage(q),last=Boolean(q.cursor),rows=Array.from({length:last?2:20},(_,i)=>({id:'E-10-2026-'+String((last?20:0)+i+1).padStart(6,'0'),title:'Paged question '+((last?20:0)+i+1),date:'2026-01-10'}));return {...f,questions:rows,page:{total:22,items:rows.map(r=>({id:r.id,kind:'question',date:r.date})),nextCursor:last?null:'next'}};};
- const h=await harness(t,{component:'StoryBrowse',props:{selection:{...selection,place:'TUR'},browse:{list:'questions',place:'TUR',period:'2026-Q1'}},respond:async(u,q)=>{if(q?.list==='questions'){if(q.cursor)await pending;return page(q);}}});
- await h.wait('Showing 20 of 22');const more=h.node.querySelector('button');more.focus();
+ const total=intermediate?42:22;
+ const page=q=>{const f=recordLinkPage(q),offset=q.cursor==='another'?40:q.cursor?20:0,rows=Array.from({length:Math.min(20,total-offset)},(_,i)=>({id:'E-10-2026-'+String(offset+i+1).padStart(6,'0'),title:'Paged question '+(offset+i+1),date:'2026-01-10'}));return {...f,questions:rows,page:{total,items:rows.map(r=>({id:r.id,kind:'question',date:r.date})),nextCursor:offset+rows.length<total?(offset?'another':'next'):null}};};
+ const h=await harness(t,{fresh:true,component:'StoryBrowse',props:{selection:{...selection,place:'TUR'},browse:{list:'questions',place:'TUR',period:'2026-Q1'}},respond:async(u,q)=>{if(q?.list==='questions'){if(q.cursor)await pending;return page(q);}}});
+ await h.wait('Showing 20 of '+total);const more=h.node.querySelector('button');more.focus();
  await act(async()=>more.click());assert(!h.node.textContent.includes('Paged question 21'));
- await act(async()=>finish());await h.wait('Showing 22 of 22');
- assert.equal(document.activeElement.textContent,'Paged question 21');assert(!h.node.querySelector('button'));
+ await act(async()=>finish());await h.wait('Showing '+(intermediate?40:22)+' of '+total);
+ assert.equal(document.activeElement.textContent,'Paged question 21');assert.equal(Boolean(h.node.querySelector('button')),intermediate);
 });
 
 test('static records focus the first revealed row after the final Show more',async t=>{
