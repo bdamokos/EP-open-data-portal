@@ -24,7 +24,7 @@ function vote(number) {
 function response(url) {
   const query=url.searchParams,offset=Number(query.get('offset')||0),id=query.get('decision'),items=offset?[vote(3),vote(4)]:[vote(1),vote(2)];
   const week=query.get('week')==='latest'?WEEK:query.get('week'),sitting=query.get('sitting');
-  return {version:11,member:{id:url.pathname.split('/').at(-1)},positions:query.get('positions'),alignment:query.get('alignment')||'all',alignmentCounts:{with:4,against:0,abstained:0,unclassified:0},snapshotId:query.get('snapshot')||SNAPSHOT,
+  return {version:12,member:{id:url.pathname.split('/').at(-1)},positions:query.get('positions'),alignment:query.get('alignment')||'all',alignmentCounts:{with:4,against:0,abstained:0,unclassified:0},snapshotId:query.get('snapshot')||SNAPSHOT,
     period:sitting?{kind:'sitting',week:null,sittingId:sitting,from:sitting.slice(7),to:sitting.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     items,pagination:{offset,limit:50,returned:2,observedTotal:4,recordedTotal:4,filteredTotal:4,nextOffset:offset?null:2},
     selected:id?Number(id.split('-').at(-1))<=4?{status:'found',item:vote(Number(id.split('-').at(-1)))}:{status:'not-found-in-scanned-data',item:null}:{status:'not-requested',item:null},
@@ -484,4 +484,16 @@ test('expansion preserves outer scroll without a request and decision/back keep 
  await h.click(button(h.container,'← Back to votes'));
  assert.equal(page.scrollTop,230);assert.equal(body.scrollTop,90);
  await h.go(-1);assert.equal(page.scrollTop,230);assert.equal(body.scrollTop,90);
+});
+
+test('a decision opened below the sticky tabs starts in view and Back restores the list offset',async t=>{
+ const h=await harness(t),page=h.container.querySelector('main.explorer'),tabs=h.container.querySelector('.explorer-tabs');
+ const detail=h.container.querySelectorAll('.member-votes-pane')[1];
+ tabs.getBoundingClientRect=()=>({top:0,bottom:60});detail.getBoundingClientRect=()=>({top:-24,bottom:400});
+ await h.click(h.container.querySelector('.member-votes-subject h3 button'));
+ page.scrollTop=460;
+ await h.click(h.container.querySelector('[data-vote-id]'));
+ assert.equal(page.scrollTop,460-24-60-12,'the detail start moves just below the tabs');
+ await h.click(button(h.container,'← Back to votes'));
+ assert.equal(page.scrollTop,460);
 });

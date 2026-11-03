@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Checking committee {committee}…",
   "app.clear_category": "Clear category",
   "app.clear_filter": "Clear filter",
+  "app.show_filters": "Filters",
   "app.close_categories": "Close categories",
   "app.committee_records": "Committee records",
   "app.contributions_unavailable": "Contributions unavailable.",
@@ -979,7 +980,6 @@
   "batch6.speechtranslation.show.translation.language.26": "Show translation ({language})",
   "bookmarks.question_reference.4863d7": "Question {reference}",
   "commissionfollowups.commission_follow_up": "Commission follow-up",
-  "commissionfollowups.commission_follow_up_could_not_be_checked": "Commission follow-up could not be checked.",
   "commissionfollowups.commission_follow_up_date_file_unavailable_here.2f2d31": "Commission follow-up · {date} · File unavailable here.",
   "commissionfollowups.commission_follow_up_date_filelink.c1e29e": "Commission follow-up · {date} · {fileLink}",
   "commissionfollowups.commission_follow_up_file_unavailable_here.6257de": "Commission follow-up · File unavailable here.",
@@ -2383,6 +2383,10 @@
   "topics.topic": "Topic",
   "topics.place": "Place",
   "topics.keywords": "Keywords",
+  "topics.geopolitics": "Geopolitics",
+  "topics.plenaryMode": "Topics",
+  "topics.findPlace": "Find a place",
+  "topics.findTopic": "Find a topic",
   "topics.find": "Find a topic or place",
   "topics.unavailable": "Unavailable",
   "topics.pending": "Topic not yet collected",
@@ -2745,5 +2749,7 @@
   "topics.story.map.lead.soFar.eu": "In Europe and its neighbours, MEPs have so far asked most about {place} ({questions}).",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Contributions by month",
-  "groupvoices.contributions_by_sitting_day.77a719": "Contributions by sitting day"
+  "groupvoices.contributions_by_sitting_day.77a719": "Contributions by sitting day",
+  "membervotespresentation.votes_not_yet_published": "Votes not yet published",
+  "membervotespresentation.votes_start_at": "Votes start at {time}"
 }

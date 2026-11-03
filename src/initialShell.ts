@@ -6,14 +6,14 @@ export function localizeInitialShell(document: Document, query: URLSearchParams)
   if (!shell) return;
   const ui = uiForLocale(query.get('lang') || 'en');
   const titles: Record<string, string> = {
-    topics: 'topics.topics', members: 'shell.heading.members', legislation: 'shell.navigation.plenaryAgenda',
+    geopolitics: 'topics.geopolitics', members: 'shell.heading.members', legislation: 'shell.navigation.plenaryAgenda',
     questions: 'shell.navigation.questions', outside: 'shell.navigation.outsideVoices',
     groups: 'shell.navigation.groupVoices', saved: 'shell.navigation.following',
   };
   const view = Object.hasOwn(titles, query.get('view') || '') ? query.get('view')! : 'members';
-  const modes: Record<string, string> = {participation: 'shell.heading.whatsHot', cloud: 'shell.heading.plenaryWordCloud', trends: 'shell.heading.topicTimeline', dossier: 'shell.heading.dossiers'};
+  const modes: Record<string, string> = {participation: 'shell.heading.whatsHot', cloud: 'shell.heading.plenaryWordCloud', topics: 'topics.plenaryMode', dossier: 'shell.heading.dossiers'};
   let title = ui.t(titles[view]);
-  if (view === 'legislation' && Object.hasOwn(modes, query.get('pl-mode') || '')) title = ui.t(modes[query.get('pl-mode')!]);
+  if (view === 'legislation' && (query.get('pl-mode')!=='dossier'||Boolean(query.get('dossier-ref')?.trim())) && Object.hasOwn(modes, query.get('pl-mode') || '')) title = ui.t(modes[query.get('pl-mode')!]);
   if (view === 'members' && /^\d+$/.test(query.get('member') || '')) title = ui.t('shell.heading.memberNumber', {memberId: query.get('member')!});
   const set = (selector: string, value: string) => {const node = shell.querySelector(selector); if (node) node.textContent = value;};
   set('header strong', ui.t('shell.siteName'));

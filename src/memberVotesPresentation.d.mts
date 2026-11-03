@@ -1,6 +1,7 @@
 import type {MemberVote,MemberVoteSubject,MemberVotesResponse} from './MemberVotesTypes';
 export const MEMBER_VOTES_PAGE_SIZE:50;
-export function memberVotesCoverageNotice(data:MemberVotesResponse,state?:{decisionId?:string|null;context?:unknown}, ui?: import('./uiI18n.mjs').UiFormatter):string|null;
+export function memberVotesCoverageNotice(data:MemberVotesResponse,state?:{decisionId?:string|null;context?:unknown}, ui?: import('./uiI18n.mjs').UiFormatter, now?:number):string|null;
+export function memberVotesAllPending(data:MemberVotesResponse|null|undefined,sittingId?:string|null):boolean;
 export type MemberVotesRequestState={week?:string;sittingId?:string|null;positions?:'recorded'|'all';alignment?:'all'|'with'|'against'|'abstained';offset?:number;decisionId?:string|null;snapshotId?:string|null};
 export type MemberVoteGroup={id:string;subject:MemberVoteSubject|null;items:MemberVote[]};
 export type MemberVoteCounts={for:number;against:number;abstaining:number;total:number};

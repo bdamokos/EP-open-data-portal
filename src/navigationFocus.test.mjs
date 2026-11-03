@@ -296,7 +296,7 @@ test('a cold deep link renders its destination shell before the view module reso
 });
 
 test('cold legislation links show the validated mode heading before and after the module loads',async t=>{
-  for(const [mode,title] of [['agenda','Plenary agenda'],['participation','What’s hot'],['cloud','Plenary word cloud'],['dossier','Dossiers'],['invalid','Plenary agenda']])await t.test(mode,async t=>{
+  for(const [mode,title] of [['agenda','Plenary agenda'],['participation','What’s hot'],['cloud','Plenary word cloud'],['topics','Topics'],['dossier','Plenary agenda'],['invalid','Plenary agenda']])await t.test(mode,async t=>{
     const h=await harness(t,'?view=legislation&pl-mode='+mode,false,'legislation');
     assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,title);
     await h.releaseView();
