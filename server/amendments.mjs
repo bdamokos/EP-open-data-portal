@@ -1,9 +1,10 @@
+import {legacyAmendmentDocument,agendaNamesDocument} from './upcoming-amendments.mjs';
 import {committeeListId,committeeDraftId,committeeCode} from './committee-amendments.mjs';
 import { array, tail, procedureIds, documentFiles } from './activity-index-model.mjs';
 import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
-export const AMENDMENTS_VERSION = 8;
+export const AMENDMENTS_VERSION = 9;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 4;
 export const AMENDMENT_OUTCOME_PROOF_VERSION = 3;
 export const AMENDMENT_DISTRIBUTION_PROOF_VERSION = 2;
@@ -103,13 +104,13 @@ export function canonicalEPReference(value) {
   const ref=String(value?.id || value || '').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
   return /^eli\/dl\/(?:doc|event)\/[A-Z0-9-]+$/.test(ref)?ref:null;
 }
-export const amendmentTarget = id => /^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(String(id || ''));
+export const amendmentTarget = (id,{agendaItems=[]}={}) => legacyAmendmentDocument(id)&&agendaItems.some(item=>agendaNamesDocument(item,id)) || /^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(String(id || ''));
 export const amendmentDocumentId = value => {
   const id=tail(value);return amendmentTarget(id)?id:null;
 };
 export function amendmentReference(value) {
   const canonical=canonicalEPReference(value);if(!canonical?.startsWith('eli/dl/doc/'))return null;
-  const id=tail(canonical), match=id.match(/^((?:A|B|RC)-10-\d{4}-\d{4,6})-AM-(\d{1,5})$/);
+  const id=tail(canonical), match=id.match(/^((?:A|B|RC)-(?:9|10)-\d{4}-\d{4,6})-AM-(\d{1,5})$/);
   return match && Number(match[2])>0 ? { id, targetDocumentId:match[1], number:Number(match[2]) } : null;
 }
 export function hasDecisionReferenceSet(decision) {
@@ -219,7 +220,7 @@ export function amendmentQuery(params,{failures=false}={}) {
   if(!['plenary','committee'].includes(scope))throw new HttpError(400,'invalid_scope','Choose committee or plenary amendments.');
   if(list!==null&&(scope!=='committee'||!committeeListId(list)))throw new HttpError(400,'invalid_list','Choose an exact committee amendment list.');
   if(committee!==null&&(scope!=='committee'||!committeeCode(committee)))throw new HttpError(400,'invalid_committee','Choose an exact committee code.');
-  if(document!==null && !(scope==='committee'?committeeDraftId(document):amendmentTarget(document)))throw new HttpError(400,'invalid_document','Use an exact plenary report or motion identifier.');
+  if(document!==null && !(scope==='committee'?committeeDraftId(document):amendmentTarget(document)||legacyAmendmentDocument(document)))throw new HttpError(400,'invalid_document','Use an exact plenary report or motion identifier.');
   if(procedure!==null && !/^\d{4}-\d{4}[A-Z]?$/.test(procedure))throw new HttpError(400,'invalid_procedure','Use an exact procedure identifier.');
   if(member!==null && (!/^[1-9]\d*$/.test(member)||!Number.isSafeInteger(Number(member))))throw new HttpError(400,'invalid_member','Use a positive MEP identifier.');
   if(outcome!==null&&!['ADOPTED','REJECTED','LAPSED','WITHDRAWN','mixed','unavailable'].includes(outcome))throw new HttpError(400,'invalid_outcome','Unknown amendment outcome.');

@@ -326,7 +326,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
   const warnings=new Set();let blocks=documentBlocks(docxParts(buffer),warnings,language);const groups=[],gaps=[];
   const gap=(code,number,message,details={})=>gaps.push({code,...(number==null?{}:{number}),message,sourceUrl,...details});
   if(reportId) {
-    const range=String(listId||'').match(/^(A-10-\d{4}-\d{4,6})-AM-(\d+)-(\d+)$/);
+    const range=String(listId||'').match(/^(A-(?:9|10)-\d{4}-\d{4,6})-AM-(\d+)-(\d+)$/);
     const start=blocks.findIndex(block=>block.kind==='paragraph'&&/<RepeatBlock-Amend>/.test(block.raw));
     const end=blocks.findIndex((block,index)=>index>=start&&block.kind==='paragraph'&&/<\/RepeatBlock-Amend>/.test(block.raw));
     const cover=blocks.slice(0,start).filter(block=>block.kind==='paragraph').map(block=>block.raw).join('\n');

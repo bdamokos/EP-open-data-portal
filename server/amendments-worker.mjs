@@ -1,3 +1,4 @@
+import {upcomingAgenda} from './upcoming-amendments.mjs';
 import {confirmSourceRejection,SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {committeeDiscoveryTask,rebuildCommitteeList} from './committee-amendments-worker.mjs';
 import {sittingConfirmationDay,sittingOutcomesComplete,sittingSnapshotConfirmed} from './refresh-policy.mjs';
@@ -128,6 +129,9 @@ function saveVerifiedList(worker,generation,target,candidate,list,evidence,{pars
 }
 function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true,sittingIds=[],enqueue=enqueueAmendment}={}) {
   const id=idOf(work),linked=linkedListCandidates(work),verified=new Set(),unresolved=[];
+  const originalEnqueue=enqueue;
+  if(worker.upcomingDocument===id)enqueue=(store,generation,key,kind,body,priority,...rest)=>originalEnqueue(store,generation,key,kind,{...body,upcoming:true,upcomingUntil:worker.upcomingUntil},priority,...rest);
+
   for(const candidate of linked.candidates.slice(0,AMENDMENT_LIMITS.listsPerTarget)) {
     let prior=worker.store.source(generation,sourceKey(candidate.id));
     const expandedVerified=candidate.expanded&&!candidate.unverifiedExpanded&&candidate.expanded.amendmentDistributionDeclared===true;
@@ -174,8 +178,8 @@ function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true,sitt
     const bytesPresent=!settled||retentionDeferred||sources.has(freshness.descriptor)&&(!alternate||sources.has(alternate));
     const alternateFailureDeferred=retentionDeferred&&Boolean(prior?.work.authorNames?.error);
     const alternateUnchanged=!alternate||samePublishedDescriptor(alternate,prior?.work.authorNames?.descriptor)&&(alternateFailureDeferred||!alternate.issued||docxRetrievedAfterIssue(prior?.work.authorNames?.source?.fetchedAt,alternate.issued));
-    const unchanged=freshness.status==='fresh'&&bytesPresent&&alternateUnchanged&&(settled||worker.clock()-Date.parse(prior?.work.extraction?.fetchedAt || prior?.fetchedAt)<7*DAY);
-    if(discover&&currentDocxDescriptor(prior?.work)&&(!unchanged||alternateAuthorDescriptor(prior?.work,prior?.work.extraction)&&prior?.work.extraction?.authorNamesVersion!==AMENDMENT_AUTHOR_NAMES_VERSION)&&!retryDeferred)enqueue(worker.store,generation,'amendment:extract:'+candidate.id,'amendment-extract',{listId:candidate.id,targetDocumentId:id},112,true);
+    const unchanged=freshness.status==='fresh'&&bytesPresent&&alternateUnchanged&&(worker.upcomingDocument===id||settled||worker.clock()-Date.parse(prior?.work.extraction?.fetchedAt || prior?.fetchedAt)<7*DAY);
+    if(discover&&currentDocxDescriptor(prior?.work)&&(!unchanged||alternateAuthorDescriptor(prior?.work,prior?.work.extraction)&&prior?.work.extraction?.authorNamesVersion!==AMENDMENT_AUTHOR_NAMES_VERSION)&&!retryDeferred)enqueue(worker.store,generation,'amendment:extract:'+candidate.id,'amendment-extract',{listId:candidate.id,targetDocumentId:id,...(worker.upcomingDocument===id?{upcoming:true,upcomingUntil:worker.upcomingUntil}:{})},112,true);
     const date=prior?.work.document_date;
     if(discover&&validAmendmentDate(date)&&(!worker.store.source(generation,rosterKey(date))||hasNonLatinAuthors(prior?.work.extraction)&&worker.store.source(generation,rosterKey(date))?.work.nameVersion!==AMENDMENT_AUTHOR_NAMES_VERSION))enqueue(worker.store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114,true);
   }
@@ -272,7 +276,7 @@ export function scheduleSittingOutcomes(worker,generation,sittingId,{priority=11
 }
 
 export function scheduleAmendments(worker,generation,work,fetchedAt,endpoint,{enqueue=enqueueAmendment}={}) {
-  const id=idOf(work);if(!amendmentTarget(id))return;
+  const id=idOf(work);if(!amendmentTarget(id,{agendaItems:upcomingAgenda(worker.store,generation)}))return;
   rebuildAmendmentTarget(worker,generation,id,{enqueue});
   const priorTarget=worker.store.db.prepare('SELECT body FROM amendment_targets WHERE generation=? AND id=?').get(generation,id);
   const discovered=priorTarget?JSON.parse(priorTarget.body).discoveredSittingIds || []:[];
@@ -348,7 +352,7 @@ async function runParserUpgradeSlice(worker,task) {
     select:body=>store.db.prepare("SELECT key,body,COALESCE(json_extract(body,'$.document_date'),'') AS date FROM sources WHERE generation=? AND kind='amendment-list' AND key<=? AND (COALESCE(json_extract(body,'$.document_date'),'')<? OR (COALESCE(json_extract(body,'$.document_date'),'')=? AND key<?)) ORDER BY date DESC,key DESC LIMIT 1").get(generation,body.throughKey,body.afterDate ?? '\uffff',body.afterDate ?? '\uffff',body.afterKey || '\uffff'),
     action:(source,body)=>{
       const list=JSON.parse(source.body),listId=idOf(list),targetDocumentId=list.scopeKey||list.targetDocumentId;
-      if(!list.extraction||list.extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION||!amendmentTarget(targetDocumentId)&&!targetDocumentId?.startsWith('committee:'))return;
+      if(!list.extraction||list.extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION||!amendmentTarget(targetDocumentId,{agendaItems:upcomingAgenda(store,generation)})&&!targetDocumentId?.startsWith('committee:'))return;
       const freshness=listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
       if(freshness.status==='failed'&&(list.wordingRefreshFailure?.parserVersion==null||list.wordingRefreshFailure.parserVersion===AMENDMENT_EXTRACTION_VERSION)&&Date.parse(freshness.retryAfter)>worker.clock()) {
         store.taskProgress(task,{...body,retryAt:Math.min(body.retryAt || Infinity,Date.parse(freshness.retryAfter))});
@@ -460,7 +464,7 @@ async function runPreparationSlice(worker,task) {
       const {source,stage}=item,work=JSON.parse(source.body);
       if(preparationQueueBusy(store,generation)){deferPreparation(worker,task);return false;}
       if(stage==='documents') {
-        if(!amendmentTarget(idOf(work)))return;
+        if(!amendmentTarget(idOf(work),{agendaItems:upcomingAgenda(store,generation)}))return;
         if(needsLinkObservation(work)) {
           if(body.upgradePendingKey===source.key||source.key>(body.upgradeAfterKey||'')&&body.upgrades<AMENDMENT_LIMITS.upgradeTargets){
             if(body.upgradePendingKey!==source.key) {
@@ -552,7 +556,7 @@ async function runRebuildSlice(worker,task) {
   const complete=await runAmendmentWorkSlice(worker,task,{
     select:body=>body.rebuild.kind==='profile'?(body.targets?.[body.rebuild.offset]!=null?{id:body.targets[body.rebuild.offset]}:null):store.db.prepare('SELECT id FROM ('+query.sql+') WHERE id>? AND id<=? ORDER BY id LIMIT 1').get(...query.args,body.rebuild.afterTarget,body.rebuild.throughTarget),
     action:({id})=>{
-      if(id?.startsWith('committee:')||amendmentTarget(id)&&store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,context?{observedDecisionIds:context.observedDecisionIds,discoveredSittingIds:context.directTargets.has(id)?[scope.sittingId]:[]}:{discover:scope.kind!=='member-changes'});
+      if(id?.startsWith('committee:')||amendmentTarget(id,{agendaItems:upcomingAgenda(store,generation)})&&store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,context?{observedDecisionIds:context.observedDecisionIds,discoveredSittingIds:context.directTargets.has(id)?[scope.sittingId]:[]}:{discover:scope.kind!=='member-changes'});
       if(scope.kind==='member-changes')store.db.prepare('DELETE FROM amendment_member_current WHERE generation=? AND target=?').run(generation,id);
     },
     advance:({id},body)=>({rebuild:{...body.rebuild,...(body.rebuild.kind==='profile'?{offset:body.rebuild.offset+1}:{afterTarget:id})}}),
@@ -894,7 +898,7 @@ export async function amendmentTask(worker,task) {
     // retained bytes of a still-current descriptor at any age. Their original
     // retrieval time remains the wording's retrieval time.
     const retrieve=async descriptor=>{
-      const retained=settled||parserUpgrade||body.sourceDownloaded?await sources.read(descriptor,{listId:body.listId,signal}):null;
+      const retained=settled||parserUpgrade||body.sourceDownloaded||body.upcoming?await sources.read(descriptor,{listId:body.listId,signal}):null;
       if(retained)return retained;
       const defer=wait=>{
         store.assertWriter();
