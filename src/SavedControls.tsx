@@ -1,3 +1,5 @@
+import {RetryReads,retryFailure} from './RetryReads';
+import {useAutomaticRetry} from './useAutomaticRetry';
 import {StarControl} from './StarControl';
 import {UiMessageError,uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -59,7 +61,13 @@ export const requestedKeys=new WeakMap<Promise<unknown>,string>();
 let pending:Promise<SavedCheck|undefined>|null=null,lastStatus=0,status:FollowingStatus|null=null;
 let statusError=false;
 const checkListeners=new Set<()=>void>();
-let manifestDone='',questionsDone='',pendingLanguage='';
+let readState:{key:string;language:string;error:unknown;loading:boolean;retrying:boolean}={key:'',language:'',error:null,loading:false,retrying:false};
+const readListeners=new Set<()=>void>();
+function publishReadState(patch:Partial<typeof readState>){readState={...readState,...patch};readListeners.forEach(listener=>listener());}
+export function useSavedReadState(){return useSyncExternalStore(callback=>{readListeners.add(callback);return()=>{readListeners.delete(callback);};},()=>readState);}
+
+let manifestDone='',questionsDone='',pendingLanguage='',readScope='',readGeneration='';
+const taskReads=new RetryReads();
 const taskKey=(language:string,items:SavedItem[])=>JSON.stringify([status?.epoch,status?.generation,status?.marksReady,language,items.map(item=>[savedKey(item),item.savedAt])]);
 const selectionKey=()=>savedStore.snapshot().items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
 function verify(data:{epoch:string;generation:number},expected:FollowingStatus, ui: import('./uiI18n.mjs').UiFormatter = defaultUi) {
@@ -109,6 +117,8 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
   pendingLanguage=language;
   const requestedKey=selectionKey();
   if(!requestedKey)return Promise.resolve(undefined);
+  const scope=JSON.stringify([requestedKey,language]);if(readScope!==scope){taskReads.errors.clear();readScope=scope;}
+  const read=<T,>(key:string,load:()=>Promise<T>)=>taskReads.read(key,load,force);
   const run=async()=>{
     const items=savedStore.snapshot().items,hasMembers=items.some(item=>item.kind==='mep');
     const failures:unknown[]=[];
@@ -116,10 +126,11 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
     // A new selection can use a fresh status already held by this tab.
     try {
       if(force||!status||Date.now()-lastStatus>=60_000) {
-        lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status', undefined, undefined, ui);statusError=false;
+        lastStatus=Date.now();status=await read('status',()=>api<FollowingStatus>('insights/following-status', undefined, undefined, ui));statusError=false;
       }
       expected=status;
-    }catch(error){statusError=true;savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');setGroupsCheck('error');failures.push(error);}}
+      const generation=JSON.stringify([status.epoch,status.generation]);if(readGeneration!==generation){taskReads.errors.clear();readGeneration=generation;}
+    }catch(error){statusError=true;savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');setGroupsCheck('error');}failures.push(error);}
     let data:SavedStates={questions:[],checkedAt:'',coverage:{indexComplete:expected?.indexComplete===true}};
     const questions=items.filter(item=>item.kind==='question'),questionKey=taskKey(language,questions);
     // Question sources do not depend on marker readiness or manifest processing.
@@ -127,7 +138,7 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
     // prevent question answers from becoming available in the store.
     const checkQuestions=async()=>{
       if(questions.length&&questionsDone!==questionKey)try{
-        data=await postSavedQuestions(language,questions.map(item=>item.id), ui);savedStore.observe(data,questions);questionsDone=questionKey;
+        data=await read('questions:'+questionKey,()=>postSavedQuestions(language,questions.map(item=>item.id), ui));savedStore.observe(data,questions);questionsDone=questionKey;
         savedStore.setCheckState('available','question');
       }catch(error){savedStore.setCheckState('error','question');failures.push(error);}
     };
@@ -138,14 +149,14 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
         const key=JSON.stringify([expected.epoch,expected.generation,expected.marksReady,language]);
         if(manifestDone!==key||savedStore.snapshot().epoch!==expected.epoch||items.some(item=>item.kind==='mep'&&!item.seen&&!item.legacy)) {
           const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
-          const manifest=await api<FollowingManifest>('insights/following-manifest?'+params, undefined, undefined, ui);verify(manifest,expected, ui);
+          const manifest=await read('manifest:'+key,async()=>{const value=await api<FollowingManifest>('insights/following-manifest?'+params, undefined, undefined, ui);verify(value,expected!,ui);return value;});
           savedStore.applyManifest(manifest);manifestDone=key;
         }
         // Migration stays serial on constrained clients; successful members are
         // never requested again for migration.
         const migrationFailures:unknown[]=[];
-        for(const item of savedStore.snapshot().items.filter(item=>item.kind==='mep'&&item.legacy))try{await memberDetail(item,language,expected, ui);}catch(error){migrationFailures.push(error);}
-        if(migrationFailures.length)throw migrationFailures[0];
+        for(const item of savedStore.snapshot().items.filter(item=>item.kind==='mep'&&item.legacy))try{await read('member:'+taskKey(language,[item]),()=>memberDetail(item,language,expected!,ui));}catch(error){migrationFailures.push(error);}
+        if(migrationFailures.length)throw retryFailure(migrationFailures);
         savedStore.setCheckState('available');
       }catch(error){savedStore.setCheckState(((error as {code?:string}).code==='marks_unavailable') ? 'unavailable' : 'error');failures.push(error);}
     };
@@ -155,7 +166,7 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
       if(expected.membershipReady!==true)return;
       try {
         const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
-        const snapshot=await api<MembershipSnapshot>('insights/following-membership?'+params, undefined, undefined, ui);verify(snapshot,expected, ui);
+        const snapshot=await read('membership:'+taskKey(language,items),async()=>{const value=await api<MembershipSnapshot>('insights/following-membership?'+params, undefined, undefined, ui);verify(value,expected!,ui);return value;});
         if(!membershipStore.observe(snapshot,savedStore.snapshot().items))throw Object.assign(new UiMessageError('Saved.couldn_t_check_membership_updates',{},ui),{code:'invalid_membership_snapshot',cause:Error('Invalid membership snapshot.')});
         coverageStore.observeMembership(snapshot);
         setMembershipCheck(Object.values(snapshot.lists).some(list=>list.status==='unavailable') ? 'unavailable' : 'available');
@@ -167,13 +178,13 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
       if(expected.groupsReady!==true)return;
       try {
         const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
-        const snapshot=await api<GroupsSnapshot>('insights/following-groups?'+params, undefined, undefined, ui);verify(snapshot,expected, ui);
+        const snapshot=await read('groups:'+taskKey(language,items),async()=>{const value=await api<GroupsSnapshot>('insights/following-groups?'+params, undefined, undefined, ui);verify(value,expected!,ui);return value;});
         if(!groupsStore.observe(snapshot,savedStore.snapshot().items))throw Object.assign(new UiMessageError('groupupdates.tsx.couldn.t.check.group.updates',{},ui),{code:'invalid_group_snapshot',cause:Error('Invalid group snapshot.')});
         setGroupsCheck(items.some(item=>item.kind==='mep'&&snapshot.members[item.id]?.coverage!=='complete') ? 'unavailable' : 'available');
       }catch(error){setGroupsCheck('error');failures.push(error);}
     };
     await Promise.all([checkQuestions(),checkMembers(),checkMembership(),checkGroups()]);
-    if(failures.length)throw failures[0];
+    if(failures.length)throw retryFailure(failures);
     expireActivityReads();return {data,requestedKey,language};
   };
   pending=(async()=>{
@@ -184,15 +195,23 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
       }
       throw error;
     }
-  })().finally(()=>{pending=null;checkListeners.forEach(listener=>listener());if(document.visibilityState==='visible'&&selectionKey()!==requestedKey)void checkSaved(language, undefined, ui).catch(()=>{});});
-  requestedKeys.set(pending,requestedKey);return pending;
+  })().then(result=>{publishReadState({error:null});return result;},error=>{publishReadState({error});throw error;}).finally(()=>{pending=null;publishReadState({loading:false});checkListeners.forEach(listener=>listener());if(document.visibilityState==='visible'&&selectionKey()!==requestedKey)void checkSaved(language, undefined, ui).catch(()=>{});});
+  publishReadState({key:requestedKey,language,loading:true});requestedKeys.set(pending,requestedKey);return pending;
+}
+export function useSavedRecovery(language:string,enabled=true) {
+  const ui=useUiI18n(),{items}=useSaved(),key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
+  const currentRead=useSavedReadState(),matching=currentRead.key===key&&currentRead.language===language;
+  const retrying=useAutomaticRetry(enabled&&key?language+':'+key:null,matching?currentRead.error:null,matching&&currentRead.loading,()=>{void checkSaved(language,true,ui).catch(()=>{});});
+  useEffect(()=>{if(enabled&&readState.retrying!==retrying)publishReadState({retrying});},[enabled,retrying]);
 }
 export function useSavedChecks(language:string,following=false) {
   const ui = useUiI18n();
   const {items}=useSaved(),key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
+  useSavedRecovery(language,!following);
   useEffect(()=>{
     if(!key)return;
     let active=true,contextPending=true,timer:ReturnType<typeof setTimeout>|undefined;
+    const failed=()=>readState.key===key&&readState.language===language&&Boolean(readState.error);
     const delay=()=>{
       const saved=savedStore.snapshot(),hasMembers=saved.items.some(item=>item.kind==='mep'),hasQuestions=saved.items.some(item=>item.kind==='question');
       const waiting=statusError||!status||hasMembers&&(!status.marksReady||status.membershipReady===false||status.groupsReady===false||saved.checkState!=='available'||membershipCheck==='error'||groupsCheck==='error')||hasQuestions&&saved.questionCheckState!=='available';
@@ -200,11 +219,11 @@ export function useSavedChecks(language:string,following=false) {
     };
     const schedule=()=>{
       clearTimeout(timer);
-      if(active&&document.visibilityState==='visible')timer=setTimeout(()=>void check(),contextPending ? 1000 : Math.max(1000,lastStatus+delay()-Date.now()));
+      if(active&&!failed()&&document.visibilityState==='visible')timer=setTimeout(()=>void check(),contextPending ? 1000 : Math.max(1000,lastStatus+delay()-Date.now()));
     };
     const check=async()=>{
       clearTimeout(timer);
-      if(document.visibilityState!=='visible')return;
+      if(document.visibilityState!=='visible'||failed())return;
       if(contextPending||Date.now()-lastStatus>=delay()){
         const checked=checkSaved(language, undefined, ui),matches=requestedKeys.get(checked)===key;
         try{
@@ -225,16 +244,16 @@ export function useSavedChecks(language:string,following=false) {
     return()=>{active=false;clearTimeout(timer);checkListeners.delete(schedule);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};
   },[following,key,language]);
 }
-type Resolution={pending?:boolean;error?:string};
-const resolutionAttempts=new Map<string,{at:number;error?:string;done?:boolean}>();
+type Resolution={pending?:boolean;error?:string;failure?:unknown};
+const resolutionAttempts=new Map<string,{at:number;error?:string;failure?:unknown;done?:boolean}>();
 export function useResolveSavedMembers(language:string) {
   const ui=useUiI18n();
   const saved=useSaved(),[resolutions,setResolutions]=useState<Record<string,Resolution>>({}),[wake,setWake]=useState(0);
-  const active=useRef(false),forced=useRef(new Set<string>()),retryEventAt=useRef(0);
+  const active=useRef(false),forced=useRef(new Set<string>());
   const resolveKey=(item:SavedItem)=>JSON.stringify([saved.epoch,saved.manifest?.generation,language,item.id,item.savedAt]);
   useEffect(()=>{
     active.current=true;
-    const retry=()=>{if(document.visibilityState==='visible'){retryEventAt.current=Date.now();setWake(value=>value+1);}};
+    const retry=()=>{if(document.visibilityState==='visible'){setWake(value=>value+1);}};
     window.addEventListener('focus',retry);document.addEventListener('visibilitychange',retry);
     return()=>{active.current=false;window.removeEventListener('focus',retry);document.removeEventListener('visibilitychange',retry);};
   },[]);
@@ -243,15 +262,15 @@ export function useResolveSavedMembers(language:string) {
     for(const item of saved.items) {
       if(item.kind!=='mep'||!(item.unresolved?.activity||item.unresolved?.answer))continue;
       const key=resolveKey(item),attempt=resolutionAttempts.get(key),force=forced.current.delete(key);
-      if(opening.has(taskKey(language,[item]))||attempt?.done||attempt&&!attempt.error||!force&&attempt&&retryEventAt.current-attempt.at<60_000)continue;
+      if(opening.has(taskKey(language,[item]))||attempt?.done||attempt&&!attempt.error||attempt&&!force)continue;
       if(opening.size>=4)break;
       resolutionAttempts.set(key,{at:Date.now()});setResolutions(previous=>({...previous,[key]:{pending:true}}));
       void openSavedMember(item,language).then(()=>{
         resolutionAttempts.set(key,{at:Date.now(),done:true});
         if(active.current)setResolutions(previous=>({...previous,[key]:{}}));
       },error=>{
-        const message=uiErrorText(error,ui);resolutionAttempts.set(key,{at:Date.now(),error:message});
-        if(active.current)setResolutions(previous=>({...previous,[key]:{error:message}}));
+        const message=uiErrorText(error,ui);resolutionAttempts.set(key,{at:Date.now(),error:message,failure:error});
+        if(active.current)setResolutions(previous=>({...previous,[key]:{error:message,failure:error}}));
       }).finally(()=>{if(active.current)setWake(value=>value+1);});
     }
   },[saved.items,saved.epoch,saved.manifest,language,wake]);

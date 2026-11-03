@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -39,7 +40,7 @@ test('dossier press releases keep exact links and English titles without a cover
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(ProcedureContext,{reference,language:'fr'})));
   assert.match(container.textContent,/Loading summary/);
   const section=container.querySelector('.press-mentions');
@@ -71,9 +72,8 @@ test('dossier press releases keep exact links and English titles without a cover
   assert.equal(container.querySelector('.press-mentions'),null,'no found items render nothing, not a zero');
   assert.doesNotMatch(container.textContent,/temporarily unavailable/);
   await act(async()=>root.render(createElement(ProcedureContext,{reference:failing,language:'fr'})));
-  assert.match(container.textContent,/Parliament press releases are temporarily unavailable\. Try again/,'a failed read is not shown as an empty result');
-  const retry=[...container.querySelectorAll('button')].find(button=>button.textContent==='Try again');
-  await act(async()=>retry.click());
+  assert.equal(container.querySelector('.press-mentions-scope button'),null);
+  await automaticRecovery(t);
   assert.doesNotMatch(container.textContent,/temporarily unavailable/);
   assert.equal(requested.filter(ref=>ref===failing).length,2);
 });

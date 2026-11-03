@@ -1,3 +1,4 @@
+import {collectVotingList} from './voting-list-collector.mjs';
 import {collectUpcomingAmendments} from './upcoming-amendments-collector.mjs';
 import {dispatchBaseBackfill} from './base-source-backfill-dispatch.mjs';
 import {collectorTurnEvery} from './collector-share.mjs';
@@ -10,6 +11,7 @@ export async function dispatchCollector(worker,{busy=false,every=collectorTurnEv
  // Backfill, topic and story rotate within one optional allocation. Persist
  // both the core count and next lane across short iterations and restarts.
  const lanes=worker.baseBackfill?[['topic',topic],['story',story],['backfill',dispatchBaseBackfill]]:[['topic',topic],['story',story]];
+ if(worker.votingLists)lanes.push(['voting-lists',collectVotingList]);
  lanes.push(['upcoming',upcoming]);
  const start=Math.max(0,lanes.findIndex(([name])=>name===s.next));
  for(let offset=0;offset<lanes.length;offset++){

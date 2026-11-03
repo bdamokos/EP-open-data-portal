@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
@@ -29,7 +30,7 @@ async function mount(t,{response=result(),handler}={}) {
   });
   load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {MemberVoteExplanations}=await load('/src/MemberVoteExplanations.tsx');
-  const {createRoot}=await import('react-dom/client');const container=window.document.createElement('div');window.document.body.append(container);root=createRoot(container);
+  const {createRoot}=await import('react-dom/client');const container=window.document.createElement('div');window.document.body.append(container);installRetryClock(t);root=createRoot(container);
   let props={vote:{id:decision,sittingId:sitting,subjectId:subject},data:{snapshotId:snapshot,period:{kind:'sitting'}},memberId:'197655',language:'en',onDecision:id=>selected.push(id)};
   const render=()=>root.render(createElement(MemberVoteExplanations,{...props,key:props.vote.id+':'+props.memberId+':'+props.language}));
   await act(async()=>render());
@@ -79,10 +80,10 @@ test('a failed discovery request stays quiet',async t=>{
 
 test('a known explanation keeps its transcript failure and retry',async t=>{
   let attempts=0;
-  const view=await mount(t,{handler:url=>url.includes('speech-transcript/')&&++attempts===1?new Response('',{status:503}):null});
+  const view=await mount(t,{handler:url=>(url.includes('speech-transcript/')&&++attempts===1||url.includes('/api/speech/'))?new Response('',{status:503}):null});
   await view.click('Read oral explanation of vote');
-  assert.match(view.container.textContent,/Transcript unavailable/);
-  await view.click('Retry transcript');
+  assert.equal(view.container.querySelector('[role=alert] button'),null);
+  await automaticRecovery(t);
   assert.match(view.container.textContent,/Published explanation/);
 });
 

@@ -3,7 +3,7 @@ import type {MemberAttendanceResponse,MemberAttendanceSitting} from './MemberAtt
 import {memberAttendanceDetail,memberAttendanceLine} from './memberAttendancePresentation.mjs';
 
 function LoadFailure({onRetry}:{onRetry:()=>void}) {
-  return <><UiMessage id="batch5.memberattendance.tsx.5.52"/> <button type="button" onClick={onRetry}><UiMessage id="batch5.memberattendance.tsx.5.51"/></button></>;
+  return <><UiMessage id="batch5.memberattendance.tsx.5.52"/> </>;
 }
 export function AttendanceLine({data,loading,attempted,onRetry}:{data:MemberAttendanceResponse|null;loading:boolean;attempted:boolean;onRetry:()=>void}) {
   const ui = useUiI18n();

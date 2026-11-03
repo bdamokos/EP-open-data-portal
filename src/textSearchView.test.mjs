@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -40,7 +41,7 @@ async function setup(t,{query='',respond,highlights=false,members}={}) {
   const module=await loadModule('/src/TextSearch.tsx');
   const {PersonNamesProvider}=await loadModule('/src/PersonName.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const defaults={prefix:'fixture-fts',label:'Search fixture speeches',language:'en'};
   const render=props=>act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(module.TextSearch,{...defaults,...props}))));
   const find=selector=>{const node=container.querySelector(selector);assert(node,'Missing '+selector);return node;};
@@ -139,8 +140,8 @@ test('a pending or failed topic lookup cannot hide member and question title res
   assert.match(view.container.textContent,/Housing Member/);assert.match(view.container.textContent,/Housing question/);
   assert.match(view.container.textContent,/Searching plenary topics/);assert.deepEqual(calls,['mep','topic','question']);
   await act(async()=>finish(Response.json({error:{message:'Lookup timed out.'}},{status:503})));
-  assert.match(view.container.textContent,/Plenary topics search unavailable/);assert.match(view.container.textContent,/Housing question/);
-  await view.click('Retry');assert.equal(topicAttempts,2);assert.deepEqual(calls,['mep','topic','question','topic']);
+  assert.equal(view.container.querySelector('[role=alert] button'),null);assert.match(view.container.textContent,/Housing question/);
+  await automaticRecovery(t);assert.equal(topicAttempts,2);assert.deepEqual(calls,['mep','topic','question','topic']);
   await act(async()=>finish(Response.json({offset:0,sections:[section('topic')]})));
   assert.match(view.container.textContent,/Housing debate/);assert.equal(view.container.querySelector('[role="alert"]'),null);
 });
@@ -232,8 +233,8 @@ test('a same-query busy response and retry keep the previous matching results vi
   await view.render();const title=view.find('.explorer-search-result h4');
   await view.submit();assert.equal(searchCount,2);
   assert.equal(view.find('.explorer-search-result h4'),title);
-  assert.match(view.find('[role="alert"]').textContent,/Search is busy/);
-  await view.click('Retry');assert.equal(searchCount,3);
+  assert.equal(view.container.querySelector('[role="alert"]'),null);
+  await automaticRecovery(t);assert.equal(searchCount,3);
   assert.equal(view.find('.explorer-search-result h4'),title);
   assert.equal(view.find('.explorer-search-results').getAttribute('aria-busy'),'true');
   await act(async()=>finishRetry(Response.json(results())));
@@ -748,4 +749,15 @@ test('handled invalid HTTP 200 search response reports context without the searc
  const reports=view.calls.filter(call=>call.url.pathname.endsWith('/client-errors'));
  assert.equal(reports.length,1);assert.equal(reports[0].body.request,'/api/corpus/search');
  assert(!JSON.stringify(reports[0].body).includes('private-search'));
+});
+
+for(const deadline of ['header','body','latest'])test('automatic POST search recovery honours '+deadline+' deadlines',async t=>{
+ let count=0;const initial=Date.now(),at=initial+120_000;
+ const view=await setup(t,{query:'fixture-fts-search=hydrogen',respond:({url,body})=>{
+  if(!url.pathname.endsWith('/corpus/search'))return;
+  count++;if(count===1)return Response.json({error:{code:'corpus_busy',...(deadline==='header'?{}:{retryAfter:deadline==='latest'?60:120,retryAt:deadline==='latest'?at:undefined})}},{status:429,headers:deadline==='body'?{}:{'Retry-After':deadline==='latest'?'180':'120'}});
+  return Response.json(results(body));
+ }});
+ await view.render();assert.equal(count,1);assert.equal(view.container.querySelector('.explorer-search-error button'),null);
+ const clock=installRetryClock(t);await clock.advance(110_000);assert.equal(count,1,'backoff cannot bypass the server deadline');await automaticRecovery(t);assert.equal(count,2);assert(Date.now()>=initial+(deadline==='latest'?180_000:120_000));assert.match(view.container.textContent,/Energy/);
 });
