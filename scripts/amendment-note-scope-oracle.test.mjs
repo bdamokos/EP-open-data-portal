@@ -27,3 +27,9 @@ test('public verifier does not fall back past a failed note coordinate or metada
 test('new recitals can carry proposed-only notes with lettered labels and a printed terminal period',()=>{
  const f=fixture();f.placement={status:'placed',operation:'insert',itemIndex:0,insertBefore:0,insertAfter:-1};f.wording.originalText='';f.wording.originalFormatting=[];f.wording.proposedText='(-1)\tNew1b.\n_____\n1b. New citation.';f.wording.proposedFormatting=[{kind:'superscript',start:8,end:11}];const a=inspectNativeNoteScope(f);assert.equal(a.status,'verified');assert.deepEqual(a.noteScope.proposedLabels,['1b']);assert.deepEqual(a.noteScope.sourceNotes,[]);
 });
+test('native Whereas block independently binds a new negative recital before the first existing recital',async()=>{
+ const {assertNativeFirstRecital}=await import('./amendment-note-scope-oracle.mjs');
+ const texts=['Whereas:','(1) First.','(2) Second.','HAS ADOPTED THIS DECISION:'];
+ const input={proposal:{item:'act',paragraphs:texts.map((text,index)=>({index,text,complete:true,source:{complete:true,path:`/w:document[1]/w:body[1]/w:p[${index+1}]`}}))},wording:{language:'en',targetLabel:'Recital -1 (new)',originalText:'',proposedText:'(-1) New recital.'},placement:{operation:'insert',insertBefore:1,insertAfter:0},nativeQuoted:{proposalBuffer:noteWord(texts.map(text=>`<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`).join(''))}};
+ assert.equal(assertNativeFirstRecital(input).status,'verified');assert.equal(assertNativeFirstRecital({...input,placement:{...input.placement,insertBefore:2}}).status,'failed');input.nativeQuoted.proposalBuffer=noteWord(texts.map(text=>`<w:p><w:r><w:t>${text.replace('(2)','(3)')}</w:t></w:r></w:p>`).join(''));assert.equal(assertNativeFirstRecital(input).status,'unverified');
+});

@@ -67,3 +67,19 @@ export function inspectNativeNoteScope({proposal,wording,placement,nativeQuoted}
  if(placement.noteScope&&Object.entries(noteScope).some(([key,value])=>JSON.stringify(placement.noteScope[key])!==JSON.stringify(value)))return fail();
  return {status:'verified',reason:'oracle-native-note-scope',bodyWording:{...wording,originalText:sourceText,originalFormatting:[],proposedText:next.body,proposedFormatting:(wording.proposedFormatting||[]).filter(mark=>mark.end<=next.body.length)},noteScope};
 }
+
+// Separate body-location assertion for a new negative recital. The visible
+// Whereas/adoption block establishes its start independently of the cover.
+export function assertNativeFirstRecital({proposal,wording,placement,nativeQuoted}) {
+ const unknown=()=>({status:'unverified',reason:'oracle-initial-recital-unavailable'});
+ if(proposal?.item!=='act'||wording.language!=='en'||wording.targetLabel!=='Recital -1 (new)'||wording.originalText!==''||!/^\(-1\)\s+\S/u.test(wording.proposedText||'')||placement.operation!=='insert')return unknown();
+ let rows;try{rows=nativeNoteRows(nativeQuoted?.proposalBuffer);}catch{return unknown();}
+ const leads=rows.filter(row=>row.text.trim()==='Whereas:'),tails=rows.filter(row=>row.text.trim()==='HAS ADOPTED THIS DECISION:');
+ if(leads.length!==1||tails.length!==1)return unknown();
+ const start=rows.indexOf(leads[0]),end=rows.indexOf(tails[0]),recitals=rows.slice(start+1,end);
+ if(end<=start||recitals.length<2||[leads[0],...recitals,tails[0]].some(row=>!row.safe)||recitals.some((row,i)=>Number(/^\((\d+)\)\s+\S/u.exec(row.text)?.[1])!==i+1))return unknown();
+ const mapped=[leads[0],...recitals,tails[0]].map(row=>proposal.paragraphs.find(p=>p.source?.path===row.path));
+ if(mapped.some((row,i)=>!row?.complete||row.source?.complete!==true||compact(row.text)!==compact([leads[0],...recitals,tails[0]][i].text)||i&&row.index!==mapped[i-1].index+1))return unknown();
+ const before=mapped[1].index;
+ return placement.insertBefore===before&&placement.insertAfter===before-1?{status:'verified',reason:'oracle-native-initial-recital',rawSourceRows:recitals.map(row=>row.path)}:{status:'failed',reason:'oracle-initial-recital-boundary-mismatch'};
+}
