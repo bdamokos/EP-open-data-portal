@@ -11,6 +11,7 @@ import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
+import {assertRecitalCategoryRepair} from './amendment-recital-category-oracle.mjs';
 
 
 // Only these affirmative observations remove a row from the denominator.
@@ -369,6 +370,10 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
   const proposal = items?.[placement.itemIndex]?.proposal;
+  if(!proposal) {
+    const category=assertRecitalCategoryRepair({text,wording,placement});
+    if(category.status!=='unverified')return category;
+  }
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
