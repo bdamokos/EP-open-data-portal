@@ -107,10 +107,10 @@ export function buildExactTopicStories(payload,s={}){
   const amount=(p,kind)=>{const row=payload.series?.[p]?.[period],n=row?.[kind];return Number.isSafeInteger(n)&&n>0?browse(cm(n,kind==='debates'?'shortDebates':kind),kind,p):null;};
   const leaders=w.mostQuestionedPlaces||[];
   const busyLine=lines.find(l=>l.placeId);
-  if(busyLine){const p=busyLine.placeId,joint=leaders.length>1&&leaders.find(l=>l.id===p),q=amount(p,'questions')||(joint?browse(cm(joint.count,'questions'),'questions',p):null);
+  if(busyLine){const p=busyLine.placeId,joint=leaders.length>1&&leaders.find(l=>l.id===p),rise=s.mode!=='d'&&(w.risingQuestionPlaces||[]).find(r=>r.id===p),known=joint||rise,q=amount(p,'questions')||(known?browse(cm(known.count,'questions'),'questions',p):null);
    if(s.mode!=='d'&&leaders.length===1&&leaders[0].id===p){busyLine.id='topics.story.integrated.both';if(partialQuarter(period,payload.partial)){busyLine.id+='SoFar';busyLine.values.place=name(p);}busyLine.values.questions=bare(leaders[0].count,'questions',p);const periods=payload.periods||[],index=periods.indexOf(period);let streak=1;for(let i=index-1;i>=0&&!partialQuarter(periods[i],payload.partial);i--){const old=payload.periodWinners[periods[i]]?.mostQuestionedPlaces||[];if(old.length!==1||old[0].id!==p)break;streak++;}if(!partialQuarter(period,payload.partial)&&streak>=2){busyLine.id+=streak===2?'Again':'Streak';busyLine.values.ordinal=msg(s.language==='en'&&streak<=9?'ordinal.words.'+streak:'ordinal.'+new Intl.PluralRules(s.language,{type:'ordinal'}).select(streak),{count:num(streak)});}}
    else if(q&&s.mode!=='d'){busyLine.id='topics.story.integrated.'+(joint?'busiestShared':'busiest');busyLine.values.questions=q;}
-   const rise=s.mode!=='d'&&(w.risingQuestionPlaces||[]).find(r=>r.id===p);if(rise&&busyLine.values.questions){busyLine.id+='Rise';busyLine.values.home=home(rise);busyLine.values.average=ref(rise.baselineMean<1?msg('average.lessThanOne'):msg('average.value',{average:digits(Math.round(rise.baselineMean*10)/10)}),[],{browse:{list:'questions',place:p,periods:payload.periods.slice(1,payload.periods.indexOf(period)).join(',')}});}
+   if(rise&&busyLine.values.questions){busyLine.id+='Rise';busyLine.values.home=home(rise);busyLine.values.average=ref(rise.baselineMean<1?msg('average.lessThanOne'):msg('average.value',{average:digits(Math.round(rise.baselineMean*10)/10)}),[],{browse:{list:'questions',place:p,periods:payload.periods.slice(1,payload.periods.indexOf(period)).join(',')}});}
    const most=(w.mostDebatedPlaces||[]).find(r=>r.id===p&&r.count>=2);
    if(most){busyLine.id=busyLine.id==='topics.story.exact.busiestPlace'?'topics.story.integrated.busiestNoQuestions':busyLine.id;busyLine.id+='MostDebated';busyLine.values.debateCount=bare(most.count,'debates',p);
     // A co-leader gets its own sentence when the budget permits; otherwise name
@@ -133,8 +133,8 @@ export function buildExactTopicStories(payload,s={}){
     const risen=remaining.map(riseOf).filter(Boolean),group=risen.length>1&&risen.every(r=>kind(r)!=='Rare'&&kind(r)===kind(risen[0])&&mean(r)===mean(risen[0])&&!home(r))?risen:[];
     const details=(p,i)=>{const debates=amount(p.id,'debates'),rise=group.some(r=>r.id===p.id)?null:riseOf(p),values={place:name(p.id,i===0)};
      if(debates)values.debates=debates;
-     if(rise){values.average=average(rise,[p.id]);values.home=home(rise);}
-     return debates||rise?msg('integrated.questionPlace'+(debates?'Debates':'')+(rise?'Rise':''),values):values.place;
+     if(rise){if(kind(rise)!=='Rare')values.average=average(rise,[p.id]);values.home=home(rise);}
+     return debates||rise?msg('integrated.questionPlace'+(debates?'Debates':'')+(rise?kind(rise)==='Rare'?'Rare':'Rise':''),values):values.place;
     };
     const questions={...bare(leaders[0].count,'questions',remaining[0].id),browse:{list:'questions',places:remaining.map(p=>p.id).sort().join(',')}};
     l.id='topics.story.integrated.lead.'+(remaining.length>1?'tied':'shared');

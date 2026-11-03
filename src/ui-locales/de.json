@@ -2815,6 +2815,8 @@
   "topics.story.integrated.questionPlaceDebates": "{place} ({debates})",
   "topics.story.integrated.questionPlaceRise": "{place} (gegenüber zuvor {average}{home})",
   "topics.story.integrated.questionPlaceDebatesRise": "{place} ({debates}; gegenüber zuvor {average}{home})",
+  "topics.story.integrated.questionPlaceRare": "{place} (zuvor selten in Anfragen erwähnt{home})",
+  "topics.story.integrated.questionPlaceDebatesRare": "{place} ({debates}; zuvor selten in Anfragen erwähnt{home})",
   "topics.story.integrated.debateCountPeers": "{count}, ebenso wie {peers}",
   "topics.story.integrated.lead.tiedWithRose": "{places} waren die Orte mit den meisten Anfragen (je {questions}); bei {risers} war das jeweils ein Anstieg gegenüber zuvor {average}.",
   "topics.story.integrated.lead.tiedWithRose.eu": "In Europa und seinen Nachbarregionen waren {places} die Orte mit den meisten Anfragen (je {questions}); bei {risers} war das jeweils ein Anstieg gegenüber zuvor {average}.",

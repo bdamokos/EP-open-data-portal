@@ -354,9 +354,9 @@ test('partial combined wins keep so far in both plain and rising shapes, includi
  const x=quarter(base()),q='2026-Q1',s={period:q,labels:{NLD:'Netherlands'},...baseWording};x.partial={first:null,last:'2026-02-01'};
  x.debates=[{id:'D',title:'Report',date:'2026-01-20',meps:10,primaryPlace:'NLD',places:{USA:['title']},docs:[]}];x.periodWinners[q]={busiestNonUrgencyDebates:[{id:'D',meps:10}],mostQuestionedPlaces:[{id:'NLD',count:11}]};x.series={NLD:{[q]:{questions:11}}};
  for(const rising of [false,true]){x.periodWinners[q].risingQuestionPlaces=rising?[{id:'NLD',count:11,baselineMean:1,ratio:11}]:[];for(const zoom of ['world','eu']){
-  const text=lineText(buildExactTopicStories(x,{...s,zoom}));assert.match(text,/[Ss]o far, the Netherlands drew both the busiest debate/);assert.match(text,/the most questions \(11/);assert.equal(text.includes('up from an average of 1 a quarter'),rising);assert(!text.includes('quarter running'));
+  const text=lineText(buildExactTopicStories(x,{...s,zoom}));assert.match(text,/[Ss]o far, the Netherlands has drawn both the busiest debate/);assert.match(text,/the most questions \(11/);assert.equal(text.includes('up from an average of 1 a quarter'),rising);assert(!text.includes('quarter running'));
   if(zoom==='eu')assert.match(text,/^In Europe and its neighbours, so far,/);
-  x.periodWinners[q].mostDebatedPlaces=[{id:'NLD',count:4}];const ranked=lineText(buildExactTopicStories(x,{...s,zoom}));assert.match(ranked,/[Ss]o far, the Netherlands came up in the most debates \(four\)/);assert.match(ranked,/the most questions \(11/);delete x.periodWinners[q].mostDebatedPlaces;
+  x.periodWinners[q].mostDebatedPlaces=[{id:'NLD',count:4}];const ranked=lineText(buildExactTopicStories(x,{...s,zoom}));assert.match(ranked,/[Ss]o far, the Netherlands has come up in the most debates \(four\), including the busiest[^,]*, and has drawn the most questions/);assert.match(ranked,/the most questions \(11/);delete x.periodWinners[q].mostDebatedPlaces;
  }}
 });
 
@@ -395,4 +395,17 @@ test('rising leaders inside the EU keep their questions from home-elected author
  assert(!lineText(buildExactTopicStories(x,{...s,excludeOwn:true})).includes('elected there'));
  x.debates=[{id:'D',title:'Report',date:'2026-01-20',meps:40,primaryPlace:'ESP',places:{ESP:['title']},docs:[]}];x.periodWinners[q]={busiestNonUrgencyDebates:[{id:'D',meps:40}],mostQuestionedPlaces:[{id:'ESP',count:9}],risingQuestionPlaces:[{id:'ESP',count:9,baselineMean:4,ratio:2.25}]};
  assert.match(lineText(buildExactTopicStories(x,s)),/the most questions \(9, up from an average of 4 a quarter, each with an author elected there\): 40 MEPs/);
+});
+
+test('a rising busiest place keeps its rise without a series question count',()=>{
+ const x=quarter(base()),q='2026-Q1',s={period:q,labels:{UKR:'Ukraine',TUR:'Türkiye'},...baseWording};x.debates=[{id:'D',title:'Report',date:'2026-01-20',meps:40,primaryPlace:'UKR',places:{UKR:['title']},docs:[]}];
+ x.periodWinners[q]={busiestNonUrgencyDebates:[{id:'D',meps:40}],mostQuestionedPlaces:[{id:'TUR',count:23}],risingQuestionPlaces:[{id:'UKR',count:7,baselineMean:2,ratio:3.5}]};
+ // Main renders "Questions about Ukraine rose to seven, from an average of 2 a quarter."
+ assert.match(lineText(buildExactTopicStories(x,s)),/^Ukraine drew the busiest debate on the map and seven questions, up from an average of 2 a quarter: 40 MEPs/);
+});
+
+test('a rare-baseline co-leader keeps the rarely-asked sense',()=>{
+ const x=quarter(base()),q='2026-Q1',s={period:q,labels:{UKR:'Ukraine',MAR:'Morocco'},...baseWording};
+ x.periodWinners[q]={mostQuestionedPlaces:[{id:'UKR',count:11},{id:'MAR',count:11}],risingQuestionPlaces:[{id:'MAR',count:11,baselineMean:0.2,ratio:55}]};x.series={MAR:{[q]:{debates:2}}};
+ assert.equal(lineText(buildExactTopicStories(x,s)),'Ukraine and Morocco (two debates; rarely asked about before) drew the most questions (11 each).');
 });

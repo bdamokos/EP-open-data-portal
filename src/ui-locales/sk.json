@@ -2815,6 +2815,8 @@
   "topics.story.integrated.questionPlaceDebates": "{place} ({debates})",
   "topics.story.integrated.questionPlaceRise": "{place} (predtým {average}{home})",
   "topics.story.integrated.questionPlaceDebatesRise": "{place} ({debates}; predtým {average}{home})",
+  "topics.story.integrated.questionPlaceRare": "{place} (predtým zriedkavá téma otázok{home})",
+  "topics.story.integrated.questionPlaceDebatesRare": "{place} ({debates}; predtým zriedkavá téma otázok{home})",
   "topics.story.integrated.debateCountPeers": "{count}, rovnako ako {peers}",
   "topics.story.integrated.lead.tiedWithRose": "{places} — najviac otázok (po {questions}); {risers} — v každom prípade nárast, predtým {average}.",
   "topics.story.integrated.lead.tiedWithRose.eu": "V Európe a jej susedstve: {places} — najviac otázok (po {questions}); {risers} — v každom prípade nárast, predtým {average}.",

@@ -69,5 +69,5 @@ test('verb-second locales keep the verb second in so-far and Europe-zoom stories
   assert(!/(Bisher|Tot nu toe|Hittills|Hidtil|Seni),? \{place/i.test(value),l+'/'+key+': '+value);
   if(key.endsWith('.eu'))assert(value.startsWith(scope+' ')&&!value.startsWith(scope+' {')&&!value.startsWith(scope+','),l+'/'+key+': '+value);
  }
- assert.equal(i18n.forLocale('de').t('topics.story.integrated.bothSoFar',{place:'die Niederlande',questions:'11',meps:'10 Abgeordnete',title:'Bericht',date:'20. Januar',format:'',outcome:''}),'die Niederlande war bisher Thema sowohl der Debatte mit den meisten Rednern auf der Karte als auch der meisten Anfragen (11): 10 Abgeordnete sprachen zu Bericht (20. Januar).');
+ assert.equal(i18n.forLocale('de').t('topics.story.integrated.bothSoFar',{place:'Österreich',questions:'11',meps:'10 Abgeordnete',title:'Bericht',date:'20. Januar',format:'',outcome:''}),'Österreich war bisher Thema sowohl der Debatte mit den meisten Rednern auf der Karte als auch der meisten Anfragen (11): 10 Abgeordnete sprachen zu Bericht (20. Januar).');
 });

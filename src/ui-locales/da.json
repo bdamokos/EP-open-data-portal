@@ -2815,6 +2815,8 @@
   "topics.story.integrated.questionPlaceDebates": "{place} ({debates})",
   "topics.story.integrated.questionPlaceRise": "{place} (op fra {average}{home})",
   "topics.story.integrated.questionPlaceDebatesRise": "{place} ({debates}; op fra {average}{home})",
+  "topics.story.integrated.questionPlaceRare": "{place} (sjældent spurgt om før{home})",
+  "topics.story.integrated.questionPlaceDebatesRare": "{place} ({debates}; sjældent spurgt om før{home})",
   "topics.story.integrated.debateCountPeers": "{count}, ligesom {peers}",
   "topics.story.integrated.lead.tiedWithRose": "{places} fik flest spørgsmål ({questions} hver); for {risers} var det en stigning fra {average}.",
   "topics.story.integrated.lead.tiedWithRose.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver); for {risers} var det en stigning fra {average}.",

@@ -2815,6 +2815,8 @@
   "topics.story.integrated.questionPlaceDebates": "{place} ({debates})",
   "topics.story.integrated.questionPlaceRise": "{place} (față de {average} anterior{home})",
   "topics.story.integrated.questionPlaceDebatesRise": "{place} ({debates}; față de {average} anterior{home})",
+  "topics.story.integrated.questionPlaceRare": "{place} (anterior rareori subiect de întrebări{home})",
+  "topics.story.integrated.questionPlaceDebatesRare": "{place} ({debates}; anterior rareori subiect de întrebări{home})",
   "topics.story.integrated.debateCountPeers": "{count}, la fel ca {peers}",
   "topics.story.integrated.lead.tiedWithRose": "{places} au făcut obiectul celor mai multe întrebări (câte {questions}); pentru {risers}, a fost o creștere față de {average} anterior.",
   "topics.story.integrated.lead.tiedWithRose.eu": "În Europa și în vecinătatea sa, {places} au făcut obiectul celor mai multe întrebări (câte {questions}); pentru {risers}, a fost o creștere față de {average} anterior.",
