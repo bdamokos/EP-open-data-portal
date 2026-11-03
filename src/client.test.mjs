@@ -215,3 +215,11 @@ test('unavailable speech observations are re-read rather than cached as empty co
     await client.get(route);await client.get(route);assert.equal(reads,2);assert.equal(client.peek(route),null);
   }
 });
+
+for(const name of ['TypeError','TimeoutError','AbortError'])test('successful response bodies preserve '+name+' failures',async()=>{
+ const error=name==='TypeError'?new TypeError('Body disconnected'):new DOMException('Body interrupted',name);
+ await assert.rejects(readJson('/api/body',{fetchImpl:async()=>new Response(new ReadableStream({start(controller){controller.error(error);}}),{status:200})}),failure=>failure===error);
+});
+test('an HTTP error preserves its status and retry header when its body is interrupted',async()=>{
+ const now=Date.now();await assert.rejects(readJson('/api/body',{fetchImpl:async()=>new Response(new ReadableStream({start(controller){controller.error(new TypeError('Body disconnected'));}}),{status:429,headers:{'Retry-After':'120'}})}),error=>error.status===429&&error.retryAt>=now+120_000);
+});

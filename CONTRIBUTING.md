@@ -82,6 +82,20 @@ Benchmark caches, snapshots and results stay outside Git and out of CI artifacts
 - Replay offline: `--cache-dir DIR [--output-dir DIR]`.
 - Compare: `--baseline FILE` (`--placement-only` is the same gate). Keep an append-only `ratchet.md` and `baseline-current.json` in the snapshot’s output directory.
 - Gates: a PR may not turn a previously correct row into anything else, and false placements must stay at zero. The hold-out snapshot is measure-only: never tune against it. The language snapshot (`--languages`) is a separate gate with its own ledger.
+- Native-source-attested Rule 188(3) alternative motions are whole-document operations. They are reported separately and excluded from placement and vote denominators, with no placement credit.
 - Frozen replay records an absent exact request as `frozen-input-absent`, with URL, Accept and snapshot identity in affected rows and result diagnostics. These derived acquisition gaps never enter the sealed manifest or input cache. Listed inputs with corrupt bytes, missing files or invalid metadata still abort replay; unsealed acquisition is unchanged.
 
 **Agenda benchmark** (`npm run bench:agenda`) times agenda assembly. Capture once with `--fetch --api-base ORIGIN --cache-dir DIR --week latest`, then replay offline with `--latency zero|recorded` and compare with `--baseline FILE`.
+
+### Adopted-text calibration
+
+The optional `--adopted-text-snapshot DIRECTORY --request-cap 0` amendment replay
+writes a separate `adopted-calibration-*.json` report. It does not affect placement,
+verification, scores or the ratchet. Acquire a new sealed TA directory once with
+`node scripts/amendment-adopted-snapshot.mjs BENCHMARK.json NEW_DIRECTORY` outside
+Git. Acquisition reads public ODP adopted-text listings and their declared English
+XML manifestations sequentially, at least two seconds apart; a 429 pauses three
+minutes and stops. Replay verifies every input hash and makes no source requests.
+
+Use the sidecar's `placedDisagreements` list for maintainer review. Calibration
+results never change the benchmark's existing score or verifier.

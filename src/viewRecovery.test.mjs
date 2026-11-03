@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement as h,act,Suspense} from 'react';
@@ -12,7 +13,7 @@ async function harness(t) {
   const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);
-  const caught=[],root=createRoot(container,{onCaughtError:error=>caught.push(error)});
+  installRetryClock(t);const caught=[],root=createRoot(container,{onCaughtError:error=>caught.push(error)});
   t.after(async()=>{await act(async()=>root.unmount());await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
   const boundary=await loadModule('/src/ErrorBoundary.tsx');
   return {...boundary,load:path=>loadModule(path),window,container,caught,render:element=>act(async()=>root.render(element)),click:text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(node=>node.textContent===text);assert(button,text);button.focus();button.click();})};
@@ -84,7 +85,7 @@ test('localized view recovery focuses its alert heading, survives deterministic 
   assert.equal(heading.textContent,'Ez a nézet nem jeleníthető meg');
   assert.equal(x.container.querySelector('a').getAttribute('href'),'?lang=hu');
   assert(x.container.querySelector('nav button'),'view navigation remains available');
-  await x.click('Újrapróbálkozás');
+  assert.equal([...x.container.querySelectorAll('button')].some(node=>node.textContent==='Újrapróbálkozás'),false);
   assert.equal(document.activeElement,x.container.querySelector('h1'));
   assert.equal(x.caught.length,2,'a deterministic failure remains recoverable on the next attempt');
   await render('questions',h('h1',null,'Questions'));
@@ -95,8 +96,7 @@ test('localized view recovery focuses its alert heading, survives deterministic 
 test('retry remounts the view and restores its destination when the failure has cleared',async t=>{
   const x=await harness(t);let fail=true,ready=0;
   function View(){if(fail)return broken();return h('h1',{tabIndex:-1},'Recovered');}
-  await x.render(h(x.ErrorBoundary,{resetKey:'same',language:'en'},h(x.ViewContent,{render:()=>h(View),onReady:()=>{ready++;document.querySelector('h1')?.focus();}})));
-  fail=false;await x.click('Try again');
+  await x.render(h(x.ErrorBoundary,{resetKey:'same',language:'en',onRetry:()=>{fail=false;}},h(x.ViewContent,{render:()=>h(View),onReady:()=>{ready++;document.querySelector('h1')?.focus();}})));
   assert.equal(x.container.querySelector('[role=alert]'),null);
   assert.equal(document.activeElement.textContent,'Recovered');assert.equal(ready,1);
 });
@@ -143,11 +143,11 @@ test('a rejected lazy loader offers only an explicit reload, preserves the share
   assert.equal(reloads.length,0,'failed chunks never cause a reload loop');
   await x.click('Recharger la page');
   assert.deepEqual(reloads,[before],'reload keeps every selection, language and fragment');
-  assert.equal(retries,0,'do not pretend to retry the cached loader');
+  assert.equal(retries,1,'one automatic attempt precedes terminal recovery');
   await render('questions',h('h1',null,'Questions'));
   assert.equal(x.container.querySelector('[role=alert]'),null);
   await render('ordinary-error',h(broken));
-  assert([...x.container.querySelectorAll('button')].some(node=>node.textContent==='Réessayer'),'navigation clears the chunk recovery policy');
+  assert.equal([...x.container.querySelectorAll('button')].some(node=>node.textContent==='Réessayer'),false);assert.equal(retries,2,'navigation allows one new automatic attempt');
 });
 
 test('a delayed lazy loader can resolve without recovery, while its render errors still support retry',async t=>{
@@ -155,11 +155,10 @@ test('a delayed lazy loader can resolve without recovery, while its render error
   const {lazyView}=await x.load('/src/lazyView.ts');
   function View(){if(fail)throw new TypeError('Failed to fetch dynamically imported module');return h('h1',{tabIndex:-1},'Recovered view');}
   const ViewModule=lazyView(()=>{loads++;return new Promise(success=>{resolve=success;});});
-  await x.render(h(x.ErrorBoundary,{resetKey:'lazy',language:'en'},h(Suspense,{fallback:h('p',{role:'status'},'Loading…')},h(x.ViewContent,{render:()=>h(ViewModule),onReady:()=>document.querySelector('h1')?.focus()}))));
+  await x.render(h(x.ErrorBoundary,{resetKey:'lazy',language:'en',onRetry:()=>{fail=false;}},h(Suspense,{fallback:h('p',{role:'status'},'Loading…')},h(x.ViewContent,{render:()=>h(ViewModule),onReady:()=>document.querySelector('h1')?.focus()}))));
   assert.equal(x.container.querySelector('[role=status]').textContent,'Loading…');
   await act(async()=>resolve({default:View}));
-  assert([...x.container.querySelectorAll('button')].some(node=>node.textContent==='Try again'),'render failures are not classified by matching error messages');
-  fail=false;await x.click('Try again');
+  assert.equal([...x.container.querySelectorAll('button')].some(node=>node.textContent==='Try again'),false);
   assert.equal(x.container.querySelector('[role=alert]'),null);
   assert.equal(document.activeElement.textContent,'Recovered view');
   assert.equal(loads,1,'ordinary retry keeps the successfully loaded module');

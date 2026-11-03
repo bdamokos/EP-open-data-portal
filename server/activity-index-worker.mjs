@@ -1,4 +1,6 @@
 import {outsideWikidataDue} from './outside-wikidata-collector.mjs';
+import {VotingListCollector} from './voting-list-collector.mjs';
+import {upcomingRefreshDue} from './upcoming-amendments-collector.mjs';
 import {dispatchBaseBackfill} from './base-source-backfill-dispatch.mjs';
 import {topicBootstrapRequired} from './topic-projection-state.mjs';
 import {topicBuildWindowOpen} from './topic-build-window.mjs';
@@ -160,6 +162,7 @@ export class ActivityWorker {
   }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
+    if(upcomingRefreshDue(this))return true;
     if(outsideWikidataDue(this.store,this.clock())||storyCollectionDue(this.store,this.clock())||topicCollectionDue(this.store,this.clock())||this.topicBuildStep())return true;
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
@@ -844,11 +847,12 @@ export class ActivityWorker {
   }
   async runIteration() {
     if(this.stopped)return;
+    const votingListsDue=Boolean(this.votingLists?.due());
     const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
     const officialDue=Boolean(this.officialContext?.due());
     const documentBodiesDue=this.documentBodies.due(),baseBackfillDue=this.baseBackfill?.due();
     const projectionDue=this.projectionGenerations().length>0||this.questionFileGenerations().length>0;
-    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!officialDue&&!documentBodiesDue&&!baseBackfillDue || !this.store.acquire())return;
+    if(!votingListsDue&&!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!officialDue&&!documentBodiesDue&&!baseBackfillDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
     this.controller=new AbortController();
@@ -877,6 +881,7 @@ export class ActivityWorker {
         }while(!due&&this.sittingSnapshots.due());
       }
       if(!due) {
+        if(votingListsDue)await dispatchCollector(this);
         // Re-evaluate after every whole step: a refresh boundary or another
         // collector becoming ready must yield back to the normal scheduler.
         const idle=()=>!this.due()&&!this.sittingSnapshots?.due()&&!this.press?.due()&&!this.officialContext?.due();
@@ -1071,6 +1076,7 @@ export function activityIndex() {
   const store=new ActivityStore(directory,{readOnly:readerMode}),press=new PressStore(directory,{readOnly:readerMode});
   if(readerMode){service={store,press};return service;}
   const worker=new ActivityWorker(store,{...options,sittingSnapshots:new SittingSnapshotCollector(store),press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
+  worker.votingLists=new VotingListCollector(store);
   const warmer=new OfficialContextWarmer(store);
   const schedule=warmer.sources.run;
   warmer.sources.run=(operation,settings)=>{

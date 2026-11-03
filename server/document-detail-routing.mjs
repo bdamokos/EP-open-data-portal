@@ -1,7 +1,7 @@
 const origin='https://data.europarl.europa.eu';
 const relative=value=>typeof (value?.id||value)==='string'?String(value?.id||value).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null;
 const array=value=>Array.isArray(value)?value:value==null?[]:[value];
-const listPattern='((?:A|B|RC)-10-\\d{4}-\\d{4,6}-AM-\\d{1,5}-\\d{1,5}|[A-Z][A-Z0-9]{2,5}-AM-\\d{4,9}(?:-\\d{1,4})*)';
+const listPattern='((?:A|B|RC)-(?:9|10)-\\d{4}-\\d{4,6}-AM-\\d{1,5}-\\d{1,5}|[A-Z][A-Z0-9]{2,5}-AM-\\d{4,9}(?:-\\d{1,4})*)';
 const listEndpoint=new RegExp('^/(?:plenary-documents|committee-documents|documents)/'+listPattern+'$');
 export const amendmentListDocumentId=endpoint=>listEndpoint.exec(endpoint)?.[1]||null;
 export const documentDetailEndpoint=endpoint=>{

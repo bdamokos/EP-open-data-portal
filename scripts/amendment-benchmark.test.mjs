@@ -227,10 +227,12 @@ test('report evaluation re-extracts cached DOCX despite null live wording and ig
   const cache={apiBase,get:async()=>({ok:true,body,url,fetchedAt:'2026-10-23T00:00:00Z',sha256:digest(body)}),json:async url=>({input:{ok:true,url},value:{documentId:document,document:{selectedText:source(['The European Parliament,','1. First paragraph.','2. Second paragraph.','ANNEX'])},placement:{status:'placed',span:{start:999,end:999}}}})};
   const [result]=await evaluateReport([input],{mode:'documents',asOf:'2026-10-26'},cache);
   assert.equal(result.outcome,'correct',JSON.stringify(result.stages));assert.equal(result.stages.S5.span.start,1);assert.equal(result.stages.S2.status,'passed');
+  const observations=[];const calibrated=await evaluateReport([input],{mode:'documents',asOf:'2026-10-26'},cache,{adoptedCalibration:{observe:observation=>observations.push(observation)}});
+  assert.deepEqual(calibrated,[result]);assert.equal(observations.length,1);assert.equal(observations[0].wording.proposedText,'Changed paragraph.');assert.equal(observations[0].text.paragraphs[1],'1. First paragraph.');
   const [missing]=await evaluateReport([input],{mode:'documents',asOf:'2026-10-26'},{...cache,get:async()=>({ok:false,status:503,error:'http-503',url})});assert.equal(missing.outcome,'withheld-pipeline');
   const conflict=structuredClone(input);conflict.decisions.push({...input.decisions[0],id:'old-vote',date:'2026-09-01',sittingId:'MTG-PL-2026-09-01',reference:'Paragraph 2'});
   const [conflicting]=await evaluateReport([conflict],{mode:'date-window',from:'2026-10-01',to:'2026-10-26',asOf:'2026-10-26'},cache);
-  assert.equal(conflicting.stages.S5.reason,'conflicting_target_evidence','out-of-window decision evidence still constrains endpoint placement');
+  assert.equal(conflicting.stages.S5.status,'placed');assert.deepEqual(conflicting.stages.S5.finalPlacementCheck,{adoptedTextUrl:null});
 });
 
 test('cleared live baseline markers do not multiply report/language proposal acquisition',async()=>{
@@ -318,7 +320,7 @@ test('shared endpoint orchestration preserves baseline guards and conflicting-ev
   const chosen={...wording('Paragraph 1','First paragraph.'),baseline:'present-text',targetLabelLanguage:'en'};
   assert.equal(documentContextPlacement({chosen}).reason,'amends_existing_law');
   assert.equal(documentContextPlacement({chosen:{...chosen,baseline:'council-position'}}).reason,'council_position_unavailable');
-  assert.equal(documentContextPlacement({chosen,referenceTexts:['Paragraph 1','Paragraph 2']}).reason,'conflicting_target_evidence');
+  assert.equal(documentContextPlacement({chosen,referenceTexts:['Paragraph 1','Paragraph 2']}).reason,'amends_existing_law');
   assert.notEqual(documentContextPlacement({chosen:{...chosen,baseline:'motion-resolution'},referenceTexts:['Compromise amendment','Joint statement']}).reason,'conflicting_target_evidence','unparsed references are provenance, not location evidence');
   assert.equal(documentContextPlacement({chosen:null,referenceTexts:['one','two']}).reason,'conflicting_target_evidence');
   assert.equal(documentContextPlacement({chosen,includeBody:false}),null);
@@ -481,4 +483,23 @@ test('proposal oracle rejects an implicit paragraph extent swallowing a publishe
   const checked=verifyPlacement({placement,wording:amendment,items:broken});
   assert.equal(checked.status,'failed');assert.equal(checked.reason,'oracle-published-paragraph-boundary-mismatch');
   assert.equal(classify({...stages(),S5:placement,S6:checked}).outcome,'false-placement');
+});
+test('oracle places an insertion after a provision merged into its predecessor row before the next neighbour',()=>{
+  const text=source(['The European Parliament,','– having regard to its rules,','K.\twhereas one;L.\twhereas merged;','M.\twhereas two;','N.\twhereas three;','1.\tCalls for action.']);
+  const amendment={...wording('Recital L a (new)','','La.\twhereas new;'),baseline:'motion-resolution'};
+  const placement=operation=>({status:'placed',operation:'insert',...operation});
+  assert.equal(verifyPlacement({placement:placement({insertAfter:2,insertBefore:3}),wording:amendment,text}).reason,'oracle-merged-provision-boundary');
+  assert.equal(verifyPlacement({placement:placement({insertAfter:3,insertBefore:4}),wording:amendment,text}).status,'failed');
+  const absent=source(['The European Parliament,','– having regard to its rules,','K.\twhereas one;','M.\twhereas two;','1.\tCalls for action.']);
+  assert.equal(verifyPlacement({placement:placement({insertAfter:2,insertBefore:3}),wording:amendment,text:absent}).status,'unverified','no printed label, no position');
+  const notAdjacent=source(['The European Parliament,','– having regard to its rules,','K.\twhereas one;L.\twhereas merged;','N.\twhereas three;','1.\tCalls for action.']);
+  assert.equal(verifyPlacement({placement:placement({insertAfter:2,insertBefore:3}),wording:amendment,text:notAdjacent}).status,'unverified');
+  const numbered=source(['The European Parliament,','– having regard to its rules,','A.\twhereas one;','71.\tUrges;72.\tStresses;','73.\tCalls;','74.\tNotes.']);
+  const paragraph={...wording('Paragraph 72 a (new)','','72a.\tRecalls;'),baseline:'motion-resolution'};
+  assert.equal(verifyPlacement({placement:placement({insertAfter:3,insertBefore:4}),wording:paragraph,text:numbered}).reason,'oracle-merged-provision-boundary');
+});
+
+test('adopted-text sidecar is offline-only and requires a zero request cap',()=>{
+ assert.equal(options(['--adopted-text-snapshot','/tmp/sealed','--request-cap','0']).adoptedTextSnapshot,'/tmp/sealed');
+ for(const extra of [[],['--fetch'],['--languages'],['--acquire-only']])assert.throws(()=>options(['--adopted-text-snapshot','/tmp/sealed',...extra]),/offline/);
 });

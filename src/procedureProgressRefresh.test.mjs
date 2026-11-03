@@ -1,3 +1,4 @@
+import {installRetryClock,automaticRecovery,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -25,7 +26,7 @@ async function harness(t) {
   t.mock.method(globalThis,'fetch',(input,options)=>new Promise(resolve=>requests.push({url:new URL(input,location.href),signal:options.signal,resolve})));
   const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {ProcedureProgress}=await load('/src/ProcedureProgress.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);const root=createRoot(container);
   t.after(async()=>{await act(async()=>{root.unmount();requests.forEach(request=>request.resolve(Response.json({})));});timers.forEach(({timer})=>clearTimeout(timer));await load.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   return {container,requests,timers,render:props=>act(async()=>root.render(createElement(ProcedureProgress,{reference,language:'en',...props}))),
     finish:(data,request=requests.at(-1),status=200)=>act(async()=>request.resolve(Response.json(data,{status}))),
@@ -93,9 +94,9 @@ test('reference, language and unmount cancel pending polls and obsolete results 
 });
 
 test('unavailable progress stays one short gap state and future, cancelled and unknown events retain their meaning',async t=>{
-  const h=await harness(t);await h.render();await h.finish(progress({state:'unmapped',status:null,events:[],source:{...progress().source,stale:true}}));
+  const h=await harness(t);await h.render();await h.finish(progress({state:'unmapped',status:null,events:[],source:{...progress().source,stale:true},fallback:{status:'unavailable',retryAt:Date.now()+5000}}));
   assert.equal((h.container.textContent.match(/Unavailable/g)||[]).length,1);assert.equal(h.container.querySelectorAll('p').length,0);
-  await h.click('Check again');await h.finish(progress({status:null,events:[event({id:'future',date:'2099-10-20',milestone:false}),event({id:'cancel',status:'cancelled'}),event({id:'unknown',status:'unknown'})]}));
+  assert.equal(h.manual().length,0);await automaticRecovery(t);await h.finish(progress({status:null,events:[event({id:'future',date:'2099-10-20',milestone:false}),event({id:'cancel',status:'cancelled'}),event({id:'unknown',status:'unknown'})]}));
   assert(!h.container.querySelector('.procedure-progress-latest'),'future and cancelled/unknown events are not completed milestones');
   await h.click('Show timeline');await h.click('Show all recorded events');assert.match(h.container.textContent,/Upcoming/);assert.match(h.container.textContent,/Cancelled/);assert.match(h.container.textContent,/Status unavailable/);
 });
@@ -126,9 +127,10 @@ test('fallback admission backoff settles a pending Cellar refresh without pollin
   const h=await harness(t),retryAt=Date.now()+120_000;
   await h.render();await h.finish(progress({state:'unmapped',status:null,events:[],source:pending().source,fallback:{status:'unavailable',error:'Busy',retryAt}}));
   assert.doesNotMatch(h.container.textContent,/Checking…/);
-  assert.equal([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Try later')?.disabled,true);
+  assert.equal(h.manual().length,0);
   assert.equal(h.requests.length,1);
   assert.equal(h.timers.filter(timer=>PROGRESS_REFRESH_DELAYS.includes(timer.delay)).length,0,'no source poll is scheduled during fallback admission backoff');
+  await automaticRecovery(t);assert.equal(h.requests.length,2);assert(Date.now()>=retryAt);await h.finish(progress());assert.match(h.container.textContent,/Procedure completed/);
 });
 
 test('a cached primary-source retry deadline keeps progress without a manual refresh',async t=>{

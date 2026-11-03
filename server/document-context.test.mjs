@@ -621,7 +621,8 @@ test('unparsed vote descriptions stay in provenance without overriding a compara
     const decisions=references.map((reference,i)=>({id:'MTG-PL-2026-10-07-DEC-'+(197430+i),amendmentIds:[amendmentId],reference,source}));
     const reader=service({readText:async()=>text,findAmendment:()=>({...indexed,baseline:'motion-resolution',targetLabel:'Paragraph 19',targetLabelLanguage:'en',originalText:paragraphs[2],decisions})});
     const result=await reader.query(query({amendmentId}),{store:{}});
-    assert.equal(result.placement.status,references.includes('Paragraph 20')?'unresolved':'placed');
+    assert.equal(result.placement.status,'placed');
+    assert.equal(Boolean(result.placement.finalPlacementCheck),references.includes('Paragraph 20'));
     assert.deepEqual(result.target.evidence.referenceDecisions.map(d=>d.reference),references);
   }
 });
@@ -725,4 +726,19 @@ for(const status of ['error','unavailable','available'])test('a selected file la
 test('historical public reports remain readable on demand without expanding indexed amendment scope',()=>{
   for(const id of ['A-8-2017-0014','A-8-2016-0283','TA-8-2015-0263'])assert.equal(documentContextQuery(id,new URLSearchParams({lang:'en'})).id,id);
   assert.throws(()=>documentContextQuery('A-11-2027-0001',new URLSearchParams({lang:'en'})));
+});
+
+test('a vote-list disagreement links only the exact adopted text on the decision date',async()=>{
+ const paragraphs=['The European Parliament,','19. Exact wording;','20. Next;'];
+ const text={...summary,paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
+ const decisions=[{id:'vote',date:'2026-10-07',amendmentIds:[amendmentId],reference:'Paragraph 20',source}];
+ const selected={...indexed,baseline:'motion-resolution',targetLabel:'Paragraph 19',targetLabelLanguage:'en',originalText:paragraphs[1],decisions};
+ let listings=0;
+ const reader=service({readText:async()=>text,findAmendment:()=>selected,request:async(endpoint,params)=>{
+  if(endpoint==='/adopted-texts') {listings++;assert.deepEqual(params,{year:2026,limit:500});return {payload:{data:[{id:'eli/dl/doc/'+ta,identifier:ta,work_type:'def/ep-document-types/TEXT_ADOPTED',document_date:'2026-10-07',adopts:['eli/dl/doc/'+id]}]},fetchedAt:at};}
+  return record(work);
+ }});
+ const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+ assert.equal(result.placement.status,'placed');assert.deepEqual(result.placement.span,{start:1,end:1});
+ assert.equal(result.placement.finalPlacementCheck.adoptedTextUrl,`https://www.europarl.europa.eu/doceo/document/${ta}_EN.html`);assert.equal(listings,1);
 });

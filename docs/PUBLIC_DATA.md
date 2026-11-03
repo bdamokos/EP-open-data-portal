@@ -4,6 +4,7 @@ This page lists the external sources the application uses, what each provides, a
 
 | Source | Use | Access |
 | --- | --- | --- |
+| [Indicative voting lists](https://www.europarl.europa.eu/plenary/en/votes.html) | Voting order, amendments, splits, requests and fall rules | Anonymous Tabling Service DOCX linked from the plenary votes page |
 | [European Parliament Open Data API v2](https://data.europarl.europa.eu/en/developer-corner/opendata-api) ([specification](https://data.europarl.europa.eu/api/v2)) | MEPs and dated rosters, memberships, questions and answers, speeches, agendas and meetings, procedures, plenary documents, adopted texts, Commission follow-up documents (`/external-documents`), vote results and decisions, corporate bodies | Anonymous JSON-LD, Atom and XML from `data.europarl.europa.eu/api/v2` |
 | [Parliament’s public website](https://www.europarl.europa.eu/) | Portraits, press-release feeds and the releases they announce, document files (DOCX/PDF), minutes and verbatim reports | Only URLs the API supplies (portraits, document distributions) or validated official paths |
 | [Legislative Observatory (OEIL)](https://oeil.europarl.europa.eu/oeil/en/find-out-more) | Dossier stages, policy areas and document summaries, in English and French where supplied | Anonymous HTML of exact procedure-file and document-summary pages |
@@ -114,8 +115,10 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 
 ### Amendments
 
+- Term-9 plenary reports and motions enter amendment discovery only when an exact current-term vote agenda item names them. Upcoming scope uses each list’s document date after the latest earlier exact plenary vote event; unavailable dates remain unclassified. During a part-session window (07:00 Brussels four days before the first sitting to 23:00 on the last day), its vote documents are re-read about hourly within the shared background allocation. New or changed list metadata receives extraction priority; held bytes are reused.
 - Amendment lists hang off `/plenary-documents/{id}` through `inverse_foresees_change_of`, and each list must point back with `foresees_change_of`. List detail uses `/documents/{id}`. Committee lists come from the procedure’s `COMMITTEE_TABLING_REPORT`, `_OPINION` and `_AMENDMENT` links, with draft detail from `/committee-documents/{id}`.
 - Each list’s DOCX supplies amendment numbers, proposers (`<Members>` bylines), target provisions and the original/proposed columns. List number ranges don’t prove that every number exists.
+- Offline adopted-text calibration reads `/adopted-texts?year=YYYY` listings and their declared English XML distributions. Exact `adopts` plus decision date binds the TA; `AMDLST/AMEND/TI.AMD` retains amendment numbers and `STI.AMD` the finalized path. The sealed calibration inputs stay outside Git and never feed runtime placement.
 - Committee amendment numbers are local to their list; the internal identity `committee:{list-id}:{number}` is never an official URI.
 - An omitted distribution isn’t an unpublished file. B-10-2026-0435 and B-10-2026-0436 have public English DOCX files on the website, but their API records omit `is_realized_by`. Don’t construct file URLs.
 - Greek and Cyrillic bylines are linked to members through the same amendment in a Latin-script edition of the same list, never by transliteration.
@@ -144,6 +147,12 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 - Each announced release page is read once. Press-room listings and search are never crawled, and page links are never followed. robots.txt allows `/rss/` and `/news/`; pages marked `noindex`, `nofollow` or `none` are not used.
 - Only exact links in the page’s “Further information” list count: OEIL procedure files and summaries, and Doceo reports, motions, adopted texts and committee drafts (`A`, `B`, `RC`, `TA`, `PR`, `AD`, `AM`, `AL`, `PA`). A summary or document matches a dossier only when that dossier’s OEIL page links the same ID.
 - The committee “latest news” feed is not used: its pages are `noindex, nofollow` and have no procedure links.
+
+### Voting lists
+
+The Tabling Service lists are indicative and cover the current or next part-session. The public votes page links DOCX files under `/sedcms/votingList/` and the session schedule under `/sedcms/pubfile/VOTING_SCHEDULE/` on `www.europarl.europa.eu`; these and `/plenary/en/votes.html` are the only admitted website paths. Files are overwritten in place, and link version queries do not select historical editions.
+
+The single source writer checks the page at most hourly between 07:00 and 23:00 Brussels time, from four days before a consecutive run of ODP sittings through its last sitting. Files use conditional requests every six hours, hourly from 06:00 on their sitting day until the last known voting slot ends. Writer contention can delay collection. Parsed revisions retain exact references and unclassified cells; no raw DOCX is retained. All list and schedule data expire 30 days after the part-session's last sitting. Ballot-to-decision bindings are separate.
 
 ### Publications Office (Cellar)
 

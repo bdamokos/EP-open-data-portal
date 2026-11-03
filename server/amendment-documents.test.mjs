@@ -90,7 +90,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'21');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'22');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -364,7 +364,7 @@ test('ordinary table properties and positional annotation markers do not invalid
 });
 
 test('unsupported comparison geometry withholds both columns with a numbered gap while another amendment remains intact',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'21');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'22');
   const grid=widths=>'<w:tblGrid>'+widths.map(width=>`<w:gridCol${width==null?'':` w:w="${width}"`}/>`).join('')+'</w:tblGrid>';
   const propsCell=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
   const header=row(propsCell('Motion for a resolution'),propsCell('Amendment'));
@@ -470,7 +470,7 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
 });
 
 test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'21');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'22');
   for(const marker of ['del','ins','moveFrom','moveTo']) {
     const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
     const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
@@ -636,11 +636,11 @@ test('unknown vertical properties withhold wording with the narrower formatting 
 });
 
 
-test('FR/HU/RO published document classes remain metadata before the real committee target',()=>{
+test('FR/HU/RO/EN published document classes remain metadata before the real committee target',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-document-class.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const {amendments}=extractAmendments(archive(doc.documentXml,doc.stylesXml),doc);
-    assert.deepEqual(amendments.map(a=>a.number),[1,13]);
+    assert.deepEqual(amendments.map(a=>a.number),doc.expected.map(e=>e.number));
     for(const expected of doc.expected) {
       const actual=amendments.find(a=>a.number===expected.number);
       assert.equal(actual.targetLabel,expected.targetLabel,doc.language+' AM'+expected.number);
@@ -820,4 +820,32 @@ test('Council quotation selects the exact main-report comparison and excludes th
  assert.equal(result.status,'report-quotation');assert.equal(result.span,undefined);assert.equal(result.insertBefore,undefined);
  assert.equal(reportCouncilQuotation(buffer,{...chosen,originalText:'Opinion text.'},{reportId}),null);
  assert.equal(reportCouncilQuotation(buffer,{...chosen,targetLabel:'Recital 2'},{reportId}),null);
+});
+
+test('unstyled amended-act headings retain the second target line',()=>{
+ // Public A-10-2026-0201-AM-001-084_en.docx AM77–80 prints these headings without template tags.
+ const outer='Article 1 – paragraph 1 – point 20',act='Regulation (EU) 2023/956',inner='Article 30 – paragraph 6 – subparagraph 2 – point b – point ii a (new)';
+ const heading=p('<Amend>Amendment <NumAm>77</NumAm>','<Article>'+outer+'</Article>');
+ const comparison=`<w:tbl>${row(cell(p('Text proposed by the Commission')),cell(p('Amendment')))}${row(cell(p('')),cell(p('(iia) New assessment.')))}</w:tbl>`;
+ const make=extra=>archive(body(heading+p(act)+p(inner)+extra+comparison+p('</Amend>')));
+ const result=extractAmendments(make(''),{language:'en'}).amendments[0];
+ assert.equal(result.targetLabel,outer+'\n'+act+' — '+inner);
+ assert.equal(result.targetPath.underlying[0].document,act);assert.equal(result.targetPath.underlying[0].raw,inner);
+ assert.equal(extractAmendments(make(p('Other text')),{language:'en'}).amendments[0].targetLabel,outer);
+});
+for(const number of [1,2])test('standalone Rule 188(3) motion preserves its body and document operation '+number,async()=>{
+  const {documentContextPlacement}=await import('./document-context-placement.mjs');
+  const {verifyAlternative}=await import('../scripts/amendment-alternative-oracle.mjs');
+  const heading='Motion for a resolution (Rule 188(3) of the Rules of Procedure) replacing non-legislative motion for a resolution A10-0047/2026';
+  const xml=body(metadata(number).replace(p('<Article>Paragraph 1</Article>'),p('<DocAmend>'+heading+'</DocAmend>')+p('<Article>Resolution title</Article>'))+p('The European Parliament,')+p('1. Standalone alternative;')+p('Or. <Original>{EN}en</Original>')+p('</Amend>'));
+  const bytes=archive(xml.replace('urn:word','http://schemas.openxmlformats.org/wordprocessingml/2006/main'));
+  const opts={...options,targetDocumentId:'A-10-2026-0047',listId:'A-10-2026-0047-AM-001-002'};
+  const wording=extractAmendments(bytes,opts).amendments[0];
+  assert.equal(wording.originalText,'');assert.equal(wording.proposedText,'The European Parliament,\n1. Standalone alternative;');
+  const placement=documentContextPlacement({chosen:wording});
+  assert.equal(placement.operation,'alternative-motion');assert.equal(placement.status,'document-operation');
+  assert.equal(verifyAlternative({buffer:bytes,wording,placement}).status,'verified');
+  assert.equal(verifyAlternative({buffer:bytes,wording:{...wording,proposedText:'Shortened'},placement}).status,'unverified');
+  assert.equal(verifyAlternative({buffer:bytes,wording:{...wording,targetDocumentId:'A-10-2026-0001'},placement}),null);
+  for(const fields of [{targetDocumentId:'A-10-2026-0001',listId:'A-10-2026-0001-AM-001-002'},{documentReferences:[]},{documentReferences:null},{proposedText:null},{originalText:'Existing wording'},{gaps:[{code:'inline-content-loss'}]}])assert.notEqual(documentContextPlacement({chosen:{...wording,...fields}}).operation,'alternative-motion');
 });

@@ -1,6 +1,9 @@
+import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
+import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
+import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
 import {assertFootnoteComparison,assertResolutionFootnotes} from './amendment-footnote-oracle.mjs';
 import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-grammar.mjs';
@@ -10,6 +13,7 @@ import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
+import {assertRecastReading} from './amendment-recast-oracle.mjs';
 
 
 // Only these affirmative observations remove a row from the denominator.
@@ -35,6 +39,15 @@ export function classify(stages) {
   }
   if (stages.S5.status !== 'placed') return {outcome:'withheld-pipeline', reason:stages.S5.reason};
   return stages.S6.status === 'verified' ? {outcome:'correct', reason:'oracle-verified'} : {outcome:'placed-unverified', reason:stages.S6.reason};
+}
+
+// Whole-document operations have no paragraph location and earn no placement credit.
+export function classifyRow(stages,documentOperation) {
+  if(documentOperation?.status==='verified'&&stages.S5.status==='document-operation') {
+    if(documentOperation.reason==='source-attested-rejection')return {outcome:'not-placeable',reason:'whole-document-rejection'};
+    if(documentOperation.reason==='source-attested-alternative-motion')return {outcome:'not-placeable',reason:'whole-document-alternative-motion'};
+  }
+  return classify(stages);
 }
 
 const flatten = units => units.flatMap(unit => [unit, ...flatten(unit.children || [])]);
@@ -246,6 +259,23 @@ function verifyNegativeFirst(text,wording,target,placement) {
   return verified('oracle-negative-first-boundary');
 }
 
+
+// Single Latin or Cyrillic capitals and plain numbers only. Both neighbours
+// must be adjacent in source order, one ordinal either side, and the lower
+// neighbour's last row must print the missing label after a terminator.
+export function numberingGap(text,units,base){
+  const position=value=>/^\d+$/u.test(value)?Number(value):/^[A-Z\u0410-\u042f]$/u.test(value)?value.codePointAt(0):null;
+  const wanted=position(base);
+  if(wanted==null||units.some(unit=>unit.label.startsWith(base)))return null;
+  const ordered=[...units].sort((a,b)=>a.start-b.start),hits=[];
+  for(let i=1;i<ordered.length;i++){
+    const before=ordered[i-1],after=ordered[i];
+    if(before.group===after.group&&position(before.label)===wanted-1&&position(after.label)===wanted+1&&after.start===before.end+1)hits.push(before);
+  }
+  if(hits.length!==1||ordered.filter(unit=>unit.label===hits[0].label).length!==1)return null;
+  const row=text.paragraphs[hits[0].end]??'',at=row.lastIndexOf(base);
+  return at>0&&/[;.:]\s*$/u.test(row.slice(0,at))&&/^[.)]\s*\S/u.test(row.slice(at+base.length))?hits[0]:null;
+}
 function verifyResolutionInsertion(text,wording,target,placement) {
   const label=target.segments.at(-1);
   if(label.negative&&!(wording.language==='fi'&&label.kind==='paragraph'))return verifyNegativeFirst(text,wording,target,placement);
@@ -262,7 +292,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
     return verified('oracle-negative-first-paragraph-boundary');
   }
   if(!label.isNew)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
-  const raw=rawResolutionUnits(text,wording.language);
+  const raw=rawResolutionUnits(text,wording.language,{includeTables:true});
   if(raw.reason)return {status:'unverified',reason:raw.reason};
   const units=raw.units,parents=target.segments.slice(0,-1);
   const owns=unit=>{
@@ -276,6 +306,17 @@ function verifyResolutionInsertion(text,wording,target,placement) {
   const kind=label.after?'paragraph':label.kind;
   if(!['paragraph','recital','citation','point'].includes(kind))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   const bases=units.filter(unit=>unit.kind===kind&&unit.label===String(label.base)&&owns(unit));
+  // A new recital continuing the raw A, B, C… sequence before the operative
+  // paragraphs follows the last raw recital; its printed letter must match.
+  if(!bases.length&&kind==='recital'&&!label.suffix&&!label.after&&!parents.length&&/^[A-Z]$/u.test(label.value)) {
+    const recitals=units.filter(unit=>unit.kind==='recital').sort((a,b)=>a.start-b.start),paragraphs=units.filter(unit=>unit.kind==='paragraph');
+    const last=recitals.at(-1);
+    if(!last||!recitals.every((unit,index)=>unit.label===String.fromCharCode(65+index))||label.value!==String.fromCharCode(65+recitals.length)||!paragraphs.length||last.start>Math.min(...paragraphs.map(unit=>unit.start)))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    if(!new RegExp(`^${label.value}[.)]\\s`,'u').test(oracleFold(wording.proposedText)))return {status:'unverified',reason:'oracle-insertion-label-unverified'};
+    if(!last.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    if(placement.insertBefore!==last.end+1||placement.insertAfter!==last.end)return fail('oracle-insertion-boundary-mismatch');
+    return verified('oracle-sequence-append-boundary');
+  }
   if(!bases.length&&kind==='point'){
     const indented=rawResolutionPointUnits(text).units;
     const anchors=indented.filter(unit=>unit.label===label.base&&pathKey(unit.path.slice(0,-1))===pathKey(parents));
@@ -285,6 +326,14 @@ function verifyResolutionInsertion(text,wording,target,placement) {
     if(family.some(unit=>unit.label===label.value))return fail('oracle-duplicate-insertion-label');
     if(placement.insertAfter!==anchor.end||placement.insertBefore!==anchor.end+1)return fail('oracle-insertion-boundary-mismatch');
     return verified('oracle-indented-point-boundary');
+  }
+  // A provision printed inside its predecessor's row (lost paragraph mark)
+  // ends with that row, directly before the next ordinal neighbour.
+  const gap=!bases.length&&!label.after&&!parents.length&&['paragraph','recital'].includes(kind)?numberingGap(text,units.filter(unit=>unit.kind===kind),String(label.base)):null;
+  if(gap){
+    if(!gap.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    if(placement.insertBefore!==gap.end+1||placement.insertAfter!==gap.end)return fail('oracle-insertion-boundary-mismatch');
+    return verified('oracle-merged-provision-boundary');
   }
   if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   const base=bases[0],family=units.filter(unit=>unit.kind===kind&&unit.parent===base.parent&&unit.group===base.group);
@@ -312,9 +361,18 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const result=verifyProposalPlacement(input);
+  if(result.status!=='verified')return result;
+  // A recast's legal reading omits its struck deletions and markers; the
+  // native Word runs must establish that reading for every touched row.
+  const recast=assertRecastReading({proposal:input.items?.[input.placement.itemIndex]?.proposal,placement:input.placement,nativeQuoted:input.nativeQuoted});
+  return recast&&recast.status!=='verified'?recast:result;
+}
+
+function verifyProposalPlacement(input) {
   const result=verifyKnownPlacement(input);
   const proposal=input.items?.[input.placement.itemIndex]?.proposal;
-  if(result.status!=='unverified'||!proposal||!['oracle-address-grammar-unavailable','oracle-address-unit-unavailable','oracle-introductory-part-unavailable','oracle-insertion-grammar-unavailable'].includes(result.reason))return result;
+  if(result.status!=='unverified'||!proposal||!['oracle-address-grammar-unavailable','oracle-address-unit-unavailable','oracle-introductory-part-unavailable','oracle-insertion-grammar-unavailable','oracle-original-not-unique'].includes(result.reason))return result;
   const raw=rawProposalAssertion({proposal,wording:input.wording,placement:input.placement});
   return raw.status==='unverified'?result:raw;
 }
@@ -332,12 +390,18 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
   const proposal = items?.[placement.itemIndex]?.proposal;
+  const closing=assertClosingFormula({proposal,wording,placement});
+  if(closing.status!=='unverified')return closing;
+  const numbering=assertWordingNumbering({proposal,wording,placement});
+  if(numbering.status!=='unverified')return numbering;
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
   if(quoted.status!=='unverified')return quoted;
   const sibling=assertQuotedSibling({proposal,wording,placement,nativeQuoted});
   if(sibling.status!=='unverified')return sibling;
+  const subparagraph=assertQuotedSubparagraph({proposal,wording,placement,nativeQuoted});
+  if(subparagraph.status!=='unverified')return subparagraph;
   const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});
   if(letterPoint.status!=='unverified')return letterPoint;
   if (placement.operation === 'replace' || placement.operation === 'delete') {

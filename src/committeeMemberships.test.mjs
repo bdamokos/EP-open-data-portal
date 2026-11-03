@@ -22,5 +22,5 @@ test('current committee cards render already merged role history and localized c
     assert.equal(page.querySelectorAll('.is-current').length,0);
     assert.equal(page.querySelector('strong').textContent,'FEMM');
   }
-  page=render({...profile,committeeMemberships:{...profile.committeeMemberships,complete:false,error:'Some committee history is unavailable.'}});assert.match(page.textContent,/unavailable/);assert.equal(page.querySelector('button').textContent,'Retry committee history');assert.equal(page.querySelectorAll('section').length,1);
+  page=render({...profile,committeeMemberships:{...profile.committeeMemberships,complete:false,error:'Some committee history is unavailable.'}});assert.match(page.textContent,/unavailable/);assert.equal(page.querySelector('button'),null);assert.equal(page.querySelectorAll('section').length,1);
 });

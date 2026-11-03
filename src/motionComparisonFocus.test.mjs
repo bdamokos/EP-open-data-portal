@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -33,7 +34,7 @@ async function harness(t,initial={}) {
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {MotionComparison}=await loadModule('/src/MotionComparison.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const render=props=>act(async()=>root.render(createElement(MotionComparison,{...pair,language:'en',...initial,...props})));
   await render();
   const stage=()=>container.querySelectorAll('.explorer-diff-controls select')[0],language=()=>container.querySelector('.text-language-line select');
@@ -64,15 +65,15 @@ test('comparison errors and retries retain only the current pair catalog, and au
   assert(h.language()===select);assert(document.activeElement===select);assert.equal(select.value,'fr');
   assert.deepEqual([...select.options].map(option=>option.value),['en','fr']);
   assert.equal(h.container.querySelector('.explorer-diff-rows'),null);assert.equal(h.container.querySelector('.explorer-diff-documents'),null);
-  assert.equal(h.status().textContent,'Original to joint comparison could not be loaded.');
-  await act(async()=>h.container.querySelector('.explorer-diff-error button').click());
+  assert.equal(h.status().textContent,'');assert.equal(h.container.querySelector('.explorer-diff-error button'),null);
+  await automaticRecovery(t);
   assert(h.language()===select);assert(document.activeElement===select);assert.equal(h.requests.at(-1).url.searchParams.get('lang'),'fr');
   await h.finish(h.requests.at(-1),comparison('original-joint','fr',{status:'unavailable',reason:'One or both document texts are temporarily unavailable. Try again or open the source files.',summary:null,rows:[]}));
   assert(h.language()===select);assert(document.activeElement===select);assert.equal(select.value,'fr');
   assert.deepEqual([...select.options].map(option=>option.value),['en','fr']);assert.equal(h.container.querySelector('.explorer-diff-documents a').textContent,'Source DOCX · FR ↗');
   assert.equal(h.container.querySelector('.explorer-diff-rows'),null);await h.wait();
   assert.equal(h.status().textContent,'Original to joint comparison unavailable.');
-  await act(async()=>h.container.querySelector('.explorer-diff-notice button').click());
+  assert.equal(h.container.querySelector('.explorer-diff-notice button'),null);await installRetryClock(t).advance(31000);await h.change(select,'en');await h.finish(h.requests.at(-1),comparison());await h.change(select,'fr');
   await h.finish(h.requests.at(-1),comparison('original-joint','fr',{status:'unavailable',textLanguage:null,availableLanguages:[],documents:[],summary:null,rows:[],reason:'These two texts have no common language with a supported document file.'}));
   assert(h.language()===select,'an authoritative empty catalog must not remove the existing focused control');
   assert(document.activeElement===select);assert.equal(select.value,'');

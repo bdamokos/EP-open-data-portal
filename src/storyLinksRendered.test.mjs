@@ -7,7 +7,7 @@ import {storyQuery} from '../server/story-facts-reader.mjs';
 import {parseStorySetKey,storySetKey} from './storyLinkModel.mjs';
 import {mapLinkFacts,placeLinkFacts,recordLinkPage,topicLinkDetail,storyPeriods,storyLabels,sourceDocuments} from './test-support/storyLinksFixtures.mjs';
 let load;after(async()=>{if(load)await load.close();});
-async function harness(t,{component='TopicStories',url='?view=geopolitics',props={},respond,fresh=false}={}){
+async function harness(t,{component='TopicStories',url='?view=geopolitics',props={},respond,fresh=false,language='en',catalogueOverride}={}){
  if(fresh&&load){await load.close();load=null;}
  const window=new Window({url:'http://localhost/'+url}),old=new Map(),calls=[],invalid=[],sourceReads=[];let root;
  for(const [k,v]of Object.entries({window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLButtonElement:window.HTMLButtonElement,innerWidth:1280,requestAnimationFrame:fn=>{fn();return 0;},IS_REACT_ACT_ENVIRONMENT:true})){old.set(k,Object.getOwnPropertyDescriptor(globalThis,k));Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});}
@@ -26,7 +26,8 @@ async function harness(t,{component='TopicStories',url='?view=geopolitics',props
  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const[k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];assert.deepEqual(invalid,[],'requests must pass the real storyQuery parser');assert.equal(sourceReads.length,0,'rendering record rows must not read EP metadata');});
  if(!load)load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const module=component==='TopicStory'?'/src/TopicStory.tsx':component==='Topics'?'/src/Topics.tsx':'/src/TopicStories.tsx',Component=(await load(module))[component],{createRoot}=await import('react-dom/client');const node=document.createElement('div');document.body.append(node);root=createRoot(node);
- const render=next=>act(async()=>root.render(createElement(Component,{language:'en',members:[],onBack(){},...props,...next})));
+ const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await load('/src/uiCatalogues.mjs'),catalogue=language==='en'?{}:(await load('/src/ui-locales/'+language+'.json')).default,i18n=createAppUiI18n(language==='en'?{}:{[language]:catalogueOverride??catalogue});
+ const render=next=>act(async()=>root.render(createElement(UiI18nProvider,{i18n,language},createElement(Component,{language,members:[],onBack(){},...props,...next}))));
  await render();const wait=async text=>{for(let i=0;i<50&&!node.textContent.includes(text);i++)await act(async()=>new Promise(r=>setTimeout(r,10)));assert(node.textContent.includes(text),node.textContent);};return {node,window,calls,render,wait};
 }
 const selection={periods:storyPeriods,partial:['2024-Q3','2026-Q4'],period:'2026-Q3',excludeOwn:true,labels:storyLabels};
@@ -159,6 +160,66 @@ test('retained story links browse their displayed mode, zoom and authors while r
  await act(async()=>link.click());await h.wait('questions about Colombia');
  const request=h.calls.find(u=>u.searchParams.get('list')==='questions');assert(request);assert.equal(request.searchParams.get('askers'),'not-home');assert.equal(request.searchParams.get('mode'),'q');assert.equal(request.searchParams.get('zoom'),'world');
  await act(async()=>release());
+});
+
+for(const language of ['da','de','fi','fr','ro'])for(const count of [1,2])test(`accessible fallback quantity and context ${language}/${count}`,async t=>{
+ const data={periods:['2026-Q3'],partial:{},items:[{key:'place:COL',label:'Colombia',series:[{period:'2026-Q3',question:count}]}]};
+ const h=await harness(t,{component:'TopicStory',language,props:{data,index:0,mode:'q',own:true,zoom:'eu'}});
+ const link=h.node.querySelector('.topic-story a');assert(link);const label=link.getAttribute('aria-label');assert(label);assert(label.includes(link.textContent));assert(label.includes('Colombia'));assert(label.includes('2026'));
+});
+for(const language of ['en','bg','cs','da','de','el','es','et','fi','fr','ga','hr','hu','it','lt','lv','mt','nl','pl','pt','ro','sk','sl','sv'])test(`nested native story and exact navigation ${language}`,async t=>{
+ const h=await harness(t,{language,props:{selection}});await h.wait('Colombia');const story=h.node.querySelector('.topic-story');assert.equal(story.lang,language);assert(!story.textContent.includes('undefined'));
+ const links=[...story.querySelectorAll('a')];assert(links.length);for(const link of links){assert(link.id.startsWith('story-link-'));const key=new URL(link.href).searchParams.get('t-records');if(key)assert(parseStorySetKey(key));if(link.hasAttribute('aria-label'))assert(link.getAttribute('aria-label').toLocaleLowerCase().includes(link.textContent.toLocaleLowerCase()));}
+});
+test('fallback labels use the same prose language as their visible quantities',async t=>{
+ const h=await harness(t,{component:'TopicStory',language:'fr',catalogueOverride:{'topics.story.links.heading':'French heading {count} {kind} {place}'},props:{data:{periods:['2026-Q3'],partial:{},items:[{key:'place:COL',label:'Colombia',series:[{period:'2026-Q3',question:2}]}]},index:0,mode:'q',own:true,zoom:'eu'}});
+ const link=h.node.querySelector('.topic-story a');assert.equal(h.node.querySelector('.topic-story').lang,'en');assert(!link.getAttribute('aria-label').includes('French heading'));assert(link.getAttribute('aria-label').includes(link.textContent));
+});
+
+for(const scope of [{},{place:'IRN'},{topic:'oeil:3.70.03'}])test('requested French locale survives rendered story links '+JSON.stringify(scope),async t=>{
+ const h=await harness(t,{language:'fr',url:'?view=geopolitics&lang=fr',props:{selection:{...selection,...scope}}});await h.wait('Parlement');
+ const links=[...h.node.querySelectorAll('.topic-story a')];assert(links.length);
+ for(const link of links)if(new URL(link.href).origin===location.origin)assert.equal(new URL(link.href).searchParams.get('lang'),'fr',link.outerHTML);
+ const param=scope.topic?'t-record':'t-records',link=links.find(a=>new URL(a.href).searchParams.has(param));assert(link);const key=new URL(link.href).searchParams.get(param);await act(async()=>link.click());assert.equal(new URL(location.href).searchParams.get('lang'),'fr');assert.equal(new URL(location.href).searchParams.get(param),key);
+ if(!scope.topic)await h.wait('2026');for(const a of h.node.querySelectorAll('.topic-story-records a'))if(new URL(a.href).origin===location.origin)assert.equal(new URL(a.href).searchParams.get('lang'),'fr',a.outerHTML);
+});
+test('English fallback prose retains the requested French interface in its rendered target',async t=>{
+ const h=await harness(t,{component:'TopicStory',language:'fr',catalogueOverride:{},url:'?view=geopolitics&lang=fr',props:{data:{periods:['2026-Q3'],partial:{},items:[{key:'place:COL',label:'Colombia',series:[{period:'2026-Q3',question:2}]}]},index:0,mode:'q',own:true,zoom:'eu'}});
+ assert.equal(h.node.querySelector('.topic-story').lang,'en');const a=h.node.querySelector('a');assert.equal(new URL(a.href).searchParams.get('lang'),'fr');await act(async()=>a.click());assert.equal(new URL(location.href).searchParams.get('lang'),'fr');
+});
+
+test('baseline, onward and direct record links retain interface locale and exact selection',async t=>{
+ const key='questions:COL:2026-Q1%2C2026-Q2:all',h=await harness(t,{component:'TopicStoryRecords',language:'fr',url:'?view=geopolitics&lang=fr&place=COL&t-records='+encodeURIComponent(key),props:{selection:{...selection,place:'COL'}}});await h.wait('2026');
+ for(const a of h.node.querySelectorAll('a'))assert.equal(new URL(a.href).searchParams.get('lang'),'fr',a.outerHTML);
+ const quarter=[...h.node.querySelectorAll('a')].find(a=>new URL(a.href).searchParams.has('t-records'));assert(quarter);assert.equal(parseStorySetKey(new URL(quarter.href).searchParams.get('t-records')).askers,'all');
+});
+
+for(const replace of [false,true])test('unrelated query updates preserve story return state ('+replace+')',async t=>{
+ await harness(t,{props:{selection}});
+ const saved={storyLinkId:'story-origin',storyScroll:380,storyReturn:true,other:'retained'};
+ history.replaceState(saved,'');const length=history.length;
+ const {updateExplorerQuery}=await load('/src/explorerUrl.ts');
+ await act(async()=>{updateExplorerQuery(url=>url.searchParams.set('t-q','2026-Q1'),replace);updateExplorerQuery(url=>url.searchParams.set('t-mode','d'),replace);});
+ assert.deepEqual(history.state,saved);assert.equal(new URL(location.href).searchParams.get('t-q'),'2026-Q1');assert.equal(new URL(location.href).searchParams.get('t-mode'),'d');assert.equal(history.length,length+(replace?0:1));
+});
+
+for(const intermediate of [false,true])test('paginated records focus the first appended row after Show more (intermediate='+intermediate+')',async t=>{
+ let finish;const pending=new Promise(resolve=>{finish=resolve;});
+ const total=intermediate?42:22;
+ const page=q=>{const f=recordLinkPage(q),offset=q.cursor==='another'?40:q.cursor?20:0,rows=Array.from({length:Math.min(20,total-offset)},(_,i)=>({id:'E-10-2026-'+String(offset+i+1).padStart(6,'0'),title:'Paged question '+(offset+i+1),date:'2026-01-10'}));return {...f,questions:rows,page:{total,items:rows.map(r=>({id:r.id,kind:'question',date:r.date})),nextCursor:offset+rows.length<total?(offset?'another':'next'):null}};};
+ const h=await harness(t,{fresh:true,component:'StoryBrowse',props:{selection:{...selection,place:'TUR'},browse:{list:'questions',place:'TUR',period:'2026-Q1'}},respond:async(u,q)=>{if(q?.list==='questions'){if(q.cursor)await pending;return page(q);}}});
+ await h.wait('Showing 20 of '+total);const more=h.node.querySelector('button');more.focus();
+ await act(async()=>more.click());assert(!h.node.textContent.includes('Paged question 21'));
+ await act(async()=>finish());await h.wait('Showing '+(intermediate?40:22)+' of '+total);
+ assert.equal(document.activeElement.textContent,'Paged question 21');assert.equal(Boolean(h.node.querySelector('button')),intermediate);
+});
+
+test('static records focus the first revealed row after the final Show more',async t=>{
+ const debates=Array.from({length:22},(_,i)=>({id:'MTG-PL-2026-01-07-PVCRE-ITM-'+(i+1),title:'Static debate '+(i+1),date:'2026-01-07'}));
+ const key='urgency-debates:map:2026-Q1:all:n=22';
+ const h=await harness(t,{component:'TopicStoryRecords',url:'?view=geopolitics&t-records='+encodeURIComponent(key),props:{selection},respond:(u,q)=>q?{...mapLinkFacts(),debates,sets:{urgencyDebates:{'2026-Q1':debates.map(d=>d.id)}}}:undefined});
+ await h.wait('Showing 20 of 22');const more=h.node.querySelector('button');more.focus();await act(async()=>more.click());await h.wait('Showing 22 of 22');
+ assert.equal(document.activeElement.textContent,'Static debate 21');assert(!h.node.querySelector('button'));
 });
 
 test('outside names sharing an address each link',async t=>{

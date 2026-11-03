@@ -18,7 +18,7 @@ export function FollowSuggestions({language='en'}:{language?:string}){
   if(!suggestions.length&&!retainHeading&&!coverage.storageError)return null;
   return <section ref={section} className="explorer-follow-suggestions" aria-labelledby={(suggestions.length||retainHeading) ? "follow-suggestions-heading" : undefined} lang={ui.language}>
     {(suggestions.length>0||retainHeading)&&<h2 id="follow-suggestions-heading" ref={heading} tabIndex={-1} onBlur={()=>{if(!coverageStore.suggestions().length)setRetainHeading(false);}}><UiMessage id="followsuggestions.suggested_to_follow"/></h2>}
-    {coverage.storageError&&<p role="alert"><UiMessage id="followsuggestions.follow_suggestions_could_not_be_saved_in_this_browser"/> <button onClick={()=>coverageStore.retryStorage()}><UiMessage id="followsuggestions.retry_saving_suggestions"/></button></p>}
+    {coverage.storageError&&<p role="alert"><UiMessage id="followsuggestions.follow_suggestions_could_not_be_saved_in_this_browser"/> </p>}
     {error&&<p role="alert">{error}</p>}
     <div className="explorer-suggestion-list">{suggestions.map(({member,reasons},index)=>{
       const name=member.firstName+' '+member.lastName;

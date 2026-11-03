@@ -3,7 +3,7 @@ const plain=v=>v==null||typeof v==='string'?v:Array.isArray(v)?v.map(plain):'tex
 const phrase=(v,text)=>v&&typeof v==='object'&&!Array.isArray(v)&&'text'in v?{...v,text}:text;
 const countValue=v=>{
  if(v==null)return null;
- if(typeof v==='object')return Number.isSafeInteger(v.counts?.count)?v.counts.count:countValue(v.text??v.values?.count);
+ if(typeof v==='object')return Number.isSafeInteger(v.rawCount)?v.rawCount:Number.isSafeInteger(v.counts?.count)?v.counts.count:countValue(v.text??v.values?.count);
  const words=['zero','one','two','three','four','five','six','seven','eight','nine'],word=words.indexOf(String(v).toLowerCase());
  const n=word>=0?word:Number(String(v).replace(/[.,\s\u00a0\u202f]/g,''));return Number.isSafeInteger(n)&&n>=0?n:null;
 };
@@ -59,10 +59,10 @@ export function storyLinkClaims(lines,s={}) {
    if(values.average?.browse&&ps.length>1)values.average={...values.average,browse:{...values.average.browse,places:ps.map(p=>p.browse?.place).filter(Boolean).sort().join(','),place:undefined}};
    if(Object.hasOwn(values,'average')){const average=values.average;values.average=phrase(average,typeof average?.text==='string'?msg('average.value',{average:average.text}):plain(average));}
   }
-  if(/exact\.questionRare(?:Each)?$/.test(id)){if(values.questions)delete values.count;else values.count=phrase(values.count,msg('count.questions',{count:plain(values.count)}));}else if(/exact\.(questionRise|questionJumped|documentRise)|map\.rise\.(jumped|rose)|map\.texts\.rise/.test(id))delete values.questions;
+  if(/exact\.questionRare(?:Each)?$/.test(id)){if(values.questions)delete values.count;else values.count=phrase(values.count,msg('count.questions',{count:plain(values.count)},{count:countValue(values.count)}));}else if(/exact\.(questionRise|questionJumped|documentRise)|map\.rise\.(jumped|rose)|map\.texts\.rise/.test(id))delete values.questions;
   if(/map\.lead\.tied$/.test(id)&&values.questions?.browse){values.questions={...values.questions,browse:{...values.questions.browse,places:values.places.map(p=>p.browse?.place).filter(Boolean).sort().join(','),place:undefined}};}
-  if(id==='topics.story.place.summary.questionsElsewhere')values.elsewhere=phrase(values.elsewhere,msg('links.elsewhere',{count:plain(values.elsewhere)}));
-  if(id==='topics.story.origin.onlyElsewhere'||id==='topics.story.rise.someHome'){const q=values.questions;if(q?.records){values.questions=phrase(q,msg(id.endsWith('someHome')?'links.home':'links.away',{count:plain(q)}));}}
+  if(id==='topics.story.place.summary.questionsElsewhere')values.elsewhere=phrase(values.elsewhere,msg('links.elsewhere',{count:plain(values.elsewhere)},{count:countValue(values.elsewhere)}));
+  if(id==='topics.story.origin.onlyElsewhere'||id==='topics.story.rise.someHome'){const q=values.questions;if(q?.records){values.questions=phrase(q,msg(id.endsWith('someHome')?'links.home':'links.away',{count:plain(q)},{count:countValue(q)}));}}
   if(/textWithTally$/.test(id)){values.for=plain(values.for);values.against=plain(values.against);}
   if(/outcome\./.test(id)){
    const record=values.resolution?.records?.[0];

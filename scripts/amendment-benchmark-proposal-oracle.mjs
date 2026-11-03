@@ -57,7 +57,17 @@ function publishedContainer(proposal,root,language) {
     ||second&&!paragraph(first)&&!pointOf(first)&&first.text.length<180&&!/[.;:!?]$/u.test(first.text.trim())))title=first;
   const start=title?title.index+1:first.index;
   const nodes=[],stack=[];
-  const explicit=amendingList?[]:content.filter(row=>paragraph(row));
+  // Some sources (COM(2025)580) print outer paragraph numbers as literal
+  // text. Accept them only as one complete 1, 2, 3... run in an article that
+  // has no NumPar paragraphs at all, all in Normal rows or starting at the
+  // article's first row (its Article 2 mixes Normal and Point styles).
+  const literal=row=>/^(\d+)\.\t/u.exec(row.text)?.[1];
+  const literals=kind==='article'&&!amendingList&&!content.some(row=>paragraph(row))?content.filter(row=>literal(row)):[];
+  const run=literals.length&&literals.every((row,i)=>literal(row)===String(i+1))
+    &&(literals.every(row=>row.properties?.styleId==='Normal')||literals[0]===content[0]);
+  const numbered=new Set(run?literals.map(row=>row.index):[]);
+  const paragraphOf=row=>paragraph(row)??(numbered.has(row.index)?literal(row):null);
+  const explicit=amendingList?[]:content.filter(row=>paragraphOf(row));
   if(!explicit.length) {
     const plain=content.filter(row=>row.index>=start&&!pointOf(row)&&!/^['‘’"“”]/u.test(row.text.trim()));
     const firstPoint=content.find(row=>pointOf(row));
@@ -68,7 +78,7 @@ function publishedContainer(proposal,root,language) {
   }
   for(const row of content.filter(row=>row.index>=start)) {
     if(!body(row))continue;
-    const para=amendingList?null:paragraph(row),ref=pointOf(row);
+    const para=amendingList?null:paragraphOf(row),ref=pointOf(row);
     if(para) {
       stack.length=0;
       nodes.push({kind:'paragraph',value:para,start:row.index,end:boundary.index,parent:null});
@@ -152,7 +162,15 @@ export function rawProposalAssertion({proposal,wording,placement}) {
     before=anchor.end;
   } else {
     const rank=number(last.value);
-    if(last.value==='i'&&parent?.kind==='point'&&!siblings.length)before=scope.end;
+    // A childless lettered point can only receive new Roman children at its end.
+    const roman=/^(?:i{1,3}|iv|vi{0,3}|ix|xi{0,3}|xiv|xvi{0,3}|xix|xx)$/u.test(last.value);
+    if((last.value==='i'||roman&&/^[a-z]$/u.test(parent?.value??''))&&parent?.kind==='point'&&!siblings.length) {
+      // Childlessness needs the parent's raw peers to run a, b, c... unbroken;
+      // a flattened (i) between (a) and (b) leaves a child outside the parent.
+      const peers=article.nodes.filter(node=>node.kind==='point'&&node.parent===parent.parent).sort((a,b)=>a.start-b.start);
+      if(!peers.every((node,index)=>node.value===String.fromCharCode(97+index))||peers[peers.indexOf(parent)+1]?.value==='i')return unknown('oracle-raw-anchor-ambiguous');
+      before=scope.end;
+    }
     else if(rank!==null&&rank>1) {
       const preceding=siblings.filter(node=>number(node.value)===rank-1);
       if(preceding.length!==1||siblings.some(node=>node.value===last.value))return unknown('oracle-raw-anchor-unavailable');
