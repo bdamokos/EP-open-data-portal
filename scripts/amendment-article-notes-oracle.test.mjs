@@ -12,7 +12,7 @@ function zip(body){
  end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+name.length,12);end.writeUInt32LE(local.length+name.length+raw.length,16);
  return Buffer.concat([local,name,raw,central,name,end]);
 }
-function input(){
+function input(report=false){
  const texts=['HAVE ADOPTED THIS REGULATION:','Article 4','Committee','1. Public body.','2. Other body.','Article 5'];
  const styles=['Normal','Titrearticle','Normal','ManualNumPar1','ManualNumPar1','Titrearticle'];
  let body=texts.map((s,i)=>p(s,styles[i])).join('');body=body.replace(esc(texts[3]),esc(texts[3].slice(0,14))+'</w:t><w:footnoteReference w:id="8"/><w:t>'+esc(texts[3].slice(14)));
@@ -20,7 +20,7 @@ function input(){
  const wording={language:'en',baseline:'commission-proposal',targetLabel:'Article 4',originalText,proposedText:'deleted',originalFormatting:[{kind:'superscript',start:at,end:at+1}]};
  const cell=s=>`<w:tc>${s.split('\n').map(t=>p(t)).join('')}</w:tc>`;
  const table=`<w:tbl><w:tr>${cell('Text proposed by the Commission')}${cell('Amendment')}</w:tr><w:tr>${cell(originalText)}${cell('deleted')}</w:tr></w:tbl>`;
- const amendment=p('<Amend><NumAm>37</NumAm>')+p('<Article>Article 4</Article>')+table+p('<Original>{EN}en</Original>')+p('</Amend>');
+ const amendment=report?p('Amendment\t\t37')+p('Proposal for a regulation')+p('Article 4')+table:p('<Amend><NumAm>37</NumAm>')+p('<Article>Article 4</Article>')+table+p('<Original>{EN}en</Original>')+p('</Amend>');
  const proposalBuffer=zip(body),proposal={sourceHash:createHash('sha256').update(proposalBuffer).digest('hex'),sourceKind:'docx',paragraphs:texts.map((text,index)=>({text,index,complete:true,source:{path:`/w:document[1]/w:body[1]/w:p[${index+1}]`,container:'body',ordinal:index,complete:true}})),anchors:[{paragraph:3,offset:14,note:'8'}],notes:[{id:'8',text:'Public note.',complete:true}]};
  return {proposal,wording,placement:{status:'placed',operation:'delete',itemIndex:0,span:{start:1,end:4},splice:{start:{paragraph:1,offset:0},end:{paragraph:4,offset:14}}},nativeQuoted:{proposalBuffer,amendmentBuffer:zip(amendment),number:37},body};
 }
@@ -40,4 +40,8 @@ test('native note IDs and positions must agree; payloads and wording cannot drif
 });
 test('missing native evidence cannot fall through to a tree-based article extent',()=>{
  const a=input();delete a.nativeQuoted;assert.equal(verifyPlacement({...a,items:[{proposal:a.proposal}]}).status,'unverified');
+});
+
+test('printed committee report grid also binds the exact number, header and both columns',()=>{
+ const a=input(true);assert.equal(assertArticleNotes(a).status,'verified');a.nativeQuoted.number=38;assert.equal(assertArticleNotes(a).status,'unverified');
 });
