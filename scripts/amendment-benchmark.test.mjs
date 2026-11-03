@@ -482,3 +482,17 @@ test('proposal oracle rejects an implicit paragraph extent swallowing a publishe
   assert.equal(checked.status,'failed');assert.equal(checked.reason,'oracle-published-paragraph-boundary-mismatch');
   assert.equal(classify({...stages(),S5:placement,S6:checked}).outcome,'false-placement');
 });
+test('oracle places an insertion after a provision merged into its predecessor row before the next neighbour',()=>{
+  const text=source(['The European Parliament,','– having regard to its rules,','K.\twhereas one;L.\twhereas merged;','M.\twhereas two;','N.\twhereas three;','1.\tCalls for action.']);
+  const amendment={...wording('Recital L a (new)','','La.\twhereas new;'),baseline:'motion-resolution'};
+  const placement=operation=>({status:'placed',operation:'insert',...operation});
+  assert.equal(verifyPlacement({placement:placement({insertAfter:2,insertBefore:3}),wording:amendment,text}).reason,'oracle-merged-provision-boundary');
+  assert.equal(verifyPlacement({placement:placement({insertAfter:3,insertBefore:4}),wording:amendment,text}).status,'failed');
+  const absent=source(['The European Parliament,','– having regard to its rules,','K.\twhereas one;','M.\twhereas two;','1.\tCalls for action.']);
+  assert.equal(verifyPlacement({placement:placement({insertAfter:2,insertBefore:3}),wording:amendment,text:absent}).status,'unverified','no printed label, no position');
+  const notAdjacent=source(['The European Parliament,','– having regard to its rules,','K.\twhereas one;L.\twhereas merged;','N.\twhereas three;','1.\tCalls for action.']);
+  assert.equal(verifyPlacement({placement:placement({insertAfter:2,insertBefore:3}),wording:amendment,text:notAdjacent}).status,'unverified');
+  const numbered=source(['The European Parliament,','– having regard to its rules,','A.\twhereas one;','71.\tUrges;72.\tStresses;','73.\tCalls;','74.\tNotes.']);
+  const paragraph={...wording('Paragraph 72 a (new)','','72a.\tRecalls;'),baseline:'motion-resolution'};
+  assert.equal(verifyPlacement({placement:placement({insertAfter:3,insertBefore:4}),wording:paragraph,text:numbered}).reason,'oracle-merged-provision-boundary');
+});
