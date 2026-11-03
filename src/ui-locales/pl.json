@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Sprawdzanie komisji {committee}…",
   "app.clear_category": "Wyczyść kategorię",
   "app.clear_filter": "Wyczyść filtr",
+  "app.show_filters": "Filtry",
   "app.close_categories": "Zamknij kategorie",
   "app.committee_records": "Dokumenty komisji",
   "app.contributions_unavailable": "Wystąpienia niedostępne.",

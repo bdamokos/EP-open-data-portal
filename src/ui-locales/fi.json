@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Tarkistetaan valiokuntaa {committee}…",
   "app.clear_category": "Tyhjennä luokka",
   "app.clear_filter": "Tyhjennä suodatin",
+  "app.show_filters": "Suodattimet",
   "app.close_categories": "Sulje luokat",
   "app.committee_records": "Valiokuntatiedot",
   "app.contributions_unavailable": "Puheenvuoroja ei ole saatavilla.",

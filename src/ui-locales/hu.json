@@ -323,6 +323,7 @@
   "app.checkingCommittee": "A(z) {committee} bizottság ellenőrzése…",
   "app.clear_category": "Kategória törlése",
   "app.clear_filter": "Szűrő törlése",
+  "app.show_filters": "Szűrők",
   "app.close_categories": "Kategóriák bezárása",
   "app.committee_records": "Bizottsági nyilvántartások",
   "app.contributions_unavailable": "A felszólalások nem érhetők el.",

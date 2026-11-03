@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Se verifică comisia parlamentară {committee}…",
   "app.clear_category": "Ștergeți categoria",
   "app.clear_filter": "Ștergeți filtrul",
+  "app.show_filters": "Filtre",
   "app.close_categories": "Închideți categoriile",
   "app.committee_records": "Registre ale comisiilor parlamentare",
   "app.contributions_unavailable": "Intervenții indisponibile.",

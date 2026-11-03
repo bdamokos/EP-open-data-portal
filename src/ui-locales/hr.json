@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Provjera odbora {committee}…",
   "app.clear_category": "Ukloni kategoriju",
   "app.clear_filter": "Ukloni filtar",
+  "app.show_filters": "Filtri",
   "app.close_categories": "Zatvori kategorije",
   "app.committee_records": "Zapisi odbora",
   "app.contributions_unavailable": "Doprinosi nisu dostupni.",
