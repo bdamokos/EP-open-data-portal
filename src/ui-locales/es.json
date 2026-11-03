@@ -2722,7 +2722,7 @@
   "topics.findPlace": "Buscar un lugar",
   "topics.geopolitics": "Geopolítica",
   "topics.story.map.outside": "También en el Pleno: {speakers}.",
-  "topics.story.map.outside.eu": "Intervenciones en el Pleno desde Europa y sus países vecinos: {speakers}.",
+  "topics.story.map.outside.eu": "Intervenciones en el Pleno de personalidades de Europa y sus países vecinos: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} intervino en el Pleno ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})"
 }

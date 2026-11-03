@@ -2721,7 +2721,7 @@
   "topics.plenaryMode": "Aiheet",
   "topics.findPlace": "Etsi paikka",
   "topics.geopolitics": "Geopolitiikka",
-  "topics.story.map.outside": "Täysistunnossa puhuivat myös: {speakers}.",
+  "topics.story.map.outside": "Myös täysistunnossa: {speakers}.",
   "topics.story.map.outside.eu": "Täysistunnon puhujat Euroopasta ja sen lähialueilta: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} puhui täysistunnossa ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})"
