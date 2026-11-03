@@ -143,6 +143,15 @@ export function rawProposalAssertion({proposal,wording,placement}) {
     if(article.rows.filter(row=>row.index>=span.start&&row.index<=span.end).some(row=>!body(row)))return unknown('oracle-raw-source-incomplete');
     return verified('oracle-raw-addressed-source-span',[article.heading.index,scope.start,scope.end]);
   }
+  // Unnumbered subparagraph ordinals are counted from native body rows.
+  // Letter a opens a gap immediately after the named existing subparagraph.
+  if(last?.kind==='subparagraph'&&last.isNew&&last.suffix==='a'&&parent?.kind==='paragraph'&&!parent.implicit) {
+    const parts=subparagraphs(scope,article),anchor=parts[Number(last.base)-1];
+    if(!anchor)return unknown('oracle-raw-subparagraph-unavailable');
+    const rows=article.rows.filter(row=>row.index>=anchor.start&&row.index<=anchor.end);
+    if(rows.length<2||rows.at(-1).index!==anchor.end||rows.some((row,i)=>!body(row)||!Number.isSafeInteger(row.source?.ordinal)||i&&(row.source.containerPath!==rows[i-1].source.containerPath||row.source.segment!==rows[i-1].source.segment||row.source.ordinal!==rows[i-1].source.ordinal+1)))return unknown('oracle-raw-source-incomplete');
+    return placement.insertBefore===anchor.end&&placement.insertAfter===anchor.end-1?verified('oracle-raw-subparagraph-gap',rows.map(row=>row.index)):failed('oracle-raw-insertion-boundary-mismatch');
+  }
   if(!last?.isNew||last.kind!=='point')return unknown('oracle-raw-insertion-grammar-unavailable');
   if(!parent&&last.kind==='point'){const implicit=article.nodes.filter(node=>node.kind==='paragraph'&&node.implicit);if(implicit.length===1)parent=implicit[0];}
   const siblings=article.nodes.filter(node=>node.kind==='point'&&node.parent===parent&&node.start>=scope.start&&node.start<scope.end);

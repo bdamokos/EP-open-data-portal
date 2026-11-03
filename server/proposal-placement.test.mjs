@@ -142,14 +142,14 @@ test('published heading locates amendments when the list has no structured locat
 });
 
 test('numbered subparagraphs place only within their own paragraphs',()=>{
-  const projection=source(['Article 1','1. Lead subparagraph text.','Second subparagraph text.','2. Next paragraph.']);
+  const projection=source(['Article 1','1. Lead subparagraph text.','Second subparagraph text.','2. Next paragraph.'],['Titrearticle','ManualNumPar1','Text1','ManualNumPar1']);
   let placed=resolve(projection,'Article 1 – paragraph 1 – subparagraph 1','Lead subparagraph text.');
   assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:1});assert.equal(placed.evidence.at(-1).basis,'subparagraph-wording-match');
   placed=resolve(projection,'Article 1 – paragraph 1 – subparagraph 2','Second subparagraph text.');
   assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
   assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 1','Second subparagraph text.').reason,'conflicting_target_evidence');
   assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 3','Second subparagraph text.').reason,'target_not_found');
-  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 2 a (new)').status,'unresolved');
+  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 2 a (new)').insertBefore,3);
   const pointed=source(['Article 1','1. Intro:','(a) point;','Closing subparagraph.']);
   assert.equal(resolve(pointed,'Article 1 – paragraph 1 – subparagraph 2','Closing subparagraph.').reason,'source_structure_unavailable');
 });
@@ -535,4 +535,24 @@ test('annex table addresses replace a unique cell-exact run of rows',()=>{
   assert.equal(resolveProposalPlacement([{kind:'annex',index:1,proposal:parseProposal(trailing,{item:'annex'})}],{targetLabel:'Annex III – table',originalText:'A\tB',proposedText:'Changed',language:'en'}).status,'unresolved','a blank trailing column keeps rows from matching fewer cells');
   const gapped={paragraphs:gappedRows.map(r=>r[0]),structureStatus:'extracted',paragraphSources:gappedRows.map((r,ordinal)=>r[2]==='cell'?{path:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`,ordinal,container:'table-cell',containerPath:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]`,segment:ordinal,complete:true}:{path:'/w:document[1]/w:body[1]/w:p['+ordinal+']',ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true}),paragraphProperties:gappedRows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(gappedRows,{1:3})};
   assert.equal(resolveProposalPlacement([{kind:'annex',index:1,proposal:parseProposal(gapped,{item:'annex'})}],{targetLabel:'Annex III – table',originalText:'A\tB',proposedText:'Changed',language:'en'}).status,'unresolved','an empty middle cell must not collapse the columns');
+});
+
+test('new unnumbered subparagraphs follow their ordinal source subtree',()=>{
+  const p=source(['Article 3','1. Lead:','(a) Point.','Second subparagraph.','Third subparagraph.','2. Next paragraph.','Article 4'],['Titrearticle','ManualNumPar1','Point2','Text1','Text1','ManualNumPar1','Titrearticle']);
+  p.paragraphFormats=p.paragraphs.map((_,i)=>({indent:i===2?200:0}));
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 a (new)').insertBefore,4);
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 1 a (new)').insertBefore,3);
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 3 a (new)').insertBefore,5);
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 9 a (new)').status,'unresolved');
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 b (new)').status,'unresolved');
+  p.paragraphSources[4].ordinal++;
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 a (new)').status,'unresolved');
+});
+
+
+test('new subparagraph placement withholds Point-style paragraph labels outside the raw oracle grammar',()=>{
+ const p=source(['Article 16','Financial support','1. First paragraph.','2. Second paragraph.','Article 17'],['Titrearticle','Normal','Point0','Point0','Titrearticle']);
+ assert.equal(resolve(p,'Article 16 – paragraph 1 – subparagraph 1 a (new)').status,'unresolved');
+ const literal=structuredClone(p);literal.paragraphProperties[2].styleId='Normal';literal.paragraphProperties[3].styleId='Normal';
+ assert.equal(resolve(literal,'Article 16 – paragraph 1 – subparagraph 1 a (new)').status,'unresolved');
 });
