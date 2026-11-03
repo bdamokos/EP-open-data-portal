@@ -87,11 +87,11 @@ test('expiry is purged within a day with no active plenary window',async t=>{
  await collector.step({controller:new AbortController()});assert.equal(s.store.db.prepare('SELECT count(*) n FROM voting_list_sources').get().n,1);
  s.advance(24*3600000);assert.equal(collector.due(),true);await collector.step({controller:new AbortController()});assert.equal(s.store.db.prepare('SELECT count(*) n FROM voting_list_sources').get().n,0);assert.ok(s.now()-purge<24*3600000);
 });
-test('each sitting agenda is read once per step across all candidate files',async t=>{
+test('idle candidates do not inflate any agenda snapshot',async t=>{
  const s=setup(t,'2026-11-12T10:00:00Z'),counts=new Map();s.store.set('votingListPage',{nextCheck:s.now()+3600000});
  for(let i=0;i<120;i++)s.store.db.prepare('INSERT INTO voting_list_sources VALUES (?,?,?,?,?)').run(url+i,'MTG-PL-2026-11-12',JSON.stringify({sessionFirst:'2026-11-11',checkedAt:s.now()-60000}),s.now()+3600000,s.now()+86400000);
  const collector=new VotingListCollector(s.store,{clock:s.now,sessions:votingListSessions(nodes),snapshots:{read(kind,version,id){counts.set(id,(counts.get(id)||0)+1);return {pages:[{payload:{data:[{id:'eli/dl/event/vote',had_activity_type:'def/ep-activities/PLENARY_VOTE'},{had_activity_type:'def/ep-activities/MEETING_PART',consists_of:['eli/dl/event/vote'],activity_end_date:'2026-11-12T13:00:00+01:00'}]}}]};}},fetchSource:()=>assert.fail('no file due')});
- await collector.step({controller:new AbortController()});assert.deepEqual([...counts.values()],[1,1]);
+ await collector.step({controller:new AbortController()});assert.deepEqual([...counts.values()],[]);
 });
 test('response revisions and file-error gaps use the store clock',t=>{
  const s=setup(t,'2000-01-01T00:00:00Z'),sitting='MTG-PL-2026-11-12',purge=s.now()+3600000;
@@ -100,4 +100,42 @@ test('response revisions and file-error gaps use the store clock',t=>{
  s.store.db.prepare('INSERT INTO voting_list_revisions VALUES (?,?,?,?,?,?)').run(url,sitting,'a',body.revision.observedAt,JSON.stringify(body),purge);
  const read=()=>votingListsResponse(s.store,new URLSearchParams({sitting}));assert.equal(read().documents.length,1);assert.equal(read().gaps[0].code,'file-unavailable');
  s.advance(3600000);assert.equal(read().documents.length,0);assert.deepEqual(read().gaps,[]);
+});
+test('an idle hour has one due hit and write, no agenda reads or GETs',async t=>{
+ const s=setup(t),end=s.now()+3600000;let writes=0,reads=0,hits=0;
+ s.store.set('votingListPurgeCheck',s.now()+86400000);s.store.set('votingListPage',{nextCheck:end});
+ const set=s.store.set;s.store.set=(...args)=>{writes++;set(...args);};
+ const collector=new VotingListCollector(s.store,{clock:s.now,sessions:votingListSessions(nodes),snapshots:{read(){reads++;assert.fail('idle agenda read');}},fetchSource:()=>assert.fail('idle GET')});
+ for(let minute=0;minute<60;minute++){if(collector.due()){hits++;await collector.step({controller:new AbortController()});}s.advance(60000);}
+ assert.equal(hits,1);assert.equal(writes,1);assert.equal(reads,0);assert.equal(s.store.get('votingListSweep'),end);assert.equal(collector.due(),true);
+});
+test('metadata sweep wakes at a sitting-day hourly check before the next page GET',async t=>{
+ const s=setup(t,'2026-11-12T10:00:00Z'),start=s.now();let gets=0,reads=0;
+ s.store.set('votingListPurgeCheck',start+86400000);s.store.set('votingListPage',{nextCheck:start+3600000});
+ s.store.db.prepare('INSERT INTO voting_list_sources VALUES (?,?,?,?,?)').run(url,'MTG-PL-2026-11-12',JSON.stringify({sessionFirst:'2026-11-11',checkedAt:start-45*60000}),start+5*3600000,start+86400000);
+ const collector=new VotingListCollector(s.store,{clock:s.now,sessions:votingListSessions(nodes),snapshots:{read(){reads++;return {pages:[{payload:{data:[{id:'eli/dl/event/vote',had_activity_type:'def/ep-activities/PLENARY_VOTE'},{had_activity_type:'def/ep-activities/MEETING_PART',consists_of:['eli/dl/event/vote'],activity_end_date:'2026-11-12T13:00:00+01:00'}]}}]};}},fetchSource:async()=>{gets++;return {status:304};}});
+ await collector.step({controller:new AbortController()});assert.equal(reads,0);assert.equal(s.store.get('votingListSweep'),start+15*60000);
+ s.advance(15*60000);assert.equal(collector.due(),true);await collector.step({controller:new AbortController()});assert.equal(reads,1);assert.equal(gets,1);
+});
+test('opening a new session window forces a full page read after an unchanged 304',async t=>{
+ const s=setup(t,'2026-11-12T10:00:00Z'),allNodes=[...nodes,...['2026-11-18','2026-11-19'].map(date=>({id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'}))];
+ const nextHtml=html.replaceAll('11 November','18 November').replaceAll('12 November','19 November'),calls=[];
+ const collector=new VotingListCollector(s.store,{clock:s.now,sessions:votingListSessions(allNodes),fetchSource:async (url,options)=>{calls.push(options);return options.etag?{status:304,etag:'same'}:{status:200,buffer:Buffer.from(nextHtml),etag:'same',lastModified:'unchanged'};}});
+ const worker={controller:new AbortController()};await collector.step(worker);assert.equal(s.store.db.prepare('SELECT count(*) n FROM voting_list_sources').get().n,0);
+ assert.equal(votingListsResponse(s.store,new URLSearchParams('sitting=MTG-PL-2026-11-12')).gaps.length,0);
+ assert.equal(votingListsResponse(s.store,new URLSearchParams('sitting=MTG-PL-2026-11-19')).gaps[0].code,'unmapped-section');
+ s.advance(3600000);await collector.step(worker);assert.equal(calls[1].etag,'same');
+ s.advance(47*3600000);await collector.step(worker);assert.equal(calls.length,3);assert.equal(calls[2].etag,null);assert.equal(calls[2].lastModified,null);
+ assert.equal(s.store.db.prepare('SELECT sitting FROM voting_list_sources').get().sitting,'MTG-PL-2026-11-19');
+ assert.deepEqual(votingListsResponse(s.store,new URLSearchParams('sitting=MTG-PL-2026-11-19')).gaps,[]);
+});
+test('discovery and page errors are scoped to the sitting or session they concern',t=>{
+ const s=setup(t),sessions=votingListSessions(nodes);
+ const gapHtml=`<h4>Wednesday, 18 November 2026 - Thursday, 19 November 2026</h4><a href="${url}"></a>`;
+ const gaps=discoverVotingLists(gapHtml,sessions).gaps;assert.equal(gaps[0].sessionFirst,'2026-11-18');
+ s.store.set('votingListDiscoveryGaps',[...gaps,{code:'day-gap',sittingId:'MTG-PL-2026-11-12',message:'Day gap'},{code:'unknown-scope',message:'Unmapped'}]);
+ s.store.set('votingListPage',{error:'Page error',errorSittings:sessions[0].sittings});
+ const codes=sitting=>votingListsResponse(s.store,new URLSearchParams({sitting})).gaps.map(g=>g.code);
+ assert.deepEqual(codes('MTG-PL-2026-11-11'),['page-unavailable']);assert.deepEqual(codes('MTG-PL-2026-11-12'),['day-gap','page-unavailable']);
+ assert.deepEqual(codes('MTG-PL-2026-11-18'),['unmapped-section']);assert.deepEqual(codes('MTG-PL-2026-11-19'),['unmapped-section']);assert.deepEqual(codes('MTG-PL-2026-09-15'),[]);
 });

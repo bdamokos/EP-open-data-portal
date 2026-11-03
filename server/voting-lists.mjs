@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {docxContent} from './document-text.mjs';
-export const VOTING_LISTS_VERSION=2;
+export const VOTING_LISTS_VERSION=3;
 export const VOTING_LIST_PAGE='https://www.europarl.europa.eu/plenary/en/votes.html';
 export const votingDocumentId=value=>{const m=/^([ABC])(\d+)-(\d{4})\/(\d{4})$/.exec(value||'');return m?`${m[1]}-${Number(m[2])}-${m[4]}-${m[3]}`:null;};
 const lines=value=>value.split(/\n/).map(s=>s.trim()).filter(Boolean);
@@ -13,15 +13,15 @@ function amendments(value){
     else if(one)result.push({number:+one[1],cp:one[3]?+one[3]:null,deleting:one[2]==='D'});else return [];
   }return result;
 }
-function falls(text,documentId){
+function falls(text,motionReferences){
   const m=/^(?:adoption(?: \d+)?|ad\.)\s*=\s*(.*?)\s+falls?$/.exec(text);
   if(/^(?:adoption|ad\.)\s*=\s*MRs replaced$/.test(text))return {amendments:[],motions:[],replacesMotions:true};
   if(!m)return null;
   const fallback={amendments:[],motions:[],replacesMotions:false,text};
   const targets=m[1].replace(/\band\b/g,',');
   if(/^B\d+-/.test(targets)){
-    const refs=targets.split(/,\s*/).map(s=>s.trim());const year=documentId?.split('-')[2];
-    const motions=refs.map(s=>votingDocumentId(s.includes('/')?s:`${s}/${year}`));
+    const refs=targets.split(/,\s*/).map(s=>s.trim());
+    const motions=refs.map(ref=>{const matches=motionReferences.get(ref);return matches?.size===1?[...matches][0]:null;});
     return motions.every(Boolean)?{amendments:[],motions,replacesMotions:false}:fallback;
   }
   const am=amendments(targets);return am.length?{amendments:am.map(({number,cp})=>({number,cp})),motions:[],replacesMotions:false}:fallback;
@@ -88,9 +88,15 @@ export function parseVotingList(buffer,{sourceUrl=null,observedAt=new Date().toI
     else if(ams.length)kind=/block vote/i.test(first)?'block':'amendment';
     else if(!am&&!author&&/^\d+(?:\s+RCV)?$/.test(rcv)&&parent){kind=parent.kind;ams=parent.amendments;authors=parent.authors;part=+rcv.match(/^\d+/)[0];parentRow=parent.row;}
     if(kind==='unrecognised')gaps.push({code:'unrecognised-row',message:`Row ${row} could not be classified.`});
-    const result={row,kind,subject:[...subject],amendments:ams,identical:am.includes('=')||Boolean(part&&parent?.identical),authors,vote:{rollCall:/\bRCV\b/.test(rcv),split:rcv==='split',separate:rcv==='separate'},part,parentRow,motion,label,falls:remarks?falls(remarks,documentId):null,remarks,cells};
+    const result={row,kind,subject:[...subject],amendments:ams,identical:am.includes('=')||Boolean(part&&parent?.identical),authors,vote:{rollCall:/\bRCV\b/.test(rcv),split:rcv==='split',separate:rcv==='separate'},part,parentRow,motion,label,falls:null,remarks,cells};
     rows.push(result);if(result.vote.split)parent=result;else if(!part)parent=null;
   }
+  // Short fall-rule references must resolve to a full motion in this table.
+  const motionReferences=new Map();
+  for(const row of rows.filter(row=>row.kind==='motion'))for(const ref of [row.cells[0].trim(),row.cells[0].trim().split('/')[0]]){
+    if(!motionReferences.has(ref))motionReferences.set(ref,new Set());motionReferences.get(ref).add(row.motion);
+  }
+  for(const row of rows)if(row.remarks)row.falls=falls(row.remarks,motionReferences);
   const versionLabel=pre.find(s=>/^(FINAL VERSION(?:\/\d+)?|initial)$/.test(s))||null;
   return {sittingId:null,documentId,documentReference:reference,agendaItemId:null,heading:{kind,rapporteur:kind==='report'?pre[h].replace(/^Report:\s*/,'').split('(')[0].trim():null,procedureMark:header.match(/\[([^\]]+)\]/)?.[1]||null,title:kind==='resolutions'?pre[h].replace(/^Resolutions:\s*/,''):pre[h+1]||null,committee:pre.find(s=>s.startsWith('Committee:'))?.replace(/^Committee:\s*/,'')||null},versionLabel,revision:{sha256:createHash('sha256').update(buffer).digest('hex'),observedAt,etag:null,lastModified:null,sourceUrl,pageUrl:VOTING_LIST_PAGE,linkVersion:null},revisions:[],rows,notes:parseNotes(content.paragraphs.slice(end)),gaps};
 }

@@ -17,19 +17,32 @@ export function votingListSessions(nodes){
   return sessions.map(s=>({...s,start:Date.parse(brusselsInstant(addDays(s.first,-4)+'T07:00:00')),end:Date.parse(brusselsInstant(s.last+'T23:00:00')),purgeAt:Date.parse(brusselsInstant(addDays(s.last,30)+'T00:00:00'))}));
 }
 export function allowedVotingListUrl(value){try{const u=new URL(value,VOTING_LIST_PAGE),decoded=decodeURIComponent(u.pathname);if(decoded.includes('\\'))return null;if(u.origin!=='https://www.europarl.europa.eu'||u.username||u.password||!/^\/sedcms\/(?:votingList\/|pubfile\/VOTING_SCHEDULE\/)[^/]+\.docx$/i.test(decoded))return null;u.search='';u.hash='';return u.href;}catch{return null;}}
+const activeSessionKey=sessions=>JSON.stringify(sessions.map(s=>s.first).sort());
+const localTime=(day,time)=>Date.parse(brusselsInstant(day+'T'+time));
+const pageCheckAt=(page,now)=>Math.max(page.nextCheck||now,localTime(brusselsDay(now),'07:00:00'));
+// Until an agenda is needed, 23:00 bounds the possible sitting-day hourly window.
+function fileCheckAt(source,now,ends=new Map()) {
+  const {body}=source,checked=body.checkedAt||0,retry=body.retryAt||0;
+  const ordinary=Math.max(source.next_check,checked?checked+6*HOUR:0,retry);
+  if(body.schedule||!source.sitting)return ordinary;
+  const day=source.sitting.slice(7),start=localTime(day,'06:00:00'),end=ends.has(source.sitting)?ends.get(source.sitting):localTime(day,'23:00:00');
+  const frequent=Math.max(start,checked?checked+HOUR:now,retry);
+  return Math.min(ordinary,now<=end&&frequent<=end?frequent:Infinity);
+}
 const plain=s=>s.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
 export function discoverVotingLists(html,sessions){
-  const links=[],gaps=[];let sittingId=null,session=null;
+  const links=[],gaps=[];let sittingId=null,session=null,sectionSitting=null,sectionSession=null;
+  const scope=()=>({sittingId:sectionSitting,sessionFirst:sectionSession?.first||session?.first||null,sessionLast:sectionSession?.last||session?.last||null});
   for(const m of html.matchAll(/<h[34]\b[^>]*>[\s\S]*?<\/h[34]>|<a\b[^>]*href="([^"]+)"[^>]*>/gi)){
     if(/^<h/i.test(m[0])){
       const text=plain(m[0]),dates=[...text.matchAll(/(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), (\d{1,2}) ([A-Za-z]+) (\d{4})/g)].map(d=>{const at=Date.parse(`${d[2]} ${d[1]}, ${d[3]} 12:00:00 GMT`);return Number.isFinite(at)?new Date(at).toISOString().slice(0,10):null;});
-      if(dates.length>1){session=sessions.find(s=>s.first===dates[0]&&s.last===dates.at(-1))||null;sittingId=null;}
-      else if(dates.length===1){sittingId='MTG-PL-'+dates[0];session=sessions.find(s=>s.sittings.includes(sittingId))||null;if(!session)sittingId=null;}continue;
+      if(dates.length>1){sectionSession={first:dates[0],last:dates.at(-1)};sectionSitting=null;session=sessions.find(s=>s.first===dates[0]&&s.last===dates.at(-1))||null;sittingId=null;}
+      else if(dates.length===1){sectionSitting='MTG-PL-'+dates[0];if(!sectionSession||dates[0]<sectionSession.first||dates[0]>sectionSession.last)sectionSession={first:dates[0],last:dates[0]};sittingId=sectionSitting;session=sessions.find(s=>s.sittings.includes(sittingId))||null;if(!session)sittingId=null;}continue;
     }
     const raw=m[1].replace(/&amp;/g,'&'),url=allowedVotingListUrl(raw);if(!url)continue;
     const schedule=url.includes('/VOTING_SCHEDULE/');
-    if(!session||!schedule&&!sittingId){gaps.push({code:'unmapped-section',message:'A voting list has no known sitting section.',sourceUrl:url});continue;}
-    if(links.length>=120){gaps.push({code:'discovery-cap',message:'Voting list discovery limit reached.'});break;}
+    if(!session||!schedule&&!sittingId){gaps.push({code:'unmapped-section',message:'A voting list has no known sitting section.',sourceUrl:url,...scope()});continue;}
+    if(links.length>=120){gaps.push({code:'discovery-cap',message:'Voting list discovery limit reached.',...scope()});break;}
     if(!links.some(l=>l.url===url&&l.sittingId===sittingId))links.push({url,sittingId:schedule?null:sittingId,sessionFirst:session.first,purgeAt:session.purgeAt,linkVersion:new URL(raw,VOTING_LIST_PAGE).searchParams.get('version'),schedule});
   }return {links,gaps};
 }
@@ -74,7 +87,8 @@ export class VotingListCollector {
   }
   due(){
     const now=this.clock();this.nextPurgeCheck??=this.store.get('votingListPurgeCheck')||0;
-    return now>=this.nextPurgeCheck||this.window(now).length>0&&hour(now)>=6&&hour(now)<23&&(this.store.get('votingListSweep')||0)<=now;
+    const active=this.window(now),page=this.store.get('votingListPage')||{};
+    return now>=this.nextPurgeCheck||active.length>0&&hour(now)>=6&&hour(now)<23&&((this.store.get('votingListSweep')||0)<=now||page.activeSessionKey!==activeSessionKey(active)&&now>=pageCheckAt(page,now));
   }
   write(fn){const run=()=>{this.store.assertWriter();return fn();};return this.store.db.isTransaction?run():this.store.transaction(run);}
   async step(worker){
@@ -85,46 +99,49 @@ export class VotingListCollector {
       db.prepare('DELETE FROM voting_list_revisions WHERE purge_at<=?').run(now);db.prepare('DELETE FROM voting_list_sources WHERE purge_at<=?').run(now);
       this.store.set('votingListPurgeCheck',now+DAY);this.nextPurgeCheck=now+DAY;});
     if(!active.length||hour(now)<6||hour(now)>=23)return false;
-    const page=this.store.get('votingListPage')||{},pageDue=hour(now)>=7&&now>=(page.nextCheck||0);
-    const agendas=new Map(),frequent=new Map();
+    const page=this.store.get('votingListPage')||{},sessionKey=activeSessionKey(active),pageAt=pageCheckAt(page,now),pageDue=now>=pageAt;
+    const sources=db.prepare('SELECT * FROM voting_list_sources ORDER BY next_check,url LIMIT 240').all()
+      .map(row=>({...row,body:JSON.parse(row.body)})).filter(row=>active.some(s=>s.first===row.body.sessionFirst));
+    const sweep=ends=>{
+      const next=Math.min(now+HOUR,pageAt,...active.map(s=>s.end),...sources.map(row=>fileCheckAt(row,now,ends)));
+      this.write(()=>this.store.set('votingListSweep',next));
+    };
+    // Plan from retained request metadata before inflating any agenda snapshot.
+    if(!pageDue&&!sources.some(row=>fileCheckAt(row,now)<=now)){sweep();return false;}
+    if(!pageDue&&this.runDocxGets>=120)return false;
+    const agendas=new Map(),ends=new Map();
     const agendaFor=sitting=>{
       if(!agendas.has(sitting)){
         const retained=sitting?this.snapshots.read('agenda',1,sitting,{retained:true}):null;
-        agendas.set(sitting,retained?.pages?.flatMap(p=>p.payload.data)||[]);
+        const agenda=retained?.pages?.flatMap(p=>p.payload.data)||[];agendas.set(sitting,agenda);
         if(sitting&&!retained)this.snapshots.enqueue?.('agenda',1,sitting);
+        const votes=new Set(agenda.filter(n=>String(n.had_activity_type).endsWith('/PLENARY_VOTE')).map(n=>String(n.id||'eli/dl/event/'+n.activity_id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')));
+        const slotEnds=agenda.filter(n=>String(n.had_activity_type).endsWith('/MEETING_PART')&&(n.consists_of||[]).some(ref=>votes.has(String(ref?.id||ref).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')))).map(n=>Date.parse(n.activity_end_date)).filter(Number.isFinite);
+        ends.set(sitting,slotEnds.length?Math.max(...slotEnds):-Infinity);
       }
       return agendas.get(sitting);
     };
-    const frequentFor=sitting=>{
-      if(frequent.has(sitting))return frequent.get(sitting);
-      if(sitting.slice(7)!==brusselsDay(now)||hour(now)<6)return false;
-      const agenda=agendaFor(sitting);
-      const votes=new Set(agenda.filter(n=>String(n.had_activity_type).endsWith('/PLENARY_VOTE')).map(n=>String(n.id||'eli/dl/event/'+n.activity_id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')));
-      const ends=agenda.filter(n=>String(n.had_activity_type).endsWith('/MEETING_PART')&&(n.consists_of||[]).some(ref=>votes.has(String(ref?.id||ref).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')))).map(n=>Date.parse(n.activity_end_date)).filter(Number.isFinite);
-      const value=ends.length>0&&now<=Math.max(...ends);frequent.set(sitting,value);return value;
-    };
-    for(const session of active)for(const sitting of session.sittings){agendaFor(sitting);frequentFor(sitting);}
-    const source=db.prepare('SELECT * FROM voting_list_sources ORDER BY next_check,url LIMIT 240').all().find(row=>{
-      const body=JSON.parse(row.body);return active.some(s=>s.first===body.sessionFirst)&&now>=(body.retryAt||0)&&(row.next_check<=now&&(!body.checkedAt||now-body.checkedAt>=6*HOUR)||frequentFor(row.sitting)&&now-(body.checkedAt||0)>=HOUR);
+    const source=pageDue?null:sources.find(row=>{
+      if(fileCheckAt(row,now)>now)return false;
+      agendaFor(row.sitting);return fileCheckAt(row,now,ends)<=now;
     });
-    if(!pageDue&&this.runDocxGets>=120)return false;
-    if(!pageDue&&!source){this.write(()=>this.store.set('votingListSweep',now+60000));return false;}
-    const prior=pageDue?page:JSON.parse(source.body),url=pageDue?VOTING_LIST_PAGE:source.url;
+    if(!pageDue&&!source){sweep(ends);return false;}
+    const prior=pageDue?page:source.body,url=pageDue?VOTING_LIST_PAGE:source.url;
     const next=now+HOUR;
     // Reserve before awaiting: crashes and skipped generations cannot create a retry storm.
     this.write(()=>{if(pageDue)this.store.set('votingListPage',{...page,nextCheck:next});else db.prepare('UPDATE voting_list_sources SET next_check=?,body=? WHERE url=? AND sitting=?').run(next,JSON.stringify({...prior,checkedAt:now}),url,source.sitting);});
     try{
       if(!pageDue)this.runDocxGets++;
-      const response=await this.fetchSource(url,{signal:worker.controller.signal,etag:prior.etag,lastModified:prior.lastModified});
+      const response=await this.fetchSource(url,{signal:worker.controller.signal,etag:!pageDue||page.activeSessionKey===sessionKey?prior.etag:null,lastModified:!pageDue||page.activeSessionKey===sessionKey?prior.lastModified:null});
       const validators={etag:response.etag||prior.etag||null,lastModified:response.lastModified||prior.lastModified||null};
       if(pageDue){this.write(()=>{
-        this.store.set('votingListPage',{...validators,nextCheck:next});
+        this.store.set('votingListPage',{...validators,nextCheck:next,activeSessionKey:response.status===304?page.activeSessionKey:sessionKey});
         if(response.status===304)return;
         const discovery=discoverVotingLists(response.buffer.toString('utf8'),active);this.store.set('votingListDiscoveryGaps',discovery.gaps);this.store.set('votingListDiscoveryPurgeAt',Math.max(...active.map(s=>s.purgeAt)));
         for(const link of discovery.links)db.prepare('INSERT INTO voting_list_sources VALUES (?,?,?,?,?) ON CONFLICT(url,sitting) DO UPDATE SET body=json_set(body,\'$.linkVersion\',json_extract(excluded.body,\'$.linkVersion\'))').run(link.url,link.sittingId||'',JSON.stringify(link),now,link.purgeAt);
       });}else{
         const agenda=agendaFor(source.sitting);
-        const frequent=frequentFor(source.sitting);
+        const frequent=source.sitting.slice(7)===brusselsDay(now)&&hour(now)>=6&&now<=ends.get(source.sitting);
         const nextCheck=now+(frequent?HOUR:6*HOUR);
         let parsed=null;
         const heldHash=response.buffer?createHash('sha256').update(response.buffer).digest('hex'):null;
@@ -148,12 +165,12 @@ export class VotingListCollector {
           if(parsed&&!prior.schedule)db.prepare('INSERT INTO voting_list_revisions VALUES (?,?,?,?,?,?) ON CONFLICT(url,sitting,hash) DO NOTHING').run(url,source.sitting,parsed.revision.sha256,parsed.revision.observedAt,JSON.stringify(parsed),source.purge_at);
         });
       }
-    }catch(error){if(worker.controller.signal.aborted)throw error;this.write(()=>{this.store.set('votingListLastError',{at:new Date(now).toISOString(),message:String(error.message).slice(0,200)});const retry=now+Math.max(HOUR,Number(error.retryAfter||0)*1000);if(pageDue)this.store.set('votingListPage',{...prior,nextCheck:retry,error:String(error.message).slice(0,200)});else db.prepare('UPDATE voting_list_sources SET next_check=?,body=? WHERE url=? AND sitting=?').run(retry,JSON.stringify({...prior,checkedAt:now,retryAt:retry,error:String(error.message).slice(0,200)}),url,source.sitting);});}
+    }catch(error){if(worker.controller.signal.aborted)throw error;this.write(()=>{this.store.set('votingListLastError',{at:new Date(now).toISOString(),message:String(error.message).slice(0,200)});const retry=now+Math.max(HOUR,Number(error.retryAfter||0)*1000);if(pageDue)this.store.set('votingListPage',{...prior,nextCheck:retry,error:String(error.message).slice(0,200),errorSittings:active.flatMap(s=>s.sittings)});else db.prepare('UPDATE voting_list_sources SET next_check=?,body=? WHERE url=? AND sitting=?').run(retry,JSON.stringify({...prior,checkedAt:now,retryAt:retry,error:String(error.message).slice(0,200)}),url,source.sitting);});}
     return true;
   }
 }
 export const collectVotingList=worker=>worker.votingLists?.step(worker)||false;
-export function votingListsResponse(store,params){const sitting=params.get('sitting');if(!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(sitting||'')||!calendarDate(sitting.slice(7)))throw new HttpError(400,'invalid_sitting','Choose a plenary sitting.');const clock=store.clock||Date.now,now=clock(),gaps=[...(store.get('votingListDiscoveryGaps')||[])];
-  if(store.get('votingListPage')?.error)gaps.push({code:'page-unavailable',message:'Voting list page unavailable.'});
+export function votingListsResponse(store,params){const sitting=params.get('sitting');if(!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(sitting||'')||!calendarDate(sitting.slice(7)))throw new HttpError(400,'invalid_sitting','Choose a plenary sitting.');const clock=store.clock||Date.now,now=clock(),gaps=(store.get('votingListDiscoveryGaps')||[]).filter(g=>g.sittingId===sitting||!g.sittingId&&g.sessionFirst&&g.sessionLast&&sitting.slice(7)>=g.sessionFirst&&sitting.slice(7)<=g.sessionLast);
+  if(store.get('votingListPage')?.error&&store.get('votingListPage').errorSittings?.includes(sitting))gaps.push({code:'page-unavailable',message:'Voting list page unavailable.'});
   if(store.db?.prepare("SELECT 1 FROM sqlite_master WHERE name='voting_list_sources'").get())for(const row of store.db.prepare('SELECT body FROM voting_list_sources WHERE sitting=? AND purge_at>?').all(sitting,now))if(JSON.parse(row.body).error)gaps.push({code:'file-unavailable',message:'Voting list file unavailable.',sourceUrl:JSON.parse(row.body).url});
   return {version:VOTING_LISTS_VERSION,sittingId:sitting,documents:new VotingListStore(store,{clock}).votingListsForSitting(sitting),gaps,sourcePageUrl:VOTING_LIST_PAGE};}

@@ -142,6 +142,12 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 - Only exact links in the page’s “Further information” list count: OEIL procedure files and summaries, and Doceo reports, motions, adopted texts and committee drafts (`A`, `B`, `RC`, `TA`, `PR`, `AD`, `AM`, `AL`, `PA`). A summary or document matches a dossier only when that dossier’s OEIL page links the same ID.
 - The committee “latest news” feed is not used: its pages are `noindex, nofollow` and have no procedure links.
 
+### Voting lists
+
+The Tabling Service lists are indicative and cover the current or next part-session. The public votes page links DOCX files under `/sedcms/votingList/` and the session schedule under `/sedcms/pubfile/VOTING_SCHEDULE/` on `www.europarl.europa.eu`; these and `/plenary/en/votes.html` are the only admitted website paths. Files are overwritten in place, and link version queries do not select historical editions.
+
+The single source writer checks the page at most hourly between 07:00 and 23:00 Brussels time, from four days before a consecutive run of ODP sittings through its last sitting. Files use conditional requests every six hours, hourly from 06:00 on their sitting day until the last known voting slot ends. Writer contention can delay collection. Parsed revisions retain exact references and unclassified cells; no raw DOCX is retained. All list and schedule data expire 30 days after the part-session's last sitting. Ballot-to-decision bindings are separate.
+
 ### Publications Office (Cellar)
 
 - Content negotiation: `application/rdf+xml;notice=tree` for metadata and `application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml` for DOCX. A DOCX item can return 406 advertising `application/zip;type=akn4eu`; one retry with that type returns a Word package.
@@ -188,9 +194,3 @@ The `mt` entry in `server/insights-speech-stopwords.json` is an app-authored lis
 ## World map geometry
 
 The Places map uses Natural Earth 1:110m Admin 0 countries and 1:50m tiny-country points, projected by `scripts/world-map.py` (Equal Earth). Places join by authority ISO alpha-3, except Kosovo (`1A0` → `KOS`). See [Third-party notices](../THIRD_PARTY_NOTICES.md) for source URLs.
-
-### Voting lists
-
-The Tabling Service lists are indicative and cover the current or next part-session. The public votes page links DOCX files under `/sedcms/votingList/` and the session schedule under `/sedcms/pubfile/VOTING_SCHEDULE/` on `www.europarl.europa.eu`; these and `/plenary/en/votes.html` are the only admitted website paths. Files are overwritten in place, and link version queries do not select historical editions.
-
-The single source writer checks the page at most hourly between 07:00 and 23:00 Brussels time, from four days before a consecutive run of ODP sittings through its last sitting. Files use conditional requests every six hours, hourly from 06:00 on their sitting day until the last known voting slot ends. Writer contention can delay collection. Parsed revisions retain exact references and unclassified cells; no raw DOCX is retained. All list and schedule data expire 30 days after the part-session's last sitting. Ballot-to-decision bindings are separate.

@@ -43,3 +43,20 @@ test('all forty September voting lists classify all 677 physical rows',()=>{
  const motion=parsed.get('_A10-0098_2026__Nerudova.docx').rows[3];assert.equal(motion.kind,'procedural');assert.deepEqual(motion.authors,['ECR']);assert.equal(motion.falls.text,'adoption = vote on provisional agreement falls');
  const free=parsed.get('_A10-0202_2026__Canfin.docx').rows.find(r=>r.remarks==='adoption 86 = all ams to article 7 fall');assert.deepEqual(free.falls,{amendments:[],motions:[],replacesMotions:false,text:free.remarks});
 });
+function docxWithXml(xml){
+ const name=Buffer.from('word/document.xml'),body=Buffer.from(xml),local=Buffer.alloc(30),central=Buffer.alloc(46),end=Buffer.alloc(22);
+ local.writeUInt32LE(0x04034b50);local.writeUInt32LE(body.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(name.length,26);
+ central.writeUInt32LE(0x02014b50);central.writeUInt32LE(body.length,20);central.writeUInt32LE(body.length,24);central.writeUInt16LE(name.length,28);
+ const entry=Buffer.concat([local,name,body]),directory=Buffer.concat([central,name]);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(directory.length,12);end.writeUInt32LE(entry.length,16);
+ return Buffer.concat([entry,directory,end]);
+}
+test('short motion fall references use full table references and never borrow the report year',async()=>{
+ const {docxParts}=await import('./document-text.mjs'),xml=docxParts(fixture('B10-0386_Fisheries_Policy.docx')).get('word/document.xml');
+ const parseXml=xml=>parseVotingList(docxWithXml(xml));
+ const previousYear=parseXml(xml.replaceAll('B10-0388/2026','B10-0388/2025'));
+ assert.deepEqual(previousYear.rows[31].falls.motions,['B-10-2025-0388','B-10-2026-0389']);
+ const missing=parseXml(xml.replaceAll('B10-0388/2026','B10-0999/2026')).rows[31];
+ assert.deepEqual(missing.falls,{amendments:[],motions:[],replacesMotions:false,text:missing.remarks});
+ const ambiguous=parseXml(xml.replaceAll('B10-0389/2026','B10-0388/2025')).rows[31];
+ assert.deepEqual(ambiguous.falls,{amendments:[],motions:[],replacesMotions:false,text:ambiguous.remarks});
+});
