@@ -1,5 +1,7 @@
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
+
+import {assertBareAnnexInsertion} from './amendment-annex-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
@@ -550,6 +552,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
+  const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
+  if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
   const closing=assertClosingFormula({proposal,wording,placement});
   if(closing.status!=='unverified')return closing;
