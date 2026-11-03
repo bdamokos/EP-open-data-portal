@@ -52,7 +52,7 @@ test('agenda availability distinguishes scheduled items, waits, gaps, source err
     assert(container.querySelector('[role="alert"]'));
   }
   recover=true;
-  assert.equal(container.querySelector('[role=alert] button'),null);await automaticRecovery(t);
+  assert.equal(container.querySelector('[role=alert] button'),null);assert.equal(installRetryClock(t).timers.size,0,'a bare vote-source error is not a promise of transient progress');await show('recent-vote');await installRetryClock(t).advance(300_001);await show('error-vote');
   assert.equal(container.querySelector('[role="alert"]'),null);
   assert.match(container.querySelector('.insight-topic-detail').textContent,/scheduled today/);
   assert.match(await show('filter-debate','&agenda-country=HU'),/No listed speeches match this country filter/);

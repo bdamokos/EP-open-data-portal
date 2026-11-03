@@ -349,7 +349,7 @@ test('a local reader failure has an explicit retry and does not claim a parliame
 test('an extraction failure returned with HTTP 200 offers retry and never claims saved text',async t=>{
   let calls=0;
   const h=await harness(t,()=>++calls===1?response(report,sourceDocument(report,[],{
-    status:'error',textLanguage:null,refreshError:'official-document-download-failed',reason:'source-error',
+    status:'error',textLanguage:null,refreshError:'official-document-download-failed',reason:'source-error',nextRetryAt:new Date(Date.now()+5000).toISOString(),
   })):response(report,sourceDocument(report,['Official text recovered after retry.'])));
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   const alert=h.container.querySelector('[role="alert"]');

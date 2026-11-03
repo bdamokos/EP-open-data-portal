@@ -94,7 +94,7 @@ test('reference, language and unmount cancel pending polls and obsolete results 
 });
 
 test('unavailable progress stays one short gap state and future, cancelled and unknown events retain their meaning',async t=>{
-  const h=await harness(t);await h.render();await h.finish(progress({state:'unmapped',status:null,events:[],source:{...progress().source,stale:true}}));
+  const h=await harness(t);await h.render();await h.finish(progress({state:'unmapped',status:null,events:[],source:{...progress().source,stale:true},fallback:{status:'unavailable',retryAt:Date.now()+5000}}));
   assert.equal((h.container.textContent.match(/Unavailable/g)||[]).length,1);assert.equal(h.container.querySelectorAll('p').length,0);
   assert.equal(h.manual().length,0);await automaticRecovery(t);await h.finish(progress({status:null,events:[event({id:'future',date:'2099-10-20',milestone:false}),event({id:'cancel',status:'cancelled'}),event({id:'unknown',status:'unknown'})]}));
   assert(!h.container.querySelector('.procedure-progress-latest'),'future and cancelled/unknown events are not completed milestones');

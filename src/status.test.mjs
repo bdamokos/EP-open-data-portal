@@ -107,7 +107,7 @@ test('member count labels partial committee coverage, and polling never reannoun
 
 
 test('known committee matches stay usable after another profile fails, with honest counts and recoverable details',async t=>{
-  let response={...directory,committeeDetails:{complete:false,loaded:0,total:1,failed:1,error:'Some committee details are unavailable. Showing retained names or committee codes.'},committees:[{id:'ENVI',code:'ENVI',names:{}}],index:{...directory.index,loaded:1,failed:1,error:'Some membership profiles could not be loaded. Retry the membership index.'},members:[{...member(1,'BE'),memberships:[{id:'ENVI',current:true,role:'MEMBER'}]},{...member(2,'FI'),memberships:null}]};
+  let response={...directory,refreshInProgress:true,committeeDetails:{complete:false,loaded:0,total:1,failed:1,error:'Some committee details are unavailable. Showing retained names or committee codes.'},committees:[{id:'ENVI',code:'ENVI',names:{}}],index:{...directory.index,loaded:1,failed:1,error:'Some membership profiles could not be loaded. Retry the membership index.'},members:[{...member(1,'BE'),memberships:[{id:'ENVI',current:true,role:'MEMBER'}]},{...member(2,'FI'),memberships:null}]};
   const directoryReads=[];
   const h=await harness(t,'?committee=ENVI',url=>{
     if(url.pathname.endsWith('/directory')){directoryReads.push(url);return response;}
@@ -123,7 +123,7 @@ test('known committee matches stay usable after another profile fails, with hone
   assert.match(h.container.querySelector('option[value="ENVI"]').textContent,/ENVI.*Name unavailable/);
   assert.equal([...h.container.querySelectorAll('button')].some(node=>/Retry/.test(node.textContent)),false);
   await automaticRecovery(t);await wait(30);assert(directoryReads.some(url=>url.searchParams.get('retry')==='committee-details'));
-  response={...response,committeeDetails:{complete:true,loaded:1,total:1,failed:0,error:null},committees:[{id:'ENVI',code:'ENVI',names:{fr:'Environnement'}}],index:{complete:true,loaded:2,total:2,failed:0,error:null},members:response.members.map(m=>({...m,memberships:[{id:'ENVI',current:true,role:'MEMBER'}]}))};
+  response={...response,refreshInProgress:false,committeeDetails:{complete:true,loaded:1,total:1,failed:0,error:null},committees:[{id:'ENVI',code:'ENVI',names:{fr:'Environnement'}}],index:{complete:true,loaded:2,total:2,failed:0,error:null},members:response.members.map(m=>({...m,memberships:[{id:'ENVI',current:true,role:'MEMBER'}]}))};
   await automaticRecovery(t);await wait(380);
   assert.equal(h.container.querySelector('.explorer-results strong').textContent,'2');assert.equal(h.container.querySelectorAll('.explorer-portrait-item').length,2);
   const option=h.container.querySelector('option[value="ENVI"]');assert.match(option.textContent,/Environnement/);assert.equal(option.lang,'fr');

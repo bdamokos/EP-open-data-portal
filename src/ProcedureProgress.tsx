@@ -12,6 +12,8 @@ type Source={fetchedAt:string;stale:boolean;refreshInProgress:boolean;refreshErr
 type Progress={reference:string;language:string;state:'mapped'|'unmapped'|'ambiguous';dossier:string|null;status?:{label:string;language:string}|null;events:ProgressEvent[];coverage:Coverage;source:Source;fallback?:{status:string;retryAt:number|null}};
 type Document={event:string;work:string;title:string|null;titleLanguage:string|null;celex:string[];url:string|null};
 type Documents={reference:string;state:Progress['state'];dossier:string|null;documents:Document[];coverage:Coverage;source:Source};
+// Only advertised source/fallback deadlines extend the finite progress poll.
+const progressRetry={retryWhile:(data:Progress|Documents)=>progressSourceState(data).retryAt>0,retryAtFor:(data:Progress|Documents)=>progressSourceState(data).retryAt};
 const institutions:Record<string,string>={EP:'European Parliament',CONSIL:'Council of the EU',COM:'European Commission',EESC:'European Economic and Social Committee',COR:'Committee of the Regions'};
 export const institutionsUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : typeof institutions => ({EP:ui.t("batch5.speechplayer.tsx.25.75"),CONSIL:ui.t("batch6.procedureprogress.council.of.the.eu.13"),COM:ui.t("batch6.procedureprogress.european.commission.13"),EESC:ui.t("batch6.procedureprogress.european.economic.and.social.committee.13"),COR:ui.t("batch6.procedureprogress.committee.of.the.regions.13")});
 
@@ -35,10 +37,10 @@ function Status({event,today}:{event:ProgressEvent;today:string}) {
 export function ProcedureProgress({reference,language}:{reference:string;language:string}) {
   const ui = useUiI18n();
   const params=new URLSearchParams({reference,lang:language}),timelineId=useId(),headingId=useId();
-  const state=useInsightData<Progress>('insights/procedure-progress?'+params),data=(state.data?.reference===reference) ? state.data : null;
+  const state=useInsightData<Progress>('insights/procedure-progress?'+params,undefined,progressRetry),data=(state.data?.reference===reference) ? state.data : null;
   const [expanded,setExpanded]=useState(false),[institution,setInstitution]=useState('all'),[allEvents,setAllEvents]=useState(false),[documentsNeeded,setDocumentsNeeded]=useState(false);
   useEffect(()=>{setExpanded(false);setInstitution('all');setAllEvents(false);setDocumentsNeeded(false);},[reference,language]);
-  const documents=useInsightData<Documents>(documentsNeeded ? ('insights/procedure-progress?'+params+'&detail=documents') : null);
+  const documents=useInsightData<Documents>(documentsNeeded ? ('insights/procedure-progress?'+params+'&detail=documents') : null,undefined,progressRetry);
   // Date-only legislative dates retain their calendar day in every time zone.
   const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const events=(data?.state==='mapped') ? data.events : ([]);

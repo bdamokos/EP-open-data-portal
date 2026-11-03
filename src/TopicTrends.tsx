@@ -1,3 +1,4 @@
+import {retryableGap,gapRetryAt} from './automaticRetry.mjs';
 import {useAutomaticRetry} from './useAutomaticRetry';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
@@ -72,7 +73,7 @@ export function TopicTrends({language='en',initialTopic}:{language?:string;initi
   const data=response?.key===requestKey?response.data:null;
   const lastRequest=useRef({key:requestKey,attempt});
   const failure=useRef<unknown>(null);
-  const retrying=useAutomaticRetry(requestKey,failure.current,loading,()=>setAttempt(value=>value+1),Boolean(data?.coverage.sourceError));
+  const retrying=useAutomaticRetry(requestKey,failure.current,loading,()=>setAttempt(value=>value+1),retryableGap(data?.coverage),gapRetryAt(data?.coverage));
   const [,setSource]=useExplorerParam<string|null>('trend-source',null);
   const heading=useRef<HTMLHeadingElement>(null),chart=useRef<SVGSVGElement>(null),[chartWidth,setChartWidth]=useState(960);
   useEffect(()=>{if(!chart.current)return;const observer=new ResizeObserver(entries=>setChartWidth(Math.max(260,Math.round(entries[0].contentRect.width))));observer.observe(chart.current);return()=>observer.disconnect();},[data,selection]);

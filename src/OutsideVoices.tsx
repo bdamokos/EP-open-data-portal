@@ -1,3 +1,4 @@
+import {retryableGap,gapRetryAt} from './automaticRetry.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {AvailabilityNote,PartialValue} from './AvailabilityNote';
@@ -16,6 +17,8 @@ import type {OutsideTarget as OutsideDayTarget} from './outsideTimeline.mjs';
 import {selectLanguageText} from './language.mjs';
 import './OutsideVoices.css';
 
+// Outside coverage.pending counts the server's queued contribution reads.
+const outsideRetry={retryWhile:(data:OutsideDirectory|OutsideDetail)=>retryableGap(data.coverage),retryAtFor:(data:OutsideDirectory|OutsideDetail)=>gapRetryAt(data.coverage)};
 type OutsideTarget=OutsideDayTarget&{speechId?:string};
 
 const groups:Record<string,string>={commission:'Commission',council:'Council presidency',eu:'Other EU institutions',leaders:'Heads of state & government',parliaments:'Other parliaments',international:'International organisations',other:'Other speakers'};
@@ -147,9 +150,9 @@ export function OutsideVoices({language='en',...props}:InsightProps) {
   };
   const closePanel=()=>{panelReturn.current=true;setPanel(null);};
   const backToDirectory=()=>{destination.current={person:null,from:(document.activeElement instanceof HTMLElement) ? document.activeElement : null,returnTo:directoryOpener.current};setPerson(null);};
-  const directory=useData<OutsideDirectory>(`outside/directory?lang=${language}&term=${term}`);
-  const detail=useData<OutsideDetail>((person && /^[1-9]\d{0,12}$/.test(person)) ? (`outside/${person}?lang=${language}&term=10`) : null);
-  const panelData=useData<OutsideDetail>(panel ? (`outside/${panel.id}?lang=${language}&term=10`) : null);
+  const directory=useData<OutsideDirectory>(`outside/directory?lang=${language}&term=${term}`,outsideRetry);
+  const detail=useData<OutsideDetail>((person && /^[1-9]\d{0,12}$/.test(person)) ? (`outside/${person}?lang=${language}&term=10`) : null,outsideRetry);
+  const panelData=useData<OutsideDetail>(panel ? (`outside/${panel.id}?lang=${language}&term=10`) : null,outsideRetry);
   const retryPanel=()=>{close.current?.focus({preventScroll:true});panelData.retry();};
   useEffect(()=>{document.querySelector('.explorer-insights')?.scrollTo({top:0});},[person]);
   // The existing person scroll reset must finish before explicit return focus.

@@ -1,3 +1,4 @@
+import {retryableGap,gapRetryAt} from './automaticRetry.mjs';
 import {useAutomaticRetry} from './useAutomaticRetry';
 import {agendaTitle} from './topicPresentation.mjs';
 import {uiErrorText} from './uiErrors.mjs';
@@ -62,7 +63,7 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
   const failure=useRef<unknown>(null);
   const [attempt,setAttempt]=useState(0);
   const {data:result,loading,error}=(state.member===member) ? state : ({data:null,loading:true,error:null});
-  const retrying=useAutomaticRetry(String(member),failure.current,loading,()=>setAttempt(value=>value+1),Boolean(result?.coverage.issues?.includes('source-unavailable')));
+  const retrying=useAutomaticRetry(String(member),failure.current,loading,()=>setAttempt(value=>value+1),retryableGap(result?.coverage),gapRetryAt(result?.coverage));
   const sourceUnavailable=Boolean(result?.coverage.issues?.includes('source-unavailable'));
   const status=loading||retrying ? 'loading' : ((error||!result||sourceUnavailable) ? 'unavailable' : 'ready');
   useEffect(()=>onStatus?.(status),[onStatus,status]);

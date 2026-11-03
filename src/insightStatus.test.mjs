@@ -161,7 +161,7 @@ const trends=(topics,extra={})=>({window:{start:'2026-07-01',end:'2026-09-30'},w
 test('topic status waits for every page, distinguishes shown topics and never treats a source failure as zero',async t=>{
   const first=deferred(),last=deferred();
   let sourceError=true;
-  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',url=>url.searchParams.get('days')==='180'?(sourceError?trends([],{coverage:{sourceError:true,indexComplete:false,truncated:false}}):trends([trend(9)])):url.searchParams.get('page')==='0'?first.promise:last.promise);
+  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',url=>url.searchParams.get('days')==='180'?(sourceError?trends([],{coverage:{sourceError:true,pending:1,indexComplete:false,truncated:false}}):trends([trend(9)])):url.searchParams.get('page')==='0'?first.promise:last.promise);
   await act(async()=>first.resolve(trends([trend(1)],{nextPage:1})));await h.tick();
   assert.equal(h.status().textContent,'','an intermediate page is not settled');
   await act(async()=>last.resolve(trends(Array.from({length:15},(_,i)=>trend(i+1)))));await h.tick();

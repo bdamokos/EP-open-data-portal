@@ -401,7 +401,7 @@ test('main speech reader retains the translation return control through an unava
 });
 
 
-test('saved category and first-page source 204 remain unavailable with a working retry',async t=>{
+test('saved category and first-page source 204 remain unknown until a fresh visit',async t=>{
   const {SpeechInterventions}=await import('../server/speech-intervention-service.mjs');
   let calls=0,unavailable=true;
   const service=new SpeechInterventions({request:async()=>{
@@ -411,12 +411,12 @@ test('saved category and first-page source 204 remain unavailable with a working
   }});
   const h=await harness(t,{module:'speeches',items:[],category:'written',summary:()=>service.member(member.id,0)});
   await h.wait();
-  assert.doesNotMatch(h.container.textContent,/Contributions unavailable/);
+  assert.match(h.container.textContent,/Contributions unavailable/);
   assert(!h.container.textContent.includes('No matching contributions'));
   assert(!h.container.querySelector('#speech-filter-results-'+member.id).textContent.includes('0 loaded'));
   const retry=[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Retry counts');
   assert.equal(retry,undefined);assert.equal(calls,1);
-  unavailable=false;await automaticRecovery(t);await h.wait();
+  assert.equal(installRetryClock(t).timers.size,0,'an unqualified source gap is terminal');unavailable=false;await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Political activities'));await h.wait();await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Latest speeches'));await h.wait();
   assert.equal(calls,2);
   assert.match(h.container.textContent,/No matching contributions/);
   assert(!h.container.textContent.includes('Contributions unavailable'));

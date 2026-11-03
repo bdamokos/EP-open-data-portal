@@ -9,20 +9,21 @@ export function retryDelay(attempt,retryAt=0,now=Date.now(),random=Math.random()
   return Math.max(0,Math.min(300000,RETRY_DELAYS[Math.min(attempt,5)]*(0.95+random*0.1)),retryAt-now);
 }
 
-// Retry only transient observations, never a generic partial/empty result.
-export function retryableGap(data) {
-  if (!data || typeof data !== 'object') return false;
-  if (Array.isArray(data)) return data.some(retryableGap);
+// These are response-level progress/deadline signals. Source provenance and
+// stale/error labels do not promise a different result from another client read.
+// Endpoints with a documented nested progress field select it via retryWhile.
+export function retryableGap(data,retryWhile) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
   if (data.retryable === false || data.coverage?.retryable === false) return false;
-  if (data.cache?.complete === false || data.pending === true || typeof data.pending === 'number' && data.pending > 0 || data.sourceError === true || data.agendaError || data.issues?.includes?.('source-unavailable')) return true;
-  if (data.error && (data.complete === false || data.failed > 0 || data.truncated === false || data.coverage?.complete === false)) return true;
-  if (data.retryable === true || data.stale === true || data.refreshError || data.status === 'error' && data.nextRetryAt) return true;
-  if (data.status === 'unavailable' && data.retryAt) return true;
-  return ['detail','voteCoverage','participantCoverage','index','committeeDetails','committeeMemberships','document','selectedText','text','textCache','source','sources','coverage','fallback','references','debates'].some(key=>retryableGap(data[key]));
+  return data.refreshInProgress === true || data.pending === true ||
+    typeof data.pending === 'number' && data.pending > 0 || data.cache?.complete === false ||
+    gapRetryAt(data) > 0 || Boolean(retryWhile?.(data));
 }
-export function gapRetryAt(data) {
-  if(!data||typeof data!=='object')return 0;
-  if(Array.isArray(data))return Math.max(0,...data.map(gapRetryAt));
-  const at=typeof data.nextRetryAt==='string'?Date.parse(data.nextRetryAt):data.retryAt;
-  return Math.max(Number.isFinite(at)?at:0,...['detail','voteCoverage','participantCoverage','index','committeeDetails','committeeMemberships','document','selectedText','text','textCache','source','sources','coverage','fallback','references','debates'].map(key=>gapRetryAt(data[key])));
+function deadline(value) {
+  const at=typeof value==='string'?Date.parse(value):value;
+  return typeof at==='number'&&Number.isFinite(at)&&at>0?at:0;
+}
+export function gapRetryAt(data,retryAtFor) {
+  if(!data||typeof data!=='object'||Array.isArray(data)||data.retryable===false||data.coverage?.retryable===false)return 0;
+  return Math.max(deadline(data.retryAt),deadline(data.nextRetryAt),deadline(retryAtFor?.(data)));
 }

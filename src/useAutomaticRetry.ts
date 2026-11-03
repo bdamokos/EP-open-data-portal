@@ -53,6 +53,9 @@ export function useAutomaticRetry(key:string|null,error:unknown,loading:boolean,
       const exhausted=current.attempt>=RETRY_DELAYS.length;
       setRetrying(!exhausted);
       if(!exhausted&&document.visibilityState!=='hidden')cancelTimer=scheduleRetry(key,current.due,run);
+      // Foreground/network events can repair failed reads. A successful partial
+      // response has already exhausted its bounded observation window.
+      if(exhausted&&!error){current.waiting=false;return clear;}
       const resume=()=>{
         clear();if(document.visibilityState==='hidden')return;
         if(exhausted)current.due=Math.max(Date.now(),at);
