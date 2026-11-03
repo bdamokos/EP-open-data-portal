@@ -5,7 +5,7 @@ import {assertBranchHistory, assertHistoricalOccurrences, contractDigest, parseR
 import {historyAuthority, requestedRepairs} from './api-history-repair.mjs';
 
 function git(root, ...args) {
-  return execFileSync('git', args, {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).trimEnd();
+  return execFileSync('git', args, {cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe']}).trimEnd();
 }
 
 async function run(args) {

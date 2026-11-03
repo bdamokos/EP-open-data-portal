@@ -184,6 +184,39 @@ async function corruptMain(t, separate = false) {
   return {...f, good, bad, refs};
 }
 
+test('large recorded registries stay readable during checks, bumps and history recovery', async t => {
+  const f = await fixture(t);
+  const values = Array(15_000).fill(f.digest);
+  git(f.root, 'switch', 'main');
+  const large = source(...values);
+  assert(Buffer.byteLength(large) > 1024 * 1024);
+  await f.write(large);
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Large recorded history');
+  const good = git(f.root, 'rev-parse', 'HEAD');
+  git(f.root, 'fetch', 'origin', 'main:refs/remotes/origin/main');
+  git(f.root, 'switch', 'feature'); git(f.root, 'merge', '--ff-only', 'main');
+  const checked = f.run('--check');
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.equal(await f.read(), large, 'read-only validation must preserve the registry');
+  const bumped = f.run();
+  assert.equal(bumped.status, 0, bumped.stderr);
+  assert.equal(await f.read(), large, 'unchanged large registries stay idempotent');
+
+  git(f.root, 'switch', 'main');
+  values[7500] = b;
+  await f.write(source(...values));
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Conflicting large history');
+  git(f.root, 'fetch', 'origin', 'main:refs/remotes/origin/main');
+  git(f.root, 'switch', 'feature'); git(f.root, 'merge', '--ff-only', 'main');
+  const recovered = f.run('--repair-history', good);
+  assert.equal(recovered.status, 0, recovered.stderr);
+  const result = parseRegistry(await f.read());
+  assert(result.entries.slice(0, 15_000).every(([, digest]) => digest === f.digest));
+  assert(result.entries.slice(15_000).some(([, digest]) => digest === b));
+  const verified = f.run('--check');
+  assert.equal(verified.status, 0, verified.stderr);
+});
+
 test('explicit history recovery restores recorded keys and retains all displaced occurrences', async t => {
   const f = await corruptMain(t);
   const result = f.run('--repair-history', f.good);
