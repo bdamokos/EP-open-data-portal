@@ -39,7 +39,7 @@ export function nativeInstructionRowsComplete(buffer,sourceHash,rows,{firstPoint
   const safe=p=>!hidden(visibility.defaults)&&!hidden(visibility.styledHidden(visibility.defaultParagraph,visibility.defaults))&&!hidden(visibility.styledHidden(visibility.defaultCharacter,visibility.defaults))&&!opaque(p)&&knownInline(p);
   const body=bodies[0],records=[];let pCount=0,tCount=0,active=false,done=false;
   const entries=body.map((node,index)=>({node,index,path:node['w:p']?`/w:document[1]/w:body[1]/w:p[${++pCount}]`:node['w:tbl']?`/w:document[1]/w:body[1]/w:tbl[${++tCount}]`:null}));
-  if(uniqueBodyText.some(text=>entries.filter(entry=>entry.node['w:p']&&nativeText(entry.node['w:p']).trim()===text).length!==1))return false;
+  if(uniqueBodyText.some(text=>descendants(body,'w:p').filter(nodes=>nativeText(nodes).trim()===text).length!==1))return false;
   for(const {node,path} of entries){
    if(path===rows[0].source?.path)active=true;if(!active||done)continue;
    if(node['w:p']){if(!safe(node['w:p']))return false;records.push({path,nodes:node['w:p']});if(path===rows.at(-1).source?.path)done=true;}

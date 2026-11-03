@@ -29,3 +29,13 @@ test('hidden native duplicates and parent counters outside the selected frame ca
  const counter='<w:p><w:pPr><w:pStyle w:val="Point0number"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="5"/></w:numPr></w:pPr><w:r><w:rPr><w:vanish/></w:rPr><w:t>Competing parent;</w:t></w:r></w:p>';
  for(const content of [counter,'<w:tbl><w:tr><w:tc>'+counter+'</w:tc></w:tr></w:tbl>']){const input=wholeInstructionNative({sourceChange:xml=>xml.replace('<w:p><w:pPr><w:pStyle w:val="Annexetitre"/></w:pPr><w:r><w:t>ANNEX II</w:t>',content+'<w:p><w:pPr><w:pStyle w:val="Annexetitre"/></w:pPr><w:r><w:t>ANNEX II</w:t>')});assert.equal(place(input).status,'unresolved');assert.notEqual(verifyPlacement(input).status,'verified');}
 });
+
+test('wrapped hidden leads cannot bypass native whole-body uniqueness',()=>{
+ const hidden=text=>'<w:p><w:r><w:rPr><w:vanish/></w:rPr><w:t>'+text+'</w:t></w:r></w:p>';
+ for(const wrap of [p=>'<w:sdt><w:sdtContent>'+p+'</w:sdtContent></w:sdt>',p=>'<w:ins w:id="999">'+p+'</w:ins>',p=>'<w:customXml>'+p+'</w:customXml>',p=>'<w:tbl><w:tr><w:tc>'+p+'</w:tc></w:tr></w:tbl>']){
+  for(const [field,text] of [['actChange','Regulation (EU) 2023/956 is amended as follows:'],['sourceChange','in point 2, the table ‘Iron and Steel’ is replaced by the following:'],['sourceChange','ANNEX I']]){
+   const input=wholeInstructionNative({[field]:xml=>xml.replace('</w:body>',wrap(hidden(text))+'</w:body>')});
+   assert.equal(place(input).status,'unresolved');assert.notEqual(verifyPlacement(input).status,'verified');
+  }
+ }
+});
