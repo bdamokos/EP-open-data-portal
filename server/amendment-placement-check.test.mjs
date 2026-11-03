@@ -23,3 +23,21 @@ test('a vote list cannot relocate the published label, even when its unit is abs
  assert.equal(documentContextPlacement({chosen,text,referenceTexts:['After recital A'],resolutionDocument:true}).finalPlacementCheck,undefined);
  assert.equal(documentContextPlacement({chosen:{...chosen,targetLabel:'Recital A',originalText:'B. Second recital;'},text,referenceTexts:['Recital B'],resolutionDocument:true}).status,'unresolved');
 });
+
+test('the production throttle contract pauses yearly reads for three minutes',async t=>{
+ const {placementAdoptedListing}=await import('./amendment-placement-check.mjs?throttle-test');
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:1_000_000});
+ let calls=0;
+ const request=async(_endpoint,_params,options)=>{
+  assert.equal(options.staleWhileRevalidate,false,'stale refresh throttles must be observed');
+  if(++calls===1)throw Object.assign(new Error('rate limited'),{status:503,code:'odp_rate_limited',retryAfter:0});
+  return {payload:{data:[]}};
+ };
+ await assert.rejects(placementAdoptedListing(request,2026),{code:'odp_rate_limited'});
+ t.mock.timers.tick(2100);
+ assert.equal(await placementAdoptedListing(request,2027),null);assert.equal(calls,1);
+ t.mock.timers.tick(177899);
+ assert.equal(await placementAdoptedListing(request,2027),null);assert.equal(calls,1);
+ t.mock.timers.tick(1);
+ assert.deepEqual(await placementAdoptedListing(request,2027),{payload:{data:[]}});assert.equal(calls,2);
+});

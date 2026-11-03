@@ -1,4 +1,6 @@
 {
+  "documentcontext.final_placement_check": "Kontrollige lõplikku asukohta {adoptedText}.",
+  "documentcontext.adopted_text": "vastuvõetud tekstis",
   "documentcontext.council.quotation": "Nõukogu tekst aruandes tsiteeritud kujul.",
   "amendment.rejects_proposal": "Lükkab ettepaneku tagasi",
   "amendment.rejects_council_position": "Lükkab nõukogu seisukoha tagasi",

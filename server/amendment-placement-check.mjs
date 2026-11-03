@@ -18,14 +18,16 @@ export function adoptedPlacementText(records,{documentId,dates,language}) {
 let listingTail=Promise.resolve(),nextListingAt=0,listingPausedUntil=0;
 // Optional enrichment never retries a throttled source. Serialize new listing
 // reads, including reads for different years, through the shared cache client.
+// Await stale refreshes so throttling reaches this three-minute pause instead
+// of being swallowed by an unobserved stale-while-revalidate background request.
 export async function placementAdoptedListing(request,year) {
   const run=listingTail.then(async()=>{
     if(Date.now()<listingPausedUntil)return null;
     const delay=nextListingAt-Date.now();
     if(delay>0)await new Promise(resolve=>setTimeout(resolve,delay));
     nextListingAt=Date.now()+2000;
-    try{return await request('/adopted-texts',{year,limit:500},{ttl:86_400_000,staleWhileRevalidate:true});}
-    catch(error){if(error?.status===429)listingPausedUntil=Date.now()+180_000;throw error;}
+    try{return await request('/adopted-texts',{year,limit:500},{ttl:86_400_000,staleWhileRevalidate:false});}
+    catch(error){if(error?.status===429||error?.code==='odp_rate_limited')listingPausedUntil=Date.now()+180_000;throw error;}
   });
   listingTail=run.catch(()=>{});
   return run;

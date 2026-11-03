@@ -1,4 +1,6 @@
 {
+  "documentcontext.final_placement_check": "Проверете окончателното място в {adoptedText}.",
+  "documentcontext.adopted_text": "приетия текст",
   "documentcontext.council.quotation": "Текстът на Съвета, цитиран в доклада.",
   "amendment.rejects_proposal": "Отхвърля предложението",
   "amendment.rejects_council_position": "Отхвърля позицията на Съвета",
