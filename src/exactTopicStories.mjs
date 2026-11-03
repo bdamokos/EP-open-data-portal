@@ -9,7 +9,7 @@ const hash=text=>{let h=2166136261;for(const c of text){h^=c.codePointAt(0);h=Ma
 // Consecutive quarters alternate: the quarter's position plus a per-scope, per-sentence offset. Whole-term stories use position 0.
 export function storyVariant(id,period,scope,has=()=>true){const base=id.replace(/^topics\.story\./,''),n=VARIANTS[base];if(!n)return id;const m=/^(\d{4})-Q([1-4])$/.exec(period||''),position=m?Number(m[1])*4+Number(m[2])-1:0,k=(position+hash(scope+'|'+base))%(n+1);return k&&has(id+'.v'+(k+1))?id+'.v'+(k+1):id;}
 // The slot that starts each sentence that can open the Europe story; other openers start with fixed words.
-const LEADS={'exact.busiestPlace':'place','map.urgency.many':'urgencyDebates','exact.urgencyPartial':'urgencyDebates','exact.urgencyCount':'urgencyDebates','exact.mostDebatedOne':'places','exact.mostDebatedMany':'places','exact.rises':'changes','map.lead.first':'place','map.lead.again':'place','map.lead.streak':'place','map.lead.tied':'places','count.urgencyDebates':'count','links.urgency':'count','exact.questionRiseFew':'about','exact.questionJumpedFew':'about','exact.questionRiseEach':'about','exact.questionJumpedEach':'about','exact.documentRiseFew':'about','exact.documentRiseEach':'about','exact.questionRare':'place','exact.questionRareEach':'places'};
+const LEADS={'integrated.placeQuestions':'place','exact.busiestPlace':'place','map.urgency.many':'urgencyDebates','exact.urgencyPartial':'urgencyDebates','exact.urgencyCount':'urgencyDebates','exact.mostDebatedOne':'places','exact.mostDebatedMany':'places','exact.rises':'changes','map.lead.first':'place','map.lead.again':'place','map.lead.streak':'place','map.lead.tied':'places','count.urgencyDebates':'count','links.urgency':'count','exact.questionRiseFew':'about','exact.questionJumpedFew':'about','exact.questionRiseEach':'about','exact.questionJumpedEach':'about','exact.documentRiseFew':'about','exact.documentRiseEach':'about','exact.questionRare':'place','exact.questionRareEach':'places'};
 export function storyFactsRoute(s={},browse={}){const p=new URLSearchParams({scope:s.place?'place':s.topic?'topic':'map',mode:s.mode||'q',zoom:s.zoom||'world',askers:s.excludeOwn?'not-home':'all',lang:s.language||'en'});if(s.place||s.topic)p.set('key',s.place?'place:'+s.place:s.topic);if(s.period)p.set('period',s.period);for(const [k,v]of Object.entries(browse))if(v)p.set(k,v);return 'topics/story-facts?'+p;}
 export function storyRecord(r,kind){return {id:r.id,kind,titleLanguage:r.titleLanguage,title:kind==='debate'?agendaTitle(r.rawTitle||r.title):r.title||r.t,date:r.date||r.d,url:r.url||(r.cre?`https://www.europarl.europa.eu/doceo/document/${r.cre}_EN.html`:undefined),outcome:r.outcome?{...r.outcome,method:/VOTE_HAND|show.of.hands/i.test([r.outcome.method,r.outcome.decisionMethod,r.outcome.decision_method].join(' '))?'VOTE_HAND':r.outcome.method}:null,groups:r.groups};}
 export function buildExactTopicStories(payload,s={}){
@@ -103,11 +103,12 @@ export function buildExactTopicStories(payload,s={}){
  // Combine only map facts, before the existing priority budget. The payload's series
  // already has the requested askers, zoom and quarter; evidence arrays are paged.
  if(!s.place&&!s.topic){
-  const amount=(p,kind)=>{const row=payload.series?.[p]?.[period],n=row?.[kind];return row?.complete!==false&&row?.available!==false&&Number.isSafeInteger(n)&&n>0?browse(cm(n,kind),kind,p):null;};
+  const bare=(n,kind,p)=>browse({...msg('count.number',{count:kind==='questions'?digits(n):num(n)}),counts:{count:n}},kind,p);
+  const amount=(p,kind)=>{const row=payload.series?.[p]?.[period],n=row?.[kind];return row?.complete!==false&&row?.available!==false&&Number.isSafeInteger(n)&&n>0?browse(cm(n,kind==='debates'?'shortDebates':kind),kind,p):null;};
   const leaders=w.mostQuestionedPlaces||[];
   const busyLine=lines.find(l=>l.placeId);
   if(busyLine){const p=busyLine.placeId,q=amount(p,'questions');
-   if(s.mode!=='d'&&leaders.length===1&&leaders[0].id===p){busyLine.id='topics.story.integrated.both';busyLine.values.questions=browse(cm(leaders[0].count,'questions'),'questions',p);const periods=payload.periods||[],index=periods.indexOf(period);let streak=1;for(let i=index-1;i>=0&&!partialQuarter(periods[i],payload.partial);i--){const old=payload.periodWinners[periods[i]]?.mostQuestionedPlaces||[];if(old.length!==1||old[0].id!==p)break;streak++;}if(!partialQuarter(period,payload.partial)&&streak>=2){busyLine.id+=streak===2?'Again':'Streak';busyLine.values.ordinal=msg(s.language==='en'&&streak<=9?'ordinal.words.'+streak:'ordinal.'+new Intl.PluralRules(s.language,{type:'ordinal'}).select(streak),{count:num(streak)});}}
+   if(s.mode!=='d'&&leaders.length===1&&leaders[0].id===p){busyLine.id='topics.story.integrated.both';busyLine.values.questions=bare(leaders[0].count,'questions',p);const periods=payload.periods||[],index=periods.indexOf(period);let streak=1;for(let i=index-1;i>=0&&!partialQuarter(periods[i],payload.partial);i--){const old=payload.periodWinners[periods[i]]?.mostQuestionedPlaces||[];if(old.length!==1||old[0].id!==p)break;streak++;}if(!partialQuarter(period,payload.partial)&&streak>=2){busyLine.id+=streak===2?'Again':'Streak';busyLine.values.ordinal=msg(s.language==='en'&&streak<=9?'ordinal.words.'+streak:'ordinal.'+new Intl.PluralRules(s.language,{type:'ordinal'}).select(streak),{count:num(streak)});}}
    else if(q&&s.mode!=='d'){busyLine.id='topics.story.integrated.'+(leaders.length>1&&leaders.some(l=>l.id===p)?'busiestShared':'busiest');busyLine.values.questions=q;}
    const rise=s.mode!=='d'&&(w.risingQuestionPlaces||[]).find(r=>r.id===p);if(rise&&busyLine.values.questions){busyLine.id+='Rise';busyLine.values.average=ref(rise.baselineMean<1?msg('average.lessThanOne'):msg('average.value',{average:digits(Math.round(rise.baselineMean*10)/10)}),[],{browse:{list:'questions',place:p,periods:payload.periods.slice(1,payload.periods.indexOf(period)).join(',')}});}
   }
@@ -117,8 +118,8 @@ export function buildExactTopicStories(payload,s={}){
   for(const l of lines.filter(l=>l.id.startsWith('topics.story.map.lead.'))){
    const ps=l.values.places.map(p=>p.browse.place);ps.forEach(p=>claimed.add(p));
    if(s.mode!=='d')l.order=3;
-   if(leaders.length>1){l.expanded=leaders.filter(p=>!told.has(p.id)&&!rising.has(p.id)).map(p=>{const d=amount(p.id,'debates');return {...l,id:'topics.story.integrated.lead.shared'+(d?'Debates':''),values:{place:name(p.id,true),questions:browse(cm(p.count,'questions'),'questions',p.id),...(d?{debates:d}:{})}};});if(!l.expanded.length)l.priority=Infinity;continue;}
-   if(ps.length===1){const d=amount(ps[0],'debates');if(d){l.id=l.id.replace('map.lead.','integrated.lead.');l.values.debates=d;}}
+   if(leaders.length>1){l.expanded=leaders.filter(p=>!told.has(p.id)&&!rising.has(p.id)).map(p=>{const d=amount(p.id,'debates');return {...l,id:'topics.story.integrated.lead.shared'+(d?'Debates':''),values:{place:name(p.id,true),questions:bare(p.count,'questions',p.id),...(d?{debates:d}:{})}};});if(!l.expanded.length)l.priority=Infinity;continue;}
+   if(ps.length===1){const d=amount(ps[0],'debates');l.id=l.id.replace('map.lead.','integrated.lead.');l.values.questions=bare(leaders[0].count,'questions',ps[0]);if(d)l.values.debates=d;else l.id+='Only';}
   }
   for(const l of lines.filter(l=>l.id==='topics.story.exact.rises')){
    const change=l.values.changes[0],p=change.values.place?.browse?.place;
@@ -127,10 +128,16 @@ export function buildExactTopicStories(payload,s={}){
    if(s.mode!=='d')l.order=4;
   }
   for(const l of lines.filter(l=>/exact.mostDebated/.test(l.id))){
-   l.values.places=l.values.places.filter(p=>!claimed.has(p.browse.place));if(s.mode!=='d')l.order=5;
-   if(!l.values.places.length){l.priority=Infinity;continue;}
-   if((w.mostDebatedPlaces||[]).length>1||l.values.places.some(p=>amount(p.browse.place,'questions'))){
-    l.expanded=l.values.places.map(place=>{const p=place.browse.place,q=s.mode==='d'?null:amount(p,'questions'),shared=(w.mostDebatedPlaces||[]).length>1;return {...l,id:'topics.story.exact.mostDebated'+(shared?'Shared':'One')+(q?'Questions':''),values:{places:[browse(name(p,true),'debates',p)],count:{...browse(num((w.mostDebatedPlaces||[])[0].count),'debates',p),rawCount:(w.mostDebatedPlaces||[])[0].count},...(q?{questions:q}:{})}};});
+   const all=w.mostDebatedPlaces||[],remaining=all.filter(p=>!claimed.has(p.id));
+   if(!remaining.length){l.priority=Infinity;continue;}
+   if(s.mode==='d'){l.values.places=l.values.places.filter(p=>!claimed.has(p.browse.place));continue;}
+   l.order=5;
+   const count={...bare(all[0].count,'debates',remaining[0].id),browse:{list:'debates',places:remaining.map(p=>p.id).sort().join(',')}};
+   if(remaining.length>1){
+    l.id='topics.story.integrated.mostDebatedTied';l.values={places:remaining.map((p,i)=>{const questions=amount(p.id,'questions');return questions?msg('integrated.placeQuestions',{place:name(p.id,i===0),questions}):name(p.id,i===0);}),count};
+   }else{const p=remaining[0],questions=amount(p.id,'questions'),also=all.length>1;
+    l.id='topics.story.integrated.mostDebated'+(also?'Also':'Single')+(questions?'Questions':'');
+    l.values={place:name(p.id,true),...(also?{debates:amount(p.id,'debates')||browse(cm(p.count,'shortDebates'),'debates',p.id)}:{count}),...(questions?{questions}:{})};
    }
   }
   if(s.mode!=='d')for(const l of lines)if(/urgency/.test(l.id))l.order=6;
@@ -144,6 +151,6 @@ export function buildExactTopicStories(payload,s={}){
  const lead=v=>{if(v==null)return v;if(typeof v==='string')return startForms.get(v)??v;if(Array.isArray(v))return v.length?[lead(v[0]),...v.slice(1)]:v;if('text'in v)return v.italic?v:{...v,text:lead(v.text)};if(!v.message)return v;
   if(/links\.(questions|texts)About$/.test(v.message))return {...v,message:v.message+'Mid'};const slot=LEADS[v.message.replace(/^topics\.story\./,'').replace(/\.v\d+$/,'')];return slot&&Object.hasOwn(v.values,slot)?{...v,values:{...v.values,[slot]:lead(v.values[slot])}}:v;};
  return claimed.map((l,i)=>{const values=Object.fromEntries(Object.entries(l.values).map(([k,x])=>[k,vary(x)]));
-  if(i===0&&s.zoom==='eu'&&!s.place&&!s.topic&&has(l.id+'.eu')){const slot=LEADS[l.id.replace(/^topics\.story\./,'')]||(/^topics\.story\.exact.mostDebated/.test(l.id)?'places':null)||(/integrated\.(both|busiest|lead\.)/.test(l.id)?'place':null);return {...l,id:l.id+'.eu',values:slot&&Object.hasOwn(values,slot)?{...values,[slot]:lead(values[slot])}:values};}
+  if(i===0&&s.zoom==='eu'&&!s.place&&!s.topic&&has(l.id+'.eu')){const slot=LEADS[l.id.replace(/^topics\.story\./,'')]||(/exact.mostDebated|integrated.mostDebatedTied/.test(l.id)?'places':null)||(/integrated\.(both|busiest|lead\.|mostDebated)/.test(l.id)?'place':null);return {...l,id:l.id+'.eu',values:slot&&Object.hasOwn(values,slot)?{...values,[slot]:lead(values[slot])}:values};}
   return {...l,id:storyVariant(l.id,period,scope,has),values};});
 }

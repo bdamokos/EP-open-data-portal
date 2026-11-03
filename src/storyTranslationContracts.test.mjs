@@ -32,7 +32,7 @@ test('composed native count slots retain raw selectors and rich reference identi
  const home=storyLinkClaims([{id:'x',values:{clause:{message:'topics.story.rise.someHome',values:{questions:{text:'2',records:[],rawCount:2,target:'?place=FRA&t-askers=home'}}}}}],{})[0].values.clause.values.questions;
  assert.equal(home.target,'?place=FRA&t-askers=home');assert.equal(say(home,ui),'FEW 2');
  payload.counts={};payload.periodCounts=[{period:'2025-Q3'}];payload.periodWinners={'2025-Q3':{mostDebatedPlaces:[{id:'FRA',count:2},{id:'ESP',count:2}]}};
- const most=buildExactTopicStories(payload,{period:'2025-Q3',language:'pl',hasMessage:()=>false})[0];assert.equal(most.values.count.text.counts.count,2);assert.equal(say(most.values.count,ui),'FEW 2');
+ const most=buildExactTopicStories(payload,{period:'2025-Q3',language:'pl',hasMessage:()=>false})[0];assert.equal(most.values.count.text.counts.count,2);assert.equal(say(most.values.count,ui),'2');assert.match(most.values.count.setKey,/debates/);
 });
 test('Italian ordinal many has a source fallback and a native explicit key',()=>{
  assert.equal(new Intl.PluralRules('it',{type:'ordinal'}).select(8),'many');
