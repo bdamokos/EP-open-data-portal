@@ -481,3 +481,5 @@ test('two-row chapter titles preserve the CHAPTER prefix and source offsets',()=
   const gap=structuredClone(p);gap.paragraphSources[2].ordinal++;
   assert.equal(resolve(gap,'Chapter VI – title','VI\tPROGRAMMING','VI\tNEW').status,'unresolved');
 });
+
+test('chapter C does not splice the first letter of CHAPTER',()=>{const p=source(['HAVE ADOPTED THIS REGULATION:','CHAPTER C','PROGRAMMING','Article 15','Work programme','One.'],['Formuledadoption','ChapterTitle','ChapterTitle','Titrearticle','Titrearticle','Normal']);assert.equal(resolve(p,'Chapter C – title','C\tPROGRAMMING','C\tCHANGED').splice.start.offset,8);});

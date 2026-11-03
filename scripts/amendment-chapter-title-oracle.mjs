@@ -15,7 +15,7 @@ export function assertChapterTitle({proposal,wording,placement}) {
   if(selected.some((p,i)=>!p.complete||p.source?.complete!==true||p.source.container!=='body'||!Number.isSafeInteger(p.source.ordinal)||i&&(p.source.ordinal!==selected[i-1].source.ordinal+1||p.source.segment!==selected[i-1].source.segment||p.source.containerPath!==selected[i-1].source.containerPath)))return unknown();
   const fold=s=>s.replace(/\s+/gu,' ').trim();
   if(fold(wording.originalText)!==number+' '+fold(title.text)||!new RegExp('^'+number+'\\s+\\S','u').test(wording.proposedText||''))return unknown();
-  const offset=head.text.indexOf(number),s=placement?.splice;
+  const offset=/^(\s*CHAPTER\s+)/u.exec(head.text)?.[1].length,s=placement?.splice;
   if(placement?.status!=='placed'||placement.operation!=='replace'||placement.span?.start!==head.index||placement.span?.end!==title.index||s?.start.paragraph!==head.index||s.start.offset!==offset||s?.end.paragraph!==title.index||s.end.offset!==title.text.length)return {status:'failed',reason:'oracle-chapter-heading-span-mismatch'};
   return {status:'verified',reason:'oracle-native-chapter-title',rawSourceRows:[head.index,title.index,following.index]};
 }
