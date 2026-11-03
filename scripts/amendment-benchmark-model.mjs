@@ -216,6 +216,57 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
   return count===1?{...verified('oracle-unique-original-source-span'),originalOccurrences:count}:{status:'unverified',reason:'oracle-original-not-unique',occurrences:count};
 }
 
+// Proposal preambles print unlabelled citations between the enacting
+// institutions line and "Whereas:"; EP addresses count them in order.
+// Raw rows only: every row in that run must be a complete body row.
+function rawPreambleCitations(proposal) {
+  const rows=proposal?.paragraphs??[];
+  const opens=rows.filter(row=>/^THE (?:EUROPEAN PARLIAMENT AND THE )?COUNCIL OF THE EUROPEAN UNION,$/u.test(String(row.text).trim()));
+  if(opens.length!==1)return null;
+  const close=rows.find(row=>row.index>opens[0].index&&/^Whereas:$/u.test(String(row.text).trim()));
+  if(!close)return null;
+  const run=rows.filter(row=>row.index>opens[0].index&&row.index<close.index);
+  if(!run.length||run.some(row=>row.complete===false||row.source?.complete!==true||row.source?.container!=='body'||!String(row.text).trim()))return null;
+  // Every counted row must open a citation; continuations shift the ordinals.
+  if(run.some(row=>!/^(?:Having regard to|After (?:transmission|consulting|consultation)|Acting in accordance with)\b/u.test(String(row.text).trim())))return null;
+  return run;
+}
+function verifyPreambleCitation({proposal,wording,placement,target}) {
+  const label=target.segments[0];
+  if(wording.language!=='en'||target.segments.length!==1||label.kind!=='citation'||!Number.isInteger(label.number)||label.negative)return null;
+  if(/^The European Parliament rejects\b/u.test(String(wording.proposedText).trim()))return {status:'unverified',reason:'oracle-operation-unavailable'};
+  const run=rawPreambleCitations(proposal);
+  if(!run)return {status:'unverified',reason:'oracle-preamble-unavailable'};
+  const row=run[label.number-1];
+  if(!row)return fail('oracle-citation-ordinal-missing');
+  if(placement.operation==='insert') {
+    if(!label.isNew||!label.suffix||wording.originalText!=='')return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+    if(placement.insertBefore!==row.index+1||placement.insertAfter!==row.index)return fail('oracle-insertion-boundary-mismatch');
+    return verified('oracle-preamble-citation-boundary');
+  }
+  if(label.isNew||label.suffix)return {status:'unverified',reason:'oracle-operation-unavailable'};
+  if(placement.span?.start!==row.index||placement.span?.end!==row.index)return fail('oracle-address-span-mismatch');
+  // The spliced source itself must be the original wording.
+  const splice=placement.splice,text=String(row.text);
+  if(splice?.start?.paragraph!==row.index||splice?.end?.paragraph!==row.index||!(splice.start.offset>=0&&splice.start.offset<=splice.end.offset&&splice.end.offset<=text.length))return fail('oracle-invalid-span');
+  if(oracleNormal(text.slice(splice.start.offset,splice.end.offset))!==oracleNormal(wording.originalText))return fail('oracle-original-span-mismatch');
+  return verified('oracle-preamble-citation-span');
+}
+// Maintainer P2 for articles: a new Article -1 goes immediately after the
+// enacting formula, before a printed Article 1 directly following it.
+function verifyNegativeArticle({proposal,wording,placement,target}) {
+  const label=target.segments[0];
+  if(target.segments.length!==1||label.kind!=='article'||label.value!=='-1'||wording.language!=='en'||wording.originalText!=='')return null;
+  if(!/^Article\s*[-−–‑]\s*1\b/u.test(String(wording.proposedText).trim()))return {status:'unverified',reason:'oracle-insertion-label-unverified'};
+  const rows=proposal?.paragraphs??[];
+  const formulas=rows.filter(row=>/^HAVE ADOPTED THIS (?:REGULATION|DIRECTIVE|DECISION):$/u.test(String(row.text).trim()));
+  if(formulas.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  const next=rows[formulas[0].index+1];
+  if(!next||String(next.text).trim()!=='Article 1'||next.complete===false||next.source?.complete!==true||formulas[0].source?.complete!==true)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  if(placement.insertBefore!==next.index||placement.insertAfter!==next.index-1)return fail('oracle-insertion-boundary-mismatch');
+  return verified('oracle-negative-article-boundary');
+}
+
 // Oracle-owned point ordinals. A sibling family is Roman when it starts at i
 // and every base is a Roman numeral; lettered when it starts at a and every
 // base is one letter. Anything else stays unverified.
@@ -521,6 +572,10 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
+  if(proposal) {
+    const ordinal=verifyPreambleCitation({proposal,wording,placement,target})??(placement.operation==='insert'?verifyNegativeArticle({proposal,wording,placement,target}):null);
+    if(ordinal)return ordinal;
+  }
   const closing=assertClosingFormula({proposal,wording,placement});
   if(closing.status!=='unverified')return closing;
   const numbering=assertWordingNumbering({proposal,wording,placement});
