@@ -118,3 +118,19 @@ test('real single-record reader Back restores its list and clicked record link',
  await h.click(h.container.querySelector('.topic-story-records > a'));await waitFor(h,recordLink);await h.frames();
  assert.equal(document.activeElement.textContent,text);assert.equal(document.activeElement,recordLink());assert(new URLSearchParams(location.search).has('t-records'));
 });
+
+for(const [url,view,key] of [
+ ['?view=topics','geopolitics',''],
+ ['?view=topics&place=UKR&lang=fr','geopolitics','UKR'],
+ ['?view=topics&topic=eurovoc:XXXX','legislation','eurovoc:XXXX'],
+ ['?view=topics&t-tab=topics','legislation',''],
+ ['?view=legislation&pl-mode=trends&trend-key=123','legislation','eurovoc:123'],
+])test('fresh App load canonicalises '+url,async t=>{
+ const h=await harness(t,url+'#retained',topicResponse);
+ await waitFor(h,()=>h.container.querySelector('.topics-content'));
+ const q=new URLSearchParams(location.search);
+ assert.equal(q.get('view'),view);assert.equal(q.get('pl-mode'),view==='legislation'?'topics':null);assert(!q.has('t-tab'));assert.equal(location.hash,'#retained');
+ assert.equal(h.container.querySelector('.topics-content').dataset.topicKey,key);
+ if(url.includes('lang=fr'))assert.equal(q.get('lang'),'fr');
+ assert.equal(h.container.querySelector('.topics-content').dataset.tab,key?undefined:(view==='geopolitics'?'places':'topics'));
+});

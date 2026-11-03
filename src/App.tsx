@@ -1,7 +1,9 @@
 import {TopicBatch,RecordTopics,OfficialTitle} from './RecordTopics';
+const legacyTopicsUrl=legacyTopicsRedirect(new URLSearchParams(location.search));
+if(legacyTopicsUrl)history.replaceState(history.state,'',legacyTopicsUrl+location.hash);
 const emptyDossierUrl=emptyDossierRedirect(new URLSearchParams(location.search));
 if(emptyDossierUrl)history.replaceState(history.state,'',emptyDossierUrl+location.hash);
-import {emptyDossierRedirect,agendaTitle} from './topicPresentation.mjs';
+import {legacyTopicsRedirect,emptyDossierRedirect,agendaTitle} from './topicPresentation.mjs';
 const Topics=lazyView(()=>import('./Topics').then(m=>({default:m.Topics})));
 import {usePlenaryUiLanguage} from './PlenaryLive';
 import {defaultUi} from './uiDefault.mjs';
@@ -698,6 +700,7 @@ export default function App() {
   }
   useEffect(()=>{
     const restore=()=>{
+      const legacy=legacyTopicsRedirect(new URLSearchParams(location.search));if(legacy)history.replaceState(history.state,'',legacy+location.hash);
       const redirect=emptyDossierRedirect(new URLSearchParams(location.search));if(redirect)history.replaceState(history.state,'',redirect+location.hash);
       pendingDestination.current=null;
       setRestoration(value=>value+1);

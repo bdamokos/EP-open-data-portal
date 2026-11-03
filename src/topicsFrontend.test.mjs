@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {titleParts,mapCode,point,quarterBounds,placeValue,riser,risers,emptyDossierRedirect,topicsHref,agendaTitle,isEuPlace,withBoundaryTies} from './topicPresentation.mjs';
+import {titleParts,mapCode,point,quarterBounds,placeValue,riser,risers,legacyTopicsRedirect,emptyDossierRedirect,topicsHref,agendaTitle,isEuPlace,withBoundaryTies} from './topicPresentation.mjs';
 import {explorerParams} from './explorerQuery.mjs';
 test('official titles retain every character and style English only',()=>{
  for(const title of ['REPORT on the proposal for a regulation of the European Parliament and of the Council on transport','MOTION FOR A RESOLUTION on Iran','REPORT on trade as regards apples as regards pears','Plain title']){
@@ -152,3 +152,25 @@ test('empty dossier entry returns to agenda while referenced dossiers and other 
  }
  assert.equal(emptyDossierRedirect(new URLSearchParams('view=legislation&pl-mode=dossier&dossier-ref=2025%2F0407(COD)')),null);
 });
+
+ test('legacy topic URLs canonicalise once, preserve state and leave current routes alone',()=>{
+ for(const [input,view] of [
+  ['view=topics','geopolitics'],['view=topics&place=UKR&lang=fr','geopolitics'],
+  ['view=topics&t-tab=places','geopolitics'],['view=topics&topic=eurovoc:123','legislation'],
+  ['view=topics&t-tab=topics','legislation'],['view=topics&place=UKR&t-tab=topics&topic=eurovoc:123','geopolitics'],
+  ['view=topics&topic=eurovoc:123&t-tab=places','legislation']
+ ]){
+  const q=new URLSearchParams(input+'&t-q=2026-Q1&t-own=0&t-mode=d&t-zoom=europe&t-record=abc&t-records=def&t-kind=document&t-read=doc');
+  const before=q.toString(),result=legacyTopicsRedirect(q),next=new URLSearchParams(result);
+  assert.equal(q.toString(),before);assert.equal(next.get('view'),view);assert.equal(next.has('t-tab'),false);
+  assert.equal(next.get('pl-mode'),view==='legislation'?'topics':null);
+  for(const [k,v] of q)if(!['view','t-tab'].includes(k))assert.equal(next.get(k),v);
+  assert.equal(legacyTopicsRedirect(next),null);
+ }
+ for(const key of ['trend-key','trend-topic'])for(const id of ['123','eurovoc:123','https://eurovoc.europa.eu/123','http://eurovoc.europa.eu/c_abc']){
+  const next=new URLSearchParams(legacyTopicsRedirect(new URLSearchParams({view:'legislation','pl-mode':'trends',[key]:id,lang:'fr'})));
+  assert.equal(next.get('view'),'legislation');assert.equal(next.get('pl-mode'),'topics');assert.equal(next.get('topic'),'eurovoc:'+id.split('/').at(-1).replace('eurovoc:',''));assert.equal(next.get('lang'),'fr');assert(!next.has(key));
+ }
+ for(const suffix of ['','&trend-key=invalid!']){const next=new URLSearchParams(legacyTopicsRedirect(new URLSearchParams('view=legislation&pl-mode=trends'+suffix)));assert.equal(next.get('pl-mode'),'topics');assert(!next.has('topic'));}
+ for(const input of ['', 'view=geopolitics','view=legislation&pl-mode=topics','view=legislation&pl-mode=dossier'])assert.equal(legacyTopicsRedirect(new URLSearchParams(input)),null);
+ });
