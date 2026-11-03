@@ -33,3 +33,5 @@ test('all rows of a multi-row recital must be complete before its following succ
  const input=example();input.text.paragraphs.splice(5,0,'suite de la condition;');input.text.paragraphFormats.splice(5,0,{});input.text.paragraphSources=input.text.paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}));input.placement={...input.placement,insertAfter:5,insertBefore:6};
  assert.equal(assertRecitalCategoryRepair(input).status,'verified');input.text.paragraphSources[5].complete=false;assert.notEqual(assertRecitalCategoryRepair(input).status,'verified');
 });
+
+test('unrelated citation notes do not change the explicit recital category or bounds',()=>{const input=example();input.text.anchors=[{paragraph:1,offset:20}];assert.equal(assertRecitalCategoryRepair(input).status,'verified');});

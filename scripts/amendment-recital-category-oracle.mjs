@@ -23,7 +23,6 @@ export function assertRecitalCategoryRepair({text,wording,placement}) {
     const s=sources[i],previous=sources[i-1];
     if(s?.complete!==true||s.container!=='body'||paragraphs[i].includes('\uFFFC')||i>opening&&(s.containerPath!==previous.containerPath||s.segment!==previous.segment||s.ordinal!==previous.ordinal+1))return unknown();
   }
-  if([...(text.noteAnchors||[]),...(text.anchors||[])].some(a=>a.paragraph>=opening&&a.paragraph<=operative.start))return unknown();
   const preamble=raw.units.filter(u=>u.start>opening&&u.start<operative.start),recitals=preamble.filter(u=>u.kind==='recital');
   if(!recitals.length||preamble.some(u=>!['citation','recital'].includes(u.kind)||!u.complete||!(u.kind==='citation'?grammar.citation:grammar.recital).test(fold(paragraphs[u.start]))))return unknown();
   // Every preamble row belongs to one of the independently delimited units.
@@ -31,6 +30,7 @@ export function assertRecitalCategoryRepair({text,wording,placement}) {
   if(recitals.some((u,i)=>u.label!==String.fromCharCode(65+i)))return unknown();
   const anchor=recitals.filter(u=>u.label===header[1]),next=recitals.filter(u=>u.label===String.fromCharCode(header[1].charCodeAt(0)+1));
   if(anchor.length!==1||next.length!==1||anchor[0].end+1!==next[0].start||preamble.some(u=>u.kind==='citation'&&u.label===header[1]))return unknown();
+  if([...(text.noteAnchors||[]),...(text.anchors||[])].some(a=>a.paragraph>=anchor[0].start&&a.paragraph<=next[0].end))return unknown();
   if(raw.units.filter(u=>u.kind==='recital'&&u.label===header[1]).length!==1||raw.units.some(u=>u.kind==='recital'&&u.label===header[1]+proposed[2]))return unknown();
   if(placement.insertAfter!==anchor[0].end||placement.insertBefore!==next[0].start)return {status:'failed',reason:'oracle-recital-category-boundary-mismatch'};
   return {status:'verified',reason:'oracle-independent-recital-category-repair'};
