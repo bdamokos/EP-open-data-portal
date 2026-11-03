@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Poišči temo",
   "topics.plenaryMode": "Teme",
   "topics.findPlace": "Poišči kraj",
-  "topics.geopolitics": "Geopolitika"
+  "topics.geopolitics": "Geopolitika",
+  "topics.story.map.outside": "Na plenarnem zasedanju tudi: {speakers}.",
+  "topics.story.map.outside.eu": "Govori na plenarnem zasedanju iz Evrope in njenega sosedstva: {speakers}.",
+  "topics.story.place.outside": "{place}: govor na plenarnem zasedanju – {speaker} ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

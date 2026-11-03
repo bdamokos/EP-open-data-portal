@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Αναζήτηση θέματος",
   "topics.plenaryMode": "Θέματα",
   "topics.findPlace": "Αναζήτηση τόπου",
-  "topics.geopolitics": "Γεωπολιτική"
+  "topics.geopolitics": "Γεωπολιτική",
+  "topics.story.map.outside": "Επίσης στην Ολομέλεια: {speakers}.",
+  "topics.story.map.outside.eu": "Ομιλίες στην Ολομέλεια από την Ευρώπη και τις γειτονικές της περιοχές: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} μίλησε στην Ολομέλεια ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Najít téma",
   "topics.plenaryMode": "Témata",
   "topics.findPlace": "Najít místo",
-  "topics.geopolitics": "Geopolitika"
+  "topics.geopolitics": "Geopolitika",
+  "topics.story.map.outside": "Dále v plénu: {speakers}.",
+  "topics.story.map.outside.eu": "Projevy v plénu z Evropy a jejího sousedství: {speakers}.",
+  "topics.story.place.outside": "{place}: projev v plénu – {speaker} ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }
