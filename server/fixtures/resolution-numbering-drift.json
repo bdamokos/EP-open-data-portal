@@ -1,0 +1,109 @@
+{
+  "source": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0274/A-10-2026-0274_en.docx",
+    "sha256": "e67c74e5820f1e310bc36dea37ccf5c46c44e455f61f9b32a4abb866b117ff52",
+    "fetchedAt": "2026-10-27T17:04:12.676Z"
+  },
+  "wordingSource": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0274-AM-001-002/A-10-2026-0274-AM-001-002_en.docx",
+    "sha256": "8bf6b658f7d797d5144e583465a328e0ebd6dea4b10ac2449280a8a4c1831a3c",
+    "fetchedAt": "2026-10-26T18:42:44.582Z"
+  },
+  "wording": {
+    "baselineSource": {
+      "category": "motion-resolution",
+      "headings": [
+        {
+          "left": {
+            "raw": "Motion for a resolution",
+            "category": "motion-resolution"
+          },
+          "right": {
+            "raw": "Amendment",
+            "category": "other"
+          }
+        }
+      ],
+      "conflicted": false,
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0274-AM-001-002/A-10-2026-0274-AM-001-002_en.docx",
+      "fetchedAt": "2026-10-26T18:42:44.582Z"
+    },
+    "documentReferences": [
+      {
+        "field": "DocRef",
+        "raw": "(COM(2026)7001 – C10-0226/2026 – 2026/0284(BUD))",
+        "sourceRaw": "(COM(2026)7001 – C10-0226/2026 – 2026/0284(BUD))",
+        "scope": "amendment"
+      },
+      {
+        "field": "DocAmend",
+        "raw": "Motion for a resolution",
+        "sourceRaw": "Motion for a resolution",
+        "scope": "amendment"
+      },
+      {
+        "field": "Article",
+        "raw": "Paragraph 4",
+        "sourceRaw": "Paragraph 4",
+        "scope": "amendment"
+      }
+    ],
+    "targetPath": {
+      "proposal": [
+        {
+          "raw": "Paragraph 4",
+          "labels": [
+            {
+              "raw": "Paragraph 4"
+            }
+          ]
+        }
+      ],
+      "underlying": [],
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0274-AM-001-002/A-10-2026-0274-AM-001-002_en.docx",
+      "fetchedAt": "2026-10-26T18:42:44.582Z"
+    },
+    "number": 2,
+    "listId": "A-10-2026-0274-AM-001-002",
+    "targetDocumentId": "A-10-2026-0274",
+    "date": "2026-10-14",
+    "documentDate": "2026-10-14",
+    "dateBasis": "individual-amendment-document",
+    "authors": [
+      "Nicolae Ștefănuță"
+    ],
+    "committeeProposer": null,
+    "onBehalfOf": "on behalf of the Verts/ALE Group",
+    "baseline": "motion-resolution",
+    "targetLabel": "Paragraph 4",
+    "originalText": "Stresses that the EUSF is only a curative instrument and that the Union should also continue the efforts already undertaken to address climate change adaptation, preparedness, prevention, resilience and mitigation by supporting European and national policies to prevent natural disasters; welcomes the progress already made in strengthening the Union’s preparedness and resilience and encourages Member States and the Commission to build on existing measures and instruments as well as strengthening their actions in view of their commitments made in the Paris Agreement, reducing the human and economic impact of future disasters, and ensuring that prevention measures are effective, proportionate and adapted to national, regional and local circumstances;",
+    "proposedText": "Stresses that the EUSF is only a curative instrument and that the Union should also continue the efforts already undertaken to address climate change adaptation, preparedness, prevention, resilience and mitigation by supporting European and national policies to prevent natural disasters; deplores the insufficient progress made in strengthening the Union’s preparedness and resilience and encourages Member States and the Commission to build on existing measures and instruments as well as strengthening their actions in view of their commitments made in the Paris Agreement, reducing the human and economic impact of future disasters, and ensuring that prevention measures are effective, proportionate and adapted to national, regional and local circumstances;",
+    "originalFormatting": [],
+    "proposedFormatting": [],
+    "justification": null,
+    "language": "en",
+    "sources": [
+      {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0274-AM-001-002/A-10-2026-0274-AM-001-002_en.docx",
+        "fetchedAt": "2026-10-26T18:42:44.582Z",
+        "date": "2026-10-14",
+        "dateBasis": "individual-amendment-document",
+        "language": "en",
+        "format": "DOCX"
+      }
+    ],
+    "gaps": []
+  },
+  "voteReferences": [
+    "§ 5"
+  ],
+  "paragraphs": [
+    "The European Parliament,",
+    "3.\tHighlights the increasing number of severe, destructive and deadly natural disasters in Europe whose impacts are exacerbated by human activity, despite the efforts already made at Union, national, regional and local level to strengthen disaster preparedness, prevention and resilience and calls on Member States and the Commission to further invest in prevention, resilience, adaptation and mitigation measures to mitigate human and economic losses; notes that Member States should prioritise recovery measures to support the affected populations, primarily the vulnerable communities, to ensure access to adequate housing and essential services during recovery; considers that actions currently financed under the European Union Solidarity Fund (EUSF) should continue to be adequately financed under the next MFF, in order to respond to the intensification of natural disasters within the Union and provide tangible support to the Member States and regions affected by such disasters; notes that such financing would allow Member States to respond more effectively and quickly to disasters while other instruments, particularly cohesion funds whose primary purpose is not disaster response, could be preserved;",
+    "4.\tHighlights the particular vulnerability of islands, including island Member States, to the increasing impacts of the climate crisis; calls on the Commission and the Member States to ensure targeted adaptation, prevention and resilience measures for these regions; believes that islands should receive adequate funding, through simplified administrative procedures and appropriate technical assistance, in order to address their specific structural and climate-related vulnerabilities;",
+    "5.\tStresses that the EUSF is only a curative instrument and that the Union should also continue the efforts already undertaken to address climate change adaptation, preparedness, prevention, resilience and mitigation by supporting European and national policies to prevent natural disasters; welcomes the progress already made in strengthening the Union’s preparedness and resilience and encourages Member States and the Commission to build on existing measures and instruments as well as strengthening their actions in view of their commitments made in the Paris Agreement, reducing the human and economic impact of future disasters, and ensuring that prevention measures are effective, proportionate and adapted to national, regional and local circumstances;",
+    "6.\tStresses also the need for preventive measures, not only to mitigate future damage but also to prevent the exacerbation of risk conditions following catastrophic events; in particular, invites Member States to further build comprehensive risk-assessment and adaptation policy architecture, in light of the EEA's evidence of diverse preparedness levels across Member States; further stresses the risks that extreme weather and natural disasters such as storms possess for the public health across Europe and calls on the Commission to consider this aspect in relevant policies; calls on Member States to take into consideration that climate risks and other natural disasters disproportionately affect vulnerable populations and vulnerable territories due to socio-economic factors hampering the ability of vulnerable groups to recover from disasters; emphasises that all reconstruction financed by EUSF must aim to reduce vulnerability to future natural disasters and be climate-resilient, in accordance with the eligibility conditions and limits laid down in the EUSF Regulation; considers that additional investment needed to strengthen such resilience should be complemented by other relevant instruments; underlines the importance of resilient critical infrastructure as an essential component of Union's economic security and territorial cohesion; highlights the importance of protecting, restoring and reinforcing critical infrastructure and entities against natural risks, in order to enhance the resilience of affected regions;"
+  ]
+}

@@ -1,3 +1,5 @@
+import {documentContextPlacement} from './document-context-placement.mjs';
+import {makeAnnexIndentCase,fixtureZip} from '../scripts/fixtures/bare-annex-indent-native.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -471,6 +473,23 @@ test('similarity recovery withholds table-cell passages without independent tabl
  assert.equal(placed.status,'unresolved');
 });
 
+// A-10-2026-0257 AM1 and A-10-2026-0040 AM30.
+test('preamble citations are addressed in order and Article -1 follows the enacting formula',()=>{
+  const projection=source(['THE EUROPEAN PARLIAMENT AND THE COUNCIL OF THE EUROPEAN UNION,','Having regard to the Treaty,','Having regard to the proposal from the European Commission,','After transmission of the draft legislative act to the national parliaments,','Acting in accordance with the ordinary legislative procedure,','Whereas:','(1) A recital.','HAVE ADOPTED THIS REGULATION:','Article 1','1. Text.','Article 2','1. Entry into force.'],['Institutionquiagit','Normal','Normal','Normal','Normal','Normal','ManualConsidrant','Formuledadoption','Titrearticle','ManualNumPar1','Titrearticle','ManualNumPar1']);
+  let placed=resolve(projection,'Citation 3 a (new)','','Having regard to the opinion of the Court of Auditors,');
+  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,4);
+  placed=resolve(projection,'Citation 2','Having regard to the proposal from the European Commission,','Having regard to the amended proposal,');
+  assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
+  assert.equal(resolve(projection,'Citation 2','Having regard to the Treaty,','Changed.').status,'unresolved','wording must match the ordinal citation');
+  assert.equal(resolve(projection,'Citation 9 a (new)').reason,'target_not_found');
+  assert.equal(resolve(projection,'Citation 4 a (new)','','The European Parliament rejects the Commission proposal.').reason,'conflicting_target_evidence','A-10-2026-0104 AM90');
+  placed=resolve(projection,'Article -1','','Article -1\nIn Article 3 of Regulation (EU) 2021/1232, point (a) is replaced.');
+  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,8);
+  const split=source(['THE EUROPEAN PARLIAMENT AND THE COUNCIL OF THE EUROPEAN UNION,','Having regard to the Treaty on the Functioning of the European Union,','and in particular Article 192(1) thereof,','Having regard to the proposal from the European Commission,','Whereas:'],['Institutionquiagit','Normal','Normal','Normal','Normal']);
+  assert.equal(resolve(split,'Citation 1 a (new)','','Having regard to the opinion,').status,'unresolved','a continuation row would shift the ordinals');
+  const later=source(['HAVE ADOPTED THIS REGULATION:','Article 2','1. Text.'],['Formuledadoption','Titrearticle','ManualNumPar1']);
+  assert.equal(resolve(later,'Article -1','','Article -1\nNew article.').status,'unresolved');
+});
 test('new final-article paragraphs precede the unnumbered closing formula',()=>{
  const formula='This Regulation shall be binding in its entirety and directly applicable in all Member States.';
  const rows=['Article 6','This Regulation shall enter into force tomorrow.',formula,'Done at Brussels'];
@@ -575,4 +594,39 @@ test('a printed first-paragraph label matches only the sole complete implicit ar
  for(const patch of [{baseline:'present-text'},{language:'fr'},{originalText:'2. A legal body.'},{proposedText:'2. A revised legal body.'},{originalText:'1. Another legal body.'}])assert.equal(place(proposal,{...w,...patch}).status,'unresolved',JSON.stringify(patch));
  const two={...content,paragraphs:['Article [1]','Subject matter','A legal body.','Another paragraph.','Article [2]']};
  Object.assign(two,source(two.paragraphs,['Titrearticle','Titrearticle','Normal','Normal','Titrearticle']));two.sourceKind='docx';assert.equal(place(parseProposal(two)).status,'unresolved');
+});
+test('a sole bare annex supplies only a bounded interior indent alias with native inline proof',()=>{
+ const raw=makeAnnexIndentCase(),items=raw.items.map((i,index)=>({kind:i.kind,proposal:structuredClone(parseProposal(raw.nativeQuoted.proposalBuffers[index],{item:i.kind}))})),w=raw.wording;
+ const place=(input=items,a=w,nativeProposalInputs=raw.nativeQuoted.proposalBuffers)=>resolveProposalPlacement(input,a,{nativeProposalInputs});
+ assert.equal(place().status,'placed');assert.equal(place().insertBefore,13);assert.equal(place().insertAfter,12);
+ const chosen={...w,targetLabelLanguage:'en',baselineSource:{category:'commission-proposal',conflicted:false}};assert.equal(documentContextPlacement({chosen,items,nativeProposalInputs:raw.nativeQuoted.proposalBuffers}).status,'placed','public placement selection forwards request-local bytes');
+ assert.equal(resolveProposalPlacement(items,w).status,'unresolved','native proof is mandatory');
+ for(const mutate of [a=>a.push(a[1]),a=>a[1].proposal.sourceKind='text',a=>a[0].proposal.paragraphs[0].text='See Annex II.',a=>a[1].proposal.paragraphs[12].complete=false,a=>a[1].proposal.paragraphs[13].source.ordinal++,a=>a[1].proposal.paragraphs[12].properties.numbering.format='decimal',a=>a[1].proposal.paragraphs[12].properties.numberingLabel='-',a=>a[1].proposal.gaps.push({code:'unknown'}),a=>a[1].proposal.anchors.push({paragraph:12,offset:3,note:'x'})]){const a=structuredClone(items);mutate(a);assert.equal(place(a).status,'unresolved',String(mutate));}
+ for(const patch of [{language:'fr'},{baseline:'present-text'},{targetLabel:'Annex II – point 3 – indent 6 a (new)'},{targetLabel:'Annex I – point 3 – indent 6 b (new)'},{targetLabel:'Annex I – point 3 – indent 7 a (new)'},{targetLabel:'Annex I – point 4 – indent 6 a (new)'},{originalText:'Existing wording.'}])assert.equal(place(items,{...w,...patch}).status,'unresolved',JSON.stringify(patch));
+});
+
+test('the scoped native guard rejects simple fields and unknown inline elements after normal parsing',()=>{
+ for(const change of [xml=>xml.replace('<w:r><w:t>Native bullet 4.</w:t></w:r>','<w:fldSimple w:instr="INCLUDETEXT &quot;unavailable.docx&quot;"><w:r><w:t>Native bullet 4.</w:t></w:r></w:fldSimple>'),xml=>xml.replace('Native bullet 4.','<w:unknown/>Native bullet 4.'),xml=>xml.replace('</w:body>','<w:p><w:fldSimple/></w:p></w:body>')]){
+  const raw=makeAnnexIndentCase();raw.parts['word/document.xml']=change(raw.parts['word/document.xml']);raw.nativeQuoted.proposalBuffers[1]=fixtureZip(raw.parts);
+  const items=raw.items.map((i,index)=>({kind:i.kind,proposal:parseProposal(raw.nativeQuoted.proposalBuffers[index],{item:i.kind})}));
+  assert.equal(resolveProposalPlacement(items,raw.wording,{nativeProposalInputs:raw.nativeQuoted.proposalBuffers}).status,'unresolved');
+ }
+});
+// Caption-only repair: source path, underlying act and every cell remain exact.
+test('annex caption decoration repair requires both native annex frames and exact cells',()=>{
+  const rows=[['ANNEX III','Annexetitre','body'],['The following Annex VIII is added:','Normal','body'],['‘ANNEX VIII','Normal','body'],['Iron and steel','Normal','body'],['CN code','Normal','cell',1,1,1],['Greenhouse gas','Normal','cell',1,1,2],['ex 7204 Ferrous waste','Normal','cell',1,2,1],['Carbon dioxide','Normal','cell',1,2,2],['’','Normal','body']];
+  const make=(data=rows)=>parseProposal({paragraphs:data.map(r=>r[0]),structureStatus:'extracted',paragraphSources:data.map((r,index)=>({path:r[2]==='cell'?`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`:`/w:document[1]/w:body[1]/w:p[${index+1}]`,ordinal:index,segment:index,container:r[2]==='cell'?'table-cell':'body',complete:true})),paragraphProperties:data.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(data)},{item:'annex'});
+  const act={paragraphs:[{text:'Regulation (EU) 2023/956 is amended as follows:',complete:true,source:{complete:true,container:'body'}}]},p=make(),w={language:'en',baseline:'commission-proposal',targetLabel:'Annex III – paragraph 1 – table on iron and steel\nRegulation (EU) 2023/956\nAnnex VIII – table Iron and Steel',originalText:'‘[Iron and steel\nCN code\tGreenhouse gas\nex 7204 Ferrous waste\tCarbon dioxide',proposedText:'deleted'};
+  const run=(wording=w,proposal=p,source=act)=>resolveProposalPlacement([{kind:'act',proposal:source},{kind:'annex',proposal}],wording);
+  assert.equal(run().status,'placed');assert.deepEqual(run().span,{start:3,end:7});assert.equal(run().evidence[0].basis,'annex-table-caption-decoration');
+  for(const originalText of [w.originalText.replace('ex 7204','7204'),w.originalText.replace('Ferrous waste','Other waste'),w.originalText.replace('Carbon dioxide','Methane'),w.originalText.replace('‘[','['),w.originalText.replace('steel','steel]')])assert.equal(run({...w,originalText}).status,'unresolved');
+  for(const targetLabel of [w.targetLabel.replace('Annex VIII','Annex VII'),w.targetLabel.replace('2023/956','2023/957'),w.targetLabel.replace('table Iron and Steel','table Aluminium')])assert.equal(run({...w,targetLabel}).status,'unresolved');
+  for(const change of [{language:'fr'},{baseline:'present-text'},{targetPath:{proposal:[{raw:'Annex II – paragraph 1 – table'}]}},{targetPath:{underlying:[{raw:'Annex VII'}]}}])assert.notEqual(run({...w,...change}).status,'placed');
+  const duplicate=make(rows.concat(rows.slice(3,8).map(r=>r[2]==='cell'?[r[0],r[1],r[2],2,r[4],r[5]]:r)));assert.equal(run(w,duplicate).status,'unresolved');
+  const incomplete=structuredClone(p);incomplete.paragraphs[2].complete=false;assert.equal(run(w,incomplete).status,'unresolved');
+  const duplicateAct=structuredClone(act);duplicateAct.paragraphs.push({...act.paragraphs[0],complete:false});assert.equal(run(w,p,duplicateAct).status,'unresolved');
+  for(const competing of [[['The following Annex VII is added:','Normal','body'],['‘ANNEX VII','Normal','body']],[['The following Annex VII is added:','Normal','body']],[['‘ANNEX VII','Normal','body']]])assert.equal(run(w,make([...rows.slice(0,3),...competing,...rows.slice(3)])).status,'unresolved');
+  const exactRows=rows.map((r,index)=>index===3?['‘[Iron and steel',...r.slice(1)]:r),exact=structuredClone(make(exactRows));assert.equal(run(w,exact).status,'placed');
+  const walk=units=>units.flatMap(u=>[u,...walk(u.children)]);walk(exact.units).find(u=>u.table).table.rows[0].cells[0].colSpan=2;assert.equal(run(w,exact).status,'unresolved','an exact caption match cannot bypass malformed geometry');
+
 });

@@ -1,19 +1,34 @@
-// Whole published cells only. A dash label or a rejection mentioned inside
-// replacement prose never establishes a whole-document operation.
+// Exact complete-cell sentences only. Labels describe a local provision even
+// for some published rejections; they cannot change the sentence's scope.
 const forms={
-  en:new Map([
-    ['The European Parliament rejects the Commission proposal.','commission-proposal'],
-    ['The European Parliament rejects the Council position at first reading.','council-position'],
-    ['The European Parliament rejects the Commission’s proposal to amend Decision (EU) 2015/1814 as regards the market stability reserve for the buildings, road transport and additional sectors and calls on the Commission to withdraw its proposal.','commission-proposal'],
-  ]),
-  it:new Map([['Il Parlamento europeo respinge la proposta della Commissione.','commission-proposal']]),
-  fr:new Map([['Le Parlement européen rejette la proposition de la Commission.','commission-proposal']]),
+  bg:new Map([["Европейският парламент отхвърля предложението на Комисията.","commission-proposal"],["Европейският парламент отхвърля предложението.","commission-proposal"],["Европейският парламент отхвърля позицията на Съвета.","council-position"]]),
+  cs:new Map([["Evropský parlament zamítá návrh Komise.","commission-proposal"],["Evropský parlament zamítá návrh.","commission-proposal"],["Evropský parlament zamítá postoj Rady.","council-position"]]),
+  da:new Map([["Europa-Parlamentet forkaster Kommissionens forslag.","commission-proposal"],["Europa-Parlamentet forkaster forslaget.","commission-proposal"],["Europa-Parlamentet forkaster Rådets holdning.","council-position"]]),
+  de:new Map([["Das Europäische Parlament lehnt den Vorschlag der Kommission ab.","commission-proposal"],["Das Europäische Parlament lehnt den Vorschlag ab.","commission-proposal"],["Das Europäische Parlament lehnt den Standpunkt des Rates ab.","council-position"]]),
+  el:new Map([["Το Ευρωπαϊκό Κοινοβούλιο απορρίπτει την πρόταση της Επιτροπής.","commission-proposal"],["Το Ευρωπαϊκό Κοινοβούλιο απορρίπτει την πρόταση.","commission-proposal"],["Το Ευρωπαϊκό Κοινοβούλιο απορρίπτει τη θέση του Συμβουλίου.","council-position"]]),
+  en:new Map([["The European Parliament rejects the Commission proposal.","commission-proposal"],["The European Parliament rejects the proposal.","commission-proposal"],["The European Parliament rejects the Council position.","council-position"],["The European Parliament rejects the Council position at first reading.","council-position"],["The European Parliament rejects the Commission’s proposal to amend Decision (EU) 2015/1814 as regards the market stability reserve for the buildings, road transport and additional sectors and calls on the Commission to withdraw its proposal.","commission-proposal"]]),
+  es:new Map([["El Parlamento Europeo rechaza la propuesta de la Comisión.","commission-proposal"],["El Parlamento Europeo rechaza la propuesta.","commission-proposal"],["El Parlamento Europeo rechaza la posición del Consejo.","council-position"]]),
+  et:new Map([["Euroopa Parlament lükkab komisjoni ettepaneku tagasi.","commission-proposal"],["Euroopa Parlament lükkab ettepaneku tagasi.","commission-proposal"],["Euroopa Parlament lükkab nõukogu seisukoha tagasi.","council-position"]]),
+  fi:new Map([["Euroopan parlamentti hylkää komission ehdotuksen.","commission-proposal"],["Euroopan parlamentti hylkää ehdotuksen.","commission-proposal"],["Euroopan parlamentti hylkää neuvoston kannan.","council-position"]]),
+  fr:new Map([["Le Parlement européen rejette la proposition de la Commission.","commission-proposal"],["Le Parlement européen rejette la proposition.","commission-proposal"],["Le Parlement européen rejette la position du Conseil.","council-position"]]),
+  ga:new Map([["Diúltaíonn Parlaimint na hEorpa don togra ón gCoimisiún.","commission-proposal"],["Diúltaíonn Parlaimint na hEorpa don togra.","commission-proposal"],["Diúltaíonn Parlaimint na hEorpa do sheasamh na Comhairle.","council-position"]]),
+  hr:new Map([["Europski parlament odbacuje prijedlog Komisije.","commission-proposal"],["Europski parlament odbacuje prijedlog.","commission-proposal"],["Europski parlament odbacuje stajalište Vijeća.","council-position"]]),
+  hu:new Map([["Az Európai Parlament elutasítja a Bizottság javaslatát.","commission-proposal"],["Az Európai Parlament elutasítja a javaslatot.","commission-proposal"],["Az Európai Parlament elutasítja a Tanács álláspontját.","council-position"]]),
+  it:new Map([["Il Parlamento europeo respinge la proposta della Commissione.","commission-proposal"],["Il Parlamento europeo respinge la proposta.","commission-proposal"],["Il Parlamento europeo respinge la posizione del Consiglio.","council-position"]]),
+  lt:new Map([["Europos Parlamentas atmeta Komisijos pasiūlymą.","commission-proposal"],["Europos Parlamentas atmeta pasiūlymą.","commission-proposal"],["Europos Parlamentas atmeta Tarybos poziciją.","council-position"]]),
+  lv:new Map([["Eiropas Parlaments noraida Komisijas priekšlikumu.","commission-proposal"],["Eiropas Parlaments noraida priekšlikumu.","commission-proposal"],["Eiropas Parlaments noraida Padomes nostāju.","council-position"]]),
+  mt:new Map([["Il-Parlament Ewropew jiċħad il-proposta tal-Kummissjoni.","commission-proposal"],["Il-Parlament Ewropew jiċħad il-proposta.","commission-proposal"],["Il-Parlament Ewropew jiċħad il-pożizzjoni tal-Kunsill.","council-position"]]),
+  nl:new Map([["Het Europees Parlement verwerpt het voorstel van de Commissie.","commission-proposal"],["Het Europees Parlement verwerpt het voorstel.","commission-proposal"],["Het Europees Parlement verwerpt het standpunt van de Raad.","council-position"]]),
+  pl:new Map([["Parlament Europejski odrzuca wniosek Komisji.","commission-proposal"],["Parlament Europejski odrzuca wniosek.","commission-proposal"],["Parlament Europejski odrzuca stanowisko Rady.","council-position"]]),
+  pt:new Map([["O Parlamento Europeu rejeita a proposta da Comissão.","commission-proposal"],["O Parlamento Europeu rejeita a proposta.","commission-proposal"],["O Parlamento Europeu rejeita a posição do Conselho.","council-position"]]),
+  ro:new Map([["Parlamentul European respinge propunerea Comisiei.","commission-proposal"],["Parlamentul European respinge propunerea.","commission-proposal"],["Parlamentul European respinge poziția Consiliului.","council-position"]]),
+  sk:new Map([["Európsky parlament zamieta návrh Komisie.","commission-proposal"],["Európsky parlament zamieta návrh.","commission-proposal"],["Európsky parlament zamieta pozíciu Rady.","council-position"]]),
+  sl:new Map([["Evropski parlament zavrača predlog Komisije.","commission-proposal"],["Evropski parlament zavrača predlog.","commission-proposal"],["Evropski parlament zavrača stališče Sveta.","council-position"]]),
+  sv:new Map([["Europaparlamentet avvisar kommissionens förslag.","commission-proposal"],["Europaparlamentet avvisar förslaget.","commission-proposal"],["Europaparlamentet avvisar rådets ståndpunkt.","council-position"]]),
 };
+export const rejectionWordingScope=(language,text)=>typeof text==='string'?forms[language]?.get(text.normalize('NFC').replace(/\s+/gu,' ').trim())??null:null;
 export function amendmentRejection(variant={}) {
   if(typeof variant.originalText!=='string'||variant.originalText.trim()||typeof variant.proposedText!=='string'||variant.gaps?.length)return null;
-  // A numbered provision conflicts with whole-document scope, even when its
-  // complete proposed cell contains a rejection sentence.
-  if(!/^[–—−-]$/u.test((variant.targetLabel||'').trim()))return null;
-  const scope=forms[variant.language]?.get(variant.proposedText.normalize('NFC').replace(/\s+/gu,' ').trim());
+  const scope=rejectionWordingScope(variant.language,variant.proposedText);
   return scope?{operation:'reject',status:'document-operation',scope,reason:scope==='commission-proposal'?'rejects_proposal':'rejects_council_position',evidence:[{basis:'published-rejection-wording',field:'proposedText',language:variant.language}]}:null;
 }
