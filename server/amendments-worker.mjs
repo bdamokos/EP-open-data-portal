@@ -130,7 +130,7 @@ function saveVerifiedList(worker,generation,target,candidate,list,evidence,{pars
 function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true,sittingIds=[],enqueue=enqueueAmendment}={}) {
   const id=idOf(work),linked=linkedListCandidates(work),verified=new Set(),unresolved=[];
   const originalEnqueue=enqueue;
-  if(worker.upcomingDocument===id)enqueue=(store,generation,key,kind,body,priority,...rest)=>originalEnqueue(store,generation,key,kind,{...body,upcoming:true,upcomingUntil:worker.upcomingUntil},priority,...rest);
+  if(worker.upcomingDocument===id)enqueue=(store,generation,key,kind,body,priority,...rest)=>originalEnqueue(store,generation,key,kind,{...body,...(['amendment-list-detail','amendment-extract'].includes(kind)?{upcoming:true,upcomingUntil:worker.upcomingUntil}:{})},priority,...rest);
 
   for(const candidate of linked.candidates.slice(0,AMENDMENT_LIMITS.listsPerTarget)) {
     let prior=worker.store.source(generation,sourceKey(candidate.id));

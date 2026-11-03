@@ -23,7 +23,7 @@ test('only dates after the latest earlier exact VOT-ITM count; voting-list numbe
  const options={today:'2026-11-03'};
  assert.deepEqual(scheduledVotes(work,{document_date:'2026-04-29'},[item],options),[]);
  assert.equal(scheduledVotes(work,{document_date:'2026-11-05'},[item],options)[0].previousVoteDate,'2026-04-29');
- assert.deepEqual(scheduledVotes({}, {document_date:'2026-11-05'},[item],options),[]);
+ assert.equal(scheduledVotes({}, {document_date:'2026-11-05'},[item],options),null);
  const ballot={sittingId:sitting,agendaItemId:item.id,documentId:id,rows:[{amendments:[{number:7}]}]};
  assert.equal(scheduledVotes(work,{document_date:'2026-04-01'},[item],{...options,number:7,votingLists:[ballot]})[0].basis,'voting-list');
  assert.deepEqual(scheduledVotes(work,{document_date:'2026-11-05'},[item],{...options,number:8,votingLists:[ballot]}),[]);
@@ -69,7 +69,7 @@ test('hourly metadata re-read does not download unchanged list bytes',async t=>{
  const {store,generation,window,clock}=setup(t);
  const {AMENDMENT_EXTRACTION_VERSION}=await import('./amendment-documents.mjs');
  const {distributionEvidenceFor}=await import('./amendments.mjs');
- const listId=id+'-AM-001-001',url='https://www.europarl.europa.eu/doceo/document/A-9-2024-0160-AM-001-001_EN.docx';
+ const listId=id+'-AM-001-001',url='https://data.europarl.europa.eu/distribution/example/amendments_en.docx';
  const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',document_date:'2026-11-09',foresees_change_of:['eli/dl/doc/'+id],is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:url}]}]};
  const stamp=new Date(clock()-8*86400000).toISOString(),proof={url:'https://data.europarl.europa.eu/api/v2/documents/'+listId,fetchedAt:stamp};
  const distributionEvidence=distributionEvidenceFor(list,proof);
@@ -98,4 +98,29 @@ test('priority extraction reads held bytes without another download',async t=>{
  assert.equal(nextAmendmentTask(store,generation),null);
  await amendmentTask(worker,{generation,key:'held',kind:'amendment-extract',body,amendmentJob:true});
  assert.equal(parses,1);assert.equal(downloads,0);
+});
+
+test('a new list gets an optional extraction turn after exact metadata verification',async t=>{
+ const {store,generation,window,clock}=setup(t);const {AMENDMENT_EXTRACTION_VERSION}=await import('./amendment-documents.mjs');
+ const listId=id+'-AM-002-002',url='https://data.europarl.europa.eu/distribution/example/new_en.docx',stamp=new Date(clock()).toISOString();
+ const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',document_date:'2026-11-10',foresees_change_of:['eli/dl/doc/'+id],is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:url}]}]};
+ const work={id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/REPORT_PLENARY',inverse_foresees_change_of:[list],inverse_based_on_a_realization_of:[]};
+ let downloads=0;
+ const worker=new ActivityWorker(store,{clock,runUpstream:unthrottledUpstream,fetchRecord:async endpoint=>({payload:{data:[endpoint==='/documents/'+listId?list:work]},fetchedAt:stamp,url:'https://data.europarl.europa.eu/api/v2'+endpoint}),downloadAmendmentDocx:async()=>{downloads++;return {buffer:Buffer.from('new')};},extractAmendmentList:async()=>({parserVersion:AMENDMENT_EXTRACTION_VERSION,amendments:[],gaps:[]})});
+ await collectUpcomingAmendments(worker,{window});assert.equal(downloads,0);
+ const job=store.db.prepare("SELECT body FROM amendment_jobs WHERE generation=? AND kind IN ('amendment-extract','amendment-list-detail') AND done=0").get(generation);
+ assert(job,JSON.stringify(store.db.prepare('SELECT key,kind,body FROM amendment_jobs WHERE generation=?').all(generation)));
+ assert.equal(JSON.parse(job.body).upcoming,true);
+ for(let turn=0;turn<4&&!downloads;turn++)await collectUpcomingAmendments(worker,{window});
+ assert.equal(downloads,1);
+});
+
+test('API row enrichment consumes the shared official ballot reader and overrides spent-list dates',async t=>{
+ const {store,generation,clock}=setup(t);const {withScheduledVotes}=await import('./upcoming-amendments.mjs');
+ const listId=id+'-AM-001-008',stamp=new Date(clock()).toISOString();
+ store.putSource(generation,'/plenary-documents/'+id,'document',{identifier:id,inverse_based_on_a_realization_of:['eli/dl/event/MTG-PL-2026-04-29-VOT-ITM-190027']},stamp);
+ store.putSource(generation,'amendment:list:'+listId,'amendment-list',{identifier:listId,document_date:'2026-04-01'},stamp);
+ store.votingListsForSitting=selected=>{assert.equal(selected,sitting);return [{sittingId:sitting,agendaItemId:item.id,documentId:id,rows:[{amendments:[{number:7}]}]}];};
+ assert.equal(withScheduledVotes(store,generation,{targetDocumentId:id,listId,number:7}).scheduledVotes[0].basis,'voting-list');
+ assert.deepEqual(withScheduledVotes(store,generation,{targetDocumentId:id,listId,number:8}).scheduledVotes,[]);
 });

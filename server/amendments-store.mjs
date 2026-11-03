@@ -1,9 +1,9 @@
-import {upcomingAgenda,scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
+import {upcomingAgenda,upcomingVotingLists,upcomingSource,scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
 import {fastReadsReady} from './fast-read-projections.mjs';
 import {languagePreference} from './language-order.mjs';
 import { createHash } from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
-import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, checkedAggregateAttribution, amendmentReference, amendmentTarget, canonicalEPReference } from './amendments.mjs';
+import { AMENDMENTS_API_VERSION, AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, checkedAggregateAttribution, amendmentReference, amendmentTarget, canonicalEPReference } from './amendments.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
@@ -506,8 +506,8 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   const indexedObservationComplete=Boolean((document||list)&&readCoverage.rows>0&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness);
   const emptyObservation=document&&records.length===1?checkedEmptyObservation(records[0],document,readCoverage.rows):null;
   const observationComplete=indexedObservationComplete||Boolean(emptyObservation);
-  const scheduledLists=scope==='plenary'&&document?store.db.prepare("SELECT body FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=? LIMIT ?").all(generation,document,AMENDMENT_LIMITS.listsPerTarget).map(record=>{const list=parse(record.body);return {listId:list.identifier,scheduledVotes:scheduledVotes(store.source(generation,'/plenary-documents/'+document)?.work,list,upcomingAgenda(store,generation),{today:new Date(store.clock()).toISOString().slice(0,10)})};}):[];
-  return {items,total,offset,limit,scheduledLists,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,targetGaps,discovery:{pending,refreshGaps,capacityGaps},
+  const scheduledLists=scope==='plenary'&&document?store.db.prepare("SELECT body FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=? LIMIT ?").all(generation,document,AMENDMENT_LIMITS.listsPerTarget).map(record=>{const list=parse(record.body);return {listId:list.identifier,scheduledVotes:scheduledVotes(upcomingSource(store,generation,'/plenary-documents/'+document),list,upcomingAgenda(store,generation),{today:new Date(store.clock?.()??Date.now()).toISOString().slice(0,10),votingLists:upcomingVotingLists(store,upcomingAgenda(store,generation))})};}):[];
+  return {schemaVersion:AMENDMENTS_API_VERSION,items,total,offset,limit,scheduledLists,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,targetGaps,discovery:{pending,refreshGaps,capacityGaps},
     observationScope:emptyObservation?'published-amendment-list-relationships':'indexed-'+scope+'-amendment-sources',indexed:Boolean(records.length),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope,servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation),...(scope==='committee'?{discoveryCoverage:records.length?'partial':'unavailable',wordingCoverage:records.length&&!readCoverage.wording&&!readCoverage.freshness&&records.every(record=>record.wordingComplete)?'complete':'partial',proposerCoverage:records.length&&records.every(record=>record.proposerComplete)?'complete':'partial',outcomeCoverage:'unavailable'}:{})},failures:amendmentFailureSummary(store)};
 }
 

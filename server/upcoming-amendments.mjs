@@ -4,25 +4,31 @@ export const legacyAmendmentDocument=id=>/^(?:A|B|RC)-9-\d{4}-\d{4,6}$/.test(id|
 export function agendaNamesDocument(item,id) {
   return item?.kind==='PLENARY_VOTE'&&item.date>='2024-07-16'&&item.id?.startsWith('MTG-PL-'+item.date+'-OJ-ITM-')&&item.documentIds?.includes(id);
 }
-export function upcomingAgenda(store,generation) {return store.source(generation,'upcoming:agenda')?.work.items||[];}
+export function upcomingSource(store,generation,key) {const row=store.db.prepare('SELECT body FROM sources WHERE generation=? AND key=?').get(generation,key);return row?JSON.parse(row.body):null;}
+export function upcomingAgenda(store,generation) {return upcomingSource(store,generation,'upcoming:agenda')?.items||[];}
 export function scheduledVotes(work,list,items,{number=null,votingLists=[] ,today=new Date().toISOString().slice(0,10)}={}) {
   const id=work?.identifier||tail(work?.id);
+  if((work?.plenaryVoteHistoryObserved===false||!Array.isArray(work?.inverse_based_on_a_realization_of)||!/^\d{4}-\d{2}-\d{2}/.test(list?.document_date||''))&&!votingLists.length)return null;
   return items.filter(item=>agendaNamesDocument(item,id)&&item.date>=today).flatMap(item=>{
     const ballot=votingLists.find(v=>v.sittingId==='MTG-PL-'+item.date&&v.agendaItemId===item.id&&v.documentId===id);
     const base={sittingId:'MTG-PL-'+item.date,agendaItemId:item.id};
-    if(ballot)return number!==null&&ballot.rows.some(row=>row.amendments?.some(a=>a.number===number))?[{...base,basis:'voting-list'}]:[];
+    if(ballot){const numbers=new Set(number===null?(list?.extraction?.amendments||[]).map(a=>a.number):[number]);return ballot.rows.some(row=>row.amendments?.some(a=>numbers.has(a.number)))?[{...base,basis:'voting-list'}]:[];}
     // Only exact VOT-ITM events establish a previous plenary vote. DEC/OJ
     // references and later events do not supply a boundary.
-    if(!Array.isArray(work?.inverse_based_on_a_realization_of)||!/^\d{4}-\d{2}-\d{2}/.test(list?.document_date||''))return [];
-    const previous=array(work.inverse_based_on_a_realization_of).map(canonical).map(ref=>ref.match(/^eli\/dl\/event\/MTG-PL-(\d{4}-\d{2}-\d{2})-VOT-ITM-\d+$/)?.[1]).filter(date=>date&&date<item.date).sort().at(-1)||null;
-    return !previous||list.document_date.slice(0,10)>previous?[{...base,basis:'list-date-after-earlier-vote',previousVoteDate:previous,listDate:list.document_date}]:[];
+    if(work?.plenaryVoteHistoryObserved===false||!Array.isArray(work?.inverse_based_on_a_realization_of)||!/^\d{4}-\d{2}-\d{2}/.test(list?.document_date||''))return [];
+    const previous=array(work.inverse_based_on_a_realization_of).map(canonical).map(ref=>({id:ref,date:ref.match(/^eli\/dl\/event\/MTG-PL-(\d{4}-\d{2}-\d{2})-VOT-ITM-\d+$/)?.[1]})).filter(event=>event.date&&event.date<item.date).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id)).at(-1)||null;
+    return !previous||list.document_date.slice(0,10)>previous.date?[{...base,basis:'list-date-after-earlier-vote',previousVoteDate:previous?.date||null,previousVoteId:previous?.id||null,listDate:list.document_date}]:[];
   });
 }
 
+// PR 1's store reader can supply official ballots without changing the exact
+// classifier or the API fields. Until it is installed, list-date scope applies.
+export function upcomingVotingLists(store,items) {return [...new Set(items.map(item=>'MTG-PL-'+item.date))].flatMap(sitting=>store.votingListsForSitting?.(sitting)||[]);}
 export function withScheduledVotes(store,generation,row) {
   if(row.scope==='committee')return row;
-  const work=store.source(generation,'/plenary-documents/'+row.targetDocumentId)?.work;
-  const items=upcomingAgenda(store,generation),today=new Date(store.clock()).toISOString().slice(0,10);
-  const decorate=variant=>({...variant,scheduledVotes:scheduledVotes(work,store.source(generation,'amendment:list:'+variant.listId)?.work,items,{number:row.number,today})});
+  const work=upcomingSource(store,generation,'/plenary-documents/'+row.targetDocumentId);
+  const agenda=upcomingSource(store,generation,'upcoming:agenda'),items=agenda?.items||[],today=new Date((store.clock?.()??Date.now())).toISOString().slice(0,10);
+  const votingLists=upcomingVotingLists(store,items);
+  const decorate=variant=>({...variant,scheduledVotes:!agenda?null:scheduledVotes(work,upcomingSource(store,generation,'amendment:list:'+variant.listId),items,{number:row.number,today,votingLists})});
   return {...decorate(row),...(row.variants?{variants:row.variants.map(decorate)}:{})};
 }
