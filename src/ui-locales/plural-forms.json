@@ -2657,8 +2657,8 @@
       "other": "{count} ausschließlich von Abgeordneten aus anderen Ländern gestellt"
     },
     "topics.story.count.shortDebates": {
-      "one": "{count} debatte",
-      "other": "{count} debatten"
+      "one": "{count} Debatte",
+      "other": "{count} Debatten"
     }
   },
   "el": {
