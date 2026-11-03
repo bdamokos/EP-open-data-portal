@@ -8,8 +8,9 @@ export async function postSavedQuestions(language:string,questions:string[], ui:
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(new DOMException('Timeout','TimeoutError')),12_000);
   try {
     const response=await fetch(versionedApiUrl(API_ROOT+'/insights/saved?lang='+encodeURIComponent(language)),{method:'POST',credentials:'omit',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify({questions}),signal:controller.signal});
-    const data=await response.json();reportApiVersionMismatch(response.status,data);
+    const data=await response.json().catch(()=>null);reportApiVersionMismatch(response.status,data);
     if(!response.ok)throw Object.assign(Error(data?.error?.message||ui.t("followingtransport.couldn.t.check.for.updates")),{code:data?.error?.code,status:response.status,retryAt:responseRetryAt(response,data)});
+    if(!data||!Array.isArray(data.questions))throw Error(ui.t("followingtransport.couldn.t.check.for.updates"));
     return data;
   } finally {clearTimeout(timer);}
 }
