@@ -265,7 +265,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
       if(stages.S2.status==='passed'&&(matching||frameEligible||(runtime?.amendmentAlternative||amendmentAlternative)(wording)||hasCouncilQuotation(wording)||expectedLanguageScope(wording)||wording.originalText===''&&/rejects|rejette|respinge/u.test(wording.proposedText))) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
         const opts={...wording,targetLabelLanguage:language,resolutionDocument:true,referenceText:references[0]};
-        const place=proposalItems=>(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,...(proposalItems?{proposalItems}:{}),referenceTexts:references,resolutionDocument:true});
+        const place=proposalItems=>(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,nativeProposalInputs,...(proposalItems?{proposalItems}:{}),referenceTexts:references,resolutionDocument:true});
         const framed=await placeWithInstructionFrame({place,eligible:frameEligible,matching:Boolean(matching),language,readFrame:async()=>{
           const frameKey=JSON.stringify([language,'instruction-frame',wording.documentReferences]);
           if(!projected.has(frameKey))projected.set(frameKey,await replay.proposal({reportId:row.targetDocumentId,language,documentReferences:wording.documentReferences||[]}));
@@ -281,7 +281,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
         const framedWording=stages.S5.frame==='commission-proposal'?instructionFrameWording(wording):null;
         if(stages.S5.status==='unresolved'&&text?.nativeBuffer)stages.S5=reportCouncilQuotation(text.nativeBuffer,wording,{operation:stages.S5.operation,reportId:row.targetDocumentId,sourceUrl:text.sourceUrl,fetchedAt:text.fetchedAt})??stages.S5;
         documentOperation=verifyAlternative({buffer:fetched.body,wording,placement:stages.S5})??verifyRejection({id:row.id,language,buffer:fetched.body,wording,placement:stages.S5});
-        stages.S6=verifyPlacement({placement:stages.S5,wording,items:structured?items:null,text,target,nativeQuoted:nativeProposalInputs?.[stages.S5.itemIndex]?{proposalBuffer:nativeProposalInputs[stages.S5.itemIndex],amendmentBuffer:fetched.body,number:row.number}:undefined});
+        stages.S6=verifyPlacement({placement:stages.S5,wording,items:structured?items:null,text,target,nativeQuoted:nativeProposalInputs?.[stages.S5.itemIndex]?{proposalBuffer:nativeProposalInputs[stages.S5.itemIndex],proposalBuffers:nativeProposalInputs,amendmentBuffer:fetched.body,number:row.number}:undefined});
         if(replay) {
           const native=await sourceBoundCitationVerification({canonical:stages.S6,cache,row,variant,fetched,text,wording,placement:stages.S5,target});
           stages.S6=native.verification;nativeCitationEvidence=native.evidence;
