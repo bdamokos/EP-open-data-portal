@@ -25,7 +25,7 @@ function known(nodes,{legal=false,context='paragraph'}={}) {
  }));
 }
 function visible(parts,nodes) {
- const xml=parts.get('word/styles.xml');if(!xml)return true;
+ const xml=parts.get('word/styles.xml');if(!xml)return false;
  const tree=parse(xml),roots=children(tree,'w:styles');if(roots.length!==1)return false;
  const styles=new Map(),defaults=[];
  for(const node of roots[0])if(node['w:style']){const id=node[':@']?.['@_w:styleId'];if(styles.has(id))return false;styles.set(id,node['w:style']);if(['paragraph','character'].includes(node[':@']?.['@_w:type'])&&['1','true','on'].includes(node[':@']?.['@_w:default']))defaults.push(id);}

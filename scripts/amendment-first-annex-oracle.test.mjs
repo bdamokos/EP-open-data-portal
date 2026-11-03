@@ -1,6 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
-import {firstAnnexNative} from './fixtures/first-annex-native.mjs';
+import {firstAnnexNative,firstAnnexZip} from './fixtures/first-annex-native.mjs';
+import {createHash} from 'node:crypto';
+import {quotedWordParts} from './amendment-benchmark-quoted-oracle.mjs';
 test('first annex binds the complete native signature and separate financial statement',()=>{
  const input=firstAnnexNative();Object.defineProperty(input.proposal,'units',{get(){throw Error('Production hierarchy accessed');}});assert.equal(assertFirstAnnex(input).status,'verified');
  for(const target of ['Annex I - Indicators','Annex - Indicators','Annex'])assert.equal(assertFirstAnnex(firstAnnexNative({target})).status,'verified');
@@ -28,4 +30,12 @@ test('paragraph and run properties cannot hide additional proposed wording',()=>
 });
 test('deleted and field text cannot hide competing native annex evidence',()=>{
  for(const tag of ['w:delText','w:instrText']){const extra='<w:p><w:r><'+tag+'>ANNEX I</'+tag+'></w:r></w:p>',input=firstAnnexNative({sourceChange:xml=>xml.replace('</w:body>',extra+'</w:body>')});assert.notEqual(assertFirstAnnex(input)?.status,'verified');}
+});
+
+test('style definitions are required to certify proposal and amendment visibility',()=>{
+ for(const key of ['proposalBuffer','amendmentBuffer']){
+  const input=firstAnnexNative(),parts=quotedWordParts(input.nativeQuoted[key]);parts.delete('word/styles.xml');input.nativeQuoted[key]=firstAnnexZip(Object.fromEntries(parts));
+  if(key==='proposalBuffer')input.proposal.sourceHash=createHash('sha256').update(input.nativeQuoted[key]).digest('hex');
+  assert.notEqual(assertFirstAnnex(input)?.status,'verified');
+ }
 });
