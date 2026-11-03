@@ -106,7 +106,6 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 - Attendance comes from `/meetings/MTG-PL-{date}` fields `had_participant_person` and `had_excused_person`; the yearly catalogue omits them. Under [Rule 162](https://www.europarl.europa.eu/doceo/document/RULES-10-2025-01-20-RULE-162_EN.html) the register records signatures for the sitting. It doesn’t prove presence or absence at a vote, and minutes can correct it later.
 - The chair of a voting section comes from English minutes XML (chair handovers and `Pv.AnnexVote` numbers) plus same-day `MEETING_NAME_CHAIR` speeches.
 - Motion categories use the document’s term-10 `based_on` rule: Rule 149 for individual motions, and Rules 114, 136 and 150 for motions for resolutions (see the [Rules of Procedure](https://www.europarl.europa.eu/doceo/document/RULES-10-2025-07-07_EN.pdf)). The MEP website’s category descriptions can carry older rule numbers.
-- Placement notes bind an adopted text through `/adopted-texts?year=…` only when its `adopts` relationship names the exact report or motion and its document date equals the amendment decision date. Missing or competing matches leave a plain-text note.
 - Adopted-text candidates come from `/procedures/{id}` `created_a_realization_of`, and the adopted text must `adopts` the exact motion. Commission follow-ups link through `/adopted-texts/{TA-id}` → `inverse_answers_to` → `/external-documents/{id}` with type `ACT_FOLLOWUP`.
 
 ### Amendments
