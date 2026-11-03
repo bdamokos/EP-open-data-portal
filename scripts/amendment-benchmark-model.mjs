@@ -6,6 +6,7 @@ import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from
 import {assertChapterTitle} from './amendment-chapter-title-oracle.mjs';
 import {assertStandaloneQuote} from './amendment-standalone-quote-oracle.mjs';
 import {assertArticleNotes} from './amendment-article-notes-oracle.mjs';
+import {inspectNativeNoteScope,assertNativeFirstRecital} from './amendment-note-scope-oracle.mjs';
 import {assertGuidelineAnnex} from './amendment-guideline-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
@@ -543,6 +544,13 @@ export function verifyPlacement(input) {
 }
 
 function verifyProposalPlacement(input) {
+  if(input.placement?.status==='placed'&&input.placement.noteScope?.kind==='word-footnotes'){
+    const proposal=input.items?.[input.placement.itemIndex]?.proposal;
+    const notes=inspectNativeNoteScope({...input,proposal});
+    if(notes.status!=='verified')return {status:notes.status,reason:notes.reason};
+    const {noteScope,...placement}=input.placement;
+    return verifyPlacement({...input,placement,wording:notes.bodyWording});
+  }
   const result=verifyKnownPlacement(input);
   const proposal=input.items?.[input.placement.itemIndex]?.proposal;
   if(result.status!=='unverified'||!proposal||!['oracle-address-grammar-unavailable','oracle-address-unit-unavailable','oracle-introductory-part-unavailable','oracle-insertion-grammar-unavailable','oracle-original-not-unique'].includes(result.reason))return result;
@@ -587,6 +595,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if(articleNotes.status!=='unverified'||proposal&&placement.operation==='delete'&&wording.language==='en'&&/^Article \d+[a-z]*$/u.test(wording.targetLabel||'')&&/\n_{5,}\s*\n/u.test(wording.originalText||''))return articleNotes;
   const implicitLabel=assertImplicitParagraphLabel({proposal,wording,placement});
   if(implicitLabel.status!=='unverified')return implicitLabel;
+  const initialRecital=assertNativeFirstRecital({proposal,wording,placement,nativeQuoted});
+  if(initialRecital.status!=='unverified')return initialRecital;
   const guideline=assertGuidelineAnnex({proposal,wording,placement,nativeQuoted});
   if(guideline.status!=='unverified')return guideline;
   // Explicit inner labels must reach the independent native assertion before
