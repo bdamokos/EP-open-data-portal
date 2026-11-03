@@ -260,7 +260,7 @@ export class DocumentContext {
         // Bound the public projection as well as the binary and parser caches.
         if(Buffer.byteLength(JSON.stringify(items))>3*1024*1024)throw new RangeError('proposal-response-budget');
         if(items.length)proposal={items};
-        placement=documentContextPlacement({...placementOptions,...(councilKind?{chosen:{...chosen,baseline:'council-position',baselineSource:{...chosen.baselineSource,category:'council-position'}}}:{}),baseline,items:proposal?items:null});
+        placement=documentContextPlacement({...placementOptions,...(councilKind?{chosen:{...chosen,baseline:'council-position',baselineSource:{...chosen.baselineSource,category:'council-position'}}}:{}),baseline,items:proposal?items:null,nativeProposalInputs:source?.items?.map(item=>item.buffer)});
       }catch(error) {
         requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;
         proposal=null;baseline.status='unavailable';baseline.items=[];baseline.gaps.push('proposal-projection-unavailable');

@@ -6,7 +6,17 @@ const attrs=(nodes,key)=>nodes.flatMap(n=>Object.entries(n).flatMap(([k,v])=>k==
 const has=(nodes,key)=>nodes.some(n=>Object.entries(n).some(([k,v])=>k===key||Array.isArray(v)&&has(v,key)));
 const val=(nodes,key)=>attrs(nodes,key)[0]?.['@_w:val'];
 const hash=b=>createHash('sha256').update(b).digest('hex');
-const unsafe=r=>r.hidden||['w:del','w:moveFrom','w:vanish','w:webHidden','w:instrText','w:fldChar','w:drawing','w:pict','w:object','m:oMath','w:footnoteReference','w:endnoteReference'].some(k=>has(r.nodes,k));
+function knownInline(nodes){
+ const containers=new Set(['w:r','w:hyperlink']),literal=new Set(['w:tab','w:br','w:cr','w:noBreakHyphen','w:softHyphen','w:lastRenderedPageBreak','w:bookmarkStart','w:bookmarkEnd','w:proofErr']);
+ for(const node of nodes)for(const [name,value] of Object.entries(node)){
+  if(name===':@'||name==='w:pPr'||name==='w:rPr')continue;
+  if(containers.has(name)){if(!knownInline(value))return false;}
+  else if(name==='w:t'){if(value.some(n=>Object.keys(n).some(k=>k!=='#text')))return false;}
+  else if(!literal.has(name)||!Array.isArray(value)||value.length)return false;
+ }
+ return true;
+}
+const unsafe=r=>r.hidden||!knownInline(r.nodes)||['w:del','w:moveFrom','w:vanish','w:webHidden','w:instrText','w:fldChar','w:fldSimple','w:drawing','w:pict','w:object','m:oMath','w:footnoteReference','w:endnoteReference'].some(k=>has(r.nodes,k));
 const parse=xml=>{if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)throw Error('Native XML unavailable');return new XMLParser({preserveOrder:true,ignoreAttributes:false,trimValues:false,parseTagValue:false}).parse(xml);};
 // This reader supports only the level-zero decimal points and native bullets
 // needed for an interior indent address. It neither imports nor calls the
@@ -43,7 +53,7 @@ export function assertBareAnnexIndent({items,proposal,wording,placement,nativeQu
  if(!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||!nativeQuoted?.proposalBuffers?.every(Buffer.isBuffer)||nativeQuoted.proposalBuffers.length!==items.length||nativeQuoted.proposalBuffers.some((b,i)=>hash(b)!==items[i].proposal.sourceHash)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash)return unknown();
  let body,act,read;try{body=quotedWordBody(nativeQuoted.proposalBuffer);const other=items.findIndex(i=>i.kind==='act');if(other<0)return unknown();act=quotedWordBody(nativeQuoted.proposalBuffers[other]);read=listReader(quotedWordParts(nativeQuoted.proposalBuffer));}catch{return unknown();}
  const headings=body.filter(r=>r.kind==='paragraph'&&val(r.nodes,'w:pStyle')==='Annexetitre');
- if(body.filter(r=>r.kind==='paragraph'&&/^ANNEX(?:\s+[IVXLCDM\d]+)?$/u.test(r.text.trim())).length!==1||headings.length!==1||headings[0].text.trim()!=='ANNEX'||unsafe(headings[0])||!act.some(r=>r.kind==='paragraph'&&!r.hidden&&!r.unsafe&&/\bthe Annex\b/u.test(r.text))||act.some(r=>r.kind==='paragraph'&&/\bAnnex\s+(?:[IVXLCDM]+|\d+)\b/u.test(r.text)))return unknown();
+ if(body.filter(r=>r.kind==='paragraph'&&/^ANNEX(?:\s+[IVXLCDM\d]+)?$/u.test(r.text.trim())).length!==1||headings.length!==1||headings[0].text.trim()!=='ANNEX'||unsafe(headings[0])||!act.some(r=>r.kind==='paragraph'&&!unsafe(r)&&!r.unsafe&&/\bthe Annex\b/u.test(r.text))||act.some(r=>r.kind==='paragraph'&&/\bAnnex\s+(?:[IVXLCDM]+|\d+)\b/u.test(r.text)))return unknown();
  if(proposal.paragraphs.filter(p=>p.source?.path===headings[0].path&&p.text==='ANNEX'&&p.complete&&p.source.complete===true).length!==1)return unknown();
  const raw=body.slice(body.indexOf(headings[0])+1),points=[];let point=null;
  try{for(const row of raw){

@@ -6,7 +6,7 @@ import {resolveExistingLawPlacement} from './existing-law-placement.mjs';
 
 /** Pure final placement selection shared by the endpoint and offline consumers.
  * Source acquisition, identity checks and proposal parsing belong to the caller. */
-export function documentContextPlacement({chosen,text,items,baseline,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true}={}) {
+export function documentContextPlacement({chosen,text,items,baseline,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true,nativeProposalInputs}={}) {
   if(!includeBody)return null;
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
@@ -27,7 +27,7 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   if(proposalKind&&(consultation||nle)&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text)))return unresolved('proposal_note_scope_unavailable');
   if(proposalKind&&nle&&baseline.evidence.some(e=>e.kind==='native-nle-annex-part'&&e.ordinal===null&&e.legalPlacement===false)&&/\bAnnex\b/iu.test(chosen.targetLabel||''))return unresolved('proposal_annex_ordinal_unverified');
   if(proposalKind)return items?.length&&chosen.language&&(chosen.targetPath?.language??chosen.targetLabelLanguage)===chosen.language
-    ?resolveProposalPlacement(items,chosen):unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
+    ?resolveProposalPlacement(items,chosen,{nativeProposalInputs}):unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
   const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
   let placement=['present-text','council-position'].includes(chosen.baseline)

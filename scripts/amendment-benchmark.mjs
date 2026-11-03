@@ -239,7 +239,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
       if(stages.S2.status==='passed'&&(matching||hasCouncilQuotation(wording)||expectedLanguageScope(wording)||wording.originalText===''&&/rejects|rejette|respinge/u.test(wording.proposedText))) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
         const opts={...wording,targetLabelLanguage:language,resolutionDocument:true,referenceText:references[0]};
-        stages.S5=(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,referenceTexts:references,resolutionDocument:true});
+        stages.S5=(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,nativeProposalInputs,referenceTexts:references,resolutionDocument:true});
         if(stages.S5.status==='unresolved'&&text?.nativeBuffer)stages.S5=reportCouncilQuotation(text.nativeBuffer,wording,{operation:stages.S5.operation,reportId:row.targetDocumentId,sourceUrl:text.sourceUrl,fetchedAt:text.fetchedAt})??stages.S5;
         documentOperation=verifyRejection({id:row.id,language,buffer:fetched.body,wording,placement:stages.S5});
         stages.S6=verifyPlacement({placement:stages.S5,wording,items:structured?items:null,text,target,nativeQuoted:nativeProposalInputs?.[stages.S5.itemIndex]?{proposalBuffer:nativeProposalInputs[stages.S5.itemIndex],proposalBuffers:nativeProposalInputs,amendmentBuffer:fetched.body,number:row.number}:undefined});
