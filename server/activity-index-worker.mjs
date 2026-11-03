@@ -1,4 +1,5 @@
 import {VotingListCollector} from './voting-list-collector.mjs';
+import {upcomingRefreshDue} from './upcoming-amendments-collector.mjs';
 import {dispatchBaseBackfill} from './base-source-backfill-dispatch.mjs';
 import {topicBootstrapRequired} from './topic-projection-state.mjs';
 import {topicBuildWindowOpen} from './topic-build-window.mjs';
@@ -160,6 +161,7 @@ export class ActivityWorker {
   }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
+    if(upcomingRefreshDue(this))return true;
     if(storyCollectionDue(this.store,this.clock())||topicCollectionDue(this.store,this.clock())||this.topicBuildStep())return true;
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
