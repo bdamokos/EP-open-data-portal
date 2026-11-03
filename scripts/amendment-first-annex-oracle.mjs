@@ -45,7 +45,7 @@ function comparison(bytes,wording,number) {
  const cells=rows.map(row=>children(row,'w:tc'));
  const span=cell=>values(children(cell,'w:tcPr').flat(),'w:gridSpan');
  if(cells[0].length!==1||span(cells[0][0]).join()!=='2'||text(cells[0][0]).trim()||cells.slice(1).some(row=>row.length!==2||row.some(cell=>span(cell).length)))return false;
- const column=cell=>{const paragraphs=children(cell,'w:p');return paragraphs.length&&paragraphs.every(p=>known(p)&&visible(parts,p))?paragraphs.map(p=>literal(p).trim()).join('\n').trim():null;};
+ const column=cell=>{const paragraphs=children(cell,'w:p');return paragraphs.length&&paragraphs.every(p=>known(p)&&visible(parts,p))?paragraphs.map(p=>literal(p).trim()).filter(Boolean).join('\n'):null;};
  return column(cells[1][0])==='Text proposed by the Commission'&&column(cells[1][1])==='Amendment'&&column(cells[2][0])===''&&column(cells[2][1])===wording.proposedText;
 }
 // First annexes belong after the legislative signature, before its separate
@@ -53,11 +53,12 @@ function comparison(bytes,wording,number) {
 export function assertFirstAnnex({proposal,items,wording,placement,nativeQuoted}) {
  if(!/^Annex(?: (?:1|I))?(?: \(new\))?(?: [–-] [^\n\t]+)?$/u.test(wording?.targetLabel||'')||wording.originalText!=='')return null;
  const unknown=()=>({status:'unverified',reason:'oracle-first-annex-unavailable'});
- if(!annexPayload(wording)||items?.length!==1||items[0].kind!=='act'||proposal!==items[0].proposal||placement?.operation!=='insert'||!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash||!Buffer.isBuffer(nativeQuoted.amendmentBuffer)||nativeQuoted.number!==wording.number)return unknown();
+ if(!annexPayload(wording)||wording.targetPath?.underlying?.length||wording.targetPath?.proposal?.length&&(wording.targetPath.proposal.length!==1||wording.targetPath.proposal[0].raw!==wording.targetLabel)||items?.length!==1||items[0].kind!=='act'||proposal!==items[0].proposal||placement?.operation!=='insert'||!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash||!Buffer.isBuffer(nativeQuoted.amendmentBuffer)||nativeQuoted.number!==wording.number)return unknown();
  try {
   if(!comparison(nativeQuoted.amendmentBuffer,wording,nativeQuoted.number))return unknown();
   const parts=quotedWordParts(nativeQuoted.proposalBuffer),tree=parse(parts.get('word/document.xml')),documents=children(tree,'w:document');if(documents.length!==1||tree.find(node=>node['w:document'])?.[':@']?.['@_xmlns:w']!==URI)return unknown();
   const bodies=children(documents[0],'w:body');if(bodies.length!==1)return unknown();const all=descendants(bodies[0],'w:p'),body=quotedWordBody(nativeQuoted.proposalBuffer);
+  if(parts.has('word/numbering.xml')&&values(parse(parts.get('word/numbering.xml')),'w:lvlText').some(value=>/annex/iu.test(value)))return unknown();
   if(all.some(p=>/^\s*[‘’"']?ANNEX\b/iu.test(text(p))||values(children(p,'w:pPr').flat(),'w:pStyle').some(id=>/^Annexe?titre/iu.test(id))))return unknown();
   for(const [value]of frame)if(all.filter(p=>text(p).trim()===value).length!==1)return unknown();
   const start=body.findIndex(row=>row.kind==='paragraph'&&row.text.trim()===frame[0][0]),rows=body.slice(start,start+4);if(start<1||rows.length!==4||rows.some((row,index)=>row.kind!=='paragraph'||row.text.trim()!==frame[index][0]||row.hidden||row.unsafe||row.numbered||!known(row.nodes)||values(children(row.nodes,'w:pPr').flat(),'w:pStyle').join()!==frame[index][1]||!visible(parts,row.nodes)))return unknown();
