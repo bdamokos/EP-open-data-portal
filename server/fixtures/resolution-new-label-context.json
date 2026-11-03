@@ -1,0 +1,101 @@
+{
+  "id": "RC-10-2026-0394-AM-8",
+  "source": {
+    "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRc/RC-10-2026-0394/RC-10-2026-0394_en.docx",
+    "sha256": "127e6a36ba20c678378a7bb96a15d93cff7d581cc56c7536754c47948a7651ef",
+    "fetchedAt": "2026-10-27T17:10:18.440Z"
+  },
+  "wordingSource": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0394-AM-006-008/RC-10-2026-0394-AM-006-008_en.docx",
+    "sha256": "d855615e9694b3602849099f14423f80f3d037b0e108ed33945d4d9713e822e6",
+    "fetchedAt": "2026-10-27T12:54:14.511Z"
+  },
+  "nativeParagraph": 40,
+  "sourceExcerpt": [
+    "7.\tReiterates its call to activate the human rights clause of the Political Dialogue and Cooperation Agreement and immediately suspend the agreement in the absence of concrete, verifiable steps by the regime towards multiparty democracy and the release of all political prisoners;",
+    "8.\tReiterates its demand to apply sanctions, under the EU Magnitsky Act, against those responsible for the repression in Cuba, starting with Miguel Díaz-Canel;",
+    "9.\tInstructs its President to forward this resolution to the VP/HR, the Council, the Commission and the Cuban regime."
+  ],
+  "wording": {
+    "baselineSource": {
+      "category": "unknown",
+      "headings": [
+        {
+          "left": {
+            "raw": "Joint motion for a resolution",
+            "category": "unknown"
+          },
+          "right": {
+            "raw": "Amendment",
+            "category": "other"
+          }
+        }
+      ],
+      "conflicted": false,
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0394-AM-006-008/RC-10-2026-0394-AM-006-008_en.docx",
+      "fetchedAt": "2026-10-27T12:54:14.511Z"
+    },
+    "documentReferences": [
+      {
+        "field": "DocAmend",
+        "raw": "Joint motion for a resolution",
+        "sourceRaw": "Joint motion for a resolution",
+        "scope": "amendment"
+      },
+      {
+        "field": "Article",
+        "raw": "Paragraph 8 a (new)",
+        "sourceRaw": "Paragraph 8 a (new)",
+        "scope": "amendment"
+      }
+    ],
+    "targetPath": {
+      "proposal": [
+        {
+          "raw": "Paragraph 8 a (new)",
+          "labels": [
+            {
+              "raw": "Paragraph 8 a (new)"
+            }
+          ]
+        }
+      ],
+      "underlying": [],
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0394-AM-006-008/RC-10-2026-0394-AM-006-008_en.docx",
+      "fetchedAt": "2026-10-27T12:54:14.511Z"
+    },
+    "number": 8,
+    "listId": "RC-10-2026-0394-AM-006-008",
+    "targetDocumentId": "RC-10-2026-0394",
+    "date": "2026-09-16",
+    "documentDate": "2026-09-16",
+    "dateBasis": "individual-amendment-document",
+    "authors": [
+      "Marco Tarquinio",
+      "Diana Riba i Giner"
+    ],
+    "committeeProposer": null,
+    "onBehalfOf": "on behalf of the S&D Group; on behalf of the Verts/ALE Group",
+    "baseline": "unknown",
+    "targetLabel": "Paragraph 8 a (new)",
+    "originalText": "8.\tReiterates its demand to apply sanctions, under the EU Magnitsky Act, against those responsible for the repression in Cuba, starting with Miguel Díaz-Canel;",
+    "proposedText": "8.\tUrges the EU and its Member States to engage with the Cuban authorities up to the highest level to deliver on their human rights commitments and to increase humanitarian assistance to Cuba;",
+    "originalFormatting": [],
+    "proposedFormatting": [],
+    "justification": null,
+    "language": "en",
+    "sources": [
+      {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0394-AM-006-008/RC-10-2026-0394-AM-006-008_en.docx",
+        "fetchedAt": "2026-10-27T12:54:14.511Z",
+        "date": "2026-09-16",
+        "dateBasis": "individual-amendment-document",
+        "language": "en",
+        "format": "DOCX"
+      }
+    ],
+    "gaps": []
+  }
+}

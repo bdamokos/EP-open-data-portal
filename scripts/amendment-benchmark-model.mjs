@@ -473,6 +473,12 @@ function verifyResolutionInsertion(text,wording,target,placement) {
   const kind=label.after?'paragraph':label.kind;
   if(!['paragraph','recital','citation','point'].includes(kind))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   const bases=units.filter(unit=>unit.kind===kind&&unit.label===String(label.base)&&owns(unit));
+  if(wording.originalText.trim()) {
+    if(target.segments.length!==1||kind!=='paragraph'||!label.suffix||bases.length!==1||!bases[0].complete)return {status:'unverified',reason:'oracle-insertion-context-unverified'};
+    const base=bases[0],labels=[{value:base.label}],source=text.paragraphs.slice(base.start,base.end+1).join('\n');
+    if(oracleNormal(source,labels)!==oracleNormal(wording.originalText,labels))return fail('oracle-insertion-context-mismatch');
+  }
+
   // A new recital continuing the raw A, B, C… sequence before the operative
   // paragraphs follows the last raw recital; its printed letter must match.
   if(!bases.length&&kind==='recital'&&!label.suffix&&!label.after&&!parents.length&&/^[A-Z]$/u.test(label.value)) {
