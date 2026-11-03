@@ -1,3 +1,4 @@
+import {amendmentAlternative} from './amendment-alternative.mjs';
 import {amendmentRejection} from './amendment-rejection.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {resolveAmendmentPlacement,amendmentOperation,resolutionReference} from './document-context-model.mjs';
@@ -10,6 +11,8 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   if(!includeBody)return null;
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
+  const alternative=amendmentAlternative(chosen);
+  if(alternative)return alternative;
   const rejection=amendmentRejection(chosen);
   if(rejection)return rejection;
   const mixedScope=amendmentMixedLanguageScope(chosen),scope=amendmentLanguageScope(chosen);
@@ -36,3 +39,5 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   if(comparable.length>1){placement={...placement,status:'unresolved',reason:'conflicting_target_evidence'};delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
   return placement;
 }
+
+export {amendmentAlternative};
