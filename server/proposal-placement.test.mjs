@@ -471,4 +471,8 @@ test('annex caption decoration repair requires both native annex frames and exac
   const duplicate=make(rows.concat(rows.slice(3,8).map(r=>r[2]==='cell'?[r[0],r[1],r[2],2,r[4],r[5]]:r)));assert.equal(run(w,duplicate).status,'unresolved');
   const incomplete=structuredClone(p);incomplete.paragraphs[2].complete=false;assert.equal(run(w,incomplete).status,'unresolved');
   const duplicateAct=structuredClone(act);duplicateAct.paragraphs.push({...act.paragraphs[0],complete:false});assert.equal(run(w,p,duplicateAct).status,'unresolved');
+  for(const competing of [[['The following Annex VII is added:','Normal','body'],['‘ANNEX VII','Normal','body']],[['The following Annex VII is added:','Normal','body']],[['‘ANNEX VII','Normal','body']]])assert.equal(run(w,make([...rows.slice(0,3),...competing,...rows.slice(3)])).status,'unresolved');
+  const exactRows=rows.map((r,index)=>index===3?['‘[Iron and steel',...r.slice(1)]:r),exact=structuredClone(make(exactRows));assert.equal(run(w,exact).status,'placed');
+  const walk=units=>units.flatMap(u=>[u,...walk(u.children)]);walk(exact.units).find(u=>u.table).table.rows[0].cells[0].colSpan=2;assert.equal(run(w,exact).status,'unresolved','an exact caption match cannot bypass malformed geometry');
+
 });

@@ -572,9 +572,9 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   if(repaired){
     const run=rows.slice(starts[0],starts[0]+lines.length),before=rows.slice(0,starts[0]),heading=before.findLastIndex(row=>!row.key&&/^ANNEX [IVXLC]+$/u.test(row.cells[0]));
     const scopeRows=before.slice(heading).filter(row=>!row.key),prefix=scopeRows.slice(1).map(row=>row.cells[0]),tableKey=run[1]?.key&&tableOf(run[1].key);
-    if(scopeRows.some(row=>row.rows.some(p=>!p.complete||p.source?.complete!==true))||run.some(row=>row.broken)||heading<0||before[heading].cells[0]!=='ANNEX '+decoration.outer||run[0].key||!tableKey||run.slice(1).some(row=>!row.key||tableOf(row.key)!==tableKey||row.cells.length!==2)||prefix.filter(value=>value==='‘ANNEX '+decoration.inner).length!==1||prefix.filter(value=>value==='The following Annex '+decoration.inner+' is added:').length!==1||run.some(row=>row.rows.some(p=>p.index<unit.extent.start||p.index>=unit.extent.end)))return unresolved('conflicting_target_evidence');
+    if(scopeRows.some(row=>row.rows.some(p=>!p.complete||p.source?.complete!==true))||run.some(row=>row.broken)||heading<0||before[heading].cells[0]!=='ANNEX '+decoration.outer||run[0].key||!tableKey||run.slice(1).some(row=>!row.key||tableOf(row.key)!==tableKey||row.cells.length!==2)||prefix.filter(value=>/^‘ANNEX [IVXLC]+$/u.test(value)).length!==1||!prefix.includes('‘ANNEX '+decoration.inner)||prefix.filter(value=>/^The following Annex [IVXLC]+ is added:$/u.test(value)).length!==1||!prefix.includes('The following Annex '+decoration.inner+' is added:')||run.some(row=>row.rows.some(p=>p.index<unit.extent.start||p.index>=unit.extent.end)))return unresolved('conflicting_target_evidence');
   }
-  if(rows.slice(starts[0]+1,starts[0]+lines.length).some(row=>row.gap))return unresolved('source_passage_incomplete');
+  if(rows.slice(starts[0],starts[0]+lines.length).some((row,index)=>row.broken||index&&row.gap||row.rows.some(p=>p.index<unit.extent.start||p.index>=unit.extent.end)))return unresolved('source_passage_incomplete');
   const matched=rows.slice(starts[0],starts[0]+lines.length).flatMap(row=>row.rows);
   if(matched.some(row=>!row.complete||!row.source||row.source.complete===false))return unresolved('source_passage_incomplete');
   const first=matched[0],last=matched.at(-1);
