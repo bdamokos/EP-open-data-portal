@@ -9,8 +9,6 @@
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
     "test": "node scripts/run-tests.mjs",
-    "api:bump": "node scripts/api-version.mjs",
-    "api:check": "node scripts/api-version.mjs --check",
     "data:audit": "node server/data-gap-audit-cli.mjs",
     "bench:reads": "node scripts/read-benchmark.mjs",
     "bench:amendments": "node scripts/amendment-benchmark.mjs",
