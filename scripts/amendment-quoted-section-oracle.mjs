@@ -65,7 +65,7 @@ export function assertQuotedSectionPoint({proposal,wording,placement,nativeQuote
   raw=quotedWordBody(nativeQuoted.proposalBuffer);comparison=reportComparison(quotedWordBody(nativeQuoted.amendmentBuffer),nativeQuoted.number);
   if(!comparison||[comparison.outer,comparison.act,comparison.inner].join('\n')!==wording.targetLabel||comparison.original!==wording.originalText||comparison.proposed!==wording.proposedText)return unknown();
   const heads=raw.filter(row=>row.kind==='paragraph'&&row.text.trim()==='ANNEX '+target[1]);if(heads.length!==1||heads[0].hidden||!safe(heads[0].nodes))return unknown();const first=raw.indexOf(heads[0]),last=raw.findIndex((row,index)=>index>first&&row.kind==='paragraph'&&/^ANNEX [IVXLCDM]+$/u.test(row.text.trim()));if(last<0)return unknown();
-  const lead=raw[first+1],scope=lead?.kind==='paragraph'&&/^Annexes? ([IVXLCDM]+)(?: and ([IVXLCDM]+))? to (.+) are amended as follows:$/u.exec(normal(lead.text));
+  const lead=raw[first+1],scope=lead?.kind==='paragraph'&&/^Annexes ([IVXLCDM]+) and ([IVXLCDM]+) to (.+) are amended as follows:$/u.exec(normal(lead.text));
   if(!scope||![scope[1],scope[2]].includes(target[4])||scope[3]!==target[3]||lead.hidden||!safe(lead.nodes))return unknown();
   points=outerPoints(quotedWordParts(nativeQuoted.proposalBuffer),raw,first,last);
   const owner=points.find(row=>row.value===Number(target[2])),next=points.find(row=>row.value===Number(target[2])+1);
