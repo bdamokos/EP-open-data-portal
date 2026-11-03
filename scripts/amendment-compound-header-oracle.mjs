@@ -13,6 +13,9 @@ export function assertCompoundHeader({wording,nativeQuoted}) {
  const address=oracleAddress(wording.targetLabel,'en',{resolution:false});
  if(!address?.length)return unavailable();
  try {
+  const parts=quotedWordParts(nativeQuoted.amendmentBuffer),parse=xml=>new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);
+  const bindings=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w']===undefined||node[':@']['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main')&&Object.values(node).every(value=>!Array.isArray(value)||bindings(value)));
+  if(!bindings(parse(parts.get('word/document.xml'))))return unavailable();
   const body=quotedWordBody(nativeQuoted.amendmentBuffer);
   const heading=row=>row.kind==='paragraph'&&/^Amendment\s+[1-9]\d*$/u.test(row.text.trim());
   const starts=body.flatMap((row,index)=>heading(row)&&Number(row.text.match(/\d+$/u)[0])===nativeQuoted.number?[index]:[]);
@@ -23,10 +26,11 @@ export function assertCompoundHeader({wording,nativeQuoted}) {
   if(tableAt<0||header.length!==1||!block[tableAt].nodes['w:tbl']||block[0].hidden||block[0].unsafe)return unavailable();
   const row=header[0],lines=row.text.trim().split('\n').map(line=>line.trim());
   if(row.hidden||row.unsafe||row.numbered||lines.length!==2||!/^Proposal for a (?:regulation|directive|decision)$/u.test(lines[0])||lines[1]!==wording.targetLabel)return unavailable();
-  const stylesXml=quotedWordParts(nativeQuoted.amendmentBuffer).get('word/styles.xml');
+  const stylesXml=parts.get('word/styles.xml');
   if(stylesXml){
    if(/<!DOCTYPE|<!ENTITY/u.test(stylesXml)||XMLValidator.validate(stylesXml)!==true)return unavailable();
    const styles=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(stylesXml),find=(nodes,name)=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key===name?[node]:Array.isArray(value)?find(value,name):[]));
+   if(!bindings(styles))return unavailable();
    const defs=new Map();for(const node of find(styles,'w:style')){const id=node[':@']?.['@_w:styleId'];if(defs.has(id))return unavailable();defs.set(id,node['w:style']);}
    const opaque=nodes=>['w:vanish','w:webHidden'].some(name=>find(nodes,name).some(node=>!['0','false','off'].includes(node[':@']?.['@_w:val'])));
    if(find(styles,'w:docDefaults').some(node=>opaque(node['w:docDefaults'])))return unavailable();
@@ -45,7 +49,8 @@ export function assertCompoundHeader({wording,nativeQuoted}) {
    if(['w:br','w:cr'].includes(key)){breaks++;return value.length===0&&[undefined,'textWrapping'].includes(node[':@']?.['@_w:type']);}
    return false;
   }));
-  if(!inline(row.nodes)||breaks!==1)return unavailable();
+  for(const other of block.slice(1,tableAt).filter(other=>other!==row))if(other.hidden||other.unsafe||other.numbered||!inline(other.nodes))return unavailable();
+  breaks=0;if(!inline(row.nodes)||breaks!==1)return unavailable();
   for(const [field,raw] of [['DocumentClass',lines[0]],['Article',lines[1]]]) {
    const matches=(wording.documentReferences||[]).filter(ref=>ref.field===field&&ref.scope==='amendment');
    if(matches.length!==1||matches[0].basis!=='native-line-break'||matches[0].raw!==raw||matches[0].sourceRaw!==row.text.trim())return unavailable();
