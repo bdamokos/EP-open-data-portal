@@ -127,5 +127,5 @@
 .story-supporting{margin-inline-start:20px;padding-inline-start:16px;border-inline-start:1px solid var(--line)}
 .topic-story-records{max-width:800px;margin-block:16px}
 
-.topic-period-story .topic-story {scroll-margin-top:16px}
+.topic-period-story,.topic-period-story .topic-story {scroll-margin-top:16px}
 .topic-period-announcement {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}

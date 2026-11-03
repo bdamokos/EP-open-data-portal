@@ -66,9 +66,13 @@ function MetricChart({data,metric,quarter,last,onSelect}:{data:TopicDetail;metri
 
 function Detail({topic,place,language,mode,zoom}:{topic:string;place:string;language:string;mode:string;zoom:string}){
  const ui=useUiI18n(),key=place?'place:'+place:topic,[,setStory]=useExplorerParam<string>('t-story',''),[reading,setReading]=useExplorerParam<string>('t-read',''),[requestedQuarter,setQuarter]=useExplorerParam<string>('t-q',''),[kind,setKind]=useExplorerParam<string>('t-kind',''),[keyword,setKeyword]=useExplorerParam<string>('t-kw',''),[placeFilter,setPlace]=useExplorerParam<string>('t-place',''),[own,setOwn]=useExplorerParam<string>('t-own','0'),[askers,setAskers]=useExplorerParam<string>('t-askers','',['','home','elsewhere','not-home']),[offset,setOffset]=useExplorerParam<number>('t-offset',0),[more,setMore]=useDossierReaderState<boolean>('topic-facets-expanded',false),heading=useRef<HTMLHeadingElement>(null);
- const storyTop=useRef<HTMLDivElement>(null),revealStory=useRef(false),previousPeriod=useRef(requestedQuarter),[announcedPeriod,setAnnouncedPeriod]=useState('');
+ const storyTop=useRef<HTMLDivElement>(null),revealStory=useRef(false),suppressAnnouncement=useRef(false),previousPeriod=useRef(requestedQuarter),[announcedPeriod,setAnnouncedPeriod]=useState('');
  useEffect(()=>{
-  if(previousPeriod.current!==requestedQuarter){previousPeriod.current=requestedQuarter;setAnnouncedPeriod(requestedQuarter?monthRangeLabel(requestedQuarter,ui.language):ui.t('topics.thisTerm'));}
+  if(previousPeriod.current!==requestedQuarter){
+   previousPeriod.current=requestedQuarter;
+   if(!suppressAnnouncement.current)setAnnouncedPeriod(requestedQuarter?monthRangeLabel(requestedQuarter,ui.language):ui.t('topics.thisTerm'));
+   suppressAnnouncement.current=false;
+  }
   if(revealStory.current){revealStory.current=false;revealStoryPeriod(storyTop.current?.querySelector<HTMLElement>('.topic-story')||storyTop.current);}
  },[requestedQuarter,ui]);
  const [storyClaim,setStoryClaim]=useState<{text:string;id:string;filters:string}|null>(null);
@@ -103,10 +107,15 @@ function Detail({topic,place,language,mode,zoom}:{topic:string;place:string;lang
 
  const last=lastFullQuarter({...data,items:[]});
  const metricScope=(metric:string)=>metric==='groups'?null:{kind:metric==='document'?'document':'question',askers:metric==='questionHome'?'home':metric==='questionElsewhere'?'elsewhere':metric==='questionNotHome'?'not-home':''};
- const selectMetric=(metric:string,p:string,toggle=true)=>{setOffset(0);focusRecords.current=null;revealStory.current=true;const active=toggle&&quarter===p,scope=metricScope(metric);setStory('');setQuarter(active?'':p);if(scope){setKind(scope.kind);setAskers(scope.askers);setOwn(scope.askers==='not-home'?'1':'0');}};
+ const selectMetric=(metric:string,p:string,toggle=true)=>{
+  const scope=metricScope(metric),sameRecords=!scope||kind===scope.kind&&askers===scope.askers&&own===(scope.askers==='not-home'?'1':'0');
+  const next=toggle&&quarter===p&&sameRecords?'':p;
+  setOffset(0);focusRecords.current=null;suppressAnnouncement.current=false;revealStory.current=next!==requestedQuarter;
+  setStory('');setQuarter(next);if(scope){setKind(scope.kind);setAskers(scope.askers);setOwn(scope.askers==='not-home'?'1':'0');}
+ };
  const sums=data.series.reduce((n,s)=>({question:n.question+s.question,home:n.home+(s.questionHome||0),elsewhere:n.elsewhere+(s.questionElsewhere||0),document:n.document+s.document}),{question:0,home:0,elsewhere:0,document:0});
  const counted=(n:number,id:string)=>ui.t(id,{count:n},{count:n});
- const showRecords=(recordKind:string,origin='',period='',clearFacets=false,claim?:{text:string;id:string})=>{setStoryClaim(claim?{...claim,filters:JSON.stringify([period,recordKind,origin,'0',clearFacets?'':keyword,clearFacets?'':placeFilter])}:null);const same=quarter===period&&kind===recordKind&&askers===origin&&own==='0'&&(!clearFacets||!keyword&&!placeFilter);if(same){recordsHeading.current?.focus({preventScroll:true});recordsHeading.current?.scrollIntoView({block:'start'});}else focusRecords.current=document.activeElement;if(!same)setOffset(0);setStory('');setQuarter(period);setKind(recordKind);setAskers(origin);setOwn('0');if(clearFacets){setKeyword('');setPlace('');}};
+ const showRecords=(recordKind:string,origin='',period='',clearFacets=false,claim?:{text:string;id:string})=>{revealStory.current=false;suppressAnnouncement.current=period!==requestedQuarter;setStoryClaim(claim?{...claim,filters:JSON.stringify([period,recordKind,origin,'0',clearFacets?'':keyword,clearFacets?'':placeFilter])}:null);const same=quarter===period&&kind===recordKind&&askers===origin&&own==='0'&&(!clearFacets||!keyword&&!placeFilter);if(same){recordsHeading.current?.focus({preventScroll:true});recordsHeading.current?.scrollIntoView({block:'start'});}else focusRecords.current=document.activeElement;if(!same)setOffset(0);setStory('');setQuarter(period);setKind(recordKind);setAskers(origin);setOwn('0');if(clearFacets){setKeyword('');setPlace('');}};
  const summaryLink=(value:string|number,recordKind:string,origin='')=><a href={topicsHref(key,{'t-kind':recordKind,'t-askers':origin,'t-kw':keyword,'t-place':placeFilter,'t-own':'0'})+'#topic-records'} onClick={e=>{if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();showRecords(recordKind,origin);}}>{value}</a>;
  const groupTarget=(g:TopicGroup)=>{
   // Voting-time groups need a retained exact scheduled target.
