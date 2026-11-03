@@ -6,7 +6,7 @@ const URI='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const children=(nodes,key)=>nodes.flatMap(node=>node[key]?[node[key]]:[]);
 const descendants=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,value])=>name===key?[value]:Array.isArray(value)?descendants(value,key):[]));
 const values=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,value])=>name===key?[node[':@']?.['@_w:val']]:Array.isArray(value)?values(value,key):[]));
-const text=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key==='w:t'?value.map(part=>part['#text']??''):key==='w:tab'?['\t']:['w:br','w:cr'].includes(key)?['\n']:key==='w:noBreakHyphen'?['\u2011']:key==='w:softHyphen'?['\u00ad']:Array.isArray(value)?[text(value)]:[])).join('');
+const text=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>['w:t','w:delText','w:instrText'].includes(key)?value.map(part=>part['#text']??''):key==='w:tab'?['\t']:['w:br','w:cr'].includes(key)?['\n']:key==='w:noBreakHyphen'?['\u2011']:key==='w:softHyphen'?['\u00ad']:Array.isArray(value)?[text(value)]:[])).join('');
 const parse=xml=>{if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)throw Error('Native XML unavailable');const tree=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);const valid=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w']===undefined||node[':@']['@_xmlns:w']===URI)&&Object.values(node).every(v=>!Array.isArray(v)||valid(v)));if(!valid(tree))throw Error('Native namespace unavailable');return tree;};
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const clean=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();

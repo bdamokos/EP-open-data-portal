@@ -25,3 +25,6 @@ test('inspected empty payload paragraphs are layout, opaque paragraphs remain un
 test('paragraph and run properties cannot hide additional proposed wording',()=>{
  for(const amendmentChange of [xml=>xml.replace('<w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>INDICATORS','<w:pPr><w:pStyle w:val="Normal"/><w:t>Opaque text</w:t></w:pPr><w:r><w:t>INDICATORS'),xml=>xml.replace('<w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>INDICATORS','<w:pPr><w:pStyle w:val="Normal"/><w:r><w:t>Opaque text</w:t></w:r></w:pPr><w:r><w:t>INDICATORS'),xml=>xml.replace('<w:r><w:t>INDICATORS','<w:r><w:rPr><w:t>Opaque text</w:t></w:rPr><w:t>INDICATORS')]){const input=firstAnnexNative({amendmentChange});input.wording=firstAnnexNative().wording;assert.notEqual(assertFirstAnnex(input)?.status,'verified');}
 });
+test('deleted and field text cannot hide competing native annex evidence',()=>{
+ for(const tag of ['w:delText','w:instrText']){const extra='<w:p><w:r><'+tag+'>ANNEX I</'+tag+'></w:r></w:p>',input=firstAnnexNative({sourceChange:xml=>xml.replace('</w:body>',extra+'</w:body>')});assert.notEqual(assertFirstAnnex(input)?.status,'verified');}
+});
