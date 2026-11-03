@@ -85,3 +85,16 @@ Benchmark caches, snapshots and results stay outside Git and out of CI artifacts
 - Frozen replay records an absent exact request as `frozen-input-absent`, with URL, Accept and snapshot identity in affected rows and result diagnostics. These derived acquisition gaps never enter the sealed manifest or input cache. Listed inputs with corrupt bytes, missing files or invalid metadata still abort replay; unsealed acquisition is unchanged.
 
 **Agenda benchmark** (`npm run bench:agenda`) times agenda assembly. Capture once with `--fetch --api-base ORIGIN --cache-dir DIR --week latest`, then replay offline with `--latency zero|recorded` and compare with `--baseline FILE`.
+
+### Adopted-text calibration
+
+The optional `--adopted-text-snapshot DIRECTORY --request-cap 0` amendment replay
+writes a separate `adopted-calibration-*.json` report. It does not affect placement,
+verification, scores or the ratchet. Acquire a new sealed TA directory once with
+`node scripts/amendment-adopted-snapshot.mjs BENCHMARK.json NEW_DIRECTORY` outside
+Git. Acquisition reads public ODP adopted-text listings and their declared English
+XML manifestations sequentially, at least two seconds apart; a 429 pauses three
+minutes and stops. Replay verifies every input hash and makes no source requests.
+
+Use the sidecar's `placedDisagreements` list for maintainer review. Calibration
+results never change the benchmark's existing score or verifier.
