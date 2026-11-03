@@ -365,3 +365,23 @@ test('absent sealed proposal metadata gaps shared rows while unrelated rows stil
   assert.deepEqual(offline.manifest(),manifest);assert.equal(offline.requests,0);offline.assertHealthy();
   assert.deepEqual(await Promise.all((await readdir(directory)).sort().map(async file=>[file,digest(await readFile(path.join(directory,file)))])),before);
 });
+
+
+test('fetch acquisition binds native NLE lists before proposal discovery',async()=>{
+  const current=await replayRuntime(root),id='A-10-2026-0001',listId=id+'-AM-001-002';
+  const work={id:'eli/dl/doc/'+id,work_type:'def/ep-document-types/REPORT_PLENARY',is_realized_by:[{title_alternative:{en:'COM(2026)1 – 2026/0001(NLE)'}}],inverse_foresees_change_of:['eli/dl/doc/'+listId]};
+  const list={id:'eli/dl/doc/'+listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+id]};
+  const url='https://data.europarl.europa.eu/distribution/test/list.docx',calls=[];
+  class Native {
+    async readList(){return {source:{url,contentHash:'hash'},extraction:{amendments:[1,2].map(number=>({number,originalText:'old',proposedText:'new'}))}};}
+    async amendment(query){calls.push(query.amendmentId);return {variants:[{listId,language:'en',wordingStatus:'available',originalText:'old',proposedText:'new',source:{url,contentHash:'hash'}}]};}
+    async readNleReferences(query){return {selected:query.amendmentId};}
+  }
+  const runtime={...current,DocumentContext:Native,documentFiles:w=>w===list?[{url,language:'en',format:'DOCX'}]:[],createCouncilPositionBaseline:undefined,createExistingLawBaseline:undefined,createProposalBaseline:()=>async options=>{if(options.nativeReferencePair)calls.push(options.nativeReferencePair.selected+' discovery');return {items:[]};}};
+  const cache={get:async u=>({url:u,ok:true,status:200,sha256:'metadata',fetchedAt:'2026-11-03T09:00:00Z',body:Buffer.from(JSON.stringify({data:[u===publicDocumentUrl(id)?work:list]}))}),assertHealthy(){}};
+  await sourceReplay(cache,runtime).acquire(id,['en']);
+  assert.deepEqual(calls,[id+'-AM-1',id+'-AM-1 discovery',id+'-AM-2',id+'-AM-2 discovery']);
+  calls.length=0;
+  await sourceReplay({...cache,sealed:new Set()},runtime).acquire(id,['en']);
+  assert.deepEqual(calls,[],'sealed replay must not expand acquisition');
+});
