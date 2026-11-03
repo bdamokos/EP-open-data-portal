@@ -31,8 +31,8 @@ test('drift requires the unique complete whole paragraph, including damaged comp
   assert.notEqual(verify(make(),{...fixture.wording,originalText:fixture.wording.originalText+'\n________\n1 Different note'}).status,'verified');
 });
 
-test('unsupported published labels decline drift verification without breaking ordinary quote fallback',()=>{
+test('unsupported published labels decline drift verification and retain ordinary address checks',()=>{
   const text=make(),wording={...fixture.wording,targetLabel:'Unparsed heading'};
   assert.equal(assertResolutionNumberingDrift({text,wording,placement,voteReferences:fixture.voteReferences}),null);
-  assert.equal(verify(text,wording).status,'verified');
+  assert.equal(verify(text,wording).reason,'oracle-address-span-mismatch');
 });
