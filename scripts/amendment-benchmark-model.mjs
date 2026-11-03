@@ -221,9 +221,10 @@ function rawLogicalRows(proposal) {
 function rawCaptionDecoration(wording,items,proposal){
   if(wording.baseline!=='commission-proposal'||items?.length!==2||items.filter(item=>item.kind==='act').length!==1||items.filter(item=>item.kind==='annex'&&item.proposal===proposal).length!==1||wording.targetPath?.underlying?.length)return null;
   const path=/^Annex ([IVXLC]+) – paragraph 1 – table on ([^\r\n]+)\n(Regulation \((?:EU|EC)\) \d{4}\/\d+)\nAnnex ([IVXLC]+) – table ([^\r\n]+)$/u.exec(wording.targetLabel||''),caption=/^‘\[([^\r\n\t\[\]]+)\r?\nCN code\tGreenhouse gas\r?\n/u.exec(wording.originalText||'');
-  if(!path||!caption||rawCell(path[2]).toLowerCase()!==rawCell(caption[1]).toLowerCase()||rawCell(path[5]).toLowerCase()!==rawCell(caption[1]).toLowerCase())return null;
+  if(!path||!caption||wording.targetPath?.proposal?.length&&((wording.targetPath.proposal.length!==1)||wording.targetPath.proposal[0].raw!==wording.targetLabel.split('\n')[0])||rawCell(path[2]).toLowerCase()!==rawCell(caption[1]).toLowerCase()||rawCell(path[5]).toLowerCase()!==rawCell(caption[1]).toLowerCase())return null;
   const act=items.find(item=>item.kind==='act').proposal;
-  if(act.paragraphs.filter(row=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&rawCell(row.text)===path[3]+' is amended as follows:').length!==1)return null;
+  const leads=act.paragraphs.filter(row=>rawCell(row.text)===path[3]+' is amended as follows:');
+  if(leads.length!==1||!leads[0].complete||leads[0].source?.complete!==true||leads[0].source.container!=='body')return null;
   return {inner:path[4],outer:path[1]};
 }
 function verifyAnnexTable({proposal,wording,placement,items}) {
@@ -247,8 +248,8 @@ function verifyAnnexTable({proposal,wording,placement,items}) {
   const before=rows.slice(0,starts[0]),headingAt=before.map(row=>!row.key&&/^ANNEX\s+[IVXLC]+$/u.test(row.cells[0])).lastIndexOf(true);
   if(headingAt<0||before[headingAt].cells[0]!=='ANNEX '+address[1])return {status:'unverified',reason:'oracle-annex-identity-unverified'};
   if(decoration){
-    const prefix=before.slice(headingAt+1).filter(row=>!row.key).map(row=>row.cells[0]),tableKey=run[1]?.key?.replace(/\/w:tr\[\d+\]$/u,'');
-    if(address[1]!==decoration.outer||run[0].key||!tableKey||run.slice(1).some(row=>!row.key||row.key.replace(/\/w:tr\[\d+\]$/u,'')!==tableKey||row.cells.length!==2)||prefix.filter(value=>value==='‘ANNEX '+decoration.inner).length!==1||prefix.filter(value=>value==='The following Annex '+decoration.inner+' is added:').length!==1)return {status:'unverified',reason:'oracle-table-caption-scope-unverified'};
+    const scopeRows=before.slice(headingAt).filter(row=>!row.key),prefix=scopeRows.slice(1).map(row=>row.cells[0]),tableKey=run[1]?.key?.replace(/\/w:tr\[\d+\]$/u,'');
+    if(scopeRows.some(row=>row.broken)||address[1]!==decoration.outer||run[0].key||!tableKey||run.slice(1).some(row=>!row.key||row.key.replace(/\/w:tr\[\d+\]$/u,'')!==tableKey||row.cells.length!==2)||prefix.filter(value=>value==='‘ANNEX '+decoration.inner).length!==1||prefix.filter(value=>value==='The following Annex '+decoration.inner+' is added:').length!==1)return {status:'unverified',reason:'oracle-table-caption-scope-unverified'};
   }
   // Subordinate addresses: only 'paragraph 1' (no other numbered paragraph
   // before the run) or 'point N' (nearest preceding numbered point is N).
