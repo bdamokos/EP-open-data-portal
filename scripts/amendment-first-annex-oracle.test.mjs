@@ -4,6 +4,7 @@ import {firstAnnexNative} from './fixtures/first-annex-native.mjs';
 test('first annex binds the complete native signature and separate financial statement',()=>{
  const input=firstAnnexNative();Object.defineProperty(input.proposal,'units',{get(){throw Error('Production hierarchy accessed');}});assert.equal(assertFirstAnnex(input).status,'verified');
  for(const target of ['Annex I - Indicators','Annex - Indicators','Annex'])assert.equal(assertFirstAnnex(firstAnnexNative({target})).status,'verified');
+ for(const label of ['Amendment1','AMENDMENT 1'])assert.equal(assertFirstAnnex(firstAnnexNative({amendmentChange:xml=>xml.replace('Amendment\t\t1',label)})).status,'verified');
 });
 test('first-annex boundary cannot shift or lose its complete native coordinates',()=>{
  for(const mutate of [x=>x.placement.insertBefore++,x=>x.placement.insertAfter--,x=>x.placement.itemIndex=1]){const input=firstAnnexNative();mutate(input);assert.equal(assertFirstAnnex(input)?.status,'failed');}

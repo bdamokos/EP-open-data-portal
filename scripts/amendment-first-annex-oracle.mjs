@@ -41,10 +41,10 @@ function annexPayload(wording) {
 }
 function comparison(bytes,wording,number) {
  const parts=quotedWordParts(bytes),tree=parse(parts.get('word/document.xml'));if(children(tree,'w:document').length!==1)return false;
- const body=quotedWordBody(bytes),head=row=>row.kind==='paragraph'&&/^Amendment\s+[1-9]\d*$/u.test(row.text.trim()),starts=body.flatMap((row,index)=>head(row)&&Number(row.text.match(/\d+$/u)[0])===number?[index]:[]);if(starts.length!==1)return false;
+ const body=quotedWordBody(bytes),head=row=>row.kind==='paragraph'&&/^Amendment\s*[1-9]\d*$/iu.test(row.text.trim()),starts=body.flatMap((row,index)=>head(row)&&Number(row.text.match(/\d+$/u)[0])===number?[index]:[]);if(starts.length!==1)return false;
  const start=starts[0],end=body.findIndex((row,index)=>index>start&&head(row)),block=body.slice(start,end<0?body.length:end),tables=block.filter(row=>row.kind==='other');
  if(tables.length!==1||!tables[0].nodes['w:tbl']||tables[0].hidden||!visible(parts,block.flatMap(row=>row.kind==='paragraph'?row.nodes:[row.nodes])))return false;
- const header=block.filter(row=>row.kind==='paragraph');if(header.some(row=>row.hidden||row.unsafe||row.numbered||!known(row.nodes))||header.filter(row=>row.text.trim()).map(row=>row.text.trim()).join('\n')!==`Amendment\t\t${number}\nProposal for a regulation\n${wording.targetLabel}`)return false;
+ const header=block.filter(row=>row.kind==='paragraph'),printed=header.filter(row=>row.text.trim());if(header.some(row=>row.hidden||row.unsafe||row.numbered||!known(row.nodes))||!head(printed[0])||printed.slice(1).map(row=>row.text.trim()).join('\n')!==`Proposal for a regulation\n${wording.targetLabel}`)return false;
  const table=tables[0].nodes['w:tbl'];if(!completeGrid(table)||children(table,'w:tblGrid').length!==1||children(children(table,'w:tblGrid')[0],'w:gridCol').length!==2)return false;
  const rows=children(table,'w:tr');if(rows.length!==3)return false;
  const cells=rows.map(row=>children(row,'w:tc'));
@@ -58,6 +58,7 @@ function comparison(bytes,wording,number) {
 export function assertFirstAnnex({proposal,items,wording,placement,nativeQuoted}) {
  if(!/^Annex(?: (?:1|I))?(?: \(new\))?(?: [–-] [^\n\t]+)?$/u.test(wording?.targetLabel||'')||wording.originalText!=='')return null;
  const unknown=()=>({status:'unverified',reason:'oracle-first-annex-unavailable'});
+ const classes=(wording.documentReferences||[]).filter(ref=>ref.field==='DocumentClass'&&ref.scope==='amendment');if(classes.length!==1||classes[0].raw!=='Proposal for a regulation')return unknown();
  if(!annexPayload(wording)||wording.targetPath?.underlying?.length||wording.targetPath?.proposal?.length&&(wording.targetPath.proposal.length!==1||wording.targetPath.proposal[0].raw!==wording.targetLabel)||items?.length!==1||items[0].kind!=='act'||proposal!==items[0].proposal||placement?.operation!=='insert'||!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash||!Buffer.isBuffer(nativeQuoted.amendmentBuffer)||nativeQuoted.number!==wording.number)return unknown();
  try {
   if(!comparison(nativeQuoted.amendmentBuffer,wording,nativeQuoted.number))return unknown();
