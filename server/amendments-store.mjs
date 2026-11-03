@@ -7,7 +7,7 @@ import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import {committeeAmendmentReference,committeeScopeKey} from './committee-amendments.mjs';
-import {copyGenerationRows} from './generation-copy.mjs';
+import {copyProjectedGenerationRows,updateGenerationRows} from './generation-copy.mjs';
 const parse=value=>JSON.parse(value);
 export const amendmentLinkIndexVersion=1;
 export const amendmentParserUpgradeKey='amendment:parser-upgrade';
@@ -20,7 +20,7 @@ export function invalidateAmendmentLinks(store,generation) {
   store.assertWriter();
   // Repeated overflow must seek only remaining markers, including any restored
   // by a source refresh, rather than reparsing every retained source body.
-  return store.db.prepare("UPDATE sources INDEXED BY amendment_link_invalidation SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND "+amendmentLinkInvalidationWhere).run(generation);
+  return updateGenerationRows(store.db,{table:'sources',key:'key',indexedBy:'amendment_link_invalidation',where:amendmentLinkInvalidationWhere,set:"body=json_remove(body,'$.amendmentLinksVersion')"},generation);
 }
 const wordingUpgradeGap='Amendment wording is unverified until the current document parser refreshes its source.';
 const proposerDateGap='The amendment proposer date is unavailable; author identities cannot be checked against a mandate.';
@@ -115,7 +115,7 @@ export function prepareCommitteeAmendmentIndexes(db) {
     db.exec('DELETE FROM '+destination);
     // A correlated subquery in FROM is not lateral in SQLite. Replay the same
     // trigger for each retained row rather than use a separate projection rule.
-    db.exec(`UPDATE ${table} SET body=body`);
+    for(const {generation} of db.prepare(`SELECT DISTINCT generation FROM ${table}`).all())updateGenerationRows(db,{table,key:'id',set:'body=body'},generation);
   }
   const documents=(row,from='')=>`SELECT ${row}.generation,replace(replace(CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END,'https://data.europarl.europa.eu/',''),'http://data.europarl.europa.eu/',''),${row}.key
     FROM ${from}json_each(${row}.body,'$.inverse_created_a_realization_of') ref WHERE ${row}.kind='document'
@@ -202,7 +202,7 @@ export function amendmentsCopy(db,generation,active) {
     db.prepare('INSERT OR IGNORE INTO amendment_dependency_bootstrap SELECT ?,stage,after_key,ready FROM amendment_dependency_bootstrap WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_member_current SELECT ?,target FROM amendment_member_current WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_member_pending SELECT ?,target FROM amendment_member_pending WHERE generation=?').run(generation,source);
-    copyGenerationRows(db,{table:'amendment_targets',key:'id',select:'INSERT OR IGNORE INTO amendment_targets SELECT ?,id,body FROM amendment_targets'},generation,source);
+    copyProjectedGenerationRows(db,{table:'amendment_targets',key:'id',select:'INSERT OR IGNORE INTO amendment_targets SELECT ?,id,body FROM amendment_targets'},generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_jobs SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM amendment_jobs WHERE generation=? AND done=0').run(generation,source);
   }
   db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run('amendmentSnapshotGeneration',JSON.stringify(generation));
