@@ -83,7 +83,7 @@ export class AdoptedCalibration {
     if(!decisions.length)return;
     const dates=[...new Set(decisions.map(d=>d.date?.slice(0,10)))];
     const works=this.sealed.works.filter(w=>(w.adopts??[]).some(v=>canonical(v)==='eli/dl/doc/'+row.targetDocumentId)&&dates.includes(w.document_date));
-    let observation=unknown(works.length?'ta-binding-ambiguous':'ta-binding-unavailable'),taId=null,ordinal=null,mode=null;
+    let observation=unknown(works.length?'ta-binding-ambiguous':'ta-binding-unavailable'),taId=null,ordinal=null,mode=null,headings=null;
     if(works.length===1) {
       taId=canonical(works[0].id).replace('eli/dl/doc/','');const body=this.sealed.bodies.get(taId+'_en.xml');
       if(body) {
@@ -91,19 +91,20 @@ export class AdoptedCalibration {
         const ta=this.parsed.get(taId),matches=ta.amendments.filter(a=>a.numbers.includes(Number(row.number)));
         mode=ta.hasList?'amendment-list':'consolidated';
         if(ta.hasList) {
-          if(matches.length===1){ordinal=matches[0].ordinal;observation=compareFinalPath({headings:matches[0].headings,placement,items,text,language:wording?.language});}
+          if(matches.length===1){ordinal=matches[0].ordinal;headings=matches[0].headings;observation=compareFinalPath({headings:matches[0].headings,placement,items,text,language:wording?.language});}
           else observation=unknown(matches.length?'am-number-ambiguous':'am-not-in-ta');
         }else observation=compareConsolidated({ta,wording,placement,text,language:wording?.language});
       }else observation=unknown('ta-xml-unavailable');
     }
     const coordinate=placement?.operation==='insert'?placement.insertBefore:placement?.span?.start;
-    this.rows.push({id:row.id,documentId:row.targetDocumentId,taId,ordinal,mode,placed:placement?.status==='placed',itemIndex:placement?.itemIndex??0,coordinate,...observation,order:unknown('order-not-comparable')});
+    const coordinateSpace=items?.length?items[placement?.itemIndex??0]?.source?.url:text?.sourceUrl;
+    this.rows.push({id:row.id,decisionIds:decisions.map(d=>d.id),decisionDates:dates,language:wording?.language??row.language,coordinateSpace:coordinateSpace??null,finalHeadings:headings,observedPlacement:placement,taSource:this.sealed.snapshot.inputs?.find(i=>i.file===taId+'_en.xml')??null,documentId:row.targetDocumentId,taId,ordinal,mode,placed:placement?.status==='placed',itemIndex:placement?.itemIndex??0,coordinate,...observation,order:unknown('order-not-comparable')});
   }
   report() {
     // Equal gaps do not establish runtime insertion order. Report them explicitly
     // instead of treating AM number or label suffix as the observed order.
     for(const row of this.rows.filter(r=>r.mode==='amendment-list'&&r.placed&&r.ordinal!==null&&Number.isInteger(r.coordinate))) {
-      const peers=this.rows.filter(p=>p!==row&&p.placed&&p.documentId===row.documentId&&p.taId===row.taId&&p.itemIndex===row.itemIndex&&p.ordinal!==null&&Number.isInteger(p.coordinate));
+      const peers=this.rows.filter(p=>p!==row&&p.placed&&p.documentId===row.documentId&&p.taId===row.taId&&p.itemIndex===row.itemIndex&&p.language===row.language&&p.coordinateSpace===row.coordinateSpace&&p.ordinal!==null&&Number.isInteger(p.coordinate));
       const inversion=peers.find(p=>(row.ordinal-p.ordinal)*(row.coordinate-p.coordinate)<0);
       row.order=inversion?result('disagree','document-order-inversion',{other:inversion.id}):peers.some(p=>p.coordinate===row.coordinate&&p.ordinal!==row.ordinal)?unknown('same-gap-order-not-exposed'):peers.length?result('agree','document-order'):unknown('no-comparable-peer');
     }

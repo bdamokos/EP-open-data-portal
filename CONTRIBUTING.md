@@ -85,3 +85,23 @@ Benchmark caches, snapshots and results stay outside Git and out of CI artifacts
 - Frozen replay records an absent exact request as `frozen-input-absent`, with URL, Accept and snapshot identity in affected rows and result diagnostics. These derived acquisition gaps never enter the sealed manifest or input cache. Listed inputs with corrupt bytes, missing files or invalid metadata still abort replay; unsealed acquisition is unchanged.
 
 **Agenda benchmark** (`npm run bench:agenda`) times agenda assembly. Capture once with `--fetch --api-base ORIGIN --cache-dir DIR --week latest`, then replay offline with `--latency zero|recorded` and compare with `--baseline FILE`.
+
+### Adopted-text calibration
+
+The optional `--adopted-text-snapshot DIRECTORY --request-cap 0` amendment replay
+writes a separate `adopted-calibration-*.json` report. It does not affect placement,
+verification, scores or the ratchet. Acquire a new sealed TA directory once with
+`node scripts/amendment-adopted-snapshot.mjs BENCHMARK.json NEW_DIRECTORY` outside
+Git. Acquisition reads public ODP adopted-text listings and their declared English
+XML manifestations sequentially, at least two seconds apart; a 429 pauses three
+minutes and stops. Replay verifies every input hash and makes no source requests.
+
+Binding requires the exact `adopts` document and adopted decision date. Amendment
+lists retain all explicitly named AM numbers, full finalized headings and native
+order. Structural checks compare those paths with observed placement coordinates;
+unsupported paths, amended-act mappings and unavailable languages are inconclusive.
+Order inversions are disagreements; shared-gap order is inconclusive until the
+pipeline exposes an explicit sequence. Consolidated texts require exact wording
+and both unchanged immediate neighbours. Negotiated positions are inconclusive.
+The report lists every disagreement on a placed row for maintainer review, without
+turning missing TA amendments into placement failures.
