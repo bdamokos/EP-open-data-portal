@@ -634,7 +634,17 @@ export function resolveAmendmentPlacement(text, options = {}) {
         let prefix=0;while(prefix<Math.min(value.length,originalKey.length)&&value[prefix]===originalKey[prefix])prefix++;
         return {similarity:characterSimilarity(value,originalKey,.93),prefix:prefix>=80&&prefix<Math.min(value.length,originalKey.length)?prefix/Math.min(value.length,originalKey.length):0};
       };
-      const own=score(sourceKey),others=units.filter(candidate=>candidate.kind===unit.kind&&candidate!==unit)
+      // The segmenter intentionally omits damaged labelled rows from placeable
+      // units. Keep their surviving wording as competing evidence nonetheless.
+      const topLabel=/^(?:[1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3}|[\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u;
+      const ownKind=unit.kind==='paragraph'?/^[1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3}[.)]\s+/u:/^[\p{Lu}]{1,3}[\p{Ll}]{0,3}[.)]\s+/u;
+      const damaged=rows.filter(row=>row.index>structure.start&&row.index<=structure.end&&!row.complete&&row.source.container==='body'&&ownKind.test(row.normal)).map(row=>{
+        let end=row.index;
+        while(end<structure.end&&end<row.index+29&&rows[end+1].source.container==='body'&&consecutive(rows[end],rows[end+1])
+          &&!topLabel.test(rows[end+1].normal)&&!units.some(candidate=>candidate.kind==='heading'&&candidate.start===end+1))end++;
+        return {start:row.index,end};
+      });
+      const own=score(sourceKey),others=[...units.filter(candidate=>candidate.kind===unit.kind&&candidate!==unit),...damaged]
         .map(candidate=>score(wordingNormal(text.paragraphs.slice(candidate.start,candidate.end+1).join(' '))));
       nearMatch=own.similarity>=.95&&others.every(other=>other.similarity<=own.similarity-.02&&other.prefix<.5)
         ||own.prefix>=.5&&others.every(other=>other.prefix<=own.prefix-.02&&other.similarity<.93);

@@ -68,3 +68,15 @@ test('a stronger near-exact competitor defeats a shared-opening candidate',()=>{
  assert.equal(resolveAmendmentPlacement(text,amendment).status,'unresolved');
  assert.equal(verifyPlacement({placement:{status:'placed',operation:'replace',span:{start:2,end:2}},wording:amendment,text}).status,'failed');
 });
+
+test('a nonadjacent incomplete labelled competitor still blocks tolerant placement',()=>{
+ const example=JSON.parse(readFileSync(new URL('./fixtures/resolution-near-matches.json',import.meta.url)))[0];
+ const original=example.originalText.replace(/^7\.\s*/u,'');
+ const text=source(['The European Parliament,','1. '+example.source[1].replace(/^7\.\s*/u,''),'2. Unrelated provision;','3. '+original.replace('Stresses','stresses'),'4. Closing provision;']);
+ text.paragraphSources[3].complete=false;
+ const amendment={...wording,targetLabel:'Paragraph 1',originalText:original};
+ const placement=resolveAmendmentPlacement(text,amendment);
+ assert.equal(placement.status,'unresolved');assert.equal(placement.reason,'conflicting_target_evidence');
+ text.paragraphSources[3].complete=true;
+ assert.equal(resolveAmendmentPlacement(text,amendment).status,'unresolved');
+});
