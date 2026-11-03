@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Zoek een onderwerp",
   "topics.plenaryMode": "Onderwerpen",
   "topics.findPlace": "Zoek een plaats",
-  "topics.geopolitics": "Geopolitiek"
+  "topics.geopolitics": "Geopolitiek",
+  "topics.story.map.outside": "Ook in de plenaire vergadering: {speakers}.",
+  "topics.story.map.outside.eu": "Toespraken in de plenaire vergadering uit Europa en de buurlanden: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} sprak de plenaire vergadering toe ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

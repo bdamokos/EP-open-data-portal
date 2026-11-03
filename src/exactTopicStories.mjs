@@ -90,8 +90,17 @@ export function buildExactTopicStories(payload,s={}){
 
  if(!period&&s.place){const best=Math.max(0,...payload.periodCounts.map(p=>p.debateSpeakerAppearances)),peaks=payload.periodCounts.filter(p=>best>0&&p.debateSpeakerAppearances===best);if(peaks.length)add('place.summary.peak',{quarter:peaks.map(p=>ref(monthRangeLabel(p.period,s.language),[],{period:p.period}))},4);}
  if(period&&busy.length){const procedures=new Set(busy.flatMap(d=>d.procedures||[])),press=[...new Map([...procedures].flatMap(p=>f.press?.[p]||[]).map(p=>[p.id,p])).values()];if(press.length)add('press',{title:ref(press[0].title,[{...press[0],kind:'press'}],{italic:true,titleLanguage:'en'})},6);}
+ // Outside appearances are complete enumeration, independent of the four-line
+ // statistical story budget. One name represents all of that person's addresses.
+ const outside=(payload.outsideSpeakers||[]).filter(a=>(!period||a.date.slice(0,4)+'-Q'+Math.ceil(Number(a.date.slice(5,7))/3)===period)&&(!s.place||a.country===s.place)&&(s.place||s.zoom!=='eu'||inView(a.country))).sort(byDate);
+ const outsideLines=[];
+ const address=a=>({id:a.debateId,kind:'debate',title:a.name,date:a.date});
+ if(!s.topic&&outside.length){
+  if(s.place){for(const a of outside)outsideLines.push({id:'topics.story.place.outside',values:{place:name(a.country,true),speaker:ref(a.name,[address(a)],{claimId:a.personId}),date:new Intl.DateTimeFormat(s.language==='en'?'en-GB':s.language,{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(a.date+'T12:00:00Z'))},priority:1,order:7,cost:1});}
+  else if(period){const people=new Map();for(const a of outside){const key=a.personId+':'+a.country;if(!people.has(key))people.set(key,[]);people.get(key).push(a);}outsideLines.push({id:'topics.story.map.outside',values:{speakers:[...people.values()].map(as=>msg('outside.speaker',{speaker:ref(as[0].name,as.map(address),{claimId:as[0].personId}),place:name(as[0].country)}))},priority:1,order:7,cost:1});}
+ }
  const kept=lines.sort((a,b)=>a.priority-b.priority).slice(0,4).sort((a,b)=>a.order-b.order);
- const claimed=storyLinkClaims(kept.flatMap(l=>{if(!l.finalize)return [l];const r=l.finalize(kept.filter(x=>x!==l));return r?[{...l,...r,finalize:undefined}]:[];}).map(({finalize,narrates,...l})=>l),s);
+ const claimed=storyLinkClaims([...kept,...outsideLines].flatMap(l=>{if(!l.finalize)return [l];const r=l.finalize(kept.filter(x=>x!==l));return r?[{...l,...r,finalize:undefined}]:[];}).map(({finalize,narrates,...l})=>l),s);
  const scope=s.place?'place:'+s.place:s.topic?'topic:'+s.topic:'map';
  const vary=v=>v==null||typeof v!=='object'?v:Array.isArray(v)?v.map(vary):'text'in v?{...v,text:vary(v.text)}:!v.message?v:{...v,message:storyVariant(v.message,period,scope,has),values:Object.fromEntries(Object.entries(v.values).map(([k,x])=>[k,vary(x)]))};
  // On the Europe map, the first sentence names the scope; its leading words then continue a sentence.
