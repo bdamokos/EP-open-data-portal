@@ -350,10 +350,6 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
     const body=resultsHeading.current?.closest(".explorer-profile-body");
     if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else resultsHeading.current?.scrollIntoView({block:"start"});
   },[category,categoriesOpen,offset]);
-  useEffect(()=>{
-    if(state.data?.cache.complete || open)return;
-    const timer=window.setInterval(state.retry,30_000);return ()=>window.clearInterval(timer);
-  },[state.data?.cache.complete,open,state.retry]);
   const choose=(value:string)=>{moveToResults.current=true;setCategoriesOpen(false);onCategory(value);onOffset(0);onOpen(null);};
   const coverage=category ? page?.categoryCoverage[category] : null;
   const selectedLabel=category ? (page?.categories[category] || category) : ui.t("app.all_activities");
@@ -448,10 +444,6 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     return()=>{document.removeEventListener('focusin',cancel);speechOrigin.current=null;};
   },[id,initialSpeech]);
   const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`);
-  useEffect(()=>{
-    if(!state.data || state.data.cache.complete || initialSpeech)return;
-    const timer=window.setInterval(state.retry,30_000);return ()=>window.clearInterval(timer);
-  },[state.data?.cache.complete,initialSpeech,state.retry]);
   const pinned=useData<JoinedActivityPage>(((initialSpeech && state.data) && (!state.data.items.some(item=>item.sourceId===initialSpeech))) ? (`latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}`) : null);
   useEffect(()=>{setOffset(0);setSpeechLanguage(null);},[id,lang]);
   useEffect(()=>{setEnrichedSpeeches([]);},[id]);

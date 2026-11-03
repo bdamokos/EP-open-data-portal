@@ -3,7 +3,7 @@ export const RETRY_DELAYS = [5000,15000,45000,120000,300000,300000];
 export function retryable(error) {
   if (!error || error.name === 'AbortError') return false;
   if (typeof error.status === 'number') return [408,425,429,500,502,503,504].includes(error.status);
-  return error instanceof TypeError || error.name === 'TimeoutError' || error.code === 'request_timeout' || error.uiMessageId === 'batch6.client.the.request.took.too.long.try.again.43';
+  return error instanceof TypeError || error.name === 'TypeError' || error.name === 'TimeoutError' || error.code === 'request_timeout' || error.uiMessageId === 'batch6.client.the.request.took.too.long.try.again.43';
 }
 export function retryDelay(attempt,retryAt=0,now=Date.now(),random=Math.random()) {
   return Math.max(0,Math.min(300000,RETRY_DELAYS[Math.min(attempt,5)]*(0.95+random*0.1)),retryAt-now);
@@ -14,7 +14,7 @@ export function retryableGap(data) {
   if (!data || typeof data !== 'object') return false;
   if (Array.isArray(data)) return data.some(retryableGap);
   if (data.retryable === false) return false;
-  if (data.ready === false || data.pending === true || data.sourceError === true || data.agendaError || data.issues?.includes?.('source-unavailable')) return true;
+  if (data.cache?.complete === false || data.ready === false || data.pending === true || data.sourceError === true || data.agendaError || data.issues?.includes?.('source-unavailable')) return true;
   if (data.retryable === true || data.stale === true || data.refreshError || data.status === 'error' && data.nextRetryAt) return true;
   if (data.status === 'unavailable' && data.retryAt) return true;
   return ['document','selectedText','text','textCache','source','sources','coverage','fallback','references','debates'].some(key=>retryableGap(data[key]));

@@ -162,7 +162,6 @@ export function OutsideVoices({language='en',...props}:InsightProps) {
   },[person,detail.data,panel]);
   useEffect(()=>{if(!panel&&panelReturn.current){panelReturn.current=false;restoreOpener(opener.current);}},[panel]);
   const activeData=panel ? panelData : (person ? detail : directory);
-  useEffect(()=>{if(activeData.error||activeData.data&&(activeData.data.coverage.complete||!activeData.data.coverage.pending))return;const timer=setInterval(activeData.retry,15000);return()=>clearInterval(timer);},[activeData.error,activeData.data?.coverage.complete,activeData.data?.coverage.pending,activeData.retry]);
   useEffect(()=>{if(!panel)return;close.current?.focus();const key=(event:KeyboardEvent)=>{if(event.key==='Escape'){if([...drawer.current?.querySelectorAll<HTMLElement>('.legal-reference-card')||[]].some(availableFocusTarget))return;event.preventDefault();closePanel();}if(event.key==='Tab'&&drawer.current){const focusable=drawerFocusables(drawer.current);const first=focusable[0],last=focusable.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}};document.addEventListener('keydown',key);return()=>document.removeEventListener('keydown',key);},[panel]);
   useEffect(()=>{
     if(!panel||panelReveal.current!==panel||!panel.target||panelData.data?.person.id!==panel.id)return;

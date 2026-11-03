@@ -208,11 +208,6 @@ const heading = headingProp ?? ui.t("amendments.amendment_trail.83497e");
   const state=useData<AmendmentPage>(amendmentRoute({scope,list,committee,document,procedure,member,outcome,offset,limit,language}));
   const committees=[...new Set([...(committee ? ([committee]) : ([])),...(state.data?.items||[]).flatMap(item=>item.committees?.map(c=>c.code)||[])])].filter(validCommitteeCode).sort();
   const groups=useMemo(()=>amendmentGroups(state.data?.items||[],groupBy, ui),[state.data,groupBy]);
-  useEffect(()=>{
-    if(!state.data?.coverage.pending)return;
-    const timer=window.setInterval(state.retry,10_000);
-    return ()=>window.clearInterval(timer);
-  },[state.data?.coverage.pending,state.retry]);
   useEffect(()=>{if(controlledOffset===undefined)setLocalOffset(0);},[scope,list,committee,document,procedure,member,language,controlledOffset]);
   function page(value:number){onOffset ? onOffset(value) : setLocalOffset(value);headingRef.current?.focus({preventScroll:true});headingRef.current?.scrollIntoView({block:'start',behavior:'instant'});}
   function filter(value:string){onOutcome ? onOutcome(value) : setLocalOutcome(value);onOffset ? onOffset(0) : setLocalOffset(0);}

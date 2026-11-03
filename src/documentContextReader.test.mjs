@@ -428,9 +428,9 @@ for(const [name,selected] of [
 test('a failed adopted lookup offers retry without claiming that the selected text is unavailable',async t=>{
   const h=await harness(t,()=>Response.json({error:{message:'This data request took too long.'}},{status:503}));
   await h.render({request:{documentId:original,view:'adopted',onBack:()=>{}},language:'en',selectedDocumentId:adopted});
-  assert(h.container.textContent.includes('Linked texts could not be loaded.'));
+  assert(h.container.textContent.includes('Loading linked texts…'));
   assert(!h.container.textContent.includes('This adopted text is unavailable here.'));
-  assert.equal(h.container.querySelectorAll('.document-context-notice button').length,1);
+  assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
 });
 

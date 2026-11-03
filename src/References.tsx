@@ -112,7 +112,7 @@ export function ReferenceScope({texts,language,textLanguage=null,children,render
   const scope=useMemo(()=>({references,noteKeys,notePrefix,textLanguage,open,show,hoverEnd,cardId}),[references,noteKeys,notePrefix,textLanguage,open,show,hoverEnd,cardId]);
   return <ReferenceScopeContext.Provider value={scope}><div className="legal-reference-scope" ref={wrapper} role="group" aria-label={ui.t("batch6.references.document.text.and.references.103")} tabIndex={-1}>
     {children}
-    {lookup.unavailable&&<p lang={ui.language} className="legal-reference-retry" role="status"><UiMessage id="batch6.references.reference.details.are.temporarily.unavailable.105"/> </p>}
+    {lookup.unavailable&&!lookup.retrying&&<p lang={ui.language} className="legal-reference-retry" role="status"><UiMessage id="batch6.references.reference.details.are.temporarily.unavailable.105"/> </p>}
     {open&&reference&&position&&<div ref={card} id={cardId} className="legal-reference-card" lang={open.trigger.closest('[lang]')?.getAttribute('lang')??''} role="dialog" aria-label={open.text} tabIndex={-1} style={position}
       onPointerDownCapture={keepOpen} onFocusCapture={keepOpen}
       onPointerEnter={()=>window.clearTimeout(timer.current)} onPointerLeave={event=>{if(event.pointerType==='mouse')hoverEnd();}}>
