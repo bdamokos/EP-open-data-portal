@@ -19,20 +19,27 @@ export function decisionVotesQuery(id,search,options) {
 
 // Uses the member reader's bounded, shared sitting snapshot; no source writer.
 export async function decisionVotes(query,{reader=memberVotes,store=null}={}) {
-  const snapshot=await reader.snapshot(query);requestSignal()?.throwIfAborted();
+  const snapshot=await reader.snapshot(query);return projectDecisionVotes(query,snapshot,{store});
+}
+// Freeze one group-history generation and one evidence graph for the read.
+export function decisionVotesContext(day,store,{derived=null}={}) {
+  const generation=store?.status().servingGeneration||null;
+  const history=generation?groupHistorySnapshot(store,generation):null;
+  return {derived:derived||deriveVoteEvidence(day,{includeBindingEvidence:true}),generation,history,groupOn:createGroupOn(history),decisions:new Map(day.decisions.map(d=>[d.activity_id,d]))};
+}
+export function projectDecisionVotes(query,snapshot,{store=null,context=null}={}) {
+  requestSignal()?.throwIfAborted();
   const day=snapshot.days.find(day=>day.sittingId===query.sitting);
-  const raw=day?.decisions.find(raw=>raw.activity_id===query.decision);
+  const raw=context?context.decisions.get(query.decision):day?.decisions.find(raw=>raw.activity_id===query.decision);
   const base={version:DECISION_VOTES_VERSION,decisionId:query.decision,sittingId:query.sitting,snapshotId:snapshot.id,coverage:snapshot.coverage.status};
   if(!raw)return {...base,status:'unavailable',decision:null,voters:[],integrity:'unavailable',groupHistory:null};
   // The shared projection requires a person ID; only its decision-wide fields
   // are used below. Named positions come from voterGroups, not this placeholder.
-  const vote=projectMemberDecision(raw,day,'1',query.language,deriveVoteEvidence(day,{includeBindingEvidence:true})),actual=voterGroups(raw,'had_voter_');
+  context ||= decisionVotesContext(day,store);
+  const {generation,history,groupOn}=context;
+  const vote=projectMemberDecision(raw,day,'1',query.language,context.derived),actual=voterGroups(raw,'had_voter_');
   const tallyMismatch=vote.namedVoters.available&&['for','against','abstaining'].some(position=>vote.totals[position]!==null&&vote.totals[position]!==vote.namedVoters.counts?.[position]);
   const integrity=vote.sourceConflicts||decisionVoteBindingConflict(vote)?'conflicting':!vote.namedVoters.available?'unavailable':vote.namedVoters.malformedReferences||vote.namedVoters.conflictingPersonIds.length||(tallyMismatch||vote.namedVoters.totalsMatch===false)?'partial':'complete';
-  // Capture one frozen generation after the asynchronous vote read. No later
-  // publication can mix group identities within this response.
-  const generation=store?.status().servingGeneration||null;
-  const history=generation?groupHistorySnapshot(store,generation):null,groupOn=createGroupOn(history);
   const voters=vote.namedVoters.available&&integrity!=='conflicting'?[...actual.byPerson].sort(([a],[b])=>Number(a)-Number(b)).map(([personId,positions])=>{
     const group=groupOn(personId,vote.date),person=history?.members[personId];
     return {personId,position:positions.length===1?positions[0]:null,status:positions.length===1?'recorded':'conflicting',group:typeof group==='object'?group:null,
