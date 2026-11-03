@@ -2503,5 +2503,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Puheenvuorot kuukausittain",
   "groupvoices.contributions_by_sitting_day.77a719": "Puheenvuorot istuntopäivittäin",
   "membervotespresentation.votes_not_yet_published": "Äänestyksiä ei ole vielä julkaistu",
-  "membervotespresentation.votes_start_at": "Äänestykset alkavat klo {time}"
+  "membervotespresentation.votes_start_at": "Äänestykset alkavat klo {time}",
+  "topics.geopolitics": "Geopolitiikka",
+  "topics.plenaryMode": "Aiheet",
+  "topics.findPlace": "Etsi paikka",
+  "topics.findTopic": "Etsi aihe"
 }
