@@ -1,3 +1,5 @@
+import {useAutomaticRetry} from './useAutomaticRetry';
+import {useSavedReadState,useSavedRecovery} from './SavedControls';
 import {PolicyAreaSourcesPage} from './PolicyAreaSources';
 import {FollowedTopics,useTopics} from './TopicFollowing';
 import {uiErrorText} from './uiErrors.mjs';
@@ -33,8 +35,9 @@ function savedCheckMessage(items:SavedItem[],data:SavedStates, ui: import('./uiI
 export type FollowingActivityProps={member:number;sourceId:string;profileHref:string;onOpenProfile:()=>void};
 type SavedProps={members?:Directory['members'];language:string;onBack:()=>void;onMember:(id:number,sourceId?:string)=>void;renderActivity:(props:FollowingActivityProps)=>ReactNode};
 const entryKey=(entry:FollowEntry)=>entry.kind+':'+entry.id;
-function FollowCard({item,directoryMember,language,onMember,renderActivity,now,resolution,retry,checkState,check}:{item:SavedItem;directoryMember?:Directory['members'][number];now:number;resolution:{pending?:boolean;error?:string};retry:()=>void;checkState:string;check:()=>void}&Pick<SavedProps,'language'|'onMember'|'renderActivity'>) {
+function FollowCard({item,directoryMember,language,onMember,renderActivity,now,resolution,retry,checkState,check}:{item:SavedItem;directoryMember?:Directory['members'][number];now:number;resolution:{pending?:boolean;error?:string;failure?:unknown};retry:()=>void;checkState:string;check:()=>void}&Pick<SavedProps,'language'|'onMember'|'renderActivity'>) {
   const ui = useUiI18n();
+  const retrying=useAutomaticRetry(JSON.stringify([language,item.kind,item.id,item.savedAt]),resolution.failure,Boolean(resolution.pending),retry);
   const groups=useGroups(),groupsNew=(item.kind==='mep') ? groupEntries(groups,item.id,now).fresh.length : 0;
   const membership=useMembership(),membershipNew=(item.kind==='mep') ? membershipEntries(membership,item.id,now).fresh.length : 0;
   const key=savedKey(item),{fresh,history,historyOmitted}=followEntries(item,now),hasNew=itemHasNew(item,now)||membershipNew>0||groupsNew>0;
@@ -61,7 +64,7 @@ function FollowCard({item,directoryMember,language,onMember,renderActivity,now,r
   };
   return <article>
     <div className="explorer-saved-heading">{(item.kind==='mep') ? <><Portrait member={{id:Number(item.id),firstName:'',lastName:'',sortName:'',gender:'m',countryCode:null,imageUrl:`${API_ROOT}/portrait/${item.id}`}}/><div className="explorer-saved-member-heading"><h3 lang={item.titleLanguage||''}>{item.title}</h3><MemberAffiliation group={directoryMember?.groupCode} country={directoryMember?.countryCode} language={language}/></div></> : <h3 lang={item.titleLanguage||''}>{item.title}</h3>}<SaveButton item={item} language={language} compact/></div>
-    <div className="explorer-saved-state">{(item.unresolved?.activity||item.unresolved?.answer) ? (resolution.error ? <p role="alert"><UiMessage id="Saved.activityError" values={{error:resolution.error}}/> </p> : <strong className="explorer-update-label"><UiMessage id="Saved.checking_for_new_activity"/></strong>) : (hasNew&&<strong className="explorer-update-label">{((((fresh.length===1) && (membershipNew===0)) && (groupsNew===0)) && (fresh[0].kind==='answer')) ? ui.t("Saved.new_answer") : ((fresh.length+membershipNew+groupsNew) ? ui.t("dossierCard.state.1", {count: String((fresh.length+membershipNew+groupsNew+omitted))}) : (item.legacyUpdated ? ui.t("Saved.updated_before_the_upgrade") : ui.t("Saved.question_details_changed")))}</strong>)}
+    <div className="explorer-saved-state">{(item.unresolved?.activity||item.unresolved?.answer) ? (resolution.error&&!retrying ? <p role="alert"><UiMessage id="Saved.activityError" values={{error:resolution.error}}/> </p> : <strong className="explorer-update-label"><UiMessage id="Saved.checking_for_new_activity"/></strong>) : (hasNew&&<strong className="explorer-update-label">{((((fresh.length===1) && (membershipNew===0)) && (groupsNew===0)) && (fresh[0].kind==='answer')) ? ui.t("Saved.new_answer") : ((fresh.length+membershipNew+groupsNew) ? ui.t("dossierCard.state.1", {count: String((fresh.length+membershipNew+groupsNew+omitted))}) : (item.legacyUpdated ? ui.t("Saved.updated_before_the_upgrade") : ui.t("Saved.question_details_changed")))}</strong>)}
     {!hasNew&&checkState==='available'&&!item.legacy&&<p>{(item.availability==='available') ? ui.t("dossierCard.state.3") : (item.checkedAt ? ui.t("Saved.update_information_is_unavailable") : '')}</p>}
     </div>
     {item.availability==='outside-roster'&&membership.members[item.id]?.status!=='former'&&<p><UiMessage id="Saved.no_longer_on_the_current_roster"/></p>}
@@ -78,7 +81,8 @@ function FollowCard({item,directoryMember,language,onMember,renderActivity,now,r
   </article>;
 }
 export function Saved({members,language,onBack,onMember,renderActivity}:SavedProps) {
-  const topicFollows=useTopics();
+  useSavedRecovery(language);
+  const topicFollows=useTopics(),readState=useSavedReadState(),recovering=readState.loading||readState.retrying;
   const ui = useUiI18n();
   const membersById=useMemo(()=>new Map(members?.map(member=>[String(member.id),member])),[members]);
   useDossierChecks();
@@ -123,11 +127,11 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
     {items.some(item=>item.kind==='mep')&&<GroupUpdateStatus retry={check}/>}
     {membership.storageError&&<p role="alert"><UiMessage id="Saved.membership_updates_could_not_be_saved_in_this_browser"/> </p>}
     {items.some(item=>item.kind==='mep')&&membershipCheck==='unavailable'&&<p className="explorer-membership-status"><UiMessage id="Saved.some_membership_updates_are_unavailable"/></p>}
-    {items.some(item=>item.kind==='mep')&&membershipCheck==='error'&&<p className="explorer-membership-status" role="alert"><UiMessage id="Saved.couldn_t_check_membership_updates"/> </p>}
+    {items.some(item=>item.kind==='mep')&&membershipCheck==='error'&&!recovering&&<p className="explorer-membership-status" role="alert"><UiMessage id="Saved.couldn_t_check_membership_updates"/> </p>}
     {items.some(item=>item.kind==='mep')&&saved.checkState==='unavailable'&&<p><UiMessage id="Saved.update_checks_are_not_available_yet_for_meps"/> </p>}
-    {items.some(item=>item.kind==='mep')&&saved.checkState==='error'&&<p><UiMessage id="Saved.couldn_t_check_for_mep_updates"/> </p>}
-    {items.some(item=>item.kind==='question')&&saved.questionCheckState==='error'&&<p><UiMessage id="Saved.couldn_t_check_for_question_answers"/> </p>}
-    {error&&membershipCheck!=='error'&&<p>{error}</p>}
+    {items.some(item=>item.kind==='mep')&&saved.checkState==='error'&&!recovering&&<p><UiMessage id="Saved.couldn_t_check_for_mep_updates"/> </p>}
+    {items.some(item=>item.kind==='question')&&saved.questionCheckState==='error'&&!recovering&&<p><UiMessage id="Saved.couldn_t_check_for_question_answers"/> </p>}
+    {error&&!recovering&&membershipCheck!=='error'&&<p>{error}</p>}
     {!dossiers.persistent&&dossiers.items.length>0&&<p><UiMessage id="Saved.dossier_follows_last_only_for_this_tab"/></p>}
     {dossiers.storageError&&<p role="alert"><UiMessage id="Saved.dossier_changes_couldn_t_be_saved_in_this_browser"/> </p>}
     {!items.length&&!dossiers.items.length&&!topicFollows.length&&<p><UiMessage id="Saved.follow_a_mep_or_dossier_or_save_a_question_to_see_updates_here"/></p>}

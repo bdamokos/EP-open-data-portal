@@ -305,7 +305,7 @@ export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpen
     {state.loading&&!selected&&<p role="status"><UiMessage id="insightshared.loading"/></p>}
     {state.error&&<ErrorView message={state.error} retry={state.retry}/>}
     {selected ? <JoinedDetails key={`${scope}:${selected.id}`} item={selected} member={Number(member)} lang={lang} motionQuery={motionQuery} onMotionChange={onMotionChange} showDownloads={showDownloads}/> : (!state.loading&&state.data&&<LinkedActivityFallback key={scope} sourceId={sourceId} member={Number(member)} lang={lang} complete={state.data.cache.complete} showDownloads={showDownloads}/>)}
-    {!selected&&!state.loading&&<p><a href={profileHref} onClick={event=>{
+    {!selected&&(!state.loading||state.retrying)&&<p><a href={profileHref} onClick={event=>{
       if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
       event.preventDefault();onOpenProfile();
     }}><UiMessage id="app.open_in_profile"/></a></p>}

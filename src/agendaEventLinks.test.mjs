@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test,{after} from 'node:test';
 import assert from 'node:assert/strict';
 import {Window} from 'happy-dom';
@@ -13,7 +14,7 @@ async function harness(t,component,query,respond){
  t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const[k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  t.mock.method(globalThis,'fetch',async input=>{const result=respond(new URL(input,location.href));return result instanceof Response?result:Response.json(result);});
  if(!load)load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
- const Component=(await load('/src/'+component+'.tsx'))[component],{createRoot}=await import('react-dom/client');const node=document.createElement('div');document.body.append(node);root=createRoot(node);
+ const Component=(await load('/src/'+component+'.tsx'))[component],{createRoot}=await import('react-dom/client');const node=document.createElement('div');document.body.append(node);installRetryClock(t);root=createRoot(node);
  await act(async()=>root.render(createElement(Component,{language:'en',members:[],onBack(){}})));return node;
 }
 for(const mode of ['joint','topical','vote'])test('actual '+mode+' topic has a matching agenda selection and exact scheduled highlights',async t=>{

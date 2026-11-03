@@ -1,3 +1,4 @@
+import {useAutomaticRetry} from './useAutomaticRetry';
 import {uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
@@ -11,14 +12,15 @@ export const dossierStore=createDossiersStore(storage,()=>listeners.forEach(list
 export const subscribeDossiers=(callback:()=>void)=>{listeners.add(callback);return()=>{listeners.delete(callback);};};
 export function useDossiers(){return useSyncExternalStore(subscribeDossiers,dossierStore.snapshot);}
 window.addEventListener('storage',event=>{if(event.key===DOSSIERS_KEY||event.key===null)dossierStore.reload();});
-let checking=false;
+let checking=false,failure:unknown=null,recovering=false;
+export function useDossierRecovering(){return useSyncExternalStore(callback=>{checkListeners.add(callback);return()=>{checkListeners.delete(callback);};},()=>recovering);}
 const checkListeners=new Set<()=>void>();
 const setChecking=(value:boolean)=>{checking=value;checkListeners.forEach(listener=>listener());};
 export function useDossierChecking(){return useSyncExternalStore(callback=>{checkListeners.add(callback);return()=>{checkListeners.delete(callback);};},()=>checking);}
 const due=(item:FollowedDossier)=>!item.lastAttempt||item.lastAttempt+6*3600_000<Date.now();
 async function runDossierChecks({force=false,signal,only}:{force?:boolean;signal?:AbortSignal;only?:string}={}, ui: import('./uiI18n.mjs').UiFormatter = defaultUi) {
   const items=dossierStore.snapshot().items.filter(item=>!only||item.id===only);if(!items.length)return;
-  setChecking(true);
+  failure=null;setChecking(true);
   try {
     const indexKey=items.map(item=>item.id+':'+item.savedAt).join(',');
     if(force||indexKey!==lastIndexKey||Date.now()-lastIndexAt>=60_000)try {
@@ -29,13 +31,13 @@ async function runDossierChecks({force=false,signal,only}:{force?:boolean;signal
       if(data.epoch!==status.epoch||data.generation!==status.generation)throw Error(ui.t('savedcontrols.data.was.updated.try.again'));
       if(!publicAmendmentsEnabled)for(const row of data.items||[])row.entries=row.entries?.filter((entry:{eventKind:string})=>entry.eventKind!=='amendment-list');
       if(!signal?.aborted&&dossierStore.observeIndex(data,items)){lastIndexKey=indexKey;lastIndexAt=Date.now();}
-    }catch{if(!signal?.aborted)items.forEach(item=>dossierStore.unavailable(item.id,item,'index'));}
+    }catch(error){failure??=error;if(!signal?.aborted)items.forEach(item=>dossierStore.unavailable(item.id,item,'index'));}
     for(const item of items.filter(item=>force||due(item)).sort((a,b)=>(a.lastAttempt||0)-(b.lastAttempt||0)).slice(0,5)) {
       if(signal?.aborted)break;
       const params=new URLSearchParams({reference:item.id,lang:'en'});
       await Promise.all([
-        api<any>('insights/procedure-progress?'+params,signal, undefined, ui).then(data=>{if(!signal?.aborted)dossierStore.observeProgress(item.id,data,item);},()=>{if(!signal?.aborted)dossierStore.unavailable(item.id,item,'progress');}),
-        api<any>('insights/press-releases?'+params+'&following=1',signal, undefined, ui).then(data=>{if(!signal?.aborted)dossierStore.observePress(item.id,data,item);},()=>{if(!signal?.aborted){dossierStore.unavailable(item.id,item,'press');dossierStore.unavailable(item.id,item,'oeil');}}),
+        api<any>('insights/procedure-progress?'+params,signal, undefined, ui).then(data=>{if(!signal?.aborted)dossierStore.observeProgress(item.id,data,item);},error=>{failure??=error;if(!signal?.aborted)dossierStore.unavailable(item.id,item,'progress');}),
+        api<any>('insights/press-releases?'+params+'&following=1',signal, undefined, ui).then(data=>{if(!signal?.aborted)dossierStore.observePress(item.id,data,item);},error=>{failure??=error;if(!signal?.aborted){dossierStore.unavailable(item.id,item,'press');dossierStore.unavailable(item.id,item,'oeil');}}),
       ]);
       if(!signal?.aborted)dossierStore.finishCheck(item.id,item);
     }
@@ -52,8 +54,11 @@ export function checkDossiers(options:{force?:boolean;signal?:AbortSignal;only?:
 export function useDossierChecks() {
   const ui = useUiI18n();
   const {items}=useDossiers(),key=items.map(item=>item.id+':'+item.savedAt).join(',');
+  const checking=useDossierChecking(),controller=useRef<AbortController|null>(null);
+  const retrying=useAutomaticRetry(key||null,failure,checking,()=>{void checkDossiers({force:true,signal:controller.current?.signal},ui);});
+  useEffect(()=>{if(recovering!==retrying){recovering=retrying;checkListeners.forEach(listener=>listener());}},[retrying]);
   useEffect(()=>{
-    const current=new AbortController();
+    const current=new AbortController();controller.current=current;
     void checkDossiers({signal:current.signal});
     const check=()=>{if(document.visibilityState==='visible')void checkDossiers({signal:current.signal}, ui);};
     window.addEventListener('focus',check);document.addEventListener('visibilitychange',check);

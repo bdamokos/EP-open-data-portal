@@ -1,6 +1,30 @@
 import {useEffect,useRef,useState} from 'react';
 import {retryable,retryDelay,RETRY_DELAYS} from './automaticRetry.mjs';
 
+// Readers for the same route share a deadline and wake in one synchronous batch.
+// Their effects then join the data client's existing pending request. Waiting for
+// the latest deadline honours every subscriber's Retry-After and jitter.
+type RetryGroup={entries:Map<object,{due:number;run:()=>void}>;timer?:ReturnType<typeof setTimeout>};
+const groups=new Map<string,RetryGroup>();
+function scheduleRetry(key:string,due:number,run:()=>void) {
+  let group=groups.get(key);
+  if(!group){group={entries:new Map()};groups.set(key,group);}
+  const current=group,token={};current.entries.set(token,{due,run});
+  const arm=()=>{
+    clearTimeout(current.timer);current.timer=undefined;
+    if(!current.entries.size){if(groups.get(key)===current)groups.delete(key);return;}
+    if(document.visibilityState==='hidden')return;
+    current.timer=setTimeout(()=>{
+      current.timer=undefined;
+      const callbacks=[...current.entries.values()];current.entries.clear();
+      if(groups.get(key)===current)groups.delete(key);
+      for(const callback of callbacks)callback.run();
+    },Math.max(0,Math.ceil(Math.max(...[...current.entries.values()].map(entry=>entry.due))-Date.now())));
+  };
+  arm();
+  return ()=>{current.entries.delete(token);arm();};
+}
+
 /** Retain error metadata until the next result so status and Retry-After survive translation. */
 export function useAutomaticRetry(key:string|null,error:unknown,loading:boolean,retry:()=>void,gap=false,retryAt=0) {
   const episode=useRef({key,attempt:0,due:0,waiting:false});
@@ -9,15 +33,15 @@ export function useAutomaticRetry(key:string|null,error:unknown,loading:boolean,
   useEffect(()=>{
     if(episode.current.key!==key)episode.current={key,attempt:0,due:0,waiting:false};
     const current=episode.current;
-    let timer:ReturnType<typeof setTimeout>|undefined;
+    let cancelTimer:(()=>void)|undefined;
     const failed=error ? retryable(error) : gap;
-    const clear=()=>{clearTimeout(timer);timer=undefined;};
+    const clear=()=>{cancelTimer?.();cancelTimer=undefined;};
     const run=()=>{
       clear();
       if(!current.waiting)return;
       if(document.visibilityState==='hidden')return;
       const remaining=current.due-Date.now();
-      if(remaining>0){timer=setTimeout(run,remaining);return;}
+      if(remaining>0){cancelTimer=scheduleRetry(key!,current.due,run);return;}
       current.waiting=false;current.attempt++;setRetrying(true);callback.current();
     };
     if(!key){setRetrying(false);return;}
@@ -28,12 +52,12 @@ export function useAutomaticRetry(key:string|null,error:unknown,loading:boolean,
       current.due=Math.max(current.due,at);
       const exhausted=current.attempt>=RETRY_DELAYS.length;
       setRetrying(!exhausted);
-      if(!exhausted&&document.visibilityState!=='hidden')timer=setTimeout(run,Math.max(0,current.due-Date.now()));
+      if(!exhausted&&document.visibilityState!=='hidden')cancelTimer=scheduleRetry(key,current.due,run);
       const resume=()=>{
         clear();if(document.visibilityState==='hidden')return;
         if(exhausted)current.due=Math.max(Date.now(),at);
         if(exhausted||current.due<=Date.now())run();
-        else timer=setTimeout(run,current.due-Date.now());
+        else cancelTimer=scheduleRetry(key,current.due,run);
       };
       document.addEventListener('visibilitychange',resume);window.addEventListener('online',resume);
       return()=>{clear();document.removeEventListener('visibilitychange',resume);window.removeEventListener('online',resume);};

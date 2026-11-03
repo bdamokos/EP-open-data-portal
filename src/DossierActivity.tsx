@@ -64,6 +64,7 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
         for(const [key,failure]of failures)pages.current.set(key,failure);
         if(cursor.offset||cursor.targetOffset){earlierResultsRemoved.current=true;page={...page,coverage:{...page.coverage,status:(page.coverage.status==='complete') ? 'partial' : page.coverage.status,checkedComplete:false}};}
       }
+      if(!cursor.offset&&!cursor.targetOffset)earlierResultsRemoved.current=false;
       const pageKey=JSON.stringify(cursor);page=retainDossierContributors(pages.current.get(pageKey),page);
       pages.current.set(pageKey,page);failedCursor.current=null;
       const ordered=[...pages.current.values()].sort((a,b)=>a.pagination.targetOffset-b.pagination.targetOffset||a.pagination.offset-b.pagination.offset);
@@ -73,7 +74,7 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
     return()=>{live=false;controller.abort();};
   },[key,active,request]);
   const unavailable=[...pages.current.values()].find(page=>canRetryCoverage(page.participantCoverage))||[...pages.current.values()].find(page=>canRetryCoverage(page.coverage));
-  const retrying=useAutomaticRetry(active?key:null,failure.current,state.loading,()=>setRequest(value=>({key,cursor:failedCursor.current||(unavailable?{offset:unavailable.pagination.offset,targetOffset:unavailable.pagination.targetOffset}:lastCursor.current),attempt:value.attempt+1})),Boolean(unavailable));
+  const retrying=useAutomaticRetry(active?key:null,failure.current,state.loading,()=>setRequest(value=>({key,cursor:failedCursor.current||(unavailable?{offset:unavailable.pagination.offset,targetOffset:unavailable.pagination.targetOffset}:earlierResultsRemoved.current?{offset:0,targetOffset:0}:lastCursor.current),attempt:value.attempt+1})),Boolean(unavailable)||earlierResultsRemoved.current);
   return {retrying,...(scoped ? state : ({data:null,loading:active,error:null})),...(retrying?{error:null}:{}),pages:[...pages.current.values()],earlierResultsRemoved:scoped&&earlierResultsRemoved.current,retryableUnavailable:Boolean(unavailable),retry:()=>setRequest(value=>({key,cursor:failedCursor.current||(unavailable ? ({offset:unavailable.pagination.offset,targetOffset:unavailable.pagination.targetOffset}) : lastCursor.current),attempt:value.attempt+1})),restart:()=>{previous.current=null;pages.current.clear();failedCursor.current=null;earlierResultsRemoved.current=false;setState({data:null,loading:true,error:null});setRequest(value=>({key,cursor:{offset:0,targetOffset:0},attempt:value.attempt+1}));},more:()=>{if(state.data?.pagination.next&&!state.loading)setRequest(value=>({key,cursor:state.data!.pagination.next!,attempt:value.attempt+1}));}};
 }
 

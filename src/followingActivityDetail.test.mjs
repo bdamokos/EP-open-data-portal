@@ -117,9 +117,9 @@ test('loading, complete-index fallback and encoded exact source IDs stay explici
   assert.match(h.container.textContent,/Open in profile/);
 });
 
-test('lookup errors expose retry and a real profile link, then recover without losing the source selection',async t=>{
+test('lookup errors recover automatically and retain a real profile link, then recover without losing the source selection',async t=>{
   const h=await harness(t,{selected:[activity(questionId)],failFirst:true});
-  assert.match(h.container.querySelector('[role="alert"]').textContent,/Activity fixture unavailable/);
+  assert.equal(h.container.querySelector('[role="alert"]'),null);assert.equal(h.container.querySelector('.following-activity-detail button'),null);
   assert(h.container.querySelector('a[href*="member=42"]'));
   await automaticRecovery(t);assert.match(h.container.textContent,/Exact question body/);
   assert.equal(h.requests.filter(url=>url.pathname==='/api/latest-activities/42').length,2);

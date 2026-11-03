@@ -41,8 +41,8 @@ async function harness(t,items=[member()],v2=false,dossiers=[]) {
  t.mock.timers.enable({apis:['setTimeout']});
  const tick=ms=>act(async()=>{t.mock.timers.tick(ms);});
  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
- function Checks({language}){controls.useSavedChecks(language);return null;}
- const render=(language='en',strict=false,following=true,members)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,(harness.focusChecks||!following)&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),following&&createElement(Saved,{members,language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
+ function Checks({language,following}){controls.useSavedChecks(language,following);return null;}
+ const render=(language='en',strict=false,following=true,members)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,(harness.focusChecks||!following)&&createElement(Checks,{language,following}),createElement(controls.SavedNav,{onClick(){}}),following&&createElement(Saved,{members,language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
  const click=async(text,scope=container)=>{await act(async()=>{const button=[...scope.querySelectorAll('button')].find(x=>x.textContent===text);assert(button,'Missing '+text+' in '+scope.textContent);button.click();});await settle();};
  const check=async()=>{await background(true);await settle();};
  const background=(force=false,lang='en')=>act(async()=>{await controls.checkSaved(lang,force).catch(()=>{});});
@@ -168,7 +168,7 @@ test('unprepared data retries until ready and then backs off; a failed manifest 
  h.setStatus({marksReady:true,generation:6});h.fail('following-manifest');
  now+=60_000;await h.tick(60_000);await settle();
  assert.equal(h.controls.savedStore.snapshot().checkState,'error');
- h.fail('');now+=60_000;await h.tick(60_000);await settle();
+ h.fail('');await automaticRecovery(t);await settle();
  assert.equal(h.controls.savedStore.snapshot().checkState,'available');
  assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
  const count=h.requests.filter(x=>x.route==='following-status').length;
@@ -182,11 +182,11 @@ test('a manual failure replaces the prepared deadline with a one-minute retry',a
  now+=120_000;h.fail('following-status');await h.background(true);
  assert.equal(h.controls.savedStore.snapshot().checkState,'error');
  const count=h.requests.filter(x=>x.route==='following-status').length;
- h.fail('');h.setStatus({generation:6});now+=60_000;await h.tick(60_000);await settle();
+ h.fail('');h.setStatus({generation:6});await automaticRecovery(t);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count+1);
  assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
 });
-test('question-only status failures retry after one minute despite a cached prepared status',async t=>{
+test('question-only status failures recover on schedule despite a cached prepared status',async t=>{
  let now=Date.now();t.mock.method(Date,'now',()=>now);
  const h=await harness(t,[{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1,baseline:{revision:'one',answerIds:[]},current:{revision:'one',answerIds:[]}}],true);
  await h.render('en',false,false);await settle();h.fail('following-status');
@@ -194,7 +194,7 @@ test('question-only status failures retry after one minute despite a cached prep
  assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
  const count=h.requests.filter(x=>x.route==='following-status').length;
  h.fail('');h.setStatus({generation:6});h.setQuestionAnswers([{id:'new-answer'}]);
- now+=60_000;await h.tick(60_000);await settle();
+ await automaticRecovery(t);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count+1);
  assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
 });
@@ -280,7 +280,7 @@ test('failed initial checks and follows without a save timestamp retain the norm
  h.fail('following-status');await h.render('en',false,false);await settle();
  const count=()=>h.requests.filter(x=>x.route==='following-status').length;
  assert.equal(count(),1);now+=1000;await h.tick(1000);await settle();assert.equal(count(),1);
- h.fail('');now+=59_000;await h.tick(59_000);await settle();assert.equal(count(),2);
+ h.fail('');await automaticRecovery(t);await settle();assert.equal(count(),2);
  const manifests=h.requests.filter(x=>x.route==='following-manifest').length;
  now+=1000;await h.tick(1000);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-manifest').length,manifests);
@@ -328,20 +328,20 @@ test('auto-resolution is at most four concurrent, dedupes StrictMode and repeate
  await h.render('en',true);await h.check();assert.equal(h.requests.filter(x=>x.route==='following-member').length,9);
 });
 test('failed auto-resolution retries explicitly and on focus no more than once per minute',async t=>{
- const h=await harness(t);await h.render();await h.check();h.fail('following-member');h.setStatus({generation:6});h.setDetail([['late',0,6]],[speech]);await h.check();await settle();assert.match(cards(h)[0].textContent,/Couldn't load new activity/);
+ const h=await harness(t);await h.render();await h.check();h.fail('following-member');h.setStatus({generation:6});h.setDetail([['late',0,6]],[speech]);await h.check();await settle();assert.equal(cards(h)[0].querySelector('[role=alert] button'),null);
  const count=()=>h.requests.filter(x=>x.route==='following-member').length,first=count();await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));await settle();assert.equal(count(),first);
- await h.click('Retry',cards(h)[0]);assert.equal(count(),first+1);let now=Date.now();t.mock.method(Date,'now',()=>now);now+=60_001;h.fail('');await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));await settle();assert.equal(count(),first+2);assert.match(cards(h)[0].textContent,/Late speech/);
+ await automaticRecovery(t);assert.equal(count(),first+1);h.fail('');await automaticRecovery(t);await settle();assert.equal(count(),first+2);assert.match(cards(h)[0].textContent,/Late speech/);
 });
 test('marksReady false retains uncertainty; conflicts and failed migration/question tasks retry independently',async t=>{
  const q={kind:'question',id:'E-10-2026-003031',title:'Question'},h=await harness(t,[member({baseline}),q]);h.setStatus({marksReady:false});await h.render();await h.check();assert.equal(h.item().seen,null);assert.match(h.container.textContent,/Update checks are not available yet/);assert.doesNotMatch(cards(h)[0].textContent,/No new updates/);
  h.setStatus({marksReady:true});h.conflict();h.fail('following-member');await h.check();assert(h.item().legacy);assert.match(h.container.textContent,/Update check pending/);assert.equal(h.requests.filter(x=>x.route==='saved').length,2);
- h.fail('');h.setDetail([['old',0,5],['late',0,5]]);await h.click('Retry',cards(h)[0]);assert(!h.item().legacy);assert.equal(h.item().entries[0].id,'late');assert.equal(h.requests.filter(x=>x.route==='saved').length,2);await h.background(false,'fr');assert.equal(h.requests.filter(x=>x.route==='saved').length,3);
+ h.fail('');h.setDetail([['old',0,5],['late',0,5]]);await automaticRecovery(t);assert(!h.item().legacy);assert.equal(h.item().entries[0].id,'late');assert.equal(h.requests.filter(x=>x.route==='saved').length,2);await h.background(false,'fr');assert.equal(h.requests.filter(x=>x.route==='saved').length,3);
 });
 test('background storage errors retain entries and failed follow changes revert with alerts',async t=>{
  const h=await harness(t);await h.render();await h.check();const prototype=h.window.localStorage,original=prototype.setItem;
  t.mock.method(prototype,'setItem',function(...args){if(this===h.window.localStorage)throw Object.assign(Error('full'),{name:'QuotaExceededError'});return original.apply(this,args);});
  h.setStatus({generation:6});h.setDetail([['late',0,6]],[speech]);await h.check();await settle();assert.equal(h.item().entries[0].id,'late');assert.match(h.container.querySelector('[role="alert"]').textContent,/will be lost on reload/);
- await act(async()=>cards(h)[0].querySelector('.explorer-save-button').click());assert.equal(h.controls.savedStore.snapshot().items.length,1);assert.match(h.container.textContent,/Couldn't save in this browser/);t.mock.restoreAll();await automaticRecovery(t);assert.equal(h.controls.savedStore.snapshot().storageError,null);
+ await act(async()=>cards(h)[0].querySelector('.explorer-save-button').click());assert.equal(h.controls.savedStore.snapshot().items.length,1);assert.match(h.container.textContent,/Couldn't save in this browser/);t.mock.restoreAll();await act(async()=>h.controls.savedStore.retryStorage());assert.equal(h.controls.savedStore.snapshot().storageError,null);
 });
 test('empty Following makes no requests; epoch reset keeps readable entries',async t=>{
  const h=await harness(t,[]);await h.render();assert(!h.container.querySelector('.explorer-saved-heading button'),'Following has no manual check');assert.equal(h.requests.length,0);
@@ -357,7 +357,7 @@ test('question answers update when MEP marks are unready and remain independent 
  assert.equal(h.requests.filter(x=>x.route==='saved').length,1);assert(!h.requests.some(x=>x.route==='following-manifest'));
  h.setStatus({marksReady:true});h.fail('following-manifest');await h.check();
  assert.equal(snapshot().checkState,'error');assert.equal(snapshot().questionCheckState,'available');assert.equal(h.requests.filter(x=>x.route==='saved').length,2);
- assert.match(h.container.textContent,/Couldn't check for MEP updates/);assert.doesNotMatch(h.container.textContent,/Couldn't check for question answers/);
+ assert.equal(h.controls.savedStore.snapshot().checkState,'error');assert.equal(h.container.querySelector('.explorer-saved-state [role=alert] button'),null);assert.doesNotMatch(h.container.textContent,/Couldn't check for question answers/);
  h.fail('');await automaticRecovery(t);assert.equal(snapshot().checkState,'available');assert.equal(h.requests.filter(x=>x.route==='saved').length,2,'successful questions are not repeated on manifest retry');
 });
 test('question-only selections check answers without ready markers, a manifest or working status',async t=>{
@@ -368,7 +368,7 @@ test('question-only selections check answers without ready markers, a manifest o
 test('question failures do not turn successful MEP checks into failures and retry independently',async t=>{
  const h=await harness(t,[member(),{kind:'question',id:'E-10-2026-003031',title:'Question'}]);await h.render();h.fail('saved');await h.check();
  assert.equal(h.controls.savedStore.snapshot().checkState,'available');assert.equal(h.controls.savedStore.snapshot().questionCheckState,'error');
- assert.match(h.container.textContent,/Couldn't check for question answers/);assert.doesNotMatch(h.container.textContent,/Couldn't check for MEP updates/);
+ assert.equal(h.controls.savedStore.snapshot().questionCheckState,'error');assert.equal(h.container.querySelector('.explorer-saved-state [role=alert] button'),null);assert.doesNotMatch(h.container.textContent,/Couldn't check for MEP updates/);
  const count=h.requests.filter(x=>x.route==='following-manifest').length;h.fail('');await automaticRecovery(t);assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');assert.equal(h.requests.filter(x=>x.route==='following-manifest').length,count);
 });
 test('opening updates retries a detail rejected after a concurrent manifest advance',async t=>{
@@ -388,11 +388,12 @@ test('a second manifest advance surfaces the opening error instead of silently c
  assert.equal(h.requests.filter(x=>x.route==='following-member').length,2,'only one retry');assert.equal(h.item().seen.activity,5);
 });
 
-test('focus checks status at most once per minute; failed tasks retry without a generation change',async t=>{
+test('focus checks stay frugal while failed tasks recover automatically without a generation change',async t=>{
  harness.focusChecks=true;t.after(()=>harness.focusChecks=false);const h=await harness(t,[member({baseline})]);h.fail('following-member');await h.render();await h.background();
- let now=Date.now();t.mock.method(Date,'now',()=>now);const count=()=>h.requests.filter(x=>x.route==='following-status').length,initial=count();
+ const count=()=>h.requests.filter(x=>x.route==='following-status').length,initial=count();
  await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));assert.equal(count(),initial);
- now+=60_001;h.fail('');await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));assert.equal(count(),initial+1);assert(!h.item().legacy);
+ h.fail('');await automaticRecovery(t);await settle();assert.equal(count(),initial+1);assert(!h.item().legacy);
+ await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));assert.equal(count(),initial+1,'focus must not duplicate the successful scheduled check');
 });
 
 test('opening the first of simultaneous entries keeps its row and reader above the remaining unread entries',async t=>{
@@ -433,10 +434,9 @@ for(const failure of ['fetch','verification'])test(`membership ${failure} failur
  if(failure==='fetch')h.fail('following-membership');else h.invalidMembership(true);
  h.setStatus({generation:6});await h.check();
  assert.deepEqual(h.controls.membershipStore.snapshot(),before);
- assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,1);
- assert.match(h.container.querySelector('.explorer-membership-status').textContent,/Couldn't check membership updates/);
+ if(failure==='verification'){assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,1);assert.match(h.container.querySelector('.explorer-membership-status').textContent,/Couldn't check membership updates/);}else assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,0);
  assert(!h.window.localStorage.getItem('ep.following.membership.v1').includes('error'));
- h.fail('');h.invalidMembership(false);h.setStatus({generation:7});await automaticRecovery(t);
+ h.fail('');h.invalidMembership(false);h.setStatus({generation:7});if(failure==='verification')await h.background(true);else await automaticRecovery(t);
  assert.equal(h.controls.membershipStore.snapshot().baselines['42'].generation,5);
  assert.equal(h.controls.membershipStore.snapshot().entries[0].mark,6);
  assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,0);
@@ -469,6 +469,15 @@ test('group changes baseline separately, show accessible card text and Mark all 
 });
 test('group transport errors preserve baseline and retry discovers the switch',async t=>{
  const h=await harness(t);h.setStatus({epoch:membershipEpoch,groupsReady:true});await h.render();await h.check();const before=h.controls.groupsStore.snapshot();
- h.fail('following-groups');h.setStatus({generation:6});await h.check();assert.deepEqual(h.controls.groupsStore.snapshot(),before);assert.match(h.container.textContent,/Couldn't check group updates/);
+ h.fail('following-groups');h.setStatus({generation:6});await h.check();assert.deepEqual(h.controls.groupsStore.snapshot(),before);assert.equal(h.container.querySelector('.explorer-groups-status'),null);
  h.fail('');h.setStatus({generation:7});await automaticRecovery(t);assert.equal(h.controls.groupsStore.snapshot().baselines['42'].generation,5);assert.equal(h.controls.groupsStore.snapshot().entries[0].mark,6);
+});
+
+test('failed Following reads keep stored entries and show a terminal notice only after the retry cap',async t=>{
+ const h=await harness(t);await h.render();await h.check();const ids=h.controls.savedStore.snapshot().items.map(item=>item.id);
+ h.setStatus({generation:6});h.fail('following-manifest');await h.check();
+ for(let i=0;i<6;i++){assert.doesNotMatch(h.container.textContent,/Couldn't check for MEP updates/);await automaticRecovery(t);}
+ assert.match(h.container.textContent,/Couldn't check for MEP updates/);assert.deepEqual(h.controls.savedStore.snapshot().items.map(item=>item.id),ids);
+ assert.equal([...h.container.querySelectorAll('button')].some(button=>/Retry|Try again|Reload/.test(button.textContent)),false);
+ h.fail('');await act(async()=>h.window.dispatchEvent(new h.window.Event('online')));await settle();assert.equal(h.controls.savedStore.snapshot().checkState,'available');
 });

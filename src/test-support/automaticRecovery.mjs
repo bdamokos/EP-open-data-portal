@@ -15,10 +15,11 @@ export function installRetryClock(t) {
  });
  t.mock.method(globalThis,'clearTimeout',timer=>{if(timers.has(timer))timers.delete(timer);else realClearTimeout(timer);});
  const clock={timers,async advance(ms){
-  const until=Date.now()+ms;
+  const until=Date.now()+ms;let steps=0;
   for(;;){
    const next=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];
    if(!next||next[1].due>until)break;
+   assert(++steps<1000,'Retry timers did not settle: '+JSON.stringify({until,now:Date.now(),due:next[1].due}));
    elapsed+=Math.max(0,next[1].due-Date.now());timers.delete(next[0]);
    await act(async()=>next[1].callback(...next[1].args));
   }
@@ -35,5 +36,9 @@ export async function automaticRecovery(t) {
  await clock.advance(Math.max(0,next-Date.now())+1);
 }
 export async function exhaustAutomaticRetries(t) {
- for(let i=0;i<6;i++)await automaticRecovery(t);
+ const clock=clocks.get(t);assert(clock,'Install the retry clock before mounting the reader');
+ for(let i=0;i<6;i++){
+  const deadlines=[...clock.timers.values()].map(timer=>timer.due);assert(deadlines.length,'The read has no automatic retry scheduled');
+  await clock.advance(Math.max(0,Math.max(...deadlines)-Date.now())+1);
+ }
 }

@@ -41,3 +41,21 @@ test('automatic episodes pause hidden timers, resume online, cap attempts, retai
  fail=true;await act(async()=>state.retry());const before=calls;
  await act(async()=>root.unmount());root=null;await act(async()=>t.mock.timers.tick(900000));window.dispatchEvent(new win.Event('online'));assert.equal(calls,before);
 });
+
+test('joined readers batch jittered retries into six shared requests and settle together',async t=>{
+ const win=new Window({url:'http://localhost/'}),originals=new Map();
+ for(const[key,value]of Object.entries({window:win,document:win.document,HTMLElement:win.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true})){originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});}
+ let root,loader,calls=0,random=0;const states=[];
+ t.after(async()=>{if(root)await act(async()=>root.unmount());t.mock.timers.reset();if(loader)await loader.close();await win.happyDOM.close();for(const[k,d]of originals)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
+ t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({error:{message:'Busy'}},{status:503});});
+ loader=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true}});
+ const {useData}=await loader('/src/data.ts'),{createRoot}=await import('react-dom/client');
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:100000});t.mock.method(Math,'random',()=>++random%2?0.1:0.9);
+ function Reader({id}){states[id]=useData('joined-retries');return h('output',null,states[id].error);}
+ const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+ await act(async()=>root.render(h('section',null,h(Reader,{id:0}),h(Reader,{id:1}))));assert.equal(calls,1);
+ for(const delay of [5300,16000,48000,127000,300000,300000])await act(async()=>t.mock.timers.tick(delay));
+ assert.equal(calls,7,'one initial read plus six automatic requests for the shared route');
+ assert(states.every(state=>state.error==='Busy'&&!state.retrying));
+ await act(async()=>t.mock.timers.tick(900000));assert.equal(calls,7);
+});

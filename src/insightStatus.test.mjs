@@ -1,4 +1,4 @@
-import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import {LegislationInsights} from '../server/insights-legislation.mjs';
 import {insightQuery} from '../server/insights-store.mjs';
@@ -62,7 +62,7 @@ function agendaFixture() {
 
 for(const fail of [false,true])test('cached agenda title and document links open before '+(fail?'a detail failure':'detail enrichment'),async t=>{
   const selected=deferred(),{topic,base,publication,detail}=agendaFixture();
-  const h=await harness(t,'/src/Legislation.tsx','Legislation','?view=legislation&agenda-period=week%3A2026-10-19&agenda-topic='+topic.id,url=>url.pathname.includes('/document/')?publication:url.searchParams.has('topic')?selected.promise:base);
+  const h=await harness(t,'/src/Legislation.tsx','Legislation','?view=legislation&agenda-period=week%3A2026-10-19&agenda-topic='+topic.id,url=>url.pathname.includes('/document/')?publication:url.searchParams.has('topic')?selected.promise.then(()=>fail?Response.json({error:{code:'fixture_unavailable'}},{status:503}):({...base,detail})):base);
   await h.tick();
   const heading=h.container.querySelector('.insight-topic-detail h2');assert.equal(heading.textContent,topic.title);
   assert.equal(h.container.querySelector('[data-agenda-topic]').dataset.agendaTopic,topic.id);
@@ -76,7 +76,7 @@ for(const fail of [false,true])test('cached agenda title and document links open
   assert.match(h.container.querySelector('.insight-inline-reader').textContent,/Useful cached document text/);
   assert.equal(h.calls.filter(url=>url.pathname.includes('/document/')).length,1,'enrichment must not restart a loaded reader with another member hint');
   assert(!h.container.textContent.includes('Agenda item unavailable'));
-  if(fail)assert.match(h.container.querySelector('.insight-topic-detail [role="alert"]').textContent,/Details unavailable/);
+  if(fail){assert.equal(h.container.querySelector('.insight-topic-detail [role="alert"]'),null);await exhaustAutomaticRetries(t);assert.match(h.container.querySelector('.insight-topic-detail [role="alert"]').textContent,/Details unavailable/);assert.equal(h.container.querySelector('.insight-topic-detail [role="alert"] button'),null);assert.match(h.container.querySelector('.insight-inline-reader').textContent,/Useful cached document text/);}
 });
 
 for(const loaded of [true,false])test('dossier return restores an agenda reader '+(loaded?'with its captured member':'after a failed detail retry'),async t=>{
@@ -86,7 +86,7 @@ for(const loaded of [true,false])test('dossier return restores an agenda reader 
     if(url.pathname.includes('/document/'))return publication;
     if(!url.searchParams.has('topic'))return base;
     detailCalls++;
-    return loaded?{...base,detail}:detailCalls===1?unavailable():returned.promise;
+    return loaded?{...base,detail}:detailCalls===1?unavailable():returned.promise.then(()=>unavailable());
   },{},true);
   await h.tick();await h.click('Read '+topic.documentIds[0]);await h.tick();
   const documentCalls=()=>h.calls.filter(url=>url.pathname.includes('/document/'));
@@ -99,7 +99,7 @@ for(const loaded of [true,false])test('dossier return restores an agenda reader 
   if(!loaded){
     assert.equal(h.journey.dossierJourneyRestoring(),true,'wait for the pending detail retry');
     assert.equal(h.container.querySelector('main').scrollTop,0);
-    await act(async()=>returned.resolve(unavailable()));await h.tick();
+    await act(async()=>returned.resolve());await h.tick();await exhaustAutomaticRetries(t);await h.tick();
   }
   await h.frames();await h.frames();
   assert.equal(h.container.querySelector('[data-agenda-topic]').dataset.agendaTopic,topic.id);
@@ -277,8 +277,8 @@ test('question results announce total and page range without moving focus or rep
 });
 
 test('question failures retain existing error and missing-topic announcements without publishing a false count',async t=>{
-  const h=await harness(t,'/src/QuestionTopics.tsx','QuestionTopics','?view=questions',url=>Response.json({error:{message:url.searchParams.has('cluster')?'That topic is not in this window.':'Fixture unavailable'}},{status:503}));
-  await h.tick();assert.equal(h.status().textContent,'');assert(h.container.querySelector('[role="alert"]')?.textContent.includes('Could not load this item.'));
+  const h=await harness(t,'/src/QuestionTopics.tsx','QuestionTopics','?view=questions',url=>Response.json({error:{message:url.searchParams.has('cluster')?'That topic is not in this window.':'Fixture unavailable'}},{status:url.searchParams.has('cluster')?404:503}));
+  await h.tick();assert.equal(h.container.querySelector('[role="alert"]'),null);await exhaustAutomaticRetries(t);assert.equal(h.status().textContent,'');assert(h.container.querySelector('[role="alert"]')?.textContent.includes('Could not load this item.'));assert.equal(h.container.querySelector('[role="alert"] button'),null);
   await h.navigate('?view=questions&q-topic=exact-missing-topic');await h.tick();
   assert.equal(h.status().textContent,'');assert.equal(h.container.querySelector('[role="alert"]'),null);
   assert([...h.container.querySelectorAll('[role="status"]')].some(node=>node.textContent.includes('unavailable in this period')));

@@ -80,7 +80,7 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
   const retry=()=>{setAttempt(value=>value+1);state.retry();};
   return <section className="explorer-motion-comparison" lang={ui.language} aria-label={ui.t("MotionComparison.motion_wording_comparison")}>
     <h4><UiMessage id="finalTextCheck.compare_wording"/></h4>
-    <Status scope={JSON.stringify([originalId,jointId,stage,selectedLanguage,attempt])} message={status} pending={state.loading} oncePerScope/>
+    <Status scope={JSON.stringify([originalId,jointId,stage,selectedLanguage,state.attempt])} message={status} pending={state.loading||state.retrying} oncePerScope/>
     <div className="explorer-diff-controls">
       <label><UiMessage id="MotionComparison.stages"/><select value={stage} onChange={e=>{setStage(e.target.value as Stage);setShowUnchanged(true);}}>
         <option value="original-joint"><UiMessage id="MotionComparison.original_joint_motion"/></option><option value="original-adopted"><UiMessage id="MotionComparison.original_adopted_text"/></option><option value="joint-adopted"><UiMessage id="MotionComparison.joint_motion_adopted_text"/></option>

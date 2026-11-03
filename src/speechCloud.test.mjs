@@ -1,3 +1,4 @@
+import {installRetryClock,automaticRecovery,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -21,7 +22,7 @@ async function cloud(t,fetch) {
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {SpeechCloud}=await loadModule('/src/SpeechCloud.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   return {container,render:props=>act(async()=>root.render(createElement(SpeechCloud,props)))};
 }
 const speeches=Array.from({length:102},(_,i)=>({id:'MTG-PL-2026-10-07-OTH-'+i,date:'2026-10-07',title:'Speech '+i,machineTranslation:false,people:[]}));
@@ -86,7 +87,7 @@ test('a restarted cloud discards cached selection pages and finishes all remaini
   assert.equal(seen.at(-1).length,101);
 });
 
-test('repeated cloud changes stop at the restart bound and an explicit retry fetches fresh pages',async t=>{
+test('repeated cloud changes stop at the restart bound and automatic recovery fetches fresh pages',async t=>{
   const pages=[];let changing=true;
   const ui=await cloud(t,async input=>{
     const page=Number(new URL(input,'http://localhost').searchParams.get('page'));pages.push(page);
@@ -94,10 +95,10 @@ test('repeated cloud changes stop at the restart bound and an explicit retry fet
   });
   await ui.render({member:1});
   assert.deepEqual(pages,[0,1,1,1],'three distinct server restarts reach the bound');
-  assert(ui.container.querySelector('[role="alert"]'));
+  assert.equal(ui.container.querySelector('[role="alert"]'),null);assert.equal(ui.container.querySelector('[role="alert"] button'),null);
   assert.equal(ui.container.querySelector('[role="status"]'),null);
   changing=false;
-  await act(async()=>ui.container.querySelector('[role="alert"] button').click());
+  await automaticRecovery(t);
   assert.deepEqual(pages,[0,1,1,1,0],'retry begins at the expired first page');
   assert.equal(ui.container.querySelector('[role="alert"],[role="status"]'),null);
 });
@@ -113,11 +114,11 @@ test('retry resumes a failed proxy page without depending on expired earlier pag
     return new Promise(resolve=>finish=()=>resolve(Response.json({...partial(speeches),nextPage:null})));
   });
   await ui.render({member:1,onSpeechSpeakers:rows=>seen.push(rows.map(row=>row.id))});
-  assert.deepEqual(pages,[0,1,2],'a proxy error stops the walk without automatic retries');
-  assert.match(ui.container.querySelector('[role="alert"]').textContent,/Some speech text could not be loaded/);
+  assert.deepEqual(pages,[0,1,2],'a proxy error pauses the walk until the scheduled retry');
+  assert.equal(ui.container.querySelector('[role="alert"]'),null);assert.equal(ui.container.querySelector('[role="alert"] button'),null);
   assert.match(ui.container.querySelector('.explorer-cloud-caption').textContent,/100 speeches/);
   const before=seen.at(-1);
-  await act(async()=>ui.container.querySelector('[role="alert"] button').click());
+  await automaticRecovery(t);
   assert.deepEqual(pages,[0,1,2,2],'retry must use the failed cursor even when calendar pages have expired');
   assert.match(ui.container.querySelector('.explorer-cloud-caption').textContent,/100 speeches/);
   assert.doesNotMatch(ui.container.textContent,/Some sitting dates unavailable|period selector/,'the period selector owns its calendar notice, not each selected speech cloud');
@@ -139,10 +140,10 @@ test('an initial proxy failure retries page zero and does not become an empty re
   });
   await ui.render({member:1});
   assert.deepEqual(pages,[0]);
-  assert(ui.container.querySelector('[role="alert"]'));
+  assert.equal(ui.container.querySelector('[role="alert"]'),null);assert.equal(ui.container.querySelector('[role="alert"] button'),null);
   assert.equal(ui.container.querySelector('.explorer-cloud-caption'),null);
   assert.doesNotMatch(ui.container.textContent,/No (saved )?oral speeches/);
-  await act(async()=>ui.container.querySelector('[role="alert"] button').click());
+  await automaticRecovery(t);
   assert.deepEqual(pages,[0,0]);
   assert.equal(ui.container.querySelector('[role="alert"],[role="status"]'),null);
   assert.match(ui.container.querySelector('.explorer-cloud-caption').textContent,/1 speech/);

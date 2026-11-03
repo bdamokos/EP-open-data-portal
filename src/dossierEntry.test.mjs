@@ -33,13 +33,13 @@ async function harness(t,url,respond) {
     if(route?.startsWith('portrait/'))return new Response(null,{status:404});
     if(route?.startsWith('latest-activities/'))return Response.json(activityPage);
     if(route==='insights/dossier-references')return Response.json({items:[procedure],coverage:{status:'complete',gaps:[]}});
-    if(route==='insights/dossier-activity')return Response.json({version:11,procedure,memberId:url.searchParams.get('member'),section:url.searchParams.get('section'),participants:[{id:'257727',name:'Named Member',roles:[role]}],items:url.searchParams.get('section')==='roles'?[role]:[],pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Only linked records shown.'],sources:[source]},generation:1});
+    if(route==='insights/dossier-activity')return Response.json({version:12,procedure,memberId:url.searchParams.get('member'),section:url.searchParams.get('section'),participants:[{id:'257727',name:'Named Member',roles:[role]}],items:url.searchParams.get('section')==='roles'?[role]:[],pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Only linked records shown.'],sources:[source]},generation:1});
     if(route==='insights/procedure-context')return Response.json({reference:ref,title:procedure.title,language:'en',summaries:[],summary:null,subjects:[],topics:[],source});
     if(route==='insights/legislation')return Response.json(legislation);
     if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
     if(route?.startsWith('document/'))return Response.json({selectedDocumentId:documentId,files:[],coAuthors:[],answers:[],selectedText:{status:'available',paragraphs:['Official report text'],textLanguage:'en',availableTextLanguages:['en']}});
-    return Response.json({error:{message:'This source is unavailable.'}},{status:502});
+    return Response.json({error:{message:'This source is unavailable.'}},{status:404});
   });
   load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {default:App}=await load('/src/App.tsx'),{createRoot}=await import('react-dom/client');

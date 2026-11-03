@@ -119,7 +119,7 @@ function useMotionAmendmentsRead(route:string|null,nextOrder:()=>number) {
     return ()=>{active=false;controller.abort();};
   },[route,attempt,nextOrder]);
   const retrying=useAutomaticRetry(route,failure.current,result.loading,retry);
-  return {retrying,...((result.route===route) ? {...result,loading:result.loading||result.attempt!==attempt} : ({route,attempt,data:null,error:null,loading:Boolean(route),order:0})),...(retrying?{error:null}:{}),retry};
+  return {retrying,...((result.route===route) ? {...result,loading:result.loading||result.attempt!==attempt||retrying&&!result.data} : ({route,attempt,data:null,error:null,loading:Boolean(route),order:0})),...(retrying?{error:null}:{}),retry};
 }
 function formatNumber(value:number,language:string) {try{return value.toLocaleString(language);}catch{return String(value);}}
 function dateLabel(value:string|null|undefined,language:string) {

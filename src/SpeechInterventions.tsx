@@ -76,7 +76,7 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
         while(active&&page!==null) {
           const data:InterventionStatistics=await api<InterventionStatistics>(`speech-statistics/${member}?page=${page}`,controller.signal, undefined, ui);
           if(!active)return;
-          if(data.restarted&&++restarts>2)throw new Error(ui.t("batch4.speechinterventions.tsx.counting.was.interrupted"));
+          if(data.restarted&&++restarts>2)throw Object.assign(new Error(ui.t("batch4.speechinterventions.tsx.counting.was.interrupted")),{code:'snapshot_changed'});
           onItems?.(data.items);
           failure.current=null;setState({member,data,loading:data.nextPage!==null,error:null});
           page=data.nextPage;
@@ -85,8 +85,8 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
     })();return()=>{active=false;controller.abort();};
   },[member,attempt,onItems]);
   return <section className="intervention-statistics" lang={ui.language} aria-label={ui.t("batch4.speechinterventions.tsx.speaking.statistics")}>
-    <div className="intervention-stats-heading"><h3><UiMessage id="batch4.speechinterventions.tsx.at.the.microphone"/></h3><div className="intervention-stats-meta"><span><UiMessage id="batch4.speechinterventions.tsx.term.10"/></span>{loading&&<span className="intervention-counting" role="status"><span className="intervention-spinner" aria-hidden="true"/><span className="intervention-counting-label"><UiMessage id="batch4.speechinterventions.tsx.counting.contributions"/></span></span>}</div></div>
-    {result&&<><div className="intervention-stats-grid" aria-busy={loading}>{speechCategoriesUi(ui).map(([key,label,type])=>{
+    <div className="intervention-stats-heading"><h3><UiMessage id="batch4.speechinterventions.tsx.at.the.microphone"/></h3><div className="intervention-stats-meta"><span><UiMessage id="batch4.speechinterventions.tsx.term.10"/></span>{(loading||retrying)&&<span className="intervention-counting" role="status"><span className="intervention-spinner" aria-hidden="true"/><span className="intervention-counting-label"><UiMessage id="batch4.speechinterventions.tsx.counting.contributions"/></span></span>}</div></div>
+    {result&&<><div className="intervention-stats-grid" aria-busy={loading||retrying}>{speechCategoriesUi(ui).map(([key,label,type])=>{
       const chairs=result.items.filter(item=>matchesSpeechCategory(item,'chair')).length;
       if(key==='chair'&&!chairs)return null;
       const written=result.items.filter(item=>matchesSpeechCategory(item,'written')).length;

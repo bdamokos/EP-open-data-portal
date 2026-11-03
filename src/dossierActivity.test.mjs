@@ -1,4 +1,4 @@
-import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
@@ -160,7 +160,7 @@ test('section failures retain independent content and retry; generic next cursor
     if(section==='amendments')return Response.json(page(section,'257727',[{...amendment,id:'exact-second-variant',amendment:{...amendment.amendment,id:'exact-second',number:4,listId:'second-list',decisions:[]}}]));
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));
-  assert.match(h.container.textContent,/Speeches could not be loaded/);assert.match(h.container.textContent,/Co-rapporteur/);assert.match(h.container.textContent,/Amendment 3/);assert.doesNotMatch(h.container.textContent,/Partial coverage/);
+  assert.doesNotMatch(h.container.textContent,/Speeches could not be loaded/);assert.equal(h.container.querySelector('[aria-label="Speeches coverage"] button'),null);assert.match(h.container.textContent,/Co-rapporteur/);assert.match(h.container.textContent,/Amendment 3/);assert.doesNotMatch(h.container.textContent,/Partial coverage/);
   assert.match([...h.container.querySelectorAll('.dossier-filters button')].find(node=>node.textContent.startsWith('Speeches')).textContent,/—/);
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);
   await h.click('Load more amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);
@@ -213,10 +213,10 @@ test('HTTP 200 unavailable target retains continuation and can retry the failed 
     return Response.json(page('amendments','257727',[{...amendment,id:'other-variant',amendment:{...amendment.amendment,id:'other-amendment',number:4,decisions:[]}}],{amendmentGeneration:4,pagination:{offset:0,targetOffset:1,limit:25,next:null}}));
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));
-  assert.match(h.container.textContent,/Amendments for A10-0010\/2026 could not be loaded/);assert([...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'));
+  assert.match(h.container.textContent,/Amendments for A10-0010\/2026 could not be loaded/);assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'));
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,0);assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1,'an unavailable AM cannot suppress its standalone vote');
   await h.click('Load more amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('[aria-label="Amendments coverage"]').textContent,/Amendments for A10-0010\/2026/);
-  assert([...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'),'a missing amendmentGeneration on the failed response cannot erase its retry owner');
+  assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'),'failed targets recover without a manual control');
   failed=false;await automaticRecovery(t);assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.doesNotMatch(h.container.textContent,/Date unavailable/);assert.doesNotMatch(h.container.textContent,/Exact target read failed/);
   assert.equal([...h.container.querySelectorAll('button')].filter(node=>node.textContent==='Load more amendments').length,0,'retrying an earlier target cannot reopen the completed continuation');
   assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1);
@@ -248,7 +248,7 @@ test('a failed intermediate page cannot hide a later real amendment snapshot cha
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.doesNotMatch(h.container.textContent,/could not be loaded|Amendment 3/);
 });
 
-test('a terminal page after publication offers a direct reload of earlier results',async t=>{
+test('a terminal page after publication automatically recovers earlier results',async t=>{
   let version=4;
   const h=await harness(t,undefined,url=>{
     if(url.searchParams.get('section')!=='amendments')return;
@@ -261,10 +261,10 @@ test('a terminal page after publication offers a direct reload of earlier result
   await h.render(createElement(h.module.DossierActivity,{reference}));version=5;
   await h.click('Load more amendments');
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('.dossier-amendment').textContent,/Amendment 501/);
-  await h.click('Reload amendments');
+  assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent==='Reload amendments'));await automaticRecovery(t);
   const last=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);
   assert.equal(last.searchParams.get('offset'),'0');assert.equal(last.searchParams.get('target-offset'),'0');
-  assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('.dossier-amendment').textContent,/Amendment 500/);
+  assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.match(h.container.textContent,/Amendment 500/);assert.match(h.container.textContent,/Amendment 501/);
   assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent==='Reload amendments'));
 });
 
@@ -351,7 +351,7 @@ test('a failed later amendment target names the document and links to its Parlia
 
 test('a mismatched section/person response fails locally while valid sections remain readable',async t=>{
   const h=await harness(t,undefined,url=>url.searchParams.get('section')==='speeches'?Response.json(page('speeches','124984',[speech])):null);
-  await h.render(createElement(h.module.DossierActivity,{reference}));assert.match(h.container.textContent,/Speeches could not be loaded/);assert.match(h.container.textContent,/Amendment 3/);assert(!h.container.querySelector('.dossier-speech'));
+  await h.render(createElement(h.module.DossierActivity,{reference}));assert.match(h.container.textContent,/Speeches could not be loaded/);assert.equal(h.container.querySelector('[aria-label="Speeches coverage"] button'),null);assert.match(h.container.textContent,/Amendment 3/);assert(!h.container.querySelector('.dossier-speech'));
 });
 
 test('dossier controls and cards retain readable dark/light tokens and 44px targets at the mobile breakpoint',async()=>{
@@ -460,8 +460,8 @@ test('no-role RSP opens from a cold person link, keeps speech before gaps, and f
   await h.render(createElement(h.module.DossierActivity,{reference:rsp.procedure.label}));
   assert.equal(h.container.querySelector('.dossier-speech h4').textContent,rsp.speech.title);
   assert(h.container.innerHTML.indexOf('dossier-timeline')<h.container.innerHTML.indexOf('dossier-section-status'));
-  assert.match(h.container.textContent,/Votes could not be loaded/);assert.doesNotMatch(h.container.textContent,/No linked records|No participants|rapporteur/i);
-  failVotes=false;await automaticRecovery(t);assert(h.container.querySelector('.dossier-speech'));
+  assert.doesNotMatch(h.container.textContent,/Votes could not be loaded/);await exhaustAutomaticRetries(t);assert.match(h.container.textContent,/Votes could not be loaded/);assert.equal(h.container.querySelector('[aria-label="Votes coverage"] button'),null);assert.doesNotMatch(h.container.textContent,/No linked records|No participants|rapporteur/i);
+  failVotes=false;await act(async()=>window.dispatchEvent(new window.Event('online')));assert(h.container.querySelector('.dossier-speech'));
   await h.click('Amendments');assert.doesNotMatch(h.container.textContent,/No linked amendments|No records available yet|Records unavailable/);
   await h.click('Full dossier');assert.equal(h.container.querySelector('.dossier-participants a').textContent,'Gabriele Bischoff');assert.match(h.container.textContent,/Speeches · 1 shown/);
   await h.click('Work on this dossier');assert(h.container.querySelector('.dossier-speech'));assert.equal(new URL(location.href).searchParams.get('dossier-person'),rsp.personId);

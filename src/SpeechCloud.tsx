@@ -41,7 +41,7 @@ function useCloud(route:string) {
           if(!active)return;
           if(data.restarted) {
             client.expireMatching(cachedRoute=>cachedRoute.startsWith(route+'&page='));
-            if(++restarts>2){failedPage.current=0;throw new Error(ui.t("speechcloud.speeches_were_updated_while_loading_try_again.90be1f"));}
+            if(++restarts>2){failedPage.current=0;throw Object.assign(new Error(ui.t("speechcloud.speeches_were_updated_while_loading_try_again.90be1f")),{code:'snapshot_changed'});}
           }
           failure.current=null;setState({route,data,loading:data.nextPage!==null,error:null});
           page=data.nextPage;
