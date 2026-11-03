@@ -1,6 +1,7 @@
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
+import {assertWholeAnnexInstruction} from './amendment-whole-instruction-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
@@ -504,6 +505,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   const numbering=assertWordingNumbering({proposal,wording,placement});
   if(numbering.status!=='unverified')return numbering;
 
+  const instruction=assertWholeAnnexInstruction({items,proposal,wording,placement,nativeQuoted});
+  if(instruction)return instruction;
   const table=proposal?verifyAnnexTable({proposal,wording,placement}):null;
   if(table)return table;
   // Explicit inner labels must reach the independent native assertion before
