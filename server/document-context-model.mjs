@@ -4,7 +4,7 @@ import {relativeResolutionHeading} from './resolution-labels.mjs';
 import {comparisonHeading} from './amendment-baseline.mjs';
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
-import {resolutionPointPlacement} from './resolution-points.mjs';
+import {resolutionPointPlacement,resolutionPointNearPlacement} from './resolution-points.mjs';
 import {resolutionFootnoteMatch} from './resolution-footnotes.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
@@ -536,6 +536,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
     evidence.push({basis:'published-ordinal-alias',publishedLabel:ref.label,sourceLabel:'Β'+ref.suffix,ordinal:2});
     ref={...ref,label:'Β'+ref.suffix,base:'Β'};
   }
+  const nearPoint=resolutionPointNearPlacement(text,rows,structure,{...options,referenceText},operation);
+  if(nearPoint)return nearPoint;
   const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
   if (pointPlacement) return pointPlacement;
   const parentMatches = (unit, reference) => {
