@@ -18,6 +18,7 @@ import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from './Referenc
 import {InsightQuestionReader} from './InsightReaders';
 import {mapContextAnnotations} from './contextAnnotations.mjs';
 import {WordingDiff} from './components/WordingDiff';
+import {FormattedWording} from './components/WordingFormatting';
 import {AmendmentJustification} from './components/AmendmentJustification';
 import {amendmentLanguageScope} from './amendmentLanguageScope.mjs';
 import {FindInText} from './TextSearch';
@@ -148,7 +149,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   }) : undefined;
   const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace ? 'true' : undefined} tabIndex={inPlace ? (-1) : undefined} aria-labelledby={amendmentHeading}>
     <h4 id={amendmentHeading} lang={ui.language}>{number ? <UiMessage id="membervotes.tsx.amendment.number" values={{number: number}}/> : <UiMessage id="motionamendments.amendment.664ccf"/>}</h4>
-    {wording&&<WordingDiff originalFormatting={wording.originalFormatting} proposedFormatting={wording.proposedFormatting} original={(placement?.operation==='insert') ? '' : wording.originalText} proposed={(placement?.operation==='delete') ? '' : wording.proposedText} language={wording.language} emptySemantics={rejection ? "not-supplied" : "insertion-deletion"} highlightChanges={!rejection} presentation="context" renderOriginal={inPlace ? renderOriginal : undefined}/>}
+    {wording&&(rejection&&placement?.operation==='alternative-motion'?<p className="wording-diff__passage" lang={wording.language||''}><FormattedWording text={wording.proposedText||''} start={0} formatting={wording.proposedFormatting||[]}/></p>:<WordingDiff originalFormatting={wording.originalFormatting} proposedFormatting={wording.proposedFormatting} original={(placement?.operation==='insert') ? '' : wording.originalText} proposed={(placement?.operation==='delete') ? '' : wording.proposedText} language={wording.language} emptySemantics={rejection ? "not-supplied" : "insertion-deletion"} highlightChanges={!rejection} presentation="context" renderOriginal={inPlace ? renderOriginal : undefined}/>)}
     <AmendmentJustification record={wording}/>
   </section>;
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);

@@ -836,5 +836,5 @@ for(const number of [1,2])test('standalone Rule 188(3) motion preserves its body
   assert.equal(verifyAlternative({buffer:bytes,wording,placement}).status,'verified');
   assert.equal(verifyAlternative({buffer:bytes,wording:{...wording,proposedText:'Shortened'},placement}).status,'unverified');
   assert.equal(verifyAlternative({buffer:bytes,wording:{...wording,targetDocumentId:'A-10-2026-0001'},placement}),null);
-  for(const fields of [{targetDocumentId:'A-10-2026-0001',listId:'A-10-2026-0001-AM-001-002'},{documentReferences:[]},{proposedText:null},{originalText:'Existing wording'},{gaps:[{code:'inline-content-loss'}]}])assert.notEqual(documentContextPlacement({chosen:{...wording,...fields}}).operation,'alternative-motion');
+  for(const fields of [{targetDocumentId:'A-10-2026-0001',listId:'A-10-2026-0001-AM-001-002'},{documentReferences:[]},{documentReferences:null},{proposedText:null},{originalText:'Existing wording'},{gaps:[{code:'inline-content-loss'}]}])assert.notEqual(documentContextPlacement({chosen:{...wording,...fields}}).operation,'alternative-motion');
 });

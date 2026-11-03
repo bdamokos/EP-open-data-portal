@@ -1324,6 +1324,7 @@ test('alternative motion is readable as a document operation without inline diff
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
   assert.match(h.container.textContent,/Alternative motion/);
   assert.match(h.container.textContent,/Complete alternative motion/);
+  assert.equal(h.container.querySelector('.wording-diff__columns'),null);
   assert.equal(h.container.querySelector('ins'),null);
   assert.equal(h.container.querySelector('[data-context-target="true"]'),null);
   assert(!h.container.textContent.includes('location could not be determined'));
