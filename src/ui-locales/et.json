@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Otsi teemat",
   "topics.plenaryMode": "Teemad",
   "topics.findPlace": "Otsi kohta",
-  "topics.geopolitics": "Geopoliitika"
+  "topics.geopolitics": "Geopoliitika",
+  "topics.story.map.outside": "Samuti täiskogul: {speakers}.",
+  "topics.story.map.outside.eu": "Täiskogul esinejad Euroopast ja selle naabritest: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} esines täiskogul ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }
