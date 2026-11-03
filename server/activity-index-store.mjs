@@ -266,12 +266,14 @@ export class ActivityStore {
       if (working) { groupVoicesCopy(this.db,working.generation,this.get('active') || 0); amendmentsCopy(this.db,working.generation,this.get('active') || 0); return working; }
       const active=this.get('active') || 0, generation=(this.get('sequence') || 0)+1;
       this.set('sequence',generation);
+      // Per-step timings locate the cost of a rotation; total minus steps is commit.
+      const steps={},timed=(name,fn)=>{const t=performance.now();try{return fn();}finally{steps[name]=Math.round(performance.now()-t);}};
       if (active) {
-        this.pruneGenerations(active);
+        timed('prune',()=>this.pruneGenerations(active));
         this.set('previous',null);
-        copyProjectedGenerationRows(this.db,{table:'sources',key:'key',select:'INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources'},generation,active);
-        this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
-        copyQuestionFiles(this.db,generation,active);
+        timed('sources',()=>copyProjectedGenerationRows(this.db,{table:'sources',key:'key',select:'INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources'},generation,active));
+        timed('items',()=>this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active));
+        timed('questionFiles',()=>copyQuestionFiles(this.db,generation,active));
         this.db.prepare('INSERT INTO refresh_gaps SELECT ?,key,kind,body,priority,error,attempts,failed_at,retry_at,sitting_id FROM refresh_gaps WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO mutable_refresh_admissions SELECT ?,key FROM mutable_refresh_admissions WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO refresh_gap_admissions SELECT ?,key FROM refresh_gap_admissions WHERE generation=?').run(generation,active);
@@ -280,9 +282,10 @@ export class ActivityStore {
         // Preserve bounded selection progress across generations.
         this.db.prepare('INSERT INTO mutable_documents SELECT ?,key,next_check FROM mutable_documents WHERE generation=?').run(generation,active);
         for(const table of ['mutable_refresh_admissions','refresh_gaps','refresh_gap_admissions','mutable_documents','continuation_sittings','sitting_refresh','feed_catalog_recovery'])this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(active,generation);
-        outsideCopy(this.db,generation,active);
-        groupVoicesCopy(this.db,generation,active);
-        amendmentsCopy(this.db,generation,active);
+        timed('outside',()=>outsideCopy(this.db,generation,active));
+        timed('groupVoices',()=>groupVoicesCopy(this.db,generation,active));
+        timed('amendments',()=>amendmentsCopy(this.db,generation,active));
+        console.log('[generation-begin]',JSON.stringify({generation,active,steps}));
       }
       // The copied active rows are unchanged; only later writes are touched.
       this.db.exec('DELETE FROM follow_touched');
