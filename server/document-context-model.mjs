@@ -494,7 +494,8 @@ function numberingGapAnchor(text, family, base) {
 }
 
 export function resolveAmendmentPlacement(text, options = {}) {
-  const operation = amendmentOperation(options), evidence = [];
+  let operation = amendmentOperation(options);
+  const evidence = [];
   const referenceText = resolutionReference(options.referenceText, options.language);
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const placed = fields => ({operation, status: 'placed', ...fields, evidence});
@@ -536,6 +537,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
     evidence.push({basis:'published-ordinal-alias',publishedLabel:ref.label,sourceLabel:'Β'+ref.suffix,ordinal:2});
     ref={...ref,label:'Β'+ref.suffix,base:'Β'};
   }
+  const contextInsertion=operation==='replace'&&ref?.kind==='paragraph'&&ref.isNew&&Boolean(ref.suffix)&&!ref.parents?.length;
+  if(contextInsertion)operation='insert';
   const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
   if (pointPlacement) return pointPlacement;
   const parentMatches = (unit, reference) => {
@@ -631,6 +634,14 @@ export function resolveAmendmentPlacement(text, options = {}) {
     } else if (!siblings.some(unit => unit.label === ref.base)) return unresolved('relative_target_not_found');
     const ordered = siblings.sort((a, b) => a.start - b.start), anchor = ordered.at(-1);
     if (new Set(siblings.map(unit => unit.label)).size !== siblings.length || siblings.some(unit => unit.parent !== anchor.parent)) return unresolved('multiple_published_targets');
+    if(contextInsertion) {
+      // A new paragraph label can quote its existing base as context. Preserve
+      // that paragraph and require its entire original before inserting after it.
+      const base=siblings.find(unit=>unit.label===ref.base);
+      if(!base||structure.invalid.has(base.start)||structure.uncertain.has(base.start)||!complete(base.start,base.end))return unresolved('source_passage_incomplete');
+      if(wordingNormal(text.paragraphs.slice(base.start,base.end+1).join(' '))!==wordingNormal(options.originalText))return unresolved('conflicting_target_evidence');
+      evidence.push({basis:'quoted-predecessor-context',label:base.label});
+    }
     evidence.push({basis: 'published-reference', label: ref.label, anchor: anchor.label});
     if (referenceText) {
       const relative = parseReference(referenceText);

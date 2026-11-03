@@ -4,6 +4,8 @@
 // instructions below; bounded excerpts and provenance live in
 // server/fixtures/amendment-operation-excerpts.json.
 import {expectedLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
+import {oracleAddress,oracleFold} from './amendment-oracle-grammar.mjs';
+import {LANGUAGE_SECTIONS} from './amendment-language-vocabulary.mjs';
 const instructions = new Set([
   'deleted', 'заличава се', 'vypouští se', 'udgår', 'entfällt',
   'διαγράφεται', 'suprimido', 'välja jäetud', 'poistetaan', 'supprimé',
@@ -14,7 +16,7 @@ const instructions = new Set([
   'supprimée', 'gestrichen', 'soppressa', 'suprimida', 'geschrapt', 'eliminată',
 ]);
 
-export function expectedOperation({originalText, proposedText, language} = {}) {
+export function expectedOperation({originalText, proposedText, language, targetLabel, baseline, sectionKind, documentReferences=[]} = {}) {
   if (typeof originalText !== 'string' || typeof proposedText !== 'string') return null;
   if(expectedLanguageScope({originalText,proposedText,language}))return 'not-applicable';
   const original = originalText.trim(), proposed = proposedText.trim();
@@ -23,5 +25,12 @@ export function expectedOperation({originalText, proposedText, language} = {}) {
   const instruction = proposed.normalize('NFC').toLowerCase().replace(/\s*\.$/u, '').replace(/\s+/gu, ' ');
   const deleted = instructions.has(instruction);
   if (!original) return proposed && !deleted ? 'insert' : null;
+  const classes=new Set((LANGUAGE_SECTIONS[language]?.classes||[]).map(value=>oracleFold(value).toLowerCase()));
+  const resolution=baseline==='motion-resolution'||sectionKind==='resolution'||(baseline==null||baseline==='unknown')
+    &&documentReferences.some(ref=>ref.field==='DocAmend'&&classes.has(oracleFold(ref.raw).toLowerCase()));
+  const target=resolution&&proposed&&!deleted?oracleAddress(targetLabel,language,{resolution:true}):null;
+  // In resolutions an explicitly new paragraph can quote its predecessor as
+  // context. Verification separately proves that original against the base.
+  if(target?.length===1&&target[0].kind==='paragraph'&&target[0].isNew&&target[0].suffix)return 'insert';
   return !proposed || deleted ? 'delete' : 'replace';
 }
