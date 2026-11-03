@@ -1,4 +1,5 @@
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
+import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
@@ -600,6 +601,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
+  const firstAnnex=assertFirstAnnex({proposal,items,wording,placement,nativeQuoted});
+  if(firstAnnex)return firstAnnex;
   if(proposal) {
     const ordinal=verifyPreambleCitation({proposal,wording,placement,target})??(placement.operation==='insert'?verifyNegativeArticle({proposal,wording,placement,target}):null);
     if(ordinal)return ordinal;
