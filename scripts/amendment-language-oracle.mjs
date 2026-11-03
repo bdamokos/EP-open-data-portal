@@ -160,7 +160,7 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
     if(!next)return unknown('raw-insertion-extent-unverified');
     const between=rows.slice(anchor.index+1,next.index);
     if(between.some(p=>!/[.;:]$/u.test(p.text)||p.uncertain))return unknown('raw-insertion-extent-unverified');
-    if(expected.originalText.trim()&&strip([anchor,...between].map(row=>row.text).join('\n'))!==strip(expected.originalText))return failed('raw-insertion-context-mismatch');
+    if((expected.originalText??'').trim()&&strip([anchor,...between].map(row=>row.text).join('\n'))!==strip(expected.originalText))return failed('raw-insertion-context-mismatch');
     const last=rows[next.index-1],after=observed[placement.insertAfter],before=observed[placement.insertBefore];
     if(after?.path!==last.path||before?.path!==next.path)return failed('raw-insertion-boundary-mismatch',{expectedAfter:last.path,expectedBefore:next.path,actualAfter:after?.path,actualBefore:before?.path});
     return {status:'verified',reason:'raw-sibling-boundary',location:{section:anchor.sectionKind,kind:relative?'heading':anchor.ref.kind,value:address.value,scope:'body'}};
