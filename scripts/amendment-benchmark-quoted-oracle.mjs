@@ -15,7 +15,7 @@ const unsafe=nodes=>descendants(nodes,'w:pPr').some(p=>descendants(p,'w:numPr').
 
 // Read the central directory and the actual main XML, independently of the
 // application's ZIP/Word reader. Nothing is extracted to disk.
-export function quotedWordBody(bytes) {
+export function quotedWordParts(bytes) {
   if(!Buffer.isBuffer(bytes)||bytes.length>8*1024*1024)throw new Error('Word package unavailable');
   let end=bytes.length-22;
   for(;end>=Math.max(0,bytes.length-65557)&&bytes.readUInt32LE(end)!==0x06054b50;end--);
@@ -35,6 +35,10 @@ export function quotedWordBody(bytes) {
     }
     cursor+=46+nameLength+bytes.readUInt16LE(cursor+30)+bytes.readUInt16LE(cursor+32);
   }
+  return parts;
+}
+export function quotedWordBody(bytes) {
+  const parts=quotedWordParts(bytes);
   const parse=xml=>{if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)throw new Error('Word XML unavailable');return new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);};
   const tree=parse(parts.get('word/document.xml'));
   if(attributes(tree,'w:document').length!==1||attributes(tree,'w:document')[0]['@_xmlns:w']!=='http://schemas.openxmlformats.org/wordprocessingml/2006/main')throw new Error('Word namespace unavailable');

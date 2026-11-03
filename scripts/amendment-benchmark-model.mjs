@@ -8,6 +8,7 @@ import {assertStandaloneQuote} from './amendment-standalone-quote-oracle.mjs';
 import {assertArticleNotes} from './amendment-article-notes-oracle.mjs';
 import {inspectNativeNoteScope,assertNativeFirstRecital} from './amendment-note-scope-oracle.mjs';
 import {assertGuidelineAnnex} from './amendment-guideline-oracle.mjs';
+import {assertBareAnnexIndent} from './amendment-annex-indent-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
@@ -597,6 +598,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if(initialRecital.status!=='unverified')return initialRecital;
   const guideline=assertGuidelineAnnex({proposal,wording,placement,nativeQuoted});
   if(guideline.status!=='unverified')return guideline;
+  const annexIndent=assertBareAnnexIndent({items,proposal,wording,placement,nativeQuoted});
+  if(annexIndent.status!=='unverified')return annexIndent;
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
