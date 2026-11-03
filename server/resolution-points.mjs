@@ -155,9 +155,9 @@ export function resolutionPointNearPlacement(text,rows,structure,options,operati
  if(options.referenceText){let ref;try{ref=parseTargetLabel(options.referenceText,'en');}catch{return null;}if(!ref.complete||!samePath(ref.segments,path))return null;}
  const candidates=points.map(p=>({...p,wording:normal(textOf(p),labels(p))}));
  for(let start=structure.start+1;start<=structure.end;start++){
-  const m=pointLabel(rows[start].normal);if(!m||points.some(p=>p.start===start))continue;
+  const m=pointLabel(rows[start].normal);if(!m||points.some(p=>p.start===start&&p.complete))continue;
   let end=start;for(let i=start+1;i<=structure.end&&i<start+30;i++){if(pointLabel(rows[i].normal)||/^\d+[.)]\s/u.test(rows[i].normal)||structure.units.some(u=>u.kind==='heading'&&u.start===i))break;end=i;}
-  candidates.push({start,end,complete:false,wording:normal(textOf({start,end}),[pointValue(m)])});
+  for(let prefixEnd=start;prefixEnd<=end;prefixEnd++)candidates.push({start,end:prefixEnd,complete:false,wording:normal(textOf({start,end:prefixEnd}),[pointValue(m)])});
  }
  const score=value=>{let prefix=0;while(prefix<Math.min(value.length,original.length)&&value[prefix]===original[prefix])prefix++;return {similarity:characterSimilarity(value,original,.93),prefix:prefix>=80&&prefix<Math.min(value.length,original.length)?prefix/Math.min(value.length,original.length):0};};
  const own=score(source),others=candidates.filter(p=>p.start!==unit.start||p.end!==unit.end).map(p=>score(p.wording));

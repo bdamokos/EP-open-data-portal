@@ -22,9 +22,9 @@ export function assertResolutionPointSimilarity({text,wording,placement}){
  // Damaged or unaddressable point starts still compete. Their surviving native
  // wording must not disappear merely because they cannot receive a placement.
  for(let start=motion.start;start<=end;start++){
-  if(!label(text.paragraphs[start]||'')||points.some(u=>u.start===start))continue;
+  if(!label(text.paragraphs[start]||'')||points.some(u=>u.start===start&&u.complete))continue;
   let stop=start;for(let i=start+1;i<=end&&i<start+30;i++){if(label(text.paragraphs[i])||/^\s*\d+[.)]\s/u.test(text.paragraphs[i])||text.paragraphFormats?.[i]?.heading||motion.units.some(u=>u.kind==='heading'&&u.start===i))break;stop=i;}
-  candidates.push({start,end:stop,complete:false,text:clean(text.paragraphs.slice(start,stop+1).join('\n'),[label(text.paragraphs[start])])});
+  for(let prefixEnd=start;prefixEnd<=stop;prefixEnd++)candidates.push({start,end:prefixEnd,complete:false,text:clean(text.paragraphs.slice(start,prefixEnd+1).join('\n'),[label(text.paragraphs[start])])});
  }
  return assertResolutionSimilarity(candidates,original,placement.span)?{status:'verified',reason:'oracle-independent-point-near-match'}:unknown();
 }

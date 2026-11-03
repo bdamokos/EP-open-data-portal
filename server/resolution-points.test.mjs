@@ -77,3 +77,10 @@ test('similar points elsewhere, including incomplete candidates, cannot disappea
  }
  const repeated=nearFixture();repeated.paragraphs[4]='(o) '+nearWording.originalText.slice(4);assert.equal(nearPlace(repeated).status,'unresolved');
 });
+
+test('a damaged competing point retains matching continuations before an opaque tail',()=>{
+ const t=nearFixture(),copy=nearWording.originalText.slice(4),split=copy.indexOf('resources');
+ t.paragraphs.splice(6,0,'(a) '+copy.slice(0,split),copy.slice(split),'Additional unrelated surviving text '.repeat(10));t.paragraphFormats.splice(6,0,{indent:360},{indent:360},{indent:360});t.paragraphSources=t.paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:ordinal!==6}));
+ const placement=nearPlace(t);assert.equal(placement.status,'unresolved');
+ const forced={status:'placed',operation:'replace',span:{start:2,end:3}};assert.notEqual(verifyPlacement({text:t,wording:nearWording,placement:forced}).status,'verified');
+});
