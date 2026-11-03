@@ -2761,5 +2761,9 @@
   "topics.story.integrated.bothAgainRise": "{place}: kartan vilkkain keskustelu ({meps} puhui aiheesta {title}, {date}{format}) ja eniten kysymyksiä ({questions}, verrattuna määrään {average}, jälleen){outcome}.",
   "topics.story.integrated.bothAgainRise.eu": "Euroopassa ja sen lähialueilla: {place}: kartan vilkkain keskustelu ({meps} puhui aiheesta {title}, {date}{format}) ja eniten kysymyksiä ({questions}, verrattuna määrään {average}, jälleen){outcome}.",
   "topics.story.integrated.bothStreakRise": "{place}: kartan vilkkain keskustelu ({meps} puhui aiheesta {title}, {date}{format}) ja eniten kysymyksiä ({questions}, verrattuna määrään {average}, {ordinal} peräkkäisenä vuosineljänneksenä){outcome}.",
-  "topics.story.integrated.bothStreakRise.eu": "Euroopassa ja sen lähialueilla: {place}: kartan vilkkain keskustelu ({meps} puhui aiheesta {title}, {date}{format}) ja eniten kysymyksiä ({questions}, verrattuna määrään {average}, {ordinal} peräkkäisenä vuosineljänneksenä){outcome}."
+  "topics.story.integrated.bothStreakRise.eu": "Euroopassa ja sen lähialueilla: {place}: kartan vilkkain keskustelu ({meps} puhui aiheesta {title}, {date}{format}) ja eniten kysymyksiä ({questions}, verrattuna määrään {average}, {ordinal} peräkkäisenä vuosineljänneksenä){outcome}.",
+  "topics.story.integrated.busiestShared": "{place}: kartan vilkkain keskustelu ({meps} puhui aiheesta {title}, {date}{format}) ja {questions} (jaettu kärkisija kysymyksissä){outcome}.",
+  "topics.story.integrated.busiestSharedRise": "{place}: kartan vilkkain keskustelu ({meps} puhui aiheesta {title}, {date}{format}) ja {questions} (jaettu kärkisija kysymyksissä), verrattuna määrään {average}{outcome}.",
+  "topics.story.integrated.busiestShared.eu": "Euroopassa ja sen lähialueilla: {place}: kartan vilkkain keskustelu ({meps} puhui aiheesta {title}, {date}{format}) ja {questions} (jaettu kärkisija kysymyksissä){outcome}.",
+  "topics.story.integrated.busiestSharedRise.eu": "Euroopassa ja sen lähialueilla: {place}: kartan vilkkain keskustelu ({meps} puhui aiheesta {title}, {date}{format}) ja {questions} (jaettu kärkisija kysymyksissä), verrattuna määrään {average}{outcome}."
 }

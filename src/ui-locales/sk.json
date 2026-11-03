@@ -2761,5 +2761,9 @@
   "topics.story.integrated.bothAgainRise": "{place}: rozprava s najväčším počtom rečníkov na mape ({meps} vystúpili k téme {title}, {date}{format}) a najviac otázok ({questions}, oproti {average}, opäť){outcome}.",
   "topics.story.integrated.bothAgainRise.eu": "Európa a jej susedstvo — {place}: rozprava s najväčším počtom rečníkov na mape ({meps} vystúpili k téme {title}, {date}{format}) a najviac otázok ({questions}, oproti {average}, opäť){outcome}.",
   "topics.story.integrated.bothStreakRise": "{place}: rozprava s najväčším počtom rečníkov na mape ({meps} vystúpili k téme {title}, {date}{format}) a najviac otázok ({questions}, oproti {average}, {ordinal} štvrťrok po sebe){outcome}.",
-  "topics.story.integrated.bothStreakRise.eu": "Európa a jej susedstvo — {place}: rozprava s najväčším počtom rečníkov na mape ({meps} vystúpili k téme {title}, {date}{format}) a najviac otázok ({questions}, oproti {average}, {ordinal} štvrťrok po sebe){outcome}."
+  "topics.story.integrated.bothStreakRise.eu": "Európa a jej susedstvo — {place}: rozprava s najväčším počtom rečníkov na mape ({meps} vystúpili k téme {title}, {date}{format}) a najviac otázok ({questions}, oproti {average}, {ordinal} štvrťrok po sebe){outcome}.",
+  "topics.story.integrated.busiestShared": "{place}: rozprava s najväčším počtom rečníkov na mape ({meps} vystúpili k téme {title}, {date}{format}) a {questions} (delené prvé miesto v počte otázok){outcome}.",
+  "topics.story.integrated.busiestSharedRise": "{place}: rozprava s najväčším počtom rečníkov na mape ({meps} vystúpili k téme {title}, {date}{format}) a {questions} (delené prvé miesto v počte otázok), oproti {average}{outcome}.",
+  "topics.story.integrated.busiestShared.eu": "Európa a jej susedstvo — {place}: rozprava s najväčším počtom rečníkov na mape ({meps} vystúpili k téme {title}, {date}{format}) a {questions} (delené prvé miesto v počte otázok){outcome}.",
+  "topics.story.integrated.busiestSharedRise.eu": "Európa a jej susedstvo — {place}: rozprava s najväčším počtom rečníkov na mape ({meps} vystúpili k téme {title}, {date}{format}) a {questions} (delené prvé miesto v počte otázok), oproti {average}{outcome}."
 }

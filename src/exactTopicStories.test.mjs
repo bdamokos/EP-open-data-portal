@@ -308,3 +308,8 @@ test('documents mode removes repeated places while preserving distinct document 
  const x=quarter(base()),q='2026-Q1';x.debates=[{id:'D',title:'Report',date:'2026-01-20',meps:10,primaryPlace:'UKR',places:{UKR:['title']},docs:[]}];x.periodWinners[q]={busiestNonUrgencyDebates:[{id:'D',meps:10}],topAdoptedPlaces:[{id:'UKR',count:3},{id:'TUR',count:2}],risingDocumentPlaces:[{id:'MAR',count:9,baselineMean:2,ratio:4.5}]};x.series={UKR:{[q]:{questions:7}},MAR:{[q]:{debates:2}}};
  const text=lineText(buildExactTopicStories(x,{period:q,mode:'d',labels:{UKR:'Ukraine',TUR:'Türkiye',MAR:'Morocco'},...baseWording}));assert.equal((text.match(/Ukraine/g)||[]).length,1);assert(text.includes('Türkiye'));assert(text.includes('Morocco'));assert(!text.includes('seven questions'));assert(!text.includes('alongside'));
 });
+
+test('a busiest debate place retains its tied question lead without being named twice',()=>{
+ const x=quarter(base()),q='2026-Q1';x.debates=[{id:'D',title:'Report',date:'2026-01-20',meps:10,primaryPlace:'UKR',places:{UKR:['title']},docs:[]}];x.periodWinners[q]={busiestNonUrgencyDebates:[{id:'D',meps:10}],mostQuestionedPlaces:[{id:'UKR',count:11},{id:'TUR',count:11}]};x.series={UKR:{[q]:{questions:11}}};
+ const text=lineText(buildExactTopicStories(x,{period:q,labels:{UKR:'Ukraine',TUR:'Türkiye'},...baseWording}));assert.match(text,/11 questions \(joint leader in questions\)/);assert.match(text,/Türkiye: joint leader in questions/);assert.equal((text.match(/Ukraine/g)||[]).length,1);
+});

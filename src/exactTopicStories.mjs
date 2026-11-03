@@ -108,7 +108,7 @@ export function buildExactTopicStories(payload,s={}){
   const busyLine=lines.find(l=>l.placeId);
   if(busyLine){const p=busyLine.placeId,q=amount(p,'questions');
    if(s.mode!=='d'&&leaders.length===1&&leaders[0].id===p){busyLine.id='topics.story.integrated.both';busyLine.values.questions=browse(cm(leaders[0].count,'questions'),'questions',p);const periods=payload.periods||[],index=periods.indexOf(period);let streak=1;for(let i=index-1;i>=0&&!partialQuarter(periods[i],payload.partial);i--){const old=payload.periodWinners[periods[i]]?.mostQuestionedPlaces||[];if(old.length!==1||old[0].id!==p)break;streak++;}if(!partialQuarter(period,payload.partial)&&streak>=2){busyLine.id+=streak===2?'Again':'Streak';busyLine.values.ordinal=msg(s.language==='en'&&streak<=9?'ordinal.words.'+streak:'ordinal.'+new Intl.PluralRules(s.language,{type:'ordinal'}).select(streak),{count:num(streak)});}}
-   else if(q&&s.mode!=='d'){busyLine.id='topics.story.integrated.busiest';busyLine.values.questions=q;}
+   else if(q&&s.mode!=='d'){busyLine.id='topics.story.integrated.'+(leaders.length>1&&leaders.some(l=>l.id===p)?'busiestShared':'busiest');busyLine.values.questions=q;}
    const rise=s.mode!=='d'&&(w.risingQuestionPlaces||[]).find(r=>r.id===p);if(rise&&busyLine.values.questions){busyLine.id+='Rise';busyLine.values.average=ref(rise.baselineMean<1?msg('average.lessThanOne'):msg('average.value',{average:digits(Math.round(rise.baselineMean*10)/10)}),[],{browse:{list:'questions',place:p,periods:payload.periods.slice(1,payload.periods.indexOf(period)).join(',')}});}
   }
   // The question leader is already part of a rise sentence when they coincide.

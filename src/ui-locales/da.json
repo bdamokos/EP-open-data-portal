@@ -2761,5 +2761,9 @@
   "topics.story.integrated.bothAgainRise": "{place} var emnet for kortets livligste debat ({meps} talte om {title}, {date}{format}) og flest spørgsmål ({questions}, mod {average}, igen){outcome}.",
   "topics.story.integrated.bothAgainRise.eu": "I Europa og nabolandene: {place} var emnet for kortets livligste debat ({meps} talte om {title}, {date}{format}) og flest spørgsmål ({questions}, mod {average}, igen){outcome}.",
   "topics.story.integrated.bothStreakRise": "{place} var emnet for kortets livligste debat ({meps} talte om {title}, {date}{format}) og flest spørgsmål ({questions}, mod {average}, for {ordinal} kvartal i træk){outcome}.",
-  "topics.story.integrated.bothStreakRise.eu": "I Europa og nabolandene: {place} var emnet for kortets livligste debat ({meps} talte om {title}, {date}{format}) og flest spørgsmål ({questions}, mod {average}, for {ordinal} kvartal i træk){outcome}."
+  "topics.story.integrated.bothStreakRise.eu": "I Europa og nabolandene: {place} var emnet for kortets livligste debat ({meps} talte om {title}, {date}{format}) og flest spørgsmål ({questions}, mod {average}, for {ordinal} kvartal i træk){outcome}.",
+  "topics.story.integrated.busiestShared": "{place} var emnet for kortets livligste debat ({meps} talte om {title}, {date}{format}) og {questions} (delt førsteplads i spørgsmål){outcome}.",
+  "topics.story.integrated.busiestSharedRise": "{place} var emnet for kortets livligste debat ({meps} talte om {title}, {date}{format}) og {questions} (delt førsteplads i spørgsmål), mod {average}{outcome}.",
+  "topics.story.integrated.busiestShared.eu": "I Europa og nabolandene: {place} var emnet for kortets livligste debat ({meps} talte om {title}, {date}{format}) og {questions} (delt førsteplads i spørgsmål){outcome}.",
+  "topics.story.integrated.busiestSharedRise.eu": "I Europa og nabolandene: {place} var emnet for kortets livligste debat ({meps} talte om {title}, {date}{format}) og {questions} (delt førsteplads i spørgsmål), mod {average}{outcome}."
 }

@@ -2836,5 +2836,9 @@
   "topics.story.integrated.bothAgainRise": "{place} drew both the busiest debate on the map ({meps} spoke on {title}, {date}{format}) and the most questions ({questions}, up from {average}, again){outcome}.",
   "topics.story.integrated.bothAgainRise.eu": "In Europe and its neighbours, {place} drew both the busiest debate on the map ({meps} spoke on {title}, {date}{format}) and the most questions ({questions}, up from {average}, again){outcome}.",
   "topics.story.integrated.bothStreakRise": "{place} drew both the busiest debate on the map ({meps} spoke on {title}, {date}{format}) and the most questions ({questions}, up from {average}, for the {ordinal} quarter running){outcome}.",
-  "topics.story.integrated.bothStreakRise.eu": "In Europe and its neighbours, {place} drew both the busiest debate on the map ({meps} spoke on {title}, {date}{format}) and the most questions ({questions}, up from {average}, for the {ordinal} quarter running){outcome}."
+  "topics.story.integrated.bothStreakRise.eu": "In Europe and its neighbours, {place} drew both the busiest debate on the map ({meps} spoke on {title}, {date}{format}) and the most questions ({questions}, up from {average}, for the {ordinal} quarter running){outcome}.",
+  "topics.story.integrated.busiestShared": "{place} drew the busiest debate on the map ({meps} spoke on {title}, {date}{format}) and {questions} (joint leader in questions){outcome}.",
+  "topics.story.integrated.busiestSharedRise": "{place} drew the busiest debate on the map ({meps} spoke on {title}, {date}{format}) and {questions} (joint leader in questions), up from {average}{outcome}.",
+  "topics.story.integrated.busiestShared.eu": "In Europe and its neighbours, {place} drew the busiest debate on the map ({meps} spoke on {title}, {date}{format}) and {questions} (joint leader in questions){outcome}.",
+  "topics.story.integrated.busiestSharedRise.eu": "In Europe and its neighbours, {place} drew the busiest debate on the map ({meps} spoke on {title}, {date}{format}) and {questions} (joint leader in questions), up from {average}{outcome}."
 }
