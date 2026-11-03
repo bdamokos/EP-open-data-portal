@@ -166,6 +166,7 @@ export function documentFormatting(record) {
   let previous=0;
   for(const table of record.tables) {
     if(!Array.isArray(table?.rows)||!table.rows.length||table.bordered!==undefined&&table.bordered!==true)return unknown;
+    if(table.bodyBoundary!==undefined&&(!table.bodyBoundary||typeof table.bodyBoundary.before!=='string'||typeof table.bodyBoundary.after!=='string'||![table.bodyBoundary.before,table.bodyBoundary.after].every(path=>/^\/w:document\[1\]\/w:body\[1\]\/w:p\[[1-9]\d*\]$/u.test(path))))return unknown;
     for(const row of table.rows) {
       if(!Array.isArray(row))return unknown;
       for(const cell of row) {

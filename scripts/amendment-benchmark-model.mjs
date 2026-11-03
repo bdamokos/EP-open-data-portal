@@ -292,7 +292,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
     return verified('oracle-negative-first-paragraph-boundary');
   }
   if(!label.isNew)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
-  const raw=rawResolutionUnits(text,wording.language);
+  const raw=rawResolutionUnits(text,wording.language,{includeTables:true});
   if(raw.reason)return {status:'unverified',reason:raw.reason};
   const units=raw.units,parents=target.segments.slice(0,-1);
   const owns=unit=>{
