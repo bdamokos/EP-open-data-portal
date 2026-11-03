@@ -5,6 +5,7 @@ import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './propos
 import {amendmentOperation} from './document-context-model.mjs';
 import {latinSuffixRank} from './legal-latin-numbering.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
+import {rejectionWordingScope} from './amendment-rejection.mjs';
 
 const normal=value=>normaliseForMatching(value,{stripNumbering:false});
 const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -766,6 +767,50 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:matched.map(row=>row.text).join('\n'),evidence};
 }
 
+// EP addresses count a proposal's unlabelled preamble citations in order,
+// from the enacting institutions line up to "Whereas:".
+function preambleCitationPlacement(items,label,operation,originalText,evidence,unresolved) {
+  const preambles=[];
+  for(const [itemIndex,item] of items.entries()) {
+    if(item.kind==='annex')continue;
+    const rows=item.proposal.paragraphs,opens=rows.filter(row=>/^THE (?:EUROPEAN PARLIAMENT AND THE )?COUNCIL OF THE EUROPEAN UNION,$/u.test(row.text.trim()));
+    if(opens.length!==1)continue;
+    const close=rows.find(row=>row.index>opens[0].index&&/^Whereas:$/u.test(row.text.trim()));
+    if(close)preambles.push({itemIndex,proposal:item.proposal,open:opens[0],close,citations:rows.slice(opens[0].index+1,close.index)});
+  }
+  if(preambles.length!==1)return unresolved('source_structure_unavailable');
+  const {itemIndex,proposal,open,close,citations}=preambles[0];
+  const run=proposal.paragraphs.slice(open.index,close.index+1);
+  // Each citation opens with a fixed phrase; a continuation row or heading
+  // would shift every ordinal, so such preambles are withheld.
+  if(citations.some(row=>!/^(?:Having regard to|After (?:transmission|consulting|consultation)|Acting in accordance with)\b/u.test(row.text.trim())))return unresolved('source_structure_unavailable');
+  if(!citations.length||run.some((row,index)=>!row.complete||!row.source||row.source.complete===false||row.source.container!=='body'||!row.text.trim()
+    ||index&&(row.source.containerPath!==run[index-1].source.containerPath||row.source.segment!==run[index-1].source.segment||row.source.ordinal!==run[index-1].source.ordinal+1)))return unresolved('source_passage_incomplete');
+  const row=citations[label.number-1];
+  if(!row)return unresolved('target_not_found');
+  evidence.push({basis:'preamble-citation-ordinal',ordinal:label.number,row:row.index});
+  if(operation==='insert') {
+    if(!label.isNew||!label.suffix)return unresolved('insertion_reference_unavailable');
+    return {operation,status:'placed',itemIndex,insertAfter:row.index,insertBefore:row.index+1,evidence};
+  }
+  if(label.isNew||label.suffix)return unresolved('conflicting_target_evidence');
+  const match=matchUnit(proposal,{kind:'citation',extent:{start:row.index,end:row.index+1},content:[row.index],children:[]},originalText);
+  if(!match.span)return unresolved(match.reason??'conflicting_target_evidence');
+  return {operation,status:'placed',itemIndex,span:match.span,splice:match.splice,originalText:match.originalText,evidence};
+}
+// Maintainer P2 for articles: a new Article -1 goes immediately after the
+// enacting formula, before the first article when that is Article 1.
+function negativeArticlePlacement(items,proposedText,language,evidence,unresolved) {
+  const articles=items.flatMap((item,itemIndex)=>item.kind==='annex'?[]:flat(item.proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind==='article').map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  const first=articles.sort((a,b)=>a.itemIndex-b.itemIndex||a.unit.extent.start-b.unit.extent.start)[0];
+  if(language!=='en'||!/^Article\s*[-−–‑]\s*1\b/u.test(proposedText.trim()))return unresolved('insertion_reference_unavailable');
+  if(!first||first.unit.label?.value!=='1'||articles.filter(({unit})=>unit.label?.value==='1').length!==1||first.unit.pathConflict)return unresolved('relative_target_not_found');
+  const {proposal,unit}=first,before=proposal.paragraphs[unit.extent.start-1],at=proposal.paragraphs[unit.extent.start];
+  if(!before||!/^HAVE ADOPTED THIS (?:REGULATION|DIRECTIVE|DECISION):$/u.test(before.text.trim())||!completeBoundary(proposal,unit)||!before.complete||before.source?.complete===false||at.source?.ordinal!==before.source?.ordinal+1)return unresolved('source_passage_incomplete');
+  evidence.push({basis:'negative-article-before-first',anchor:unit.id});
+  return {operation:'insert',status:'placed',itemIndex:first.itemIndex,insertAfter:unit.extent.start-1,insertBefore:unit.extent.start,evidence};
+}
+
 export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline}={}, {nativeProposalInputs}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
@@ -788,6 +833,11 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
   if(operation==='insert'){const indent=bareAnnexIndentInsertion(items,target,{language,baseline,originalText,proposedText,nativeProposalInputs});if(indent)return {...indent,evidence:[...evidence,...indent.evidence]};}
+  const sole=target.segments.length===1?target.segments[0]:null;
+  // A numbered address whose whole cell rejects the proposal (A-10-2026-0104 AM90) is no citation or article.
+  if(sole&&['citation','article'].includes(sole.kind)&&rejectionWordingScope(language,proposedText))return unresolved('conflicting_target_evidence');
+  if(language==='en'&&sole?.kind==='citation'&&Number.isInteger(sole.number))return preambleCitationPlacement(items,sole,operation,originalText,evidence,unresolved);
+  if(sole?.kind==='article'&&sole.negative&&sole.value==='-1'&&operation==='insert')return negativeArticlePlacement(items,proposedText,language,evidence,unresolved);
   // Italian EP addresses name the printed instruction directly below an
   // unnumbered article lead ("Articolo 1 – punto 2"). The parser's implicit
   // paragraph is an internal container, not an additional published label.
