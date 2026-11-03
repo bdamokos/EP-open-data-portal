@@ -1316,3 +1316,16 @@ test('report quotation labels the comparison base without a legal-text placement
  assert.equal(h.container.querySelector('[data-context-target]'),null);
  assert(![...h.container.querySelectorAll('button')].some(b=>b.textContent==='Go to amendment'));
 });
+
+for(const url of [null,'https://www.europarl.europa.eu/doceo/document/TA-10-2026-0200_EN.html'])test('label placement has one final-text note '+url,async t=>{
+ const value=response(report,sourceDocument(report,['The European Parliament,','1. Original wording.','2. Next;']),{
+  amendment:{...amendmentSource,variants:[wordingVariant('en')]},
+  target:{...target,evidence:pinnedEvidence('en')},
+  placement:{status:'placed',operation:'replace',span:{start:1,end:1},evidence:[],finalPlacementCheck:{adoptedTextUrl:url}},
+ });
+ const h=await harness(t,()=>value);
+ await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+ const block=h.container.querySelector('[data-context-target="true"]');assert(block);
+ assert.equal(block.textContent.match(/Check final placement in the adopted text\./g)?.length,1);
+ assert.equal(block.querySelector('a')?.href??null,url);
+});

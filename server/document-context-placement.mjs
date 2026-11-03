@@ -30,9 +30,16 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
     ?resolveProposalPlacement(items,chosen):unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
   const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
+  const labelled=chosen.targetLabelLanguage===chosen.language&&Boolean(resolutionReference(chosen.targetLabel,chosen.language));
   let placement=['present-text','council-position'].includes(chosen.baseline)
     ?unresolved(chosen.baseline==='present-text'?'amends_existing_law':'council_position_unavailable')
-    :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:comparable[0],resolutionDocument});
-  if(comparable.length>1){placement={...placement,status:'unresolved',reason:'conflicting_target_evidence'};delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
+    :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:labelled?undefined:comparable[0],resolutionDocument});
+  // Vote lists can rearrange provisions. The published amendment label owns
+  // this view; retain disagreement only as a final-text check for the reader.
+  if(!labelled&&comparable.length>1){placement={...placement,status:'unresolved',reason:'conflicting_target_evidence'};delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
+  if(placement.status==='placed'&&labelled&&comparable.some(reference=>
+    resolveAmendmentPlacement(text,{...chosen,referenceText:reference,resolutionDocument}).reason==='conflicting_target_evidence')) {
+    placement={...placement,finalPlacementCheck:{adoptedTextUrl:null}};
+  }
   return placement;
 }
