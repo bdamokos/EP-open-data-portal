@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
-import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
+import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-benchmark-proposal-oracle.mjs';
 import {verifyPlacement,parseBenchmarkTarget} from './amendment-benchmark-model.mjs';
 
 const proposal=rows=>({sourceKind:'docx',units:[{poison:'The oracle must not inspect the placer tree'}],paragraphs:rows.map(([text,styleId],index)=>({index,text,properties:{styleId},source:{container:'body',complete:true},complete:true}))});
@@ -166,4 +166,15 @@ test('new subparagraph follows the full native subparagraph including its points
   assert.equal(check(p,'Article 3 – paragraph 1 – subparagraph 2 b (new)',insert(4)).status,'unverified');
   p.paragraphs[4].source.ordinal++;
   assert.equal(check(p,label,insert(4)).status,'unverified');
+});
+test('a printed paragraph-one prefix may identify a sole implicit paragraph without changing its wording',()=>{
+ const make=()=>{
+  const p=proposal([['Article [1]','Titrearticle'],['Subject matter','Titrearticle'],['A legal body.','Normal'],['Article [2]','Titrearticle']]);
+  p.paragraphs.forEach((p,i)=>Object.assign(p.source,{ordinal:i,containerPath:'body',segment:0}));
+  const wording={...amendment('Article 1 – paragraph 1','1. A legal body.'),proposedText:'1. A revised legal body.'},placement={...replace(2),itemIndex:0,splice:{start:{paragraph:2,offset:0},end:{paragraph:2,offset:13}}};
+  return {proposal:p,wording,placement};
+ };
+ const a=make();Object.defineProperty(a.proposal,'units',{get(){throw Error('tree forbidden');}});assert.equal(assertImplicitParagraphLabel(a).status,'verified');assert.equal(verifyPlacement({...a,items:[{proposal:a.proposal}]}).status,'verified');
+ for(const mutate of [a=>a.placement.splice.start.offset++,a=>a.placement.span.end++]){const a=make();mutate(a);assert.equal(assertImplicitParagraphLabel(a).status,'failed');}
+ for(const mutate of [a=>a.proposal.anchors=[{paragraph:2,note:'1',offset:5}],a=>a.proposal.paragraphs[2].objects=[{complete:true}],a=>a.wording.originalText='1. Another body.',a=>a.wording.language='fr',a=>a.wording.baseline='present-text',a=>a.wording.targetLabel='Article 1 – paragraph 2',a=>a.proposal.paragraphs[2].source.complete=false,a=>a.proposal.paragraphs[3].source.ordinal++,a=>a.proposal.paragraphs[2].properties.numberingLabel='1.',a=>a.proposal.paragraphs[2].properties.styleId='ManualNumPar1',a=>a.wording.proposedText='2. Changed paragraph.']){const a=make();mutate(a);assert.equal(assertImplicitParagraphLabel(a).status,'unverified');}
 });
