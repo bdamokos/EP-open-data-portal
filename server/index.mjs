@@ -1,4 +1,4 @@
-import {readTopics} from './topics-reader.mjs';
+import {readTopics,warmTopicOverviews} from './topics-reader.mjs';
 import {errorLog,clientErrorEvent,serverErrorEvent} from './error-log.mjs';
 import {documentImage} from './document-image-store.mjs';
 import {PORTRAIT_VERSION} from './portrait-version.mjs';
@@ -15,7 +15,7 @@ import {measureEventLoopDelay} from './event-loop-delay.mjs';
 import {prepareStartupIndexes} from './migrate-indexes.mjs';
 let eventLoopDelay;
 import {pathToFileURL} from 'node:url';
-import {apiPrefixes,config} from './config.mjs';
+import {apiPrefixes,config,booleanFromEnvironment} from './config.mjs';
 import {assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
 import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
@@ -470,10 +470,12 @@ if (isEntryPoint) {
   process.on("SIGTERM", () => shutDown("SIGTERM"));
   server.once('listening',()=>{
     stopMonitoring=startOdpMonitoring();
+    if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))warmTopicOverviews(activityIndex().store);
     let publishedGeneration;
     stopWriters = startSourceWriters({onPublication:message=>{
       // Cache keys and Following/amendment readiness are read from committed
       // WAL snapshots. A new generation also wakes the existing warm-up hook.
+      if(message.source==='activity')warmTopicOverviews(activityIndex().store);
       if(message.source==='activity'&&message.revision.active!==publishedGeneration){
         publishedGeneration=message.revision.active;
         if(publishedGeneration)stopPlenaryWarmup.wake?.();

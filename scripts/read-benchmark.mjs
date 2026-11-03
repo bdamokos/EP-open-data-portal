@@ -1,3 +1,4 @@
+import {runTopicsReadBenchmark} from '../server/test-support/topics-read-benchmark.mjs';
 import {benchmarkIdentity,readBenchmarkResult} from './read-benchmark-cache.mjs';
 import {runWeekCloudReadBenchmark} from '../server/test-support/week-cloud-read-benchmark.mjs';
 import {execFileSync} from 'node:child_process';
@@ -13,6 +14,7 @@ import {runSlowReadBenchmark} from '../server/test-support/slow-read-benchmark.m
 
 // Add one line per offline suite returning {scenarios: [{name, ...metrics}]}.
 const benchmarks=[
+  runTopicsReadBenchmark,
   runWeekCloudReadBenchmark,
   runRemainingReadBenchmark,
   runSlowReadBenchmark,

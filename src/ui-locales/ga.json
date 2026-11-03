@@ -2503,5 +2503,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Ráitis de réir míosa",
   "groupvoices.contributions_by_sitting_day.77a719": "Ráitis de réir lá suí",
   "membervotespresentation.votes_not_yet_published": "Níor foilsíodh na vótaí fós",
-  "membervotespresentation.votes_start_at": "Tosaíonn na vótaí ag {time}"
+  "membervotespresentation.votes_start_at": "Tosaíonn na vótaí ag {time}",
+  "topics.geopolitics": "Geopholaitíocht",
+  "topics.plenaryMode": "Ábhair",
+  "topics.findPlace": "Aimsigh áit",
+  "topics.findTopic": "Aimsigh ábhar"
 }
