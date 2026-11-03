@@ -36,9 +36,9 @@ export function rawExpected(block,language) {
   // do not accidentally replace it with the final underlying-act address.
   const headers=block.tables?.[0]?.before||[],at=headers.findIndex(h=>proposals.has(sectionKey(h)));
   if(at>=0&&headers[at+1])block={...block,section:headers[at],targetLabel:headers[at+1],underlyingSection:headers[at+2]||null,underlyingTargetLabel:headers[at+3]||null};
-  const key=sectionKey(block.section);
-  return {...block,language,sectionKind:resolutions.has(key)?'resolution':proposals.has(key)?'commission-proposal':null,
-    operation:block.gap?null:expectedOperation({...block,language}),scope:block.gap?null:expectedLanguageScope({...block,language})};
+  const key=sectionKey(block.section),sectionKind=resolutions.has(key)?'resolution':proposals.has(key)?'commission-proposal':null;
+  return {...block,language,sectionKind,
+    operation:block.gap?null:expectedOperation({...block,language,sectionKind}),scope:block.gap?null:expectedLanguageScope({...block,language})};
 }
 // Language-neutral numeric token extraction is only accepted for simple source
 // headings. Parent paths, selectors and quoted acts require a separate gold row.
@@ -160,6 +160,7 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
     if(!next)return unknown('raw-insertion-extent-unverified');
     const between=rows.slice(anchor.index+1,next.index);
     if(between.some(p=>!/[.;:]$/u.test(p.text)||p.uncertain))return unknown('raw-insertion-extent-unverified');
+    if(expected.originalText.trim()&&strip([anchor,...between].map(row=>row.text).join('\n'))!==strip(expected.originalText))return failed('raw-insertion-context-mismatch');
     const last=rows[next.index-1],after=observed[placement.insertAfter],before=observed[placement.insertBefore];
     if(after?.path!==last.path||before?.path!==next.path)return failed('raw-insertion-boundary-mismatch',{expectedAfter:last.path,expectedBefore:next.path,actualAfter:after?.path,actualBefore:before?.path});
     return {status:'verified',reason:'raw-sibling-boundary',location:{section:anchor.sectionKind,kind:relative?'heading':anchor.ref.kind,value:address.value,scope:'body'}};
