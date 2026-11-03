@@ -16,7 +16,7 @@ export function votingListSessions(nodes){
   for(const date of dates){let session=sessions.at(-1);if(!session||addDays(session.last,1)!==date){session={first:date,last:date,sittings:[]};sessions.push(session);}session.last=date;session.sittings.push('MTG-PL-'+date);}
   return sessions.map(s=>({...s,start:Date.parse(brusselsInstant(addDays(s.first,-4)+'T07:00:00')),end:Date.parse(brusselsInstant(s.last+'T23:00:00')),purgeAt:Date.parse(brusselsInstant(addDays(s.last,30)+'T00:00:00'))}));
 }
-export function allowedVotingListUrl(value){try{const u=new URL(value,VOTING_LIST_PAGE);if(u.origin!=='https://www.europarl.europa.eu'||u.username||u.password||!/^\/sedcms\/(?:votingList\/|pubfile\/VOTING_SCHEDULE\/)[^/]+\.docx$/i.test(u.pathname))return null;u.search='';u.hash='';return u.href;}catch{return null;}}
+export function allowedVotingListUrl(value){try{const u=new URL(value,VOTING_LIST_PAGE),decoded=decodeURIComponent(u.pathname);if(decoded.includes('\\'))return null;if(u.origin!=='https://www.europarl.europa.eu'||u.username||u.password||!/^\/sedcms\/(?:votingList\/|pubfile\/VOTING_SCHEDULE\/)[^/]+\.docx$/i.test(decoded))return null;u.search='';u.hash='';return u.href;}catch{return null;}}
 const plain=s=>s.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
 export function discoverVotingLists(html,sessions){
   const links=[],gaps=[];let sittingId=null,session=null;
@@ -67,6 +67,7 @@ export class VotingListCollector {
   write(fn){const run=()=>{this.store.assertWriter();return fn();};return this.store.db.isTransaction?run():this.store.transaction(run);}
   async step(worker){
     if(!this.due())return false;
+    if(this.runSignal!==worker.controller.signal){this.runSignal=worker.controller.signal;this.runDocxGets=0;}
     const now=this.clock(),sessions=this.sessions(),active=sessions.filter(s=>s.start<=now&&now<s.end),db=this.store.db;
     this.write(()=>{if((this.store.get('votingListDiscoveryPurgeAt')||Infinity)<=now){this.store.set('votingListDiscoveryGaps',[]);this.store.set('votingListLastError',null);}
       db.prepare('DELETE FROM voting_list_revisions WHERE purge_at<=?').run(now);db.prepare('DELETE FROM voting_list_sources WHERE purge_at<=?').run(now);});
@@ -83,12 +84,14 @@ export class VotingListCollector {
     const source=db.prepare('SELECT * FROM voting_list_sources ORDER BY next_check,url LIMIT 240').all().find(row=>{
       const body=JSON.parse(row.body);return active.some(s=>s.first===body.sessionFirst)&&now>=(body.retryAt||0)&&(row.next_check<=now&&(!body.checkedAt||now-body.checkedAt>=6*HOUR)||frequentFor(row.sitting)&&now-(body.checkedAt||0)>=HOUR);
     });
+    if(!pageDue&&this.runDocxGets>=120)return false;
     if(!pageDue&&!source){this.write(()=>this.store.set('votingListSweep',now+60000));return false;}
     const prior=pageDue?page:JSON.parse(source.body),url=pageDue?VOTING_LIST_PAGE:source.url;
     const next=now+HOUR;
     // Reserve before awaiting: crashes and skipped generations cannot create a retry storm.
     this.write(()=>{if(pageDue)this.store.set('votingListPage',{...page,nextCheck:next});else db.prepare('UPDATE voting_list_sources SET next_check=?,body=? WHERE url=? AND sitting=?').run(next,JSON.stringify({...prior,checkedAt:now}),url,source.sitting);});
     try{
+      if(!pageDue)this.runDocxGets++;
       const response=await this.fetchSource(url,{signal:worker.controller.signal,etag:prior.etag,lastModified:prior.lastModified});
       const validators={etag:response.etag||prior.etag||null,lastModified:response.lastModified||prior.lastModified||null};
       if(pageDue){this.write(()=>{

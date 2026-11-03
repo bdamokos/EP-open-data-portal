@@ -15,7 +15,7 @@ test('Brussels windows include four lead days and DST; exact section discovery a
  const sessions=votingListSessions(nodes);assert.equal(new Date(sessions[0].start).toISOString(),'2026-11-07T06:00:00.000Z');assert.equal(new Date(sessions[0].end).toISOString(),'2026-11-12T22:00:00.000Z');
  const discovery=discoverVotingLists(html,sessions);assert.equal(discovery.links.length,1);assert.equal(discovery.links[0].sittingId,'MTG-PL-2026-11-12');assert.equal(discovery.links[0].linkVersion,'FINAL VERSION');assert.equal(discovery.links[0].url,url);
  assert.equal(discoverVotingLists(`<a href="${url}">doc</a>`,sessions).gaps[0].code,'unmapped-section');
- for(const bad of ['https://evil.test/sedcms/votingList/x.docx','https://www.europarl.europa.eu/other.docx','https://www.europarl.europa.eu/sedcms/votingList/../secret.docx'])assert.equal(allowedVotingListUrl(bad),null);
+ for(const bad of ['https://evil.test/sedcms/votingList/x.docx','https://www.europarl.europa.eu/other.docx','https://www.europarl.europa.eu/sedcms/votingList/%2f..%2fother.docx','https://www.europarl.europa.eu/sedcms/votingList/../secret.docx'])assert.equal(allowedVotingListUrl(bad),null);
 });
 test('hourly page, six-hour documents, validators, revisions, late purge, read-only endpoint',async t=>{
  const s=setup(t),calls=[];let revision=0;
@@ -62,4 +62,12 @@ test('a reverted file hash remains the current document while both revisions sur
   db.prepare('INSERT INTO voting_list_revisions VALUES (?,?,?,?,?,?)').run(url,'MTG-PL-2026-11-12',hash,date,JSON.stringify(body),purge);
  }
  const docs=new VotingListStore(s.store,{clock:s.now}).votingListsForSitting('MTG-PL-2026-11-12');assert.equal(docs.length,1);assert.equal(docs[0].revision.sha256,'a');assert.equal(docs[0].revisions.length,2);
+});
+test('one worker run is capped at 120 DOCX GETs and a later run resumes without hourly backlog',async t=>{
+ const s=setup(t),sessions=votingListSessions(nodes);let gets=0;
+ s.store.set('votingListPage',{nextCheck:s.now()+86400000});
+ for(let n=0;n<121;n++){const file=url.replace('A10-0201',String(n));s.store.db.prepare('INSERT INTO voting_list_sources VALUES (?,?,?,?,?)').run(file,'MTG-PL-2026-11-12',JSON.stringify({url:file,sessionFirst:'2026-11-11'}),s.now(),sessions[0].purgeAt);}
+ const collector=new VotingListCollector(s.store,{clock:s.now,sessions,snapshots:{read:()=>null},fetchSource:async()=>{gets++;return {status:304};}}),worker={controller:new AbortController()};
+ for(let n=0;n<122;n++)await collector.step(worker);assert.equal(gets,120);
+ s.advance(3600000);await collector.step({controller:new AbortController()});assert.equal(gets,121);
 });
