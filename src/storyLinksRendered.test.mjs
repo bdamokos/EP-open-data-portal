@@ -175,3 +175,21 @@ test('fallback labels use the same prose language as their visible quantities',a
  const h=await harness(t,{component:'TopicStory',language:'fr',catalogueOverride:{'topics.story.links.heading':'French heading {count} {kind} {place}'},props:{data:{periods:['2026-Q3'],partial:{},items:[{key:'place:COL',label:'Colombia',series:[{period:'2026-Q3',question:2}]}]},index:0,mode:'q',own:true,zoom:'eu'}});
  const link=h.node.querySelector('.topic-story a');assert.equal(h.node.querySelector('.topic-story').lang,'en');assert(!link.getAttribute('aria-label').includes('French heading'));assert(link.getAttribute('aria-label').includes(link.textContent));
 });
+
+for(const scope of [{},{place:'IRN'},{topic:'oeil:3.70.03'}])test('requested French locale survives rendered story links '+JSON.stringify(scope),async t=>{
+ const h=await harness(t,{language:'fr',url:'?view=geopolitics&lang=fr',props:{selection:{...selection,...scope}}});await h.wait('Parlement');
+ const links=[...h.node.querySelectorAll('.topic-story a')];assert(links.length);
+ for(const link of links)if(new URL(link.href).origin===location.origin)assert.equal(new URL(link.href).searchParams.get('lang'),'fr',link.outerHTML);
+ const param=scope.topic?'t-record':'t-records',link=links.find(a=>new URL(a.href).searchParams.has(param));assert(link);const key=new URL(link.href).searchParams.get(param);await act(async()=>link.click());assert.equal(new URL(location.href).searchParams.get('lang'),'fr');assert.equal(new URL(location.href).searchParams.get(param),key);
+ if(!scope.topic)await h.wait('2026');for(const a of h.node.querySelectorAll('.topic-story-records a'))if(new URL(a.href).origin===location.origin)assert.equal(new URL(a.href).searchParams.get('lang'),'fr',a.outerHTML);
+});
+test('English fallback prose retains the requested French interface in its rendered target',async t=>{
+ const h=await harness(t,{component:'TopicStory',language:'fr',catalogueOverride:{},url:'?view=geopolitics&lang=fr',props:{data:{periods:['2026-Q3'],partial:{},items:[{key:'place:COL',label:'Colombia',series:[{period:'2026-Q3',question:2}]}]},index:0,mode:'q',own:true,zoom:'eu'}});
+ assert.equal(h.node.querySelector('.topic-story').lang,'en');const a=h.node.querySelector('a');assert.equal(new URL(a.href).searchParams.get('lang'),'fr');await act(async()=>a.click());assert.equal(new URL(location.href).searchParams.get('lang'),'fr');
+});
+
+test('baseline, onward and direct record links retain interface locale and exact selection',async t=>{
+ const key='questions:COL:2026-Q1%2C2026-Q2:all',h=await harness(t,{component:'TopicStoryRecords',language:'fr',url:'?view=geopolitics&lang=fr&place=COL&t-records='+encodeURIComponent(key),props:{selection:{...selection,place:'COL'}}});await h.wait('2026');
+ for(const a of h.node.querySelectorAll('a'))assert.equal(new URL(a.href).searchParams.get('lang'),'fr',a.outerHTML);
+ const quarter=[...h.node.querySelectorAll('a')].find(a=>new URL(a.href).searchParams.has('t-records'));assert(quarter);assert.equal(parseStorySetKey(new URL(quarter.href).searchParams.get('t-records')).askers,'all');
+});
