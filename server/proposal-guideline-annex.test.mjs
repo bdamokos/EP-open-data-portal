@@ -12,10 +12,12 @@ test('native sole guideline annex binds the act reference without inventing an o
 });
 test('guideline paragraphs stay addressable across headings under a bare annex',()=>{
  const proposal=parseProposal(annex,{item:'annex'});assert.equal(proposalCandidates(proposal,'Annex – paragraph 3').length,1);
+ const headings=proposalCandidates(proposal,'Annex – subheading 1');assert.equal(headings.length,1);assert.equal(headings[0].extent.start,0);
  const chosen={baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false},language:'en',targetLabelLanguage:'en',targetLabel:'Annex I – paragraph 3',originalText:'Third body.',proposedText:'Changed body.'};
  const proof=nativeGuidelineAnnex(act,annex),items=[{kind:'annex',proposal}];
  const baseline={evidence:[{kind:'native-procedure',status:'verified',procedure:'2027/0001(NLE)'},{kind:'native-nle-annex-part',legalPlacement:true,...proof}]};
  assert.equal(documentContextPlacement({chosen,items,baseline}).status,'placed');
+ assert.equal(documentContextPlacement({chosen:{...chosen,targetLabel:'Annex I – subheading 2',originalText:'Guideline 5: Demand'},items,baseline}).status,'unresolved');
  assert.equal(documentContextPlacement({chosen,items,baseline:{evidence:[baseline.evidence[0],{kind:'native-nle-annex-part',legalPlacement:false,ordinal:null}]}}).reason,'proposal_annex_ordinal_unverified');
  assert.equal(documentContextPlacement({chosen:{...chosen,targetLabel:'Annex II – paragraph 3'},items,baseline}).status,'unresolved');
 });

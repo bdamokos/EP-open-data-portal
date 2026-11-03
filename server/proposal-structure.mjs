@@ -231,7 +231,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     const p=paragraphs[i],text=p.text,style=p.properties?.styleId??'',trim=text.trim(),lead=cleanLead(trim),headed=heading(trim,language,style),sourceRegion=proposalRegion(trim,language);
     if(guidelines&&i>=guidelines.start) {
       if(i===guidelines.start){region('body',i,true);container=make(area,'annex',i,{segment:label('annex','',language),normative:true});}
-      if(guidelines.headings.some(heading=>heading.index===i))last=make(container,'title',i);
+      if(guidelines.headings.some(heading=>heading.index===i))last=make(container,'subheading',i,{segment:label('subheading',String(guidelines.headings.findIndex(heading=>heading.index===i)+1),language)});
       else last=make(container,'paragraph',i,{segment:label('paragraph',String(guidelines.paragraphs.indexOf(i)+1),language),implicit:true});
       retain(last,i);continue;
     }
@@ -356,7 +356,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       else last=make(area,'citation',i);
       retain(last,i);continue;
     }
-    if(articleTitle(i,container)&&!paragraph){last=make(container,'title',i);retain(last,i);continue;}
+    if(articleTitle(i,container)&&!paragraph){last=make(container,'subheading',i,{segment:label('subheading',String(guidelines.headings.findIndex(heading=>heading.index===i)+1),language)});retain(last,i);continue;}
     const operation=instruction(lead,language);
     if(number?.kind==='paragraph'&&paragraph?.implicit&&(paragraph.instruction?.operation==='amend'||/^(?:Manual)?NumPar1$/i.test(style))){number.kind='point';number.level=0;}
     if(number?.kind==='point'&&number.level===0&&/^\d/.test(number.value)&&container?.kind==='article'&&(!paragraph||!paragraph.implicit)&&!operation)number.kind='paragraph';
