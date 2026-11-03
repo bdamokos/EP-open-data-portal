@@ -557,6 +557,29 @@ export default function App() {
   // so returning keeps its portraits; restore where the reader left it.
   const wallVisible=!view&&!member;
   const wallScroll=useRef({page:0,portraits:0});
+  // Where the whole page scrolls, the count row sticks; once the filters scroll away it offers them instead of a reset.
+  const wallFilters=useRef<HTMLDivElement>(null),[filtersPassed,setFiltersPassed]=useState(false);
+  useEffect(()=>{
+    const filters=wallFilters.current;
+    if(!wallVisible||!filters||typeof IntersectionObserver!=='function')return;
+    const observer=new IntersectionObserver(([entry])=>setFiltersPassed(!entry.isIntersecting&&entry.boundingClientRect.top<0));
+    observer.observe(filters);
+    return ()=>{observer.disconnect();setFiltersPassed(false);};
+  },[wallVisible]);
+  // Focus scrolling keeps portrait controls clear of the sticky count row.
+  useLayoutEffect(()=>{
+    const page=document.querySelector<HTMLElement>(".explorer"),results=page?.querySelector<HTMLElement>(".explorer-results");
+    if(!wallVisible||!page||!results||typeof ResizeObserver!=='function')return;
+    const measure=()=>page.style.setProperty("--explorer-results-height",`${results.getBoundingClientRect().height}px`);
+    measure();
+    const observer=new ResizeObserver(measure);observer.observe(results);
+    return ()=>{observer.disconnect();page.style.removeProperty("--explorer-results-height");};
+  },[wallVisible,directory]);
+  const showFilters=()=>{
+    const page=document.querySelector<HTMLElement>(".explorer"),heading=page?.querySelector<HTMLElement>(".explorer-wall h1");
+    page?.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
+    if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
+  };
   const wallShown=useRef(wallVisible);
   useLayoutEffect(()=>{
     const returned=wallVisible&&!wallShown.current;wallShown.current=wallVisible;
@@ -866,7 +889,7 @@ export default function App() {
           <section className="explorer-wall" hidden={!wallVisible}>
             <h1 lang={lang}>{c.title}</h1>
             {organization&&<p className="explorer-organization-filter"><strong>{organizationName||organization}</strong> <button type="button" onClick={()=>{setOrganization('');setOrganizationName('');}}><UiMessage id="app.clear_filter"/></button></p>}
-            <div className="explorer-filters">
+            <div className="explorer-filters" ref={wallFilters}>
               <label lang={lang}>
                 {c.committee}
                 <select
@@ -948,13 +971,13 @@ export default function App() {
               />}{" "}
             {!directory && !error && <p role="status" lang={ui.language}><UiMessage id="app.loading_current_meps_and_committees"/></p>}
             {directory && <>
-                <div className="explorer-results">
+                <div className={filtersPassed ? 'explorer-results is-stuck' : 'explorer-results'}>
                   <strong>{partialCommittee ? (filtered.length ? (`${filtered.length}+`) : "—") : filtered.length}</strong>
                   <span lang={lang}>
                     {partialCommittee && !filtered.length ? <UiMessage id="app.mepCountUnknownUnit"/> : <UiMessage id="app.mepCountUnit" counts={{count:filtered.length}}/>}{" "}
                     <small lang={ui.language}><UiMessage id="app.currentAt" values={{date: <time lang={lang} dateTime={directory.day}>{date(directory.day, lang)}</time>}}/></small>
                   </span>
-                  <button
+                  {filtersPassed ? <button type="button" lang={ui.language} onClick={showFilters}><UiMessage id="app.show_filters"/></button> : <button
                     lang={lang}
                     onClick={() => {
                       setOrganization("");setOrganizationName("");
@@ -966,7 +989,7 @@ export default function App() {
                     }}
                   >
                     {label("reset_filters", ui.t("interfaceLabels.reset_filters"))}
-                  </button>
+                  </button>}
                 </div>
                 {directory.sync?.error && <div className="explorer-index" role="status" lang={ui.language}><UiMessage id="app.feedUnavailable" values={{lastSuccess: <span lang={directory.sync.lastSuccess ? "" : ui.language}>{directory.sync.lastSuccess || ui.t("app.not_yet_completed")}</span>}}/></div>}
                 {directory.committeeDetails && (!directory.committeeDetails.complete || directory.committeeDetails.error) && <div className="explorer-index" role="status" lang={ui.language}>

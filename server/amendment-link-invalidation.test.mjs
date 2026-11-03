@@ -34,14 +34,14 @@ function fixture(t) {
   store.db.exec("CREATE TABLE document_writes (n INTEGER NOT NULL); INSERT INTO document_writes VALUES (0); CREATE TEMP TRIGGER count_document_writes AFTER UPDATE ON sources WHEN NEW.kind='document' BEGIN UPDATE document_writes SET n=n+1; END");
   const plans=[],prepare=store.db.prepare.bind(store.db);
   t.mock.method(store.db,'prepare',sql=>{
-    if(sql.startsWith('UPDATE sources')&&sql.includes('json_remove'))plans.push(prepare('EXPLAIN QUERY PLAN '+sql).all(generation).map(row=>row.detail).join('; '));
+    if(sql.startsWith('UPDATE sources')&&sql.includes('json_remove'))plans.push(prepare('EXPLAIN QUERY PLAN '+sql).all(generation,'','\uffff').map(row=>row.detail).join('; '));
     return prepare(sql);
   });
   return {store,worker,generation,plans,writes:()=>store.db.prepare('SELECT n FROM document_writes').get().n};
 }
 function assertIndexed(plans) {
   assert(plans.length>0);
-  for(const plan of plans){assert.match(plan,/SEARCH sources USING INDEX amendment_link_invalidation \(generation=\?\)/);assert.doesNotMatch(plan,/SCAN sources/);}
+  for(const plan of plans){assert.match(plan,/SEARCH sources USING INDEX amendment_link_invalidation \(generation=\? AND key>\? AND key<\?\)/);assert.doesNotMatch(plan,/SCAN sources/);}
 }
 
 test('repeated admission overflow invalidates 1776 documents once, without repeating projection writes',t=>{
