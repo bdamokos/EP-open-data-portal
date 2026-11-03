@@ -628,8 +628,10 @@ export function resolveAmendmentPlacement(text, options = {}) {
     // A unique labelled whole provision can survive small transcription damage
     // or a replaced tail. Compare all same-kind provisions in this motion so
     // repeated boilerplate cannot make a near match appear unique.
+    // Detached notes require their own body, payload and anchor proof. A small
+    // payload must never be mistaken for a damaged tail by edit distance.
     let nearMatch=false;
-    if(sourceKey!==originalKey&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
+    if(sourceKey!==originalKey&&!/\n_{5,}\s*\n/u.test(options.originalText)&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
       const score=value=>{
         let prefix=0;while(prefix<Math.min(value.length,originalKey.length)&&value[prefix]===originalKey[prefix])prefix++;
         return {similarity:characterSimilarity(value,originalKey,.93),prefix:prefix>=80&&prefix<Math.min(value.length,originalKey.length)?prefix/Math.min(value.length,originalKey.length):0};
