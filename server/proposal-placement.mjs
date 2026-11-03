@@ -222,6 +222,26 @@ function closingFormulaInsertion(items,target,candidatesFor) {
  if(rows.some(p=>p.source?.container!=='body')||!rows.some(p=>/^This Regulation shall enter into force\b/u.test(p.text.trim())||/^1[.)]\s/u.test(p.text)))return null;
  return {itemIndex,insertBefore:formula.index,anchor:unit,basis:'before-closing-formula'};
 }
+// Published amendment point numbers can differ from the Commission text.
+// Resolve only a complete, unique single-row wording match in implicit paragraph 1.
+function wordingNumberingMatch(target,original,candidatesFor) {
+ const [article,paragraph,point]=target.segments;
+ const prefix=/^\(([a-z])\)\s+([^\n]+)$/u.exec(original);
+ if(target.language!=='en'||target.underlyingLabel||target.segments.length!==3||article.kind!=='article'||paragraph.kind!=='paragraph'||paragraph.value!=='1'||point.kind!=='point'||point.isNew||!prefix||prefix[1]!==point.value)return null;
+ const parents=candidatesFor(target.segments.slice(0,2));
+ if(parents.length!==1)return null;
+ const selected=parents[0],{proposal,unit}=selected;
+ if(!unit.implicit||unit.pathConflict||!completeBoundary(proposal,unit))return null;
+ const key=s=>normal(s.replace(/^\([a-z]\)\s+/u,''));
+ const wanted=key(original);
+ if(wanted.length<30)return null;
+ const rows=proposal.paragraphs.slice(unit.extent.start,unit.extent.end);
+ if(rows.some(r=>r.source?.container!=='body'))return null;
+ const hits=rows.filter(r=>key(r.text)===wanted);
+ if(hits.length!==1)return null;
+ const row=hits[0];
+ return {...selected,match:{span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text}};
+}
 function insertionPlacement(items,target,candidatesFor,eligible) {
   const closing=closingFormulaInsertion(items,target,candidatesFor);
   if(closing)return closing;
@@ -702,6 +722,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return intro.reason?unresolved(intro.reason):placedMatch(intro,'introductory-wording-match');
   }
   if(!candidates.length) {
+    const numbering=wordingNumberingMatch(target,originalText,candidatesFor);
+    if(numbering)return placedMatch(numbering,'unique-wording-numbering');
     const sub=subparagraphMatch(items,target,originalText,candidatesFor);
     if(!sub){
       const fallback=ancestorFallback(target,originalText,candidatesFor);
@@ -741,6 +763,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   }
   // A resolved address with different wording is a conflict, even when a
   // unique passage occurs elsewhere in its ancestor. Repair numbering first.
+  if(matching.length!==1){const numbering=wordingNumberingMatch(target,originalText,candidatesFor);if(numbering)return placedMatch(numbering,'unique-wording-numbering');}
   if(matching.length!==1)return unresolved(matches.find(c=>c.match.reason==='math_comparison_unavailable')?'math_comparison_unavailable':matches.find(c=>c.match.reason==='source_structure_unavailable')?'source_structure_unavailable':'conflicting_target_evidence');
   const selected=matching[0];
   if(candidates.length===1&&selected.unit.pathConflict&&!uniqueDocumentWording(selected.proposal,originalText))return unresolved('multiple_published_targets');
