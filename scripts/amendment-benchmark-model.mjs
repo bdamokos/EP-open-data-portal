@@ -218,7 +218,15 @@ function rawLogicalRows(proposal) {
   });
   return rows;
 }
-function verifyAnnexTable({proposal,wording,placement}) {
+function rawCaptionDecoration(wording,items,proposal){
+  if(wording.baseline!=='commission-proposal'||items?.length!==2||items.filter(item=>item.kind==='act').length!==1||items.filter(item=>item.kind==='annex'&&item.proposal===proposal).length!==1||wording.targetPath?.underlying?.length)return null;
+  const path=/^Annex ([IVXLC]+) – paragraph 1 – table on ([^\r\n]+)\n(Regulation \((?:EU|EC)\) \d{4}\/\d+)\nAnnex ([IVXLC]+) – table ([^\r\n]+)$/u.exec(wording.targetLabel||''),caption=/^‘\[([^\r\n\t\[\]]+)\r?\nCN code\tGreenhouse gas\r?\n/u.exec(wording.originalText||'');
+  if(!path||!caption||rawCell(path[2]).toLowerCase()!==rawCell(caption[1]).toLowerCase()||rawCell(path[5]).toLowerCase()!==rawCell(caption[1]).toLowerCase())return null;
+  const act=items.find(item=>item.kind==='act').proposal;
+  if(act.paragraphs.filter(row=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&rawCell(row.text)===path[3]+' is amended as follows:').length!==1)return null;
+  return {inner:path[4],outer:path[1]};
+}
+function verifyAnnexTable({proposal,wording,placement,items}) {
   const address=tableAddress(wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel);
   if(!address||wording.language!=='en'||!['replace','delete'].includes(placement.operation))return null;
   const rows=rawLogicalRows(proposal);
@@ -227,12 +235,21 @@ function verifyAnnexTable({proposal,wording,placement}) {
   const same=(row,line)=>row.cells.length===line.length&&row.cells.every((cell,index)=>cell===line[index]);
   const starts=[];
   for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>same(rows[i+offset],line)))starts.push(i);
+  let decoration=null;
+  if(!starts.length){
+    decoration=rawCaptionDecoration(wording,items,proposal);
+    if(decoration){lines[0][0]=lines[0][0].slice(2);for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>same(rows[i+offset],line)))starts.push(i);}
+  }
   if(starts.length!==1)return {status:'unverified',reason:'oracle-table-rows-not-unique'};
   const run=rows.slice(starts[0],starts[0]+lines.length);
   if(run.some((row,index)=>row.broken||index&&row.gapBefore))return {status:'unverified',reason:'oracle-table-rows-incomplete'};
   const first=run[0].indexes[0],last=run.at(-1).indexes.at(-1);
   const before=rows.slice(0,starts[0]),headingAt=before.map(row=>!row.key&&/^ANNEX\s+[IVXLC]+$/u.test(row.cells[0])).lastIndexOf(true);
   if(headingAt<0||before[headingAt].cells[0]!=='ANNEX '+address[1])return {status:'unverified',reason:'oracle-annex-identity-unverified'};
+  if(decoration){
+    const prefix=before.slice(headingAt+1).filter(row=>!row.key).map(row=>row.cells[0]),tableKey=run[1]?.key?.replace(/\/w:tr\[\d+\]$/u,'');
+    if(address[1]!==decoration.outer||run[0].key||!tableKey||run.slice(1).some(row=>!row.key||row.key.replace(/\/w:tr\[\d+\]$/u,'')!==tableKey||row.cells.length!==2)||prefix.filter(value=>value==='‘ANNEX '+decoration.inner).length!==1||prefix.filter(value=>value==='The following Annex '+decoration.inner+' is added:').length!==1)return {status:'unverified',reason:'oracle-table-caption-scope-unverified'};
+  }
   // Subordinate addresses: only 'paragraph 1' (no other numbered paragraph
   // before the run) or 'point N' (nearest preceding numbered point is N).
   const lead=before.slice(headingAt+1).filter(row=>!row.key).map(row=>row.cells[0]);
@@ -248,7 +265,7 @@ function verifyAnnexTable({proposal,wording,placement}) {
   // The splice must cover those rows exactly, from offset 0 to the last row's end.
   const splice=placement.splice,lastText=String(proposal.paragraphs.find(row=>row.index===last)?.text??'');
   if(splice?.start?.paragraph!==first||splice?.end?.paragraph!==last||splice.start.offset!==0||splice.end.offset!==lastText.length)return fail('oracle-invalid-span');
-  return verified('oracle-annex-table-rows');
+  return verified(decoration?'oracle-annex-table-caption-decoration':'oracle-annex-table-rows');
 }
 
 function verifyResolutionInsertion(text,wording,target,placement) {
@@ -336,7 +353,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
   const proposal = items?.[placement.itemIndex]?.proposal;
-  const table=proposal?verifyAnnexTable({proposal,wording,placement}):null;
+  const table=proposal?verifyAnnexTable({proposal,wording,placement,items}):null;
   if(table)return table;
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
