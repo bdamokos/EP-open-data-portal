@@ -13,7 +13,9 @@ const parse=xml=>{if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validat
 // production numbering engine. Restarting instances reset their abstract list;
 // unoverridden instances, including style defaults, continue that list.
 function listReader(parts){
- const numbering=children(parse(parts.get('word/numbering.xml')),'w:numbering')[0],styles=children(parse(parts.get('word/styles.xml')),'w:styles')[0];
+ const numberTree=parse(parts.get('word/numbering.xml')),styleTree=parse(parts.get('word/styles.xml'));
+ if(attrs(numberTree,'w:numbering')[0]?.['@_xmlns:w']!=='http://schemas.openxmlformats.org/wordprocessingml/2006/main'||attrs(styleTree,'w:styles')[0]?.['@_xmlns:w']!=='http://schemas.openxmlformats.org/wordprocessingml/2006/main')throw Error('List namespace unavailable');
+ const numbering=children(numberTree,'w:numbering')[0],styles=children(styleTree,'w:styles')[0];
  const definitions=new Map(),lists=new Map(),abstracts=new Map();
  for(const n of styles){if(n['w:style']){const id=n[':@']?.['@_w:styleId'];if(definitions.has(id))throw Error('Duplicate style');definitions.set(id,n['w:style']);}}
  for(const n of numbering){for(const [key,map,id] of [['w:num',lists,'numId'],['w:abstractNum',abstracts,'abstractNumId']])if(n[key]){const value=n[':@']?.['@_w:'+id];if(map.has(value))throw Error('Duplicate list');map.set(value,n[key]);}}
@@ -41,7 +43,8 @@ export function assertBareAnnexIndent({items,proposal,wording,placement,nativeQu
  if(!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||!nativeQuoted?.proposalBuffers?.every(Buffer.isBuffer)||nativeQuoted.proposalBuffers.length!==items.length||nativeQuoted.proposalBuffers.some((b,i)=>hash(b)!==items[i].proposal.sourceHash)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash)return unknown();
  let body,act,read;try{body=quotedWordBody(nativeQuoted.proposalBuffer);const other=items.findIndex(i=>i.kind==='act');if(other<0)return unknown();act=quotedWordBody(nativeQuoted.proposalBuffers[other]);read=listReader(quotedWordParts(nativeQuoted.proposalBuffer));}catch{return unknown();}
  const headings=body.filter(r=>r.kind==='paragraph'&&val(r.nodes,'w:pStyle')==='Annexetitre');
- if(headings.length!==1||headings[0].text.trim()!=='ANNEX'||unsafe(headings[0])||!act.some(r=>r.kind==='paragraph'&&/\bthe Annex\b/u.test(r.text))||act.some(r=>r.kind==='paragraph'&&/\bAnnex\s+(?:[IVXLCDM]+|\d+)\b/u.test(r.text)))return unknown();
+ if(headings.length!==1||headings[0].text.trim()!=='ANNEX'||unsafe(headings[0])||!act.some(r=>r.kind==='paragraph'&&!r.hidden&&!r.unsafe&&/\bthe Annex\b/u.test(r.text))||act.some(r=>r.kind==='paragraph'&&/\bAnnex\s+(?:[IVXLCDM]+|\d+)\b/u.test(r.text)))return unknown();
+ if(proposal.paragraphs.filter(p=>p.source?.path===headings[0].path&&p.text==='ANNEX'&&p.complete&&p.source.complete===true).length!==1)return unknown();
  const raw=body.slice(body.indexOf(headings[0])+1),points=[];let point=null;
  try{for(const row of raw){
   if(row.kind!=='paragraph'){if(['w:bookmarkStart','w:bookmarkEnd'].some(k=>Array.isArray(row.nodes?.[k])&&row.nodes[k].length===0&&Object.keys(row.nodes).every(name=>name===k||name===':@')))continue;if(row.nodes?.['w:sectPr']||Object.keys(row.nodes||{}).every(k=>k==='#text')&&String(row.nodes?.['#text']??'').trim()==='')continue;return unknown();}
