@@ -3,6 +3,7 @@ import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
 import {assertBareAnnexInsertion} from './amendment-annex-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
+import {assertChapterTitle} from './amendment-chapter-title-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
@@ -569,6 +570,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if(table)return table;
 
   if(proposal&&placement.operation==='insert'&&target.segments.at(-1)?.kind==='subparagraph')return rawProposalAssertion({proposal,wording,placement});
+  const chapter=assertChapterTitle({proposal,wording,placement});
+  if(chapter.status!=='unverified')return chapter;
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});

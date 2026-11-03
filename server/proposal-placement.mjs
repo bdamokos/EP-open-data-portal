@@ -653,6 +653,27 @@ function ancestorFallback(target,original,candidatesFor) {
   return null;
 }
 
+// A comparison may print the chapter number and caption together while Word
+// splits them into two heading rows. Keep the source's CHAPTER prefix intact.
+function chapterTitlePlacement(items,target,original,proposed,language) {
+  const [chapter,title]=target.segments;
+  if(language!=='en'||target.segments.length!==2||chapter.kind!=='chapter'||chapter.isNew||title.kind!=='title'||title.isNew)return null;
+  const candidates=items.flatMap((item,itemIndex)=>item.kind==='annex'?[]:proposalCandidates(item.proposal,[chapter]).map(unit=>({unit,proposal:item.proposal,itemIndex})));
+  if(candidates.length!==1)return {reason:'multiple_published_targets'};
+  const {unit,proposal,itemIndex}=candidates[0],head=proposal.paragraphs[unit.extent.start],caption=proposal.paragraphs[unit.extent.start+1],next=proposal.paragraphs[unit.extent.start+2];
+  if(!completeBoundary(proposal,unit)||unit.pathConflict||head?.properties?.styleId!=='ChapterTitle'||caption?.properties?.styleId!=='ChapterTitle'||next?.properties?.styleId!=='Titrearticle'||!/^Article \d+[a-z]*$/u.test(next.text.trim()))return {reason:'source_structure_unavailable'};
+  const header=/^(\s*CHAPTER\s+)([IVXLCDM]+)\s*$/u.exec(head.text);
+  if(header?.[2]!==chapter.value)return {reason:'conflicting_target_evidence'};
+  const prefix=proposal.paragraphs.slice(0,head.index),adoption=prefix.findLastIndex(p=>/^HAVE ADOPTED THIS (?:REGULATION|DIRECTIVE|DECISION):$/u.test(p.text.trim()));
+  if(adoption<0||prefix.slice(adoption+1).some(p=>/^\s*['‘“«"]/u.test(p.text)||/:\s*['‘“«"]/u.test(p.text)||/\b(?:is|are) (?:amended|replaced|inserted)\b/u.test(p.text)))return {reason:'source_structure_unavailable'};
+  const rows=[head,caption,next];
+  if(rows.some((p,i)=>!p.complete||p.source?.complete!==true||p.source.container!=='body'||!Number.isSafeInteger(p.source.ordinal)||i&&(p.source.ordinal!==rows[i-1].source.ordinal+1||p.source.segment!==rows[i-1].source.segment||p.source.containerPath!==rows[i-1].source.containerPath)))return {reason:'source_passage_incomplete'};
+  const text=chapter.value+' '+caption.text.trim(),fold=value=>value.replace(/\s+/gu,' ').trim();
+  if(fold(original)!==fold(text)||!proposed.startsWith(chapter.value)||!/^\s+\S/u.test(proposed.slice(chapter.value.length)))return {reason:'conflicting_target_evidence'};
+  const offset=header[1].length;
+  return {status:'placed',operation:'replace',itemIndex,span:{start:head.index,end:caption.index},splice:{start:{paragraph:head.index,offset},end:{paragraph:caption.index,offset:caption.text.length}},originalText:head.text.slice(offset)+'\n'+caption.text,evidence:[{basis:'published-chapter-title',anchor:unit.id}]};
+}
+
 /** Outer addresses select proposal units; explicit inner insertions stay inside their owner. */
 // EP addresses count a proposal's unlabelled preamble citations in order,
 // from the enacting institutions line up to "Whereas:".
@@ -833,6 +854,10 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   // still establishes that an address without Annex cannot select it.
   const eligible=item=>item.kind!=='annex'||target.segments.some(segment=>segment.kind==='annex');
   const candidatesFor=address=>items.flatMap((item,itemIndex)=>!eligible(item)?[]:proposalCandidates(item.proposal,address).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  if(operation==='replace'){
+    const chapter=chapterTitlePlacement(items,target,originalText,proposedText,language);
+    if(chapter)return chapter.reason?unresolved(chapter.reason):{...chapter,evidence:[...evidence,...chapter.evidence]};
+  }
   const candidates=candidatesFor(target);
   const drafting=candidates.length===1?draftingInsertion(candidates[0],proposedText,language):null;
   if(drafting&&(operation==='insert'||/^[-−]1(?:a)?\.\s/u.test(proposedText.trim()))){
