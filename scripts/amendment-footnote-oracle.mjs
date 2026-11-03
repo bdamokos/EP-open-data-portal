@@ -12,10 +12,14 @@ export function assertFootnoteComparison(proposal,wording,placement) {
   const marks=(wording.originalFormatting??[]).filter(f=>f.kind==='superscript'&&f.end<=body.length).sort((a,b)=>a.start-b.start);
   const fail=()=>({status:'failed',reason:'oracle-footnote-comparison-mismatch'});
   if(!marks.length||marks.length!==payload.length)return fail();
-  let clean='',cursor=0;const offsets=[];
+  let clean='',cursor=0;const offsets=[],labels=[];
   for(const mark of marks){
-    if(mark.start<cursor||mark.end<=mark.start||!/^\d+$/u.test(body.slice(mark.start,mark.end)))return fail();
-    clean+=body.slice(cursor,mark.start);offsets.push(noSpace(clean).length);cursor=mark.end;
+    if(mark.start<cursor||mark.end<=mark.start)return fail();
+    const printed=body.slice(mark.start,mark.end),digits=/\d+$/u.exec(printed)?.[0],ordinal=digits?printed.slice(0,-digits.length):printed;
+    if(!digits||ordinal&&(!['st','nd','rd','th'].includes(ordinal)||!/[0-9]$/u.test(body.slice(0,mark.start))))return fail();
+    // Word can coalesce an ordinal's superscript letters with the note number.
+    // Only the numeric suffix is a note; preserve the ordinal in the body proof.
+    clean+=body.slice(cursor,mark.end-digits.length);offsets.push(noSpace(clean).length);labels.push(digits);cursor=mark.end;
   }
   clean+=body.slice(cursor);
   const {splice}=placement;
@@ -30,7 +34,7 @@ export function assertFootnoteComparison(proposal,wording,placement) {
     const a=anchors[i],row=rows.find(p=>p.index===a.paragraph),note=proposal.notes?.find(n=>n.id===a.note);
     const line=/^(\d+)\s+([\s\S]+)$/u.exec(payload[i]);
     const prefix=rows.filter(p=>p.index<a.paragraph).map(p=>p.text).join('\n')+'\n'+row.text.slice(0,a.offset);
-    if(!line||line[1]!==body.slice(marks[i].start,marks[i].end)||!note?.complete||noSpace(line[2])!==noSpace(note.text)||noSpace(prefix).length!==offsets[i])return fail();
+    if(!line||line[1]!==labels[i]||!note?.complete||noSpace(line[2])!==noSpace(note.text)||noSpace(prefix).length!==offsets[i])return fail();
   }
   return {status:'verified',reason:'oracle-native-footnotes-and-positions'};
 }
