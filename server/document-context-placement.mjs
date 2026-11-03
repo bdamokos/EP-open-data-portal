@@ -48,4 +48,4 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   return placement;
 }
 
-export {amendmentAlternative};
+export {amendmentAlternative,amendmentRejection};

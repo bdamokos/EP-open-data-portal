@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {amendmentAlternative} from '../server/amendment-alternative.mjs';
+import {amendmentRejection} from '../server/amendment-rejection.mjs';
 import {verifyAlternative} from './amendment-alternative-oracle.mjs';
 import {hasCouncilQuotation,reportCouncilQuotation} from '../server/report-council-quotation.mjs';
 import {verifyRejection} from './amendment-rejection-oracle.mjs';
@@ -240,7 +241,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
         sourceUrl:replay?(structured?baseline?.items?.[0]?.source?.url||publicDocumentUrl(row.targetDocumentId):text?.sourceUrl||publicDocumentUrl(row.targetDocumentId)):input.url,
         ...(replay?{projection:{mode:'cached-source-replay',celex:baseline?.celex??null,status:baseline?.status??text?.status,reason:text?.reason??null,fileDeclarationSource:text?.fileDeclarationSource??null,workId:baseline?.workId??null,itemSources:baseline?.items?.map(({itemId,source})=>({itemId,url:source.url,sha256:source.sha256,fetchedAt:source.fetchedAt}))||[]}}:{}),
       };
-      if(stages.S2.status==='passed'&&(matching||(runtime?.amendmentAlternative||amendmentAlternative)(wording)||hasCouncilQuotation(wording)||expectedLanguageScope(wording)||wording.originalText===''&&/rejects|rejette|respinge/u.test(wording.proposedText))) {
+      if(stages.S2.status==='passed'&&(matching||(runtime?.amendmentAlternative||amendmentAlternative)(wording)||(runtime?.amendmentRejection||amendmentRejection)(wording)||hasCouncilQuotation(wording)||expectedLanguageScope(wording))) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
         const opts={...wording,targetLabelLanguage:language,resolutionDocument:true,referenceText:references[0]};
         stages.S5=(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,referenceTexts:references,resolutionDocument:true});
