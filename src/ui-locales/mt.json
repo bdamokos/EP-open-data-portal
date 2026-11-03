@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Sib suġġett",
   "topics.plenaryMode": "Suġġetti",
   "topics.findPlace": "Sib post",
-  "topics.geopolitics": "Ġeopolitika"
+  "topics.geopolitics": "Ġeopolitika",
+  "topics.story.map.outside": "Fil-plenarja wkoll: {speakers}.",
+  "topics.story.map.outside.eu": "Diskorsi fil-plenarja mill-Ewropa u mill-viċinat tagħha: {speakers}.",
+  "topics.story.place.outside": "{place}: diskors fil-plenarja minn {speaker} ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

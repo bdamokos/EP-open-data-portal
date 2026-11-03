@@ -1,3 +1,4 @@
+import {outsideWikidataDue} from './outside-wikidata-collector.mjs';
 import {VotingListCollector} from './voting-list-collector.mjs';
 import {upcomingRefreshDue} from './upcoming-amendments-collector.mjs';
 import {dispatchBaseBackfill} from './base-source-backfill-dispatch.mjs';
@@ -142,7 +143,7 @@ export function alternateAmendmentDispatch(store,generation,ordinaryTask,amendme
 
 export class ActivityWorker {
   constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null,officialContext=null,diagnostics=indexErrorLog}={}) {
-    this.diagnostics=diagnostics;
+    this.diagnostics=diagnostics;this.outsideWikidata=true;
     this.officialContext=officialContext;this.store=store;this.documentBodies=new DocumentBodyCollector(store);this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
@@ -162,7 +163,7 @@ export class ActivityWorker {
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
     if(upcomingRefreshDue(this))return true;
-    if(storyCollectionDue(this.store,this.clock())||topicCollectionDue(this.store,this.clock())||this.topicBuildStep())return true;
+    if(outsideWikidataDue(this.store,this.clock())||storyCollectionDue(this.store,this.clock())||topicCollectionDue(this.store,this.clock())||this.topicBuildStep())return true;
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('recoveryScheduleVersion')!==1||this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;

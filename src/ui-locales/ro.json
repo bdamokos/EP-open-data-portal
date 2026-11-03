@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Caută o temă",
   "topics.plenaryMode": "Teme",
   "topics.findPlace": "Caută un loc",
-  "topics.geopolitics": "Geopolitică"
+  "topics.geopolitics": "Geopolitică",
+  "topics.story.map.outside": "De asemenea, în plen: {speakers}.",
+  "topics.story.map.outside.eu": "Discursuri în plen din Europa și din vecinătatea sa: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} a luat cuvântul în plen ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }
