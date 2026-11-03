@@ -27,8 +27,9 @@ test('search continuation, absent totals and candidate caps are explicit unavail
 });
 test('unknown jurisdiction is retained as unknown without corrupting an exact-human observation',()=>{
  const discovery=[{item,key:l('example speaker'),value:l('Example Speaker'),property:u('http://www.w3.org/2000/01/rdf-schema#label')}];
- const position={item,kind:l('position'),position:u('http://www.wikidata.org/entity/Q2'),statement:u('http://www.wikidata.org/entity/statement/q1-123-abc'),jurisdiction:u('http://www.wikidata.org/.well-known/genid/abc123')};
+ const position={item,kind:l('position'),position:u('http://www.wikidata.org/entity/Q2'),statement:u('http://www.wikidata.org/entity/statement/q1-123-abc'),jurisdiction:u('http://www.wikidata.org/.well-known/genid/abc123'),international:l('false')};
  const [c]=outsideCandidateEvidence(discovery,[...facts,position]);assert.equal(c.positions[0].hasJurisdiction,true);assert.deepEqual(c.positions[0].jurisdictions,[]);assert(c.human);
+ assert.throws(()=>outsideCandidateEvidence(discovery,[...facts,{...position,international:undefined}]),/Invalid office evidence/);
 });
 test('collector caches per person for seven days and counts each admitted request against its run budget',async t=>{
  const store=await fixture(t);add(store);const fake=fakeSource(),w=worker(store);assert(outsideWikidataDue(store,now));await collectOutsideWikidata(w,{request:fake.request});const saved=store.source(1,'wikidata:person:1').work;assert.equal(saved.status,'available');assert.equal(saved.nextRead,now+7*DAY);assert.equal(saved.candidates[0].qid,'Q1');assert.equal(w.requests,3);assert(!outsideWikidataDue(store,now));assert(outsideWikidataDue(store,now+7*DAY));assert(store.get('storyProjectionDirty'));
