@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "z tego {count} pytanie wyłącznie od posłów do PE z innych krajów",
   "topics.story.links.homeOne": "{count} pytanie z autorem wybranym w tym kraju",
   "topics.story.links.awayOne": "{count} pytanie wyłącznie od posłów do PE z innych krajów",
-  "topics.story.ordinal.many": "{count}."
+  "topics.story.ordinal.many": "{count}.",
+  "topics.findTopic": "Znajdź temat",
+  "topics.plenaryMode": "Tematy",
+  "topics.findPlace": "Znajdź miejsce",
+  "topics.geopolitics": "Geopolityka"
 }

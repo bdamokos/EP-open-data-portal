@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "waarvan {count} uitsluitend gesteld door Europarlementariërs uit andere landen",
   "topics.story.links.homeOne": "bij {count} was een indiener daar verkozen",
   "topics.story.links.awayOne": "{count} uitsluitend gesteld door Europarlementariërs uit andere landen",
-  "topics.story.ordinal.many": "{count}e"
+  "topics.story.ordinal.many": "{count}e",
+  "topics.findTopic": "Zoek een onderwerp",
+  "topics.plenaryMode": "Onderwerpen",
+  "topics.findPlace": "Zoek een plaats",
+  "topics.geopolitics": "Geopolitiek"
 }

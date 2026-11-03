@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "z toho {count} otázka výlučne od europoslancov z iných krajín",
   "topics.story.links.homeOne": "{count} otázka s autorom zvoleným v danej krajine",
   "topics.story.links.awayOne": "{count} otázka výlučne od europoslancov z iných krajín",
-  "topics.story.ordinal.many": "{count}."
+  "topics.story.ordinal.many": "{count}.",
+  "topics.findTopic": "Nájsť tému",
+  "topics.plenaryMode": "Témy",
+  "topics.findPlace": "Nájsť miesto",
+  "topics.geopolitics": "Geopolitika"
 }

@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "agus ba iad Feisirí ó thíortha eile amháin a chuir {count} díobh",
   "topics.story.links.homeOne": "bhí údar a toghadh ansin ag {count} acu",
   "topics.story.links.awayOne": "ba iad Feisirí ó thíortha eile amháin a chuir {count} acu",
-  "topics.story.ordinal.many": "{count}ú"
+  "topics.story.ordinal.many": "{count}ú",
+  "topics.findTopic": "Aimsigh ábhar",
+  "topics.plenaryMode": "Ábhair",
+  "topics.findPlace": "Aimsigh áit",
+  "topics.geopolitics": "Geopholaitíocht"
 }

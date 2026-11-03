@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "от тях зададени само от евродепутати от други държави: {count}",
   "topics.story.links.homeOne": "с автор, избран там: {count}",
   "topics.story.links.awayOne": "зададени само от евродепутати от други държави: {count}",
-  "topics.story.ordinal.many": "{count}"
+  "topics.story.ordinal.many": "{count}",
+  "topics.findTopic": "Търсене на тема",
+  "topics.plenaryMode": "Теми",
+  "topics.findPlace": "Търсене на място",
+  "topics.geopolitics": "Геополитика"
 }

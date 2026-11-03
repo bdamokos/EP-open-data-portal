@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "iš jų tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}",
   "topics.story.links.homeOne": "klausimų, kurių bent vienas autorius išrinktas toje šalyje, skaičius: {count}",
   "topics.story.links.awayOne": "tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}",
-  "topics.story.ordinal.many": "{count}-ąjį"
+  "topics.story.ordinal.many": "{count}-ąjį",
+  "topics.findTopic": "Ieškoti temos",
+  "topics.plenaryMode": "Temos",
+  "topics.findPlace": "Ieškoti vietos",
+  "topics.geopolitics": "Geopolitika"
 }

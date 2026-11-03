@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "dintre acestea, {count} a fost adresată doar de eurodeputați aleși în alte țări",
   "topics.story.links.homeOne": "{count} a avut un autor ales în acel loc",
   "topics.story.links.awayOne": "{count} a fost adresată doar de eurodeputați aleși în alte țări",
-  "topics.story.ordinal.many": "al {count}-lea"
+  "topics.story.ordinal.many": "al {count}-lea",
+  "topics.findTopic": "Caută o temă",
+  "topics.plenaryMode": "Teme",
+  "topics.findPlace": "Caută un loc",
+  "topics.geopolitics": "Geopolitică"
 }

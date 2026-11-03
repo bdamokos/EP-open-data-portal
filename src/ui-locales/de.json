@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "davon {count} ausschließlich von Abgeordneten aus anderen Ländern gestellt",
   "topics.story.links.homeOne": "{count} hatte einen dort gewählten Verfasser",
   "topics.story.links.awayOne": "{count} ausschließlich von Abgeordneten aus anderen Ländern gestellt",
-  "topics.story.ordinal.many": "{count}."
+  "topics.story.ordinal.many": "{count}.",
+  "topics.findTopic": "Thema suchen",
+  "topics.plenaryMode": "Themen",
+  "topics.findPlace": "Ort suchen",
+  "topics.geopolitics": "Geopolitik"
 }

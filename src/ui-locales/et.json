@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "neist {count} puhul esitasid küsimuse ainult teistes riikides valitud Euroopa Parlamendi liikmed",
   "topics.story.links.homeOne": "{count} puhul oli autor valitud seal",
   "topics.story.links.awayOne": "{count} puhul esitasid küsimuse ainult teistes riikides valitud Euroopa Parlamendi liikmed",
-  "topics.story.ordinal.many": "{count}."
+  "topics.story.ordinal.many": "{count}.",
+  "topics.findTopic": "Otsi teemat",
+  "topics.plenaryMode": "Teemad",
+  "topics.findPlace": "Otsi kohta",
+  "topics.geopolitics": "Geopoliitika"
 }

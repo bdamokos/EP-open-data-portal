@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "{count} no tiem iesniedza tikai citās valstīs ievēlēti deputāti",
   "topics.story.links.homeOne": "{count} bija ar tur ievēlētu autoru",
   "topics.story.links.awayOne": "{count} iesniedza tikai citās valstīs ievēlēti deputāti",
-  "topics.story.ordinal.many": "{count}."
+  "topics.story.ordinal.many": "{count}.",
+  "topics.findTopic": "Meklēt tematu",
+  "topics.plenaryMode": "Temati",
+  "topics.findPlace": "Meklēt vietu",
+  "topics.geopolitics": "Ģeopolitika"
 }

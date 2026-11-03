@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "{count} από αυτές υποβλήθηκε μόνο από ευρωβουλευτές άλλων χωρών",
   "topics.story.links.homeOne": "{count} από αυτές είχε συντάκτη εκλεγμένο εκεί",
   "topics.story.links.awayOne": "{count} υποβλήθηκε μόνο από ευρωβουλευτές άλλων χωρών",
-  "topics.story.ordinal.many": "{count}ο"
+  "topics.story.ordinal.many": "{count}ο",
+  "topics.findTopic": "Αναζήτηση θέματος",
+  "topics.plenaryMode": "Θέματα",
+  "topics.findPlace": "Αναζήτηση τόπου",
+  "topics.geopolitics": "Γεωπολιτική"
 }

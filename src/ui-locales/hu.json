@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "közülük {count} kérdést kizárólag más országokban megválasztott EP-képviselők nyújtottak be",
   "topics.story.links.homeOne": "{count} kérdésnek volt ott megválasztott szerzője",
   "topics.story.links.awayOne": "{count} kérdést kizárólag más országokban megválasztott EP-képviselők nyújtottak be",
-  "topics.story.ordinal.many": "{count}."
+  "topics.story.ordinal.many": "{count}.",
+  "topics.findTopic": "Téma keresése",
+  "topics.plenaryMode": "Témák",
+  "topics.findPlace": "Hely keresése",
+  "topics.geopolitics": "Geopolitika"
 }

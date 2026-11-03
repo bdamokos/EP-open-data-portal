@@ -2751,5 +2751,9 @@
   "topics.story.map.lead.again.eu": "En Europa y sus países vecinos, {place}: de nuevo el lugar más mencionado en las preguntas ({questions}).",
   "topics.story.map.lead.streak.eu": "En Europa y sus países vecinos, {place}: el lugar más mencionado en las preguntas (trimestre consecutivo: {ordinal}; {questions}).",
   "topics.story.map.lead.tied.eu": "En Europa y sus países vecinos, {places}: los lugares más mencionados en las preguntas ({questions}).",
-  "topics.story.map.lead.soFar.eu": "En Europa y sus países vecinos, hasta ahora, el lugar más mencionado en las preguntas de los eurodiputados es {place} ({questions})."
+  "topics.story.map.lead.soFar.eu": "En Europa y sus países vecinos, hasta ahora, el lugar más mencionado en las preguntas de los eurodiputados es {place} ({questions}).",
+  "topics.findTopic": "Buscar un tema",
+  "topics.plenaryMode": "Temas",
+  "topics.findPlace": "Buscar un lugar",
+  "topics.geopolitics": "Geopolítica"
 }

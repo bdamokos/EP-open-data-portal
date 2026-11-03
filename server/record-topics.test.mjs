@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {projectRecordTopics} from './record-topics.mjs';
-import {RecordTopics,writeTopicProjection,quarter,topicPeriods} from './topics-store.mjs';
+import {RecordTopics,writeTopicProjection,finishTopicProjectionBatched,quarter,topicPeriods} from './topics-store.mjs';
 import officialSubjects from './oeil-subjects.json' with {type:'json'};
 import {countryMatches,eurovocCountries} from './topic-roles.mjs';
 const doc='B-10-2026-0423',event='MTG-PL-2026-10-07-PVCRE-ITM-12',speech='MTG-PL-2026-10-07-OTH-100',proc='2026-2790';
@@ -112,4 +112,32 @@ test('speeches under vote-family parents are records without an inferred agenda 
  const store=fixture(t),date='2026-07-09',key='place:NGA',parent='MTG-PL-'+date+'-PVCRE-ITM-9-6',speech='MTG-PL-'+date+'-OTH-100';
  writeTopicProjection(store,{concepts:[{key,role:'place',labels:{en:'Nigeria'}}],records:[{id:parent,kind:'event',activityType:'def/ep-activities/PLENARY_VOTE_EXPLANATIONS',date,titles:{en:'Explanations of votes'},assignments:[]},{id:speech,kind:'speech',parentIds:[parent],members:[],date,titles:{en:'Speech'},assignments:[{key,role:'place',paths:[]}]}]});
  const group=new RecordTopics(store).query(new URLSearchParams({key}),'detail').groups[0];assert.equal(group.key,parent);assert.equal(group.kind,'record');assert.equal(group.speechCount,1);assert.equal(group.agendaId,undefined);
+});
+
+
+test('optional procedural summaries preserve overview bytes for old and new projections',async t=>{
+ const store=fixture(t),projection=projectRecordTopics(nodes(),options());
+ // Include an excluded parent, false and absent flags, and a missing parent.
+ projection.records.find(r=>r.id===event).procedural=true;
+ projection.records.find(r=>r.id===doc).procedural=false;
+ writeTopicProjection(store,projection);
+ for(const batched of [false,true]){
+  if(batched)await finishTopicProjectionBatched(store,1,projection.concepts);
+  const queries=['topic','place'].flatMap(role=>['all','home','elsewhere','not-home'].flatMap(askers=>['en','fr'].map(lang=>({role,askers,lang}))));
+  const reader=new RecordTopics(store),read=()=>queries.map(q=>JSON.stringify(reader.query(new URLSearchParams(q),'overview'))),after=read();
+  const tables=['record_topic_group_summary','record_topic_filtered_groups'];
+  for(const table of tables){
+   const rows=store.db.prepare(`SELECT top FROM ${table} WHERE top IS NOT NULL`).all();
+   assert(rows.length>0);assert(rows.every(r=>[0,1].includes(JSON.parse(r.top).procedural)));
+   store.db.exec(`UPDATE ${table} SET top=json_remove(top,'$.procedural') WHERE top IS NOT NULL`);
+  }
+  assert.deepEqual(read(),after,'legacy body lookups and projected flags serialize identically');
+  const legacy=new RecordTopics({get:store.get.bind(store),readSnapshot:fn=>fn(),db:{prepare(sql){
+   if(!/FROM record_topic_(?:group_summary|filtered_groups) WHERE/.test(sql))return store.db.prepare(sql);
+   sql=sql.replace(' AND key IN (SELECT key FROM record_topic_concepts WHERE generation=? AND role=?)','');
+   const statement=store.db.prepare(sql),n=(sql.match(/\?/g)||[]).length;
+   return {iterate:(...args)=>statement.iterate(...args.slice(0,n))};
+  }}});
+  assert.deepEqual(queries.map(q=>JSON.stringify(legacy.query(new URLSearchParams(q),'overview'))),after,'unrestricted legacy summary scans preserve the same bytes');
+ }
 });

@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "av dessa ställdes {count} enbart av Europaparlamentsledamöter från andra länder",
   "topics.story.links.homeOne": "{count} hade en författare som valts där",
   "topics.story.links.awayOne": "{count} ställdes enbart av Europaparlamentsledamöter från andra länder",
-  "topics.story.ordinal.many": "{count}:e"
+  "topics.story.ordinal.many": "{count}:e",
+  "topics.findTopic": "Sök efter ett ämne",
+  "topics.plenaryMode": "Ämnen",
+  "topics.findPlace": "Sök efter en plats",
+  "topics.geopolitics": "Geopolitik"
 }

@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "niistä {count} vain muista maista valittujen jäsenten esittämä",
   "topics.story.links.homeOne": "{count} sisälsi siellä valitun jäsenen laatijana",
   "topics.story.links.awayOne": "{count} vain muista maista valittujen jäsenten esittämä",
-  "topics.story.ordinal.many": "{count}."
+  "topics.story.ordinal.many": "{count}.",
+  "topics.findTopic": "Etsi aihe",
+  "topics.plenaryMode": "Aiheet",
+  "topics.findPlace": "Etsi paikka",
+  "topics.geopolitics": "Geopolitiikka"
 }

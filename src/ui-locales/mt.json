@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "{count} minnhom tressqet biss minn Membri tal-PE minn pajjiżi oħra",
   "topics.story.links.homeOne": "{count} minnhom kellha awtur elett hemmhekk",
   "topics.story.links.awayOne": "{count} tressqet biss minn Membri tal-PE minn pajjiżi oħra",
-  "topics.story.ordinal.many": "{count}"
+  "topics.story.ordinal.many": "{count}",
+  "topics.findTopic": "Sib suġġett",
+  "topics.plenaryMode": "Suġġetti",
+  "topics.findPlace": "Sib post",
+  "topics.geopolitics": "Ġeopolitika"
 }

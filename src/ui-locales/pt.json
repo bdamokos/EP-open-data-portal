@@ -2751,5 +2751,9 @@
   "topics.story.map.lead.again.eu": "Na Europa e nos países vizinhos, {place}: novamente o local mais referido nas perguntas ({questions}).",
   "topics.story.map.lead.streak.eu": "Na Europa e nos países vizinhos, {place}: o local mais referido nas perguntas (trimestre consecutivo: {ordinal}; {questions}).",
   "topics.story.map.lead.tied.eu": "Na Europa e nos países vizinhos, {places}: os locais mais referidos nas perguntas ({questions}).",
-  "topics.story.map.lead.soFar.eu": "Na Europa e nos países vizinhos, até agora, o local mais referido nas perguntas dos deputados é {place} ({questions})."
+  "topics.story.map.lead.soFar.eu": "Na Europa e nos países vizinhos, até agora, o local mais referido nas perguntas dos deputados é {place} ({questions}).",
+  "topics.findTopic": "Procurar um tema",
+  "topics.plenaryMode": "Temas",
+  "topics.findPlace": "Procurar um local",
+  "topics.geopolitics": "Geopolítica"
 }

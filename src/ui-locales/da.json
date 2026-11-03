@@ -2751,5 +2751,9 @@
   "topics.story.links.elsewhereOne": "{count} af dem kun stillet af medlemmer fra andre lande",
   "topics.story.links.homeOne": "{count} havde en forfatter valgt der",
   "topics.story.links.awayOne": "{count} kun stillet af medlemmer fra andre lande",
-  "topics.story.ordinal.many": "{count}."
+  "topics.story.ordinal.many": "{count}.",
+  "topics.findTopic": "Find et emne",
+  "topics.plenaryMode": "Emner",
+  "topics.findPlace": "Find et sted",
+  "topics.geopolitics": "Geopolitik"
 }
