@@ -188,6 +188,23 @@ export function sourceReplay(cache,runtime) {
     const pair=await nativeCaller.readNleReferences(query,selectedChosen,record.payload.data[0],read,sources,selections,source(record));
     return {pair,chosen,sources};
   };
+  // Discover selections from declared native lists in fetch mode as well as
+  // retained acquisition. The live caller revalidates each selected row below.
+  const fetchNativeSelections=async(id,language,work)=>{
+    if(cache.sealed||!nativeCaller||language!=='en')return [];
+    const selections=[];
+    for(const linked of runtime.array(work.inverse_foresees_change_of)) {
+      const listId=String(linked?.id||linked).replace(/^https?:\/\/data\.europarl\.europa\.eu\//u,'').replace(/^eli\/dl\/doc\//u,'');
+      if(!listId.startsWith(id+'-AM-')||!/-AM-\d+-\d+$/u.test(listId))continue;
+      const list=typeof linked==='object'&&Object.hasOwn(linked,'is_realized_by')?linked:(await request('/documents/'+listId)).payload.data[0];
+      if(!list)continue;
+      const files=runtime.documentFiles(list).filter(file=>file.language===language&&file.format==='DOCX'&&runtime.allowedDownload(file.url));
+      if(files.length!==1)continue;
+      const loaded=await nativeCaller.readList(list,files[0],id);
+      for(const row of loaded.extraction.amendments)selections.push({listId,number:row.number,originalText:row.originalText,proposedText:row.proposedText,wordingSource:{url:loaded.source.url,sha256:loaded.source.contentHash}});
+    }
+    return selections;
+  };
   const lawHints=new Map();
   return {
     request,
@@ -215,8 +232,8 @@ export function sourceReplay(cache,runtime) {
         const chosen=files.find(f=>f.language===preferred[0])||files[0];
         if(chosen){const read=()=>cache.get(chosen.url);await (cache.retained?.baseScope?cache.retained.baseScope({type:'ep-document',documentId:id,file:chosen},read):read());}
         if(id.startsWith('A-')){await readProposal({reportId:id,language});cache.assertHealthy();}
-        if(id.startsWith('A-')&&cache.retained?.nativeSelections&&runtime.array(work.is_realized_by).some(e=>Object.values(e.title_alternative||{}).flat().some(raw=>runtime.commissionProcedures(raw).some(p=>p.endsWith('(NLE)'))))) {
-          for(const selection of await cache.retained.nativeSelections(id,language)) {
+        if(id.startsWith('A-')&&runtime.array(work.is_realized_by).some(e=>Object.values(e.title_alternative||{}).flat().some(raw=>runtime.commissionProcedures(raw).some(p=>p.endsWith('(NLE)'))))) {
+          for(const selection of await (cache.retained?.nativeSelections?cache.retained.nativeSelections(id,language):fetchNativeSelections(id,language,work))) {
             const options={reportId:id,language},bound=await readNativeSelection(options,selection,record);
             if(!bound.gap)await readProposal({...options,nativeReferencePair:bound.pair});
             cache.assertHealthy();

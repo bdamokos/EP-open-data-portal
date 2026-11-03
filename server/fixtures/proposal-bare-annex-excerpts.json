@@ -1,0 +1,254 @@
+[
+  {
+    "id": "A-10-2026-0216-AM-83",
+    "source": {
+      "itemId": "http://publications.europa.eu/resource/cellar/1ab27b74-8957-11f0-9af8-01aa75ed71a1.0001.01/DOC_2",
+      "url": "https://publications.europa.eu/resource/cellar/1ab27b74-8957-11f0-9af8-01aa75ed71a1.0001.01/DOC_2",
+      "sha256": "4bd213273272cd62a298201e0e9cbd244057fb9043efec42b03ab71325c2be57",
+      "fetchedAt": "2026-10-27T16:59:12.224Z"
+    },
+    "amendmentSource": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0216-AM-001-083/A-10-2026-0216-AM-001-083_en.docx",
+      "resolvedSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0216-AM-001-083/A-10-2026-0216-AM-001-083_en.docx",
+      "fetchedAt": "2026-10-27T15:01:43.131Z",
+      "sha256": "bbe92582bd374921998069ba440bfe280b5d158e427f776f59ed1f415b522d27",
+      "status": 200
+    },
+    "language": "en",
+    "rows": [
+      {
+        "text": "ANNEX\nProgramming framework for European statistics",
+        "style": "Annexetitre",
+        "blankBefore": 0
+      },
+      {
+        "text": "The priorities of the programming framework for the development, production and dissemination of European statistics within the meaning of Article 13 of Regulation (EC) No 223/2009 are the following:",
+        "style": "Normal",
+        "blankBefore": 0
+      },
+      {
+        "text": "(a)\trevamping European business statistics and enriching the statistical evidence on the competitiveness and productivity of European businesses including small and medium-sized enterprises, and small mid-caps enterprises,  innovation, trade and global value chains while limiting response burden;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(b)\tproviding comprehensive macro-economic statistics underpinning EU economic governance, investments, the Excessive Deficit Procedure, EU own resources, and updating the European System of Accounts to better reflect wellbeing and sustainability in macroeconomic statistics in line with the global System of National Accounts 2025 (SNA2025);",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(c)\tproviding comparable European statistics on defence expenditure and investments, and the defence and space industries;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(d)\timproving the timeliness of housing price statistics and providing statistics on commercial real estate developments;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(e)\tenriching the statistical evidence regarding affordable and sustainable housing;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(f)\timplementing the programme of social statistics including ad-hoc modules for the EU labour force survey and statistics on income and living conditions;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(g)\tconsolidating statistics on environment, climate change mitigation and adaptation, green transition, circularity, clean technologies, agriculture, fisheries, energy, transport and regional developments;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(h)\tproviding statistics on demographic changes in the EU, and on immigration and emigration, based on improved and harmonised methodologies and re-using administrative and new digital data sources;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(i)\tfostering innovation in the European Statistical System and reducing the statistical reporting burden by leveraging new data sources, including from the EU’s Earth observation flagship Copernicus and ethical use of digital technologies, including artificial intelligence (AI), implementing the once-only principle and further digitalisation of data collections, and revising the EU statistical legislative framework;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(j)\tdeveloping quality frameworks that cater for multisource and AI-based statistics and enhancing the contribution to the Common European Data Spaces in line with statistical principles and legislation;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(k)\timproving dissemination and communication of European statistics including through AI-based search engines, enhancing their role in the fight against disinformation and improving data literacy;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(l)\tsupporting national statistical authorities of the enlargement countries in the accession path to the EU and strengthening international statistical partnerships;",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      },
+      {
+        "text": "(m)\tcontinuous dialogue with users and horizon scanning to better understand evolving data needs and to adapt priorities to keep European statistics relevant and trustworthy.",
+        "style": "Subparagraph",
+        "blankBefore": 0
+      }
+    ],
+    "wording": {
+      "targetLabel": "Annex I a (new)",
+      "originalText": "",
+      "proposedText": "Annex Ia\nBudget Nomenclature\nThe nomenclature for the Single Market and Customs Programme will include the following budget lines:\nTitle\tChapter\tArticle\tItem\tDescription\nXX\t\t\t\tSingle Market and Customs Programme\nXX\t01\t\t\tSupport administrative expenditure of the Single Market and Customs Programme\nXX\t01\t01\t\tSupport expenditure for Single Market\nXX\t01\t02\t\tSupport expenditure for Customs\nXX\t01\t03\t\tSupport expenditure for Anti-fraud\nXX\t01\t04\t\tSupport expenditure for Fiscalis\nXX\t01\t05\t\tSupport expenditure for European Statistics\nXX\t02\t\t\tSingle Market\nXX\t02\t01\t\tInternal market, implementation tools and market surveillance\nXX\t02\t01\t01\tCompleting and improving the functioning of the Single Market\nXX\t02\t01\t02\tReducing fragmentation and administrative burden in the Single Market\nXX\t02\t01\t03\tSupporting implementation of Union law through strengthened market surveillance\nXX\t02\t01\t04\tCompany Law\nXX\t02\t01\t05\tSupport to competition policy\nXX\t02\t01\t06\tFinance and financial services policies\nXX\t02\t02\t\tConsumers\nXX\t02\t02\t01\tPromoting interests of consumers and ensuring high level of consumer protection and product safety\nXX\t02\t02\t02\tSupporting implementation and enforcement of consumer protection rules\nXX\t02\t02\t03\tEnsuring consumers access to redress mechanisms and adequate information\nXX\t02\t03\t\tStandardisation\nXX\t02\t03\t01\tFacilitating harmonised standard-setting and reinforcing the development of standards\nXX\t02\t03\t02\tEnsuring effective design, uniform interpretation and implementation as well as enforcement of Union law\nXX\t03\t\t\tCustoms\nXX\t03\t01\t\tSupporting the Customs Union\nXX\t03\t02\t\tDevelopment and management of the EU Customs Data Hub\nXX\t03\t03\t\tSupporting detection and control capabilities and ensure coordinated controls\nXX\t04\t\t\tAnti-fraud\nXX\t04\t01\t\tAnti-fraud measures\nXX\t04\t01\t01\tPreventing and combatting fraud, corruption and any other illegal activities affecting the financial interests of the Union\nXX\t04\t01\t02\tSupport cooperation activities in anti-fraud\nXX\t05\t\t\tFiscalis\nXX\t05\t01\t\tCooperation in the field of taxation\nXX\t05\t02\t\tImplementation of Union law on taxation\nXX\t06\t\t\tEuropean statistics\nXX\t06\t01\t\tProducing and disseminating high-quality European statistics",
+      "language": "en",
+      "baseline": "commission-proposal"
+    }
+  },
+  {
+    "id": "A-10-2026-0256-AM-30",
+    "source": {
+      "itemId": "http://publications.europa.eu/resource/cellar/ec207ea9-88a1-11f0-9af8-01aa75ed71a1.0001.01/DOC_2",
+      "url": "https://publications.europa.eu/resource/cellar/ec207ea9-88a1-11f0-9af8-01aa75ed71a1.0001.01/DOC_2",
+      "sha256": "c629b187b46ec51fd7ab363f41e3b7f95777037fb093f3e9c026eb3c9a8518cd",
+      "fetchedAt": "2026-10-27T17:01:39.052Z"
+    },
+    "amendmentSource": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0256-AM-001-030/A-10-2026-0256-AM-001-030_en.docx",
+      "resolvedSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0256-AM-001-030/A-10-2026-0256-AM-001-030_en.docx",
+      "fetchedAt": "2026-10-26T20:14:17.825Z",
+      "sha256": "a27b181627457529b94a65c285d7925771af3e65380267e6ae789ca68e24ed39",
+      "status": 200
+    },
+    "language": "en",
+    "rows": [
+      {
+        "text": "ANNEX",
+        "style": "Annexetitre",
+        "blankBefore": 0
+      },
+      {
+        "text": "ACTIONS ELIGIBLE FOR FUNDING",
+        "style": "Normal",
+        "blankBefore": 0
+      },
+      {
+        "text": "(1)\tThe exchanges and dissemination of information referred to in Article 8(5), point (a), shall, among others, be targeted at:",
+        "style": "Point0number",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tbest practices in preventing counterfeiting and counterfeiting-related fraud relating to the euro, including potential threats to the future digital euro,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tmethodologies for monitoring and analysing the economic and financial impact of counterfeiting,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\toperation of databases and early warning systems,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tuse of detection tools, including with computer back-up,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tenquiry and investigation methods,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tscientific assistance, including monitoring of new developments, also with regard to potential threats posed by and investigational opportunities offered by Artificial Intelligence,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tprotection of the euro outside the Union,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tresearch actions,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tprovision of specific operational expertise;",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "(2)\tThe technical, scientific and operational assistance referred to in Article 8(5), point (b), shall include in particular:",
+        "style": "Point0number",
+        "blankBefore": 1
+      },
+      {
+        "text": "•\tany appropriate measure which establishes teaching resources at Union level, such as a handbook of Union legislation, information bulletins, practical manuals, glossaries and lexicons, databases, especially in the area of scientific assistance or technology watch, or computer support applications, such as software and Artificial Intelligence tools,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\trelevant studies with a multidisciplinary and transnational dimension, including research on innovative security features,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tdevelopment of technical support instruments and methods to facilitate detection actions at Union level,",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tsupport for cooperation in operations involving at least two countries when such support cannot be made available from other programmes of Union institutions and bodies;",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "(3)\tFor the purpose of Article 8(6), eligible professional groups shall include:",
+        "style": "Point0number",
+        "blankBefore": 1
+      },
+      {
+        "text": "•\tstaff of agencies engaged in detecting and combating counterfeiting, in particular police forces;",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tcustoms and financial administrations;",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tparcel and delivery services:",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tintelligence personnel;",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\trepresentatives of the national central banks, the mints, commercial banks and other financial intermediaries, in particular as regards the obligations of financial institutions;",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tcourt staff, prosecutors, judges, specialist lawyers and other members of the judiciary in this field;",
+        "style": "Bullet0",
+        "blankBefore": 0
+      },
+      {
+        "text": "•\tany other group of specialists concerned, such as chambers of commerce and industry or comparable structures capable of providing access to small and medium-sized enterprises, retailers and cash-in-transit companies.",
+        "style": "Bullet0",
+        "blankBefore": 0
+      }
+    ],
+    "wording": {
+      "targetLabel": "Annex I a (new)",
+      "originalText": "",
+      "proposedText": "ANNEX Ia\nBudget Nomenclature\nThe nomenclature for the Pericles V programme will include the following budget lines:\nTitle\tChapter\tArticle\tItem\tDescription\nXX\t\t\t\tSingle Market and Customs Programme\nXX\t01\t\t\tSupport administrative expenditure for the Single Market and Customs Programme\nXX\t01\t06\t\tSupport expenditure for Pericles V\nXX\t07\t\t\tPericles V (protection of the Euro)\nXX\t07\t01\t\tPericles V",
+      "language": "en",
+      "baseline": "commission-proposal"
+    }
+  }
+]

@@ -1,6 +1,13 @@
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
+
+import {assertBareAnnexInsertion} from './amendment-annex-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
+import {assertChapterTitle} from './amendment-chapter-title-oracle.mjs';
+import {assertStandaloneQuote} from './amendment-standalone-quote-oracle.mjs';
+import {assertArticleNotes} from './amendment-article-notes-oracle.mjs';
+import {inspectNativeNoteScope,assertNativeFirstRecital} from './amendment-note-scope-oracle.mjs';
+import {assertGuidelineAnnex} from './amendment-guideline-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
@@ -9,7 +16,7 @@ import {assertFootnoteComparison,assertResolutionFootnotes} from './amendment-fo
 import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-grammar.mjs';
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
-import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
+import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
@@ -415,6 +422,12 @@ function verifyResolutionInsertion(text,wording,target,placement) {
   const kind=label.after?'paragraph':label.kind;
   if(!['paragraph','recital','citation','point'].includes(kind))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   const bases=units.filter(unit=>unit.kind===kind&&unit.label===String(label.base)&&owns(unit));
+  if(wording.originalText.trim()) {
+    if(target.segments.length!==1||kind!=='paragraph'||!label.suffix||bases.length!==1||!bases[0].complete)return {status:'unverified',reason:'oracle-insertion-context-unverified'};
+    const base=bases[0],labels=[{value:base.label}],source=text.paragraphs.slice(base.start,base.end+1).join('\n');
+    if(oracleNormal(source,labels)!==oracleNormal(wording.originalText,labels))return fail('oracle-insertion-context-mismatch');
+  }
+
   // A new recital continuing the raw A, B, C… sequence before the operative
   // paragraphs follows the last raw recital; its printed letter must match.
   if(!bases.length&&kind==='recital'&&!label.suffix&&!label.after&&!parents.length&&/^[A-Z]$/u.test(label.value)) {
@@ -479,6 +492,13 @@ export function verifyPlacement(input) {
 }
 
 function verifyProposalPlacement(input) {
+  if(input.placement?.status==='placed'&&input.placement.noteScope?.kind==='word-footnotes'){
+    const proposal=input.items?.[input.placement.itemIndex]?.proposal;
+    const notes=inspectNativeNoteScope({...input,proposal});
+    if(notes.status!=='verified')return {status:notes.status,reason:notes.reason};
+    const {noteScope,...placement}=input.placement;
+    return verifyPlacement({...input,placement,wording:notes.bodyWording});
+  }
   const result=verifyKnownPlacement(input);
   const proposal=input.items?.[input.placement.itemIndex]?.proposal;
   if(result.status!=='unverified'||!proposal||!['oracle-address-grammar-unavailable','oracle-address-unit-unavailable','oracle-introductory-part-unavailable','oracle-insertion-grammar-unavailable','oracle-original-not-unique'].includes(result.reason))return result;
@@ -498,6 +518,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
+  const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
+  if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
   const closing=assertClosingFormula({proposal,wording,placement});
   if(closing.status!=='unverified')return closing;
@@ -506,6 +528,20 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
 
   const table=proposal?verifyAnnexTable({proposal,wording,placement}):null;
   if(table)return table;
+
+  if(proposal&&placement.operation==='insert'&&target.segments.at(-1)?.kind==='subparagraph')return rawProposalAssertion({proposal,wording,placement});
+  const chapter=assertChapterTitle({proposal,wording,placement});
+  if(chapter.status!=='unverified')return chapter;
+  const standalone=assertStandaloneQuote({proposal,wording,placement,nativeQuoted});
+  if(standalone.status!=='unverified')return standalone;
+  const articleNotes=assertArticleNotes({proposal,wording,placement,nativeQuoted});
+  if(articleNotes.status!=='unverified'||proposal&&placement.operation==='delete'&&wording.language==='en'&&/^Article \d+[a-z]*$/u.test(wording.targetLabel||'')&&/\n_{5,}\s*\n/u.test(wording.originalText||''))return articleNotes;
+  const implicitLabel=assertImplicitParagraphLabel({proposal,wording,placement});
+  if(implicitLabel.status!=='unverified')return implicitLabel;
+  const initialRecital=assertNativeFirstRecital({proposal,wording,placement,nativeQuoted});
+  if(initialRecital.status!=='unverified')return initialRecital;
+  const guideline=assertGuidelineAnnex({proposal,wording,placement,nativeQuoted});
+  if(guideline.status!=='unverified')return guideline;
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
