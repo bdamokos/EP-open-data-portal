@@ -206,9 +206,7 @@ function quotedConflictBoundary(proposal,unit,next) {
 }
 // An interior indent can name Annex I when the proposal has one bare Annex.
 // This is separate from appending a new annex and never supplies an EOF gap.
-function bareAnnexIndentInsertion(items,target,{language,baseline,originalText,proposedText,nativeProposalInputs}) {
-  const [rootLabel,pointLabel,indentLabel]=target.segments;
-  if(language!=='en'||baseline!=='commission-proposal'||originalText!==''||target.segments.length!==3||rootLabel.kind!=='annex'||rootLabel.value!=='I'||pointLabel.kind!=='point'||!pointLabel.number||pointLabel.suffix||pointLabel.isNew||indentLabel.kind!=='indent'||!indentLabel.number||indentLabel.suffix!=='a'||!indentLabel.isNew||!/^[-–—•]\s+\S/u.test(proposedText||''))return null;
+function bareAnnexPoint(items,pointNumber,nativeProposalInputs) {
   if(items.length!==2||items.filter(i=>i.kind==='act').length!==1||items.filter(i=>i.kind==='annex').length!==1)return null;
   const itemIndex=items.findIndex(i=>i.kind==='annex'),proposal=items[itemIndex].proposal,act=items.find(i=>i.kind==='act').proposal;
   if(proposal.sourceKind!=='docx'||act.sourceKind!=='docx'||!act.paragraphs.some(p=>p.complete&&p.source?.complete===true&&/\bthe Annex\b/u.test(p.text))||act.paragraphs.some(p=>/\bAnnex\s+(?:[IVXLCDM]+|\d+)\b/u.test(p.text)))return null;
@@ -217,14 +215,37 @@ function bareAnnexIndentInsertion(items,target,{language,baseline,originalText,p
   const parents=root.children.filter(u=>u.kind==='paragraph');if(parents.length!==1||!parents[0].implicit||parents[0].pathConflict)return null;
   const points=parents[0].children.filter(u=>u.kind==='point');
   if(!points.length||points.some((u,i)=>u.label.value!==String(i+1)||u.pathConflict||!completeBoundary(proposal,u)||proposal.paragraphs[u.extent.start].properties?.styleId!=='Point0number'||proposal.paragraphs[u.extent.start].properties.numberingLabel!==`(${i+1})`||proposal.paragraphs[u.extent.start].properties.numbering?.format!=='decimal'||proposal.paragraphs[u.extent.start].properties.numbering?.level!==0))return null;
-  const point=points[pointLabel.number-1],indents=point?.children;
-  if(!point||indents.length<=indentLabel.number||indents.some((u,i)=>u.kind!=='indent'||u.label.value!==String(i+1)||u.pathConflict||!u.complete||u.extent.end!==u.extent.start+1||u.children.length))return null;
+  const point=points[pointNumber-1],indents=point?.children;
+  if(!point||!indents.length||indents.some((u,i)=>u.kind!=='indent'||u.label.value!==String(i+1)||u.pathConflict||!u.complete||u.extent.end!==u.extent.start+1||u.children.length))return null;
   const rows=proposal.paragraphs.slice(point.extent.start,point.extent.end),bullets=rows.slice(1);
   if(rows.length!==indents.length+1||rows.some((p,i)=>!p.complete||p.source?.complete!==true||p.source.container!=='body'||p.objects.length||(proposal.anchors||[]).some(a=>a.paragraph===p.index)||i&&(p.source.ordinal!==rows[i-1].source.ordinal+1||p.source.segment!==rows[i-1].source.segment||p.source.containerPath!==rows[i-1].source.containerPath))||bullets.some(p=>p.properties?.styleId!=='Bullet0'||p.properties.numberingLabel!=='•'||p.properties.numbering?.format!=='bullet'||p.properties.numbering.level!==0||!/^•\t\S/u.test(p.text)||p.properties.numbering.abstractId!==bullets[0].properties.numbering.abstractId))return null;
   if(!nativeInlineRowsComplete(nativeProposalInputs?.[itemIndex],proposal.sourceHash,proposal.paragraphs.slice(root.extent.start,root.extent.end),{wholeBodyAfter:true})||!act.paragraphs.some(p=>p.complete&&p.source?.complete===true&&/\bthe Annex\b/u.test(p.text)&&nativeInlineRowsComplete(nativeProposalInputs?.[items.findIndex(i=>i.kind==='act')],act.sourceHash,[p])))return null;
-  const before=indents[indentLabel.number].extent.start;
+  return {itemIndex,proposal,root,point,indents,rows};
+}
+function bareAnnexIndentInsertion(items,target,{language,baseline,originalText,proposedText,nativeProposalInputs}) {
+  const [rootLabel,pointLabel,indentLabel]=target.segments;
+  if(language!=='en'||baseline!=='commission-proposal'||originalText!==''||target.segments.length!==3||rootLabel.kind!=='annex'||rootLabel.value!=='I'||pointLabel.kind!=='point'||!pointLabel.number||pointLabel.suffix||pointLabel.isNew||indentLabel.kind!=='indent'||!indentLabel.number||indentLabel.suffix!=='a'||!indentLabel.isNew||!/^[-–—•]\s+\S/u.test(proposedText||''))return null;
+  const proof=bareAnnexPoint(items,pointLabel.number,nativeProposalInputs);if(!proof||proof.indents.length<=indentLabel.number)return null;
+  const {itemIndex,root,point,indents}=proof,before=indents[indentLabel.number].extent.start;
   return {operation:'insert',status:'placed',itemIndex,insertBefore:before,insertAfter:before-1,evidence:[{basis:'sole-bare-annex-first-ordinal',anchor:root.id},{basis:'native-interior-indent-order',anchor:point.id}]};
 }
+function bareAnnexReplacement(items,target,{language,baseline,originalText,proposedText,targetLabel,targetPath,nativeProposalInputs}) {
+  const [rootLabel,pointLabel,last]=target.segments,literal=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
+  if(language!=='en'||baseline!=='commission-proposal'||target.segments.length!==3||rootLabel.kind!=='annex'||rootLabel.value!=='I'||rootLabel.isNew||pointLabel.kind!=='point'||!pointLabel.number||pointLabel.suffix||pointLabel.isNew||!['introductory-part','indent'].includes(last.kind)||last.isNew||last.suffix||targetPath?.underlying?.length||literal(target.raw)!==literal(targetLabel)||!/^Annex I – point [1-9]\d* – (?:introductory part|indent [1-9]\d*)$/u.test(targetLabel))return null;
+  const proof=bareAnnexPoint(items,pointLabel.number,nativeProposalInputs);if(!proof)return null;
+  const {itemIndex,root,point,indents,rows}=proof;
+  let row;
+  if(last.kind==='introductory-part'){
+    row=rows[0];const prefix=new RegExp('^\\('+pointLabel.number+'\\)\\s+','u');
+    if(!prefix.test(originalText)||!prefix.test(proposedText)||!/:\s*$/u.test(row.text)||!/:\s*$/u.test(proposedText)||literal(row.text)!==literal(originalText))return null;
+  }else{
+    if(!last.number||last.number>indents.length)return null;row=rows[last.number];
+    const bullet=/^[-–—•]\s+\S/u,body=value=>literal(value.replace(/^[-–—•]\s+/u,''));
+    if(!bullet.test(originalText)||!bullet.test(proposedText)||body(row.text)!==body(originalText))return null;
+  }
+  return {operation:'replace',status:'placed',itemIndex,span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,evidence:[{basis:'sole-bare-annex-first-ordinal',anchor:root.id},{basis:'native-annex-replacement-row',anchor:point.id}]};
+}
+
 function insertionPlacement(items,target,candidatesFor,eligible) {
   const label=target.segments.at(-1),preceding=target.segments.slice(0,-1);
   // A two-letter suffix (Article 4ba) follows its first letter in drafting
@@ -620,6 +641,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
   if(operation==='insert'){const indent=bareAnnexIndentInsertion(items,target,{language,baseline,originalText,proposedText,nativeProposalInputs});if(indent)return {...indent,evidence:[...evidence,...indent.evidence]};}
+  if(operation==='replace'){const annex=bareAnnexReplacement(items,target,{language,baseline,originalText,proposedText,targetLabel,targetPath,nativeProposalInputs});if(annex)return {...annex,evidence:[...evidence,...annex.evidence]};}
   // Italian EP addresses name the printed instruction directly below an
   // unnumbered article lead ("Articolo 1 – punto 2"). The parser's implicit
   // paragraph is an internal container, not an additional published label.
