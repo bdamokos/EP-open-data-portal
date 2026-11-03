@@ -59,14 +59,14 @@ export function assertWholeAnnexInstruction({items,proposal,wording,placement,na
   const points=nativeAnnexInstructionRows(quotedWordParts(nativeQuoted.proposalBuffer),raw,first,last),owner=points[0],next=points[1];
   if(!owner||!next||owner.text.trim()!==oldLines[0]||raw.filter(row=>row.kind==='paragraph'&&row.text.trim()===oldLines[0]).length!==1)return unknown();
   const quote=raw.slice(owner.index+1,next.index);if(quote.length!==3||quote[0].kind!=='paragraph'||quote[0].text.trim()!==oldLines[1]||quote[0].hidden||!safe(quote[0].nodes)||quote[1].kind!=='other'||quote[1].hidden||!quote[1].nodes['w:tbl']||quote[2].kind!=='paragraph'||quote[2].text.trim()!=='’'||quote[2].hidden||!safe(quote[2].nodes))return unknown();
-  const table=quote[1].nodes['w:tbl'];if(!completeGrid(table)||['w:tbl','w:gridSpan','w:hMerge','w:vMerge'].some(name=>descendants(table,name).length))return unknown();
+  const table=quote[1].nodes['w:tbl'];if(children(children(table,'w:tblGrid')[0]||[],'w:gridCol').length!==2||!completeGrid(table)||['w:tbl','w:gridSpan','w:hMerge','w:vMerge'].some(name=>descendants(table,name).length))return unknown();
   const tableNumber=raw.slice(0,raw.indexOf(quote[1])+1).filter(row=>row.kind==='other'&&row.nodes['w:tbl']).length,sourceRows=[{...owner,prefix:'('+target[2]+')\t'},quote[0]];
   const trs=children(table,'w:tr');if(trs.length<2)return unknown();
   for(const [r,tr] of trs.entries()){
    const cells=children(tr,'w:tc');if(cells.length!==2)return unknown();
    for(const [c,cell] of cells.entries()){const paragraphs=children(cell,'w:p');if(!paragraphs.length||paragraphs.some(p=>!safe(p)))return unknown();for(const [n,p] of paragraphs.entries())sourceRows.push({path:`/w:document[1]/w:body[1]/w:tbl[${tableNumber}]/w:tr[${r+1}]/w:tc[${c+1}]/w:p[${n+1}]`,text:literal(p)});}
   }
-  if(literal(children(children(trs[0],'w:tc')[0],'w:p')[0])!=='CN code'||literal(children(children(trs[0],'w:tc')[1],'w:p')[0])!=='Greenhouse gas')return unknown();
+  if(children(children(trs[0],'w:tc')[0],'w:p').length!==1||children(children(trs[0],'w:tc')[1],'w:p').length!==1||literal(children(children(trs[0],'w:tc')[0],'w:p')[0])!=='CN code'||literal(children(children(trs[0],'w:tc')[1],'w:p')[0])!=='Greenhouse gas')return unknown();
   sourceRows.push(quote[2]);
   const mapped=[];for(const row of sourceRows){const found=proposal.paragraphs.filter(p=>p.source?.path===row.path&&p.text===(row.prefix||'')+row.text.trim()&&p.complete&&p.source.complete);if(found.length!==1)return unknown();mapped.push(found[0]);}
   if(mapped.some((p,index)=>index&&(p.index!==mapped[index-1].index+1||p.source.ordinal!==mapped[index-1].source.ordinal+1)))return unknown();
