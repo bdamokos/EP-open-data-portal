@@ -323,6 +323,7 @@
   "app.checkingCommittee": "A(z) {committee} bizottság ellenőrzése…",
   "app.clear_category": "Kategória törlése",
   "app.clear_filter": "Szűrő törlése",
+  "app.show_filters": "Szűrők",
   "app.close_categories": "Kategóriák bezárása",
   "app.committee_records": "Bizottsági nyilvántartások",
   "app.contributions_unavailable": "A felszólalások nem érhetők el.",
@@ -979,7 +980,6 @@
   "batch6.speechtranslation.show.translation.language.26": "Fordítás megjelenítése ({language})",
   "bookmarks.question_reference.4863d7": "Kérdés {reference}",
   "commissionfollowups.commission_follow_up": "Bizottsági nyomon követés",
-  "commissionfollowups.commission_follow_up_could_not_be_checked": "A Bizottság nyomon követése nem ellenőrizhető.",
   "commissionfollowups.commission_follow_up_date_file_unavailable_here.2f2d31": "Bizottsági nyomon követés · {date} · a fájl itt nem érhető el.",
   "commissionfollowups.commission_follow_up_date_filelink.c1e29e": "Bizottsági nyomon követés · {date} · {fileLink}",
   "commissionfollowups.commission_follow_up_file_unavailable_here.6257de": "Bizottsági nyomon követés · a fájl itt nem érhető el.",
@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} rögzített szavazat",
   "membervotes.tsx.count.recorded.positions": "{count} rögzített szavazat",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Zárószavazás a teljes szövegről",
   "membervotes.tsx.final.vote.outcome.position": "Zárószavazás · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Elfogadott szöveg keresése",
   "membervotes.tsx.finding.latest.recorded.votes": "Legutóbbi rögzített szavazások keresése…",
@@ -2499,5 +2498,10 @@
   "topics.story.count.meps": "{count} EP-képviselő",
   "topics.story.count.mepsOne": "{count} EP-képviselő",
   "topics.policyAreaSource": "A szakpolitikai területek nevei: {source}.",
-  "topics.explorerTranslation": "A szakpolitikai területek nevét az adatböngésző fordította le."
+  "topics.explorerTranslation": "A szakpolitikai területek nevét az adatböngésző fordította le.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Felszólalások havonta",
+  "groupvoices.contributions_by_sitting_day.77a719": "Felszólalások ülésnaponként",
+  "membervotespresentation.votes_not_yet_published": "A szavazások még nem jelentek meg",
+  "membervotespresentation.votes_start_at": "A szavazások kezdete: {time}"
 }

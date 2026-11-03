@@ -1,4 +1,5 @@
 import {conceptLabel} from './oeil-labels.mjs';
+import {suppliedTitles} from './insights-model.mjs';
 import {readableStoryState} from './topic-projection-state.mjs';
 import {existsSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
@@ -7,9 +8,11 @@ import {countryLabels} from './topic-roles.mjs';
 import {countryIdentity} from './topic-country-identity.mjs';
 import {validTopicKey} from './record-topics.mjs';
 import {emptyStoryCounts} from './story-facts-aggregate.mjs';
-import europe from './story-europe-countries.json' with {type:'json'};
+import {publishedEurope} from './story-europe.mjs';
 import {HttpError} from './http-utils.mjs';
 import {topicPeriods,quarter} from './topics-store.mjs';
+
+export const STORY_FACTS_VIEW_VERSION=1;
 
 /* Frontend contract (all counts are exact over the generation's retained evidence):
  * mode=q/d is a presentation selector; counts retain every kind.
@@ -55,7 +58,9 @@ import {topicPeriods,quarter} from './topics-store.mjs';
  * adoptedTextsWhenAtMostTwo. An omitted larger adopted set uses its exact count,
  * winners and browse page. Counts/winners cover all records regardless of sets.
  * debates/docs/questions are hydrated EVIDENCE for winners, sets and the page,
- * never a source of totals. blocks contains the same evidence IDs per quarter.
+ * never a source of totals. Question answers come from retained source metadata,
+ * with null for an unavailable observation and [] for an observed empty set.
+ * blocks contains the same evidence IDs per quarter.
  * Browse: list=debates|documents|adoptedTexts|adoptedUndated|questions, optional
  * cursor. page={list,pageSize:20,total,items:[{id,kind,date}],nextCursor}. It is a
  * complete date-desc/id-desc keyset traversal (adopted lists sort by outcome
@@ -78,8 +83,9 @@ const cleanTitle=title=>String(title||'').replace(/^\d+(?:\.\d+)*\.\s*/,'').repl
 export function storyFacts(store,params,{pressFilename}={}){
  const q=storyQuery(params),state=readableStoryState(store,{askers:q.askers}),generation=state?.dataGeneration||state?.generation;
  if(!state)return {ready:false};
+ // Europe scope as built into the published projection, so map, list and story change together.
+ const europe={ids:publishedEurope(state)};
  const db=store.db,periods=topicPeriods(),selectedPeriods=q.period?[q.period]:periods,key=q.scope==='map'?q.zoom:q.scope==='place'?q.key.slice(6):q.key,dimension=[generation,q.scope,key,q.askers];
- // Story titles keep English selection; request lang selects policy labels below.
  const choose=(values,fallback='')=>{const lang=languagePreference(Object.keys(values||{}),'en')[0];return {value:values?.[lang]||fallback,language:lang||null};};
  const zeroCounts=()=>({...emptyStoryCounts(),...(q.scope==='map'?{placesWithQuestions:0,placesWithDebates:0,placesWithAdoptedTexts:0}:{})});
  const rows=db.prepare('SELECT period,body FROM story_scope_counts INDEXED BY story_count_scope WHERE generation=? AND scope=? AND key=? AND askers=?').all(...dimension),cells=new Map(rows.map(r=>[r.period,{...zeroCounts(),...JSON.parse(r.body)}]));
@@ -128,8 +134,23 @@ export function storyFacts(store,params,{pressFilename}={}){
  const docOutput=d=>{const title=choose(d.titles,d.reference||d.id),o=d.outcome;return {id:d.id,reference:d.reference,ref:d.reference,type:d.type,date:d.date,q:quarter(d.date),title:title.value,titleLanguage:title.language,rule:d.rule,rules:d.rule.map(n=>'Rule '+n),groups:d.groups,groupsAvailable:d.groupsAvailable,places:d.places,keywords:d.keywords,keywordKeys:d.keywords.map(id=>'eurovoc:'+id),procedures:d.procedures,derivedFrom:d.derivedFrom,supersededBy:d.supersededBy||[],outcome:o?{decisionId:o.decisionId,id:o.decisionId,outcome:o.outcome,date:o.date,for:o.for,against:o.against,abstentions:o.abstentions,abst:o.abstentions,label:choose(o.labels).value,referenceText:choose(o.references).value,decisionMethod:o.decisionMethod,method:o.method,source:o.source}:null,outcomeStatus:d.outcomeStatus,source:d.source};};
  for(const id of debateIds){const raw=fact.get(generation,'debate',id);if(!raw)continue;const f=JSON.parse(raw.body),title=choose(f.titles);debates.push({id:f.id,date:f.date,q:quarter(f.date),title:cleanTitle(title.value),rawTitle:f.titles.en||title.value,titleLanguage:title.language,creId:f.creId,cre:f.creId,meps:f.meps,speeches:f.speeches,format:f.format,joint:f.joint,jointHeading:choose(f.jointHeadings).value||null,agendaId:f.agendaId,agendaVia:f.agendaVia,procedures:f.procedures,primaryPlace:f.primaryPlace,places:f.places.map(p=>({id:p.id,basis:p.basis,bases:p.bases})),placeBases:Object.fromEntries(f.places.map(p=>[p.id,p.bases])),docs:f.docs,source:f.source});for(const doc of f.docs)docIds.add(doc);}
  for(const id of docIds){const raw=fact.get(generation,'document',id);if(raw)documents.set(id,docOutput(JSON.parse(raw.body)));}
+ // One bounded SQLite read supplies answer references for the entire page.
+ // Missing retained observations remain null; list rendering never reads EP.
+ const questionKeys=[...new Set(questionIds.map(id=>'/parliamentary-questions/'+id))];
+ const savedQuestions=new Map((questionKeys.length?db.prepare(`SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind='document' AND key IN (${questionKeys.map(()=>'?').join(',')})`).all(state.generation,...questionKeys):[]).map(r=>[r.key,r]));
+ const answersFor=id=>{
+  const saved=savedQuestions.get('/parliamentary-questions/'+id);if(!saved)return null;
+  const work=JSON.parse(saved.body);if(work.identifier!==id||work.answersObserved===false||!Array.isArray(work.inverse_answers_to))return null;
+  const answers=[];
+  for(const a of work.inverse_answers_to){
+   const answerId=a?.identifier||String(a?.id||a||'').split('/').at(-1);if(!/^[EPHO]-\d+-\d{4}-\d+-ASW$/.test(answerId||''))return null;
+   const title=choose(typeof a==='object'?suppliedTitles(a):{});
+   answers.push({id:answerId,date:a?.document_date||null,title:title.value||null,titleLanguage:title.language});
+  }
+  return [...new Map(answers.map(a=>[a.id,a])).values()];
+ };
  const questions=[],getQuestion=db.prepare("SELECT date,json_extract(body,'$.titles') titles,json_extract(body,'$.members') members FROM record_topic_records WHERE generation=? AND id=?"),getPlaces=db.prepare('SELECT substr(key,7) id,askers FROM record_topic_question_places WHERE generation=? AND record_id=?');
- for(const id of questionIds){const r=getQuestion.get(generation,id);if(!r)continue;const title=choose(JSON.parse(r.titles||'{}'),id),places=getPlaces.all(generation,id).filter(p=>(q.askers==='all'||(q.askers==='not-home'?p.askers!=='home':p.askers==='elsewhere'))&&(q.scope!=='place'||p.id===key)&&(q.scope!=='map'||q.zoom==='world'||europe.ids.includes(p.id)));questions.push({id,date:r.date,d:r.date,q:quarter(r.date),title:title.value,t:title.value,titleLanguage:title.language,oral:id.startsWith('O-'),authors:JSON.parse(r.members||'[]'),places:places.map(p=>p.id),home:places.filter(p=>p.askers==='home').map(p=>p.id),askers:Object.fromEntries(places.map(p=>[p.id,p.askers]))});}
+ for(const id of questionIds){const r=getQuestion.get(generation,id);if(!r)continue;const title=choose(JSON.parse(r.titles||'{}'),id),places=getPlaces.all(generation,id).filter(p=>(q.askers==='all'||(q.askers==='not-home'?p.askers!=='home':p.askers==='elsewhere'))&&(q.scope!=='place'||p.id===key)&&(q.scope!=='map'||q.zoom==='world'||europe.ids.includes(p.id)));questions.push({id,answers:answersFor(id),date:r.date,d:r.date,q:quarter(r.date),title:title.value,t:title.value,titleLanguage:title.language,oral:id.startsWith('O-'),authors:JSON.parse(r.members||'[]'),places:places.map(p=>p.id),home:places.filter(p=>p.askers==='home').map(p=>p.id),askers:Object.fromEntries(places.map(p=>[p.id,p.askers]))});}
  const series={};if(q.scope!=='topic')for(const r of db.prepare("SELECT key,period,body FROM story_scope_counts INDEXED BY "+(q.scope==='place'?'story_count_scope':'story_count_grid')+" WHERE generation=? AND scope='place' AND askers=? AND period<>''"+(q.period?' AND period=?':'')+(q.scope==='place'?' AND key=?':q.zoom==='eu'?' AND key IN (SELECT value FROM json_each(?))':'')+' ORDER BY key,period').iterate(generation,q.askers,...(q.period?[q.period]:[]),...(q.scope==='place'?[key]:q.zoom==='eu'?[JSON.stringify(europe.ids)]:[])))(series[r.key]??={})[r.period]=JSON.parse(r.body);
  const press={},procedureIds=new Set(debates.flatMap(d=>d.procedures));let pressReady=false;
  if(pressFilename&&existsSync(pressFilename)){const pdb=new DatabaseSync(pressFilename,{readOnly:true});try{pdb.exec('PRAGMA query_only=ON;PRAGMA cache_size=-1024;BEGIN');if(pdb.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='links'").get()){
@@ -138,5 +159,5 @@ export function storyFacts(store,params,{pressFilename}={}){
  }}catch{pressReady=false;}finally{pdb.close();}}
  let topic=null;if(q.scope==='topic'){const c=db.prepare('SELECT body FROM record_topic_concepts WHERE generation=? AND key=?').get(generation,q.key);topic={key:q.key,...conceptLabel(c?JSON.parse(c.body):{key:q.key},q.language),groups:Object.fromEntries(periodCounts.map(p=>[p.period,p.groups]))};}
  const docs=[...documents.values()],blocks=selectedPeriods.map(period=>({period,counts:cells.get(period)||zeroCounts(),debates:debates.filter(d=>d.q===period).map(d=>d.id),docs:docs.filter(d=>d.q===period||d.outcome?.date&&quarter(d.outcome.date)===period).map(d=>d.id),questions:questions.filter(d=>d.q===period).map(d=>d.id)}));
- return {ready:true,scope:q.scope,key:q.key,period:q.period,mode:q.mode,askers:q.askers,zoom:q.zoom,periods,partial:store.get('recordTopicCalendar')?.partial,counts,periodCounts,winners,periodWinners,sets,page,debatesTotal:counts.debates,debates,docs,questions,press,topic,topics:topic?{[topic.key]:topic}:{},blocks,series,summary:{debates:counts.debates,documents:counts.documents,questions:counts.questions},coverage:{...store.get('storyCoverage'),press:{ready:pressReady}}};
+ return {ready:true,scope:q.scope,key:q.key,period:q.period,mode:q.mode,askers:q.askers,zoom:q.zoom,europe:europe.ids,periods,partial:store.get('recordTopicCalendar')?.partial,counts,periodCounts,winners,periodWinners,sets,page,debatesTotal:counts.debates,debates,docs,questions,press,topic,topics:topic?{[topic.key]:topic}:{},blocks,series,summary:{debates:counts.debates,documents:counts.documents,questions:counts.questions},coverage:{...store.get('storyCoverage'),press:{ready:pressReady}}};
 }

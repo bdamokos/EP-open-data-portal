@@ -38,7 +38,7 @@ for(const [name,change] of [
 for(const nodes of [[],[reply(),reply()],[reply(),reply('SP-other')]])test('rejects absent, duplicate or extra returned work identities '+nodes.length,async()=>{
   const {service}=reader({replies:{[sp]:nodes}});assert.equal((await service.query(query)).items.length,0);
 });
-for(const [label,inverse,status,count,observation] of [['absent',undefined,'unavailable',null,'unobserved'],['null',null,'unavailable',null,'unobserved'],['empty',[],'none-listed',0,'observed'],['malformed','value','unavailable',null,'unobserved']])test('distinguishes '+label+' relationships',async()=>{
+for(const [label,inverse,status,count,observation] of [['absent',undefined,'none-listed',0,'observed'],['null',null,'unavailable',null,'unobserved'],['empty',[],'none-listed',0,'observed'],['malformed','value','unavailable',null,'unobserved']])test('distinguishes '+label+' relationships',async()=>{
   const work=adopted();if(label==='absent')delete work.inverse_answers_to;else work.inverse_answers_to=inverse;
   const {service,reads}=reader({taWork:work});const result=await service.query(query);assert.equal(result.status,status);assert.equal(result.declaredCount,count);assert.equal(result.relationshipObservation,observation);assert.equal(reads.length,1);
 });

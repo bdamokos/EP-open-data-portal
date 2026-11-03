@@ -10,7 +10,7 @@ import {ActivityWorker} from './activity-index-worker.mjs';
 import {SittingSnapshotCollector,sittingSnapshotNextCheck,sittingSourcesConfirmed,pastSittingRecheckDelay} from './sitting-snapshot-collector.mjs';
 import {SittingSnapshotReader,SittingSnapshotHints} from './sitting-snapshot-store.mjs';
 import {decisionVotes} from './decision-votes.mjs';
-import {MemberVotes,memberVotesQuery,MEMBER_VOTES_VERSION} from './member-votes.mjs';
+import {MemberVotes,memberVotesQuery,MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
 import {sittingConfirmationDay,DAY} from './refresh-policy.mjs';
 import {snapshotFixture,snapshotResponses,SNAPSHOT_SITTING,SNAPSHOT_NOW} from './test-support/sitting-snapshots.mjs';
 
@@ -53,7 +53,7 @@ test('missing, stale and version-mismatched snapshots fall back and enqueue high
   const before=h.fixture.calls.length;await snapshotResponses({request:h.fixture.request,snapshots:h.reader,clock:h.clock});
   assert(h.fixture.calls.length>before);assert(h.hints.size>=2);
   h.collector.admit();assert.equal(h.store.db.prepare("SELECT priority FROM sitting_snapshots WHERE kind='votes' AND id=?").get(SNAPSHOT_SITTING).priority,100);
-  assert.equal(h.reader.read('votes',MEMBER_VOTES_VERSION+1,SNAPSHOT_SITTING),null);
+  assert.equal(h.reader.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION+1,SNAPSHOT_SITTING),null);
 });
 
 test('correction-window refresh, post-window confirmation and monthly old-sitting checks reuse the outcome rule',async t=>{
@@ -82,14 +82,14 @@ test('transient failures keep durable backoff and reader hints cannot bypass it'
   await drain(h);
   const row=h.store.db.prepare("SELECT * FROM sitting_snapshots WHERE kind='votes' AND id=?").get(SNAPSHOT_SITTING);
   assert.equal(row.attempts,1);assert(row.next_check>=h.clock()+12*60*60_000);assert.match(row.error,/metadata unavailable/);
-  h.reader.enqueue('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING,{changedDeclarations:true});h.collector.admit();assert.equal(h.collector.due(),false);
+  h.reader.enqueue('votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING,{changedDeclarations:true});h.collector.admit();assert.equal(h.collector.due(),false);
 });
 
 test('one-request budgets resume disk-staged pages without repeating successful upstream reads',async t=>{
   const h=setup(t);h.worker.budget=1;
   for(let i=0;i<40&&h.collector.due();i++){h.worker.requests=0;await h.collector.step(h.worker);assert(h.worker.requests<=1);}
   assert.equal(h.collector.due(),false);
-  assert.equal(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING)?.day.coverage.state,'complete');
+  assert.equal(h.reader.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING)?.day.coverage.state,'complete');
   assert.equal(h.store.db.prepare('SELECT COUNT(*) n FROM sitting_snapshot_staging').get().n,0);
   const calls=h.fixture.calls.filter(call=>call.endpoint.endsWith('/decisions'));
   assert.equal(calls.length,2,'one census and one named stream, even across run boundaries');
@@ -111,7 +111,7 @@ test('snapshot writes remain fenced by the activity writer lease and enforce a d
   const h=setup(t);await drain(h);h.store.release();
   assert.throws(()=>h.collector.admit(),/lease|writer/i);
   assert(h.store.acquire());h.collector.writer.diskLimit=1;
-  const job={kind:'votes',version:MEMBER_VOTES_VERSION,id:SNAPSHOT_SITTING,attempts:0};
+  const job={kind:'votes',version:MEMBER_VOTE_SNAPSHOT_VERSION,id:SNAPSHOT_SITTING,attempts:0};
   assert.throws(()=>h.collector.writer.retain(job,{large:'x'.repeat(500)},{complete:true,now:h.clock(),next:h.clock()+DAY}),/disk limit/);
 });
 
@@ -151,7 +151,7 @@ test('verified historical 404 collections retain empty coverage and resume under
   h.fixture.meeting.consists_of=[];h.worker.budget=1;
   for(let i=0;i<40&&h.collector.due();i++){h.worker.requests=0;await h.collector.step(h.worker);assert(h.worker.requests<=1);}
   assert.equal(h.collector.due(),false);
-  const saved=h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING);
+  const saved=h.reader.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING);
   assert.equal(saved.day.coverage.state,'complete');assert.equal(saved.day.decisions.length,0);
   assert(saved.day.sources.decisions.every(source=>source.httpStatus===404&&source.contentHash));
   assert.equal(h.fixture.calls.filter(call=>call.endpoint.endsWith('/decisions')).length,2);
@@ -160,29 +160,29 @@ test('verified historical 404 collections retain empty coverage and resume under
 
 test('reader-version upgrades never publish new projections under obsolete job keys',async t=>{
   const h=setup(t);await drain(h);
-  h.collector.writer.enqueue('votes',MEMBER_VOTES_VERSION-1,SNAPSHOT_SITTING,100);
-  h.collector.writer.stage({kind:'votes',version:MEMBER_VOTES_VERSION-1,id:SNAPSHOT_SITTING},'old',{old:true},h.clock());
-  h.hints.enqueue('votes',MEMBER_VOTES_VERSION-1,SNAPSHOT_SITTING);
+  h.collector.writer.enqueue('votes',MEMBER_VOTE_SNAPSHOT_VERSION-1,SNAPSHOT_SITTING,100);
+  h.collector.writer.stage({kind:'votes',version:MEMBER_VOTE_SNAPSHOT_VERSION-1,id:SNAPSHOT_SITTING},'old',{old:true},h.clock());
+  h.hints.enqueue('votes',MEMBER_VOTE_SNAPSHOT_VERSION-1,SNAPSHOT_SITTING);
   h.store.set('sittingSnapshotDiscovery','older-reader-versions');
   assert.equal(h.collector.due(),true);h.collector.admit();
-  assert.equal(h.store.db.prepare("SELECT COUNT(*) n FROM sitting_snapshots WHERE kind='votes' AND version<>?").get(MEMBER_VOTES_VERSION).n,0);
+  assert.equal(h.store.db.prepare("SELECT COUNT(*) n FROM sitting_snapshots WHERE kind='votes' AND version<>?").get(MEMBER_VOTE_SNAPSHOT_VERSION).n,0);
   assert.equal(h.store.db.prepare('SELECT COUNT(*) n FROM sitting_snapshot_staging').get().n,0);
   assert.equal(h.collector.writer.due(h.clock()).kind,'calendar');
-  await drain(h);assert(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING));
+  await drain(h);assert(h.reader.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING));
 });
 
 test('changed calendar declarations reject a monthly saved day and reopen its writer job',async t=>{
   const h=setup(t);
   h.advance(Date.parse('2026-10-25T12:00:00Z')-h.clock());
   await drain(h);
-  assert(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING));
+  assert(h.reader.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING));
   const missing='eli/dl/event/'+SNAPSHOT_SITTING+'-VOT-ITM-999';
   h.fixture.meeting.consists_of.push(missing);
   h.advance(6*60*60_000);
   // Refresh only the calendar, leaving the monthly sitting observation intact.
   assert.equal(h.collector.writer.due(h.clock()).kind,'calendar');
   await h.collector.step(h.worker);
-  assert(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING));
+  assert(h.reader.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING));
   const result=await snapshotResponses({request:h.fixture.request,snapshots:h.reader,clock:h.clock,week:true});
   assert.equal(result.votes.coverage.status,'partial');
   assert.equal(result.votes.coverage.collectionComplete,false);
@@ -197,7 +197,7 @@ test('changed calendar declarations reject a monthly saved day and reopen its wr
 
 test('near-cap retention atomically replaces old snapshot and this jobs staging',async t=>{
   const h=setup(t);await drain(h);
-  const writer=h.collector.writer,job={kind:'votes',version:MEMBER_VOTES_VERSION,id:SNAPSHOT_SITTING,attempts:0};
+  const writer=h.collector.writer,job={kind:'votes',version:MEMBER_VOTE_SNAPSHOT_VERSION,id:SNAPSHOT_SITTING,attempts:0};
   const options={complete:true,now:h.clock(),next:h.clock()+DAY};
   const value={probe:Array.from({length:10000},(_,i)=>'value-'+i)};
   writer.stage(job,'probe',value,h.clock());
@@ -210,11 +210,11 @@ test('near-cap retention atomically replaces old snapshot and this jobs staging'
   writer.retain(job,value,options);
   assert.equal(writer.usage(),final);
   assert.equal(h.store.db.prepare('SELECT COUNT(*) n FROM sitting_snapshot_staging').get().n,0);
-  assert.deepEqual(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING),value);
+  assert.deepEqual(h.reader.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING),value);
   writer.diskLimit=Infinity;writer.stage(job,'rollback',{staged:true},h.clock());
   h.store.db.exec("CREATE TRIGGER reject_stage_clear BEFORE DELETE ON sitting_snapshot_staging BEGIN SELECT RAISE(ABORT, 'probe rollback'); END");
   assert.throws(()=>writer.retain(job,{replacement:true},options),/probe rollback/);
-  assert.deepEqual(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING),value);
+  assert.deepEqual(h.reader.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING),value);
   assert.deepEqual(writer.staged(job,'rollback',h.clock()),{staged:true});
 });
 
@@ -227,7 +227,7 @@ test('snapshot dispatch request shares resume staging while leaving budget for c
     assert(h.worker.requests<h.worker.budget);
   }
   assert.equal(h.collector.due(),false);
-  assert(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING));
+  assert(h.reader.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING));
 });
 
 test('snapshot retries use shared transient and byte-confirmed permanent classification',async t=>{
@@ -651,7 +651,7 @@ test('real PVCRE procedural, explanation and debate shapes recover from old pars
     h.store.db.prepare("DELETE FROM meta WHERE key='sittingDebateParser'").run();
     assert(h.collector.due());h.collector.admit();
     const row=h.store.db.prepare("SELECT next_check FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id);
-    assert.equal(row.next_check,h.clock()+pastSittingRecheckDelay(id.slice(7,17),h.clock(),DAY));
+    assert.equal(row.next_check,h.clock());
     h.collector.readCached=async()=>record;
     h.worker.fetchRecord=()=>assert.fail('valid held bytes must not download again');
     h.advance(row.next_check-h.clock());await h.collector.step(h.worker);
@@ -709,4 +709,38 @@ test('PVCRE collection follows exact declared sub-items and accepts absolute ide
   const retained=h.store.db.prepare("SELECT next_check,body FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id);
   h.store.db.prepare("DELETE FROM meta WHERE key='sittingDebateParser'").run();h.collector.admit();
   assert.deepEqual(h.store.db.prepare("SELECT next_check,body FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id),retained);
+});
+
+test('parser upgrades immediately requeue never-collected rejections at every age, preserving held rows and other backoffs',t=>{
+  const h=setup(t);h.collector.admit();
+  const next=h.clock()+180*DAY,body=gzipSync(JSON.stringify({held:'observation'}));
+  const metadataError='Collection source has invalid metadata.',linksError='Exact debate links unavailable.';
+  const cases=[
+    {date:'2026-10-07',error:metadataError,requeue:true},
+    {date:'2026-04-01',error:metadataError,requeue:true},
+    {date:'2025-04-01',error:linksError,requeue:true},
+    {date:'2024-07-17',error:metadataError,requeue:true},
+    {error:metadataError,body},
+    {error:metadataError,complete:1,body},
+    {error:metadataError,complete:1},
+    {complete:1,body},
+    {error:'Upstream returned 429'},
+    {error:'Service unavailable'},
+    {error:metadataError,kind:'agenda'},
+    {},
+  ];
+  const insert=h.store.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,complete,checked_at,next_check,attempts,error,body) VALUES (?,1,?,?,?,?,12,?,?)');
+  const read=h.store.db.prepare('SELECT * FROM sitting_snapshots WHERE kind=? AND version=1 AND id=?');
+  for(const [i,c] of cases.entries()){
+    c.kind??='debate';c.id='MTG-PL-'+(c.date||'2024-07-17')+'-PVCRE-ITM-'+(i+1);
+    insert.run(c.kind,c.id,c.complete||0,h.clock()-DAY,next,c.error??null,c.body??null);
+    c.before=read.get(c.kind,c.id);
+  }
+  h.store.set('sittingDebateParser',2);assert(h.collector.due());h.collector.admit();
+  assert.equal(h.store.get('sittingDebateParser'),3);
+  for(const c of cases)assert.deepEqual({...read.get(c.kind,c.id)},{...c.before,next_check:c.requeue?h.clock():next},c.id);
+  assert.equal(h.fixture.calls.length,0,'admission only changes due times; shared collection still controls requests');
+  // Ordinary retries after this upgrade retain their schedule on every admission.
+  const c=cases[0];h.store.db.prepare("UPDATE sitting_snapshots SET next_check=? WHERE kind='debate' AND id=?").run(next,c.id);
+  h.collector.admit();assert.equal(read.get(c.kind,c.id).next_check,next);
 });

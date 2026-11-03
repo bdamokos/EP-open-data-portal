@@ -1,13 +1,25 @@
 import {fastReadsReady} from './fast-read-projections.mjs';
 import {indexAvailability,savedGaps,availabilityGap} from './availability-evidence.mjs';
-import {brusselsDay} from './analysis-period.mjs';
+import {brusselsDay,CURRENT_TERM_START} from './analysis-period.mjs';
 import { outsidePerson, outsideCapacity } from './outside-model.mjs';
 import {speechAgendaMembership} from './speech-agenda.mjs';
 import { HttpError } from './http-utils.mjs';
 import {languagePreference} from './language-order.mjs';
-import {copyGenerationRows} from './generation-copy.mjs';
+import {copyProjectedGenerationRows} from './generation-copy.mjs';
 
 export const OUTSIDE_COVERAGE_VERSION=3;
+// First sitting days of the terms Outside voices covers. The dated roster omits
+// newly elected members on these days. Add the next term's day when it is known.
+export const TERM_FIRST_DAYS=new Set(['2019-07-02',CURRENT_TERM_START]);
+export const mandateRosterBody=date=>({date,basis:'member-mandates',ids:[],checked:[],sources:[]});
+// A first-day roster saved by the dated-roster reader is rebuilt from mandates.
+export function rebuildFirstDayRoster(store,generation,date) {
+  const roster=store.source(generation,'outside:roster:'+date);
+  if(!roster||roster.work.basis==='member-mandates')return false;
+  // A rebuild that exhausted its retries is an outside gap; gap recovery keeps its cursor and timing.
+  if(!store.source(generation,'outside:gap:outside:roster:'+date))store.enqueue(generation,'outside:roster:'+date,'outside-roster',mandateRosterBody(date),102,true);
+  return true;
+}
 const parse = value => JSON.parse(value);
 const boundedIntervals = rows => rows.length>500?[{reason:'source-gap'}]:rows.map(({body,sourceId})=>{
   const gap=availabilityGap(body,sourceId);
@@ -37,21 +49,28 @@ export function outsideSchema(db) {
 }
 export function outsideCopy(db, generation, active) {
   db.prepare('DELETE FROM outside_contributions WHERE generation<>?').run(active);
-  copyGenerationRows(db,{table:'outside_contributions',key:'speech',select:'INSERT INTO outside_contributions SELECT ?,speech,person,date,body FROM outside_contributions'},generation,active);
+  copyProjectedGenerationRows(db,{table:'outside_contributions',key:'speech',select:'INSERT INTO outside_contributions SELECT ?,speech,person,date,body FROM outside_contributions'},generation,active);
   // Preserve exact progress and backoff when the daily core snapshot advances.
   db.prepare("INSERT OR IGNORE INTO tasks SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key LIKE 'outside:agenda-membership:%'").run(generation,active);
 }
 export function outsidePrune(db, generation, old) {
   db.prepare('DELETE FROM outside_contributions WHERE generation NOT IN (?,?)').run(generation,old || generation);
 }
+// Returns true once the speech is classified against roster evidence covering every participant.
 export function recordOutside(store, generation, speech) {
-  if (!speech) return;
+  if (!speech) return false;
   store.assertWriter();
   const roster = store.source(generation, 'outside:roster:' + speech.date);
   if (!roster) {
     store.enqueue(generation, 'outside:roster:' + speech.date, 'outside-roster', {date:speech.date, offset:0, ids:[], sources:[]}, 102);
-    return;
+    return false;
   }
+  // A mandate-based roster covers only the speakers it checked; resume it for new ones.
+  if (roster.work.basis === 'member-mandates' && speech.participants.some(id => !roster.work.checked.includes(id))) {
+    store.enqueue(generation, 'outside:roster:' + speech.date, 'outside-roster', {date:speech.date, basis:'member-mandates', ids:roster.work.ids, checked:roster.work.checked, sources:roster.work.sources}, 102, true);
+    return false;
+  }
+  if (TERM_FIRST_DAYS.has(speech.date) && rebuildFirstDayRoster(store,generation,speech.date)) return false;
   const members = new Set(roster.work.ids);
   // Reclassification removes any row previously accepted against older evidence.
   store.db.prepare('DELETE FROM outside_contributions WHERE generation=? AND speech=?').run(generation,speech.id);
@@ -61,6 +80,7 @@ export function recordOutside(store, generation, speech) {
   if (candidates.some(id=>!speech.headers.find(header=>header.personId===id)?.name)) store.enqueue(generation,'outside:detail:' + speech.id,'outside-detail',{id:speech.id},102);
   if (candidates.length && needsAgendaUpgrade(speech)) enqueueAgendaUpgrade(store,generation,speech.id);
   if (candidates.length) for (const id of speech.parentIds) if (!store.source(generation,'outside:agenda:' + id)) store.enqueue(generation,'outside:agenda:' + id,'outside-agenda',{id},101);
+  return true;
 }
 
 export function outsideQuery(params) {

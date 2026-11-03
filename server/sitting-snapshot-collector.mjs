@@ -3,7 +3,7 @@ import {odp} from './odp.mjs';
 import {array,tail} from './activity-index-model.mjs';
 import {SittingSnapshotReader} from './sitting-snapshot-store.mjs';
 import {statSync} from 'node:fs';
-import {MemberVotes,MEMBER_VOTES_VERSION} from './member-votes.mjs';
+import {MemberVotes,MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
 import {MemberAttendance,MEMBER_ATTENDANCE_VERSION} from './member-attendance.mjs';
 import {MeetingsReader,MEETINGS_SOURCE_MAX_BYTES} from './meetings-reader.mjs';
 import {calendarYears,currentTermSittings,isPlenarySitting,identifiedPlenarySitting} from './plenary-calendar.mjs';
@@ -17,12 +17,12 @@ import {SittingSnapshotWriter,sittingSnapshotHints,SITTING_CALENDAR_VERSION,SITT
 const SIX_HOURS=6*60*60_000;
 const agendaEndpoint=id=>'/meetings/'+id.slice(0,17)+'/foreseen-activities';
 const settledLinks=(id,now)=>agendaFreshMs(agendaEndpoint(id),now)===Infinity;
-const readerVersions={votes:MEMBER_VOTES_VERSION,attendance:MEMBER_ATTENDANCE_VERSION,calendar:SITTING_CALENDAR_VERSION};
+const readerVersions={votes:MEMBER_VOTE_SNAPSHOT_VERSION,attendance:MEMBER_ATTENDANCE_VERSION,calendar:SITTING_CALENDAR_VERSION};
 const discoveryKey=now=>[3,brusselsDay(now).slice(0,4),...Object.values(readerVersions)].join(':');
 const agendaCursorKey='agenda:cursor',agendaDispatchPages=8;
 // These jobs retain PVCRE agenda items, including procedural items and votes.
 // The queue name does not imply that every item is a PLENARY_DEBATE.
-const debateParserVersion=2;
+const debateParserVersion=3;
 const eventIdentity=value=>typeof value==='string'?value.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null;
 const validDebate=(record,id)=>{
   if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+(?:-\d+)*$/.test(id))return false;
@@ -98,12 +98,9 @@ export class SittingSnapshotCollector {
   admit(){
     this.store.assertWriter();
     if(this.store.get('sittingDebateParser')!==debateParserVersion)this.store.transaction(()=>{
-      // Reopen only old parser failures; complete held bytes and transport
-      // backoffs remain untouched. Historical misses retain their age decay.
-      const now=this.store.clock();
-      const update=this.store.db.prepare('UPDATE sitting_snapshots SET next_check=MIN(next_check,?) WHERE kind=? AND version=? AND id=?');
-      const rows=this.store.db.prepare("SELECT kind,version,id,attempts FROM sitting_snapshots WHERE kind='debate' AND complete=0 AND error IN ('Collection source has invalid metadata.','Exact debate links unavailable.')").iterate();
-      for(const job of rows)update.run(now+retryDelay(job,now,transientSourceDelay(job.attempts)),job.kind,job.version,job.id);
+      // A parser upgrade retries never-collected items immediately. Age decay
+      // still applies to held observations and to subsequent failed attempts.
+      this.store.db.prepare("UPDATE sitting_snapshots SET next_check=MIN(next_check,?) WHERE kind='debate' AND complete=0 AND body IS NULL AND error IN ('Collection source has invalid metadata.','Exact debate links unavailable.')").run(this.store.clock());
       this.store.set('sittingDebateParser',debateParserVersion);
     });
     const key=discoveryKey(this.store.clock());
@@ -254,7 +251,7 @@ export class SittingSnapshotCollector {
           next=now+(complete?(historical?Number.MAX_SAFE_INTEGER-now:SIX_HOURS):retryDelay(job,now,missingSourceDelay(job.attempts)));
           this.discoverSittings(currentTermSittings(value.nodes,brusselsDay(now)));
           for(const node of currentTermSittings(value.nodes,brusselsDay(now))){
-            this.writer.enqueue('votes',MEMBER_VOTES_VERSION,node.activity_id);
+            this.writer.enqueue('votes',MEMBER_VOTE_SNAPSHOT_VERSION,node.activity_id);
             this.writer.enqueue('attendance',MEMBER_ATTENDANCE_VERSION,node.activity_id);
           }
         }else if(job.kind==='votes'){

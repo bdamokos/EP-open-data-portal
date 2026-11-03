@@ -47,7 +47,8 @@ export function navigateDossier(href:string) {
   const wasDossier=new URL(leaving.href).searchParams.get('pl-mode')==='dossier';
   if(!wasDossier&&url.searchParams.get('pl-mode')==='dossier')origin=leaving.href;
   pending=snapshots.get(routeKey(url.href))||null;destination=url.href;navigating=true;
-  history.pushState({...history.state,dossierOrigin:origin},'',url);
+  const {storyLinkId,storyScroll,storyReturn,...nextState}=history.state||{};
+  history.pushState({...nextState,dossierOrigin:origin},'',url);
   window.dispatchEvent(new Event('popstate'));window.dispatchEvent(new Event('explorer-query-change'));window.dispatchEvent(new Event(change));
   navigating=false;return true;
 }
@@ -83,6 +84,11 @@ function destinationMounted() {
     if((panel.dataset.dossierStage||'all')!==(query.get('dossier-stage')||'all')||(panel.dataset.dossierCommittee||'')!==(query.get('dossier-committee')||''))return false;
   }else if(query.get('view')==='legislation'&&(!query.get('pl-mode')||query.get('pl-mode')==='agenda')){
     const panel=document.querySelector<HTMLElement>('[data-agenda-topic]');if(!panel||query.get('agenda-topic')&&panel.dataset.agendaTopic!==query.get('agenda-topic'))return false;
+  }else if(query.get('view')==='geopolitics'||query.get('view')==='legislation'&&query.get('pl-mode')==='topics'){
+    // The plenary shell remains mounted across topic drilldowns. Wait for its
+    // content to adopt the restored selection before applying the saved focus.
+    const content=document.querySelector<HTMLElement>('.topics-content');
+    if(!content||content.dataset.topicKey!==(query.get('topic')||query.get('place')||''))return false;
   }else if(!query.has('view')&&query.get('module')==='activities'){
     const panel=document.querySelector('.explorer-activities');if(!panel)return false;
     if(query.get('activity')&&!panel.querySelector('.explorer-speech-toggle[aria-expanded="true"]'))return false;
@@ -122,7 +128,7 @@ export function useDossierJourney() {
       apply();
     };
     const cancel=(event:Event)=>{if(event.isTrusted){pending=null;destination=null;}};
-    const observer=new window.MutationObserver(apply);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open','data-topics-pending','data-agenda-topic','data-agenda-pending','data-activities-pending','data-motion-pending','data-context-pending','data-reader-pending','data-dossier-pending','data-procedure-context-pending']});
+    const observer=new window.MutationObserver(apply);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open','data-topic-key','data-topics-pending','data-agenda-topic','data-agenda-pending','data-activities-pending','data-motion-pending','data-context-pending','data-reader-pending','data-dossier-pending','data-procedure-context-pending']});
     window.addEventListener('popstate',restore);window.addEventListener(change,apply);
     for(const event of ['pointerdown','keydown','wheel','focusin'])document.addEventListener(event,cancel,{capture:true});
     return()=>{observer.disconnect();window.removeEventListener('popstate',restore);window.removeEventListener(change,apply);for(const event of ['pointerdown','keydown','wheel','focusin'])document.removeEventListener(event,cancel,true);if(scheduled.current!==null)window.cancelAnimationFrame(scheduled.current);};

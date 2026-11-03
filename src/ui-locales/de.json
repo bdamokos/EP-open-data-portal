@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Ausschuss {committee} wird geprüft…",
   "app.clear_category": "Kategorie zurücksetzen",
   "app.clear_filter": "Filter zurücksetzen",
+  "app.show_filters": "Filter",
   "app.close_categories": "Kategorien schließen",
   "app.committee_records": "Ausschussaufzeichnungen",
   "app.contributions_unavailable": "Beiträge nicht verfügbar.",
@@ -979,7 +980,6 @@
   "batch6.speechtranslation.show.translation.language.26": "Übersetzung anzeigen ({language})",
   "bookmarks.question_reference.4863d7": "Anfrage {reference}",
   "commissionfollowups.commission_follow_up": "Folgemaßnahmen der Kommission",
-  "commissionfollowups.commission_follow_up_could_not_be_checked": "Folgemaßnahmen der Kommission konnten nicht geprüft werden.",
   "commissionfollowups.commission_follow_up_date_file_unavailable_here.2f2d31": "Folgemaßnahmen der Kommission · {date} · Datei hier nicht verfügbar.",
   "commissionfollowups.commission_follow_up_date_filelink.c1e29e": "Folgemaßnahmen der Kommission · {date} · {fileLink}",
   "commissionfollowups.commission_follow_up_file_unavailable_here.6257de": "Folgemaßnahmen der Kommission · Datei hier nicht verfügbar.",
@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} erfasste Position",
   "membervotes.tsx.count.recorded.positions": "{count} erfasste Positionen",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Schlussabstimmung über den gesamten Text",
   "membervotes.tsx.final.vote.outcome.position": "Schlussabstimmung · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Angenommenen Text suchen",
   "membervotes.tsx.finding.latest.recorded.votes": "Neueste erfasste Abstimmungen werden gesucht…",
@@ -2499,5 +2498,10 @@
   "topics.story.count.meps": "{count} Abgeordnete",
   "topics.story.count.mepsOne": "{count} Mitglied des Europäischen Parlaments",
   "topics.policyAreaSource": "Bezeichnungen der Politikbereiche: {source}.",
-  "topics.explorerTranslation": "Die Bezeichnungen der Politikbereiche wurden vom Explorer übersetzt."
+  "topics.explorerTranslation": "Die Bezeichnungen der Politikbereiche wurden vom Explorer übersetzt.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Beiträge nach Monat",
+  "groupvoices.contributions_by_sitting_day.77a719": "Beiträge nach Sitzungstag",
+  "membervotespresentation.votes_not_yet_published": "Abstimmungen noch nicht veröffentlicht",
+  "membervotespresentation.votes_start_at": "Abstimmungen beginnen um {time}"
 }

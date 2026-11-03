@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Provjera odbora {committee}…",
   "app.clear_category": "Ukloni kategoriju",
   "app.clear_filter": "Ukloni filtar",
+  "app.show_filters": "Filtri",
   "app.close_categories": "Zatvori kategorije",
   "app.committee_records": "Zapisi odbora",
   "app.contributions_unavailable": "Doprinosi nisu dostupni.",
@@ -979,7 +980,6 @@
   "batch6.speechtranslation.show.translation.language.26": "Prikaži prijevod ({language})",
   "bookmarks.question_reference.4863d7": "Pitanje {reference}",
   "commissionfollowups.commission_follow_up": "Daljnje postupanje Komisije",
-  "commissionfollowups.commission_follow_up_could_not_be_checked": "Nije moguće provjeriti daljnje postupanje Komisije.",
   "commissionfollowups.commission_follow_up_date_file_unavailable_here.2f2d31": "Daljnje postupanje Komisije · {date} · datoteka ovdje nije dostupna.",
   "commissionfollowups.commission_follow_up_date_filelink.c1e29e": "Daljnje postupanje Komisije · {date} · {fileLink}",
   "commissionfollowups.commission_follow_up_file_unavailable_here.6257de": "Daljnje postupanje Komisije · datoteka ovdje nije dostupna.",
@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "Broj zabilježenih stajališta: {count}",
   "membervotes.tsx.count.recorded.positions": "Broj zabilježenih stajališta: {count}",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Konačno glasovanje o cijelom tekstu",
   "membervotes.tsx.final.vote.outcome.position": "Konačno glasovanje · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Pronađi usvojeni tekst",
   "membervotes.tsx.finding.latest.recorded.votes": "Traženje najnovijih zabilježenih glasovanja…",
@@ -2499,5 +2498,10 @@
   "topics.story.count.meps": "{count} zastupnika u Europskom parlamentu",
   "topics.story.count.mepsOne": "{count} zastupnik u Europskom parlamentu",
   "topics.policyAreaSource": "Nazivi područja politike: {source}.",
-  "topics.explorerTranslation": "Nazive područja politika preveo je preglednik."
+  "topics.explorerTranslation": "Nazive područja politika preveo je preglednik.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Izlaganja po mjesecima",
+  "groupvoices.contributions_by_sitting_day.77a719": "Izlaganja po danima zasjedanja",
+  "membervotespresentation.votes_not_yet_published": "Glasovanja još nisu objavljena",
+  "membervotespresentation.votes_start_at": "Glasovanje počinje u {time}"
 }

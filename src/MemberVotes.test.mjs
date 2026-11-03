@@ -48,7 +48,7 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:11,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:12,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
@@ -1198,12 +1198,13 @@ test('split amendment and whole-text context restore published part descriptions
   });
 });
 
-test('detail subordinates whole-text decisions and removes final-vote self links',async t=>{
+test('final votes stay on the subject group and out of single-vote detail',async t=>{
  const item=vote(1),whole=vote(2,{scope:{kind:'whole-text'}}),items=[item,whole];
  const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items,subjects:[subject(items,{wholeTextDecisions:[whole]})]}))});
  const detail=h.container.querySelector('.member-votes-detail');
- assert.equal(detail.querySelector(':scope > .member-votes-whole'),null);
- assert.equal(detail.querySelector('details.member-votes-related summary').textContent,'Final vote on the whole text');
+ assert.equal(detail.querySelector('.member-votes-whole'),null);
+ assert.equal(detail.querySelector('details.member-votes-related'),null);
+ assert(h.container.querySelector('.member-votes-subject .member-votes-whole'));
  await h.update({decisionId:whole.id});assert.equal(h.container.querySelector('.member-votes-detail .member-votes-whole'),null);
 });
 
