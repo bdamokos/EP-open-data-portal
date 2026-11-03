@@ -1,7 +1,7 @@
 import type {DocumentImageAssets,DocumentImageReference} from './DocumentImage';
 import type { DocumentNote, NoteAnchor, DocumentLink } from './explorerTypes'
 
-export type ProposalUnitKind = 'frontmatter' | 'memorandum' | 'preamble' | 'body' | 'signature' | 'financial-statement' | 'title' | 'citation' | 'recital' | 'enacting-formula' | 'chapter' | 'section' | 'article' | 'annex' | 'paragraph' | 'subparagraph' | 'point' | 'indent' | 'quotation' | 'table'
+export type ProposalUnitKind = 'frontmatter' | 'memorandum' | 'preamble' | 'body' | 'signature' | 'financial-statement' | 'title' | 'subheading' | 'citation' | 'recital' | 'enacting-formula' | 'chapter' | 'section' | 'article' | 'annex' | 'paragraph' | 'subparagraph' | 'point' | 'indent' | 'quotation' | 'table'
 export interface ProposalPathSegment {
   kind: string
   value: string
