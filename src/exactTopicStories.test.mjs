@@ -251,3 +251,19 @@ test('zoom: places in view follow the Europe set reported with the story facts',
  x.europe=['GEO','UKR'];
  assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{RUS:'Russia',GEO:'Georgia'},...baseWording})),/^In Europe and its neighbours, two urgency debates on human rights took up Georgia, among other cases\.$/);
 });
+
+
+test('outside speakers enumerate all names, retain date ties and link only names to complete address sets',()=>{
+ const x=base();x.periodCounts=[{period:'2026-Q1'}];const a=(personId,name,country,date,debateId)=>({personId,name,country,date,debateId,id:personId+':'+debateId});
+ x.outsideSpeakers=[a('4','Nikol','ARM','2026-03-11','D4'),a('2','Marcelo','PRT','2026-01-21','D2'),a('1','Felipe','ESP','2026-01-21','D1'),a('3','Volodymyr','UKR','2026-02-24','D3'),a('3','Volodymyr','UKR','2026-02-25','D5'),a('5','Canadian','CAN','2026-03-12','D6')];
+ const map=zoom=>buildExactTopicStories(x,{period:'2026-Q1',zoom,labels:{ESP:'Spain',PRT:'Portugal',UKR:'Ukraine',ARM:'Armenia',CAN:'Canada'}}).find(l=>l.id.startsWith('topics.story.map.outside'));
+ const speakers=map('world').values.speakers;assert.deepEqual(speakers.map(s=>s.values.speaker.text),['Felipe','Marcelo','Volodymyr','Nikol','Canadian']);assert.equal(speakers[2].values.speaker.records.length,2);assert.equal(speakers[0].values.place,'Spain');assert.equal(speakers[0].values.speaker.records[0].id,'D1');assert.equal(map('eu').values.speakers.length,4);
+ const place=buildExactTopicStories(x,{period:'2026-Q1',place:'UKR',labels:{UKR:'Ukraine'}}).filter(l=>l.id==='topics.story.place.outside');assert.equal(place.length,2);assert.equal(place[0].values.date,'24 February 2026');assert.equal(place[0].values.place,'Ukraine');assert.equal(place[0].values.speaker.records[0].id,'D3');
+ delete x.outsideSpeakers;assert(!buildExactTopicStories(x,{period:'2026-Q1'}).some(l=>l.id.includes('outside')));
+});
+
+test('outside Europe scope follows the published generation rather than the current static set',()=>{
+ const x=base();x.periodCounts=[{period:'2026-Q1'}];x.outsideSpeakers=[{id:'1',personId:'1',name:'Example speaker',country:'UKR',date:'2026-02-24',debateId:'D'}];
+ x.europe=['ESP'];assert(!buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu'}).some(l=>l.id.includes('outside')));
+ x.europe=['UKR'];assert(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu'}).some(l=>l.id.includes('outside')));
+});
