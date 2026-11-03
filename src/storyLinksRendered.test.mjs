@@ -1,3 +1,4 @@
+import countryNames from '../server/topic-country-labels.json' with {type:'json'};
 import test,{after} from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -98,8 +99,8 @@ for(const baseline of [false,true])test('policy record headings and onward names
  const period=baseline?'2025-Q1,2025-Q2':'2025-Q1',key=storySetKey({text:'',records:[],browse:{list:'questions',periods:baseline?period:undefined}},{topic:'oeil:8.20',period:'2025-Q1'});
  const h=await harness(t,{component:'TopicStoryRecords',url:'?view=legislation&pl-mode=topics&topic=oeil:8.20&t-records='+encodeURIComponent(key),props:{selection:{...selection,topic:'oeil:8.20'}},respond:u=>{if(u.pathname==='/api/topics/detail'){const d=topicLinkDetail('oeil:8.20');d.concept={...d.concept,label:'Politique climatique',labelLanguage:'fr'};return d;}}});await h.wait('Politique climatique');await h.wait(baseline?'before':'questions about');assert.equal(h.node.querySelector('h1 [lang=fr]').textContent,'Politique climatique');assert.equal(h.node.querySelector('.topic-story-records > p:last-child a [lang=fr]').textContent,'Politique climatique');
 });
-test('tie headings carry each source name as a language-tagged element',async t=>{
- const key='questions:COL%2CTUR:2025-Q3:all',h=await harness(t,{component:'TopicStoryRecords',url:'?view=geopolitics&t-records='+encodeURIComponent(key),props:{selection:{...selection,labels:{}}},respond:u=>u.pathname==='/api/topics/overview'?{ready:true,items:[{id:'COL',key:'place:COL',label:'Colombie',labelLanguage:'fr'},{id:'TUR',key:'place:TUR',label:'Turquie',labelLanguage:'fr'}]}:undefined});await h.wait('questions each on');assert.equal(h.node.querySelectorAll('h1 [lang=fr]').length,2);assert.equal(h.node.querySelectorAll('h2 [lang=fr]').length,2);assert.equal(h.node.querySelectorAll('section > a [lang=fr]').length,2);
+test('tie headings carry requested authority names as language-tagged elements',async t=>{
+ const key='questions:COL%2CTUR:2025-Q3:all',h=await harness(t,{component:'TopicStoryRecords',url:'?view=geopolitics&t-records='+encodeURIComponent(key),props:{selection:{...selection,labels:{}}},respond:u=>u.pathname==='/api/topics/overview'?{ready:true,items:[{id:'COL',key:'place:COL',label:'Colombie',labelLanguage:'fr'},{id:'TUR',key:'place:TUR',label:'Turquie',labelLanguage:'fr'}]}:undefined});await h.wait('questions each on');assert(h.node.querySelector('h1').textContent.includes('Colombia'));assert(h.node.querySelector('h1').textContent.includes('Türkiye'));assert.equal(h.node.querySelectorAll('h1 [lang=en]').length,2);assert.equal(h.node.querySelectorAll('h2 [lang=en]').length,2);assert.equal(h.node.querySelectorAll('section > a [lang=en]').length,2);
 });
 test('a place heading never exposes its raw code or takes focus before names arrive',async t=>{
  let release;const pending=new Promise(r=>release=r);t.after(()=>release(topicLinkDetail('place:TUR')));
@@ -168,7 +169,7 @@ for(const language of ['da','de','fi','fr','ro'])for(const count of [1,2])test(`
  const link=h.node.querySelector('.topic-story a');assert(link);const label=link.getAttribute('aria-label');assert(label);assert(label.includes(link.textContent));assert(label.includes('Colombia'));assert(label.includes('2026'));
 });
 for(const language of ['en','bg','cs','da','de','el','es','et','fi','fr','ga','hr','hu','it','lt','lv','mt','nl','pl','pt','ro','sk','sl','sv'])test(`nested native story and exact navigation ${language}`,async t=>{
- const h=await harness(t,{language,props:{selection}});await h.wait('Colombia');const story=h.node.querySelector('.topic-story');assert.equal(story.lang,language);assert(!story.textContent.includes('undefined'));
+ const h=await harness(t,{language,props:{selection}});await h.wait(countryNames.labels.COL[language]);const story=h.node.querySelector('.topic-story');assert.equal(story.lang,language);assert(!story.textContent.includes('undefined'));
  const links=[...story.querySelectorAll('a')];assert(links.length);for(const link of links){assert(link.id.startsWith('story-link-'));const key=new URL(link.href).searchParams.get('t-records');if(key)assert(parseStorySetKey(key));if(link.hasAttribute('aria-label'))assert(link.getAttribute('aria-label').toLocaleLowerCase().includes(link.textContent.toLocaleLowerCase()));}
 });
 test('fallback labels use the same prose language as their visible quantities',async t=>{

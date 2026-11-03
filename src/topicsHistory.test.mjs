@@ -163,14 +163,14 @@ for(const [name,sittings,url,expected] of [['the current quarter once its first 
 });
 test('leaving out own-country questions refreshes inline: content stays, no loading state, focus stays',async t=>{
  let release;const pending=new Promise(r=>release=r);
- const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics',async u=>{if(u.pathname==='/api/topics/story-facts')return Response.json({ready:false});if(u.searchParams.get('askers')==='all'){await pending;return Response.json(placesData(3,'Iran (all askers)'));}return Response.json(placesData(3));});
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics',async u=>{if(u.pathname==='/api/topics/story-facts')return Response.json({ready:false});if(u.searchParams.get('askers')==='all'){await pending;const data=placesData(3);data.items[0].series.at(-1).question=9;return Response.json(data);}return Response.json(placesData(3));});
  await wait(()=>node.querySelector('.places-ranking')?.textContent.includes('Iran'));
  const box=node.querySelector('.topic-controls input[type=checkbox]');box.focus();await act(async()=>box.click());
  await act(async()=>new Promise(r=>setTimeout(r,60)));
  assert(node.querySelector('.places-map'),'the map stays');assert(node.querySelector('.places-ranking').textContent.includes('Iran'),'the list stays');assert(node.querySelector('.places-quarter'),'the time control stays');
  assert(!/Loading/.test(node.textContent),'no loading state');assert.equal(node.querySelector('.topics-content').getAttribute('data-topics-pending'),null);
  assert.equal(document.activeElement,node.querySelector('.topic-controls input[type=checkbox]'),'focus stays on the checkbox');
- release();await wait(()=>node.querySelector('.places-ranking').textContent.includes('all askers'));
+ release();await wait(()=>node.querySelector('.places-ranking strong')?.textContent==='9');
 });
 test('map, list, story and story links swap together once the requested story facts arrive',async t=>{
  let release;const pending=new Promise(r=>release=r);const period='2026-Q3';
