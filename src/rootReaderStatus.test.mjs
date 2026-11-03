@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import {API_VERSION} from '../server/api-version.mjs';
@@ -69,6 +70,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
   // Module loading uses real timers; only mounted application deadlines are advanced.
   t.mock.timers.enable({apis:['setTimeout']});
+  installRetryClock(t);
   t.mock.method(window,'setTimeout',(callback,delay,...args)=>setTimeout(callback,delay,...args));
   t.mock.method(window,'clearTimeout',timer=>clearTimeout(timer));
   const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
@@ -233,7 +235,8 @@ test('selected written question keeps full text without repeated source download
   h.expireActivityReads();await h.click(toggle);await h.click(toggle);
   const refreshed=h.container.querySelector('.explorer-document-text');assertOrdinaryText(refreshed);
   await h.finish(`document/${questionId}?member=${member.id}&lang=en`,{error:{message:'Document fixture temporarily unavailable.'}},503);await h.wait();
-  assert.equal(status(refreshed).textContent,'Question: Text temporarily unavailable.');assertOrdinaryText(refreshed);assertNoDownloads(refreshed);
+  for(let i=0;i<6;i++){await automaticRecovery(t);await h.finish(`document/${questionId}?member=${member.id}&lang=en`,{error:{message:'Document fixture temporarily unavailable.'}},503);}
+  await h.wait();assert.equal(status(refreshed).textContent,'Question: Text temporarily unavailable.');assertOrdinaryText(refreshed);assertNoDownloads(refreshed);
   assert.equal(refreshed.querySelectorAll('[role="status"],[role="alert"]').length,1,'the reader error has one narrow announcement');
   const language=refreshed.querySelector('select[aria-label="Text language"]');
   await act(async()=>{language.value='fr';language.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
@@ -280,10 +283,10 @@ test('selected root speech announces an error once, retries successfully, and pr
   const panel=document.getElementById(video.getAttribute('aria-controls'));assert(panel.hidden);assert(panel.previousElementSibling.classList.contains('explorer-speech-transcript-heading'));
   await h.finish(`speech/${speechId}?lang=en`,{error:{message:'Speech fixture temporarily unavailable.'}},503);await h.wait();
   assert.equal(status(reader).textContent,'','the existing error alert is not repeated through the status region');
-  assert.equal(reader.querySelectorAll('[role="alert"]').length,1);assert.match(reader.querySelector('[role="alert"]').textContent,/Speech fixture temporarily unavailable\./);
+  assert.equal(reader.querySelectorAll('[role="alert"]').length,0);assert.equal(reader.querySelector('.reader-retry button'),null);
   assert.equal([...reader.querySelectorAll('a[href]')].some(link=>link.href===source),false);assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
   assert.equal(document.activeElement,toggle);
-  await h.click([...reader.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
+  await automaticRecovery(t);
   await h.finish(`speech/${speechId}?lang=en`,{id:speechId,xml:'<speech>'+paragraphs.map(text=>'<p>'+text+'</p>').join('')+'</speech>',textLanguage:'en',translationType:'original'});await h.wait();
   assert.equal(status(reader).textContent,'Transcript loaded.');assert.equal(reader.querySelector('[role="alert"]'),null);assertOrdinaryText(reader);
   assert.equal([...reader.querySelectorAll('a[href]')].some(link=>link.href===source),false);assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
@@ -371,14 +374,14 @@ test('member question retries the selected source language locally and keeps sav
   const text=reopened.querySelector('.explorer-transcript'),source=reopened.querySelector('.explorer-reader-download');
   await h.finish(route,{error:{code:'upstream_busy',message:'Busy.'}},503);
   assert(!reopened.textContent.includes('No answer published.'));assertOrdinaryText(reopened);
-  const retry=reopened.querySelector('.reader-retry button');assert(retry);const heading=reopened.querySelector('h3');
-  await act(async()=>{retry.focus();retry.click();retry.click();});
-  assert.equal(document.activeElement,heading);assert.equal(reopened.querySelector('.explorer-transcript'),text);assert.equal(reopened.querySelector('.explorer-reader-download'),source);
+  assert.equal(reopened.querySelector('.reader-retry button'),null);const focused=document.activeElement;
+  await automaticRecovery(t);
+  assert.equal(document.activeElement,focused);assert.equal(reopened.querySelector('.explorer-transcript'),text);assert.equal(reopened.querySelector('.explorer-reader-download'),source);
   assert.equal(h.pending.filter(request=>request.route===route).length,3,'initial read, failed refresh and exactly one retry');
-  await h.finish(route,{error:{message:'Still busy.'}},503);assert.equal(reopened.querySelector('.explorer-transcript'),text);assert(reopened.querySelector('.reader-retry button'));
-  await h.click(reopened.querySelector('.reader-retry button'));await h.finish(route,documentResult('fr'));await h.wait();
+  await h.finish(route,{error:{message:'Still busy.'}},503);assert.equal(reopened.querySelector('.explorer-transcript'),text);assert.equal(reopened.querySelector('.reader-retry button'),null);
+  await automaticRecovery(t);await h.finish(route,documentResult('fr'));await h.wait();
   assert.equal(reopened.querySelector('.reader-retry'),null);assert.equal(reopened.querySelector('.explorer-transcript').lang,'fr');assertOrdinaryText(reopened);assertNoDownloads(reopened);
-  assert.equal(document.activeElement,heading);assert.equal(status(reopened).textContent,'Question: Text loaded.');
+  assert.equal(document.activeElement,focused);assert.equal(status(reopened).textContent,'Question: Text loaded.');
 });
 
 test('main speech reader retains the translation return control through an unavailable original',async t=>{
@@ -398,7 +401,7 @@ test('main speech reader retains the translation return control through an unava
 });
 
 
-test('saved category and first-page source 204 remain unavailable with a working retry',async t=>{
+test('saved category and first-page source 204 remain unknown until a fresh visit',async t=>{
   const {SpeechInterventions}=await import('../server/speech-intervention-service.mjs');
   let calls=0,unavailable=true;
   const service=new SpeechInterventions({request:async()=>{
@@ -412,8 +415,8 @@ test('saved category and first-page source 204 remain unavailable with a working
   assert(!h.container.textContent.includes('No matching contributions'));
   assert(!h.container.querySelector('#speech-filter-results-'+member.id).textContent.includes('0 loaded'));
   const retry=[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Retry counts');
-  assert(retry);assert.equal(calls,1);
-  unavailable=false;await h.click(retry);await h.wait();
+  assert.equal(retry,undefined);assert.equal(calls,1);
+  assert.equal(installRetryClock(t).timers.size,0,'an unqualified source gap is terminal');unavailable=false;await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Political activities'));await h.wait();await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Latest speeches'));await h.wait();
   assert.equal(calls,2);
   assert.match(h.container.textContent,/No matching contributions/);
   assert(!h.container.textContent.includes('Contributions unavailable'));

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,readFile,readdir,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {HybridInputs} from './amendment-benchmark-hybrid.mjs';
+import {HybridInputs,compactHybridReceipt} from './amendment-benchmark-hybrid.mjs';
 import {InputCache,digest} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,publicDocumentUrl,sourceReplay} from './amendment-benchmark-replay.mjs';
 import {execFileSync} from 'node:child_process';
@@ -18,7 +18,7 @@ async function fixture(t,change=()=>{},copy=work){const root=await mkdtemp(path.
 test('exact settled fallback seals and replays original chronology and per-row provenance without source writes',async t=>{const f=await fixture(t);f.h.trackRows([{id:id+'-AM-1',listId:'list',language:'en',wordingSource:{url:wording}}]);const input=await f.h.baseScope(f.identity,()=>f.cache.get(url));assert.equal(input.body.toString(),'OLD BASE');assert.equal(input.hybridSource.snapshotId,f.sb.snapshotId);assert.equal(input.fetchedAt,'2026-10-27T00:00:00Z');await f.cache.get(wording);const manifest=f.cache.manifest();await f.cache.seal(manifest);const offline=new InputCache(f.out,{apiBase,cap:0,fetcher:()=>{throw Error('fetch forbidden');}});await offline.seal(manifest);assert.equal((await offline.get(url)).body.toString(),'OLD BASE');assert.equal(f.cache.requests,0);assert.equal(f.h.receipt().rows[id+'-AM-1'].inputs.length,2);assert.deepEqual(await Promise.all([tree(f.a),tree(f.b)]),f.before);});
 for(const [name,change] of [['type',w=>w.work_type='def/ep-document-types/AMENDMENT_LIST'],['edition',w=>w.epNumberVersion='2'],['hash',w=>w.is_realized_by[0].is_embodied_by[0].sha256='a'.repeat(64)],['id',w=>w.id+='9'],['language',w=>w.is_realized_by[0].language='fr'],['URL',w=>w.is_realized_by[0].is_embodied_by[0].is_exemplified_by+='x'],['descriptor',w=>w.is_realized_by[0].is_embodied_by[0].issued='2026-02-01'],['ambiguous',w=>w.is_realized_by.push(w.is_realized_by[0])]])test('rejects different '+name,async t=>{const f=await fixture(t,change,name==='edition'?{...work,epNumberVersion:'1'}:work),input=await f.h.baseScope(f.identity,()=>f.cache.get(url));assert.equal(input.acquisitionUnavailable,true);assert.equal(input.hybridSource.reason,name==='hash'?'base-source-hash-mismatch':'base-identity-mismatch');});
 test('copy bytes and wording gaps win over older bodies, including dual-role report URL',async t=>{const f=await fixture(t);assert.equal((await f.h.baseScope(f.identity,()=>f.cache.get(wording))).body.toString(),'COPY');f.h.registerWording({wordingSource:{url}});const input=await f.h.baseScope(f.identity,()=>f.cache.get(url));assert.equal(input.acquisitionUnavailable,true);assert.equal(input.hybridSource.snapshotId,f.sa.snapshotId);});
-test('unscoped and missing-both inputs are explicit gaps; unknown replay inputs abort',async t=>{const f=await fixture(t);assert.equal((await f.cache.get(url)).acquisitionUnavailable,true);const other=url.replace('base','missing');assert.equal((await f.h.baseScope(f.identity,()=>f.cache.get(other))).acquisitionUnavailable,true);await f.cache.seal(f.cache.manifest());await assert.rejects(()=>f.cache.get(url.replace('base','unsealed')),/input-not-in-snapshot/);});
+test('unscoped, missing-both and absent frozen requests remain distinct acquisition gaps',async t=>{const f=await fixture(t);assert.equal((await f.cache.get(url)).acquisitionUnavailable,true);const other=url.replace('base','missing');assert.equal((await f.h.baseScope(f.identity,()=>f.cache.get(other))).acquisitionUnavailable,true);await f.cache.seal(f.cache.manifest());assert.equal((await f.cache.get(url.replace('base','unsealed'))).acquisitionUnavailableReason,'frozen-input-absent');f.cache.assertHealthy();});
 test('source metadata hash tampering and overlapping outputs are rejected',async t=>{const f=await fixture(t);await assert.rejects(()=>HybridInputs.open(f.a,f.b,path.join(f.a,'nested')),/separate/);await assert.rejects(()=>HybridInputs.open(f.a,f.b,path.join(path.dirname(f.out),'new'),f.b),/separate/);const k=digest(publicDocumentUrl(id));void k;const m=f.sb.manifest.find(m=>m.url===url);await writeFile(path.join(f.b,'inputs',digest(url)+'.body'),'changed');await assert.rejects(()=>f.h.baseScope(f.identity,()=>f.cache.get(url)),/hash mismatch/);assert(m);});
 test('CLI requires both sources and offline acquire-only mode',()=>{const args=['--hybrid-snapshot','a','--base-snapshot','b','--acquire-only','--request-cap','0'];assert.equal(options(args).cap,0);for(const extra of [['--fetch'],['--production-data-dir','x'],['--language-variants']])assert.throws(()=>options([...args,...extra]),/Hybrid/);assert.throws(()=>options(['--hybrid-snapshot','a']),/Hybrid/);});
 
@@ -31,7 +31,8 @@ test('normal CLI acquisition seals hybrid with copy catalogue, per-row inputs, a
   const destination=path.join(path.dirname(f.out),'cli'),args=['scripts/amendment-benchmark.mjs','--api-base',apiBase,'--cache-dir',destination,'--document',id,'--request-cap','0'];
   const result=JSON.parse(execFileSync(process.execPath,[...args,'--hybrid-snapshot',f.a,'--base-snapshot',f.b,'--acquire-only'],{encoding:'utf8'}));assert.equal(result.requests,0);assert.equal(result.hybrid.fallback,1);
   const snapshot=JSON.parse(await readFile(path.join(destination,'snapshot.json')));assert.equal(snapshot.sample.indexGeneration,21);assert.equal(snapshot.hybrid.rows[row.id].catalogue,saved.snapshotId);assert(snapshot.hybrid.rows[row.id].inputs.some(i=>i.snapshotId===f.sb.snapshotId));
-  const replay=JSON.parse(execFileSync(process.execPath,args,{encoding:'utf8'}));assert.equal(replay.acquisition.requests,0);const report=JSON.parse(await readFile(replay.jsonPath));assert(report.rows[0].inputProvenance);assert.equal(report.rows.length,1);
+  snapshot.hybrid.rows[row.id].inputs[0].identity={proof:'x'.repeat(100000)};await writeFile(path.join(destination,'snapshot.json'),JSON.stringify(snapshot));const frozen=await readFile(path.join(destination,'snapshot.json'));
+  const replay=JSON.parse(execFileSync(process.execPath,args,{encoding:'utf8'}));assert.equal(replay.acquisition.requests,0);const report=JSON.parse(await readFile(replay.jsonPath));assert(report.rows[0].inputProvenance);assert.equal(report.rows.length,1);assert.equal(report.rows[0].inputProvenance.inputs[0].identity,undefined);assert.equal(report.hybrid.rows[row.id].inputs[0].identity,undefined);assert(report.inputs.some(m=>m.hybridSource?.identity));assert.deepEqual(await readFile(path.join(destination,'snapshot.json')),frozen);
 });
 
 const p=text=>'<w:p><w:r><w:t>'+text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</w:t></w:r></w:p>';
@@ -72,17 +73,18 @@ function proposalFixture(commission=true,referenceOnly=false,omittedLanguage=fal
   return {row,document,fetcher};
 }
 
-for(const wrongReference of [false,true])test('canonical Cellar chain '+(wrongReference?'rejects a different exact proposal':'seals only anchored discovery and native dependencies'),async t=>{
+for(const wrongReference of [false,true,'compact'])test('canonical Cellar chain '+(wrongReference===true?'rejects a different exact proposal':wrongReference==='compact'?'uses recorded raw metadata when compact references are missing':'seals only anchored discovery and native dependencies'),async t=>{
   const root=await mkdtemp(path.join(os.tmpdir(),'hybrid-cellar-'));t.after(()=>rm(root,{recursive:true,force:true}));const runtime=await replayRuntime(path.resolve('.')),f=proposalFixture(),sample={mode:'documents',asOf:'2026-10-27'},b=path.join(root,'b'),a=path.join(root,'a'),out=path.join(root,'out');
   await mkdir(b);const capture=new InputCache(b,{apiBase,fetchMissing:true,cap:30,delay:0,sleep:async()=>{},fetcher:f.fetcher});await acquireReport([f.row],sample,capture,sourceReplay(capture,runtime));
   const records=[];for(const meta of capture.manifest()){const input=await capture.get(meta.url,{...meta.request,raw:true});records.push(input);}
   await seal(b,records);
   const copy=records.filter(r=>!r.url.startsWith('https://publications.europa.eu'));
-  if(wrongReference){const metadata=copy.find(r=>r.url===publicDocumentUrl(f.document));const w=JSON.parse(metadata.body);w.data[0].is_realized_by[0].title_alternative.en='COM(2026)2 final – 2026/0002(COD)';Object.assign(metadata,record(metadata.url,w,metadata.request));}
+  if(wrongReference==='compact'){const metadata=copy.find(r=>r.url===publicDocumentUrl(f.document)),payload=JSON.parse(metadata.body);for(const e of payload.data[0].is_realized_by)delete e.title_alternative;Object.assign(metadata,record(metadata.url,payload,metadata.request),{status:null,fetchedAt:null,localProjection:{representation:'retained-index-projection',sourceFetchedAt:'2026-11-01T00:00:00Z'}});}
+  if(wrongReference===true){const metadata=copy.find(r=>r.url===publicDocumentUrl(f.document));const w=JSON.parse(metadata.body);w.data[0].is_realized_by[0].title_alternative.en='COM(2026)2 final – 2026/0002(COD)';Object.assign(metadata,record(metadata.url,w,metadata.request));}
   await seal(a,copy);const h=await HybridInputs.open(a,b,out);h.runtime=runtime;h.trackRows([f.row]);await mkdir(out);const cache=new InputCache(out,{apiBase,retained:h,cap:0,fetcher:()=>{throw Error('fetch forbidden');}});
   await acquireReport([f.row],sample,cache,sourceReplay(cache,runtime));await cache.seal(cache.manifest());assert.equal(cache.requests,0);
   const fallback=cache.manifest().filter(r=>r.hybridSource.reason==='settled-base-fallback'&&r.url.startsWith('https://publications.europa.eu'));
-  if(wrongReference){assert.equal(fallback.length,0);}else{assert(fallback.some(r=>r.hybridSource.identity.method==='candidates'));assert(fallback.some(r=>r.hybridSource.identity.method==='content'));assert(fallback.every(r=>r.hybridSource.identity.arguments.some(arg=>JSON.stringify(arg).includes('52026PC0001'))));}
+  if(wrongReference===true){assert.equal(fallback.length,0);}else{assert(fallback.some(r=>r.hybridSource.identity.method==='candidates'));assert(fallback.some(r=>r.hybridSource.identity.method==='content'));assert(fallback.every(r=>r.hybridSource.identity.arguments.some(arg=>JSON.stringify(arg).includes('52026PC0001'))));}
 });
 
 for(const kind of ['council','existingLaw'])test('exact '+kind+' direct discovery uses B, while unrelated retained discovery stays unavailable',async t=>{
@@ -141,4 +143,79 @@ for(const corrupt of [false,true])test('native hashes validate final bytes after
  const input=await h.baseScope(f.identity,()=>cache.get(url));
  if(corrupt){assert.equal(input.acquisitionUnavailable,true);assert.equal(input.hybridSource.reason,'base-source-hash-mismatch');}else{assert.equal(input.body.toString(),'OLD BASE');assert.equal(input.sha256,hash);assert.equal(input.resolvedSourceUrl,redirectUrl);}
  assert.equal(cache.requests,0);assert.deepEqual(await Promise.all([tree(f.a),tree(f.b)]),before);
+});
+
+for(const conflict of [false,true])test('compact metadata preserves compatible raw B declarations and chronology'+(conflict?' but blocks edition conflicts':''),async t=>{
+ const f=await fixture(t),records=await Promise.all(f.sa.manifest.map(m=>f.h.a.read(m.url,m.request))),m=records.find(r=>r.url===publicDocumentUrl(id));
+ const payload=JSON.parse(m.body);if(conflict)payload.data[0].epNumberVersion='1';
+ Object.assign(m,record(m.url,payload,m.request),{status:null,fetchedAt:null,localProjection:{representation:'retained-index-projection',sourceFetchedAt:'2026-11-01T00:00:00Z'}});
+ const old=await Promise.all(f.sb.manifest.map(m=>f.h.b.read(m.url,m.request))),bm=old.find(r=>r.url===publicDocumentUrl(id)),bw=JSON.parse(bm.body);bw.data[0].epNumberVersion='2';Object.assign(bm,record(bm.url,bw,bm.request));
+ await seal(f.a,records);await seal(f.b,old);const h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;
+ const found=await h.get(m.url,m.request);assert.equal(found.status,conflict?null:200);assert.equal(found.fetchedAt,conflict?null:'2026-10-27T00:00:00Z');assert.equal(found.hybridSource.reason,conflict?'copy-input':'settled-base-metadata');
+ if(!conflict){assert.deepEqual(found.body,bm.body);assert.equal(found.hybridSource.identity.copyObservation.sha256,m.sha256);}
+});
+
+for(const conflict of ['none','id','listId','language','url','hash'])test('missing wording uses only exact frozen catalogue bindings: '+conflict,async t=>{
+ const f=await fixture(t),row={id:id+'-AM-1',targetDocumentId:id,number:1,listId:id+'-AM-001-001',language:'en',wordingSource:{url,sha256:digest(Buffer.from('OLD BASE'))}};
+ const old=structuredClone(row);if(conflict==='hash')old.wordingSource.sha256='a'.repeat(64);else if(conflict==='url')old.wordingSource.url+='x';else if(conflict!=='none')old[conflict]+='x';
+ const catalogue=apiBase+'/api/amendments?limit=50&offset=0';const records=await Promise.all(f.sb.manifest.map(m=>f.h.b.read(m.url,m.request)));await seal(f.b,[...records,record(catalogue,{items:[old]})]);
+ const h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;h.trackRows([row]);const cache=new InputCache(f.out,{apiBase,cap:0,retained:h,fetcher:()=>assert.fail('transport forbidden')});
+ const input=await cache.get(url);assert.equal(Boolean(input.acquisitionUnavailable),conflict!=='none');if(conflict==='none'){assert.equal(input.body.toString(),'OLD BASE');assert.equal(input.hybridSource.reason,'settled-wording-fallback');}assert.equal(cache.requests,0);
+});
+
+test('row provenance references preserve source keys while full identity proofs remain once in the manifest',async t=>{
+ const f=await fixture(t);f.h.trackRows([{id:id+'-AM-1',targetDocumentId:id,listId:'list',language:'en',wordingSource:{url:wording}}]);
+ await f.h.baseScope(f.identity,()=>f.cache.get(url));const manifest=f.cache.manifest(),input=manifest.find(m=>m.url===url),reference=f.h.receipt().rows[id+'-AM-1'].inputs.find(m=>m.url===url);
+ assert(input.hybridSource.identity.proof);assert.equal(reference.identity,undefined);assert.equal(reference.url,input.url);assert.equal(reference.sha256,input.sha256);assert.equal(reference.snapshotId,input.hybridSource.snapshotId);
+ const legacy={...f.h.receipt(),rows:{example:{inputs:[{...reference,identity:{proof:'x'.repeat(100000)}}]}}},before=JSON.stringify(legacy),compact=compactHybridReceipt(legacy);
+ assert.equal(compact.rows.example.inputs[0].identity,undefined);assert.deepEqual(compact.rows.example.inputs[0],reference);assert.equal(JSON.stringify(legacy),before);assert.deepEqual(compactHybridReceipt(compact),compact);assert(JSON.stringify(compact).length<1000);
+});
+
+for(const conflict of ['none','url','edition'])test('sparse shared Czech metadata proves report edition but historical languages stay scoped: '+conflict,async t=>{
+ const f=await fixture(t),copy=structuredClone(work);copy.is_realized_by[0].language='cs';if(conflict==='edition')copy.epNumberVersion='1';
+ const old=structuredClone(copy);old.epNumberVersion='2';if(conflict==='url')old.is_realized_by[0].is_embodied_by[0].is_exemplified_by+='other';old.is_realized_by.push({language:'ro',is_embodied_by:[{...file,is_exemplified_by:url+'.ro'}]});
+ const request={accept:'application/ld+json'},m={...record(publicDocumentUrl(id),{data:[copy]},request),status:null,fetchedAt:null,localProjection:{representation:'retained-index-projection'}};
+ await seal(f.a,[m,gap(url)]);await seal(f.b,[record(m.url,{data:[old]},request),record(url+'.ro','HISTORICAL')]);const h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;
+ assert.equal(Boolean(await h.metadataProof(m)),conflict==='none');assert.equal(await h.epProof({documentId:id,file:{url:url+'.ro',language:'ro'}}),null);
+});
+for(const mode of ['good','legacy','corrupt','wrong-id','alias','missing','unapproved','four-hops'])test('identity-bound wording redirects: '+mode,async t=>{
+ const f=await fixture(t),target='https://redmapl3.europarl.europa.eu/RedmapFront/media/test/wording.docx',hash=digest(Buffer.from('OLD BASE'));
+ const row={id:id+'-AM-1',targetDocumentId:id,number:1,listId:id+'-AM-001-001',language:'en',wordingSource:{url,sha256:hash}},old=structuredClone(row);if(mode==='wrong-id')old.id+='x';
+ const catalogue=apiBase+'/api/amendments?limit=50',redirect=(from,to)=>({...record(from,''),status:302,ok:false,headers:{location:to},redirectUrl:to});
+ let chain=[redirect(url,mode==='unapproved'?'https://example.org/wording.docx':target),record(target,mode==='corrupt'?'CORRUPT':'OLD BASE')];
+ if(mode==='legacy')delete chain[0].headers;if(mode==='missing')chain.pop();if(mode==='four-hops')chain=[redirect(url,target),redirect(target,target+'1'),redirect(target+'1',target+'2'),redirect(target+'2',target+'3'),record(target+'3','OLD BASE')];
+ await seal(f.b,[record(catalogue,{items:[old]}),...chain,record(target.replace('.docx','-alias.docx'),'OLD BASE')]);const before=await Promise.all([tree(f.a),tree(f.b)]),h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;h.trackRows([row]);const cache=new InputCache(f.out,{apiBase,cap:0,retained:h,fetcher:()=>assert.fail('zero requests')});
+ const input=await cache.get(mode==='alias'?target.replace('.docx','-alias.docx'):url,{officialRedirect:true});assert.equal(Boolean(input.acquisitionUnavailable),!['good','legacy'].includes(mode));if(['good','legacy'].includes(mode)){assert.equal(input.sha256,hash);assert.equal(input.hybridSource.identity.proof.redirects[0].status,302);assert.equal(input.resolvedSourceUrl,target);assert.equal((await h.nativeSelections(id,'en')).length,1);}assert.equal(cache.requests,0);assert.deepEqual(await Promise.all([tree(f.a),tree(f.b)]),before);
+});
+for(const mode of ['good','wrong-id','wrong-selected','wrong-language','conflicting-url','hash','edition'])test('sparse metadata uses exact frozen context file declaration: '+mode,async t=>{
+ const copy=structuredClone(work);if(mode==='edition')copy.epNumberVersion='1';const f=await fixture(t,old=>{old.is_realized_by[0].language=mode==='conflicting-url'?'en':'cs';if(mode==='conflicting-url')old.is_realized_by[0].is_embodied_by[0].is_exemplified_by+='other';if(mode==='edition')old.epNumberVersion='2';},copy);
+ const context=apiBase+'/api/document-context/'+id+'?lang=en',value={documentId:mode==='wrong-id'?id+'9':id,document:{selectedDocumentId:mode==='wrong-selected'?id+'9':id,files:[{url,language:mode==='wrong-language'?'fr':'en',format:'DOCX',...(mode==='hash'?{sha256:'a'.repeat(64)}:{})}]}};
+ const records=await Promise.all(f.sb.manifest.map(m=>f.h.b.read(m.url,m.request)));await seal(f.b,[...records,record(context,value)]);const before=await Promise.all([tree(f.a),tree(f.b)]),h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;const cache=new InputCache(f.out,{apiBase,cap:0,retained:h,fetcher:()=>assert.fail('zero requests')});const input=await h.baseScope(f.identity,()=>cache.get(url));assert.equal(Boolean(input.acquisitionUnavailable),mode!=='good');if(mode==='good'){const contexts=input.hybridSource.identity.proof.declaration.contexts.base;assert.equal(contexts[0].url,context);assert(contexts[0].sha256);assert(contexts[0].fetchedAt);}assert.equal(cache.requests,0);assert.deepEqual(await Promise.all([tree(f.a),tree(f.b)]),before);
+});
+
+test('wording fallback proves only captured owners of the requested URL',async t=>{
+ const f=await fixture(t),row={id:id+'-AM-1',targetDocumentId:id,number:1,listId:id+'-AM-001-001',language:'en',wordingSource:{url}};
+ const catalogue=apiBase+'/api/amendments?limit=50&offset=0',records=await Promise.all(f.sb.manifest.map(m=>f.h.b.read(m.url,m.request)));await seal(f.b,[...records,record(catalogue,{items:[row]})]);
+ const h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;h.trackRows([row]);
+ for(let i=0;i<200;i++)h.registerWording({...row,id:row.id+'-'+i,wordingSource:{url:wording+'-'+i+'.docx'}});
+ const prove=h.wordingProof.bind(h);let proofs=0;h.wordingProof=async declared=>{assert.equal(declared,url);proofs++;return prove(declared);};
+ const selected=await h.wordingFallback(url);assert.equal(selected.input.body.toString(),'OLD BASE');assert.equal(proofs,1);
+ assert.equal(await h.wordingFallback(url.replace('base','unrelated')),null);assert.equal(proofs,1);
+});
+
+for(const hops of [0,1,2,3])test('metadata prefilter retains every full-proof acceptance through '+hops+' captured redirects',async t=>{
+ const f=await fixture(t),row={id:id+'-AM-1',targetDocumentId:id,number:1,listId:id+'-AM-001-001',language:'en',wordingSource:{url,sha256:digest(Buffer.from('OLD BASE'))}};
+ const urls=[url,...Array.from({length:hops},(_,i)=>'https://redmapl3.europarl.europa.eu/RedmapFront/media/test/hop-'+i+'.docx')];
+ const records=await Promise.all(f.sb.manifest.filter(m=>m.url!==url).map(m=>f.h.b.read(m.url,m.request)));
+ for(let i=0;i<hops;i++)records.push({...record(urls[i],'<moved/>'),status:302,ok:true,redirectUrl:urls[i+1],headers:i%2?{location:new URL(urls[i+1]).pathname}:{}});
+ records.push(record(urls.at(-1),'OLD BASE'),record(apiBase+'/api/amendments?limit=50&offset=0',{items:[row]}));await seal(f.b,records);
+ const h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;
+ h.registerWording({...row,id:row.id+'-unrelated',wordingSource:{url:wording}});h.trackRows([row]);
+ const filteredOwners=h.wordingOwners.bind(h);
+ for(const requested of urls){
+  const filtered=await h.wordingFallback(requested);
+  // Disable only the prefilter; run the exact same full proof on all owners.
+  h.wordingOwners=()=>[...h.wording];const full=await h.wordingFallback(requested);h.wordingOwners=filteredOwners;
+  assert(full?.input,'the full proof accepts this captured chain position');assert.deepEqual(filtered,full);assert.equal(filtered.proof.finalObservation.sha256,row.wordingSource.sha256);
+ }
 });

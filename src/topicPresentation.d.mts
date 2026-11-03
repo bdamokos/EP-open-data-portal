@@ -9,10 +9,12 @@ export function risers(data:TopicOverview,index:number,mode:string,own:boolean):
 export function riser(data:TopicOverview,index:number,mode:string,own:boolean):{item:TopicItem;count:number;average:number;ratio:number}|null;
 export function titleParts(title:string,language?:string|null):[string,string];
 export function topicsHref(key:string,filters?:Record<string,string>):string;
-export function legacyTopics(query:URLSearchParams):string|null;
+export function emptyDossierRedirect(query:URLSearchParams):string|null;
 
 export function agendaTitle(title:string):string;
 
 export function isEuPlace(iso3:string|null|undefined):boolean;
 
 export function withBoundaryTies<T>(rows:T[],limit:number,score:(row:T)=>number):T[];
+export function monthRangeLabel(period:string,language?:string):string;
+export function defaultMapQuarter(data:{periods:string[];sittingDays?:Record<string,number|null>;partial:{first:string|null;last:string|null}}):string;

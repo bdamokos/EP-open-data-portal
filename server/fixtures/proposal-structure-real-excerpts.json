@@ -5188,8 +5188,8 @@
       "originalText": "(b)\tMember States may either provide that a producer as defined in Article 3(4b), point (d), of that Directive established in a third country and making textile, textile-related or footwear products listed in Annex IVc of that Directive available for the first time on their territory is to appoint, by written mandate, a legal or natural person established on their territory as its authorised representative for the purpose of fulfilling the obligations of a producer related to the extended producer responsibility scheme on their territory or ensure traceability and enforcement with regard to producers established in third countries through alternative means;",
       "proposedText": "deleted",
       "expected": {
-        "status": "unresolved",
-        "reason": "conflicting_target_evidence"
+        "status": "placed",
+        "span": {"start": 90, "end": 90}
       }
     }
   ]

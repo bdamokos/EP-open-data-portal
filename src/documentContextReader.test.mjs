@@ -1,3 +1,5 @@
+import {createAppUiI18n} from './uiCatalogues.mjs';
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import {wordingText} from './test-support/wordingText.mjs';
 import {parseProposal,proposalCandidates} from '../server/proposal-structure.mjs';
@@ -96,7 +98,7 @@ test('mixed note and changed footnote wording stays separate from the intact doc
   assert.equal(wordingText(h.container,'original'),example.originalText);assert.equal(wordingText(h.container,'proposed'),example.proposedText);
 });
 
-async function harness(t,respond,followups=()=>({status:'none-listed',items:[],gaps:[]})) {
+async function harness(t,respond,followups=()=>({status:'none-listed',items:[],gaps:[]}),interfaceI18n=null) {
   const window=new Window({url:'http://localhost/'}),requests=[],scrolls=[];
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -114,9 +116,10 @@ async function harness(t,respond,followups=()=>({status:'none-listed',items:[],g
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {DocumentContextReader}=await loadModule('/src/DocumentContextReader.tsx');
-  const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const {UiI18nProvider}=await loadModule('/src/UiI18nReact.tsx');
+  const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,15)));
-  const render=async(props,wait=true)=>{await act(async()=>root.render(el(DocumentContextReader,props)));if(wait)await settle();};
+  const render=async(props,wait=true)=>{await act(async()=>root.render(interfaceI18n?el(UiI18nProvider,{i18n:interfaceI18n,language:props.language},el(DocumentContextReader,props)):el(DocumentContextReader,props)));if(wait)await settle();};
   const click=async element=>{assert(element,'Missing control');await act(async()=>element.click());await settle();};
   const change=async(element,value)=>{assert(element,'Missing selector');await act(async()=>{element.value=value;element.dispatchEvent(new window.Event('change',{bubbles:true}));});await settle();};
   return {window,container,requests,scrolls,render,click,change,settle};
@@ -338,27 +341,27 @@ test('controlled adopted selection preserves unavailable identity and never subs
 test('a local reader failure has an explicit retry and does not claim a parliamentary absence',async t=>{
   let calls=0;const h=await harness(t,()=>++calls===1?Response.json({error:{message:'This data request took too long.'}},{status:503}):response(report,sourceDocument(report,['Readable after retry.'])));
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
-  assert(h.container.textContent.includes('Document could not be loaded.'));
+  assert.equal(h.container.querySelector('[role=alert] button'),null);
   assert(!h.container.textContent.includes('Document unavailable here.'));
-  assert.equal(h.container.querySelector('[data-context-pending]'),null);
-  await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
+  assert.equal(h.container.querySelector('[data-context-pending]')?.dataset.contextPending,'true');
+  await automaticRecovery(t);
   assert(h.container.textContent.includes('Readable after retry.'));assert.equal(calls,2);
 });
 
 test('an extraction failure returned with HTTP 200 offers retry and never claims saved text',async t=>{
   let calls=0;
   const h=await harness(t,()=>++calls===1?response(report,sourceDocument(report,[],{
-    status:'error',textLanguage:null,refreshError:'official-document-download-failed',reason:'source-error',
+    status:'error',textLanguage:null,refreshError:'official-document-download-failed',reason:'source-error',nextRetryAt:new Date(Date.now()+5000).toISOString(),
   })):response(report,sourceDocument(report,['Official text recovered after retry.'])));
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   const alert=h.container.querySelector('[role="alert"]');
-  assert(alert?.textContent.includes('Document text could not be loaded.'));
+  assert.equal(alert?.querySelector('button')??null,null);
   assert(!h.container.textContent.includes('Showing saved text.'));
   assert(!h.container.textContent.includes('Document text unavailable here.'));
   assert(!h.container.textContent.includes('official-document-download-failed'));
   assert.equal(h.container.querySelector('.document-context-text'),null);
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
-  await h.click([...alert.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
+  await automaticRecovery(t);
   assert.equal(calls,2);
   assert.deepEqual(h.requests,[`document-context/${report}?lang=en`,`document-context/${report}?lang=en`]);
   assert(h.container.textContent.includes('Official text recovered after retry.'));
@@ -374,7 +377,7 @@ test('a background extraction failure keeps the readable saved body and qualifie
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   assert.equal(h.container.querySelector('[data-source-paragraph="0"]').textContent,'Exact saved source paragraph.');
   assert(h.container.textContent.includes('Saved source note.'));
-  assert(h.container.textContent.includes('Couldn’t update the document. Showing saved text.'));
+  assert.equal(h.container.querySelector('[role=alert] button'),null);
   assert(!h.container.textContent.includes('Document text could not be loaded.'));
   assert(!h.container.textContent.includes('Document text unavailable here.'));
   assert(!h.container.textContent.includes('official-document-download-failed'));
@@ -396,7 +399,7 @@ test('retained readable text does not become pending while its expired client ca
   assert(h.container.querySelector('.document-context-text').textContent.includes('Readable saved body.'));
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
   await act(async()=>finish());await h.settle();
-  assert(h.container.textContent.includes('Couldn’t update the document. Showing saved text.'));
+  assert.equal(h.container.querySelector('[role=alert] button'),null);
   assert(h.container.querySelector('.document-context-text').textContent.includes('Readable saved body.'));
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
 });
@@ -424,13 +427,14 @@ for(const [name,selected] of [
   assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
 });
 
-test('a failed adopted lookup offers retry without claiming that the selected text is unavailable',async t=>{
-  const h=await harness(t,()=>Response.json({error:{message:'This data request took too long.'}},{status:503}));
+test('a failed adopted lookup recovers automatically without claiming that the selected text is unavailable',async t=>{
+  let failed=true;
+  const h=await harness(t,(route,params)=>failed?Response.json({error:{message:'This data request took too long.'}},{status:503}):params.has('adopted')?response(original,null,{related:{status:'available',items:[choice(adopted)],gaps:[]}}):response(adopted,sourceDocument(adopted,['Recovered exact adopted wording.'])));
   await h.render({request:{documentId:original,view:'adopted',onBack:()=>{}},language:'en',selectedDocumentId:adopted});
-  assert(h.container.textContent.includes('Linked texts could not be loaded.'));
-  assert(!h.container.textContent.includes('This adopted text is unavailable here.'));
-  assert.equal(h.container.querySelectorAll('.document-context-notice button').length,1);
-  assert.equal(h.container.querySelector('[data-context-pending]'),null);
+  assert(h.container.textContent.includes('Loading linked texts…'));assert(!h.container.textContent.includes('This adopted text is unavailable here.'));assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);assert.equal(h.container.querySelector('.document-context-reader').getAttribute('data-context-pending'),'true');
+  await exhaustAutomaticRetries(t);assert.equal(h.requests.length,7);assert(h.container.textContent.includes('Linked texts could not be loaded.'));assert(!h.container.textContent.includes('This adopted text is unavailable here.'));assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);assert.equal(h.container.querySelector('[data-context-pending]'),null);
+  failed=false;await act(async()=>window.dispatchEvent(new window.Event('online')));await h.settle();assert.match(h.container.textContent,/Recovered exact adopted wording/);assert(!h.container.textContent.includes('Linked texts could not be loaded.'));assert(h.requests.some(route=>route.startsWith('document-context/'+adopted+'?')));
+
 });
 
 test('references keep the interface language when the source text language changes',async t=>{
@@ -830,11 +834,10 @@ test('follow-up loading reserves no row and does not block the adopted text',asy
   assert.equal(h.container.querySelector('.commission-followups'),null);assert(h.container.textContent.includes('Exact target passage.'));assert.equal(h.container.querySelector('[data-context-pending]'),null);
   await act(async()=>finish({status:'none-listed',items:[],gaps:[]}));await h.settle();
 });
-test('follow-up network failure and retry leave the document body intact',async t=>{
-  let calls=0;const h=await harness(t,()=>response(adopted),()=>++calls===1?Response.json({error:{message:'Source offline'}},{status:502}):{status:'available',items:[followupItem()],gaps:[]});
-  await h.render({request:directAdopted,language:'en'});assert(h.container.textContent.includes('Exact target passage.'));const body=h.container.querySelector('.document-context-text');
-  const notice=h.container.querySelector('.commission-followups [role="status"]');assert(notice.textContent.includes('Commission follow-up could not be checked.'));assert.equal(h.container.querySelector('[role="alert"]'),null);
-  await h.click(notice.querySelector('button'));assert.equal(calls,2);assert.equal(h.container.querySelector('.document-context-text'),body);assert(h.container.querySelector('.commission-followup a'));assert.equal(h.container.querySelector('.commission-followups [role="status"]'),null);
+test('follow-up network failure renders nothing and leaves the document body intact',async t=>{
+  const h=await harness(t,()=>response(adopted),()=>Response.json({error:{message:'Source offline'}},{status:502}));
+  await h.render({request:directAdopted,language:'en'});assert(h.container.textContent.includes('Exact target passage.'));
+  assert.equal(h.container.querySelector('.commission-followups'),null);assert.equal(h.container.querySelector('[role="alert"]'),null);
 });
 test('follow-up links prefer PDF per expression language, show dates and disclose other languages',async t=>{
   const files=[followupFile('en','DOCX'),followupFile('en','HTML'),followupFile('en'),followupFile('fr','DOCX'),followupFile('fr'),followupFile('de','DOCX')];
@@ -872,22 +875,24 @@ for(const reason of ['absent-files','rejected-files'])test('verified reply witho
   const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:[followupItem('SP-one',[])],gaps:[{id:'SP-one',reason:'file-unavailable'}]}));await h.render({request:directAdopted,language:'en'});
   const row=h.container.querySelector('.commission-followup');assert(row.textContent.includes('File unavailable here.'));assert.equal(row.querySelector('a'),null);assert.equal(h.container.querySelector('.commission-followups [role="status"]'),null);
 });
-test('a failed linked reply exposes retry alongside earlier usable replies',async t=>{
+test('a failed linked reply keeps earlier usable replies without a retry control',async t=>{
   const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:[followupItem()],gaps:[{id:'SP-two',reason:'lookup-failed'}]}));await h.render({request:directAdopted,language:'en'});
-  assert(h.container.querySelector('.commission-followup a'));assert(h.container.querySelector('.commission-followups [role="status"] button'));assert(h.container.textContent.includes('Exact target passage.'));
+  assert(h.container.querySelector('.commission-followup a'));assert(h.container.querySelector('.commission-followups [role="status"]'));assert.equal(h.container.querySelector('.commission-followups button'),null);assert(h.container.textContent.includes('Exact target passage.'));
 });
 
 for(const reason of ['lookup-failed','time-budget','unrecognised-relationship','malformed-relationship','record-rejected',
   'file-rejected','file-language-unavailable','file-identity-unavailable','file-unavailable']){
   for(const hasItems of [false,true])test(`follow-up status for ${reason}, items=${hasItems}`,async t=>{
-    const retryable=['lookup-failed','time-budget'].includes(reason),recordGap=!reason.startsWith('file-');
+    const recordGap=!reason.startsWith('file-');
     const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:hasItems?[followupItem()]:[],gaps:[{id:null,reason}]}));
     await h.render({request:directAdopted,language:'en'});
     const notices=h.container.querySelectorAll('.commission-followups > [role="status"]');
-    const expected=hasItems&&recordGap?'Some follow-up documents could not be checked.':!hasItems&&retryable?'Commission follow-up could not be checked.':null;
+    const expected=hasItems&&recordGap?'Some follow-up documents could not be checked.':null;
+    if(!hasItems)assert.equal(h.container.querySelector('.commission-followups'),null,'no reply, no row');
     assert.equal(notices.length,expected?1:0);
     assert.equal(h.container.querySelectorAll('.commission-followups > p').length,expected?1:0,'no duplicate status line');
-    if(expected){assert(notices[0].textContent.startsWith(expected));assert.equal(!!notices[0].querySelector('button'),retryable);}
+    if(expected)assert.equal(notices[0].textContent,expected);
+    assert.equal(h.container.querySelector('.commission-followups button'),null);
     assert.equal(!!h.container.querySelector('.commission-followup a'),hasItems,'file gaps do not hide a working link');
     assert(h.container.textContent.includes('Exact target passage.'));
   });
@@ -1187,7 +1192,7 @@ test('failed and missing document bodies retain exact amendment wording, summary
     assert.deepEqual(['original','proposed'].map(side=>wordingText(block,side)),['Original wording.','Proposed wording.']);
     assert.equal(block.querySelector('.wording-diff__passage').getAttribute('lang'),'fr');
     assert.equal(h.container.querySelector('[data-context-target]'),null);
-    if(body==='error')assert(h.container.querySelector('[role="alert"] button'),'retry survives a failed extraction');
+    if(body==='error')assert.equal(h.container.querySelector('[role="alert"] button'),null);
     await h.click(h.container.querySelector('.document-context-back'));assert.equal(backs,1);
   });
 });
@@ -1314,4 +1319,43 @@ test('report quotation labels the comparison base without a legal-text placement
  assert(h.container.querySelector('.wording-diff'));
  assert.equal(h.container.querySelector('[data-context-target]'),null);
  assert(![...h.container.querySelectorAll('button')].some(b=>b.textContent==='Go to amendment'));
+});
+
+for(const interfaceLanguage of ['en','fr'])for(const url of [null,'https://www.europarl.europa.eu/doceo/document/TA-10-2026-0200_EN.html'])test('label placement has one final-text note '+interfaceLanguage+' '+url,async t=>{
+ const value=response(report,sourceDocument(report,['The European Parliament,','1. Original wording.','2. Next;']),{
+  requestedWordingLanguage:'en',
+  amendment:{...amendmentSource,variants:[wordingVariant('en')]},
+  target:{...target,evidence:pinnedEvidence('en')},
+  placement:{status:'placed',operation:'replace',span:{start:1,end:1},evidence:[],finalPlacementCheck:{adoptedTextUrl:url}},
+ });
+ const i18n=createAppUiI18n({fr:JSON.parse(readFileSync(new URL('./ui-locales/fr.json',import.meta.url)))});
+ const h=await harness(t,()=>value,undefined,i18n);
+ await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:interfaceLanguage});
+ const block=h.container.querySelector('[data-context-target="true"]');assert(block,'matching amendment should render in place');
+ const expected=interfaceLanguage==='fr'?'Vérifiez l’emplacement final dans le texte adopté.':'Check final placement in the adopted text.';
+ assert.equal(block.textContent.split(expected).length-1,1);
+ assert.equal([...block.querySelectorAll('p')].find(p=>p.textContent===expected)?.lang,interfaceLanguage);
+ assert.equal(block.querySelector('a')?.href??null,url);
+});
+test('alternative motion is readable as a document operation without inline diff',async t=>{
+  const data=response(report,sourceDocument(report),{requestedWordingLanguage:'en',amendment:{...amendmentSource,variants:[wordingVariant('en',{originalText:'',proposedText:'The European Parliament,\n1. Complete alternative motion.'})]},target:{...target,evidence:pinnedEvidence('en')}});
+  data.placement={status:'document-operation',operation:'alternative-motion',scope:'motion-resolution',reason:'alternative_motion',evidence:[]};
+  const h=await harness(t,()=>data);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert.match(h.container.textContent,/Alternative motion/);
+  assert.match(h.container.textContent,/Complete alternative motion/);
+  assert.equal(h.container.querySelector('.wording-diff__columns'),null);
+  assert.equal(h.container.querySelector('ins'),null);
+  assert.equal(h.container.querySelector('[data-context-target="true"]'),null);
+  assert(!h.container.textContent.includes('location could not be determined'));
+});
+test('an amendment after a table appears outside its final cell',async t=>{
+  const data=overlayResponse({insertAfter:3,insertBefore:4});
+  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','19. Table follows:','First cell','Final cell','20. Following provision;'],formatStatus:'extracted',paragraphFormats:[{},{},{},{},{}],tables:[{rows:[[{start:2,end:3},{start:3,end:4}]]}]});
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  const table=h.container.querySelector('table');assert(table);
+  assert.equal(table.querySelector('[data-amendment-block]'),null);
+  assert.equal(table.nextElementSibling.dataset.amendmentBlock,'true');
+  assert.equal(table.nextElementSibling.dataset.contextTarget,'true');
+  assert.match(table.nextElementSibling.nextElementSibling.textContent,/Following provision/);
 });

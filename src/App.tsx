@@ -1,7 +1,8 @@
+import {publicationRetry} from './publicationRetry';
 import {TopicBatch,RecordTopics,OfficialTitle} from './RecordTopics';
-const legacyTopicUrl=legacyTopics(new URLSearchParams(location.search));
-if(legacyTopicUrl)history.replaceState(history.state,'',legacyTopicUrl);
-import {legacyTopics,agendaTitle} from './topicPresentation.mjs';
+const emptyDossierUrl=emptyDossierRedirect(new URLSearchParams(location.search));
+if(emptyDossierUrl)history.replaceState(history.state,'',emptyDossierUrl+location.hash);
+import {emptyDossierRedirect,agendaTitle} from './topicPresentation.mjs';
 const Topics=lazyView(()=>import('./Topics').then(m=>({default:m.Topics})));
 import {usePlenaryUiLanguage} from './PlenaryLive';
 import {defaultUi} from './uiDefault.mjs';
@@ -14,7 +15,7 @@ import {QuestionAnswerer} from './QuestionAnswerer';
 import {useSpeechTranslation,SpeechTextStatus} from './SpeechTranslation';
 import {MemberAffiliation} from './components/MemberAffiliation';
 import {ActivityDossierLinks} from './DossierActivity';
-import {useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
+import {navigateDossier,useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
 import {matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
 import {AvailabilityNote} from './AvailabilityNote';
 import {coverageStore} from './SavedControls';
@@ -79,7 +80,6 @@ import { useSpeechVideo } from "./SpeechPlayer";
 import {AmendmentTrailLink} from './AmendmentTrailLink';
 import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule} from './publicFeatures';
 import {Status} from './Status';
-import {ReaderRetry} from './ReaderRetry';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAuthors.mjs';
 import {selectLanguageText} from './language.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
@@ -133,14 +133,7 @@ function ErrorView({ message, retry }: { message: string; retry: () => void }) {
   const ui = useUiI18n();
   return <div className="explorer-notice" role="alert" lang={ui.language}>
       <p>{message}</p>
-      <button onClick={event=>{
-        if(document.activeElement===event.currentTarget){
-          const scope=event.currentTarget.closest('section,article,main');
-          const target=scope?.querySelector<HTMLElement>('.explorer-speech-toggle,h1,h2,h3')||scope?.parentElement?.closest('section,main')?.querySelector<HTMLElement>('h1,h2,h3');
-          if(target){if(/^H[1-6]$/.test(target.tagName))target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'nearest'});}
-        }
-        retry();
-      }}><UiMessage id="commissionfollowups.try_again"/></button>
+
     </div>;
 }
 export function transcript(xml: string | null) {
@@ -208,7 +201,7 @@ function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member
 function PublicationText({ sourceId, member, lang, heading, headingDate, shownDate, includeAnswers = false,question, showDownloads = true }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; shownDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string};showDownloads?:boolean }) {
   const ui = useUiI18n();
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang,sourceId]);
-  const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`);
+  const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`,publicationRetry);
   const text=(state.data?.selectedDocumentId===sourceId) ? state.data.selectedText : null;
   const questionDocument=/^[EPHO]-\d+-\d{4}-\d+(?:-ASW)?$/.test(sourceId);
   const pickerText=useRetainedText(sourceId,text);
@@ -218,16 +211,16 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, shownDa
   const notes=text?.notes||[],anchors=body.exact ? (text?.noteAnchors||[]) : ([]),documentLinks=body.exact ? (text?.documentLinks||[]) : ([]);
   const failed=Boolean(state.error||text?.status==='error'||text?.refreshError||state.data&&!text),retryAt=state.retryAt??(text?.nextRetryAt ? Date.parse(text.nextRetryAt) : undefined);
   return <section className="explorer-document-text" lang={ui.language} id={'document-'+sourceId}><RecordTopics id={sourceId} full language={lang}/>
-    <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={failed ? ui.t("app.documentStatusUnavailable", {heading: String(heading)}) : (state.data ? ((text?.status==='available') ? ui.t("app.documentStatusLoaded", {heading: String(heading)}) : ui.t("app.documentStatusNoText", {heading: String(heading)})) : null)}/>
+    <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading||state.retrying} message={failed ? ui.t("app.documentStatusUnavailable", {heading: String(heading)}) : (state.data ? ((text?.status==='available') ? ui.t("app.documentStatusLoaded", {heading: String(heading)}) : ui.t("app.documentStatusNoText", {heading: String(heading)})) : null)}/>
     <div className="explorer-reader-heading"><h3>{headingDate ? <><UiMessage id="batch4.questiontopics.tsx.answer.date" values={{date: <span lang={lang}>{date(headingDate,lang)}</span>}}/></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang={ui.language}><UiMessage id="textsearch.read_question"/></span></a>}</div>
     {pickerText&&<TextLanguagePicker available={pickerText.availableTextLanguages} requested={lang} value={text ? text.textLanguage : requestedLanguage} onChange={setRequestedLanguage} title={(text?.translationType==='original') ? ui.t("textsearch.original_text") : undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text?.textLanguage??null} interfaceLanguage={lang}/>}/>}
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}><UiMessage id="app.amendments_to_this_document"/></AmendmentTrailLink>}
     {sourceId.endsWith('-ASW')&&<QuestionAnswerer answerer={state.data?.answerer}/>}
-    {state.loading&&!text&&<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}{failed&&!state.loading&&<ReaderRetry message={ui.t("app.text_temporarily_unavailable")} language={lang} retry={state.retry} retryAt={retryAt}/>}
+    {state.loading&&!text&&<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}{failed&&!state.loading&&!state.retrying&&<p>{ui.t("app.text_temporarily_unavailable")}</p>}
     {text&&!questionDocument&&<DocumentPages documentId={sourceId} language={text.textLanguage||requestedLanguage}/>}{(text?.status==='available') ? <ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers showDownloads={showDownloads}/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} renderParagraph={(source,paragraph)=>(source===repeatedDate) ? null : paragraph} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><DocumentObjectText logo={logo} text={paragraph} paragraph={source} from={from} to={to} final={final} marks={marks} objects={text.documentObjects||[]} assets={text.imageAssets} sourceUrl={text.sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} notePrefix={notePrefix} renderText={(a,b,last)=><AuthorMention text={paragraph.slice(a,b)} offset={a} final={last} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),a,b)} marks={marks} notePrefix={notePrefix}/>}/>}/><DocumentNotes assets={text.imageAssets} notes={notes} prefix={notePrefix}/></div></ReferenceScope> : (text&&!failed&&<p><UiMessage id="batch5.dossiervotetext.tsx.24.50"/></p>)}
     {text&&<>{!sourceId.endsWith('-ASW')&&<CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/>}{showDownloads&&!questionDocument&&<details className="explorer-reader-download"><summary><UiMessage id="app.document_download"/></summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={lang}/></details>}</>}
     {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={answer.date ? ui.t("batch4.questiontopics.tsx.answer.date", {date: String(date(answer.date,lang))}) : ui.t("textsearch.answer")} headingDate={answer.date} showDownloads={showDownloads}/>)}
-    {includeAnswers&&state.data&&!failed&&!state.loading&&!state.data.answers.length&&<p><UiMessage id="app.no_answer_published"/></p>}
+    {includeAnswers&&state.data&&!failed&&!state.loading&&!state.retrying&&!state.data.answers.length&&<p><UiMessage id="app.no_answer_published"/></p>}
   </section>;
 }
 function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionChange, showDownloads = true }: { item: JoinedActivity; lang: string; member: number; memberName?:string; motionQuery:URLSearchParams; onMotionChange:MemberMotionReaderProps['onJourneyChange']; showDownloads?:boolean }) {
@@ -235,7 +228,7 @@ function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionCh
   const hasText=item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer';
   const motion=/^(?:B|RC)-10-\d{4}-\d{4,6}$/.test(item.sourceId);
   const [documentOpen,setDocumentOpen]=useDossierReaderState('activity-document:'+item.sourceId,false);
-  const document=useData<PublicationDocument>((((item.recordKind!=='speech') && (!hasText)) && (!motion||documentOpen)) ? (`document/${item.sourceId}?member=${member}&lang=${lang}`) : null);
+  const document=useData<PublicationDocument>((((item.recordKind!=='speech') && (!hasText)) && (!motion||documentOpen)) ? (`document/${item.sourceId}?member=${member}&lang=${lang}`) : null,publicationRetry);
   const roles: Record<string,string> = {AUTHOR:ui.t("insightshared.author"),QUESTION_AUTHOR:ui.t("app.author_of_the_question"),RAPPORTEUR:ui.t("insightshared.rapporteur"),RAPPORTEUR_SHADOW:ui.t("insightshared.shadow_rapporteur"),RAPPORTEUR_OPINION:ui.t("insightshared.opinion_rapporteur"),RAPPORTEUR_SHADOW_OPINION:ui.t("insightshared.shadow_opinion_rapporteur"),SPEAKER:ui.t("app.plenary_contribution")};
   const stage=(item.provenance.stage==='RDG1') ? interfaceTerm('first-reading',lang) : ((item.provenance.stage==='RDG2') ? interfaceTerm('second-reading',lang) : ({text:item.provenance.stage,language:''}));
   if (item.recordKind === "speech") return <><ActivityDossierLinks procedureIds={item.procedureIds} person={member} language={lang}/><Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} /></>;
@@ -269,7 +262,7 @@ function LinkedActivityFallback({ sourceId, member, lang, complete, showDownload
   const ui = useUiI18n();
   const [check, setCheck] = useState(false);
   const speech=Boolean(sourceId?.startsWith("MTG-PL-"));
-  const document=useData<PublicationDocument>(((check && sourceId) && (!speech)) ? (`document/${sourceId}?member=${member}&lang=${lang}`) : null);
+  const document=useData<PublicationDocument>(((check && sourceId) && (!speech)) ? (`document/${sourceId}?member=${member}&lang=${lang}`) : null,publicationRetry);
   const contribution=useData<SpeechDetail>(((check && sourceId) && speech) ? (`speech/${sourceId}?lang=${lang}`) : null);
   const answer=document.data?.answers.find(item=>item.id===sourceId);
   const matched=answer || ((document.data?.id===sourceId) ? document.data : null);
@@ -313,7 +306,7 @@ export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpen
     {state.loading&&!selected&&<p role="status"><UiMessage id="insightshared.loading"/></p>}
     {state.error&&<ErrorView message={state.error} retry={state.retry}/>}
     {selected ? <JoinedDetails key={`${scope}:${selected.id}`} item={selected} member={Number(member)} lang={lang} motionQuery={motionQuery} onMotionChange={onMotionChange} showDownloads={showDownloads}/> : (!state.loading&&state.data&&<LinkedActivityFallback key={scope} sourceId={sourceId} member={Number(member)} lang={lang} complete={state.data.cache.complete} showDownloads={showDownloads}/>)}
-    {!selected&&!state.loading&&<p><a href={profileHref} onClick={event=>{
+    {!selected&&(!state.loading||state.retrying)&&<p><a href={profileHref} onClick={event=>{
       if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
       event.preventDefault();onOpenProfile();
     }}><UiMessage id="app.open_in_profile"/></a></p>}
@@ -358,10 +351,6 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
     const body=resultsHeading.current?.closest(".explorer-profile-body");
     if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else resultsHeading.current?.scrollIntoView({block:"start"});
   },[category,categoriesOpen,offset]);
-  useEffect(()=>{
-    if(state.data?.cache.complete || open)return;
-    const timer=window.setInterval(state.retry,30_000);return ()=>window.clearInterval(timer);
-  },[state.data?.cache.complete,open,state.retry]);
   const choose=(value:string)=>{moveToResults.current=true;setCategoriesOpen(false);onCategory(value);onOffset(0);onOpen(null);};
   const coverage=category ? page?.categoryCoverage[category] : null;
   const selectedLabel=category ? (page?.categories[category] || category) : ui.t("app.all_activities");
@@ -423,10 +412,6 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const ui = useUiI18n();
   const c=interfaceCopy(lang);
   const calendar=useData<VotePeriodsResponse>('vote-periods');
-  useEffect(()=>{
-    if(!calendar.error || calendar.loading)return;
-    const timer=setTimeout(calendar.retry,30_000);return ()=>clearTimeout(timer);
-  },[calendar.error,calendar.loading,calendar.retry]);
   const sittingLocations=new Map(validateVotePeriods(calendar.data) ? calendar.data.weeks.flatMap(week=>week.sittings.map(sitting=>[sitting.sittingId,sitting.location] as const)) : []);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
@@ -460,10 +445,6 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     return()=>{document.removeEventListener('focusin',cancel);speechOrigin.current=null;};
   },[id,initialSpeech]);
   const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`);
-  useEffect(()=>{
-    if(!state.data || state.data.cache.complete || initialSpeech)return;
-    const timer=window.setInterval(state.retry,30_000);return ()=>window.clearInterval(timer);
-  },[state.data?.cache.complete,initialSpeech,state.retry]);
   const pinned=useData<JoinedActivityPage>(((initialSpeech && state.data) && (!state.data.items.some(item=>item.sourceId===initialSpeech))) ? (`latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}`) : null);
   useEffect(()=>{setOffset(0);setSpeechLanguage(null);},[id,lang]);
   useEffect(()=>{setEnrichedSpeeches([]);},[id]);
@@ -481,7 +462,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2></div>
     <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} onStatus={setStatisticsStatus} filter={{selected:category,href:filterHref,select:selectCategory}}/>
     <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{focusedSpeech.current=null;speechOrigin.current={key:id+':'+speech,owner:document.activeElement};resetSpeechSearch.current?.();setSpeechSearchReset(value=>value+1);setSpeechSearch('');setSpeechSearchRead('');setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
-    {filtered&&<div className="explorer-section-title" lang={ui.language}><h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{statisticsStatus==='unavailable' ? <UiMessage id="app.contributions_unavailable"/> : <UiMessage id="app.filteredSpeechCount" values={{category: speechCategoriesUi(ui).find(([key])=>key===category)?.[1], count: filtered.length}}/>}</h3>{speechSearchActive&&<button onClick={()=>{speechSearchInput.current?.focus({preventScroll:true});setCategory('');}}><UiMessage id="app.clear_category"/></button>}</div>}
+    {filtered&&<div className="explorer-section-title" lang={ui.language}><h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{statisticsStatus==='unavailable' ? <UiMessage id="app.contributions_unavailable"/> : statisticsStatus==='loading' ? <UiMessage id="app.loading_contributions"/> : <UiMessage id="app.filteredSpeechCount" values={{category: speechCategoriesUi(ui).find(([key])=>key===category)?.[1], count: filtered.length}}/>}</h3>{speechSearchActive&&<button onClick={()=>{speechSearchInput.current?.focus({preventScroll:true});setCategory('');}}><UiMessage id="app.clear_category"/></button>}</div>}
     <TextSearch key={'search:'+id} inline inputRef={speechSearchInput} resetRef={resetSpeechSearch} prefix="mep-speech-fts" label={ui.t("app.search_this_mep_s_speeches")} language={lang} member={id} kinds={['speech']} from="2024-07-16" sourceIds={filtered?.map(speech=>speech.id)} disabledReason={(category && (statisticsStatus!=='ready')) ? ((statisticsStatus==='loading') ? ui.t("app.loading_category") : ui.t("app.category_unavailable")) : undefined} onActiveChange={setSpeechSearchActive} summary={<>{state.data ? <UiMessage id="app.termContributions" values={{count: state.data.indexedTotal}} counts={{count: state.data.indexedTotal}}/> : <UiMessage id="batch4.speechinterventions.tsx.term.10"/>}</>}/>
     {!speechSearchActive&&<>
     {!filtered&&state.loading && !state.data && <p role="status" lang={ui.language}><UiMessage id="app.loading_speeches"/></p>}
@@ -521,7 +502,7 @@ export default function App() {
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
   const [activityOffset,setActivityOffset]=useState(()=>queryActivityOffset(initial));
-  const [view, setView] = useState<'legislation'|'questions'|'topics'|'outside'|'amendments'|'groups'|'saved'|null>(
+  const [view, setView] = useState<'legislation'|'questions'|'geopolitics'|'outside'|'amendments'|'groups'|'saved'|null>(
     publicExplorerView(initial.get('view')),
   );
   const [tab, setTab] = useState(
@@ -557,6 +538,29 @@ export default function App() {
   // so returning keeps its portraits; restore where the reader left it.
   const wallVisible=!view&&!member;
   const wallScroll=useRef({page:0,portraits:0});
+  // Where the whole page scrolls, the count row sticks; once the filters scroll away it offers them instead of a reset.
+  const wallFilters=useRef<HTMLDivElement>(null),[filtersPassed,setFiltersPassed]=useState(false);
+  useEffect(()=>{
+    const filters=wallFilters.current;
+    if(!wallVisible||!filters||typeof IntersectionObserver!=='function')return;
+    const observer=new IntersectionObserver(([entry])=>setFiltersPassed(!entry.isIntersecting&&entry.boundingClientRect.top<0));
+    observer.observe(filters);
+    return ()=>{observer.disconnect();setFiltersPassed(false);};
+  },[wallVisible]);
+  // Focus scrolling keeps portrait controls clear of the sticky count row.
+  useLayoutEffect(()=>{
+    const page=document.querySelector<HTMLElement>(".explorer"),results=page?.querySelector<HTMLElement>(".explorer-results");
+    if(!wallVisible||!page||!results||typeof ResizeObserver!=='function')return;
+    const measure=()=>page.style.setProperty("--explorer-results-height",`${results.getBoundingClientRect().height}px`);
+    measure();
+    const observer=new ResizeObserver(measure);observer.observe(results);
+    return ()=>{observer.disconnect();page.style.removeProperty("--explorer-results-height");};
+  },[wallVisible,directory]);
+  const showFilters=()=>{
+    const page=document.querySelector<HTMLElement>(".explorer"),heading=page?.querySelector<HTMLElement>(".explorer-wall h1");
+    page?.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
+    if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
+  };
   const wallShown=useRef(wallVisible);
   useLayoutEffect(()=>{
     const returned=wallVisible&&!wallShown.current;wallShown.current=wallVisible;
@@ -606,10 +610,11 @@ export default function App() {
     return ()=>document.removeEventListener('focusin',cancel);
   },[view,member,speechLink]);
   useEffect(() => {
+    if(directoryState.retrying||directoryState.error||directoryState.status||directory?.index.error||directory?.committeeDetails?.error)return;
     const settled=directory?.index.complete && directory?.committeeDetails?.complete!==false;
     const timer=window.setInterval(directoryState.retry,settled ? 60_000 : 10_000);
     return ()=>window.clearInterval(timer);
-  }, [directory?.index.complete,directory?.committeeDetails?.complete,directoryState.retry]);
+  }, [directory?.index.complete,directory?.committeeDetails?.complete,directoryState.retry,directoryState.retrying,directoryState.error,directoryState.status]);
   useEffect(() => {
     if (!directory?.members.length) return;
     if (committee) {
@@ -669,14 +674,20 @@ export default function App() {
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = (profile.data?.id === member) ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(member)});
-  const pageTitle = (view==='legislation') ? null : (view ? {topics:ui.t("topics.topics"),questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title));
+  const pageTitle = (view==='legislation') ? null : (view ? {geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title));
   const pageTitleLanguage=ui.language;
   useEffect(()=>{if(pageTitle)document.title = ui.t("legislation.pagetitle_european_parliament_data_explorer.42a26b", {pageTitle: String(pageTitle)});document.querySelector('title')?.setAttribute('lang',pageTitleLanguage);},[pageTitle,pageTitleLanguage]);
   const roleName = (value: string) =>
     (value === "MEMBER_SUBSTITUTE") ? label("substitute", c.substitutes) : ((value === "MEMBER") ? label("member", c.members) : ((value === "CHAIR") ? ((lang === "en") ? ui.t("batch4.speechinterventions.tsx.chair") : label("chair", ui.t("batch4.speechinterventions.tsx.chair"))) : ((value === "CHAIR_VICE") ? ((lang === "en") ? ui.t("interfaceLabels.viceChair") : label("viceChair", ui.t("interfaceLabels.viceChair"))) : value.toLowerCase().replaceAll("_", " "))));
   function navigateView(next:typeof view) {
     next=publicExplorerView(next);
-    if(next===view)return;
+    if(next===view){
+      const url=new URL(location.href);
+      if(!['legislation','geopolitics'].includes(next||'')||!['topic','place','t-record','t-records'].some(key=>url.searchParams.has(key)))return;
+      for(const key of [...url.searchParams.keys()])if(key==='topic'||key==='place'||key.startsWith('t-'))url.searchParams.delete(key);
+      if(next==='legislation')url.searchParams.set('pl-mode','topics');
+      url.hash='';navigateDossier(url.pathname+url.search);return;
+    }
     votes.remember();
     motions.remember();
     const active=(document.activeElement instanceof HTMLElement) ? document.activeElement : null;
@@ -692,7 +703,7 @@ export default function App() {
   }
   useEffect(()=>{
     const restore=()=>{
-      const legacy=legacyTopics(new URLSearchParams(location.search));if(legacy)history.replaceState(history.state,'',legacy);
+      const redirect=emptyDossierRedirect(new URLSearchParams(location.search));if(redirect)history.replaceState(history.state,'',redirect+location.hash);
       pendingDestination.current=null;
       setRestoration(value=>value+1);
       const query=new URLSearchParams(location.search),next=query.get('view');
@@ -772,10 +783,10 @@ export default function App() {
     navigation={<ParliamentHeader view={view||'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>}
     onRetry={()=>{pendingDestination.current={view,member};}}
   ><Suspense fallback={<ViewLoading language={lang}/>}><ViewContent onReady={focusDestination} render={()=>{
-  if (view === 'topics' || view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
+  if (view === 'geopolitics' || view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
-    const title={groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),legislation:plenaryModeTitlesUi(ui)[plenaryMode],outside:ui.t("outsidevoices.outside_voices.a027e6"),topics:ui.t("topics.topics"),questions:ui.t("textsearch.questions")}[view];
-    return <InsightFrame {...props} view={view} onLanguageChange={changeLanguage}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='topics') ? <Topics {...props}/> : (view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
+    const title={groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),legislation:plenaryModeTitlesUi(ui)[plenaryMode],outside:ui.t("outsidevoices.outside_voices.a027e6"),geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions")}[view];
+    return <InsightFrame {...props} view={view} onLanguageChange={changeLanguage}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='geopolitics') ? <Topics {...props}/> : (view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
   }
   return <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={(view==='saved') ? 'saved' : 'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>
@@ -860,7 +871,7 @@ export default function App() {
           <section className="explorer-wall" hidden={!wallVisible}>
             <h1 lang={lang}>{c.title}</h1>
             {organization&&<p className="explorer-organization-filter"><strong>{organizationName||organization}</strong> <button type="button" onClick={()=>{setOrganization('');setOrganizationName('');}}><UiMessage id="app.clear_filter"/></button></p>}
-            <div className="explorer-filters">
+            <div className="explorer-filters" ref={wallFilters}>
               <label lang={lang}>
                 {c.committee}
                 <select
@@ -942,13 +953,13 @@ export default function App() {
               />}{" "}
             {!directory && !error && <p role="status" lang={ui.language}><UiMessage id="app.loading_current_meps_and_committees"/></p>}
             {directory && <>
-                <div className="explorer-results">
+                <div className={filtersPassed ? 'explorer-results is-stuck' : 'explorer-results'}>
                   <strong>{partialCommittee ? (filtered.length ? (`${filtered.length}+`) : "—") : filtered.length}</strong>
                   <span lang={lang}>
                     {partialCommittee && !filtered.length ? <UiMessage id="app.mepCountUnknownUnit"/> : <UiMessage id="app.mepCountUnit" counts={{count:filtered.length}}/>}{" "}
                     <small lang={ui.language}><UiMessage id="app.currentAt" values={{date: <time lang={lang} dateTime={directory.day}>{date(directory.day, lang)}</time>}}/></small>
                   </span>
-                  <button
+                  {filtersPassed ? <button type="button" lang={ui.language} onClick={showFilters}><UiMessage id="app.show_filters"/></button> : <button
                     lang={lang}
                     onClick={() => {
                       setOrganization("");setOrganizationName("");
@@ -960,17 +971,17 @@ export default function App() {
                     }}
                   >
                     {label("reset_filters", ui.t("interfaceLabels.reset_filters"))}
-                  </button>
+                  </button>}
                 </div>
                 {directory.sync?.error && <div className="explorer-index" role="status" lang={ui.language}><UiMessage id="app.feedUnavailable" values={{lastSuccess: <span lang={directory.sync.lastSuccess ? "" : ui.language}>{directory.sync.lastSuccess || ui.t("app.not_yet_completed")}</span>}}/></div>}
                 {directory.committeeDetails && (!directory.committeeDetails.complete || directory.committeeDetails.error) && <div className="explorer-index" role="status" lang={ui.language}>
                     {directory.committeeDetails.error || ui.t("app.loading_committee_names")}
-                    {directory.committeeDetails.error && <button onClick={() => {void api("directory?retry=committee-details", undefined, undefined, ui).catch(() => {}).finally(directoryState.retry);}}><UiMessage id="app.retry_committee_details"/></button>}
+                    {directory.committeeDetails.error && null}
                   </div>}
                 {!directory.index.complete && <div className="explorer-index" role="status" lang={ui.language}>
                     {directory.index.error ||
                       ui.t("app.loadingMemberships", {loaded: String(directory.index.loaded), total: String(directory.index.total)})}
-                    {directory.index.error && <button onClick={directoryState.retry}><UiMessage id="app.retry_membership_index"/></button>}
+                    {directory.index.error && null}
                   </div>}
                 <div className="explorer-portraits" data-portrait-scroll-root onScroll={event=>{if(wallVisible)wallScroll.current.portraits=event.currentTarget.scrollTop;}}>
                     {filtered.map((m, index) => <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>

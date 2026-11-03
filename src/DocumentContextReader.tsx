@@ -1,3 +1,4 @@
+import {publicationRetry} from './publicationRetry';
 import {RecordTopics} from './RecordTopics';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
@@ -18,6 +19,7 @@ import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from './Referenc
 import {InsightQuestionReader} from './InsightReaders';
 import {mapContextAnnotations} from './contextAnnotations.mjs';
 import {WordingDiff} from './components/WordingDiff';
+import {FormattedWording} from './components/WordingFormatting';
 import {AmendmentJustification} from './components/AmendmentJustification';
 import {amendmentLanguageScope} from './amendmentLanguageScope.mjs';
 import {FindInText} from './TextSearch';
@@ -101,7 +103,7 @@ const amendmentNumber=(id:string|undefined)=>id?.match(/(?:-AM-|:)(\d+[a-z]*)$/i
 
 function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest,showOriginalLink=true}:{id:string;showOriginalLink?:boolean;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest}) {
   const ui = useUiI18n();
-  const state=useData<DocumentContextResponse>(documentRoute(id,language,amendmentRequest));
+  const state=useData<DocumentContextResponse>(documentRoute(id,language,amendmentRequest),{retryWhile:data=>Boolean(data.document&&publicationRetry.retryWhile(data.document)),retryAtFor:data=>data.document?publicationRetry.retryAtFor(data.document):0});
   const data=responseFor(state.data,id,language,amendmentRequest),document=((data?.document?.id===id) && (!data.document.selectedDocumentId||data.document.selectedDocumentId===id)) ? data.document : null;
   const text:DocumentText|undefined=document?.selectedText,reader=useRef<HTMLDivElement>(null),notePrefix='context-notes-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
   const target=data?.target,allParagraphs=text?.paragraphs||[],indices=target?.paragraphs||[];
@@ -132,9 +134,10 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   },[reportHeading]);
   const validIndex=(index:unknown):index is number=>Number.isInteger(index)&&Number(index)>=0&&Number(index)<allParagraphs.length;
   const placed=Boolean(placement?.status==='placed'&&amendmentMatches&&wording&&((placement.operation==='insert') ? (validIndex(placement.insertAfter)&&placement.insertBefore===placement.insertAfter+1) : (placement.span&&validIndex(placement.span.start)&&validIndex(placement.span.end)&&placement.span.end>=placement.span.start)));
+  const afterTable=Boolean(placed&&placement?.operation==='insert'&&usableFormatting(text,allParagraphs.length).tables.some(table=>table.rows.flat().at(-1)?.end===placement.insertBefore));
   const number=amendmentNumber(amendmentRequest?.amendmentId),amendmentHeading='amendment-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
-  const rejection=Boolean(wording&&placement?.status==='document-operation'&&placement.operation==='reject'&&data?.amendment?.id===amendmentRequest?.amendmentId&&evidence?.amendmentId===amendmentRequest?.amendmentId&&evidence?.listId===wording.listId&&evidence?.wordingLanguage===wording.language);
-  const placementReason=placement?.status==='document-operation'&&!rejection ? ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67") : ((placement?.reason==='different_text_languages') && (wording?.language===null)) ? ui.t("batch6.documentcontextreader.the.amendment.wording.language.is.unknown.131") : (((placement?.reason==='different_text_languages') && (!text?.textLanguage)) ? ui.t("batch6.documentcontextreader.the.document.text.language.is.unknown.132") : (placementReasonsUi(ui)[placement?.reason||'']||ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67")));
+  const rejection=Boolean(wording&&placement?.status==='document-operation'&&['reject','alternative-motion'].includes(placement.operation??'')&&data?.amendment?.id===amendmentRequest?.amendmentId&&evidence?.amendmentId===amendmentRequest?.amendmentId&&evidence?.listId===wording.listId&&evidence?.wordingLanguage===wording.language);
+  const placementReason=rejection&&placement?.operation==='alternative-motion'?ui.t("amendment.alternative_motion"):placement?.status==='document-operation'&&!rejection ? ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67") : ((placement?.reason==='different_text_languages') && (wording?.language===null)) ? ui.t("batch6.documentcontextreader.the.amendment.wording.language.is.unknown.131") : (((placement?.reason==='different_text_languages') && (!text?.textLanguage)) ? ui.t("batch6.documentcontextreader.the.document.text.language.is.unknown.132") : (placementReasonsUi(ui)[placement?.reason||'']||ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67")));
   const extracted=publicationBody(allParagraphs,id,text?.textLanguage);
   const exactBody=extracted.exact&&Number.isInteger(extracted.start)&&extracted.start>=0&&extracted.paragraphs.length===allParagraphs.length-extracted.start&&extracted.paragraphs.every((paragraph,index)=>paragraph===allParagraphs[extracted.start+index]);
   const placementStart=placed ? ((placement?.operation==='insert') ? placement.insertAfter : placement?.span?.start) : undefined;
@@ -148,7 +151,8 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   }) : undefined;
   const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace ? 'true' : undefined} tabIndex={inPlace ? (-1) : undefined} aria-labelledby={amendmentHeading}>
     <h4 id={amendmentHeading} lang={ui.language}>{number ? <UiMessage id="membervotes.tsx.amendment.number" values={{number: number}}/> : <UiMessage id="motionamendments.amendment.664ccf"/>}</h4>
-    {wording&&<WordingDiff originalFormatting={wording.originalFormatting} proposedFormatting={wording.proposedFormatting} original={(placement?.operation==='insert') ? '' : wording.originalText} proposed={(placement?.operation==='delete') ? '' : wording.proposedText} language={wording.language} emptySemantics={rejection ? "not-supplied" : "insertion-deletion"} highlightChanges={!rejection} presentation="context" renderOriginal={inPlace ? renderOriginal : undefined}/>}
+    {wording&&(rejection&&placement?.operation==='alternative-motion'?<p className="wording-diff__passage" lang={wording.language||''}><FormattedWording text={wording.proposedText||''} start={0} formatting={wording.proposedFormatting||[]}/></p>:<WordingDiff originalFormatting={wording.originalFormatting} proposedFormatting={wording.proposedFormatting} original={(placement?.operation==='insert') ? '' : wording.originalText} proposed={(placement?.operation==='delete') ? '' : wording.proposedText} language={wording.language} emptySemantics={rejection ? "not-supplied" : "insertion-deletion"} highlightChanges={!rejection} presentation="context" renderOriginal={inPlace ? renderOriginal : undefined}/>)}
+    {inPlace&&placement?.finalPlacementCheck&&<p lang={ui.messageLocale('documentcontext.final_placement_check')}><UiMessage id="documentcontext.final_placement_check" values={{adoptedText:/^https:\/\/www\.europarl\.europa\.eu\/doceo\/document\/TA-10-\d{4}-\d{4,6}_[A-Z]{2}\.html$/u.test(placement.finalPlacementCheck.adoptedTextUrl||'')?<a href={placement.finalPlacementCheck.adoptedTextUrl!} target="_blank" rel="noreferrer">{ui.t('documentcontext.adopted_text')}</a>:ui.t('documentcontext.adopted_text')}}/></p>}
     <AmendmentJustification record={wording}/>
   </section>;
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
@@ -177,7 +181,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   return <div className="document-context-document" data-context-pending={(state.loading && (!hasText)) ? 'true' : undefined}>
     {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id, ui)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools">{hasText&&<FindInText key={id+':'+language} target={reader} label={ui.t("batch6.documentcontextreader.find.in.document.168")}/>}</div></header>}
     {state.loading&&!data&&<p role="status"><UiMessage id="batch5.amendments.tsx.188.20"/></p>}
-    {loadError&&<p className="document-context-notice" role="alert">{hasText ? ui.t("batch6.documentcontextreader.couldn.t.update.the.document.showing.saved.text.170") : (extractionError ? ui.t("batch6.documentcontextreader.document.text.could.not.be.loaded.170") : ui.t("batch6.documentcontextreader.document.could.not.be.loaded.170"))} <button type="button" onClick={state.retry}><UiMessage id="commissionfollowups.try_again"/></button></p>}
+    {loadError&&!state.retrying&&<p className="document-context-notice" role="alert">{hasText ? ui.t("batch6.documentcontextreader.couldn.t.update.the.document.showing.saved.text.170") : (extractionError ? ui.t("batch6.documentcontextreader.document.text.could.not.be.loaded.170") : ui.t("batch6.documentcontextreader.document.could.not.be.loaded.170"))} </p>}
     {!state.loading&&!loadError&&!document&&<p><UiMessage id="batch6.documentcontextreader.document.unavailable.here.171"/></p>}
     {(!wording||hasText&&(!placement||scopeLanguageMismatch))&&<AmendmentJustification record={selectedVariant}/>}
     {rejection&&!hasText&&<p className="document-context-notice" role="status">{placementReason}</p>}
@@ -192,9 +196,10 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
         <ReferenceScope key={id+':'+language} texts={readerTexts(body.paragraphs,notes,links)} notes={notes} notePrefix={notePrefix} language={interfaceLanguage} textLanguage={actual} renderQuestion={question=><InsightQuestionReader id={question} language={interfaceLanguage} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers/>}>
           <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&!scopeLanguageMismatch&&amendmentBlock(false)}<DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,allParagraphs.length)} exactOffsets
             paragraphProps={sourceIndex=>{const selected=Boolean(found&&indices.includes(sourceIndex)),reportSelected=sourceIndex===reportHeading;return {'data-source-paragraph':String(sourceIndex),'data-context-target':selected ? 'true' : undefined,'data-report-amendment':reportSelected ? 'true' : undefined,className:selected ? 'document-context-target' : undefined,tabIndex:(selected||reportSelected) ? (-1) : undefined};}}
+            renderTable={(last,table)=>afterTable&&last===placement?.insertAfter?<Fragment key={'table-'+last}>{table}{amendmentBlock(true)}</Fragment>:table}
             renderParagraph={(sourceIndex,paragraph)=>{
               if(placed&&placement?.span&&sourceIndex>=placement.span.start&&sourceIndex<=placement.span.end)return (sourceIndex===placement.span.start) ? amendmentBlock(true) : null;
-              return ((placed && (placement?.operation==='insert')) && (sourceIndex===placement.insertAfter)) ? <Fragment key={sourceIndex}>{paragraph}{amendmentBlock(true)}</Fragment> : paragraph;
+              return ((!afterTable&&placed && (placement?.operation==='insert')) && (sourceIndex===placement.insertAfter)) ? <Fragment key={sourceIndex}>{paragraph}{amendmentBlock(true)}</Fragment> : paragraph;
             }}
             renderText={(sourceIndex,paragraph,from,to,final,marks)=><DocumentObjectText assets={text?.imageAssets} text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes assets={text?.imageAssets} notes={notes} prefix={notePrefix}/></div>
         </ReferenceScope>
@@ -223,7 +228,7 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
         {selectedChoice ? <DocumentBody key={selectedChoice.id+':'+selectedLanguage} id={selectedChoice.id} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage}/> : (related.loading ? <p role="status"><UiMessage id="batch6.documentcontextreader.loading.linked.texts.211"/></p> : (!related.error&&<p><UiMessage id="batch6.documentcontextreader.this.adopted.text.is.unavailable.here.211"/></p>))}
       </> : <><h3><UiMessage id="batch6.documentcontextreader.adopted.texts.212"/></h3>{related.loading&&!data&&<p role="status"><UiMessage id="batch6.documentcontextreader.loading.linked.texts.211"/></p>}{data&&!choices.length&&!related.error&&<p><UiMessage id="batch6.documentcontextreader.adopted.text.unavailable.here.212"/></p>}{choices.length>0&&<ul className="document-context-choices">{choices.map(item=>{const title=titleOf(item,selectedLanguage, ui);return <li key={item.id}><button type="button" onClick={()=>select(item.id)}><span lang={title.language}>{title.text}</span>{item.date&&<time dateTime={item.date}>{item.date}</time>}</button></li>;})}</ul>}</>}
       {partial&&<p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.some.linked.texts.could.not.be.loaded.213"/></p>}
-      {related.error&&<p className="document-context-notice" role="alert"><UiMessage id="batch6.documentcontextreader.linked.texts.could.not.be.loaded.214"/> <button type="button" onClick={related.retry}><UiMessage id="commissionfollowups.try_again"/></button></p>}
+      {related.error&&<p className="document-context-notice" role="alert"><UiMessage id="batch6.documentcontextreader.linked.texts.could.not.be.loaded.214"/> </p>}
     </>}
   </section>;
 }

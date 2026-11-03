@@ -1,3 +1,4 @@
+import {backfillContext} from './base-source-backfill-context.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {documentBodyHints} from './document-body-hints.mjs';
 import {publishDocumentImages} from './document-image-store.mjs';
@@ -151,6 +152,20 @@ export function styleVisibility(stylesXml) {
   }
   return {styledHidden,defaultParagraph,defaultCharacter,defaults};
 }
+// Commission recasts print the codified act's deleted wording with named
+// struck-through CR styles and their editorial glyphs and source references
+// with CR Marker and CR Reference. Their legal reading omits all three.
+export function recastStyles(stylesXml) {
+  const styles=children(stylesXml?parser().parse(stylesXml):[],'w:styles') || [],characters=new Set(),paragraphs=new Set();
+  for(const node of styles){
+    if(!node['w:style'])continue;
+    const name=property(node['w:style'],'w:name'),id=attribute(node,'styleId'),type=attribute(node,'type'),rPr=children(node['w:style'],'w:rPr');
+    const struck=hiddenValue(rPr,'strike')===true||hiddenValue(rPr,'dstrike')===true;
+    if(type==='character'&&(struck&&/^CR (?:Refonte |Minor Change )?Deleted$/u.test(name)||name==='CR Marker'))characters.add(id);
+    if(type==='paragraph'&&name==='CR Reference')paragraphs.add(id);
+  }
+  return [...characters].some(id=>id!=='CRMarker')?{characters,paragraphs}:null;
+}
 // Footnote markers are recorded at their position instead of gluing their number to the text;
 // hyperlinks keep the exact span they cover, so the document itself identifies what a link names.
 const inlineContainers=new Set(['w:ins','w:moveTo','w:sdt','w:sdtContent','w:customXml','w:smartTag','w:fldSimple','w:dir','w:bdo']);
@@ -189,6 +204,7 @@ function inline(nodes,hidden,out,context) {
     if(key===':@')continue;
     if(key==='w:r') {
       const properties=children(value,'w:rPr');
+      if(context.recast?.characters.has(property(properties,'w:rStyle')))continue;
       const styled=context.style.styledHidden(property(properties,'w:rStyle') || context.style.defaultCharacter,hidden);
       const visibility={vanish:hiddenValue(properties)??styled.vanish,webHidden:hiddenValue(properties,'webHidden')??styled.webHidden};
       if(visibility.vanish||visibility.webHidden)continue;
@@ -225,13 +241,40 @@ function templateText(nodes) {
 }
 function paragraphsOf(nodes,context) {
   context.sourceIndex??=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0,blankStart=null;
+  // A body table is a continuation only when every native cell paragraph
+  // survives extraction. The paths identify its literal body neighbours; blank
+  // body rows may be omitted, while hidden or unsupported content stays a gap.
+  function tableBoundary(node,siblings,boundary) {
+    if(boundary.container!=='body')return null;
+    const at=siblings.indexOf(node),prior=siblings[at-1];
+    if(!prior?.['w:p'])return null;
+    const empty=value=>value.every(item=>Object.keys(item).every(key=>key===':@'||key==='w:pPr'));
+    let after=at+1;
+    while(siblings[after]?.['w:p']&&empty(siblings[after]['w:p']))after++;
+    const next=siblings[after];if(!next?.['w:p'])return null;
+    const text=JSON.stringify(node);
+    if(/"w:(?:ins|del|moveFrom|moveTo|tblPrChange|trPrChange|tcPrChange)"/u.test(text))return null;
+    const byPath=new Map(result.map(row=>[row.source.path,row]));let complete=true;
+    function cells(nodes) {
+      for(const item of nodes)for(const [key,value] of Object.entries(item)) {
+        if(key===':@')continue;
+        if(key==='w:p') {
+          const row=byPath.get(context.sourceIndex.get(item).path);
+          if(row?!row.source.complete:!empty(value))complete=false;
+        } else if(['w:tr','w:tc'].includes(key))cells(value);
+        else if(!['w:tblPr','w:tblGrid','w:trPr','w:tcPr'].includes(key))complete=false;
+      }
+    }
+    cells(node['w:tbl']);
+    return complete?{before:context.sourceIndex.get(prior).path,after:context.sourceIndex.get(next).path}:null;
+  }
   function visit(nodes,boundary={container:'other',containerPath:'/'}) {
   for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
     if(key==='w:p'){
       const out={text:'',marks:[],spans:[],objects:[],...(context.formatting?{runs:[]}:{})},counterGaps={...context.counterGaps};
       context.paragraphStyle=property(children(value,'w:pPr'),'w:pStyle');
       const paragraphVisibility=context.style.styledHidden(context.paragraphStyle || context.style.defaultParagraph,context.style.defaults);
-      inline(value,paragraphVisibility,out,context);
+      if(!context.recast?.paragraphs.has(context.paragraphStyle))inline(value,paragraphVisibility,out,context);
       const properties=children(value,'w:pPr'),number=context.numberLabel?.(properties),unknownList=!!number?.label&&counterGaps.lists,
         label=unknownList?'?':number?.label,section=context.paragraphSections?.get(node);
       if(unknownList)context.warnings.add('Some automatic list labels are unknown after skipped document content.');
@@ -266,7 +309,10 @@ function paragraphsOf(nodes,context) {
       visit(value,key==='w:body'?{container:'body',containerPath:context.sourceIndex.get(node).path}:key==='w:tc'?{container:'table-cell',containerPath:context.sourceIndex.get(node).path}:boundary);
       if(separated){segment++;blankStart=null;}
       if(cell){cell.end=result.length;tables.layout.rows.at(-1).cells.push(cell);tables.cell=null;}
-      if(tables&&key==='w:tbl'&&--tables.depth===0){const done=tables.layout;tables.layout=null;if(done.rows.some(row=>row.cells.some(cell=>cell.end>cell.start)))tables.found.push(tableLayout(done));}
+      if(tables&&key==='w:tbl'&&--tables.depth===0){const done=tables.layout;tables.layout=null;if(done.rows.some(row=>row.cells.some(cell=>cell.end>cell.start))){
+        const layout=tableLayout(done),bodyBoundary=tableBoundary(node,nodes,boundary);
+        tables.found.push({...layout,...(bodyBoundary?{bodyBoundary}:{})});
+      }}
     }
     else if(key!==':@'&&key!=='#text'&&!key.startsWith('?')&&!nonText.has(key)&&!blockProperties.has(key)) {
       counterGap(node,context);
@@ -279,14 +325,14 @@ function paragraphsOf(nodes,context) {
   return result;
 }
 // Paragraphs stay plain strings. Footnotes and links are returned separately with exact positions.
-export function docxContent(buffer,{includeParagraphProperties=false,includeNoteObjects=false,numbering=numberingLabels}={}) {
+export function docxContent(buffer,{includeParagraphProperties=false,includeNoteObjects=false,numbering=numberingLabels,recast=false}={}) {
   const parts=docxParts(buffer),images=docxImages(buffer,parts),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set(),extractionGaps=[];
   let incompleteNumber=false;
   const label=numbering(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(message){incompleteNumber=true;warnings.add(message);}});
   const numberLabel=properties=>{incompleteNumber=false;const value=label(properties);return {label:value,incomplete:incompleteNumber};};
   const document=parser().parse(parts.get('word/document.xml')),paragraphSections=new WeakMap(),noteLabel=noteNumbering(document,parts.get('word/settings.xml'),warnings,paragraphSections);
   const formatting=styleFormatting(children(parts.has('word/styles.xml')?parser().parse(parts.get('word/styles.xml')):[],'w:styles')),tables={depth:0,layout:null,cell:null,found:[]};
-  const body=paragraphsOf(document,{style,numberLabel,warnings,paragraphSections,formatting,tables,images,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
+  const body=paragraphsOf(document,{style,numberLabel,warnings,paragraphSections,formatting,tables,images,recast:recast?recastStyles(parts.get('word/styles.xml')):null,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
   if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
   const supplied=new Map();
   for(const kind of ['footnote','endnote'])if(parts.has('word/'+kind+'s.xml')) {
@@ -405,6 +451,7 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expec
   throw new Error('Too many document download redirects.');
 }
 export async function downloadDocx(sourceUrl,options={}) {
+  if(backfillContext())backfillContext().downloaded=true;
   const {buffer,resolvedSourceUrl,fetchedAt,requests}=await downloadDocxBuffer(sourceUrl,options);
   if(options.retainedDescriptor)await retainBaseObservation({url:sourceUrl,resolvedSourceUrl,fetchedAt,status:200,request:{accept:'*/*',language:options.retainedDescriptor.language},headers:{'content-type':requests.at(-1)?.response.contentType},descriptor:options.retainedDescriptor},buffer,{directory:options.directory});
   const sourceHash=createHash('sha256').update(buffer).digest('hex');

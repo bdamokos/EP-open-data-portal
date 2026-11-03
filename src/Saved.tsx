@@ -1,3 +1,7 @@
+import {useAutomaticRetry} from './useAutomaticRetry';
+import {useSavedReadState,useSavedRecovery} from './SavedControls';
+import {YourVotes} from './YourVotes';
+import {PolicyAreaSourcesPage} from './PolicyAreaSources';
 import {FollowedTopics,useTopics} from './TopicFollowing';
 import {uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -32,8 +36,9 @@ function savedCheckMessage(items:SavedItem[],data:SavedStates, ui: import('./uiI
 export type FollowingActivityProps={member:number;sourceId:string;profileHref:string;onOpenProfile:()=>void};
 type SavedProps={members?:Directory['members'];language:string;onBack:()=>void;onMember:(id:number,sourceId?:string)=>void;renderActivity:(props:FollowingActivityProps)=>ReactNode};
 const entryKey=(entry:FollowEntry)=>entry.kind+':'+entry.id;
-function FollowCard({item,directoryMember,language,onMember,renderActivity,now,resolution,retry,checkState,check}:{item:SavedItem;directoryMember?:Directory['members'][number];now:number;resolution:{pending?:boolean;error?:string};retry:()=>void;checkState:string;check:()=>void}&Pick<SavedProps,'language'|'onMember'|'renderActivity'>) {
+function FollowCard({item,directoryMember,language,onMember,renderActivity,now,resolution,retry,checkState,check}:{item:SavedItem;directoryMember?:Directory['members'][number];now:number;resolution:{pending?:boolean;error?:string;failure?:unknown};retry:()=>void;checkState:string;check:()=>void}&Pick<SavedProps,'language'|'onMember'|'renderActivity'>) {
   const ui = useUiI18n();
+  const retrying=useAutomaticRetry(JSON.stringify([language,item.kind,item.id,item.savedAt]),resolution.failure,Boolean(resolution.pending),retry);
   const groups=useGroups(),groupsNew=(item.kind==='mep') ? groupEntries(groups,item.id,now).fresh.length : 0;
   const membership=useMembership(),membershipNew=(item.kind==='mep') ? membershipEntries(membership,item.id,now).fresh.length : 0;
   const key=savedKey(item),{fresh,history,historyOmitted}=followEntries(item,now),hasNew=itemHasNew(item,now)||membershipNew>0||groupsNew>0;
@@ -60,12 +65,12 @@ function FollowCard({item,directoryMember,language,onMember,renderActivity,now,r
   };
   return <article>
     <div className="explorer-saved-heading">{(item.kind==='mep') ? <><Portrait member={{id:Number(item.id),firstName:'',lastName:'',sortName:'',gender:'m',countryCode:null,imageUrl:`${API_ROOT}/portrait/${item.id}`}}/><div className="explorer-saved-member-heading"><h3 lang={item.titleLanguage||''}>{item.title}</h3><MemberAffiliation group={directoryMember?.groupCode} country={directoryMember?.countryCode} language={language}/></div></> : <h3 lang={item.titleLanguage||''}>{item.title}</h3>}<SaveButton item={item} language={language} compact/></div>
-    <div className="explorer-saved-state">{(item.unresolved?.activity||item.unresolved?.answer) ? (resolution.error ? <p role="alert"><UiMessage id="Saved.activityError" values={{error:resolution.error}}/> <button onClick={retry}><UiMessage id="textsearch.retry.9f5cd8"/></button></p> : <strong className="explorer-update-label"><UiMessage id="Saved.checking_for_new_activity"/></strong>) : (hasNew&&<strong className="explorer-update-label">{((((fresh.length===1) && (membershipNew===0)) && (groupsNew===0)) && (fresh[0].kind==='answer')) ? ui.t("Saved.new_answer") : ((fresh.length+membershipNew+groupsNew) ? ui.t("dossierCard.state.1", {count: String((fresh.length+membershipNew+groupsNew+omitted))}) : (item.legacyUpdated ? ui.t("Saved.updated_before_the_upgrade") : ui.t("Saved.question_details_changed")))}</strong>)}
+    <div className="explorer-saved-state">{(item.unresolved?.activity||item.unresolved?.answer) ? (resolution.error&&!retrying ? <p role="alert"><UiMessage id="Saved.activityError" values={{error:resolution.error}}/> </p> : <strong className="explorer-update-label"><UiMessage id="Saved.checking_for_new_activity"/></strong>) : (hasNew&&<strong className="explorer-update-label">{((((fresh.length===1) && (membershipNew===0)) && (groupsNew===0)) && (fresh[0].kind==='answer')) ? ui.t("Saved.new_answer") : ((fresh.length+membershipNew+groupsNew) ? ui.t("dossierCard.state.1", {count: String((fresh.length+membershipNew+groupsNew+omitted))}) : (item.legacyUpdated ? ui.t("Saved.updated_before_the_upgrade") : ui.t("Saved.question_details_changed")))}</strong>)}
     {!hasNew&&checkState==='available'&&!item.legacy&&<p>{(item.availability==='available') ? ui.t("dossierCard.state.3") : (item.checkedAt ? ui.t("Saved.update_information_is_unavailable") : '')}</p>}
     </div>
     {item.availability==='outside-roster'&&membership.members[item.id]?.status!=='former'&&<p><UiMessage id="Saved.no_longer_on_the_current_roster"/></p>}
     {item.kind==='question'&&<p>{item.current?.answerIds?.length ? ui.t("Saved.answer_available") : ((item.availability==='available') ? ui.t("Saved.no_answer_yet") : ui.t("Saved.answer_availability_has_not_been_checked"))}</p>}
-    {item.legacy&&<p><UiMessage id="Saved.update_check_pending"/> <button onClick={check}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>}
+    {item.legacy&&<p><UiMessage id="Saved.update_check_pending"/> </p>}
     {!item.indexComplete&&<small><UiMessage id="Saved.some_updates_could_not_be_checked"/></small>}
     <div className="explorer-saved-actions">{(item.kind==='mep'||item.memberId)&&<button onClick={()=>{if(item.kind==='question')store.openQuestion(key);onMember(member,(item.kind==='question') ? item.id : undefined);}}>{(item.kind==='mep') ? ui.t("interface.profile") : (item.current?.answerIds?.length ? ui.t("parliamentsearchresults.read_question_and_answers.d9f136") : ui.t("textsearch.read_question"))}</button>}
     {item.kind==='question'&&item.availability==='not-saved'&&<p><UiMessage id="Saved.details_not_available_yet"/></p>}
@@ -77,7 +82,8 @@ function FollowCard({item,directoryMember,language,onMember,renderActivity,now,r
   </article>;
 }
 export function Saved({members,language,onBack,onMember,renderActivity}:SavedProps) {
-  const topicFollows=useTopics();
+  useSavedRecovery(language);
+  const topicFollows=useTopics(),readState=useSavedReadState(),recovering=readState.loading||readState.retrying;
   const ui = useUiI18n();
   const membersById=useMemo(()=>new Map(members?.map(member=>[String(member.id),member])),[members]);
   useDossierChecks();
@@ -112,25 +118,25 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
       }
     })().finally(()=>{if(current())setChecking(false);});
   };
-  return <section className="explorer-saved-view" lang={ui.language}>
+  return <PolicyAreaSourcesPage enabled={topicFollows.some(c=>c.key.startsWith('oeil:'))}><section className="explorer-saved-view" lang={ui.language}>
     <Status scope={`saved-check:${context}:${attempt}`} message={((!dossiers.items.length) && (completion?.items===items)) ? completion.message : null} pending={checking||dossierChecking}/>
     <button onClick={onBack}><UiMessage id="document.back"/></button>
     <div className="explorer-saved-heading"><h1><UiMessage id="batch4.dossiercontrols.tsx.64.2"/></h1></div>
-    <FollowedTopics/>
+    <FollowedTopics/><YourVotes language={language} members={members}/>
     {!saved.persistent&&<p><UiMessage id="Saved.browser_storage_is_unavailable_follows_last_only_for_this_tab"/></p>}
-    {saved.storageError&&<p role="alert" className="explorer-storage-error"><UiMessage id="Saved.storageError" values={{time:new Date(saved.unsavedSince||Date.now()).toLocaleTimeString(ui.locale)}}/> <button onClick={()=>store.retryStorage()}><UiMessage id="Saved.retry_saving"/></button></p>}
+    {saved.storageError&&<p role="alert" className="explorer-storage-error"><UiMessage id="Saved.storageError" values={{time:new Date(saved.unsavedSince||Date.now()).toLocaleTimeString(ui.locale)}}/> </p>}
     {items.some(item=>item.kind==='mep')&&<GroupUpdateStatus retry={check}/>}
-    {membership.storageError&&<p role="alert"><UiMessage id="Saved.membership_updates_could_not_be_saved_in_this_browser"/> <button onClick={()=>membershipStore.retryStorage()}><UiMessage id="Saved.retry_saving_membership_updates"/></button></p>}
+    {membership.storageError&&<p role="alert"><UiMessage id="Saved.membership_updates_could_not_be_saved_in_this_browser"/> </p>}
     {items.some(item=>item.kind==='mep')&&membershipCheck==='unavailable'&&<p className="explorer-membership-status"><UiMessage id="Saved.some_membership_updates_are_unavailable"/></p>}
-    {items.some(item=>item.kind==='mep')&&membershipCheck==='error'&&<p className="explorer-membership-status" role="alert"><UiMessage id="Saved.couldn_t_check_membership_updates"/> <button onClick={check}><UiMessage id="Saved.retry_membership_updates"/></button></p>}
-    {items.some(item=>item.kind==='mep')&&saved.checkState==='unavailable'&&<p><UiMessage id="Saved.update_checks_are_not_available_yet_for_meps"/> <button onClick={check}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>}
-    {items.some(item=>item.kind==='mep')&&saved.checkState==='error'&&<p><UiMessage id="Saved.couldn_t_check_for_mep_updates"/> <button onClick={check}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>}
-    {items.some(item=>item.kind==='question')&&saved.questionCheckState==='error'&&<p><UiMessage id="Saved.couldn_t_check_for_question_answers"/> <button onClick={check}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>}
-    {error&&membershipCheck!=='error'&&<p>{error}</p>}
+    {items.some(item=>item.kind==='mep')&&membershipCheck==='error'&&!recovering&&<p className="explorer-membership-status" role="alert"><UiMessage id="Saved.couldn_t_check_membership_updates"/> </p>}
+    {items.some(item=>item.kind==='mep')&&saved.checkState==='unavailable'&&<p><UiMessage id="Saved.update_checks_are_not_available_yet_for_meps"/> </p>}
+    {items.some(item=>item.kind==='mep')&&saved.checkState==='error'&&!recovering&&<p><UiMessage id="Saved.couldn_t_check_for_mep_updates"/> </p>}
+    {items.some(item=>item.kind==='question')&&saved.questionCheckState==='error'&&!recovering&&<p><UiMessage id="Saved.couldn_t_check_for_question_answers"/> </p>}
+    {error&&!recovering&&membershipCheck!=='error'&&<p>{error}</p>}
     {!dossiers.persistent&&dossiers.items.length>0&&<p><UiMessage id="Saved.dossier_follows_last_only_for_this_tab"/></p>}
-    {dossiers.storageError&&<p role="alert"><UiMessage id="Saved.dossier_changes_couldn_t_be_saved_in_this_browser"/> <button onClick={()=>dossierStore.retryStorage()}><UiMessage id="Saved.retry_saving"/></button></p>}
+    {dossiers.storageError&&<p role="alert"><UiMessage id="Saved.dossier_changes_couldn_t_be_saved_in_this_browser"/> </p>}
     {!items.length&&!dossiers.items.length&&!topicFollows.length&&<p><UiMessage id="Saved.follow_a_mep_or_dossier_or_save_a_question_to_see_updates_here"/></p>}
     <div className="explorer-saved-items">{cards.map(({item})=>(item.kind==='dossier') ? <DossierCard key={'dossier:'+item.id+':'+item.savedAt} item={item} language={language} now={now}/> : <FollowCard key={savedKey(item)+':'+item.savedAt} item={item} directoryMember={membersById.get(item.id)} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={(item.kind==='question') ? saved.questionCheckState : saved.checkState} check={check}/>)}</div>
     <FollowSuggestions language={language}/>
-  </section>;
+  </section></PolicyAreaSourcesPage>;
 }

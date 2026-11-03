@@ -9,9 +9,12 @@ const labels=new Map(patterns.map(entry=>[entry.label,entry]));
 // One longest-name scan avoids testing every country against every title.
 const placePattern=new RegExp('(?<![\\p{L}])(?:'+[...labels.keys()].sort((a,b)=>b.length-a.length).map(label=>escape(label).replaceAll(' ','[ -]+')).join('|')+')(?![\\p{L}])','gu');
 const cache=new Map();
+// In "<office> of <country>, <Name>" the name is a person, never a place ("Prime Minister of Portugal, Luís Montenegro").
+const officeHolder=/\b(?:Prime Minister|President|Chancellor|Taoiseach|King|Queen|Grand Duke|Grand Duchess|Prince|Head of State|Head of Government) of (?:the )?[^,()]{2,60}?, (\p{Lu}[\p{L}'’.-]*(?: \p{Lu}[\p{L}'’.-]*){1,3})(?=\s*(?:$|[(,–—]|- ))/gu;
+const maskOfficeHolders=raw=>raw.replace(officeHolder,(match,name)=>match.slice(0,match.length-name.length)+' '.repeat(name.length));
 export function titlePlaces(title) {
   const raw=String(title||'');if(cache.has(raw))return cache.get(raw);
-  const text=normalize(raw),candidates=[];
+  const text=normalize(maskOfficeHolders(raw)),candidates=[];
   for(const match of text.matchAll(placePattern)) {
     const entry=labels.get(match[0].replace(/[ -]+/g,' '))||labels.get(match[0]);if(!entry)continue;
     if(entry.short&&!/^[A-Z.]+$/.test(raw.slice(match.index,match.index+match[0].length)))continue;

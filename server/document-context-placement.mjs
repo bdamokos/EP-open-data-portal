@@ -1,6 +1,7 @@
+import {amendmentAlternative} from './amendment-alternative.mjs';
 import {amendmentRejection} from './amendment-rejection.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
-import {resolveAmendmentPlacement,amendmentOperation,resolutionReference} from './document-context-model.mjs';
+import {resolveAmendmentPlacement,amendmentOperation,resolutionReference,resolveTableInsertion} from './document-context-model.mjs';
 import {resolveProposalPlacement} from './proposal-placement.mjs';
 import {resolveExistingLawPlacement} from './existing-law-placement.mjs';
 
@@ -10,6 +11,8 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   if(!includeBody)return null;
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
+  const alternative=amendmentAlternative(chosen);
+  if(alternative)return alternative;
   const rejection=amendmentRejection(chosen);
   if(rejection)return rejection;
   const mixedScope=amendmentMixedLanguageScope(chosen),scope=amendmentLanguageScope(chosen);
@@ -30,9 +33,19 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
     ?resolveProposalPlacement(items,chosen):unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
   const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
+  const labelled=chosen.targetLabelLanguage===chosen.language&&Boolean(resolutionReference(chosen.targetLabel,chosen.language));
   let placement=['present-text','council-position'].includes(chosen.baseline)
     ?unresolved(chosen.baseline==='present-text'?'amends_existing_law':'council_position_unavailable')
-    :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:comparable[0],resolutionDocument});
-  if(comparable.length>1){placement={...placement,status:'unresolved',reason:'conflicting_target_evidence'};delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
+    :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:labelled?undefined:comparable[0],resolutionDocument});
+  if(placement.reason==='source_passage_incomplete')placement=resolveTableInsertion(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined})??placement;
+  // Vote lists can rearrange provisions. The published amendment label owns
+  // this view; retain disagreement only as a final-text check for the reader.
+  if(!labelled&&comparable.length>1){placement={...placement,status:'unresolved',reason:'conflicting_target_evidence'};delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
+  if(placement.status==='placed'&&labelled&&comparable.some(reference=>
+    resolveAmendmentPlacement(text,{...chosen,referenceText:reference,resolutionDocument}).reason==='conflicting_target_evidence')) {
+    placement={...placement,finalPlacementCheck:{adoptedTextUrl:null}};
+  }
   return placement;
 }
+
+export {amendmentAlternative,amendmentRejection};

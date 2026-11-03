@@ -1,3 +1,4 @@
+import officialSubjects from './oeil-subjects.json' with {type:'json'};
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
@@ -50,6 +51,7 @@ test('indexed summaries, subject/person intersections and evidence pages use sav
  for(const a of [speech('1','2026-09-01'),speech('2','2026-10-06'),speech('3','2026-10-06',[participation('43','S_D')]),speech('4','2026-10-06',[participation('42','PPE')])])worker.saveSpeech(cycle.generation,a,stamp,false,'https://data.europarl.europa.eu/api/v2/speeches');
  worker.saveSpeech(cycle.generation,speech('2','2026-10-06'),stamp); // idempotent
  const summary=groupVoicesPage(store,query());assert.equal(summary.people.length,2);assert.equal(summary.people[0].total,2);assert.equal(summary.people[0].name,'Éva Example');assert.deepEqual(summary.months,['2026-10','2026-09']);
+ assert.deepEqual(summary.people[0].days,{'2026-09-01':1,'2026-10-06':1});assert.deepEqual(summary.people[1].days,{'2026-10-06':1});
  assert.deepEqual(summary.groupSubjects.find(g=>g.id==='S_D'),{id:'S_D',total:3,speakerTotal:2,subjects:{},unresolvedContributions:3,truncated:false});assert.deepEqual(summary.groupSubjects.find(g=>g.id==='PPE'),{id:'PPE',total:1,speakerTotal:1,subjects:{},unresolvedContributions:1,truncated:false});assert.equal(summary.groupSubjects.find(g=>g.id==='ECR').total,0);assert.equal(groupVoicesQuery(new URLSearchParams(),{now:now()}).group,'PPE');
  const page=groupVoicesPage(store,query('part=contributions&person=42&limit=1'));assert.equal(page.total,2);assert.equal(page.nextOffset,1);assert.equal(page.contributions[0].designation.group,'S_D');assert(page.contributions[0].source.fetchedAt);
  assert.equal(groupVoicesPage(store,query('period=2026-08')).coverage.authoritativeComplete,false);
@@ -199,8 +201,9 @@ test('group topic counts use indexed joins and stay exact across statuses withou
  assert(!statements.some(sql=>/SELECT body FROM record_topic_records WHERE generation=\? AND id=\?/.test(sql)),'no per-contribution record reads');
  assert.deepEqual(summary.groupSubjects.find(g=>g.id==='S_D'),{id:'S_D',total:3,speakerTotal:2,subjects:{'oeil:3.10.01':1,'oeil:7.30.30.06':1},unresolvedContributions:2,truncated:false});
  assert.deepEqual(summary.groupSubjects.find(g=>g.id==='PPE'),{id:'PPE',total:1,speakerTotal:1,subjects:{'oeil:3.10.01':1},unresolvedContributions:0,truncated:false});
- assert.deepEqual(summary.topicAvailability,{state:'partial',unresolvedContributions:2});assert.deepEqual(summary.subjects,concepts.map(c=>({id:c.key,label:c.labels.en})));
+ assert.deepEqual(summary.topicAvailability,{state:'partial',unresolvedContributions:2});assert.deepEqual(summary.subjects,concepts.map(c=>({id:c.key,label:officialSubjects.subjects[c.key.slice(5)].labels.en.trim().replace(/\s+/g,' '),labelLanguage:'en'})));
  assert.deepEqual(summary.people.find(p=>p.id==='42').subjects,{'oeil:3.10.01':1,'oeil:7.30.30.06':1});
+ const french=groupVoicesPage(store,query('lang=fr'));assert(french.subjects.every(c=>c.labelLanguage==='fr'&&!('source' in c)));assert.equal(french.subjects[0].label,officialSubjects.subjects[french.subjects[0].id.slice(5)].labels.fr.trim().replace(/\s+/g,' '));
  const page=groupVoicesPage(store,query('part=contributions&subject=oeil:7.30.30.06'));assert.equal(page.knownTotal,1);assert.equal(page.total,null);assert.deepEqual(page.contributions.map(c=>[c.id,c.topics]),[[voices[0].id,['oeil:3.10.01','oeil:7.30.30.06']]]);
  const plan=store.db.prepare("EXPLAIN QUERY PLAN SELECT json_extract(r.body,'$.status') FROM record_topic_records r INDEXED BY topic_record_status WHERE r.generation=? AND r.id=?").all(1,'x');assert(plan.some(p=>/COVERING INDEX topic_record_status/.test(p.detail)));
 });

@@ -1,3 +1,4 @@
+import {installRetryClock,automaticRecovery,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -21,18 +22,19 @@ test('dossier summary loading and failure do not expose the unfinished amendment
     const url=new URL(input,window.location.href);
     if(url.pathname.endsWith('/insights/procedure-progress'))return Response.json({reference:'2025/0407(COD)',state:'unmapped',events:[],coverage:{limited:false,invalidRows:0,incompleteEvents:0},source:{fetchedAt:'2026-10-20T10:00:00Z',stale:false,refreshInProgress:false,refreshError:null}});
     assert(url.pathname.endsWith('/insights/procedure-context'));
-    return pending;
+    return pending.then(()=>Response.json({error:{message:'Summary service unavailable.'}},{status:503}));
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(ProcedureContext,{reference:'2025/0407(COD)',language:'en',showTitle:true})));
   const amendmentLinks=()=>[...container.querySelectorAll('a')].filter(link=>link.textContent.includes('Amendments for this dossier'));
   assert.equal(amendmentLinks().length,0);
   assert.match(container.textContent,/Loading summary/);
   assert.equal(container.querySelector('.explorer-save-button'),null,'the follow target waits until the title settles');
-  await act(async()=>respond(Response.json({error:{message:'Summary service unavailable.'}},{status:503})));
+  await act(async()=>respond());
+  assert.match(container.textContent,/Loading summary/);assert.equal(container.querySelector('.explorer-error button'),null);await exhaustAutomaticRetries(t);
   assert.equal(amendmentLinks().length,0,'a failed summary must not expose the unfinished catalogue');
   assert.match(container.textContent,/Read on Legislative Observatory/);
   assert.doesNotMatch(container.textContent,/Loading summary/);

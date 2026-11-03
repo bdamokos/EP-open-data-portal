@@ -1,7 +1,7 @@
 import {RECORD_TOPICS_VERSION} from './record-topics.mjs';
 import {STORY_FACTS_VERSION} from './story-facts-model.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';
-import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import path from 'node:path';import {DatabaseSync} from 'node:sqlite';
+import {mkdtemp,rm,readFile} from 'node:fs/promises';import {tmpdir} from 'node:os';import path from 'node:path';import {DatabaseSync} from 'node:sqlite';
 import {ActivityStore} from './activity-index-store.mjs';import {RecordTopics,writeTopicProjection} from './topics-store.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
 import {rebuildTopicProjection,topicRebuildDue} from './topic-publication.mjs';import {topicCollectorTables} from './topics-project.mjs';
@@ -9,7 +9,7 @@ import {groupVoiceProjection,groupVoicesQuery} from './group-voices-model.mjs';i
 test('topics, record-topics and Group voices keep the previous publication through a shadow rebuild and failure',async t=>{
  const dir=await mkdtemp(path.join(tmpdir(),'topics-shadow-')),now=()=>Date.parse('2026-11-02T10:00Z'),store=new ActivityStore(dir,{clock:now,initializeIndexes:true});store.acquire();t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});const {generation}=store.beginCycle();initializeGroupVoices({store,clock:now},generation,[]);
  const id='MTG-PL-2026-10-06-OTH-1',work={activity_id:id,activity_date:'2026-10-06',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{participation_role:'def/ep-roles/SPEAKER',had_participant_person:['person/42'],participation_in_name_of:'org/S_D'}]},voice=groupVoiceProjection(work,{fetchedAt:new Date(now()).toISOString()});store.putSource(generation,'/speeches/'+id,'speech',{id,groupVoices:voice,outside:{id,titles:{en:'Heading'},participants:['42'],date:'2026-10-06',parentIds:[]}},new Date(now()).toISOString());store.publish(generation);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(generation,'/questions/E-10-2026-000001','E-10-2026-000001','42','written-questions','2026-10-06',JSON.stringify({titles:{en:'Greece'}}));
- const concept={key:'oeil:8.20',role:'topic',labels:{en:'Published area'},uri:'https://oeil.europarl.europa.eu/oeil/en'};
+ const concept={key:'oeil:9.99',role:'topic',labels:{en:'Published area'},uri:'https://oeil.europarl.europa.eu/oeil/en'};
  writeTopicProjection(store,{concepts:[concept],records:[{id,kind:'speech',date:'2026-10-06',members:['42'],titles:{en:'Heading'},status:'classified',assignments:[{key:concept.key,role:'topic',paths:[{basis:'debate',steps:[],sources:[]}]}]}]});
  const db=new DatabaseSync(store.filename,{readOnly:true});t.after(()=>db.close());const reader={db,get:k=>JSON.parse(db.prepare('SELECT value FROM meta WHERE key=?').get(k)?.value||'null'),clock:now,readSnapshot:fn=>{db.exec('BEGIN');try{return fn();}finally{db.exec('COMMIT');}}};
  const old=()=>{assert.equal(new RecordTopics(reader).query(new URLSearchParams('role=topic'),'overview').items[0].label,'Published area');assert.equal(new RecordTopics(reader).query(new URLSearchParams({ids:id})).records[0].topics[0].key,concept.key);const voices=groupVoicesPage(reader,groupVoicesQuery(new URLSearchParams('group=S_D'),{now:now()}));assert(voices.ready);assert.equal(voices.groupSubjects.find(g=>g.id==='S_D').subjects[concept.key],1);};
@@ -52,4 +52,16 @@ test('backoff and a used window stop builds waking or blocking the writer',async
  // Further recovery publications in the same window wait for the next night.
  store.set('active',3);store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation:2,dataGeneration:2,askerSubsets:['all','home','elsewhere','not-home']});store.set('storyProjection',{version:STORY_FACTS_VERSION,generation:2,dataGeneration:2});assert.equal(topicRebuildDue(store,now+50*60_000),false,'at most two refreshes per window');
  now+=86400_000;assert(topicRebuildDue(store,now));
+});
+
+test('a story-version bump alone schedules the full rebuild that recomputes record topics',async t=>{
+ const {ActivityWorker}=await import('./activity-index-worker.mjs');
+ const dir=await mkdtemp(path.join(tmpdir(),'topics-story-version-'));const now=Date.parse('2026-11-02T03:10:00Z');const store=new ActivityStore(dir,{clock:()=>now,initializeIndexes:true});store.acquire();t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});
+ store.set('active',1);const worker=new ActivityWorker(store,{clock:()=>now});worker.generationExecutor=async()=>assert.fail('not called');
+ store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation:1,dataGeneration:1,askerSubsets:['all','home','elsewhere','not-home']});
+ store.set('storyProjection',{version:STORY_FACTS_VERSION-1,generation:1,dataGeneration:1});
+ // 'stories' runs rebuildTopicProjection, the same shadow build as 'topics', so title places reach topic and place pages.
+ assert.equal(worker.topicBuildStep(),'stories');
+ const source=await readFile(new URL('./activity-generation-worker.mjs',import.meta.url),'utf8');assert.match(source,/operation==='publish'\)value=store\.finalize\(generation\);else value=await rebuildTopicProjection\(/);
+ store.set('storyProjection',{version:STORY_FACTS_VERSION,generation:1,dataGeneration:1});assert.equal(worker.topicBuildStep({versionsOnly:true}),null);
 });

@@ -12,6 +12,8 @@ type Source={fetchedAt:string;stale:boolean;refreshInProgress:boolean;refreshErr
 type Progress={reference:string;language:string;state:'mapped'|'unmapped'|'ambiguous';dossier:string|null;status?:{label:string;language:string}|null;events:ProgressEvent[];coverage:Coverage;source:Source;fallback?:{status:string;retryAt:number|null}};
 type Document={event:string;work:string;title:string|null;titleLanguage:string|null;celex:string[];url:string|null};
 type Documents={reference:string;state:Progress['state'];dossier:string|null;documents:Document[];coverage:Coverage;source:Source};
+// Only advertised source/fallback deadlines extend the finite progress poll.
+const progressRetry={retryWhile:(data:Progress|Documents)=>progressSourceState(data).retryAt>0,retryAtFor:(data:Progress|Documents)=>progressSourceState(data).retryAt};
 const institutions:Record<string,string>={EP:'European Parliament',CONSIL:'Council of the EU',COM:'European Commission',EESC:'European Economic and Social Committee',COR:'Committee of the Regions'};
 export const institutionsUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : typeof institutions => ({EP:ui.t("batch5.speechplayer.tsx.25.75"),CONSIL:ui.t("batch6.procedureprogress.council.of.the.eu.13"),COM:ui.t("batch6.procedureprogress.european.commission.13"),EESC:ui.t("batch6.procedureprogress.european.economic.and.social.committee.13"),COR:ui.t("batch6.procedureprogress.committee.of.the.regions.13")});
 
@@ -35,10 +37,10 @@ function Status({event,today}:{event:ProgressEvent;today:string}) {
 export function ProcedureProgress({reference,language}:{reference:string;language:string}) {
   const ui = useUiI18n();
   const params=new URLSearchParams({reference,lang:language}),timelineId=useId(),headingId=useId();
-  const state=useInsightData<Progress>('insights/procedure-progress?'+params),data=(state.data?.reference===reference) ? state.data : null;
+  const state=useInsightData<Progress>('insights/procedure-progress?'+params,undefined,progressRetry),data=(state.data?.reference===reference) ? state.data : null;
   const [expanded,setExpanded]=useState(false),[institution,setInstitution]=useState('all'),[allEvents,setAllEvents]=useState(false),[documentsNeeded,setDocumentsNeeded]=useState(false);
   useEffect(()=>{setExpanded(false);setInstitution('all');setAllEvents(false);setDocumentsNeeded(false);},[reference,language]);
-  const documents=useInsightData<Documents>(documentsNeeded ? ('insights/procedure-progress?'+params+'&detail=documents') : null);
+  const documents=useInsightData<Documents>(documentsNeeded ? ('insights/procedure-progress?'+params+'&detail=documents') : null,undefined,progressRetry);
   // Date-only legislative dates retain their calendar day in every time zone.
   const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const events=(data?.state==='mapped') ? data.events : ([]);
@@ -53,14 +55,6 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
   const savedFailure=Boolean(data&&(state.error||freshness.failed));
   const available=Boolean(data?.state==='mapped'&&(events.length||data.status));
   const retryAt=Math.max(state.retryAt||0,freshness.retryAt),docRetryAt=Math.max(documents.retryAt||0,docFreshness.retryAt);
-  const [retryClock,setRetryClock]=useState(0);
-  useEffect(()=>{
-    const future=[retryAt,docRetryAt].filter(at=>at>Date.now());
-    if(!future.length)return;
-    const at=Math.min(...future);
-    const timer=setTimeout(()=>setRetryClock(value=>value+1),Math.min(at-Date.now()+1,2_147_483_647));
-    return()=>clearTimeout(timer);
-  },[retryAt,docRetryAt,retryClock]);
   const retryDisabled=state.loading||retryAt>Date.now();
   const title=/\((COD|CNS)\)$/.test(reference) ? ui.t("dossierCard.event.11") : ui.t("batch6.procedureprogress.procedure.progress.57");
   const docData=(documents.data?.reference===reference) ? documents.data : null;
@@ -69,7 +63,7 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
       {available&&data?.status&&<span className="procedure-progress-stage" lang={data.status.language}>{data.status.label}</span>}
       {!available&&<span className="procedure-progress-muted" role="status">{state.loading ? <UiMessage id="batch6.procedureprogress.checking.62"/> : <UiMessage id="grouplabels.ts.unavailable"/>}</span>}
       {available&&(state.loading||savedFailure||freshness.stale)&&<span className="procedure-progress-muted" role="status">{state.loading ? ui.t("batch6.procedureprogress.checking.62") : (savedFailure ? ui.t("batch6.procedureprogress.update.unavailable.63") : ui.t("batch6.procedureprogress.saved.progress.63"))}</span>}
-      {!available&&!state.loading&&<button type="button" onClick={state.retry} disabled={retryDisabled}>{(retryAt>Date.now()) ? <UiMessage id="batch6.procedureprogress.try.later.64"/> : <UiMessage id="batch6.procedureprogress.check.again.64"/>}</button>}
+      {!available&&!state.loading&&null}
     </header>
     {data&&<>
       {data.state==='mapped'&&<>
@@ -92,7 +86,7 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
                 {event.issues.some(issue=>['type','label','status'].includes(issue))&&<p className="procedure-progress-muted">{[...new Set(event.issues.map(issue=>({type:ui.t('coverage.eventType'),label:ui.t('coverage.eventDescription'),status:ui.t('coverage.eventStatus')} as Record<string,string>)[issue]).filter(Boolean))].join(' · ')}</p>}
                 {event.works.length>0&&<details className="procedure-progress-documents" onToggle={toggle=>{if(toggle.currentTarget.open){setDocumentsNeeded(true);if(docData&&(documents.error||docFreshness.stale||docFreshness.failed)&&!documents.loading&&docRetryAt<=Date.now())documents.retry();}}}><summary><UiMessage id="batch6.procedureprogress.documents.82"/></summary>
                   {documents.loading&&!docData&&<p role="status"><UiMessage id="batch6.procedureprogress.loading.document.links.83"/></p>}
-                  {documents.error&&!docData&&<p role="status"><UiMessage id="batch6.procedureprogress.document.links.unavailable.84"/> <button type="button" onClick={documents.retry} disabled={docRetryAt>Date.now()}><UiMessage id="commissionfollowups.try_again"/></button></p>}
+                  {documents.error&&!docData&&<p role="status"><UiMessage id="batch6.procedureprogress.document.links.unavailable.84"/> </p>}
                   {docData&&<>
                     {(documents.loading||documents.error||docFreshness.failed||docFreshness.stale)&&<p className="procedure-progress-muted" role="status">{documents.loading ? ui.t("dossierCard.state.2") : ((documents.error||docFreshness.failed) ? ui.t("batch6.procedureprogress.couldn.t.check.for.updates.86") : ui.t("batch6.procedureprogress.not.checked.recently.86"))}</p>}
                     {partial(docData.coverage)&&<p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.some.document.details.unavailable.87"/></p>}

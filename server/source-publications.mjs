@@ -1,7 +1,8 @@
+import {overviewMetaKeys} from './topics-overview-state.mjs';
 // Readers already key caches from committed SQLite revisions. Forward small
 // revision notices too, so serving-side hooks never depend on shared JS state.
 export function observePublications(store,source,send) {
-  const keys=['active','availabilityRevision','availabilityCoverageRevision','demographicRevision','marksEpoch','markBaseline','lastSuccess','amendmentMutationRevision','amendmentReadVersion','speechReadRevision','backfilledAt'];
+  const keys=[...new Set([...overviewMetaKeys,'active','availabilityRevision','availabilityCoverageRevision','demographicRevision','marksEpoch','markBaseline','lastSuccess','amendmentMutationRevision','amendmentReadVersion','speechReadRevision','backfilledAt'])];
   let previous,scheduled=false,closed=false;
   const publish=()=>{
     scheduled=false;if(closed)return;

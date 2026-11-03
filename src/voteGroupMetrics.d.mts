@@ -1,0 +1,9 @@
+export type Position='for'|'against'|'abstaining';
+export type VoteMetricRow={group:string|null;country?:string|null;position:Position|null};
+export type GroupMajority={code:string;counts:Record<Position,number>;voters:number;majority:Position|null;unity:number|null};
+export function groupMajorities(rows:VoteMetricRow[]):GroupMajority[];
+export function differentFromMajority(rows:VoteMetricRow[]):number;
+export function allGroupsAgree(groups:GroupMajority[]):boolean;
+export function fisherExactTwoSided(a:number,b:number,c:number,d:number):number;
+export type DelegationBreak={group:string;country:string;for:number;against:number;restFor:number;restAgainst:number;size:number;p:number};
+export function delegationBreaks(rows:VoteMetricRow[],options?:{minVoting?:number;alpha?:number}):DelegationBreak[];

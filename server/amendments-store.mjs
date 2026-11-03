@@ -1,12 +1,14 @@
+import {upcomingScopeContext,upcomingAgenda,upcomingSource,scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
 import {fastReadsReady} from './fast-read-projections.mjs';
 import {languagePreference} from './language-order.mjs';
 import { createHash } from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
-import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, checkedAggregateAttribution, amendmentReference, amendmentTarget, canonicalEPReference } from './amendments.mjs';
+import { AMENDMENTS_API_VERSION, AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, checkedAggregateAttribution, amendmentReference, amendmentTarget, canonicalEPReference } from './amendments.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import {committeeAmendmentReference,committeeScopeKey} from './committee-amendments.mjs';
+import {copyProjectedGenerationRows,updateGenerationRows} from './generation-copy.mjs';
 const parse=value=>JSON.parse(value);
 export const amendmentLinkIndexVersion=1;
 export const amendmentParserUpgradeKey='amendment:parser-upgrade';
@@ -19,7 +21,7 @@ export function invalidateAmendmentLinks(store,generation) {
   store.assertWriter();
   // Repeated overflow must seek only remaining markers, including any restored
   // by a source refresh, rather than reparsing every retained source body.
-  return store.db.prepare("UPDATE sources INDEXED BY amendment_link_invalidation SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND "+amendmentLinkInvalidationWhere).run(generation);
+  return updateGenerationRows(store.db,{table:'sources',key:'key',indexedBy:'amendment_link_invalidation',where:amendmentLinkInvalidationWhere,set:"body=json_remove(body,'$.amendmentLinksVersion')"},generation);
 }
 const wordingUpgradeGap='Amendment wording is unverified until the current document parser refreshes its source.';
 const proposerDateGap='The amendment proposer date is unavailable; author identities cannot be checked against a mandate.';
@@ -114,7 +116,7 @@ export function prepareCommitteeAmendmentIndexes(db) {
     db.exec('DELETE FROM '+destination);
     // A correlated subquery in FROM is not lateral in SQLite. Replay the same
     // trigger for each retained row rather than use a separate projection rule.
-    db.exec(`UPDATE ${table} SET body=body`);
+    for(const {generation} of db.prepare(`SELECT DISTINCT generation FROM ${table}`).all())updateGenerationRows(db,{table,key:'id',set:'body=body'},generation);
   }
   const documents=(row,from='')=>`SELECT ${row}.generation,replace(replace(CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END,'https://data.europarl.europa.eu/',''),'http://data.europarl.europa.eu/',''),${row}.key
     FROM ${from}json_each(${row}.body,'$.inverse_created_a_realization_of') ref WHERE ${row}.kind='document'
@@ -201,7 +203,7 @@ export function amendmentsCopy(db,generation,active) {
     db.prepare('INSERT OR IGNORE INTO amendment_dependency_bootstrap SELECT ?,stage,after_key,ready FROM amendment_dependency_bootstrap WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_member_current SELECT ?,target FROM amendment_member_current WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_member_pending SELECT ?,target FROM amendment_member_pending WHERE generation=?').run(generation,source);
-    db.prepare('INSERT OR IGNORE INTO amendment_targets SELECT ?,id,body FROM amendment_targets WHERE generation=?').run(generation,source);
+    copyProjectedGenerationRows(db,{table:'amendment_targets',key:'id',select:'INSERT OR IGNORE INTO amendment_targets SELECT ?,id,body FROM amendment_targets'},generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_jobs SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM amendment_jobs WHERE generation=? AND done=0').run(generation,source);
   }
   db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run('amendmentSnapshotGeneration',JSON.stringify(generation));
@@ -420,7 +422,7 @@ function readAmendmentById(store,{document,id,language}) {
       document&&document!==row.targetDocumentId&&document!==row.listId)return null;
     return {...row,requestedLanguage:language};
   }
-  if(!amendmentTarget(document)||typeof id!=='string')return null;
+  if(!amendmentTarget(document,{agendaItems:()=>upcomingAgenda(store,amendmentGeneration(store))})||typeof id!=='string')return null;
   const reference=canonicalEPReference(id)||canonicalEPReference('eli/dl/doc/'+id);
   const identity=amendmentReference(reference);
   if(!identity||identity.targetDocumentId!==document)return null;
@@ -433,7 +435,7 @@ function readAmendmentById(store,{document,id,language}) {
   if(rows.length!==1)return null;
   const record=parse(rows[0].body);
   if(record.id!==rows[0].id||record.targetDocumentId!==document||amendmentReference('eli/dl/doc/'+record.id)?.targetDocumentId!==document)return null;
-  const row=checkedAmendmentRead(record);
+  const row=withScheduledVotes(store,generation,checkedAmendmentRead(record));
   return {...row,title:row.titles?.[languagePreference(Object.keys(row.titles||{}).filter(code=>row.titles[code]?.trim()),language)[0]] || document,requestedLanguage:language};
 }
 function checkedEmptyObservation(record,document,rowCount) {
@@ -461,8 +463,10 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   const scalar=projected&&!committee&&!outcome&&!procedure&&!member&&!(document&&scope==='committee');
   const table=projected?'(SELECT page.*,source.body FROM amendment_page_reads page JOIN amendments source ON source.generation=page.generation AND source.id=page.id) amendments':'amendments',where=clauses.join(' AND '),total=store.db.prepare('SELECT COUNT(*) AS n FROM '+(scalar?'amendment_page_reads':table)+' WHERE '+where).get(...args).n;
   const pageSql=scalar?'SELECT source.body FROM (SELECT generation,id,date,target,number FROM amendment_page_reads WHERE '+where+' ORDER BY date DESC,target,number,id LIMIT ? OFFSET ?) page JOIN amendments source ON source.generation=page.generation AND source.id=page.id ORDER BY page.date DESC,page.target,page.number,page.id':'SELECT body FROM '+table+' WHERE '+where+" ORDER BY date DESC,target,"+(projected?'number':"CAST(json_extract(body,'$.number') AS INTEGER)")+",id LIMIT ? OFFSET ?";
+  const upcomingContext=scope!=='committee'?upcomingScopeContext(store,generation):null;
   const items=store.db.prepare(pageSql).all(...args,limit,offset).map(record=>{
-    const row=checkedAmendmentRead(parse(record.body));
+    const row=withScheduledVotes(store,generation,checkedAmendmentRead(parse(record.body)),upcomingContext);
+
     if(member) {
       const {memberId,basis,variantListIds}=amendmentAuthorMatch(row,member);
       row.authorMatch={memberId,basis,variantListIds};
@@ -503,7 +507,8 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   const indexedObservationComplete=Boolean((document||list)&&readCoverage.rows>0&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness);
   const emptyObservation=document&&records.length===1?checkedEmptyObservation(records[0],document,readCoverage.rows):null;
   const observationComplete=indexedObservationComplete||Boolean(emptyObservation);
-  return {items,total,offset,limit,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,targetGaps,discovery:{pending,refreshGaps,capacityGaps},
+  const scheduledLists=upcomingContext?.agenda&&document?store.db.prepare("SELECT body FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=? LIMIT ?").all(generation,document,AMENDMENT_LIMITS.listsPerTarget).map(record=>{const list=parse(record.body);return {listId:list.identifier,scheduledVotes:scheduledVotes(upcomingSource(store,generation,'/plenary-documents/'+document),list,upcomingContext.items,{today:upcomingContext.today,votingLists:upcomingContext.votingLists})};}):null;
+  return {schemaVersion:AMENDMENTS_API_VERSION,items,total,offset,limit,scheduledLists,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,targetGaps,discovery:{pending,refreshGaps,capacityGaps},
     observationScope:emptyObservation?'published-amendment-list-relationships':'indexed-'+scope+'-amendment-sources',indexed:Boolean(records.length),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope,servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation),...(scope==='committee'?{discoveryCoverage:records.length?'partial':'unavailable',wordingCoverage:records.length&&!readCoverage.wording&&!readCoverage.freshness&&records.every(record=>record.wordingComplete)?'complete':'partial',proposerCoverage:records.length&&records.every(record=>record.proposerComplete)?'complete':'partial',outcomeCoverage:'unavailable'}:{})},failures:amendmentFailureSummary(store)};
 }
 
@@ -575,7 +580,7 @@ export function enqueueAmendment(store,generation,key,kind,body,priority=105,ref
   return store.db.isTransaction?enqueue():store.transaction(enqueue);
 }
 export function nextAmendmentTask(store,generation) {
-  const row=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,store.clock());
+  const row=store.db.prepare("SELECT * FROM amendment_jobs WHERE generation=? AND done=0 AND retry_at<=? AND COALESCE(json_extract(body,'$.upcomingUntil'),0)<=? ORDER BY priority DESC,key DESC LIMIT 1").get(generation,store.clock(),store.clock());
   return row?{...row,body:parse(row.body),amendmentJob:true}:null;
 }
 

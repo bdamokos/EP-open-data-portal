@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -29,7 +30,7 @@ async function harness(t,respond,{query='?view=questions',props={}}={}) {
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {QuestionTopics}=await loadModule('/src/QuestionTopics.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const render=element=>act(async()=>root.render(element));
   await render(createElement(QuestionTopics,{language:'en',onBack(){},...props}));
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
@@ -76,9 +77,9 @@ test('Questions pagination error and explicit Reload retain orientation without 
   const first=deferred(),retry=deferred();let attempts=0;
   const h=await harness(t,url=>url.searchParams.get('offset')==='25'?(++attempts===1?first.promise:retry.promise):questions());
   await h.click('Next');await act(async()=>first.resolve(Response.json({error:{message:'Fixture unavailable'}},{status:503})));
-  assert.equal(document.activeElement,h.pageHeading());assert(h.container.querySelector('[role="alert"]'));
+  assert.equal(document.activeElement,h.pageHeading());assert.equal(h.container.querySelector('[role="alert"]'),null);
   assert.equal(h.resultHeading(),null);assert.equal(h.status().textContent,'');
-  await h.click('Reload');assert.equal(document.activeElement,h.pageHeading());assert.equal(h.container.querySelector('[role="alert"]'),null);
+  await automaticRecovery(t);assert.equal(document.activeElement,h.pageHeading());assert.equal(h.container.querySelector('[role="alert"]'),null);
   assert.equal(h.calls.at(-1).searchParams.get('offset'),'25');assert.equal(attempts,2);
   await act(async()=>retry.resolve(questions(25)));
   assert.equal(document.activeElement,h.resultHeading());assert.equal(h.container.querySelector('.insight-pagination span').textContent,'26–27 of 27');
@@ -90,7 +91,7 @@ test('a generic destination heading and a retained filter after Reload never bec
   h.pageHeading().tabIndex=-1;h.pageHeading().focus();
   await act(async()=>initial.resolve(Response.json({error:{message:'Fixture unavailable'}},{status:503})));
   assert.equal(document.activeElement,h.pageHeading());
-  await h.click('Reload');const filter=h.container.querySelector('[data-question-country]');filter.focus();
+  await automaticRecovery(t);const filter=h.container.querySelector('[data-question-country]');filter.focus();
   await act(async()=>retry.resolve(questions()));
   assert.equal(document.activeElement,filter,'completion does not take focus back from the retained filter');
   assert.equal(h.reveals.length,0,'canceled Reload arrival never scrolls the results into view');
@@ -210,4 +211,41 @@ test('clear all subject and combined filters focuses the fully reset results in 
   for(const key of ['subject','addressee','country','word','cluster','from','to'])assert.equal(request.searchParams.has(key),false);
   for(const key of ['q-subject','q-addressee','q-country','q-word','q-topic','q-range','q-offset'])assert.equal(query.has(key),false);
   assert.equal(request.searchParams.get('offset'),'0');assert.equal(history.length,oldLength+1);assert.equal(document.activeElement===h.resultHeading(),true);
+});
+
+test('the end of a shorter period continues into the term after the questions already shown',async t=>{
+  const response=deferred();
+  const h=await harness(t,url=>url.searchParams.get('days')==='term'?response.promise:questions(25),{query:'?view=questions&q-subject=USA&q-country=IT&q-offset=25'});
+  assert.match(h.container.querySelector('.insight-question-results .insight-section-heading>span').textContent,/^27 questions · 3 MEP authors elected in Italy · Jul 1, 2026 — Sep 30, 2026$/);
+  assert.match(h.container.querySelector('.insight-period-more').textContent,/^End of the list for Jul 1, 2026 — Sep 30, 2026\. Show earlier questions from the current term$/);
+  const oldLength=history.length;await h.click('Show earlier questions from the current term');
+  const request=h.calls.at(-1),query=new URL(location.href).searchParams;
+  assert.equal(request.searchParams.get('days'),'term');assert.equal(request.searchParams.get('offset'),'27');
+  assert.equal(request.searchParams.get('subject'),'USA');assert.equal(request.searchParams.get('country'),'IT');
+  assert.equal(query.get('q-days'),'term');assert.equal(query.get('q-offset'),'27');assert.equal(history.length,oldLength+1);
+  await act(async()=>response.resolve({...questions(27),window:{start:'2024-07-16',end:'2026-09-30'},counts:{selectedQuestions:60},nextOffset:52}));
+  const first=h.container.querySelector('.insight-question-list article h3');assert.equal(first.textContent,'Exact question 28');
+  assert.equal(document.activeElement,first);assert.equal(h.reveals.at(-1).target,first);
+  assert.equal(h.container.querySelector('.insight-period-more'),null);
+});
+
+for(const query of ['?view=questions&q-offset=25&q-topic=topic-E-10-2026-000001','?view=questions&q-offset=25&q-word=water','?view=questions&q-offset=25&q-range=2026-08-01_2026-08-31','?view=questions&q-offset=25&q-days=term'])test('the term continuation is not offered for '+query,async t=>{
+  const h=await harness(t,()=>questions(25),{query});
+  assert(h.resultHeading());assert.equal(h.container.querySelector('.insight-period-more'),null);
+});
+
+test('the term continuation is not offered once the shorter period reaches the term analysis limit',async t=>{
+  const h=await harness(t,()=>({...questions(4975),counts:{selectedQuestions:5000},nextOffset:null,questions:Array.from({length:25},(_,i)=>question(4976+i))}),{query:'?view=questions&q-offset=4975'});
+  assert(h.resultHeading());assert.equal(h.container.querySelector('.insight-period-more'),null);
+});
+
+test('an empty shorter period continues from the start of the term, keeping the end date and addressee',async t=>{
+  const empty={...questions(),counts:{selectedQuestions:0},questions:[],nextOffset:null};
+  const h=await harness(t,url=>url.searchParams.get('days')==='term'?{...questions(),window:{start:'2024-07-16',end:'2026-09-30'}}:empty,{query:'?view=questions&q-until=2026-09-30&q-addressee=org%2FCOM'});
+  assert.equal(h.container.querySelector('.insight-period-more').textContent,'Show earlier questions from the current term');
+  await h.click('Show earlier questions from the current term');
+  const request=h.calls.at(-1);
+  assert.equal(request.searchParams.get('days'),'term');assert.equal(request.searchParams.get('offset'),'0');
+  assert.equal(request.searchParams.get('end'),'2026-09-30');assert.equal(request.searchParams.get('addressee'),'org/COM');
+  assert.equal(document.activeElement,h.container.querySelector('.insight-question-list article h3'));
 });

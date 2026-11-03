@@ -1,3 +1,4 @@
+export function responseRetryAt(response: Pick<Response,'headers'>, data: {error?: {retryAt?: number;retryAfter?: string|number}}|null, now?: number): number|undefined;
 export function dataTimeoutFor(route: string): number;
 export function readJson<T>(url: string, options?: {
   signal?: AbortSignal; priority?: 'auto' | 'low'; getPriority?: () => 'auto' | 'low'; timeoutMs?: number; fetchImpl?: typeof fetch;

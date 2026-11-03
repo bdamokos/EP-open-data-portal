@@ -1,7 +1,10 @@
+import {prepareBallotBindingStore} from './ballot-bindings-store.mjs';
+import {prepareVotingLists,VotingListStore} from './voting-list-collector.mjs';
+import {prepareBaseBackfill} from './base-source-backfill.mjs';
 export const OFFICIAL_CONTEXT_STATUS_VERSION=1;
 export const DOCUMENT_BODY_STATUS_VERSION=1;
 import {prepareDocumentBodies} from './document-body-collector.mjs';
-import {prepareFastReads,registerFastReads,fastReadsReady,backfillFastReads} from './fast-read-projections.mjs';
+import {fastReadSchemaVersion,prepareFastReads,registerFastReads,fastReadsReady,backfillFastReads} from './fast-read-projections.mjs';
 import {prepareSittingSnapshots,SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
 import {generationGroupOn} from './group-attribution.mjs';
 import {activityAffiliation} from './group-aggregation.mjs';
@@ -28,13 +31,17 @@ import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches,GAP_LIMIT} from './refresh-policy.mjs';
+import {copyProjectedGenerationRows} from './generation-copy.mjs';
 
 // Defaults gate both normal construction and writer acquisition. The explicit
 // exceptions preserve preparations historically allowed during normal acquire().
 export const ACTIVITY_SCHEMA_GATES=Object.freeze([
+  {key:'votingListSchema',value:1,constructorGate:false},
+  {key:'ballotBindingSchema',value:1,constructorGate:false},
+  {key:'baseBackfillSchema',value:1,constructorGate:false},
   {key:'resourceIndexes',value:1},
   {key:'availabilityHistoryVersion',value:availabilityHistoryVersion,constructorGate:false,writerGate:false},
-  {key:'fastReadSchemaVersion',value:1,constructorGate:false,writerGate:false},
+  {key:'fastReadSchemaVersion',value:fastReadSchemaVersion,constructorGate:false,writerGate:false},
   {key:'recoveryScheduleVersion',value:1},
   {key:'committeeAmendmentIndexVersion',value:committeeAmendmentIndexVersion},
   {key:'amendmentReadVersion',value:amendmentReadVersion},
@@ -113,6 +120,7 @@ export class ActivityStore {
     if(!preparedOnly){membershipSchema(this.db);groupHistorySchema(this.db);}
     if(this.initializeIndexes){outsideSchema(this.db);amendmentsSchema(this.db);groupVoicesSchema(this.db);refreshPolicyTables(this.db);}
   }
+  votingListsForSitting(sittingId) { return new VotingListStore(this,{clock:this.clock}).votingListsForSitting(sittingId); }
   readSnapshot(fn) {
     if(this.db.isTransaction)return fn();
     this.db.exec('BEGIN');try {const value=fn();this.db.exec('COMMIT');return value;}catch(error){this.db.exec('ROLLBACK');throw error;}
@@ -135,6 +143,9 @@ export class ActivityStore {
       if(!this.initializeIndexes&&ACTIVITY_SCHEMA_GATES.some(gate=>gate.writerGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       initializeAvailabilityHistory(this);
+      if(this.get('ballotBindingSchema')!==1){prepareBallotBindingStore(this);initialized=true;}
+      if(this.get('votingListSchema')!==1){prepareVotingLists(this);initialized=true;}
+      if(this.get('baseBackfillSchema')!==1){prepareBaseBackfill(this);initialized=true;}
       if(this.get('documentBodySchema')!==1){prepareDocumentBodies(this);initialized=true;}
       if(this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA){prepareSittingSnapshots(this);initialized=true;}
       // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
@@ -155,7 +166,7 @@ export class ActivityStore {
         initializeActivityReads(this.db);prepareQuestionFiles(this.db,this.prepareLog);
         this.set('activityReadVersion',activityReadVersion);initialized=true;refresh();
       }
-      if(this.get('fastReadSchemaVersion')!==1){prepareFastReads(this.db);this.set('fastReadSchemaVersion',1);}
+      if(this.get('fastReadSchemaVersion')!==fastReadSchemaVersion){prepareFastReads(this.db);this.set('fastReadSchemaVersion',fastReadSchemaVersion);}
       if(this.get('refreshPolicyVersion')!==1) {
         refreshPolicySchema(this);initialized=true;refresh();
       }
@@ -258,7 +269,7 @@ export class ActivityStore {
       if (active) {
         this.pruneGenerations(active);
         this.set('previous',null);
-        this.db.prepare('INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources WHERE generation=?').run(generation,active);
+        copyProjectedGenerationRows(this.db,{table:'sources',key:'key',select:'INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources'},generation,active);
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
         copyQuestionFiles(this.db,generation,active);
         this.db.prepare('INSERT INTO refresh_gaps SELECT ?,key,kind,body,priority,error,attempts,failed_at,retry_at,sitting_id FROM refresh_gaps WHERE generation=?').run(generation,active);

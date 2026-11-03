@@ -1,6 +1,6 @@
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {groupEntries,groupIsNew,type GroupEntry} from './followGroups.mjs';
-import {groupsStore,useGroups,useGroupsCheck} from './SavedControls';
+import {groupsStore,useGroups,useGroupsCheck,useSavedReadState} from './SavedControls';
 import {groupLabel} from './InsightCharts';
 
 export function GroupUpdates({member,language,now,onMember}:{member:string;language:string;now:number;onMember:(id:number)=>void}) {
@@ -19,8 +19,8 @@ export function GroupUpdates({member,language,now,onMember}:{member:string;langu
   return <>{fresh.map(row)}{history.length>0&&<details className="explorer-saved-history"><summary><UiMessage id="groupupdates.tsx.earlier.group.updates.count" values={{count: history.length}}/></summary>{history.map(row)}</details>}</>;
 }
 export function GroupUpdateStatus({retry}:{retry:()=>void}) {
-  const state=useGroups(),check=useGroupsCheck();
-  return <>{state.storageError&&<p role="alert"><UiMessage id="groupupdates.tsx.group.updates.could.not.be.saved.in.this.browser"/> <button onClick={()=>groupsStore.retryStorage()}><UiMessage id="groupupdates.tsx.retry.saving.group.updates"/></button></p>}
+  const state=useGroups(),check=useGroupsCheck(),readState=useSavedReadState();
+  return <>{state.storageError&&<p role="alert"><UiMessage id="groupupdates.tsx.group.updates.could.not.be.saved.in.this.browser"/> </p>}
     {check==='unavailable'&&<p className="explorer-groups-status"><UiMessage id="groupupdates.tsx.some.group.updates.are.unavailable"/></p>}
-    {check==='error'&&<p className="explorer-groups-status" role="alert"><UiMessage id="groupupdates.tsx.couldn.t.check.group.updates"/> <button onClick={retry}><UiMessage id="groupupdates.tsx.retry.group.updates"/></button></p>}</>;
+    {check==='error'&&!readState.retrying&&!readState.loading&&<p className="explorer-groups-status" role="alert"><UiMessage id="groupupdates.tsx.couldn.t.check.group.updates"/> </p>}</>;
 }

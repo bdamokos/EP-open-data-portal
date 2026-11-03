@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {documentContextPlacement} from './document-context-placement.mjs';
+import {amendmentRejection} from './amendment-rejection.mjs';
 const cases=JSON.parse(readFileSync(new URL('../scripts/fixtures/amendment-rejection-oracle.json',import.meta.url)));
 test('twenty attested whole-document rejection cells retain scope without paragraph coordinates',()=>{
   assert.equal(cases.length,20);
@@ -14,5 +15,18 @@ test('twenty attested whole-document rejection cells retain scope without paragr
 });
 test('dash, unavailable wording and whole-text replacements do not establish rejection',()=>{
   const base={language:'en',originalText:'',proposedText:'The European Parliament rejects the Commission proposal.',targetLabel:'–'};
-  for(const fields of [{proposedText:null},{originalText:null},{proposedText:'Replacement legal text.'},{originalText:'Existing provision.'},{gaps:[{code:'text-unavailable'}]},{language:'de'},{targetLabel:'Citation 5 a (new)'},{targetLabel:'Article 1'},{targetLabel:''}])assert.notEqual(documentContextPlacement({chosen:{...base,...fields}}).status,'document-operation');
+  for(const fields of [{proposedText:null},{originalText:null},{proposedText:'Replacement legal text.'},{originalText:'Existing provision.'},{gaps:[{code:'text-unavailable'}]},{language:'de'}])assert.notEqual(documentContextPlacement({chosen:{...base,...fields}}).status,'document-operation');
+});
+test('a complete rejection sentence owns scope regardless of the local target label in all 24 languages',()=>{
+  const sentences=JSON.parse(readFileSync(new URL('../scripts/fixtures/amendment-rejection-sentences.json',import.meta.url)));
+  for(const [language,texts] of Object.entries(sentences))for(const [index,proposedText] of texts.entries())for(const targetLabel of ['–','Citation 1 a (new)','Article 1','']){
+    const result=documentContextPlacement({chosen:{language,originalText:'',proposedText,targetLabel}});
+    assert.equal(result.status,'document-operation',language+': '+proposedText);
+    assert.equal(result.scope,index===2?'council-position':'commission-proposal');
+    assert(!['span','splice','insertAfter','insertBefore'].some(key=>Object.hasOwn(result,key)));
+  }
+});
+test('rejection mentions, prefixes, suffixes and different wording do not match complete sentence forms',()=>{
+  const text='The European Parliament rejects the Council position.';
+  for(const proposedText of ['1. '+text,'“'+text+'”',text+' A new recital follows.','The European Parliament does not reject the Council position.','Reject the Council position.',text.toLowerCase()])assert.equal(amendmentRejection({language:'en',originalText:'',proposedText}),null);
 });

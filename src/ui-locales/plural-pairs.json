@@ -35,16 +35,6 @@
     "count": "count"
   },
   {
-    "one": "readerretry.seconds_second.64657e",
-    "other": "readerretry.seconds_seconds.3724db",
-    "count": "seconds"
-  },
-  {
-    "one": "readerretry.minutes_minute.15a750",
-    "other": "readerretry.minutes_minutes.24f934",
-    "count": "minutes"
-  },
-  {
     "one": "batch4.insightcharts.tsx.count.contribution",
     "other": "batch4.insightcharts.tsx.count.contributions",
     "count": "count"
@@ -375,6 +365,11 @@
     "count": "count"
   },
   {
+    "one": "topics.story.count.urgencyDebatesOne",
+    "other": "topics.story.count.urgencyDebates",
+    "count": "count"
+  },
+  {
     "one": "topics.story.count.questionsEachOne",
     "other": "topics.story.count.questionsEach",
     "count": "count"
@@ -409,6 +404,89 @@
     "other": "topics.story.tally.abstentions",
     "count": "count"
   },
-  {"one":"topics.mapDocument","other":"topics.mapDocuments","count":"count"},
-  {"one":"topics.speechCount","other":"topics.speechesCount","count":"count"}
+  {
+    "one": "topics.mapDocument",
+    "other": "topics.mapDocuments",
+    "count": "count"
+  },
+  {
+    "one": "topics.speechCount",
+    "other": "topics.speechesCount",
+    "count": "count"
+  },
+  {
+    "one": "votegroups.voted_differently.one",
+    "other": "votegroups.voted_differently",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.kind.questionsOne",
+    "other": "topics.story.links.kind.questions",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.kind.debatesOne",
+    "other": "topics.story.links.kind.debates",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.kind.documentsOne",
+    "other": "topics.story.links.kind.documents",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.kind.adoptedTextsOne",
+    "other": "topics.story.links.kind.adoptedTexts",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.kind.recordsOne",
+    "other": "topics.story.links.kind.records",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.moreOne",
+    "other": "topics.story.links.more",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.urgencyHeadingOne",
+    "other": "topics.story.links.urgencyHeading",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.placesHeadingOne",
+    "other": "topics.story.links.placesHeading",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.urgencyOne",
+    "other": "topics.story.links.urgency",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.debatesEachOne",
+    "other": "topics.story.links.debatesEach",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.placesOne",
+    "other": "topics.story.links.places",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.elsewhereOne",
+    "other": "topics.story.links.elsewhere",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.homeOne",
+    "other": "topics.story.links.home",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.awayOne",
+    "other": "topics.story.links.away",
+    "count": "count"
+  }
 ]

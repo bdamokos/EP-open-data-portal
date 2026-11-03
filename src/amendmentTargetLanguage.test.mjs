@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -56,7 +57,7 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const polls=[];t.mock.method(window,'setInterval',(callback,delay)=>polls.push({callback,delay}));
   await act(async()=>root.render(createElement('div',{lang:locale},createElement(Amendments,{language:locale,document:'A-10-2026-0254'}))));
   const card=id=>container.querySelector('#amendment-'+id);
@@ -105,7 +106,7 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
   await assertPaths(false);
   assert.equal(reads,1);
   assert(![...container.querySelectorAll('button')].some(button=>button.textContent==='Refresh'),'amendments have no manual refresh');
-  assert.deepEqual(polls.map(poll=>poll.delay),[10_000]);await act(async()=>polls[0].callback());
+  assert.deepEqual(polls,[]);await automaticRecovery(t);
   assert.equal(reads,2);
   await assertPaths(true);
   assert.doesNotMatch(container.textContent,/Article 1 — retained English label|Article 7 — retained English variant|Retained English topic/,'a refreshed exact French label replaces the retained English value and language together');

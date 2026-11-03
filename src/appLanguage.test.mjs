@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -119,7 +120,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
   // Module loading uses real timers; only mounted application deadlines are advanced.
   t.mock.timers.enable({apis:['setTimeout']});
   const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(App)));
   const click=node=>{assert(node,'Missing control');return act(async()=>node.click());};
   return {window,container,click,requests,tick,wait:()=>tick(350)};
@@ -354,7 +355,7 @@ test('sitting cities recover automatically after a failed calendar request',asyn
  assert.doesNotMatch(h.container.querySelector('.explorer-speech-toggle').textContent,/Strasbourg|Brussels/);
  const before=calls;available=true;
  assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Refresh list'));
- await h.tick(30_000);
+ await automaticRecovery(t);
  await h.wait();
  assert(calls>before);
  assert.match(h.container.querySelector('.explorer-speech-toggle').textContent,/Strasbourg/);

@@ -1,4 +1,6 @@
-import {readTopics} from './topics-reader.mjs';
+import {votingListsResponse} from './voting-list-collector.mjs';
+import {upcomingVotes,upcomingVotesQuery,ballotComparisons} from './upcoming-votes.mjs';
+import {readTopics,warmTopicOverviews} from './topics-reader.mjs';
 import {errorLog,clientErrorEvent,serverErrorEvent} from './error-log.mjs';
 import {documentImage} from './document-image-store.mjs';
 import {PORTRAIT_VERSION} from './portrait-version.mjs';
@@ -15,7 +17,7 @@ import {measureEventLoopDelay} from './event-loop-delay.mjs';
 import {prepareStartupIndexes} from './migrate-indexes.mjs';
 let eventLoopDelay;
 import {pathToFileURL} from 'node:url';
-import {apiPrefixes,config} from './config.mjs';
+import {apiPrefixes,config,booleanFromEnvironment} from './config.mjs';
 import {assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
 import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
@@ -130,7 +132,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 
 // Browser transport for this app. The gateway admits the same finite route set.
 let diagnosticWindow=0,diagnosticCount=0;
-const apiEndpoints=new Set(['client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['voting-lists','upcoming-votes','ballot-comparisons','client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -227,6 +229,12 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments[0] === 'member-votes' && segments.length===2) {
       result=await memberVotes.query(positiveId(segments[1]),memberVotesQuery(url.searchParams));
     }
+    else if (segments[0] === 'upcoming-votes' && segments.length===1) {
+      result=await upcomingVotes(upcomingVotesQuery(url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
+    }
+    else if (segments[0] === 'ballot-comparisons' && segments.length===1) {
+      result=await ballotComparisons(upcomingVotesQuery(url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
+    }
     else if (segments[0] === 'decision-votes' && segments.length===2) {
       result=await decisionVotes(decisionVotesQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
     }
@@ -250,6 +258,9 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'procedure-progress') {
       result=await official().progress.query(procedureProgressQuery(url.searchParams));
+    }
+    else if (segments.length === 1 && segments[0] === 'voting-lists') {
+      result=votingListsResponse(activityIndex().store,url.searchParams);
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'press-releases') {
       const query=pressMentionsQuery(url.searchParams);
@@ -470,10 +481,12 @@ if (isEntryPoint) {
   process.on("SIGTERM", () => shutDown("SIGTERM"));
   server.once('listening',()=>{
     stopMonitoring=startOdpMonitoring();
+    if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))warmTopicOverviews(activityIndex().store);
     let publishedGeneration;
     stopWriters = startSourceWriters({onPublication:message=>{
       // Cache keys and Following/amendment readiness are read from committed
       // WAL snapshots. A new generation also wakes the existing warm-up hook.
+      if(message.source==='activity')warmTopicOverviews(activityIndex().store);
       if(message.source==='activity'&&message.revision.active!==publishedGeneration){
         publishedGeneration=message.revision.active;
         if(publishedGeneration)stopPlenaryWarmup.wake?.();

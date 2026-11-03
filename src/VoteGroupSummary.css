@@ -1,0 +1,7 @@
+.vote-group-summary {margin:12px 0;}
+.vote-group-summary p {margin:4px 0;}
+.vote-group-unity {font-size:13px;font-variant-numeric:tabular-nums;}
+.vote-group-unity-count {white-space:nowrap;}
+.vote-group-scope {display:block;color:var(--ink-muted);font-size:inherit;font-weight:400;}
+/* Beat .explorer-insights small (14px) so the cue matches its header at every width. */
+.explorer-insights .vote-group-scope {font-size:inherit;}

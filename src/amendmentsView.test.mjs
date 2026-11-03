@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -44,7 +45,7 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(Amendments,{document:'B-10-2026-0424',language:'en'})));
   const cards=[...container.querySelectorAll('.explorer-amendment-card')];
   assert.equal(cards.length,5);
@@ -110,14 +111,14 @@ test('refresh removes a corrected decision binding when split descriptions are u
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const polls=[];t.mock.method(window,'setInterval',(callback,delay)=>polls.push({callback,delay}));
   await act(async()=>root.render(createElement(Amendments,{document:'A-10-2026-0254'})));
   assert.equal(container.querySelectorAll('.explorer-amendment-decision').length,2);
   assert.equal(container.querySelectorAll('.explorer-amendment-card [data-outcome="ADOPTED"]').length,1);
   assert.equal(container.querySelectorAll('.explorer-amendment-decision a').length,0,'candidate pages are not rendered as exact decision sources');
   assert(![...container.querySelectorAll('button')].some(button=>button.textContent==='Refresh'),'amendments have no manual refresh');
-  assert.deepEqual(polls.map(poll=>poll.delay),[10_000]);await act(async()=>polls[0].callback());
+  assert.deepEqual(polls,[]);await automaticRecovery(t);
   assert.equal(reads,2);
   assert.equal(container.querySelectorAll('.explorer-amendment-decision').length,1);
   assert.equal(container.querySelectorAll('.explorer-amendment-card [data-outcome="ADOPTED"]').length,0,'the removed binding cannot leave an adopted row mounted');

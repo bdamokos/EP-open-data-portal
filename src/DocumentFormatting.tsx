@@ -40,10 +40,11 @@ function paragraphAttributes(format:ParagraphFormat|undefined,headingLevel:numbe
 
 // Renders reader paragraphs with their recorded paragraph styles, emphasis and tables.
 // renderText receives offsets within the displayed paragraph and the emphasis marks for them.
-export function DocumentParagraphs({texts,start,formatting,exactOffsets,headingLevel=4,paragraphProps,renderParagraph,renderText}:{
+export function DocumentParagraphs({texts,start,formatting,exactOffsets,headingLevel=4,paragraphProps,renderParagraph,renderTable,renderText}:{
   texts:string[];start:number;formatting:{formats:ParagraphFormat[];tables:DocumentTable[]};exactOffsets:boolean;headingLevel?:number;
   paragraphProps?:(sourceIndex:number)=>ParagraphProps;
   renderParagraph?:(sourceIndex:number,paragraph:ReactNode)=>ReactNode;
+  renderTable?:(lastSourceIndex:number,table:ReactNode)=>ReactNode;
   renderText:(sourceIndex:number,text:string,from:number,to:number,final:boolean,marks:FormatMark[])=>ReactNode;
 }) {
   const end=start+texts.length;
@@ -62,8 +63,9 @@ export function DocumentParagraphs({texts,start,formatting,exactOffsets,headingL
   for(let index=start;index<end;) {
     const found=tables.get(index);
     if(!found){nodes.push(paragraph(index));index++;continue;}
-    nodes.push(<table key={'table-'+index} className={'doc-table'+(found.table.bordered ? ' doc-table-bordered' : '')}><tbody>{found.table.rows.map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,cellIndex)=>
-      <td key={cellIndex} colSpan={cell.colSpan} rowSpan={cell.rowSpan} className={cell.gap ? 'doc-table-gap' : undefined}>{Array.from({length:cell.end-cell.start},(_,offset)=>paragraph(cell.start+offset))}</td>)}</tr>)}</tbody></table>);
+    const tableNode=<table key={'table-'+index} className={'doc-table'+(found.table.bordered ? ' doc-table-bordered' : '')}><tbody>{found.table.rows.map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,cellIndex)=>
+      <td key={cellIndex} colSpan={cell.colSpan} rowSpan={cell.rowSpan} className={cell.gap ? 'doc-table-gap' : undefined}>{Array.from({length:cell.end-cell.start},(_,offset)=>paragraph(cell.start+offset))}</td>)}</tr>)}</tbody></table>;
+    nodes.push(renderTable?renderTable(found.end-1,tableNode):tableNode);
     index=found.end;
   }
   return <>{nodes}</>;

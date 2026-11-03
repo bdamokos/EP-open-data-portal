@@ -56,9 +56,8 @@ export function rawExistingLawReferences(buffer,runtime) {
   return result;
 }
 
-// A newly supported declared representation cannot rewrite a sealed406. Only
-// that exact absent URL/Accept/language observation is an acquisition gap;
-// every unrelated missing input still goes through InputCache's fatal check.
+// Keep the sealed 406 and its declaration evidence. The absent advertised
+// request is also a results-only frozen-input gap, never a new HTTP observation.
 export async function missingDeclaredRepresentation(cache,url,request) {
   if(!cache.sealed||request.accept!=='application/zip;type=akn4eu'||cache.sealed.has(JSON.stringify([url,request])))return null;
   const original={...request,accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'};
@@ -66,6 +65,7 @@ export async function missingDeclaredRepresentation(cache,url,request) {
   if(!cache.sealed.has(key))return null;
   const input=await cache.get(url,{...original,raw:true});
   if(advertisedRepresentation(input)!==request.accept)return null;
+  await cache.get(url,{...request,raw:true});
   const {body,...source}=input;
   return Object.assign(new Error('The declared representation was not acquired in this snapshot.'),{code:'missing-declared-representation',source,request:{url,...request}});
 }
@@ -104,6 +104,15 @@ export function replaySourceClients(cache,runtime) {
     documents[name]=(...args)=>cache.retained.baseScope({type:'cellar',method:name,arguments:args},()=>original(...args));
   }
   return {sources,documents};
+}
+
+// Shared exact-ID frozen context declaration protocol for replay and hybrid proof.
+export function contextFileDeclarations(id,language,value,input,runtime) {
+  const document=value?.document;
+  if(value?.documentId!==id||document?.selectedDocumentId&&document.selectedDocumentId!==id)return [];
+  const files=(document?.files||[]).filter(file=>file.language===language&&file.format==='DOCX'&&runtime.allowedDownload(file.url));
+  if(new Set(files.map(file=>file.url)).size!==1)return [];
+  return files.map(file=>({...file,catalogue:{url:input.url,sha256:input.sha256,fetchedAt:input.fetchedAt},upstreamSources:value.sources||[]}));
 }
 
 export function sourceReplay(cache,runtime) {
@@ -185,11 +194,8 @@ export function sourceReplay(cache,runtime) {
     proposalRequiresSelection,
     observeFiles(id,contexts) {
       for(const [language,{plain}] of contexts) {
-        const document=plain.value?.document;
-        if(plain.value?.documentId!==id||document?.selectedDocumentId&&document.selectedDocumentId!==id)continue;
-        const files=(document?.files||[]).filter(file=>file.language===language&&file.format==='DOCX'&&runtime.allowedDownload(file.url));
-        const urls=[...new Set(files.map(file=>file.url))];
-        if(urls.length===1)observedFiles.set(language,{url:urls[0],language,catalogue:{url:plain.input.url,sha256:plain.input.sha256,fetchedAt:plain.input.fetchedAt},upstreamSources:plain.value.sources||[]});
+        const files=contextFileDeclarations(id,language,plain.value,plain.input,runtime);
+        if(files.length)observedFiles.set(language,files[0]);
       }
     },
     references:buffer=>{
@@ -209,6 +215,13 @@ export function sourceReplay(cache,runtime) {
         const chosen=files.find(f=>f.language===preferred[0])||files[0];
         if(chosen){const read=()=>cache.get(chosen.url);await (cache.retained?.baseScope?cache.retained.baseScope({type:'ep-document',documentId:id,file:chosen},read):read());}
         if(id.startsWith('A-')){await readProposal({reportId:id,language});cache.assertHealthy();}
+        if(id.startsWith('A-')&&cache.retained?.nativeSelections&&runtime.array(work.is_realized_by).some(e=>Object.values(e.title_alternative||{}).flat().some(raw=>runtime.commissionProcedures(raw).some(p=>p.endsWith('(NLE)'))))) {
+          for(const selection of await cache.retained.nativeSelections(id,language)) {
+            const options={reportId:id,language},bound=await readNativeSelection(options,selection,record);
+            if(!bound.gap)await readProposal({...options,nativeReferencePair:bound.pair});
+            cache.assertHealthy();
+          }
+        }
         if(id.startsWith('A-')&&readCouncil){await readCouncil({reportId:id,language,documentReferences:references.get(language)||[]});cache.assertHealthy();}
         if(readExisting&&!cache.sealed)for(const hint of lawHints.values()){await readExisting({...hint,language});cache.assertHealthy();}
         const hints=[...new Map((references.get(language)||[]).map(ref=>[JSON.stringify(ref),ref])).values()];
@@ -284,7 +297,7 @@ export function sourceReplay(cache,runtime) {
         const report=await request('/plenary-documents/'+options.reportId),identity=runtime.reportCouncilReference(report.payload.data[0],options);
         if(identity.status==='resolved') {
           const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',runtime.councilCandidatesSparql(identity));url.searchParams.set('format','application/sparql-results+json');
-          if(!cache.sealed.has(JSON.stringify([url.href,{accept:'application/sparql-results+json'}])))return {baseline:{status:'unresolved',language:options.language,gaps:['council-source-not-in-snapshot']},items:[]};
+          if(!cache.sealed.has(JSON.stringify([url.href,{accept:'application/sparql-results+json'}]))){await cache.get(url.href,{accept:'application/sparql-results+json'});return {baseline:{status:'unresolved',language:options.language,gaps:['council-source-not-in-snapshot']},items:[]};}
         }
       }
       const source=await readCouncil(options);cache.assertHealthy();

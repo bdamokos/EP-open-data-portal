@@ -216,6 +216,167 @@ test('dated-roster work validates paging and an empty source remains a retryable
   assert.equal(store.source(generation,'outside:roster:2025-03-11'),undefined);
   assert.equal(store.taskCounts(generation).completed,0);
 }));
+test('a short dated roster completes without requesting its repeated boundary member and classifies retained speeches',withStore(async(store,generation)=>{
+  const row=fixture.contributions.find(row=>row.activity.had_participation.had_participant_person.includes('person/227855'));
+  const speech=project(row),members=speech.participants.filter(id=>id!=='227855');
+  if(!members.length)members.push('999999');
+  store.putSource(generation,'/speeches/'+speech.id,'speech',{id:speech.id,outside:speech},row.retrievedAt);
+  recordOutside(store,generation,speech);
+  const calls=[];
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint,params)=>{
+    calls.push(params);assert.equal(endpoint,'/meps/show-current');assert.equal(params.offset,0);
+    return {payload:{data:members.map(identifier=>({identifier}))},fetchedAt:saved.fetchedAt};
+  }});
+  await worker.task(store.nextTask(generation));
+  assert.equal(calls.length,1);
+  assert.deepEqual(store.source(generation,'outside:roster:'+speech.date).work.ids,members);
+  assert.equal(outsideSpeaker(store,'227855',{language:'en'}).contributions[0].id,speech.id);
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE key=?').get('outside:roster:'+speech.date).done,1);
+}));
+test('legacy short-page cursors restart with fresh roster evidence instead of accepting old membership',withStore(async(store,generation)=>{
+  const retained={...project(fixture.contributions[0]),id:'MTG-PL-2025-11-12-OTH-123',date:'2025-11-12',participants:['123'],headers:[]};
+  store.putSource(generation,'/speeches/'+retained.id,'speech',{id:retained.id,outside:retained},saved.fetchedAt);
+  store.enqueue(generation,'roster-test','outside-roster',{date:'2025-11-12',offset:718,ids:['123'],sources:[saved]},102);
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint,params)=>{
+    assert.equal(params.offset,0);
+    return {payload:{data:[{identifier:'456'}]},fetchedAt:'2026-11-02T18:00:00Z'};
+  }});
+  await worker.task(store.nextTask(generation));
+  const roster=store.source(generation,'outside:roster:2025-11-12').work;
+  assert.deepEqual(roster.ids,['456']);assert.equal(roster.sources.length,1);
+  assert.match(roster.sources[0].url,/offset=0/);assert.equal(roster.sources[0].fetchedAt,'2026-11-02T18:00:00Z');
+  assert.deepEqual(store.db.prepare('SELECT person FROM outside_contributions WHERE generation=? AND speech=?').all(generation,retained.id).map(row=>row.person),['123']);
+}));
+test('a term first-day roster checks each speaker mandate instead of the dated roster',withStore(async(store,generation)=>{
+  const speech={...project(fixture.contributions[0]),id:'MTG-PL-2024-07-16-OTH-1',date:'2024-07-16',term:10,participants:['245770','100','124726'],headers:[]};
+  store.putSource(generation,'/speeches/'+speech.id,'speech',{id:speech.id,outside:speech},saved.fetchedAt);
+  recordOutside(store,generation,speech);
+  const mandate=(start,end)=>({role:'def/ep-roles/MEMBER_PARLIAMENT',organization:'org/ep-'+(start<'2024-07-16'?9:10),memberDuring:{startDate:start,...(end?{endDate:end}:{})}});
+  const records={
+    '245770':[mandate('2024-07-16')],
+    // A member whose mandate ended the day before the term began.
+    '100':[mandate('2019-07-02','2024-07-15')],
+  };
+  const calls=[];
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint)=>{
+    calls.push(endpoint);
+    const id=endpoint.match(/^\/meps\/(\d+)$/)?.[1];
+    if(!records[id])throw Object.assign(new Error('Parliament data is unavailable (404).'),{code:'odp_unavailable',upstreamStatus:404,source:{url:endpoint,fetchedAt:1,httpStatus:404}});
+    return {payload:{data:[{identifier:id,hasMembership:records[id]}]},fetchedAt:saved.fetchedAt};
+  }});
+  for(let i=0;i<5&&!store.source(generation,'outside:roster:2024-07-16');i++)await worker.task(store.nextTask(generation));
+  assert.deepEqual(calls.sort(),['/meps/100','/meps/124726','/meps/245770']);
+  const roster=store.source(generation,'outside:roster:2024-07-16').work;
+  assert.equal(roster.basis,'member-mandates');
+  assert.deepEqual(roster.ids,['245770']);assert.deepEqual(roster.checked,['100','124726','245770']);
+  assert.deepEqual(roster.sources.map(source=>source.fetchedAt),[new Date(saved.fetchedAt).toISOString(),new Date(1).toISOString(),new Date(saved.fetchedAt).toISOString()]);
+  assert.deepEqual(store.db.prepare('SELECT person FROM outside_contributions WHERE generation=? AND speech=? ORDER BY person').all(generation,speech.id).map(row=>row.person),['100','124726']);
+  // A later speech with an unchecked speaker resumes the roster instead of classifying them.
+  const later={...speech,id:'MTG-PL-2024-07-16-OTH-2',participants:['200']};
+  store.putSource(generation,'/speeches/'+later.id,'speech',{id:later.id,outside:later},saved.fetchedAt);
+  recordOutside(store,generation,later);
+  assert.equal(store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=?').get(generation,later.id),undefined);
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(generation,'outside:roster:2024-07-16').done,-1);
+  records['200']=[mandate('2024-07-16')];
+  await worker.task(store.nextTask(generation));await worker.task(store.nextTask(generation));
+  assert.deepEqual(store.source(generation,'outside:roster:2024-07-16').work.ids,['245770','200']);
+  assert.equal(store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=?').get(generation,later.id),undefined);
+}));
+test('a recovered dated-roster body cannot keep members whose mandate does not cover the term first day',withStore(async(store,generation)=>{
+  const speech={...project(fixture.contributions[0]),id:'MTG-PL-2024-07-16-OTH-1',date:'2024-07-16',term:10,participants:['100'],headers:[]};
+  store.putSource(generation,'/speeches/'+speech.id,'speech',{id:speech.id,outside:speech},saved.fetchedAt);
+  // The pre-fix reader's body after a partial dated-roster read.
+  store.enqueue(generation,'outside:roster:2024-07-16','outside-roster',{date:'2024-07-16',offset:0,ids:['100'],sources:[saved]},102);
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint)=>{
+    assert.equal(endpoint,'/meps/100');
+    return {payload:{data:[{identifier:'100',hasMembership:[{role:'def/ep-roles/MEMBER_PARLIAMENT',organization:'org/ep-9',memberDuring:{startDate:'2019-07-02',endDate:'2024-07-15'}}]}]},fetchedAt:saved.fetchedAt};
+  }});
+  await worker.task(store.nextTask(generation));await worker.task(store.nextTask(generation));
+  const roster=store.source(generation,'outside:roster:2024-07-16').work;
+  assert.deepEqual(roster.ids,[]);assert.deepEqual(roster.checked,['100']);
+  assert(roster.sources.every(source=>source.url.includes('/meps/100')));
+  assert.equal(store.db.prepare('SELECT person FROM outside_contributions WHERE generation=? AND speech=?').get(generation,speech.id).person,'100');
+}));
+test('a later historical speech is retained until its unchecked speaker is classified',withStore(async(store,generation)=>{
+  store.putSource(generation,'outside:roster:2019-07-02','outside-roster',{date:'2019-07-02',basis:'member-mandates',ids:[],checked:['200'],sources:[]},saved.fetchedAt);
+  const activity=JSON.parse(JSON.stringify(fixture.contributions[0].activity).replaceAll('MTG-PL-2024-12-17-OTH-2017008850467','MTG-PL-2019-07-02-OTH-1').replaceAll('2024-12-17','2019-07-02'));
+  const calls=[];
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint)=>{
+    calls.push(endpoint);
+    throw Object.assign(new Error('Parliament data is unavailable (404).'),{code:'odp_unavailable',upstreamStatus:404,source:{url:endpoint,fetchedAt:1,httpStatus:404}});
+  }});
+  worker.saveSpeech(generation,activity,saved.fetchedAt,true,fixture.contributions[0].sourceUrl);
+  assert(store.source(generation,'/speeches/MTG-PL-2019-07-02-OTH-1'));
+  await worker.task(store.nextTask(generation));await worker.task(store.nextTask(generation));
+  assert.deepEqual(calls,['/meps/124726']);
+  assert.deepEqual(store.source(generation,'outside:roster:2019-07-02').work.checked,['200','124726']);
+  assert.equal(store.db.prepare('SELECT person FROM outside_contributions WHERE generation=? AND speech=?').get(generation,'MTG-PL-2019-07-02-OTH-1').person,'124726');
+}));
+test('a completed dated roster for a term first day is rebuilt from mandates and reclassifies retained speeches',withStore(async(store,generation)=>{
+  store.putSource(generation,'outside:state','outside-state',{version:1},saved.fetchedAt);
+  // The pre-fix reader accepted the short HTTP 200 list, so a newly elected speaker became outside.
+  store.putSource(generation,'outside:roster:2019-07-02','outside-roster',{date:'2019-07-02',ids:['200'],sources:[saved]},saved.fetchedAt);
+  const activity=JSON.parse(JSON.stringify(fixture.contributions[0].activity).replaceAll('MTG-PL-2024-12-17-OTH-2017008850467','MTG-PL-2019-07-02-OTH-1').replaceAll('2024-12-17','2019-07-02'));
+  const speech=outsideSpeech(activity,saved.fetchedAt,fixture.contributions[0].sourceUrl);
+  store.putSource(generation,'/speeches/'+speech.id,'outside-speech',{id:speech.id,outside:speech},saved.fetchedAt);
+  store.db.prepare('INSERT INTO outside_contributions VALUES (?,?,?,?,?)').run(generation,speech.id,'124726',speech.date,JSON.stringify({...speech,personId:'124726'}));
+  // A legacy roster is never used to classify, even before the rebuild runs.
+  assert.equal(recordOutside(store,generation,speech),false);
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint)=>{
+    assert.equal(endpoint,'/meps/124726');
+    return {payload:{data:[{identifier:'124726',hasMembership:[{role:'def/ep-roles/MEMBER_PARLIAMENT',organization:'org/ep-9',memberDuring:{startDate:'2019-07-02',endDate:'2024-07-15'}}]}]},fetchedAt:saved.fetchedAt};
+  }});
+  worker.initializeOutside({generation});
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(generation,'outside:roster:2019-07-02').done,-1);
+  await worker.task(store.nextTask(generation));await worker.task(store.nextTask(generation));
+  const roster=store.source(generation,'outside:roster:2019-07-02').work;
+  assert.equal(roster.basis,'member-mandates');assert.deepEqual(roster.ids,['124726']);
+  assert.equal(store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=?').get(generation,speech.id),undefined);
+  assert.equal(store.source(generation,'/speeches/'+speech.id),undefined);
+  // A rebuilt roster is not scheduled again.
+  worker.initializeOutside({generation});
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(generation,'outside:roster:2019-07-02').done,1);
+}));
+test('a legacy first-day rebuild deferred into an outside gap is left to gap recovery',withStore(async(store,generation)=>{
+  store.putSource(generation,'outside:state','outside-state',{version:1},saved.fetchedAt);
+  store.putSource(generation,'outside:roster:2019-07-02','outside-roster',{date:'2019-07-02',ids:['200'],sources:[saved]},saved.fetchedAt);
+  const key='outside:roster:2019-07-02',progress={date:'2019-07-02',basis:'member-mandates',ids:['100'],checked:['100'],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/100?format=application%2Fld%2Bjson',fetchedAt:saved.fetchedAt}]};
+  store.enqueue(generation,key,'outside-roster',progress,102);
+  store.putSource(generation,'outside:gap:'+key,'outside-gap',{taskKey:key,taskKind:'outside-roster',taskBody:progress,priority:102,error:'Parliament data is unavailable (500).',attempts:3,failedAt:saved.fetchedAt},saved.fetchedAt);
+  store.finishTask(store.nextTask(generation));
+  const worker=new ActivityWorker(store,{fetchRecord:async()=>assert.fail('No request while the gap waits for recovery.')});
+  worker.initializeOutside({generation});
+  const task=store.db.prepare('SELECT done,body FROM tasks WHERE generation=? AND key=?').get(generation,key);
+  assert.equal(task.done,1);assert.deepEqual(JSON.parse(task.body).checked,['100']);
+  // The legacy roster still cannot classify a speech meanwhile.
+  const speech={...project(fixture.contributions[0]),id:'MTG-PL-2019-07-02-OTH-9',date:'2019-07-02',term:9,participants:['300'],headers:[]};
+  assert.equal(recordOutside(store,generation,speech),false);
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(generation,key).done,1);
+}));
+test('a term first-day roster keeps the gap when a speaker record fails',withStore(async(store,generation)=>{
+  const speech={...project(fixture.contributions[0]),id:'MTG-PL-2024-07-16-OTH-1',date:'2024-07-16',term:10,participants:['245770'],headers:[]};
+  store.putSource(generation,'/speeches/'+speech.id,'speech',{id:speech.id,outside:speech},saved.fetchedAt);
+  recordOutside(store,generation,speech);
+  const worker=new ActivityWorker(store,{fetchRecord:async()=>{throw Object.assign(new Error('Parliament data is unavailable (500).'),{code:'odp_unavailable',upstreamStatus:500});}});
+  await assert.rejects(worker.task(store.nextTask(generation)),/500/);
+  assert.equal(store.source(generation,'outside:roster:2024-07-16'),undefined);
+  assert.equal(store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=?').get(generation),undefined);
+}));
+test('a full dated-roster page remains pending until a short final page',withStore(async(store,generation)=>{
+  store.enqueue(generation,'roster-test','outside-roster',{date:'2025-03-11',offset:0,ids:[],sources:[]},102);
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint,params)=>({payload:{data:(params.offset===0?Array.from({length:1000},(_,i)=>i+1):[1001]).map(identifier=>({identifier}))},fetchedAt:saved.fetchedAt})});
+  await worker.task(store.nextTask(generation));
+  assert.equal(store.source(generation,'outside:roster:2025-03-11'),undefined);
+  await worker.task(store.nextTask(generation));
+  const roster=store.source(generation,'outside:roster:2025-03-11').work;
+  assert.equal(roster.ids.length,1001);assert.equal(roster.sources.length,2);
+}));
+for(const data of [[{identifier:'123'},{identifier:'123'}],[{identifier:'invalid'}]])test('invalid or duplicate dated-roster identities cannot publish '+JSON.stringify(data),withStore(async(store,generation)=>{
+  store.enqueue(generation,'roster-test','outside-roster',{date:'2025-03-11',offset:0,ids:[],sources:[]},102);
+  const worker=new ActivityWorker(store,{fetchRecord:async()=>({payload:{data},fetchedAt:saved.fetchedAt})});
+  await assert.rejects(worker.task(store.nextTask(generation)),/repeated a member|invalid identity/);
+  assert.equal(store.source(generation,'outside:roster:2025-03-11'),undefined);
+}));
 test('speaker endpoint query validation rejects duplicate and unsupported terms and parameters',()=>{
   assert.deepEqual(outsideQuery(new URLSearchParams('term=9&lang=hu')),{term:'9',language:'hu'});
   for(const q of ['term=8','term=10&term=9','person=123','limit=100000'])assert.throws(()=>outsideQuery(new URLSearchParams(q)),error=>error.status===400);

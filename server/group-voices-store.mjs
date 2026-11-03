@@ -133,7 +133,7 @@ function topicSql(store){
 function groupVoicesSnapshot(store,query){
   const generation=generationOf(store),range=scopeRows(store,generation,query),truncated=range.truncated;
   const topics=new RecordTopics(store),topicGeneration=topics.state?.generation,sql=topicGeneration?topicSql(store):null,topicLabels={};
-  const label=key=>{if(!(key in topicLabels))topicLabels[key]=topics.concept(key,query.language)?.label||key;return key;};
+  const label=key=>{if(!(key in topicLabels)){const c=topics.concept(key,query.language);topicLabels[key]={label:c?.label||key,labelLanguage:c?.labelLanguage||null,...(c?.labelSource?{labelSource:c.labelSource}:{})};}return key;};
   const scope=group=>[generation,group,query.from,query.to,topicGeneration];
   const keys=new Map(),unresolved=new Set(sql?sql.unresolved.all(...scope(query.group)).map(r=>r.speech):range.rows.map(r=>r.speech));
   if(sql)for(const r of sql.keys.all(...scope(query.group))){if(!keys.has(r.speech))keys.set(r.speech,[]);keys.get(r.speech).push(label(r.key));}
@@ -154,12 +154,12 @@ function groupVoicesSnapshot(store,query){
     })};
   if(query.part==='summary'){
     const grouped=new Map();
-    for(const row of rows){let person=grouped.get(row.person);if(!person){person={...identity(store,generation,row.person,row.speech),total:0,subjects:{}};grouped.set(row.person,person)}person.total++;for(const key of row.topicKeys)person.subjects[key]=(person.subjects[key]||0)+1;}
+    for(const row of rows){let person=grouped.get(row.person);if(!person){person={...identity(store,generation,row.person,row.speech),total:0,subjects:{},days:{}};grouped.set(row.person,person)}person.total++;person.days[row.date]=(person.days[row.date]||0)+1;for(const key of row.topicKeys)person.subjects[key]=(person.subjects[key]||0)+1;}
     return {...page,ready:Boolean(topics.state),groupSubjects:Object.keys(GROUP_VOICE_GROUPS).map(id=>{
       // One indexed aggregate per group; counts stay exact over the same rows.
       const subjects={},args=scope(id);if(sql)for(const r of sql.counts.all(...args))subjects[label(r.key)]=r.n;
       const totals=sql?sql.totals.get(...args):(t=>({...t,unresolved:t.contributions}))(store.db.prepare(`SELECT COUNT(DISTINCT speech) contributions,COUNT(DISTINCT person) speakers FROM (${scopeSql})`).get(generation,id,query.from,query.to));
-      return {id,total:totals.contributions,speakerTotal:totals.speakers,subjects,unresolvedContributions:totals.unresolved,truncated:Boolean(store.db.prepare('SELECT 1 FROM group_voice_designations WHERE generation=? AND group_id=? AND date>=? AND date<=? ORDER BY date DESC,speech,person LIMIT 1 OFFSET ?').get(generation,id,query.from,query.to,GROUP_VOICE_LIMITS.rows))};}),groups:Object.entries(GROUP_VOICE_GROUPS).map(([id,label])=>({id,label})),subjects:Object.entries(topicLabels).map(([id,label])=>({id,label})),
+      return {id,total:totals.contributions,speakerTotal:totals.speakers,subjects,unresolvedContributions:totals.unresolved,truncated:Boolean(store.db.prepare('SELECT 1 FROM group_voice_designations WHERE generation=? AND group_id=? AND date>=? AND date<=? ORDER BY date DESC,speech,person LIMIT 1 OFFSET ?').get(generation,id,query.from,query.to,GROUP_VOICE_LIMITS.rows))};}),groups:Object.entries(GROUP_VOICE_GROUPS).map(([id,label])=>({id,label})),subjects:Object.entries(topicLabels).map(([id,metadata])=>({id,...metadata})),
       people:[...grouped.values()].sort((a,b)=>b.total-a.total||(a.name||a.id).localeCompare(b.name||b.id)),
       months:store.db.prepare("SELECT DISTINCT substr(date,1,7) AS month FROM group_voice_observations WHERE generation=? AND date>='2024-07-16' ORDER BY month DESC LIMIT 100").all(generation).map(r=>r.month),
       subjectMethod:'Official document classifications and exact debate or procedure context. Topic counts can overlap; totals count distinct speaking designations.'};

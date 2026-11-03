@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import {LegislationInsights} from '../server/insights-legislation.mjs';
 import {insightQuery} from '../server/insights-store.mjs';
@@ -37,7 +38,7 @@ async function harness(t,path,component,query,respond,props={},withJourney=false
   // Module loading uses real timers; only mounted application deadlines are advanced.
   t.mock.timers.enable({apis:['setTimeout']});
   const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(withJourney?createElement(JourneyShell):createElement(Component,{language:'en',onBack(){},...props})));
   const status=()=>container.querySelector('[role="status"][aria-live="polite"][aria-atomic="true"]');
   assert(component==='Legislation'||status(),'the result status region is present before a result settles');
@@ -61,7 +62,7 @@ function agendaFixture() {
 
 for(const fail of [false,true])test('cached agenda title and document links open before '+(fail?'a detail failure':'detail enrichment'),async t=>{
   const selected=deferred(),{topic,base,publication,detail}=agendaFixture();
-  const h=await harness(t,'/src/Legislation.tsx','Legislation','?view=legislation&agenda-period=week%3A2026-10-19&agenda-topic='+topic.id,url=>url.pathname.includes('/document/')?publication:url.searchParams.has('topic')?selected.promise:base);
+  const h=await harness(t,'/src/Legislation.tsx','Legislation','?view=legislation&agenda-period=week%3A2026-10-19&agenda-topic='+topic.id,url=>url.pathname.includes('/document/')?publication:url.searchParams.has('topic')?selected.promise.then(()=>fail?Response.json({error:{code:'fixture_unavailable'}},{status:503}):({...base,detail})):base);
   await h.tick();
   const heading=h.container.querySelector('.insight-topic-detail h2');assert.equal(heading.textContent,topic.title);
   assert.equal(h.container.querySelector('[data-agenda-topic]').dataset.agendaTopic,topic.id);
@@ -75,7 +76,7 @@ for(const fail of [false,true])test('cached agenda title and document links open
   assert.match(h.container.querySelector('.insight-inline-reader').textContent,/Useful cached document text/);
   assert.equal(h.calls.filter(url=>url.pathname.includes('/document/')).length,1,'enrichment must not restart a loaded reader with another member hint');
   assert(!h.container.textContent.includes('Agenda item unavailable'));
-  if(fail)assert.match(h.container.querySelector('.insight-topic-detail [role="alert"]').textContent,/Details unavailable/);
+  if(fail){assert.equal(h.container.querySelector('.insight-topic-detail [role="alert"]'),null);await exhaustAutomaticRetries(t);assert.match(h.container.querySelector('.insight-topic-detail [role="alert"]').textContent,/Details unavailable/);assert.equal(h.container.querySelector('.insight-topic-detail [role="alert"] button'),null);assert.match(h.container.querySelector('.insight-inline-reader').textContent,/Useful cached document text/);}
 });
 
 for(const loaded of [true,false])test('dossier return restores an agenda reader '+(loaded?'with its captured member':'after a failed detail retry'),async t=>{
@@ -85,7 +86,7 @@ for(const loaded of [true,false])test('dossier return restores an agenda reader 
     if(url.pathname.includes('/document/'))return publication;
     if(!url.searchParams.has('topic'))return base;
     detailCalls++;
-    return loaded?{...base,detail}:detailCalls===1?unavailable():returned.promise;
+    return loaded?{...base,detail}:detailCalls===1?unavailable():returned.promise.then(()=>unavailable());
   },{},true);
   await h.tick();await h.click('Read '+topic.documentIds[0]);await h.tick();
   const documentCalls=()=>h.calls.filter(url=>url.pathname.includes('/document/'));
@@ -98,7 +99,7 @@ for(const loaded of [true,false])test('dossier return restores an agenda reader 
   if(!loaded){
     assert.equal(h.journey.dossierJourneyRestoring(),true,'wait for the pending detail retry');
     assert.equal(h.container.querySelector('main').scrollTop,0);
-    await act(async()=>returned.resolve(unavailable()));await h.tick();
+    await act(async()=>returned.resolve());await h.tick();await exhaustAutomaticRetries(t);await h.tick();
   }
   await h.frames();await h.frames();
   assert.equal(h.container.querySelector('[data-agenda-topic]').dataset.agendaTopic,topic.id);
@@ -160,7 +161,7 @@ const trends=(topics,extra={})=>({window:{start:'2026-07-01',end:'2026-09-30'},w
 test('topic status waits for every page, distinguishes shown topics and never treats a source failure as zero',async t=>{
   const first=deferred(),last=deferred();
   let sourceError=true;
-  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',url=>url.searchParams.get('days')==='180'?(sourceError?trends([],{coverage:{sourceError:true,indexComplete:false,truncated:false}}):trends([trend(9)])):url.searchParams.get('page')==='0'?first.promise:last.promise);
+  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',url=>url.searchParams.get('days')==='180'?(sourceError?trends([],{coverage:{sourceError:true,pending:1,indexComplete:false,truncated:false}}):trends([trend(9)])):url.searchParams.get('page')==='0'?first.promise:last.promise);
   await act(async()=>first.resolve(trends([trend(1)],{nextPage:1})));await h.tick();
   assert.equal(h.status().textContent,'','an intermediate page is not settled');
   await act(async()=>last.resolve(trends(Array.from({length:15},(_,i)=>trend(i+1)))));await h.tick();
@@ -169,7 +170,7 @@ test('topic status waits for every page, distinguishes shown topics and never tr
   await h.navigate('?trend-days=180');await h.tick();
   assert.equal(h.status().textContent,'Topic catalogue temporarily unavailable.');assert.doesNotMatch(h.status().textContent,/No topics|0 topics/);
   assert(!h.container.textContent.includes('No mapped debates'),'a source failure must not show a contradictory empty-result claim');
-  sourceError=false;await h.click('Try again');await h.tick();
+  sourceError=false;await automaticRecovery(t);await h.tick();
   assert.match(h.status().textContent,/1 topic.*Showing 1/,'explicit retry recovery announces the settled replacement');
 });
 
@@ -276,8 +277,8 @@ test('question results announce total and page range without moving focus or rep
 });
 
 test('question failures retain existing error and missing-topic announcements without publishing a false count',async t=>{
-  const h=await harness(t,'/src/QuestionTopics.tsx','QuestionTopics','?view=questions',url=>Response.json({error:{message:url.searchParams.has('cluster')?'That topic is not in this window.':'Fixture unavailable'}},{status:503}));
-  await h.tick();assert.equal(h.status().textContent,'');assert(h.container.querySelector('[role="alert"]')?.textContent.includes('Could not load this item.'));
+  const h=await harness(t,'/src/QuestionTopics.tsx','QuestionTopics','?view=questions',url=>Response.json({error:{message:url.searchParams.has('cluster')?'That topic is not in this window.':'Fixture unavailable'}},{status:url.searchParams.has('cluster')?404:503}));
+  await h.tick();assert.equal(h.container.querySelector('[role="alert"]'),null);await exhaustAutomaticRetries(t);assert.equal(h.status().textContent,'');assert(h.container.querySelector('[role="alert"]')?.textContent.includes('Could not load this item.'));assert.equal(h.container.querySelector('[role="alert"] button'),null);
   await h.navigate('?view=questions&q-topic=exact-missing-topic');await h.tick();
   assert.equal(h.status().textContent,'');assert.equal(h.container.querySelector('[role="alert"]'),null);
   assert([...h.container.querySelectorAll('[role="status"]')].some(node=>node.textContent.includes('unavailable in this period')));
@@ -323,4 +324,12 @@ test('unknown latest keeps known Agenda dates selectable on a fresh visit',async
  assert(!h.container.textContent.includes('0 agenda items'));
  await act(async()=>{select.value='sitting:MTG-PL-2025-12-18';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});await h.tick();
  assert(h.calls.some(url=>url.pathname.endsWith('/insights/legislation')&&url.searchParams.get('sitting')==='MTG-PL-2025-12-18'));assert(!h.container.textContent.includes('Latest week unavailable'));
+});
+
+test('a recovered trend cannot leak rows into a changed period after a retry',async t=>{
+ let fail=true;const next=deferred();
+ const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',url=>url.searchParams.get('days')==='180'?next.promise:fail?Response.json({error:{message:'Busy'}},{status:503}):trends([trend(91)]));
+ await h.tick();fail=false;await automaticRecovery(t);await h.tick();assert.match(h.container.textContent,/Fixture topic 91/);
+ await h.navigate('?trend-days=180');await h.tick();assert(!h.container.textContent.includes('Fixture topic 91'),'new periods cannot display the previous series during loading');
+ await act(async()=>next.resolve(Response.json({error:{message:'Unknown period'}},{status:404})));await h.tick();assert(!h.container.textContent.includes('Fixture topic 91'),'a permanent failure cannot retain rows from another selection');assert.equal(h.container.querySelector('[role=alert] button'),null);assert.equal(installRetryClock(t).timers.size,0);
 });

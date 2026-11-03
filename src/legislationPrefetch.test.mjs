@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -37,7 +38,7 @@ async function harness(t,width=1440,query='') {
   t.mock.method(window,'setTimeout',(callback,ms,...args)=>setTimeout(callback,ms,...args));
   t.mock.method(window,'clearTimeout',timer=>clearTimeout(timer));
   const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const render=language=>act(async()=>root.render(createElement(Legislation,{language,onBack(){}})));
   await render('en');
   return {requests,agendaRequests,container,render,window,tick,
@@ -86,7 +87,7 @@ test('keyboard intent preloads, while language, period, mode and unmount cancel 
   await h.hover(h.item(2));
   await act(async()=>{const select=h.container.querySelector('.insight-controls select');select.value='sitting:'+days[2].id;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
   await h.wait();assert.equal(requests.length,1,'period change cancels queued work');
-  await h.hover(h.item(2));await act(async()=>[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Dossiers').click());await h.wait();assert.equal(requests.length,1,'mode change cancels queued work');
+  await h.hover(h.item(2));await act(async()=>[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Topics').click());await h.wait();assert.equal(requests.length,1,'mode change cancels queued work');
   await act(async()=>[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Agenda').click());
   await h.hover(h.item(2));await h.unmount();await h.wait();assert.equal(requests.length,1,'unmount cancels queued work');
 });
@@ -130,8 +131,7 @@ for(const width of [1440,390])for(const query of ['', '&agenda-period=week:lates
   await h.tick();assertAgenda();
   assert.equal(requests[1].url.searchParams.get('sitting'),days[1].id);
   await h.finish(requests[1],503);assertAgenda();
-  assert(container.querySelector('.insight-topic-detail [role=alert]'));
-  await act(async()=>container.querySelector('.insight-topic-detail [role=alert] button').click());
+  assert.equal(container.querySelector('.insight-topic-detail [role=alert]'),null);assert.equal(container.querySelector('.insight-topic-detail [role=alert] button'),null);await automaticRecovery(t);
   await h.finish(requests[2]);assertAgenda();
   assert.equal(container.querySelector('.insight-topic-detail h2').textContent,topics[2].title);
   for(const url of [first,initial,first]){

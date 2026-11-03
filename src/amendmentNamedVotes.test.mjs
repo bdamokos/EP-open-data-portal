@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
@@ -14,7 +15,7 @@ async function mount(t,handler,{integrated=false,indexedDecision=decision,member
  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {AmendmentNamedVotes}=await load('/src/AmendmentNamedVotes.tsx'),{Amendments}=await load('/src/Amendments.tsx'),{createRoot}=await import('react-dom/client');
  const {PersonNamesProvider}=await load('/src/PersonName.tsx'),{UiI18nProvider}=await load('/src/UiI18nReact.tsx');
- const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
+ const container=document.createElement('div');document.body.append(container);installRetryClock(t);const root=createRoot(container);
  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
  const render=patch=>{const view=createElement(PersonNamesProvider,{members},createElement(integrated?Amendments:AmendmentNamedVotes,integrated?{member:197591,language}:{item,decision,language,...patch}));return act(async()=>root.render(i18n?createElement(UiI18nProvider,{i18n,language},view):view));};
  const open=async()=>{const details=container.querySelector('.amendment-named-votes__groups');await act(async()=>{if(details){details.open=true;details.dispatchEvent(new window.Event('toggle'));}});};
@@ -24,6 +25,7 @@ test('member Amendments retains indexed result and shows author positions with r
  const data=await voteFixture().read(),h=await mount(t,async()=>Response.json(data),{integrated:true});await h.render();assert.equal(h.calls.length,2);assert.match(h.container.textContent,/Adopted/);assert.equal(h.container.querySelector('table'),null);
  await h.open();assert.equal(h.calls.length,2);const text=h.container.textContent;
  assert.match(text,/Author One(?: S&D)? voted for/);assert.match(text,/Author Two(?: EPP)? voted against/);assert.match(text,/Unresolved Author MEP unresolved/);assert.match(text,/Unlisted Author has no recorded vote/);assert.match(text,/How groups voted/);assert.equal(h.container.querySelectorAll('.amendment-named-votes__group').length,4);
+ assert(h.container.querySelector('.vote-group-summary'));assert.match(h.container.querySelector('.amendment-named-votes__group .vote-group-unity').textContent,/100% · 1 of 1/);
  assert.equal(h.container.querySelector('.explorer-amendment-totals dd').textContent,'2');
  const group=[...h.container.querySelectorAll('.amendment-named-votes__group')].find(group=>group.querySelector('summary').textContent.startsWith('S&D'));assert(group);assert.match(group.querySelector('summary').textContent,/For: 1Against: 0Abstentions: 0/);await act(async()=>{group.open=true;});assert(group.querySelector('a[href*="member=197591"]'));
 });
@@ -37,15 +39,15 @@ test('conflicting variants show the verified matrix without combined author attr
  const h=await mount(t,async()=>Response.json(await voteFixture().read()));await h.render({item:{...item,conflicted:true}});await h.open();assert(h.container.querySelector('.amendment-named-votes__group'));assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.textContent,/Author votes withheld: sources conflict/);
 });
 test('missing group history retains author positions without a group table',async t=>{
- const f=voteFixture();f.store.db.prepare=()=>({get:()=>undefined});const h=await mount(t,async()=>Response.json(await f.read()));await h.render();await h.open();assert.match(h.container.textContent,/Author One(?: S&D)? voted for/);assert.match(h.container.textContent,/Groups unavailable for this date/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
+ const f=voteFixture();f.store.db.prepare=()=>({get:()=>undefined});const h=await mount(t,async()=>Response.json(await f.read()));await h.render();await h.open();assert.match(h.container.textContent,/Author One(?: S&D)? voted for/);assert.equal(h.container.querySelector('.vote-group-summary'),null);assert.equal(h.container.querySelector('.vote-group-unity'),null);assert.match(h.container.textContent,/Groups unavailable for this date/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
 });
 test('partial ballots withhold group totals and avoid claiming an unlisted author had no vote',async t=>{
- const f=voteFixture();f.raw.had_voter_favor.push('invalid-person');const h=await mount(t,async()=>Response.json(await f.read()));await h.render();await h.open();assert.match(h.container.textContent,/Named list incomplete/);assert.match(h.container.textContent,/Unlisted Author Unavailable/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
+ const f=voteFixture();f.raw.had_voter_favor.push('invalid-person');const h=await mount(t,async()=>Response.json(await f.read()));await h.render();await h.open();assert.equal(h.container.querySelector('.vote-group-summary'),null);assert.equal(h.container.querySelector('.vote-group-unity'),null);assert.match(h.container.textContent,/Named list incomplete/);assert.match(h.container.textContent,/Unlisted Author Unavailable/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
 });
 test('wrong decision responses and transport errors offer retry, then exact data recovers',async t=>{
  let mode='wrong';const h=await mount(t,async()=>{const data=await voteFixture().read();if(mode==='wrong')data.decisionId+='1';return mode==='error'?new Response('{}',{status:503}):Response.json(data);});await h.render();await h.open();assert.match(h.container.textContent,/Named votes unavailable/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
- mode='error';await act(async()=>h.container.querySelector('button').click());assert.match(h.container.textContent,/Named votes unavailable/);
- mode='good';await act(async()=>h.container.querySelector('button').click());assert(h.container.querySelector('.amendment-named-votes__group'));
+ assert.equal(h.container.querySelector('button'),null);assert.equal(installRetryClock(t).timers.size,0);mode='error';await h.render({decision:{...decision,method:'VOTE_HAND'}});await installRetryClock(t).advance(31000);await h.render();
+ mode='good';await automaticRecovery(t);assert(h.container.querySelector('.amendment-named-votes__group'));
 });
 test('mismatched exact components suppress every position',async t=>{
  const data=await voteFixture().read();data.decision.componentIds=['MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2'];const h=await mount(t,async()=>Response.json(data));await h.render({decision:{...decision,partId:'eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-1',partNumber:1,componentBinding:'single-amendment'}});await h.open();assert.match(h.container.textContent,/Vote record does not match this amendment/);assert.equal(h.container.querySelector('button'),null);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
@@ -160,5 +162,5 @@ test('named-vote group headings use the French UI language for unknown and trans
 test('a real snapshot conflict withholds old voters and offers a working retry',async t=>{
  let conflict=true;const h=await mount(t,async()=>conflict?Response.json({error:{code:'vote_snapshot_unavailable',message:'Snapshot changed'}},{status:409}):Response.json(await voteFixture().read()));
  await h.render();await h.open();assert.match(h.container.textContent,/Named votes unavailable/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
- conflict=false;await act(async()=>h.container.querySelector('button').click());assert(h.container.querySelector('.amendment-named-votes__group'));
+ assert.equal(h.container.querySelector('button'),null);assert.equal(installRetryClock(t).timers.size,0);conflict=false;await h.render({decision:{...decision,method:'VOTE_HAND'}});await h.render();assert(h.container.querySelector('.amendment-named-votes__group'));
 });

@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -35,7 +36,7 @@ async function harness(t){
   load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Legislation}=await load('/src/Legislation.tsx'),journey=await load('/src/dossierJourney.ts'),{createRoot}=await import('react-dom/client');
   function Shell(){journey.useDossierJourney();const [query,setQuery]=useState(location.search);useEffect(()=>{const sync=()=>setQuery(location.search);window.addEventListener('popstate',sync);return()=>window.removeEventListener('popstate',sync);},[]);return new URLSearchParams(query).get('test-dossier')?createElement('main',null,createElement('h1',null,'Dossier destination')):createElement(Legislation,{language,onBack(){}});}
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const render=()=>act(async()=>root.render(createElement(Shell)));
   await render();
   const find=selector=>{const node=container.querySelector(selector);assert(node,'Missing '+selector);return node;};
@@ -60,7 +61,7 @@ test('subjects link by exact codes; Read focuses its adjacent exact reader throu
   assert.match(region.textContent,/Loading text/);assert.doesNotMatch(region.textContent,/Exact text/);
   assert.deepEqual(h.scrolls.at(-1),{target:region,options:{block:'start',behavior:'instant'}});
   const moved=h.button('Continue reading');moved.focus();const scrollCount=h.scrolls.length;
-  await h.respond(report,503);assert.match(region.textContent,/Text temporarily unavailable/);
+  await h.respond(report,503);assert.doesNotMatch(region.textContent,/Text temporarily unavailable/);assert.equal(region.querySelector('[role="alert"] button'),null);
   assert(document.activeElement===moved);assert.equal(h.scrolls.length,scrollCount,'source arrival cannot scroll again');
   await h.click(h.button('Close document'));assert.equal(region.hidden,true);assert(document.activeElement===trigger);assert.equal(trigger.textContent,'Read '+report);assert.equal(trigger.getAttribute('aria-expanded'),'false');
   await h.click(h.button('Read '+other));await h.respond(other);

@@ -105,6 +105,10 @@ test('startup shell uses explicit owned bindings and keeps numeric member IDs li
   localizeInitialShell(window.document,new URLSearchParams({lang:'hu'}));
   assert.equal(window.document.querySelector('h1').textContent,'Európai parlamenti képviselők');
   assert.equal(window.document.querySelector('a[data-view="members"]').textContent,'Képviselők');
+  for(const [query,title] of [['view=geopolitics','Geopolitics'],['view=legislation&pl-mode=topics','Topics'],['view=legislation&pl-mode=dossier','Plenary agenda']]){
+    localizeInitialShell(window.document,new URLSearchParams(query));
+    assert.equal(window.document.querySelector('h1').textContent,title);
+  }
   localizeInitialShell(window.document,new URLSearchParams({lang:'hu',member:'1234567'}));
   assert.equal(window.document.querySelector('h1').textContent,'EP-képviselő 1234567');
   window.document.getElementById('initial-shell').remove();
@@ -121,8 +125,8 @@ test('all reachable messages have translated values in each supported language',
       // grammatical branches; other languages use the common reviewed messages.
       if(id.startsWith('MotionComparison.contextStage.')&&language!=='ro')continue;
       if((id.startsWith('membervotesummary.fullPosition.')||id.startsWith('membervotes.summary.recorded.'))&&!['ro','lt'].includes(language))continue;
-      // New Topics messages use the documented per-message English fallback.
-      if(id.startsWith('topics.')&&!Object.hasOwn(catalogue,id))continue;
+      // New Topics, vote-group and ballot messages use the documented per-message English fallback.
+      if((id.startsWith('topics.')||id.startsWith('votegroups.')||id.startsWith('yourVote.'))&&!Object.hasOwn(catalogue,id))continue;
       assert.equal(typeof catalogue[id],'string',language+': '+id);
       assert(catalogue[id].trim(),language+': '+id);
     }
@@ -134,4 +138,10 @@ test('all reachable messages have translated values in each supported language',
       assert(ui.t(pair.other,values),language+': '+pair.other+' @ '+count);
     }
   }
+});
+
+test('ballot messages use per-message English fallback without replacing translated controls',()=>{
+  const ui=createAppUiI18n({hu:{'yourVote.for':'Mellette'}}).forLocale('hu');
+  assert.equal(ui.t('yourVote.for'),'Mellette');assert.equal(ui.messageLocale('yourVote.for'),'hu');
+  assert.equal(ui.t('yourVote.list'),'Voting list');assert.equal(ui.messageLocale('yourVote.list'),'en');
 });

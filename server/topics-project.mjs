@@ -1,5 +1,5 @@
 import {finishStoryProjection} from './story-facts-aggregate.mjs';
-import {storyTables,stageStoryInput,storyTopicObservations} from './story-facts-storage.mjs';
+import {storyTables,stageStoryInput,storyTopicObservations,adoptHeldEventSnapshots} from './story-facts-storage.mjs';
 import {buildStoryFacts,stageStoryOutcomes} from './story-facts-project.mjs';
 import {topicWorkFields} from './topic-work-fields.mjs';
 import {topicCachedWorks} from './topic-cache-stream.mjs';
@@ -53,6 +53,8 @@ export async function buildTopics(store,{generation=store.get('active'),sourceGe
  }
  onProgress('cache');
  await stageStoryOutcomes(store,sourceGeneration);
+ // Held debate snapshots settle pending story event reads before their observations are used.
+ adoptHeldEventSnapshots(store);
  for(const observation of storyTopicObservations(store))add(observation);
  for(const row of store.db.prepare('SELECT * FROM topic_procedure_metadata').iterate())add({work:JSON.parse(row.body),source:{url:row.url,fetchedAt:row.fetched_at},projection:'procedure'});
  if(!store.renew())throw Error('Activity-index writer lease was lost.');
@@ -61,7 +63,10 @@ export async function buildTopics(store,{generation=store.get('active'),sourceGe
  // metadata has not been retained. The item rows supply all exact author IDs.
  let questionRows=0;
  for(const row of store.db.prepare("SELECT source_key,source_id,mep,date,body FROM items WHERE generation=? AND category IN ('written-questions','oral-questions') ORDER BY source_id,mep,category").iterate(sourceGeneration)){
-  const item=JSON.parse(row.body),old=byId.get(row.source_id),fromItems=old?.questionItems;
+  const item=JSON.parse(row.body);
+  // Commission answers (…-ASW) share the question's category but are not questions.
+  if(item.recordKind==='answer')continue;
+  const old=byId.get(row.source_id),fromItems=old?.questionItems;
   const source=item.provenance?.apiUrl?{url:item.provenance.apiUrl,fetchedAt:item.provenance.sourceFetchedAt}:item.source;
   const node=fromItems?old:{...old,id:row.source_id,kind:'question',reference:old?.reference||item.reference||row.source_id,date:row.date,titles:{...old?.titles,...item.titles},members:[],procedureIds:[...new Set([...(old?.procedureIds||[]),...(item.procedureIds||[])])],questionItems:true,source:old?.source||source,titleSource:item.titles?.en?source:old?.source||source};
   if(!node.members.includes(String(row.mep)))node.members.push(String(row.mep));

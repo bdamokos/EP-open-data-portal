@@ -419,40 +419,6 @@
       "humanReviewed": false,
       "sourceText": "This view could not be displayed"
     },
-    "view-error-help": {
-      "labels": {
-        "bg": "Можете да опитате отново, да се върнете към членовете или да презаредите страницата.",
-        "cs": "Můžete to zkusit znovu, vrátit se k poslancům nebo znovu načíst stránku.",
-        "da": "Du kan prøve igen, gå tilbage til medlemmerne eller genindlæse siden.",
-        "de": "Sie können es erneut versuchen, zu den Mitgliedern zurückkehren oder die Seite neu laden.",
-        "el": "Μπορείτε να δοκιμάσετε ξανά, να επιστρέψετε στους βουλευτές ή να φορτώσετε ξανά τη σελίδα.",
-        "en": "You can try again, return to Members, or reload the page.",
-        "es": "Puede volver a intentarlo, regresar a los diputados o recargar la página.",
-        "et": "Võite proovida uuesti, naasta parlamendiliikmete juurde või laadida lehe uuesti.",
-        "fi": "Voit yrittää uudelleen, palata jäseniin tai ladata sivun uudelleen.",
-        "fr": "Vous pouvez réessayer, revenir aux députés ou recharger la page.",
-        "ga": "Is féidir leat triail eile a bhaint as, filleadh ar na Feisirí nó an leathanach a athlódáil.",
-        "hr": "Možete pokušati ponovno, vratiti se na zastupnike ili ponovno učitati stranicu.",
-        "hu": "Próbálja újra, térjen vissza a képviselőkhöz, vagy töltse újra az oldalt.",
-        "it": "Puoi riprovare, tornare ai deputati o ricaricare la pagina.",
-        "lt": "Galite bandyti dar kartą, grįžti prie narių arba iš naujo įkelti puslapį.",
-        "lv": "Varat mēģināt vēlreiz, atgriezties pie deputātiem vai pārlādēt lapu.",
-        "mt": "Tista’ terġa’ tipprova, tmur lura għall-Membri jew terġa’ ttella’ l-paġna.",
-        "nl": "U kunt het opnieuw proberen, teruggaan naar de leden of de pagina opnieuw laden.",
-        "pl": "Możesz spróbować ponownie, wrócić do posłów lub odświeżyć stronę.",
-        "pt": "Pode tentar novamente, voltar aos deputados ou recarregar a página.",
-        "ro": "Puteți încerca din nou, reveni la deputați sau reîncărca pagina.",
-        "sk": "Môžete to skúsiť znova, vrátiť sa k poslancom alebo znova načítať stránku.",
-        "sl": "Lahko poskusite znova, se vrnete k poslancem ali znova naložite stran.",
-        "sv": "Du kan försöka igen, gå tillbaka till ledamöterna eller ladda om sidan."
-      },
-      "provenance": "machine-translation",
-      "sourceLanguage": "en",
-      "model": "gpt-6.1-sol",
-      "generatedAt": "2026-10-18",
-      "humanReviewed": false,
-      "sourceText": "You can try again, return to Members, or reload the page."
-    },
     "view-reload-help": {
       "labels": {
         "bg": "Презаредете страницата, за да опитате да заредите този изглед отново.",
@@ -486,40 +452,6 @@
       "generatedAt": "2026-10-19",
       "humanReviewed": false,
       "sourceText": "Reload the page to try loading this view again."
-    },
-    "try-again": {
-      "labels": {
-        "bg": "Опитайте отново",
-        "cs": "Zkusit znovu",
-        "da": "Prøv igen",
-        "de": "Erneut versuchen",
-        "el": "Δοκιμάστε ξανά",
-        "en": "Try again",
-        "es": "Volver a intentar",
-        "et": "Proovi uuesti",
-        "fi": "Yritä uudelleen",
-        "fr": "Réessayer",
-        "ga": "Bain triail eile as",
-        "hr": "Pokušajte ponovno",
-        "hu": "Újrapróbálkozás",
-        "it": "Riprova",
-        "lt": "Bandyti dar kartą",
-        "lv": "Mēģināt vēlreiz",
-        "mt": "Erġa’ pprova",
-        "nl": "Opnieuw proberen",
-        "pl": "Spróbuj ponownie",
-        "pt": "Tentar novamente",
-        "ro": "Încercați din nou",
-        "sk": "Skúsiť znova",
-        "sl": "Poskusi znova",
-        "sv": "Försök igen"
-      },
-      "provenance": "machine-translation",
-      "sourceLanguage": "en",
-      "model": "gpt-6.1-sol",
-      "generatedAt": "2026-10-18",
-      "humanReviewed": false,
-      "sourceText": "Try again"
     },
     "go-home": {
       "labels": {

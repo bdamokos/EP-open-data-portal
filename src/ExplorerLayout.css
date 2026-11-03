@@ -10,9 +10,13 @@
 .insight-question-controls { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); max-width:1080px; gap:14px 20px; margin-bottom:12px; }
 .insight-question-controls label { min-width:0; }
 .insight-question-controls>span { grid-column:1/-1; padding:0; font-size:14px; }
-.insight-question-tools { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 20px; margin:12px 0 16px; }
+.insight-question-tools { display:flex; align-items:center; flex-wrap:wrap; gap:10px 12px; margin:16px 0; }
 .insight-question-tools .insight-question-search { margin:0; }
-.insight-question-tools .availability-note { margin:0; }
+.insight-question-tools .explorer-search-launcher { height:var(--control-height); }
+.insight-question-tools .topic-finder { flex:1 1 180px; max-width:440px; margin:0; }
+.insight-question-tools .topic-finder input { height:var(--control-height); padding:9px 12px; border:1px solid var(--line-strong); border-radius:var(--radius-sm); font-size:var(--control-font-size); line-height:var(--control-line-height); }
+.insight-question-tools .availability-note { flex-basis:100%; margin:0; }
+.explorer-insights .availability-note p { margin:0; }
 .insight-question-navigation { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 20px; margin:16px 0 0; border-bottom:1px solid var(--line); }
 .insight-question-grid>.insight-topic-picker { border-top:0; }
 .insight-question-dimensions { display:flex; gap:4px; min-width:0; }
@@ -56,7 +60,7 @@
 .insight-vote-totals h3 strong { font-size:28px; font-variant-numeric:tabular-nums; }
 .insight-vote-totals small { display:block; margin-top:6px; color:var(--ink-muted); }
 .insight-vote-matrix { margin:16px 0; }
-.insight-vote-matrix-head,.insight-vote-group-row { display:grid; grid-template-columns:minmax(110px,1.5fr) repeat(3,minmax(60px,1fr)); gap:8px; align-items:center; }
+.insight-vote-matrix-head,.insight-vote-group-row { display:grid; grid-template-columns:minmax(110px,1.5fr) repeat(3,minmax(46px,1fr)) minmax(100px,1fr); gap:8px; align-items:center; }
 .insight-vote-matrix-head { font-size:14px; color:var(--ink-muted); margin-bottom:8px; }
 .insight-vote-matrix-head>span:not(:first-child) { text-align:center; }
 .insight-vote-group-row { border-top:1px solid var(--line); padding:8px 0; }
@@ -114,8 +118,9 @@
   .insight-vote-totals { gap:12px; }
   .explorer-insights .insight-vote-totals h3 { font-size:16px; }
   .insight-vote-totals h3 strong { font-size:24px; }
-  .insight-vote-matrix-head,.insight-vote-group-row { grid-template-columns:minmax(90px,1.2fr) repeat(3,minmax(46px,1fr)); gap:6px; }
-  .insight-vote-matrix-head { font-size:12px; }
+  .insight-vote-matrix-head,.insight-vote-group-row { grid-template-columns:minmax(63px,1fr) repeat(3,minmax(46px,.65fr)) minmax(82px,1fr); gap:6px; }
+  .insight-vote-matrix-head { font-size:11px; }
+  .insight-vote-matrix-head>span:nth-child(n+2):nth-child(-n+4) { white-space:nowrap; }
   .insight-vote-group-row>span { font-size:13px; gap:5px; }
   .explorer-insights .explorer-video-actions button { flex:1 1 140px; min-width:0; }
   .insight-reader-text { font-size:16px; }
@@ -167,3 +172,5 @@
 .explorer-insights [tabindex="-1"] { scroll-margin-block:12px; }
 
 .explorer-insights button { scroll-margin-block:8px; }
+
+.insight-vote-group-row>.vote-group-unity {display:block;text-align:center;font-size:12px;}
