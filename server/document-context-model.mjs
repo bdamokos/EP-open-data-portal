@@ -1,3 +1,4 @@
+import {characterSimilarity} from './proposal-similarity.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {relativeResolutionHeading} from './resolution-labels.mjs';
 import {comparisonHeading} from './amendment-baseline.mjs';
@@ -613,7 +614,21 @@ export function resolveAmendmentPlacement(text, options = {}) {
       && complete(structure.start, unit.end);
     const footnotes = sourceKey !== originalKey && ['paragraph', 'recital', 'point'].includes(unit.kind)
       && resolutionFootnoteMatch(text, unit.start, unit.end, options.originalText, options.originalFormatting);
-    const wordingMatches = sourceKey === originalKey || footnotes
+    // A unique labelled whole provision can survive small transcription damage
+    // or a replaced tail. Compare all same-kind provisions in this motion so
+    // repeated boilerplate cannot make a near match appear unique.
+    let nearMatch=false;
+    if(sourceKey!==originalKey&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
+      const score=value=>{
+        let prefix=0;while(prefix<Math.min(value.length,originalKey.length)&&value[prefix]===originalKey[prefix])prefix++;
+        return {similarity:characterSimilarity(value,originalKey,.93),prefix:prefix>=80?prefix/Math.min(value.length,originalKey.length):0};
+      };
+      const own=score(sourceKey),others=units.filter(candidate=>candidate.kind===unit.kind&&candidate!==unit)
+        .map(candidate=>score(wordingNormal(text.paragraphs.slice(candidate.start,candidate.end+1).join(' '))));
+      nearMatch=own.similarity>=.95&&others.every(other=>other.similarity<=own.similarity-.02)
+        ||own.prefix>=.5&&others.every(other=>other.prefix<=own.prefix-.02);
+    }
+    const wordingMatches = nearMatch || sourceKey === originalKey || footnotes
       || numberedCitation && sourceKey.replace(/^[–—−\-•]\s*/u, '') === originalKey;
     // Exact whole-unit wording independently proves a labelled paragraph or
     // recital's extent, even when the following boundary is unclassified.
