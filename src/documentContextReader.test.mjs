@@ -1316,3 +1316,13 @@ test('report quotation labels the comparison base without a legal-text placement
  assert.equal(h.container.querySelector('[data-context-target]'),null);
  assert(![...h.container.querySelectorAll('button')].some(b=>b.textContent==='Go to amendment'));
 });
+
+test('placed NLE comparison keeps detached notes outside the provision body without losing published text',async t=>{
+ const {noteWord,noteBody,noteDefinitions}=await import('../server/test-support/note-scope-fixture.mjs');
+ const {documentContextPlacement}=await import('../server/document-context-placement.mjs');
+ const value=proposalContextResponse(report,amendment,list),variant=value.amendment.variants[0];
+ Object.assign(variant,{targetLabel:'Recital 1',targetPath:undefined,targetLabelLanguage:'en',baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false},originalText:'(1)\tAlpha1 and Beta2.\n_____\n1 First citation.\n2 Second citation.',proposedText:'(1)\tChanged2.\n_____\n1 First citation.\n2 Second citation.',originalFormatting:[{kind:'superscript',start:9,end:10},{kind:'superscript',start:19,end:20}],proposedFormatting:[{kind:'superscript',start:11,end:12}]});
+ value.proposal.items=[{kind:'act',index:1,proposal:parseProposal(noteWord(noteBody,{notes:noteDefinitions}))}];value.baseline.evidence=[{kind:'native-procedure',status:'verified',procedure:'2028/0045(NLE)'}];value.placement=documentContextPlacement({chosen:variant,items:value.proposal.items,baseline:value.baseline});assert.equal(value.placement.status,'placed');
+ const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+ const block=h.container.querySelector('[data-amendment-block]'),notes=block.querySelector('[data-amendment-notes]');assert(notes);assert.equal(notes.querySelector('h5').textContent,'Notes · 2');const body=block.querySelector('.wording-diff');assert(!body.textContent.includes('citation'));assert.equal(wordingText(body,'proposed'),'(1)\tChanged2.');assert.equal(body.querySelectorAll('sup').length,3);assert(notes.textContent.includes('1 First citation.'));assert(notes.textContent.includes('2 Second citation.'));assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,1);
+});

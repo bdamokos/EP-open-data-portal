@@ -1,3 +1,4 @@
+import {resolveProposalNoteScope} from './proposal-note-scope.mjs';
 import {amendmentRejection} from './amendment-rejection.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {resolveAmendmentPlacement,amendmentOperation,resolutionReference} from './document-context-model.mjs';
@@ -22,9 +23,8 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   const proposalKind=['commission-proposal','council-position'].includes(chosen.baseline)&&chosen.baselineSource?.category===chosen.baseline&&chosen.baselineSource.conflicted===false;
   const consultation=chosen.baseline==='commission-proposal'&&(chosen.documentReferences||[]).some(r=>(r.field==='DocRef'||/^DocAmend\d?$/.test(r.field))&&/\b\d{4}\/\d{4}\s*\(CNS\)/u.test(r.raw||''));
   const nle=chosen.baseline==='commission-proposal'&&baseline?.evidence?.some(e=>e.kind==='native-procedure'&&e.status==='verified'&&/\(NLE\)$/u.test(e.procedure));
-  // Native CNS/NLE source support covers the provision body. A separated note payload
-  // has another legal scope; keep it readable without claiming its placement.
-  if(proposalKind&&(consultation||nle)&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text)))return unresolved('proposal_note_scope_unavailable');
+  const detachedNotes=proposalKind&&(consultation||nle)&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text));
+  if(detachedNotes&&!nle)return unresolved('proposal_note_scope_unavailable');
   if(proposalKind&&nle&&baseline.evidence.some(e=>e.kind==='native-nle-annex-part'&&e.ordinal===null&&e.legalPlacement===false)&&/\bAnnex\b/iu.test(chosen.targetLabel||''))return unresolved('proposal_annex_ordinal_unverified');
   let selected=chosen;
   if(proposalKind&&nle&&chosen.language==='en'&&/^Annex I(?= [–-])/u.test(chosen.targetLabel||'')) {
@@ -34,8 +34,10 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
       selected={...chosen,targetLabel:alias(chosen.targetLabel),...(chosen.targetPath?{targetPath:{...chosen.targetPath,proposal:chosen.targetPath.proposal?.map(path=>({...path,raw:alias(path.raw)}))}}:{})};
     }
   }
-  if(proposalKind)return items?.length&&chosen.language&&(chosen.targetPath?.language??chosen.targetLabelLanguage)===chosen.language
-    ?resolveProposalPlacement(items,selected):unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
+  if(proposalKind){
+    if(!items?.length||!chosen.language||(chosen.targetPath?.language??chosen.targetLabelLanguage)!==chosen.language)return unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
+    return detachedNotes?resolveProposalNoteScope(items,selected):resolveProposalPlacement(items,selected);
+  }
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
   const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
   let placement=['present-text','council-position'].includes(chosen.baseline)
