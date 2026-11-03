@@ -4,6 +4,7 @@ export function assertBareAnnexReplacement({items,proposal,wording,placement,nat
  const unknown=()=>({status:'unverified',reason:'oracle-bare-annex-replacement-unavailable'});
  const target=wording?.language==='en'&&/^Annex I – point ([1-9]\d*) – (introductory part|indent ([1-9]\d*))$/u.exec(wording.targetLabel||'');
  if(!target||wording.baseline!=='commission-proposal'||placement.operation!=='replace'||!wording.originalText||!wording.proposedText||!proposal)return unknown();
+ if(wording.targetPath?.underlying?.length||(wording.targetPath?.language??wording.language)!==wording.language||wording.targetPath?.proposal?.length>1||wording.targetPath?.proposal?.length===1&&normal(wording.targetPath.proposal[0].raw||'')!==normal(wording.targetLabel))return unknown();
  const proof=nativeBareAnnexList({items,proposal,itemIndex:placement.itemIndex,nativeQuoted}),rows=nativeBareAnnexPointRows(proof,proposal,target[1]);
  if(!rows||rows.length<2)return unknown();const index=target[3]?Number(target[3]):0,row=rows[index];if(!row)return unknown();
  if(index===0){

@@ -231,6 +231,7 @@ function bareAnnexIndentInsertion(items,target,{language,baseline,originalText,p
 }
 function bareAnnexReplacement(items,target,{language,baseline,originalText,proposedText,targetLabel,targetPath,nativeProposalInputs}) {
   const [rootLabel,pointLabel,last]=target.segments,literal=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
+  if((targetPath?.language??language)!==language)return null;
   if(language!=='en'||baseline!=='commission-proposal'||target.segments.length!==3||rootLabel.kind!=='annex'||rootLabel.value!=='I'||rootLabel.isNew||pointLabel.kind!=='point'||!pointLabel.number||pointLabel.suffix||pointLabel.isNew||!['introductory-part','indent'].includes(last.kind)||last.isNew||last.suffix||targetPath?.underlying?.length||literal(target.raw)!==literal(targetLabel)||!/^Annex I – point [1-9]\d* – (?:introductory part|indent [1-9]\d*)$/u.test(targetLabel))return null;
   const proof=bareAnnexPoint(items,pointLabel.number,nativeProposalInputs);if(!proof)return null;
   const {itemIndex,root,point,indents,rows}=proof;
