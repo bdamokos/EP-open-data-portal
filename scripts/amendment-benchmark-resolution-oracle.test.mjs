@@ -75,7 +75,7 @@ test('cached automatic recital and paragraph numbers independently certify blank
  const body=quotedWordBody(buffer),visible=body.filter(row=>row.kind==='paragraph'&&row.text.trim());
  const text={nativeBuffer:buffer,paragraphs:visible.map(row=>(row.numberingLabel?row.numberingLabel+'\t':'')+row.text.trim()),paragraphFormats:visible.map(()=>({})),paragraphSources:visible.map(row=>({path:row.path,container:'body',containerPath:'/w:document[1]/w:body[1]',ordinal:body.indexOf(row),segment:body.indexOf(row),complete:true}))};
  assert.equal(visible.filter(row=>row.numberingLabel).map(row=>row.numberingLabel).join(','),'A.,B.,C.,D.,E.,F.,1.,2.,3.,4.,5.,6.,7.,8.,9.');
- const units=rawResolutionUnits(text,'en').units;for(const label of ['D','1','2','5'])assert.equal(units.find(unit=>unit.label===label&&unit.kind===(label==='D'?'recital':'paragraph'))?.complete,true,label);
+ const units=rawResolutionUnits(text,'en',{includeTables:true}).units;for(const label of ['D','1','2','5'])assert.equal(units.find(unit=>unit.label===label&&unit.kind===(label==='D'?'recital':'paragraph'))?.complete,true,label);
 });
 
 import {docxContent} from '../server/document-text.mjs';
@@ -86,7 +86,7 @@ test('native table boundaries include all cells before the following numbered pa
   const nativeBuffer=zip(xml),text={...docxContent(nativeBuffer),nativeBuffer};
   const tables=nativeAttachedTables(text);
   assert.deepEqual(tables,[{start:1,end:84,following:85,label:'149'}]);
-  const units=rawResolutionUnits(text,'en').units;
+  const units=rawResolutionUnits(text,'en',{includeTables:true}).units;
   assert.equal(units.find(unit=>unit.label==='149').complete,true);
   for(const suffix of ['a','b']) {
     const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 149 '+suffix+' (new)',originalText:'',proposedText:'New provision;'};
