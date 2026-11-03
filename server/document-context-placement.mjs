@@ -94,7 +94,7 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   return placement;
 }
 
-export {amendmentAlternative};
+export {amendmentAlternative,amendmentRejection};
 
 // Only a complete comparison template can separate provision text from notes.
 // Keep the published columns unchanged; the cuts also drive the reader.
