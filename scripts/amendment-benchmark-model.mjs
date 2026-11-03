@@ -1,3 +1,4 @@
+import {assertBareAnnexReplacement} from './amendment-annex-replacement-oracle.mjs';
 import {assertBareAnnexIndent} from './amendment-annex-indent-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
@@ -370,6 +371,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
   const proposal = items?.[placement.itemIndex]?.proposal;
+  const annexReplacement=assertBareAnnexReplacement({items,proposal,wording,placement,nativeQuoted});
+  if(annexReplacement.status!=='unverified')return annexReplacement;
   const annexIndent=assertBareAnnexIndent({items,proposal,wording,placement,nativeQuoted});
   if(annexIndent.status!=='unverified')return annexIndent;
   // Explicit inner labels must reach the independent native assertion before
