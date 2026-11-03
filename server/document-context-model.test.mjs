@@ -974,8 +974,8 @@ test('a new recital continuing the published sequence follows the last recital',
   const place=(targetLabel,referenceText)=>resolveAmendmentPlacement(text,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'C.\twhereas three;',targetLabel,referenceText});
   const placed=place('Recital C (new)','After recital B');
   assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,4);
-  assert.equal(place('Recital C (new)','After recital C').reason,'conflicting_target_evidence','B-10-2026-0386 AM1 vote list names a later recital');
-  assert.equal(place('Recital D (new)').status,'unresolved');
+  assert.equal(place('Recital C (new)','After recital C').insertBefore,4,'the label determines placement despite the vote reference');
+  assert.equal(place('Recital D (new)').insertBefore,4);
 });
 
 test('a resolution paragraph original with detached source notes matches by body, note position and note text', () => {
