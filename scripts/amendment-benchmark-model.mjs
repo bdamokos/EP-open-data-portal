@@ -1,4 +1,5 @@
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
+import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
 import {assertBareAnnexInsertion} from './amendment-annex-oracle.mjs';
@@ -521,6 +522,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
+  const firstAnnex=assertFirstAnnex({proposal,items,wording,placement,nativeQuoted});
+  if(firstAnnex)return firstAnnex;
   const closing=assertClosingFormula({proposal,wording,placement});
   if(closing.status!=='unverified')return closing;
   const numbering=assertWordingNumbering({proposal,wording,placement});
