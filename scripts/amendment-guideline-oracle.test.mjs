@@ -28,5 +28,5 @@ test('native bookmarks and whitespace do not manufacture or hide a body paragrap
 test('guideline subheading addresses count headings independently from body paragraphs',()=>{
  const input={...fixture(),wording:{...wording,targetLabel:'Annex I – subheading 1',originalText:texts[0]},placement:{operation:'replace',span:{start:0,end:0},splice:{start:{paragraph:0,offset:0},end:{paragraph:0,offset:texts[0].length}}}};
  assert.equal(assertGuidelineAnnex(input).status,'verified');
- assert.equal(assertGuidelineAnnex({...input,wording:{...input.wording,targetLabel:'Annex I – subheading 2'}}).status,'unverified');
+ assert.equal(assertGuidelineAnnex({...input,wording:{...input.wording,targetLabel:'Annex I – subheading 2'}}).status,'failed');
 });
