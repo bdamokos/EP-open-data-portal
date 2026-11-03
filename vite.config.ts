@@ -2,6 +2,8 @@ import { readdirSync,readFileSync } from "node:fs";
 import {createHash} from 'node:crypto';
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import {fileURLToPath} from "node:url";
+import {API_VERSION, versionedApiUrl} from "./server/api-version.mjs";
 
 const thirdPartyNotices = readFileSync(new URL("./THIRD_PARTY_JAVASCRIPT_LICENSES.txt", import.meta.url), "utf8").trim().replaceAll("*/", "* /");
 const startupAssets = ['colour-scheme', 'interface-language', 'initial-shell'].map(name => {
@@ -12,7 +14,15 @@ const startupAssets = ['colour-scheme', 'interface-language', 'initial-shell'].m
 
 export default defineConfig({
   base: "./",
-  plugins: [react(),{
+  plugins: [{
+    name: 'api-contract-version',
+    enforce: 'pre',
+    load(id) {
+      if (id === fileURLToPath(new URL('./server/api-version.mjs', import.meta.url))) {
+        return `export const API_VERSION = ${JSON.stringify(API_VERSION)};\nexport ${versionedApiUrl.toString()}`;
+      }
+    },
+  },react(),{
     name: 'fingerprinted-startup-scripts',
     apply: 'build',
     transformIndexHtml: {order: 'post', handler(html) {

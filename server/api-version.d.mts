@@ -1,4 +1,2 @@
-export const API_CONTRACT_REVISION: number;
-export const API_VERSION: number;
-export const API_CONTRACT_DIGESTS: Readonly<Record<number, string>>;
+export const API_VERSION: string;
 export function versionedApiUrl(url: string): string;

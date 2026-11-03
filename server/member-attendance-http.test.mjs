@@ -23,7 +23,7 @@ test('attendance route admits bounded queries with versioning, no-store and inde
   const head=await fetch(route,{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
   assert.equal((await fetch(route,{method:'POST'})).status,405);
   assert.equal((await fetch(route,{headers:{Origin:'https://example.invalid'}})).status,403);
-  const invalidVersion=await fetch(route.replace('v='+API_VERSION,'v='+(API_VERSION-1)));assert.equal(invalidVersion.status,409);assert.equal((await invalidVersion.json()).error.code,'api_version_mismatch');
+  const invalidVersion=await fetch(route.replace('v='+API_VERSION,'v='+'296'));assert.equal(invalidVersion.status,409);assert.equal((await invalidVersion.json()).error.code,'api_version_mismatch');
   for(const query of ['', 'sittings=', 'sittings='+SITTING+'&lang=xx','sittings='+SITTING+'&sittings='+SITTING,'sittings='+SITTING+'&unknown=1'])assert.equal((await fetch(root+'/api/member-attendance/42?'+query)).status,400,query);
   assert.equal((await fetch(route.replace('/42?','/0?'))).status,400);
   const health=await (await fetch(root+'/api/')).json();assert(health.endpoints.includes('member-attendance'));

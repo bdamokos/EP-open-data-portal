@@ -32,16 +32,7 @@ Keep `.nvmrc` and the Dockerfile’s Node version aligned, and pin `NODE_IMAGE` 
 
 ## API versions
 
-When an API response contract changes, including its meaning, bump that endpoint’s `*_VERSION` and run:
-
-```sh
-npm run api:bump
-git add server/api-version.mjs
-```
-
-The command fetches main and renumbers this branch’s entries after main’s. After merging or rebasing main, rerun it; it resolves conflict markers in `server/api-version.mjs` itself. For a change of meaning with an unchanged digest, use `npm run api:bump -- --force` once. Never edit or delete recorded digests, and don’t bump for builds, releases or data refreshes. `npm run api:check` is the read-only check that CI runs.
-
-If main itself replaced a recorded mapping, use `npm run api:bump -- --repair-history KNOWN_GREEN_MAIN_REF`. The tool verifies the first-parent history, restores its append-only prefix and retains displaced digest occurrences at higher revisions. Recovery provenance stays in the registry; CI verifies it without fetching or writing. Reconcile each stacked PR against current main immediately before merging, even when its code was already measured together with the stack.
+For an API response contract change, including a change of meaning, bump the affected endpoint `*_VERSION`. The client build and server startup derive the same 12-character version from the contract digest; no other version update is needed.
 
 ## Interface
 
