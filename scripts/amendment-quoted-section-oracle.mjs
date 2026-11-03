@@ -20,6 +20,9 @@ function reportComparison(body,number){
  const starts=body.flatMap((row,index)=>row.kind==='paragraph'&&normal(row.text)==='Amendment '+number?[index]:[]);if(starts.length!==1)return null;
  const rows=body.slice(starts[0],starts[0]+6);
  if(rows.length!==6||rows.slice(0,5).some(row=>row.kind!=='paragraph'||row.hidden||!safe(row.nodes))||rows[1].text!=='Proposal for a regulation'||rows[5].kind!=='other'||rows[5].hidden||!rows[5].nodes['w:tbl'])return null;
+ const tail=body.slice(starts[0]+6),boundary=tail.findIndex(row=>row.kind==='paragraph'&&/^Amendment \d+$/u.test(normal(row.text))),trailing=boundary<0?tail:tail.slice(0,boundary);
+ if(trailing.some(row=>row.kind==='paragraph'?row.hidden||!safe(row.nodes)||row.text.trim()!=='':!row.nodes?.['w:sectPr']))return null;
+ if(boundary>=0&&(tail[boundary].hidden||!safe(tail[boundary].nodes)))return null;
  const table=rows[5].nodes['w:tbl'];
  if(['w:tbl','w:vMerge','w:hMerge'].some(name=>descendants(table,name).length))return null;
  const tableRows=children(table,'w:tr'),layout=tableRows[0],cells=layout&&children(layout,'w:tc');
