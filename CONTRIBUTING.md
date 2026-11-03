@@ -96,12 +96,5 @@ Git. Acquisition reads public ODP adopted-text listings and their declared Engli
 XML manifestations sequentially, at least two seconds apart; a 429 pauses three
 minutes and stops. Replay verifies every input hash and makes no source requests.
 
-Binding requires the exact `adopts` document and adopted decision date. Amendment
-lists retain all explicitly named AM numbers, full finalized headings and native
-order. Structural checks compare those paths with observed placement coordinates;
-unsupported paths, amended-act mappings and unavailable languages are inconclusive.
-Order inversions are disagreements; shared-gap order is inconclusive until the
-pipeline exposes an explicit sequence. Consolidated texts require exact wording
-and both unchanged immediate neighbours. Negotiated positions are inconclusive.
-The report lists every disagreement on a placed row for maintainer review, without
-turning missing TA amendments into placement failures.
+Use the sidecar's `placedDisagreements` list for maintainer review. Calibration
+results never change the benchmark's existing score or verifier.
