@@ -248,6 +248,20 @@ function verifyNegativeFirst(text,wording,target,placement) {
 
 function verifyResolutionInsertion(text,wording,target,placement) {
   const label=target.segments.at(-1);
+  if(label.kind==='recital'&&label.isNew&&target.segments.length===1) {
+    const raw=rawResolutionUnits(text,wording.language),recitals=raw.units.filter(unit=>unit.kind==='recital');
+    const first=raw.units.find(unit=>unit.kind==='paragraph');
+    const ordinal=value=>/^[A-Z]+$/u.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+    const beyond=recitals.length&&ordinal(String(label.base))>ordinal(recitals.at(-1).label);
+    if(!raw.reason&&first?.label==='1'&&(!recitals.length&&['-A','A'].includes(label.value)||beyond)) {
+      const last=recitals.at(-1),from=last?.start??raw.units[0]?.start;
+      const sources=text.paragraphSources;
+      const complete=Number.isInteger(from)&&sources.slice(from,first.start+1).every((row,i)=>row.complete&&row.container==='body'&&(!i||row.containerPath===sources[from+i-1].containerPath&&row.segment===sources[from+i-1].segment&&row.ordinal===sources[from+i-1].ordinal+1));
+      const ordered=recitals.every((unit,i)=>unit.complete&&ordinal(unit.label)===i+1&&unit.end<first.start);
+      if(!complete||!ordered||last&&last.end!==first.start-1)return {status:'unverified',reason:'oracle-recital-boundary-unverified'};
+      return placement.insertBefore===first.start&&placement.insertAfter===first.start-1?verified('oracle-recital-body-boundary'):fail('oracle-insertion-boundary-mismatch');
+    }
+  }
   if(label.negative&&!(wording.language==='fi'&&label.kind==='paragraph'))return verifyNegativeFirst(text,wording,target,placement);
   if(label.negative) {
     // Literal Finnish published pre-first paragraph family. Derive the boundary
