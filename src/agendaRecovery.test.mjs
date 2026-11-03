@@ -12,15 +12,15 @@ function agenda(params) {
   const days=week?sittings.filter(s=>week==='2026-10-05'?s.date<'2026-10-19':s.date==='2026-10-19'):[sittings.find(s=>s.id===params.get('sitting'))];
   return {view:'legislation',week,sitting:days[0],sittings,topics:days.map(s=>({id:s.id+'-item',sittingId:s.id,date:s.date,title:'Agenda for '+s.date,kind:'PLENARY_DEBATE',documentIds:[],procedureIds:[]})),agendaSittings:week?days.map(s=>({...s,agendaComplete:true,agendaError:null})):undefined,coverage:{agendaComplete:false,agendaError:null},detail:null};
 }
-async function harness(t,query='') {
+async function harness(t,query='',width=1440) {
   const window=new Window({url:'http://localhost/?view=legislation'+query});
-  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:width,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root;
-  const requests=[];
+  const requests=[],calls=[];
   t.mock.method(globalThis,'fetch',(input,options)=>{
-    const url=new URL(input,location.href);
+    const url=new URL(input,location.href);calls.push(url);
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected fetch: '+url);
     return new Promise(resolve=>requests.push({url,signal:options.signal,resolve}));
   });
@@ -31,7 +31,7 @@ async function harness(t,query='') {
   const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(Legislation,{language:'en',onBack(){}})));
   const select=()=>container.querySelector('.insight-controls select');
-  return {container,requests,select,
+  return {container,requests,calls,select,
     choose:async value=>act(async()=>{select().value=value;select().dispatchEvent(new window.Event('change',{bubbles:true}));}),
     finish:async(request=requests.at(-1),status=200)=>act(async()=>request.resolve(status===200?Response.json(agenda(request.url.searchParams)):Response.json({error:{message:'Fixture unavailable'}},{status}))),
     reload:async()=>automaticRecovery(t),
@@ -134,4 +134,16 @@ test('agenda timeout ends loading and leaves usable navigation without automatic
   await automaticRecovery(t);await h.finish();assert.match(h.container.textContent,/Agenda for 2026-10-07/);
   assert.equal(h.select().value,'week:2026-10-05');
   assert.equal(h.requests.length,3);
+});
+
+for(const width of [390,1280])test(`agenda at ${width}px keeps day groups and card order without topic labels or requests`,async t=>{
+  const h=await harness(t,'',width);
+  await h.finish();
+  const agenda=h.container.querySelector('.insight-agenda');
+  assert(agenda);
+  assert.equal(agenda.querySelector('.record-topics'),null);
+  assert.deepEqual([...agenda.querySelectorAll('h3')].map(node=>node.textContent),['Oct 5, 2026','Oct 7, 2026']);
+  assert.deepEqual([...agenda.querySelectorAll('button strong')].map(node=>node.textContent),['Agenda for 2026-10-05','Agenda for 2026-10-07']);
+  // The fetch mock rejects every non-agenda route; also verify the recorded traffic.
+  assert.equal(h.calls.filter(url=>url.pathname.endsWith('/insights/record-topics')).length,0);
 });

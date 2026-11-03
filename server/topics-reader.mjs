@@ -8,7 +8,7 @@ const busy=()=>new HttpError(503,'topics_busy','Topics unavailable.');
 export const topicReaderWorkers=()=>size;
 function spawn(){
  const slot={worker:new Worker(new URL('./topics-reader-worker.mjs',import.meta.url)),job:null,failure:null,dead:false,idleTimer:null};size++;
- slot.worker.on('message',m=>{const job=slot.job;if(!job||m.id!==job.id||slot.terminating)return;slot.job=null;clearTimeout(job.timer);if(m.error)job.reject(new HttpError(m.status||503,m.code||'topics_unavailable',m.error));else job.resolve(m.value);release(slot);});
+ slot.worker.on('message',m=>{const job=slot.job;if(!job||m.id!==job.id||slot.terminating)return;slot.job=null;clearTimeout(job.timer);if(m.error)job.reject(new HttpError(m.status||503,m.code||'topics_unavailable',m.error));else job.resolve(m.unchanged?job.cached.value:(job.remember?.(m.token,m.value),m.value));release(slot);});
  slot.worker.on('error',error=>{slot.failure=error;});
  slot.worker.once('exit',()=>{
   size--;slot.dead=true;clearTimeout(slot.idleTimer);const i=idle.indexOf(slot);if(i>=0)idle.splice(i,1);
@@ -29,9 +29,14 @@ function release(slot){
  if(waiting.length){start(slot,take());return;}
  idle.push(slot);slot.idleTimer=setTimeout(()=>{const i=idle.indexOf(slot);if(i>=0){idle.splice(i,1);void slot.worker.terminate();}},topicReaderSettings.idleMs);slot.idleTimer.unref();
 }
+// Recent overview responses (about 300 KB each) are kept until their worker
+// reports a changed projection or coverage token.
+const overviews=new Map(),overviewLimit=8;
 export function readTopics(filename,view,params,{pressFilename}={}){
  return new Promise((resolve,reject)=>{
-  const job={id:++sequence,request:{filename,view,pressFilename,params:[...params]},resolve,reject};
+  const cacheKey=view==='overview'?filename+'?'+new URLSearchParams([...params]).toString():null,cached=cacheKey?overviews.get(cacheKey):undefined;
+  const job={id:++sequence,request:{filename,view,pressFilename,params:[...params],...(cached?{cachedToken:cached.token}:{})},resolve,reject,cached,
+   remember:cacheKey?(token,value)=>{if(!token)return;overviews.delete(cacheKey);overviews.set(cacheKey,{token,value});if(overviews.size>overviewLimit)overviews.delete(overviews.keys().next().value);}:null};
   const slot=idle.pop();if(slot){start(slot,job);return;}
   if(size<topicReaderSettings.workers){start(spawn(),job);return;}
   if(waiting.length>=topicReaderSettings.queue){reject(busy());return;}
