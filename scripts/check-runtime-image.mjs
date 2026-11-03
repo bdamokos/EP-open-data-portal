@@ -29,6 +29,8 @@ try{
   }
   const probe=`
     import assert from 'node:assert/strict';
+    import {API_VERSION} from './server/api-version.mjs';
+    import {readdir,readFile} from 'node:fs/promises';
     import {brotliCompressSync,brotliDecompressSync,createBrotliDecompress} from 'node:zlib';
     assert.equal(process.versions.node,${JSON.stringify(nodeVersion)},'Runtime Node must match .nvmrc.');
     const plain=Buffer.from('Parliament source response');
@@ -52,6 +54,16 @@ try{
     };
     const health=await (await get('/healthz')).json();
     assert.equal(health.ok,true);assert.equal(health.service,'parliament-explorer');
+    assert.equal(health.apiVersion,API_VERSION);
+    assert.match(API_VERSION,/^[a-f0-9]{12}$/);
+    const scripts=await Promise.all((await readdir('./dist/assets')).filter(name=>name.endsWith('.js')).map(name=>readFile('./dist/assets/'+name,'utf8')));
+    assert(scripts.some(source=>source.includes(API_VERSION)),'Built client must contain the runtime contract version.');
+    assert.equal((await fetch(base+'/healthz?v='+API_VERSION)).status,200);
+    for(const version of ['296',API_VERSION==='ffffffffffff'?'eeeeeeeeeeee':'ffffffffffff']) {
+      const stale=await fetch(base+'/healthz?v='+version);
+      assert.equal(stale.status,409);
+      assert.equal((await stale.json()).error.code,'api_version_mismatch');
+    }
     const html=await (await get('/')).text();
     const asset=html.match(/<script[^>]+src="((?:\\.)?\\/assets\\/[^"?]+\\.js)"/);
     assert(asset,'Built frontend entry is missing.');

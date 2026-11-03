@@ -81,13 +81,19 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
         assert.equal(unversioned.headers.get('cdn-cache-control'), 'no-store');
         assert.equal(unversioned.headers.get('cache-control'), current.headers.get('cache-control'));
         await unversioned.arrayBuffer();
-        const mismatched = await originalFetch(base + resource + (resource.includes('?') ? '&' : '?') + 'v=' + (API_VERSION + 1), {method, headers: conditional ? {'If-None-Match': etag} : {}});
+        const mismatched = await originalFetch(base + resource + (resource.includes('?') ? '&' : '?') + 'v=' + (API_VERSION === 'ffffffffffff' ? 'eeeeeeeeeeee' : 'ffffffffffff'), {method, headers: conditional ? {'If-None-Match': etag} : {}});
         assert.equal(mismatched.status, 409);
         assertNoStore(mismatched);
         if (method === 'HEAD') assert.equal(await mismatched.text(), '');
         else assert.deepEqual(await mismatched.json(), {error: {code: 'api_version_mismatch', message: 'A new version of the explorer is available.', apiVersion: API_VERSION}});
       }
     }
+  }
+  for (const version of ['296', API_VERSION === 'ffffffffffff' ? 'eeeeeeeeeeee' : 'ffffffffffff']) {
+    const stale = await originalFetch(base + '/api/healthz?v=' + version);
+    assert.equal(stale.status, 409);
+    assertNoStore(stale);
+    assert.equal((await stale.json()).error.apiVersion, API_VERSION);
   }
   for (const version of ['', '0', '-1', '1.5', '1e2', '01', 'NaN', '9007199254740992', API_VERSION + '&v=' + API_VERSION]) {
     const invalid = await originalFetch(base + '/api/healthz?v=' + version);

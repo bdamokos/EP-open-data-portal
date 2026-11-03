@@ -32,5 +32,4 @@ export const slow = [
   {file: 'server/docx-fidelity.test.mjs', reason: 'Spawns Node to check retained DOCX fidelity.'},
   {file: 'server/test-runner.test.mjs', reason: 'Spawns Node to verify runner profiles, preload inheritance and capability failures.'},
   {file: 'server/profile-affiliation.test.mjs', reason: 'Spawns Node to check isolated profile and roster affiliation reads.'},
-  {file: 'scripts/api-version.test.mjs', reason: 'Spawns Git and Node to check API-version CLI history and conflict reconciliation.'},
 ];

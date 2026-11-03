@@ -142,14 +142,14 @@ test('published heading locates amendments when the list has no structured locat
 });
 
 test('numbered subparagraphs place only within their own paragraphs',()=>{
-  const projection=source(['Article 1','1. Lead subparagraph text.','Second subparagraph text.','2. Next paragraph.']);
+  const projection=source(['Article 1','1. Lead subparagraph text.','Second subparagraph text.','2. Next paragraph.'],['Titrearticle','ManualNumPar1','Text1','ManualNumPar1']);
   let placed=resolve(projection,'Article 1 – paragraph 1 – subparagraph 1','Lead subparagraph text.');
   assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:1});assert.equal(placed.evidence.at(-1).basis,'subparagraph-wording-match');
   placed=resolve(projection,'Article 1 – paragraph 1 – subparagraph 2','Second subparagraph text.');
   assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
   assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 1','Second subparagraph text.').reason,'conflicting_target_evidence');
   assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 3','Second subparagraph text.').reason,'target_not_found');
-  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 2 a (new)').status,'unresolved');
+  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 2 a (new)').insertBefore,3);
   const pointed=source(['Article 1','1. Intro:','(a) point;','Closing subparagraph.']);
   assert.equal(resolve(pointed,'Article 1 – paragraph 1 – subparagraph 2','Closing subparagraph.').reason,'source_structure_unavailable');
 });
@@ -518,4 +518,61 @@ test('annex table addresses replace a unique cell-exact run of rows',()=>{
   assert.equal(resolveProposalPlacement([{kind:'annex',index:1,proposal:parseProposal(trailing,{item:'annex'})}],{targetLabel:'Annex III – table',originalText:'A\tB',proposedText:'Changed',language:'en'}).status,'unresolved','a blank trailing column keeps rows from matching fewer cells');
   const gapped={paragraphs:gappedRows.map(r=>r[0]),structureStatus:'extracted',paragraphSources:gappedRows.map((r,ordinal)=>r[2]==='cell'?{path:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`,ordinal,container:'table-cell',containerPath:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]`,segment:ordinal,complete:true}:{path:'/w:document[1]/w:body[1]/w:p['+ordinal+']',ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true}),paragraphProperties:gappedRows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(gappedRows,{1:3})};
   assert.equal(resolveProposalPlacement([{kind:'annex',index:1,proposal:parseProposal(gapped,{item:'annex'})}],{targetLabel:'Annex III – table',originalText:'A\tB',proposedText:'Changed',language:'en'}).status,'unresolved','an empty middle cell must not collapse the columns');
+});
+
+test('new unnumbered subparagraphs follow their ordinal source subtree',()=>{
+  const p=source(['Article 3','1. Lead:','(a) Point.','Second subparagraph.','Third subparagraph.','2. Next paragraph.','Article 4'],['Titrearticle','ManualNumPar1','Point2','Text1','Text1','ManualNumPar1','Titrearticle']);
+  p.paragraphFormats=p.paragraphs.map((_,i)=>({indent:i===2?200:0}));
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 a (new)').insertBefore,4);
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 1 a (new)').insertBefore,3);
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 3 a (new)').insertBefore,5);
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 9 a (new)').status,'unresolved');
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 b (new)').status,'unresolved');
+  p.paragraphSources[4].ordinal++;
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 a (new)').status,'unresolved');
+});
+
+
+test('new subparagraph placement withholds Point-style paragraph labels outside the raw oracle grammar',()=>{
+ const p=source(['Article 16','Financial support','1. First paragraph.','2. Second paragraph.','Article 17'],['Titrearticle','Normal','Point0','Point0','Titrearticle']);
+ assert.equal(resolve(p,'Article 16 – paragraph 1 – subparagraph 1 a (new)').status,'unresolved');
+ const literal=structuredClone(p);literal.paragraphProperties[2].styleId='Normal';literal.paragraphProperties[3].styleId='Normal';
+ assert.equal(resolve(literal,'Article 16 – paragraph 1 – subparagraph 1 a (new)').status,'unresolved');
+});
+
+test('two-row chapter titles preserve the CHAPTER prefix and source offsets',()=>{
+  const p=source(['HAVE ADOPTED THIS REGULATION:','CHAPTER VI','PROGRAMMING','Article 15','Work programme','One.'],['Formuledadoption','ChapterTitle','ChapterTitle','Titrearticle','Titrearticle','Normal']);
+  const placed=resolve(p,'Chapter VI – title','VI\tPROGRAMMING','VI\tPROGRAMMING AND MONITORING');
+  assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:2});assert.deepEqual(placed.splice,{start:{paragraph:1,offset:8},end:{paragraph:2,offset:11}});
+  assert.equal(resolve(p,'Chapter VI – title','VI\tWRONG','VI\tNEW').status,'unresolved');
+  assert.equal(resolve(p,'Chapter VI – title','VI\tPROGRAMMING','VII\tNEW').status,'unresolved');
+  const gap=structuredClone(p);gap.paragraphSources[2].ordinal++;
+  assert.equal(resolve(gap,'Chapter VI – title','VI\tPROGRAMMING','VI\tNEW').status,'unresolved');
+});
+
+test('chapter C does not splice the first letter of CHAPTER',()=>{const p=source(['HAVE ADOPTED THIS REGULATION:','CHAPTER C','PROGRAMMING','Article 15','Work programme','One.'],['Formuledadoption','ChapterTitle','ChapterTitle','Titrearticle','Titrearticle','Normal']);assert.equal(resolve(p,'Chapter C – title','C\tPROGRAMMING','C\tCHANGED').splice.start.offset,8);});
+test('whole-article note deletion requires consecutive native article boundaries and exact note parity',()=>{
+ const texts=['HAVE ADOPTED THIS REGULATION:','Article 1','1. Public body.','Article 2'];
+ const content={...source(texts,['Normal','Titrearticle','ManualNumPar1','Titrearticle']),sourceKind:'docx'};
+ content.paragraphSources.forEach((s,i)=>s.path=`/w:document[1]/w:body[1]/w:p[${i+1}]`);
+ const proposal=structuredClone(parseProposal(content));proposal.notes=[{id:'native',text:'Public note.',complete:true}];proposal.anchors=[{paragraph:2,offset:14,note:'native'}];
+ const originalText='Article 1\n1. Public body6.\n______\n6 Public note.',at=originalText.indexOf('6'),w={language:'en',baseline:'commission-proposal',targetLabel:'Article 1',originalText,originalFormatting:[{kind:'superscript',start:at,end:at+1}],proposedText:'deleted'};
+ const place=(p=proposal,wording=w)=>resolveProposalPlacement([{kind:'act',proposal:p}],wording);
+ assert.equal(place().status,'placed');assert.deepEqual(place().span,{start:1,end:2});
+ for(const mutate of [p=>p.sourceKind='text',p=>p.paragraphs[2].complete=false,p=>p.paragraphs[2].source.ordinal++,p=>p.paragraphs[3].source.ordinal++,p=>p.paragraphs[3].source.segment++,p=>p.paragraphs[3].properties.styleId='Normal',p=>p.paragraphs[2].properties.numberingLabel='1.',p=>p.notes[0].text='Other note.',p=>p.anchors[0].offset--,p=>p.paragraphs[0].text='Draft text:']){
+  const p=structuredClone(proposal);mutate(p);assert.equal(place(p).status,'unresolved',String(mutate));
+ }
+ assert.equal(place(proposal,{...w,language:'fr'}).status,'unresolved');
+ assert.equal(place(proposal,{...w,baseline:'present-text'}).status,'unresolved');
+ assert.equal(place(proposal,{...w,proposedText:'New text.'}).status,'unresolved');
+ assert.equal(place(proposal,{...w,originalText:w.originalText.replace('Public body','Other body')}).status,'unresolved');
+});
+test('a printed first-paragraph label matches only the sole complete implicit article paragraph',()=>{
+ const content={...source(['Article [1]','Subject matter','A legal body.','Article [2]'],['Titrearticle','Titrearticle','Normal','Titrearticle']),sourceKind:'docx'},w={baseline:'commission-proposal',language:'en',targetLabel:'Article 1 – paragraph 1',originalText:'1. A legal body.',proposedText:'1. A revised legal body.'};
+ const proposal=structuredClone(parseProposal(content)),place=(p=proposal,a=w)=>resolveProposalPlacement([{kind:'act',proposal:p}],a);
+ assert.equal(place().status,'placed');assert.deepEqual(place().splice,{start:{paragraph:2,offset:0},end:{paragraph:2,offset:13}});
+ for(const mutate of [p=>p.anchors=[{paragraph:2,note:'1',offset:5}],p=>p.paragraphs[2].objects=[{complete:true}],p=>p.sourceKind='text',p=>p.paragraphs[2].complete=false,p=>p.paragraphs[3].source.ordinal++,p=>p.paragraphs[2].properties.numberingLabel='1.']){const p=structuredClone(proposal);mutate(p);assert.equal(place(p).status,'unresolved',String(mutate));}
+ for(const patch of [{baseline:'present-text'},{language:'fr'},{originalText:'2. A legal body.'},{proposedText:'2. A revised legal body.'},{originalText:'1. Another legal body.'}])assert.equal(place(proposal,{...w,...patch}).status,'unresolved',JSON.stringify(patch));
+ const two={...content,paragraphs:['Article [1]','Subject matter','A legal body.','Another paragraph.','Article [2]']};
+ Object.assign(two,source(two.paragraphs,['Titrearticle','Titrearticle','Normal','Normal','Titrearticle']));two.sourceKind='docx';assert.equal(place(parseProposal(two)).status,'unresolved');
 });
