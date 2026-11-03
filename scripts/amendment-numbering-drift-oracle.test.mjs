@@ -8,6 +8,8 @@ const placement={status:'placed',operation:'replace',span:{start:3,end:3}};
 const verify=(text=make(),wording=fixture.wording,voteReferences=fixture.voteReferences,p=placement)=>verifyPlacement({placement:p,text,wording,voteReferences});
 test('native one-step numbering drift needs independent original and agreeing public vote',()=>{
   assert.equal(verify().status,'verified');
+  assert.equal(verify(make(),{...fixture.wording,baseline:'unknown'}).status,'verified');
+  assert.notEqual(verify(make(),{...fixture.wording,baseline:'commission-proposal'}).status,'verified');
   assert.equal(verify(make(),{...fixture.wording,proposedText:'deleted'},fixture.voteReferences,{...placement,operation:'delete'}).status,'verified');
   const text=make();text.paragraphs[3]=text.paragraphs[3].replace('progress already','progress alread');
   assert.equal(verify(text).status,'verified');

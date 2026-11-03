@@ -5,7 +5,7 @@ import {assertResolutionSimilarity,oracleSimilarity} from './amendment-similarit
 // Vote evidence comes from independently indexed public decisions, never from
 // returned placement evidence. A differing printed number alone proves nothing.
 export function assertResolutionNumberingDrift({text,wording,placement,voteReferences=[]}) {
-  if(wording.language!=='en'||wording.baseline!=='motion-resolution'
+  if(wording.language!=='en'||!['motion-resolution','unknown'].includes(wording.baseline)
     ||!['replace','delete'].includes(placement.operation)||!placement.span
     ||/\n_{5,}\s*\n/u.test(wording.originalText||''))return null;
   const path=oracleAddress(wording.targetLabel,wording.language),label=path[0];
