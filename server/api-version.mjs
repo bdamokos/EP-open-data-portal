@@ -1,6 +1,6 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_CONTRACT_REVISION = 959;
-export const API_VERSION = 959;
+export const API_CONTRACT_REVISION = 963;
+export const API_VERSION = 963;
 
 // Verified main-history recovery; displaced digests remain at higher revisions.
 export const API_CONTRACT_HISTORY_REPAIRS = Object.freeze([
@@ -971,6 +971,10 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   957: 'e931290d8a2da74bffb1cc1620c72052868ec24eeaaaeb0052d7d4eeb26004a0',
   958: '579c10f05bafb0329826425012dd5c160de2c3aa2b86392831ad49a17853165d',
   959: 'cd55a4c8afe266c99d9f1b34c07c7b4b52ea9997b31e8d0236b999b8ad3650cb',
+  960: '529600bb71dbc99f256b0a4015bc8205d6ec2f7af7048ddd54684d9a038ad758',
+  961: '03dcd1fe8302c570220cfbdff8a1c98e2fb3c0ef08dbc905b29b5a54cf3e525c',
+  962: '92213028c39015150d2f5c3145814d43c52b96cbf9c5dc4eeb11f7ce0b1ce71c',
+  963: 'c541a71f96063670695b5a76fbecbfc0a6f33367dd4fd8173c32e1a4ce884301',
 });
 
 // Called at the transport boundary; route and page URL keys stay intact.
