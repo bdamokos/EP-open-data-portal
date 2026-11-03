@@ -80,7 +80,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 ### Outside-speaker countries
 
-Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](https://www.wikidata.org/wiki/Wikidata:Data_access) (CC0) name match corroborated by a dated office and a single candidate; countries come from that office, international offices get none, and unreadable candidate data withholds the quarter’s line.
+Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](https://www.wikidata.org/wiki/Wikidata:Data_access) (CC0) exact name match to a unique human politician or office-holder, with countries from a dated office or single citizenship, seven-day public API/SPARQL refreshes, and unreadable data withholding the quarter’s line.
 
 ### Speeches and debates
 

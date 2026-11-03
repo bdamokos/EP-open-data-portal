@@ -1,4 +1,4 @@
-import {readOutsideSpeakers} from './story-outside-speakers.mjs';
+import {readOutsideSpeakers,outsideSpeakerCoverage} from './story-outside-speakers.mjs';
 import {conceptLabel} from './oeil-labels.mjs';
 import {suppliedTitles} from './insights-model.mjs';
 import {readableStoryState} from './topic-projection-state.mjs';
@@ -163,10 +163,10 @@ export function storyFacts(store,params,{pressFilename}={}){
   for(const id of procedureIds)if(/^\d{4}-\d{4}[A-Z]?$/.test(id))for(const row of read.iterate(id.replace('-','/')+'(',id.replace('-','/')+')')){const m=row.value.match(/^(\d{4})\/(\d{4}[A-Z]?)\([A-Z]+\)$/);if(m&&m[1]+'-'+m[2]===id)(press[id]??=[]).push({id:row.id,url:row.url,title:row.title,date:row.date?.slice(0,10)||null,reference:row.value,ref:row.value});}
  }}catch{pressReady=false;}finally{pdb.close();}}
  let topic=null;if(q.scope==='topic'){const c=db.prepare('SELECT body FROM record_topic_concepts WHERE generation=? AND key=?').get(generation,q.key);topic={key:q.key,...conceptLabel(c?JSON.parse(c.body):{key:q.key},q.language),groups:Object.fromEntries(periodCounts.map(p=>[p.period,p.groups]))};}
- const outsideSpeakers=readOutsideSpeakers(store,generation,q,key);
+ const outsideCoverage=outsideSpeakerCoverage(store,generation),outsideSpeakers=readOutsideSpeakers(store,generation,q,key,outsideCoverage);
  // Address sets also need their complete records when a person spoke twice;
  // these evidence rows do not participate in any aggregate or ranking.
  for(const a of outsideSpeakers)if(!debates.some(d=>d.id===a.debateId)){const title=choose(a.debateTitles,a.name);debates.push({id:a.debateId,date:a.date,q:quarter(a.date),title:cleanTitle(title.value),rawTitle:title.value,titleLanguage:title.language,meps:0,speeches:0,places:[{id:a.country,basis:a.basis}],docs:[],procedures:[]});}
  const docs=[...documents.values()],blocks=selectedPeriods.map(period=>({period,counts:cells.get(period)||zeroCounts(),debates:debates.filter(d=>d.q===period).map(d=>d.id),docs:docs.filter(d=>d.q===period||d.outcome?.date&&quarter(d.outcome.date)===period).map(d=>d.id),questions:questions.filter(d=>d.q===period).map(d=>d.id)}));
- return {ready:true,outsideSpeakers,scope:q.scope,key:q.key,period:q.period,mode:q.mode,askers:q.askers,zoom:q.zoom,europe:europe.ids,periods,partial:store.get('recordTopicCalendar')?.partial,counts,periodCounts,winners,periodWinners,sets,page,debatesTotal:counts.debates,debates,docs,questions,press,topic,topics:topic?{[topic.key]:topic}:{},blocks,series,summary:{debates:counts.debates,documents:counts.documents,questions:counts.questions},coverage:{...store.get('storyCoverage'),press:{ready:pressReady}}};
+ return {ready:true,outsideSpeakers,scope:q.scope,key:q.key,period:q.period,mode:q.mode,askers:q.askers,zoom:q.zoom,europe:europe.ids,periods,partial:store.get('recordTopicCalendar')?.partial,counts,periodCounts,winners,periodWinners,sets,page,debatesTotal:counts.debates,debates,docs,questions,press,topic,topics:topic?{[topic.key]:topic}:{},blocks,series,summary:{debates:counts.debates,documents:counts.documents,questions:counts.questions},coverage:{...store.get('storyCoverage'),outside:outsideCoverage,press:{ready:pressReady}}};
 }

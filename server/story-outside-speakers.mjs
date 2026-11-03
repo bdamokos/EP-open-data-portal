@@ -7,21 +7,24 @@ import {debatePlaces} from './story-facts-model.mjs';
 import {speechAgendaMembership} from './speech-agenda.mjs';
 import {topicBatches} from './topic-disk-map.mjs';
 
+// Shared by collection and projection: exact speech/person rows, with the same
+// current title-country classification. The collector never re-identifies people.
+export function outsideSpeakerAppearances(store,sourceGeneration,person,factGeneration=null){
+ const debate=factGeneration==null?null:store.db.prepare("SELECT body FROM story_facts WHERE generation=? AND kind='debate' AND id=?");
+ return store.db.prepare('SELECT body FROM outside_contributions WHERE generation=? AND person=? ORDER BY date,speech').all(sourceGeneration,person).map(r=>speechAgendaMembership(JSON.parse(r.body))).map(a=>{
+  const item=a.parentIds?.length===1?store.source(sourceGeneration,'outside:agenda:'+a.parentIds[0])?.work:null,title=item?.titles?.en||Object.values(item?.titles||{})[0]||'';
+  const projected=a.parentIds?.length===1&&debate?debate.get(factGeneration,a.parentIds[0]):null;
+  return {...a,debateSource:item?.source,debatePlaces:projected?JSON.parse(projected.body).places.map(p=>p.id):item?debatePlaces(title,[],null).places.map(p=>p.id):[]};
+ });
+}
 // Runs inside the existing single-writer projection. Copy both evidence and
 // coverage so readers never mix a published topic generation with newer inputs.
 export async function projectOutsideSpeakers(store,generation,sourceGeneration){
  const put=store.db.prepare('INSERT OR REPLACE INTO story_facts VALUES (?,?,?,?,?)');
- const coverage={...outsideCoverage(store,sourceGeneration,false,{term:'10'}),europe:europe.ids,wikidataPolicyVersion:2,wikidataUnavailablePeriods:[],wikidataDiagnostics:[]};
+ const coverage={...outsideCoverage(store,sourceGeneration,false,{term:'10'}),europe:europe.ids,wikidataPolicyVersion:3,wikidataUnavailablePeriods:[],wikidataDiagnostics:[]};
  const people=store.db.prepare('SELECT DISTINCT person FROM outside_contributions WHERE generation=? ORDER BY person');
- const rows=store.db.prepare('SELECT body FROM outside_contributions WHERE generation=? AND person=? ORDER BY date,speech');
- const debate=store.db.prepare("SELECT body FROM story_facts WHERE generation=? AND kind='debate' AND id=?");
  await topicBatches(store,(function*(){for(const {person} of people.iterate(sourceGeneration)){
-  yield;const appearances=rows.all(sourceGeneration,person).map(r=>speechAgendaMembership(JSON.parse(r.body))).filter(a=>a.date<=coverage.window.end).map(a=>{
-   const item=a.parentIds?.length===1?store.source(sourceGeneration,'outside:agenda:'+a.parentIds[0])?.work:null;
-   const title=item?.titles?.en||Object.values(item?.titles||{})[0]||'';
-   const projected=a.parentIds?.length===1?debate.get(generation,a.parentIds[0]):null;
-   return {...a,debateSource:item?.source,debatePlaces:projected?JSON.parse(projected.body).places.map(p=>p.id):item?debatePlaces(title,[],null).places.map(p=>p.id):[]};
-  });
+  yield;const appearances=outsideSpeakerAppearances(store,sourceGeneration,person,generation).filter(a=>a.date<=coverage.window.end);
   const wikidata=store.source(sourceGeneration,'wikidata:person:'+person)?.work;
   const resolution=resolveOutsideSpeaker(person,appearances,{wikidata}),result=resolution.addresses;
   coverage.wikidataDiagnostics.push(...resolution.diagnostics.map(d=>({...d,personId:person})));
@@ -40,12 +43,12 @@ export async function projectOutsideSpeakers(store,generation,sourceGeneration){
 }
 
 const quarterWindow=period=>{const [year,n]=period.split('-Q').map(Number);return {start:new Date(Date.UTC(year,(n-1)*3,1)).toISOString().slice(0,10),end:new Date(Date.UTC(year,n*3,0)).toISOString().slice(0,10)};};
-export function readOutsideSpeakers(store,generation,q,key){
+export function outsideSpeakerCoverage(store,generation){const row=store.db.prepare("SELECT body FROM story_facts WHERE generation=? AND kind='outsideCoverage' AND id='outside'").get(generation);return row?JSON.parse(row.body):null;}
+export function readOutsideSpeakers(store,generation,q,key,coverage=outsideSpeakerCoverage(store,generation)){
  if(q.scope==='topic')return [];
- const db=store.db,row=db.prepare("SELECT body FROM story_facts WHERE generation=? AND kind='outsideCoverage' AND id='outside'").get(generation);
- if(!row)return [];
- const coverage=JSON.parse(row.body),complete=new Map();
- if(coverage.wikidataPolicyVersion!==2)return [];
+ const db=store.db,complete=new Map();
+ if(!coverage)return [];
+ if(coverage.wikidataPolicyVersion!==3)return [];
  const quarterComplete=period=>{
   if(!complete.has(period))complete.set(period,!coverage.wikidataUnavailablePeriods?.includes(period)&&(coverage.complete||periodAvailability(quarterWindow(period),coverage.availability,0,{today:coverage.window.end}).state==='observed'));
   return complete.get(period);

@@ -13,36 +13,37 @@ export function outsideInstitutionalMajority(appearances){
 }
 export const outsideAppearanceEligible=a=>!institutional.has(outsideCapacity(a.header?.role))&&outsideCapacity(a.header?.role)!=='international';
 const country=id=>countryIdentity(id)?.id||null;
-function officeCountry(position,citizenships){
+function officeCountry(position){
  if(position.international)return null;
- const countries=[...new Set((position.countries||[]).map(country).filter(Boolean))];
- if(countries.length)return countries.length===1?countries[0]:null;
+ // A country-valued jurisdiction is the office's more specific territory
+ // (for example Greenland); the holder's nationality does not override it.
  const jurisdictions=[...new Set((position.jurisdictions||[]).map(country).filter(Boolean))];
  if(jurisdictions.length)return jurisdictions.length===1?jurisdictions[0]:null;
- // An observed non-country jurisdiction is not a missing property. International
- // offices cannot borrow the nationality of their holder.
- if(position.hasCountry||position.hasJurisdiction)return null;
- const fallback=[...new Set((citizenships||[]).map(country).filter(Boolean))];
- return fallback.length===1?fallback[0]:null;
+ const countries=[...new Set((position.countries||[]).map(country).filter(Boolean))];
+ return countries.length===1?countries[0]:null;
 }
 export function matchOutsideName(appearance,record){
  if(!record||record.status==='unavailable')return {status:'unavailable'};
- if(record.status==='none')return {status:'none'};
+ if(record.status==='none')return {status:'none',reason:'no-exact-human'};
  if(record.status!=='available'||!Array.isArray(record.candidates))return {status:'unavailable'};
- const wanted=normalizeOutsideName(appearance.header?.name);if(!wanted)return {status:'none'};
- const active=record.candidates.filter(c=>c.human===true&&/^Q[1-9]\d*$/.test(c.qid||'')&&(c.names||[]).some(n=>['label','alias'].includes(n.kind)&&normalizeOutsideName(n.value)===wanted)).map(c=>({candidate:c,positions:(c.positions||[]).filter(p=>validDay(p.start)&&p.statement&&p.start<=appearance.date&&(!p.end||validDay(p.end)&&p.end>=appearance.date))})).filter(c=>c.positions.length);
- // Uniqueness precedes country selection: a second dated exact-name candidate
- // remains ambiguous even when only one of them has a usable country.
- const candidates=[...new Map(active.map(c=>[c.candidate.qid,c])).values()];
- if(candidates.length!==1)return {status:candidates.length?'ambiguous':'none',candidateIds:candidates.map(c=>c.candidate.qid)};
- const {candidate,positions}=candidates[0];if(positions.some(p=>p.international))return {status:'none',reason:'international-office'};
- const choices=positions.map(p=>({position:p,country:officeCountry(p,candidate.citizenships)})).filter(p=>p.country),countries=[...new Set(choices.map(p=>p.country))];
- if(countries.length!==1)return {status:'none',reason:'office-country-unavailable'};
- return {status:'matched',country:countries[0],basis:'wikidata-name-dated-office',wikidata:{qid:candidate.qid,revision:candidate.revision,matchingName:(candidate.names||[]).find(n=>normalizeOutsideName(n.value??n)===wanted),positions:choices.filter(p=>p.country===countries[0]).map(p=>p.position),fetchedAt:record.fetchedAt,urls:record.urls}};
+ const wanted=normalizeOutsideName(appearance.header?.name);if(!wanted)return {status:'none',reason:'name-unavailable'};
+ const exact=record.candidates.filter(c=>c.human===true&&/^Q[1-9]\d*$/.test(c.qid||'')&&(c.names||[]).some(n=>['label','alias'].includes(n.kind)&&normalizeOutsideName(n.value)===wanted));
+ const candidates=[...new Map(exact.map(c=>[c.qid,c])).values()];
+ // Uniqueness is about exact-name humans, before occupation, office or country.
+ if(candidates.length!==1)return {status:candidates.length?'ambiguous':'none',reason:candidates.length?'multiple-exact-humans':'no-exact-human',candidateIds:candidates.map(c=>c.qid)};
+ const candidate=candidates[0],held=(candidate.positions||[]).filter(p=>p.statement&&/^Q[1-9]\d*$/.test(p.id||''));
+ if(!candidate.politician&&!held.length)return {status:'none',reason:'not-politician-or-office-holder',qid:candidate.qid};
+ const positions=held.filter(p=>validDay(p.start)&&p.start<=appearance.date&&(!p.end||validDay(p.end)&&p.end>=appearance.date));
+ if(positions.some(p=>p.international))return {status:'none',reason:'international-office',qid:candidate.qid};
+ const choices=positions.map(p=>({position:p,country:officeCountry(p)})).filter(p=>p.country),countries=[...new Set(choices.map(p=>p.country))];
+ const citizenships=candidate.citizenships||[],single=citizenships.length===1?country(citizenships[0]?.country??citizenships[0]):null;
+ if(countries.length>1)return {status:'none',reason:'conflicting-office-countries',qid:candidate.qid};
+ const selected=countries[0]||single;if(!selected)return {status:'none',reason:'country-unavailable',qid:candidate.qid};
+ return {status:'matched',country:selected,basis:countries.length?'wikidata-name-office':'wikidata-name-citizenship',wikidata:{qid:candidate.qid,revision:candidate.revision,matchingName:(candidate.names||[]).find(n=>['label','alias'].includes(n.kind)&&normalizeOutsideName(n.value)===wanted),politician:candidate.politician||false,occupations:candidate.occupations||[],positions:(countries.length?choices.filter(p=>p.country===selected).map(p=>p.position):held),citizenships:candidate.citizenships,fetchedAt:record.fetchedAt,urls:record.urls}};
 }
 // Option A is the primary EP path. Only speakers failing it enter the name
-// matcher, at the maintainer's direction; office dates and uniqueness corroborate
-// equality of the names. Diagnostic ambiguity never becomes UI method text.
+// matcher, at the maintainer's direction; a unique human plus politician or
+// office-holder status corroborates equality of the names. Diagnostic ambiguity never becomes UI method text.
 export function resolveOutsideSpeaker(personId,appearances,{wikidata,requireWikidata=true}={}){
  const rows=appearances.filter(a=>String(a.personId)===String(personId)),addresses=new Map(),unavailable=[],diagnostics=[];
  if(outsideInstitutionalMajority(rows))return {addresses,unavailable,diagnostics};

@@ -8,9 +8,12 @@ const record=candidates=>({status:'available',candidates,fetchedAt:'2026-11-02T1
 test('only NFC, whitespace collapse and Unicode case folding normalize speaker names',()=>{
  assert.equal(normalizeOutsideName('  NATAŠA\tPirc  Musar '),normalizeOutsideName('Natas\u030ca Pirc Musar'));assert.equal(normalizeOutsideName('Straße'),normalizeOutsideName('STRASSE'));assert.equal(normalizeOutsideName('ΟΣ'),normalizeOutsideName('ος'));assert.notEqual(normalizeOutsideName('Nataša'),normalizeOutsideName('Natasa'));assert.notEqual(normalizeOutsideName('İpek'),normalizeOutsideName('Ipek'));assert.notEqual(normalizeOutsideName('ı'),normalizeOutsideName('I'));
 });
-test('exact label or alias plus a started office on the speech day is required',()=>{
+test('exact label or alias and politician or any office corroborate a unique human',()=>{
  const c=candidate();assert.equal(matchOutsideName(appearance,record([c])).country,'PRT');c.names=[{value:'Other name',kind:'label'},{value:'EXAMPLE SPEAKER',kind:'alias'}];assert.equal(matchOutsideName(appearance,record([c])).status,'matched');
- c.positions[0].start=null;assert.equal(matchOutsideName(appearance,record([c])).status,'none');c.positions[0].start='2026-01-22';assert.equal(matchOutsideName(appearance,record([c])).status,'none');c.positions[0].start='2026-01-21';c.positions[0].end='2026-01-21';assert.equal(matchOutsideName(appearance,record([c])).status,'matched');c.positions[0].end='2026-01-20';assert.equal(matchOutsideName(appearance,record([c])).status,'none');
+ c.positions[0].start=null;assert.equal(matchOutsideName(appearance,record([c])).country,'PRT');c.positions=[];assert.equal(matchOutsideName(appearance,record([c])).reason,'not-politician-or-office-holder');c.politician=true;assert.equal(matchOutsideName(appearance,record([c])).country,'PRT');
+});
+test('country uses a dated office and otherwise exactly one citizenship',()=>{
+ const c=candidate({citizenships:['CAN']});c.positions[0].start='2026-01-22';assert.equal(matchOutsideName(appearance,record([c])).country,'CAN');c.positions[0].start='2026-01-21';c.positions[0].end='2026-01-21';assert.equal(matchOutsideName(appearance,record([c])).country,'PRT');c.positions[0].end='2026-01-20';assert.equal(matchOutsideName(appearance,record([c])).country,'CAN');c.citizenships=['CAN','PRT'];assert.equal(matchOutsideName(appearance,record([c])).reason,'country-unavailable');
 });
 test('the single-candidate gate precedes country selection and requires a human',()=>{
  assert.equal(matchOutsideName(appearance,record([candidate({human:false})])).status,'none');assert.equal(matchOutsideName(appearance,record([candidate({names:[{value:'Example Speeker'}]})])).status,'none');
@@ -19,7 +22,7 @@ test('the single-candidate gate precedes country selection and requires a human'
 test('office country wins citizenship, jurisdiction resolves Greenland, and international offices never borrow nationality',()=>{
  assert.equal(matchOutsideName(appearance,record([candidate({citizenships:['DNK'],positions:[position({countries:['GRL']})]})])).country,'GRL');assert.equal(matchOutsideName(appearance,record([candidate({citizenships:['DNK'],positions:[position({countries:[],jurisdictions:['GRL'],hasJurisdiction:true})]})])).country,'GRL');
  assert.equal(matchOutsideName(appearance,record([candidate({positions:[position({countries:[],jurisdictions:[]})]})])).country,'PRT');
- assert.equal(matchOutsideName(appearance,record([candidate({positions:[position({international:true})]})])).status,'none');assert.equal(matchOutsideName(appearance,record([candidate({positions:[position({countries:[],hasCountry:true})]})])).status,'none');
+ assert.equal(matchOutsideName(appearance,record([candidate({positions:[position({international:true})]})])).status,'none');assert.equal(matchOutsideName(appearance,record([candidate({positions:[position({countries:[],hasCountry:true})]})])).country,'PRT');
 });
 test('option A stays primary without Wikidata; only supplementary missing data withholds the quarter',()=>{
  const leader={...appearance,header:{name:'Example Speaker',role:'Prime Minister of Portugal'},debatePlaces:['PRT']};const a=resolveOutsideSpeaker('1',[leader]);assert.equal(a.addresses.get('speech').country,'PRT');assert.deepEqual(a.unavailable,[]);
