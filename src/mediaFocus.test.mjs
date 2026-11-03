@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act,useLayoutEffect} from 'react';
@@ -24,12 +25,12 @@ async function harness(t) {
   t.mock.method(globalThis,'fetch',input=>{const route=new URL(input,window.location.href);assert.match(route.pathname,/\/api\/speech-media\//,'media focus tests cannot fetch an upstream player or corpus');return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));});
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const components=await loadModule('/src/SpeechPlayer.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const render=element=>act(async()=>root.render(element));
   const player=props=>createElement(components.SpeechPlayer,{speech,lang:'en',...props});
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
   const click=async text=>{const node=button(text);assert(node,'Missing button: '+text);await act(async()=>{node.focus();node.click();});return node;};
-  const finish=(audio='en',error=false,payload=media(audio))=>act(async()=>{const request=requests.find(request=>!request.finished&&request.route.searchParams.get('audio')===(audio==='or'?'or':null));assert(request,'Missing media request '+audio);request.finished=true;error?request.reject(new Error('Fixture media unavailable.')):request.resolve(Response.json(payload));});
+  const finish=(audio='en',error=false,payload=media(audio))=>act(async()=>{const request=requests.find(request=>!request.finished&&request.route.searchParams.get('audio')===(audio==='or'?'or':null));assert(request,'Missing media request '+audio);request.finished=true;error?request.reject(new TypeError('Fixture media unavailable.')):request.resolve(Response.json(payload));});
   const post=(frame,data,{messageOrigin=origin,source=frame.contentWindow}={})=>act(async()=>window.dispatchEvent(new window.MessageEvent('message',{origin:messageOrigin,source,data})));
   const ready=async frame=>{await post(frame,{key:'get:availableAudio',isError:false,result:['qaa','qab']});await post(frame,{key:'get:availableLang',isError:false,result:[['qaa','Original'],['qab','English']]});await post(frame,{key:'event:audioadaptation',isError:false,result:{type:'audioadaptation',representationID:'Original AUDIO'}});await post(frame,{key:'method:play',isError:false});};
   return {window,container,requests,scrolls,components,render,player,button,click,finish,post,ready};
@@ -55,7 +56,7 @@ test('the compact disclosure loads only on request, retains focus while the play
 
 test('a failed metadata request retries with focus on the retained opener',async t=>{
   const h=await harness(t);await h.render(h.player());const opener=await h.click('Video');await h.finish('en',true);
-  const retry=await h.click('Try video again');assert.equal(retry.isConnected,false);assert.equal(document.activeElement,opener);await h.finish('en');
+  assert.equal(h.container.querySelector('.explorer-notice button'),null);await automaticRecovery(t);assert.equal(document.activeElement,opener);await h.finish('en');
   assert.equal(h.container.querySelector('iframe').tabIndex,0);
 });
 
@@ -65,7 +66,7 @@ test('a refresh error keeps the retained clip and Try video again refreshes it w
   const toggle=await h.click('Video');await h.finish('en');await h.click('Close video');
   now+=31_000;await h.click('Video');await h.finish('en',true);
   const frame=h.container.querySelector('iframe');assert(frame,'the retained matched clip remains available after refresh failure');
-  const retry=await h.click('Try video again');assert.equal(retry.isConnected,false);assert.equal(document.activeElement,toggle);
+  assert.equal(h.container.querySelector('.explorer-notice button'),null);await automaticRecovery(t);assert.equal(document.activeElement,toggle);
   assert.equal(h.requests.length,3,'Try video again explicitly refreshes failed metadata');
   await h.finish('en');assert.equal(h.container.querySelector('iframe'),frame,'a matching refresh keeps the playing frame');assert.equal(document.activeElement,toggle);
 });

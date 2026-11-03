@@ -77,6 +77,40 @@ test('cached automatic recital and paragraph numbers independently certify blank
  assert.equal(visible.filter(row=>row.numberingLabel).map(row=>row.numberingLabel).join(','),'A.,B.,C.,D.,E.,F.,1.,2.,3.,4.,5.,6.,7.,8.,9.');
  const units=rawResolutionUnits(text,'en').units;for(const label of ['D','1','2','5'])assert.equal(units.find(unit=>unit.label===label&&unit.kind===(label==='D'?'recital':'paragraph'))?.complete,true,label);
 });
+test('a wholly italic title closes a paragraph only between consecutive raw numbers',()=>{
+ // A-10-2026-0085 prints its recurring "Recommendations" titles in italics only.
+ const rows=(title,next,before='81. Recalls the earlier findings;')=>{
+  const paragraphs=['The European Parliament,',before,title,next];
+  return {paragraphs,paragraphFormats:paragraphs.map((value,i)=>i===2?{marks:[{kind:'italic',start:0,end:value.length}]}:{}),
+   paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
+ };
+ const unit=text=>rawResolutionUnits(text,'en').units.find(candidate=>candidate.label==='81');
+ assert.deepEqual([unit(rows('Recommendations','82. Calls on the Commission to:')).end,unit(rows('Recommendations','82. Calls on the Commission to:')).complete],[1,true]);
+ assert.equal(unit(rows('Recommendations','83. Calls on the Commission to:')).complete,false,'a skipped number leaves the extent open');
+ assert.equal(unit(rows('Recommendations','82. Calls;','81. Calls on the Commission to:')).complete,false,'an introduced list may continue');
+ const plain=rows('Recommendations','82. Calls;');plain.paragraphFormats[2]={};
+ assert.equal(unit(plain).complete,false,'unformatted titles remain uncertain');
+ const partial=rows('Recommendations','82. Calls;');partial.paragraphFormats[2]={marks:[{kind:'italic',start:0,end:5}]};
+ assert.equal(unit(partial).complete,false,'partial emphasis is not a title');
+});
+test('an italic title separated by native blank rows still closes the preceding paragraph',()=>{
+ // A-10-2026-0025 (EN) prints empty Word paragraphs around its italic titles.
+ const p=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>',blank='<w:p><w:pPr><w:ind w:left="567"/></w:pPr></w:p>';
+ const build=gap=>{
+  const text=input(p('The European Parliament,')+p('27. Calls for new dwellings;')+blank+p('Granting legal certainty')+gap+p('28. Stresses the balance;'));
+  text.paragraphSources.forEach(source=>source.segment=0);
+  text.paragraphFormats[2]={marks:[{kind:'italic',start:0,end:text.paragraphs[2].length}]};
+  return text;
+ };
+ const unit=text=>rawResolutionUnits(text,'en').units.find(candidate=>candidate.label==='27');
+ const certified=build(blank);
+ assert.equal(certified.paragraphSources[3].ordinal-certified.paragraphSources[2].ordinal,2,'the fixture omits a blank row before 28');
+ assert.equal(unit(certified).complete,true);
+ const tabled=build('<w:tbl/>');
+ assert.equal(tabled.paragraphs.length,certified.paragraphs.length,'the table is omitted like the blank row');
+ assert.equal(unit(tabled).complete,false,'an omitted non-paragraph row is not certified');
+ assert.equal(unit({...certified,nativeBuffer:undefined}).complete,false,'without native XML the gap is not certified');
+});
 
 test('label placement remains the oracle target when a vote list names another unit',()=>{
  const p=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';

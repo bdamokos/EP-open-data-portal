@@ -25,7 +25,7 @@ function ExplanationReader({item,language}:{item:Explanation;language:string}) {
     <div className="vote-explanation-tools">{video.toggle}</div>
     {video.panel}<TextLanguagePicker available={state.availableTextLanguages} requested={language} value={body?.textLanguage||null} offer={!translation.showingOriginal} onChange={value=>{translation.reset();setSelected(value);}} status={<SpeechTextStatus translation={translation}/>} note={<TextLanguageFallback requested={translation.selected} actual={body?.textLanguage||null} interfaceLanguage={language}/>}/>{translation.originalGap&&<p><UiMessage id="batch4.speechinterventions.tsx.original.text.unavailable"/></p>}
     {state.loading&&!body&&<p role="status"><UiMessage id="membervoteexplanations.loading.explanation"/></p>}
-    {state.error&&<p role="alert"><UiMessage id="membervoteexplanations.transcript.unavailable.retry" values={{retry: <button type="button" disabled={state.loading} onClick={state.retry}><UiMessage id="membervoteexplanations.retry.transcript"/></button>}}/></p>}
+    {state.error&&<p role="alert"><UiMessage id="membervoteexplanations.transcript.unavailable.retry" values={{retry: null}}/></p>}
     {(paragraphs.length>0) ? <div lang={body?.textLanguage||''}>{paragraphs.map((paragraph,index)=><p key={index}><TranscriptText paragraph={paragraph}/></p>)}</div> : (body&&!state.loading&&<p><UiMessage id="batch4.speechinterventions.tsx.transcript.unavailable"/></p>)}
   </div>;
 }

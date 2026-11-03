@@ -57,7 +57,7 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
       {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p><UiMessage id="activityvote.vote_records_disagree"/></p><div aria-label={ui.t("activityvote.saved_activity_result")}>{children}</div></div>}
       <div className="member-votes-strip"><Position vote={vote} memberName={memberName||ui.t("activityvote.selected_mep")}/><Result vote={vote} showPartialTotals/></div></> : children}
       {response.loading&&!vote&&<p role="status"><UiMessage id="activityvote.loading_vote"/></p>}
-      {!response.loading&&!vote&&<p className="member-votes-muted"><UiMessage id="activityvote.position_unavailable"/> <button type="button" onClick={response.retry}><UiMessage id="activityvote.retry_vote_details"/></button></p>}
+      {!response.loading&&!vote&&<p className="member-votes-muted"><UiMessage id="activityvote.position_unavailable"/> </p>}
     </div>;
   const requesters=vote?.rollCallRequesters.map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text)||[];
   return <div className="activity-vote" lang={ui.language}>
@@ -75,7 +75,7 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
       {requesters.length>0&&<p className="activity-vote__meta"><UiMessage id="activityvote.roll_call_requested_by_requesters" values={{requesters: requesters.map((label,index)=><span key={index} lang={label.language}>{index ? ', ' : ''}{label.text}</span>)}}/></p>}
     </> : children}
     {response.loading&&!vote&&<p className="activity-vote__meta" role="status"><UiMessage id="activityvote.loading_member_s_vote"/></p>}
-    {!response.loading&&!vote&&<p className="activity-vote__meta">{(response.error||response.data&&!data||data?.coverage.status!=='complete'||data?.selected.status==='unavailable') ? ui.t("activityvote.additional_vote_details_could_not_be_loaded") : ui.t("activityvote.no_additional_details_were_found_for_this_decision")} <button type="button" onClick={response.retry}><UiMessage id="activityvote.retry_vote_details"/></button></p>}
+    {!response.loading&&!vote&&<p className="activity-vote__meta">{(response.error||response.data&&!data||data?.coverage.status!=='complete'||data?.selected.status==='unavailable') ? ui.t("activityvote.additional_vote_details_could_not_be_loaded") : ui.t("activityvote.no_additional_details_were_found_for_this_decision")} </p>}
     <div className="activity-vote__links">{href&&<a href={href}><UiMessage id="activityvote.view_vote_details"/></a>}</div>
   </div>;
 }

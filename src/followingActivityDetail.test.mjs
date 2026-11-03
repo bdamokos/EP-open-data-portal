@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -55,7 +56,7 @@ async function harness(t,{sourceId=questionId,selected=[],items=[],complete=fals
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {FollowingActivityDetail}=await loadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const render=()=>root.render(createElement(FollowingActivityDetail,props));
   await act(async()=>render());
   const flush=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,30)));
@@ -116,11 +117,11 @@ test('loading, complete-index fallback and encoded exact source IDs stay explici
   assert.match(h.container.textContent,/Open in profile/);
 });
 
-test('lookup errors expose retry and a real profile link, then recover without losing the source selection',async t=>{
+test('lookup errors recover automatically and retain a real profile link, then recover without losing the source selection',async t=>{
   const h=await harness(t,{selected:[activity(questionId)],failFirst:true});
-  assert.match(h.container.querySelector('[role="alert"]').textContent,/Activity fixture unavailable/);
+  assert.equal(h.container.querySelector('[role="alert"]'),null);assert.equal(h.container.querySelector('.following-activity-detail button'),null);
   assert(h.container.querySelector('a[href*="member=42"]'));
-  await h.click('Try again');assert.match(h.container.textContent,/Exact question body/);
+  await automaticRecovery(t);assert.match(h.container.textContent,/Exact question body/);
   assert.equal(h.requests.filter(url=>url.pathname==='/api/latest-activities/42').length,2);
 });
 

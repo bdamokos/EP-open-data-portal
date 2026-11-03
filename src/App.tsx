@@ -1,3 +1,4 @@
+import {publicationRetry} from './publicationRetry';
 import {TopicBatch,RecordTopics,OfficialTitle} from './RecordTopics';
 const emptyDossierUrl=emptyDossierRedirect(new URLSearchParams(location.search));
 if(emptyDossierUrl)history.replaceState(history.state,'',emptyDossierUrl+location.hash);
@@ -79,7 +80,6 @@ import { useSpeechVideo } from "./SpeechPlayer";
 import {AmendmentTrailLink} from './AmendmentTrailLink';
 import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule} from './publicFeatures';
 import {Status} from './Status';
-import {ReaderRetry} from './ReaderRetry';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAuthors.mjs';
 import {selectLanguageText} from './language.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
@@ -133,14 +133,7 @@ function ErrorView({ message, retry }: { message: string; retry: () => void }) {
   const ui = useUiI18n();
   return <div className="explorer-notice" role="alert" lang={ui.language}>
       <p>{message}</p>
-      <button onClick={event=>{
-        if(document.activeElement===event.currentTarget){
-          const scope=event.currentTarget.closest('section,article,main');
-          const target=scope?.querySelector<HTMLElement>('.explorer-speech-toggle,h1,h2,h3')||scope?.parentElement?.closest('section,main')?.querySelector<HTMLElement>('h1,h2,h3');
-          if(target){if(/^H[1-6]$/.test(target.tagName))target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'nearest'});}
-        }
-        retry();
-      }}><UiMessage id="commissionfollowups.try_again"/></button>
+
     </div>;
 }
 export function transcript(xml: string | null) {
@@ -208,7 +201,7 @@ function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member
 function PublicationText({ sourceId, member, lang, heading, headingDate, shownDate, includeAnswers = false,question, showDownloads = true }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; shownDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string};showDownloads?:boolean }) {
   const ui = useUiI18n();
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang,sourceId]);
-  const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`);
+  const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`,publicationRetry);
   const text=(state.data?.selectedDocumentId===sourceId) ? state.data.selectedText : null;
   const questionDocument=/^[EPHO]-\d+-\d{4}-\d+(?:-ASW)?$/.test(sourceId);
   const pickerText=useRetainedText(sourceId,text);
@@ -218,16 +211,16 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, shownDa
   const notes=text?.notes||[],anchors=body.exact ? (text?.noteAnchors||[]) : ([]),documentLinks=body.exact ? (text?.documentLinks||[]) : ([]);
   const failed=Boolean(state.error||text?.status==='error'||text?.refreshError||state.data&&!text),retryAt=state.retryAt??(text?.nextRetryAt ? Date.parse(text.nextRetryAt) : undefined);
   return <section className="explorer-document-text" lang={ui.language} id={'document-'+sourceId}><RecordTopics id={sourceId} full language={lang}/>
-    <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={failed ? ui.t("app.documentStatusUnavailable", {heading: String(heading)}) : (state.data ? ((text?.status==='available') ? ui.t("app.documentStatusLoaded", {heading: String(heading)}) : ui.t("app.documentStatusNoText", {heading: String(heading)})) : null)}/>
+    <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading||state.retrying} message={failed ? ui.t("app.documentStatusUnavailable", {heading: String(heading)}) : (state.data ? ((text?.status==='available') ? ui.t("app.documentStatusLoaded", {heading: String(heading)}) : ui.t("app.documentStatusNoText", {heading: String(heading)})) : null)}/>
     <div className="explorer-reader-heading"><h3>{headingDate ? <><UiMessage id="batch4.questiontopics.tsx.answer.date" values={{date: <span lang={lang}>{date(headingDate,lang)}</span>}}/></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang={ui.language}><UiMessage id="textsearch.read_question"/></span></a>}</div>
     {pickerText&&<TextLanguagePicker available={pickerText.availableTextLanguages} requested={lang} value={text ? text.textLanguage : requestedLanguage} onChange={setRequestedLanguage} title={(text?.translationType==='original') ? ui.t("textsearch.original_text") : undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text?.textLanguage??null} interfaceLanguage={lang}/>}/>}
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}><UiMessage id="app.amendments_to_this_document"/></AmendmentTrailLink>}
     {sourceId.endsWith('-ASW')&&<QuestionAnswerer answerer={state.data?.answerer}/>}
-    {state.loading&&!text&&<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}{failed&&!state.loading&&<ReaderRetry message={ui.t("app.text_temporarily_unavailable")} language={lang} retry={state.retry} retryAt={retryAt}/>}
+    {state.loading&&!text&&<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}{failed&&!state.loading&&!state.retrying&&<p>{ui.t("app.text_temporarily_unavailable")}</p>}
     {text&&!questionDocument&&<DocumentPages documentId={sourceId} language={text.textLanguage||requestedLanguage}/>}{(text?.status==='available') ? <ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers showDownloads={showDownloads}/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} renderParagraph={(source,paragraph)=>(source===repeatedDate) ? null : paragraph} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><DocumentObjectText logo={logo} text={paragraph} paragraph={source} from={from} to={to} final={final} marks={marks} objects={text.documentObjects||[]} assets={text.imageAssets} sourceUrl={text.sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} notePrefix={notePrefix} renderText={(a,b,last)=><AuthorMention text={paragraph.slice(a,b)} offset={a} final={last} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),a,b)} marks={marks} notePrefix={notePrefix}/>}/>}/><DocumentNotes assets={text.imageAssets} notes={notes} prefix={notePrefix}/></div></ReferenceScope> : (text&&!failed&&<p><UiMessage id="batch5.dossiervotetext.tsx.24.50"/></p>)}
     {text&&<>{!sourceId.endsWith('-ASW')&&<CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/>}{showDownloads&&!questionDocument&&<details className="explorer-reader-download"><summary><UiMessage id="app.document_download"/></summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={lang}/></details>}</>}
     {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={answer.date ? ui.t("batch4.questiontopics.tsx.answer.date", {date: String(date(answer.date,lang))}) : ui.t("textsearch.answer")} headingDate={answer.date} showDownloads={showDownloads}/>)}
-    {includeAnswers&&state.data&&!failed&&!state.loading&&!state.data.answers.length&&<p><UiMessage id="app.no_answer_published"/></p>}
+    {includeAnswers&&state.data&&!failed&&!state.loading&&!state.retrying&&!state.data.answers.length&&<p><UiMessage id="app.no_answer_published"/></p>}
   </section>;
 }
 function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionChange, showDownloads = true }: { item: JoinedActivity; lang: string; member: number; memberName?:string; motionQuery:URLSearchParams; onMotionChange:MemberMotionReaderProps['onJourneyChange']; showDownloads?:boolean }) {
@@ -235,7 +228,7 @@ function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionCh
   const hasText=item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer';
   const motion=/^(?:B|RC)-10-\d{4}-\d{4,6}$/.test(item.sourceId);
   const [documentOpen,setDocumentOpen]=useDossierReaderState('activity-document:'+item.sourceId,false);
-  const document=useData<PublicationDocument>((((item.recordKind!=='speech') && (!hasText)) && (!motion||documentOpen)) ? (`document/${item.sourceId}?member=${member}&lang=${lang}`) : null);
+  const document=useData<PublicationDocument>((((item.recordKind!=='speech') && (!hasText)) && (!motion||documentOpen)) ? (`document/${item.sourceId}?member=${member}&lang=${lang}`) : null,publicationRetry);
   const roles: Record<string,string> = {AUTHOR:ui.t("insightshared.author"),QUESTION_AUTHOR:ui.t("app.author_of_the_question"),RAPPORTEUR:ui.t("insightshared.rapporteur"),RAPPORTEUR_SHADOW:ui.t("insightshared.shadow_rapporteur"),RAPPORTEUR_OPINION:ui.t("insightshared.opinion_rapporteur"),RAPPORTEUR_SHADOW_OPINION:ui.t("insightshared.shadow_opinion_rapporteur"),SPEAKER:ui.t("app.plenary_contribution")};
   const stage=(item.provenance.stage==='RDG1') ? interfaceTerm('first-reading',lang) : ((item.provenance.stage==='RDG2') ? interfaceTerm('second-reading',lang) : ({text:item.provenance.stage,language:''}));
   if (item.recordKind === "speech") return <><ActivityDossierLinks procedureIds={item.procedureIds} person={member} language={lang}/><Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} /></>;
@@ -269,7 +262,7 @@ function LinkedActivityFallback({ sourceId, member, lang, complete, showDownload
   const ui = useUiI18n();
   const [check, setCheck] = useState(false);
   const speech=Boolean(sourceId?.startsWith("MTG-PL-"));
-  const document=useData<PublicationDocument>(((check && sourceId) && (!speech)) ? (`document/${sourceId}?member=${member}&lang=${lang}`) : null);
+  const document=useData<PublicationDocument>(((check && sourceId) && (!speech)) ? (`document/${sourceId}?member=${member}&lang=${lang}`) : null,publicationRetry);
   const contribution=useData<SpeechDetail>(((check && sourceId) && speech) ? (`speech/${sourceId}?lang=${lang}`) : null);
   const answer=document.data?.answers.find(item=>item.id===sourceId);
   const matched=answer || ((document.data?.id===sourceId) ? document.data : null);
@@ -313,7 +306,7 @@ export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpen
     {state.loading&&!selected&&<p role="status"><UiMessage id="insightshared.loading"/></p>}
     {state.error&&<ErrorView message={state.error} retry={state.retry}/>}
     {selected ? <JoinedDetails key={`${scope}:${selected.id}`} item={selected} member={Number(member)} lang={lang} motionQuery={motionQuery} onMotionChange={onMotionChange} showDownloads={showDownloads}/> : (!state.loading&&state.data&&<LinkedActivityFallback key={scope} sourceId={sourceId} member={Number(member)} lang={lang} complete={state.data.cache.complete} showDownloads={showDownloads}/>)}
-    {!selected&&!state.loading&&<p><a href={profileHref} onClick={event=>{
+    {!selected&&(!state.loading||state.retrying)&&<p><a href={profileHref} onClick={event=>{
       if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
       event.preventDefault();onOpenProfile();
     }}><UiMessage id="app.open_in_profile"/></a></p>}
@@ -358,10 +351,6 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
     const body=resultsHeading.current?.closest(".explorer-profile-body");
     if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else resultsHeading.current?.scrollIntoView({block:"start"});
   },[category,categoriesOpen,offset]);
-  useEffect(()=>{
-    if(state.data?.cache.complete || open)return;
-    const timer=window.setInterval(state.retry,30_000);return ()=>window.clearInterval(timer);
-  },[state.data?.cache.complete,open,state.retry]);
   const choose=(value:string)=>{moveToResults.current=true;setCategoriesOpen(false);onCategory(value);onOffset(0);onOpen(null);};
   const coverage=category ? page?.categoryCoverage[category] : null;
   const selectedLabel=category ? (page?.categories[category] || category) : ui.t("app.all_activities");
@@ -423,10 +412,6 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const ui = useUiI18n();
   const c=interfaceCopy(lang);
   const calendar=useData<VotePeriodsResponse>('vote-periods');
-  useEffect(()=>{
-    if(!calendar.error || calendar.loading)return;
-    const timer=setTimeout(calendar.retry,30_000);return ()=>clearTimeout(timer);
-  },[calendar.error,calendar.loading,calendar.retry]);
   const sittingLocations=new Map(validateVotePeriods(calendar.data) ? calendar.data.weeks.flatMap(week=>week.sittings.map(sitting=>[sitting.sittingId,sitting.location] as const)) : []);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
@@ -460,10 +445,6 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     return()=>{document.removeEventListener('focusin',cancel);speechOrigin.current=null;};
   },[id,initialSpeech]);
   const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`);
-  useEffect(()=>{
-    if(!state.data || state.data.cache.complete || initialSpeech)return;
-    const timer=window.setInterval(state.retry,30_000);return ()=>window.clearInterval(timer);
-  },[state.data?.cache.complete,initialSpeech,state.retry]);
   const pinned=useData<JoinedActivityPage>(((initialSpeech && state.data) && (!state.data.items.some(item=>item.sourceId===initialSpeech))) ? (`latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}`) : null);
   useEffect(()=>{setOffset(0);setSpeechLanguage(null);},[id,lang]);
   useEffect(()=>{setEnrichedSpeeches([]);},[id]);
@@ -481,7 +462,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2></div>
     <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} onStatus={setStatisticsStatus} filter={{selected:category,href:filterHref,select:selectCategory}}/>
     <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{focusedSpeech.current=null;speechOrigin.current={key:id+':'+speech,owner:document.activeElement};resetSpeechSearch.current?.();setSpeechSearchReset(value=>value+1);setSpeechSearch('');setSpeechSearchRead('');setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
-    {filtered&&<div className="explorer-section-title" lang={ui.language}><h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{statisticsStatus==='unavailable' ? <UiMessage id="app.contributions_unavailable"/> : <UiMessage id="app.filteredSpeechCount" values={{category: speechCategoriesUi(ui).find(([key])=>key===category)?.[1], count: filtered.length}}/>}</h3>{speechSearchActive&&<button onClick={()=>{speechSearchInput.current?.focus({preventScroll:true});setCategory('');}}><UiMessage id="app.clear_category"/></button>}</div>}
+    {filtered&&<div className="explorer-section-title" lang={ui.language}><h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{statisticsStatus==='unavailable' ? <UiMessage id="app.contributions_unavailable"/> : statisticsStatus==='loading' ? <UiMessage id="app.loading_contributions"/> : <UiMessage id="app.filteredSpeechCount" values={{category: speechCategoriesUi(ui).find(([key])=>key===category)?.[1], count: filtered.length}}/>}</h3>{speechSearchActive&&<button onClick={()=>{speechSearchInput.current?.focus({preventScroll:true});setCategory('');}}><UiMessage id="app.clear_category"/></button>}</div>}
     <TextSearch key={'search:'+id} inline inputRef={speechSearchInput} resetRef={resetSpeechSearch} prefix="mep-speech-fts" label={ui.t("app.search_this_mep_s_speeches")} language={lang} member={id} kinds={['speech']} from="2024-07-16" sourceIds={filtered?.map(speech=>speech.id)} disabledReason={(category && (statisticsStatus!=='ready')) ? ((statisticsStatus==='loading') ? ui.t("app.loading_category") : ui.t("app.category_unavailable")) : undefined} onActiveChange={setSpeechSearchActive} summary={<>{state.data ? <UiMessage id="app.termContributions" values={{count: state.data.indexedTotal}} counts={{count: state.data.indexedTotal}}/> : <UiMessage id="batch4.speechinterventions.tsx.term.10"/>}</>}/>
     {!speechSearchActive&&<>
     {!filtered&&state.loading && !state.data && <p role="status" lang={ui.language}><UiMessage id="app.loading_speeches"/></p>}
@@ -629,10 +610,11 @@ export default function App() {
     return ()=>document.removeEventListener('focusin',cancel);
   },[view,member,speechLink]);
   useEffect(() => {
+    if(directoryState.retrying||directoryState.error||directoryState.status||directory?.index.error||directory?.committeeDetails?.error)return;
     const settled=directory?.index.complete && directory?.committeeDetails?.complete!==false;
     const timer=window.setInterval(directoryState.retry,settled ? 60_000 : 10_000);
     return ()=>window.clearInterval(timer);
-  }, [directory?.index.complete,directory?.committeeDetails?.complete,directoryState.retry]);
+  }, [directory?.index.complete,directory?.committeeDetails?.complete,directoryState.retry,directoryState.retrying,directoryState.error,directoryState.status]);
   useEffect(() => {
     if (!directory?.members.length) return;
     if (committee) {
@@ -994,12 +976,12 @@ export default function App() {
                 {directory.sync?.error && <div className="explorer-index" role="status" lang={ui.language}><UiMessage id="app.feedUnavailable" values={{lastSuccess: <span lang={directory.sync.lastSuccess ? "" : ui.language}>{directory.sync.lastSuccess || ui.t("app.not_yet_completed")}</span>}}/></div>}
                 {directory.committeeDetails && (!directory.committeeDetails.complete || directory.committeeDetails.error) && <div className="explorer-index" role="status" lang={ui.language}>
                     {directory.committeeDetails.error || ui.t("app.loading_committee_names")}
-                    {directory.committeeDetails.error && <button onClick={() => {void api("directory?retry=committee-details", undefined, undefined, ui).catch(() => {}).finally(directoryState.retry);}}><UiMessage id="app.retry_committee_details"/></button>}
+                    {directory.committeeDetails.error && null}
                   </div>}
                 {!directory.index.complete && <div className="explorer-index" role="status" lang={ui.language}>
                     {directory.index.error ||
                       ui.t("app.loadingMemberships", {loaded: String(directory.index.loaded), total: String(directory.index.total)})}
-                    {directory.index.error && <button onClick={directoryState.retry}><UiMessage id="app.retry_membership_index"/></button>}
+                    {directory.index.error && null}
                   </div>}
                 <div className="explorer-portraits" data-portrait-scroll-root onScroll={event=>{if(wallVisible)wallScroll.current.portraits=event.currentTarget.scrollTop;}}>
                     {filtered.map((m, index) => <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>

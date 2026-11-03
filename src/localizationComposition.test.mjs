@@ -26,7 +26,7 @@ test('approved locales render every full semantic state in both layouts and pres
  const {Position}=await load('/src/MemberVoteSummary.tsx');const {UiI18nProvider}=await load('/src/UiI18nReact.tsx');
  const source=Object.fromEntries([...new Set(cases.map(([key])=>key))].map(key=>['membervotesummary.fullPosition.'+key,`{memberName} · ${key}`]));
  Object.assign(source,{'membervotesummary.membername_position':'{memberName} {position}','membervotesummary.membername_voted_position':'{memberName} voted {position}','membervotespresentation.for':'For'});
- const i18n=createUiI18n({source});
+ const i18n=createUiI18n({source,translations:{ro:source,lt:source}});
  for(const language of ['ro','lt'])for(const compact of [false,true])for(const [state,input] of cases){
  const vote={ballotStatus:'conducted',method:null,actualPosition:{status:'not-reported'},...input},before=JSON.stringify(vote);
  const markup=renderToStaticMarkup(h(UiI18nProvider,{i18n,language},h(Position,{vote,compact,memberName:'Žąsis <raw>'})));
@@ -44,7 +44,7 @@ test('compact position wording and styling follow ballot precedence in every com
   window.document.body.innerHTML=renderToStaticMarkup(h(UiI18nProvider,{i18n,language},h(Position,{vote,compact:true,memberName:'Raw member'})));
   const node=window.document.querySelector('.member-votes-position'),recorded=['for','against','abstaining'].includes(state);
   assert(node.classList.contains('member-votes-position-'+(recorded?state:'unknown')));
-  if(!['ro','lt'].includes(language))assert.equal(node.textContent,ui.t(recorded?'membervotesummary.membername_voted_position':'membervotesummary.membername_position',{memberName:'Raw member',position:memberVotePosition(vote,ui)}));
+  assert.equal(node.textContent,language==='en'?ui.t(recorded?'membervotesummary.membername_voted_position':'membervotesummary.membername_position',{memberName:'Raw member',position:memberVotePosition(vote,ui)}):ui.t('membervotesummary.fullPosition.'+state,{memberName:'Raw member'}));
   assert.equal(node.querySelector('.member-votes-position-label').lang,'');assert.equal(JSON.stringify(vote),before);
  }
 });
@@ -53,7 +53,7 @@ test('recorded page summaries preserve filtered and unfiltered scopes, null and 
  const {votePageSummary}=await load('/src/MemberVotes.tsx');
  for(const language of ['ro','lt','fr'])for(const positions of ['recorded','all'])for(const mode of ['period','page'])for(const returned of [0,5])for(const recordedTotal of [null,0,71])for(const status of ['complete','partial']){
  const data={pagination:{mode,returned,recordedTotal,filteredTotal:17,offset:50},coverage:{status}},before=JSON.stringify(data);let call;
- votePageSummary(data,positions,{language,t:(id,values)=>{call={id,values};return id;}});
+ votePageSummary(data,positions,{language,locale:language,messageLocale:()=>language==='fr'?'en':language,t:(id,values)=>{call={id,values};return id;}});
  const approved=language!=='fr'&&positions==='recorded'&&recordedTotal!==null;
  assert.equal(call.id.startsWith('membervotes.summary.recorded.'),approved);
  if(approved){assert.equal(call.id,`membervotes.summary.recorded.${mode==='period'?'period':returned?'page':'emptyPage'}`);assert.equal(call.values.recordedCount,recordedTotal);assert.equal(call.values.total,17);assert.equal(call.values.start,51);assert.equal(call.values.end,50+returned);}
@@ -72,7 +72,7 @@ test('Romanian contextual stages leave standalone labels intact and non-approved
  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>load.close());
  const {contextNamesUi,namesUi,documentNamesUi}=await load('/src/MotionComparison.tsx');
  for(const language of ['ro','lt','en','fr']){
- const calls=[],ui={language,t:id=>{calls.push(id);return id;}};
+ const calls=[],ui={language,locale:language,messageLocale:()=>language==='ro'?'ro':'unreviewed',t:id=>{calls.push(id);return id;}};
  const standalone=namesUi(ui),documents=documentNamesUi(ui);calls.length=0;
  const context=contextNamesUi(ui);
  assert.deepEqual(Object.keys(context),['original','joint','adopted']);
@@ -193,4 +193,42 @@ test('proposal controls and missing amendment targets use UI language around Fre
  const card=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'hu'},h(AmendmentCard,{item,language:'hu',reader:true,showOutcome:false})));
  window.document.body.innerHTML=card;
  const target=window.document.querySelector('.explorer-amendment-target');assert.equal(target.getAttribute('lang'),'hu');assert.equal(target.textContent,i18n.forLocale('hu').t('amendmentmodel.mjs.target.provision.unavailable'));
+});
+
+
+test('all reviewed comparison contexts compose each stage pair and keep Polish heading cases separate',async t=>{
+ const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>load.close());
+ const {contextNamesUi,documentNamesUi,comparisonNameUi}=await load('/src/MotionComparison.tsx'),{createAppUiI18n}=await load('/src/uiCatalogues.mjs');
+ const languages='bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' '),catalogues={};
+ for(const l of languages)catalogues[l]=(await load('/src/ui-locales/'+l+'.json')).default;
+ const i18n=createAppUiI18n(catalogues);
+ for(const l of languages)for(const stage of ['original-joint','original-adopted','joint-adopted']){
+  const ui=i18n.forLocale(l),context=contextNamesUi(ui),[from,to]=stage.split('-');
+  for(const k of [from,to])assert.equal(context[k],ui.t('MotionComparison.contextStage.'+k));
+  const labels=l==='pl'?documentNamesUi(ui)[stage]:[context[from],context[to]];
+  assert.equal(comparisonNameUi(stage,ui),ui.t('MotionComparison.name',{fromStage:labels[0],toStage:labels[1]}));
+  for(const id of ['MotionComparison.summary','MotionComparison.statusCounts']){const text=ui.t(id,{changed:7,removed:2,added:3,fromStage:context[from],toStage:context[to]});assert(text.includes(context[from]));assert(text.includes(context[to]));assert(!text.includes('{'));}
+  for(const k of [from,to])assert(ui.t('MotionComparison.onlyIn',{stage:context[k]}).includes(context[k]));
+ }
+});
+
+test('native member state and recorded summaries activate in every reviewed locale without activating partial variants',async t=>{
+ const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>load.close());
+ const {Position}=await load('/src/MemberVoteSummary.tsx'),{votePageSummary}=await load('/src/MemberVotes.tsx'),{UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await load('/src/uiCatalogues.mjs');
+ const languages='bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' '),catalogues={};for(const l of languages)catalogues[l]=(await load('/src/ui-locales/'+l+'.json')).default;
+ const i18n=createAppUiI18n(catalogues),window=new Window();t.after(()=>window.happyDOM.close());
+ for(const l of languages){
+  const ui=i18n.forLocale(l);
+  for(const [state,vote] of cases)for(const compact of [false,true]){
+   const before=JSON.stringify(vote);window.document.body.innerHTML=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:l},h(Position,{vote,compact,memberName:'Raw Žąsis'})));
+   assert.equal(window.document.body.textContent,ui.t('membervotesummary.fullPosition.'+state,{memberName:'Raw Žąsis'}));assert.equal(window.document.querySelector('.member-votes-position-label').lang,'');assert.equal(JSON.stringify(vote),before);
+  }
+  for(const mode of ['period','page'])for(const returned of [0,5])for(const recordedTotal of [null,0,71])for(const status of ['complete','partial']){
+   const data={pagination:{mode,returned,recordedTotal,filteredTotal:17,offset:50},coverage:{status}},before=JSON.stringify(data);let call;
+   votePageSummary(data,'recorded',{...ui,t:(id,values)=>{call={id,values};return ui.t(id,values);}});
+   if(recordedTotal!==null){assert.equal(call.id,`membervotes.summary.recorded.${mode==='period'?'period':returned?'page':'emptyPage'}`);assert.equal(call.values.recordedCount,recordedTotal);assert.equal(call.values.total,17);}
+   else assert(!call.id.startsWith('membervotes.summary.recorded.')&&!call.id.includes('recordedcount'));
+   assert(!call.id.endsWith('.partial'));assert.equal(JSON.stringify(data),before);
+  }
+ }
 });

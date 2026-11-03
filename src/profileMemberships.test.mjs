@@ -34,7 +34,7 @@ test('profile disclosures are collapsed, retain raw identifiers, language and sa
     const page=render(malformed);
     assert.match(page.textContent,/Some memberships unavailable/);
     assert.doesNotMatch(page.textContent,/No memberships listed in the source|Membership information is unavailable/);
-    assert(page.querySelector('button'));
+    assert.equal(page.querySelector('button'),null);
     if(entries.length>1){assert.doesNotMatch(page.textContent,/org\/5177|Role not supplied/);assert.match(page.textContent,/Unnamed organisation/);}
   }
 });

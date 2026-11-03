@@ -36,6 +36,6 @@ export function CommitteeMemberships({profile,committees,lang,roleName,date,retr
         </ol>
       </section>;
     })}
-    {history?.error&&<p className="explorer-membership-gap" lang={ui.language}>{history.error} <button type="button" onClick={retry}><UiMessage id="committeememberships.tsx.retry.committee.history"/></button></p>}
+    {history?.error&&<p className="explorer-membership-gap" lang={ui.language}>{history.error} </p>}
   </>;
 }

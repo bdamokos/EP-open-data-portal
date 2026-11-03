@@ -27,7 +27,7 @@ const loadingMessage = loadingMessageProp ?? ui.t("insightshared.loading");
 const errorMessage = errorMessageProp ?? ui.t("insightshared.could_not_load_this_item");
 
   const [visible,setVisible]=useState(false);useEffect(()=>{setVisible(false);if(!loading)return;const timer=setTimeout(()=>setVisible(true),300);return()=>clearTimeout(timer);},[loading]);
-  return <>{visible&&loading&&<p className="insight-secondary" role="status" lang={ui.language}>{loadingMessage}</p>}{error&&<div className="insight-error" role="alert" lang={ui.language}><span>{errorMessage}</span>{retry&&<button onClick={retry}><UiMessage id="insightshared.reload.cce715"/></button>}</div>}</>;
+  return <>{visible&&loading&&<p className="insight-secondary" role="status" lang={ui.language}>{loadingMessage}</p>}{error&&<div className="insight-error" role="alert" lang={ui.language}><span>{errorMessage}</span>{retry&&null}</div>}</>;
 }
 export const genderName=(label:string,ui:import('./uiI18n.mjs').UiFormatter)=>label==='Female'?ui.t('insightshared.genderFemale'):label==='Male'?ui.t('insightshared.genderMale'):label==='Unknown'?ui.t('insightshared.not_provided'):label;
 
