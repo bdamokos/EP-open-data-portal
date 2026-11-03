@@ -19,7 +19,7 @@ test('term 9 targets require an exact current-term vote agenda relationship',()=
  assert.equal(amendmentTarget('A-10-2026-0093'),true);assert.equal(amendmentTarget('A-8-2019-0160',{agendaItems:[item]}),false);
 });
 test('only dates after the latest earlier exact VOT-ITM count; voting-list numbers override',()=>{
- const work={identifier:id,inverse_based_on_a_realization_of:['eli/dl/event/MTG-PL-2026-04-29-VOT-ITM-190027','eli/dl/event/MTG-PL-2026-11-12-VOT-ITM-2','eli/dl/event/MTG-PL-2026-11-11-DEC-123']};
+ const work={identifier:id,plenaryVoteHistoryObserved:true,inverse_based_on_a_realization_of:['eli/dl/event/MTG-PL-2026-04-29-VOT-ITM-190027','eli/dl/event/MTG-PL-2026-11-12-VOT-ITM-2','eli/dl/event/MTG-PL-2026-11-11-DEC-123']};
  const options={today:'2026-11-03'};
  assert.deepEqual(scheduledVotes(work,{document_date:'2026-04-29'},[item],options),[]);
  assert.equal(scheduledVotes(work,{document_date:'2026-11-05'},[item],options)[0].previousVoteDate,'2026-04-29');
@@ -123,4 +123,73 @@ test('API row enrichment consumes the shared official ballot reader and override
  store.votingListsForSitting=selected=>{assert.equal(selected,sitting);return [{sittingId:sitting,agendaItemId:item.id,documentId:id,rows:[{amendments:[{number:7}]}]}];};
  assert.equal(withScheduledVotes(store,generation,{targetDocumentId:id,listId,number:7}).scheduledVotes[0].basis,'voting-list');
  assert.deepEqual(withScheduledVotes(store,generation,{targetDocumentId:id,listId,number:8}).scheduledVotes,[]);
+});
+
+test('scheduler ticks reuse inactive and active windows until the next hour',async t=>{
+ const {SittingSnapshotReader}=await import('./sitting-snapshot-store.mjs');
+ const {upcomingRefreshDue}=await import('./upcoming-amendments-collector.mjs');
+ let now=Date.parse('2026-11-07T05:59Z'),reads=0;
+ t.mock.method(SittingSnapshotReader.prototype,'read',()=>{reads++;return {nodes:[{activity_date:'2026-11-11'},{activity_date:'2026-11-12'}]};});
+ const worker={clock:()=>now,store:{db:{},get:()=>0}};
+ for(let tick=0;tick<100;tick++)assert.equal(upcomingRefreshDue(worker),false);
+ assert.equal(reads,3,'outside ticks reuse a cached null window');
+ now=Date.parse('2026-11-07T06:00Z');
+ for(let tick=0;tick<100;tick++)assert.equal(upcomingRefreshDue(worker),true);
+ assert.equal(reads,6,'07:00 Brussels recomputes once');
+ now=Date.parse('2026-11-12T22:00Z');assert.equal(upcomingRefreshDue(worker),false);
+ assert.equal(reads,9,'23:00 Brussels expires the cached active window');
+});
+
+test('target admission loads agenda evidence only for term-9 identifiers',()=>{
+ let loads=0;const options={agendaItems:()=>{loads++;return [item];}};
+ for(const document of ['A-10-2026-0093','B-10-2026-0001','RC-10-2026-0001'])assert.equal(amendmentTarget(document,options),true);
+ for(const document of ['A-8-2019-0001','invalid',null])assert.equal(amendmentTarget(document,options),false);
+ assert.equal(loads,0);
+ assert.equal(amendmentTarget(id,options),true);assert.equal(loads,1);
+ assert.equal(amendmentTarget('A-9-2024-0162',options),false);assert.equal(loads,2);
+});
+
+test('held histories stay unknown until explicitly observed or an exact ballot supplies scope',()=>{
+ const work={identifier:id,inverse_based_on_a_realization_of:[]},list={document_date:'2026-11-05'},options={today:'2026-11-03'};
+ for(const observed of [undefined,false,null])assert.equal(scheduledVotes({...work,plenaryVoteHistoryObserved:observed},list,[item],options),null);
+ assert.equal(scheduledVotes({...work,plenaryVoteHistoryObserved:true},list,[item],options).length,1);
+ const ballot={sittingId:sitting,agendaItemId:item.id,documentId:id,rows:[{amendments:[{number:7}]}]};
+ assert.equal(scheduledVotes(work,list,[item],{...options,number:7,votingLists:[ballot]})[0].basis,'voting-list');
+ assert.equal(scheduledVotes(work,list,[item],{...options,number:7,votingLists:[{...ballot,documentId:'A-9-2024-0162'}]}),null);
+});
+
+test('the scope context reads each sitting ballot once for all rows and variants',async t=>{
+ const {store,generation,clock}=setup(t),{upcomingScopeContext,withScheduledVotes}=await import('./upcoming-amendments.mjs');
+ const listId=id+'-AM-001-008',stamp=new Date(clock()).toISOString();let reads=0;
+ store.putSource(generation,'/plenary-documents/'+id,'document',{identifier:id,plenaryVoteHistoryObserved:true,inverse_based_on_a_realization_of:[]},stamp);
+ store.putSource(generation,'amendment:list:'+listId,'amendment-list',{identifier:listId,document_date:'2026-11-05'},stamp);
+ store.votingListsForSitting=()=>{reads++;return [];};
+ const context=upcomingScopeContext(store,generation);
+ for(const number of [1,2,3])assert.equal(withScheduledVotes(store,generation,{targetDocumentId:id,listId,number,variants:[{listId}]},context).scheduledVotes.length,1);
+ assert.equal(reads,1);
+});
+
+test('default and request-context dates roll over at Brussels midnight in winter and summer',async t=>{
+ const {upcomingScopeContext}=await import('./upcoming-amendments.mjs');
+ const work={identifier:id,plenaryVoteHistoryObserved:true,inverse_based_on_a_realization_of:[]};
+ t.mock.timers.enable({apis:['Date'],now:Date.parse('2026-11-12T23:30Z')});
+ assert.deepEqual(scheduledVotes(work,{document_date:'2026-11-05'},[item]),[]);
+ const store={clock:Date.now,db:{prepare:()=>({get:()=>({body:JSON.stringify({items:[item]})})})}};
+ assert.equal(upcomingScopeContext(store,1).today,'2026-11-13');
+ t.mock.timers.setTime(Date.parse('2026-07-01T22:30Z'));
+ const summer={...item,id:'MTG-PL-2026-07-01-OJ-ITM-V-14',date:'2026-07-01'};
+ assert.deepEqual(scheduledVotes(work,{document_date:'2026-06-30'},[summer]),[]);
+ assert.equal(upcomingScopeContext(store,1).today,'2026-07-02');
+});
+
+test('priority work rejoins the ordinary queue at Brussels 23:00, including DST',async t=>{
+ const {plenaryWindowEnd}=await import('./plenary-window.mjs');
+ const {enqueueAmendment,nextAmendmentTask}=await import('./amendments-store.mjs');
+ for(const [last,utc] of [['2026-11-12','2026-11-12T22:00Z'],['2026-07-16','2026-07-16T21:00Z'],['2026-03-29','2026-03-29T21:00Z'],['2026-10-25','2026-10-25T22:00Z']])assert.equal(plenaryWindowEnd(last),Date.parse(utc));
+ const {store,generation,window,clock,advance}=setup(t);let until;
+ const worker={store,clock,task:async()=>{until=worker.upcomingUntil;}};
+ await collectUpcomingAmendments(worker,{window});assert.equal(until,Date.parse('2026-11-12T22:00Z'));
+ enqueueAmendment(store,generation,'window-expiry','amendment-extract',{upcoming:true,upcomingUntil:until},112);
+ assert.equal(nextAmendmentTask(store,generation),null);
+ advance((until-clock())/3600000);assert.equal(nextAmendmentTask(store,generation).key,'window-expiry');
 });

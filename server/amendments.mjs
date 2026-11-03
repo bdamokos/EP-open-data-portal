@@ -5,7 +5,7 @@ import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
 export const AMENDMENTS_VERSION = 8;
-export const AMENDMENTS_API_VERSION = 1;
+export const AMENDMENTS_API_VERSION = 2;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 4;
 export const AMENDMENT_OUTCOME_PROOF_VERSION = 3;
 export const AMENDMENT_DISTRIBUTION_PROOF_VERSION = 2;
@@ -105,7 +105,8 @@ export function canonicalEPReference(value) {
   const ref=String(value?.id || value || '').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
   return /^eli\/dl\/(?:doc|event)\/[A-Z0-9-]+$/.test(ref)?ref:null;
 }
-export const amendmentTarget = (id,{agendaItems=[]}={}) => legacyAmendmentDocument(id)&&agendaItems.some(item=>agendaNamesDocument(item,id)) || /^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(String(id || ''));
+export const amendmentTarget = (id,{agendaItems=[]}={}) => /^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(String(id || '')) ||
+  legacyAmendmentDocument(id)&&(typeof agendaItems==='function'?agendaItems():agendaItems).some(item=>agendaNamesDocument(item,id));
 export const amendmentDocumentId = value => {
   const id=tail(value);return amendmentTarget(id)?id:null;
 };

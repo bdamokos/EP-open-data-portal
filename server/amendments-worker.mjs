@@ -276,7 +276,7 @@ export function scheduleSittingOutcomes(worker,generation,sittingId,{priority=11
 }
 
 export function scheduleAmendments(worker,generation,work,fetchedAt,endpoint,{enqueue=enqueueAmendment}={}) {
-  const id=idOf(work);if(!amendmentTarget(id,{agendaItems:upcomingAgenda(worker.store,generation)}))return;
+  const id=idOf(work);if(!amendmentTarget(id,{agendaItems:()=>upcomingAgenda(worker.store,generation)}))return;
   rebuildAmendmentTarget(worker,generation,id,{enqueue});
   const priorTarget=worker.store.db.prepare('SELECT body FROM amendment_targets WHERE generation=? AND id=?').get(generation,id);
   const discovered=priorTarget?JSON.parse(priorTarget.body).discoveredSittingIds || []:[];
@@ -352,7 +352,7 @@ async function runParserUpgradeSlice(worker,task) {
     select:body=>store.db.prepare("SELECT key,body,COALESCE(json_extract(body,'$.document_date'),'') AS date FROM sources WHERE generation=? AND kind='amendment-list' AND key<=? AND (COALESCE(json_extract(body,'$.document_date'),'')<? OR (COALESCE(json_extract(body,'$.document_date'),'')=? AND key<?)) ORDER BY date DESC,key DESC LIMIT 1").get(generation,body.throughKey,body.afterDate ?? '\uffff',body.afterDate ?? '\uffff',body.afterKey || '\uffff'),
     action:(source,body)=>{
       const list=JSON.parse(source.body),listId=idOf(list),targetDocumentId=list.scopeKey||list.targetDocumentId;
-      if(!list.extraction||list.extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION||!amendmentTarget(targetDocumentId,{agendaItems:upcomingAgenda(store,generation)})&&!targetDocumentId?.startsWith('committee:'))return;
+      if(!list.extraction||list.extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION||!amendmentTarget(targetDocumentId,{agendaItems:()=>upcomingAgenda(store,generation)})&&!targetDocumentId?.startsWith('committee:'))return;
       const freshness=listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
       if(freshness.status==='failed'&&(list.wordingRefreshFailure?.parserVersion==null||list.wordingRefreshFailure.parserVersion===AMENDMENT_EXTRACTION_VERSION)&&Date.parse(freshness.retryAfter)>worker.clock()) {
         store.taskProgress(task,{...body,retryAt:Math.min(body.retryAt || Infinity,Date.parse(freshness.retryAfter))});
@@ -464,7 +464,7 @@ async function runPreparationSlice(worker,task) {
       const {source,stage}=item,work=JSON.parse(source.body);
       if(preparationQueueBusy(store,generation)){deferPreparation(worker,task);return false;}
       if(stage==='documents') {
-        if(!amendmentTarget(idOf(work),{agendaItems:upcomingAgenda(store,generation)}))return;
+        if(!amendmentTarget(idOf(work),{agendaItems:()=>upcomingAgenda(store,generation)}))return;
         if(needsLinkObservation(work)) {
           if(body.upgradePendingKey===source.key||source.key>(body.upgradeAfterKey||'')&&body.upgrades<AMENDMENT_LIMITS.upgradeTargets){
             if(body.upgradePendingKey!==source.key) {
@@ -556,7 +556,7 @@ async function runRebuildSlice(worker,task) {
   const complete=await runAmendmentWorkSlice(worker,task,{
     select:body=>body.rebuild.kind==='profile'?(body.targets?.[body.rebuild.offset]!=null?{id:body.targets[body.rebuild.offset]}:null):store.db.prepare('SELECT id FROM ('+query.sql+') WHERE id>? AND id<=? ORDER BY id LIMIT 1').get(...query.args,body.rebuild.afterTarget,body.rebuild.throughTarget),
     action:({id})=>{
-      if(id?.startsWith('committee:')||amendmentTarget(id,{agendaItems:upcomingAgenda(store,generation)})&&store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,context?{observedDecisionIds:context.observedDecisionIds,discoveredSittingIds:context.directTargets.has(id)?[scope.sittingId]:[]}:{discover:scope.kind!=='member-changes'});
+      if(id?.startsWith('committee:')||amendmentTarget(id,{agendaItems:()=>upcomingAgenda(store,generation)})&&store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,context?{observedDecisionIds:context.observedDecisionIds,discoveredSittingIds:context.directTargets.has(id)?[scope.sittingId]:[]}:{discover:scope.kind!=='member-changes'});
       if(scope.kind==='member-changes')store.db.prepare('DELETE FROM amendment_member_current WHERE generation=? AND target=?').run(generation,id);
     },
     advance:({id},body)=>({rebuild:{...body.rebuild,...(body.rebuild.kind==='profile'?{offset:body.rebuild.offset+1}:{afterTarget:id})}}),

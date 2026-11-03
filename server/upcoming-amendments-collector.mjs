@@ -1,13 +1,21 @@
 import {SittingSnapshotReader,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
-import {activePlenaryWindow} from './plenary-window.mjs';
+import {activePlenaryWindow,plenaryWindowEnd} from './plenary-window.mjs';
+import {brusselsDay} from './analysis-period.mjs';
 import {agendaTopics} from './insights-legislation-model.mjs';
 import {amendmentTask,failAmendmentTask} from './amendments-worker.mjs';
 const HOUR=3600000;
+const windowCache=new WeakMap();
 export function upcomingWindow(worker) {
   if(!worker.store.db)return null;
-  const now=worker.clock(),year=new Date(now).getUTCFullYear(),reader=new SittingSnapshotReader({db:worker.store.db});
+  const now=worker.clock(),hour=Math.floor(now/HOUR),cached=windowCache.get(worker);
+  // Brussels boundaries fall on whole UTC hours, including across DST. Cache
+  // inactive windows too; a newly retained calendar becomes visible next hour.
+  if(cached?.hour===hour)return cached.window;
+  const year=Number(brusselsDay(now).slice(0,4)),reader=new SittingSnapshotReader({db:worker.store.db});
   const nodes=[year-1,year,year+1].flatMap(y=>reader.read('calendar',SITTING_CALENDAR_VERSION,String(y),{retained:true})?.nodes||[]);
-  return activePlenaryWindow(nodes,now);
+  const window=activePlenaryWindow(nodes,now);
+  windowCache.set(worker,{hour,window});
+  return window;
 }
 export function upcomingRefreshDue(worker) {
   if(!worker.store.db||!upcomingWindow(worker))return false;
@@ -39,7 +47,7 @@ export async function collectUpcomingAmendments(worker,{window=upcomingWindow(wo
     const pending=store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=? AND done<>1').get(generation,key);
     if(pending||now-Number(state.documentChecks?.[id]||0)<HOUR)continue;
     state.documentChecks={...state.documentChecks,[id]:now};persist();
-    worker.upcomingDocument=id;worker.upcomingUntil=Date.parse(window.last+'T23:00:00Z');
+    worker.upcomingDocument=id;worker.upcomingUntil=plenaryWindowEnd(window.last);
     // A direct one-turn canonical read adds no queue entries. Existing pending
     // core reads retain ownership; failures retry once next hour, never pile up.
     try{await worker.task({generation,key,kind:'document',body:{endpoint:key},attempts:0});}

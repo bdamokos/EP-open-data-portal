@@ -1,4 +1,4 @@
-import {upcomingScopeContext,upcomingAgenda,upcomingVotingLists,upcomingSource,scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
+import {upcomingScopeContext,upcomingAgenda,upcomingSource,scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
 import {fastReadsReady} from './fast-read-projections.mjs';
 import {languagePreference} from './language-order.mjs';
 import { createHash } from 'node:crypto';
@@ -422,7 +422,7 @@ function readAmendmentById(store,{document,id,language}) {
       document&&document!==row.targetDocumentId&&document!==row.listId)return null;
     return {...row,requestedLanguage:language};
   }
-  if(!amendmentTarget(document,{agendaItems:upcomingAgenda(store,amendmentGeneration(store))})||typeof id!=='string')return null;
+  if(!amendmentTarget(document,{agendaItems:()=>upcomingAgenda(store,amendmentGeneration(store))})||typeof id!=='string')return null;
   const reference=canonicalEPReference(id)||canonicalEPReference('eli/dl/doc/'+id);
   const identity=amendmentReference(reference);
   if(!identity||identity.targetDocumentId!==document)return null;
@@ -507,7 +507,7 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   const indexedObservationComplete=Boolean((document||list)&&readCoverage.rows>0&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness);
   const emptyObservation=document&&records.length===1?checkedEmptyObservation(records[0],document,readCoverage.rows):null;
   const observationComplete=indexedObservationComplete||Boolean(emptyObservation);
-  const scheduledLists=upcomingContext?.agenda&&document?store.db.prepare("SELECT body FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=? LIMIT ?").all(generation,document,AMENDMENT_LIMITS.listsPerTarget).map(record=>{const list=parse(record.body);return {listId:list.identifier,scheduledVotes:scheduledVotes(upcomingSource(store,generation,'/plenary-documents/'+document),list,upcomingAgenda(store,generation),{today:new Date(store.clock?.()??Date.now()).toISOString().slice(0,10),votingLists:upcomingVotingLists(store,upcomingContext.items)})};}):null;
+  const scheduledLists=upcomingContext?.agenda&&document?store.db.prepare("SELECT body FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=? LIMIT ?").all(generation,document,AMENDMENT_LIMITS.listsPerTarget).map(record=>{const list=parse(record.body);return {listId:list.identifier,scheduledVotes:scheduledVotes(upcomingSource(store,generation,'/plenary-documents/'+document),list,upcomingContext.items,{today:upcomingContext.today,votingLists:upcomingContext.votingLists})};}):null;
   return {schemaVersion:AMENDMENTS_API_VERSION,items,total,offset,limit,scheduledLists,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,targetGaps,discovery:{pending,refreshGaps,capacityGaps},
     observationScope:emptyObservation?'published-amendment-list-relationships':'indexed-'+scope+'-amendment-sources',indexed:Boolean(records.length),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope,servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation),...(scope==='committee'?{discoveryCoverage:records.length?'partial':'unavailable',wordingCoverage:records.length&&!readCoverage.wording&&!readCoverage.freshness&&records.every(record=>record.wordingComplete)?'complete':'partial',proposerCoverage:records.length&&records.every(record=>record.proposerComplete)?'complete':'partial',outcomeCoverage:'unavailable'}:{})},failures:amendmentFailureSummary(store)};
 }

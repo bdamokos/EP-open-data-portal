@@ -1,5 +1,11 @@
 import {calendarDate} from './plenary-calendar.mjs';
 const DAY=86400000;
+const brusselsHour=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Brussels',hour:'2-digit',hourCycle:'h23'});
+export function plenaryWindowEnd(lastDay) {
+  const utc=Date.parse(lastDay+'T23:00:00Z');
+  const offset=(Number(brusselsHour.format(new Date(utc)))-23+24)%24;
+  return utc-offset*3600000;
+}
 export function plenaryWindows(sittings) {
   const dates=[...new Set(sittings.map(s=>s.date||s.activity_date).filter(calendarDate))].sort(),sessions=[];
   for(const date of dates){const last=sessions.at(-1);if(last&&Date.parse(date)-Date.parse(last.at(-1))===DAY)last.push(date);else sessions.push([date]);}
