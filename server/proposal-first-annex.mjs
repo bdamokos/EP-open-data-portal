@@ -39,6 +39,7 @@ export function firstAnnexInsertion(items,wording,nativeProposalInputs) {
  const label=/^Annex(?: (?:1|I))?(?: \(new\))?(?: [–-] ([^\n\t]+))?$/u.exec(wording.targetLabel||'');
  if(!label||wording.originalText!=='')return null;
  const unavailable=()=>({reason:'source_structure_unavailable'}),lines=wording.proposedText?.split('\n')||[];
+ const classes=(wording.documentReferences||[]).filter(ref=>ref.field==='DocumentClass'&&ref.scope==='amendment');if(classes.length!==1||classes[0].raw!=='Proposal for a regulation')return unavailable();
  if(wording.language!=='en'||wording.baseline!=='commission-proposal'||wording.targetPath?.underlying?.length||wording.targetPath?.proposal?.length&&(wording.targetPath.proposal.length!==1||wording.targetPath.proposal[0].raw!==wording.targetLabel)||items.length!==1||items[0].kind!=='act'||items[0].proposal.sourceKind!=='docx'||lines.length<3||!/^ANNEX(?: (?:1|I))?$/u.test(lines[0])||lines.some(line=>!line.trim())||lines.slice(1).some(line=>/^ANNEX\b/u.test(line))||/[\u2026]|\.{3}|\uFFFC/u.test(wording.proposedText)||label[1]&&trim(label[1]).toUpperCase()!==trim(lines[1]).toUpperCase())return unavailable();
  const proposal=items[0].proposal,buffer=nativeProposalInputs?.[0];
  if(!Buffer.isBuffer(buffer)||buffer.length>8*1024*1024||createHash('sha256').update(buffer).digest('hex')!==proposal.sourceHash)return unavailable();
