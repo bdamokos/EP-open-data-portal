@@ -1316,3 +1316,14 @@ test('report quotation labels the comparison base without a legal-text placement
  assert.equal(h.container.querySelector('[data-context-target]'),null);
  assert(![...h.container.querySelectorAll('button')].some(b=>b.textContent==='Go to amendment'));
 });
+
+test('an amendment after a table appears outside its final cell',async t=>{
+  const data=overlayResponse({insertAfter:3,insertBefore:4});
+  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','19. Table follows:','First cell','Final cell','20. Following provision;'],formatStatus:'extracted',paragraphFormats:[{},{},{},{},{}],tables:[{rows:[[{start:2,end:3},{start:3,end:4}]]}]});
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  const table=h.container.querySelector('table');assert(table);
+  assert.equal(table.querySelector('[data-amendment-block]'),null);
+  assert.equal(table.nextElementSibling.dataset.amendmentBlock,'true');
+  assert.equal(table.nextElementSibling.dataset.contextTarget,'true');
+  assert.match(table.nextElementSibling.nextElementSibling.textContent,/Following provision/);
+});

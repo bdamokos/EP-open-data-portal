@@ -1,6 +1,6 @@
 import {amendmentRejection} from './amendment-rejection.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
-import {resolveAmendmentPlacement,amendmentOperation,resolutionReference} from './document-context-model.mjs';
+import {resolveAmendmentPlacement,amendmentOperation,resolutionReference,resolveTableInsertion} from './document-context-model.mjs';
 import {resolveProposalPlacement} from './proposal-placement.mjs';
 import {resolveExistingLawPlacement} from './existing-law-placement.mjs';
 
@@ -33,6 +33,7 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   let placement=['present-text','council-position'].includes(chosen.baseline)
     ?unresolved(chosen.baseline==='present-text'?'amends_existing_law':'council_position_unavailable')
     :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:comparable[0],resolutionDocument});
+  if(placement.reason==='source_passage_incomplete')placement=resolveTableInsertion(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined})??placement;
   if(comparable.length>1){placement={...placement,status:'unresolved',reason:'conflicting_target_evidence'};delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
   return placement;
 }

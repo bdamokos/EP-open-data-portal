@@ -112,3 +112,21 @@ test('an unstyled run uses the default character style, and direct off clears on
     {},
   ]);
 });
+
+import {readFileSync} from 'node:fs';
+import {documentContextPlacement} from './document-context-placement.mjs';
+test('complete body tables retain native neighbours and close numbered insertion anchors',()=>{
+  const source=JSON.parse(readFileSync(new URL('../scripts/fixtures/resolution-blank-boundaries.json',import.meta.url))).find(row=>row.documentId==='A-10-2026-0081');
+  const xml=doc('<w:p>'+run('The European Parliament,')+'</w:p>'+source.paragraphXml.join(''));
+  const text={...docxContent(zip(xml)),textLanguage:'en'};
+  const chosen={baseline:'motion-resolution',language:'en',targetLabelLanguage:'en',targetLabel:'Paragraph 149 a (new)',originalText:'',proposedText:'New provision;'};
+  const place=value=>documentContextPlacement({chosen,text:value,resolutionDocument:true});
+  assert.deepEqual(text.tables[0].bodyBoundary,{before:'/w:document[1]/w:body[1]/w:p[2]',after:'/w:document[1]/w:body[1]/w:p[4]'});
+  const placement=place(text);
+  assert.equal(placement.status,'placed');assert.equal(placement.insertAfter,84);assert.equal(placement.insertBefore,85);
+  assert.notEqual(place({...text,tables:[]}).status,'placed');
+  assert.notEqual(place({...text,paragraphSources:text.paragraphSources.map((row,i)=>i===4?{...row,complete:false}:row)}).status,'placed');
+  // A deliberately unrecognized block cannot create continuity evidence.
+  const opaque=docxContent(zip(doc('<w:p>'+run('1. Table:')+'</w:p><w:tbl><w:sdt><w:sdtContent><w:p>'+run('Hidden block')+'</w:p></w:sdtContent></w:sdt><w:tr><w:tc><w:p>'+run('Cell')+'</w:p></w:tc></w:tr></w:tbl><w:p>'+run('2. Next;')+'</w:p>')));
+  assert.equal(opaque.tables[0].bodyBoundary,undefined);
+});
