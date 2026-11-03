@@ -121,16 +121,18 @@ test('admission and its persisted cursor roll back together on failure',t=>{
 });
 
 for(const mode of ['backfill','normal'])test(mode+' actual worker handles a future wrong-route gap through ordinary generation publication',async t=>{
-  const {store,worker,generation:serving}=setup(t);gap(store,serving);store.setMembers([{id:'101',name:'Member'}]);store.publish(serving);
+  const {store,worker,generation:serving,time}=setup(t);gap(store,serving);store.setMembers([{id:'101',name:'Member'}]);store.publish(serving);
   const frozen=gapRows(store,serving);worker.recoveryMode=mode;
   assert.equal(worker.coreDue(),false,'today is already published');
   const realTask=worker.task.bind(worker),routes=[];
-  worker.fetchRecord=async route=>{routes.push(route);assert.equal(route,canonical);return {fetchedAt:new Date(now).toISOString(),payload:{data:[metadata()]}};};
+  worker.fetchRecord=async route=>{routes.push(route);assert.equal(route,canonical);return {fetchedAt:new Date(time.now).toISOString(),payload:{data:[metadata()]}};};
   worker.task=async task=>task.key===legacy?realTask(task):store.finishTask(task);
   store.release();await worker.runIteration();
   assert.deepEqual(gapRows(store,serving),frozen);
   assert.equal(store.source(serving,canonical),undefined);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items').get().n,0);
   if(mode==='normal'){assert.deepEqual(routes,[]);assert.equal(store.get('active'),serving);return;}
+  assert.deepEqual(routes,[]);assert.equal(store.get('active'),serving,'recovery waits for its begin interval');
+  time.now+=6*60*60_000;await worker.runIteration();
   assert.deepEqual(routes,[canonical]);assert.equal(worker.requests,1);assert.equal(store.get('active'),serving+1);assert.equal(store.get('working'),null);
   assert.equal(gapRows(store,serving+1).length,0);assert.equal(store.source(serving+1,canonical).work.identifier,id);
 });

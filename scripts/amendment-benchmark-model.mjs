@@ -1,5 +1,6 @@
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
+import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
 import {assertBareAnnexInsertion} from './amendment-annex-oracle.mjs';
@@ -14,6 +15,7 @@ import {assertGuidelineAnnex} from './amendment-guideline-oracle.mjs';
 import {assertQuotedSectionPoint} from './amendment-quoted-section-oracle.mjs';
 import {assertBareAnnexReplacement} from './amendment-annex-replacement-oracle.mjs';
 import {assertBareAnnexIndent} from './amendment-annex-indent-oracle.mjs';
+import {assertWholeAnnexInstruction} from './amendment-whole-instruction-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
@@ -559,6 +561,8 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const header=assertCompoundHeader(input);
+  if(header&&header.status!=='verified')return header;
   const result=verifyProposalPlacement(input);
   if(result.status!=='verified')return result;
   // A recast's legal reading omits its struck deletions and markers; the
@@ -608,6 +612,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const numbering=assertWordingNumbering({proposal,wording,placement});
   if(numbering.status!=='unverified')return numbering;
 
+  const instruction=assertWholeAnnexInstruction({items,proposal,wording,placement,nativeQuoted});
+  if(instruction)return instruction;
   const table=proposal?verifyAnnexTable({proposal,wording,placement,items}):null;
   if(table)return table;
 

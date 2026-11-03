@@ -78,6 +78,7 @@ Disk budgets (MiB unless stated):
 | Setting | Default | Notes |
 | --- | --- | --- |
 | `ACTIVITY_INDEX_MAX_DISK_MIB` | 8192 | Includes retained generations and WAL |
+| `ACTIVITY_INDEX_RECOVERY_BEGIN_INTERVAL_HOURS` | 6 | Minimum hours between recovery generation starts (1–24); daily refreshes and hard rebuilds bypass it |
 | `CORPUS_MAX_DISK_MIB` | 2048 | A full term in all languages needs about 10–15 GB |
 | `OFFICIAL_CONTEXT_MAX_DISK_MIB` | 32768 | OEIL and Publications Office pages; collection pauses at 90% |
 | `AMENDMENT_SOURCE_MAX_DISK_MIB` | 512 | Term-10 amendment-list DOCX; about 80 MiB now, a few MiB per plenary week |
