@@ -2503,5 +2503,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Interventi skont ix-xahar",
   "groupvoices.contributions_by_sitting_day.77a719": "Interventi skont il-jum tas-seduta",
   "membervotespresentation.votes_not_yet_published": "Il-votazzjonijiet għadhom ma ġewx ippubblikati",
-  "membervotespresentation.votes_start_at": "Il-votazzjonijiet jibdew fil-{time}"
+  "membervotespresentation.votes_start_at": "Il-votazzjonijiet jibdew fil-{time}",
+  "topics.geopolitics": "Ġeopolitika",
+  "topics.plenaryMode": "Suġġetti",
+  "topics.findPlace": "Sib post",
+  "topics.findTopic": "Sib suġġett"
 }

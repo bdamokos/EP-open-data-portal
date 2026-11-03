@@ -5,7 +5,7 @@ import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTarget
 import { numberingLabels } from './docx-numbering.mjs';
 import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='21';
+export const AMENDMENT_EXTRACTION_VERSION='22';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -282,9 +282,9 @@ function documentBlocks(parts,warnings,language) {
 const field=(raw,tag)=>[...raw.matchAll(new RegExp('<'+tag+'>([\\s\\S]*?)</'+tag+'>','g'))].map(m=>clean(m[1]));
 const metadata=value=>clean(value).replace(/^\{[^{}]*\}/,'').trim();
 // Published committee-list class lines are metadata, not legal addresses.
-const DOCUMENT_CLASSES={fr:'Proposition de règlement',hu:'Rendeletre irányuló javaslat',ro:'Propunere de regulament'};
+const DOCUMENT_CLASSES={en:['Proposal for a regulation','Proposal for a directive','Proposal for a decision'],fr:'Proposition de règlement',hu:'Rendeletre irányuló javaslat',ro:'Propunere de regulament'};
 const classKey=value=>clean(value).normalize('NFC').replace(/\s+/gu,' ').toLowerCase();
-const documentClass=(text,language)=>DOCUMENT_CLASSES[language]&&classKey(text)===classKey(DOCUMENT_CLASSES[language]);
+const documentClass=(text,language)=>[DOCUMENT_CLASSES[language]??[]].flat().some(value=>classKey(text)===classKey(value));
 function documentDate(raw) {
   const dates=new Set();
   for(const source of field(raw,'Date'))for(const match of source.matchAll(/(?:\{)?(\d{1,2})[./](\d{1,2})[./](\d{4})(?:\})?/g)) {
@@ -326,7 +326,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
   const warnings=new Set();let blocks=documentBlocks(docxParts(buffer),warnings,language);const groups=[],gaps=[];
   const gap=(code,number,message,details={})=>gaps.push({code,...(number==null?{}:{number}),message,sourceUrl,...details});
   if(reportId) {
-    const range=String(listId||'').match(/^(A-10-\d{4}-\d{4,6})-AM-(\d+)-(\d+)$/);
+    const range=String(listId||'').match(/^(A-(?:9|10)-\d{4}-\d{4,6})-AM-(\d+)-(\d+)$/);
     const start=blocks.findIndex(block=>block.kind==='paragraph'&&/<RepeatBlock-Amend>/.test(block.raw));
     const end=blocks.findIndex((block,index)=>index>=start&&block.kind==='paragraph'&&/<\/RepeatBlock-Amend>/.test(block.raw));
     const cover=blocks.slice(0,start).filter(block=>block.kind==='paragraph').map(block=>block.raw).join('\n');
@@ -391,7 +391,9 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
           documentReferences.push({field:'DocumentClass',raw:metadata(block.text),sourceRaw:block.raw,scope:'amendment'});
           classRecorded=true;continue;
         }
-        if(!procedure.includes(block.text)&&(targetStyle||(classRecorded||language==='hr')&&targetParts.length))targetParts.push(block.text);
+        // Between a recorded class line and the comparison table only label
+        // lines remain; A-10-2026-0230 prints its first one unstyled.
+        if(!procedure.includes(block.text)&&(targetStyle||classRecorded||language==='hr'&&targetParts.length))targetParts.push(block.text);
       }
     }
     const targetLabel=targetParts.map(metadata).filter(Boolean).join('\n')||null;

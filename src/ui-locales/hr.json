@@ -2503,5 +2503,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Izlaganja po mjesecima",
   "groupvoices.contributions_by_sitting_day.77a719": "Izlaganja po danima zasjedanja",
   "membervotespresentation.votes_not_yet_published": "Glasovanja još nisu objavljena",
-  "membervotespresentation.votes_start_at": "Glasovanje počinje u {time}"
+  "membervotespresentation.votes_start_at": "Glasovanje počinje u {time}",
+  "topics.geopolitics": "Geopolitika",
+  "topics.plenaryMode": "Teme",
+  "topics.findPlace": "Pronađite mjesto",
+  "topics.findTopic": "Pronađite temu"
 }

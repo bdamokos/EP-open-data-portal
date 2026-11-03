@@ -52,6 +52,9 @@ export function assertQuotedSibling({proposal,wording,placement,nativeQuoted}){
    let last=q.at(-1);
    const following=q.slice(i+1).find(r=>/^[0-9]+[a-z]*[.]\s/u.test(r.text.trim()));
    if(following)last=q[q.indexOf(following)-1];
+   // A quoted provision's asterisk note (rule, then '*' rows) closes the
+   // quotation; a new sibling follows the provision's text, before its note.
+   else{const rule=q.findIndex((r,at)=>at>i&&/^_{3,}$/u.test(r.text.trim()));if(rule>i&&q.slice(rule+1).length&&q.slice(rule+1).every(r=>/^\*/u.test(r.text.trim())))last=q[rule-1];}
    options.push({label,last});
   }
  }

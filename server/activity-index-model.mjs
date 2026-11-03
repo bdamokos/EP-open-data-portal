@@ -62,6 +62,7 @@ export function projectDocument(w) {
     // Keep exact URI-only references as well as expanded list documents.
     if(w.inverse_foresees_change_of!=null)result.inverse_foresees_change_of=array(w.inverse_foresees_change_of)
       .map(ref=>ref&&typeof ref==='object'&&!Array.isArray(ref)&&typeof ref.id==='string'?projectDocument(ref):ref);
+    result.plenaryVoteHistoryObserved=w.plenaryVoteHistoryObserved ?? (Object.hasOwn(w,'inverse_based_on_a_realization_of')&&w.inverse_based_on_a_realization_of!=null);
     result.inverse_based_on_a_realization_of = array(w.inverse_based_on_a_realization_of).map(ref => ref?.id || ref);
     result.inverse_decided_on_a_realization_of = array(w.inverse_decided_on_a_realization_of).map(ref => ref?.id || ref);
   }

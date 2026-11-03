@@ -182,12 +182,27 @@ test('local reader cancellation leaves the shared extraction and later retained 
   const directory=await mkdtemp(path.join(os.tmpdir(),'docx-reader-disk-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   noWait(t);const url=`https://data.europarl.europa.eu/distribution/cancel-structure-${Date.now()}/report.docx`;
   const work={identifier:'A-10-2026-0237',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]},controller=new AbortController();
-  let finish,calls=0;const download=()=>{calls++;return new Promise(resolve=>{finish=()=>resolve(docxContent(zip(doc(p('Survives')))));});};
+  const started=Promise.withResolvers(),joined=Promise.withResolvers(),extraction=Promise.withResolvers();
+  let calls=0,extractionSignal;
+  const download=(_url,{signal})=>{calls++;extractionSignal=signal;started.resolve();return extraction.promise;};
+  // Each reader checks disk before consulting the shared pending job. Starting
+  // reader two does not mean it has joined: releasing extraction too early can
+  // leave it starting a second download that the test never resolves.
+  const survivor=new AbortController(),addListener=survivor.signal.addEventListener;
+  t.mock.method(survivor.signal,'addEventListener',function(type,...args){
+    const result=addListener.call(this,type,...args);
+    if(type==='abort')joined.resolve(); // waitForRequest has attached this reader.
+    return result;
+  });
   const first=runWithRequestSignal(controller.signal,()=>documentText(work,'en',{directory,download}));
   const rejected=assert.rejects(first,error=>error.code==='request_cancelled');
-  const second=documentText(work,'en',{directory,download});
-  for(let i=0;i<100&&!finish;i++)await new Promise(resolve=>setImmediate(resolve));
-  assert(finish);controller.abort(cancelledRequest());await rejected;finish();
+  await started.promise;
+  const second=runWithRequestSignal(survivor.signal,()=>documentText(work,'en',{directory,download}));
+  await joined.promise;
+  assert.equal(calls,1);
+  controller.abort(cancelledRequest());await rejected;
+  assert.equal(extractionSignal.aborted,false,'reader cancellation leaves the extraction owner alive');
+  extraction.resolve(docxContent(zip(doc(p('Survives')))));
   const result=await second;assert.equal(calls,1);assert.equal(result.structureStatus,'extracted');assert.deepEqual(result.paragraphs,['Survives']);
   await documentText(work,'en',{directory,download:async()=>result,collector:true});
   assert.equal((await documentText(work,'en',{directory,download:()=>{throw new Error('Must stay retained');}})).structureStatus,'extracted');
