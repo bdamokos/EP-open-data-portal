@@ -470,3 +470,14 @@ test('similarity recovery withholds table-cell passages without independent tabl
  const placed=resolveProposalPlacement([{kind:'act',proposal}],{targetLabel:'Article 1 – paragraph 1 – point 1',originalText:text.replace('system','systen'),proposedText:'New text.',language:'en'});
  assert.equal(placed.status,'unresolved');
 });
+
+test('a sole bare annex supplies only a bounded interior indent alias',()=>{
+ const act=source(['Article 1','Eligible groups are listed in the Annex.','Article 2'],['Titrearticle','Normal','Titrearticle']);act.sourceKind='docx';
+ const texts=['ANNEX','Funding actions',...(Array.from({length:3},(_,i)=>[`(${i+1})\tPoint:`,`•\tFirst bullet.`,`•\tSecond bullet.`]).flat())],styles=texts.map((_,i)=>i===0?'Annexetitre':i===1?'Normal':(i-2)%3===0?'Point0number':'Bullet0'),annex=source(texts,styles);annex.sourceKind='docx';
+ annex.paragraphProperties.forEach((p,i)=>{if(i>1){const point=(i-2)%3===0;p.numberingLabel=point?`(${Math.floor((i-2)/3)+1})`:'•';p.numbering={id:point?'points':'bullets',abstractId:point?'p':'b',level:0,format:point?'decimal':'bullet'};}});
+ const items=[{kind:'act',proposal:structuredClone(parseProposal(act))},{kind:'annex',proposal:structuredClone(parseProposal(annex,{item:'annex'}))}],w={language:'en',baseline:'commission-proposal',targetLabel:'Annex I – point 3 – indent 1 a (new)',originalText:'',proposedText:'– New professional group.'};
+ const place=(input=items,a=w)=>resolveProposalPlacement(input,a);
+ assert.equal(place().status,'placed');assert.equal(place().insertBefore,10);assert.equal(place().insertAfter,9);
+ for(const mutate of [a=>a.push(a[1]),a=>a[1].proposal.sourceKind='text',a=>a[0].proposal.paragraphs[1].text='See Annex II.',a=>a[1].proposal.paragraphs[9].complete=false,a=>a[1].proposal.paragraphs[10].source.ordinal++,a=>a[1].proposal.paragraphs[9].properties.numbering.format='decimal',a=>a[1].proposal.paragraphs[9].properties.numberingLabel='-',a=>a[1].proposal.gaps.push({code:'unknown'}),a=>a[1].proposal.anchors.push({paragraph:9,offset:3,note:'x'})]){const a=structuredClone(items);mutate(a);assert.equal(place(a).status,'unresolved',String(mutate));}
+ for(const patch of [{language:'fr'},{baseline:'present-text'},{targetLabel:'Annex II – point 3 – indent 1 a (new)'},{targetLabel:'Annex I – point 3 – indent 1 b (new)'},{targetLabel:'Annex I – point 3 – indent 2 a (new)'},{targetLabel:'Annex I – point 4 – indent 1 a (new)'},{originalText:'Existing wording.'}])assert.equal(place(items,{...w,...patch}).status,'unresolved',JSON.stringify(patch));
+});
