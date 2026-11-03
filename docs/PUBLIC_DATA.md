@@ -4,6 +4,7 @@ This page lists the external sources the application uses, what each provides, a
 
 | Source | Use | Access |
 | --- | --- | --- |
+| [Indicative voting lists](https://www.europarl.europa.eu/plenary/en/votes.html) | Voting order, amendments, splits, requests and fall rules | Anonymous Tabling Service DOCX linked from the plenary votes page |
 | [European Parliament Open Data API v2](https://data.europarl.europa.eu/en/developer-corner/opendata-api) ([specification](https://data.europarl.europa.eu/api/v2)) | MEPs and dated rosters, memberships, questions and answers, speeches, agendas and meetings, procedures, plenary documents, adopted texts, Commission follow-up documents (`/external-documents`), vote results and decisions, corporate bodies | Anonymous JSON-LD, Atom and XML from `data.europarl.europa.eu/api/v2` |
 | [Parliament’s public website](https://www.europarl.europa.eu/) | Portraits, press-release feeds and the releases they announce, document files (DOCX/PDF), minutes and verbatim reports | Only URLs the API supplies (portraits, document distributions) or validated official paths |
 | [Legislative Observatory (OEIL)](https://oeil.europarl.europa.eu/oeil/en/find-out-more) | Dossier stages, policy areas and document summaries, in English and French where supplied | Anonymous HTML of exact procedure-file and document-summary pages |
@@ -187,3 +188,9 @@ The `mt` entry in `server/insights-speech-stopwords.json` is an app-authored lis
 ## World map geometry
 
 The Places map uses Natural Earth 1:110m Admin 0 countries and 1:50m tiny-country points, projected by `scripts/world-map.py` (Equal Earth). Places join by authority ISO alpha-3, except Kosovo (`1A0` → `KOS`). See [Third-party notices](../THIRD_PARTY_NOTICES.md) for source URLs.
+
+### Voting lists
+
+The Tabling Service lists are indicative and cover the current or next part-session. The public votes page links DOCX files under `/sedcms/votingList/` and the session schedule under `/sedcms/pubfile/VOTING_SCHEDULE/` on `www.europarl.europa.eu`; these and `/plenary/en/votes.html` are the only admitted website paths. Files are overwritten in place, and link version queries do not select historical editions.
+
+The single source writer checks the page at most hourly between 07:00 and 23:00 Brussels time, from four days before a consecutive run of ODP sittings through its last sitting. Files use conditional requests every six hours, hourly from 06:00 on their sitting day until the last known voting slot ends. Writer contention can delay collection. Parsed revisions retain exact references and unclassified cells; no raw DOCX is retained. All list and schedule data expire 30 days after the part-session's last sitting. Ballot-to-decision bindings are separate.

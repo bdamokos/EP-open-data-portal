@@ -1,3 +1,4 @@
+import {votingListsResponse} from './voting-list-collector.mjs';
 import {readTopics} from './topics-reader.mjs';
 import {errorLog,clientErrorEvent,serverErrorEvent} from './error-log.mjs';
 import {documentImage} from './document-image-store.mjs';
@@ -250,6 +251,9 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'procedure-progress') {
       result=await official().progress.query(procedureProgressQuery(url.searchParams));
+    }
+    else if (segments.length === 1 && segments[0] === 'voting-lists') {
+      result=votingListsResponse(activityIndex().store,url.searchParams);
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'press-releases') {
       const query=pressMentionsQuery(url.searchParams);

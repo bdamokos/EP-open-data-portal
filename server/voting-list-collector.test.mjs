@@ -1,0 +1,63 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
+import {VotingListCollector,VotingListStore,prepareVotingLists,votingListSessions,discoverVotingLists,allowedVotingListUrl,fetchVotingList,votingListsResponse} from './voting-list-collector.mjs';
+import {VOTING_LIST_PAGE} from './voting-lists.mjs';
+const nodes=['2026-11-11','2026-11-12'].map(date=>({id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'}));
+const url='https://www.europarl.europa.eu/sedcms/votingList/A10-0201.docx';
+const html=`<h4>Wednesday, 11 November 2026 - Thursday, 12 November 2026</h4><h3>Thursday, 12 November 2026</h3><a href="${url}?version=FINAL+VERSION">WORD</a><a href="${url.replace('.docx','.pdf')}">PDF</a>`;
+function setup(t,at='2026-11-07T06:00:00Z'){
+ let now=Date.parse(at);const db=new DatabaseSync(':memory:'),meta=new Map();const store={db,get:k=>meta.get(k),set:(k,v)=>meta.set(k,v),assertWriter(){},transaction(fn){assert.equal(db.isTransaction,false);db.exec('BEGIN');try{const value=fn();db.exec('COMMIT');return value;}catch(e){db.exec('ROLLBACK');throw e;}}};
+ prepareVotingLists(store);t.after(()=>db.close());return {store,now:()=>now,advance:ms=>now+=ms};
+}
+test('Brussels windows include four lead days and DST; exact section discovery and allowlist',()=>{
+ const sessions=votingListSessions(nodes);assert.equal(new Date(sessions[0].start).toISOString(),'2026-11-07T06:00:00.000Z');assert.equal(new Date(sessions[0].end).toISOString(),'2026-11-12T22:00:00.000Z');
+ const discovery=discoverVotingLists(html,sessions);assert.equal(discovery.links.length,1);assert.equal(discovery.links[0].sittingId,'MTG-PL-2026-11-12');assert.equal(discovery.links[0].linkVersion,'FINAL VERSION');assert.equal(discovery.links[0].url,url);
+ assert.equal(discoverVotingLists(`<a href="${url}">doc</a>`,sessions).gaps[0].code,'unmapped-section');
+ for(const bad of ['https://evil.test/sedcms/votingList/x.docx','https://www.europarl.europa.eu/other.docx','https://www.europarl.europa.eu/sedcms/votingList/../secret.docx'])assert.equal(allowedVotingListUrl(bad),null);
+});
+test('hourly page, six-hour documents, validators, revisions, late purge, read-only endpoint',async t=>{
+ const s=setup(t),calls=[];let revision=0;
+ const bytes=readFileSync(new URL('./fixtures/voting-lists/A10-0201.docx',import.meta.url));
+ const collector=new VotingListCollector(s.store,{clock:s.now,sessions:votingListSessions(nodes),snapshots:{read(){return {pages:[{payload:{data:[{activity_id:'MTG-PL-2026-11-12-OJ-ITM-V-29',had_activity_type:'def/ep-activities/PLENARY_VOTE',based_on_a_realization_of:['eli/dl/doc/A-10-2026-0201']}]}}]};}},fetchSource:async (source,options)=>{calls.push({source,...options});return source===VOTING_LIST_PAGE?{status:options.etag?304:200,buffer:Buffer.from(html),etag:'page'}:revision++?{status:304,etag:'file'}:{status:200,buffer:bytes,etag:'file',lastModified:'Thu, 01 Jan 2026 00:00:00 GMT'};}});
+ const worker={controller:new AbortController()};await collector.step(worker);await collector.step(worker);assert.equal(calls.length,2);
+ let docs=new VotingListStore(s.store,{clock:s.now}).votingListsForSitting('MTG-PL-2026-11-12');assert.equal(docs.length,1);assert.equal(docs[0].agendaItemId,'MTG-PL-2026-11-12-OJ-ITM-V-29');assert.equal(docs[0].revisions.length,1);
+ await collector.step(worker);assert.equal(calls.length,2);s.advance(3600000);await collector.step(worker);assert.equal(calls.length,3);assert.equal(calls[2].etag,'page');
+ s.advance(5*3600000);await collector.step(worker);await collector.step(worker);assert.equal(calls.at(-1).etag,'file');assert.ok(calls.at(-1).lastModified);assert.equal(new VotingListStore(s.store,{clock:s.now}).votingListsForSitting('MTG-PL-2026-11-12')[0].revisions.length,1);
+ s.advance(40*86400000);await collector.step(worker);assert.equal(s.store.db.prepare('SELECT count(*) n FROM voting_list_revisions').get().n,0);assert.equal(s.store.db.prepare('SELECT count(*) n FROM voting_list_sources').get().n,0);
+ assert.throws(()=>votingListsResponse(s.store,new URLSearchParams('sitting=x')),e=>e.status===400);assert.equal(votingListsResponse(s.store,new URLSearchParams('sitting=MTG-PL-2026-11-12')).documents.length,0);
+});
+test('outside windows and night make no requests; existing transaction is reused',async t=>{
+ const s=setup(t,'2026-11-06T12:00:00Z');const collector=new VotingListCollector(s.store,{clock:s.now,sessions:votingListSessions(nodes),fetchSource:()=>assert.fail('outside window')});
+ await collector.step({controller:new AbortController()});s.advance(35*3600000);await collector.step({controller:new AbortController()});s.store.db.exec('BEGIN');collector.write(()=>{});s.store.db.exec('ROLLBACK');
+});
+test('website transport sends validators and handles 304 without reading bytes',async t=>{
+ const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);let called=false;
+ globalThis.fetch=async (source,options)=>{called=true;assert.equal(source,url);assert.equal(options.headers['If-None-Match'],'held');assert.equal(options.redirect,'error');return new Response(null,{status:304,headers:{ETag:'held'}});};
+ assert.equal((await fetchVotingList(url,{etag:'held'})).status,304);assert.ok(called);
+});
+test('sitting morning overrides six-hour due time, remains hourly and stops after slot',async t=>{
+ const s=setup(t,'2026-11-12T04:00:00Z'),calls=[];
+ const collector=new VotingListCollector(s.store,{clock:s.now,sessions:votingListSessions(nodes),snapshots:{read(){return {pages:[{payload:{data:[{had_activity_type:'def/ep-activities/MEETING_PART',consists_of:['eli/dl/event/vote'],activity_end_date:'2026-11-12T13:00:00+01:00'},{id:'eli/dl/event/vote',had_activity_type:'def/ep-activities/PLENARY_VOTE'}]}}]};}},fetchSource:async (url,opts)=>{calls.push(opts);return {status:304};}});
+ s.store.set('votingListPage',{nextCheck:s.now()+86400000});
+ s.store.db.prepare('INSERT INTO voting_list_sources VALUES (?,?,?,?,?)').run(url,'MTG-PL-2026-11-12',JSON.stringify({sessionFirst:'2026-11-11',etag:'held',checkedAt:s.now()}),s.now()+6*3600000,s.now()+40*86400000);
+ await collector.step({controller:new AbortController()});assert.equal(calls.length,0);
+ s.advance(3600000);await collector.step({controller:new AbortController()});assert.equal(calls.length,1);
+ await collector.step({controller:new AbortController()});assert.equal(calls.length,1);
+ s.advance(3600000);await collector.step({controller:new AbortController()});assert.equal(calls.length,2);
+});
+test('trimmed real page assigns lists to exact ODP day sections and schedule to session',()=>{
+ const days=['14','15','16','17'].map(day=>{const date='2026-09-'+day;return {id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'};});
+ const html=readFileSync(new URL('./fixtures/voting-lists/votes-page.html',import.meta.url),'utf8'),found=discoverVotingLists(html,votingListSessions(days));
+ assert.deepEqual(found.gaps,[]);assert.ok(found.links.some(l=>l.schedule&&l.sittingId===null));assert.ok(found.links.some(l=>l.url.includes('A10-0201')&&l.sittingId==='MTG-PL-2026-09-15'));assert.ok(found.links.some(l=>l.url.includes('B10-0386')&&l.sittingId==='MTG-PL-2026-09-17'));
+});
+test('a reverted file hash remains the current document while both revisions survive',t=>{
+ const s=setup(t),db=s.store.db,purge=s.now()+40*86400000;
+ db.prepare('INSERT INTO voting_list_sources VALUES (?,?,?,?,?)').run(url,'MTG-PL-2026-11-12',JSON.stringify({latestHash:'a',checkedAt:s.now()}),s.now(),purge);
+ for(const [hash,date] of [['a','2026-11-01T10:00:00Z'],['b','2026-11-02T10:00:00Z']]){
+  const body={documentId:'A-10-2026-0201',versionLabel:'FINAL VERSION',revision:{sha256:hash,observedAt:date}};
+  db.prepare('INSERT INTO voting_list_revisions VALUES (?,?,?,?,?,?)').run(url,'MTG-PL-2026-11-12',hash,date,JSON.stringify(body),purge);
+ }
+ const docs=new VotingListStore(s.store,{clock:s.now}).votingListsForSitting('MTG-PL-2026-11-12');assert.equal(docs.length,1);assert.equal(docs[0].revision.sha256,'a');assert.equal(docs[0].revisions.length,2);
+});
