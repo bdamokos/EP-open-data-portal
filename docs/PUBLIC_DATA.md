@@ -123,6 +123,7 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 - An omitted distribution isn’t an unpublished file. B-10-2026-0435 and B-10-2026-0436 have public English DOCX files on the website, but their API records omit `is_realized_by`. Don’t construct file URLs.
 - Greek and Cyrillic bylines are linked to members through the same amendment in a Latin-script edition of the same list, never by transliteration.
 - Comparison column headings identify the baseline (Commission proposal, present text, Council position, motion text) and are language-specific.
+- A whole replacement of the first numbered English Commission annex instruction can anchor on its exact native instruction line and complete quotation/table extent. Elided existing-law cells do not supply matching evidence; the proposed table must be complete, and unsupported native content or missing source bytes withholds placement.
 
 ### Documents (DOCX and PDF)
 
