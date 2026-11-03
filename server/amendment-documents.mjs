@@ -1,7 +1,7 @@
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {alternativeMotionHeading} from './amendment-alternative.mjs';
 import {committeeListId,committeeDraftId} from './committee-amendments.mjs';
-import { XMLParser } from 'fast-xml-parser';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
@@ -238,7 +238,9 @@ function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'
 }
 function documentBlocks(parts,warnings,language) {
   const style=visibility(parts.get('word/styles.xml'));
-  const compoundVisible=language==='en'?compoundStyleSafety(parts.get('word/styles.xml')):null;
+  const documentXml=parts.get('word/document.xml'),documentTree=parser().parse(documentXml),stylesXml=parts.get('word/styles.xml');
+  const nativeHeader=language==='en'&&!/<!DOCTYPE|<!ENTITY/u.test(documentXml)&&XMLValidator.validate(documentXml)===true&&child(documentTree,'w:document')?.[':@']?.['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main'&&(!stylesXml||!/<!DOCTYPE|<!ENTITY/u.test(stylesXml)&&XMLValidator.validate(stylesXml)===true);
+  const compoundVisible=nativeHeader?compoundStyleSafety(stylesXml):null;
   if(language==='hr')style.formatting=styleFormatting(children(parser().parse(parts.get('word/styles.xml')||''),'w:styles'));
   const label=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),warnings);
   let count=0,size=0;
@@ -306,7 +308,7 @@ function documentBlocks(parts,warnings,language) {
       else if(key!==':@'&&Array.isArray(value))walk(value);
     }
   };
-  walk(parser().parse(parts.get('word/document.xml')));
+  walk(documentTree);
   return blocks;
 }
 const field=(raw,tag)=>[...raw.matchAll(new RegExp('<'+tag+'>([\\s\\S]*?)</'+tag+'>','g'))].map(m=>clean(m[1]));

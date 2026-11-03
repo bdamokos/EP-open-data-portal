@@ -20,6 +20,7 @@ test('compound metadata recovery rejects opaque content and ambiguous physical h
  ]){const {wording}=extract({headerChange});assert.equal(wording.documentReferences.some(ref=>ref.basis==='native-line-break'),false,headerChange.toString());}
  for(const className of ['Motion for a resolution','Proposal for an unknown act'])assert.equal(extract({className}).wording.targetLabel,null);
  assert.equal(extract({},'fr').wording.targetLabel,null);
+ assert.equal(extract({namespace:'urn:unrelated'}).wording.targetLabel,null);
 });
 test('hidden default and inherited styles cannot supply compound metadata',()=>{
  for(const hidden of ['vanish','webHidden'])for(const stylesXml of [
