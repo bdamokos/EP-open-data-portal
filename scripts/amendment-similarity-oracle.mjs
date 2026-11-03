@@ -37,7 +37,7 @@ export function assertResolutionSimilarity(candidates,original,span) {
  const scores=candidates.map(row=>{
   const value=normal(row.text);let prefix=0;
   while(prefix<Math.min(value.length,key.length)&&value[prefix]===key[prefix])prefix++;
-  return {...row,score:oracleSimilarity(value,key),prefix:prefix>=80?prefix/Math.min(value.length,key.length):0};
+  return {...row,score:Math.min(value.length,key.length)/Math.max(value.length,key.length)>=.93?oracleSimilarity(value,key):0,prefix:prefix>=80?prefix/Math.min(value.length,key.length):0};
  });
  const wanted=scores.find(row=>row.start===span.start&&row.end===span.end);
  if(!wanted)return false;

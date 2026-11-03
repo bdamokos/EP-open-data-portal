@@ -654,7 +654,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
       const decision = placementReference(referenceText);
       if (!decision || decision.kind !== ref.kind || decision.label !== ref.label || decision.kind === 'point' && decision.paragraph !== ref.paragraph) return unresolved('conflicting_target_evidence');
     }
-    evidence.push({basis: 'published-reference', label: ref.label}, {basis: footnotes ? 'quoted-original-source-notes' : 'quoted-original'});
+    evidence.push({basis: 'published-reference', label: ref.label}, {basis: footnotes ? 'quoted-original-source-notes' : nearMatch ? 'unique-similar-original' : 'quoted-original'});
     return placed({span: span(unit)});
   }
   const quotes = quotedTargets(rows.slice(structure.start + 1, structure.end + 1), whitespace(options.originalText));
