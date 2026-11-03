@@ -1,11 +1,12 @@
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
-import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
+import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
 import {languageQuotedSibling} from './amendment-language-quoted-oracle.mjs';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {LANGUAGE_SECTIONS} from './amendment-language-vocabulary.mjs';
 import {oracleAddress,oracleFold,oracleOpening,oracleRelative,oracleInstruction} from './amendment-oracle-grammar.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
+import {rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 
@@ -74,6 +75,26 @@ function proposalRecitals(raw) {
   const article=rows.findIndex((p,i)=>i>institution&&p.style==='Titrearticle');
   if(institution<0||article<0)return [];
   return rows.slice(institution+1,article).filter(p=>p.style==='ManualConsidrant'&&/^\(\d+\)/u.test(p.text)).map(p=>({...p,value:/^\((\d+)\)/u.exec(p.text)[1]}));
+}
+// Rebuild candidate extents from independently extracted native paragraphs.
+// Neither the runtime's labels/units nor its similarity evidence establish the
+// target. In particular, an amendment's header path belongs to another DOCX.
+function rawResolutionNearMatch(raw,expected,selected) {
+ const target=oracleAddress(expected.targetLabel,expected.language,{resolution:true});
+ if(expected.sectionKind!=='resolution'||target?.length!==1||!['paragraph','recital'].includes(target[0].kind)||/\n_{5,}\s*\n/u.test(expected.originalText))return false;
+ const paragraphs=raw.paragraphs.map(row=>row.text),sources=raw.paragraphs.map((row,index)=>({path:row.path,
+   ordinal:row.body?Number(/\/w:p\[(\d+)\]$/u.exec(row.path)?.[1]??index):index,
+   container:row.body?'body':'other',containerPath:'/w:document[1]/w:body[1]',segment:0,complete:row.body&&!row.uncertain&&!row.automatic}));
+ const paragraphFormats=raw.paragraphs.map(row=>row.bold?{marks:[{kind:'bold',start:0,end:row.text.length}]}:{});
+ const native={paragraphs,paragraphSources:sources,paragraphFormats},units=rawResolutionUnits(native,expected.language);
+ if(units.reason)return false;
+ const matches=units.units.filter(unit=>unit.kind===target[0].kind&&unit.label===target[0].value);
+ if(matches.length!==1||!matches[0].complete)return false;
+ const unit=matches[0],whole=raw.paragraphs.slice(unit.start,unit.end+1).filter(row=>row.text);
+ if(whole.length!==selected.length||whole.some((row,i)=>row.path!==selected[i].path))return false;
+ const candidates=[...units.units,...(units.incomplete||[])].filter(row=>row.kind===target[0].kind)
+   .map(row=>({...row,text:strip(paragraphs.slice(row.start,row.end+1).join('\n'))}));
+ return assertResolutionSimilarity(candidates,strip(expected.originalText),{start:unit.start,end:unit.end});
 }
 const unknown=reason=>({status:'unverified',reason});
 const failed=(reason,details={})=>({status:'failed',reason,...details});
@@ -183,7 +204,7 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
     if(strip(splicedSource)!==strip(expected.originalText))return failed('raw-original-splice-mismatch',{sourcePaths:rawSelected.map(p=>p.path)});
     return {status:'verified',reason:'raw-proposal-recital-span',location:{section:'proposal-recitals',kind:'recital',value:address.value,scope:'proposal'}};
   }
-  if(strip(rawSelected.map(p=>p.text).join('\n'))!==strip(expected.originalText))return failed('raw-original-span-mismatch',{sourcePaths:rawSelected.map(p=>p.path)});
+  const sameOriginal=strip(rawSelected.map(p=>p.text).join('\n'))===strip(expected.originalText);
   const rows=rawSections(raw),selectedRows=rawSelected.map(p=>rows.find(r=>r.path===p.path));
   if(selectedRows.some(p=>!p||!p.section))return unknown('raw-section-unverified');
   const sections=[...new Set(selectedRows.map(p=>p.section))];
@@ -194,5 +215,6 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
   if(!address||!start.ref||!targetKind)return unknown('raw-address-unverified');
   if(start.ref.kind!==targetKind)return failed('raw-target-kind-mismatch',{expected:targetKind,actual:start.ref.kind});
   if(start.ref.value!==address.value)return failed('raw-address-mismatch',{expected:address.value,actual:start.ref.value});
-  return {status:'verified',reason:'raw-addressed-span',location:{section:start.sectionKind,kind:start.ref.kind,value:address.value,scope:'body'}};
+  if(!sameOriginal&&!rawResolutionNearMatch(raw,expected,rawSelected))return failed('raw-original-span-mismatch',{sourcePaths:rawSelected.map(p=>p.path)});
+  return {status:'verified',reason:sameOriginal?'raw-addressed-span':'raw-addressed-resolution-near-match',location:{section:start.sectionKind,kind:start.ref.kind,value:address.value,scope:'body'}};
 }

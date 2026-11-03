@@ -136,7 +136,7 @@ export function rawResolutionUnits(text,language,{includeTables=false}={}) {
   if(requireOpening&&!Number.isInteger(selectedOpening))return {units:[],reason:'oracle-resolution-start-unverified'};
   const blankPairs=nativeBlankPairs(text);
   const adjacent=(a,b)=>contiguous(a,b)||a?.complete===true&&b?.complete===true&&a.container==='body'&&b.container==='body'&&a.containerPath===b.containerPath&&blankPairs.has(a.path+'|'+b.path);
-  const start=Number.isInteger(selectedOpening)?selectedOpening+1:0,events=[],openerRows=new Set(openers);
+  const start=Number.isInteger(selectedOpening)?selectedOpening+1:0,events=[],incomplete=[],openerRows=new Set(openers);
   const endings={da:'bilag|begrundelse',et:'lisa|seletuskiri',fi:'liite|perustelut',ga:'iarscríbhinn|ráiteas míniúcháin',hu:'melléklet|indokolás',it:'allegato|motivazione',lt:'priedas|aiškinamoji dalis',lv:'pielikums|paskaidrojums',mt:'anness|nota spjegattiva',nl:'bijlage|toelichting',pl:'załącznik|uzasadnienie',pt:'anexo|exposição de motivos',sk:'príloha|dôvodová správa',sl:'priloga|obrazložitev',sv:'bilaga|motivering',fr:'annexe|exposé des motifs|justification',es:'anexo|exposición de motivos|justificación',de:'anlage|anhang|begründung',bg:'приложение|изложение на мотивите|мотиви|обосновка',el:'παράρτημα|αιτιολογική έκθεση|αιτιολόγηση',hr:'prilog|obrazloženje',cs:'příloha|vysvětlující prohlášení|odůvodnění'};
   const languageEnd=endings[language]?new RegExp(`^(?:${endings[language]})(?=\\s|$|[:.–—-])`,'iu'):null;
   const number=i=>/^\s*([1-9]\d{0,5})\s*[a-zα-ωа-я]{0,3}[.)]\s+/u.exec(paragraphs[i]??'')?.[1];
@@ -156,7 +156,13 @@ export function rawResolutionUnits(text,language,{includeTables=false}={}) {
     if(!active)continue;
     if(source?.complete!==true||source.container!=='body'||i>start&&!adjacent(sources[i-1],source)) {
       events.push({start:i,boundary:true,uncertain:true});group++;parent=null;
-      if(source?.complete!==true||source.container!=='body')continue;
+      if(source?.complete!==true||source.container!=='body') {
+        // Damaged body rows cannot establish a target, but their printed text
+        // still competes with tolerant matches at another provision.
+        const ref=source?.container==='body'&&label(value);
+        if(ref&&['paragraph','recital'].includes(ref.kind))incomplete.push({...ref,start:i,end:i,complete:false});
+        continue;
+      }
     }
     const separator=/^[°\s/]+$/u.test(value)&&value.includes('°');
     const translatedEnd=Object.values(LANGUAGE_SECTIONS[language]||{}).filter(v=>typeof v==='string').some(v=>headingKey(value)===headingKey(v))||languageEnd?.test(value.split(/[\r\n]/u)[0]);
@@ -196,5 +202,11 @@ export function rawResolutionUnits(text,language,{includeTables=false}={}) {
     const owners=units.filter(unit=>unit.kind==='paragraph'&&unit.label===table.label);
     if(owners.length===1&&owners[0].start===table.start)Object.assign(owners[0],{end:table.end,complete:true});
   }
-  return {units,start};
+  for(const unit of incomplete)for(let i=unit.start+1;i<paragraphs.length&&i<unit.start+30;i++) {
+    const current=sources[i],previous=sources[i-1],ref=label(paragraphs[i].trim());
+    if(current?.container!=='body'||current.containerPath!==previous?.containerPath||current.segment!==previous.segment||current.ordinal!==previous.ordinal+1
+      ||ref&&ref.kind!=='point'||events.some(event=>event.start===i&&event.boundary&&!event.uncertain))break;
+    unit.end=i;
+  }
+  return {units,start,incomplete};
 }

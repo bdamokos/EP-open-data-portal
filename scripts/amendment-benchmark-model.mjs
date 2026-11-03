@@ -1,6 +1,6 @@
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
-import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
+import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
@@ -373,6 +373,20 @@ function verifyAnnexTable({proposal,wording,placement}) {
 
 function verifyResolutionInsertion(text,wording,target,placement) {
   const label=target.segments.at(-1);
+  if(label.kind==='recital'&&label.isNew&&target.segments.length===1) {
+    const raw=rawResolutionUnits(text,wording.language),recitals=raw.units.filter(unit=>unit.kind==='recital');
+    const first=raw.units.find(unit=>unit.kind==='paragraph');
+    const ordinal=value=>/^[A-Z]+$/u.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+    const beyond=recitals.length&&!recitals.some(unit=>unit.label===String(label.base))&&ordinal(String(label.base))!==null&&ordinal(recitals.at(-1).label)!==null&&ordinal(String(label.base))>ordinal(recitals.at(-1).label);
+    if(!raw.reason&&first?.label==='1'&&(!recitals.length&&['-A','A'].includes(label.value)||beyond)) {
+      const last=recitals.at(-1),from=last?.start??raw.units[0]?.start;
+      const sources=text.paragraphSources;
+      const complete=Number.isInteger(from)&&sources.slice(from,first.start+1).every((row,i)=>row.complete&&row.container==='body'&&(!i||row.containerPath===sources[from+i-1].containerPath&&row.segment===sources[from+i-1].segment&&row.ordinal===sources[from+i-1].ordinal+1));
+      const ordered=recitals.every((unit,i)=>unit.complete&&ordinal(unit.label)===i+1&&unit.end<first.start);
+      if(!complete||!ordered||last&&last.end!==first.start-1)return {status:'unverified',reason:'oracle-recital-boundary-unverified'};
+      return placement.insertBefore===first.start&&placement.insertAfter===first.start-1?verified('oracle-recital-body-boundary'):fail('oracle-insertion-boundary-mismatch');
+    }
+  }
   if(label.negative&&!(wording.language==='fi'&&label.kind==='paragraph'))return verifyNegativeFirst(text,wording,target,placement);
   if(label.negative) {
     // Literal Finnish published pre-first paragraph family. Derive the boundary
@@ -529,6 +543,11 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
       if(proposal&&quotes(source)===quotes(wording.originalText))return locationOracle({proposal,text,target,wording,placement,labels});
       if(proposal&&placement.operation==='delete'&&/^\(\d+\)\s*\[\.\.\.\]$/u.test(wording.originalText.trim()))return assertElidedDeletion(proposal,wording,placement);
       if(proposal&&oracleSimilarity(source,wording.originalText)>=.95)return assertSimilarPlacement({proposal,wording,placement,address:rawProposalAssertion({proposal,wording,placement})});
+      if(!proposal&&target.complete&&target.segments.length===1&&['paragraph','recital'].includes(target.segments[0].kind)) {
+        const raw=rawResolutionUnits(text,wording.language),part=target.segments[0];
+        const candidates=[...raw.units,...(raw.incomplete||[])].filter(unit=>unit.kind===part.kind).map(unit=>({...unit,text:oracleNormal(text.paragraphs.slice(unit.start,unit.end+1).join(' '),[...labels,{value:unit.label}])}));
+        if(!raw.reason&&assertResolutionSimilarity(candidates,oracleNormal(wording.originalText,labels),placement.span))return locationOracle({proposal,text,target,wording,placement,labels});
+      }
       return fail('oracle-original-span-mismatch');
     }
     return locationOracle({proposal,text,target,wording,placement,labels});
