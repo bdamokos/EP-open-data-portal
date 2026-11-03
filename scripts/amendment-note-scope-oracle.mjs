@@ -76,10 +76,10 @@ export function assertNativeFirstRecital({proposal,wording,placement,nativeQuote
  let rows;try{rows=nativeNoteRows(nativeQuoted?.proposalBuffer);}catch{return unknown();}
  const leads=rows.filter(row=>row.text.trim()==='Whereas:'),tails=rows.filter(row=>row.text.trim()==='HAS ADOPTED THIS DECISION:');
  if(leads.length!==1||tails.length!==1)return unknown();
- const start=rows.indexOf(leads[0]),end=rows.indexOf(tails[0]),recitals=rows.slice(start+1,end);
- if(end<=start||recitals.length<2||[leads[0],...recitals,tails[0]].some(row=>!row.safe)||recitals.some((row,i)=>Number(/^\((\d+)\)\s+\S/u.exec(row.text)?.[1])!==i+1))return unknown();
+ const start=rows.indexOf(leads[0]),end=rows.indexOf(tails[0]),rawBlock=rows.slice(start,end+1),recitals=rows.slice(start+1,end).filter(row=>row.text.trim());
+ if(end<=start||recitals.length<2||rawBlock.some(row=>!row.safe)||recitals.some((row,i)=>Number(/^\((\d+)\)\s+\S/u.exec(row.text)?.[1])!==i+1))return unknown();
  const block=[leads[0],...recitals,tails[0]];
- if(block.some((row,i)=>i&&row.nativeIndex!==block[i-1].nativeIndex+1))return unknown();
+ if(rawBlock.some((row,i)=>i&&row.nativeIndex!==rawBlock[i-1].nativeIndex+1))return unknown();
  const mapped=block.map(row=>proposal.paragraphs.find(p=>p.source?.path===row.path));
  if(mapped.some((row,i)=>!row?.complete||row.source?.complete!==true||compact(row.text)!==compact([leads[0],...recitals,tails[0]][i].text)||i&&row.index!==mapped[i-1].index+1))return unknown();
  const before=mapped[1].index;
