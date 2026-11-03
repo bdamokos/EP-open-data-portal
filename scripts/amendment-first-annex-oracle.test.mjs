@@ -39,3 +39,25 @@ test('style definitions are required to certify proposal and amendment visibilit
   assert.notEqual(assertFirstAnnex(input)?.status,'verified');
  }
 });
+
+test('Word namespace aliases cannot hide annex, style or numbering evidence',()=>{
+ const URI='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+ for(const prefix of ['x','word']){
+  const extra=`<${prefix}:p xmlns:${prefix}="${URI}"><${prefix}:r><${prefix}:t>ANNEX I</${prefix}:t></${prefix}:r></${prefix}:p>`;
+  assert.notEqual(assertFirstAnnex(firstAnnexNative({sourceChange:xml=>xml.replace('</w:body>',extra+'</w:body>')})).status,'verified');
+  assert.notEqual(assertFirstAnnex(firstAnnexNative({stylesChange:xml=>xml.replace('w:styleId="Fait" w:type="paragraph"/>',`w:styleId="Fait" w:type="paragraph" xmlns:${prefix}="${URI}"><w:rPr><${prefix}:vanish/></w:rPr></w:style>`)})).status,'verified');
+ }
+ const input=firstAnnexNative(),parts=quotedWordParts(input.nativeQuoted.proposalBuffer);parts.set('word/numbering.xml',`<x:numbering xmlns:x="${URI}"><x:abstractNum x:abstractNumId="1"><x:lvl x:ilvl="0"><x:lvlText x:val="ANNEX %1"/></x:lvl></x:abstractNum></x:numbering>`);input.nativeQuoted.proposalBuffer=firstAnnexZip(Object.fromEntries(parts));input.proposal.sourceHash=createHash('sha256').update(input.nativeQuoted.proposalBuffer).digest('hex');assert.notEqual(assertFirstAnnex(input).status,'verified');
+ const canonical=firstAnnexNative({sourceChange:xml=>xml.replace('<w:t>Done at Brussels,',`<w:t xmlns:w="${URI}">Done at Brussels,`)});assert.equal(assertFirstAnnex(canonical).status,'verified');
+});
+test('every empty layout paragraph must be visible and inspectable',()=>{
+ for(const content of ['<w:drawing/>','<w:unknown/>','<w:fldChar w:fldCharType="begin"/>','<w:fldSimple w:instr="INCLUDETEXT"/>']){
+  const input=firstAnnexNative({amendmentChange:xml=>xml.replace('<w:t></w:t>','<w:t></w:t>'+content)});input.wording=firstAnnexNative().wording;assert.notEqual(assertFirstAnnex(input).status,'verified');
+ }
+});
+test('native amendment-number uniqueness includes wrapped and hidden paragraphs',()=>{
+ const p='<w:p><w:r><w:t>Amendment 1</w:t></w:r></w:p>';
+ for(const wrap of [p=>'<w:sdt><w:sdtContent>'+p+'</w:sdtContent></w:sdt>',p=>'<w:ins w:id="999">'+p+'</w:ins>',p=>'<w:tbl><w:tr><w:tc>'+p+'</w:tc></w:tr></w:tbl>'])for(const hidden of [false,true]){
+  const extra=wrap(hidden?p.replace('<w:r>','<w:r><w:rPr><w:vanish/></w:rPr>'):p),input=firstAnnexNative({amendmentChange:xml=>xml.replace('<w:body>','<w:body>'+extra)});input.wording=firstAnnexNative().wording;assert.notEqual(assertFirstAnnex(input).status,'verified');
+ }
+});

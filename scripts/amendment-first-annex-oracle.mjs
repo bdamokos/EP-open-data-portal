@@ -4,10 +4,22 @@ import {quotedWordBody,quotedWordParts} from './amendment-benchmark-quoted-oracl
 import {completeGrid,literal} from './amendment-native-grid-oracle.mjs';
 const URI='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const children=(nodes,key)=>nodes.flatMap(node=>node[key]?[node[key]]:[]);
-const descendants=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,value])=>name===key?[value]:Array.isArray(value)?descendants(value,key):[]));
+const descendants=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,value])=>Array.isArray(value)?[...(name===key?[value]:[]),...descendants(value,key)]:[]));
 const values=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,value])=>name===key?[node[':@']?.['@_w:val']]:Array.isArray(value)?values(value,key):[]));
 const text=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>['w:t','w:delText','w:instrText'].includes(key)?value.map(part=>part['#text']??''):key==='w:tab'?['\t']:['w:br','w:cr'].includes(key)?['\n']:key==='w:noBreakHyphen'?['\u2011']:key==='w:softHyphen'?['\u00ad']:Array.isArray(value)?[text(value)]:[])).join('');
-const parse=xml=>{if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)throw Error('Native XML unavailable');const tree=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);const valid=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w']===undefined||node[':@']['@_xmlns:w']===URI)&&Object.values(node).every(v=>!Array.isArray(v)||valid(v)));if(!valid(tree))throw Error('Native namespace unavailable');return tree;};
+function parse(xml){
+ if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)throw Error('Native XML unavailable');
+ const tree=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);
+ const inspect=(nodes,inherited={})=>{for(const node of nodes){
+  const bindings={...inherited},attributes=node[':@']||{};
+  for(const [key,value]of Object.entries(attributes))if(key==='@_xmlns'||key.startsWith('@_xmlns:')){
+   const prefix=key==='@_xmlns'?'':key.slice(8);bindings[prefix]=value;
+   if(prefix==='w'&&value!==URI||value===URI&&prefix!=='w')throw Error('Native namespace unavailable');
+  }
+  for(const key of [...Object.keys(node),...Object.keys(attributes).map(key=>key.slice(2))])if(key.startsWith('w:')&&bindings.w!==URI)throw Error('Native namespace unavailable');
+  for(const value of Object.values(node))if(Array.isArray(value))inspect(value,bindings);
+ }};inspect(tree);return tree;
+}
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const clean=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
 const format=['w:spacing','w:noProof','w:b','w:bCs','w:i','w:iCs','w:lang','w:rFonts','w:sz','w:szCs','w:color','w:u','w:highlight','w:shd'];
@@ -41,6 +53,7 @@ function annexPayload(wording) {
 }
 function comparison(bytes,wording,number) {
  const parts=quotedWordParts(bytes),tree=parse(parts.get('word/document.xml'));if(children(tree,'w:document').length!==1)return false;
+ const nativeHeadings=descendants(tree,'w:p').map(p=>/^Amendment\s*(\d+)$/iu.exec(text(p).trim())).filter(match=>match&&Number(match[1])===number);if(nativeHeadings.length!==1)return false;
  const body=quotedWordBody(bytes),head=row=>row.kind==='paragraph'&&/^Amendment\s*[1-9]\d*$/iu.test(row.text.trim()),starts=body.flatMap((row,index)=>head(row)&&Number(row.text.match(/\d+$/u)[0])===number?[index]:[]);if(starts.length!==1)return false;
  const start=starts[0],end=body.findIndex((row,index)=>index>start&&head(row)),block=body.slice(start,end<0?body.length:end),tables=block.filter(row=>row.kind==='other');
  if(tables.length!==1||!tables[0].nodes['w:tbl']||tables[0].hidden||!visible(parts,block.flatMap(row=>row.kind==='paragraph'?row.nodes:[row.nodes])))return false;
@@ -49,9 +62,9 @@ function comparison(bytes,wording,number) {
  const rows=children(table,'w:tr');if(rows.length!==3)return false;
  const cells=rows.map(row=>children(row,'w:tc'));
  const span=cell=>values(children(cell,'w:tcPr').flat(),'w:gridSpan');
- if(cells[0].length!==1||span(cells[0][0]).join()!=='2'||text(cells[0][0]).trim()||cells.slice(1).some(row=>row.length!==2||row.some(cell=>span(cell).length)))return false;
+ if(cells[0].length!==1||span(cells[0][0]).join()!=='2'||cells.slice(1).some(row=>row.length!==2||row.some(cell=>span(cell).length)))return false;
  const column=cell=>{const paragraphs=children(cell,'w:p');return paragraphs.length&&paragraphs.every(p=>known(p)&&visible(parts,p))?paragraphs.map(p=>literal(p).trim()).filter(Boolean).join('\n'):null;};
- return column(cells[1][0])==='Text proposed by the Commission'&&column(cells[1][1])==='Amendment'&&column(cells[2][0])===''&&column(cells[2][1])===wording.proposedText;
+ return column(cells[0][0])===''&&column(cells[1][0])==='Text proposed by the Commission'&&column(cells[1][1])==='Amendment'&&column(cells[2][0])===''&&column(cells[2][1])===wording.proposedText;
 }
 // First annexes belong after the legislative signature, before its separate
 // financial statement. No adopted-text data or production hierarchy is read.
