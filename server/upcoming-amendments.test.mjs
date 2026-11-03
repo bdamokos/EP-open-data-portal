@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {agendaTopics} from './insights-legislation-model.mjs';
 import {amendmentTarget} from './amendments.mjs';
-import {scheduledVotes} from './upcoming-amendments.mjs';
+import {scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
 import {activePlenaryWindow} from './plenary-window.mjs';
 import {dispatchCollector,ordinaryCollectorTurn} from './collector-dispatch.mjs';
 const date='2026-11-12',sitting='MTG-PL-'+date,id='A-9-2024-0160';
@@ -23,7 +23,7 @@ test('only dates after the latest earlier exact VOT-ITM count; voting-list numbe
  const options={today:'2026-11-03'};
  assert.deepEqual(scheduledVotes(work,{document_date:'2026-04-29'},[item],options),[]);
  assert.equal(scheduledVotes(work,{document_date:'2026-11-05'},[item],options)[0].previousVoteDate,'2026-04-29');
- assert.equal(scheduledVotes({}, {document_date:'2026-11-05'},[item],options),null);
+ assert.equal(scheduledVotes({identifier:id}, {document_date:'2026-11-05'},[item],options),null);
  const ballot={sittingId:sitting,agendaItemId:item.id,documentId:id,rows:[{amendments:[{number:7}]}]};
  assert.equal(scheduledVotes(work,{document_date:'2026-04-01'},[item],{...options,number:7,votingLists:[ballot]})[0].basis,'voting-list');
  assert.deepEqual(scheduledVotes(work,{document_date:'2026-11-05'},[item],{...options,number:8,votingLists:[ballot]}),[]);
@@ -192,4 +192,11 @@ test('priority work rejoins the ordinary queue at Brussels 23:00, including DST'
  enqueueAmendment(store,generation,'window-expiry','amendment-extract',{upcoming:true,upcomingUntil:until},112);
  assert.equal(nextAmendmentTask(store,generation),null);
  advance((until-clock())/3600000);assert.equal(nextAmendmentTask(store,generation).key,'window-expiry');
+});
+
+test('absence from the observed upcoming agenda is known without plenary history',()=>{
+ const unknown={identifier:id};assert.deepEqual(scheduledVotes(unknown,null,[],{today:'2026-11-03'}),[]);assert.deepEqual(scheduledVotes(unknown,null,[{...item,documentIds:['A-10-2026-0270']}],{today:'2026-11-03'}),[]);assert.equal(scheduledVotes(unknown,null,[item],{today:'2026-11-03'}),null);
+ // A missing work record must retain the exact target ID from the indexed row.
+ const row={scope:'plenary',targetDocumentId:id,listId:'fixture-list',number:1},context={agenda:{items:[item]},items:[item],votingLists:[],sources:new Map([['/plenary-documents/'+id,null],['amendment:list:fixture-list',null]]),today:'2026-11-03'};
+ assert.equal(withScheduledVotes({},1,row,context).scheduledVotes,null);assert.deepEqual(withScheduledVotes({},1,row,{...context,items:[]}).scheduledVotes,[]);
 });
