@@ -1,6 +1,7 @@
 import {rejectionWordingScope} from './amendment-rejection.mjs';
 import {nativeInlineRowsComplete} from './proposal-inline-guard.mjs';
 import {quotedSectionPointInsertion} from './proposal-quoted-section.mjs';
+import {wholeAnnexInstructionPlacement} from './proposal-whole-instruction.mjs';
 import {similarPassage} from './proposal-similarity.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
@@ -853,7 +854,7 @@ function negativeArticlePlacement(items,proposedText,language,evidence,unresolve
   return {operation:'insert',status:'placed',itemIndex:first.itemIndex,insertAfter:unit.extent.start-1,insertBefore:unit.extent.start,evidence};
 }
 
-export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline}={}, {nativeProposalInputs}={}) {
+export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline,documentReferences}={}, {nativeProposalInputs}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
   const mixedScope=amendmentMixedLanguageScope({originalText,proposedText,language});
@@ -869,6 +870,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(paths&&paths.length!==1)return unresolved('target_reference_unavailable');
   // A structured underlying-act target without a proposal address is not an outer location.
   if(!paths&&targetPath?.underlying?.length)return unresolved('target_reference_unavailable');
+  const instruction=wholeAnnexInstructionPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences,operation},unresolved,nativeProposalInputs);
+  if(instruction)return instruction;
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
   if(table)return annexTablePlacement(items,table[1],originalText,language,operation,evidence,unresolved,captionDecorationProfile(items,{targetLabel,targetPath,originalText,baseline}));
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}

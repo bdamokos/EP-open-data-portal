@@ -13,6 +13,7 @@ import {assertGuidelineAnnex} from './amendment-guideline-oracle.mjs';
 import {assertQuotedSectionPoint} from './amendment-quoted-section-oracle.mjs';
 import {assertBareAnnexReplacement} from './amendment-annex-replacement-oracle.mjs';
 import {assertBareAnnexIndent} from './amendment-annex-indent-oracle.mjs';
+import {assertWholeAnnexInstruction} from './amendment-whole-instruction-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
@@ -605,6 +606,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const numbering=assertWordingNumbering({proposal,wording,placement});
   if(numbering.status!=='unverified')return numbering;
 
+  const instruction=assertWholeAnnexInstruction({items,proposal,wording,placement,nativeQuoted});
+  if(instruction)return instruction;
   const table=proposal?verifyAnnexTable({proposal,wording,placement,items}):null;
   if(table)return table;
 
