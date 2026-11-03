@@ -1,4 +1,4 @@
-import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
+import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
@@ -367,6 +367,11 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
       if(proposal&&quotes(source)===quotes(wording.originalText))return locationOracle({proposal,text,target,wording,placement,labels});
       if(proposal&&placement.operation==='delete'&&/^\(\d+\)\s*\[\.\.\.\]$/u.test(wording.originalText.trim()))return assertElidedDeletion(proposal,wording,placement);
       if(proposal&&oracleSimilarity(source,wording.originalText)>=.95)return assertSimilarPlacement({proposal,wording,placement,address:rawProposalAssertion({proposal,wording,placement})});
+      if(!proposal&&target.complete&&target.segments.length===1&&['paragraph','recital'].includes(target.segments[0].kind)) {
+        const raw=rawResolutionUnits(text,wording.language),part=target.segments[0];
+        const candidates=raw.units.filter(unit=>unit.kind===part.kind&&unit.complete).map(unit=>({...unit,text:oracleNormal(text.paragraphs.slice(unit.start,unit.end+1).join(' '),labels)}));
+        if(!raw.reason&&assertResolutionSimilarity(candidates,oracleNormal(wording.originalText,labels),placement.span))return locationOracle({proposal,text,target,wording,placement,labels});
+      }
       return fail('oracle-original-span-mismatch');
     }
     return locationOracle({proposal,text,target,wording,placement,labels});

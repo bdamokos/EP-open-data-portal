@@ -29,3 +29,18 @@ export function assertSimilarPlacement({proposal,wording,placement,address}){
  if(placement.splice.start.offset!==0||placement.splice.end.offset!==proposal.paragraphs[span.end]?.text.length)return {status:'unverified',reason:'oracle-similarity-partial-row'};
  return assertSimilarityRows(rows,wording.originalText,span)?{status:'verified',reason:'oracle-independent-unique-similarity'}:{status:'unverified',reason:'oracle-similarity-not-unique'};
 }
+
+// Resolution candidates are independently delimited raw provisions, rather than
+// runtime units or the placement's evidence. Labels are removed by the caller.
+export function assertResolutionSimilarity(candidates,original,span) {
+ const key=normal(original);if(key.length<80||key.length>10000)return false;
+ const scores=candidates.map(row=>{
+  const value=normal(row.text);let prefix=0;
+  while(prefix<Math.min(value.length,key.length)&&value[prefix]===key[prefix])prefix++;
+  return {...row,score:oracleSimilarity(value,key),prefix:prefix>=80?prefix/Math.min(value.length,key.length):0};
+ });
+ const wanted=scores.find(row=>row.start===span.start&&row.end===span.end);
+ if(!wanted)return false;
+ return (wanted.score>=.95&&scores.every(row=>row===wanted||row.score<=wanted.score-.02))
+  ||(wanted.prefix>=.5&&scores.every(row=>row===wanted||row.prefix<=wanted.prefix-.02));
+}
