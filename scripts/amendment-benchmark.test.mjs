@@ -230,7 +230,7 @@ test('report evaluation re-extracts cached DOCX despite null live wording and ig
   const [missing]=await evaluateReport([input],{mode:'documents',asOf:'2026-10-26'},{...cache,get:async()=>({ok:false,status:503,error:'http-503',url})});assert.equal(missing.outcome,'withheld-pipeline');
   const conflict=structuredClone(input);conflict.decisions.push({...input.decisions[0],id:'old-vote',date:'2026-09-01',sittingId:'MTG-PL-2026-09-01',reference:'Paragraph 2'});
   const [conflicting]=await evaluateReport([conflict],{mode:'date-window',from:'2026-10-01',to:'2026-10-26',asOf:'2026-10-26'},cache);
-  assert.equal(conflicting.stages.S5.reason,'conflicting_target_evidence','out-of-window decision evidence still constrains endpoint placement');
+  assert.equal(conflicting.stages.S5.status,'placed');assert.deepEqual(conflicting.stages.S5.finalPlacementCheck,{adoptedTextUrl:null});
 });
 
 test('cleared live baseline markers do not multiply report/language proposal acquisition',async()=>{
@@ -318,7 +318,7 @@ test('shared endpoint orchestration preserves baseline guards and conflicting-ev
   const chosen={...wording('Paragraph 1','First paragraph.'),baseline:'present-text',targetLabelLanguage:'en'};
   assert.equal(documentContextPlacement({chosen}).reason,'amends_existing_law');
   assert.equal(documentContextPlacement({chosen:{...chosen,baseline:'council-position'}}).reason,'council_position_unavailable');
-  assert.equal(documentContextPlacement({chosen,referenceTexts:['Paragraph 1','Paragraph 2']}).reason,'conflicting_target_evidence');
+  assert.equal(documentContextPlacement({chosen,referenceTexts:['Paragraph 1','Paragraph 2']}).reason,'amends_existing_law');
   assert.notEqual(documentContextPlacement({chosen:{...chosen,baseline:'motion-resolution'},referenceTexts:['Compromise amendment','Joint statement']}).reason,'conflicting_target_evidence','unparsed references are provenance, not location evidence');
   assert.equal(documentContextPlacement({chosen:null,referenceTexts:['one','two']}).reason,'conflicting_target_evidence');
   assert.equal(documentContextPlacement({chosen,includeBody:false}),null);

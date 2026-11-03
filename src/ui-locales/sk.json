@@ -1,4 +1,6 @@
 {
+  "documentcontext.final_placement_check": "Konečné umiestnenie overte v {adoptedText}.",
+  "documentcontext.adopted_text": "prijatom texte",
   "documentcontext.council.quotation": "Znenie Rady citované v správe.",
   "amendment.rejects_proposal": "Zamieta návrh",
   "amendment.rejects_council_position": "Zamieta pozíciu Rady",

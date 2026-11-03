@@ -1,4 +1,6 @@
 {
+  "documentcontext.final_placement_check": "Galutinę vietą patikrinkite {adoptedText}.",
+  "documentcontext.adopted_text": "priimtame tekste",
   "documentcontext.council.quotation": "Tarybos tekstas, cituojamas pranešime.",
   "amendment.rejects_proposal": "Atmeta pasiūlymą",
   "amendment.rejects_council_position": "Atmeta Tarybos poziciją",

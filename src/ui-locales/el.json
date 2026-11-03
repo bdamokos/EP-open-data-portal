@@ -1,4 +1,6 @@
 {
+  "documentcontext.final_placement_check": "Ελέγξτε την τελική θέση στο {adoptedText}.",
+  "documentcontext.adopted_text": "εγκριθέν κείμενο",
   "documentcontext.council.quotation": "Κείμενο του Συμβουλίου όπως παρατίθεται στην έκθεση.",
   "amendment.rejects_proposal": "Απορρίπτει την πρόταση",
   "amendment.rejects_council_position": "Απορρίπτει τη θέση του Συμβουλίου",

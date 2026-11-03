@@ -1,4 +1,6 @@
 {
+  "documentcontext.final_placement_check": "Prüfen Sie die endgültige Platzierung im {adoptedText}.",
+  "documentcontext.adopted_text": "angenommenen Text",
   "documentcontext.council.quotation": "Text des Rates, wie im Bericht zitiert.",
   "amendment.rejects_proposal": "Lehnt den Vorschlag ab",
   "amendment.rejects_council_position": "Lehnt den Standpunkt des Rates ab",
