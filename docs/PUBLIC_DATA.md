@@ -51,7 +51,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 ### Open Data API
 
 - The current term (term 10) starts on 16 July 2024. `/meetings` accepts comma-separated years and offset pagination; speech and date-range filters have no span limit.
-- `/meps/show-current?mandate-date=YYYY-MM-DD` gives the roster on a date. Use it, not today’s roster, to classify historical speakers.
+- `/meps/show-current?mandate-date=YYYY-MM-DD` gives the roster on a date. Use it, not today’s roster, to classify historical speakers. On a term’s first sitting day it omits newly elected members (`2024-07-16` fails with HTTP 500; `2019-07-02` returns 288 members with HTTP 200), so speakers on those days are checked against their own `MEMBER_PARLIAMENT` dates.
 - `/plenary-documents/feed`, `/committee-documents/feed` and `/parliamentary-questions/feed` are fixed last-month Atom feeds without date parameters. `/procedures/feed` and `/adopted-texts/feed` accept `timeframe=custom&start-date=YYYY-MM-DD` but no end date. None documents pagination or an entry limit, so a missed month can’t be recovered from the feeds; the indexer pages catalogues instead.
 - HTTP 204 is the API’s empty or terminal-page response. Treat it as an empty result only after a successful first page; otherwise it is unavailable.
 - Records contain fields such as `notation_codictPersonId`. These are fields of the API, not calls to another service.
@@ -95,7 +95,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 ### Votes, attendance and outcomes
 
 - Actual plenary event links resolve exact `executed` relationships to scheduled items. Joint debates merge their agenda context and retain each contributor’s scheduled-item provenance. Retained vote types use the same vocabulary and conflict handling as story counts; vote links require one exact scheduled vote target.
-- Votes come from `/meetings/{sitting}/decisions`, `/vote-results` and `/foreseen-activities`. Named roll calls use `vote-method=ROLL_CALL_EV`; add `filter-output=voters` when named voters aren’t needed.
+- Votes come from `/meetings/{sitting}/decisions`, `/vote-results` and `/foreseen-activities`. Named roll calls use `vote-method=ROLL_CALL_EV`; add `filter-output=voters` when named voters aren’t needed. Decisions and results appear some time after each voting session; until then the agenda lists the scheduled `PLENARY_VOTE` items inside a `MEETING_PART` slot with its start time.
 - Actual positions (`had_voter_favor`, `had_voter_against`, `had_voter_abstention`) are separate from declared intentions (`had_voter_intended_*`), which never change the result.
 - Show-of-hands (`VOTE_HAND`), electronic non-roll-call (`VOTE_ELECTRONIC`) and secret ballots (`VOTE_ELECTRONIC_SECRET`, `VOTE_SECRET`, `VOTE_SECRET_BALLOT`) have no individual positions and can have no published tally. A missing position is not an absence.
 - Documents link to votes through `inverse_based_on_a_realization_of`, amendments through `decided_on_a_realization_of`, and partial decisions through `decided_on_a_part_of_a_realization_of`. Joint motions link to their originals through `is_derivative_of`. Roll-call requesters attach only through the decision’s `was_motivated_by` edge.

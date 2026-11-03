@@ -19,7 +19,7 @@ import {OdpObservations} from './odp-observability.mjs';
 import {loopback} from './test-support/loopback.mjs';
 import {SittingSnapshotHints} from './sitting-snapshot-store.mjs';
 import {forwardSittingSnapshotHints,acceptSittingSnapshotHints} from './sitting-snapshot-hints-rpc.mjs';
-import {MEMBER_VOTES_VERSION} from './member-votes.mjs';
+import {MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
 import {SNAPSHOT_SITTING,SNAPSHOT_MEMBER} from './test-support/sitting-snapshots.mjs';
 
 const workerUrl=new URL('./test-support/source-writer-fixture.mjs',import.meta.url);
@@ -38,7 +38,7 @@ test('sitting hint transport coalesces bounded tuples with one batch in flight a
     assert.equal(sent.length,1);assert.equal(sent[0].ids.length,512);
     assert.deepEqual(sent[0].ids[0],['calendar',1,'2000',true]);
     assert(acceptSittingSnapshotHints(sent[0],{hints:received}));assert.equal(received.size,512);
-    hints.enqueue('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING);
+    hints.enqueue('votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING);
     await new Promise(setImmediate);assert.equal(sent.length,1,'wait for acknowledgement before another batch');
     worker.emit('message',{type:'sitting-hints-received'});
     await new Promise(setImmediate);assert.equal(sent.length,2);
@@ -54,7 +54,7 @@ test('sitting hint transport coalesces bounded tuples with one batch in flight a
 test('sitting hint receiver rejects oversized batches and ignores non-ID payloads',()=>{
   const hints=new SittingSnapshotHints();
   assert.equal(acceptSittingSnapshotHints({type:'sitting-hints',ids:Array(513).fill(['calendar',1,'2026',false])},{hints}),false);
-  assert(acceptSittingSnapshotHints({type:'sitting-hints',ids:[['votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING,false],
+  assert(acceptSittingSnapshotHints({type:'sitting-hints',ids:[['votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING,false],
     ['calendar',1,{body:'unexpected'},false],['attendance',1,'x'.repeat(10000),false],['votes',1,SNAPSHOT_SITTING,{body:'unexpected'}]]},{hints}));
   assert.equal(hints.size,1);
 });
@@ -209,7 +209,7 @@ test('a cold HTTP sitting read reaches the production worker collector high-prio
   await waitFor(()=>existsSync(marker));
   const collected=JSON.parse(await readFile(marker,'utf8'));
   assert.equal(collected.isMainThread,false);assert.equal(collected.hintsLeft,0);
-  assert.deepEqual(collected.jobs,[{kind:'votes',version:MEMBER_VOTES_VERSION,id:SNAPSHOT_SITTING,priority:100}]);
+  assert.deepEqual(collected.jobs,[{kind:'votes',version:MEMBER_VOTE_SNAPSHOT_VERSION,id:SNAPSHOT_SITTING,priority:100}]);
 });
 
 for(const takeover of [false,true])test(`forced worker exit cleans only its own leases (takeover=${takeover})`,async t=>{

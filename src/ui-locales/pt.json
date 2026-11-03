@@ -2501,5 +2501,7 @@
   "topics.explorerTranslation": "Nomes dos domínios de intervenção traduzidos pelo explorador.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Intervenções por mês",
-  "groupvoices.contributions_by_sitting_day.77a719": "Intervenções por dia de sessão"
+  "groupvoices.contributions_by_sitting_day.77a719": "Intervenções por dia de sessão",
+  "membervotespresentation.votes_not_yet_published": "Votações ainda não publicadas",
+  "membervotespresentation.votes_start_at": "As votações começam às {time}"
 }

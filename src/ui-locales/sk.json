@@ -2501,5 +2501,7 @@
   "topics.explorerTranslation": "Názvy oblastí politiky preložené prieskumníkom.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Vystúpenia podľa mesiacov",
-  "groupvoices.contributions_by_sitting_day.77a719": "Vystúpenia podľa rokovacích dní"
+  "groupvoices.contributions_by_sitting_day.77a719": "Vystúpenia podľa rokovacích dní",
+  "membervotespresentation.votes_not_yet_published": "Hlasovania ešte neboli zverejnené",
+  "membervotespresentation.votes_start_at": "Hlasovanie sa začína o {time}"
 }

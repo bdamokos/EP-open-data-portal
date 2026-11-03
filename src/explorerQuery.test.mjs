@@ -123,3 +123,11 @@ test('Votes fields belong to the exact member alongside both existing MEP search
     assert.equal(scoped.get('global-fts-search'),'climate');
   }
 });
+
+
+test('only the Plenary Topics mode retains topic drilldown parameters',()=>{
+ for(const mode of ['agenda','cloud','participation','dossier','topics']){
+  const q=explorerParams(new URLSearchParams({topic:'oeil:1.10','t-q':'2026-Q3','t-record':'B-10-2026-000001','pl-mode':mode}),'legislation');
+  assert.equal(q.has('topic'),mode==='topics');assert.equal(q.has('t-q'),mode==='topics');assert.equal(q.has('t-record'),mode==='topics');
+ }
+});
