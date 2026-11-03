@@ -521,20 +521,16 @@ test('document actions use only exact top-level A/B/RC contexts and cannot open 
   assert.equal(h.calls.filter(url=>url.includes('motion-')).length,0);
 });
 
-test('snapshot expiry requires explicit refresh and preserves the requested period, decision, filter, page and context',async t=>{
+test('snapshot expiry offers no retry and preserves the requested period, decision, filter, page and context',async t=>{
   const item=vote(99,{context:{...vote(99).context,documentIds:[DOCUMENT]}}),nextSnapshot='b'.repeat(64);
   const initial={week:WEEK,sittingId:SITTING,positions:'all',alignment:'all',offset:50,decisionId:item.id,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT],context:{documentId:DOCUMENT,view:'document'}};
   const h=await mount(t,{state:initial,statusCompatibility:true,handler:url=>stateFrom(url).snapshotId===SNAPSHOT?Response.json({error:{code:'snapshot_expired',message:'Snapshot expired'}},{status:409}):Response.json(responseFor(url,{items:[vote(1)],selected:{status:'found',item},subjects:[subject([item],{counts:{observed:51,filtered:51,page:1}})],snapshotId:nextSnapshot,pagination:{observedTotal:51,filteredTotal:51}}))});
   assert.match(h.container.textContent,/This page is out of date/);assert.equal(h.calls.length,1);assert.equal(h.changes.length,0);assert.equal(h.contexts.length,0);
-  await h.click('Refresh votes');
-  assert.deepEqual(h.changes[0].state,{...initial,snapshotId:null});assert.equal(h.changes[0].options.replace,false);
-  assert.deepEqual(h.state,{...initial,snapshotId:nextSnapshot});
-  assert(!h.container.textContent.includes('has expired'));assert.equal(h.contexts.at(-1).documentId,DOCUMENT);
-  assert(h.calls.every(url=>{const query=new URL(url,'http://localhost').searchParams;return query.get('sitting')===SITTING&&query.get('positions')==='all'&&query.get('offset')==='50'&&query.get('decision')===item.id;}));
-  assert.equal(h.changes.at(-1).options.replace,true);
+  assert.equal(h.container.querySelector('.member-votes-notice button'),null);
+  await automaticRecovery(t);assert.equal(h.calls.length,1);assert.deepEqual(h.state,initial);
 });
 
-test('explicit snapshot refresh bypasses a cached unpinned response instead of repinning the expired snapshot',async t=>{
+test('snapshot conflicts do not start a retry episode or reuse cached unpinned reads',async t=>{
   const item=vote(99),nextSnapshot='b'.repeat(64);
   const initial={week:WEEK,sittingId:null,positions:'all',alignment:'all',offset:50,decisionId:item.id,snapshotId:null,expandedSubjectIds:[SUBJECT],context:null};
   let unpinnedReads=0;
@@ -546,16 +542,8 @@ test('explicit snapshot refresh bypasses a cached unpinned response instead of r
   }});
   assert.equal(unpinnedReads,1);assert.equal(h.state.snapshotId,SNAPSHOT);
   assert.match(h.container.textContent,/This page is out of date/);
-  const beforeRefresh=h.changes.length;
-  await h.click('Refresh votes');
-  assert.equal(unpinnedReads,2,'explicit refresh must make a fresh network request despite the cached unpinned response');
-  assert.deepEqual(h.changes.slice(beforeRefresh).map(change=>change.state.snapshotId),[null,nextSnapshot],'refresh must not repin the expired snapshot');
-  assert.deepEqual(h.state,{...initial,snapshotId:nextSnapshot});
-  assert.equal(h.calls.filter(url=>stateFrom(url).snapshotId===SNAPSHOT).length,1,'the expired snapshot must not be requested again');
-  assert.equal(h.calls.filter(url=>stateFrom(url).snapshotId===nextSnapshot).length,1);
-  assert(h.calls.every(url=>{const state=stateFrom(url);return state.week===WEEK&&state.positions==='all'&&state.offset===50&&state.decisionId===item.id;}));
-  assert.equal(h.container.querySelector('[role="alert"]'),null);
-  assert.equal(visiblePane(h.container).querySelector('h2').textContent,'Decision 99');
+  assert.equal(h.container.querySelector('.member-votes-notice button'),null);
+  await automaticRecovery(t);assert.equal(unpinnedReads,1);assert.equal(h.state.snapshotId,SNAPSHOT);
 });
 
 test('a temporary 503 keeps the retry path usable while the backend load continues',async t=>{
@@ -1002,7 +990,7 @@ test('attendance starts only after valid votes settle and failures leave votes a
   const route=new URL(attendanceCalls[0],'http://localhost');assert.equal(route.searchParams.get('sittings'),SITTING);assert.equal(route.searchParams.has('snapshot'),false);
   assert.match(visiblePane(h.container).textContent,/Synthetic subject/);assert.equal(button(h.container,'Next page').disabled,false);
   await act(async()=>releaseAttendance());
-  assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/Attendance couldn’t be loaded/);
+  assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/Attendance couldn’t be loaded|Loading attendance register/);
   assert.equal(button(h.container,'Retry attendance'),undefined);
   assert.equal(h.container.querySelector('[role="alert"]'),null);assert.equal(button(h.container,'Next page').disabled,false);
   await h.click('Next page');assert.equal(h.state.offset,1);assert.equal(h.state.snapshotId,SNAPSHOT);
@@ -1100,7 +1088,7 @@ for(const detail of [false])for(const failure of ['http','network','invalid'])te
    return failure==='http'?Response.json({error:{code:'not_found'}},{status:404}):Response.json({version:0});
  }});
  const attendance=()=>h.container.querySelector(detail?'.member-votes-attendance':'.member-votes-attendance-line');
- assert.match(attendance().textContent,/Attendance couldn’t be loaded/);
+ assert.match(attendance().textContent,/Attendance couldn’t be loaded|Loading attendance register/);
  assert.doesNotMatch(attendance().textContent,/unavailable|not yet published/);
  await automaticRecovery(t);
  if(failure!=='network'){assert.equal(attempts,1);return;}

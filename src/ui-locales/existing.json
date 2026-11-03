@@ -9,7 +9,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Заместник-председател на Комисията",
     "batch4.speakerpresentation.mjs.8.8": "Действащ председател на Съвета",
     "batch4.speechinterventions.tsx.chair": "Председател",
-    "commissionfollowups.try_again": "Опитайте отново",
     "dossieractivity.all_committees": "Всички комисии",
     "dossieractivity.committee": "Комисия",
     "dossieractivity.first_reading": "Първо четене",
@@ -43,7 +42,6 @@
     "terms.catalogue_save_question": "Запазване на въпроса",
     "terms.catalogue_saved_question": "Запазен въпрос",
     "terms.catalogue_view_error": "Този изглед не може да се покаже",
-    "terms.catalogue_view_error_help": "Можете да опитате отново, да се върнете към членовете или да презаредите страницата.",
     "terms.catalogue_view_reload_help": "Презаредете страницата, за да опитате да заредите този изглед отново."
   },
   "cs": {
@@ -56,7 +54,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Místopředseda Komise",
     "batch4.speakerpresentation.mjs.8.8": "Úřadující předseda Rady",
     "batch4.speechinterventions.tsx.chair": "Předseda",
-    "commissionfollowups.try_again": "Zkusit znovu",
     "dossieractivity.all_committees": "Všechny výbory",
     "dossieractivity.committee": "Výbor",
     "dossieractivity.first_reading": "První čtení",
@@ -90,7 +87,6 @@
     "terms.catalogue_save_question": "Uložit otázku",
     "terms.catalogue_saved_question": "Uložená otázka",
     "terms.catalogue_view_error": "Toto zobrazení se nepodařilo načíst",
-    "terms.catalogue_view_error_help": "Můžete to zkusit znovu, vrátit se k poslancům nebo znovu načíst stránku.",
     "terms.catalogue_view_reload_help": "Znovu načtěte stránku a zkuste toto zobrazení načíst znovu."
   },
   "da": {
@@ -103,7 +99,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Næstformand for Kommissionen",
     "batch4.speakerpresentation.mjs.8.8": "Rådets fungerende formand",
     "batch4.speechinterventions.tsx.chair": "Formand",
-    "commissionfollowups.try_again": "Prøv igen",
     "dossieractivity.all_committees": "Alle udvalg",
     "dossieractivity.committee": "Udvalg",
     "dossieractivity.first_reading": "Førstebehandling",
@@ -137,7 +132,6 @@
     "terms.catalogue_save_question": "Gem spørgsmål",
     "terms.catalogue_saved_question": "Gemt spørgsmål",
     "terms.catalogue_view_error": "Denne visning kunne ikke vises",
-    "terms.catalogue_view_error_help": "Du kan prøve igen, gå tilbage til medlemmerne eller genindlæse siden.",
     "terms.catalogue_view_reload_help": "Genindlæs siden for at prøve at indlæse denne visning igen."
   },
   "de": {
@@ -150,7 +144,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Vizepräsident der Kommission",
     "batch4.speakerpresentation.mjs.8.8": "Amtierender Ratspräsident",
     "batch4.speechinterventions.tsx.chair": "Vorsitz",
-    "commissionfollowups.try_again": "Erneut versuchen",
     "dossieractivity.all_committees": "Alle Ausschüsse",
     "dossieractivity.committee": "Ausschuss",
     "dossieractivity.first_reading": "Erste Lesung",
@@ -184,7 +177,6 @@
     "terms.catalogue_save_question": "Anfrage speichern",
     "terms.catalogue_saved_question": "Gespeicherte Anfrage",
     "terms.catalogue_view_error": "Diese Ansicht konnte nicht angezeigt werden",
-    "terms.catalogue_view_error_help": "Sie können es erneut versuchen, zu den Mitgliedern zurückkehren oder die Seite neu laden.",
     "terms.catalogue_view_reload_help": "Laden Sie die Seite neu, um diese Ansicht erneut zu laden."
   },
   "el": {
@@ -197,7 +189,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Αντιπρόεδρος της Επιτροπής",
     "batch4.speakerpresentation.mjs.8.8": "Προεδρεύων του Συμβουλίου",
     "batch4.speechinterventions.tsx.chair": "Προεδρία",
-    "commissionfollowups.try_again": "Δοκιμάστε ξανά",
     "dossieractivity.all_committees": "Όλες οι επιτροπές",
     "dossieractivity.committee": "Επιτροπή",
     "dossieractivity.first_reading": "Πρώτη ανάγνωση",
@@ -231,7 +222,6 @@
     "terms.catalogue_save_question": "Αποθήκευση ερώτησης",
     "terms.catalogue_saved_question": "Αποθηκευμένη ερώτηση",
     "terms.catalogue_view_error": "Δεν ήταν δυνατή η εμφάνιση αυτής της προβολής",
-    "terms.catalogue_view_error_help": "Μπορείτε να δοκιμάσετε ξανά, να επιστρέψετε στους βουλευτές ή να φορτώσετε ξανά τη σελίδα.",
     "terms.catalogue_view_reload_help": "Φορτώστε ξανά τη σελίδα για να προσπαθήσετε να φορτώσετε ξανά αυτήν την προβολή."
   },
   "es": {
@@ -244,7 +234,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Vicepresidente de la Comisión",
     "batch4.speakerpresentation.mjs.8.8": "Presidente en ejercicio del Consejo",
     "batch4.speechinterventions.tsx.chair": "Presidencia",
-    "commissionfollowups.try_again": "Volver a intentar",
     "dossieractivity.all_committees": "Todas las comisiones",
     "dossieractivity.committee": "Comisión",
     "dossieractivity.first_reading": "Primera lectura",
@@ -278,7 +267,6 @@
     "terms.catalogue_save_question": "Guardar pregunta",
     "terms.catalogue_saved_question": "Pregunta guardada",
     "terms.catalogue_view_error": "No se ha podido mostrar esta vista",
-    "terms.catalogue_view_error_help": "Puede volver a intentarlo, regresar a los diputados o recargar la página.",
     "terms.catalogue_view_reload_help": "Recargue la página para intentar cargar esta vista de nuevo."
   },
   "et": {
@@ -291,7 +279,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Komisjoni asepresident",
     "batch4.speakerpresentation.mjs.8.8": "Nõukogu eesistuja",
     "batch4.speechinterventions.tsx.chair": "Esimees",
-    "commissionfollowups.try_again": "Proovi uuesti",
     "dossieractivity.all_committees": "Kõik komisjonid",
     "dossieractivity.committee": "Komisjon",
     "dossieractivity.first_reading": "Esimene lugemine",
@@ -325,7 +312,6 @@
     "terms.catalogue_save_question": "Salvesta küsimus",
     "terms.catalogue_saved_question": "Salvestatud küsimus",
     "terms.catalogue_view_error": "Seda vaadet ei saanud kuvada",
-    "terms.catalogue_view_error_help": "Võite proovida uuesti, naasta parlamendiliikmete juurde või laadida lehe uuesti.",
     "terms.catalogue_view_reload_help": "Selle vaate uuesti laadimiseks laadige leht uuesti."
   },
   "fi": {
@@ -338,7 +324,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Komission varapuheenjohtaja",
     "batch4.speakerpresentation.mjs.8.8": "Neuvoston puheenjohtaja",
     "batch4.speechinterventions.tsx.chair": "Puheenjohtaja",
-    "commissionfollowups.try_again": "Yritä uudelleen",
     "dossieractivity.all_committees": "Kaikki valiokunnat",
     "dossieractivity.committee": "Valiokunta",
     "dossieractivity.first_reading": "Ensimmäinen käsittely",
@@ -372,7 +357,6 @@
     "terms.catalogue_save_question": "Tallenna kysymys",
     "terms.catalogue_saved_question": "Tallennettu kysymys",
     "terms.catalogue_view_error": "Tätä näkymää ei voitu näyttää",
-    "terms.catalogue_view_error_help": "Voit yrittää uudelleen, palata jäseniin tai ladata sivun uudelleen.",
     "terms.catalogue_view_reload_help": "Lataa sivu uudelleen yrittääksesi ladata tämän näkymän uudestaan."
   },
   "fr": {
@@ -385,7 +369,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Vice-président de la Commission",
     "batch4.speakerpresentation.mjs.8.8": "Président en exercice du Conseil",
     "batch4.speechinterventions.tsx.chair": "Présidence",
-    "commissionfollowups.try_again": "Réessayer",
     "dossieractivity.all_committees": "Toutes les commissions",
     "dossieractivity.committee": "Commission",
     "dossieractivity.first_reading": "Première lecture",
@@ -419,7 +402,6 @@
     "terms.catalogue_save_question": "Enregistrer la question",
     "terms.catalogue_saved_question": "Question enregistrée",
     "terms.catalogue_view_error": "Cette vue n’a pas pu être affichée",
-    "terms.catalogue_view_error_help": "Vous pouvez réessayer, revenir aux députés ou recharger la page.",
     "terms.catalogue_view_reload_help": "Rechargez la page pour essayer de charger cette vue à nouveau."
   },
   "ga": {
@@ -432,7 +414,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Leas-Uachtarán an Choimisiúin",
     "batch4.speakerpresentation.mjs.8.8": "Uachtarán-in-Oifig na Comhairle",
     "batch4.speechinterventions.tsx.chair": "Cathaoirleach",
-    "commissionfollowups.try_again": "Bain triail eile as",
     "dossieractivity.all_committees": "Gach coiste",
     "dossieractivity.committee": "Coiste",
     "dossieractivity.first_reading": "An chéad léamh",
@@ -466,7 +447,6 @@
     "terms.catalogue_save_question": "Sábháil an cheist",
     "terms.catalogue_saved_question": "Ceist shábháilte",
     "terms.catalogue_view_error": "Níorbh fhéidir an t-amharc seo a thaispeáint",
-    "terms.catalogue_view_error_help": "Is féidir leat triail eile a bhaint as, filleadh ar na Feisirí nó an leathanach a athlódáil.",
     "terms.catalogue_view_reload_help": "Athlódáil an leathanach chun iarracht a dhéanamh an t-amharc seo a lódáil arís."
   },
   "hr": {
@@ -479,7 +459,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Potpredsjednik Komisije",
     "batch4.speakerpresentation.mjs.8.8": "Predsjedatelj Vijeća",
     "batch4.speechinterventions.tsx.chair": "Predsjedništvo",
-    "commissionfollowups.try_again": "Pokušajte ponovno",
     "dossieractivity.all_committees": "Svi odbori",
     "dossieractivity.committee": "Odbor",
     "dossieractivity.first_reading": "Prvo čitanje",
@@ -513,7 +492,6 @@
     "terms.catalogue_save_question": "Spremi pitanje",
     "terms.catalogue_saved_question": "Spremljeno pitanje",
     "terms.catalogue_view_error": "Ovaj prikaz nije moguće prikazati",
-    "terms.catalogue_view_error_help": "Možete pokušati ponovno, vratiti se na zastupnike ili ponovno učitati stranicu.",
     "terms.catalogue_view_reload_help": "Ponovno učitajte stranicu kako biste pokušali ponovno učitati ovaj prikaz."
   },
   "hu": {
@@ -526,7 +504,6 @@
     "batch4.speakerpresentation.mjs.8.7": "A Bizottság alelnöke",
     "batch4.speakerpresentation.mjs.8.8": "A Tanács soros elnöke",
     "batch4.speechinterventions.tsx.chair": "Elnök",
-    "commissionfollowups.try_again": "Újrapróbálkozás",
     "dossieractivity.all_committees": "Összes bizottság",
     "dossieractivity.committee": "Bizottság",
     "dossieractivity.first_reading": "Első olvasat",
@@ -560,7 +537,6 @@
     "terms.catalogue_save_question": "Kérdés mentése",
     "terms.catalogue_saved_question": "Mentett kérdés",
     "terms.catalogue_view_error": "Ez a nézet nem jeleníthető meg",
-    "terms.catalogue_view_error_help": "Próbálja újra, térjen vissza a képviselőkhöz, vagy töltse újra az oldalt.",
     "terms.catalogue_view_reload_help": "Töltse újra az oldalt a nézet betöltésének újrapróbálásához."
   },
   "it": {
@@ -573,7 +549,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Vicepresidente della Commissione",
     "batch4.speakerpresentation.mjs.8.8": "Presidente in carica del Consiglio",
     "batch4.speechinterventions.tsx.chair": "Presidenza",
-    "commissionfollowups.try_again": "Riprova",
     "dossieractivity.all_committees": "Tutte le commissioni",
     "dossieractivity.committee": "Commissione",
     "dossieractivity.first_reading": "Prima lettura",
@@ -607,7 +582,6 @@
     "terms.catalogue_save_question": "Salva interrogazione",
     "terms.catalogue_saved_question": "Interrogazione salvata",
     "terms.catalogue_view_error": "Impossibile visualizzare questa vista",
-    "terms.catalogue_view_error_help": "Puoi riprovare, tornare ai deputati o ricaricare la pagina.",
     "terms.catalogue_view_reload_help": "Ricarica la pagina per provare a caricare nuovamente questa vista."
   },
   "lt": {
@@ -620,7 +594,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Komisijos pirmininko pavaduotojas",
     "batch4.speakerpresentation.mjs.8.8": "Einantis Tarybos pirmininko pareigas",
     "batch4.speechinterventions.tsx.chair": "Pirmininkas",
-    "commissionfollowups.try_again": "Bandyti dar kartą",
     "dossieractivity.all_committees": "Visi komitetai",
     "dossieractivity.committee": "Komitetas",
     "dossieractivity.first_reading": "Pirmasis svarstymas",
@@ -654,7 +627,6 @@
     "terms.catalogue_save_question": "Išsaugoti klausimą",
     "terms.catalogue_saved_question": "Išsaugotas klausimas",
     "terms.catalogue_view_error": "Šio rodinio nepavyko parodyti",
-    "terms.catalogue_view_error_help": "Galite bandyti dar kartą, grįžti prie narių arba iš naujo įkelti puslapį.",
     "terms.catalogue_view_reload_help": "Įkelkite puslapį iš naujo, kad pabandytumėte dar kartą įkelti šį rodinį."
   },
   "lv": {
@@ -667,7 +639,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Komisijas priekšsēdētāja vietnieks",
     "batch4.speakerpresentation.mjs.8.8": "Padomes pašreizējais priekšsēdētājs",
     "batch4.speechinterventions.tsx.chair": "Priekšsēdētājs",
-    "commissionfollowups.try_again": "Mēģināt vēlreiz",
     "dossieractivity.all_committees": "Visas komitejas",
     "dossieractivity.committee": "Komiteja",
     "dossieractivity.first_reading": "Pirmais lasījums",
@@ -701,7 +672,6 @@
     "terms.catalogue_save_question": "Saglabāt jautājumu",
     "terms.catalogue_saved_question": "Saglabāts jautājums",
     "terms.catalogue_view_error": "Šo skatu neizdevās parādīt",
-    "terms.catalogue_view_error_help": "Varat mēģināt vēlreiz, atgriezties pie deputātiem vai pārlādēt lapu.",
     "terms.catalogue_view_reload_help": "Pārlādējiet lapu, lai mēģinātu vēlreiz ielādēt šo skatu."
   },
   "mt": {
@@ -714,7 +684,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Viċi President tal-Kummissjoni",
     "batch4.speakerpresentation.mjs.8.8": "President fil-kariga tal-Kunsill",
     "batch4.speechinterventions.tsx.chair": "Presidenza",
-    "commissionfollowups.try_again": "Erġa’ pprova",
     "dossieractivity.all_committees": "Il-kumitati kollha",
     "dossieractivity.committee": "Kumitat",
     "dossieractivity.first_reading": "L-ewwel qari",
@@ -748,7 +717,6 @@
     "terms.catalogue_save_question": "Issejvja l-mistoqsija",
     "terms.catalogue_saved_question": "Mistoqsija ssejvjata",
     "terms.catalogue_view_error": "Din il-veduta ma setgħetx tintwera",
-    "terms.catalogue_view_error_help": "Tista’ terġa’ tipprova, tmur lura għall-Membri jew terġa’ ttella’ l-paġna.",
     "terms.catalogue_view_reload_help": "Erġa’ tella’ l-paġna biex tipprova ttella’ din il-veduta mill-ġdid."
   },
   "nl": {
@@ -761,7 +729,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Vicevoorzitter van de Commissie",
     "batch4.speakerpresentation.mjs.8.8": "Fungerend voorzitter van de Raad",
     "batch4.speechinterventions.tsx.chair": "Voorzitter",
-    "commissionfollowups.try_again": "Opnieuw proberen",
     "dossieractivity.all_committees": "Alle commissies",
     "dossieractivity.committee": "Commissie",
     "dossieractivity.first_reading": "Eerste lezing",
@@ -795,7 +762,6 @@
     "terms.catalogue_save_question": "Vraag opslaan",
     "terms.catalogue_saved_question": "Opgeslagen vraag",
     "terms.catalogue_view_error": "Deze weergave kon niet worden getoond",
-    "terms.catalogue_view_error_help": "U kunt het opnieuw proberen, teruggaan naar de leden of de pagina opnieuw laden.",
     "terms.catalogue_view_reload_help": "Laad de pagina opnieuw om deze weergave opnieuw te proberen te laden."
   },
   "pl": {
@@ -808,7 +774,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Wiceprzewodniczący Komisji",
     "batch4.speakerpresentation.mjs.8.8": "Urzędujący przewodniczący Rady",
     "batch4.speechinterventions.tsx.chair": "Przewodnictwo",
-    "commissionfollowups.try_again": "Spróbuj ponownie",
     "dossieractivity.all_committees": "Wszystkie komisje",
     "dossieractivity.committee": "Komisja",
     "dossieractivity.first_reading": "Pierwsze czytanie",
@@ -842,7 +807,6 @@
     "terms.catalogue_save_question": "Zapisz pytanie",
     "terms.catalogue_saved_question": "Zapisane pytanie",
     "terms.catalogue_view_error": "Nie udało się wyświetlić tego widoku",
-    "terms.catalogue_view_error_help": "Możesz spróbować ponownie, wrócić do posłów lub odświeżyć stronę.",
     "terms.catalogue_view_reload_help": "Odśwież stronę, aby spróbować ponownie załadować ten widok."
   },
   "pt": {
@@ -855,7 +819,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Vice-presidente da Comissão",
     "batch4.speakerpresentation.mjs.8.8": "Presidente em exercício do Conselho",
     "batch4.speechinterventions.tsx.chair": "Presidência",
-    "commissionfollowups.try_again": "Tentar novamente",
     "dossieractivity.all_committees": "Todas as comissões",
     "dossieractivity.committee": "Comissão",
     "dossieractivity.first_reading": "Primeira leitura",
@@ -889,7 +852,6 @@
     "terms.catalogue_save_question": "Guardar pergunta",
     "terms.catalogue_saved_question": "Pergunta guardada",
     "terms.catalogue_view_error": "Não foi possível apresentar esta vista",
-    "terms.catalogue_view_error_help": "Pode tentar novamente, voltar aos deputados ou recarregar a página.",
     "terms.catalogue_view_reload_help": "Recarregue a página para tentar carregar esta vista novamente."
   },
   "ro": {
@@ -902,7 +864,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Vicepreședinte al Comisiei",
     "batch4.speakerpresentation.mjs.8.8": "Președinte în exercițiu al Consiliului",
     "batch4.speechinterventions.tsx.chair": "Președinție",
-    "commissionfollowups.try_again": "Încercați din nou",
     "dossieractivity.all_committees": "Toate comisiile",
     "dossieractivity.committee": "Comisie",
     "dossieractivity.first_reading": "Prima lectură",
@@ -936,7 +897,6 @@
     "terms.catalogue_save_question": "Salvează întrebarea",
     "terms.catalogue_saved_question": "Întrebare salvată",
     "terms.catalogue_view_error": "Această vizualizare nu a putut fi afișată",
-    "terms.catalogue_view_error_help": "Puteți încerca din nou, reveni la deputați sau reîncărca pagina.",
     "terms.catalogue_view_reload_help": "Reîncărcați pagina pentru a încerca să încărcați din nou această vizualizare."
   },
   "sk": {
@@ -949,7 +909,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Podpredseda Komisie",
     "batch4.speakerpresentation.mjs.8.8": "Úradujúci predseda Rady",
     "batch4.speechinterventions.tsx.chair": "Predseda",
-    "commissionfollowups.try_again": "Skúsiť znova",
     "dossieractivity.all_committees": "Všetky výbory",
     "dossieractivity.committee": "Výbor",
     "dossieractivity.first_reading": "Prvé čítanie",
@@ -983,7 +942,6 @@
     "terms.catalogue_save_question": "Uložiť otázku",
     "terms.catalogue_saved_question": "Uložená otázka",
     "terms.catalogue_view_error": "Toto zobrazenie sa nepodarilo zobraziť",
-    "terms.catalogue_view_error_help": "Môžete to skúsiť znova, vrátiť sa k poslancom alebo znova načítať stránku.",
     "terms.catalogue_view_reload_help": "Znova načítajte stránku a skúste toto zobrazenie načítať znova."
   },
   "sl": {
@@ -996,7 +954,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Podpredsednik Komisije",
     "batch4.speakerpresentation.mjs.8.8": "Predsedujoči Svetu",
     "batch4.speechinterventions.tsx.chair": "Predsedstvo",
-    "commissionfollowups.try_again": "Poskusi znova",
     "dossieractivity.all_committees": "Vsi odbori",
     "dossieractivity.committee": "Odbor",
     "dossieractivity.first_reading": "Prva obravnava",
@@ -1030,7 +987,6 @@
     "terms.catalogue_save_question": "Shrani vprašanje",
     "terms.catalogue_saved_question": "Shranjeno vprašanje",
     "terms.catalogue_view_error": "Tega pogleda ni bilo mogoče prikazati",
-    "terms.catalogue_view_error_help": "Lahko poskusite znova, se vrnete k poslancem ali znova naložite stran.",
     "terms.catalogue_view_reload_help": "Znova naložite stran, da poskusite znova naložiti ta pogled."
   },
   "sv": {
@@ -1043,7 +999,6 @@
     "batch4.speakerpresentation.mjs.8.7": "Kommissionens vice ordförande",
     "batch4.speakerpresentation.mjs.8.8": "Rådets tjänstgörande ordförande",
     "batch4.speechinterventions.tsx.chair": "Ordförande",
-    "commissionfollowups.try_again": "Försök igen",
     "dossieractivity.all_committees": "Alla utskott",
     "dossieractivity.committee": "Utskott",
     "dossieractivity.first_reading": "Första behandlingen",
@@ -1077,7 +1032,6 @@
     "terms.catalogue_save_question": "Spara fråga",
     "terms.catalogue_saved_question": "Sparad fråga",
     "terms.catalogue_view_error": "Den här vyn kunde inte visas",
-    "terms.catalogue_view_error_help": "Du kan försöka igen, gå tillbaka till ledamöterna eller ladda om sidan.",
     "terms.catalogue_view_reload_help": "Ladda om sidan för att försöka läsa in den här vyn igen."
   }
 }
