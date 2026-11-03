@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 import {assertWholeAnnexInstruction} from './amendment-whole-instruction-oracle.mjs';
 import {verifyPlacement} from './amendment-benchmark-model.mjs';
 import {wholeInstructionNative} from './fixtures/whole-instruction-native.mjs';
+test('native instruction uniqueness includes wrapped and table-cell paragraph competitors',()=>{
+ const hidden=text=>'<w:p><w:r><w:rPr><w:vanish/></w:rPr><w:t>'+text+'</w:t></w:r></w:p>';
+ for(const wrap of [p=>'<w:sdt><w:sdtContent>'+p+'</w:sdtContent></w:sdt>',p=>'<w:ins w:id="999">'+p+'</w:ins>',p=>'<w:customXml>'+p+'</w:customXml>',p=>'<w:tbl><w:tr><w:tc>'+p+'</w:tc></w:tr></w:tbl>']){
+  for(const [field,text] of [['actChange','Regulation (EU) 2023/956 is amended as follows:'],['sourceChange','in point 2, the table ‘Iron and Steel’ is replaced by the following:'],['sourceChange','ANNEX I']]){
+   const input=wholeInstructionNative({[field]:xml=>xml.replace('</w:body>',wrap(hidden(text))+'</w:body>')});
+   assert.equal(assertWholeAnnexInstruction(input).status,'unverified');
+  }
+ }
+});
 test('native first instruction and its complete quoted table establish the full replacement extent',()=>{
  const input=wholeInstructionNative();Object.defineProperty(input.proposal,'units',{get(){throw Error('Production units forbidden');}});
  assert.equal(assertWholeAnnexInstruction(input).status,'verified');assert.equal(verifyPlacement(input).status,'verified');
