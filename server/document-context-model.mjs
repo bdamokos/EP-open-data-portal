@@ -5,6 +5,7 @@ import {comparisonHeading} from './amendment-baseline.mjs';
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
 import {resolutionPointPlacement,resolutionPointNearPlacement} from './resolution-points.mjs';
+import {recitalCategoryPlacement} from './resolution-category-repair.mjs';
 import {resolutionFootnoteMatch} from './resolution-footnotes.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
@@ -531,6 +532,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
     evidence.push({basis: 'published-resolution-section', heading: structure.selection.heading, opening: structure.start});
   }
   let ref = placementReference(options.targetLabel, options.language, options.proposedText);
+  const categoryPlacement=recitalCategoryPlacement(text,rows,structure,options,operation);
+  if(categoryPlacement)return categoryPlacement;
   // A-10-2026-0080 AM2/3 print Latin B; the source uses Greek ordinal Β.
   // Recognise this published alias only in the source's Α, Β, Γ convention.
   const recitalLabels=units.filter(unit=>unit.kind==='recital').map(unit=>unit.label);
