@@ -11,6 +11,7 @@ function stackedComparison(body,number){
  const start=starts[0],end=body.findIndex((row,index)=>index>start&&row.kind==='paragraph'&&row.text.includes('</Amend>'));if(end<0)return null;
  const rows=body.slice(start,end+1),paragraphs=rows.filter(row=>row.kind==='paragraph'),tables=rows.filter(row=>row.kind==='other');
  if(paragraphs.some(row=>row.unsafe||!safe(row.nodes))||tables.length!==1||tables[0].hidden||!tables[0].nodes['w:tbl'])return null;
+ const numbers=paragraphs.flatMap(row=>[...row.text.matchAll(/<NumAm>([^<]+)<\/NumAm>/gu)].map(match=>match[1]));if(!numbers.length||numbers.some(value=>value!==String(number))||paragraphs.slice(1).some(row=>row.text.includes('<Amend>')))return null;
  const table=tables[0].nodes['w:tbl'];if(!completeGrid(table)||['w:tbl','w:hMerge','w:vMerge'].some(key=>descendants(table,key).length)||children(children(table,'w:tblGrid')[0]||[],'w:gridCol').length!==2)return null;
  let side=null;const sections={original:[],proposed:[]},seen=[];
  for(const row of children(table,'w:tr')){

@@ -16,6 +16,11 @@ test('native scope, counter, complete source and amendment comparison are mandat
  for(const numberingChange of [xml=>xml.replace('startOverride w:val="1"','startOverride w:val="2"'),xml=>xml.replace('(%1)','%1.'),xml=>xml.replace('numFmt w:val="decimal"','numFmt w:val="lowerLetter"')])assert.notEqual(assertWholeAnnexInstruction(wholeInstructionNative({numberingChange})).status,'verified');
  for(const amendmentChange of [xml=>xml.replace('73 - New material','74 - Changed material'),xml=>xml.replace('<w:t>Amendment</w:t>','<w:t>Other heading</w:t>'),xml=>xml.replace('</w:tc>','<w:sdt><w:sdtContent><w:p><w:r><w:t>Opaque proposed text</w:t></w:r></w:p></w:sdtContent></w:sdt></w:tc>'),xml=>xml.replace('gridSpan w:val="2"','gridSpan w:val="3"')])assert.notEqual(assertWholeAnnexInstruction(wholeInstructionNative({amendmentChange})).status,'verified');
 });
+test('conflicting amendment number fields and nested amendment blocks cannot verify',()=>{
+ for(const marker of ['<NumAm>43</NumAm>','<Amend><NumAm>43</NumAm>']){
+  const encoded=marker.replaceAll('<','&lt;').replaceAll('>','&gt;'),input=wholeInstructionNative({amendmentChange:xml=>xml.replace('<w:t>&lt;/Amend&gt;</w:t>',`<w:t>${encoded}</w:t></w:r></w:p><w:p><w:r><w:t>&lt;/Amend&gt;</w:t>`)});assert.notEqual(assertWholeAnnexInstruction(input).status,'verified');
+ }
+});
 test('target identities, native hashes and complete projection correspondence cannot drift',()=>{
  for(const mutate of [x=>x.wording.targetLabel=x.wording.targetLabel.replace('point 1','point 2'),x=>x.wording.targetPath.underlying[0].raw='Annex II',x=>x.wording.targetPath.language='pl',x=>x.wording.proposedText+='\n…',x=>x.wording.number=43,x=>x.proposal.sourceHash='wrong',x=>x.nativeQuoted.proposalBuffers=[],x=>x.nativeQuoted.amendmentBuffer=undefined]){const input=wholeInstructionNative();mutate(input);assert.notEqual(assertWholeAnnexInstruction(input)?.status,'verified');}
  for(const mutate of [x=>x.proposal.paragraphs[x.placement.span.end].text='changed',x=>x.proposal.paragraphs[x.placement.span.start+2].source.complete=false,x=>x.proposal.paragraphs[x.placement.span.start+2].source.ordinal++]){const input=wholeInstructionNative();input.proposal=structuredClone(input.proposal);input.items[1].proposal=input.proposal;mutate(input);assert.notEqual(assertWholeAnnexInstruction(input).status,'verified');}
