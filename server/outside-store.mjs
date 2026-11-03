@@ -5,7 +5,7 @@ import { outsidePerson, outsideCapacity } from './outside-model.mjs';
 import {speechAgendaMembership} from './speech-agenda.mjs';
 import { HttpError } from './http-utils.mjs';
 import {languagePreference} from './language-order.mjs';
-import {copyGenerationRows} from './generation-copy.mjs';
+import {copyProjectedGenerationRows} from './generation-copy.mjs';
 
 export const OUTSIDE_COVERAGE_VERSION=3;
 // First sitting days of the terms Outside voices covers. The dated roster omits
@@ -49,7 +49,7 @@ export function outsideSchema(db) {
 }
 export function outsideCopy(db, generation, active) {
   db.prepare('DELETE FROM outside_contributions WHERE generation<>?').run(active);
-  copyGenerationRows(db,{table:'outside_contributions',key:'speech',select:'INSERT INTO outside_contributions SELECT ?,speech,person,date,body FROM outside_contributions'},generation,active);
+  copyProjectedGenerationRows(db,{table:'outside_contributions',key:'speech',select:'INSERT INTO outside_contributions SELECT ?,speech,person,date,body FROM outside_contributions'},generation,active);
   // Preserve exact progress and backoff when the daily core snapshot advances.
   db.prepare("INSERT OR IGNORE INTO tasks SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key LIKE 'outside:agenda-membership:%'").run(generation,active);
 }
