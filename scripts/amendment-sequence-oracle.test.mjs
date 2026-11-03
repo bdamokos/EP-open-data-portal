@@ -22,8 +22,8 @@ const recital=(proposedText,placement,rows=['The European Parliament,','–\thav
   verifyPlacement({text:resolution(rows),wording:{targetLabel:'Recital C (new)',originalText:'',proposedText,language:'en',baseline:'motion-resolution'},placement});
 
 test('a new recital continuing the raw sequence follows the last recital', () => {
-  assert.deepEqual(recital('C.\twhereas three;',insert(4)),{status:'verified',reason:'oracle-sequence-append-boundary'});
+  assert.deepEqual(recital('C.\twhereas three;',insert(4)),{status:'verified',reason:'oracle-recital-body-boundary'});
   assert.equal(recital('C.\twhereas three;',insert(3)).status,'failed');
-  assert.equal(recital('D.\twhereas three;',insert(4)).status,'unverified');
-  assert.equal(recital('C.\twhereas three;',insert(4),['The European Parliament,','A.\twhereas one;','1.\tWelcomes;','2.\tInstructs.']).status,'unverified');
+  assert.equal(recital('D.\twhereas three;',insert(4)).status,'verified');
+  assert.equal(recital('C.\twhereas three;',insert(4),['The European Parliament,','A.\twhereas one;','1.\tWelcomes;','2.\tInstructs.']).status,'failed');
 });

@@ -1,3 +1,4 @@
+import {characterSimilarity} from './proposal-similarity.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {relativeResolutionHeading} from './resolution-labels.mjs';
 import {comparisonHeading} from './amendment-baseline.mjs';
@@ -493,7 +494,8 @@ function numberingGapAnchor(text, family, base) {
 }
 
 export function resolveAmendmentPlacement(text, options = {}) {
-  const operation = amendmentOperation(options), evidence = [];
+  let operation = amendmentOperation(options);
+  const evidence = [];
   const referenceText = resolutionReference(options.referenceText, options.language);
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const placed = fields => ({operation, status: 'placed', ...fields, evidence});
@@ -535,6 +537,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
     evidence.push({basis:'published-ordinal-alias',publishedLabel:ref.label,sourceLabel:'Β'+ref.suffix,ordinal:2});
     ref={...ref,label:'Β'+ref.suffix,base:'Β'};
   }
+  const contextInsertion=operation==='replace'&&ref?.kind==='paragraph'&&ref.isNew&&Boolean(ref.suffix)&&!ref.parents?.length;
+  if(contextInsertion)operation='insert';
   const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
   if (pointPlacement) return pointPlacement;
   const parentMatches = (unit, reference) => {
@@ -550,6 +554,17 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
   const span = unit => ({start: unit.start, end: unit.end});
   if (operation === 'insert') {
+    if(ref?.kind==='recital'&&ref.isNew&&!ref.parents.length) {
+      const recitals=units.filter(unit=>unit.kind==='recital'),first=units.find(unit=>unit.kind==='paragraph');
+      const ordinal=value=>/^[A-Z]+$/u.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+      const beyond=recitals.length&&!recitals.some(unit=>unit.label===ref.base)&&ordinal(ref.base)!==null&&ordinal(recitals.at(-1).label)!==null&&ordinal(ref.base)>ordinal(recitals.at(-1).label);
+      if(first?.label==='1'&&(!recitals.length&&['-A','A'].includes(ref.label)||beyond)) {
+        const last=recitals.at(-1);
+        if(first.start<1||!complete(structure.start,first.start)||recitals.some((unit,i)=>ordinal(unit.label)!==i+1||structure.invalid.has(unit.start)||structure.uncertain.has(unit.start))||last&&last.end!==first.start-1)return unresolved('source_passage_incomplete');
+        evidence.push({basis:'published-reference',label:ref.label,anchor:last?.label??'body-start'});
+        return placed({insertAfter:first.start-1,insertBefore:first.start});
+      }
+    }
     // A negative first label (-1, -1a, -A, point -a) precedes the first
     // published sibling of its kind, after any heading that opens that part.
     // A negative number is never printed, so an empty original marks it new.
@@ -619,6 +634,14 @@ export function resolveAmendmentPlacement(text, options = {}) {
     } else if (!siblings.some(unit => unit.label === ref.base)) return unresolved('relative_target_not_found');
     const ordered = siblings.sort((a, b) => a.start - b.start), anchor = ordered.at(-1);
     if (new Set(siblings.map(unit => unit.label)).size !== siblings.length || siblings.some(unit => unit.parent !== anchor.parent)) return unresolved('multiple_published_targets');
+    if(contextInsertion) {
+      // A new paragraph label can quote its existing base as context. Preserve
+      // that paragraph and require its entire original before inserting after it.
+      const base=siblings.find(unit=>unit.label===ref.base);
+      if(!base||structure.invalid.has(base.start)||structure.uncertain.has(base.start)||!complete(base.start,base.end))return unresolved('source_passage_incomplete');
+      if(wordingNormal(text.paragraphs.slice(base.start,base.end+1).join(' '))!==wordingNormal(options.originalText))return unresolved('conflicting_target_evidence');
+      evidence.push({basis:'quoted-predecessor-context',label:base.label});
+    }
     evidence.push({basis: 'published-reference', label: ref.label, anchor: anchor.label});
     if (referenceText) {
       const relative = parseReference(referenceText);
@@ -665,7 +688,33 @@ export function resolveAmendmentPlacement(text, options = {}) {
       && complete(structure.start, unit.end);
     const footnotes = sourceKey !== originalKey && ['paragraph', 'recital', 'point'].includes(unit.kind)
       && resolutionFootnoteMatch(text, unit.start, unit.end, options.originalText, options.originalFormatting);
-    const wordingMatches = sourceKey === originalKey || footnotes
+    // A unique labelled whole provision can survive small transcription damage
+    // or a replaced tail. Compare all same-kind provisions in this motion so
+    // repeated boilerplate cannot make a near match appear unique.
+    // Detached notes require their own body, payload and anchor proof. A small
+    // payload must never be mistaken for a damaged tail by edit distance.
+    let nearMatch=false;
+    if(sourceKey!==originalKey&&!/\n_{5,}\s*\n/u.test(options.originalText)&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
+      const score=value=>{
+        let prefix=0;while(prefix<Math.min(value.length,originalKey.length)&&value[prefix]===originalKey[prefix])prefix++;
+        return {similarity:characterSimilarity(value,originalKey,.93),prefix:prefix>=80&&prefix<Math.min(value.length,originalKey.length)?prefix/Math.min(value.length,originalKey.length):0};
+      };
+      // The segmenter intentionally omits damaged labelled rows from placeable
+      // units. Keep their surviving wording as competing evidence nonetheless.
+      const topLabel=/^(?:[1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3}|[\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u;
+      const ownKind=unit.kind==='paragraph'?/^[1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3}[.)]\s+/u:/^[\p{Lu}]{1,3}[\p{Ll}]{0,3}[.)]\s+/u;
+      const damaged=rows.filter(row=>row.index>structure.start&&row.index<=structure.end&&!row.complete&&row.source.container==='body'&&ownKind.test(row.normal)).map(row=>{
+        let end=row.index;
+        while(end<structure.end&&end<row.index+29&&rows[end+1].source.container==='body'&&consecutive(rows[end],rows[end+1])
+          &&!topLabel.test(rows[end+1].normal)&&!units.some(candidate=>candidate.kind==='heading'&&candidate.start===end+1))end++;
+        return {start:row.index,end};
+      });
+      const own=score(sourceKey),others=[...units.filter(candidate=>candidate.kind===unit.kind&&candidate!==unit),...damaged]
+        .map(candidate=>score(wordingNormal(text.paragraphs.slice(candidate.start,candidate.end+1).join(' '))));
+      nearMatch=own.similarity>=.95&&others.every(other=>other.similarity<=own.similarity-.02&&other.prefix<.5)
+        ||own.prefix>=.5&&others.every(other=>other.prefix<=own.prefix-.02&&other.similarity<.93);
+    }
+    const wordingMatches = nearMatch || sourceKey === originalKey || footnotes
       || numberedCitation && sourceKey.replace(/^[–—−\-•]\s*/u, '') === originalKey;
     // Exact whole-unit wording independently proves a labelled paragraph or
     // recital's extent, even when the following boundary is unclassified.
@@ -680,7 +729,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
       const decision = placementReference(referenceText);
       if (!decision || decision.kind !== ref.kind || decision.label !== ref.label || decision.kind === 'point' && decision.paragraph !== ref.paragraph) return unresolved('conflicting_target_evidence');
     }
-    evidence.push({basis: 'published-reference', label: ref.label}, {basis: footnotes ? 'quoted-original-source-notes' : 'quoted-original'});
+    evidence.push({basis: 'published-reference', label: ref.label}, {basis: footnotes ? 'quoted-original-source-notes' : nearMatch ? 'unique-similar-original' : 'quoted-original'});
     return placed({span: span(unit)});
   }
   const quotes = quotedTargets(rows.slice(structure.start + 1, structure.end + 1), whitespace(options.originalText));

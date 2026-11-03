@@ -29,7 +29,7 @@ import {sourceBoundCitationVerification,CITATION_NATIVE_PROTOCOL} from './amendm
 import {acquireLanguageVariants,languageVariantContext} from './amendment-benchmark-languages.mjs';
 import {expectedLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 import {retainedSourceSelection,compareSelection} from './amendment-benchmark-selection.mjs';
-import {classifyRow,parseBenchmarkTarget,verifyPlacement,targetPatterns,metrics,compareBaseline,projectionCompatibility,SOURCE_REASONS} from './amendment-benchmark-model.mjs';
+import {classifyRow,parseBenchmarkTarget,verifyPlacement,instructionFrameWording,targetPatterns,metrics,compareBaseline,projectionCompatibility,SOURCE_REASONS} from './amendment-benchmark-model.mjs';
 
 const stableSample=sample=>JSON.stringify({...sample,requestedWeeks:undefined});
 
@@ -142,6 +142,25 @@ export async function acquireReport(rows,sample,cache,replay,selection) {
   return contexts;
 }
 
+// As at the endpoint, NLE reports (by report titles or explicit references)
+// never fall back to the proposal frame.
+export function nleReport(work,documentReferences,{array,commissionProcedures}) {
+  return [...array(work?.is_realized_by).flatMap(e=>Object.values(e.title_alternative||{}).flat()),...(documentReferences||[]).map(r=>r.raw)]
+    .some(raw=>commissionProcedures(raw).some(procedure=>procedure.endsWith('(NLE)')));
+}
+
+// Mirrors the endpoint: a present-text amendment whose new amending
+// instruction the consolidated law does not place is placed again with the
+// report's proposal. Only an actual proposal-frame placement switches frames.
+export async function placeWithInstructionFrame({place,eligible,matching,language,readFrame}) {
+  const placement=place(null);
+  if(!eligible||placement.status==='placed')return {placement,frame:null};
+  const frame=await readFrame();
+  const framed=frame?.baseline?.language===language&&frame.items?.length?place(frame.items):null;
+  if(framed?.frame==='commission-proposal')return {placement:framed,frame};
+  return {placement:matching?placement:{status:'unresolved',reason:'placement-not-evaluated'},frame:null};
+}
+
 export async function evaluateReport(rows,sample,cache,{runtime,replay,selection,adoptedCalibration}={}) {
   const selected=rows.filter(row=>decisionsInSample(row,sample).length),extractions=new Map(),results=[];
   const contexts=await acquireReport(rows,sample,cache,undefined,selection);
@@ -240,10 +259,26 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
         sourceUrl:replay?(structured?baseline?.items?.[0]?.source?.url||publicDocumentUrl(row.targetDocumentId):text?.sourceUrl||publicDocumentUrl(row.targetDocumentId)):input.url,
         ...(replay?{projection:{mode:'cached-source-replay',celex:baseline?.celex??null,status:baseline?.status??text?.status,reason:text?.reason??null,fileDeclarationSource:text?.fileDeclarationSource??null,workId:baseline?.workId??null,itemSources:baseline?.items?.map(({itemId,source})=>({itemId,url:source.url,sha256:source.sha256,fetchedAt:source.fetchedAt}))||[]}}:{}),
       };
-      if(stages.S2.status==='passed'&&(matching||(runtime?.amendmentAlternative||amendmentAlternative)(wording)||hasCouncilQuotation(wording)||expectedLanguageScope(wording)||wording.originalText===''&&/rejects|rejette|respinge/u.test(wording.proposedText))) {
+      // Like the endpoint, a new amending instruction that the consolidated
+      // law does not place reads the report's proposal and is placed again.
+      const frameEligible=Boolean(replay&&existing&&row.targetDocumentId.startsWith('A-')&&runtime?.proposalInstructionTarget?.({...wording,targetLabelLanguage:language})&&!nleReport(work,wording.documentReferences,runtime));
+      if(stages.S2.status==='passed'&&(matching||frameEligible||(runtime?.amendmentAlternative||amendmentAlternative)(wording)||hasCouncilQuotation(wording)||expectedLanguageScope(wording)||wording.originalText===''&&/rejects|rejette|respinge/u.test(wording.proposedText))) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
         const opts={...wording,targetLabelLanguage:language,resolutionDocument:true,referenceText:references[0]};
-        stages.S5=(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,referenceTexts:references,resolutionDocument:true});
+        const place=proposalItems=>(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,...(proposalItems?{proposalItems}:{}),referenceTexts:references,resolutionDocument:true});
+        const framed=await placeWithInstructionFrame({place,eligible:frameEligible,matching:Boolean(matching),language,readFrame:async()=>{
+          const frameKey=JSON.stringify([language,'instruction-frame',wording.documentReferences]);
+          if(!projected.has(frameKey))projected.set(frameKey,await replay.proposal({reportId:row.targetDocumentId,language,documentReferences:wording.documentReferences||[]}));
+          return projected.get(frameKey);
+        }});
+        stages.S5=framed.placement;
+        // Verification and provenance follow the frame actually placed.
+        if(framed.frame) {
+          const existingGaps=stages.S4.gaps;
+          ({items,baseline,nativeProposalInputs}=framed.frame);
+          stages.S4={...passed({kind:'commission-proposal',frame:'present-text-instruction',language,baselineStatus:baseline.status}),gaps:baseline.gaps||[],existingLawGaps:existingGaps,sourceUrl:baseline.items?.[0]?.source?.url||publicDocumentUrl(row.targetDocumentId),projection:{mode:'cached-source-replay',celex:baseline.celex??null,status:baseline.status,reason:null,fileDeclarationSource:null,workId:baseline.workId??null,itemSources:baseline.items?.map(({itemId,source})=>({itemId,url:source.url,sha256:source.sha256,fetchedAt:source.fetchedAt}))||[]}};
+        }
+        const framedWording=stages.S5.frame==='commission-proposal'?instructionFrameWording(wording):null;
         if(stages.S5.status==='unresolved'&&text?.nativeBuffer)stages.S5=reportCouncilQuotation(text.nativeBuffer,wording,{operation:stages.S5.operation,reportId:row.targetDocumentId,sourceUrl:text.sourceUrl,fetchedAt:text.fetchedAt})??stages.S5;
         documentOperation=verifyAlternative({buffer:fetched.body,wording,placement:stages.S5})??verifyRejection({id:row.id,language,buffer:fetched.body,wording,placement:stages.S5});
         stages.S6=verifyPlacement({placement:stages.S5,wording,items:structured?items:null,text,target,nativeQuoted:nativeProposalInputs?.[stages.S5.itemIndex]?{proposalBuffer:nativeProposalInputs[stages.S5.itemIndex],amendmentBuffer:fetched.body,number:row.number}:undefined});
@@ -254,6 +289,8 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
         // Keep coordinates and assertions, not a growing corpus of source text.
         // The exact text is recoverable from the hashed input for this report.
         delete stages.S5.originalText;
+        // A proposal-frame placement is asserted only at the proposal address.
+        if(stages.S5.frame==='commission-proposal')stages.S6=framedWording?verifyPlacement({placement:stages.S5,wording:framedWording,items,text,target:parseBenchmarkTarget(framedWording),nativeQuoted:nativeProposalInputs?.[stages.S5.itemIndex]?{proposalBuffer:nativeProposalInputs[stages.S5.itemIndex],amendmentBuffer:fetched.body,number:row.number}:undefined}):{status:'unverified',reason:'oracle-instruction-frame-unavailable'};
         if(documentOperation?.status==='failed')stages.S6=documentOperation;
       }
     }
@@ -284,7 +321,7 @@ async function checkoutIdentity(root,runtime) {
 }
 
 async function harnessIdentity(root) {
-  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-adopted-calibration.mjs','scripts/amendment-adopted-snapshot.mjs','scripts/amendment-benchmark-selection.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-footnote-oracle.mjs','scripts/amendment-elision-oracle.mjs','scripts/amendment-quoted-sibling-oracle.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-table-oracle.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','scripts/amendment-benchmark-quoted-oracle.mjs','scripts/amendment-benchmark-letter-point-oracle.mjs','scripts/amendment-benchmark-citation-bindings.mjs','scripts/amendment-benchmark-citation-calibration.mjs','package-lock.json','scripts/amendment-alternative-oracle.mjs','scripts/amendment-rejection-oracle.mjs','scripts/fixtures/amendment-rejection-oracle.json','scripts/amendment-benchmark-retained.mjs','scripts/amendment-benchmark-projections.mjs','scripts/amendment-benchmark-hybrid.mjs'];
+  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-note-scope-oracle.mjs','scripts/amendment-native-note-oracle.mjs','scripts/amendment-guideline-oracle.mjs','scripts/amendment-adopted-calibration.mjs','scripts/amendment-adopted-snapshot.mjs','scripts/amendment-benchmark-selection.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-footnote-oracle.mjs','scripts/amendment-elision-oracle.mjs','scripts/amendment-quoted-sibling-oracle.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-table-oracle.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','scripts/amendment-benchmark-quoted-oracle.mjs','scripts/amendment-benchmark-letter-point-oracle.mjs','scripts/amendment-benchmark-citation-bindings.mjs','scripts/amendment-benchmark-citation-calibration.mjs','package-lock.json','scripts/amendment-alternative-oracle.mjs','scripts/amendment-rejection-oracle.mjs','scripts/fixtures/amendment-rejection-oracle.json','scripts/amendment-benchmark-retained.mjs','scripts/amendment-benchmark-projections.mjs','scripts/amendment-benchmark-hybrid.mjs'];
   return {files:Object.fromEntries(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
 }
 

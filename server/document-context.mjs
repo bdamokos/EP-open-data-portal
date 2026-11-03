@@ -22,7 +22,7 @@ import {existingLawBaseline} from './existing-law-baseline.mjs';
 import {councilPositionBaseline} from './council-position-baseline.mjs';
 import {parsePublicLegalXhtml} from './public-legal-xhtml.mjs';
 import {parseProposal} from './proposal-structure.mjs';
-import {documentContextPlacement} from './document-context-placement.mjs';
+import {documentContextPlacement,proposalInstructionTarget} from './document-context-placement.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
 import {commissionReferences,commissionProcedures} from './commission-proposal-identity.mjs';
 import {nativeNleReferencePair} from './commission-proposal-native-identity.mjs';
@@ -30,7 +30,7 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=72;
+export const DOCUMENT_CONTEXT_VERSION=86;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-(?:[1-9]|10)-\d{4}-\d{4,6}$/.test(id)||committeeDraftId(id)||committeeListId(id));
 const ref=value=>canonicalEPReference(value);
@@ -266,6 +266,27 @@ export class DocumentContext {
         requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;
         proposal=null;baseline.status='unavailable';baseline.items=[];baseline.gaps.push('proposal-projection-unavailable');
         if(!mixedScope)placement={operation:amendmentOperation(chosen),status:'unresolved',reason:existingKind?'existing-law-baseline-unavailable':councilKind?'council_position_unavailable':'proposal_baseline_unavailable',evidence:[]};
+      }
+      // A new amending instruction that the consolidated law cannot place is
+      // located in the report's Commission proposal by its instruction label.
+      const frameNle=[...array(work.is_realized_by).flatMap(e=>Object.values(e.title_alternative||{}).flat()),...documentReferences.map(r=>r.raw)].some(raw=>commissionProcedures(raw).some(p=>p.endsWith('(NLE)')));
+      if(existingKind&&placement?.status!=='placed'&&!mixedScope&&query.id.startsWith('A-')&&!frameNle&&proposalInstructionTarget(chosen)) {
+        try {
+          const frame=await this.readProposal({reportId:query.id,language:chosen.language,documentReferences}),frameItems=[];
+          for(const item of frame?.items||[]) {
+            requestSignal()?.throwIfAborted();
+            const parsed=parseProposal(item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:frame.workId,expression:item.expressionId,item:item.itemId}});
+            frameItems.push({kind:item.kind,index:item.index,source:item.source,proposal:parsed});
+          }
+          if(Buffer.byteLength(JSON.stringify(frameItems))>3*1024*1024)throw new RangeError('proposal-response-budget');
+          const framed=frame?.language===chosen.language&&frameItems.length?documentContextPlacement({...placementOptions,baseline,items:proposal?.items??null,proposalItems:frameItems}):null;
+          if(framed?.frame==='commission-proposal') {
+            const items=[];
+            for(const {source,...item} of frameItems)items.push({...item,proposal:{...item.proposal,imageAssets:await publishDocumentImages(item.proposal)}});
+            baseline={actLabel:null,productionWorkId:frame.productionWorkId??null,productionVersion:frame.productionVersion??null,productionExpressionId:frame.productionExpressionId??null,baseCelex:null,consolidationDate:null,amendmentDate:null,selectionBasis:frame.selectionBasis??null,kind:'commission-proposal',frame:'present-text-instruction',celex:frame.celex??null,workId:frame.workId??null,language:chosen.language,status:frame.status??'unresolved',items:frameItems.map(({kind,index,source})=>({kind,index,source})),gaps:frame.gaps??[],existingLawGaps:baseline.gaps,evidence:frame.evidence??[],attribution:'Legal text © European Union.'};
+            proposal={items};placement=framed;
+          }
+        }catch(error) {requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;}
       }
     }
     if(chosen&&query.includeBody!==false&&placement?.status==='unresolved'&&hasCouncilQuotation(chosen)&&document?.selectedText?.textLanguage===chosen.language&&allowedDownload(document.selectedText.sourceUrl)){

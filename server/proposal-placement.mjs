@@ -64,20 +64,35 @@ function unparsedArticleHeading(proposal,unit) {
   const articles=new Set(flat(proposal.units).filter(u=>u.kind==='article').map(u=>u.extent.start));
   return proposal.paragraphs.slice(unit.extent.start,unit.extent.end).some(p=>/Titrearticle/i.test(p.properties?.styleId??'')&&/^[\p{L}]+\s*\d[\p{L}\d. -]*$/u.test(p.text.trim().split(/\r?\n/)[0])&&!articles.has(p.index));
 }
+// Detached notes do not establish the extent of an article. Require an
+// ordinary native article bounded by the next complete printed article.
+function articleNoteBoundary(proposal,unit,{operation,language,baseline}={}) {
+  if(language!=='en'||baseline!=='commission-proposal'||operation!=='delete'||proposal.sourceKind!=='docx'||unit.scope!=='proposal'||unit.pathConflict||!completeBoundary(proposal,unit))return false;
+  const rows=proposal.paragraphs.slice(unit.extent.start,unit.extent.end+1),first=rows[0],next=rows.at(-1);
+  const header=p=>p?.properties?.styleId==='Titrearticle'&&/^Article \d+[a-z]*$/u.test(p.text.trim());
+  if(!header(first)||!header(next)||first.text===next.text||proposal.paragraphs.filter(p=>header(p)&&p.text===first.text).length!==1)return false;
+  const prefix=proposal.paragraphs.slice(0,unit.extent.start),adoption=prefix.findLastIndex(p=>/^HAVE ADOPTED THIS (?:REGULATION|DIRECTIVE|DECISION):$/u.test(p.text.trim()));
+  if(adoption<0||prefix.slice(adoption+1).some(p=>/^\s*['‘“«"]/u.test(p.text)||/\b(?:is|are) (?:amended|replaced|inserted)\b/u.test(p.text)))return false;
+  return rows.length>1&&rows.every((p,i)=>p.complete&&p.source?.complete===true&&p.source.container==='body'&&/^\/w:document\[1\]\/w:body\[1\]\/w:p\[\d+\]$/u.test(p.source.path)&&!p.objects.length&&
+    ['Titrearticle','Normal','ManualNumPar1','NumPar1'].includes(p.properties?.styleId)&&!p.properties.numberingLabel&&
+    (!i||p.source.ordinal===rows[i-1].source.ordinal+1&&p.source.segment===rows[i-1].source.segment&&p.source.containerPath===rows[i-1].source.containerPath));
+}
 // Compare the complete original, including native notes, before matching its body.
-function footnoteBody(proposal,unit,original,formatting) {
+function footnoteBody(proposal,unit,original,formatting,options) {
   const divider=/\n_{5,}\s*\n/u.exec(original);
   if(!divider)return null;
-  // Whole articles need an independent extent assertion beyond note parity.
-  if(['article','annex'].includes(unit.kind))return false;
+  if(unit.kind==='annex'||unit.kind==='article'&&!articleNoteBoundary(proposal,unit,options))return false;
   const body=original.slice(0,divider.index),lines=original.slice(divider.index+divider[0].length).trim().split(/\n+/u);
   const marks=(formatting??[]).filter(f=>f.kind==='superscript'&&f.end<=body.length).sort((a,b)=>a.start-b.start);
   const compact=text=>text.normalize('NFC').replace(/\s/gu,'');
   if(!marks.length||marks.length!==lines.length)return false;
-  let clean='',last=0;const positions=[];
+  let clean='',last=0;const positions=[],labels=[];
   for(const m of marks){
-    if(m.start<last||m.end<=m.start||!/^\d+$/u.test(body.slice(m.start,m.end)))return false;
-    clean+=body.slice(last,m.start);positions.push(compact(clean).length);last=m.end;
+    const marker=/^(?:(st|nd|rd|th))?(\d+)$/u.exec(body.slice(m.start,m.end));
+    if(m.start<last||m.end<=m.start||!marker||marker[1]&&!/[0-9]$/u.test(body.slice(0,m.start)))return false;
+    // Adjacent superscript runs can merge 'th' from an ordinal with its note.
+    // Keep those letters in the exact body comparison; remove only note digits.
+    clean+=body.slice(last,m.start+(marker[1]?.length??0));positions.push(compact(clean).length);labels.push(marker[2]);last=m.end;
   }
   clean+=body.slice(last);
   const rows=proposal.paragraphs.slice(unit.extent.start,unit.extent.end),text=rows.map(p=>p.text).join('\n');
@@ -87,7 +102,7 @@ function footnoteBody(proposal,unit,original,formatting) {
   for(const [i,a] of anchors.entries()){
     const note=proposal.notes?.find(n=>n.id===a.note),line=/^(\d+)\s+([\s\S]+)$/u.exec(lines[i]);
     const prefix=rows.filter(p=>p.index<a.paragraph).map(p=>p.text).join('\n')+'\n'+proposal.paragraphs[a.paragraph].text.slice(0,a.offset);
-    if(!note?.complete||!line||line[1]!==body.slice(marks[i].start,marks[i].end)||compact(line[2])!==compact(note.text)||compact(prefix).length!==positions[i])return false;
+    if(!note?.complete||!line||line[1]!==labels[i]||compact(line[2])!==compact(note.text)||compact(prefix).length!==positions[i])return false;
   }
   return text;
 }
@@ -242,6 +257,23 @@ function wordingNumberingMatch(target,original,candidatesFor) {
  const row=hits[0];
  return {...selected,match:{span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text}};
 }
+
+// Amendments call a proposal's sole bare ANNEX 'Annex I'. Keep that alias
+// local to a new sibling insertion; it never renumbers the published source.
+function bareAnnexInsertion(items,target,language) {
+  const label=target.segments[0];
+  if(language!=='en'||target.segments.length!==1||label.kind!=='annex'||!label.isNew||label.base!=='I'||!label.suffix||!/^[a-z]{1,3}$/u.test(label.suffix))return null;
+  const annexes=items.flatMap((item,itemIndex)=>flat(item.proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind==='annex').map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  if(annexes.length!==1||annexes[0].unit.label?.value!=='')return null;
+  const {itemIndex,unit,proposal}=annexes[0],rows=proposal.paragraphs.slice(unit.extent.start);
+  const headings=items.flatMap(item=>item.proposal.paragraphs.filter(row=>/^Annexetitre$/iu.test(row.properties?.styleId||'')));
+  if(headings.length!==1||headings[0].text.split(/\r?\n/u)[0].trim()!=='ANNEX')return null;
+  if(proposal.sourceKind!=='docx'||unit.extent.end!==proposal.paragraphs.length||!completeBoundary(proposal,unit)
+    ||proposal.gaps.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=unit.extent.start)
+    ||!rows.every((row,i)=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&(!i||row.source.containerPath===rows[i-1].source.containerPath&&(row.source.segment===rows[i-1].source.segment&&row.source.ordinal===rows[i-1].source.ordinal+1||row.source.previousParagraph===rows[i-1].source.path&&row.source.ordinal>rows[i-1].source.ordinal&&row.source.segment-rows[i-1].source.segment===row.source.ordinal-rows[i-1].source.ordinal-1))))return {reason:'source_passage_incomplete'};
+  return {itemIndex,insertBefore:unit.extent.end,anchor:unit,basis:'sole-bare-annex-end'};
+}
+
 function insertionPlacement(items,target,candidatesFor,eligible) {
   const closing=closingFormulaInsertion(items,target,candidatesFor);
   if(closing)return closing;
@@ -255,6 +287,23 @@ function insertionPlacement(items,target,candidatesFor,eligible) {
   if(parents&&parents.length!==1)return {reason:'parent_target_not_found'};
   const parent=parents?.[0];
   if(parent?.unit.pathConflict)return {reason:'multiple_published_targets'};
+  // Subparagraphs are anonymous continuations. Count the numbered lead
+  // (including its points) once, then each directly owned continuation.
+  if(label.kind==='subparagraph'&&label.suffix==='a'&&parent?.unit.kind==='paragraph'&&!parent.unit.implicit&&!parent.unit.instruction) {
+    const {unit,proposal,itemIndex}=parent;
+    // The raw oracle recognises explicit NumPar rows. Word Point styles can
+    // denote paragraphs in the placer but do not establish that raw grammar.
+    const lead=proposal.paragraphs[unit.extent.start];
+    if(target.language!=='en'||!/^(?:Manual)?NumPar1$/iu.test(lead?.properties?.styleId??'')||!/^\s*\d+[a-z]*[.)]\s/u.test(lead.text))return {reason:'source_structure_unavailable'};
+    if(!completeBoundary(proposal,unit)||unit.children.some(child=>!['point','subparagraph'].includes(child.kind)))return {reason:'source_passage_incomplete'};
+    const continuations=unit.children.filter(child=>child.kind==='subparagraph');
+    const parts=[...(unit.content.length?[{start:unit.content[0],end:continuations[0]?.extent.start??unit.extent.end}]:[]),...continuations.map(child=>child.extent)];
+    const anchor=parts[label.number-1];
+    if(!anchor)return {reason:'relative_target_not_found'};
+    const rows=proposal.paragraphs.slice(anchor.start,anchor.end+1);
+    if(rows.length<2||rows.at(-1).index!==anchor.end||rows.some((row,index)=>!row.complete||row.source?.container!=='body'||!Number.isSafeInteger(row.source.ordinal)||index&&(row.source.containerPath!==rows[index-1].source.containerPath||row.source.segment!==rows[index-1].source.segment||row.source.ordinal!==rows[index-1].source.ordinal+1)))return {reason:'source_passage_incomplete'};
+    return {itemIndex,insertBefore:anchor.end,anchor:unit,basis:'ordinal-subparagraph-gap'};
+  }
   const siblings=[];
   for(const [itemIndex,item] of items.entries())for(const unit of eligible(item)?flat(item.proposal.units):[]){
     if(unit.scope!=='proposal'||unit.kind!==label.kind||!unit.label)continue;
@@ -618,8 +667,84 @@ function ancestorFallback(target,original,candidatesFor) {
   return null;
 }
 
+// A comparison may print the chapter number and caption together while Word
+// splits them into two heading rows. Keep the source's CHAPTER prefix intact.
+function chapterTitlePlacement(items,target,original,proposed,language) {
+  const [chapter,title]=target.segments;
+  if(language!=='en'||target.segments.length!==2||chapter.kind!=='chapter'||chapter.isNew||title.kind!=='title'||title.isNew)return null;
+  const candidates=items.flatMap((item,itemIndex)=>item.kind==='annex'?[]:proposalCandidates(item.proposal,[chapter]).map(unit=>({unit,proposal:item.proposal,itemIndex})));
+  if(candidates.length!==1)return {reason:'multiple_published_targets'};
+  const {unit,proposal,itemIndex}=candidates[0],head=proposal.paragraphs[unit.extent.start],caption=proposal.paragraphs[unit.extent.start+1],next=proposal.paragraphs[unit.extent.start+2];
+  if(!completeBoundary(proposal,unit)||unit.pathConflict||head?.properties?.styleId!=='ChapterTitle'||caption?.properties?.styleId!=='ChapterTitle'||next?.properties?.styleId!=='Titrearticle'||!/^Article \d+[a-z]*$/u.test(next.text.trim()))return {reason:'source_structure_unavailable'};
+  const header=/^(\s*CHAPTER\s+)([IVXLCDM]+)\s*$/u.exec(head.text);
+  if(header?.[2]!==chapter.value)return {reason:'conflicting_target_evidence'};
+  const prefix=proposal.paragraphs.slice(0,head.index),adoption=prefix.findLastIndex(p=>/^HAVE ADOPTED THIS (?:REGULATION|DIRECTIVE|DECISION):$/u.test(p.text.trim()));
+  if(adoption<0||prefix.slice(adoption+1).some(p=>/^\s*['‘“«"]/u.test(p.text)||/:\s*['‘“«"]/u.test(p.text)||/\b(?:is|are) (?:amended|replaced|inserted)\b/u.test(p.text)))return {reason:'source_structure_unavailable'};
+  const rows=[head,caption,next];
+  if(rows.some((p,i)=>!p.complete||p.source?.complete!==true||p.source.container!=='body'||!Number.isSafeInteger(p.source.ordinal)||i&&(p.source.ordinal!==rows[i-1].source.ordinal+1||p.source.segment!==rows[i-1].source.segment||p.source.containerPath!==rows[i-1].source.containerPath)))return {reason:'source_passage_incomplete'};
+  const text=chapter.value+' '+caption.text.trim(),fold=value=>value.replace(/\s+/gu,' ').trim();
+  if(fold(original)!==fold(text)||!proposed.startsWith(chapter.value)||!/^\s+\S/u.test(proposed.slice(chapter.value.length)))return {reason:'conflicting_target_evidence'};
+  const offset=header[1].length;
+  return {status:'placed',operation:'replace',itemIndex,span:{start:head.index,end:caption.index},splice:{start:{paragraph:head.index,offset},end:{paragraph:caption.index,offset:caption.text.length}},originalText:head.text.slice(offset)+'\n'+caption.text,evidence:[{basis:'published-chapter-title',anchor:unit.id}]};
+}
+
 /** Outer addresses select proposal units; explicit inner insertions stay inside their owner. */
-export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting}={}) {
+// An annex table address names its owning annex provision. Lines of the
+// original column are table rows (cells joined by tabs) or body lines; they
+// must match one unique contiguous run cell for cell inside that provision.
+const tableRowKey=path=>/^(.*\/w:tr\[\d+\])\/w:tc\[\d+\]\/w:p\[(\d+)\]$/u.exec(path??'');
+function annexTablePlacement(items,address,originalText,language,operation,evidence,unresolved) {
+  let parsed;try{parsed=parseTargetLabel(address,language);}catch{return unresolved('target_reference_unavailable');}
+  if(!parsed.complete||parsed.segments[0]?.kind!=='annex')return unresolved('target_reference_unavailable');
+  const find=segments=>items.flatMap((item,itemIndex)=>item.kind!=='annex'?[]:proposalCandidates(item.proposal,{...parsed,segments}).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  let candidates=find(parsed.segments);
+  // A published annex point address omits the annex's sole implicit paragraph.
+  if(!candidates.length&&parsed.segments[1]?.kind==='point'){
+    const annexes=find(parsed.segments.slice(0,1)),body=annexes.length===1?annexes[0].unit.children.filter(child=>child.kind!=='title'):[];
+    if(body.length===1&&body[0].kind==='paragraph'&&body[0].implicit&&!body[0].pathConflict)candidates=find([parsed.segments[0],body[0].label,...parsed.segments.slice(1)]);
+  }
+  if(candidates.length!==1||candidates[0].unit.pathConflict)return unresolved(candidates.length?'multiple_published_targets':'target_not_found');
+  const {itemIndex,unit,proposal}=candidates[0],cell=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
+  const rows=[];let current=null;
+  for(const row of proposal.paragraphs.slice(unit.extent.start,unit.extent.end)){
+    if(row.source?.container==='table-cell'){
+      const key=tableRowKey(row.source.path);
+      if(!key)return unresolved('source_structure_unavailable');
+      if(current?.key!==key[1]){current={key:key[1],cells:[],rows:[],columns:[]};rows.push(current);}
+      if(key[2]==='1')current.columns.push(Number(/\/w:tc\[(\d+)\]\/w:p\[\d+\]$/u.exec(row.source.path)[1]));
+      // A multi-paragraph cell cannot match one tab-separated cell exactly.
+      if(key[2]!=='1')current.cells.push('\u0000');else current.cells.push(cell(row.text));
+      current.rows.push(row);
+    }else{current=null;rows.push({key:null,cells:[cell(row.text)],rows:[row]});}
+  }
+  // Empty cells keep no paragraph: require columns 1..n at the table's widest
+  // row, and consecutive row numbers inside a matched run.
+  // The extracted table records every cell, empty ones included.
+  const cellCounts=new Map();
+  for(const source of flat(proposal.units).filter(u=>u.table).flatMap(u=>[u.table,...(u.table.nestedTables??[])]))for(const tr of source.rows??[]){
+    const plain=tr.cells.every(c=>(c.colSpan??1)===1&&!c.horizontalMerge&&!c.verticalMerge);
+    for(const c of tr.cells)for(const index of c.paragraphs??[])cellCounts.set(index,plain?tr.cells.length:-1);
+  }
+  const tableOf=key=>key.replace(/\/w:tr\[\d+\]$/u,''),rowOf=key=>Number(/\/w:tr\[(\d+)\]$/u.exec(key)[1]);
+  rows.forEach((row,index)=>{
+    if(!row.key)return;
+    if(row.columns.some((column,at)=>column!==at+1)||cellCounts.get(row.rows[0].index)!==row.columns.length)row.cells=['\u0000'];
+    const previous=rows[index-1];
+    row.gap=Boolean(previous?.key&&tableOf(previous.key)===tableOf(row.key)&&rowOf(row.key)!==rowOf(previous.key)+1);
+  });
+  const lines=originalText.split(/\r?\n/u).map(line=>line.split('\t').map(cell));
+  const starts=[];
+  for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>rows[i+offset].cells.length===line.length&&rows[i+offset].cells.every((value,index)=>value===line[index])))starts.push(i);
+  if(starts.length!==1)return unresolved(starts.length?'duplicate_target_label':'conflicting_target_evidence');
+  if(rows.slice(starts[0]+1,starts[0]+lines.length).some(row=>row.gap))return unresolved('source_passage_incomplete');
+  const matched=rows.slice(starts[0],starts[0]+lines.length).flatMap(row=>row.rows);
+  if(matched.some(row=>!row.complete||!row.source||row.source.complete===false))return unresolved('source_passage_incomplete');
+  const first=matched[0],last=matched.at(-1);
+  evidence.push({basis:'annex-table-rows',anchor:unit.id,rows:lines.length});
+  return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:matched.map(row=>row.text).join('\n'),evidence};
+}
+
+export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
   const mixedScope=amendmentMixedLanguageScope({originalText,proposedText,language});
@@ -635,6 +760,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(paths&&paths.length!==1)return unresolved('target_reference_unavailable');
   // A structured underlying-act target without a proposal address is not an outer location.
   if(!paths&&targetPath?.underlying?.length)return unresolved('target_reference_unavailable');
+  const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
+  if(table)return annexTablePlacement(items,table[1],originalText,language,operation,evidence,unresolved);
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
@@ -692,6 +819,10 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   // still establishes that an address without Annex cannot select it.
   const eligible=item=>item.kind!=='annex'||target.segments.some(segment=>segment.kind==='annex');
   const candidatesFor=address=>items.flatMap((item,itemIndex)=>!eligible(item)?[]:proposalCandidates(item.proposal,address).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  if(operation==='replace'){
+    const chapter=chapterTitlePlacement(items,target,originalText,proposedText,language);
+    if(chapter)return chapter.reason?unresolved(chapter.reason):{...chapter,evidence:[...evidence,...chapter.evidence]};
+  }
   const candidates=candidatesFor(target);
   const drafting=candidates.length===1?draftingInsertion(candidates[0],proposedText,language):null;
   if(drafting&&(operation==='insert'||/^[-−]1(?:a)?\.\s/u.test(proposedText.trim()))){
@@ -711,7 +842,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
-    const insertion=insertionPlacement(items,target,candidatesFor,eligible);
+    const insertion=bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible);
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
@@ -737,10 +868,21 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(candidates.length>1&&new Set(candidates.map(c=>c.itemIndex+'|'+parentKey(c.unit))).size!==1)return unresolved('multiple_published_targets');
   const adaptedOriginal=candidate=>{
     const {proposal,unit}=candidate;
-    const notes=footnoteBody(proposal,unit,originalText,originalFormatting);
+    const notes=footnoteBody(proposal,unit,originalText,originalFormatting,{operation,language,baseline});
     if(notes)return notes;
     if(candidates.length!==1||unit.pathConflict||!completeBoundary(proposal,unit))return originalText;
     const text=unitText(proposal,unit).text;
+    // A printed “1.” can address the article's sole unnumbered paragraph.
+    // Retain every word and require its complete, single native body row.
+    if(baseline==='commission-proposal'&&language==='en'&&operation==='replace'&&proposal.sourceKind==='docx'&&
+      target.segments.length===2&&target.segments[0].kind==='article'&&target.segments[1].kind==='paragraph'&&target.segments[1].value==='1'&&unit.kind==='paragraph'&&unit.implicit&&
+      unit.extent.end===unit.extent.start+1&&unit.children.length===1&&unit.children[0].kind==='subparagraph'&&unit.children[0].children.length===0&&/^1\.\s+\S/u.test(proposedText||'')){
+      const owner=flat(proposal.units).filter(u=>u.kind==='article'&&u.scope==='proposal'&&JSON.stringify(u.path)===JSON.stringify(unit.path.slice(0,-1))),row=proposal.paragraphs[unit.extent.start],next=proposal.paragraphs[unit.extent.end],old=/^1\.\s+([\s\S]+)$/u.exec(originalText);
+      const clean=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
+      if(!row.objects?.length&&!(proposal.anchors||[]).some(a=>a.paragraph===row.index)&&!text.includes('\uFFFC')&&owner.length===1&&owner[0].children.filter(u=>u.kind==='paragraph').length===1&&row.properties?.styleId==='Normal'&&!row.properties.numberingLabel&&row.source?.container==='body'&&row.source.complete===true&&next?.complete&&next.source?.complete===true&&next.source.container==='body'&&
+        next.source.ordinal===row.source.ordinal+1&&next.source.containerPath===row.source.containerPath&&next.source.segment===row.source.segment&&old&&clean(old[1])===clean(text)&&!/^['‘“«"\d]/u.test(text.trim()))return text;
+    }
+
     const quotes=value=>value.normalize('NFC').replace(/[‘’‚‛ʻʼ“”„‟«»"'\s]/gu,'');
     if(quotes(text)===quotes(originalText))return text;
     if(operation==='delete'&&new RegExp(`^\\(${escape(unit.label?.value??'')}\\)\\s*\\[\\.\\.\\.\\]$`,'u').test(originalText.trim())){

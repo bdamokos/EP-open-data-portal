@@ -1,3 +1,4 @@
+import {proposalNoteComparison} from './proposalNoteScope.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {DocumentImage} from './DocumentImage';
@@ -108,8 +109,18 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
       return nestedParagraphs.has(index) ? ([]) : row(index);
     });
     type GridCell={column:number;colSpan:number;rowSpan:number;paragraphs:number[]};
+    // A splice over whole table rows replaces those rows: omit them instead of
+    // leaving empty cells, and show the amendment after any remaining rows.
+    const splice=active ? placement.splice : undefined;
+    // Only paragraphs consumed in full, boundary offsets included, leave a row.
+    const consumed=(index:number)=>!!splice&&index>=splice.start.paragraph&&index<=splice.end.paragraph
+      &&(index>splice.start.paragraph||splice.start.offset===0)&&(index<splice.end.paragraph||splice.end.offset>=proposal.paragraphs[index].text.length);
+    const merged=table.rows.some(tr=>tr.cells.some(cell=>cell.verticalMerge==='start'||cell.verticalMerge==='continue'));
+    const replacedRows=new Set(merged ? [] : table.rows.flatMap((tr,ri)=>{const indices=tr.cells.flatMap(cell=>cell.paragraphs);return indices.length&&indices.every(consumed) ? [ri] : [];}));
+    const startsHere=!!splice&&[...replacedRows].some(ri=>table.rows[ri].cells.some(cell=>cell.paragraphs.includes(splice.start.paragraph)));
     let previous=new Map<string,GridCell>();
-    const rows=table.rows.map(tr=>{
+    const rows=table.rows.map((tr,ri)=>{
+      if(replacedRows.has(ri))return [] as GridCell[];
       const rendered:GridCell[]=[],continuing=new Map<string,GridCell>();let column=0;
       for(let ci=0;ci<tr.cells.length;ci++){
         const cell=tr.cells[ci],members=[cell];
@@ -128,9 +139,13 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
       }
       previous=continuing;return rendered;
     });
-    const content=<div className="proposal-table-scroll" key={table.sourcePath}><table className="proposal-table"><tbody>{rows.map((cells,ri)=><tr key={ri}>{cells.map(cell=>
+    const part=(kept:{cells:GridCell[];ri:number}[],key:string)=>kept.length ? <div className="proposal-table-scroll" key={table.sourcePath+key}><table className="proposal-table"><tbody>{kept.map(({cells,ri})=><tr key={ri}>{cells.map(cell=>
       <td key={cell.column} colSpan={cell.colSpan} rowSpan={cell.rowSpan}>{cellContent([...new Set(cell.paragraphs)].sort((a,b)=>a-b))}</td>
-    )}</tr>)}</tbody></table></div>;
+    )}</tr>)}</tbody></table></div> : null;
+    const kept=rows.flatMap((cells,ri)=>replacedRows.has(ri) ? [] : [{cells,ri}]);
+    // Keep reading order: rows before the replaced run, the amendment, rows after.
+    if(startsHere){const first=Math.min(...replacedRows);return [part(kept.filter(row=>row.ri<first),':before'),block(true,proposal),part(kept.filter(row=>row.ri>first),':after')];}
+    const content=part(kept,'');
     return (insertionTable?.sourcePath===table.sourcePath) ? ([content,block(true,proposal)]) : content;
   }
   const tableParagraphs=new Set(topTables.flatMap(t=>t.paragraphs));
@@ -147,7 +162,7 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
   const fileFailures=(baseline.gaps||[]).filter((gap):gap is {code:string;itemId:string}=>Boolean(gap&&typeof gap==='object'&&typeof (gap as {itemId?:unknown}).itemId==='string'&&!['stale-metadata','stale-content','bundle-too-large','native-annex-ordinal-unverified'].includes(String((gap as {code?:unknown}).code))));
   const missingFiles=new Set(fileFailures.map(gap=>gap.itemId)).size;
   const fileLimit=(baseline.gaps||[]).some(gap=>gap&&typeof gap==='object'&&(gap as {code?:unknown}).code==='bundle-too-large');
-  const placement=data.placement,placed=placement?.status==='placed'&&!!wording&&placement.itemIndex!==undefined&&!!items[placement.itemIndex]&&baseline.language===wording.language;
+  const placement=data.placement,noteComparison=wording&&placement?.noteScope?proposalNoteComparison(wording,placement.noteScope):null,placed=placement?.status==='placed'&&!!wording&&placement.itemIndex!==undefined&&!!items[placement.itemIndex]&&baseline.language===wording.language&&(!placement.noteScope||!!noteComparison);
   const rejection=Boolean(wording&&placement?.status==='document-operation'&&placement.operation==='reject'&&data.amendment?.id===amendmentId&&data.target?.evidence?.amendmentId===amendmentId&&data.target?.evidence?.listId===wording.listId&&data.target?.evidence?.wordingLanguage===wording.language&&baseline.language===wording.language);
   const effective=placed ? placement : null;
   const number=amendmentId?.match(/-AM-(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'');
@@ -184,8 +199,8 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
     // Placement also accepts punctuation/quotation normalization. If its source
     // span cannot carry the column offsets exactly, compare both published
     // columns with their own ranges; proposed wording is never modified.
-    const useColumns=originalFormatting===null;
-    return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace ? 'true' : undefined} tabIndex={inPlace ? (-1) : undefined} aria-label={number ? ui.t("membervotes.tsx.amendment.number", {number: String(number)}) : ui.t("motionamendments.amendment.664ccf")}><h4 lang={ui.language}>{(number && council) ? <UiMessage id="proposalcontexttext.amendment.number.council.position" values={{number: number}}/> : ((number && (!council)) ? <UiMessage id="membervotes.tsx.amendment.number" values={{number: number}}/> : (((!number) && council) ? <UiMessage id="proposalcontexttext.amendment.council.position"/> : <UiMessage id="motionamendments.amendment.664ccf"/>))}</h4>{existing&&placed&&placement.instruction&&<p className="document-context-instruction">{placement.instruction.replace(/[‘“"„]\s*$/u,'').trim()}</p>}{labelLength>0&&<p className="document-context-provision-label" data-source-label="true">{sourcePrefix!.trim()}</p>}{wording&&<WordingDiff labels={existing ? ({original:ui.t("proposalcontexttext.existing.act")}) : (council ? ({original:ui.t("proposalcontexttext.council.position")}) : undefined)} originalFormatting={useColumns ? wording.originalFormatting : originalFormatting} proposedFormatting={((existing && placed) && placement.proposedRange) ? wording.proposedFormatting?.filter(mark=>mark.end>placement.proposedRange!.start&&mark.start<placement.proposedRange!.end).map(mark=>({...mark,start:Math.max(mark.start,placement.proposedRange!.start)-placement.proposedRange!.start,end:Math.min(mark.end,placement.proposedRange!.end)-placement.proposedRange!.start})) : wording.proposedFormatting} original={(placement?.operation==='insert') ? '' : (useColumns ? wording.originalText : comparisonOriginal)} proposed={(placement?.operation==='delete') ? '' : ((existing && placed) ? (placement.proposedText??wording.proposedText) : wording.proposedText)} language={wording.language} emptySemantics={rejection ? "not-supplied" : "insertion-deletion"} highlightChanges={!rejection} presentation="context" renderOriginal={useColumns ? undefined : renderOriginal}/>}<AmendmentJustification record={wording}/></section>;
+    const useColumns=!!noteComparison||originalFormatting===null;
+    return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace ? 'true' : undefined} tabIndex={inPlace ? (-1) : undefined} aria-label={number ? ui.t("membervotes.tsx.amendment.number", {number: String(number)}) : ui.t("motionamendments.amendment.664ccf")}><h4 lang={ui.language}>{(number && council) ? <UiMessage id="proposalcontexttext.amendment.number.council.position" values={{number: number}}/> : ((number && (!council)) ? <UiMessage id="membervotes.tsx.amendment.number" values={{number: number}}/> : (((!number) && council) ? <UiMessage id="proposalcontexttext.amendment.council.position"/> : <UiMessage id="motionamendments.amendment.664ccf"/>))}</h4>{existing&&placed&&placement.instruction&&<p className="document-context-instruction">{placement.instruction.replace(/[‘“"„]\s*$/u,'').trim()}</p>}{labelLength>0&&<p className="document-context-provision-label" data-source-label="true">{sourcePrefix!.trim()}</p>}{wording&&<WordingDiff labels={existing ? ({original:ui.t("proposalcontexttext.existing.act")}) : (council ? ({original:ui.t("proposalcontexttext.council.position")}) : undefined)} originalFormatting={noteComparison ? noteComparison.original.bodyFormatting : useColumns ? wording.originalFormatting : originalFormatting} proposedFormatting={noteComparison ? noteComparison.proposed.bodyFormatting : ((existing && placed) && placement.proposedRange) ? wording.proposedFormatting?.filter(mark=>mark.end>placement.proposedRange!.start&&mark.start<placement.proposedRange!.end).map(mark=>({...mark,start:Math.max(mark.start,placement.proposedRange!.start)-placement.proposedRange!.start,end:Math.min(mark.end,placement.proposedRange!.end)-placement.proposedRange!.start})) : wording.proposedFormatting} original={(placement?.operation==='insert') ? '' : (noteComparison ? noteComparison.original.body : useColumns ? wording.originalText : comparisonOriginal)} proposed={(placement?.operation==='delete') ? '' : (noteComparison ? noteComparison.proposed.body : (existing && placed) ? (placement.proposedText??wording.proposedText) : wording.proposedText)} language={wording.language} emptySemantics={rejection ? "not-supplied" : "insertion-deletion"} highlightChanges={!rejection} presentation="context" renderOriginal={useColumns ? undefined : renderOriginal}/>}{noteComparison&&wording&&<section data-amendment-notes="true"><h5>{ui.t("batch6.references.notes.count.218",{count:placement?.noteScope?.proposedLabels.length??0})}</h5><WordingDiff original={noteComparison.original.notes} proposed={noteComparison.proposed.notes} originalFormatting={noteComparison.original.notesFormatting} proposedFormatting={noteComparison.proposed.notesFormatting} language={wording.language} emptySemantics="insertion-deletion" presentation="context"/></section>}<AmendmentJustification record={wording}/></section>;
   };
   return <>
     <p className="proposal-context-summary">{(showOriginalLink && official) ? <a href={official} target="_blank" rel="noreferrer"><>{identity} ↗</></a> : identity} {showOriginalLink&&<>· <a href={report} target="_blank" rel="noreferrer">{data.documentId.startsWith('A-') ? <UiMessage id="proposalcontexttext.parliament.report"/> : <UiMessage id="proposalcontexttext.parliament.document"/>}</a></>}</p>

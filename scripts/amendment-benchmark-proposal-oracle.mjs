@@ -143,6 +143,15 @@ export function rawProposalAssertion({proposal,wording,placement}) {
     if(article.rows.filter(row=>row.index>=span.start&&row.index<=span.end).some(row=>!body(row)))return unknown('oracle-raw-source-incomplete');
     return verified('oracle-raw-addressed-source-span',[article.heading.index,scope.start,scope.end]);
   }
+  // Unnumbered subparagraph ordinals are counted from native body rows.
+  // Letter a opens a gap immediately after the named existing subparagraph.
+  if(last?.kind==='subparagraph'&&last.isNew&&last.suffix==='a'&&parent?.kind==='paragraph'&&!parent.implicit) {
+    const parts=subparagraphs(scope,article),anchor=parts[Number(last.base)-1];
+    if(!anchor)return unknown('oracle-raw-subparagraph-unavailable');
+    const rows=article.rows.filter(row=>row.index>=anchor.start&&row.index<=anchor.end);
+    if(rows.length<2||rows.at(-1).index!==anchor.end||rows.some((row,i)=>!body(row)||!Number.isSafeInteger(row.source?.ordinal)||i&&(row.source.containerPath!==rows[i-1].source.containerPath||row.source.segment!==rows[i-1].source.segment||row.source.ordinal!==rows[i-1].source.ordinal+1)))return unknown('oracle-raw-source-incomplete');
+    return placement.insertBefore===anchor.end&&placement.insertAfter===anchor.end-1?verified('oracle-raw-subparagraph-gap',rows.map(row=>row.index)):failed('oracle-raw-insertion-boundary-mismatch');
+  }
   if(!last?.isNew||last.kind!=='point')return unknown('oracle-raw-insertion-grammar-unavailable');
   if(!parent&&last.kind==='point'){const implicit=article.nodes.filter(node=>node.kind==='paragraph'&&node.implicit);if(implicit.length===1)parent=implicit[0];}
   const siblings=article.nodes.filter(node=>node.kind==='point'&&node.parent===parent&&node.start>=scope.start&&node.start<scope.end);
@@ -181,4 +190,23 @@ export function rawProposalAssertion({proposal,wording,placement}) {
   if(article.rows.filter(row=>row.index>=extentStart&&row.index<before).some(row=>!body(row)))return unknown('oracle-raw-source-incomplete');
   if(placement.insertBefore!==before||placement.insertAfter!==before-1)return {...failed('oracle-raw-insertion-boundary-mismatch'),expectedBefore:before,actualBefore:placement.insertBefore,rawSourceRows:[article.heading.index,scope.start,before]};
   return verified('oracle-raw-sibling-boundary',[article.heading.index,scope.start,before]);
+}
+
+// EP may print “1.” for the sole unnumbered paragraph of an article. Prove
+// that address and the complete literal wording independently of parser units.
+export function assertImplicitParagraphLabel({proposal,wording,placement}) {
+ const unavailable=()=>unknown('oracle-implicit-paragraph-label-unavailable');
+ if(!proposal||wording.language!=='en'||wording.baseline!=='commission-proposal'||placement.operation!=='replace')return unavailable();
+ const target=address(wording.targetLabel||'','en');
+ if(target?.length!==2||target[0].kind!=='article'||target[1].kind!=='paragraph'||target[1].value!=='1')return unavailable();
+ const original=/^1\.\s+([\s\S]+)$/u.exec(wording.originalText||'');
+ if(!original||!/^1\.\s+\S/u.test(wording.proposedText||''))return unavailable();
+ const article=publishedContainer(proposal,target[0],'en'),node=article?.nodes[0];
+ if(!node?.implicit||article.nodes.length!==1||node.kind!=='paragraph'||node.value!=='1'||node.end!==node.start+1)return unavailable();
+ const row=proposal.paragraphs.find(p=>p.index===node.start),next=proposal.paragraphs.find(p=>p.index===node.end);
+ if(!row||!next||row.text.includes('\uFFFC')||row.objects?.length||(proposal.anchors||[]).some(a=>a.paragraph===row.index)||!body(row)||!body(next)||row.properties?.styleId!=='Normal'||next.source.ordinal!==row.source.ordinal+1||next.source.containerPath!==row.source.containerPath||next.source.segment!==row.source.segment||row.properties.numberingLabel||/^[\d'‘“«"]/u.test(row.text.trim()))return unavailable();
+ const compact=s=>s.normalize('NFC').replace(/\s+/gu,' ').trim();
+ if(compact(original[1])!==compact(row.text))return unavailable();
+ if(placement.status!=='placed'||placement.span?.start!==row.index||placement.span?.end!==row.index||placement.splice?.start.paragraph!==row.index||placement.splice.start.offset!==0||placement.splice?.end.paragraph!==row.index||placement.splice.end.offset!==row.text.length)return failed('oracle-implicit-paragraph-boundary-mismatch');
+ return verified('oracle-implicit-paragraph-label',[article.heading.index,row.index,next.index]);
 }

@@ -1,3 +1,4 @@
+import {nativeGuidelineAnnex} from './proposal-guideline-annex.mjs';
 import {backfillSelectionMatches} from './base-source-backfill-context.mjs';
 import path from 'node:path';
 import {retainBaseSelection} from './base-source-store.mjs';
@@ -92,6 +93,9 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
         }
         if(nle)for(const item of items.filter(item=>item.kind==='annex')) {
           const native=nativeAnnexOrdinal(item.buffer,{language});
+          const sole=identity.items.filter(item=>item.kind==='annex').length===1&&items.filter(item=>item.kind==='annex').length===1
+            ?nativeGuidelineAnnex(items.find(item=>item.kind==='act').buffer,item.buffer,{language}):null;
+          if(sole){evidence.push({kind:'native-nle-annex-part',itemId:item.itemId,...sole,legalPlacement:true});continue;}
           evidence.push({kind:'native-nle-annex-part',itemId:item.itemId,sha256:item.source.sha256,...native,legalPlacement:native.status==='verified'});
           if(native.status!=='verified')gaps.push({code:'native-annex-ordinal-unverified',itemId:item.itemId,reason:native.reason});
         }

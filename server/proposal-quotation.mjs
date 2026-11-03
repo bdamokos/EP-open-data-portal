@@ -39,7 +39,8 @@ export function quotationClosed(text,state,language){
       // inside a nested term quotation. A trailing apostrophe is ambiguous:
       // punctuation after it alone cannot establish a replacement boundary.
       const apostrophe=mark==='’'||mark==="'";
-      if(top.outer&&(!atEnd||apostrophe&&!/[.!?;:][)\]}]*$/u.test(text.slice(0,i)))){
+      const standalone=state.marks.length===1&&text.trim()===mark;
+      if(top.outer&&(!atEnd||apostrophe&&!standalone&&!/[.!?;:][)\]}]*$/u.test(text.slice(0,i)))){
         if(apostrophe)uncertain(state,atEnd);continue;
       }
       state.marks.pop();

@@ -1,0 +1,116 @@
+{
+  "id": "A-10-2026-0080-AM-5",
+  "source": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0080/A-10-2026-0080_fr.docx",
+    "sha256": "bbc629b9f26e2f61c61b84e872e52d2a2cc34f9d34c9accf78bb495040c99fc6",
+    "fetchedAt": "2026-10-27T20:19:50.104761+00:00"
+  },
+  "wordingSource": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_fr.docx",
+    "sha256": "553ba42b521d56dcea7634cf424d27e34963b8d33b0907e402dc95b4603ea432",
+    "fetchedAt": "2026-10-27T20:19:53.104675+00:00"
+  },
+  "expected": {
+    "path": "/w:document[1]/w:body[1]/w:p[53]",
+    "number": 5,
+    "language": "fr",
+    "targetLabel": "Paragraphe 25",
+    "section": "Proposition de résolution",
+    "sectionKind": "resolution",
+    "originalText": "25. fait valoir que les médias indépendants et le journalisme d’investigation pourraient jouer un rôle dans la lutte contre la fraude, la corruption, les conflits d’intérêts et les autres formes de détournement de fonds publics;",
+    "proposedText": "25. fait valoir que des médias libres, indépendants et pluralistes et le journalisme d’investigation sont indispensables dans la lutte contre la fraude, la corruption, les conflits d’intérêts et les autres formes de détournement de fonds publics, car ils permettent aux citoyens et aux institutions de demander des comptes aux personnes au pouvoir; souligne le rôle crucial joué par une société civile forte et libre, notamment les mouvements de terrain et les organisations locales, les syndicats, les groupes militants, les défenseurs des droits de l’homme et les organisations non gouvernementales, ainsi que par les autorités et médiateurs indépendants, pour garantir, au travers de leur rôle d’observateurs critiques, que les acteurs tant publics que privés satisfont à leur obligation de rendre des comptes;",
+    "operation": "replace",
+    "scope": null,
+    "cellPaths": [
+      [
+        "/w:document[1]/w:body[1]/w:tbl[5]/w:tr[3]/w:tc[1]",
+        "/w:document[1]/w:body[1]/w:tbl[5]/w:tr[3]/w:tc[2]"
+      ]
+    ]
+  },
+  "rawText": {
+    "paragraphs": [
+      {
+        "bold": false,
+        "path": "/w:document[1]/w:body[1]/w:p[22]",
+        "text": "PROPOSITION DE RÉSOLUTION DU PARLEMENT EUROPÉEN",
+        "style": "PageHeading",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "bold": false,
+        "path": "/w:document[1]/w:body[1]/w:p[26]",
+        "text": "Le Parlement européen,",
+        "style": "Normal12",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "bold": false,
+        "path": "/w:document[1]/w:body[1]/w:p[53]",
+        "text": "B. considérant que la bonne gestion des ressources de l’Union, tant pour les dépenses que pour les recettes, et la protection des intérêts financiers de l’Union devraient constituer des éléments clés des politiques européennes, de manière à favoriser leur mise en œuvre effective, à garantir une utilisation correcte, efficace et transparente de l’argent des contribuables et à accroître la confiance des citoyens dans les institutions européennes;",
+        "style": "NormalHanging",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "bold": false,
+        "path": "/w:document[1]/w:body[1]/w:p[93]",
+        "text": "23. souligne que les pouvoirs publics ont un rôle crucial à jouer dans la promotion d’une culture de tolérance zéro à l’égard de la fraude et insiste, en particulier, sur l’importance de la prévention afin que la fraude, la corruption, les conflits d’intérêts et d’autres types de détournements de fonds soient évités d’emblée;",
+        "style": "NormalHanging12a",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "bold": false,
+        "path": "/w:document[1]/w:body[1]/w:p[94]",
+        "text": "24. soutient que les lanceurs d’alerte jouent un rôle clé dans l’amélioration de la détection des fraudes; observe avec inquiétude les remarques présentées dans le rapport 2024 de la Commission sur la mise en œuvre et l’application de la directive sur la protection des personnes qui signalent des violations du droit de l’Union, indiquant que le processus de transposition semble encore loin d’être achevé; regrette qu’en mars 2025, la Cour de justice de l’Union européenne ait condamné cinq États membres à des sanctions financières (Allemagne, Luxembourg, Tchéquie, Estonie et Hongrie) pour n’avoir pas correctement transposé la directive; s’est félicité du lancement par la Commission, le 25 août 2025, d’une consultation publique sur son futur plan d’action sur la protection des lanceurs d’alerte, qui fait partie de son évaluation plus large de la directive; invite la Commission à accorder la plus grande attention aux réactions des parties prenantes concernées, y compris les organisations de la société civile, les syndicats, les instituts de recherche et leur personnel, ainsi que les lanceurs d’alerte individuels, sur la mise en œuvre de la directive, et à prendre des mesures pour combler les lacunes constatées; souligne, en outre, que le Parlement devrait également adapter ses règles internes conformément à la directive afin de protéger ses propres lanceurs d’alerte, à la suite de l’arrêt du Tribunal dans l’affaire T-793/2217 du 11 septembre 2024, selon lequel le cadre actuel ne fournit pas une protection équilibrée et efficace contre les représailles;",
+        "style": "NormalHanging12a",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "bold": false,
+        "path": "/w:document[1]/w:body[1]/w:p[95]",
+        "text": "25. fait valoir que les médias indépendants et le journalisme d’investigation pourraient jouer un rôle important dans la lutte contre la fraude, la corruption, les conflits d’intérêts et les autres formes de détournement de fonds publics;",
+        "style": "NormalHanging12a",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "bold": false,
+        "path": "/w:document[1]/w:body[1]/w:p[96]",
+        "text": "26. rappelle à la Commission que, pour détecter la fraude, des contrôles sont nécessaires et que, s’ils représentent un coût, ils permettent également de générer des recettes supplémentaires, parfois importantes, ou d’éviter des dépenses irrégulières; indique dès lors qu’il est essentiel de fournir des ressources aux acteurs de l’architecture antifraude, afin de leur permettre d’effectuer des contrôles plus fréquents; appelle à une affectation stratégique et ciblée des ressources aux secteurs à haut risque et aux enquêtes transfrontières, combinée à une amélioration de la formation et au renforcement des capacités des autorités nationales, afin de garantir une approche axée sur les résultats, de renforcer la responsabilité budgétaire et de préserver chaque euro du budget de l’Union;",
+        "style": "NormalHanging12a",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "bold": false,
+        "path": "/w:document[1]/w:body[1]/w:p[97]",
+        "text": "27. souligne l’importance de protéger les intérêts financiers de l’Union en mettant en œuvre et en faisant respecter des règles claires en matière de fiscalité et de transparence pour les entreprises, en particulier celles qui opèrent à un niveau transnational, notamment dans le cadre des investissements soutenus par l’Union;",
+        "style": "NormalHanging12a",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "bold": true,
+        "path": "/w:document[1]/w:body[1]/w:p[98]",
+        "text": "Enquêtes et poursuites",
+        "style": "Normal12a",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,210 @@
+{
+  "id": "A-10-2026-0216-AM-22",
+  "source": {
+    "url": "https://publications.europa.eu/resource/cellar/1ab27b74-8957-11f0-9af8-01aa75ed71a1.0001.01/DOC_1",
+    "sha256": "3ab95f06c0988fee4b9460bf6040bc15a3a68b00f902726de05da4f6afa34f4b",
+    "fetchedAt": "2026-10-27T16:59:11.471Z"
+  },
+  "wordingSource": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0216-AM-001-083/A-10-2026-0216-AM-001-083_en.docx",
+    "resolvedSourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0216-AM-001-083/A-10-2026-0216-AM-001-083_en.docx",
+    "fetchedAt": "2026-10-27T15:01:43.131Z",
+    "sha256": "bbe92582bd374921998069ba440bfe280b5d158e427f776f59ed1f415b522d27",
+    "status": 200
+  },
+  "nativeParagraph": 182,
+  "wording": {
+    "baselineSource": {
+      "category": "commission-proposal",
+      "headings": [
+        {
+          "left": {
+            "raw": "Text proposed by the Commission",
+            "category": "commission-proposal"
+          },
+          "right": {
+            "raw": "Amendment",
+            "category": "other"
+          }
+        }
+      ],
+      "conflicted": false,
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0216-AM-001-083/A-10-2026-0216-AM-001-083_en.docx",
+      "fetchedAt": null
+    },
+    "documentReferences": [],
+    "targetPath": {
+      "proposal": [],
+      "underlying": [],
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0216-AM-001-083/A-10-2026-0216-AM-001-083_en.docx",
+      "fetchedAt": null
+    },
+    "number": 22,
+    "listId": "A-10-2026-0216-AM-001-083",
+    "targetDocumentId": "A-10-2026-0216",
+    "date": "2026-09-10",
+    "documentDate": "2026-09-10",
+    "dateBasis": "amendment-list-document",
+    "authors": [],
+    "committeeProposer": "Committee on the Internal Market and Consumer Protection",
+    "onBehalfOf": null,
+    "baseline": "commission-proposal",
+    "targetLabel": "Recital 22",
+    "originalText": "(22)\tThe development of the Union regulatory framework in the areas of company law and corporate governance, and contract law, is essential to make businesses more efficient and competitive, while providing protection for stakeholders affected by company operations, and to respond to emerging policy challenges. The support to appropriate evaluation, implementation (including digital development) and enforcement of the relevant acquis, which inform and assist stakeholders, facilitate secure information exchange and ensure legal certainty with regard to the companies in the Single Market. The upcoming European Innovation Act and 28th22 regime for companies will directly contribute to the Union competitiveness. A clear and well-adapted legal framework for the data economy and innovation is necessary including digitalisation and sharing between companies and administrations using the European Business Wallet, the Single Digital Gateway or other digital means for placing products in the Single Market such as the Digital Product Passport. It would enhance legal certainty with regard to contractual and extra contractual obligations, in particular with regard to liability, security, ethics and privacy in the context of advanced and emerging technologies, including artificial intelligence and quantum technologies. .\n__________________\n22 Communication from the Commission to the European Parliament, the European Council, the Council, the European Economic and Social Committee and the Committee of the Regions, ‘A Competitiveness Compass for the EU, COM(2025) 30 final.",
+    "proposedText": "(22)\tThe development of the Union regulatory framework in the areas of company law and corporate governance, and contract law, is essential to make businesses more efficient and competitive, while providing protection for all relevant stakeholders, in particular workers, affected by company operations, and to respond to emerging policy challenges. The support to appropriate evaluation, implementation (including digital development) and enforcement of the relevant acquis, which inform and assist stakeholders, facilitate secure information exchange and ensure legal certainty with regard to the companies in the Single Market. The upcoming European Innovation Act and 28th22 regime for companies could directly contribute to the Union competitiveness. A clear and well-adapted legal framework for the data economy and innovation is necessary including digitalisation and information sharing between companies and administrations using the European Business Wallet, the Single Digital Gateway or other digital means for placing products in the Single Market such as the Digital Product Passport that should include relevant data in line with Union law. It would enhance legal certainty with regard to contractual and extra contractual obligations, in particular with regard to liability, security, ethics and privacy in the context of advanced and emerging technologies, including artificial intelligence and quantum technologies.\n__________________\n22 Communication from the Commission to the European Parliament, the European Council, the Council, the European Economic and Social Committee and the Committee of the Regions, ‘A Competitiveness Compass for the EU, COM(2025) 30 final.",
+    "originalFormatting": [
+      {
+        "start": 637,
+        "end": 641,
+        "kind": "superscript"
+      },
+      {
+        "start": 1348,
+        "end": 1350,
+        "kind": "superscript"
+      }
+    ],
+    "proposedFormatting": [
+      {
+        "start": 674,
+        "end": 678,
+        "kind": "superscript"
+      },
+      {
+        "start": 1453,
+        "end": 1455,
+        "kind": "superscript"
+      }
+    ],
+    "justification": null,
+    "language": "en",
+    "sources": [
+      {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0216-AM-001-083/A-10-2026-0216-AM-001-083_en.docx",
+        "fetchedAt": null,
+        "date": "2026-09-10",
+        "dateBasis": "amendment-list-document",
+        "language": "en",
+        "format": "DOCX"
+      }
+    ],
+    "gaps": [
+      {
+        "code": "authors-unavailable",
+        "number": 22,
+        "message": "No explicit amendment proposer names were found in this document block.",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0216-AM-001-083/A-10-2026-0216-AM-001-083_en.docx"
+      }
+    ]
+  },
+  "proposal": {
+    "imageAssets": {},
+    "parserVersion": "18",
+    "language": "en",
+    "item": "act",
+    "identity": null,
+    "sourceUrl": "https://publications.europa.eu/resource/cellar/1ab27b74-8957-11f0-9af8-01aa75ed71a1.0001.01/DOC_1",
+    "sourceHash": "3ab95f06c0988fee4b9460bf6040bc15a3a68b00f902726de05da4f6afa34f4b",
+    "sourceKind": "docx",
+    "complete": false,
+    "contentComplete": false,
+    "structureComplete": false,
+    "paragraphs": [
+      {
+        "index": 0,
+        "text": "(22)\tThe development of the Union regulatory framework in the areas of company law and corporate governance, and contract law, is essential to make businesses more efficient and competitive, while providing protection for stakeholders affected by company operations, and to respond to emerging policy challenges. The support to appropriate evaluation, implementation (including digital development) and enforcement of the relevant acquis, which inform and assist stakeholders, facilitate secure information exchange and ensure legal certainty with regard to the companies in the Single Market.  The upcoming European Innovation Act and 28th regime for companies will directly contribute to the Union competitiveness. A clear and well-adapted legal framework for the data economy and innovation is necessary including digitalisation and sharing between companies and administrations using the European Business Wallet, the Single Digital Gateway or other digital means for placing products in the Single Market such as the Digital Product Passport. It would enhance legal certainty with regard to contractual and extra contractual obligations, in particular with regard to liability, security, ethics and privacy in the context of advanced and emerging technologies, including  artificial intelligence and quantum technologies. .",
+        "source": {
+          "path": "/w:document[1]/w:body[1]/w:p[186]",
+          "ordinal": 185,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 3,
+          "complete": true
+        },
+        "properties": {
+          "styleId": "ManualConsidrant",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        "objects": [],
+        "complete": true
+      }
+    ],
+    "notes": [
+      {
+        "id": "69",
+        "label": "68",
+        "text": "Communication from the Commission to the European Parliament, the European Council, the Council, the European Economic and Social Committee and the Committee of the Regions, ‘A Competitiveness Compass for the EU, COM(2025) 30 final.",
+        "links": [],
+        "linkSpans": [],
+        "source": {
+          "part": "word/footnotes.xml",
+          "path": "/w:footnotes[1]/w:footnote[71]"
+        },
+        "extractionComplete": true,
+        "objects": [],
+        "complete": true
+      }
+    ],
+    "anchors": [
+      {
+        "paragraph": 0,
+        "offset": 640,
+        "note": "69",
+        "label": "68"
+      }
+    ],
+    "links": [],
+    "units": [
+      {
+        "id": "proposal-v18:438f80df93b2892d6b45ee27/recital:22",
+        "kind": "recital",
+        "label": {
+          "kind": "recital",
+          "value": "22",
+          "number": 22,
+          "suffix": "",
+          "isNew": false,
+          "level": 0,
+          "prefix": "(22)\t"
+        },
+        "path": [
+          {
+            "kind": "recital",
+            "value": "22",
+            "number": 22,
+            "suffix": "",
+            "isNew": false,
+            "level": 0,
+            "prefix": "(22)\t"
+          }
+        ],
+        "scope": "proposal",
+        "normative": false,
+        "extent": {
+          "start": 0,
+          "end": 1
+        },
+        "content": [
+          0
+        ],
+        "spans": [
+          {
+            "paragraph": 0,
+            "start": 0,
+            "end": 1328
+          }
+        ],
+        "children": [],
+        "pathConflict": false,
+        "complete": true
+      }
+    ],
+    "gaps": [],
+    "numberingMode": "proposal-abstract-continuation",
+    "objects": []
+  }
+}
