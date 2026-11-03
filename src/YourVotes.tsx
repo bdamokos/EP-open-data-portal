@@ -21,7 +21,7 @@ type Row={key:string;documentId:string;revision:string|null;kind:string;motion?:
 type Ballot={id:string;title:string;titleLanguage?:string|null;sittingId:string;documentId:string|null;source:string;partial?:boolean;rows:Row[];added:{decisionId:string;label:string;outcome:string}[];procedureIds:string[]};
 type Ballots={items:Ballot[]};
 function useBallots(sitting:string,language:string){const [data,setData]=useState<Ballots|null>(null),[error,setError]=useState(false);useEffect(()=>{const abort=new AbortController();setData(null);setError(false);api<Ballots>('upcoming-votes?'+new URLSearchParams({sitting,lang:language}),abort.signal).then(value=>{if(abort.signal.aborted)return;if(!Array.isArray(value.items)){setError(true);return;}setData(value);},()=>{if(!abort.signal.aborted)setError(true);});return()=>abort.abort();},[sitting,language]);return {data,error};}
-function outcomeLabel(value:string,ui:ReturnType<typeof useUiI18n>){return ui.t('yourVote.'+({ADOPTED:'adopted',REJECTED:'rejected',LAPSED:'lapsed',WITHDRAWN:'withdrawn'} as Record<string,string>)[value]);}
+function outcomeLabel(value:string,ui:ReturnType<typeof useUiI18n>){return ui.t('yourVote.'+(({ADOPTED:'adopted',REJECTED:'rejected',LAPSED:'lapsed',WITHDRAWN:'withdrawn'} as Record<string,string>)[value]||'unavailable'));}
 function BallotRow({row,ballot,onContext}:{row:Row;ballot:Ballot;onContext:(a:Amendment)=>void}) {
   const ui=useUiI18n(),state=useYourVotes(),saved=state.choices.find(c=>c.key===row.key),[fullPart,setFullPart]=useState(false);
   const label=(key:string)=>ui.t('yourVote.'+key);
@@ -90,7 +90,8 @@ function FollowingSession({sittings,dates,language,people,dossiers}:{sittings:st
 }
 export function YourVotes({language,members}:{language:string;members?:Directory['members']}) {
   const state=useYourVotes(),saved=useSaved(),dossiers=useDossiers(),ui=useUiI18n(),[picked,setPicked]=useState(''),[calendar,setCalendar]=useState<string[]>([]),[dossierSittings,setDossierSittings]=useState<string[]>([]),[periods,setPeriods]=useState<VotePeriodsResponse['weeks']>([]);
-  useEffect(()=>{const abort=new AbortController();api<VotePeriodsResponse>('vote-periods',abort.signal).then(data=>{if(Array.isArray(data.weeks))setPeriods(data.weeks);},()=>{});return()=>abort.abort();},[]);
+  const hasSavedVotes=state.choices.length>0||state.stars.length>0||dossiers.items.length>0;
+  useEffect(()=>{if(!hasSavedVotes)return;const abort=new AbortController();api<VotePeriodsResponse>('vote-periods',abort.signal).then(data=>{if(Array.isArray(data.weeks))setPeriods(data.weeks);},()=>{});return()=>abort.abort();},[hasSavedVotes]);
   const dossierSelection=dossiers.items.map(d=>d.id).sort().join(','),hasDossiers=Boolean(dossierSelection),needsCalendar=hasDossiers||state.choices.length>0;
   useEffect(()=>{const abort=new AbortController();setDossierSittings([]);if(!dossierSelection)return;
     api<{epoch:string;generation:number;marksReady:boolean}>('insights/following-status',abort.signal).then(async status=>{
