@@ -12,7 +12,7 @@ test('the private harness keeps canonical verification/classification and requir
   assert.ok(source.includes('stages.S6=verifyPlacement('));
   assert.ok(source.includes("if(replay&&process.env.EP_CITATION_CALIBRATION_MODE===CITATION_CALIBRATION_MODE)"));
   assert.ok(source.includes('canonical:stages.S6'));
-  assert.ok(source.includes('provisional?{outcome:\'not-placeable\',reason:\'provisional-agreement\'}:classify(stages)'));
+  assert.ok(source.includes('provisional?{outcome:\'not-placeable\',reason:\'provisional-agreement\'}:classifyRow(stages,documentOperation)'));
   assert.ok(source.includes('metrics:metrics(resultRows),rows:resultRows'));
   assert.ok(source.includes('return {...(citationCalibration?{citationCalibration}:{}),key:row.id,'));
   assert.ok(source.includes('results.push(withFrozenInputGaps(observed.value,observed.gaps))'));

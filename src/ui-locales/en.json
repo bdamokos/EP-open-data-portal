@@ -1,6 +1,7 @@
 {
   "documentcontext.final_placement_check": "Check final placement in {adoptedText}.",
   "documentcontext.adopted_text": "the adopted text",
+  "amendment.alternative_motion": "Alternative motion",
   "documentcontext.council.quotation": "Council text as quoted in the report.",
   "amendment.rejects_proposal": "Rejects the proposal",
   "amendment.rejects_council_position": "Rejects the Council position",
