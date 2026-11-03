@@ -10,13 +10,18 @@ const text=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])
 const parse=xml=>{if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)throw Error('Native XML unavailable');const tree=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);const valid=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w']===undefined||node[':@']['@_xmlns:w']===URI)&&Object.values(node).every(v=>!Array.isArray(v)||valid(v)));if(!valid(tree))throw Error('Native namespace unavailable');return tree;};
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const clean=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
-const leaves=['w:pStyle','w:rStyle','w:keepNext','w:keepLines','w:widowControl','w:spacing','w:ind','w:jc','w:noProof','w:b','w:bCs','w:i','w:iCs','w:lang','w:rFonts','w:sz','w:szCs','w:color','w:u','w:highlight','w:shd','w:lastRenderedPageBreak','w:tab','w:br','w:cr','w:noBreakHyphen','w:softHyphen','w:bookmarkStart','w:bookmarkEnd','w:proofErr','w:pgSz','w:pgMar','w:cols','w:docGrid','w:type','w:pgNumType'];
-function known(nodes,{legal=false}={}) {
+const format=['w:spacing','w:noProof','w:b','w:bCs','w:i','w:iCs','w:lang','w:rFonts','w:sz','w:szCs','w:color','w:u','w:highlight','w:shd'];
+function known(nodes,{legal=false,context='paragraph'}={}) {
+ const nesting={paragraph:{'w:pPr':'paragraph-properties','w:r':'run','w:hyperlink':'paragraph'},run:{'w:rPr':'run-properties'},'paragraph-properties':{'w:rPr':'run-properties','w:sectPr':'section','w:tabs':'tabs',...(legal?{'w:numPr':'number'}:{})}};
+ const leaves={paragraph:['w:bookmarkStart','w:bookmarkEnd','w:proofErr'],run:['w:lastRenderedPageBreak','w:tab','w:br','w:cr','w:noBreakHyphen','w:softHyphen',...(legal?['w:footnoteReference','w:endnoteReference']:[])],'paragraph-properties':['w:pStyle','w:keepNext','w:keepLines','w:widowControl','w:spacing','w:ind','w:jc'],'run-properties':['w:rStyle',...format],section:['w:pgSz','w:pgMar','w:cols','w:docGrid','w:type','w:pgNumType'],tabs:['w:tab'],number:['w:numId','w:ilvl']};
+ const counts=new Map();
  return nodes.every(node=>Object.entries(node).every(([key,value])=>{
   if(key===':@')return true;
-  if(key==='w:t')return value.every(part=>Object.keys(part).length===1&&typeof part['#text']==='string');
-  if(['w:p','w:r','w:hyperlink','w:pPr','w:rPr','w:sectPr','w:tabs',...(legal?['w:numPr']:[])].includes(key))return known(value,{legal});
-  return [...leaves,...(legal?['w:numId','w:ilvl','w:footnoteReference','w:endnoteReference']:[])].includes(key)&&Array.isArray(value)&&!value.length;
+  const count=(counts.get(key)||0)+1;counts.set(key,count);
+  if((context.endsWith('properties')||['section','number'].includes(context)||['w:pPr','w:rPr'].includes(key))&&count>1)return false;
+  if(key==='w:t')return context==='run'&&value.every(part=>Object.keys(part).length===1&&typeof part['#text']==='string');
+  const next=nesting[context]?.[key];if(next)return known(value,{legal,context:next});
+  return leaves[context]?.includes(key)&&Array.isArray(value)&&!value.length;
  }));
 }
 function visible(parts,nodes) {
@@ -64,7 +69,7 @@ export function assertFirstAnnex({proposal,items,wording,placement,nativeQuoted}
   const start=body.findIndex(row=>row.kind==='paragraph'&&row.text.trim()===frame[0][0]),rows=body.slice(start,start+4);if(start<1||rows.length!==4||rows.some((row,index)=>row.kind!=='paragraph'||row.text.trim()!==frame[index][0]||row.hidden||row.unsafe||row.numbered||!known(row.nodes)||values(children(row.nodes,'w:pPr').flat(),'w:pStyle').join()!==frame[index][1]||!visible(parts,row.nodes)))return unknown();
   if(body[start-1]?.kind!=='paragraph'||body[start-1].text.trim()!=='This Regulation shall be binding in its entirety and directly applicable in all Member States.')return unknown();
   const adopted=body.flatMap((row,index)=>row.kind==='paragraph'&&row.text.trim()==='HAVE ADOPTED THIS REGULATION:'?[index]:[]);if(adopted.length!==1||adopted[0]>=start)return unknown();
-  if(body.slice(adopted[0],start+4).some(row=>row.kind!=='paragraph'&&!Object.keys(row.nodes).every(key=>key===':@'||['w:bookmarkStart','w:bookmarkEnd','w:proofErr'].includes(key))||row.kind==='paragraph'&&(!known(row.nodes,{legal:true})||row.hidden||!visible(parts,row.nodes))))return unknown();
+  if(body.slice(adopted[0],start+4).some(row=>row.kind!=='paragraph'&&!Object.entries(row.nodes).every(([key,value])=>key===':@'||['w:bookmarkStart','w:bookmarkEnd','w:proofErr'].includes(key)&&Array.isArray(value)&&!value.length)||row.kind==='paragraph'&&(!known(row.nodes,{legal:true})||row.hidden||!visible(parts,row.nodes))))return unknown();
   const mapped=rows.map(row=>proposal.paragraphs.filter(p=>p.source?.path===row.path&&p.text===row.text.trim()&&p.complete&&p.source.complete&&p.source.container==='body'));
   if(mapped.some(matches=>matches.length!==1))return unknown();const coordinates=mapped.map(matches=>matches[0]);if(coordinates.some((row,index)=>index&&(row.index!==coordinates[index-1].index+1||row.source.ordinal!==coordinates[index-1].source.ordinal+1)))return unknown();
   const before=coordinates[3].index;if(placement.status!=='placed'||placement.itemIndex!==0||placement.insertBefore!==before||placement.insertAfter!==before-1)return {status:'failed',reason:'oracle-first-annex-boundary-mismatch'};

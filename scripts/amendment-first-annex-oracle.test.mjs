@@ -22,3 +22,6 @@ test('inspected empty payload paragraphs are layout, opaque paragraphs remain un
  const input=firstAnnexNative({amendmentChange:xml=>xml.replace('<w:t>INDICATORS</w:t></w:r></w:p>','<w:t>INDICATORS</w:t></w:r></w:p><w:p/>')});assert.equal(assertFirstAnnex(input).status,'verified');
  const opaque=firstAnnexNative({amendmentChange:xml=>xml.replace('<w:t>INDICATORS</w:t></w:r></w:p>','<w:t>INDICATORS</w:t></w:r></w:p><w:p><w:unknown/></w:p>')});opaque.wording=firstAnnexNative().wording;assert.notEqual(assertFirstAnnex(opaque)?.status,'verified');
 });
+test('paragraph and run properties cannot hide additional proposed wording',()=>{
+ for(const amendmentChange of [xml=>xml.replace('<w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>INDICATORS','<w:pPr><w:pStyle w:val="Normal"/><w:t>Opaque text</w:t></w:pPr><w:r><w:t>INDICATORS'),xml=>xml.replace('<w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>INDICATORS','<w:pPr><w:pStyle w:val="Normal"/><w:r><w:t>Opaque text</w:t></w:r></w:pPr><w:r><w:t>INDICATORS'),xml=>xml.replace('<w:r><w:t>INDICATORS','<w:r><w:rPr><w:t>Opaque text</w:t></w:rPr><w:t>INDICATORS')]){const input=firstAnnexNative({amendmentChange});input.wording=firstAnnexNative().wording;assert.notEqual(assertFirstAnnex(input)?.status,'verified');}
+});
