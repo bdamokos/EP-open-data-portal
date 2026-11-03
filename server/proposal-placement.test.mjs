@@ -612,3 +612,21 @@ test('the scoped native guard rejects simple fields and unknown inline elements 
   assert.equal(resolveProposalPlacement(items,raw.wording,{nativeProposalInputs:raw.nativeQuoted.proposalBuffers}).status,'unresolved');
  }
 });
+// Caption-only repair: source path, underlying act and every cell remain exact.
+test('annex caption decoration repair requires both native annex frames and exact cells',()=>{
+  const rows=[['ANNEX III','Annexetitre','body'],['The following Annex VIII is added:','Normal','body'],['‘ANNEX VIII','Normal','body'],['Iron and steel','Normal','body'],['CN code','Normal','cell',1,1,1],['Greenhouse gas','Normal','cell',1,1,2],['ex 7204 Ferrous waste','Normal','cell',1,2,1],['Carbon dioxide','Normal','cell',1,2,2],['’','Normal','body']];
+  const make=(data=rows)=>parseProposal({paragraphs:data.map(r=>r[0]),structureStatus:'extracted',paragraphSources:data.map((r,index)=>({path:r[2]==='cell'?`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`:`/w:document[1]/w:body[1]/w:p[${index+1}]`,ordinal:index,segment:index,container:r[2]==='cell'?'table-cell':'body',complete:true})),paragraphProperties:data.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(data)},{item:'annex'});
+  const act={paragraphs:[{text:'Regulation (EU) 2023/956 is amended as follows:',complete:true,source:{complete:true,container:'body'}}]},p=make(),w={language:'en',baseline:'commission-proposal',targetLabel:'Annex III – paragraph 1 – table on iron and steel\nRegulation (EU) 2023/956\nAnnex VIII – table Iron and Steel',originalText:'‘[Iron and steel\nCN code\tGreenhouse gas\nex 7204 Ferrous waste\tCarbon dioxide',proposedText:'deleted'};
+  const run=(wording=w,proposal=p,source=act)=>resolveProposalPlacement([{kind:'act',proposal:source},{kind:'annex',proposal}],wording);
+  assert.equal(run().status,'placed');assert.deepEqual(run().span,{start:3,end:7});assert.equal(run().evidence[0].basis,'annex-table-caption-decoration');
+  for(const originalText of [w.originalText.replace('ex 7204','7204'),w.originalText.replace('Ferrous waste','Other waste'),w.originalText.replace('Carbon dioxide','Methane'),w.originalText.replace('‘[','['),w.originalText.replace('steel','steel]')])assert.equal(run({...w,originalText}).status,'unresolved');
+  for(const targetLabel of [w.targetLabel.replace('Annex VIII','Annex VII'),w.targetLabel.replace('2023/956','2023/957'),w.targetLabel.replace('table Iron and Steel','table Aluminium')])assert.equal(run({...w,targetLabel}).status,'unresolved');
+  for(const change of [{language:'fr'},{baseline:'present-text'},{targetPath:{proposal:[{raw:'Annex II – paragraph 1 – table'}]}},{targetPath:{underlying:[{raw:'Annex VII'}]}}])assert.notEqual(run({...w,...change}).status,'placed');
+  const duplicate=make(rows.concat(rows.slice(3,8).map(r=>r[2]==='cell'?[r[0],r[1],r[2],2,r[4],r[5]]:r)));assert.equal(run(w,duplicate).status,'unresolved');
+  const incomplete=structuredClone(p);incomplete.paragraphs[2].complete=false;assert.equal(run(w,incomplete).status,'unresolved');
+  const duplicateAct=structuredClone(act);duplicateAct.paragraphs.push({...act.paragraphs[0],complete:false});assert.equal(run(w,p,duplicateAct).status,'unresolved');
+  for(const competing of [[['The following Annex VII is added:','Normal','body'],['‘ANNEX VII','Normal','body']],[['The following Annex VII is added:','Normal','body']],[['‘ANNEX VII','Normal','body']]])assert.equal(run(w,make([...rows.slice(0,3),...competing,...rows.slice(3)])).status,'unresolved');
+  const exactRows=rows.map((r,index)=>index===3?['‘[Iron and steel',...r.slice(1)]:r),exact=structuredClone(make(exactRows));assert.equal(run(w,exact).status,'placed');
+  const walk=units=>units.flatMap(u=>[u,...walk(u.children)]);walk(exact.units).find(u=>u.table).table.rows[0].cells[0].colSpan=2;assert.equal(run(w,exact).status,'unresolved','an exact caption match cannot bypass malformed geometry');
+
+});
