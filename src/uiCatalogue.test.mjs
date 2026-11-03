@@ -125,8 +125,8 @@ test('all reachable messages have translated values in each supported language',
       // grammatical branches; other languages use the common reviewed messages.
       if(id.startsWith('MotionComparison.contextStage.')&&language!=='ro')continue;
       if((id.startsWith('membervotesummary.fullPosition.')||id.startsWith('membervotes.summary.recorded.'))&&!['ro','lt'].includes(language))continue;
-      // New Topics and vote-group messages use the documented per-message English fallback.
-      if((id.startsWith('topics.')||id.startsWith('votegroups.'))&&!Object.hasOwn(catalogue,id))continue;
+      // New Topics, vote-group and ballot messages use the documented per-message English fallback.
+      if((id.startsWith('topics.')||id.startsWith('votegroups.')||id.startsWith('yourVote.'))&&!Object.hasOwn(catalogue,id))continue;
       assert.equal(typeof catalogue[id],'string',language+': '+id);
       assert(catalogue[id].trim(),language+': '+id);
     }
@@ -138,4 +138,10 @@ test('all reachable messages have translated values in each supported language',
       assert(ui.t(pair.other,values),language+': '+pair.other+' @ '+count);
     }
   }
+});
+
+test('ballot messages use per-message English fallback without replacing translated controls',()=>{
+  const ui=createAppUiI18n({hu:{'yourVote.for':'Mellette'}}).forLocale('hu');
+  assert.equal(ui.t('yourVote.for'),'Mellette');assert.equal(ui.messageLocale('yourVote.for'),'hu');
+  assert.equal(ui.t('yourVote.list'),'Voting list');assert.equal(ui.messageLocale('yourVote.list'),'en');
 });
