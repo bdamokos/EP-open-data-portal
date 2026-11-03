@@ -664,6 +664,61 @@ function negativeArticlePlacement(items,proposedText,language,evidence,unresolve
   return {operation:'insert',status:'placed',itemIndex:first.itemIndex,insertAfter:unit.extent.start-1,insertBefore:unit.extent.start,evidence};
 }
 
+// An annex table address names its owning annex provision. Lines of the
+// original column are table rows (cells joined by tabs) or body lines; they
+// must match one unique contiguous run cell for cell inside that provision.
+const tableRowKey=path=>/^(.*\/w:tr\[\d+\])\/w:tc\[\d+\]\/w:p\[(\d+)\]$/u.exec(path??'');
+function annexTablePlacement(items,address,originalText,language,operation,evidence,unresolved) {
+  let parsed;try{parsed=parseTargetLabel(address,language);}catch{return unresolved('target_reference_unavailable');}
+  if(!parsed.complete||parsed.segments[0]?.kind!=='annex')return unresolved('target_reference_unavailable');
+  const find=segments=>items.flatMap((item,itemIndex)=>item.kind!=='annex'?[]:proposalCandidates(item.proposal,{...parsed,segments}).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  let candidates=find(parsed.segments);
+  // A published annex point address omits the annex's sole implicit paragraph.
+  if(!candidates.length&&parsed.segments[1]?.kind==='point'){
+    const annexes=find(parsed.segments.slice(0,1)),body=annexes.length===1?annexes[0].unit.children.filter(child=>child.kind!=='title'):[];
+    if(body.length===1&&body[0].kind==='paragraph'&&body[0].implicit&&!body[0].pathConflict)candidates=find([parsed.segments[0],body[0].label,...parsed.segments.slice(1)]);
+  }
+  if(candidates.length!==1||candidates[0].unit.pathConflict)return unresolved(candidates.length?'multiple_published_targets':'target_not_found');
+  const {itemIndex,unit,proposal}=candidates[0],cell=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
+  const rows=[];let current=null;
+  for(const row of proposal.paragraphs.slice(unit.extent.start,unit.extent.end)){
+    if(row.source?.container==='table-cell'){
+      const key=tableRowKey(row.source.path);
+      if(!key)return unresolved('source_structure_unavailable');
+      if(current?.key!==key[1]){current={key:key[1],cells:[],rows:[],columns:[]};rows.push(current);}
+      if(key[2]==='1')current.columns.push(Number(/\/w:tc\[(\d+)\]\/w:p\[\d+\]$/u.exec(row.source.path)[1]));
+      // A multi-paragraph cell cannot match one tab-separated cell exactly.
+      if(key[2]!=='1')current.cells.push('\u0000');else current.cells.push(cell(row.text));
+      current.rows.push(row);
+    }else{current=null;rows.push({key:null,cells:[cell(row.text)],rows:[row]});}
+  }
+  // Empty cells keep no paragraph: require columns 1..n at the table's widest
+  // row, and consecutive row numbers inside a matched run.
+  // The extracted table records every cell, empty ones included.
+  const cellCounts=new Map();
+  for(const source of flat(proposal.units).filter(u=>u.table).flatMap(u=>[u.table,...(u.table.nestedTables??[])]))for(const tr of source.rows??[]){
+    const plain=tr.cells.every(c=>(c.colSpan??1)===1&&!c.horizontalMerge&&!c.verticalMerge);
+    for(const c of tr.cells)for(const index of c.paragraphs??[])cellCounts.set(index,plain?tr.cells.length:-1);
+  }
+  const tableOf=key=>key.replace(/\/w:tr\[\d+\]$/u,''),rowOf=key=>Number(/\/w:tr\[(\d+)\]$/u.exec(key)[1]);
+  rows.forEach((row,index)=>{
+    if(!row.key)return;
+    if(row.columns.some((column,at)=>column!==at+1)||cellCounts.get(row.rows[0].index)!==row.columns.length)row.cells=['\u0000'];
+    const previous=rows[index-1];
+    row.gap=Boolean(previous?.key&&tableOf(previous.key)===tableOf(row.key)&&rowOf(row.key)!==rowOf(previous.key)+1);
+  });
+  const lines=originalText.split(/\r?\n/u).map(line=>line.split('\t').map(cell));
+  const starts=[];
+  for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>rows[i+offset].cells.length===line.length&&rows[i+offset].cells.every((value,index)=>value===line[index])))starts.push(i);
+  if(starts.length!==1)return unresolved(starts.length?'duplicate_target_label':'conflicting_target_evidence');
+  if(rows.slice(starts[0]+1,starts[0]+lines.length).some(row=>row.gap))return unresolved('source_passage_incomplete');
+  const matched=rows.slice(starts[0],starts[0]+lines.length).flatMap(row=>row.rows);
+  if(matched.some(row=>!row.complete||!row.source||row.source.complete===false))return unresolved('source_passage_incomplete');
+  const first=matched[0],last=matched.at(-1);
+  evidence.push({basis:'annex-table-rows',anchor:unit.id,rows:lines.length});
+  return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:matched.map(row=>row.text).join('\n'),evidence};
+}
+
 export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
@@ -680,6 +735,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(paths&&paths.length!==1)return unresolved('target_reference_unavailable');
   // A structured underlying-act target without a proposal address is not an outer location.
   if(!paths&&targetPath?.underlying?.length)return unresolved('target_reference_unavailable');
+  const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
+  if(table)return annexTablePlacement(items,table[1],originalText,language,operation,evidence,unresolved);
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});

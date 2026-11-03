@@ -1359,3 +1359,41 @@ test('an amendment after a table appears outside its final cell',async t=>{
   assert.equal(table.nextElementSibling.dataset.contextTarget,'true');
   assert.match(table.nextElementSibling.nextElementSibling.textContent,/Following provision/);
 });
+async function tableReader(t,original,proposed,placementOverride) {
+  const {parseProposal}=await import('../server/proposal-structure.mjs'),{resolveProposalPlacement}=await import('../server/proposal-placement.mjs');
+  const paragraphs=['ANNEX III','The following Annex VIII is added:','Aluminium','CN code','Greenhouse gas','ex 7602 Aluminium waste','Carbon dioxide','’'];
+  const cell=(row,col)=>`/w:document[1]/w:body[1]/w:tbl[1]/w:tr[${row}]/w:tc[${col}]`;
+  const cells={3:[1,1],4:[1,2],5:[2,1],6:[2,2]};
+  const paragraphSources=paragraphs.map((_,ordinal)=>cells[ordinal]?{path:cell(...cells[ordinal])+'/w:p[1]',ordinal,container:'table-cell',containerPath:cell(...cells[ordinal]),segment:ordinal,complete:true}:{path:'/w:document[1]/w:body[1]/w:p['+ordinal+']',ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true});
+  const tables=[{sourcePath:'/w:document[1]/w:body[1]/w:tbl[1]',paragraphs:[3,4,5,6],rows:[{cells:[{paragraphs:[3],colSpan:1},{paragraphs:[4],colSpan:1}]},{cells:[{paragraphs:[5],colSpan:1},{paragraphs:[6],colSpan:1}]}],complete:true}];
+  const proposal=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources,tables,paragraphProperties:paragraphs.map((_,i)=>({styleId:i===0?'Annexetitre':'Normal',numberingComplete:true,notesComplete:true}))},{item:'annex'});
+  const value=proposalContextResponse(report,amendment,list,4),items=[{kind:'annex',index:1,proposal}];
+  const variant={...value.amendment.variants[0],targetLabel:'Annex III – paragraph 1 – table',targetPath:{proposal:[],underlying:[],language:'en'},originalText:original,proposedText:proposed};
+  Object.assign(value,{proposal:{items},amendment:{...value.amendment,variants:[variant]},placement:placementOverride??resolveProposalPlacement(items,variant)});
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  return {value,item:h.container.querySelector('[data-proposal-item="annex-1"]')};
+}
+
+test('an amendment replacing whole proposal table rows omits those rows instead of leaving empty cells',async t=>{
+  const {value,item}=await tableReader(t,'Aluminium\nCN code\tGreenhouse gas\nex 7602 Aluminium waste\tCarbon dioxide','Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide');
+  assert.equal(value.placement.status,'placed');
+  assert(item.querySelector('[data-amendment-block]'));
+  assert.equal(item.querySelectorAll('.proposal-table td').length,0,'no empty replaced cells remain');
+});
+
+test('a replaced leading table row keeps reading order: amendment, then the following rows',async t=>{
+  const {value,item}=await tableReader(t,'CN code\tGreenhouse gas','Code\tGas');
+  assert.equal(value.placement.status,'placed');
+  const order=[...item.querySelectorAll('[data-amendment-block], .proposal-table')];
+  assert(order[0].matches('[data-amendment-block]'));assert(order[1].textContent.includes('ex 7602 Aluminium waste'));
+  assert(!order[1].textContent.includes('CN code'));
+});
+
+test('a partial-cell splice keeps the unchanged text of that cell and the row',async t=>{
+  // The splice starts inside the first cell and runs to the row's end.
+  const placement={operation:'replace',status:'placed',itemIndex:0,span:{start:5,end:6},splice:{start:{paragraph:5,offset:3},end:{paragraph:6,offset:14}},evidence:[]};
+  const {item}=await tableReader(t,'7602 Aluminium waste\tCarbon dioxide','7603 Aluminium waste\tCarbon dioxide',placement);
+  const table=[...item.querySelectorAll('.proposal-table')].find(node=>node.textContent.includes('ex '));
+  assert(table,'the unchanged start of the cell stays in its row');
+});
