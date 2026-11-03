@@ -539,3 +539,15 @@ test('new subparagraph placement withholds Point-style paragraph labels outside 
  const literal=structuredClone(p);literal.paragraphProperties[2].styleId='Normal';literal.paragraphProperties[3].styleId='Normal';
  assert.equal(resolve(literal,'Article 16 – paragraph 1 – subparagraph 1 a (new)').status,'unresolved');
 });
+
+test('two-row chapter titles preserve the CHAPTER prefix and source offsets',()=>{
+  const p=source(['HAVE ADOPTED THIS REGULATION:','CHAPTER VI','PROGRAMMING','Article 15','Work programme','One.'],['Formuledadoption','ChapterTitle','ChapterTitle','Titrearticle','Titrearticle','Normal']);
+  const placed=resolve(p,'Chapter VI – title','VI\tPROGRAMMING','VI\tPROGRAMMING AND MONITORING');
+  assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:2});assert.deepEqual(placed.splice,{start:{paragraph:1,offset:8},end:{paragraph:2,offset:11}});
+  assert.equal(resolve(p,'Chapter VI – title','VI\tWRONG','VI\tNEW').status,'unresolved');
+  assert.equal(resolve(p,'Chapter VI – title','VI\tPROGRAMMING','VII\tNEW').status,'unresolved');
+  const gap=structuredClone(p);gap.paragraphSources[2].ordinal++;
+  assert.equal(resolve(gap,'Chapter VI – title','VI\tPROGRAMMING','VI\tNEW').status,'unresolved');
+});
+
+test('chapter C does not splice the first letter of CHAPTER',()=>{const p=source(['HAVE ADOPTED THIS REGULATION:','CHAPTER C','PROGRAMMING','Article 15','Work programme','One.'],['Formuledadoption','ChapterTitle','ChapterTitle','Titrearticle','Titrearticle','Normal']);assert.equal(resolve(p,'Chapter C – title','C\tPROGRAMMING','C\tCHANGED').splice.start.offset,8);});
