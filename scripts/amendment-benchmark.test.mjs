@@ -10,9 +10,9 @@ import {parseProposal} from '../server/proposal-structure.mjs';
 import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
 import {documentContextPlacement} from '../server/document-context-placement.mjs';
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
-import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility} from './amendment-benchmark-model.mjs';
+import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility,instructionFrameWording} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
-import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl} from './amendment-benchmark.mjs';
+import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport} from './amendment-benchmark.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 beforeEach(registerSubprocesses);
@@ -484,6 +484,62 @@ test('proposal oracle rejects an implicit paragraph extent swallowing a publishe
   assert.equal(checked.status,'failed');assert.equal(checked.reason,'oracle-published-paragraph-boundary-mismatch');
   assert.equal(classify({...stages(),S5:placement,S6:checked}).outcome,'false-placement');
 });
+
+test('present-text instruction frames assert only new numbered proposal instructions',()=>{
+  const wording=(raw,proposedText,language='en',proposal=[])=>({baseline:'present-text',language,targetLabel:raw,targetPath:{proposal,underlying:[{document:'Regulation (EU) 2024/1689',raw:'Article 6 – paragraph 1'}]},originalText:'1. Present law;',proposedText});
+  const framed=instructionFrameWording(wording('Article 1 – paragraph 1 – point 5 b (new)','(5b)\tArticle 6(1) is amended as follows:'));
+  assert.equal(framed.baseline,'commission-proposal');assert.equal(framed.originalText,'');assert.deepEqual(framed.targetPath.underlying,[]);
+  assert.equal(framed.targetLabel,'Article 1 – paragraph 1 – point 5 b (new)');
+  assert(instructionFrameWording(wording('Article 1 – paragraph 1 – point 2 a (new)\nRegulation (EU) 2024/1689 — Article 2 – paragraph 8','(2 a)\tin Article 2, paragraph 8 is replaced:')));
+  assert(instructionFrameWording(wording('Article 1 – paragraph 1 – point -1','(-1)\tin Article 10a, paragraph 1 is replaced:')));
+  assert(instructionFrameWording(wording('Article 1 a (new)','Article 1 a (new)\n"In Article 1 of Decision (EU) 2015/1814:')));
+  // The complete printed article number must match ('1 bis' is not '1 bis bis').
+  assert(instructionFrameWording(wording('Article 1 bis (nouveau)','Article 1 bis (nouveau)\nÀ l’article 1:','fr')));
+  assert.equal(instructionFrameWording(wording('Article 1 bis (nouveau)','Article 1 bis bis (nouveau)\nÀ l’article 1:','fr')),null);
+  assert.equal(instructionFrameWording(wording('Article 1 a (new)','Article 1 ab (new)\nIn Article 1:')),null);
+  // Nested points are outside the outer-level rule, whatever their numbering.
+  assert.equal(instructionFrameWording(wording('Article 1 – paragraph 1 – point 5 – point 1 a (new)','(1a)\tNew nested point')),null);
+  assert.equal(instructionFrameWording(wording('Article 1 – paragraph 1 – point 5 – point b a (new)','(ba)\tNew nested point')),null);
+  assert.equal(instructionFrameWording(wording('Article 1 – point 5 b (new)','(5b)\tArticle 6(1) is amended:')),null);
+  assert(instructionFrameWording(wording('Artykuł 1 – akapit 1 – punkt 6 b (nowy)','6b)\tart. 12 otrzymuje brzmienie:','pl')));
+  for(const value of [
+    wording('Article 1 – paragraph 1 – point 5 b (new)','(5c)\tArticle 6(1) is amended as follows:'),
+    wording('Article 1 – paragraph 1 – point 5','(5)\tArticle 6(1) is amended as follows:'),
+    wording('Regulation (EU) 2024/1689 — Article 6 – paragraph 1','(5b)\tArticle 6(1) is amended:'),
+    wording('Artykuł 1 – akapit 1 – punkt 6 a – litera a (nowa)','6a)\tw art. 11 wprowadza się następujące zmiany:','pl'),
+    {...wording('Article 1 – paragraph 1 – point 5 b (new)','(5b)\tArticle 6(1) is amended:'),baseline:'commission-proposal'},
+    wording('Article 1 – paragraph 1 – point 5 b (new)','(5b)\tArticle 6(1) is amended:','en',[{raw:'Article 1 – paragraph 1 – point 5 b (new)'},{raw:'Article 2'}]),
+  ])assert.equal(instructionFrameWording(value),null,value.targetLabel+' / '+value.proposedText);
+});
+
+test('replay reads the proposal frame only when the law does not place the instruction',async()=>{
+  const frame={baseline:{language:'en',status:'available'},items:[{kind:'act'}]};
+  const placed={status:'placed',operation:'replace'},unresolved={status:'unresolved',reason:'existing-law-target-unavailable'},framed={status:'placed',operation:'insert',frame:'commission-proposal'};
+  const run=async({law,matching,eligible=true,proposal=framed,available=frame})=>{const reads=[];const result=await placeWithInstructionFrame({eligible,matching,language:'en',
+    place:items=>items?proposal:law,readFrame:async()=>{reads.push(1);return available;}});return {...result,reads:reads.length};};
+  // A placed existing-law amendment needs no proposal read.
+  assert.deepEqual(await run({law:placed,matching:true}),{placement:placed,frame:null,reads:0});
+  // An available law that cannot place the instruction falls back, like the endpoint.
+  assert.deepEqual(await run({law:unresolved,matching:true}),{placement:framed,frame,reads:1});
+  // A partial law baseline with matching-language items: the frame still supplies verification inputs.
+  assert.deepEqual(await run({law:{status:'unresolved',reason:'existing-law-wording-conflict'},matching:true}),{placement:framed,frame,reads:1});
+  // No law at all: the frame or nothing.
+  assert.deepEqual(await run({law:unresolved,matching:false}),{placement:framed,frame,reads:1});
+  assert.deepEqual(await run({law:unresolved,matching:false,proposal:{status:'unresolved',reason:'relative_target_not_found'}}),{placement:{status:'unresolved',reason:'placement-not-evaluated'},frame:null,reads:1});
+  assert.deepEqual(await run({law:unresolved,matching:true,proposal:{status:'unresolved',reason:'relative_target_not_found'}}),{placement:unresolved,frame:null,reads:1},'the law result stands, as at the endpoint');
+  assert.deepEqual(await run({law:unresolved,matching:true,available:{baseline:{language:'fr'},items:[{}]}}),{placement:unresolved,frame:null,reads:1});
+  assert.equal((await run({law:unresolved,matching:true,eligible:false})).reads,0);
+});
+
+test('NLE reports never read the proposal frame, as at the endpoint',async()=>{
+  const {array}=await import('../server/activity-index-model.mjs'),{commissionProcedures}=await import('../server/commission-proposal-identity.mjs');
+  const runtime={array,commissionProcedures};
+  const work=title=>({is_realized_by:[{title_alternative:{en:[title]}}]});
+  assert.equal(nleReport(work('REPORT on the draft Council decision (2025/0123(NLE))'),[],runtime),true);
+  assert.equal(nleReport(work('REPORT on the proposal (2025/0359(COD))'),[{field:'DocRef',raw:'(COM(2025)0836 – C10-0304/2025 – 2025/0359(COD))'}],runtime),false);
+  assert.equal(nleReport(work('REPORT'),[{field:'DocRef',raw:'(2025/0123(NLE))'}],runtime),true);
+});
+
 test('oracle places an insertion after a provision merged into its predecessor row before the next neighbour',()=>{
   const text=source(['The European Parliament,','– having regard to its rules,','K.\twhereas one;L.\twhereas merged;','M.\twhereas two;','N.\twhereas three;','1.\tCalls for action.']);
   const amendment={...wording('Recital L a (new)','','La.\twhereas new;'),baseline:'motion-resolution'};
