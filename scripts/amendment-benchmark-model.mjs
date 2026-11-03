@@ -1,4 +1,5 @@
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
+import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
@@ -470,6 +471,8 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const header=assertCompoundHeader(input);
+  if(header&&header.status!=='verified')return header;
   const result=verifyProposalPlacement(input);
   if(result.status!=='verified')return result;
   // A recast's legal reading omits its struck deletions and markers; the
