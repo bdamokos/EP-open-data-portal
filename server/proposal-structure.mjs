@@ -1,3 +1,4 @@
+import {guidelineAnnexLayout} from './proposal-guideline-annex.mjs';
 import {createHash} from 'node:crypto';
 import {proposalDocx} from './proposal-docx.mjs';
 import {parseLabelSegment,parseTargetLabel,unitLabel,proposalNumber,proposalLanguage,isBareLabel} from './proposal-labels.mjs';
@@ -15,7 +16,7 @@ export {normaliseForMatching} from './proposal-matching.mjs';
 // source identity, content and path for this parser version; they are not official
 // legal-unit identifiers. Results are cached frozen, so consumers copy before
 // modifying them. Bump PROPOSAL_PARSER_VERSION for any change in parsing semantics.
-export const PROPOSAL_PARSER_VERSION='18';
+export const PROPOSAL_PARSER_VERSION='19';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -223,10 +224,17 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   const outerTables=tables.filter(table=>!tables.some(parent=>parent!==table&&table.sourcePath.startsWith(parent.sourcePath+'/')));
   const emptyTables=new Map();
   for(const table of outerTables){if(!table.paragraphs.length){const anchor=table.anchor??paragraphs.length,list=emptyTables.get(anchor)??[];list.push(table);emptyTables.set(anchor,list);continue;}tableStart.set(Math.min(...table.paragraphs),table);for(const index of table.paragraphs)tableParagraphs.add(index);}
+  const guidelines=item==='annex'&&content.sourceKind==='docx'?guidelineAnnexLayout(content,{language}):null;
   let tableUnit=null;
   for(let i=0;i<paragraphs.length;i++) {
     for(const table of emptyTables.get(i)??[])make(quote?.last??points.at(-1)?.unit??paragraph??container??area,'table',i,{table});
     const p=paragraphs[i],text=p.text,style=p.properties?.styleId??'',trim=text.trim(),lead=cleanLead(trim),headed=heading(trim,language,style),sourceRegion=proposalRegion(trim,language);
+    if(guidelines&&i>=guidelines.start) {
+      if(i===guidelines.start){region('body',i,true);container=make(area,'annex',i,{segment:label('annex','',language),normative:true});}
+      if(guidelines.headings.some(heading=>heading.index===i))last=make(container,'title',i);
+      else last=make(container,'paragraph',i,{segment:label('paragraph',String(guidelines.paragraphs.indexOf(i)+1),language),implicit:true});
+      retain(last,i);continue;
+    }
     if(tableParagraphs.has(i)) {
       if(tableStart.has(i)) {
         const table=tableStart.get(i),parent=quote?.last??points.at(-1)?.unit??paragraph??container??area;

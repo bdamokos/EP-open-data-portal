@@ -26,8 +26,16 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   // has another legal scope; keep it readable without claiming its placement.
   if(proposalKind&&(consultation||nle)&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text)))return unresolved('proposal_note_scope_unavailable');
   if(proposalKind&&nle&&baseline.evidence.some(e=>e.kind==='native-nle-annex-part'&&e.ordinal===null&&e.legalPlacement===false)&&/\bAnnex\b/iu.test(chosen.targetLabel||''))return unresolved('proposal_annex_ordinal_unverified');
+  let selected=chosen;
+  if(proposalKind&&nle&&chosen.language==='en'&&/^Annex I(?= [–-])/u.test(chosen.targetLabel||'')) {
+    const annexes=(items||[]).filter(item=>item.kind==='annex'),proof=baseline.evidence.find(e=>e.kind==='native-nle-annex-part'&&e.status==='verified'&&e.legalPlacement===true&&e.basis==='sole-annex-adopted-by-native-act');
+    if(annexes.length===1&&proof?.sha256===annexes[0].proposal.sourceHash) {
+      const alias=raw=>raw.replace(/^Annex I(?= [–-])/u,'Annex');
+      selected={...chosen,targetLabel:alias(chosen.targetLabel),...(chosen.targetPath?{targetPath:{...chosen.targetPath,proposal:chosen.targetPath.proposal?.map(path=>({...path,raw:alias(path.raw)}))}}:{})};
+    }
+  }
   if(proposalKind)return items?.length&&chosen.language&&(chosen.targetPath?.language??chosen.targetLabelLanguage)===chosen.language
-    ?resolveProposalPlacement(items,chosen):unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
+    ?resolveProposalPlacement(items,selected):unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
   const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
   let placement=['present-text','council-position'].includes(chosen.baseline)
