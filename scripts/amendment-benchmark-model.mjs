@@ -249,7 +249,7 @@ function verifyAnnexTable({proposal,wording,placement,items}) {
   if(headingAt<0||before[headingAt].cells[0]!=='ANNEX '+address[1])return {status:'unverified',reason:'oracle-annex-identity-unverified'};
   if(decoration){
     const scopeRows=before.slice(headingAt).filter(row=>!row.key),prefix=scopeRows.slice(1).map(row=>row.cells[0]),tableKey=run[1]?.key?.replace(/\/w:tr\[\d+\]$/u,'');
-    if(scopeRows.some(row=>row.broken)||address[1]!==decoration.outer||run[0].key||!tableKey||run.slice(1).some(row=>!row.key||row.key.replace(/\/w:tr\[\d+\]$/u,'')!==tableKey||row.cells.length!==2)||prefix.filter(value=>value==='‘ANNEX '+decoration.inner).length!==1||prefix.filter(value=>value==='The following Annex '+decoration.inner+' is added:').length!==1)return {status:'unverified',reason:'oracle-table-caption-scope-unverified'};
+    if(scopeRows.some(row=>row.broken)||address[1]!==decoration.outer||run[0].key||!tableKey||run.slice(1).some(row=>!row.key||row.key.replace(/\/w:tr\[\d+\]$/u,'')!==tableKey||row.cells.length!==2)||prefix.filter(value=>/^‘ANNEX [IVXLC]+$/u.test(value)).length!==1||!prefix.includes('‘ANNEX '+decoration.inner)||prefix.filter(value=>/^The following Annex [IVXLC]+ is added:$/u.test(value)).length!==1||!prefix.includes('The following Annex '+decoration.inner+' is added:'))return {status:'unverified',reason:'oracle-table-caption-scope-unverified'};
   }
   // Subordinate addresses: only 'paragraph 1' (no other numbered paragraph
   // before the run) or 'point N' (nearest preceding numbered point is N).
