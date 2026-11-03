@@ -4,7 +4,7 @@ import {docxParts} from './document-text.mjs';
 const URI='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const child=(nodes,key)=>nodes.filter(node=>node[key]).map(node=>node[key]);
 const find=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,value])=>name===key?[node]:Array.isArray(value)?find(value,key):[]));
-const rawText=nodes=>nodes.map(node=>Object.entries(node).map(([key,value])=>key==='w:t'?value.map(part=>part['#text']??'').join(''):key==='w:tab'?'\t':['w:br','w:cr'].includes(key)?'\n':key==='w:noBreakHyphen'?'\u2011':key==='w:softHyphen'?'\u00ad':Array.isArray(value)?rawText(value):'').join('')).join('');
+const rawText=nodes=>nodes.map(node=>Object.entries(node).map(([key,value])=>['w:t','w:delText','w:instrText'].includes(key)?value.map(part=>part['#text']??'').join(''):key==='w:tab'?'\t':['w:br','w:cr'].includes(key)?'\n':key==='w:noBreakHyphen'?'\u2011':key==='w:softHyphen'?'\u00ad':Array.isArray(value)?rawText(value):'').join('')).join('');
 const property=(nodes,key)=>find(nodes,key).map(node=>node[':@']?.['@_w:val']);
 const trim=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
 function nativeTree(xml){
