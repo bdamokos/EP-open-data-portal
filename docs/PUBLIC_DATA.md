@@ -112,6 +112,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 - Amendment lists hang off `/plenary-documents/{id}` through `inverse_foresees_change_of`, and each list must point back with `foresees_change_of`. List detail uses `/documents/{id}`. Committee lists come from the procedure’s `COMMITTEE_TABLING_REPORT`, `_OPINION` and `_AMENDMENT` links, with draft detail from `/committee-documents/{id}`.
 - Each list’s DOCX supplies amendment numbers, proposers (`<Members>` bylines), target provisions and the original/proposed columns. List number ranges don’t prove that every number exists.
+- Offline adopted-text calibration reads `/adopted-texts?year=YYYY` listings and their declared English XML distributions. Exact `adopts` plus decision date binds the TA; `AMDLST/AMEND/TI.AMD` retains amendment numbers and `STI.AMD` the finalized path. The sealed calibration inputs stay outside Git and never feed runtime placement.
 - Committee amendment numbers are local to their list; the internal identity `committee:{list-id}:{number}` is never an official URI.
 - An omitted distribution isn’t an unpublished file. B-10-2026-0435 and B-10-2026-0436 have public English DOCX files on the website, but their API records omit `is_realized_by`. Don’t construct file URLs.
 - Greek and Cyrillic bylines are linked to members through the same amendment in a Latin-script edition of the same list, never by transliteration.
