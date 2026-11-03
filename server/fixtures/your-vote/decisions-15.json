@@ -635,6 +635,45 @@
       "inverse_consists_of": [
         "eli/dl/event/MTG-PL-2026-09-15-VOT-ITM-993066"
       ]
+    },
+    {
+      "id": "eli/dl/event/MTG-PL-2026-09-15-DEC-196072",
+      "type": "Vote",
+      "activity_date": "2026-09-15",
+      "activity_id": "MTG-PL-2026-09-15-DEC-196072",
+      "activity_order": "77.0",
+      "decision_method": "def/ep-decision-methods/VOTE_HAND",
+      "decision_outcome": "def/ep-statuses/ADOPTED",
+      "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+      "referenceText": {
+        "en": "Request for referral back to committee",
+        "cs": "žádost o vrácení výboru",
+        "ga": "Iarraidh ar tharchur ar ais chuig coiste",
+        "sl": "Zahteva za vrnitev odboru",
+        "sk": "Žiadosť o vrátenie výboru",
+        "hu": "Bizottsághoz történő visszautalásra irányuló kérelem",
+        "it": "Richiesta di rinvio in commissione",
+        "pl": "Wniosek o odesłanie do komisji",
+        "hr": "Zahtjev za vraćanje predmeta odboru",
+        "sv": "Begäran om återförvisning till utskottet",
+        "bg": "Искане за връщане в комисия",
+        "fi": "pyyntö valiokuntaan palauttamiseksi",
+        "lv": "Pieprasījums nodot atpakaļ komitejai",
+        "et": "Komisjonile tagasisaatmise taotlus",
+        "lt": "Prašymas grąžinti komitetui",
+        "ro": "Cerere de retrimitere în comisie",
+        "pt": "Pedido de devolução à comissão",
+        "de": "Antrag auf Rücküberweisung an den Ausschuss",
+        "el": "Αίτηση αναπομπής σε επιτροπή",
+        "fr": "Demande de renvoi en commission",
+        "es": "Solicitud de devolución a comisión",
+        "mt": "Talba għal riferiment lura lill-kumitat",
+        "da": "Anmodning om henvisning til fornyet udvalgsbehandling",
+        "nl": "Verzoek om terugverwijzing naar de commissie"
+      },
+      "inverse_consists_of": [
+        "eli/dl/event/MTG-PL-2026-09-15-VOT-ITM-993066"
+      ]
     }
   ]
 }

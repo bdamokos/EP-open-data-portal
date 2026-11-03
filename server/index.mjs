@@ -1,5 +1,5 @@
 import {votingListsResponse} from './voting-list-collector.mjs';
-import {upcomingVotes,upcomingVotesQuery,ballotComparison} from './upcoming-votes.mjs';
+import {upcomingVotes,upcomingVotesQuery,ballotComparisons} from './upcoming-votes.mjs';
 import {readTopics,warmTopicOverviews} from './topics-reader.mjs';
 import {errorLog,clientErrorEvent,serverErrorEvent} from './error-log.mjs';
 import {documentImage} from './document-image-store.mjs';
@@ -132,7 +132,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 
 // Browser transport for this app. The gateway admits the same finite route set.
 let diagnosticWindow=0,diagnosticCount=0;
-const apiEndpoints=new Set(['voting-lists','upcoming-votes','ballot-comparison','client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['voting-lists','upcoming-votes','ballot-comparisons','client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -232,8 +232,8 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments[0] === 'upcoming-votes' && segments.length===1) {
       result=await upcomingVotes(upcomingVotesQuery(url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
     }
-    else if (segments[0] === 'ballot-comparison' && segments.length===2) {
-      result=await ballotComparison(segments[1],url.searchParams,{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
+    else if (segments[0] === 'ballot-comparisons' && segments.length===1) {
+      result=await ballotComparisons(upcomingVotesQuery(url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
     }
     else if (segments[0] === 'decision-votes' && segments.length===2) {
       result=await decisionVotes(decisionVotesQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});

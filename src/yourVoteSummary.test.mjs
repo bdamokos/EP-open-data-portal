@@ -15,3 +15,6 @@ test('part-session dates use localized ranges rather than ISO keys',()=>{
  assert.equal(sessionDateRange(['2026-09-17','2026-09-14'],'en').replace(/\u2009/g,''),'14–17 September 2026');
  assert.match(sessionDateRange(['2026-09-14','2026-09-17'],'hu'),/szeptember/);
 });
+test('ballot admission uses the Brussels date across midnight',async()=>{
+ const {ballotVisible,brusselsToday}=await import('./yourVoteSummary.mjs');const now=Date.parse('2026-11-02T23:30:00Z');assert.equal(brusselsToday(now),'2026-11-03');assert.equal(ballotVisible('MTG-PL-2026-11-02','tabled',now),false);assert.equal(ballotVisible('MTG-PL-2026-11-03','tabled',now),true);assert.equal(ballotVisible('MTG-PL-2026-09-15','retained',now),true);
+});

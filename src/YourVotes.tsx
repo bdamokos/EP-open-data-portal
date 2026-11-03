@@ -3,7 +3,7 @@ import {useUiI18n} from './UiI18nReact';
 import {api} from './data';
 import {humanDate} from './InsightShared';
 import {plenaryMonday,type VotePeriodsResponse} from './plenaryPeriods.mjs';
-import {ballotGroups,summarizeVotes,sessionDateRange,type ComparisonData,type ComparisonEntry,type Person} from './yourVoteSummary.mjs';
+import {ballotGroups,ballotVisible,brusselsToday,summarizeVotes,sessionDateRange,type ComparisonData,type ComparisonEntry,type Person} from './yourVoteSummary.mjs';
 const DocumentContextReader=lazy(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
 import {createYourVotesStore,YOUR_VOTES_KEY,choiceAgreement,outcomePosition,type Choice} from './yourVoteStore.mjs';
 import {useSaved} from './SavedControls';
@@ -42,7 +42,7 @@ function BallotRow({row,ballot,onContext}:{row:Row;ballot:Ballot;onContext:(a:Am
     {row.amendmentRows.map(a=><div className="your-votes-wording" key={a.id}><details><summary>{label('wording')}{row.amendmentRows.length>1?' · '+ui.t('yourVote.am',{number:a.id.split('-').at(-1)||''}):''}</summary>{a.proposedText&&<div><h6>{label('proposed')}</h6><p lang={a.language||''}>{a.proposedText}</p></div>}{a.originalText&&<div><h6>{label('original')}</h6><p lang={a.language||''}>{a.originalText}</p></div>}{!a.proposedText&&!a.originalText&&<p>{label('wordingUnavailable')}</p>}</details><button className="insight-text-button" onClick={()=>onContext(a)}>{label('context')}</button></div>)}
     <div className="your-votes-row-footer"><div className="your-votes-choices" role="group" aria-label={label('choice')}>{(['for','against','abstaining'] as Choice[]).map(choice=><button key={choice} aria-pressed={saved?.choice===choice} disabled={Boolean(row.status)} onClick={()=>yourVotesStore.choose({key:row.key,documentId:row.documentId,agendaItemId:ballot.id,sittingId:ballot.sittingId,revision:row.revision,choice:saved?.choice===choice?null:choice})}>{label(choice)}</button>)}</div>
       {row.outcome&&<p className="your-votes-result">{label('result')}: <strong>{outcomeLabel(row.outcome,ui)}</strong>{saved&&<> · {label('choice')}: {label(saved.choice)} · {choiceAgreement(saved.choice,outcomePosition(row.outcome))===null?label('noComparison'):label(choiceAgreement(saved.choice,outcomePosition(row.outcome))?'agree':'disagree')}</>}</p>}
-      {!row.outcome&&saved&&ballot.sittingId.slice(7)<new Date().toISOString().slice(0,10)&&<p className="your-votes-note">{label('unmatched')}</p>}
+      {!row.outcome&&ballot.sittingId.slice(7)<brusselsToday()&&<p className="your-votes-note">{label('unmatched')}</p>}
     </div>
   </article>;
 }
@@ -50,7 +50,8 @@ export function BallotCard({ballot,language,deadlines=[]}:{ballot:Ballot;languag
   const ui=useUiI18n(),state=useYourVotes(),[all,setAll]=useState(false),[context,setContext]=useState<{documentId:string;amendmentId?:string;listId?:string}|null>(null),groups=ballotGroups(ballot.rows);
   const orphaned=state.choices.filter(c=>c.sittingId===ballot.sittingId&&c.agendaItemId===ballot.id&&c.documentId===ballot.documentId&&!ballot.rows.some(r=>r.key===c.key));
   const starred=state.stars.some(s=>s.id===ballot.id&&s.sittingId===ballot.sittingId),label=(key:string)=>ui.t('yourVote.'+key);
-  const upcoming=ballot.sittingId.slice(7)>=new Date().toISOString().slice(0,10),unpublished=upcoming&&ballot.source==='tabled';
+  const upcoming=ballot.sittingId.slice(7)>=brusselsToday(),unpublished=upcoming&&ballot.source==='tabled';
+  if(!ballotVisible(ballot.sittingId,ballot.source))return null;
   return <section className="your-votes" lang={ui.messageLocale('yourVote.list')}><header><h3>{label(ballot.source==='voting-list'||unpublished?'list':ballot.source==='retained'?'results':'tabled')}</h3><button aria-pressed={starred} onClick={()=>yourVotesStore.toggleStar({id:ballot.id,sittingId:ballot.sittingId,title:ballot.title})}>{label(starred?'unstar':'star')}</button></header>{state.storageError&&<p role="status">{label('storageError')}</p>}
     {unpublished&&<div className="your-votes-unpublished"><p>{label('notPublished')}</p>{deadlines.filter(d=>d.end&&Number.isFinite(Date.parse(d.end))&&/AMENDMENT/.test(String(typeof d.type==='object'?d.type?.id:d.type))||d.end&&Number.isFinite(Date.parse(d.end))&&/amendments/i.test(d.labels?.en||'')).map(d=><p key={d.id}>{ui.t('yourVote.due',{date:new Intl.DateTimeFormat(ui.language==='en'?'en-GB':ui.locale,{day:'numeric',month:'long',timeZone:'Europe/Brussels'}).format(new Date(d.end!)),time:new Intl.DateTimeFormat(ui.language==='en'?'en-GB':ui.locale,{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Europe/Brussels'}).format(new Date(d.end!))})}</p>)}<h4>{label('tabled')}</h4></div>}
     {ballot.partial&&<p>{label(ballot.rows.length?'partial':'amendmentsUnavailable')}</p>}{!ballot.rows.length&&!ballot.partial&&<p>{label('empty')}</p>}
@@ -60,7 +61,7 @@ export function BallotCard({ballot,language,deadlines=[]}:{ballot:Ballot;languag
     {context&&<Suspense fallback={<p>{label('loading')}</p>}><DocumentContextReader language={language} request={{...context,view:'document',onBack:()=>setContext(null)}}/></Suspense>}
   </section>;
 }
-export function AgendaBallot({sitting,agendaItemId,language,deadlines}:{sitting:string;agendaItemId:string;language:string;deadlines?:AgendaTopic['deadlines']}) {const {data,error}=useBallots(sitting,language),ui=useUiI18n();const items=data?.items.filter(b=>b.id===agendaItemId)||[];return error||data&&!items.length?<p>{ui.t('yourVote.error')}</p>:<>{items.map(b=><BallotCard key={b.documentId} ballot={b} language={language} deadlines={deadlines}/>)}</>;}
+export function AgendaBallot({sitting,agendaItemId,language,deadlines}:{sitting:string;agendaItemId:string;language:string;deadlines?:AgendaTopic['deadlines']}) {const {data,error}=useBallots(sitting,language),ui=useUiI18n();const items=data?.items.filter(b=>b.id===agendaItemId)||[];return error||data&&!items.length?sitting.slice(7)<brusselsToday()?null:<p>{ui.t('yourVote.error')}</p>:<>{items.map(b=><BallotCard key={b.documentId} ballot={b} language={language} deadlines={deadlines}/>)}</>;}
 function ComparisonSummary({entries,comparisons,people}:{entries:ComparisonEntry[];comparisons:Record<string,ComparisonData>;people:Person[]}) {
   const ui=useUiI18n(),summary=summarizeVotes(entries,comparisons,people);
   if(!summary.result.total&&!summary.groups.length&&!summary.members.length)return null;
@@ -74,14 +75,14 @@ function FollowingSession({sittings,dates,language,people,dossiers}:{sittings:st
   },[sittingKey,language]);
   const eligible=data?.filter(b=>state.stars.some(s=>s.id===b.id&&s.sittingId===b.sittingId)||state.choices.some(c=>c.agendaItemId===b.id&&c.sittingId===b.sittingId)||b.rows.some(row=>state.choices.some(c=>c.key===row.key))||b.procedureIds.some(p=>dossiers.includes(p)))||[];
   const entries=(ballots:Ballot[])=>ballots.flatMap(b=>b.rows.flatMap(r=>{const choice=state.choices.find(c=>c.key===r.key);return choice?[{choice:choice.choice,outcome:r.outcome,decisionId:r.decisionId}]:[];}));
-  const decisionKey=[...new Set(entries(eligible).map(e=>e.decisionId).filter((id):id is string=>Boolean(id)))].sort().join(',');
-  useEffect(()=>{const abort=new AbortController();setComparisons({});setComparisonFailed(false);if(!decisionKey)return;
-    // Bounded existing readers; choices stay in this browser. Limit concurrent
-    // requests so a long saved ballot does not flood the shared read lane.
-    const ids=decisionKey.split(',');let cursor=0;
-    const worker=async()=>{while(cursor<ids.length){const id=ids[cursor++];try{const value=await api<ComparisonData>('ballot-comparison/'+id+'?'+new URLSearchParams({lang:language}),abort.signal);if(!abort.signal.aborted)setComparisons(previous=>({...previous,[id]:value}));}catch{if(!abort.signal.aborted)setComparisonFailed(true);}}};
+  // Request every bound roll call of each loaded held sitting. Neither the
+  // request set nor its parameters depend on which rows have local choices.
+  const comparisonSittings=[...new Set((data||[]).filter(b=>b.sittingId.slice(7)<=brusselsToday()&&b.rows.some(r=>r.decisionId)).map(b=>b.sittingId))].sort().join(',');
+  useEffect(()=>{const abort=new AbortController();setComparisons({});setComparisonFailed(false);if(!comparisonSittings)return;
+    const ids=comparisonSittings.split(',');let cursor=0;
+    const worker=async()=>{while(cursor<ids.length){const sitting=ids[cursor++];try{const value=await api<{items:(ComparisonData&{decisionId:string})[]}>('ballot-comparisons?'+new URLSearchParams({sitting,lang:language}),abort.signal);if(!Array.isArray(value.items))throw Error();if(!abort.signal.aborted)setComparisons(previous=>({...previous,...Object.fromEntries(value.items.map(item=>[item.decisionId,item]))}));}catch{if(!abort.signal.aborted)setComparisonFailed(true);}}};
     Promise.all(Array.from({length:Math.min(4,ids.length)},worker));return()=>abort.abort();
-  },[decisionKey,language]);
+  },[comparisonSittings,language]);
   const missing=Boolean(data&&state.stars.some(star=>sittings.includes(star.sittingId)&&!data.some(b=>b.id===star.id))||data&&state.choices.some(choice=>sittings.includes(choice.sittingId)&&!data.some(b=>b.id===choice.agendaItemId)));
   if(data&&!eligible.length&&!failed&&!missing)return null;
   return <section className="your-votes-session"><h3 lang={ui.language}>{sessionDateRange(dates,ui.language)}</h3><ComparisonSummary entries={entries(eligible)} comparisons={comparisons} people={people}/>{(failed||missing)&&<p>{ui.t('yourVote.error')}</p>}{comparisonFailed&&<p>{ui.t('yourVote.comparisonUnavailable')}</p>}{!data&&<p>{ui.t('insightshared.loading')}</p>}

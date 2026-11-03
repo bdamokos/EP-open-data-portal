@@ -25,3 +25,6 @@ export function sessionDateRange(dates,language) {
   const sorted=[...new Set(dates)].sort(),formatter=new Intl.DateTimeFormat(language==='en'?'en-GB':language,{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
   return formatter.formatRange(new Date(sorted[0]+'T12:00Z'),new Date(sorted.at(-1)+'T12:00Z'));
 }
+
+export const brusselsToday=(now=Date.now())=>new Intl.DateTimeFormat('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Europe/Brussels'}).format(new Date(now));
+export const ballotVisible=(sitting,source,now=Date.now())=>sitting.slice(7)>=brusselsToday(now)||['voting-list','retained'].includes(source);
