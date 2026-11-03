@@ -1,13 +1,20 @@
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
+import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
 import {assertBareAnnexInsertion} from './amendment-annex-oracle.mjs';
+import {assertResolutionNumberingDrift} from './amendment-numbering-drift-oracle.mjs';
+import {assertResolutionPointSimilarity} from './amendment-resolution-point-similarity-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertChapterTitle} from './amendment-chapter-title-oracle.mjs';
 import {assertStandaloneQuote} from './amendment-standalone-quote-oracle.mjs';
 import {assertArticleNotes} from './amendment-article-notes-oracle.mjs';
 import {inspectNativeNoteScope,assertNativeFirstRecital} from './amendment-note-scope-oracle.mjs';
 import {assertGuidelineAnnex} from './amendment-guideline-oracle.mjs';
+import {assertQuotedSectionPoint} from './amendment-quoted-section-oracle.mjs';
+import {assertBareAnnexReplacement} from './amendment-annex-replacement-oracle.mjs';
+import {assertBareAnnexIndent} from './amendment-annex-indent-oracle.mjs';
+import {assertWholeAnnexInstruction} from './amendment-whole-instruction-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
@@ -21,6 +28,7 @@ import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './a
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 import {assertRecastReading} from './amendment-recast-oracle.mjs';
+import {assertRecitalCategoryRepair} from './amendment-recital-category-oracle.mjs';
 
 
 // Only these affirmative observations remove a row from the denominator.
@@ -216,6 +224,57 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
   return count===1?{...verified('oracle-unique-original-source-span'),originalOccurrences:count}:{status:'unverified',reason:'oracle-original-not-unique',occurrences:count};
 }
 
+// Proposal preambles print unlabelled citations between the enacting
+// institutions line and "Whereas:"; EP addresses count them in order.
+// Raw rows only: every row in that run must be a complete body row.
+function rawPreambleCitations(proposal) {
+  const rows=proposal?.paragraphs??[];
+  const opens=rows.filter(row=>/^THE (?:EUROPEAN PARLIAMENT AND THE )?COUNCIL OF THE EUROPEAN UNION,$/u.test(String(row.text).trim()));
+  if(opens.length!==1)return null;
+  const close=rows.find(row=>row.index>opens[0].index&&/^Whereas:$/u.test(String(row.text).trim()));
+  if(!close)return null;
+  const run=rows.filter(row=>row.index>opens[0].index&&row.index<close.index);
+  if(!run.length||run.some(row=>row.complete===false||row.source?.complete!==true||row.source?.container!=='body'||!String(row.text).trim()))return null;
+  // Every counted row must open a citation; continuations shift the ordinals.
+  if(run.some(row=>!/^(?:Having regard to|After (?:transmission|consulting|consultation)|Acting in accordance with)\b/u.test(String(row.text).trim())))return null;
+  return run;
+}
+function verifyPreambleCitation({proposal,wording,placement,target}) {
+  const label=target.segments[0];
+  if(wording.language!=='en'||target.segments.length!==1||label.kind!=='citation'||!Number.isInteger(label.number)||label.negative)return null;
+  if(/^The European Parliament rejects\b/u.test(String(wording.proposedText).trim()))return {status:'unverified',reason:'oracle-operation-unavailable'};
+  const run=rawPreambleCitations(proposal);
+  if(!run)return {status:'unverified',reason:'oracle-preamble-unavailable'};
+  const row=run[label.number-1];
+  if(!row)return fail('oracle-citation-ordinal-missing');
+  if(placement.operation==='insert') {
+    if(!label.isNew||!label.suffix||wording.originalText!=='')return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+    if(placement.insertBefore!==row.index+1||placement.insertAfter!==row.index)return fail('oracle-insertion-boundary-mismatch');
+    return verified('oracle-preamble-citation-boundary');
+  }
+  if(label.isNew||label.suffix)return {status:'unverified',reason:'oracle-operation-unavailable'};
+  if(placement.span?.start!==row.index||placement.span?.end!==row.index)return fail('oracle-address-span-mismatch');
+  // The spliced source itself must be the original wording.
+  const splice=placement.splice,text=String(row.text);
+  if(splice?.start?.paragraph!==row.index||splice?.end?.paragraph!==row.index||!(splice.start.offset>=0&&splice.start.offset<=splice.end.offset&&splice.end.offset<=text.length))return fail('oracle-invalid-span');
+  if(oracleNormal(text.slice(splice.start.offset,splice.end.offset))!==oracleNormal(wording.originalText))return fail('oracle-original-span-mismatch');
+  return verified('oracle-preamble-citation-span');
+}
+// Maintainer P2 for articles: a new Article -1 goes immediately after the
+// enacting formula, before a printed Article 1 directly following it.
+function verifyNegativeArticle({proposal,wording,placement,target}) {
+  const label=target.segments[0];
+  if(target.segments.length!==1||label.kind!=='article'||label.value!=='-1'||wording.language!=='en'||wording.originalText!=='')return null;
+  if(!/^Article\s*[-−–‑]\s*1\b/u.test(String(wording.proposedText).trim()))return {status:'unverified',reason:'oracle-insertion-label-unverified'};
+  const rows=proposal?.paragraphs??[];
+  const formulas=rows.filter(row=>/^HAVE ADOPTED THIS (?:REGULATION|DIRECTIVE|DECISION):$/u.test(String(row.text).trim()));
+  if(formulas.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  const next=rows[formulas[0].index+1];
+  if(!next||String(next.text).trim()!=='Article 1'||next.complete===false||next.source?.complete!==true||formulas[0].source?.complete!==true)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  if(placement.insertBefore!==next.index||placement.insertAfter!==next.index-1)return fail('oracle-insertion-boundary-mismatch');
+  return verified('oracle-negative-article-boundary');
+}
+
 // Oracle-owned point ordinals. A sibling family is Roman when it starts at i
 // and every base is a Roman numeral; lettered when it starts at a and every
 // base is one letter. Anything else stays unverified.
@@ -345,7 +404,16 @@ function rawLogicalRows(proposal) {
   });
   return rows;
 }
-function verifyAnnexTable({proposal,wording,placement}) {
+function rawCaptionDecoration(wording,items,proposal){
+  if(wording.baseline!=='commission-proposal'||items?.length!==2||items.filter(item=>item.kind==='act').length!==1||items.filter(item=>item.kind==='annex'&&item.proposal===proposal).length!==1||wording.targetPath?.underlying?.length)return null;
+  const path=/^Annex ([IVXLC]+) – paragraph 1 – table on ([^\r\n]+)\n(Regulation \((?:EU|EC)\) \d{4}\/\d+)\nAnnex ([IVXLC]+) – table ([^\r\n]+)$/u.exec(wording.targetLabel||''),caption=/^‘\[([^\r\n\t\[\]]+)\r?\nCN code\tGreenhouse gas\r?\n/u.exec(wording.originalText||'');
+  if(!path||!caption||wording.targetPath?.proposal?.length&&((wording.targetPath.proposal.length!==1)||wording.targetPath.proposal[0].raw!==wording.targetLabel.split('\n')[0])||rawCell(path[2]).toLowerCase()!==rawCell(caption[1]).toLowerCase()||rawCell(path[5]).toLowerCase()!==rawCell(caption[1]).toLowerCase())return null;
+  const act=items.find(item=>item.kind==='act').proposal;
+  const leads=act.paragraphs.filter(row=>rawCell(row.text)===path[3]+' is amended as follows:');
+  if(leads.length!==1||!leads[0].complete||leads[0].source?.complete!==true||leads[0].source.container!=='body')return null;
+  return {inner:path[4],outer:path[1]};
+}
+function verifyAnnexTable({proposal,wording,placement,items}) {
   const address=tableAddress(wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel);
   if(!address||wording.language!=='en'||!['replace','delete'].includes(placement.operation))return null;
   const rows=rawLogicalRows(proposal);
@@ -354,12 +422,21 @@ function verifyAnnexTable({proposal,wording,placement}) {
   const same=(row,line)=>row.cells.length===line.length&&row.cells.every((cell,index)=>cell===line[index]);
   const starts=[];
   for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>same(rows[i+offset],line)))starts.push(i);
+  let decoration=null;
+  if(!starts.length){
+    decoration=rawCaptionDecoration(wording,items,proposal);
+    if(decoration){lines[0][0]=lines[0][0].slice(2);for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>same(rows[i+offset],line)))starts.push(i);}
+  }
   if(starts.length!==1)return {status:'unverified',reason:'oracle-table-rows-not-unique'};
   const run=rows.slice(starts[0],starts[0]+lines.length);
   if(run.some((row,index)=>row.broken||index&&row.gapBefore))return {status:'unverified',reason:'oracle-table-rows-incomplete'};
   const first=run[0].indexes[0],last=run.at(-1).indexes.at(-1);
   const before=rows.slice(0,starts[0]),headingAt=before.map(row=>!row.key&&/^ANNEX\s+[IVXLC]+$/u.test(row.cells[0])).lastIndexOf(true);
   if(headingAt<0||before[headingAt].cells[0]!=='ANNEX '+address[1])return {status:'unverified',reason:'oracle-annex-identity-unverified'};
+  if(decoration){
+    const scopeRows=before.slice(headingAt).filter(row=>!row.key),prefix=scopeRows.slice(1).map(row=>row.cells[0]),tableKey=run[1]?.key?.replace(/\/w:tr\[\d+\]$/u,'');
+    if(scopeRows.some(row=>row.broken)||address[1]!==decoration.outer||run[0].key||!tableKey||run.slice(1).some(row=>!row.key||row.key.replace(/\/w:tr\[\d+\]$/u,'')!==tableKey||row.cells.length!==2)||prefix.filter(value=>/^‘ANNEX [IVXLC]+$/u.test(value)).length!==1||!prefix.includes('‘ANNEX '+decoration.inner)||prefix.filter(value=>/^The following Annex [IVXLC]+ is added:$/u.test(value)).length!==1||!prefix.includes('The following Annex '+decoration.inner+' is added:'))return {status:'unverified',reason:'oracle-table-caption-scope-unverified'};
+  }
   // Subordinate addresses: only 'paragraph 1' (no other numbered paragraph
   // before the run) or 'point N' (nearest preceding numbered point is N).
   const lead=before.slice(headingAt+1).filter(row=>!row.key).map(row=>row.cells[0]);
@@ -375,7 +452,7 @@ function verifyAnnexTable({proposal,wording,placement}) {
   // The splice must cover those rows exactly, from offset 0 to the last row's end.
   const splice=placement.splice,lastText=String(proposal.paragraphs.find(row=>row.index===last)?.text??'');
   if(splice?.start?.paragraph!==first||splice?.end?.paragraph!==last||splice.start.offset!==0||splice.end.offset!==lastText.length)return fail('oracle-invalid-span');
-  return verified('oracle-annex-table-rows');
+  return verified(decoration?'oracle-annex-table-caption-decoration':'oracle-annex-table-rows');
 }
 
 function verifyResolutionInsertion(text,wording,target,placement) {
@@ -483,6 +560,8 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const header=assertCompoundHeader(input);
+  if(header&&header.status!=='verified')return header;
   const result=verifyProposalPlacement(input);
   if(result.status!=='verified')return result;
   // A recast's legal reading omits its struck deletions and markers; the
@@ -506,7 +585,7 @@ function verifyProposalPlacement(input) {
   return raw.status==='unverified'?result:raw;
 }
 
-function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, target = parseBenchmarkTarget(wording)}) {
+function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, voteReferences=[], target = parseBenchmarkTarget(wording)}) {
   const scope=verifyLanguageScope(placement,expectedLanguageScope(wording));
   if(scope)return scope;
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
@@ -521,12 +600,18 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
+  if(proposal) {
+    const ordinal=verifyPreambleCitation({proposal,wording,placement,target})??(placement.operation==='insert'?verifyNegativeArticle({proposal,wording,placement,target}):null);
+    if(ordinal)return ordinal;
+  }
   const closing=assertClosingFormula({proposal,wording,placement});
   if(closing.status!=='unverified')return closing;
   const numbering=assertWordingNumbering({proposal,wording,placement});
   if(numbering.status!=='unverified')return numbering;
 
-  const table=proposal?verifyAnnexTable({proposal,wording,placement}):null;
+  const instruction=assertWholeAnnexInstruction({items,proposal,wording,placement,nativeQuoted});
+  if(instruction)return instruction;
+  const table=proposal?verifyAnnexTable({proposal,wording,placement,items}):null;
   if(table)return table;
 
   if(proposal&&placement.operation==='insert'&&target.segments.at(-1)?.kind==='subparagraph')return rawProposalAssertion({proposal,wording,placement});
@@ -542,6 +627,17 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if(initialRecital.status!=='unverified')return initialRecital;
   const guideline=assertGuidelineAnnex({proposal,wording,placement,nativeQuoted});
   if(guideline.status!=='unverified')return guideline;
+  const sectionPoint=assertQuotedSectionPoint({proposal,wording,placement,nativeQuoted});
+  if(sectionPoint.status!=='unverified')return sectionPoint;
+  const annexReplacement=assertBareAnnexReplacement({items,proposal,wording,placement,nativeQuoted});
+  if(annexReplacement.status!=='unverified')return annexReplacement;
+  const annexIndent=assertBareAnnexIndent({items,proposal,wording,placement,nativeQuoted});
+  if(annexIndent.status!=='unverified')return annexIndent;
+  if(!proposal){const pointNear=assertResolutionPointSimilarity({text,wording,placement});if(pointNear.status!=='unverified')return pointNear;}
+  if(!proposal) {
+    const category=assertRecitalCategoryRepair({text,wording,placement});
+    if(category.status!=='unverified')return category;
+  }
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
@@ -553,6 +649,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});
   if(letterPoint.status!=='unverified')return letterPoint;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
+    const drift=!proposal&&assertResolutionNumberingDrift({text,wording,placement,voteReferences});
+    if(drift)return drift;
     let source, labels = [];
     if (proposal) {
       const {splice} = placement;
@@ -750,6 +848,19 @@ export function compareBaseline(current, baseline, {placementOnly=false}={}) {
     const row = now.get(old.key);
     return !row || old.outcome === 'correct' && row.outcome !== 'correct' || old.outcome !== 'false-placement' && row.outcome === 'false-placement';
   }).map(old=>({key:old.key,id:old.id,before:old.outcome,after:now.get(old.key)?.outcome || 'missing',reason:now.get(old.key)?.reason}));
+  // Keep the strict raw ratchet above intact. The batch admission lane may
+  // accept the maintainer-authorized rejection denominator change separately;
+  // neither a reason string alone nor a loss of paragraph coordinates proves it.
+  const authorizedDenominatorTransitions=baseline.rows.flatMap(old=>{
+    const row=now.get(old.key),proof=row?.documentOperation,source=proof?.source,placement=row?.stages?.S5;
+    if(old.outcome!=='correct'||row?.outcome!=='not-placeable'||row.reason!=='whole-document-rejection'||proof?.status!=='verified'||proof.reason!=='source-attested-rejection'
+      ||placement?.status!=='document-operation'||placement.operation!=='reject'||placement.scope!==proof.scope||!['council-position','commission-proposal'].includes(proof.scope)
+      ||['span','splice','insertAfter','insertBefore'].some(key=>Object.hasOwn(placement,key))
+      ||source?.assertion!=='complete-native-comparison-cells'||source.originalText!==''||!source.proposedText?.trim()||!source.amendmentPath
+      ||!row.wordingSource?.url||!row.language||!/^[a-f0-9]{64}$/u.test(source.sha256)||source.sha256!==row.wordingSource.sha256)return [];
+    return [{gate:{snapshotId:current.snapshotId,sample:current.sample},key:row.key,id:row.id,language:row.language,sourceUrl:row.wordingSource.url,resolvedSourceUrl:row.wordingSource.resolvedSourceUrl||row.wordingSource.url,sha256:source.sha256,rejectionScope:proof.scope,before:old.outcome,after:row.outcome,reason:row.reason,nativeVerification:proof}];
+  });
+  const rawLostCorrect=regressions.filter(row=>row.before==='correct'&&row.after!=='correct').length;
   const deltas = {};
   const walk = (a,b,prefix='') => {for (const key of Object.keys(a)) {const name=prefix+key;if(typeof a[key]==='number'&&typeof b?.[key]==='number')deltas[name]=a[key]-b[key];else if(a[key]&&typeof a[key]==='object'&&!Array.isArray(a[key]))walk(a[key],b?.[key],name+'.');}};
   walk(current.metrics,baseline.metrics);
@@ -757,5 +868,5 @@ export function compareBaseline(current, baseline, {placementOnly=false}={}) {
   const before=new Map(baseline.metrics.taxonomy.map(row=>[taxonomyKey(row),row]));
   const after=new Map(current.metrics.taxonomy.map(row=>[taxonomyKey(row),row]));
   const taxonomyDeltas=[...new Set([...before.keys(),...after.keys()])].sort().map(key=>({key,count:(after.get(key)?.count||0)-(before.get(key)?.count||0),share:(after.get(key)?.share||0)-(before.get(key)?.share||0)}));
-  return {scope,warnings,deltas,taxonomyDeltas,regressions,failed:regressions.length>0||current.metrics.falsePlacements>0};
+  return {scope,warnings,deltas,taxonomyDeltas,regressions,rawLostCorrect,authorizedDenominatorTransitions,adjustedLostCorrect:rawLostCorrect-authorizedDenominatorTransitions.length,failed:regressions.length>0||current.metrics.falsePlacements>0};
 }

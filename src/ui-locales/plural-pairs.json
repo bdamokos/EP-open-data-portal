@@ -488,5 +488,10 @@
     "one": "topics.story.links.awayOne",
     "other": "topics.story.links.away",
     "count": "count"
+  },
+  {
+    "one": "topics.story.count.shortDebatesOne",
+    "other": "topics.story.count.shortDebates",
+    "count": "count"
   }
 ]

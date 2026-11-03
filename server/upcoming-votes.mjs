@@ -10,10 +10,15 @@ import {memberVotes,memberVotesQuery} from './member-votes.mjs';
 import {amendmentsPage} from './amendments-store.mjs';
 import {assembleBallot,ballotContext,groupMajorities} from './your-vote-ballot.mjs';
 import {decisionVotesContext,projectDecisionVotes} from './decision-votes.mjs';
-export const UPCOMING_VOTES_VERSION=4;
+import {amendmentTarget} from './amendments.mjs';
+import {legacyAmendmentDocument} from './upcoming-amendments.mjs';
+export const UPCOMING_VOTES_VERSION=5;
 export const BALLOT_COMPARISON_VERSION=2;
 const tail=x=>String(x?.id||x||'').split('/').at(-1);
 const list=x=>x==null?[]:Array.isArray(x)?x:[x];
+// Plenary amendments target reports and motions only. A Commission proposal
+// listed on the same agenda item is not a separate ballot.
+const ballotDocument=id=>amendmentTarget(id)||legacyAmendmentDocument(id);
 export function upcomingVotesQuery(params) {
   for(const key of params.keys())if(!['sitting','lang'].includes(key)||params.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated ballot parameter.');
   const sitting=params.get('sitting')||'';
@@ -47,7 +52,7 @@ export async function ballotInputs(query,{store,request=odp,reader=memberVotes,l
   let amendmentData;
   const loadAmendments=()=>{
     if(amendmentData)return amendmentData;
-    const documents=[...new Set(day.agenda.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE').flatMap(n=>list(n.based_on_a_realization_of).map(tail)))];
+    const documents=[...new Set(day.agenda.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE').flatMap(n=>list(n.based_on_a_realization_of).map(tail).filter(ballotDocument)))];
     const amendmentPages=documents.map(document=>({document,page:amendmentsPage(store,{document,limit:1000,language:query.language})}));
     const amendments=amendmentPages.flatMap(({page})=>page.items),partialDocuments=amendmentPages.filter(({page})=>page.items.length<page.total||page.scheduledLists===null||page.items.some(row=>row.scheduledVotes===null)||!page.items.length&&!page.coverage.observationComplete).map(({document})=>document);
     return amendmentData={amendments,partialDocuments};
@@ -63,7 +68,7 @@ export async function upcomingVotes(query,{store=null,inputs=ballotInputs,cache=
   const items=[],context=makeContext(data.day,amendments);
   for(const agenda of data.day.agenda.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE')) {
     const agendaItemId=agenda.activity_id||tail(agenda.id);
-    const documents=list(agenda.based_on_a_realization_of).map(tail);
+    const documents=list(agenda.based_on_a_realization_of).map(tail).filter(ballotDocument);
     for(const document of documents.length?documents:[null]) {
       const votingList=data.lists.find(v=>v.documentId===document&&v.agendaItemId===agendaItemId);
       const retained=(data.bindings||[]).filter(b=>b.agenda===agendaItemId&&b.document===document).map(({key,decisionId})=>({key,decisionId}));

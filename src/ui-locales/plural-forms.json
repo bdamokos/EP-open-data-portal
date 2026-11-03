@@ -581,6 +581,10 @@
     "topics.story.links.away": {
       "one": "зададени само от евродепутати от други държави: {count}",
       "other": "зададени само от евродепутати от други държави: {count}"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} разискване",
+      "other": "{count} разисквания"
     }
   },
   "cs": {
@@ -1405,6 +1409,12 @@
       "other": "otázky položené pouze europoslanci z jiných zemí: {count}",
       "few": "otázky položené pouze europoslanci z jiných zemí: {count}",
       "many": "otázky položené pouze europoslanci z jiných zemí: {count}"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} rozprava",
+      "few": "{count} rozpravy",
+      "many": "{count} rozpravy",
+      "other": "{count} rozprav"
     }
   },
   "da": {
@@ -2023,6 +2033,10 @@
     "topics.story.links.away": {
       "one": "{count} kun stillet af medlemmer fra andre lande",
       "other": "{count} kun stillet af medlemmer fra andre lande"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} debat",
+      "other": "{count} debatter"
     }
   },
   "de": {
@@ -2641,6 +2655,10 @@
     "topics.story.links.away": {
       "one": "{count} ausschließlich von Abgeordneten aus anderen Ländern gestellt",
       "other": "{count} ausschließlich von Abgeordneten aus anderen Ländern gestellt"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} Debatte",
+      "other": "{count} Debatten"
     }
   },
   "el": {
@@ -3223,6 +3241,10 @@
     "topics.story.links.away": {
       "one": "{count} υποβλήθηκε μόνο από ευρωβουλευτές άλλων χωρών",
       "other": "{count} υποβλήθηκαν μόνο από ευρωβουλευτές άλλων χωρών"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} συζήτηση",
+      "other": "{count} συζητήσεις"
     }
   },
   "es": {
@@ -3917,6 +3939,11 @@
       "one": "{count} fue formulada solo por eurodiputados de otros países",
       "other": "{count} fueron formuladas solo por eurodiputados de otros países",
       "many": "{count} fueron formuladas solo por eurodiputados de otros países"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} debate",
+      "other": "{count} debates",
+      "many": "{count} de debates"
     }
   },
   "et": {
@@ -4498,6 +4525,10 @@
     "topics.story.links.away": {
       "one": "{count} puhul esitasid küsimuse ainult teistes riikides valitud Euroopa Parlamendi liikmed",
       "other": "{count} puhul esitasid küsimuse ainult teistes riikides valitud Euroopa Parlamendi liikmed"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} arutelu",
+      "other": "{count} arutelu"
     }
   },
   "fi": {
@@ -5116,6 +5147,10 @@
     "topics.story.links.away": {
       "one": "{count} vain muista maista valittujen jäsenten esittämä",
       "other": "{count} vain muista maista valittujen jäsenten esittämiä"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} keskustelu",
+      "other": "{count} keskustelua"
     }
   },
   "fr": {
@@ -5810,6 +5845,11 @@
       "one": "{count} a été posée uniquement par des députés élus dans d’autres pays",
       "many": "{count} ont été posées uniquement par des députés élus dans d’autres pays",
       "other": "{count} ont été posées uniquement par des députés élus dans d’autres pays"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} débat",
+      "other": "{count} débats",
+      "many": "{count} de débats"
     }
   },
   "ga": {
@@ -6719,6 +6759,13 @@
       "few": "ba iad Feisirí ó thíortha eile amháin a chuir {count} acu",
       "many": "ba iad Feisirí ó thíortha eile amháin a chuir {count} acu",
       "other": "ba iad Feisirí ó thíortha eile amháin a chuir {count} acu"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} díospóireacht",
+      "other": "{count} de dhíospóireachtaí",
+      "two": "{count} dhíospóireacht",
+      "few": "{count} dhíospóireacht",
+      "many": "{count} ndíospóireacht"
     }
   },
   "hr": {
@@ -7407,6 +7454,11 @@
       "one": "pitanja koja su postavili samo zastupnici iz drugih zemalja: {count}",
       "other": "pitanja koja su postavili samo zastupnici iz drugih zemalja: {count}",
       "few": "pitanja koja su postavili samo zastupnici iz drugih zemalja: {count}"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} rasprava",
+      "few": "{count} rasprave",
+      "other": "{count} rasprava"
     }
   },
   "hu": {
@@ -7983,6 +8035,10 @@
     "topics.story.links.away": {
       "one": "{count} kérdést kizárólag más országokban megválasztott EP-képviselők nyújtottak be",
       "other": "{count} kérdést kizárólag más országokban megválasztott EP-képviselők nyújtottak be"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} vita",
+      "other": "{count} vita"
     }
   },
   "it": {
@@ -8677,6 +8733,11 @@
       "one": "{count} è stata presentata solo da deputati di altri paesi",
       "other": "{count} sono state presentate solo da deputati di altri paesi",
       "many": "{count} sono state presentate solo da deputati di altri paesi"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} dibattito",
+      "other": "{count} dibattiti",
+      "many": "{count} di dibattiti"
     }
   },
   "lt": {
@@ -9476,6 +9537,12 @@
       "few": "tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}",
       "many": "tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}",
       "other": "tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} diskusija",
+      "other": "{count} diskusijų",
+      "few": "{count} diskusijos",
+      "many": "{count} diskusijos"
     }
   },
   "lv": {
@@ -10163,6 +10230,11 @@
       "zero": "{count} iesniedza tikai citās valstīs ievēlēti deputāti",
       "one": "{count} iesniedza tikai citās valstīs ievēlēti deputāti",
       "other": "{count} iesniedza tikai citās valstīs ievēlēti deputāti"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} debates",
+      "other": "{count} debates",
+      "zero": "{count} debašu"
     }
   },
   "mt": {
@@ -11072,6 +11144,13 @@
       "few": "{count} tressqu biss minn Membri tal-PE minn pajjiżi oħra",
       "many": "{count} tressqu biss minn Membri tal-PE minn pajjiżi oħra",
       "other": "{count} tressqu biss minn Membri tal-PE minn pajjiżi oħra"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} dibattitu",
+      "other": "{count} dibattitu",
+      "two": "{count} dibattiti",
+      "few": "{count} dibattiti",
+      "many": "{count}-il dibattitu"
     }
   },
   "nl": {
@@ -11690,6 +11769,10 @@
     "topics.story.links.away": {
       "one": "{count} uitsluitend gesteld door Europarlementariërs uit andere landen",
       "other": "{count} uitsluitend gesteld door Europarlementariërs uit andere landen"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} debat",
+      "other": "{count} debatten"
     }
   },
   "pl": {
@@ -12490,6 +12573,12 @@
       "few": "{count} pytania wyłącznie od posłów do PE z innych krajów",
       "many": "{count} pytań wyłącznie od posłów do PE z innych krajów",
       "other": "{count} pytania wyłącznie od posłów do PE z innych krajów"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} debata",
+      "few": "{count} debaty",
+      "many": "{count} debat",
+      "other": "{count} debaty"
     }
   },
   "pt": {
@@ -13184,6 +13273,11 @@
       "one": "{count} foi apresentada apenas por deputados de outros países",
       "other": "{count} foram apresentadas apenas por deputados de outros países",
       "many": "{count} foram apresentadas apenas por deputados de outros países"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} debate",
+      "other": "{count} debates",
+      "many": "{count} de debates"
     }
   },
   "ro": {
@@ -13877,6 +13971,11 @@
       "one": "{count} a fost adresată doar de eurodeputați aleși în alte țări",
       "few": "{count} au fost adresate doar de eurodeputați aleși în alte țări",
       "other": "{count} au fost adresate doar de eurodeputați aleși în alte țări"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} dezbatere",
+      "other": "{count} de dezbateri",
+      "few": "{count} dezbateri"
     }
   },
   "sk": {
@@ -14701,6 +14800,12 @@
       "few": "{count} otázky výlučne od europoslancov z iných krajín",
       "many": "{count} otázky výlučne od europoslancov z iných krajín",
       "other": "{count} otázok výlučne od europoslancov z iných krajín"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} rozprava",
+      "few": "{count} rozpravy",
+      "many": "{count} rozpravy",
+      "other": "{count} rozpráv"
     }
   },
   "sl": {
@@ -15525,6 +15630,12 @@
       "two": "{count} vprašanji izključno od poslancev Evropskega parlamenta iz drugih držav",
       "few": "{count} vprašanja izključno od poslancev Evropskega parlamenta iz drugih držav",
       "other": "{count} vprašanj izključno od poslancev Evropskega parlamenta iz drugih držav"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} razprava",
+      "two": "{count} razpravi",
+      "few": "{count} razprave",
+      "other": "{count} razprav"
     }
   },
   "sv": {
@@ -16143,6 +16254,10 @@
     "topics.story.links.away": {
       "one": "{count} ställdes enbart av Europaparlamentsledamöter från andra länder",
       "other": "{count} ställdes enbart av Europaparlamentsledamöter från andra länder"
+    },
+    "topics.story.count.shortDebates": {
+      "one": "{count} debatt",
+      "other": "{count} debatter"
     }
   }
 }

@@ -1,13 +1,13 @@
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {alternativeMotionHeading} from './amendment-alternative.mjs';
 import {committeeListId,committeeDraftId} from './committee-amendments.mjs';
-import { XMLParser } from 'fast-xml-parser';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='22';
+export const AMENDMENT_EXTRACTION_VERSION='23';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -83,6 +83,35 @@ function canonicalFormatting(formatting) {
   return marks;
 }
 const enabled=node=>node?!['0','false','off'].includes(String(attribute(node,'val')).toLowerCase()):undefined;
+
+// A compound heading is two printed lines in one native paragraph. Literal
+// newlines, fields, wrappers and invisible metadata do not establish that form.
+function compoundHeader(nodes,raw,text,styleSafe,blank=false) {
+  const lines=text.split('\n').map(line=>line.trim());
+  if(raw!==text)return null;
+  if(blank?text.trim():lines.length!==2||!/^Proposal for a (?:regulation|directive|decision)$/u.test(lines[0])||!parseTargetLabel(lines[1],'en').complete)return null;
+  if(!styleSafe(nodes))return null;
+  let breaks=0;
+  const properties=nodes=>nodes.every(node=>Object.entries(node).every(([key,value])=>key===':@'||key==='w:rPr'&&properties(value)||['w:pStyle','w:rStyle','w:keepNext','w:keepLines','w:widowControl','w:spacing','w:ind','w:jc','w:b','w:bCs','w:i','w:iCs','w:lang','w:rFonts','w:sz','w:szCs','w:color','w:u','w:highlight'].includes(key)&&Array.isArray(value)&&!value.length));
+  const supported=nodes=>nodes.every(node=>Object.entries(node).every(([key,value])=>{
+    if(key===':@')return true;
+    if(['w:pPr','w:rPr'].includes(key))return properties(value);
+    if(key==='w:r')return supported(value);
+    if(key==='w:t')return value.every(part=>Object.keys(part).length===1&&typeof part['#text']==='string'&&!/[\r\n]/u.test(part['#text']));
+    if(['w:br','w:cr'].includes(key)){breaks++;return !value.length&&[undefined,'textWrapping'].includes(node[':@']?.['@_w:type']);}
+    return false;
+  }));
+  return supported(nodes)&&breaks===(blank?0:1)?blank?true:lines:null;
+}
+function compoundStyleSafety(xml) {
+  const root=children(xml?parser().parse(xml):[],'w:styles')||[],styles=new Map(),defaults=[];
+  let valid=true;
+  for(const node of direct(root,'w:style')){const id=attribute(node,'styleId');if(styles.has(id))valid=false;styles.set(id,node['w:style']);if(['paragraph','character'].includes(attribute(node,'type'))&&enabled({':@':{'@_w:val':attribute(node,'default')}})===true&&attribute(node,'default')!==undefined)defaults.push(id);}
+  const all=(nodes,key)=>(nodes||[]).flatMap(node=>Object.entries(node).flatMap(([name,value])=>name===key?[node]:Array.isArray(value)?all(value,key):[]));
+  const hidden=nodes=>['w:vanish','w:webHidden'].some(key=>all(nodes,key).some(node=>enabled(node)===true));
+  const visible=(id,seen=new Set())=>{if(!id)return true;if(seen.has(id)||!styles.has(id))return false;seen.add(id);const nodes=styles.get(id);return !hidden(nodes)&&all(nodes,'w:basedOn').every(node=>visible(attribute(node,'val'),seen));};
+  return nodes=>valid&&!hidden(children(root,'w:docDefaults'))&&[...defaults,...all(nodes,'w:pStyle').map(node=>attribute(node,'val')),...all(nodes,'w:rStyle').map(node=>attribute(node,'val'))].every(id=>visible(id));
+}
 
 const direct=(nodes,key)=>(nodes||[]).filter(node=>Object.hasOwn(node,key));
 const emptyGeometry=nodes=>!(nodes||[]).some(node=>Object.entries(node).some(([key,value])=>key!==':@'&&(key!=='#text'||String(value).trim())));
@@ -211,6 +240,10 @@ function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'
 }
 function documentBlocks(parts,warnings,language) {
   const style=visibility(parts.get('word/styles.xml'));
+  const documentXml=parts.get('word/document.xml'),documentTree=parser().parse(documentXml),stylesXml=parts.get('word/styles.xml');
+  const nativeBindings=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w']===undefined||node[':@']['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main')&&Object.values(node).every(value=>!Array.isArray(value)||nativeBindings(value)));
+  const nativeHeader=language==='en'&&!/<!DOCTYPE|<!ENTITY/u.test(documentXml)&&XMLValidator.validate(documentXml)===true&&child(documentTree,'w:document')?.[':@']?.['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main'&&nativeBindings(documentTree)&&(!stylesXml||!/<!DOCTYPE|<!ENTITY/u.test(stylesXml)&&XMLValidator.validate(stylesXml)===true&&nativeBindings(parser().parse(stylesXml)));
+  const compoundVisible=nativeHeader?compoundStyleSafety(stylesXml):null;
   if(language==='hr')style.formatting=styleFormatting(children(parser().parse(parts.get('word/styles.xml')||''),'w:styles'));
   const label=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),warnings);
   let count=0,size=0;
@@ -231,7 +264,7 @@ function documentBlocks(parts,warnings,language) {
     size+=raw.length+text.length;
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
     const structure=JSON.stringify(nodes);
-    return {raw,text,formatting,bold,paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
+    return {raw,text,formatting,bold,...(compoundVisible?{compound:compoundHeader(nodes,raw,text,compoundVisible),compoundBlank:compoundHeader(nodes,raw,text,compoundVisible,true)===true}:{}),paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
   };
   const blocks=[];
   const summary=content=>({
@@ -278,7 +311,7 @@ function documentBlocks(parts,warnings,language) {
       else if(key!==':@'&&Array.isArray(value))walk(value);
     }
   };
-  walk(parser().parse(parts.get('word/document.xml')));
+  walk(documentTree);
   return blocks;
 }
 const field=(raw,tag)=>[...raw.matchAll(new RegExp('<'+tag+'>([\\s\\S]*?)</'+tag+'>','g'))].map(m=>clean(m[1]));
@@ -383,6 +416,14 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const comparisonHeadings=[];
     const targetParts=field(raw,'Article');
     for(let i=2;i<=4;i++)for(const article of field(raw,'Article'+i))targetParts.push([field(raw,'DocAmend'+i)[0],article].filter(Boolean).join(' — '));
+    if(language==='en'&&!targetParts.length) {
+      const tableAt=group.findIndex(block=>block.kind==='table');
+      const paragraphs=group.slice(0,tableAt<0?0:tableAt).filter(block=>block.kind==='paragraph'&&!numberIn(block.raw,block.paragraphStyle,language)),header=paragraphs.filter(block=>block.text.trim());
+      if(header.length===1&&header[0].compound&&!header[0].losses.length&&paragraphs.every(block=>block===header[0]||block.compoundBlank)) {
+        const [documentClass,target]=header[0].compound;targetParts.push(target);
+        for(const [field,raw] of [['DocumentClass',documentClass],['Article',target]])documentReferences.push({field,raw,sourceRaw:header[0].raw,scope:'amendment',basis:'native-line-break'});
+      }
+    }
     if(!targetParts.length&&committee) {
       const procedure=field(coverRaw,'Procedure').map(metadata);let classRecorded=false;
       for(const block of group) {

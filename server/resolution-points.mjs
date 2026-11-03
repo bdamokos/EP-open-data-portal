@@ -1,3 +1,4 @@
+import {characterSimilarity} from './proposal-similarity.mjs';
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {resolutionSubheading, resolutionSeparator} from './resolution-body.mjs';
 import {resolutionFootnoteMatch} from './resolution-footnotes.mjs';
@@ -131,4 +132,35 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   }
   evidence.push({basis: footnotes ? 'quoted-original-source-notes' : 'quoted-original'});
   return {operation, status: 'placed', span: {start: unit.start, end: unit.end}, evidence};
+}
+
+// A near match never chooses a point: the native paragraph/point chain and
+// complete point extent must already identify it. This leaves the top-level
+// paragraph/recital matcher and the strict point matcher unchanged.
+export function resolutionPointNearPlacement(text,rows,structure,options,operation){
+ if(options.language!=='en'||options.baseline!=='motion-resolution'||!['replace','delete'].includes(operation)||/\n_{5,}\s*\n/u.test(options.originalText||'')||(options.originalFormatting||[]).some(m=>m.kind==='superscript'))return null;
+ let target;try{target=parseTargetLabel(options.targetLabel,'en');}catch{return null;}
+ const path=target.segments;if(!target.complete||path.length!==2||path[0].kind!=='paragraph'||path.slice(1).some(p=>p.kind!=='point'||p.isNew))return null;
+ const old=pointLabel((options.originalText||'').trim()),proposed=pointLabel((options.proposedText||'').trim());
+ if(!old||pointValue(old)!==path.at(-1).value||operation==='replace'&&(!proposed||pointValue(proposed)!==path.at(-1).value))return null;
+ const points=pointUnits(text,rows,structure),matches=points.filter(p=>samePath(p.path,path));
+ if(matches.length!==1||!matches[0].complete)return null;
+ const unit=matches[0];if(points.some(p=>p!==unit&&p.start>unit.start&&p.end<=unit.end))return null;
+ const next=rows[unit.end+1],nextLabel=next&&pointLabel(next.normal);
+ if(!next||!contiguous(rows[unit.end],next)||!(nextLabel&&text.paragraphFormats?.[unit.end+1]?.indent<=unit.indent||/^\d+[.)]\s/u.test(next.normal)||structure.units.some(u=>u.kind==='heading'&&u.start===unit.end+1)))return null;
+ const textOf=u=>text.paragraphs.slice(u.start,u.end+1).join('\n'),labels=u=>points.filter(p=>p.start>=u.start&&p.end<=u.end).map(p=>p.value);
+ const normal=(value,known)=>value.split(/\r?\n/u).map(line=>{const m=pointLabel(line.trim());return m&&known.includes(pointValue(m))?line.trim().slice(m[0].length):line;}).join(' ').normalize('NFC').replace(/\u00ad/gu,'').replace(/[‘’‚‛ʻʼ]/gu,"'").replace(/[“”„‟«»]/gu,'"').replace(/[‐‑‒–—]/gu,'-').replace(/\s+/gu,' ').trim();
+ const source=normal(textOf(unit),labels(unit)),original=normal(options.originalText,labels(unit));
+ if(source===original||original.length<80||original.length>10000||source.includes('\uFFFC')||[...(text.noteAnchors||[]),...(text.anchors||[])].some(a=>a.paragraph>=unit.start&&a.paragraph<=unit.end))return null;
+ if(options.referenceText){let ref;try{ref=parseTargetLabel(options.referenceText,'en');}catch{return null;}if(!ref.complete||!samePath(ref.segments,path))return null;}
+ const candidates=points.map(p=>({...p,wording:normal(textOf(p),labels(p))}));
+ for(let start=structure.start+1;start<=structure.end;start++){
+  const m=pointLabel(rows[start].normal);if(!m||points.some(p=>p.start===start&&p.complete))continue;
+  let end=start;for(let i=start+1;i<=structure.end&&i<start+30;i++){if(pointLabel(rows[i].normal)||/^\d+[.)]\s/u.test(rows[i].normal)||structure.units.some(u=>u.kind==='heading'&&u.start===i))break;end=i;}
+  for(let prefixEnd=start;prefixEnd<=end;prefixEnd++)candidates.push({start,end:prefixEnd,complete:false,wording:normal(textOf({start,end:prefixEnd}),[pointValue(m)])});
+ }
+ const score=value=>{let prefix=0;while(prefix<Math.min(value.length,original.length)&&value[prefix]===original[prefix])prefix++;return {similarity:characterSimilarity(value,original,.93),prefix:prefix>=80&&prefix<Math.min(value.length,original.length)?prefix/Math.min(value.length,original.length):0};};
+ const own=score(source),others=candidates.filter(p=>p.start!==unit.start||p.end!==unit.end).map(p=>score(p.wording));
+ const unique=own.similarity>=.95&&others.every(p=>p.similarity<=own.similarity-.02&&p.prefix<.5)||own.prefix>=.5&&others.every(p=>p.prefix<=own.prefix-.02&&p.similarity<.93);
+ return unique?{operation,status:'placed',span:{start:unit.start,end:unit.end},evidence:[{basis:'published-point-path',path:path.map(({kind,value})=>({kind,value}))},{basis:'unique-similar-point-original',anchor:unit.start}]}:null;
 }
