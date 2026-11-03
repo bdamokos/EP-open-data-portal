@@ -122,7 +122,8 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 - Committee amendment numbers are local to their list; the internal identity `committee:{list-id}:{number}` is never an official URI.
 - An omitted distribution isn’t an unpublished file. B-10-2026-0435 and B-10-2026-0436 have public English DOCX files on the website, but their API records omit `is_realized_by`. Don’t construct file URLs.
 - Greek and Cyrillic bylines are linked to members through the same amendment in a Latin-script edition of the same list, never by transliteration.
-- Comparison column headings identify the baseline (Commission proposal, present text, Council position, motion text) and are language-specific.
+- Comparison column headings identify the baseline (Commission proposal, present text, Council position, motion text) and are language-specific. An English document class and a complete target printed on two lines of one Word paragraph are recovered only with one native line break and no conflicting header, hidden text or opaque content. The class remains metadata; the target retains its printed wording.
+- A whole replacement of the first numbered English Commission annex instruction can anchor on its exact native instruction line and complete quotation/table extent. Elided existing-law cells do not supply matching evidence; the proposed table must be complete, and unsupported native content or missing source bytes withholds placement.
 
 ### Documents (DOCX and PDF)
 
