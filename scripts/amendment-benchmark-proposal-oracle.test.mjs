@@ -153,3 +153,17 @@ test('recorded Dutch AM104 verifies its complete instruction address and indepen
  const damaged=structuredClone(p);damaged.paragraphs.find(r=>r.text===f.instruction59.text).text='59) Onduidelijke instructie.';
  assert.equal(rawProposalAssertion({proposal:damaged,wording,placement}).status,'unverified');
 });
+
+
+test('new subparagraph follows the full native subparagraph including its points',()=>{
+  const p=proposal([['Article 3','Titrearticle'],['1. Lead:','ManualNumPar1'],['(a) Point.','Point2'],['Second subparagraph.','Text1'],['Third subparagraph.','Text1'],['2. Next paragraph.','ManualNumPar1'],['Article 4','Titrearticle']]);
+  for(const row of p.paragraphs)Object.assign(row.source,{ordinal:row.index,containerPath:'/body',segment:0});
+  const label='Article 3 – paragraph 1 – subparagraph 2 a (new)';
+  assert.equal(check(p,label,insert(4)).status,'verified');
+  assert.equal(check(p,label,insert(3)).status,'failed');
+  assert.equal(check(p,'Article 3 – paragraph 1 – subparagraph 1 a (new)',insert(3)).status,'verified');
+  assert.equal(check(p,'Article 3 – paragraph 1 – subparagraph 9 a (new)',insert(4)).status,'unverified');
+  assert.equal(check(p,'Article 3 – paragraph 1 – subparagraph 2 b (new)',insert(4)).status,'unverified');
+  p.paragraphs[4].source.ordinal++;
+  assert.equal(check(p,label,insert(4)).status,'unverified');
+});
