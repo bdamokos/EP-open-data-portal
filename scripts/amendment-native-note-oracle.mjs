@@ -54,6 +54,6 @@ export function nativeNoteRows(bytes) {
  let counter=0;const seen=new Set();return body.filter(row=>row.kind==='paragraph').map(row=>{
   const refs=[];words(row.nodes,refs);
   for(const ref of refs){if(!ref.id||seen.has(ref.id))throw Error('ambiguous note');seen.add(ref.id);ref.label=String(++counter);ref.note=definitionsById.get(ref.id);}
-  return {...row,refs,safe:!row.hidden&&!row.numbered&&!unsupported(row.nodes)};
+  return {...row,nativeIndex:body.indexOf(row),refs,safe:!row.hidden&&!row.numbered&&!unsupported(row.nodes)};
  });
 }
