@@ -1,3 +1,5 @@
+import {retainSittingBallotBindings} from './your-vote-ballot.mjs';
+import {MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
 import {createHash} from 'node:crypto';
 import {docxContent} from './document-text.mjs';
 import {parseVotingList,VOTING_LIST_PAGE,VOTING_LISTS_VERSION} from './voting-lists.mjs';
@@ -95,7 +97,13 @@ export class VotingListCollector {
     if(!this.due())return false;
     if(this.runSignal!==worker.controller.signal){this.runSignal=worker.controller.signal;this.runDocxGets=0;}
     const now=this.clock(),active=this.window(now),db=this.store.db;
-    if(now>=this.nextPurgeCheck)this.write(()=>{if((this.store.get('votingListDiscoveryPurgeAt')||Infinity)<=now){this.store.set('votingListDiscoveryGaps',[]);this.store.set('votingListLastError',null);}
+    if(now>=this.nextPurgeCheck)this.write(()=>{
+      // Keep stable ballot identities before the source retention purge.
+      for(const {sitting} of db.prepare('SELECT DISTINCT sitting FROM voting_list_revisions').all()){
+        const snapshot=this.snapshots.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,sitting,{retained:true});
+        if(snapshot?.day)retainSittingBallotBindings(this.store,snapshot.day,new VotingListStore(this.store,{clock:()=>0}).votingListsForSitting(sitting));
+      }
+      if((this.store.get('votingListDiscoveryPurgeAt')||Infinity)<=now){this.store.set('votingListDiscoveryGaps',[]);this.store.set('votingListLastError',null);}
       db.prepare('DELETE FROM voting_list_revisions WHERE purge_at<=?').run(now);db.prepare('DELETE FROM voting_list_sources WHERE purge_at<=?').run(now);
       this.store.set('votingListPurgeCheck',now+DAY);this.nextPurgeCheck=now+DAY;});
     if(!active.length||hour(now)<6||hour(now)>=23)return false;

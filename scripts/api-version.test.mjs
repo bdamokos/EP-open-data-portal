@@ -12,6 +12,19 @@ const registry = (...digests) => ({version: (digests.length - 1) % 999 + 1, revi
 const template = `// Keep this comment.\nexport const API_VERSION = 1;\nexport const API_CONTRACT_DIGESTS = Object.freeze({\n  1: '${a}',\n});\nexport function versionedApiUrl(url) { return url; }\n`;
 const source = (...digests) => renderRegistry(template, registry(...digests));
 
+test('repair provenance parses as data, preserves order and rejects ambiguous records', () => {
+  const repair = {base: '1'.repeat(40), tip: '2'.repeat(40)};
+  const value = {...registry(a), repairs: [repair]};
+  const text = renderRegistry(template, value);
+  assert.deepEqual(parseRegistry(text), value);
+  assert.deepEqual(reconcileRegistry(value, [registry(a, b)], b).repairs, [repair]);
+  assert.throws(() => assertBranchHistory(value, value, registry(a)), /provenance/);
+  for (const replacement of ['[]', '[{"base":"bad","tip":"bad"}]', JSON.stringify([repair, repair]),
+    '[{"base":"' + repair.base + '","base":"' + repair.base + '","tip":"' + repair.tip + '"}]']) {
+    assert.throws(() => parseRegistry(text.replace(/Object.freeze\(\[[\s\S]*?\]\);/, 'Object.freeze(' + replacement + ');')));
+  }
+});
+
 test('revision history crosses 998, 999 and 1 without reusing keys', () => {
   let current = registry(...Array(998).fill(a));
   for (const [revision, version, digest] of [[999, 999, b], [1000, 1, c], [1001, 2, d]]) {
@@ -151,6 +164,159 @@ async function fixture(t) {
   const write = text => writeFile(path.join(root, 'server/api-version.mjs'), text);
   return {root, digest, run, read, write};
 }
+
+async function corruptMain(t, separate = false) {
+  const f = await fixture(t);
+  git(f.root, 'switch', 'main');
+  await f.write(separate ? source(f.digest, b, f.digest, f.digest) : source(f.digest, b, f.digest));
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Recorded main history');
+  const good = git(f.root, 'rev-parse', 'HEAD');
+  const bad = separate ? [registry(f.digest, c, f.digest, f.digest), registry(f.digest, b, c, f.digest)]
+    : [registry(f.digest, c, c, f.digest), registry(f.digest, d, c, f.digest)];
+  const refs = [];
+  for (const value of bad) {
+    await f.write(renderRegistry(template, value));
+    git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Conflicting published history');
+    refs.push(git(f.root, 'rev-parse', 'HEAD'));
+  }
+  git(f.root, 'switch', 'feature'); git(f.root, 'merge', '--ff-only', 'main');
+  git(f.root, 'fetch', 'origin', 'main:refs/remotes/origin/main');
+  return {...f, good, bad, refs};
+}
+
+test('explicit history recovery restores recorded keys and retains all displaced occurrences', async t => {
+  const f = await corruptMain(t);
+  const result = f.run('--repair-history', f.good);
+  assert.equal(result.status, 0, result.stderr);
+  const after = await f.read(), recovered = parseRegistry(after);
+  assert.deepEqual(recovered.entries, registry(f.digest, b, f.digest, f.digest, c, d, c, f.digest).entries);
+  assert.deepEqual(recovered.repairs, [{base: f.good, tip: f.refs.at(-1)}]);
+  git(f.root, 'remote', 'set-url', 'origin', path.join(f.root, 'missing-origin'));
+  assert.equal(f.run('--check').status, 0);
+  assert.equal(await f.read(), after, 'check is read-only');
+  git(f.root, 'remote', 'set-url', 'origin', f.root);
+  assert.equal(f.run().status, 0);
+  assert.equal(await f.read(), after, 'ordinary regeneration is idempotent');
+  const missing = {...registry(f.digest, b, f.digest, f.digest, c, d, f.digest), repairs: recovered.repairs};
+  await f.write(renderRegistry(template, missing));
+  const failure = f.run('--check');
+  assert.equal(failure.status, 1); assert.match(failure.stderr, /discarded/);
+  assert.deepEqual(parseRegistry(await f.read()), missing);
+  await f.write(after);
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Repair published history');
+  git(f.root, 'switch', 'main'); git(f.root, 'merge', '--ff-only', 'feature');
+  git(f.root, 'switch', 'feature');
+  await f.write(source(f.digest, c)); // An old branch without recovery metadata.
+  assert.equal(f.run().status, 0);
+  const inherited = parseRegistry(await f.read());
+  assert.deepEqual(inherited.repairs, recovered.repairs);
+  assertRecordedHistory(recovered, inherited);
+  assert.equal(f.run('--check').status, 0);
+});
+
+test('history recovery rejects a corrupt anchor, unrelated ancestry and check-mode mutation', async t => {
+  const f = await corruptMain(t), before = await f.read();
+  for (const ref of [f.refs[0], f.refs[1]]) {
+    assert.equal(f.run('--repair-history', ref).status, 1);
+    assert.equal(await f.read(), before);
+  }
+  git(f.root, 'switch', '-c', 'side', f.good);
+  await f.write(source(f.digest, b, f.digest, c));
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Unpublished side registry');
+  const side = git(f.root, 'rev-parse', 'HEAD');
+  git(f.root, 'switch', 'main'); git(f.root, 'merge', '-s', 'ours', '--no-ff', 'side', '-m', 'Side ancestry only');
+  git(f.root, 'switch', 'feature'); git(f.root, 'merge', '--ff-only', 'main');
+  assert.equal(f.run('--repair-history', side).status, 1, 'second-parent ancestry is not published authority');
+  const unchanged = await f.read();
+  assert.equal(f.run('--check', '--repair-history', f.good).status, 1);
+  assert.equal(await f.read(), unchanged);
+});
+
+test('history recovery is not a waiver for an already valid registry', async t => {
+  const f = await fixture(t), before = await f.read(), good = git(f.root, 'rev-parse', 'main');
+  git(f.root, 'switch', 'main');
+  await f.write(source(f.digest, b, f.digest));
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Valid append-only main');
+  git(f.root, 'switch', 'feature'); git(f.root, 'merge', '--ff-only', 'main');
+  assert.equal(f.run('--repair-history', good).status, 1);
+  assert.deepEqual(parseRegistry(await f.read()), registry(f.digest, b, f.digest));
+  assert.notEqual(await f.read(), before);
+});
+
+test('a later recovery preserves prior provenance and all previously repaired mappings', async t => {
+  const f = await corruptMain(t);
+  assert.equal(f.run('--repair-history', f.good).status, 0);
+  const first = parseRegistry(await f.read());
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'First verified repair');
+  git(f.root, 'switch', 'main'); git(f.root, 'merge', '--ff-only', 'feature');
+  const green = git(f.root, 'rev-parse', 'HEAD');
+  const nextBad = {...first, entries: first.entries.map(entry => [...entry])};
+  nextBad.entries[1][1] = d;
+  await f.write(renderRegistry(template, nextBad));
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Later conflicting history');
+  git(f.root, 'switch', 'feature'); git(f.root, 'merge', '--ff-only', 'main');
+  const repaired = f.run('--repair-history', green);
+  assert.equal(repaired.status, 0, repaired.stderr);
+  const second = parseRegistry(await f.read());
+  assertRecordedHistory(first, second);
+  assert.deepEqual(second.repairs.slice(0, 1), first.repairs);
+  assert.equal(second.repairs.length, 2);
+  assert.equal(f.run('--check').status, 0);
+  const tampered = {...second, repairs: second.repairs.slice(1)};
+  await f.write(renderRegistry(template, tampered));
+  assert.equal(f.run('--check').status, 1, 'prior recovery provenance cannot be replaced');
+});
+
+test('a declared recovery cannot hide a later undeclared main collision', async t => {
+  const f = await corruptMain(t);
+  assert.equal(f.run('--repair-history', f.good).status, 0);
+  const pending = await f.read();
+  git(f.root, 'checkout', '--', 'server/api-version.mjs');
+  git(f.root, 'switch', 'main');
+  await f.write(source(f.digest, d, c, d));
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Undeclared later collision');
+  git(f.root, 'switch', 'feature'); git(f.root, 'merge', '--ff-only', 'main');
+  git(f.root, 'fetch', 'origin', 'main:refs/remotes/origin/main');
+  await f.write(pending);
+  const checked = f.run('--check');
+  assert.equal(checked.status, 1); assert.match(checked.stderr, /removed or replaced/);
+  assert.equal(await f.read(), pending);
+});
+
+test('historical pair union cannot reuse one alias for records in different snapshots', async t => {
+  const f = await corruptMain(t, true);
+  assert.equal(f.run('--repair-history', f.good).status, 0);
+  const full = parseRegistry(await f.read());
+  assert.equal(full.entries.slice(4).filter(([, digest]) => digest === c).length, 2);
+  const values = full.entries.map(([, digest]) => digest); values.splice(4, 1);
+  const incomplete = {...registry(...values), repairs: full.repairs};
+  await f.write(renderRegistry(template, incomplete));
+  const before = await f.read(), failed = f.run('--check');
+  assert.equal(failed.status, 1); assert.match(failed.stderr, /discarded/);
+  assert.equal(await f.read(), before);
+  assert.equal(f.run().status, 0);
+  assert.notEqual(await f.read(), before, 'regeneration must restore the missing occurrence');
+  assert.equal(f.run('--check').status, 0);
+});
+
+test('a real old-branch merge retains recovery provenance through registry conflicts', async t => {
+  const f = await corruptMain(t);
+  assert.equal(f.run('--repair-history', f.good).status, 0);
+  const repaired = parseRegistry(await f.read());
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Publish verified recovery');
+  git(f.root, 'switch', 'main'); git(f.root, 'merge', '--ff-only', 'feature');
+  git(f.root, 'switch', '-c', 'old-branch', f.good);
+  await f.write(source(f.digest, b, f.digest, d, f.digest));
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Old independent contract');
+  const old = git(f.root, 'rev-parse', 'HEAD');
+  assert.throws(() => git(f.root, 'merge', 'main'));
+  const bumped = f.run();
+  assert.equal(bumped.status, 0, bumped.stderr);
+  const result = parseRegistry(await f.read());
+  assertRecordedHistory(repaired, result);
+  assert.deepEqual(result.repairs, repaired.repairs);
+  assert.equal(f.run('--check', '--base', old).status, 0);
+});
 
 test('CLI check fails unbumped changes without writing; bump fetches and is idempotent', async t => {
   const f = await fixture(t);
