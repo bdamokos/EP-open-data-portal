@@ -9,6 +9,7 @@ import {assertArticleNotes} from './amendment-article-notes-oracle.mjs';
 import {inspectNativeNoteScope,assertNativeFirstRecital} from './amendment-note-scope-oracle.mjs';
 import {assertGuidelineAnnex} from './amendment-guideline-oracle.mjs';
 import {assertBareAnnexIndent} from './amendment-annex-indent-oracle.mjs';
+import {assertResolutionNumberingDrift} from './amendment-numbering-drift-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
@@ -507,7 +508,7 @@ function verifyProposalPlacement(input) {
   return raw.status==='unverified'?result:raw;
 }
 
-function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, target = parseBenchmarkTarget(wording)}) {
+function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, voteReferences=[], target = parseBenchmarkTarget(wording)}) {
   const scope=verifyLanguageScope(placement,expectedLanguageScope(wording));
   if(scope)return scope;
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
@@ -556,6 +557,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});
   if(letterPoint.status!=='unverified')return letterPoint;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
+    const drift=!proposal&&assertResolutionNumberingDrift({text,wording,placement,voteReferences});
+    if(drift)return drift;
     let source, labels = [];
     if (proposal) {
       const {splice} = placement;
