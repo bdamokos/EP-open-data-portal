@@ -1,3 +1,5 @@
+import {documentContextPlacement} from './document-context-placement.mjs';
+import {makeAnnexIndentCase,fixtureZip} from '../scripts/fixtures/bare-annex-indent-native.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -575,4 +577,21 @@ test('a printed first-paragraph label matches only the sole complete implicit ar
  for(const patch of [{baseline:'present-text'},{language:'fr'},{originalText:'2. A legal body.'},{proposedText:'2. A revised legal body.'},{originalText:'1. Another legal body.'}])assert.equal(place(proposal,{...w,...patch}).status,'unresolved',JSON.stringify(patch));
  const two={...content,paragraphs:['Article [1]','Subject matter','A legal body.','Another paragraph.','Article [2]']};
  Object.assign(two,source(two.paragraphs,['Titrearticle','Titrearticle','Normal','Normal','Titrearticle']));two.sourceKind='docx';assert.equal(place(parseProposal(two)).status,'unresolved');
+});
+test('a sole bare annex supplies only a bounded interior indent alias with native inline proof',()=>{
+ const raw=makeAnnexIndentCase(),items=raw.items.map((i,index)=>({kind:i.kind,proposal:structuredClone(parseProposal(raw.nativeQuoted.proposalBuffers[index],{item:i.kind}))})),w=raw.wording;
+ const place=(input=items,a=w,nativeProposalInputs=raw.nativeQuoted.proposalBuffers)=>resolveProposalPlacement(input,a,{nativeProposalInputs});
+ assert.equal(place().status,'placed');assert.equal(place().insertBefore,13);assert.equal(place().insertAfter,12);
+ const chosen={...w,targetLabelLanguage:'en',baselineSource:{category:'commission-proposal',conflicted:false}};assert.equal(documentContextPlacement({chosen,items,nativeProposalInputs:raw.nativeQuoted.proposalBuffers}).status,'placed','public placement selection forwards request-local bytes');
+ assert.equal(resolveProposalPlacement(items,w).status,'unresolved','native proof is mandatory');
+ for(const mutate of [a=>a.push(a[1]),a=>a[1].proposal.sourceKind='text',a=>a[0].proposal.paragraphs[0].text='See Annex II.',a=>a[1].proposal.paragraphs[12].complete=false,a=>a[1].proposal.paragraphs[13].source.ordinal++,a=>a[1].proposal.paragraphs[12].properties.numbering.format='decimal',a=>a[1].proposal.paragraphs[12].properties.numberingLabel='-',a=>a[1].proposal.gaps.push({code:'unknown'}),a=>a[1].proposal.anchors.push({paragraph:12,offset:3,note:'x'})]){const a=structuredClone(items);mutate(a);assert.equal(place(a).status,'unresolved',String(mutate));}
+ for(const patch of [{language:'fr'},{baseline:'present-text'},{targetLabel:'Annex II – point 3 – indent 6 a (new)'},{targetLabel:'Annex I – point 3 – indent 6 b (new)'},{targetLabel:'Annex I – point 3 – indent 7 a (new)'},{targetLabel:'Annex I – point 4 – indent 6 a (new)'},{originalText:'Existing wording.'}])assert.equal(place(items,{...w,...patch}).status,'unresolved',JSON.stringify(patch));
+});
+
+test('the scoped native guard rejects simple fields and unknown inline elements after normal parsing',()=>{
+ for(const change of [xml=>xml.replace('<w:r><w:t>Native bullet 4.</w:t></w:r>','<w:fldSimple w:instr="INCLUDETEXT &quot;unavailable.docx&quot;"><w:r><w:t>Native bullet 4.</w:t></w:r></w:fldSimple>'),xml=>xml.replace('Native bullet 4.','<w:unknown/>Native bullet 4.'),xml=>xml.replace('</w:body>','<w:p><w:fldSimple/></w:p></w:body>')]){
+  const raw=makeAnnexIndentCase();raw.parts['word/document.xml']=change(raw.parts['word/document.xml']);raw.nativeQuoted.proposalBuffers[1]=fixtureZip(raw.parts);
+  const items=raw.items.map((i,index)=>({kind:i.kind,proposal:parseProposal(raw.nativeQuoted.proposalBuffers[index],{item:i.kind})}));
+  assert.equal(resolveProposalPlacement(items,raw.wording,{nativeProposalInputs:raw.nativeQuoted.proposalBuffers}).status,'unresolved');
+ }
 });
