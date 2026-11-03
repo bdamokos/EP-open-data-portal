@@ -160,3 +160,30 @@ test('retained story links browse their displayed mode, zoom and authors while r
  const request=h.calls.find(u=>u.searchParams.get('list')==='questions');assert(request);assert.equal(request.searchParams.get('askers'),'not-home');assert.equal(request.searchParams.get('mode'),'q');assert.equal(request.searchParams.get('zoom'),'world');
  await act(async()=>release());
 });
+
+for(const replace of [false,true])test('unrelated query updates preserve story return state ('+replace+')',async t=>{
+ await harness(t,{props:{selection}});
+ const saved={storyLinkId:'story-origin',storyScroll:380,storyReturn:true,other:'retained'};
+ history.replaceState(saved,'');
+ const {updateExplorerQuery}=await load('/src/explorerUrl.ts');
+ await act(async()=>{updateExplorerQuery(url=>url.searchParams.set('t-q','2026-Q1'),replace);updateExplorerQuery(url=>url.searchParams.set('t-mode','d'),replace);});
+ assert.deepEqual(history.state,saved);assert.equal(new URL(location.href).searchParams.get('t-mode'),'d');
+});
+
+test('paginated records focus the first appended row after the final Show more',async t=>{
+ let finish;const pending=new Promise(resolve=>{finish=resolve;});
+ const page=q=>{const f=recordLinkPage(q),last=Boolean(q.cursor),rows=Array.from({length:last?2:20},(_,i)=>({id:'E-10-2026-'+String((last?20:0)+i+1).padStart(6,'0'),title:'Paged question '+((last?20:0)+i+1),date:'2026-01-10'}));return {...f,questions:rows,page:{total:22,items:rows.map(r=>({id:r.id,kind:'question',date:r.date})),nextCursor:last?null:'next'}};};
+ const h=await harness(t,{component:'StoryBrowse',props:{selection:{...selection,place:'TUR'},browse:{list:'questions',place:'TUR',period:'2026-Q1'}},respond:async(u,q)=>{if(q?.list==='questions'){if(q.cursor)await pending;return page(q);}}});
+ await h.wait('Showing 20 of 22');const more=h.node.querySelector('button');more.focus();
+ await act(async()=>more.click());assert(!h.node.textContent.includes('Paged question 21'));
+ await act(async()=>finish());await h.wait('Showing 22 of 22');
+ assert.equal(document.activeElement.textContent,'Paged question 21');assert(!h.node.querySelector('button'));
+});
+
+test('static records focus the first revealed row after the final Show more',async t=>{
+ const debates=Array.from({length:22},(_,i)=>({id:'MTG-PL-2026-01-07-PVCRE-ITM-'+(i+1),title:'Static debate '+(i+1),date:'2026-01-07'}));
+ const key='urgency-debates:map:2026-Q1:all:n=22';
+ const h=await harness(t,{component:'TopicStoryRecords',url:'?view=geopolitics&t-records='+encodeURIComponent(key),props:{selection},respond:(u,q)=>q?{...mapLinkFacts(),debates,sets:{urgencyDebates:{'2026-Q1':debates.map(d=>d.id)}}}:undefined});
+ await h.wait('Showing 20 of 22');const more=h.node.querySelector('button');more.focus();await act(async()=>more.click());await h.wait('Showing 22 of 22');
+ assert.equal(document.activeElement.textContent,'Static debate 21');assert(!h.node.querySelector('button'));
+});
