@@ -214,6 +214,7 @@ function bareAnnexInsertion(items,target,language) {
   const headings=items.flatMap(item=>item.proposal.paragraphs.filter(row=>/^Annexetitre$/iu.test(row.properties?.styleId||'')));
   if(headings.length!==1||headings[0].text.split(/\r?\n/u)[0].trim()!=='ANNEX')return null;
   if(proposal.sourceKind!=='docx'||unit.extent.end!==proposal.paragraphs.length||!completeBoundary(proposal,unit)
+    ||proposal.gaps.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=unit.extent.start)
     ||!rows.every((row,i)=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&(!i||row.source.containerPath===rows[i-1].source.containerPath&&(row.source.segment===rows[i-1].source.segment&&row.source.ordinal===rows[i-1].source.ordinal+1||row.source.previousParagraph===rows[i-1].source.path&&row.source.ordinal>rows[i-1].source.ordinal&&row.source.segment-rows[i-1].source.segment===row.source.ordinal-rows[i-1].source.ordinal-1))))return {reason:'source_passage_incomplete'};
   return {itemIndex,insertBefore:unit.extent.end,anchor:unit,basis:'sole-bare-annex-end'};
 }
