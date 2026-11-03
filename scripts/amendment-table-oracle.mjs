@@ -5,10 +5,12 @@ const forbidden=/"(?:w:(?:drawing|pict|object|sdt|altChunk|del|moveFrom|instrTex
 const empty=row=>row.kind==='paragraph'&&!row.hidden&&!row.numbered&&!row.text.trim()&&!forbidden.test(JSON.stringify(row.nodes));
 // Native top-level neighbours and every table-cell paragraph are checked before
 // projection indices enter the assertion. No runtime table layout or proof is read.
+const cached=new WeakMap();
 export function nativeAttachedTables(text) {
+  if(cached.has(text))return cached.get(text);
   if(!text?.nativeBuffer||text.paragraphSources?.length!==text.paragraphs?.length)return [];
   let body;try{body=quotedWordBody(text.nativeBuffer);}catch{return [];}
-  const results=[];let tableNumber=0;
+  const results=[];cached.set(text,results);let tableNumber=0;
   const byPath=new Map(text.paragraphSources.map((source,index)=>[source.path,index]));
   for(let at=0;at<body.length;at++) {
     const table=body[at];if(table.kind!=='other'||!table.nodes['w:tbl'])continue;
