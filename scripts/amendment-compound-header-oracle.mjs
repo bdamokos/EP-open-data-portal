@@ -49,7 +49,7 @@ export function assertCompoundHeader({wording,nativeQuoted}) {
    if(['w:br','w:cr'].includes(key)){breaks++;return value.length===0&&[undefined,'textWrapping'].includes(node[':@']?.['@_w:type']);}
    return false;
   }));
-  for(const other of block.slice(1,tableAt).filter(other=>other!==row))if(other.hidden||other.unsafe||other.numbered||!inline(other.nodes))return unavailable();
+  for(const other of block.slice(1,tableAt).filter(other=>other!==row)){breaks=0;if(other.hidden||other.unsafe||other.numbered||!inline(other.nodes)||breaks)return unavailable();}
   breaks=0;if(!inline(row.nodes)||breaks!==1)return unavailable();
   for(const [field,raw] of [['DocumentClass',lines[0]],['Article',lines[1]]]) {
    const matches=(wording.documentReferences||[]).filter(ref=>ref.field===field&&ref.scope==='amendment');
