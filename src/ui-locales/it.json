@@ -1,4 +1,7 @@
 {
+  "documentcontext.final_placement_check": "Verificare la collocazione definitiva nel {adoptedText}.",
+  "documentcontext.adopted_text": "testo approvato",
+  "amendment.alternative_motion": "Proposta alternativa",
   "documentcontext.council.quotation": "Testo del Consiglio citato nella relazione.",
   "amendment.rejects_proposal": "Respinge la proposta",
   "amendment.rejects_council_position": "Respinge la posizione del Consiglio",

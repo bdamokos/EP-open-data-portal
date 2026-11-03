@@ -4,7 +4,7 @@ import { array, tail, procedureIds, documentFiles } from './activity-index-model
 import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
-export const AMENDMENTS_VERSION = 8;
+export const AMENDMENTS_VERSION = 10;
 export const AMENDMENTS_API_VERSION = 3;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 4;
 export const AMENDMENT_OUTCOME_PROOF_VERSION = 3;

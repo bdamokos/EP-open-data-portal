@@ -75,7 +75,30 @@ test('cached automatic recital and paragraph numbers independently certify blank
  const body=quotedWordBody(buffer),visible=body.filter(row=>row.kind==='paragraph'&&row.text.trim());
  const text={nativeBuffer:buffer,paragraphs:visible.map(row=>(row.numberingLabel?row.numberingLabel+'\t':'')+row.text.trim()),paragraphFormats:visible.map(()=>({})),paragraphSources:visible.map(row=>({path:row.path,container:'body',containerPath:'/w:document[1]/w:body[1]',ordinal:body.indexOf(row),segment:body.indexOf(row),complete:true}))};
  assert.equal(visible.filter(row=>row.numberingLabel).map(row=>row.numberingLabel).join(','),'A.,B.,C.,D.,E.,F.,1.,2.,3.,4.,5.,6.,7.,8.,9.');
- const units=rawResolutionUnits(text,'en').units;for(const label of ['D','1','2','5'])assert.equal(units.find(unit=>unit.label===label&&unit.kind===(label==='D'?'recital':'paragraph'))?.complete,true,label);
+ const units=rawResolutionUnits(text,'en',{includeTables:true}).units;for(const label of ['D','1','2','5'])assert.equal(units.find(unit=>unit.label===label&&unit.kind===(label==='D'?'recital':'paragraph'))?.complete,true,label);
+});
+
+import {docxContent} from '../server/document-text.mjs';
+import {nativeAttachedTables} from './amendment-table-oracle.mjs';
+test('native table boundaries include all cells before the following numbered paragraph',()=>{
+  const source=fixture.find(row=>row.documentId==='A-10-2026-0081');
+  const xml=wrap('<w:p><w:r><w:t>The European Parliament,</w:t></w:r></w:p>'+source.paragraphXml.join(''));
+  const nativeBuffer=zip(xml),text={...docxContent(nativeBuffer),nativeBuffer};
+  const tables=nativeAttachedTables(text);
+  assert.deepEqual(tables,[{start:1,end:84,following:85,label:'149'}]);
+  const units=rawResolutionUnits(text,'en',{includeTables:true}).units;
+  assert.equal(units.find(unit=>unit.label==='149').complete,true);
+  for(const suffix of ['a','b']) {
+    const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 149 '+suffix+' (new)',originalText:'',proposedText:'New provision;'};
+    const placement={operation:'insert',status:'placed',insertAfter:84,insertBefore:85};
+    assert.equal(verifyPlacement({text,wording,placement}).status,'verified');
+    assert.equal(verifyPlacement({text,wording,placement:{...placement,insertAfter:1,insertBefore:2}}).status,'failed');
+  }
+  assert.deepEqual(nativeAttachedTables({...text,nativeBuffer:null}),[]);
+  const changed={...text,paragraphs:text.paragraphs.map((value,index)=>index===5?value+' omitted':value)};
+  assert.deepEqual(nativeAttachedTables(changed),[]);
+  const incomplete={...text,paragraphSources:text.paragraphSources.map((value,index)=>index===5?{...value,complete:false}:value)};
+  assert.deepEqual(nativeAttachedTables(incomplete),[]);
 });
 test('a wholly italic title closes a paragraph only between consecutive raw numbers',()=>{
  // A-10-2026-0085 prints its recurring "Recommendations" titles in italics only.
@@ -110,4 +133,15 @@ test('an italic title separated by native blank rows still closes the preceding 
  assert.equal(tabled.paragraphs.length,certified.paragraphs.length,'the table is omitted like the blank row');
  assert.equal(unit(tabled).complete,false,'an omitted non-paragraph row is not certified');
  assert.equal(unit({...certified,nativeBuffer:undefined}).complete,false,'without native XML the gap is not certified');
+});
+
+test('label placement remains the oracle target when a vote list names another unit',()=>{
+ const p=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';
+ const text=input(p('The European Parliament,')+p('19. Exact wording;')+p('20. Next;')+p('21. Last;'));
+ text.paragraphSources.forEach(source=>source.segment=0);
+ for(const referenceText of ['After § 20','After recital D']) {
+  const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 19 a (new)',originalText:'',proposedText:'New wording;',referenceText};
+  assert.equal(verifyPlacement({text,wording,placement:{status:'placed',operation:'insert',insertAfter:1,insertBefore:2}}).status,'verified');
+  assert.equal(verifyPlacement({text,wording,placement:{status:'placed',operation:'insert',insertAfter:2,insertBefore:3}}).status,'failed');
+ }
 });

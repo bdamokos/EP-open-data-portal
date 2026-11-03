@@ -1,4 +1,7 @@
 {
+  "documentcontext.final_placement_check": "Kontrollera den slutliga placeringen i {adoptedText}.",
+  "documentcontext.adopted_text": "den antagna texten",
+  "amendment.alternative_motion": "Alternativt resolutionsförslag",
   "documentcontext.council.quotation": "Rådets text såsom den citeras i betänkandet.",
   "amendment.rejects_proposal": "Avvisar förslaget",
   "amendment.rejects_council_position": "Avvisar rådets ståndpunkt",

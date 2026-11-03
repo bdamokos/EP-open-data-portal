@@ -1,4 +1,7 @@
 {
+  "documentcontext.final_placement_check": "Sprawdź ostateczne umiejscowienie w {adoptedText}.",
+  "documentcontext.adopted_text": "przyjętym tekście",
+  "amendment.alternative_motion": "Alternatywny projekt rezolucji",
   "documentcontext.council.quotation": "Tekst Rady cytowany w sprawozdaniu.",
   "amendment.rejects_proposal": "Odrzuca wniosek",
   "amendment.rejects_council_position": "Odrzuca stanowisko Rady",

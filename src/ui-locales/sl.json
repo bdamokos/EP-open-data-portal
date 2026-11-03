@@ -1,4 +1,7 @@
 {
+  "documentcontext.final_placement_check": "Končno mesto preverite v {adoptedText}.",
+  "documentcontext.adopted_text": "sprejetem besedilu",
+  "amendment.alternative_motion": "Alternativni predlog",
   "documentcontext.council.quotation": "Besedilo Sveta, kot je navedeno v poročilu.",
   "amendment.rejects_proposal": "Zavrača predlog",
   "amendment.rejects_council_position": "Zavrača stališče Sveta",

@@ -1,3 +1,5 @@
+import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
+import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
@@ -37,6 +39,15 @@ export function classify(stages) {
   }
   if (stages.S5.status !== 'placed') return {outcome:'withheld-pipeline', reason:stages.S5.reason};
   return stages.S6.status === 'verified' ? {outcome:'correct', reason:'oracle-verified'} : {outcome:'placed-unverified', reason:stages.S6.reason};
+}
+
+// Whole-document operations have no paragraph location and earn no placement credit.
+export function classifyRow(stages,documentOperation) {
+  if(documentOperation?.status==='verified'&&stages.S5.status==='document-operation') {
+    if(documentOperation.reason==='source-attested-rejection')return {outcome:'not-placeable',reason:'whole-document-rejection'};
+    if(documentOperation.reason==='source-attested-alternative-motion')return {outcome:'not-placeable',reason:'whole-document-alternative-motion'};
+  }
+  return classify(stages);
 }
 
 const flatten = units => units.flatMap(unit => [unit, ...flatten(unit.children || [])]);
@@ -281,7 +292,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
     return verified('oracle-negative-first-paragraph-boundary');
   }
   if(!label.isNew)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
-  const raw=rawResolutionUnits(text,wording.language);
+  const raw=rawResolutionUnits(text,wording.language,{includeTables:true});
   if(raw.reason)return {status:'unverified',reason:raw.reason};
   const units=raw.units,parents=target.segments.slice(0,-1);
   const owns=unit=>{
@@ -379,6 +390,10 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
   const proposal = items?.[placement.itemIndex]?.proposal;
+  const closing=assertClosingFormula({proposal,wording,placement});
+  if(closing.status!=='unverified')return closing;
+  const numbering=assertWordingNumbering({proposal,wording,placement});
+  if(numbering.status!=='unverified')return numbering;
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});

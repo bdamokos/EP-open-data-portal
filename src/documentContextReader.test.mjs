@@ -1,3 +1,4 @@
+import {createAppUiI18n} from './uiCatalogues.mjs';
 import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import {wordingText} from './test-support/wordingText.mjs';
@@ -97,7 +98,7 @@ test('mixed note and changed footnote wording stays separate from the intact doc
   assert.equal(wordingText(h.container,'original'),example.originalText);assert.equal(wordingText(h.container,'proposed'),example.proposedText);
 });
 
-async function harness(t,respond,followups=()=>({status:'none-listed',items:[],gaps:[]})) {
+async function harness(t,respond,followups=()=>({status:'none-listed',items:[],gaps:[]}),interfaceI18n=null) {
   const window=new Window({url:'http://localhost/'}),requests=[],scrolls=[];
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -115,9 +116,10 @@ async function harness(t,respond,followups=()=>({status:'none-listed',items:[],g
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {DocumentContextReader}=await loadModule('/src/DocumentContextReader.tsx');
+  const {UiI18nProvider}=await loadModule('/src/UiI18nReact.tsx');
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,15)));
-  const render=async(props,wait=true)=>{await act(async()=>root.render(el(DocumentContextReader,props)));if(wait)await settle();};
+  const render=async(props,wait=true)=>{await act(async()=>root.render(interfaceI18n?el(UiI18nProvider,{i18n:interfaceI18n,language:props.language},el(DocumentContextReader,props)):el(DocumentContextReader,props)));if(wait)await settle();};
   const click=async element=>{assert(element,'Missing control');await act(async()=>element.click());await settle();};
   const change=async(element,value)=>{assert(element,'Missing selector');await act(async()=>{element.value=value;element.dispatchEvent(new window.Event('change',{bubbles:true}));});await settle();};
   return {window,container,requests,scrolls,render,click,change,settle};
@@ -1317,4 +1319,43 @@ test('report quotation labels the comparison base without a legal-text placement
  assert(h.container.querySelector('.wording-diff'));
  assert.equal(h.container.querySelector('[data-context-target]'),null);
  assert(![...h.container.querySelectorAll('button')].some(b=>b.textContent==='Go to amendment'));
+});
+
+for(const interfaceLanguage of ['en','fr'])for(const url of [null,'https://www.europarl.europa.eu/doceo/document/TA-10-2026-0200_EN.html'])test('label placement has one final-text note '+interfaceLanguage+' '+url,async t=>{
+ const value=response(report,sourceDocument(report,['The European Parliament,','1. Original wording.','2. Next;']),{
+  requestedWordingLanguage:'en',
+  amendment:{...amendmentSource,variants:[wordingVariant('en')]},
+  target:{...target,evidence:pinnedEvidence('en')},
+  placement:{status:'placed',operation:'replace',span:{start:1,end:1},evidence:[],finalPlacementCheck:{adoptedTextUrl:url}},
+ });
+ const i18n=createAppUiI18n({fr:JSON.parse(readFileSync(new URL('./ui-locales/fr.json',import.meta.url)))});
+ const h=await harness(t,()=>value,undefined,i18n);
+ await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:interfaceLanguage});
+ const block=h.container.querySelector('[data-context-target="true"]');assert(block,'matching amendment should render in place');
+ const expected=interfaceLanguage==='fr'?'Vérifiez l’emplacement final dans le texte adopté.':'Check final placement in the adopted text.';
+ assert.equal(block.textContent.split(expected).length-1,1);
+ assert.equal([...block.querySelectorAll('p')].find(p=>p.textContent===expected)?.lang,interfaceLanguage);
+ assert.equal(block.querySelector('a')?.href??null,url);
+});
+test('alternative motion is readable as a document operation without inline diff',async t=>{
+  const data=response(report,sourceDocument(report),{requestedWordingLanguage:'en',amendment:{...amendmentSource,variants:[wordingVariant('en',{originalText:'',proposedText:'The European Parliament,\n1. Complete alternative motion.'})]},target:{...target,evidence:pinnedEvidence('en')}});
+  data.placement={status:'document-operation',operation:'alternative-motion',scope:'motion-resolution',reason:'alternative_motion',evidence:[]};
+  const h=await harness(t,()=>data);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert.match(h.container.textContent,/Alternative motion/);
+  assert.match(h.container.textContent,/Complete alternative motion/);
+  assert.equal(h.container.querySelector('.wording-diff__columns'),null);
+  assert.equal(h.container.querySelector('ins'),null);
+  assert.equal(h.container.querySelector('[data-context-target="true"]'),null);
+  assert(!h.container.textContent.includes('location could not be determined'));
+});
+test('an amendment after a table appears outside its final cell',async t=>{
+  const data=overlayResponse({insertAfter:3,insertBefore:4});
+  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','19. Table follows:','First cell','Final cell','20. Following provision;'],formatStatus:'extracted',paragraphFormats:[{},{},{},{},{}],tables:[{rows:[[{start:2,end:3},{start:3,end:4}]]}]});
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  const table=h.container.querySelector('table');assert(table);
+  assert.equal(table.querySelector('[data-amendment-block]'),null);
+  assert.equal(table.nextElementSibling.dataset.amendmentBlock,'true');
+  assert.equal(table.nextElementSibling.dataset.contextTarget,'true');
+  assert.match(table.nextElementSibling.nextElementSibling.textContent,/Following provision/);
 });

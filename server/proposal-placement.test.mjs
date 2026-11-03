@@ -470,3 +470,25 @@ test('similarity recovery withholds table-cell passages without independent tabl
  const placed=resolveProposalPlacement([{kind:'act',proposal}],{targetLabel:'Article 1 – paragraph 1 – point 1',originalText:text.replace('system','systen'),proposedText:'New text.',language:'en'});
  assert.equal(placed.status,'unresolved');
 });
+
+test('new final-article paragraphs precede the unnumbered closing formula',()=>{
+ const formula='This Regulation shall be binding in its entirety and directly applicable in all Member States.';
+ const rows=['Article 6','This Regulation shall enter into force tomorrow.',formula,'Done at Brussels'];
+ const projection=source(rows,['Titrearticle','Normal','Normal','Normal']);
+ for(const n of [2,3]){const placed=resolve(projection,`Article 6 – paragraph ${n} (new)`);assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,2);}
+ assert.equal(resolve(projection,'Article 6 – paragraph 1 (new)').status,'unresolved');
+ const missing=source(rows.filter(r=>r!==formula),['Titrearticle']);
+ assert.equal(resolve(missing,'Article 6 – paragraph 2 (new)').status,'unresolved');
+});
+test('amendment wording resolves shifted Commission point labels uniquely',()=>{
+ // COM(2025)983 / A-10-2026-0267 AM15–17: the second passage is unnumbered.
+ const passages=['Member States may provide alternative means for traceability and enforcement with regard to producers established in third countries;','Article 17(2) of Directive 2012/19/EU;','Article 8(7) of Directive (EU) 2019/904.'];
+ const rows=['Article 1','Suspension','The following provisions are suspended:','(a) Article 22a(3) of Directive 2008/98/EC.',passages[0],'(b) '+passages[1],'(c) '+passages[2],'Article 2'];
+ const projection=source(rows,['Titrearticle']);projection.paragraphProperties.at(-1).styleId='Titrearticle';
+ for(const [i,label] of ['b','c','d'].entries()){
+  const placed=resolve(projection,`Article 1 – paragraph 1 – point ${label}`,`(${label}) ${passages[i]}`,'deleted');
+  assert.equal(placed.status,'placed',placed.reason);assert.equal(placed.span.start,i+4);assert.equal(placed.span.end,i+4);
+ }
+ const repeated=source([...rows.slice(0,-1),passages[1],'Article 2'],['Titrearticle']);repeated.paragraphProperties.at(-1).styleId='Titrearticle';
+ assert.equal(resolve(repeated,'Article 1 – paragraph 1 – point d','(d) '+passages[1],'deleted').status,'unresolved');
+});

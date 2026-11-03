@@ -1,3 +1,5 @@
+import {parseTargetLabel} from './proposal-labels.mjs';
+import {alternativeMotionHeading} from './amendment-alternative.mjs';
 import {committeeListId,committeeDraftId} from './committee-amendments.mjs';
 import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
@@ -396,6 +398,23 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
         if(!procedure.includes(block.text)&&(targetStyle||classRecorded||language==='hr'&&targetParts.length))targetParts.push(block.text);
       }
     }
+    // Some published lists omit template fields and styles on the amended-act
+    // line. Recover only the complete two-line tail before the comparison table.
+    if(language==='en'&&targetParts.length===1&&!field(raw,'Article2').length&&!field(raw,'DocAmend2').length) {
+      const tableAt=group.findIndex(block=>block.kind==='table');
+      const header=group.slice(0,tableAt<0?0:tableAt).filter(block=>block.kind==='paragraph'&&block.text.trim());
+      const at=header.findIndex(block=>metadata(field(block.raw,'Article')[0]??block.text)===metadata(targetParts[0]));
+      const tail=at<0?[]:header.slice(at+1);
+      if(tail.length===2&&tail.every(block=>!block.losses?.length)&&/^(?:Regulation|Directive) (?:\((?:EU|EC|EEC)\) )?\d{4}\/\d+(?:\/(?:EC|EU|EEC))?$/u.test(tail[0].text.trim())) {
+        const inner=parseTargetLabel(tail[1].text.trim(),language);
+        if(inner.complete&&inner.segments[0]?.kind==='article'&&inner.segments.length>1) {
+          const act=tail[0].text.trim(),address=tail[1].text.trim();
+          if(!documentReferences.some(r=>r.field==='Article'))documentReferences.push({field:'Article',raw:metadata(targetParts[0]),scope:'amendment',basis:'published-heading'});
+          targetParts.push(act+' — '+address);
+          documentReferences.push({field:'DocAmend2',raw:act,sourceRaw:tail[0].raw,scope:'amendment',basis:'published-heading'},{field:'Article2',raw:address,sourceRaw:tail[1].raw,scope:'amendment',basis:'published-heading'});
+        }
+      }
+    }
     const targetLabel=targetParts.map(metadata).filter(Boolean).join('\n')||null;
     const before=[],after=[],tables=group.filter(b=>b.kind==='table');let comparableRows=0,hasTable=false;
     const rows=tables.flatMap(sectionRows),first=rows.find(row=>row.cells.some(cell=>cell.text));
@@ -434,6 +453,21 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       if(sections.length!==2||sections[0].side!=='original'||sections[1].side!=='proposed')gap('comparison-header',number,'The stacked comparison does not supply exactly one original section followed by one proposed section.');
       else comparisonHeadings.push({left:sections[0].heading,right:sections[1].heading});
     }
+    // Alternative motions have a single body outside the comparison tables.
+    // Read only the bounded native template body; metadata and justification
+    // stay outside it, and ordinary table-less amendments remain unavailable.
+    if(!hasTable&&language==='en'&&alternativeMotionHeading(documentReferences,targetDocumentId)) {
+      const titles=group.flatMap((block,i)=>block.kind==='paragraph'&&/<Article>/.test(block.raw)?[i]:[]);
+      const tails=group.flatMap((block,i)=>block.kind==='paragraph'&&/<Original>/.test(block.raw)?[i]:[]);
+      if(titles.length===1&&tails.length===1&&tails[0]>titles[0]+1) {
+        const body=group.slice(titles[0]+1,tails[0]);
+        if(body.every(block=>block.kind==='paragraph'&&!/<[^>]+>/u.test(block.text))) {
+          comparableRows=body.filter(block=>block.text).length;
+          after.push(...body);
+          if(body.some(block=>block.hasNotes))gap('notes-unavailable',number,'The motion contains note references whose note text is not included in this extraction.');
+        }
+      }
+    }
     const ownDate=documentDate(raw),date=ownDate||(!field(raw,'Date').length&&(committee||scope==='committee')?coverDate:null);
     const dateBasis=ownDate?'individual-amendment-document':date?'amendment-list-document':null;
     let justification=null,inJustification=false;const justificationParts=[];
@@ -463,7 +497,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     if(!authors.length)gap('authors-unavailable',number,'No explicit amendment proposer names were found in this document block.');
     if(!date)gap('date-unavailable',number,'The amendment document does not supply a supported document date.');
     if(!targetLabel)gap('target-unavailable',number,'The amendment target location was not recorded.');
-    if(!hasTable||!comparableRows)gap('text-unavailable',number,'No supported original/proposed comparison rows were found.');
+    if(!comparableRows)gap('text-unavailable',number,'No supported original/proposed comparison rows were found.');
     if(byNumber.has(number)) {
       byNumber.set(number,null);gap('duplicate-amendment',number,'The list repeats this amendment number; its extracted content is withheld.');
     } else byNumber.set(number,record);

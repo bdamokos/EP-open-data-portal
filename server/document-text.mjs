@@ -241,6 +241,33 @@ function templateText(nodes) {
 }
 function paragraphsOf(nodes,context) {
   context.sourceIndex??=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0,blankStart=null;
+  // A body table is a continuation only when every native cell paragraph
+  // survives extraction. The paths identify its literal body neighbours; blank
+  // body rows may be omitted, while hidden or unsupported content stays a gap.
+  function tableBoundary(node,siblings,boundary) {
+    if(boundary.container!=='body')return null;
+    const at=siblings.indexOf(node),prior=siblings[at-1];
+    if(!prior?.['w:p'])return null;
+    const empty=value=>value.every(item=>Object.keys(item).every(key=>key===':@'||key==='w:pPr'));
+    let after=at+1;
+    while(siblings[after]?.['w:p']&&empty(siblings[after]['w:p']))after++;
+    const next=siblings[after];if(!next?.['w:p'])return null;
+    const text=JSON.stringify(node);
+    if(/"w:(?:ins|del|moveFrom|moveTo|tblPrChange|trPrChange|tcPrChange)"/u.test(text))return null;
+    const byPath=new Map(result.map(row=>[row.source.path,row]));let complete=true;
+    function cells(nodes) {
+      for(const item of nodes)for(const [key,value] of Object.entries(item)) {
+        if(key===':@')continue;
+        if(key==='w:p') {
+          const row=byPath.get(context.sourceIndex.get(item).path);
+          if(row?!row.source.complete:!empty(value))complete=false;
+        } else if(['w:tr','w:tc'].includes(key))cells(value);
+        else if(!['w:tblPr','w:tblGrid','w:trPr','w:tcPr'].includes(key))complete=false;
+      }
+    }
+    cells(node['w:tbl']);
+    return complete?{before:context.sourceIndex.get(prior).path,after:context.sourceIndex.get(next).path}:null;
+  }
   function visit(nodes,boundary={container:'other',containerPath:'/'}) {
   for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
     if(key==='w:p'){
@@ -282,7 +309,10 @@ function paragraphsOf(nodes,context) {
       visit(value,key==='w:body'?{container:'body',containerPath:context.sourceIndex.get(node).path}:key==='w:tc'?{container:'table-cell',containerPath:context.sourceIndex.get(node).path}:boundary);
       if(separated){segment++;blankStart=null;}
       if(cell){cell.end=result.length;tables.layout.rows.at(-1).cells.push(cell);tables.cell=null;}
-      if(tables&&key==='w:tbl'&&--tables.depth===0){const done=tables.layout;tables.layout=null;if(done.rows.some(row=>row.cells.some(cell=>cell.end>cell.start)))tables.found.push(tableLayout(done));}
+      if(tables&&key==='w:tbl'&&--tables.depth===0){const done=tables.layout;tables.layout=null;if(done.rows.some(row=>row.cells.some(cell=>cell.end>cell.start))){
+        const layout=tableLayout(done),bodyBoundary=tableBoundary(node,nodes,boundary);
+        tables.found.push({...layout,...(bodyBoundary?{bodyBoundary}:{})});
+      }}
     }
     else if(key!==':@'&&key!=='#text'&&!key.startsWith('?')&&!nonText.has(key)&&!blockProperties.has(key)) {
       counterGap(node,context);
