@@ -1,3 +1,6 @@
+import {rejectionWordingScope} from './amendment-rejection.mjs';
+import {nativeInlineRowsComplete} from './proposal-inline-guard.mjs';
+import {quotedSectionPointInsertion} from './proposal-quoted-section.mjs';
 import {similarPassage} from './proposal-similarity.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
@@ -272,6 +275,49 @@ function bareAnnexInsertion(items,target,language) {
     ||proposal.gaps.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=unit.extent.start)
     ||!rows.every((row,i)=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&(!i||row.source.containerPath===rows[i-1].source.containerPath&&(row.source.segment===rows[i-1].source.segment&&row.source.ordinal===rows[i-1].source.ordinal+1||row.source.previousParagraph===rows[i-1].source.path&&row.source.ordinal>rows[i-1].source.ordinal&&row.source.segment-rows[i-1].source.segment===row.source.ordinal-rows[i-1].source.ordinal-1))))return {reason:'source_passage_incomplete'};
   return {itemIndex,insertBefore:unit.extent.end,anchor:unit,basis:'sole-bare-annex-end'};
+}
+
+// An interior indent can name Annex I when the proposal has one bare Annex.
+// This is separate from appending a new annex and never supplies an EOF gap.
+function bareAnnexPoint(items,pointNumber,nativeProposalInputs) {
+  if(items.length!==2||items.filter(i=>i.kind==='act').length!==1||items.filter(i=>i.kind==='annex').length!==1)return null;
+  const itemIndex=items.findIndex(i=>i.kind==='annex'),proposal=items[itemIndex].proposal,act=items.find(i=>i.kind==='act').proposal;
+  if(proposal.sourceKind!=='docx'||act.sourceKind!=='docx'||!act.paragraphs.some(p=>p.complete&&p.source?.complete===true&&/\bthe Annex\b/u.test(p.text))||act.paragraphs.some(p=>/\bAnnex\s+(?:[IVXLCDM]+|\d+)\b/u.test(p.text)))return null;
+  const roots=items.flatMap(i=>flat(i.proposal.units).filter(u=>u.kind==='annex'&&u.scope==='proposal'&&u.normative)),root=roots[0];
+  if(roots.length!==1||!flat(proposal.units).includes(root)||root.label.value!==''||root.pathConflict||!completeBoundary(proposal,root)||proposal.paragraphs[root.extent.start].text.trim()!=='ANNEX'||proposal.paragraphs[root.extent.start].properties?.styleId!=='Annexetitre'||proposal.gaps.some(g=>!Number.isInteger(g.paragraph)||g.paragraph>=root.extent.start))return null;
+  const parents=root.children.filter(u=>u.kind==='paragraph');if(parents.length!==1||!parents[0].implicit||parents[0].pathConflict)return null;
+  const points=parents[0].children.filter(u=>u.kind==='point');
+  if(!points.length||points.some((u,i)=>u.label.value!==String(i+1)||u.pathConflict||!completeBoundary(proposal,u)||proposal.paragraphs[u.extent.start].properties?.styleId!=='Point0number'||proposal.paragraphs[u.extent.start].properties.numberingLabel!==`(${i+1})`||proposal.paragraphs[u.extent.start].properties.numbering?.format!=='decimal'||proposal.paragraphs[u.extent.start].properties.numbering?.level!==0))return null;
+  const point=points[pointNumber-1],indents=point?.children;
+  if(!point||!indents.length||indents.some((u,i)=>u.kind!=='indent'||u.label.value!==String(i+1)||u.pathConflict||!u.complete||u.extent.end!==u.extent.start+1||u.children.length))return null;
+  const rows=proposal.paragraphs.slice(point.extent.start,point.extent.end),bullets=rows.slice(1);
+  if(rows.length!==indents.length+1||rows.some((p,i)=>!p.complete||p.source?.complete!==true||p.source.container!=='body'||p.objects.length||(proposal.anchors||[]).some(a=>a.paragraph===p.index)||i&&(p.source.ordinal!==rows[i-1].source.ordinal+1||p.source.segment!==rows[i-1].source.segment||p.source.containerPath!==rows[i-1].source.containerPath))||bullets.some(p=>p.properties?.styleId!=='Bullet0'||p.properties.numberingLabel!=='•'||p.properties.numbering?.format!=='bullet'||p.properties.numbering.level!==0||!/^•\t\S/u.test(p.text)||p.properties.numbering.abstractId!==bullets[0].properties.numbering.abstractId))return null;
+  if(!nativeInlineRowsComplete(nativeProposalInputs?.[itemIndex],proposal.sourceHash,proposal.paragraphs.slice(root.extent.start,root.extent.end),{wholeBodyAfter:true})||!act.paragraphs.some(p=>p.complete&&p.source?.complete===true&&/\bthe Annex\b/u.test(p.text)&&nativeInlineRowsComplete(nativeProposalInputs?.[items.findIndex(i=>i.kind==='act')],act.sourceHash,[p])))return null;
+  return {itemIndex,proposal,root,point,indents,rows};
+}
+function bareAnnexIndentInsertion(items,target,{language,baseline,originalText,proposedText,nativeProposalInputs}) {
+  const [rootLabel,pointLabel,indentLabel]=target.segments;
+  if(language!=='en'||baseline!=='commission-proposal'||originalText!==''||target.segments.length!==3||rootLabel.kind!=='annex'||rootLabel.value!=='I'||pointLabel.kind!=='point'||!pointLabel.number||pointLabel.suffix||pointLabel.isNew||indentLabel.kind!=='indent'||!indentLabel.number||indentLabel.suffix!=='a'||!indentLabel.isNew||!/^[-–—•]\s+\S/u.test(proposedText||''))return null;
+  const proof=bareAnnexPoint(items,pointLabel.number,nativeProposalInputs);if(!proof||proof.indents.length<=indentLabel.number)return null;
+  const {itemIndex,root,point,indents}=proof,before=indents[indentLabel.number].extent.start;
+  return {operation:'insert',status:'placed',itemIndex,insertBefore:before,insertAfter:before-1,evidence:[{basis:'sole-bare-annex-first-ordinal',anchor:root.id},{basis:'native-interior-indent-order',anchor:point.id}]};
+}
+function bareAnnexReplacement(items,target,{language,baseline,originalText,proposedText,targetLabel,targetPath,nativeProposalInputs}) {
+  const [rootLabel,pointLabel,last]=target.segments,literal=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
+  if((targetPath?.language??language)!==language)return null;
+  if(language!=='en'||baseline!=='commission-proposal'||target.segments.length!==3||rootLabel.kind!=='annex'||rootLabel.value!=='I'||rootLabel.isNew||pointLabel.kind!=='point'||!pointLabel.number||pointLabel.suffix||pointLabel.isNew||!['introductory-part','indent'].includes(last.kind)||last.isNew||last.suffix||targetPath?.underlying?.length||literal(target.raw)!==literal(targetLabel)||!/^Annex I – point [1-9]\d* – (?:introductory part|indent [1-9]\d*)$/u.test(targetLabel))return null;
+  const proof=bareAnnexPoint(items,pointLabel.number,nativeProposalInputs);if(!proof)return null;
+  const {itemIndex,root,point,indents,rows}=proof;
+  let row;
+  if(last.kind==='introductory-part'){
+    row=rows[0];const prefix=new RegExp('^\\('+pointLabel.number+'\\)\\s+','u');
+    if(!prefix.test(originalText)||!prefix.test(proposedText)||!/:\s*$/u.test(row.text)||!/:\s*$/u.test(proposedText)||literal(row.text)!==literal(originalText))return null;
+  }else{
+    if(!last.number||last.number>indents.length)return null;row=rows[last.number];
+    const bullet=/^[-–—•]\s+\S/u,body=value=>literal(value.replace(/^[-–—•]\s+/u,''));
+    if(!bullet.test(originalText)||!bullet.test(proposedText)||body(row.text)!==body(originalText))return null;
+  }
+  return {operation:'replace',status:'placed',itemIndex,span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,evidence:[{basis:'sole-bare-annex-first-ordinal',anchor:root.id},{basis:'native-annex-replacement-row',anchor:point.id}]};
 }
 
 function insertionPlacement(items,target,candidatesFor,eligible) {
@@ -693,7 +739,19 @@ function chapterTitlePlacement(items,target,original,proposed,language) {
 // original column are table rows (cells joined by tabs) or body lines; they
 // must match one unique contiguous run cell for cell inside that provision.
 const tableRowKey=path=>/^(.*\/w:tr\[\d+\])\/w:tc\[\d+\]\/w:p\[(\d+)\]$/u.exec(path??'');
-function annexTablePlacement(items,address,originalText,language,operation,evidence,unresolved) {
+// Only the opening caption decoration may differ; every table cell stays exact.
+function captionDecorationProfile(items,wording) {
+  if(wording.baseline!=='commission-proposal'||items.length!==2||items.filter(item=>item.kind==='act').length!==1||items.filter(item=>item.kind==='annex').length!==1||wording.targetPath?.underlying?.length)return null;
+  const header=/^Annex ([IVXLC]+) – paragraph 1 – table on ([^\r\n]+)\n(Regulation \((?:EU|EC)\) \d{4}\/\d+)\nAnnex ([IVXLC]+) – table ([^\r\n]+)$/u.exec(wording.targetLabel||'');
+  const caption=/^‘\[([^\r\n\t\[\]]+)\r?\nCN code\tGreenhouse gas\r?\n/u.exec(wording.originalText||'');
+  const key=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim().toLowerCase();
+  if(!header||!caption||key(header[2])!==key(caption[1])||key(header[5])!==key(caption[1]))return null;
+  if(wording.targetPath?.proposal?.length&&(wording.targetPath.proposal.length!==1||wording.targetPath.proposal[0].raw!==wording.targetLabel.split('\n')[0]))return null;
+  const lead=items.find(item=>item.kind==='act').proposal.paragraphs.filter(row=>row.text.normalize('NFC').replace(/\s+/gu,' ').trim()===header[3]+' is amended as follows:');
+  if(lead.length!==1||!lead[0].complete||lead[0].source?.complete!==true||lead[0].source.container!=='body')return null;
+  return {outer:header[1],inner:header[4]};
+}
+function annexTablePlacement(items,address,originalText,language,operation,evidence,unresolved,decoration) {
   let parsed;try{parsed=parseTargetLabel(address,language);}catch{return unresolved('target_reference_unavailable');}
   if(!parsed.complete||parsed.segments[0]?.kind!=='annex')return unresolved('target_reference_unavailable');
   const find=segments=>items.flatMap((item,itemIndex)=>item.kind!=='annex'?[]:proposalCandidates(item.proposal,{...parsed,segments}).map(unit=>({itemIndex,unit,proposal:item.proposal})));
@@ -706,7 +764,7 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   if(candidates.length!==1||candidates[0].unit.pathConflict)return unresolved(candidates.length?'multiple_published_targets':'target_not_found');
   const {itemIndex,unit,proposal}=candidates[0],cell=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
   const rows=[];let current=null;
-  for(const row of proposal.paragraphs.slice(unit.extent.start,unit.extent.end)){
+  for(const row of (decoration?proposal.paragraphs:proposal.paragraphs.slice(unit.extent.start,unit.extent.end))){
     if(row.source?.container==='table-cell'){
       const key=tableRowKey(row.source.path);
       if(!key)return unresolved('source_structure_unavailable');
@@ -728,23 +786,74 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   const tableOf=key=>key.replace(/\/w:tr\[\d+\]$/u,''),rowOf=key=>Number(/\/w:tr\[(\d+)\]$/u.exec(key)[1]);
   rows.forEach((row,index)=>{
     if(!row.key)return;
-    if(row.columns.some((column,at)=>column!==at+1)||cellCounts.get(row.rows[0].index)!==row.columns.length)row.cells=['\u0000'];
+    if(row.columns.some((column,at)=>column!==at+1)||cellCounts.get(row.rows[0].index)!==row.columns.length){if(decoration)row.broken=true;else row.cells=['\u0000'];}
     const previous=rows[index-1];
     row.gap=Boolean(previous?.key&&tableOf(previous.key)===tableOf(row.key)&&rowOf(row.key)!==rowOf(previous.key)+1);
   });
   const lines=originalText.split(/\r?\n/u).map(line=>line.split('\t').map(cell));
   const starts=[];
   for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>rows[i+offset].cells.length===line.length&&rows[i+offset].cells.every((value,index)=>value===line[index])))starts.push(i);
+  let repaired=false;
+  if(!starts.length&&decoration){
+    lines[0][0]=lines[0][0].slice(2);repaired=true;
+    for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>rows[i+offset].cells.length===line.length&&rows[i+offset].cells.every((value,index)=>value===line[index])))starts.push(i);
+  }
   if(starts.length!==1)return unresolved(starts.length?'duplicate_target_label':'conflicting_target_evidence');
-  if(rows.slice(starts[0]+1,starts[0]+lines.length).some(row=>row.gap))return unresolved('source_passage_incomplete');
+  if(repaired){
+    const run=rows.slice(starts[0],starts[0]+lines.length),before=rows.slice(0,starts[0]),heading=before.findLastIndex(row=>!row.key&&/^ANNEX [IVXLC]+$/u.test(row.cells[0]));
+    const scopeRows=before.slice(heading).filter(row=>!row.key),prefix=scopeRows.slice(1).map(row=>row.cells[0]),tableKey=run[1]?.key&&tableOf(run[1].key);
+    if(scopeRows.some(row=>row.rows.some(p=>!p.complete||p.source?.complete!==true))||run.some(row=>row.broken)||heading<0||before[heading].cells[0]!=='ANNEX '+decoration.outer||run[0].key||!tableKey||run.slice(1).some(row=>!row.key||tableOf(row.key)!==tableKey||row.cells.length!==2)||prefix.filter(value=>/^‘ANNEX [IVXLC]+$/u.test(value)).length!==1||!prefix.includes('‘ANNEX '+decoration.inner)||prefix.filter(value=>/^The following Annex [IVXLC]+ is added:$/u.test(value)).length!==1||!prefix.includes('The following Annex '+decoration.inner+' is added:')||run.some(row=>row.rows.some(p=>p.index<unit.extent.start||p.index>=unit.extent.end)))return unresolved('conflicting_target_evidence');
+  }
+  if(rows.slice(starts[0],starts[0]+lines.length).some((row,index)=>row.broken||index&&row.gap||row.rows.some(p=>p.index<unit.extent.start||p.index>=unit.extent.end)))return unresolved('source_passage_incomplete');
   const matched=rows.slice(starts[0],starts[0]+lines.length).flatMap(row=>row.rows);
   if(matched.some(row=>!row.complete||!row.source||row.source.complete===false))return unresolved('source_passage_incomplete');
   const first=matched[0],last=matched.at(-1);
-  evidence.push({basis:'annex-table-rows',anchor:unit.id,rows:lines.length});
+  evidence.push({basis:repaired?'annex-table-caption-decoration':'annex-table-rows',anchor:unit.id,rows:lines.length});
   return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:matched.map(row=>row.text).join('\n'),evidence};
 }
 
-export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline}={}) {
+function preambleCitationPlacement(items,label,operation,originalText,evidence,unresolved) {
+  const preambles=[];
+  for(const [itemIndex,item] of items.entries()) {
+    if(item.kind==='annex')continue;
+    const rows=item.proposal.paragraphs,opens=rows.filter(row=>/^THE (?:EUROPEAN PARLIAMENT AND THE )?COUNCIL OF THE EUROPEAN UNION,$/u.test(row.text.trim()));
+    if(opens.length!==1)continue;
+    const close=rows.find(row=>row.index>opens[0].index&&/^Whereas:$/u.test(row.text.trim()));
+    if(close)preambles.push({itemIndex,proposal:item.proposal,open:opens[0],close,citations:rows.slice(opens[0].index+1,close.index)});
+  }
+  if(preambles.length!==1)return unresolved('source_structure_unavailable');
+  const {itemIndex,proposal,open,close,citations}=preambles[0];
+  const run=proposal.paragraphs.slice(open.index,close.index+1);
+  // Each citation opens with a fixed phrase; a continuation row or heading
+  // would shift every ordinal, so such preambles are withheld.
+  if(citations.some(row=>!/^(?:Having regard to|After (?:transmission|consulting|consultation)|Acting in accordance with)\b/u.test(row.text.trim())))return unresolved('source_structure_unavailable');
+  if(!citations.length||run.some((row,index)=>!row.complete||!row.source||row.source.complete===false||row.source.container!=='body'||!row.text.trim()
+    ||index&&(row.source.containerPath!==run[index-1].source.containerPath||row.source.segment!==run[index-1].source.segment||row.source.ordinal!==run[index-1].source.ordinal+1)))return unresolved('source_passage_incomplete');
+  const row=citations[label.number-1];
+  if(!row)return unresolved('target_not_found');
+  evidence.push({basis:'preamble-citation-ordinal',ordinal:label.number,row:row.index});
+  if(operation==='insert') {
+    if(!label.isNew||!label.suffix)return unresolved('insertion_reference_unavailable');
+    return {operation,status:'placed',itemIndex,insertAfter:row.index,insertBefore:row.index+1,evidence};
+  }
+  if(label.isNew||label.suffix)return unresolved('conflicting_target_evidence');
+  const match=matchUnit(proposal,{kind:'citation',extent:{start:row.index,end:row.index+1},content:[row.index],children:[]},originalText);
+  if(!match.span)return unresolved(match.reason??'conflicting_target_evidence');
+  return {operation,status:'placed',itemIndex,span:match.span,splice:match.splice,originalText:match.originalText,evidence};
+}
+
+function negativeArticlePlacement(items,proposedText,language,evidence,unresolved) {
+  const articles=items.flatMap((item,itemIndex)=>item.kind==='annex'?[]:flat(item.proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind==='article').map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  const first=articles.sort((a,b)=>a.itemIndex-b.itemIndex||a.unit.extent.start-b.unit.extent.start)[0];
+  if(language!=='en'||!/^Article\s*[-−–‑]\s*1\b/u.test(proposedText.trim()))return unresolved('insertion_reference_unavailable');
+  if(!first||first.unit.label?.value!=='1'||articles.filter(({unit})=>unit.label?.value==='1').length!==1||first.unit.pathConflict)return unresolved('relative_target_not_found');
+  const {proposal,unit}=first,before=proposal.paragraphs[unit.extent.start-1],at=proposal.paragraphs[unit.extent.start];
+  if(!before||!/^HAVE ADOPTED THIS (?:REGULATION|DIRECTIVE|DECISION):$/u.test(before.text.trim())||!completeBoundary(proposal,unit)||!before.complete||before.source?.complete===false||at.source?.ordinal!==before.source?.ordinal+1)return unresolved('source_passage_incomplete');
+  evidence.push({basis:'negative-article-before-first',anchor:unit.id});
+  return {operation:'insert',status:'placed',itemIndex:first.itemIndex,insertAfter:unit.extent.start-1,insertBefore:unit.extent.start,evidence};
+}
+
+export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline}={}, {nativeProposalInputs}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
   const mixedScope=amendmentMixedLanguageScope({originalText,proposedText,language});
@@ -761,10 +870,17 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   // A structured underlying-act target without a proposal address is not an outer location.
   if(!paths&&targetPath?.underlying?.length)return unresolved('target_reference_unavailable');
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
-  if(table)return annexTablePlacement(items,table[1],originalText,language,operation,evidence,unresolved);
+  if(table)return annexTablePlacement(items,table[1],originalText,language,operation,evidence,unresolved,captionDecorationProfile(items,{targetLabel,targetPath,originalText,baseline}));
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
+  const sole=target.segments.length===1?target.segments[0]:null;
+  // A numbered address whose whole cell rejects the proposal (A-10-2026-0104 AM90) is no citation or article.
+  if(sole&&['citation','article'].includes(sole.kind)&&rejectionWordingScope(language,proposedText))return unresolved('conflicting_target_evidence');
+  if(language==='en'&&sole?.kind==='citation'&&Number.isInteger(sole.number))return preambleCitationPlacement(items,sole,operation,originalText,evidence,unresolved);
+  if(sole?.kind==='article'&&sole.negative&&sole.value==='-1'&&operation==='insert')return negativeArticlePlacement(items,proposedText,language,evidence,unresolved);
+  if(operation==='insert'){const indent=bareAnnexIndentInsertion(items,target,{language,baseline,originalText,proposedText,nativeProposalInputs});if(indent)return {...indent,evidence:[...evidence,...indent.evidence]};}
+  if(operation==='replace'){const annex=bareAnnexReplacement(items,target,{language,baseline,originalText,proposedText,targetLabel,targetPath,nativeProposalInputs});if(annex)return {...annex,evidence:[...evidence,...annex.evidence]};}
   // Italian EP addresses name the printed instruction directly below an
   // unnumbered article lead ("Articolo 1 – punto 2"). The parser's implicit
   // paragraph is an internal container, not an additional published label.
@@ -835,7 +951,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?(twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],targetPath,proposedText,language)):null;
+    const quoted=candidates.length===1?(quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],targetPath,proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);

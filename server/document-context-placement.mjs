@@ -37,7 +37,7 @@ function proposalInstructionPlacement(items,chosen) {
 
 /** Pure final placement selection shared by the endpoint and offline consumers.
  * Source acquisition, identity checks and proposal parsing belong to the caller. */
-export function documentContextPlacement({chosen,text,items,baseline,proposalItems=null,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true}={}) {
+export function documentContextPlacement({chosen,text,items,baseline,proposalItems=null,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true,nativeProposalInputs}={}) {
   if(!includeBody)return null;
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
@@ -75,14 +75,14 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   }
   if(proposalKind){
     if(!items?.length||!chosen.language||(chosen.targetPath?.language??chosen.targetLabelLanguage)!==chosen.language)return unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
-    return detachedNotes?resolveProposalNoteScope(items,selected):resolveProposalPlacement(items,selected);
+    return detachedNotes?resolveProposalNoteScope(items,selected):resolveProposalPlacement(items,selected,{nativeProposalInputs});
   }
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
   const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
   const labelled=chosen.targetLabelLanguage===chosen.language&&Boolean(resolutionReference(chosen.targetLabel,chosen.language));
   let placement=['present-text','council-position'].includes(chosen.baseline)
     ?unresolved(chosen.baseline==='present-text'?'amends_existing_law':'council_position_unavailable')
-    :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:labelled?undefined:comparable[0],resolutionDocument});
+    :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:labelled?undefined:comparable[0],numberingReferenceTexts:referenceTexts,resolutionDocument});
   if(placement.reason==='source_passage_incomplete')placement=resolveTableInsertion(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined})??placement;
   // Vote lists can rearrange provisions. The published amendment label owns
   // this view; retain disagreement only as a final-text check for the reader.
@@ -94,7 +94,7 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   return placement;
 }
 
-export {amendmentAlternative};
+export {amendmentAlternative,amendmentRejection};
 
 // Only a complete comparison template can separate provision text from notes.
 // Keep the published columns unchanged; the cuts also drive the reader.
