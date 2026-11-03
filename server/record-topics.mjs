@@ -1,9 +1,10 @@
+import countryNames from './topic-country-labels.json' with {type:'json'};
 import {countryIdentity} from './topic-country-identity.mjs';
 import eurovocLabels from './topic-eurovoc-labels.json' with {type:'json'};
 import {assignmentRole,countryConcepts,eurovocCountries,countryLabels} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 
-export const RECORD_TOPICS_VERSION=7;
+export const RECORD_TOPICS_VERSION=8;
 const array=v=>v==null?[]:Array.isArray(v)?v:[v];
 const canonical=v=>String(v?.id||v||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
 const tail=v=>canonical(v).split('/').at(-1);
@@ -82,11 +83,11 @@ export function* projectTopicSteps(nodes,{concepts=new Map(),procedureTopics=new
   records.set(r.id,r);
  }
  for(const r of records.values()){yield;
-  r.assignments=r.assignments.flatMap(a=>{const uri='http://eurovoc.europa.eu/'+a.key.slice(8),country=eurovocCountries.get(uri);if(a.key.startsWith('eurovoc:')&&countryConcepts.has(uri)&&!country)return [{...a,role:'hidden'}];if(!a.key.startsWith('eurovoc:')||!country)return [a];if(!countryIdentity(country))return [{...a,role:'hidden'}];const key='place:'+country;if(!concepts.has(key))concepts.set(key,{key,role:'place',uri:'http://publications.europa.eu/resource/authority/country/'+country,labels:{en:countryLabels.get(country)||country}});return [{...a,key,role:'place'}];});
+  r.assignments=r.assignments.flatMap(a=>{const uri='http://eurovoc.europa.eu/'+a.key.slice(8),country=eurovocCountries.get(uri);if(a.key.startsWith('eurovoc:')&&countryConcepts.has(uri)&&!country)return [{...a,role:'hidden'}];if(!a.key.startsWith('eurovoc:')||!country)return [a];if(!countryIdentity(country))return [{...a,role:'hidden'}];const key='place:'+country;if(!concepts.has(key))concepts.set(key,{key,role:'place',uri:'http://publications.europa.eu/resource/authority/country/'+country,labels:countryNames.labels[country]||{en:countryLabels.get(country)||country}});return [{...a,key,role:'place'}];});
   if(r.kind==='question'){
    if(!r.id.startsWith('O-'))r.assignments=[];
    r.assignments=r.assignments.filter(a=>a.role!=='place');
-   for(const rawPlace of titlePlaces(r.titles.en||Object.values(r.titles)[0]||'').places){const identity=countryIdentity(rawPlace.id);if(!identity)continue;const p={...rawPlace,...identity,label:countryLabels.get(identity.id)||rawPlace.label},key='place:'+p.id;concepts.set(key,{key,role:'place',uri:'http://publications.europa.eu/resource/authority/country/'+p.id,labels:{en:p.label}});add(r,key,{basis:'title',steps:[],sources:r.titleSource?[r.titleSource]:evidence(r)});}
+   for(const rawPlace of titlePlaces(r.titles.en||Object.values(r.titles)[0]||'').places){const identity=countryIdentity(rawPlace.id);if(!identity)continue;const p={...rawPlace,...identity,label:countryLabels.get(identity.id)||rawPlace.label},key='place:'+p.id;concepts.set(key,{key,role:'place',uri:'http://publications.europa.eu/resource/authority/country/'+p.id,labels:countryNames.labels[p.id]||{en:p.label}});add(r,key,{basis:'title',steps:[],sources:r.titleSource?[r.titleSource]:evidence(r)});}
   }
   r.assignments=[...new Map(r.assignments.map(a=>[a.key,a])).values()];
   if(r.assignments.some(a=>a.role==='topic'||a.role==='keyword'))r.status='classified';

@@ -39,7 +39,7 @@ export function TopicStories({selection,fallback,facts:provided,onRecords}:{sele
  const render=(v:StoryValue,path:string):ReactNode=>{
   if(v==null||typeof v==='string')return v;
   if(Array.isArray(v))return new Intl.ListFormat(proseUi.language==='en'?'en-GB':proseUi.locale,{type:'conjunction'}).formatToParts(v.map((_,i)=>String(i))).map((p,i)=>p.type==='element'?<span key={i}>{render(v[Number(p.value)],path+'-'+p.value)}</span>:p.value);
-  if('text'in v&&v.labelLanguage)return <span lang={v.labelLanguage}>{typeof v.text==='string'?v.text:render(v.text,path+'-label')}</span>;
+  if('text'in v&&v.labelLanguage&&!v.browse&&!v.pageRecords&&!v.records?.length)return <span lang={v.labelLanguage}>{typeof v.text==='string'?v.text:render(v.text,path+'-label')}</span>;
   if('message'in v)return <UiMessage id={v.message} values={renderValues(v.values,path)} counts={v.counts}/>;
   const label=typeof v.text==='string'?v.text:render(v.text,path+'-label'),single=!v.browse&&!v.pageRecords&&v.records.length===1;
   const href=v.target||(v.pageRecords?storyHref({...display,period:v.period||display.period})+'#topic-records':v.period?storyHref({...display,period:v.period}):single?recordTarget(v.records[0],ui.locale):setHref(v,display));
