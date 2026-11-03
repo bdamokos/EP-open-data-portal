@@ -3,14 +3,22 @@ import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {docxParts} from './document-text.mjs';
 const URI='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const child=(nodes,key)=>nodes.filter(node=>node[key]).map(node=>node[key]);
-const find=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,value])=>name===key?[node]:Array.isArray(value)?find(value,key):[]));
+const find=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,value])=>Array.isArray(value)?[...(name===key?[node]:[]),...find(value,key)]:[]));
 const rawText=nodes=>nodes.map(node=>Object.entries(node).map(([key,value])=>['w:t','w:delText','w:instrText'].includes(key)?value.map(part=>part['#text']??'').join(''):key==='w:tab'?'\t':['w:br','w:cr'].includes(key)?'\n':key==='w:noBreakHyphen'?'\u2011':key==='w:softHyphen'?'\u00ad':Array.isArray(value)?rawText(value):'').join('')).join('');
 const property=(nodes,key)=>find(nodes,key).map(node=>node[':@']?.['@_w:val']);
 const trim=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
 function nativeTree(xml){
  if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)throw Error('Native XML unavailable');
- const tree=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml),pending=[...tree];
- while(pending.length){const node=pending.pop();if(node[':@']?.['@_xmlns:w']!==undefined&&node[':@']['@_xmlns:w']!==URI)throw Error('Native namespace unavailable');for(const value of Object.values(node))if(Array.isArray(value))pending.push(...value);}
+ const tree=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml),pending=tree.map(node=>({node,namespaces:{}}));
+ while(pending.length){
+  const {node,namespaces:parent}=pending.pop(),namespaces={...parent},attributes=node[':@']||{};
+  for(const [name,value]of Object.entries(attributes))if(name==='@_xmlns'||name.startsWith('@_xmlns:')){
+   const prefix=name==='@_xmlns'?'':name.slice(8);namespaces[prefix]=value;
+   if(value===URI&&prefix!=='w'||prefix==='w'&&value!==URI)throw Error('Native namespace unavailable');
+  }
+  const names=[...Object.keys(node),...Object.keys(attributes).map(name=>name.slice(2))];if(names.some(name=>name.startsWith('w:')&&namespaces.w!==URI))throw Error('Native namespace unavailable');
+  for(const value of Object.values(node))if(Array.isArray(value))pending.push(...value.map(node=>({node,namespaces})));
+ }
  return tree;
 }
 function nativeContent(nodes,{legal=false,mode='paragraph'}={}) {

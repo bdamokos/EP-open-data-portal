@@ -36,3 +36,13 @@ test('the live endpoint keeps request-local source bytes out of its public proje
  const reader=new DocumentContext({request:async()=>({payload:{data:[work]},fetchedAt:Date.parse(source.fetchedAt)}),readText:async()=>({status:'available',paragraphs:['Report'],textLanguage:'en',structureStatus:'extracted'}),findAmendment:()=>({...input.wording,id:id+'-AM-1',targetDocumentId:id,listId,language:'en',textIntegrity:'complete',wordingSource:source,authors:[]}),readProposal:async()=>({status:'available',language:'en',workId:'test',gaps:[],evidence:[],items:[{kind:'act',index:1,itemId:'test',buffer:input.nativeQuoted.proposalBuffer,source}]})});
  const query={...documentContextQuery(id,new URLSearchParams()),amendmentId:id+'-AM-1',listId,wordingLanguage:'en'},result=await reader.query(query,{store:{}});assert.equal(result.placement?.status,'placed');assert.equal(result.placement.insertBefore,input.placement.insertBefore);assert.equal(Object.hasOwn(result,'nativeProposalInputs'),false);assert.equal(JSON.stringify(result).includes('"type":"Buffer"'),false);
 });
+
+test('unsupported Word namespace aliases withhold the native first-annex family',()=>{
+ const URI='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+ for(const prefix of ['x','word']){
+  const extra=`<${prefix}:p xmlns:${prefix}="${URI}"><${prefix}:r><${prefix}:t>ANNEX I</${prefix}:t></${prefix}:r></${prefix}:p>`;
+  for(const input of [firstAnnexNative({sourceChange:xml=>xml.replace('</w:body>',extra+'</w:body>')}),firstAnnexNative({stylesChange:xml=>xml.replace('w:styleId="Fait" w:type="paragraph"/>',`w:styleId="Fait" w:type="paragraph" xmlns:${prefix}="${URI}"><w:rPr><${prefix}:vanish/></w:rPr></w:style>`)})]){assert.equal(place(input).status,'unresolved');assert.notEqual(verifyPlacement(input).status,'verified');}
+ }
+ const input=firstAnnexNative(),parts=docxParts(input.nativeQuoted.proposalBuffer);parts.set('word/numbering.xml',`<x:numbering xmlns:x="${URI}"><x:abstractNum x:abstractNumId="1"><x:lvl x:ilvl="0"><x:lvlText x:val="ANNEX %1"/></x:lvl></x:abstractNum></x:numbering>`);input.nativeQuoted.proposalBuffer=firstAnnexZip(Object.fromEntries(parts));input.proposal.sourceHash=createHash('sha256').update(input.nativeQuoted.proposalBuffer).digest('hex');assert.equal(place(input).status,'unresolved');assert.notEqual(verifyPlacement(input).status,'verified');
+ const canonical=firstAnnexNative({sourceChange:xml=>xml.replace('<w:t>Done at Brussels,',`<w:t xmlns:w="${URI}">Done at Brussels,`)});assert.equal(place(canonical).status,'placed');assert.equal(verifyPlacement(canonical).status,'verified');
+});
