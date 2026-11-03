@@ -3,6 +3,7 @@ import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
 import {assertBareAnnexInsertion} from './amendment-annex-oracle.mjs';
 import {assertResolutionNumberingDrift} from './amendment-numbering-drift-oracle.mjs';
+import {assertResolutionPointSimilarity} from './amendment-resolution-point-similarity-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertChapterTitle} from './amendment-chapter-title-oracle.mjs';
 import {assertStandaloneQuote} from './amendment-standalone-quote-oracle.mjs';
@@ -607,6 +608,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   if(annexReplacement.status!=='unverified')return annexReplacement;
   const annexIndent=assertBareAnnexIndent({items,proposal,wording,placement,nativeQuoted});
   if(annexIndent.status!=='unverified')return annexIndent;
+  if(!proposal){const pointNear=assertResolutionPointSimilarity({text,wording,placement});if(pointNear.status!=='unverified')return pointNear;}
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
