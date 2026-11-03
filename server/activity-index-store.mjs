@@ -266,6 +266,8 @@ export class ActivityStore {
       if (working) { groupVoicesCopy(this.db,working.generation,this.get('active') || 0); amendmentsCopy(this.db,working.generation,this.get('active') || 0); return working; }
       const active=this.get('active') || 0, generation=(this.get('sequence') || 0)+1;
       this.set('sequence',generation);
+      // Commit the begin time with the rotation; capture it before the long copy.
+      this.set('lastBeginAt',new Date(this.clock()).toISOString());
       // Per-step timings locate the cost of a rotation; total minus steps is commit.
       const steps={},timed=(name,fn)=>{const t=performance.now();try{return fn();}finally{steps[name]=Math.round(performance.now()-t);}};
       if (active) {

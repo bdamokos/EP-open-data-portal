@@ -54,8 +54,8 @@ test('backfill recovers due gaps between daily cycles without resetting future r
   assert.equal(store.get('slowGapAdmissions'),null,'daily counters are retired');
 });
 
-test('idle backfill publishes recovered questions and Following marks in a new frozen generation',async t=>{
-  const {store,generation,worker,clock}=setup(t);
+test('backfill waits for the recovery interval then publishes recovered questions and Following marks',async t=>{
+  const {store,generation,worker,clock,advance}=setup(t);
   store.setMembers([{id:'42',name:'Member'}]);store.publish(generation);
   const key='/parliamentary-questions/E-10-2026-000001';
   store.db.prepare('INSERT INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,key,'document',JSON.stringify({endpoint:key}),84,'EP API returned 500',5,new Date(clock()-8*DAY).toISOString(),clock()-1,null);
@@ -66,6 +66,8 @@ test('idle backfill publishes recovered questions and Following marks in a new f
   // settling unrelated discovery jobs without upstream fixture traffic.
   worker.task=async task=>task.key===key?runTask(task):store.finishTask(task);
   assert.equal(worker.coreDue(),false);store.release();await worker.runIteration();
+  assert.equal(store.get('active'),generation);assert.equal(store.get('working'),null);
+  advance(6*60*60_000);store.release();await worker.runIteration();
   const active=store.get('active');assert.notEqual(active,generation);assert.equal(store.get('working'),null);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=? AND source_id=?').get(generation,'E-10-2026-000001').n,0,'old serving rows stay frozen');
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=? AND source_id=?').get(active,'E-10-2026-000001').n,1);
@@ -75,7 +77,7 @@ test('idle backfill publishes recovered questions and Following marks in a new f
 });
 
 test('multiple admission batches share one working generation and publish only after due recovery is admitted',async t=>{
-  const {store,generation,worker,clock}=setup(t);
+  const {store,generation,worker,clock,advance}=setup(t);
   store.setMembers([{id:'42',name:'Member'}]);store.publish(generation);
   for(let i=1;i<=28;i++) {
     const key='/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0');
@@ -86,6 +88,8 @@ test('multiple admission batches share one working generation and publish only a
   const runTask=worker.task.bind(worker);
   worker.task=async task=>task.key.startsWith('/parliamentary-questions/')?runTask(task):store.finishTask(task);
   store.release();await worker.runIteration();
+  assert.equal(store.get('working'),null,'backlog waits inside the recovery interval');
+  advance(6*60*60_000);store.release();await worker.runIteration();
   assert.equal(store.get('active'),generation);const working=store.get('working').generation;
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(working).n,25);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM item_marks').get().n,0);
@@ -102,13 +106,15 @@ for(const mode of ['normal','backfill'])test(mode+' mutable admission preserves 
     const id='E-10-2026-'+String(i).padStart(6,'0');
     store.putSource(generation,'/parliamentary-questions/'+id,'document',projectDocument(document({id:'eli/dl/doc/'+id,identifier:id,creator:['person/42']})),new Date(clock()-8*DAY).toISOString());
   }
-  store.publish(generation);if(mode==='normal')advance(DAY);
+  store.publish(generation);
   worker.recoveryMode=mode;worker.budget=100;
   worker.fetchRecord=async endpoint=>({fetchedAt:new Date(clock()).toISOString(),payload:{data:[document({id:'eli/dl/doc/'+endpoint.split('/').at(-1),identifier:endpoint.split('/').at(-1),creator:['person/42']})]}});
   const task=worker.task.bind(worker);worker.task=async job=>job.key.startsWith('/parliamentary-questions/')?task(job):store.finishTask(job);
   assert.equal(mutableRecoveryDue(store,generation,clock()),true);
   if(mode==='backfill')assert.equal(worker.coreDue(),false,'mutable backlog wakes between daily cycles');
   store.release();await worker.runIteration();
+  assert.equal(store.get('working'),null,'mutable checks wait inside the recovery interval');
+  advance(6*60*60_000);store.release();await worker.runIteration();
   const working=store.get('working').generation,start=store.get('working').startedAt;
   assert.equal(store.get('active'),generation);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM item_marks').get().n,0);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(working).n,100);
@@ -158,7 +164,7 @@ test('a transient mutable failure keeps its retry while later batches refresh an
     const id=endpoint.split('/').at(-1);return {fetchedAt:new Date(clock()).toISOString(),payload:{data:[document({id:'eli/dl/doc/'+id,identifier:id,creator:['person/42']})]}};
   };
   const task=worker.task.bind(worker);worker.task=async job=>job.key.startsWith('/parliamentary-questions/')?task(job):store.finishTask(job);
-  store.release();await worker.runIteration();const working=store.get('working').generation;
+  advance(6*60*60_000);store.release();await worker.runIteration();const working=store.get('working').generation;
   const pending=()=>store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(working,failed);
   const originalRetry=pending().retry_at;
   await worker.runIteration();assert.equal(pending().retry_at,originalRetry,'admission does not reset a future execution retry');
@@ -193,7 +199,7 @@ test('later mutable deadlines do not extend a long-running generation cohort',as
     return {fetchedAt:new Date(clock()).toISOString(),payload:{data:[document({id:'eli/dl/doc/'+endpoint.split('/').at(-1),identifier:endpoint.split('/').at(-1),creator:['person/42']})]}};
   };
   const task=worker.task.bind(worker);worker.task=async job=>job.key.startsWith('/parliamentary-questions/')?task(job):store.finishTask(job);
-  store.release();await worker.runIteration();const working=store.get('working').generation,start=Date.parse(store.get('working').startedAt);
+  advance(6*60*60_000);store.release();await worker.runIteration();const working=store.get('working').generation,start=Date.parse(store.get('working').startedAt);
   advance(2*DAY);store.release();
   const report=auditMutableAdmission(store.db,working,clock());assert.equal(report.cutoffAt,start);assert.equal(report.eligibleDue,0);
   assert.equal(mutableRecoveryDue(store,working,clock()),false);

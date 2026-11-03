@@ -142,12 +142,14 @@ export function alternateAmendmentDispatch(store,generation,ordinaryTask,amendme
 }
 
 export class ActivityWorker {
-  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null,officialContext=null,diagnostics=indexErrorLog}={}) {
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',recoveryBeginIntervalHours=integerFromEnvironment('ACTIVITY_INDEX_RECOVERY_BEGIN_INTERVAL_HOURS',6,1,24),sittingSnapshots=null,officialContext=null,diagnostics=indexErrorLog}={}) {
     this.diagnostics=diagnostics;this.outsideWikidata=true;
     this.officialContext=officialContext;this.store=store;this.documentBodies=new DocumentBodyCollector(store);this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
+    if(!Number.isInteger(recoveryBeginIntervalHours)||recoveryBeginIntervalHours<1||recoveryBeginIntervalHours>24)throw new Error('ACTIVITY_INDEX_RECOVERY_BEGIN_INTERVAL_HOURS must be an integer between 1 and 24');
+    this.recoveryBeginInterval=recoveryBeginIntervalHours*60*60_000;
     this.recoveryMode=recoveryMode;this.followupStartupRepair=true;this.amendmentRouteStartupRepair=true;
   }
   // Bootstraps start at once; version and generation refreshes wait for the
@@ -159,6 +161,12 @@ export class ActivityWorker {
     if(bootstrap||record?.version!==RECORD_TOPICS_VERSION||record?.generation!==active)return 'topics';
     if(this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION)return 'stories';
     return !versionsOnly&&topicRebuildDue(this.store,now)?'topics':null;
+  }
+  recoveryBeginAllowed() {
+    // Older indexes lack the marker. Publication is a conservative fallback
+    // until their first begin records the actual rotation start.
+    const lastBegin=this.store.get('lastBeginAt') ?? this.store.get('lastSuccess');
+    return !lastBegin || this.clock()-Date.parse(lastBegin)>=this.recoveryBeginInterval;
   }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
@@ -909,10 +917,12 @@ export class ActivityWorker {
         this.store.transaction(()=>{this.store.assertWriter();amendmentsCopy(this.store.db,active,active);groupVoicesCopy(this.store.db,active,active);});
         this.checkpointContinuations(active);
       }
-      // Core recovery changes items and their frozen Following summaries. It
-      // must publish through a working generation, even between daily cycles.
-      const recover=(ruleVersionRecoveryDue(this.store,active)||gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock())||this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,active)||declaredDebateRecoveryDue(this.store,active));
-      const cycle=this.coreDue()||recover?await (this.generationExecutor?this.generationExecutor('begin',{signal:this.controller.signal}):this.store.beginCycle()):null,generation=cycle?.generation || active;
+      // Rule changes invalidate previous rejection decisions and rebuild at once.
+      // Recurring recovery waits between rotation starts; daily and hard triggers
+      // bypass the interval. Active-generation dispatch is independent of it.
+      const rebuild=ruleVersionRecoveryDue(this.store,active);
+      const recover=(gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock())||this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,active)||declaredDebateRecoveryDue(this.store,active));
+      const cycle=this.coreDue()||rebuild||recover&&this.recoveryBeginAllowed()?await (this.generationExecutor?this.generationExecutor('begin',{signal:this.controller.signal}):this.store.beginCycle()):null,generation=cycle?.generation || active;
       if(this.stopped)return;
       this.controller.signal.throwIfAborted();
       this.store.assertWriter();
