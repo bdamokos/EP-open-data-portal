@@ -56,7 +56,11 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
     for (let attempt = 0; ; attempt++) {
       active.throwIfAborted();
       const response = await fetchImpl(versionedApiUrl(url), { method: 'GET', signal: active, priority: getPriority(), credentials: 'omit', headers: { Accept: 'application/json' } });
-      const data = await response.json().catch(() => null);
+      const data = await response.json().catch(error => {
+        if(active.aborted)throw active.reason;
+        if(error?.name==='AbortError'||response.ok&&error?.name!=='SyntaxError')throw error;
+        return null;
+      });
       active.throwIfAborted();
       reportApiVersionMismatch(response.status, data);
       if (response.ok) {

@@ -15,7 +15,7 @@ async function harness(t,items=[member()],v2=false,dossiers=[]) {
  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
  t.mock.method(globalThis,'fetch',async(input,options)=>{
   const url=new URL(input,window.location.href),route=url.pathname.split('/').at(-1);requests.push({url,route,options});
-  if(rawFailure?.route===route)return new Response(rawFailure.body,{status:rawFailure.status,headers:rawFailure.headers});
+  if(rawFailure?.route===route)return new Response(rawFailure.error?new ReadableStream({start(controller){controller.error(rawFailure.error);}}):rawFailure.body,{status:rawFailure.status,headers:rawFailure.headers});
   if(routeFailures[route]){if(delayedFailure===route)await new Promise(resolve=>setImmediate(resolve));return Response.json({error:{message:'Independent failure'}},{status:routeFailures[route]});}
   if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:failureStatus,headers:failureStatus===429?{'Retry-After':'300'}:{}});
   if(conflict&&route==='following-manifest'){conflict--;return Response.json({error:{code:'generation_changed',message:'Changed'}},{status:409});}
@@ -527,4 +527,11 @@ for(const status of [502,429])test('Following POST recovers from non-JSON HTTP '
 test('a malformed successful Following POST remains terminal',async t=>{
  const h=await harness(t,[{kind:'question',id:'E-10-2026-000001',title:'Question',savedAt:1}],true);h.setRawFailure({route:'saved',status:200,body:'not JSON'});await h.render('en',false,false);await settle();
  assert.equal(h.requests.filter(request=>request.route==='saved').length,1);assert.equal(h.controls.savedStore.snapshot().questionCheckState,'error');assert.equal(installRetryClock(t).timers.size,0);
+});
+
+for(const name of ['TypeError','TimeoutError'])test('Following POST body '+name+' retains automatic recovery',async t=>{
+ const question={kind:'question',id:'E-10-2026-000001',title:'Question',savedAt:1};
+ const h=await harness(t,[question],true);h.setRawFailure({route:'saved',status:200,error:name==='TypeError'?new TypeError('Disconnected body'):new DOMException('Body timed out','TimeoutError')});await h.render('en',false,false);await settle();
+ assert.equal(h.controls.savedStore.snapshot().questionCheckState,'error');assert.equal(h.requests.filter(request=>request.route==='saved').length,1);
+ h.setRawFailure(null);await automaticRecovery(t);await settle();assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');assert.equal(h.requests.filter(request=>request.route==='saved').length,2);assert.equal(h.item().id,question.id);
 });
