@@ -1,4 +1,5 @@
-import {readTopics} from './topics-reader.mjs';
+import {votingListsResponse} from './voting-list-collector.mjs';
+import {readTopics,warmTopicOverviews} from './topics-reader.mjs';
 import {errorLog,clientErrorEvent,serverErrorEvent} from './error-log.mjs';
 import {documentImage} from './document-image-store.mjs';
 import {PORTRAIT_VERSION} from './portrait-version.mjs';
@@ -15,7 +16,7 @@ import {measureEventLoopDelay} from './event-loop-delay.mjs';
 import {prepareStartupIndexes} from './migrate-indexes.mjs';
 let eventLoopDelay;
 import {pathToFileURL} from 'node:url';
-import {apiPrefixes,config} from './config.mjs';
+import {apiPrefixes,config,booleanFromEnvironment} from './config.mjs';
 import {assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
 import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
@@ -251,6 +252,9 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'procedure-progress') {
       result=await official().progress.query(procedureProgressQuery(url.searchParams));
     }
+    else if (segments.length === 1 && segments[0] === 'voting-lists') {
+      result=votingListsResponse(activityIndex().store,url.searchParams);
+    }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'press-releases') {
       const query=pressMentionsQuery(url.searchParams);
       pressMentions??=new PressMentions(activityIndex().press,official().sources);
@@ -470,10 +474,12 @@ if (isEntryPoint) {
   process.on("SIGTERM", () => shutDown("SIGTERM"));
   server.once('listening',()=>{
     stopMonitoring=startOdpMonitoring();
+    if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))warmTopicOverviews(activityIndex().store);
     let publishedGeneration;
     stopWriters = startSourceWriters({onPublication:message=>{
       // Cache keys and Following/amendment readiness are read from committed
       // WAL snapshots. A new generation also wakes the existing warm-up hook.
+      if(message.source==='activity')warmTopicOverviews(activityIndex().store);
       if(message.source==='activity'&&message.revision.active!==publishedGeneration){
         publishedGeneration=message.revision.active;
         if(publishedGeneration)stopPlenaryWarmup.wake?.();

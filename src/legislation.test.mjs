@@ -1,3 +1,4 @@
+import {installRetryClock,automaticRecovery} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -44,7 +45,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);
-  root=createRoot(container);
+  installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(Legislation,{language:'en',onBack(){}})));
   assert.match(container.querySelector('.insight-person-activity').textContent,/1 written statement3\+ plenary amendments/);
   assert.equal(calls.filter(url=>url.pathname.includes('amendments')).length,0,'card counts need no per-person requests');
@@ -126,8 +127,8 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   assert.equal(calls.slice(before).filter(url=>!url.pathname.includes('/speech-context/')).length,1,'only the vote foreground request should run; delayed debate preloading is independent');
   assert.equal(window.location.search.includes('agenda-vote=test-amendment'),true);
   await change('.insight-vote-select select','test-procedural');await respond(503);
-  assert(voteSection().querySelector('[role="alert"]'));preserved();
-  await click('Reload');assert.equal(voteSection().getAttribute('aria-busy'),'true');preserved();
+  assert.equal(voteSection().querySelector('[role="alert"]'),null);preserved();
+  assert.equal(container.querySelector('[role=alert] button'),null);await automaticRecovery(t);assert.equal(voteSection().getAttribute('aria-busy'),'true');preserved();
   await respond();assert.equal(shown(),'procedural');preserved();
   async function travel(direction) {
     await act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));window.history[direction]();await popped;});

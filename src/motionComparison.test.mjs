@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -26,7 +27,7 @@ test('comparison is lazy and stage/language changes never display stale wording,
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {MotionOutcome}=await loadModule('/src/MotionOutcome.tsx');
-  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(MotionOutcome,{sourceId:'B-10-2026-0441',reference:'B10-0441/2026',language:'en',outcome:{status:'lapsed'},related:[{sourceId:'RC-10-2026-0441',reference:'RC-B10-0441/2026',title:'Public joint text',url:null,outcome:{status:'adopted'}}]})));
   assert.equal(calls.length,0);
   await act(async()=>{const details=container.querySelector('.explorer-motion-compare');details.open=true;details.dispatchEvent(new window.Event('toggle'));});
@@ -39,8 +40,8 @@ test('comparison is lazy and stage/language changes never display stale wording,
   assert.equal(selects().length,1,'the requested language needs no comparison language picker');
   await change(0,'joint-adopted');assert.equal(pending.length,1);assert.equal(container.querySelector('del'),null);assert.match(container.textContent,/Loading the linked texts/);
   await act(async()=>pending.shift().resolve(Response.json({error:{message:'Temporary source failure'}},{status:503})));
-  assert.match(container.querySelector('.explorer-diff-error').textContent,/Temporary source failure/);
-  await act(async()=>container.querySelector('.explorer-diff-error button').click());assert.equal(pending.length,1);
+  assert.equal(container.querySelector('.explorer-diff-error button'),null);
+  await automaticRecovery(t);assert.equal(pending.length,1);
   await act(async()=>pending.shift().resolve(Response.json({...comparison('joint-adopted','fr'),status:'unavailable',reason:'No published adopted text explicitly links to this joint motion.',summary:null,rows:[]})));
   assert.match(container.textContent,/No published adopted text explicitly links/);assert.equal(container.querySelector('.explorer-diff-row'),null);
   await change(0,'original-joint');assert.equal(container.querySelectorAll('.explorer-diff-row').length,2,'returning to the saved stage includes unchanged passages');
@@ -68,7 +69,7 @@ async function readerHarness(t) {
   t.mock.method(globalThis,'fetch',input=>new Promise(resolve=>requests.push({url:new URL(input,window.location.href),resolve,done:false})));
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {MotionComparison}=await loadModule('/src/MotionComparison.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(MotionComparison,{originalId:'B-10-2026-0441',jointId:'RC-10-2026-0441',language:'en'})));
   const respond=data=>act(async()=>{const request=requests.at(-1);request.done=true;request.resolve(Response.json(data));});
   const click=label=>act(async()=>{const button=[...container.querySelectorAll('.explorer-diff-views button')].find(node=>node.textContent===label);assert(button);button.focus();button.click();});

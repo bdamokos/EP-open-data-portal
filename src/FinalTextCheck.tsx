@@ -1,7 +1,8 @@
+import {useAutomaticRetry} from './useAutomaticRetry';
 import {reportUiError} from './errorDiagnostics.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
-import {useEffect,useState} from 'react';
+import {useEffect,useState,useRef} from 'react';
 import {api} from './data';
 import {SourceLink,sourcePageUrl} from './SourceLink';
 import {WordingDiff} from './components/WordingDiff';
@@ -54,17 +55,19 @@ function Session({selection}:{selection:FinalTextSelection}) {
   const readerKey=selectionKey(selection);
   const [open,setOpen]=useDossierReaderState('final-text:'+readerKey,false),[retry,setRetry]=useState(0);
   const [state,setState]=useState<{data:FinalTextResponse|null;loading:boolean;error:boolean}>({data:null,loading:false,error:false});
+  const failure=useRef<unknown>(null);
   const params=new URLSearchParams({lang:selection.language,amendment:selection.amendmentId,list:selection.listId,'wording-lang':selection.wordingLanguage??'unknown','final-text':'1'});
   if(selection.amendmentId.startsWith('committee:'))params.set('scope','committee');
   const route='document-context/'+encodeURIComponent(selection.documentId)+'?'+params;
+  const retrying=useAutomaticRetry(open?route:null,failure.current,state.loading,()=>setRetry(value=>value+1));
   useEffect(()=>{
     if(!open)return;
     let active=true;const controller=new AbortController();
     setState(previous=>({...previous,loading:true,error:false}));
     api<FinalTextResponse>(route,controller.signal, undefined, ui).then(data=>{
       if(!pinned(data,selection))throw new Error('Selection changed');
-      if(active)setState({data,loading:false,error:false});
-    }).catch(error=>{if(active){reportUiError(error,{request:'/api/'+route});setState(previous=>({...previous,loading:false,error:true}));}});
+      failure.current=null;if(active)setState({data,loading:false,error:false});
+    }).catch(error=>{if(active)failure.current=error;if(active){reportUiError(error,{request:'/api/'+route});setState(previous=>({...previous,loading:false,error:true}));}});
     return ()=>{active=false;controller.abort();};
   // The keyed session pins every selection field for this disclosure's lifetime.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -78,8 +81,8 @@ function Session({selection}:{selection:FinalTextSelection}) {
       {state.loading&&!data&&<p role="status"><UiMessage id="insightshared.loading"/></p>}
       {data?.vote.status==='available'&&data.vote.scope==='individual-amendment'&&data.vote.outcome&&<p className="final-text-check__vote">{(data.vote.stage==='committee') ? <UiMessage id="finalTextCheck.committee_vote_outcome" values={{outcome: <VoteOutcome outcome={data.vote.outcome}/>}}/> : ((data.vote.stage==='plenary') ? <UiMessage id="finalTextCheck.plenary_vote_outcome" values={{outcome: <VoteOutcome outcome={data.vote.outcome}/>}}/> : <UiMessage id="finalTextCheck.vote_outcome" values={{outcome: <VoteOutcome outcome={data.vote.outcome}/>}}/>)}</p>}
       {data&&(shownStages.length ? shownStages.map(stage=><Stage key={stage.destination.kind+':'+stage.destination.id} stage={stage} source={data.selection.source} readerKey={readerKey}/>) : <p><UiMessage id="grouplabels.ts.unavailable"/></p>)}
-      {state.error&&<p role="status">{data ? <UiMessage id="finalTextCheck.could_not_refresh_comparison"/> : <UiMessage id="finalTextCheck.could_not_load_comparison"/>}</p>}
-      {state.error&&<button type="button" disabled={state.loading} onClick={()=>setRetry(value=>value+1)}><UiMessage id="commissionfollowups.try_again"/></button>}
+      {state.error&&!retrying&&<p role="status">{data ? <UiMessage id="finalTextCheck.could_not_refresh_comparison"/> : <UiMessage id="finalTextCheck.could_not_load_comparison"/>}</p>}
+      {state.error&&!retrying&&null}
     </div>}
   </details>;
 }

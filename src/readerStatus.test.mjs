@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
@@ -51,6 +52,7 @@ async function harness(t,{stored=false}={}) {
   const {createRoot}=await import('react-dom/client');
   // Module loading uses real timers; only mounted application deadlines are advanced.
   t.mock.timers.enable({apis:['setTimeout']});
+  const clock=installRetryClock(t);
   const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
   const trigger=document.createElement('button');trigger.textContent='Read selected item';document.body.append(trigger);trigger.focus();
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
@@ -59,11 +61,11 @@ async function harness(t,{stored=false}={}) {
   const finish=(route,data,error=false)=>act(async()=>{
     const request=requests.find(request=>request.route===route&&!request.finished);
     assert(request,'Missing request: '+route);request.finished=true;
-    if(error)request.reject(new Error('Fixture request failed.'));else request.resolve(data instanceof Response?data:Response.json(data));
+    if(error)request.reject(new TypeError('Fixture request failed.'));else request.resolve(data instanceof Response?data:Response.json(data));
   });
   const wait=()=>tick(350);
   const status=()=>container.querySelector('[role="status"][aria-live="polite"]');
-  return {window,container,trigger,reader,render,finish,wait,tick,status,expireActivityReads,requests};
+  return {window,container,trigger,reader,render,finish,wait,tick,status,expireActivityReads,requests,clock};
 }
 
 test('settled readers announce concise status once and keep document bodies out of live regions',async t=>{
@@ -95,7 +97,10 @@ test('reader request errors announce the current failure without moving focus or
   for(const kind of ['question','speech'])await t.test(kind,async t=>{
     const h=await harness(t),id=kind==='question'?questionId+'-ASW':speechId;
     await h.render(h.reader(kind,{id,heading:'Answer'}));
-    await h.finish(`${kind==='question'?'document':'speech'}/${id}?lang=en`,null,true);await h.wait();
+    const route=`${kind==='question'?'document':'speech'}/${id}?lang=en`;
+    await h.finish(route,null,true);
+    for(let i=0;i<6;i++){await automaticRecovery(t);await h.finish(route,null,true);}
+    await h.wait();
     assert.equal(h.status().textContent,kind==='question'?'Answer: Text temporarily unavailable.':'Speech temporarily unavailable.');
     assert.equal(h.container.querySelectorAll('[role="status"],[role="alert"]').length,1,'the visible error does not create a second live announcement');
     assert.equal(document.activeElement,h.trigger);
@@ -134,7 +139,9 @@ test('unavailable text stays explicit with source access, and failed document re
     await h.render(null);h.expireActivityReads();await h.render(h.reader('question'));
     assert.equal(h.container.querySelector('.insight-reader-text').textContent,body,'cached text remains readable during refresh');
     assert.equal(h.status().textContent,'','cached content is not announced as a completed refresh');
-    await h.finish(`document/${questionId}?lang=en`,null,true);await h.wait();
+    const route=`document/${questionId}?lang=en`;await h.finish(route,null,true);
+    for(let i=0;i<6;i++){await automaticRecovery(t);await h.finish(route,null,true);}
+    await h.wait();
     assert.equal(h.status().textContent,'Question: Text temporarily unavailable.');
     assert.equal(h.container.querySelector('.insight-reader-text').textContent,body,'a refresh error does not discard cached text');
     assert(h.container.querySelector('.insight-reader-source a'));
@@ -183,155 +190,90 @@ test('a focused question language picker survives an uncached language request',
   assert.equal(h.container.querySelector('select'),select);assert.equal(document.activeElement,select);assert.equal(select.value,'fr');
 });
 
-test('inline retries recover the same ID and chosen language once, retaining local keyboard focus',async t=>{
-  for(const kind of ['question','speech'])await t.test(kind,async t=>{
-    const h=await harness(t),id=kind==='question'?questionId:speechId,prefix=kind==='question'?'document':'speech';
-    // Readers offer other languages only when the requested language is unavailable.
-    const requested='hu';
-    await h.render(h.reader(kind,{language:requested}));
-    await h.finish(`${prefix}/${id}?lang=${requested}`,kind==='question'?question():speech());
-    const select=h.container.querySelector('select');
-    await act(async()=>{select.value='fr';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
-    const route=`${prefix}/${id}?lang=fr`;
-    await h.finish(route,Response.json({error:{code:'upstream_busy',message:'Busy.'}},{status:503}));await h.wait();
-    const retry=h.container.querySelector('.reader-retry button'),heading=h.container.querySelector('h3'),section=heading.closest('section');
-    assert(retry,'the failed reader has a local retry');assert.equal(retry.lang,requested);
-    const originalSection=section,href=h.window.location.href;section.scrollTop=147;
-    assert.equal(h.container.querySelectorAll('[role="status"],[role="alert"]').length,1);
-    await act(async()=>{retry.focus();retry.click();retry.click();});
-    assert.equal(document.activeElement,heading,'focus moves to the stable heading before the retry control disappears');
-    assert.equal(section.scrollTop,147);assert.equal(h.window.location.href,href);
-    assert.equal(h.requests.filter(request=>request.route===route).length,2,'double activation starts only one replacement request');
-    assert.equal(h.container.querySelector('.reader-retry button'),null,'no second retry can be issued while loading');
-    await h.finish(route,kind==='question'?question(id,'fr'):speech(id,'fr'));await h.wait();
-    assert.equal(heading.closest('section'),originalSection);assert.equal(section.scrollTop,147);
-    assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');assert.equal(document.activeElement,heading);
-    assert.equal(h.status().textContent,kind==='question'?'Question: Text loaded.':'Speech loaded.');
-    assert.equal(h.requests.filter(request=>request.route===route).length,2,'completion does not start another retry');
-  });
+const noRetry=h=>assert.equal(h.container.querySelector('.reader-retry, [role="alert"] button'),null);
+test('automatic inline recovery retains the exact ID, language, focus, scroll and reader instance',async t=>{
+ for(const kind of ['question','speech'])await t.test(kind,async t=>{
+  const h=await harness(t),id=kind==='question'?questionId:speechId,prefix=kind==='question'?'document':'speech';
+  await h.render(h.reader(kind,{language:'hu'}));await h.finish(`${prefix}/${id}?lang=hu`,kind==='question'?question():speech());
+  const select=h.container.querySelector('select');await act(async()=>{select.focus();select.value='fr';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+  const route=`${prefix}/${id}?lang=fr`;await h.finish(route,Response.json({error:{code:'upstream_busy',message:'Busy.'}},{status:503}));await h.wait();
+  const heading=h.container.querySelector('h3'),section=heading.closest('section'),href=h.window.location.href;section.scrollTop=147;
+  noRetry(h);assert.equal(h.requests.filter(r=>r.route===route).length,1);
+  await automaticRecovery(t);assert.equal(h.requests.filter(r=>r.route===route).length,2);noRetry(h);
+  assert.equal(document.activeElement,select);assert.equal(section.scrollTop,147);assert.equal(h.window.location.href,href);
+  await h.finish(route,kind==='question'?question(id,'fr'):speech(id,'fr'));await h.wait();
+  assert.equal(heading.closest('section'),section);assert.equal(section.scrollTop,147);assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');assert.equal(document.activeElement,select);
+  assert.equal(h.status().textContent,kind==='question'?'Question: Text loaded.':'Speech loaded.');assert.equal(h.requests.filter(r=>r.route===route).length,2);
+ });
 });
-
-test('failed refresh retries retain readable text, exact source metadata and selected document',async t=>{
-  const h=await harness(t),route=`document/${questionId}?lang=en`;
-  await h.render(h.reader('question',{includeAnswers:true}));await h.finish(route,question());
-  await h.render(null);h.expireActivityReads();await h.render(h.reader('question',{includeAnswers:true}));
-  const text=h.container.querySelector('.insight-reader-text'),source=h.container.querySelector('.insight-reader-source a');
-  await h.finish(route,null,true);
-  assert(!h.container.textContent.includes('No answer published.'),'a failed read must not claim parliamentary absence');
-  assert.match(h.container.querySelector('.reader-retry').textContent,/temporarily unavailable/);
-  let retry=h.container.querySelector('.reader-retry button');
-  await act(async()=>{retry.focus();retry.click();});
-  assert.equal(h.container.querySelector('.insight-reader-text'),text);assert.equal(text.textContent,body);assert.equal(text.lang,'en');assert.equal(h.container.querySelector('.insight-reader-source a'),source);
-  await h.finish(route,null,true);assert.equal(h.container.querySelector('.insight-reader-text'),text);
-  retry=h.container.querySelector('.reader-retry button');assert(retry,'a failed retry remains recoverable');
-  await act(async()=>retry.click());await h.finish(route,question());
-  assert.equal(h.container.querySelector('.reader-retry'),null);assert.equal(text.textContent,body);
+test('failed automatic refreshes retain readable text, source links and the selected document',async t=>{
+ const h=await harness(t),route=`document/${questionId}?lang=en`;await h.render(h.reader('question',{includeAnswers:true}));await h.finish(route,question());
+ await h.render(null);h.expireActivityReads();await h.render(h.reader('question',{includeAnswers:true}));
+ const text=h.container.querySelector('.insight-reader-text'),source=h.container.querySelector('.insight-reader-source a');
+ for(let i=0;i<2;i++){
+  await h.finish(route,null,true);assert(!h.container.textContent.includes('No answer published.'));noRetry(h);
+  await automaticRecovery(t);assert.equal(h.container.querySelector('.insight-reader-text'),text);assert.equal(text.textContent,body);assert.equal(text.lang,'en');assert.equal(h.container.querySelector('.insight-reader-source a'),source);
+ }
+ await h.finish(route,question());noRetry(h);assert.equal(text.textContent,body);
 });
-
-test('HTTP-200 extraction failures honor their retry hint and localized retry label without declaring absence',async t=>{
-  const h=await harness(t),route=`document/${questionId}?lang=hu`,data=question(questionId,'hu','error');
-  let now=Date.now();t.mock.method(Date,'now',()=>now);
-  data.selectedText.nextRetryAt=new Date(now+900).toISOString();
-  await h.render(h.reader('question',{language:'hu',includeAnswers:true}));await h.finish(route,data);
-  const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);assert.equal(retry.lang,'hu');assert.equal(retry.textContent,'Újrapróbálkozás');
-  assert.equal(retry.closest('p'),null,'retry is an action outside the error paragraph');
-  const hint=document.getElementById(retry.getAttribute('aria-describedby'));
-  assert(hint);assert.match(hint.textContent,/Try again in 1 second\./);assert.equal(hint.getAttribute('aria-live'),'off');
-  retry.click();assert.equal(h.requests.length,1);assert(!h.container.textContent.includes('No answer published.'));
-  assert(!h.container.textContent.includes('Text unavailable.'));
-  now+=899;await h.tick(899);assert.equal(retry.disabled,true);
-  await act(async()=>retry.click());assert.equal(h.requests.length,1,'no request before expiry');
-  now+=1;await h.tick(1);
-  assert.equal(retry.disabled,false,'the server hint expiring enables a manual retry');assert.equal(h.requests.length,1,'a hint does not start an automatic retry');
-  assert.equal(retry.getAttribute('aria-describedby'),null);assert.equal(h.container.querySelector('.reader-retry-hint'),null);
-  await act(async()=>{retry.focus();retry.click();});await h.finish(route,question(questionId,'hu'));
-  assert.equal(h.container.querySelector('.insight-reader-text').lang,'hu');assert.equal(h.container.querySelector('.reader-retry'),null);
+test('HTTP-200 extraction failures honour the later server hint and never declare absence',async t=>{
+ const h=await harness(t),route=`document/${questionId}?lang=hu`,data=question(questionId,'hu','error');data.selectedText.nextRetryAt=new Date(Date.now()+20000).toISOString();
+ await h.render(h.reader('question',{language:'hu',includeAnswers:true}));await h.finish(route,data);
+ noRetry(h);assert(!h.container.textContent.includes('No answer published.'));assert(!h.container.textContent.includes('Text unavailable.'));
+ await h.clock.advance(19000);assert.equal(h.requests.length,1);
+ await automaticRecovery(t);assert.equal(h.requests.length,2);await h.finish(route,question(questionId,'hu'));assert.equal(h.container.querySelector('.insight-reader-text').lang,'hu');noRetry(h);
 });
-
-test('HTTP error cooldowns disable the local speech and document retry until the supplied time',async t=>{
-  for(const kind of ['question','speech'])await t.test(kind,async t=>{
-    const h=await harness(t),route=kind==='question'?`document/${questionId}?lang=en`:`speech/${speechId}?lang=en`;
-    let now=Date.now();t.mock.method(Date,'now',()=>now);
-    await h.render(h.reader(kind));
-    await h.finish(route,Response.json({error:{code:'upstream_busy',message:'Busy.',retryAt:now+60_000}},{status:503}));
-    const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);
-    await act(async()=>retry.click());assert.equal(h.requests.length,1);
-    for(let second=0;second<59;second++){now+=1000;await h.tick(1000);}
-    now+=999;await h.tick(999);assert.equal(retry.disabled,true);
-    await act(async()=>retry.click());assert.equal(h.requests.length,1);
-    now+=1;await h.tick(1);assert.equal(retry.disabled,false);
-    assert.equal(h.requests.length,1,'expiry enables the control without an automatic request');
-    await act(async()=>retry.click());assert.equal(h.requests.length,2);
-    await h.finish(route,kind==='question'?question():speech());
-  });
+test('HTTP error cooldowns postpone automatic speech and document reads until the supplied time',async t=>{
+ for(const kind of ['question','speech'])await t.test(kind,async t=>{
+  const h=await harness(t),route=kind==='question'?`document/${questionId}?lang=en`:`speech/${speechId}?lang=en`;
+  await h.render(h.reader(kind));await h.finish(route,Response.json({error:{code:'upstream_busy',message:'Busy.',retryAt:Date.now()+60000}},{status:503}));
+  noRetry(h);await h.clock.advance(59000);assert.equal(h.requests.length,1);
+  await automaticRecovery(t);assert.equal(h.requests.length,2);await h.finish(route,kind==='question'?question():speech());noRetry(h);
+ });
 });
-
-test('retry countdown reconciles elapsed time on return to the reader and never retries automatically',async t=>{
-  let now=Date.now();t.mock.method(Date,'now',()=>now);
-  const h=await harness(t),route=`document/${questionId}?lang=en`,data=question(questionId,'en','error');
-  data.selectedText.nextRetryAt=new Date(now+125_000).toISOString();
-  await h.render(h.reader('question'));await h.finish(route,data);
-  const retry=h.container.querySelector('.reader-retry button'),hint=()=>h.container.querySelector('.reader-retry-hint');
-  assert.equal(retry.disabled,true);assert.match(hint().textContent,/3 minutes/);
-  now+=66_000;await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));
-  assert.match(hint().textContent,/59 seconds/);
-  now+=58_000;await act(async()=>document.dispatchEvent(new h.window.Event('visibilitychange')));
-  assert.match(hint().textContent,/1 second/);assert.equal(retry.disabled,true);
-  now+=1000;await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));
-  assert.equal(retry.disabled,false);assert.equal(hint(),null);assert.equal(h.requests.length,1);
-  await act(async()=>{retry.click();retry.click();});assert.equal(h.requests.length,2);
-  await h.finish(route,question());assert.equal(h.container.querySelector('.reader-retry'),null);
+test('a hidden reader pauses its scheduled retry and resumes a due read when visible',async t=>{
+ const h=await harness(t),route=`document/${questionId}?lang=en`,data=question(questionId,'en','error');data.selectedText.nextRetryAt=new Date(Date.now()+125000).toISOString();
+ await h.render(h.reader('question'));await h.finish(route,data);
+ Object.defineProperty(document,'visibilityState',{value:'hidden',configurable:true});await act(async()=>document.dispatchEvent(new h.window.Event('visibilitychange')));
+ await h.clock.advance(126000);assert.equal(h.requests.length,1);noRetry(h);
+ Object.defineProperty(document,'visibilityState',{value:'visible',configurable:true});await act(async()=>document.dispatchEvent(new h.window.Event('visibilitychange')));
+ assert.equal(h.requests.length,2);await h.finish(route,question());noRetry(h);
 });
-
-
-test('a background-refresh snapshot stays locally recoverable through completion or another failure',async t=>{
-  for(const outcome of ['completed','failed'])await t.test(outcome,async t=>{
-    const h=await harness(t),route=`document/${questionId}?lang=en`,data=question();
-    data.selectedText.refreshError='Last source refresh failed.';data.selectedText.refreshInProgress=true;
-    await h.render(h.reader('question',{includeAnswers:true}));await h.finish(route,data);
-    const text=h.container.querySelector('.insight-reader-text'),retry=h.container.querySelector('.reader-retry button');
-    assert(retry);assert.equal(retry.disabled,false,'a server snapshot is not an active browser request');
-    await act(async()=>{retry.focus();retry.click();retry.click();});assert.equal(h.requests.length,2);assert.equal(h.container.querySelector('.insight-reader-text'),text);
-    if(outcome==='failed'){
-      await h.finish(route,data);const again=h.container.querySelector('.reader-retry button');assert(again);assert.equal(again.disabled,false);
-      assert(!h.container.textContent.includes('No answer published.'));
-      await act(async()=>again.click());assert.equal(h.requests.length,3);
-    }
-    await h.finish(route,question());assert.equal(h.container.querySelector('.reader-retry'),null);assert.equal(h.container.querySelector('.insight-reader-text'),text);
-    assert.equal(document.activeElement,h.container.querySelector('h3'));assert.equal(text.lang,'en');assert.equal(text.textContent,body);
-  });
+test('background-refresh snapshots retain body and source identity through completion or repeated failure',async t=>{
+ for(const outcome of ['completed','failed'])await t.test(outcome,async t=>{
+  const h=await harness(t),route=`document/${questionId}?lang=en`,data=question();data.selectedText.refreshError='Last source refresh failed.';data.selectedText.refreshInProgress=true;
+  await h.render(h.reader('question',{includeAnswers:true}));await h.finish(route,data);
+  const text=h.container.querySelector('.insight-reader-text'),focused=document.activeElement;noRetry(h);
+  await automaticRecovery(t);assert.equal(h.requests.length,2);assert.equal(h.container.querySelector('.insight-reader-text'),text);
+  if(outcome==='failed'){await h.finish(route,data);noRetry(h);assert(!h.container.textContent.includes('No answer published.'));await automaticRecovery(t);assert.equal(h.requests.length,3);}
+  await h.finish(route,question());noRetry(h);assert.equal(h.container.querySelector('.insight-reader-text'),text);assert.equal(document.activeElement,focused);assert.equal(text.lang,'en');assert.equal(text.textContent,body);
+ });
 });
-
-
-test('retained speech refresh failures retry locally without losing body or language',async t=>{
-  for(const stored of [false,true])await t.test(stored?'retained corpus':'retained detail',async t=>{
-    let now=Date.now();t.mock.method(Date,'now',()=>now);
-    const h=await harness(t,{stored}),route=`speech/${speechId}?lang=fr`,savedRoute=`speech-transcript/${speechId}?lang=fr`,response=stored?{id:speechId,available:true,xml:speech(speechId,'fr').xml,textLanguage:'fr',availableTextLanguages:['en','fr'],metadata:speech(speechId,'fr')}:speech(speechId,'fr');
-    await h.render(h.reader('speech',{language:'hu',transcriptLanguage:'fr'}));await h.finish(stored?savedRoute:route,response);
-    await h.render(null);now+=31_000;await h.render(h.reader('speech',{language:'hu',transcriptLanguage:'fr'}));
-    const text=h.container.querySelector('.insight-reader-text');assert(text);assert.equal(h.container.querySelector('.insight-source-document'),null);
-    await h.finish(stored?savedRoute:route,Response.json({error:{code:'upstream_busy',message:'Refresh failed.',retryAt:now+4_000}},{status:503}));
-    const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);assert.equal(retry.lang,'hu');
-    assert.equal(h.container.querySelector('.insight-reader-text'),text);assert.equal(text.lang,'fr');assert.equal(text.textContent,body);assert.equal(h.container.querySelector('.insight-source-document'),null);
-    // Advance each countdown callback with its matching wall clock, then the exact deadline.
-    for(const ms of [1000,1000,1000,999]){now+=ms;await h.tick(ms);}
-    assert.equal(retry.disabled,true);await act(async()=>retry.click());
-    assert.equal(h.requests.filter(request=>request.route===(stored?savedRoute:route)).length,2,'cooldown never retries automatically or accepts early clicks');
-    now+=1;await h.tick(1);
-    assert.equal(h.requests.filter(request=>request.route===(stored?savedRoute:route)).length,2,'expiry only enables a manual retry');
-    assert.equal(retry.disabled,false);
-    await act(async()=>{retry.focus();retry.click();retry.click();});assert.equal(h.container.querySelector('.reader-retry'),null,'active refresh cannot start a second retry');
-    assert.equal(h.container.querySelector('.insight-reader-text'),text,'manual refresh never removes the saved body');
-    await h.finish(stored?savedRoute:route,null,true);assert.equal(h.container.querySelector('.insight-reader-text'),text);assert(h.container.querySelector('.reader-retry button'));
-    await act(async()=>h.container.querySelector('.reader-retry button').click());await h.finish(stored?savedRoute:route,response);await h.wait();
-    assert.equal(h.container.querySelector('.reader-retry'),null);assert.equal(h.status().textContent,'Speech loaded.');assert.equal(text.lang,'fr');assert.equal(document.activeElement,h.container.querySelector('h3'));
-  });
+test('retained speech automatically recovers without losing body, language or focus',async t=>{
+ for(const stored of [false,true])await t.test(stored?'retained corpus':'retained detail',async t=>{
+  const h=await harness(t,{stored}),route=`speech/${speechId}?lang=fr`,savedRoute=`speech-transcript/${speechId}?lang=fr`,response=stored?{id:speechId,available:true,xml:speech(speechId,'fr').xml,textLanguage:'fr',availableTextLanguages:['en','fr'],metadata:speech(speechId,'fr')}:speech(speechId,'fr');
+  await h.render(h.reader('speech',{language:'hu',transcriptLanguage:'fr'}));await h.finish(stored?savedRoute:route,response);
+  await h.render(null);await h.clock.advance(31000);await h.render(h.reader('speech',{language:'hu',transcriptLanguage:'fr'}));
+  const text=h.container.querySelector('.insight-reader-text'),focused=document.activeElement;assert(text);assert.equal(h.container.querySelector('.insight-source-document'),null);
+  await h.finish(stored?savedRoute:route,Response.json({error:{code:'upstream_busy',message:'Refresh failed.',retryAt:Date.now()+4000}},{status:503}));
+  noRetry(h);assert.equal(text.lang,'fr');assert.equal(text.textContent,body);await h.clock.advance(3900);assert.equal(h.requests.filter(r=>r.route===(stored?savedRoute:route)).length,2);
+  await automaticRecovery(t);assert.equal(h.container.querySelector('.insight-reader-text'),text);
+  await h.finish(stored?savedRoute:route,null,true);assert.equal(h.container.querySelector('.insight-reader-text'),text);noRetry(h);
+  await automaticRecovery(t);await h.finish(stored?savedRoute:route,response);await h.wait();
+  noRetry(h);assert.equal(h.status().textContent,'Speech loaded.');assert.equal(text.lang,'fr');assert.equal(document.activeElement,focused);
+ });
 });
-
-test('stale speech source refresh errors offer a local retry while retained transcript stays readable',async t=>{
-  const h=await harness(t),route=`speech/${speechId}?lang=en`,data=speech();data.textCache={refreshError:'Last source update failed.',refreshInProgress:true};
-  await h.render(h.reader('speech'));await h.finish(route,data);
-  const text=h.container.querySelector('.insight-reader-text'),retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,false);
-  await act(async()=>{retry.focus();retry.click();});assert.equal(h.container.querySelector('.insight-reader-text'),text);
-  await h.finish(route,speech());await h.wait();assert.equal(h.container.querySelector('.reader-retry'),null);assert.equal(h.status().textContent,'Speech loaded.');assert.equal(text.textContent,body);assert.equal(document.activeElement,h.container.querySelector('h3'));
+test('stale speech source errors recover while the retained transcript remains readable',async t=>{
+ const h=await harness(t),route=`speech/${speechId}?lang=en`,data=speech();data.textCache={refreshError:'Last source update failed.',refreshInProgress:true};
+ await h.render(h.reader('speech'));await h.finish(route,data);const text=h.container.querySelector('.insight-reader-text'),focused=document.activeElement;noRetry(h);
+ await automaticRecovery(t);assert.equal(h.container.querySelector('.insight-reader-text'),text);await h.finish(route,speech());await h.wait();
+ noRetry(h);assert.equal(h.status().textContent,'Speech loaded.');assert.equal(text.textContent,body);assert.equal(document.activeElement,focused);
+});
+test('terminal read failures appear only after the automatic cap or immediately for non-retryable statuses',async t=>{
+ for(const status of [503,404])await t.test(String(status),async t=>{
+  const h=await harness(t),route=`document/${questionId}?lang=en`;await h.render(h.reader('question'));
+  const fail=()=>h.finish(route,Response.json({error:{message:'Unavailable'}},{status}));await fail();
+  if(status===503){for(let i=0;i<6;i++){assert(!h.container.textContent.includes('Text temporarily unavailable.'));await automaticRecovery(t);await fail();}}
+  await h.wait();assert(h.container.textContent.includes('Text temporarily unavailable.'));assert.equal(h.requests.length,status===503?7:1);noRetry(h);assert.equal(h.clock.timers.size,0);
+ });
 });

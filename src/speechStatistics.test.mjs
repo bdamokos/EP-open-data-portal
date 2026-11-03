@@ -1,3 +1,4 @@
+import {installRetryClock,automaticRecovery,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -22,7 +23,7 @@ async function statistics(t,fetch) {
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {InterventionStatistics}=await loadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   return {
     container,
     render:props=>act(async()=>root.render(createElement(InterventionStatistics,props))),
@@ -114,11 +115,10 @@ test('a failed later page retains partial counts and retry automatically finishe
   });
   await ui.render({member:257070});
   assert.equal(ui.stat('Total contributions'),'50');
-  assert.match(ui.container.querySelector('[role="alert"]').textContent,/More contributions are temporarily unavailable/);
-  assert.equal(ui.container.querySelector('[role="status"]'),null);
-  assert.match(ui.container.querySelector('[role="alert"]').textContent,/temporarily unavailable/);
+  assert.equal(ui.container.querySelector('[role="alert"]'),null);assert.equal(ui.container.querySelector('button'),null);
+  assert(ui.container.querySelector('[role="status"]'));
   fail=false;
-  await act(async()=>ui.container.querySelector('button').click());
+  await automaticRecovery(t);
   assert.equal(ui.stat('Total contributions'),'50');
   assert(ui.container.querySelector('[role="status"]'));
   assert.equal(ui.container.querySelector('[role="alert"]'),null);
@@ -129,15 +129,14 @@ test('a failed later page retains partial counts and retry automatically finishe
   assert.equal(ui.container.querySelector('.availability-note'),null,'completed counts do not inherit an archive disclaimer');
 });
 
-test('a first-page failure offers retry without presenting missing data as zero',async t=>{
+test('a first-page failure recovers automatically without presenting missing data as zero',async t=>{
   let fail=true;
   const ui=await statistics(t,async()=>fail?Response.json({error:{message:'Counts unavailable.'}},{status:503}):Response.json(result(69)));
   await ui.render({member:257070});
   assert.equal(ui.stat('Total contributions'),undefined);
-  assert.equal(ui.container.querySelector('[role="status"]'),null);
-  assert.match(ui.container.querySelector('[role="alert"]').textContent,/Counts unavailable/);
+  assert(ui.container.querySelector('[role="status"]'));assert.equal(ui.container.querySelector('[role="alert"]'),null);assert.equal(ui.container.querySelector('button'),null);
   fail=false;
-  await act(async()=>ui.container.querySelector('button').click());
+  await automaticRecovery(t);
   assert.equal(ui.stat('Total contributions'),'69');
   assert.equal(ui.container.querySelector('[role="alert"]'),null);
 });
@@ -171,7 +170,7 @@ test('switching member and unmounting abort outstanding pages and ignore their l
   assert.deepEqual(enriched,['member-one','member-two']);
 });
 
-test('repeated server cache restarts stop at the existing bound and allow an explicit retry',async t=>{
+test('repeated server cache restarts stop at the existing bound and schedule automatic recovery',async t=>{
   let calls=0,restart=true;
   const ui=await statistics(t,async()=>{
     calls++;
@@ -179,10 +178,9 @@ test('repeated server cache restarts stop at the existing bound and allow an exp
   });
   await ui.render({member:257070});
   assert.equal(calls,4,'the third restart stops the automatic walk');
-  assert.match(ui.container.querySelector('[role="alert"]').textContent,/Counting was interrupted/);
-  assert.equal(ui.container.querySelector('[role="status"]'),null);
+  assert.equal(ui.container.querySelector('[role="alert"]'),null);assert(ui.container.querySelector('[role="status"]'));assert.equal(ui.container.querySelector('button'),null);
   restart=false;
-  await act(async()=>ui.container.querySelector('button').click());
+  await automaticRecovery(t);
   assert.equal(calls,5);
   assert.equal(ui.container.querySelector('[role="alert"],[role="status"]'),null);
 });

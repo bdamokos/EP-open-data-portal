@@ -30,3 +30,9 @@ test('cancelling a queued visitor wakes collectors on other origins without a ti
  const visitor=q.acquire('interactive',{signal:controller.signal});const rejected=assert.rejects(visitor,/left/);let ran=false;const collector=other.run(()=>{ran=true;},{priority:'background',backgroundRank:1});await new Promise(setImmediate);assert.equal(ran,false);
  try{controller.abort(Error('left'));await rejected;await collector;assert(ran);}finally{q.maximum=old;held();}
 });
+test('voting lists share the same one-in-six optional counter without spending ODP budget',async()=>{
+ const saved=new Map(),seen=[],worker={store:{get:k=>saved.get(k),set:(k,v)=>saved.set(k,v)},requests:0,budget:1000,controller:new AbortController(),votingLists:{step:async()=>{seen.push('voting-lists');return true;}}};
+ const options={busy:true,topic:async()=>{seen.push('topic');return true;},story:async()=>{seen.push('story');return true;}};
+ for(let i=0;i<36;i++)if(!await dispatchCollector(worker,options))ordinaryCollectorTurn(worker);
+ assert.deepEqual(seen,['topic','story','voting-lists','topic','story','voting-lists']);assert.equal(worker.requests,0);
+});
