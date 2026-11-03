@@ -485,3 +485,15 @@ test('expansion preserves outer scroll without a request and decision/back keep 
  assert.equal(page.scrollTop,230);assert.equal(body.scrollTop,90);
  await h.go(-1);assert.equal(page.scrollTop,230);assert.equal(body.scrollTop,90);
 });
+
+test('a decision opened below the sticky tabs starts in view and Back restores the list offset',async t=>{
+ const h=await harness(t),page=h.container.querySelector('main.explorer'),tabs=h.container.querySelector('.explorer-tabs');
+ const detail=h.container.querySelectorAll('.member-votes-pane')[1];
+ tabs.getBoundingClientRect=()=>({top:0,bottom:60});detail.getBoundingClientRect=()=>({top:-24,bottom:400});
+ await h.click(h.container.querySelector('.member-votes-subject h3 button'));
+ page.scrollTop=460;
+ await h.click(h.container.querySelector('[data-vote-id]'));
+ assert.equal(page.scrollTop,460-24-60-12,'the detail start moves just below the tabs');
+ await h.click(button(h.container,'← Back to votes'));
+ assert.equal(page.scrollTop,460);
+});

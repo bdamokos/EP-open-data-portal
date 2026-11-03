@@ -4,9 +4,9 @@ import {HttpError} from './http-utils.mjs';
 import {languageCode} from './ep-links.mjs';
 import {sharedRequest,waitForRequest,requestSignal,createRequestBudget,runWithRequestSignal,isLocalRequestFailure} from './request-budget.mjs';
 
-export const COMMISSION_FOLLOWUPS_VERSION=2;
+export const COMMISSION_FOLLOWUPS_VERSION=3;
 export const COMMISSION_FOLLOWUPS_LIMITS=Object.freeze({reads:4,timeout:8000,metadataBytes:1024*1024,responseBytes:256*1024,entries:32,ttl:60_000});
-import {spId,validateTA,validateReply,followupReaderLink,adoptedTextProjectionVersion} from './commission-followups-model.mjs';
+import {spId,validateTA,validateReply,followupReaderLink,followupReferences,adoptedTextProjectionVersion} from './commission-followups-model.mjs';
 import {retainedCommissionFollowups} from './commission-followups-index.mjs';
 export {followupReaderLink} from './commission-followups-model.mjs';
 const array=value=>Array.isArray(value)?value:value==null?[]:[value];
@@ -54,7 +54,7 @@ export class CommissionFollowups {
       const saved=retained?.records.find(record=>record.endpoint===endpoint),root=endpoint==='/adopted-texts/'+id;
       let record=saved?.record,projection=Boolean(saved),rejected=null;
       if(record)try{validate(record.payload);if(saved?.invalidDate)throw invalid();}catch(error){rejected=error;}
-      const lossyRoot=root&&record&&(record.payload.data[0]?.adoptionProjectionVersion!==adoptedTextProjectionVersion||!Array.isArray(record.payload.data[0]?.followupRelationships));
+      const lossyRoot=root&&record&&(record.payload.data[0]?.adoptionProjectionVersion!==adoptedTextProjectionVersion||!Array.isArray(followupReferences(record.payload.data[0],'followupRelationships')));
       // A richer already-retained raw record must not be suppressed by a lossy
       // index projection. cachedOnly never refreshes or joins an upstream job.
       if(retained&&this.readCached&&(!record||rejected||lossyRoot))try {
@@ -62,7 +62,8 @@ export class CommissionFollowups {
         requestSignal()?.throwIfAborted();const work=validate(cached.payload),at=cached.fetchedAt==null?NaN:new Date(cached.fetchedAt).valueOf();
         const indexedAt=saved?.source.fetchedAt==null?NaN:new Date(saved.source.fetchedAt).valueOf();
         const older=Boolean(saved)&&(!Number.isFinite(indexedAt)||at<indexedAt);
-        if(Number.isFinite(at)&&(!root||Array.isArray(work.inverse_answers_to)&&(!older||work.inverse_answers_to.length))) {
+        const refs=followupReferences(work,'inverse_answers_to');
+        if(Number.isFinite(at)&&(!root||Array.isArray(refs)&&(!older||refs.length))) {
           if(saved){bytes+=Buffer.byteLength(JSON.stringify(saved.record.payload));result.sources.push(saved.source);}
           if(rejected)gap('record-unverified',root?null:endpoint.slice('/external-documents/'.length));
           if(root&&older)gap('relationship-observation-stale');
@@ -89,7 +90,7 @@ export class CommissionFollowups {
     try {({work,projection,unverified}=await read('/adopted-texts/'+id,payload=>validateTA(payload,id)));}
     catch(error){requestSignal()?.throwIfAborted();if(error.code!=='followup_metadata_budget')throw error;result.truncated=true;result.status='partial';gap('metadata-budget');return result;}
     if(unverified){gap('record-unverified');gap('lookup-failed');return result;}
-    const inverse=projection?(work.adoptionProjectionVersion===adoptedTextProjectionVersion?work.followupRelationships:undefined):work.inverse_answers_to;
+    const inverse=projection?(work.adoptionProjectionVersion===adoptedTextProjectionVersion?followupReferences(work,'followupRelationships'):undefined):followupReferences(work,'inverse_answers_to');
     if(retained&&inverse==null)gap('lookup-failed');
     if(inverse==null)return result;
     if(!Array.isArray(inverse)){gap('malformed-relationships');return result;}
