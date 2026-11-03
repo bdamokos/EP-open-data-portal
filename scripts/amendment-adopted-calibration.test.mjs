@@ -27,7 +27,7 @@ test('consolidated match requires both immediate unchanged neighbours',()=>{
 test('binding requires exact adopted document and date; absent AM stays inconclusive',()=>{
  const sealed={snapshot:{snapshotId:'test'},works:[{id:'eli/dl/doc/TA-10-2026-0001',document_date:'2026-03-01',adopts:['eli/dl/doc/A-10-2026-0001']}],bodies:new Map([['TA-10-2026-0001_en.xml',Buffer.from(xml)]])};
  const calibration=new AdoptedCalibration(sealed),row={id:'A-10-2026-0001-AM-9',targetDocumentId:'A-10-2026-0001',number:9,decisions:[{outcome:'ADOPTED',date:'2026-03-01',amendmentIds:['A-10-2026-0001-AM-9']}]};
- calibration.observe({row,placement:{status:'placed'}});assert.equal(calibration.report().rows[0].reason,'am-not-in-ta');
+ calibration.observe({row,placement:{status:'placed'},items:[{proposal:{sourceHash:'native-byte-hash'}}]});assert.equal(calibration.report().rows[0].reason,'am-not-in-ta');assert.equal(calibration.report().rows[0].coordinateSpace,'sha256:native-byte-hash');
  calibration.observe({row:{...row,targetDocumentId:'A-10-2026-0002'}});assert.equal(calibration.report().rows[1].reason,'ta-binding-unavailable');
 });
 test('order inversions are surfaced; equal gaps never invent within-gap order',()=>{
