@@ -74,10 +74,13 @@ function footnoteBody(proposal,unit,original,formatting) {
   const marks=(formatting??[]).filter(f=>f.kind==='superscript'&&f.end<=body.length).sort((a,b)=>a.start-b.start);
   const compact=text=>text.normalize('NFC').replace(/\s/gu,'');
   if(!marks.length||marks.length!==lines.length)return false;
-  let clean='',last=0;const positions=[];
+  let clean='',last=0;const positions=[],labels=[];
   for(const m of marks){
-    if(m.start<last||m.end<=m.start||!/^\d+$/u.test(body.slice(m.start,m.end)))return false;
-    clean+=body.slice(last,m.start);positions.push(compact(clean).length);last=m.end;
+    const marker=/^(?:(st|nd|rd|th))?(\d+)$/u.exec(body.slice(m.start,m.end));
+    if(m.start<last||m.end<=m.start||!marker||marker[1]&&!/[0-9]$/u.test(body.slice(0,m.start)))return false;
+    // Adjacent superscript runs can merge 'th' from an ordinal with its note.
+    // Keep those letters in the exact body comparison; remove only note digits.
+    clean+=body.slice(last,m.start+(marker[1]?.length??0));positions.push(compact(clean).length);labels.push(marker[2]);last=m.end;
   }
   clean+=body.slice(last);
   const rows=proposal.paragraphs.slice(unit.extent.start,unit.extent.end),text=rows.map(p=>p.text).join('\n');
@@ -87,7 +90,7 @@ function footnoteBody(proposal,unit,original,formatting) {
   for(const [i,a] of anchors.entries()){
     const note=proposal.notes?.find(n=>n.id===a.note),line=/^(\d+)\s+([\s\S]+)$/u.exec(lines[i]);
     const prefix=rows.filter(p=>p.index<a.paragraph).map(p=>p.text).join('\n')+'\n'+proposal.paragraphs[a.paragraph].text.slice(0,a.offset);
-    if(!note?.complete||!line||line[1]!==body.slice(marks[i].start,marks[i].end)||compact(line[2])!==compact(note.text)||compact(prefix).length!==positions[i])return false;
+    if(!note?.complete||!line||line[1]!==labels[i]||compact(line[2])!==compact(note.text)||compact(prefix).length!==positions[i])return false;
   }
   return text;
 }
