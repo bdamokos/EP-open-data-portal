@@ -831,11 +831,10 @@ test('follow-up loading reserves no row and does not block the adopted text',asy
   assert.equal(h.container.querySelector('.commission-followups'),null);assert(h.container.textContent.includes('Exact target passage.'));assert.equal(h.container.querySelector('[data-context-pending]'),null);
   await act(async()=>finish({status:'none-listed',items:[],gaps:[]}));await h.settle();
 });
-test('follow-up network failure and retry leave the document body intact',async t=>{
-  let calls=0;const h=await harness(t,()=>response(adopted),()=>++calls===1?Response.json({error:{message:'Source offline'}},{status:502}):{status:'available',items:[followupItem()],gaps:[]});
-  await h.render({request:directAdopted,language:'en'});assert(h.container.textContent.includes('Exact target passage.'));const body=h.container.querySelector('.document-context-text');
-  const notice=h.container.querySelector('.commission-followups [role="status"]');assert(notice.textContent.includes('Commission follow-up could not be checked.'));assert.equal(h.container.querySelector('[role="alert"]'),null);
-  await h.click(notice.querySelector('button'));assert.equal(calls,2);assert.equal(h.container.querySelector('.document-context-text'),body);assert(h.container.querySelector('.commission-followup a'));assert.equal(h.container.querySelector('.commission-followups [role="status"]'),null);
+test('follow-up network failure renders nothing and leaves the document body intact',async t=>{
+  const h=await harness(t,()=>response(adopted),()=>Response.json({error:{message:'Source offline'}},{status:502}));
+  await h.render({request:directAdopted,language:'en'});assert(h.container.textContent.includes('Exact target passage.'));
+  assert.equal(h.container.querySelector('.commission-followups'),null);assert.equal(h.container.querySelector('[role="alert"]'),null);
 });
 test('follow-up links prefer PDF per expression language, show dates and disclose other languages',async t=>{
   const files=[followupFile('en','DOCX'),followupFile('en','HTML'),followupFile('en'),followupFile('fr','DOCX'),followupFile('fr'),followupFile('de','DOCX')];
@@ -873,22 +872,24 @@ for(const reason of ['absent-files','rejected-files'])test('verified reply witho
   const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:[followupItem('SP-one',[])],gaps:[{id:'SP-one',reason:'file-unavailable'}]}));await h.render({request:directAdopted,language:'en'});
   const row=h.container.querySelector('.commission-followup');assert(row.textContent.includes('File unavailable here.'));assert.equal(row.querySelector('a'),null);assert.equal(h.container.querySelector('.commission-followups [role="status"]'),null);
 });
-test('a failed linked reply exposes retry alongside earlier usable replies',async t=>{
+test('a failed linked reply keeps earlier usable replies without a retry control',async t=>{
   const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:[followupItem()],gaps:[{id:'SP-two',reason:'lookup-failed'}]}));await h.render({request:directAdopted,language:'en'});
-  assert(h.container.querySelector('.commission-followup a'));assert(h.container.querySelector('.commission-followups [role="status"] button'));assert(h.container.textContent.includes('Exact target passage.'));
+  assert(h.container.querySelector('.commission-followup a'));assert(h.container.querySelector('.commission-followups [role="status"]'));assert.equal(h.container.querySelector('.commission-followups button'),null);assert(h.container.textContent.includes('Exact target passage.'));
 });
 
 for(const reason of ['lookup-failed','time-budget','unrecognised-relationship','malformed-relationship','record-rejected',
   'file-rejected','file-language-unavailable','file-identity-unavailable','file-unavailable']){
   for(const hasItems of [false,true])test(`follow-up status for ${reason}, items=${hasItems}`,async t=>{
-    const retryable=['lookup-failed','time-budget'].includes(reason),recordGap=!reason.startsWith('file-');
+    const recordGap=!reason.startsWith('file-');
     const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:hasItems?[followupItem()]:[],gaps:[{id:null,reason}]}));
     await h.render({request:directAdopted,language:'en'});
     const notices=h.container.querySelectorAll('.commission-followups > [role="status"]');
-    const expected=hasItems&&recordGap?'Some follow-up documents could not be checked.':!hasItems&&retryable?'Commission follow-up could not be checked.':null;
+    const expected=hasItems&&recordGap?'Some follow-up documents could not be checked.':null;
+    if(!hasItems)assert.equal(h.container.querySelector('.commission-followups'),null,'no reply, no row');
     assert.equal(notices.length,expected?1:0);
     assert.equal(h.container.querySelectorAll('.commission-followups > p').length,expected?1:0,'no duplicate status line');
-    if(expected){assert(notices[0].textContent.startsWith(expected));assert.equal(!!notices[0].querySelector('button'),retryable);}
+    if(expected)assert.equal(notices[0].textContent,expected);
+    assert.equal(h.container.querySelector('.commission-followups button'),null);
     assert.equal(!!h.container.querySelector('.commission-followup a'),hasItems,'file gaps do not hide a working link');
     assert(h.container.textContent.includes('Exact target passage.'));
   });

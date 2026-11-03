@@ -163,7 +163,7 @@
 }
 @media (max-width:767px) {
   .explorer { font-size: 16px; }
-  .explorer-wall { padding: 18px 16px; }
+  .explorer-wall { padding: 18px 16px; --explorer-gutter: 16px; }
   .explorer-wall h1 { font-size: 26px; margin-bottom: 18px; }
   .explorer-filters { grid-template-columns: minmax(0,1fr); gap: 12px; }
   .explorer-filter-line { gap: 12px; grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -251,8 +251,9 @@
 
 .explorer-profile-body a { overflow-wrap:anywhere; }
 
-/* Small or short screens: one page scroll so headers and filters move out of the reading area. */
-@media (max-width:767px), (max-height:560px) {
+/* Small, short or touch screens: one page scroll so headers and filters move out of the reading
+   area. Nested panes under the fixed header left tablets in landscape a thin scrolling strip. */
+@media (max-width:767px), (max-height:900px), (hover:none) {
   .explorer { overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; }
   /* The retained vote panes restore their own journey positions. After returning
      from detail, native page anchoring can move a disclosure on expansion;
@@ -262,6 +263,11 @@
   .explorer-portraits, .explorer-profile-body { overflow: visible; min-height: auto; }
   .explorer-profile { grid-template-rows: auto auto auto; }
   .explorer-tabs { position: sticky; top: 0; z-index: 2; margin-inline: -12px; padding: 8px 12px; background: var(--bg); }
+  /* The count row stays as a slim bar once the filters scroll away. */
+  .explorer-results { position: sticky; top: 0; z-index: 2; margin-inline: calc(-1 * var(--explorer-gutter)); padding: 8px var(--explorer-gutter); background: var(--bg); }
+  .explorer-results.is-stuck { border-bottom: 1px solid var(--line); }
+  .explorer:has(> .explorer-wall:not([hidden])) { scroll-padding-top: calc(var(--explorer-results-height, 68px) + 8px); }
+  .explorer-portraits :focus { scroll-margin-top: calc(var(--explorer-results-height, 68px) + 8px); }
   .explorer-profile-body [id], .explorer-activity-results-title { scroll-margin-top: calc(var(--explorer-tabs-height, 60px) + 12px); }
   .explorer-footer { margin-top: auto; }
 }

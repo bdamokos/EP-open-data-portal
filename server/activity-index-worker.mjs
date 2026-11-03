@@ -38,7 +38,7 @@ import { ODP_BASE, boundedUpstream, backoffUpstream, observedOdpFetch } from './
 import { amendmentTask, rebuildAmendmentTarget, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
-import {spId,validateTA,validateReply,projectFollowup,projectFollowupReferences} from './commission-followups-model.mjs';
+import {spId,validateTA,validateReply,projectFollowup,projectFollowupReferences,followupReferences} from './commission-followups-model.mjs';
 import {mutableRecoveryDue} from './mutable-document-recovery.mjs';
 import {amendmentListDocumentId,documentDetailEndpoint,documentRouteOwned,documentRouteBlocker,documentRouteDeferredOwners,sanitizeFreshDocument,validateAmendmentListMetadata} from './document-detail-routing.mjs';
 import {reconcileAmendmentDocumentGaps,amendmentDocumentRouteRepairPending,amendmentDocumentRouteVerificationPending,scheduleAmendmentDocumentRouteVerification} from './document-route-recovery.mjs';
@@ -466,7 +466,7 @@ export class ActivityWorker {
       if(validCommitteeWork(projected))projected.committeeProjectionVersion=1;
       if(adopted){
         validateTA({data:[work]},work.identifier);projected.adoptionProjectionVersion=adoptedTextProjectionVersion;
-        if(Object.hasOwn(work,'inverse_answers_to'))projected.followupRelationships=projectFollowupReferences(work.inverse_answers_to);
+        projected.followupRelationships=projectFollowupReferences(followupReferences(work,'inverse_answers_to'));
         // TA replies are SP references, not embedded written-question answers.
         projected.inverse_answers_to=[];
       }
