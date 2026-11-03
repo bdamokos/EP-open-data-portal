@@ -2465,5 +2465,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Изказвания по месеци",
   "groupvoices.contributions_by_sitting_day.77a719": "Изказвания по заседателни дни",
   "membervotespresentation.votes_not_yet_published": "Гласуванията все още не са публикувани",
-  "membervotespresentation.votes_start_at": "Гласуванията започват в {time}"
+  "membervotespresentation.votes_start_at": "Гласуванията започват в {time}",
+  "topics.geopolitics": "Геополитика",
+  "topics.plenaryMode": "Теми",
+  "topics.findPlace": "Търсене на място",
+  "topics.findTopic": "Търсене на тема"
 }

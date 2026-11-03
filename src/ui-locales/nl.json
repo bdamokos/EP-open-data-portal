@@ -2465,5 +2465,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Bijdragen per maand",
   "groupvoices.contributions_by_sitting_day.77a719": "Bijdragen per vergaderdag",
   "membervotespresentation.votes_not_yet_published": "Stemmingen nog niet gepubliceerd",
-  "membervotespresentation.votes_start_at": "Stemmingen beginnen om {time}"
+  "membervotespresentation.votes_start_at": "Stemmingen beginnen om {time}",
+  "topics.geopolitics": "Geopolitiek",
+  "topics.plenaryMode": "Onderwerpen",
+  "topics.findPlace": "Zoek een plaats",
+  "topics.findTopic": "Zoek een onderwerp"
 }

@@ -43,7 +43,7 @@ export function speechCloudQuery(search,{now=Date.now()}={}) {
   const member=search.get('member'),sitting=search.get('sitting'),week=search.get('week'),topic=search.get('topic'),page=search.get('page')||'0';
   if([member,sitting,week].filter(Boolean).length!==1)throw new HttpError(400,'invalid_scope','Choose a MEP, a plenary sitting or a plenary week.');
   if(week&&(!/^\d{4}-\d{2}-\d{2}$/.test(week)||!Number.isFinite(Date.parse(week))||new Date(week).toISOString().slice(0,10)!==week||new Date(week).getUTCDay()!==1))throw new HttpError(400,'invalid_week','Choose a Monday from the listed plenary weeks.');
-  if(member&&!/^[1-9]\d{0,8}$/.test(member)||sitting&&!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(sitting)||topic&&(!sitting||!topic.startsWith(sitting+'-OJ-ITM-')||!/^MTG-PL-\d{4}-\d{2}-\d{2}-OJ-ITM-[DV]-\d+$/.test(topic)))throw new HttpError(400,'invalid_scope','Invalid speech selection.');
+  if(member&&!/^[1-9]\d{0,8}$/.test(member)||sitting&&!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(sitting)||topic&&(!sitting||!topic.startsWith(sitting+'-')||!/^MTG-PL-\d{4}-\d{2}-\d{2}-(?:OJ-ITM-[DV]-\d+|PVCRE-ITM-\d+(?:-\d+)?)$/.test(topic)))throw new HttpError(400,'invalid_scope','Invalid speech selection.');
   if(!/^(0|[1-9]\d{0,2})$/.test(page)||Number(page)>=CLOUD_LIMITS.pages*(week?CLOUD_LIMITS.weekSittings:1))throw new HttpError(400,'invalid_page','Invalid cloud page.');
   if((sitting||week)&&(search.has('days')||search.has('end')))throw new HttpError(400,'invalid_window','Choose a sitting or a date window.');
   const language=odpLanguage(search.get('lang')||'en');
