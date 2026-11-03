@@ -1,3 +1,4 @@
+import {nativeAttachedTables} from './amendment-table-oracle.mjs';
 import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
 import {LANGUAGE_SECTIONS} from './amendment-language-vocabulary.mjs';
 import {oracleFold,oracleOpening} from './amendment-oracle-grammar.mjs';
@@ -116,7 +117,7 @@ export function rawResolutionPointUnits(text) {
   return {units};
 }
 
-export function rawResolutionUnits(text,language) {
+export function rawResolutionUnits(text,language,{includeTables=false}={}) {
   const paragraphs=text?.paragraphs,sources=text?.paragraphSources;
   if(!Array.isArray(paragraphs)||sources?.length!==paragraphs.length)return {units:[],reason:'oracle-raw-structure-unavailable'};
   // Native-script labels and literal published report headings stay separate
@@ -190,6 +191,10 @@ export function rawResolutionUnits(text,language) {
     let complete=Boolean(next)&&!next.uncertain&&end>=unit.start;
     for(let i=unit.start;i<=end;i++)if(sources[i]?.complete!==true||sources[i].container!=='body'||i>unit.start&&!adjacent(sources[i-1],sources[i]))complete=false;
     units.push({...unit,end,complete});
+  }
+  for(const table of includeTables?nativeAttachedTables(text):[]) {
+    const owners=units.filter(unit=>unit.kind==='paragraph'&&unit.label===table.label);
+    if(owners.length===1&&owners[0].start===table.start)Object.assign(owners[0],{end:table.end,complete:true});
   }
   return {units,start};
 }

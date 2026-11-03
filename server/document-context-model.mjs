@@ -699,3 +699,27 @@ export function resolveAmendmentPlacement(text, options = {}) {
   evidence.push({basis: 'quoted-original'});
   return placed({span: {start, end}});
 }
+
+// Paragraphs which explicitly introduce a complete body table own its final
+// cell boundary. A numbered successor closes it; ordinary source gaps remain
+// unavailable. This does not join replacement quotations across table cells.
+export function resolveTableInsertion(text,options={}) {
+  if(options.language!=='en'||options.originalText!=='')return null;
+  const ref=placementReference(options.targetLabel,'en',options.proposedText);
+  if(ref?.kind!=='paragraph'||!ref.isNew||!ref.suffix||ref.negative)return null;
+  const structure=motionStructure(text,'en'),rows=sourceStructure(text);
+  const owners=structure.units.filter(unit=>unit.kind==='paragraph'&&unit.label===ref.base);
+  if(!rows||owners.length!==1)return null;
+  const anchor=owners[0],prior=rows[anchor.start];
+  if(!prior.complete||!/:$/u.test(prior.normal))return null;
+  const candidates=(text.tables||[]).filter(table=>table.bodyBoundary?.before===prior.source.path);
+  if(candidates.length!==1)return null;
+  const table=candidates[0],cells=table.rows?.flat(),first=cells?.[0]?.start,end=cells?.at(-1)?.end;
+  if(first!==anchor.start+1||!Number.isInteger(end)||end<=first||!rows[end]?.complete||rows[end].source.container!=='body'||rows[end].source.path!==table.bodyBoundary.after)return null;
+  const following=structure.units.find(unit=>unit.start===end&&unit.kind==='paragraph'&&unit.label===String(Number(ref.base)+1));
+  if(!following||rows.slice(first,end).some(row=>!row.complete||row.source.container!=='table-cell'))return null;
+  let cursor=first;
+  for(const cell of cells){if(cell.start!==cursor||cell.end<cursor||cell.end>end||cell.gap)return null;cursor=cell.end;}
+  if(cursor!==end)return null;
+  return {operation:'insert',status:'placed',insertAfter:end-1,insertBefore:end,evidence:[{basis:'published-reference',label:ref.label,anchor:ref.base},{basis:'complete-body-table-boundary'}]};
+}
