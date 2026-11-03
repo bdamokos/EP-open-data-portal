@@ -61,7 +61,7 @@ function outerPoints(parts,body,first,last){
 export function assertQuotedSectionPoint({proposal,wording,placement,nativeQuoted}){
  const unknown=()=>({status:'unverified',reason:'oracle-quoted-section-point-unavailable'});
  const target=wording?.language==='en'&&/^Annex ([IVXLCDM]+) – paragraph 1 – point ([1-9]\d*)\n(Regulation \((?:EC|EU)\) No \d+\/\d+)\nAnnex ([IVXLCDM]+) – section (\d+(?:\.\d+)+) – point \(([a-z]) a\) new$/u.exec(wording.targetLabel||'');
- if(!target||wording.baseline!=='commission-proposal'||wording.originalText!==''||placement.operation!=='insert'||!proposal||!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||!Buffer.isBuffer(nativeQuoted?.amendmentBuffer)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash||!Number.isSafeInteger(nativeQuoted.number)||!wording.proposedText.startsWith('('+target[6]+' a)\t')||!wording.proposedText.endsWith('’;'))return unknown();
+ if(!target||wording.baseline!=='commission-proposal'||wording.originalText!==''||placement.operation!=='insert'||!proposal||!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||!Buffer.isBuffer(nativeQuoted?.amendmentBuffer)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash||!Number.isSafeInteger(nativeQuoted.number)||nativeQuoted.number<1||wording.number!==undefined&&wording.number!==nativeQuoted.number||!wording.proposedText.startsWith('('+target[6]+' a)\t')||!wording.proposedText.endsWith('’;'))return unknown();
  let raw,comparison,points;
  try{
   raw=quotedWordBody(nativeQuoted.proposalBuffer);comparison=reportComparison(quotedWordBody(nativeQuoted.amendmentBuffer),nativeQuoted.number);
@@ -80,6 +80,6 @@ export function assertQuotedSectionPoint({proposal,wording,placement,nativeQuote
   for(const row of [owner,...quote,next]){const prefix=row.value?'('+row.value+')\t':'',found=proposal.paragraphs.filter(p=>p.source?.path===row.path&&p.text===prefix+row.text.trim()&&p.complete&&p.source.complete&&p.source.container==='body');if(found.length!==1)return unknown();mapped.push(found[0]);}
   if(mapped.some((p,index)=>index&&(p.index!==mapped[index-1].index+1||p.source.ordinal!==mapped[index-1].source.ordinal+1||p.source.segment!==mapped[index-1].source.segment)))return unknown();
   const before=mapped.at(-1).index;
-  return placement.status==='placed'&&placement.insertBefore===before&&placement.insertAfter===before-1?{status:'verified',reason:'oracle-native-quoted-section-point'}:{status:'failed',reason:'oracle-quoted-section-point-boundary-mismatch'};
+  return placement.status==='placed'&&placement.insertBefore===before&&placement.insertAfter===before-1?{status:'verified',reason:'oracle-native-quoted-section-point',nativeSourceHashes:{proposal:proposal.sourceHash,amendment:hash(nativeQuoted.amendmentBuffer)}}:{status:'failed',reason:'oracle-quoted-section-point-boundary-mismatch'};
  }catch{return unknown();}
 }
