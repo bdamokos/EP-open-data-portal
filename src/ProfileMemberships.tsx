@@ -65,7 +65,7 @@ export function ProfileMemberships({profile,lang,roleName,date,retry,onOrganizat
         {(!history?.observationComplete||namesMissing)&&<p className="explorer-membership-gap">
           {(history?.observationAvailable && (!history.observationComplete)) ? ui.t("ProfileMemberships.some_memberships_unavailable") : ''}
           {namesMissing ? ui.t("ProfileMemberships.some_organisation_names_unavailable") : ''}
-          <button type="button" onClick={retry}><UiMessage id="ProfileMemberships.retry_profile_details"/></button>
+
         </p>}
       </details>;
     })}

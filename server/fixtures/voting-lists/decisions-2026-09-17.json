@@ -1,0 +1,351 @@
+{
+  "sourceUrl": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-09-17/decisions",
+  "retrievedOn": "2026-11-03",
+  "voteItemId": "MTG-PL-2026-09-17-VOT-ITM-993095",
+  "data": [
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196837",
+      "activity_order": "29.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/B-10-2026-0386-AM-1"
+      ],
+      "referenceText": {
+        "en": "After recital G"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>1</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196838",
+      "activity_order": "30.0",
+      "referenceText": {
+        "en": "Motion for a resolution (as a whole)"
+      },
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196833",
+      "activity_order": "25.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-5-2"
+      ],
+      "referenceText": {
+        "en": "§ 13"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "2/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196824",
+      "activity_order": "16.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-4-4"
+      ],
+      "referenceText": {
+        "en": "§ 4"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "4"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196819",
+      "activity_order": "11.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/B-10-2026-0386-AM-5"
+      ],
+      "referenceText": {
+        "en": "§ 4"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>5</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196823",
+      "activity_order": "15.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-4-3"
+      ],
+      "referenceText": {
+        "en": "§ 4"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "3/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196822",
+      "activity_order": "14.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-4-2"
+      ],
+      "referenceText": {
+        "en": "§ 4"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "2/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196810",
+      "activity_order": "2.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/B-10-2026-0386-AM-2"
+      ],
+      "referenceText": {
+        "en": "§ 1"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>2</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196814",
+      "activity_order": "6.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/B-10-2026-0386-AM-3"
+      ],
+      "referenceText": {
+        "en": "After § 1"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>3</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196836",
+      "activity_order": "28.0",
+      "referenceText": {
+        "en": "§ 22"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196313",
+      "activity_order": "34.0",
+      "referenceText": {
+        "en": "B10-0389/2026"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196830",
+      "activity_order": "22.0",
+      "referenceText": {
+        "en": "§ 12"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196812",
+      "activity_order": "4.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-1-1"
+      ],
+      "referenceText": {
+        "en": "§ 1"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "1"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196834",
+      "activity_order": "26.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-5-3"
+      ],
+      "referenceText": {
+        "en": "§ 13"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "3/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196312",
+      "activity_order": "33.0",
+      "referenceText": {
+        "en": "B10-0388/2026"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196311",
+      "activity_order": "32.0",
+      "referenceText": {
+        "en": "B10-0387/2026"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196826",
+      "activity_order": "18.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-2-1"
+      ],
+      "referenceText": {
+        "en": "§ 5"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "1"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196829",
+      "activity_order": "21.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-2-4"
+      ],
+      "referenceText": {
+        "en": "§ 5"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "4/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196818",
+      "activity_order": "10.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-3-2"
+      ],
+      "referenceText": {
+        "en": "§ 2"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "2/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196813",
+      "activity_order": "5.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-1-2"
+      ],
+      "referenceText": {
+        "en": "§ 1"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "2/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196821",
+      "activity_order": "13.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-4-1"
+      ],
+      "referenceText": {
+        "en": "§ 4"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "1"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196815",
+      "activity_order": "7.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/B-10-2026-0386-AM-4"
+      ],
+      "referenceText": {
+        "en": "§ 2"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>4</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196835",
+      "activity_order": "27.0",
+      "referenceText": {
+        "en": "§ 20"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196817",
+      "activity_order": "9.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-3-1"
+      ],
+      "referenceText": {
+        "en": "§ 2"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "1"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196832",
+      "activity_order": "24.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-5-1"
+      ],
+      "referenceText": {
+        "en": "§ 13"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "1/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196828",
+      "activity_order": "20.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-2-3"
+      ],
+      "referenceText": {
+        "en": "§ 5"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "3/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-17-DEC-196827",
+      "activity_order": "19.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-17-VOT-ITM-993095-SPLIT-2-2"
+      ],
+      "referenceText": {
+        "en": "§ 5"
+      },
+      "decisionAboutId_XMLLiteral": "<am><symbol href=\"https://xx.xx.xx/§\"/></am>",
+      "comment": {
+        "en": "2/RCV"
+      }
+    }
+  ]
+}

@@ -43,7 +43,7 @@ export function Participation({language,sittings,onTopic,latestAvailable=true}:{
     </div>
     {(country||search)&&<div className="insight-active-filters" aria-label={ui.t("Participation.active_participation_filters")}>{country&&<button onClick={()=>chooseCountry(null)}><UiMessage id="legislation.meps_elected_in_countryname.9c4b7d" values={{country: <span lang={language}>{countryName(country,language)}</span>}}/></button>}{search&&<button onClick={()=>setSearch('')}><UiMessage id="Participation.titleFilter" values={{search: <span lang="">{search}</span>}}/></button>}</div>}
     {!period&&!latestAvailable&&<p><UiMessage id="legislation.latest_week_unavailable_choose_a_period.103440"/></p>}
-    {!data&&state.loading&&<p role="status"><UiMessage id="Participation.loading_participation"/></p>}{state.error&&<p role="alert"><UiMessage id="Participation.participation_temporarily_unavailable"/> <button onClick={state.retry}><UiMessage id="insightshared.reload.cce715"/></button></p>}
+    {!data&&state.loading&&<p role="status"><UiMessage id="Participation.loading_participation"/></p>}{state.error&&<p role="alert"><UiMessage id="Participation.participation_temporarily_unavailable"/> </p>}
     {data&&<>
       <SittingCalendarNotice complete={data.coverage.catalogueComplete}/>
       <p className="insight-chart-caption"><span lang={language}>{humanDate(data.window.start,language)}{(data.window.end!==data.window.start) ? (' — '+humanDate(data.window.end,language)) : ''}</span> · {country ? <><UiMessage id="batch4.questiontopics.tsx.meps.elected.in.country" values={{country: <span lang={language}>{countryName(country,language)}</span>}}/></> : ui.t("Participation.all_current_meps")}</p>

@@ -37,7 +37,7 @@ export function ParliamentSearchResults({query,type,language,from,to}:{query:str
   const data=requests.some(request=>request.state.data)?{sections,offset}:null;
   return <div className="explorer-catalog-results">
     {requests.filter(request=>request.state.loading&&!request.state.data).map(request=><p key={request.type} role="status">{ui.t(({mep:'coverage.searchingMeps',topic:'coverage.searchingTopics',question:'coverage.searchingQuestions'} as Record<string,string>)[request.type])}</p>)}
-    {requests.filter(request=>request.state.error).map(request=><p key={request.type} role="alert">{ui.t(({mep:'coverage.searchMepsUnavailable',topic:'coverage.searchTopicsUnavailable',question:'coverage.searchQuestionsUnavailable'} as Record<string,string>)[request.type])} <button type="button" className="explorer-search-link" onClick={request.state.retry}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>)}
+    {requests.filter(request=>request.state.error).map(request=><p key={request.type} role="alert">{ui.t(({mep:'coverage.searchMepsUnavailable',topic:'coverage.searchTopicsUnavailable',question:'coverage.searchQuestionsUnavailable'} as Record<string,string>)[request.type])} </p>)}
     {data?.sections.map(section=><section key={section.type} aria-label={labelsUi(ui)[section.type]}>
       <h4>{labelsUi(ui)[section.type]} {section.coverage.available&&<span lang={language}>({section.total.toLocaleString(language)})</span>}</h4>
       {!section.coverage.available&&<p className="explorer-search-hint"><UiMessage id="grouplabels.ts.unavailable"/></p>}

@@ -13,9 +13,9 @@ function urlLanguage() {
   return interfaceLanguages.includes(language) ? language : defaultInterfaceLanguage();
 }
 
-function Recovery({language=urlLanguage(),navigation,retry}:{language?:string;navigation?:ReactNode;retry?:()=>void}) {
+function Recovery({language=urlLanguage(),navigation}:{language?:string;navigation?:ReactNode}) {
   const heading=useRef<HTMLHeadingElement>(null),id=useId();
-  const title=interfaceTerm('view-error',language),help=interfaceTerm(retry ? 'view-error-help' : 'view-reload-help',language);
+  const title=interfaceTerm('view-error',language),help=interfaceTerm('view-reload-help',language);
   useEffect(()=>{heading.current?.focus({preventScroll:true});},[]);
   return <main className="explorer explorer-recovery" lang={title.language}>
     {navigation}
@@ -23,9 +23,8 @@ function Recovery({language=urlLanguage(),navigation,retry}:{language?:string;na
       <h1 id={id} ref={heading} tabIndex={-1}>{title.text}</h1>
       <p lang={help.language}>{help.text}</p>
       <div className="explorer-recovery-actions">
-        <button onClick={retry||(()=>location.reload())}>{interfaceTerm(retry ? 'try-again' : 'reload-page',language).text}</button>
+        <button onClick={()=>location.reload()}>{interfaceTerm('reload-page',language).text}</button>
         <a href={'?lang='+language}>{interfaceTerm('go-home',language).text}</a>
-        {retry&&<button onClick={()=>location.reload()}>{interfaceTerm('reload-page',language).text}</button>}
       </div>
     </section>
   </main>;
@@ -42,12 +41,12 @@ export class ErrorBoundary extends Component<Props,State> {
   static getDerivedStateFromProps(props:Props,state:State) {
     return (props.resetKey!==state.resetKey) ? ({failed:false,reloadRequired:false,resetKey:props.resetKey,attempt:0}) : null;
   }
-  componentDidCatch(error:Error) {reportUiError(error);}
+  componentDidCatch(error:Error) {
+    reportUiError(error);
+    if(this.state.attempt===0){this.props.onRetry?.();this.setState({failed:false,attempt:1});}
+  }
   render() {
-    if(this.state.failed)return <Recovery language={this.props.language} navigation={this.props.navigation} retry={this.state.reloadRequired ? undefined : (()=>{
-      this.props.onRetry?.();
-      this.setState(state=>({failed:false,attempt:state.attempt+1}));
-    })}/>;
+    if(this.state.failed)return <Recovery language={this.props.language} navigation={this.props.navigation}/>;
     return <Fragment key={this.state.attempt}>{this.props.children}</Fragment>;
   }
 }
