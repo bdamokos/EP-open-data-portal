@@ -17,3 +17,9 @@ test('a published new-article address cannot verify a paragraph sibling, includi
   assert.equal(assertQuotedSibling(arg).status,'unverified',raw);
  }
 });
+test('a new sibling follows the quoted provision text, before its asterisk note',()=>{
+ const rows=['Article 1','Directive 2003/87/EC is amended as follows:','(1)\tin Article 10a, the following paragraphs 2a and 2b are inserted after paragraph 2:','‘2a. First provision.','2b. Second provision under Regulation (EC) No 1893/2006*.','______','* Regulation (EC) No 1893/2006 of the European Parliament.’','Article 2'];
+ const arg={proposal:{paragraphs:rows.map((text,index)=>({index,text,source:{path:`/w:document[1]/w:body[1]/w:p[${index+1}]`}}))},wording:{language:'en',targetLabel:'Article 1 – paragraph 1 – point 1',proposedText:'2ba.\tNew provision.'},placement:{operation:'insert',insertAfter:4,insertBefore:5},nativeQuoted:{proposalBuffer:zip('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+rows.map(t=>'<w:p><w:r><w:t>'+t+'</w:t></w:r></w:p>').join('')+'</w:body></w:document>')}};
+ assert.equal(assertQuotedSibling(arg).status,'verified');
+ arg.placement={operation:'insert',insertAfter:6,insertBefore:7};assert.equal(assertQuotedSibling(arg).status,'failed','after the note payload');
+});
