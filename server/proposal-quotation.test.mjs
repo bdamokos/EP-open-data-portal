@@ -58,3 +58,18 @@ for(const example of boundaries.examples)test(`COM(2024)183 ${example.language}:
     assert.deepEqual(owner.instruction.underlyingTargets.filter(t=>t.kind==='article').map(t=>t.value),sample.articleLabels);
   }
 });
+
+
+test('a closing delimiter in its own paragraph closes the outer quotation',async()=>{
+ const {quotationClosed}=await import('./proposal-quotation.mjs');
+ const state={marks:[]};
+ assert.equal(quotationClosed('‘ANNEX VIII',state,'en'),false);
+ assert.equal(quotationClosed('Published annex text',state,'en'),false);
+ assert.equal(quotationClosed('’',state,'en'),true);
+ for(const text of ['Members’','Member States’ authorities','Members’ further text']){
+  const state={marks:[]};quotationClosed('‘Published text',state,'en');
+  assert.equal(quotationClosed(text,state,'en'),false,text);
+ }
+ const nested={marks:[]};quotationClosed('‘Outer “inner',nested,'en');
+ assert.equal(quotationClosed('’',nested,'en'),false);
+});
