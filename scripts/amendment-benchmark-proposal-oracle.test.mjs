@@ -22,6 +22,34 @@ test('raw source addresses verify titles, numbered and unnumbered paragraphs and
   assert.equal(check(combined,'Article 6 – paragraph 1 – subparagraph 1',replace(1)).status,'verified');
 });
 
+test('literal Normal paragraph numbers count only as one complete run in an article without NumPar rows',()=>{
+  // COM(2025)580 Article 28 and Article 26 print their numbers as text in Normal rows.
+  const p=proposal([['Article 28','Titrearticle'],['1.\tBy 2032 the Commission shall report.','Normal'],['The report shall examine taxation.','Normal'],['Member States shall submit information.','Normal'],['2.\tThe report shall be based on information.','Normal'],['(a)\tfirst;','Point0'],['(b)\tsecond.','Point0'],['Article 29','Titrearticle']]);
+  assert.equal(check(p,'Article 28 – paragraph 1 – subparagraph 2',replace(2)).status,'verified');
+  assert.equal(check(p,'Article 28 – paragraph 1 – subparagraph 3',replace(3)).status,'verified');
+  assert.equal(check(p,'Article 28 – paragraph 1 – subparagraph 2',replace(3)).status,'failed');
+  assert.equal(check(p,'Article 28 – paragraph 2 – point b',replace(6)).status,'verified');
+  const gap=proposal([['Article 28','Titrearticle'],['1.\tFirst.','Normal'],['Second.','Normal'],['3.\tThird.','Normal'],['Article 29','Titrearticle']]);
+  assert.equal(check(gap,'Article 28 – paragraph 1 – subparagraph 2',replace(2)).status,'unverified');
+  const mixed=proposal([['Article 28','Titrearticle'],['1.\tFirst.','Normal'],['Second.','Normal'],['2.\tThird.','ManualNumPar1'],['Article 29','Titrearticle']]);
+  assert.equal(check(mixed,'Article 28 – paragraph 1 – subparagraph 2',replace(2)).status,'unverified');
+});
+
+test('a mixed-style literal paragraph run counts only from the article\'s first row',()=>{
+  // COM(2025)580 Article 2 prints paragraph 2 in Point1 and paragraphs 3-4 in Point0 rows.
+  const rows=[['Article 2','Titrearticle'],['1.\tFor the purposes of this Directive, tobacco means:','Normal'],['(a)\tcigarettes;','Point0'],['(b)\tcigars;','Point0'],['(c)\tcigarillos;','Point0'],['2.\tRelated products means:','Point1'],['(a)\tliquids;','Point0'],['(b)\tpouches.','Point0'],['3.\tRaw tobacco means leaves.','Point0'],['Article 3','Titrearticle']];
+  const p=proposal(rows);
+  assert.equal(check(p,'Article 2 – paragraph 1 – point c',replace(4)).status,'verified');
+  assert.equal(check(p,'Article 2 – paragraph 2 – point b',replace(7)).status,'verified');
+  assert.equal(check(p,'Article 2 – paragraph 1 – point c',replace(7)).status,'failed');
+  const definitions=proposal([['Article 2','Titrearticle'],['For the purposes of this Regulation:','Normal'],['1.\t‘term’ means one thing;','Point0'],['2.\t‘other’ means another.','Point0'],['Article 3','Titrearticle']]);
+  assert.notEqual(check(definitions,'Article 2 – paragraph 1',replace(2)).status,'verified','a numbered list after an unnumbered lead stays points');
+  const original=amendment('Article 2 – paragraph 1 – point c','(c)\tcigarillos;');
+  const repeated=proposal([...rows.slice(0,-1),['4.\tA second (c)\tcigarillos; mention.','Point0'],['(c)\tcigarillos;','Point0'],['Article 3','Titrearticle']]);
+  const placed={status:'placed',operation:'delete',itemIndex:0,span:{start:4,end:4},splice:{start:{paragraph:4,offset:0},end:{paragraph:4,offset:repeated.paragraphs[4].text.length}}};
+  assert.equal(verifyPlacement({placement:placed,wording:{...original,proposedText:''},items:[{proposal:repeated}]}).reason,'oracle-raw-addressed-source-span','a repeated original is verified by its raw address');
+});
+
 test('raw insertion assertions check full styled point subtrees and paragraph/article boundaries',()=>{
   const p=proposal([['Article 1','Titrearticle'],['1. Amendments:','ManualNumPar1'],['(1) Article 2 is amended:','Point0'],['(a) the following paragraph is inserted:','Point1'],['‘A quoted replacement,','Normal'],['continued.’;','Normal'],['(b) Another instruction.','Point1'],['(2) Next instruction.','Point0'],['Article 2','Titrearticle']]);
   const target='Article 1 – paragraph 1 – point 1 – point a a (new)';

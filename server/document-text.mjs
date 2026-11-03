@@ -152,6 +152,20 @@ export function styleVisibility(stylesXml) {
   }
   return {styledHidden,defaultParagraph,defaultCharacter,defaults};
 }
+// Commission recasts print the codified act's deleted wording with named
+// struck-through CR styles and their editorial glyphs and source references
+// with CR Marker and CR Reference. Their legal reading omits all three.
+export function recastStyles(stylesXml) {
+  const styles=children(stylesXml?parser().parse(stylesXml):[],'w:styles') || [],characters=new Set(),paragraphs=new Set();
+  for(const node of styles){
+    if(!node['w:style'])continue;
+    const name=property(node['w:style'],'w:name'),id=attribute(node,'styleId'),type=attribute(node,'type'),rPr=children(node['w:style'],'w:rPr');
+    const struck=hiddenValue(rPr,'strike')===true||hiddenValue(rPr,'dstrike')===true;
+    if(type==='character'&&(struck&&/^CR (?:Refonte |Minor Change )?Deleted$/u.test(name)||name==='CR Marker'))characters.add(id);
+    if(type==='paragraph'&&name==='CR Reference')paragraphs.add(id);
+  }
+  return [...characters].some(id=>id!=='CRMarker')?{characters,paragraphs}:null;
+}
 // Footnote markers are recorded at their position instead of gluing their number to the text;
 // hyperlinks keep the exact span they cover, so the document itself identifies what a link names.
 const inlineContainers=new Set(['w:ins','w:moveTo','w:sdt','w:sdtContent','w:customXml','w:smartTag','w:fldSimple','w:dir','w:bdo']);
@@ -190,6 +204,7 @@ function inline(nodes,hidden,out,context) {
     if(key===':@')continue;
     if(key==='w:r') {
       const properties=children(value,'w:rPr');
+      if(context.recast?.characters.has(property(properties,'w:rStyle')))continue;
       const styled=context.style.styledHidden(property(properties,'w:rStyle') || context.style.defaultCharacter,hidden);
       const visibility={vanish:hiddenValue(properties)??styled.vanish,webHidden:hiddenValue(properties,'webHidden')??styled.webHidden};
       if(visibility.vanish||visibility.webHidden)continue;
@@ -232,7 +247,7 @@ function paragraphsOf(nodes,context) {
       const out={text:'',marks:[],spans:[],objects:[],...(context.formatting?{runs:[]}:{})},counterGaps={...context.counterGaps};
       context.paragraphStyle=property(children(value,'w:pPr'),'w:pStyle');
       const paragraphVisibility=context.style.styledHidden(context.paragraphStyle || context.style.defaultParagraph,context.style.defaults);
-      inline(value,paragraphVisibility,out,context);
+      if(!context.recast?.paragraphs.has(context.paragraphStyle))inline(value,paragraphVisibility,out,context);
       const properties=children(value,'w:pPr'),number=context.numberLabel?.(properties),unknownList=!!number?.label&&counterGaps.lists,
         label=unknownList?'?':number?.label,section=context.paragraphSections?.get(node);
       if(unknownList)context.warnings.add('Some automatic list labels are unknown after skipped document content.');
@@ -280,14 +295,14 @@ function paragraphsOf(nodes,context) {
   return result;
 }
 // Paragraphs stay plain strings. Footnotes and links are returned separately with exact positions.
-export function docxContent(buffer,{includeParagraphProperties=false,includeNoteObjects=false,numbering=numberingLabels}={}) {
+export function docxContent(buffer,{includeParagraphProperties=false,includeNoteObjects=false,numbering=numberingLabels,recast=false}={}) {
   const parts=docxParts(buffer),images=docxImages(buffer,parts),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set(),extractionGaps=[];
   let incompleteNumber=false;
   const label=numbering(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(message){incompleteNumber=true;warnings.add(message);}});
   const numberLabel=properties=>{incompleteNumber=false;const value=label(properties);return {label:value,incomplete:incompleteNumber};};
   const document=parser().parse(parts.get('word/document.xml')),paragraphSections=new WeakMap(),noteLabel=noteNumbering(document,parts.get('word/settings.xml'),warnings,paragraphSections);
   const formatting=styleFormatting(children(parts.has('word/styles.xml')?parser().parse(parts.get('word/styles.xml')):[],'w:styles')),tables={depth:0,layout:null,cell:null,found:[]};
-  const body=paragraphsOf(document,{style,numberLabel,warnings,paragraphSections,formatting,tables,images,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
+  const body=paragraphsOf(document,{style,numberLabel,warnings,paragraphSections,formatting,tables,images,recast:recast?recastStyles(parts.get('word/styles.xml')):null,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
   if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
   const supplied=new Map();
   for(const kind of ['footnote','endnote'])if(parts.has('word/'+kind+'s.xml')) {
