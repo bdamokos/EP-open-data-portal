@@ -1,3 +1,4 @@
+import {localizePlaceLabels} from './placeLabels.mjs';
 import {retryableGap,gapRetryAt} from './automaticRetry.mjs';
 import {useAutomaticRetry} from './useAutomaticRetry';
 import {useUiI18n} from './UiI18nReact';
@@ -9,7 +10,7 @@ import { createDataClient, dataTimeoutFor, readJson } from "./client.mjs";
 import type {SpeechDetail,StoredSpeechTranscript} from './explorerTypes';
 
 export function api<T>(route: string, signal?: AbortSignal, { priority = 'auto', getPriority }: { priority?: 'auto' | 'low'; getPriority?: () => 'auto' | 'low' } = {}, ui: import('./uiI18n.mjs').UiFormatter = defaultUi): Promise<T> {
-  return readJson<T>(`${API_ROOT}/${route}`, { signal, priority, getPriority, timeoutMs: dataTimeoutFor(route) }, ui);
+  return readJson<T>(`${API_ROOT}/${route}`, { signal, priority, getPriority, timeoutMs: dataTimeoutFor(route) }, ui).then(data=>/^(?:topics\/|insights\/record-topics(?:\?|$))/.test(route)?localizePlaceLabels(data,new URLSearchParams(route.split('?')[1]).get('lang')||'en') as T:data);
 }
 const client = createDataClient((route,signal,options)=>api(route==='directory'&&client.peek<{committeeDetails?:{error?:string}}>(route)?.committeeDetails?.error?'directory?retry=committee-details':route,signal,options), { timeoutFor: dataTimeoutFor });
 export function expireActivityReads() { client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route)); }

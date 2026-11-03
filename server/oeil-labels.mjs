@@ -1,3 +1,4 @@
+import countryNames from './topic-country-labels.json' with {type:'json'};
 import official from './oeil-subjects.json' with {type:'json'};
 import translations from './oeil-subject-translations.json' with {type:'json'};
 import {languagePreference} from './language-order.mjs';
@@ -7,6 +8,7 @@ export const OEIL_LABELS_VERSION=2;
 
 // Identity comes from the projection, never from a label or a year.
 export function conceptLabel(concept, requested, catalogue=official, translated=translations) {
+ if(concept.key?.startsWith('place:'))concept={...concept,labels:{...concept.labels,...countryNames.labels[concept.key.slice(6)]}};
  const code=concept.key?.startsWith('oeil:')?concept.key.slice(5):null;
  const subject=code?catalogue.subjects[code]:null;
  const labels={};

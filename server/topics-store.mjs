@@ -1,8 +1,10 @@
+import {countryLabelSourceFor} from './country-label-source.mjs';
 import {SNAPSHOT_MAX_BYTES} from './sitting-snapshot-store.mjs';
 import {gunzipSync} from 'node:zlib';
 import {voteActivity} from './story-facts-model.mjs';
 import {storyEventType} from './story-facts-storage.mjs';
-import {countryLabelSource} from './insights-places.mjs';
+import countryNames from './topic-country-labels.json' with {type:'json'};
+const countryLabelSource=countryLabelSourceFor(countryNames);
 import {conceptLabel} from './oeil-labels.mjs';
 import {readableRecordTopicState} from './topic-projection-state.mjs';
 import {topicBatches} from './topic-disk-map.mjs';
@@ -12,7 +14,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {RECORD_TOPICS_VERSION,validTopicKey} from './record-topics.mjs';
-export const TOPICS_VERSION=24;
+export const TOPICS_VERSION=25;
 export const topicKinds=['debate','document','question','speech','vote'];
 export const quarter=date=>date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3);
 export function topicPeriods(now=Date.now()){

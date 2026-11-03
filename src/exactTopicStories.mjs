@@ -1,3 +1,4 @@
+import {placeLabel} from './placeLabels.mjs';
 import {storyLinkClaims} from './storyLinkModel.mjs';
 import {agendaTitle,isEuPlace,partialQuarter,topicsHref,monthRangeLabel} from './topicPresentation.mjs';
 import {cleanStoryTitle,storyNumber,storyPlaceName,normalizeReferenceStoryFacts,primaryStoryPlace} from './topicStoryModel.mjs';
@@ -15,8 +16,14 @@ export function storyRecord(r,kind){return {id:r.id,kind,titleLanguage:r.titleLa
 export function buildExactTopicStories(payload,s={}){
  if(!payload?.ready||!payload.counts||!payload.winners)return [];
  s={language:'en',...s};
- const has=s.hasMessage||(()=>String(s.language).split('-')[0]==='en'),europe=Array.isArray(payload.europe)?new Set(payload.europe):EUROPE,inView=p=>s.zoom!=='eu'||europe.has(p),startForms=new Map();
- const f=normalizeReferenceStoryFacts(payload),period=s.period,c={...(period?payload.periodCounts.find(r=>r.period===period)||{}:payload.counts)},w=period?payload.periodWinners[period]||{}:payload.winners,labels=s.labels||{},num=n=>storyNumber(n,s.language),digits=n=>Number(n).toLocaleString(s.language==='en'?'en-GB':s.language),name=(p,start=false)=>{const text=storyPlaceName(p,labels[p]||p,{language:s.language,start});if(start)startForms.set(text,storyPlaceName(p,labels[p]||p,{language:s.language}));return text;};
+ const has=s.hasMessage||(()=>String(s.language).split('-')[0]==='en'),europe=Array.isArray(payload.europe)?new Set(payload.europe):EUROPE,inView=p=>s.zoom!=='eu'||europe.has(p),startForms=new Map(),nameLanguages=new Map();
+ const f=normalizeReferenceStoryFacts(payload),period=s.period,c={...(period?payload.periodCounts.find(r=>r.period===period)||{}:payload.counts)},w=period?payload.periodWinners[period]||{}:payload.winners,labels=s.labels||{},num=n=>storyNumber(n,s.language),digits=n=>Number(n).toLocaleString(s.language==='en'?'en-GB':s.language),name=(p,start=false)=>{
+  const localized=placeLabel(p,s.language,{label:labels[p]||p,labelLanguage:s.labelLanguages?.[p]||null});
+  const text=storyPlaceName(p,localized.label,{language:s.language,start});
+  if(localized.labelLanguage)nameLanguages.set(text,localized.labelLanguage);
+  if(start)startForms.set(text,storyPlaceName(p,localized.label,{language:s.language}));
+  return text;
+ };
  const byDate=(a,b)=>String(a.date).localeCompare(String(b.date))||String(a.id).localeCompare(String(b.id));
 
  const ds=new Map(f.debates.map(d=>[d.id,d])),docs=new Map(f.docs.map(d=>[d.id,d])),lines=[];
@@ -167,7 +174,7 @@ export function buildExactTopicStories(payload,s={}){
  const kept=lines.filter(l=>l.priority!==Infinity).sort((a,b)=>a.priority-b.priority).slice(0,4).sort((a,b)=>a.order-b.order);
  const claimed=storyLinkClaims([...kept,...outsideLines].flatMap(l=>{if(!l.finalize)return [l];const r=l.finalize(kept.filter(x=>x!==l));return r?[{...l,...r,finalize:undefined}]:[];}).map(({finalize,narrates,placeId,tells,...l})=>l),s);
  const scope=s.place?'place:'+s.place:s.topic?'topic:'+s.topic:'map';
- const vary=v=>v==null||typeof v!=='object'?v:Array.isArray(v)?v.map(vary):'text'in v?{...v,text:vary(v.text)}:!v.message?v:{...v,message:storyVariant(v.message,period,scope,has),values:Object.fromEntries(Object.entries(v.values).map(([k,x])=>[k,vary(x)]))};
+ const vary=v=>typeof v==='string'&&nameLanguages.has(v)&&nameLanguages.get(v)!==s.language.split('-')[0]?{text:v,records:[],labelLanguage:nameLanguages.get(v)}:v==null||typeof v!=='object'?v:Array.isArray(v)?v.map(vary):'text'in v?{...v,text:vary(v.text)}:!v.message?v:{...v,message:storyVariant(v.message,period,scope,has),values:Object.fromEntries(Object.entries(v.values).map(([k,x])=>[k,vary(x)]))};
  // On the Europe map, the first sentence names the scope; its leading words then continue a sentence.
  // On the Europe map the first sentence continues the scope phrase: only its leading word or slot changes case, never titles.
  const lead=v=>{if(v==null)return v;if(typeof v==='string')return startForms.get(v)??v;if(Array.isArray(v))return v.length?[lead(v[0]),...v.slice(1)]:v;if('text'in v)return v.italic?v:{...v,text:lead(v.text)};if(!v.message)return v;

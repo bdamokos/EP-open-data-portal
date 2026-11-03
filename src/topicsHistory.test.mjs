@@ -163,14 +163,14 @@ for(const [name,sittings,url,expected] of [['the current quarter once its first 
 });
 test('leaving out own-country questions refreshes inline: content stays, no loading state, focus stays',async t=>{
  let release;const pending=new Promise(r=>release=r);
- const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics',async u=>{if(u.pathname==='/api/topics/story-facts')return Response.json({ready:false});if(u.searchParams.get('askers')==='all'){await pending;return Response.json(placesData(3,'Iran (all askers)'));}return Response.json(placesData(3));});
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics',async u=>{if(u.pathname==='/api/topics/story-facts')return Response.json({ready:false});if(u.searchParams.get('askers')==='all'){await pending;const data=placesData(3);data.items[0].series.at(-1).question=9;return Response.json(data);}return Response.json(placesData(3));});
  await wait(()=>node.querySelector('.places-ranking')?.textContent.includes('Iran'));
  const box=node.querySelector('.topic-controls input[type=checkbox]');box.focus();await act(async()=>box.click());
  await act(async()=>new Promise(r=>setTimeout(r,60)));
  assert(node.querySelector('.places-map'),'the map stays');assert(node.querySelector('.places-ranking').textContent.includes('Iran'),'the list stays');assert(node.querySelector('.places-quarter'),'the time control stays');
  assert(!/Loading/.test(node.textContent),'no loading state');assert.equal(node.querySelector('.topics-content').getAttribute('data-topics-pending'),null);
  assert.equal(document.activeElement,node.querySelector('.topic-controls input[type=checkbox]'),'focus stays on the checkbox');
- release();await wait(()=>node.querySelector('.places-ranking').textContent.includes('all askers'));
+ release();await wait(()=>node.querySelector('.places-ranking strong')?.textContent==='9');
 });
 test('map, list, story and story links swap together once the requested story facts arrive',async t=>{
  let release;const pending=new Promise(r=>release=r);const period='2026-Q3';
@@ -280,4 +280,15 @@ test('showRecords uses the focused records heading without announcing the period
  const previous=node.querySelector('[aria-live=polite]').textContent;scrolled.length=0;
  const recordsLink=node.querySelector('.topic-detail-header p a');recordsLink.focus();await act(async()=>recordsLink.click());
  await wait(()=>document.activeElement===node.querySelector('#topic-records h2'));assert.equal(new URL(location.href).searchParams.get('t-q'),null);assert.equal(node.querySelector('[aria-live=polite]').textContent,previous);assert.deepEqual(scrolled,[node.querySelector('#topic-records h2')]);
+});
+
+test('map tooltips keep the UI language while ranking labels retain their source language',async t=>{
+ // This browser has no CLDR locale: the server's English fallback must remain English.
+ t.mock.method(Intl.DisplayNames,'supportedLocalesOf',()=>[]);
+ const data=placesData(3,'Morocco');data.items[0]={...data.items[0],key:'place:MAR',id:'MAR',iso3:'MAR',labelLanguage:'en'};
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&lang=fr',u=>Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:data),{language:'fr'});
+ await wait(()=>node.querySelector('.places-map title'));
+ assert.equal(node.querySelector('.places-map title').getAttribute('lang'),'fr');
+ assert.equal(node.querySelector('.places-ranking a > span').getAttribute('lang'),'en');
+ assert.equal(node.querySelector('.places-ranking a > span').textContent,'Morocco');
 });

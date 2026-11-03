@@ -12,3 +12,9 @@ test('a bootstrap waits for an index generation to exist',()=>{const store=fixtu
 
 for(const version of [undefined,String(STORY_FACTS_VERSION)])test('an unversioned or nonnumeric story projection needs a first build: '+version,()=>{const store=fixture();store.set('storyProjection',{...store.get('storyProjection'),version});assert.equal(readableStoryState(store),null);assert(topicRebuildDue(store));});
 test('a readable current projection with changed inputs waits for the nightly window',()=>{const store=fixture();store.set('topicProjectionDirty',true);store.set('topicProjectionPublishedAt',store.clock()-86400_000);assert.equal(topicBootstrapRequired(store),false);assert.equal(topicRebuildDue(store),false);assert(topicRebuildDue(store,Date.parse('2026-11-02T03:00Z')));});
+
+test('the retained v7 projection stays readable and does not bootstrap for label updates',()=>{
+ const store=fixture();store.set('recordTopicProjection',{...store.get('recordTopicProjection'),version:7});
+ assert.equal(RECORD_TOPICS_VERSION,7);assert(readableRecordTopicState(store));
+ assert.equal(topicBootstrapRequired(store),false);assert.equal(topicRebuildDue(store),false);
+});
