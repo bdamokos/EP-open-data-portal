@@ -1,0 +1,117 @@
+{
+  "id": "A-10-2025-0261-AM-1",
+  "source": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0261/A-10-2025-0261_en.docx",
+    "sha256": "903a4444df046ec9a61f51de9fd27a8fcd2ff2f07453f63cf826e013cf0e9781",
+    "fetchedAt": "2026-10-27T20:57:12.005Z"
+  },
+  "wordingSource": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0261-AM-001-009/A-10-2025-0261-AM-001-009_en.docx",
+    "sha256": "d46a8ca46cbcf6da978dd4178d771c10d023ee5e3db034e4b40b94a99843cad6",
+    "fetchedAt": "2026-10-27T20:57:04.674Z"
+  },
+  "text": {
+    "paragraphs": [
+      "The European Parliament,",
+      "A.\twhereas the green and digital transitions are having a profound transformative effect on Europe’s economies, societies, regions and workplaces in different ways, requiring comprehensive social and employment policy measures to prevent adverse impacts and promote economic, social and territorial cohesion; whereas ensuring an effective shift to a climate-neutral and digitalised economy and a reduction on energy supply dependencies is essential for Europe’s long-term prosperity, wellbeing, sustainability, growth and competitiveness; whereas the ultimate success of the twin transition will depend heavily on ensuring that transition is just and inclusive for workers, businesses and regions and that it contributes to social justice for all, with particular focus on the most vulnerable, in order to ensure that no one is left behind; whereas a fair transition alone could yield 261 billion euro per year in benefits, particularly by addressing social inequalities and regional disparities; whereas the pathways of each affected region will be different, based on their economic and social realities;",
+      "B.\twhereas the effects of the twin transition on employment are asymmetrical across the Union and the socio-economic impact varies greatly across different regions; whereas a spatial challenge arises, as jobs in the modern, resource-efficient and competitive economy may be created in different regions from those experiencing job losses;"
+    ],
+    "textLanguage": "en",
+    "structureStatus": "extracted",
+    "paragraphSources": [
+      {
+        "path": "excerpt/opening",
+        "ordinal": 0,
+        "container": "body",
+        "containerPath": "excerpt",
+        "segment": 0,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[58]",
+        "ordinal": 60,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 11,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[59]",
+        "ordinal": 61,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 11,
+        "complete": true
+      }
+    ],
+    "paragraphProperties": [
+      {},
+      {
+        "styleId": "NormalHanging12a",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "NormalHanging12a",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      }
+    ],
+    "paragraphFormats": [
+      {},
+      {
+        "indent": 2.36,
+        "hanging": 2.36
+      },
+      {
+        "indent": 2.36,
+        "hanging": 2.36
+      }
+    ],
+    "notesStatus": "extracted",
+    "notes": [
+      {
+        "id": "8",
+        "label": "8",
+        "text": "https://www.europarl.europa.eu/RegData/etudes/BRIE/2025/774668/EPRS_BRI(2025)774668_EN.pdf",
+        "links": [],
+        "linkSpans": [],
+        "source": {
+          "part": "word/footnotes.xml",
+          "path": "/w:footnotes[1]/w:footnote[10]"
+        },
+        "extractionComplete": true,
+        "objects": []
+      }
+    ],
+    "noteAnchors": [
+      {
+        "paragraph": 1,
+        "offset": 995,
+        "note": "8",
+        "label": "8"
+      }
+    ]
+  },
+  "wording": {
+    "language": "en",
+    "targetLabel": "Recital A",
+    "originalText": "A.\twhereas the green and digital transitions are having a profound transformative effect on Europe’s economies, societies, regions and workplaces in different ways, requiring comprehensive social and employment policy measures to prevent adverse impacts and promote economic, social and territorial cohesion; whereas ensuring an effective shift to a climate-neutral and digitalised economy and a reduction on energy supply dependencies is essential for Europe’s long-term prosperity, wellbeing, sustainability, growth and competitiveness; whereas the ultimate success of the twin transition will depend heavily on ensuring that transition is just and inclusive for workers, businesses and regions and that it contributes to social justice for all, with particular focus on the most vulnerable, in order to ensure that no one is left behind; whereas a fair transition alone could yield 261 billion euro per year in benefits, particularly by addressing social inequalities and regional disparities8 ; whereas the pathways of each affected region will be different, based on their economic and social realities;\n_________________\n8https://www.europarl.europa.eu/RegData/etudes/BRIE/2025/774668/EPRS_BRI(2025)774668_EN.pdf",
+    "originalFormatting": [
+      {
+        "start": 995,
+        "end": 996,
+        "kind": "superscript"
+      },
+      {
+        "start": 1127,
+        "end": 1128,
+        "kind": "superscript"
+      }
+    ],
+    "proposedText": "A.\twhereas the green and digital transitions are having a profound transformative effect on Europe’s economies, societies, regions and workplaces in different ways, requiring comprehensive social and employment policy measures to prevent adverse impacts and promote economic, social and territorial cohesion; whereas ensuring an effective shift to a climate-neutral and digitalised economy and a reduction on energy supply dependencies is essential for Europe’s long-term prosperity, wellbeing, sustainability, growth and competitiveness; whereas the ultimate success of the twin transition will depend heavily on ensuring that transition is just and inclusive for workers, businesses and regions and that it contributes to social justice for all, with particular focus on the most vulnerable, in order to ensure that no one is left behind; whereas a fair transition alone could, possibly, yield, relative to the baseline EUR 260 billion in 2050, particularly by addressing social inequalities and regional disparities8; whereas the pathways of each affected region will be different, based on their economic and social realities;\n_________________\n8https://www.europarl.europa.eu/RegData/etudes/BRIE/2025/774668/EPRS_BRI(2025)774668_EN.pdf",
+    "baseline": "motion-resolution"
+  }
+}
