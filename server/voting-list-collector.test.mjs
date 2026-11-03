@@ -46,6 +46,8 @@ test('sitting morning overrides six-hour due time, remains hourly and stops afte
  s.advance(3600000);await collector.step({controller:new AbortController()});assert.equal(calls.length,1);
  await collector.step({controller:new AbortController()});assert.equal(calls.length,1);
  s.advance(3600000);await collector.step({controller:new AbortController()});assert.equal(calls.length,2);
+ s.advance(5*3600000);await collector.step({controller:new AbortController()});assert.equal(calls.length,3);
+ s.advance(61*60000);await collector.step({controller:new AbortController()});assert.equal(calls.length,3);
 });
 test('trimmed real page assigns lists to exact ODP day sections and schedule to session',()=>{
  const days=['14','15','16','17'].map(day=>{const date='2026-09-'+day;return {id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'};});

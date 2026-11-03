@@ -81,7 +81,7 @@ export class VotingListCollector {
     };
     for(const session of active)for(const sitting of session.sittings)if(!this.snapshots.read('agenda',1,sitting,{retained:true}))this.snapshots.enqueue?.('agenda',1,sitting);
     const source=db.prepare('SELECT * FROM voting_list_sources ORDER BY next_check,url LIMIT 240').all().find(row=>{
-      const body=JSON.parse(row.body);return active.some(s=>s.first===body.sessionFirst)&&now>=(body.retryAt||0)&&(row.next_check<=now||frequentFor(row.sitting)&&now-(body.checkedAt||0)>=HOUR);
+      const body=JSON.parse(row.body);return active.some(s=>s.first===body.sessionFirst)&&now>=(body.retryAt||0)&&(row.next_check<=now&&(!body.checkedAt||now-body.checkedAt>=6*HOUR)||frequentFor(row.sitting)&&now-(body.checkedAt||0)>=HOUR);
     });
     if(!pageDue&&!source){this.write(()=>this.store.set('votingListSweep',now+60000));return false;}
     const prior=pageDue?page:JSON.parse(source.body),url=pageDue?VOTING_LIST_PAGE:source.url;
