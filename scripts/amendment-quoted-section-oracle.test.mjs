@@ -19,3 +19,10 @@ test('parent numbering includes table competitors and rejects another level-zero
  const p='<w:p><w:pPr><w:pStyle w:val="Point0number"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="6"/></w:numPr></w:pPr><w:r><w:t>Competing parent;</w:t></w:r></w:p>';
  for(const sourceChange of [xml=>xml.replace('<w:body>','<w:body>'+p),xml=>xml.replace('</w:p><w:p><w:pPr><w:pStyle w:val="Text1"/>','</w:p><w:tbl><w:tr><w:tc>'+p+'</w:tc></w:tr></w:tbl><w:p><w:pPr><w:pStyle w:val="Text1"/>'),xml=>xml.replace('w:numId w:val="6"','w:numId w:val="7"')])assert.notEqual(assertQuotedSectionPoint(quotedSectionNative({sourceChange})).status,'verified');
 });
+test('substantive content controls and unsupported blocks cannot disappear from table, row or cell ownership',()=>{
+ const paragraph='<w:p><w:r><w:t>Additional substantive proposed wording.</w:t></w:r></w:p>';
+ for(const wrapper of ['<w:sdt><w:sdtContent>'+paragraph+'</w:sdtContent></w:sdt>','<w:customXml>'+paragraph+'</w:customXml>','<w:unknown/>'])for(const ending of ['</w:tc></w:tr></w:tbl>','</w:tr></w:tbl>','</w:tbl>']){
+  const input=quotedSectionNative({amendmentChange:xml=>xml.replace(ending,wrapper+ending)});assert.notEqual(assertQuotedSectionPoint(input).status,'verified',wrapper+' before '+ending);
+ }
+ for(const amendmentChange of [xml=>xml.replace('<w:gridSpan w:val="2"/>','<w:gridSpan w:val="2"/>'+paragraph),xml=>xml.replace('<w:tbl>','<w:tbl><w:tblPr><w:unknown/></w:tblPr>'),xml=>xml.replace('<w:tbl>','<w:tbl><w:tblGrid><w:gridCol><w:sdt/></w:gridCol></w:tblGrid>')])assert.notEqual(assertQuotedSectionPoint(quotedSectionNative({amendmentChange})).status,'verified');
+});

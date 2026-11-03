@@ -16,6 +16,21 @@ function safe(nodes){
  return !['w:vanish','w:webHidden','w:del','w:moveFrom','w:fldSimple','w:fldChar','w:instrText','w:footnoteReference','w:endnoteReference','w:drawing','w:pict','w:object'].some(name=>descendants(nodes,name).length);
 }
 const literal=nodes=>nodes.map(node=>Object.entries(node).map(([name,value])=>name==='w:t'?value.map(part=>part['#text']??'').join(''):name==='w:tab'?'\t':['w:br','w:cr'].includes(name)?'\n':['w:r','w:hyperlink'].includes(name)?literal(value):'').join('')).join('');
+const only=(nodes,names)=>nodes.every(node=>Object.entries(node).every(([name,value])=>name===':@'||name==='#text'&&String(value).trim()===''||names.includes(name)&&Array.isArray(value)));
+function gridProperties(nodes){
+ const leaves=['w:tblStyle','w:tblW','w:jc','w:tblLayout','w:tblLook','w:bidiVisual','w:tblInd','w:tblCellSpacing','w:tblOverlap','w:tblHeader','w:cantSplit','w:trHeight','w:gridBefore','w:gridAfter','w:wBefore','w:wAfter','w:tcW','w:gridSpan','w:vAlign','w:textDirection','w:hideMark','w:noWrap','w:shd','w:cnfStyle','w:tblCaption','w:tblDescription'];
+ for(const node of nodes)for(const [name,value] of Object.entries(node)){
+  if(name===':@'||name==='#text'&&String(value).trim()==='')continue;
+  const edges=['w:top','w:left','w:bottom','w:right','w:start','w:end'],allowed=['w:tblBorders','w:tcBorders'].includes(name)?[...edges,'w:insideH','w:insideV','w:tl2br','w:tr2bl']:['w:tblCellMar','w:tcMar'].includes(name)?edges:null;
+  if(allowed){if(!only(value,allowed)||value.some(n=>Object.entries(n).some(([key,v])=>key!==':@'&&(!Array.isArray(v)||v.length))))return false;}
+  else if(!leaves.includes(name)||!Array.isArray(value)||value.length)return false;
+ }
+ return true;
+}
+function completeGrid(table){
+ if(!only(table,['w:tblPr','w:tblGrid','w:tr'])||children(table,'w:tblPr').length>1||children(table,'w:tblGrid').length>1||!children(table,'w:tblPr').every(gridProperties)||children(table,'w:tblGrid').some(grid=>!only(grid,['w:gridCol'])||grid.some(n=>n['w:gridCol']?.length)))return false;
+ return children(table,'w:tr').every(row=>only(row,['w:trPr','w:tc'])&&children(row,'w:trPr').length<=1&&children(row,'w:trPr').every(gridProperties)&&children(row,'w:tc').every(cell=>only(cell,['w:tcPr','w:p'])&&children(cell,'w:tcPr').length<=1&&children(cell,'w:tcPr').every(gridProperties)));
+}
 function reportComparison(body,number){
  const starts=body.flatMap((row,index)=>row.kind==='paragraph'&&normal(row.text)==='Amendment '+number?[index]:[]);if(starts.length!==1)return null;
  const rows=body.slice(starts[0],starts[0]+6);
@@ -24,6 +39,7 @@ function reportComparison(body,number){
  if(trailing.some(row=>row.kind==='paragraph'?row.hidden||!safe(row.nodes)||row.text.trim()!=='':!row.nodes?.['w:sectPr']))return null;
  if(boundary>=0&&(tail[boundary].hidden||!safe(tail[boundary].nodes)))return null;
  const table=rows[5].nodes['w:tbl'];
+ if(!completeGrid(table))return null;
  if(['w:tbl','w:vMerge','w:hMerge'].some(name=>descendants(table,name).length))return null;
  const tableRows=children(table,'w:tr'),layout=tableRows[0],cells=layout&&children(layout,'w:tc');
  if(cells?.length===1&&descendants(layout,'w:gridSpan').length===1&&attr(layout,'w:gridSpan')==='2'&&children(cells[0],'w:p').length&&children(cells[0],'w:p').every(p=>safe(p)&&literal(p)===''))tableRows.shift();
