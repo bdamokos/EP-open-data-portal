@@ -14,7 +14,7 @@ import {assertFootnoteComparison,assertResolutionFootnotes} from './amendment-fo
 import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-grammar.mjs';
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
-import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
+import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
@@ -521,6 +521,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if(standalone.status!=='unverified')return standalone;
   const articleNotes=assertArticleNotes({proposal,wording,placement,nativeQuoted});
   if(articleNotes.status!=='unverified'||proposal&&placement.operation==='delete'&&wording.language==='en'&&/^Article \d+[a-z]*$/u.test(wording.targetLabel||'')&&/\n_{5,}\s*\n/u.test(wording.originalText||''))return articleNotes;
+  const implicitLabel=assertImplicitParagraphLabel({proposal,wording,placement});
+  if(implicitLabel.status!=='unverified')return implicitLabel;
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});

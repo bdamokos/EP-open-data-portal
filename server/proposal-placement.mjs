@@ -872,6 +872,17 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     if(notes)return notes;
     if(candidates.length!==1||unit.pathConflict||!completeBoundary(proposal,unit))return originalText;
     const text=unitText(proposal,unit).text;
+    // A printed “1.” can address the article's sole unnumbered paragraph.
+    // Retain every word and require its complete, single native body row.
+    if(baseline==='commission-proposal'&&language==='en'&&operation==='replace'&&proposal.sourceKind==='docx'&&
+      target.segments.length===2&&target.segments[0].kind==='article'&&target.segments[1].kind==='paragraph'&&target.segments[1].value==='1'&&unit.kind==='paragraph'&&unit.implicit&&
+      unit.extent.end===unit.extent.start+1&&unit.children.length===1&&unit.children[0].kind==='subparagraph'&&unit.children[0].children.length===0&&/^1\.\s+\S/u.test(proposedText||'')){
+      const owner=flat(proposal.units).filter(u=>u.kind==='article'&&u.scope==='proposal'&&JSON.stringify(u.path)===JSON.stringify(unit.path.slice(0,-1))),row=proposal.paragraphs[unit.extent.start],next=proposal.paragraphs[unit.extent.end],old=/^1\.\s+([\s\S]+)$/u.exec(originalText);
+      const clean=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
+      if(!row.objects?.length&&!(proposal.anchors||[]).some(a=>a.paragraph===row.index)&&!text.includes('\uFFFC')&&owner.length===1&&owner[0].children.filter(u=>u.kind==='paragraph').length===1&&row.properties?.styleId==='Normal'&&!row.properties.numberingLabel&&row.source?.container==='body'&&row.source.complete===true&&next?.complete&&next.source?.complete===true&&next.source.container==='body'&&
+        next.source.ordinal===row.source.ordinal+1&&next.source.containerPath===row.source.containerPath&&next.source.segment===row.source.segment&&old&&clean(old[1])===clean(text)&&!/^['‘“«"\d]/u.test(text.trim()))return text;
+    }
+
     const quotes=value=>value.normalize('NFC').replace(/[‘’‚‛ʻʼ“”„‟«»"'\s]/gu,'');
     if(quotes(text)===quotes(originalText))return text;
     if(operation==='delete'&&new RegExp(`^\\(${escape(unit.label?.value??'')}\\)\\s*\\[\\.\\.\\.\\]$`,'u').test(originalText.trim())){

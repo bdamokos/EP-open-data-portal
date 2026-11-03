@@ -567,3 +567,12 @@ test('whole-article note deletion requires consecutive native article boundaries
  assert.equal(place(proposal,{...w,proposedText:'New text.'}).status,'unresolved');
  assert.equal(place(proposal,{...w,originalText:w.originalText.replace('Public body','Other body')}).status,'unresolved');
 });
+test('a printed first-paragraph label matches only the sole complete implicit article paragraph',()=>{
+ const content={...source(['Article [1]','Subject matter','A legal body.','Article [2]'],['Titrearticle','Titrearticle','Normal','Titrearticle']),sourceKind:'docx'},w={baseline:'commission-proposal',language:'en',targetLabel:'Article 1 – paragraph 1',originalText:'1. A legal body.',proposedText:'1. A revised legal body.'};
+ const proposal=structuredClone(parseProposal(content)),place=(p=proposal,a=w)=>resolveProposalPlacement([{kind:'act',proposal:p}],a);
+ assert.equal(place().status,'placed');assert.deepEqual(place().splice,{start:{paragraph:2,offset:0},end:{paragraph:2,offset:13}});
+ for(const mutate of [p=>p.anchors=[{paragraph:2,note:'1',offset:5}],p=>p.paragraphs[2].objects=[{complete:true}],p=>p.sourceKind='text',p=>p.paragraphs[2].complete=false,p=>p.paragraphs[3].source.ordinal++,p=>p.paragraphs[2].properties.numberingLabel='1.']){const p=structuredClone(proposal);mutate(p);assert.equal(place(p).status,'unresolved',String(mutate));}
+ for(const patch of [{baseline:'present-text'},{language:'fr'},{originalText:'2. A legal body.'},{proposedText:'2. A revised legal body.'},{originalText:'1. Another legal body.'}])assert.equal(place(proposal,{...w,...patch}).status,'unresolved',JSON.stringify(patch));
+ const two={...content,paragraphs:['Article [1]','Subject matter','A legal body.','Another paragraph.','Article [2]']};
+ Object.assign(two,source(two.paragraphs,['Titrearticle','Titrearticle','Normal','Normal','Titrearticle']));two.sourceKind='docx';assert.equal(place(parseProposal(two)).status,'unresolved');
+});
