@@ -1,3 +1,4 @@
+import {projectOutsideSpeakers} from './story-outside-speakers.mjs';
 import {rootSourceValues,sourceByteChunks} from './topic-source-stream.mjs';
 import {TopicDiskMap,topicBatches} from './topic-disk-map.mjs';
 import {storyTables,stageStoryInput,storyInput,queueStoryRead,storyEventType,adoptHeldEventSnapshots} from './story-facts-storage.mjs';
@@ -105,6 +106,7 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
  // Event reads queued by this pass that a held debate snapshot already answers settle now. Their inputs
  // arrive after classification, so the publication stays dirty for a follow-up rebuild.
  if(adoptHeldEventSnapshots(store).changed)store.set('storyInputsAfterClassification',true);
+ await projectOutsideSpeakers(store,generation,sourceGeneration);
  onProgress('story-facts');
  await applyStrongPlaces(store,generation,{concepts,fact,docsFor});onProgress('story-places');
  const jobs={};for(const row of store.db.prepare('SELECT kind,state,COUNT(*) n FROM story_jobs GROUP BY kind,state').iterate())(jobs[row.kind]??={})[row.state]=row.n;
