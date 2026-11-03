@@ -1,4 +1,5 @@
 import {nativeInlineRowsComplete} from './proposal-inline-guard.mjs';
+import {quotedSectionPointInsertion} from './proposal-quoted-section.mjs';
 import {similarPassage} from './proposal-similarity.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
@@ -686,7 +687,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?(twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],targetPath,proposedText,language)):null;
+    const quoted=candidates.length===1?(quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],targetPath,proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);
