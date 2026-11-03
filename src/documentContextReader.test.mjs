@@ -1337,3 +1337,15 @@ for(const interfaceLanguage of ['en','fr'])for(const url of [null,'https://www.e
  assert.equal([...block.querySelectorAll('p')].find(p=>p.textContent===expected)?.lang,interfaceLanguage);
  assert.equal(block.querySelector('a')?.href??null,url);
 });
+test('alternative motion is readable as a document operation without inline diff',async t=>{
+  const data=response(report,sourceDocument(report),{requestedWordingLanguage:'en',amendment:{...amendmentSource,variants:[wordingVariant('en',{originalText:'',proposedText:'The European Parliament,\n1. Complete alternative motion.'})]},target:{...target,evidence:pinnedEvidence('en')}});
+  data.placement={status:'document-operation',operation:'alternative-motion',scope:'motion-resolution',reason:'alternative_motion',evidence:[]};
+  const h=await harness(t,()=>data);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert.match(h.container.textContent,/Alternative motion/);
+  assert.match(h.container.textContent,/Complete alternative motion/);
+  assert.equal(h.container.querySelector('.wording-diff__columns'),null);
+  assert.equal(h.container.querySelector('ins'),null);
+  assert.equal(h.container.querySelector('[data-context-target="true"]'),null);
+  assert(!h.container.textContent.includes('location could not be determined'));
+});
