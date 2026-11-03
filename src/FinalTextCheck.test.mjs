@@ -59,9 +59,9 @@ test('mismatched responses are discarded and a failed reopen preserves a success
   let count=0;
   const h=await harness(t,()=>{count++;if(count===1)return response({...selection,wordingLanguage:'fr'});if(count===3)return new Response('{}',{status:502});return response();});
   await h.render(selection);await h.toggle();assert(!h.container.textContent.includes('Same wording'));assert(h.container.textContent.includes('Could not load comparison.'));
-  await automaticRecovery(t);assert(h.container.textContent.includes('Same wording'));
+  await h.toggle(false);await h.toggle();assert(h.container.textContent.includes('Same wording'));
   assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Check again'),'a loaded comparison has no manual refresh');
-  await h.toggle(false);await h.toggle();assert(h.container.textContent.includes('Same wording'));assert(h.container.querySelector('.wording-diff'));assert(h.container.textContent.includes('Could not refresh comparison.'));
+  await h.toggle(false);await h.toggle();assert(h.container.textContent.includes('Same wording'));assert(h.container.querySelector('.wording-diff'));assert.equal(h.container.querySelector('[role=alert] button'),null);
   await automaticRecovery(t);assert(h.container.textContent.includes('Same wording'));assert.equal(h.requests.length,4);
 });
 

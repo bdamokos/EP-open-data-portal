@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -39,8 +40,8 @@ test('comparison is lazy and stage/language changes never display stale wording,
   assert.equal(selects().length,1,'the requested language needs no comparison language picker');
   await change(0,'joint-adopted');assert.equal(pending.length,1);assert.equal(container.querySelector('del'),null);assert.match(container.textContent,/Loading the linked texts/);
   await act(async()=>pending.shift().resolve(Response.json({error:{message:'Temporary source failure'}},{status:503})));
-  assert.match(container.querySelector('.explorer-diff-error').textContent,/Temporary source failure/);
-  await act(async()=>container.querySelector('.explorer-diff-error button').click());assert.equal(pending.length,1);
+  assert.equal(container.querySelector('.explorer-diff-error button'),null);
+  await automaticRecovery(t);assert.equal(pending.length,1);
   await act(async()=>pending.shift().resolve(Response.json({...comparison('joint-adopted','fr'),status:'unavailable',reason:'No published adopted text explicitly links to this joint motion.',summary:null,rows:[]})));
   assert.match(container.textContent,/No published adopted text explicitly links/);assert.equal(container.querySelector('.explorer-diff-row'),null);
   await change(0,'original-joint');assert.equal(container.querySelectorAll('.explorer-diff-row').length,2,'returning to the saved stage includes unchanged passages');

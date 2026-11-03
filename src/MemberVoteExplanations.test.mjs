@@ -82,7 +82,7 @@ test('a known explanation keeps its transcript failure and retry',async t=>{
   let attempts=0;
   const view=await mount(t,{handler:url=>url.includes('speech-transcript/')&&++attempts===1?new Response('',{status:503}):null});
   await view.click('Read oral explanation of vote');
-  assert.match(view.container.textContent,/Transcript unavailable/);
+  assert.equal(view.container.querySelector('[role=alert] button'),null);
   await automaticRecovery(t);
   assert.match(view.container.textContent,/Published explanation/);
 });
