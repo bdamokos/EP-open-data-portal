@@ -3,13 +3,14 @@
   var shell = document.getElementById('initial-shell');
   if (!shell) return; // React may already have replaced it.
   var query = new URLSearchParams(window.location.search);
-  var titles = { members: 'Members of the European Parliament', legislation: 'Plenary agenda', questions: 'Questions', outside: 'Outside voices', groups: 'Group voices', saved: 'Following' };
+  var titles = { members: 'Members of the European Parliament', legislation: 'Plenary agenda', questions: 'Questions', geopolitics: 'Geopolitics', outside: 'Outside voices', groups: 'Group voices', saved: 'Following' };
   var view = query.get('view');
   if (!Object.hasOwn(titles, view)) view = 'members';
   var title = titles[view];
   if (view === 'legislation') {
-    var modes = { participation: 'What’s hot', cloud: 'Plenary word cloud', trends: 'Topic timeline', dossier: 'Dossiers' };
+    var modes = { participation: 'What’s hot', cloud: 'Plenary word cloud', topics: 'Topics', dossier: 'Dossiers' };
     var mode = query.get('pl-mode');
+    if (mode === 'dossier' && !(query.get('dossier-ref') || '').trim()) mode = 'agenda';
     if (Object.hasOwn(modes, mode)) title = modes[mode];
   } else if (view === 'members' && /^\d+$/.test(query.get('member') || '')) {
     title = 'MEP ' + query.get('member');

@@ -1545,7 +1545,6 @@
   "membervotes.tsx.count.recorded.position": "{count} rögzített szavazat",
   "membervotes.tsx.count.recorded.positions": "{count} rögzített szavazat",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Zárószavazás a teljes szövegről",
   "membervotes.tsx.final.vote.outcome.position": "Zárószavazás · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Elfogadott szöveg keresése",
   "membervotes.tsx.finding.latest.recorded.votes": "Legutóbbi rögzített szavazások keresése…",
@@ -2501,5 +2500,7 @@
   "topics.explorerTranslation": "A szakpolitikai területek nevét az adatböngésző fordította le.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Felszólalások havonta",
-  "groupvoices.contributions_by_sitting_day.77a719": "Felszólalások ülésnaponként"
+  "groupvoices.contributions_by_sitting_day.77a719": "Felszólalások ülésnaponként",
+  "membervotespresentation.votes_not_yet_published": "A szavazások még nem jelentek meg",
+  "membervotespresentation.votes_start_at": "A szavazások kezdete: {time}"
 }

@@ -1545,7 +1545,6 @@
   "membervotes.tsx.count.recorded.position": "{count} poziție înregistrată",
   "membervotes.tsx.count.recorded.positions": "{count} de poziții înregistrate",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Vot final asupra textului integral",
   "membervotes.tsx.final.vote.outcome.position": "Vot final · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Căutați textul adoptat",
   "membervotes.tsx.finding.latest.recorded.votes": "Se caută cele mai recente voturi înregistrate…",
@@ -2518,5 +2517,7 @@
   "topics.explorerTranslation": "Denumirile domeniilor de politică sunt traduse de explorator.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Intervenții pe luni",
-  "groupvoices.contributions_by_sitting_day.77a719": "Intervenții pe zile de ședință"
+  "groupvoices.contributions_by_sitting_day.77a719": "Intervenții pe zile de ședință",
+  "membervotespresentation.votes_not_yet_published": "Voturile nu au fost încă publicate",
+  "membervotespresentation.votes_start_at": "Voturile încep la {time}"
 }

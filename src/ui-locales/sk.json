@@ -1545,7 +1545,6 @@
   "membervotes.tsx.count.recorded.position": "{count} zaznamenaný postoj",
   "membervotes.tsx.count.recorded.positions": "Počet zaznamenaných postojov: {count}",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Záverečné hlasovanie o celom texte",
   "membervotes.tsx.final.vote.outcome.position": "Záverečné hlasovanie · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Nájsť prijatý text",
   "membervotes.tsx.finding.latest.recorded.votes": "Hľadajú sa posledné zaznamenané hlasovania…",
@@ -2501,5 +2500,7 @@
   "topics.explorerTranslation": "Názvy oblastí politiky preložené prieskumníkom.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Vystúpenia podľa mesiacov",
-  "groupvoices.contributions_by_sitting_day.77a719": "Vystúpenia podľa rokovacích dní"
+  "groupvoices.contributions_by_sitting_day.77a719": "Vystúpenia podľa rokovacích dní",
+  "membervotespresentation.votes_not_yet_published": "Hlasovania ešte neboli zverejnené",
+  "membervotespresentation.votes_start_at": "Hlasovanie sa začína o {time}"
 }

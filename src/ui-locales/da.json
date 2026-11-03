@@ -1545,7 +1545,6 @@
   "membervotes.tsx.count.recorded.position": "{count} registreret stemmeafgivelse",
   "membervotes.tsx.count.recorded.positions": "{count} registrerede stemmeafgivelser",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Endelig afstemning om hele teksten",
   "membervotes.tsx.final.vote.outcome.position": "Endelig afstemning · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Find vedtaget tekst",
   "membervotes.tsx.finding.latest.recorded.votes": "Finder seneste registrerede afstemninger…",
@@ -2501,5 +2500,7 @@
   "topics.explorerTranslation": "Politikområdernes navne er oversat af udforskeren.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Indlæg pr. måned",
-  "groupvoices.contributions_by_sitting_day.77a719": "Indlæg pr. mødedag"
+  "groupvoices.contributions_by_sitting_day.77a719": "Indlæg pr. mødedag",
+  "membervotespresentation.votes_not_yet_published": "Afstemningerne er endnu ikke offentliggjort",
+  "membervotespresentation.votes_start_at": "Afstemningerne begynder kl. {time}"
 }

@@ -1545,7 +1545,6 @@
   "membervotes.tsx.count.recorded.position": "{count} kirjattu kanta",
   "membervotes.tsx.count.recorded.positions": "{count} kirjattua kantaa",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Lopullinen äänestys koko tekstistä",
   "membervotes.tsx.final.vote.outcome.position": "Lopullinen äänestys · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Etsi hyväksytty teksti",
   "membervotes.tsx.finding.latest.recorded.votes": "Etsitään viimeisimpiä kirjattuja äänestyksiä…",
@@ -2501,5 +2500,7 @@
   "topics.explorerTranslation": "Politiikan alojen nimet on kääntänyt selailusovellus.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Puheenvuorot kuukausittain",
-  "groupvoices.contributions_by_sitting_day.77a719": "Puheenvuorot istuntopäivittäin"
+  "groupvoices.contributions_by_sitting_day.77a719": "Puheenvuorot istuntopäivittäin",
+  "membervotespresentation.votes_not_yet_published": "Äänestyksiä ei ole vielä julkaistu",
+  "membervotespresentation.votes_start_at": "Äänestykset alkavat klo {time}"
 }

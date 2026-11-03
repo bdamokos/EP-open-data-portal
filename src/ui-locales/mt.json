@@ -1545,7 +1545,6 @@
   "membervotes.tsx.count.recorded.position": "Għadd ta’ pożizzjonijiet irreġistrati: {count}",
   "membervotes.tsx.count.recorded.positions": "Għadd ta’ pożizzjonijiet irreġistrati: {count}",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Votazzjoni finali fuq it-test kollu",
   "membervotes.tsx.final.vote.outcome.position": "Votazzjoni finali · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Sib it-test adottat",
   "membervotes.tsx.finding.latest.recorded.votes": "Qed jinstabu l-aħħar votazzjonijiet irreġistrati…",
@@ -2501,5 +2500,7 @@
   "topics.explorerTranslation": "L-ismijiet tal-oqsma ta’ politika ġew tradotti mill-għodda tal-esplorazzjoni.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Interventi skont ix-xahar",
-  "groupvoices.contributions_by_sitting_day.77a719": "Interventi skont il-jum tas-seduta"
+  "groupvoices.contributions_by_sitting_day.77a719": "Interventi skont il-jum tas-seduta",
+  "membervotespresentation.votes_not_yet_published": "Il-votazzjonijiet għadhom ma ġewx ippubblikati",
+  "membervotespresentation.votes_start_at": "Il-votazzjonijiet jibdew fil-{time}"
 }

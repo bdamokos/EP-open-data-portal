@@ -1,7 +1,18 @@
 import {defaultUi} from './uiDefault.mjs';
 export const MEMBER_VOTES_PAGE_SIZE=50;
 
-export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}, ui = defaultUi) {
+const pendingDay=day=>isObject(day)&&isObject(day.pendingVotes)&&validSitting(day.sittingId);
+export function pendingVotesLabel(day,ui=defaultUi,now=Date.now()) {
+  const start=Date.parse(day.pendingVotes.startsAt);
+  if(Number.isFinite(start)&&now<start)return ui.t('membervotespresentation.votes_start_at',{time:new Intl.DateTimeFormat(ui.locale==='en'?'en-GB':ui.locale,{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Brussels',timeZoneName:'short'}).format(start)});
+  return ui.t('membervotespresentation.votes_not_yet_published');
+}
+// True when every scanned day in view (or the chosen sitting) awaits publication.
+export function memberVotesAllPending(data,sittingId=null) {
+  const days=(data?.coverage?.sittings||[]).filter(day=>!sittingId||day?.sittingId===sittingId);
+  return days.length>0&&days.every(pendingDay);
+}
+export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}, ui = defaultUi, now = Date.now()) {
   if(context)return null;
   if(decisionId){
     const vote=data.selected?.status==='found'&&data.selected.item?.id===decisionId?data.selected.item:null;
@@ -11,12 +22,16 @@ export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}
   }
   const coverage=data.coverage;
   if(coverage.status==='complete')return null;
-  const ids=unique([...(coverage.failedSittingIds||[]),...(coverage.incompleteSittingIds||[]),...(coverage.sittings||[]).filter(day=>day.state!=='complete').map(day=>day.sittingId)]);
+  const pending=(coverage.sittings||[]).filter(pendingDay).sort((a,b)=>a.sittingId.localeCompare(b.sittingId));
+  const ids=unique([...(coverage.failedSittingIds||[]),...(coverage.incompleteSittingIds||[]),...(coverage.sittings||[]).filter(day=>day.state!=='complete').map(day=>day.sittingId)]).filter(id=>!pending.some(day=>day.sittingId===id));
   const dates=ids.filter(validSitting).map(id=>id.slice(7)).sort();
   const label=(coverage.status==='unavailable')?ui.t("membervotespresentation.voting_records_unavailable"):(ui.t("membervotespresentation.incomplete_voting_records"));
-  const days=dates.map(value=>new Intl.DateTimeFormat(ui.locale==='en'?'en-GB':ui.locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z')));
+  const format=value=>new Intl.DateTimeFormat(ui.locale==='en'?'en-GB':ui.locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
+  const days=dates.map(format);
   const calendarGap=coverage.catalogue&&coverage.catalogue.state!=='complete';
-  return days.length?label+' · '+days.join(', ')+(calendarGap?' · '+ui.t('membervotespresentation.sitting_dates_incomplete'):''):coverage.status==='unavailable'?label:calendarGap?ui.t("membervotespresentation.sitting_dates_incomplete"):label;
+  const notices=pending.map(day=>pendingVotesLabel(day,ui,now)+' · '+format(day.sittingId.slice(7)));
+  if(notices.length&&!days.length&&!calendarGap&&coverage.status!=='unavailable')return notices.join('. ');
+  return [...notices,days.length?label+' · '+days.join(', ')+(calendarGap?' · '+ui.t('membervotespresentation.sitting_dates_incomplete'):''):coverage.status==='unavailable'?label:calendarGap?ui.t("membervotespresentation.sitting_dates_incomplete"):label].join('. ');
 }
 const alignments=new Set(['all','with','against','abstained']);
 const positions=new Set(['recorded','all']);
@@ -82,7 +97,7 @@ function usableVote(item,period) {
   return withinPeriod(item,period)&&outcomeShape(item)&&['with','against','abstained','unclassified'].includes(item.alignment)&&nullableString(item.title)&&nullableString(item.titleLanguage)&&stringMap(item.titles)&&stringMap(item.referenceTexts)&&nullableString(item.subjectId)&&isObject(item.context)&&['documentIds','amendmentIds','componentIds','partialReferenceIds'].every(key=>stringArray(item.context[key]))&&Array.isArray(item.parts)&&item.parts.every(part=>componentShape(part)&&typeof part.requestId==='string'&&typeof part.resultId==='string'&&stringMap(part.requestScopeByLanguage)&&Array.isArray(part.contextComponents)&&part.contextComponents.every(componentShape))&&Array.isArray(item.rollCallRequesters)&&item.rollCallRequesters.every(requesterShape)&&isObject(item.resultRelationship)&&['consistent','single-direction','ambiguous','unlinked'].includes(item.resultRelationship.binding);
 }
 export function validateMemberVotesResponse(data,{memberId,state={}}) {
-  if(!isObject(data)||data.version!==11||!isObject(data.member)||data.member.id!==String(memberId)||!/^\d+$/.test(data.member.id))return false;
+  if(!isObject(data)||data.version!==12||!isObject(data.member)||data.member.id!==String(memberId)||!/^\d+$/.test(data.member.id))return false;
   if(!alignments.has(data.alignment)||data.alignment!==(state.alignment??'all')||data.positions!==(state.positions??'all')||!isObject(data.coverage)||!['complete','partial','unavailable'].includes(data.coverage.status)||data.coverage.termWide!==false)return false;
   if(!matchesPeriod(data.period,state,data.coverage.status==='unavailable')||typeof data.snapshotId!=='string'||!snapshot.test(data.snapshotId)||state.snapshotId&&data.snapshotId!==state.snapshotId)return false;
   const page=data.pagination;

@@ -1545,7 +1545,6 @@
   "membervotes.tsx.count.recorded.position": "{count} erfasste Position",
   "membervotes.tsx.count.recorded.positions": "{count} erfasste Positionen",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Schlussabstimmung über den gesamten Text",
   "membervotes.tsx.final.vote.outcome.position": "Schlussabstimmung · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Angenommenen Text suchen",
   "membervotes.tsx.finding.latest.recorded.votes": "Neueste erfasste Abstimmungen werden gesucht…",
@@ -2501,5 +2500,7 @@
   "topics.explorerTranslation": "Die Bezeichnungen der Politikbereiche wurden vom Explorer übersetzt.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Beiträge nach Monat",
-  "groupvoices.contributions_by_sitting_day.77a719": "Beiträge nach Sitzungstag"
+  "groupvoices.contributions_by_sitting_day.77a719": "Beiträge nach Sitzungstag",
+  "membervotespresentation.votes_not_yet_published": "Abstimmungen noch nicht veröffentlicht",
+  "membervotespresentation.votes_start_at": "Abstimmungen beginnen um {time}"
 }

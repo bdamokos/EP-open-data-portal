@@ -1545,7 +1545,6 @@
   "membervotes.tsx.count.recorded.position": "{count} position enregistrée",
   "membervotes.tsx.count.recorded.positions": "{count} positions enregistrées",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Vote final sur l’ensemble du texte",
   "membervotes.tsx.final.vote.outcome.position": "Vote final · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Rechercher le texte adopté",
   "membervotes.tsx.finding.latest.recorded.votes": "Recherche des derniers votes enregistrés…",
@@ -2501,5 +2500,7 @@
   "topics.explorerTranslation": "Noms des domaines d’action traduits par l’explorateur.",
   "groupvoices.date_count.692412": "{date} : {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Interventions par mois",
-  "groupvoices.contributions_by_sitting_day.77a719": "Interventions par jour de séance"
+  "groupvoices.contributions_by_sitting_day.77a719": "Interventions par jour de séance",
+  "membervotespresentation.votes_not_yet_published": "Votes pas encore publiés",
+  "membervotespresentation.votes_start_at": "Les votes commencent à {time}"
 }

@@ -81,3 +81,19 @@ test('entering a person scope focuses its heading while the full dossier keeps i
   await h.click('#origin-link');await h.frames();
   assert.equal(document.activeElement,h.container.querySelector('.insight-dossier-title h2'));
 });
+
+test('topic journeys wait for the exact restored content before restoring focus',async t=>{
+  const h=await harness(t),href='/?view=legislation&pl-mode=topics&topic=oeil%3A1.10';
+  await h.pop(href);
+  const content=document.createElement('div');content.className='topics-content';content.dataset.topicKey='oeil:1.10';
+  const opener=document.createElement('button');opener.id='topic-origin';opener.textContent='Topic record';content.append(opener);h.container.querySelector('main').append(content);
+  opener.focus();h.journey.rememberDossierOrigin();content.remove();
+  await h.pop(dossier);await h.frames();await h.pop(href);await h.frames();
+  assert.equal(h.journey.dossierJourneyRestoring(),true,'the persistent shell is not the restored content');
+  content.dataset.topicKey='oeil:2.10';h.container.querySelector('main').append(content);await h.frames();
+  assert.equal(h.journey.dossierJourneyRestoring(),true,'a different topic cannot consume restoration');
+  content.dataset.topicsPending='true';content.dataset.topicKey='oeil:1.10';await h.frames();
+  assert.equal(h.journey.dossierJourneyRestoring(),true,'cold detail data must settle before focus restoration');
+  delete content.dataset.topicsPending;await h.frames();await h.frames();
+  assert.equal(h.journey.dossierJourneyRestoring(),false);assert.equal(document.activeElement.id,'topic-origin');
+});

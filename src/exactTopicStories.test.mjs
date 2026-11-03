@@ -1,18 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildExactTopicStories,storyFactsRoute,storyRecord} from './exactTopicStories.mjs';
+import {buildExactTopicStories,storyFactsRoute,storyRecord,storyVariant} from './exactTopicStories.mjs';
+// Pins the base wording; variant choice has its own tests.
+const baseWording={hasMessage:id=>!/\.v\d+$/.test(id)};
 const base=()=>({ready:true,counts:{questions:53,questionElsewhere:7,questionUnknown:2,debates:9,adoptedTexts:0,groups:73},periodCounts:[],periodWinners:{},winners:{},sets:{},questions:[{id:'one',d:'2026-01-01',t:'Only hydrated question',places:['IRN'],home:[]}],debates:[],docs:[],topic:{label:'Trade'}});
 const flatten=v=>v==null?'':typeof v==='string'?v:Array.isArray(v)?v.map(flatten).join('|'):v.text?flatten(v.text):v.message?JSON.stringify(v):'';
 test('live totals use exact counters even when evidence arrays have one record',()=>{const x=base(),lines=buildExactTopicStories(x,{place:'IRN',language:'en'});assert.match(flatten(lines[0].values.questions),/53/);assert.match(flatten(lines[1].values.debates),/nine/);assert.equal(lines[0].values.questions.browse.list,'questions');const topic=buildExactTopicStories(x,{topic:'oeil:1.10',language:'en'});assert.match(flatten(topic[0].values.groups),/73/);});
 test('all tied busiest winners are retained together and low-speaker evidence cannot feature',()=>{const x=base();x.periodCounts=[{period:'2026-Q1',questions:0}];x.debates=Array.from({length:6},(_,i)=>({id:'D'+i,date:'2026-01-01',q:'2026-Q1',title:'19.2. REPORT on Exact '+i,rawTitle:'19.2. REPORT on Exact '+i,meps:i===5?2:10,places:{IRN:['title']},docs:[]}));x.periodWinners['2026-Q1']={busiestNonUrgencyDebates:x.debates.map(d=>({id:d.id,meps:d.meps}))};const rows=buildExactTopicStories(x,{period:'2026-Q1'});assert.equal(rows[0].values.debates.length,5);assert.equal(rows[0].values.debates[0].values.title.text,'Exact 0');assert.equal(rows.length,1);});
-test('leaders use winner counters, include every tie, and never infer leadership from evidence',()=>{const x=base();x.periodCounts=[{period:'2026-Q1'}];x.periodWinners['2026-Q1']={mostQuestionedPlaces:[{id:'GRC',count:18},{id:'ESP',count:18}]};const rows=buildExactTopicStories(x,{period:'2026-Q1',labels:{GRC:'Greece',ESP:'Spain'}});assert.equal(rows[0].id,'topics.story.map.lead.tied');assert.equal(rows[0].values.places.length,2);assert.match(flatten(rows[0].values.questions),/18/);});
+test('leaders use winner counters, include every tie, and never infer leadership from evidence',()=>{const x=base();x.periodCounts=[{period:'2026-Q1'}];x.periodWinners['2026-Q1']={mostQuestionedPlaces:[{id:'GRC',count:18},{id:'ESP',count:18}]};const rows=buildExactTopicStories(x,{...baseWording,period:'2026-Q1',labels:{GRC:'Greece',ESP:'Spain'}});assert.equal(rows[0].id,'topics.story.map.lead.tied');assert.equal(rows[0].values.places.length,2);assert.match(flatten(rows[0].values.questions),/18/);});
 test('browse requests preserve qualification, quarter, place and opaque cursor',()=>{const route=storyFactsRoute({place:'GRC',period:'2026-Q1',excludeOwn:true},{list:'questions',cursor:'opaque_123'}),p=new URLSearchParams(route.split('?')[1]);assert.equal(p.get('scope'),'place');assert.equal(p.get('key'),'place:GRC');assert.equal(p.get('period'),'2026-Q1');assert.equal(p.get('askers'),'not-home');assert.equal(p.get('cursor'),'opaque_123');});
 test('unavailable facts do not manufacture zero stories',()=>{assert.deepEqual(buildExactTopicStories({ready:false},{}),[]);assert.deepEqual(buildExactTopicStories(null,{}),[]);});
 
 test('caption title cleanup strips only agenda numbers and the specified prefixes',async()=>{const {cleanStoryTitle}=await import('./topicStoryModel.mjs');assert.equal(cleanStoryTitle('19.2. JOINT MOTION FOR A RESOLUTION on Iran (debate)'), 'Iran');assert.equal(cleanStoryTitle('RECOMMENDATION on Iran'),'Iran');for(const text of ['OPINION on Iran','Plain title: 16. Part'])assert.equal(cleanStoryTitle(text),text);});
 
 test('live story counters open keyset pages and More preserves every prior record',async t=>{
- const {Window}=await import('happy-dom'),{createElement:h,act}=await import('react'),{freshLoader}=await import('./test-support/viteRunner.mjs');const window=new Window({url:'http://localhost/?view=topics&place=IRN'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,Event:window.Event,PopStateEvent:window.PopStateEvent,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ const {Window}=await import('happy-dom'),{createElement:h,act}=await import('react'),{freshLoader}=await import('./test-support/viteRunner.mjs');const window=new Window({url:'http://localhost/?view=geopolitics&place=IRN'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,Event:window.Event,PopStateEvent:window.PopStateEvent,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
  let root,load,stale=true;const calls=[];t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  t.mock.method(globalThis,'fetch',async input=>{const u=new URL(String(input),location.href);if(u.pathname==='/api/source-record')return Response.json({payload:{data:[]}});assert.equal(u.pathname,'/api/topics/story-facts');calls.push(u);if(u.searchParams.get('cursor')==='page-two'&&stale){stale=false;return Response.json({error:{message:'Reload this list.'}},{status:409});}const x=base();x.counts.debates=0;if(u.searchParams.has('list')){const second=u.searchParams.get('cursor')==='page-two',id=second?'E-10-2026-000002':'E-10-2026-000001';x.questions=[{id,d:'2026-01-01',t:second?'Second exact record':'First exact record',places:['IRN'],home:[]}];x.page={list:'questions',total:53,items:[{id,kind:'question',date:'2026-02-01'}],nextCursor:second?null:'page-two'};}return Response.json(x);});
  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'exact-story-pagination'});const {TopicStories}=await load('/src/TopicStories.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
@@ -37,7 +39,7 @@ test('headline winners below three linked MEP speakers cannot feature',()=>{cons
 
 test('story prose fallback covers nested helpers, model grammar and headings without changing reader locale',async t=>{
  const {Window}=await import('happy-dom'),{createElement:h,act}=await import('react'),{freshLoader}=await import('./test-support/viteRunner.mjs');
- const window=new Window({url:'http://localhost/?view=topics&place=TUR&lang=fi'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,Event:window.Event,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ const window=new Window({url:'http://localhost/?view=geopolitics&place=TUR&lang=fi'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,Event:window.Event,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
  let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  const calls=[];let payload=base();payload.counts={questions:2,debates:0};payload.questions=[{id:'E-10-2026-000001',d:'2026-01-01',t:'Exact source title — Türkiye',places:['TUR'],home:[]}];
  t.mock.method(globalThis,'fetch',async input=>{const u=new URL(String(input),location.href);calls.push(u);if(u.pathname==='/api/topics/story-facts')return Response.json({...payload,...(u.searchParams.has('list')?{page:{total:2,items:payload.questions.map(q=>({id:q.id,date:q.d})),nextCursor:null}}:{})});return Response.json({ready:false});});
@@ -87,9 +89,9 @@ const joint={id:'RC-10-2026-0110',title:'JOINT MOTION FOR A RESOLUTION on the sy
 
 test('wording: the busiest debate leads with its place, tallies are digits and the resolution takes "the"',()=>{
  const x=quarter(base());x.debates=[{id:'D',title:'Brutal repression against protesters in Iran (joint debate)',date:'2026-01-20',meps:63,places:{IRN:['title']},primaryPlace:'IRN',docs:[joint.id]}];x.docs=[joint];x.periodWinners['2026-Q1'].busiestNonUrgencyDebates=[{id:'D',meps:63}];
- const text=lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{IRN:'Iran'}}));
+ const text=lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{IRN:'Iran'},...baseWording}));
  assert.match(text,/^Iran drew the busiest debate on the map: 63 MEPs spoke on Brutal repression against protesters in Iran \(20 January\); the resolution, a joint text by six groups, passed 524 to 3\./);
- x.debates[0].places={};x.debates[0].primaryPlace=null;assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1'})),/^The busiest debate on the map was Brutal repression against protesters in Iran \(20 January\), with 63 MEPs speaking; /);
+ x.debates[0].places={};x.debates[0].primaryPlace=null;assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',...baseWording})),/^The busiest debate on the map was Brutal repression against protesters in Iran \(20 January\), with 63 MEPs speaking; /);
 });
 test('wording: urgency debates list countries only, in date order, and say when others were not placed',()=>{
  const x=quarter(base());x.periodCounts[0].urgencyDebates=3;x.debates=[['U3','2026-03-11','Case of Elene Khoshtaria','GEO'],['U1','2026-01-21','Execution spree in Iran','IRN'],['U2','2026-02-11','Freedom of religion worldwide',null]].map(([id,date,title,p])=>({id,date,title,meps:12,format:'urgency',places:p?{[p]:['title']}:{},primaryPlace:p,docs:[]}));x.sets={urgencyDebates:{'2026-Q1':['U3','U1','U2']}};
@@ -99,15 +101,15 @@ test('wording: urgency debates list countries only, in date order, and say when 
 });
 test('wording: names that take "the" read naturally at the start and inside sentences',()=>{
  const x=quarter(base());x.periodWinners['2026-Q1']={mostQuestionedPlaces:[{id:'USA',count:43}],risingQuestionPlaces:[{id:'GBR',count:12,ratio:3,baselineMean:4}]};
- const text=lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{USA:'United States',GBR:'United Kingdom'}}));
+ const text=lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{USA:'United States',GBR:'United Kingdom'},...baseWording}));
  assert.match(text,/Questions about the United Kingdom rose to 12, from an average of 4 a quarter\./);assert.match(text,/The United States was the most asked-about place \(43 questions\)\./);
 });
 test('wording: places with the same change share one sentence, others get their own, averages say "a quarter"',()=>{
  const x=quarter(base());x.periodWinners['2026-Q1']={risingQuestionPlaces:[{id:'ROU',count:9,ratio:4.5,baselineMean:2},{id:'TUN',count:9,ratio:4.5,baselineMean:2}]};
- assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{ROU:'Romania',TUN:'Tunisia'}})),/Questions about Romania and Tunisia each jumped to nine, from an average of 2 a quarter\./);
- x.periodWinners['2026-Q1'].risingQuestionPlaces[1]={id:'TUN',count:8,ratio:2,baselineMean:4};const text=lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{ROU:'Romania',TUN:'Tunisia'}}));
+ assert.match(lineText(buildExactTopicStories(x,{...baseWording,period:'2026-Q1',labels:{ROU:'Romania',TUN:'Tunisia'}})),/Questions about Romania and Tunisia each jumped to nine, from an average of 2 a quarter\./);
+ x.periodWinners['2026-Q1'].risingQuestionPlaces[1]={id:'TUN',count:8,ratio:2,baselineMean:4};const text=lineText(buildExactTopicStories(x,{...baseWording,period:'2026-Q1',labels:{ROU:'Romania',TUN:'Tunisia'}}));
  assert.match(text,/Questions about Romania jumped to nine, from an average of 2 a quarter\. Questions about Tunisia rose to eight, from an average of 4 a quarter\./);assert(!/ and Questions/.test(text));
- x.periodWinners['2026-Q1'].risingQuestionPlaces=[{id:'ROU',count:9,ratio:9,baselineMean:0.6}];assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',labels:{ROU:'Romania'}})),/from fewer than one a quarter\./);
+ x.periodWinners['2026-Q1'].risingQuestionPlaces=[{id:'ROU',count:9,ratio:9,baselineMean:0.6}];assert.match(lineText(buildExactTopicStories(x,{...baseWording,period:'2026-Q1',labels:{ROU:'Romania'}})),/from fewer than one a quarter\./);
 });
 test('wording: Texts mode names the top four places and never writes "(one)"',()=>{
  const x=quarter(base());x.periodCounts[0].placesWithAdoptedTexts=27;x.periodWinners['2026-Q1']={topAdoptedPlaces:[['RUS',3],['UKR',3],['ESP',2],['AGO',1],['AZE',1],['BEL',1]].map(([id,count])=>({id,count}))};
@@ -140,8 +142,8 @@ test('wording: counted claims are whole phrases with plural forms',async()=>{
  for(const id of ['topics.story.map.urgency.many','topics.story.exact.urgencyPartial','topics.story.exact.urgencyCount'])assert(en[id].startsWith('{urgencyDebates} on human rights'),id);
  for(const id of ['topics.story.exact.questionRare','topics.story.exact.questionRareEach'])assert(en[id].includes('drew {questions}')&&!en[id].includes('{count} questions'),id);
  const x=quarter(base());x.periodCounts[0].urgencyDebates=1;x.debates=[{id:'U1',date:'2026-01-21',title:'Execution spree in Iran',meps:12,format:'urgency',places:{IRN:['title']},primaryPlace:'IRN',docs:[]},{id:'U2',date:'2026-02-21',title:'Case in Georgia',meps:12,format:'urgency',places:{GEO:['title']},primaryPlace:'GEO',docs:[]}];x.periodCounts[0].urgencyDebates=2;x.sets={urgencyDebates:{'2026-Q1':['U1','U2']}};
- const row=buildExactTopicStories(x,{period:'2026-Q1',labels:{IRN:'Iran',GEO:'Georgia'}}).find(r=>r.id==='topics.story.map.urgency.many');assert.equal(row.values.urgencyDebates.text.message,'topics.story.count.urgencyDebates');assert.deepEqual(row.values.urgencyDebates.text.counts,{count:2});assert(row.values.urgencyDebates.records.length>0);
- x.periodWinners['2026-Q1'].risingQuestionPlaces=[{id:'ROU',count:8,ratio:8,baselineMean:0.2}];const rare=buildExactTopicStories(x,{period:'2026-Q1',labels:{ROU:'Romania'}}).find(r=>r.id==='topics.story.exact.rises');assert.equal(rare.values.changes[0].values.questions.text.message,'topics.story.count.questions');assert.match(lineText([rare]),/Romania, rarely asked about before, drew eight questions\./);
+ const row=buildExactTopicStories(x,{...baseWording,period:'2026-Q1',labels:{IRN:'Iran',GEO:'Georgia'}}).find(r=>r.id==='topics.story.map.urgency.many');assert.equal(row.values.urgencyDebates.text.message,'topics.story.count.urgencyDebates');assert.deepEqual(row.values.urgencyDebates.text.counts,{count:2});assert(row.values.urgencyDebates.records.length>0);
+ x.periodWinners['2026-Q1'].risingQuestionPlaces=[{id:'ROU',count:8,ratio:8,baselineMean:0.2}];const rare=buildExactTopicStories(x,{...baseWording,period:'2026-Q1',labels:{ROU:'Romania'}}).find(r=>r.id==='topics.story.exact.rises');assert.equal(rare.values.changes[0].values.questions.text.message,'topics.story.count.questions');assert.match(lineText([rare]),/Romania, rarely asked about before, drew eight questions\./);
 });
 
 test('wording: without proof of membership a narrated text is not subtracted from the adopted count',()=>{
@@ -174,4 +176,77 @@ test('months: the busiest-quarter reference names months in the interface langua
 
 test('record page month ranges cover complete baseline periods without changing quarter keys',async()=>{
  const {monthRangeLabel}=await import('./topicPresentation.mjs');assert.match(monthRangeLabel('2026-Q1,2026-Q2','en'),/January.*June 2026/);assert.match(monthRangeLabel('2024-Q4,2026-Q2','en'),/October 2024.*June 2026/);assert.equal(monthRangeLabel('bad','en'),'bad');
+});
+
+test('variants: every alternative keeps its base sentence’s slots and the choice is stable',()=>{
+ const slots=t=>[...t.matchAll(/\{(\w+)\}/g)].map(m=>m[1]).sort().join(',');
+ const alternatives=Object.keys(en).filter(k=>/^topics\.story\..+\.(?:v\d+|eu)$/.test(k));assert(alternatives.length>=20);
+ for(const k of alternatives)assert.equal(slots(en[k]),slots(en[k.replace(/\.(?:v\d+|eu)$/,'')]),k);
+ const quarters=['2024-Q3','2024-Q4','2025-Q1','2025-Q2','2025-Q3','2025-Q4','2026-Q1','2026-Q2','2026-Q3','2026-Q4'],has=id=>Object.hasOwn(en,id);
+ const bases=[...new Set(alternatives.filter(k=>/\.v\d+$/.test(k)).map(k=>k.replace(/\.v\d+$/,'')))];
+ for(const id of bases)for(const scope of ['map','place:UKR','topic:oeil:1.10']){
+  const picks=quarters.map(p=>storyVariant(id,p,scope,has));
+  assert.deepEqual(picks,quarters.map(p=>storyVariant(id,p,scope,has)),'stable '+id);
+  for(let i=1;i<picks.length;i++)assert.notEqual(picks[i],picks[i-1],`${id} ${scope} ${quarters[i-1]}→${quarters[i]}`);
+ }
+ assert.equal(storyVariant('topics.story.map.lead.first','2025-Q2','map',()=>false),'topics.story.map.lead.first');
+ // Without its own variants a language keeps the base sentence.
+ const x=quarter(base());x.periodWinners['2026-Q1']={mostQuestionedPlaces:[{id:'USA',count:43}]};
+ for(const period of ['2025-Q3','2025-Q4','2026-Q1','2026-Q2']){x.periodCounts=[{period}];x.periodWinners[period]=x.periodWinners['2026-Q1'];assert.doesNotMatch(buildExactTopicStories(x,{period,language:'fr'})[0].id,/\.v\d+$/);}
+});
+
+const rejectedFacts=(originalStatus='known')=>{const x=quarter(base());const rc={id:'RC-10-2024-0173',type:'RESOLUTION_MOTION_JOINT',title:'JOINT MOTION FOR A RESOLUTION on Exact',date:'2026-01-20',outcomeStatus:'known',outcome:{outcome:'REJECTED',for:152,against:378,date:'2026-01-21'}},b={id:'B-10-2024-0175',type:'RESOLUTION_MOTION',title:'MOTION FOR A RESOLUTION on Exact',date:'2026-01-19',outcomeStatus:originalStatus,outcome:originalStatus==='known'?{outcome:'LAPSED',date:'2026-01-21'}:null};
+ x.debates=[{id:'D',title:'Exact debate',date:'2026-01-20',meps:12,places:{},docs:[rc.id,b.id]}];x.docs=[rc,b];x.periodWinners['2026-Q1'].busiestNonUrgencyDebates=[{id:'D',meps:12}];return x;};
+test('outcomes: a rejection is told only from exact outcomes and never when one is unknown',()=>{
+ const told=buildExactTopicStories(rejectedFacts(),{period:'2026-Q1',...baseWording});
+ assert.match(lineText(told),/with 12 MEPs speaking; the resolution was rejected 152 to 378\./);
+ const link=told[0].values.outcome.values.value.values.outcome;assert.equal(link.records[0].id,'RC-10-2024-0173');
+ assert.match(lineText(buildExactTopicStories(rejectedFacts('unknown'),{period:'2026-Q1',...baseWording})),/with 12 MEPs speaking\.$/);
+ const x=rejectedFacts();x.docs[1].outcome={outcome:'ADOPTED',for:300,against:200,date:'2026-01-21'};assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',...baseWording})),/the resolution passed 300 to 200\./);
+});
+
+const leadFacts=(winners,partial={first:null,last:null})=>{const periods=['2025-Q1','2025-Q2','2025-Q3','2025-Q4'],x={...base(),periods,partial,periodCounts:periods.map(period=>({period})),periodWinners:Object.fromEntries(periods.map((p,i)=>[p,{mostQuestionedPlaces:winners[i].map(id=>({id,count:20}))}])),series:{}};return x;};
+test('continuity: again and running streaks come from exact sole winners of full quarters',()=>{
+ const say4=(x,period='2025-Q4')=>lineText(buildExactTopicStories(x,{period,labels:{UKR:'Ukraine',ISR:'Israel'},...baseWording}));
+ assert.match(say4(leadFacts([['ISR'],['UKR'],['UKR'],['UKR']])),/^Ukraine was the most asked-about place for the third quarter running \(20 questions\)\.$/);
+ assert.match(say4(leadFacts([['UKR'],['ISR'],['ISR'],['UKR']])),/^Ukraine was the most asked-about place \(20 questions\)\.$/);
+ assert.match(say4(leadFacts([['UKR'],['UKR'],['UKR','ISR'],['UKR']])),/^Ukraine was the most asked-about place \(20 questions\)\.$/,'a tie breaks the streak');
+ assert.match(say4(leadFacts([['UKR'],['UKR'],['ISR'],['ISR']])),/^Israel was again the most asked-about place/);
+ assert.match(say4(leadFacts([['UKR'],['ISR','UKR'],['UKR'],['UKR']])),/^Ukraine and Israel were the most asked-about places|^Ukraine was again the most asked-about place/);
+ // The current partial quarter makes no continuity claim, and a partial first quarter ends a streak.
+ assert.match(say4(leadFacts([['UKR'],['UKR'],['UKR'],['UKR']],{first:null,last:'2025-11-02'})),/^So far, MEPs have asked most about Ukraine \(20 questions\)\.$/);
+ assert.match(say4(leadFacts([['UKR'],['UKR'],['UKR'],['UKR']],{first:'2025-02-16',last:null})),/for the third quarter running/);
+});
+
+test('zoom: the same quarter reads with a Europe scope and names only places in view',()=>{
+ const x=quarter(base());x.debates=[{id:'D',title:'Situation in Venezuela',date:'2026-01-20',meps:40,places:{VEN:['title'],NLD:['official']},primaryPlace:'VEN',docs:[]}];x.periodWinners['2026-Q1']={busiestNonUrgencyDebates:[{id:'D',meps:40}],mostQuestionedPlaces:[{id:'NLD',count:30}]};
+ const labels={VEN:'Venezuela',NLD:'Netherlands'},world=lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'world',labels,...baseWording})),eu=lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels,...baseWording}));
+ assert.match(world,/^Venezuela drew the busiest debate on the map: 40 MEPs spoke on Situation in Venezuela \(20 January\)\. The Netherlands was the most asked-about place \(30 questions\)\.$/);
+ assert.match(eu,/^In Europe and its neighbours, the busiest debate was Situation in Venezuela \(20 January\), with 40 MEPs speaking\. The Netherlands was the most asked-about place \(30 questions\)\.$/);
+ x.periodWinners['2026-Q1'].busiestNonUrgencyDebates=[];
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels,...baseWording})),/^In Europe and its neighbours, the Netherlands was the most asked-about place \(30 questions\)\.$/);
+ x.periodWinners['2026-Q1']={risingQuestionPlaces:[{id:'GBR',count:12,ratio:3,baselineMean:4}]};
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{GBR:'United Kingdom'},...baseWording})),/^In Europe and its neighbours, questions about the United Kingdom rose to 12, from an average of 4 a quarter\.$/);
+ // Europe-only urgency debates name only their places in view.
+ x.periodCounts[0].urgencyDebates=2;x.debates=[{id:'U1',title:'Case in Venezuela',date:'2026-01-21',meps:9,format:'urgency',places:{VEN:['title']},primaryPlace:'VEN',docs:[]},{id:'U2',title:'Case in Georgia',date:'2026-02-11',meps:9,format:'urgency',places:{GEO:['title']},primaryPlace:'GEO',docs:[]}];x.sets={urgencyDebates:{'2026-Q1':['U1','U2']}};x.periodWinners['2026-Q1']={};
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{...labels,GEO:'Georgia'},...baseWording})),/^In Europe and its neighbours, two urgency debates on human rights took up Georgia, among other cases\.$/);
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'world',labels:{...labels,GEO:'Georgia'},...baseWording})),/^Two urgency debates on human rights took up Venezuela and Georgia\.$/);
+});
+
+test('zoom: the Europe opener changes only the leading slot, never titles',()=>{
+ const x=quarter(base());x.debates=[{id:'D',title:'The Netherlands',date:'2026-01-20',meps:40,places:{},primaryPlace:null,docs:[]}];x.periodWinners['2026-Q1']={busiestNonUrgencyDebates:[{id:'D',meps:40}]};
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{NLD:'Netherlands'},...baseWording})),/^In Europe and its neighbours, the busiest debate was The Netherlands \(20 January\), with 40 MEPs speaking\.$/);
+ x.debates[0].places={NLD:['title']};x.debates[0].primaryPlace='NLD';
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{NLD:'Netherlands'},...baseWording})),/^In Europe and its neighbours, the Netherlands drew the busiest debate: 40 MEPs spoke on The Netherlands \(20 January\)\.$/);
+});
+
+test('zoom: Russia is in the Europe view and named in its urgency debates',()=>{
+ const x=quarter(base());x.periodCounts[0].urgencyDebates=2;x.debates=[['U1','2026-01-21','Case in Russia','RUS'],['U2','2026-02-11','Case in Georgia','GEO']].map(([id,date,title,p])=>({id,date,title,meps:9,format:'urgency',places:{[p]:['title']},primaryPlace:p,docs:[]}));x.sets={urgencyDebates:{'2026-Q1':['U1','U2']}};
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{RUS:'Russia',GEO:'Georgia'},...baseWording})),/^In Europe and its neighbours, two urgency debates on human rights took up Russia and Georgia\.$/);
+});
+
+test('zoom: places in view follow the Europe set reported with the story facts',()=>{
+ const x=quarter(base());x.periodCounts[0].urgencyDebates=2;x.debates=[['U1','2026-01-21','Case in Russia','RUS'],['U2','2026-02-11','Case in Georgia','GEO']].map(([id,date,title,p])=>({id,date,title,meps:9,format:'urgency',places:{[p]:['title']},primaryPlace:p,docs:[]}));x.sets={urgencyDebates:{'2026-Q1':['U1','U2']}};
+ x.europe=['GEO','UKR'];
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{RUS:'Russia',GEO:'Georgia'},...baseWording})),/^In Europe and its neighbours, two urgency debates on human rights took up Georgia, among other cases\.$/);
 });
