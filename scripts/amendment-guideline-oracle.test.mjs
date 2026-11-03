@@ -30,3 +30,11 @@ test('guideline subheading addresses count headings independently from body para
  assert.equal(assertGuidelineAnnex(input).status,'verified');
  assert.equal(assertGuidelineAnnex({...input,wording:{...input.wording,targetLabel:'Annex I – subheading 2'}}).status,'failed');
 });
+
+test('guideline verification rejects splice paragraphs outside the native addressed row',()=>{
+ const input={...fixture(),wording,placement};
+ for(const key of ['start','end']){
+  const moved={...placement,splice:{...placement.splice,[key]:{...placement.splice[key],paragraph:3}}};
+  assert.equal(assertGuidelineAnnex({...input,placement:moved}).status,'failed');
+ }
+});

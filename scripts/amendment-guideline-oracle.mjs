@@ -29,6 +29,6 @@ export function assertGuidelineAnnex({proposal,wording,placement,nativeQuoted}) 
   }
   if(target[3]||!['replace','delete'].includes(placement.operation))return unknown();
   if(normal(wording.originalText)!==normal(row.text))return fail();
-  return placement.span?.start===row.index&&placement.span?.end===row.index&&placement.splice?.start.offset===0&&placement.splice?.end.offset===row.text.length
+  return placement.span?.start===row.index&&placement.span?.end===row.index&&placement.splice?.start.paragraph===row.index&&placement.splice?.end.paragraph===row.index&&placement.splice?.start.offset===0&&placement.splice?.end.offset===row.text.length
     ?{status:'verified',reason:'oracle-native-guideline-paragraph',rawSourceRows:[row.source.path]}:fail();
 }
