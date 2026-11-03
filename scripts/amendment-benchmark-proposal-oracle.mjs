@@ -57,7 +57,17 @@ function publishedContainer(proposal,root,language) {
     ||second&&!paragraph(first)&&!pointOf(first)&&first.text.length<180&&!/[.;:!?]$/u.test(first.text.trim())))title=first;
   const start=title?title.index+1:first.index;
   const nodes=[],stack=[];
-  const explicit=amendingList?[]:content.filter(row=>paragraph(row));
+  // Some sources (COM(2025)580) print outer paragraph numbers as literal
+  // text. Accept them only as one complete 1, 2, 3... run in an article that
+  // has no NumPar paragraphs at all, all in Normal rows or starting at the
+  // article's first row (its Article 2 mixes Normal and Point styles).
+  const literal=row=>/^(\d+)\.\t/u.exec(row.text)?.[1];
+  const literals=kind==='article'&&!amendingList&&!content.some(row=>paragraph(row))?content.filter(row=>literal(row)):[];
+  const run=literals.length&&literals.every((row,i)=>literal(row)===String(i+1))
+    &&(literals.every(row=>row.properties?.styleId==='Normal')||literals[0]===content[0]);
+  const numbered=new Set(run?literals.map(row=>row.index):[]);
+  const paragraphOf=row=>paragraph(row)??(numbered.has(row.index)?literal(row):null);
+  const explicit=amendingList?[]:content.filter(row=>paragraphOf(row));
   if(!explicit.length) {
     const plain=content.filter(row=>row.index>=start&&!pointOf(row)&&!/^['‘’"“”]/u.test(row.text.trim()));
     const firstPoint=content.find(row=>pointOf(row));
@@ -68,7 +78,7 @@ function publishedContainer(proposal,root,language) {
   }
   for(const row of content.filter(row=>row.index>=start)) {
     if(!body(row))continue;
-    const para=amendingList?null:paragraph(row),ref=pointOf(row);
+    const para=amendingList?null:paragraphOf(row),ref=pointOf(row);
     if(para) {
       stack.length=0;
       nodes.push({kind:'paragraph',value:para,start:row.index,end:boundary.index,parent:null});

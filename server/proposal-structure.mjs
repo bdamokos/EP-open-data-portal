@@ -15,7 +15,7 @@ export {normaliseForMatching} from './proposal-matching.mjs';
 // source identity, content and path for this parser version; they are not official
 // legal-unit identifiers. Results are cached frozen, so consumers copy before
 // modifying them. Bump PROPOSAL_PARSER_VERSION for any change in parsing semantics.
-export const PROPOSAL_PARSER_VERSION='18';
+export const PROPOSAL_PARSER_VERSION='19';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;

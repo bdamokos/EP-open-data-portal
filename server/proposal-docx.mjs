@@ -55,7 +55,7 @@ function recastLabelPrefix(node,text,visibility,index) {
 // never independently flatten hidden/deleted runs into the proposal text.
 export function proposalDocx(buffer,{sourceUrl=null}={}) {
   let numbering;
-  const content=docxContent(buffer,{includeParagraphProperties:true,includeNoteObjects:true,numbering:(...args)=>(numbering=proposalNumberingLabels(...args))});
+  const content=docxContent(buffer,{includeParagraphProperties:true,includeNoteObjects:true,recast:true,numbering:(...args)=>(numbering=proposalNumberingLabels(...args))});
   const parts=docxParts(buffer),document=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(parts.get('word/document.xml'));
   const visibility=styleVisibility(parts.get('word/styles.xml'));
   const index=sourceIndex(document),byPath=new Map(),tables=[];
