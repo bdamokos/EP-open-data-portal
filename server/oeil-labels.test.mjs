@@ -1,3 +1,4 @@
+import {countryLabelSourceFor} from './country-label-source.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {conceptLabel} from './oeil-labels.mjs';
@@ -94,7 +95,7 @@ test('official and projected topic, keyword and place labels omit repeated sourc
 });
 
 test('keyword and place detail retain one source object while every list stays compact',async t=>{
- const {default:names}=await import('./topic-country-labels.json',{with:{type:'json'}});const countryLabelSource={url:names.sourceUrl,scheme:names.scheme,fetchedAt:names.fetchedAt,version:names.version,count:Object.keys(names.labels).length};
+ const {default:names}=await import('./topic-country-labels.json',{with:{type:'json'}});const countryLabelSource=countryLabelSourceFor(names);
  const dir=await mkdtemp(path.join(tmpdir(),'label-detail-source-')),store=new ActivityStore(dir,{initializeIndexes:true});t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});store.acquire();store.set('active',1);
  const source={url:'https://example.test/eurovoc',fetchedAt:'2026-11-02'},id='B-10-2026-000001',keys=['eurovoc:245','place:HUN'];
  writeTopicProjection(store,{concepts:[{key:keys[0],role:'keyword',labels:{en:'Descriptor'},labelSource:source},{key:keys[1],role:'place',labels:{en:'Hungary'}}],records:[{id,kind:'document',date:'2026-03-01',titles:{en:'Document'},assignments:keys.map(key=>({key,paths:[]}))}]});

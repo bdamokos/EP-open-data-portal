@@ -5,7 +5,7 @@ import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
-import {projectRecordTopics} from './record-topics.mjs';
+import {RECORD_TOPICS_VERSION,projectRecordTopics} from './record-topics.mjs';
 import {RecordTopics,writeTopicProjection,finishTopicProjectionBatched,quarter,topicPeriods} from './topics-store.mjs';
 import officialSubjects from './oeil-subjects.json' with {type:'json'};
 import {countryMatches,eurovocCountries} from './topic-roles.mjs';
@@ -140,4 +140,16 @@ test('optional procedural summaries preserve overview bytes for old and new proj
   }}});
   assert.deepEqual(queries.map(q=>JSON.stringify(legacy.query(new URLSearchParams(q),'overview'))),after,'unrestricted legacy summary scans preserve the same bytes');
  }
+});
+
+test('persisted English-only v7 place overview localises without a projection rebuild',t=>{
+ const store=fixture(t),key='place:MAR';
+ writeTopicProjection(store,{concepts:[{key,role:'place',labels:{en:'Morocco'}}],records:[{id:'E-10-2026-000001',kind:'question',date:'2026-07-01',titles:{en:'Morocco'},assignments:[{key,role:'place',paths:[]}]}]});
+ const oldState={...store.get('recordTopicProjection'),version:7};store.set('recordTopicProjection',oldState);
+ const persisted=store.db.prepare('SELECT body FROM record_topic_concepts WHERE generation=1 AND key=?').get(key).body;
+ assert.deepEqual(JSON.parse(persisted).labels,{en:'Morocco'});assert.equal(RECORD_TOPICS_VERSION,7);
+ const result=new RecordTopics(store).query(new URLSearchParams('role=place&lang=fr&askers=all'),'overview');
+ assert.equal(result.ready,true);assert.equal(result.items[0].label,'Maroc');assert.equal(result.items[0].labelLanguage,'fr');
+ assert.deepEqual(store.get('recordTopicProjection'),oldState);
+ assert.equal(store.db.prepare('SELECT body FROM record_topic_concepts WHERE generation=1 AND key=?').get(key).body,persisted);
 });

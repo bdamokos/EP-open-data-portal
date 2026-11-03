@@ -18,7 +18,7 @@ export function buildExactTopicStories(payload,s={}){
  s={language:'en',...s};
  const has=s.hasMessage||(()=>String(s.language).split('-')[0]==='en'),europe=Array.isArray(payload.europe)?new Set(payload.europe):EUROPE,inView=p=>s.zoom!=='eu'||europe.has(p),startForms=new Map(),nameLanguages=new Map();
  const f=normalizeReferenceStoryFacts(payload),period=s.period,c={...(period?payload.periodCounts.find(r=>r.period===period)||{}:payload.counts)},w=period?payload.periodWinners[period]||{}:payload.winners,labels=s.labels||{},num=n=>storyNumber(n,s.language),digits=n=>Number(n).toLocaleString(s.language==='en'?'en-GB':s.language),name=(p,start=false)=>{
-  const localized=placeLabel(p,s.language,{label:labels[p]||p,labelLanguage:labels[p]?'en':null});
+  const localized=placeLabel(p,s.language,{label:labels[p]||p,labelLanguage:s.labelLanguages?.[p]||null});
   const text=storyPlaceName(p,localized.label,{language:s.language,start});
   if(localized.labelLanguage)nameLanguages.set(text,localized.labelLanguage);
   if(start)startForms.set(text,storyPlaceName(p,localized.label,{language:s.language}));

@@ -169,7 +169,8 @@ for(const language of ['da','de','fi','fr','ro'])for(const count of [1,2])test(`
  const link=h.node.querySelector('.topic-story a');assert(link);const label=link.getAttribute('aria-label');assert(label);assert(label.includes(link.textContent));assert(label.includes('Colombia'));assert(label.includes('2026'));
 });
 for(const language of ['en','bg','cs','da','de','el','es','et','fi','fr','ga','hr','hu','it','lt','lv','mt','nl','pl','pt','ro','sk','sl','sv'])test(`nested native story and exact navigation ${language}`,async t=>{
- const h=await harness(t,{language,props:{selection}});await h.wait(countryNames.labels.COL[language]);const story=h.node.querySelector('.topic-story');assert.equal(story.lang,language);assert(!story.textContent.includes('undefined'));
+ const localSelection={...selection,labels:Object.fromEntries(Object.keys(storyLabels).map(id=>[id,countryNames.labels[id]?.[language]||storyLabels[id]])),labelLanguages:Object.fromEntries(Object.keys(storyLabels).map(id=>[id,language]))};
+ const h=await harness(t,{language,props:{selection:localSelection}});await h.wait(countryNames.labels.COL[language]);const story=h.node.querySelector('.topic-story');assert.equal(story.lang,language);assert(!story.textContent.includes('undefined'));
  const links=[...story.querySelectorAll('a')];assert(links.length);for(const link of links){assert(link.id.startsWith('story-link-'));const key=new URL(link.href).searchParams.get('t-records');if(key)assert(parseStorySetKey(key));if(link.hasAttribute('aria-label'))assert(link.getAttribute('aria-label').toLocaleLowerCase().includes(link.textContent.toLocaleLowerCase()));}
 });
 test('fallback labels use the same prose language as their visible quantities',async t=>{
@@ -235,4 +236,12 @@ test('multiple outside addresses for one exact person remain reachable as a comp
  const payload={...mapLinkFacts(),counts:{},periodCounts:[],winners:{},periodWinners:{},sets:{},outsideSpeakers:ids.map((debateId,i)=>({id:'230786:'+debateId,personId:'230786',name:'Volodymyr Zelenskyy',country:'UKR',date:dates[i],debateId})),debates:ids.map((id,i)=>({id,title:'Address '+i,date:dates[i],docs:[],places:[],meps:0}))};
  const h=await harness(t,{fresh:true,props:{selection:{...selection,period:'2026-Q1'}},respond:(_u,q)=>q?payload:undefined});await h.wait('Volodymyr Zelenskyy');const link=[...h.node.querySelectorAll('.topic-story a')].find(a=>a.textContent==='Volodymyr Zelenskyy');assert(link);const key=new URL(link.href).searchParams.get('t-records');assert.equal(parseStorySetKey(key).ids.split(',').length,2);
  await act(async()=>{history.pushState({},'',link.href);window.dispatchEvent(new window.PopStateEvent('popstate'));});await h.wait('Address 1');assert.equal(h.node.querySelectorAll('.topic-story-records article').length,2);assert(!h.node.textContent.includes('Records unavailable'));
+});
+
+test('Topics passes authority label languages into its map story without replacing preferred wording',async t=>{
+ const language='ga',h=await harness(t,{component:'Topics',language,url:'?view=geopolitics&t-q=2026-Q3',respond:u=>u.pathname==='/api/topics/overview'?{ready:true,periods:storyPeriods,partial:{},items:Object.keys(storyLabels).map(id=>({id,iso3:id,key:'place:'+id,label:countryNames.labels[id]?.ga||storyLabels[id],labelLanguage:language,series:[{period:'2026-Q3',question:13}],counts:{},groupsTotal:0,total:0}))}:undefined});
+ await h.wait('Public policy in Ukraine');await h.wait('Natural Earth');
+ assert(h.node.querySelector('.topic-story').textContent.includes(countryNames.labels.COL.ga));
+ assert.equal(h.node.querySelector('.places-ranking a > span').getAttribute('lang'),'ga');
+ assert.equal(h.node.querySelector('.places-map title').getAttribute('lang'),'ga');
 });

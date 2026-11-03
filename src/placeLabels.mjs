@@ -1,10 +1,9 @@
-import authority from '../server/topic-country-labels.json' with {type:'json'};
 import iso2 from '../server/topic-country-iso2.json' with {type:'json'};
 
-// Only exact authority identifiers join labels and ISO codes.
-export function placeLabel(id,requested,existing={}, {labels=authority.labels,notations=iso2.notations,DisplayNames=Intl.DisplayNames}={}) {
- const language=String(requested||'en').toLowerCase().split('-')[0],held=labels[id]||{};
- if(held[language])return {label:held[language],labelLanguage:language};
+// Server labels already include the authority overlay. Only missing local labels
+// reach CLDR; exact held authority identifiers provide ISO region codes.
+export function placeLabel(id,requested,existing={}, {notations=iso2.notations,DisplayNames=Intl.DisplayNames}={}) {
+ const language=String(requested||'en').toLowerCase().split('-')[0];
  if(existing.labelLanguage===language&&existing.label)return existing;
  const codes=notations[id];
  if(codes?.length===1&&DisplayNames)try{
@@ -13,7 +12,6 @@ export function placeLabel(id,requested,existing={}, {labels=authority.labels,no
    if(actual===language&&label&&label!==codes[0])return {label,labelLanguage:actual};
   }
  }catch{/* Unavailable locale or region: keep the source language. */}
- if(held.en)return {label:held.en,labelLanguage:'en'};
  return existing.label?existing:{label:id,labelLanguage:null};
 }
 

@@ -281,3 +281,14 @@ test('showRecords uses the focused records heading without announcing the period
  const recordsLink=node.querySelector('.topic-detail-header p a');recordsLink.focus();await act(async()=>recordsLink.click());
  await wait(()=>document.activeElement===node.querySelector('#topic-records h2'));assert.equal(new URL(location.href).searchParams.get('t-q'),null);assert.equal(node.querySelector('[aria-live=polite]').textContent,previous);assert.deepEqual(scrolled,[node.querySelector('#topic-records h2')]);
 });
+
+test('map tooltips keep the UI language while ranking labels retain their source language',async t=>{
+ // This browser has no CLDR locale: the server's English fallback must remain English.
+ t.mock.method(Intl.DisplayNames,'supportedLocalesOf',()=>[]);
+ const data=placesData(3,'Morocco');data.items[0]={...data.items[0],key:'place:MAR',id:'MAR',iso3:'MAR',labelLanguage:'en'};
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&lang=fr',u=>Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:data),{language:'fr'});
+ await wait(()=>node.querySelector('.places-map title'));
+ assert.equal(node.querySelector('.places-map title').getAttribute('lang'),'fr');
+ assert.equal(node.querySelector('.places-ranking a > span').getAttribute('lang'),'en');
+ assert.equal(node.querySelector('.places-ranking a > span').textContent,'Morocco');
+});

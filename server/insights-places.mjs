@@ -1,3 +1,4 @@
+import {countryLabelSourceFor} from './country-label-source.mjs';
 import {readFileSync} from 'node:fs';
 
 const authority=JSON.parse(readFileSync(new URL('./insights-country-labels.json',import.meta.url),'utf8'));
@@ -26,6 +27,6 @@ export function titlePlaces(title) {
   const result={places:[...places.values()],text:text.split('').map((c,i)=>spans.some(s=>i>=s.start&&i<s.end)?' ':c).join('')};
   cache.set(raw,result);if(cache.size>6000)cache.delete(cache.keys().next().value);return result;
 }
-export const countryLabelSource={url:authority.sourceUrl,scheme:authority.scheme,fetchedAt:authority.fetchedAt,count:authority.labels.length};
+export const countryLabelSource=countryLabelSourceFor(authority);
 
 export const subjectPlace=id=>authority.labels.find(place=>place.id===id)||null;

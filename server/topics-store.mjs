@@ -1,9 +1,10 @@
+import {countryLabelSourceFor} from './country-label-source.mjs';
 import {SNAPSHOT_MAX_BYTES} from './sitting-snapshot-store.mjs';
 import {gunzipSync} from 'node:zlib';
 import {voteActivity} from './story-facts-model.mjs';
 import {storyEventType} from './story-facts-storage.mjs';
 import countryNames from './topic-country-labels.json' with {type:'json'};
-const countryLabelSource={url:countryNames.sourceUrl,scheme:countryNames.scheme,fetchedAt:countryNames.fetchedAt,version:countryNames.version,count:Object.keys(countryNames.labels).length};
+const countryLabelSource=countryLabelSourceFor(countryNames);
 import {conceptLabel} from './oeil-labels.mjs';
 import {readableRecordTopicState} from './topic-projection-state.mjs';
 import {topicBatches} from './topic-disk-map.mjs';
