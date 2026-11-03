@@ -48,7 +48,7 @@ test('replace/delete oracle reads exact splice coordinates, tolerates only provi
   assert.equal(verifyPlacement({placement:{...placement,splice:{start:{paragraph:1,offset:500},end:{paragraph:1,offset:1}}},wording:amendment,items}).reason,'oracle-invalid-span');
   assert.equal(verifyPlacement({placement,wording:{...amendment,originalText:'(not) A café sentence.'},items}).status,'failed');
 });
-test('oracle preserves internal punctuation when a comparison column flattens source paragraphs',()=>{
+test('oracle preserves punctuation normalization but accepts unique small resolution damage',()=>{
   const rows=['7. Allocates funding as follows:','the first programme receives ten units;','the second programme receives five units.','the balance remains available;'];
   const text=source(['The European Parliament,',...rows,'8. Requests a report.','ANNEX']);
   const original=rows.join(' '),amendment={...wording('Paragraph 7',original,'Revised allocation.'),baseline:'motion-resolution'};
@@ -56,8 +56,8 @@ test('oracle preserves internal punctuation when a comparison column flattens so
   for(const operation of ['replace','delete']) {
     const placement={status:'placed',operation,span:{start:1,end:4}},chosen=operation==='delete'?{...amendment,proposedText:'deleted.'}:amendment;
     assert.equal(verifyPlacement({placement,wording:chosen,text}).status,'verified');
-    assert.equal(verifyPlacement({placement,wording:{...chosen,originalText:original.replace('units;','units')},text}).reason,'oracle-original-span-mismatch');
-    assert.equal(verifyPlacement({placement,wording:{...chosen,originalText:original.replace('units.','units')},text}).reason,'oracle-original-span-mismatch');
+    assert.equal(verifyPlacement({placement,wording:{...chosen,originalText:original.replace('units;','units')},text}).status,'verified');
+    assert.equal(verifyPlacement({placement,wording:{...chosen,originalText:original.replace('units.','units')},text}).status,'verified');
     assert.equal(verifyPlacement({placement:{...placement,span:{start:1,end:3}},wording:chosen,text}).status,'failed');
   }
   const labels=[{value:'7'}];
