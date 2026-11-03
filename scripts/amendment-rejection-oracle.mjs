@@ -24,7 +24,8 @@ export function nativeRejectionCell(buffer,id) {
   const rows=body.slice(start,end+1),paragraphs=rows.filter(row=>row.kind==='paragraph');
   // EP's identity/template tags are hidden runs. They bind identity, while
   // the comparison table itself must contain only visible legal wording.
-  if(paragraphs.some(row=>row.unsafe)||paragraphs.slice(1).some(row=>row.text.includes('<Amend>'))||!paragraphs.some(row=>row.text.includes(`A${term}-${report}/${year}`)))return null;
+  const reportToken=new RegExp(`(?:^|>|\\s)A${term}-${report}/${year}(?:$|<|\\s)`,'u');
+  if(paragraphs.some(row=>row.unsafe)||paragraphs.slice(1).some(row=>row.text.includes('<Amend>'))||!paragraphs.some(row=>reportToken.test(row.text)))return null;
   const tables=rows.filter(row=>row.kind==='other');
   if(tables.length!==1||tables[0].hidden||!tables[0].nodes['w:tbl'])return null;
   const table=tables[0].nodes['w:tbl'];
@@ -45,7 +46,7 @@ function verifySentence({id,language,buffer,wording,placement}) {
   const scope=index===2?'council-position':'commission-proposal',cell=nativeRejectionCell(buffer,id);
   if(!cell||cell.original!==''||wording.originalText!==''||cell.proposed!==normal(wording.proposedText))return {status:'unverified',reason:'rejection-native-cell-unverified'};
   const observed=placement?.status==='document-operation'&&placement.operation==='reject'&&placement.scope===scope&&!['span','splice','insertAfter','insertBefore'].some(key=>Object.hasOwn(placement,key));
-  return {status:observed?'verified':'unverified',reason:observed?'source-attested-rejection':'rejection-not-observed',scope,source:{sha256:createHash('sha256').update(buffer).digest('hex'),path:'word/document.xml',amendmentPath:cell.path,assertion:'complete-native-comparison-cells'}};
+  return {status:observed?'verified':'unverified',reason:observed?'source-attested-rejection':'rejection-not-observed',scope,source:{sha256:createHash('sha256').update(buffer).digest('hex'),path:'word/document.xml',amendmentPath:cell.path,assertion:'complete-native-comparison-cells',originalText:cell.original,proposedText:cell.proposed}};
 }
 // Independent native XML assertion: complete source paragraph, frozen body hash,
 // exact amendment identity and language. No runtime recognizer or vocabulary.
