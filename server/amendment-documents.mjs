@@ -86,9 +86,11 @@ const enabled=node=>node?!['0','false','off'].includes(String(attribute(node,'va
 
 // A compound heading is two printed lines in one native paragraph. Literal
 // newlines, fields, wrappers and invisible metadata do not establish that form.
-function compoundHeader(nodes,raw,text,styleSafe) {
+function compoundHeader(nodes,raw,text,styleSafe,blank=false) {
   const lines=text.split('\n').map(line=>line.trim());
-  if(raw!==text||lines.length!==2||!/^Proposal for a (?:regulation|directive|decision)$/u.test(lines[0])||!parseTargetLabel(lines[1],'en').complete||!styleSafe(nodes))return null;
+  if(raw!==text)return null;
+  if(blank?text.trim():lines.length!==2||!/^Proposal for a (?:regulation|directive|decision)$/u.test(lines[0])||!parseTargetLabel(lines[1],'en').complete)return null;
+  if(!styleSafe(nodes))return null;
   let breaks=0;
   const properties=nodes=>nodes.every(node=>Object.entries(node).every(([key,value])=>key===':@'||key==='w:rPr'&&properties(value)||['w:pStyle','w:rStyle','w:keepNext','w:keepLines','w:widowControl','w:spacing','w:ind','w:jc','w:b','w:bCs','w:i','w:iCs','w:lang','w:rFonts','w:sz','w:szCs','w:color','w:u','w:highlight'].includes(key)&&Array.isArray(value)&&!value.length));
   const supported=nodes=>nodes.every(node=>Object.entries(node).every(([key,value])=>{
@@ -99,7 +101,7 @@ function compoundHeader(nodes,raw,text,styleSafe) {
     if(['w:br','w:cr'].includes(key)){breaks++;return !value.length&&[undefined,'textWrapping'].includes(node[':@']?.['@_w:type']);}
     return false;
   }));
-  return supported(nodes)&&breaks===1?lines:null;
+  return supported(nodes)&&breaks===(blank?0:1)?blank?true:lines:null;
 }
 function compoundStyleSafety(xml) {
   const root=children(xml?parser().parse(xml):[],'w:styles')||[],styles=new Map(),defaults=[];
@@ -239,7 +241,8 @@ function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'
 function documentBlocks(parts,warnings,language) {
   const style=visibility(parts.get('word/styles.xml'));
   const documentXml=parts.get('word/document.xml'),documentTree=parser().parse(documentXml),stylesXml=parts.get('word/styles.xml');
-  const nativeHeader=language==='en'&&!/<!DOCTYPE|<!ENTITY/u.test(documentXml)&&XMLValidator.validate(documentXml)===true&&child(documentTree,'w:document')?.[':@']?.['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main'&&(!stylesXml||!/<!DOCTYPE|<!ENTITY/u.test(stylesXml)&&XMLValidator.validate(stylesXml)===true);
+  const nativeBindings=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w']===undefined||node[':@']['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main')&&Object.values(node).every(value=>!Array.isArray(value)||nativeBindings(value)));
+  const nativeHeader=language==='en'&&!/<!DOCTYPE|<!ENTITY/u.test(documentXml)&&XMLValidator.validate(documentXml)===true&&child(documentTree,'w:document')?.[':@']?.['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main'&&nativeBindings(documentTree)&&(!stylesXml||!/<!DOCTYPE|<!ENTITY/u.test(stylesXml)&&XMLValidator.validate(stylesXml)===true&&nativeBindings(parser().parse(stylesXml)));
   const compoundVisible=nativeHeader?compoundStyleSafety(stylesXml):null;
   if(language==='hr')style.formatting=styleFormatting(children(parser().parse(parts.get('word/styles.xml')||''),'w:styles'));
   const label=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),warnings);
@@ -261,7 +264,7 @@ function documentBlocks(parts,warnings,language) {
     size+=raw.length+text.length;
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
     const structure=JSON.stringify(nodes);
-    return {raw,text,formatting,bold,...(compoundVisible?{compound:compoundHeader(nodes,raw,text,compoundVisible)}:{}),paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
+    return {raw,text,formatting,bold,...(compoundVisible?{compound:compoundHeader(nodes,raw,text,compoundVisible),compoundBlank:compoundHeader(nodes,raw,text,compoundVisible,true)===true}:{}),paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
   };
   const blocks=[];
   const summary=content=>({
@@ -415,8 +418,8 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     for(let i=2;i<=4;i++)for(const article of field(raw,'Article'+i))targetParts.push([field(raw,'DocAmend'+i)[0],article].filter(Boolean).join(' — '));
     if(language==='en'&&!targetParts.length) {
       const tableAt=group.findIndex(block=>block.kind==='table');
-      const header=group.slice(0,tableAt<0?0:tableAt).filter(block=>block.kind==='paragraph'&&block.text.trim()&&!numberIn(block.raw,block.paragraphStyle,language));
-      if(header.length===1&&header[0].compound&&!header[0].losses.length) {
+      const paragraphs=group.slice(0,tableAt<0?0:tableAt).filter(block=>block.kind==='paragraph'&&!numberIn(block.raw,block.paragraphStyle,language)),header=paragraphs.filter(block=>block.text.trim());
+      if(header.length===1&&header[0].compound&&!header[0].losses.length&&paragraphs.every(block=>block===header[0]||block.compoundBlank)) {
         const [documentClass,target]=header[0].compound;targetParts.push(target);
         for(const [field,raw] of [['DocumentClass',documentClass],['Article',target]])documentReferences.push({field,raw,sourceRaw:header[0].raw,scope:'amendment',basis:'native-line-break'});
       }

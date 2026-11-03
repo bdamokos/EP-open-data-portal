@@ -17,6 +17,8 @@ test('compound metadata recovery rejects opaque content and ambiguous physical h
   xml=>xml.replace('<w:br/>','<w:unknown/><w:br/>'),xml=>xml.replace('<w:br/>','<w:fldSimple/><w:br/>'),
   xml=>xml.replace('<w:br/>','<w:br/><w:t>Extra header</w:t><w:br/>'),xml=>xml.replace('Recital 17 a (new)','Unparsed location'),
   xml=>xml+'<w:p><w:r><w:t>Article 3</w:t></w:r></w:p>',
+  xml=>xml.replace('<w:br/>','<w:br xmlns:w="urn:foreign"/>'),xml=>xml.replace('<w:p>','<w:p xmlns:w="urn:foreign">'),
+  xml=>xml+'<w:p><w:r><w:drawing/></w:r></w:p>',xml=>xml+'<w:p><w:unknown/></w:p>',
  ]){const {wording}=extract({headerChange});assert.equal(wording.documentReferences.some(ref=>ref.basis==='native-line-break'),false,headerChange.toString());}
  for(const className of ['Motion for a resolution','Proposal for an unknown act'])assert.equal(extract({className}).wording.targetLabel,null);
  assert.equal(extract({},'fr').wording.targetLabel,null);
