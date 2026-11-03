@@ -1,3 +1,4 @@
+import {inspectNativeNoteScope} from './amendment-note-scope-oracle.mjs';
 import {assertGuidelineAnnex} from './amendment-guideline-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
@@ -350,6 +351,13 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  if(input.placement?.status==='placed'&&input.placement.noteScope?.kind==='word-footnotes'){
+    const proposal=input.items?.[input.placement.itemIndex]?.proposal;
+    const notes=inspectNativeNoteScope({...input,proposal});
+    if(notes.status!=='verified')return {status:notes.status,reason:notes.reason};
+    const {noteScope,...placement}=input.placement;
+    return verifyPlacement({...input,placement,wording:notes.bodyWording});
+  }
   const result=verifyKnownPlacement(input);
   const proposal=input.items?.[input.placement.itemIndex]?.proposal;
   if(result.status!=='unverified'||!proposal||!['oracle-address-grammar-unavailable','oracle-address-unit-unavailable','oracle-introductory-part-unavailable','oracle-insertion-grammar-unavailable'].includes(result.reason))return result;
