@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} reģistrēta nostāja",
   "membervotes.tsx.count.recorded.positions": "{count} reģistrētas nostājas",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Galīgais balsojums par visu tekstu",
   "membervotes.tsx.final.vote.outcome.position": "Galīgais balsojums · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Atrast pieņemto tekstu",
   "membervotes.tsx.finding.latest.recorded.votes": "Meklē jaunākos reģistrētos balsojumus…",
@@ -2502,5 +2501,7 @@
   "topics.explorerTranslation": "Politikas jomu nosaukumus tulkojis izpētes rīks.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Uzstāšanās pa mēnešiem",
-  "groupvoices.contributions_by_sitting_day.77a719": "Uzstāšanās pa sēžu dienām"
+  "groupvoices.contributions_by_sitting_day.77a719": "Uzstāšanās pa sēžu dienām",
+  "membervotespresentation.votes_not_yet_published": "Balsojumi vēl nav publicēti",
+  "membervotespresentation.votes_start_at": "Balsojumi sākas plkst. {time}"
 }

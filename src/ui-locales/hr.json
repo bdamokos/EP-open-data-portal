@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "Broj zabilježenih stajališta: {count}",
   "membervotes.tsx.count.recorded.positions": "Broj zabilježenih stajališta: {count}",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Konačno glasovanje o cijelom tekstu",
   "membervotes.tsx.final.vote.outcome.position": "Konačno glasovanje · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Pronađi usvojeni tekst",
   "membervotes.tsx.finding.latest.recorded.votes": "Traženje najnovijih zabilježenih glasovanja…",
@@ -2502,5 +2501,7 @@
   "topics.explorerTranslation": "Nazive područja politika preveo je preglednik.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Izlaganja po mjesecima",
-  "groupvoices.contributions_by_sitting_day.77a719": "Izlaganja po danima zasjedanja"
+  "groupvoices.contributions_by_sitting_day.77a719": "Izlaganja po danima zasjedanja",
+  "membervotespresentation.votes_not_yet_published": "Glasovanja još nisu objavljena",
+  "membervotespresentation.votes_start_at": "Glasovanje počinje u {time}"
 }

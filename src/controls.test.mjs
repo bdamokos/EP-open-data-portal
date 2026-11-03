@@ -184,7 +184,7 @@ test('member deep links and restored routes keep meaningful titles with intentio
 });
 
 test('initial feature and unavailable member links have titles before data returns',async t=>{
-  for(const [query,title] of [['?view=saved','Following'],['?view=legislation','Plenary agenda'],['?view=legislation&pl-mode=dossier','Dossiers'],['?view=legislation&pl-mode=cloud','Plenary word cloud'],['?view=legislation&pl-mode=participation','What’s hot'],['?view=legislation&pl-mode=trends','Topics'],['?view=topics','Topics'],['?view=legislation&pl-mode=invalid','Plenary agenda'],['?view=questions','Questions'],['?view=outside','Outside voices'],['?member=999&module=activities','MEP 999 · Political activities']]) {
+  for(const [query,title] of [['?view=saved','Following'],['?view=legislation','Plenary agenda'],['?view=legislation&pl-mode=dossier','Plenary agenda'],['?view=legislation&pl-mode=cloud','Plenary word cloud'],['?view=legislation&pl-mode=participation','What’s hot'],['?view=legislation&pl-mode=topics','Topics'],['?view=geopolitics','Geopolitics'],['?view=legislation&pl-mode=invalid','Plenary agenda'],['?view=questions','Questions'],['?view=outside','Outside voices'],['?member=999&module=activities','MEP 999 · Political activities']]) {
     await t.test(query,async t=>{
       const pending=[];let unavailable=false;
       const h=await harness(t,query,()=>{if(unavailable)throw Error('Fixture unavailable');return new Promise((resolve,reject)=>pending.push({resolve,reject}));});
@@ -200,12 +200,12 @@ test('initial feature and unavailable member links have titles before data retur
 });
 
 test('plenary mode titles follow headings, gestures and restored queries without adding history',async t=>{
-  const h=await harness(t,'?view=legislation&pl-mode=dossier');
+  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref=2025%2F0407(COD)');
   const {default:App}=await h.load('/src/App.tsx');
   await h.render(createElement(App));
   assert.equal(document.title,'Dossiers — European Parliament data explorer');
   const routes=[];
-  for(const [button,title] of [['Agenda','Plenary agenda'],['Word cloud','Plenary word cloud'],['What’s hot','What’s hot'],['Dossiers','Dossiers']]) {
+  for(const [button,title] of [['Agenda','Plenary agenda'],['Word cloud','Plenary word cloud'],['What’s hot','What’s hot'],['Topics','Topics']]) {
     const length=history.length;
     await h.click(h.button(button));routes.push(location.href);
     assert.equal(document.title,`${title} — European Parliament data explorer`);
@@ -213,7 +213,7 @@ test('plenary mode titles follow headings, gestures and restored queries without
     assert.equal(history.length,length+1,'one mode gesture adds only its existing history entry');
   }
   // Simulate the restored browser query; happy-dom truncates forward entries on replaceState.
-  for(const [index,title] of [[1,'Plenary word cloud'],[3,'Dossiers']]) {
+  for(const [index,title] of [[1,'Plenary word cloud'],[3,'Topics']]) {
     await act(async()=>{history.replaceState(null,'',routes[index]);window.dispatchEvent(new window.PopStateEvent('popstate'));});
     assert.equal(document.title,`${title} — European Parliament data explorer`);
     assert.equal(h.container.querySelector('h1').textContent,title);
@@ -289,4 +289,19 @@ test('Members list portraits follow and unfollow MEPs without opening the profil
   }
   assert(h.container.querySelector('.explorer-portraits'),'the list stays open');
   assert.equal(new URL(location.href).searchParams.get('member'),null);
+});
+
+test('Geopolitics owns its main-nav position and Topics is a plenary mode while dossiers have no search entry',async t=>{
+  const h=await harness(t,'?view=geopolitics');
+  const {default:App}=await h.load('/src/App.tsx');await h.render(createElement(App));
+  const nav=()=>h.container.querySelector('.parliament-header nav');
+  assert.deepEqual([...nav().children].map(n=>n.textContent),['MEPs','Plenary agenda','Questions','Geopolitics','Outside voices','Group voices','Following']);
+  assert.equal(nav().querySelector('[aria-current="page"]').textContent,'Geopolitics');
+  await h.click(h.button('Plenary agenda'));await h.click(h.button('Topics'));
+  assert.equal(new URL(location.href).searchParams.get('pl-mode'),'topics');
+  assert.equal(nav().querySelector('[aria-current="page"]').textContent,'Plenary agenda');
+  const modes=h.container.querySelector('.insight-mode-nav');
+  assert.deepEqual([...modes.children].map(n=>n.textContent),['Agenda','What’s hot','Word cloud','Topics']);
+  assert.equal(modes.querySelector('[aria-pressed="true"]').textContent,'Topics');
+  assert(h.container.querySelector('.topic-finder'));assert.equal(h.container.querySelector('.insight-dossier-finder form'),null);
 });

@@ -18,7 +18,7 @@ test('a debate title is the only link to that debate, and repeat mentions stay p
 });
 async function harness(t,key,respond){
  const {Window}=await import('happy-dom'),{createElement,act}=await import('react'),{freshLoader}=await import('./test-support/viteRunner.mjs');
- const window=new Window({url:'http://localhost/?view=topics&place=IRN&t-q=2026-Q3&t-records='+encodeURIComponent(key)}),old=new Map();
+ const window=new Window({url:'http://localhost/?view=geopolitics&place=IRN&t-q=2026-Q3&t-records='+encodeURIComponent(key)}),old=new Map();
  for(const [k,v]of Object.entries({window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,Event:window.Event,PopStateEvent:window.PopStateEvent,IS_REACT_ACT_ENVIRONMENT:true})){old.set(k,Object.getOwnPropertyDescriptor(globalThis,k));Object.defineProperty(globalThis,k,{value:v,writable:true,configurable:true});}
  window.HTMLElement.prototype.scrollIntoView=function(){};
  let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());await window.happyDOM.close();for(const[k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});

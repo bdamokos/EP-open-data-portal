@@ -9,7 +9,7 @@ import {countryLabels} from './topic-roles.mjs';
 import {countryIdentity} from './topic-country-identity.mjs';
 import {validTopicKey} from './record-topics.mjs';
 import {emptyStoryCounts} from './story-facts-aggregate.mjs';
-import europe from './story-europe-countries.json' with {type:'json'};
+import {publishedEurope} from './story-europe.mjs';
 import {HttpError} from './http-utils.mjs';
 import {topicPeriods,quarter} from './topics-store.mjs';
 
@@ -88,6 +88,8 @@ const cleanTitle=title=>String(title||'').replace(/^\d+(?:\.\d+)*\.\s*/,'').repl
 export function storyFacts(store,params,{pressFilename}={}){
  const q=storyQuery(params),state=readableStoryState(store,{askers:q.askers}),generation=state?.dataGeneration||state?.generation;
  if(!state)return {ready:false};
+ // Europe scope as built into the published projection, so map, list and story change together.
+ const europe={ids:publishedEurope(state)};
  const db=store.db,periods=topicPeriods(),selectedPeriods=q.period?[q.period]:periods,key=q.scope==='map'?q.zoom:q.scope==='place'?q.key.slice(6):q.key,dimension=[generation,q.scope,key,q.askers];
  const choose=(values,fallback='')=>{const lang=languagePreference(Object.keys(values||{}),'en')[0];return {value:values?.[lang]||fallback,language:lang||null};};
  const zeroCounts=()=>({...emptyStoryCounts(),...(q.scope==='map'?{placesWithQuestions:0,placesWithDebates:0,placesWithAdoptedTexts:0}:{})});
@@ -166,5 +168,5 @@ export function storyFacts(store,params,{pressFilename}={}){
  // these evidence rows do not participate in any aggregate or ranking.
  for(const a of outsideSpeakers)if(!debates.some(d=>d.id===a.debateId)){const title=choose(a.debateTitles,a.name);debates.push({id:a.debateId,date:a.date,q:quarter(a.date),title:cleanTitle(title.value),rawTitle:title.value,titleLanguage:title.language,meps:0,speeches:0,places:[{id:a.country,basis:a.basis}],docs:[],procedures:[]});}
  const docs=[...documents.values()],blocks=selectedPeriods.map(period=>({period,counts:cells.get(period)||zeroCounts(),debates:debates.filter(d=>d.q===period).map(d=>d.id),docs:docs.filter(d=>d.q===period||d.outcome?.date&&quarter(d.outcome.date)===period).map(d=>d.id),questions:questions.filter(d=>d.q===period).map(d=>d.id)}));
- return {ready:true,outsideSpeakers,scope:q.scope,key:q.key,period:q.period,mode:q.mode,askers:q.askers,zoom:q.zoom,periods,partial:store.get('recordTopicCalendar')?.partial,counts,periodCounts,winners,periodWinners,sets,page,debatesTotal:counts.debates,debates,docs,questions,press,topic,topics:topic?{[topic.key]:topic}:{},blocks,series,summary:{debates:counts.debates,documents:counts.documents,questions:counts.questions},coverage:{...store.get('storyCoverage'),press:{ready:pressReady}}};
+ return {ready:true,outsideSpeakers,scope:q.scope,key:q.key,period:q.period,mode:q.mode,askers:q.askers,zoom:q.zoom,europe:europe.ids,periods,partial:store.get('recordTopicCalendar')?.partial,counts,periodCounts,winners,periodWinners,sets,page,debatesTotal:counts.debates,debates,docs,questions,press,topic,topics:topic?{[topic.key]:topic}:{},blocks,series,summary:{debates:counts.debates,documents:counts.documents,questions:counts.questions},coverage:{...store.get('storyCoverage'),press:{ready:pressReady}}};
 }

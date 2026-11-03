@@ -639,6 +639,16 @@ test('an interrupted adoption leaves the projection dirty for the batches it com
  store.set('topicProjectionDirty',false);const retry=adoptHeldEventSnapshots(store);assert.equal(retry.adopted,50);assert.equal(store.get('topicProjectionDirty'),true);
 });
 
+test('story facts report the Europe set their published projection was built with',async t=>{
+ const {store}=await fixture(t);await buildTopics(store);await finishStoryProjection(store,1);
+ const {europeBeforeV14}=await import('./story-europe.mjs'),{default:europe}=await import('./story-europe-countries.json',{with:{type:'json'}});
+ assert.deepEqual(store.get('storyProjection').europe,europe.ids);
+ assert.deepEqual(storyFacts(store,new URLSearchParams('scope=map&zoom=eu')).europe,europe.ids);
+ // A projection built before version 14 recorded no set and keeps its earlier scope, without Russia.
+ const published=store.get('storyProjection'),{europe:_,...older}=published;store.set('storyProjection',{...older,version:13});
+ const response=storyFacts(store,new URLSearchParams('scope=map&zoom=eu'));assert.deepEqual(response.europe,[...europeBeforeV14]);assert(!response.europe.includes('RUS'));assert(europe.ids.includes('RUS'));
+});
+
 
 test('outside addresses and coverage are copied into the published generation',async t=>{
  const {store}=await fixture(t,{clock:()=>Date.parse(stamp)}),date='2026-01-21',debateId='MTG-PL-2026-01-21-PVCRE-ITM-5';

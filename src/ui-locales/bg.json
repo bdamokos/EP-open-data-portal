@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} записана позиция",
   "membervotes.tsx.count.recorded.positions": "{count} записани позиции",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Окончателно гласуване по целия текст",
   "membervotes.tsx.final.vote.outcome.position": "Окончателно гласуване · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Намиране на приетия текст",
   "membervotes.tsx.finding.latest.recorded.votes": "Търсене на последните записани гласувания…",
@@ -2502,5 +2501,7 @@
   "topics.explorerTranslation": "Наименованията на областите на политиката са преведени от инструмента за разглеждане.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Изказвания по месеци",
-  "groupvoices.contributions_by_sitting_day.77a719": "Изказвания по заседателни дни"
+  "groupvoices.contributions_by_sitting_day.77a719": "Изказвания по заседателни дни",
+  "membervotespresentation.votes_not_yet_published": "Гласуванията все още не са публикувани",
+  "membervotespresentation.votes_start_at": "Гласуванията започват в {time}"
 }

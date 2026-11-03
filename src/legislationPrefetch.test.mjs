@@ -86,7 +86,7 @@ test('keyboard intent preloads, while language, period, mode and unmount cancel 
   await h.hover(h.item(2));
   await act(async()=>{const select=h.container.querySelector('.insight-controls select');select.value='sitting:'+days[2].id;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
   await h.wait();assert.equal(requests.length,1,'period change cancels queued work');
-  await h.hover(h.item(2));await act(async()=>[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Dossiers').click());await h.wait();assert.equal(requests.length,1,'mode change cancels queued work');
+  await h.hover(h.item(2));await act(async()=>[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Topics').click());await h.wait();assert.equal(requests.length,1,'mode change cancels queued work');
   await act(async()=>[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Agenda').click());
   await h.hover(h.item(2));await h.unmount();await h.wait();assert.equal(requests.length,1,'unmount cancels queued work');
 });

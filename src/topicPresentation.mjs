@@ -20,8 +20,11 @@ export function risers(data,index,mode,own){
 export const riser=(...args)=>risers(...args)[0]||null;
 const PRE=/^((?:SECOND )?REPORT|(?:JOINT )?MOTION FOR A RESOLUTION|RECOMMENDATION|OPINION)\s+(?:on\s+)?(?:the\s+proposal\s+for\s+an?\s+(?:regulation|directive|decision)(?:\s+of\s+the\s+European\s+Parliament\s+and\s+of\s+the\s+Council|\s+of\s+the\s+Council)?\s*)?/i;
 export function titleParts(title,language){if(language!=='en')return ['',title];const m=title.match(PRE);let at=m?m[0].length:0;const ar=title.lastIndexOf(' as regards ');if(ar>at)at=ar+12;return [title.slice(0,at),title.slice(at)];}
-export function topicsHref(key,filters={}){const q=new URLSearchParams({view:'topics'});q.set(key.startsWith('place:')?'place':'topic',key.replace(/^place:/,''));for(const [k,v] of Object.entries(filters))if(v)q.set(k,String(v));return '?'+q;}
-export function legacyTopics(query){if(query.get('view')!=='legislation'||query.get('pl-mode')!=='trends')return null;const raw=query.get('trend-key')||query.get('trend-topic'),id=raw?.replace(/^https?:\/\/eurovoc\.europa\.eu\//,'').replace(/^eurovoc:/,'');const lang=query.get('lang');return id&&/^(?:\d{1,8}|c_[A-Za-z0-9_]{1,40})$/.test(id)?topicsHref('eurovoc:'+id,{lang}):'?view=topics&t-tab=topics'+(lang?'&lang='+encodeURIComponent(lang):'');}
+export function topicsHref(key,filters={}){const place=key.startsWith('place:'),q=new URLSearchParams({view:place?'geopolitics':'legislation'});if(!place)q.set('pl-mode','topics');q.set(place?'place':'topic',key.replace(/^place:/,''));for(const [k,v] of Object.entries(filters))if(v)q.set(k,String(v));return '?'+q;}
+export function emptyDossierRedirect(query){
+ if(query.get('view')!=='legislation'||query.get('pl-mode')!=='dossier'||query.get('dossier-ref')?.trim())return null;
+ const q=new URLSearchParams(query);q.delete('pl-mode');q.delete('dossier-ref');return '?'+q;
+}
 
 // Rows are already sorted by score; a preview includes every boundary tie.
 export function withBoundaryTies(rows,limit,score){if(rows.length<=limit)return rows;const cut=score(rows[limit-1]);let end=limit;while(end<rows.length&&score(rows[end])===cut)end++;return rows.slice(0,end);}

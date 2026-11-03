@@ -66,7 +66,7 @@ export function storyLinkClaims(lines,s={}) {
   if(/textWithTally$/.test(id)){values.for=plain(values.for);values.against=plain(values.against);}
   if(/outcome\./.test(id)){
    const record=values.resolution?.records?.[0];
-   if(record){const tally=plain(values.tally),outcome=msg(id.endsWith('showOfHands')?'links.hands':id.endsWith('adopted')?'links.adopted':'links.passed',{...(tally?{tally}:{})});values.outcome={text:outcome,records:[record]};id=id.endsWith('jointPassed')?'topics.story.links.jointOutcome':'topics.story.links.outcome';}
+   if(record){const tally=plain(values.tally),outcome=msg(id.endsWith('showOfHands')?'links.hands':id.endsWith('adopted')?'links.adopted':id.endsWith('rejected')?'links.rejected':'links.passed',{...(tally?{tally}:{})});values.outcome={text:outcome,records:[record]};id=id.endsWith('jointPassed')?'topics.story.links.jointOutcome':'topics.story.links.outcome';}
   }
   if(/exact\.adopted(?:Also)?$/.test(id)&&values.texts?.message?.endsWith('.named'))values.count=plain(values.count);
   return {...v,...(v.message?{message:id}:{id}),values:Object.fromEntries(Object.entries(values).map(([k,x])=>[k,visit(x,k,id)]))};

@@ -35,6 +35,7 @@
   .parliament-header nav { order:3; flex-basis:100%; justify-content:flex-start; margin-left:0; }
 }
 @media(min-width:768px) {
+  .parliament-brand { flex-shrink:0; }
   .parliament-header[data-stacked] nav { order:3; flex-basis:100%; justify-content:flex-start; margin-left:0; }
 }
 @media(max-width:767px) {

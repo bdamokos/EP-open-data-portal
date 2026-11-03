@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "Líon seasamh taifeadta: {count}",
   "membervotes.tsx.count.recorded.positions": "Líon seasamh taifeadta: {count}",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Vóta deiridh ar an téacs iomlán",
   "membervotes.tsx.final.vote.outcome.position": "Vóta deiridh · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Aimsigh téacs arna ghlacadh",
   "membervotes.tsx.finding.latest.recorded.votes": "Na vótaí taifeadta is déanaí á n-aimsiú…",
@@ -2502,5 +2501,7 @@
   "topics.explorerTranslation": "Ainmneacha réimsí beartais aistrithe ag an taiscéalaí.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Ráitis de réir míosa",
-  "groupvoices.contributions_by_sitting_day.77a719": "Ráitis de réir lá suí"
+  "groupvoices.contributions_by_sitting_day.77a719": "Ráitis de réir lá suí",
+  "membervotespresentation.votes_not_yet_published": "Níor foilsíodh na vótaí fós",
+  "membervotespresentation.votes_start_at": "Tosaíonn na vótaí ag {time}"
 }
