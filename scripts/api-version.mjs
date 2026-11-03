@@ -1,7 +1,7 @@
 import {execFileSync} from 'node:child_process';
 import {readFile, writeFile} from 'node:fs/promises';
 import path from 'node:path';
-import {assertBranchHistory, contractDigest, parseRegistry, reconcileRegistry, registrySides, renderRegistry} from './api-contract.mjs';
+import {assertBranchHistory, assertHistoricalOccurrences, contractDigest, parseRegistry, reconcileRegistry, registrySides, renderRegistry} from './api-contract.mjs';
 import {historyAuthority, requestedRepairs} from './api-history-repair.mjs';
 
 function git(root, ...args) {
@@ -37,7 +37,12 @@ async function run(args) {
     const branch = parseRegistry(git(root, 'show', `${baselineSha}:server/api-version.mjs`));
     const authority = historyAuthority(root, mainSha, main, current.repairs ?? []);
     assertBranchHistory(authority.main, branch, current);
-    for (const historical of authority.histories) assertBranchHistory(authority.main, historical, current);
+    if (authority.histories.length) {
+      // A baseline with the same recovery provenance already represents its
+      // aliases; its full branch count is checked above, without double credit.
+      const legacy = JSON.stringify(branch.repairs ?? []) === JSON.stringify(current.repairs ?? []) ? [] : [branch];
+      assertHistoricalOccurrences(authority.main, [...authority.histories, ...legacy], current);
+    }
     if (current.entries.at(-1)[1] !== digest) throw new Error(`Unbumped API contract change. Run npm run api:bump. Expected digest: ${digest}`);
     const provenance = authority.histories.length ? `verified main-history recovery from ${current.repairs.at(-1).base}; displaced digests retained`
       : `main mappings preserved from ${mainSha}`;
@@ -53,7 +58,7 @@ async function run(args) {
   // otherwise normal reconciliation restores the missing history instead.
   if (authority.histories.length && registries.length === 1) {
     try {
-      for (const historical of [main, ...authority.histories]) assertBranchHistory(authority.main, historical, registries[0]);
+      assertHistoricalOccurrences(authority.main, [main, ...authority.histories], registries[0]);
       bumpMain = registries[0]; bumpBranches = registries;
     } catch { /* Incomplete recoveries must be reconciled, not trusted. */ }
   }

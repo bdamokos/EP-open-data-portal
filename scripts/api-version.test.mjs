@@ -165,13 +165,14 @@ async function fixture(t) {
   return {root, digest, run, read, write};
 }
 
-async function corruptMain(t) {
+async function corruptMain(t, separate = false) {
   const f = await fixture(t);
   git(f.root, 'switch', 'main');
-  await f.write(source(f.digest, b, f.digest));
+  await f.write(separate ? source(f.digest, b, f.digest, f.digest) : source(f.digest, b, f.digest));
   git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Recorded main history');
   const good = git(f.root, 'rev-parse', 'HEAD');
-  const bad = [registry(f.digest, c, c, f.digest), registry(f.digest, d, c, f.digest)];
+  const bad = separate ? [registry(f.digest, c, f.digest, f.digest), registry(f.digest, b, c, f.digest)]
+    : [registry(f.digest, c, c, f.digest), registry(f.digest, d, c, f.digest)];
   const refs = [];
   for (const value of bad) {
     await f.write(renderRegistry(template, value));
@@ -280,6 +281,41 @@ test('a declared recovery cannot hide a later undeclared main collision', async 
   const checked = f.run('--check');
   assert.equal(checked.status, 1); assert.match(checked.stderr, /removed or replaced/);
   assert.equal(await f.read(), pending);
+});
+
+test('historical pair union cannot reuse one alias for records in different snapshots', async t => {
+  const f = await corruptMain(t, true);
+  assert.equal(f.run('--repair-history', f.good).status, 0);
+  const full = parseRegistry(await f.read());
+  assert.equal(full.entries.slice(4).filter(([, digest]) => digest === c).length, 2);
+  const values = full.entries.map(([, digest]) => digest); values.splice(4, 1);
+  const incomplete = {...registry(...values), repairs: full.repairs};
+  await f.write(renderRegistry(template, incomplete));
+  const before = await f.read(), failed = f.run('--check');
+  assert.equal(failed.status, 1); assert.match(failed.stderr, /discarded/);
+  assert.equal(await f.read(), before);
+  assert.equal(f.run().status, 0);
+  assert.notEqual(await f.read(), before, 'regeneration must restore the missing occurrence');
+  assert.equal(f.run('--check').status, 0);
+});
+
+test('a real old-branch merge retains recovery provenance through registry conflicts', async t => {
+  const f = await corruptMain(t);
+  assert.equal(f.run('--repair-history', f.good).status, 0);
+  const repaired = parseRegistry(await f.read());
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Publish verified recovery');
+  git(f.root, 'switch', 'main'); git(f.root, 'merge', '--ff-only', 'feature');
+  git(f.root, 'switch', '-c', 'old-branch', f.good);
+  await f.write(source(f.digest, b, f.digest, d, f.digest));
+  git(f.root, 'add', 'server/api-version.mjs'); git(f.root, 'commit', '-m', 'Old independent contract');
+  const old = git(f.root, 'rev-parse', 'HEAD');
+  assert.throws(() => git(f.root, 'merge', 'main'));
+  const bumped = f.run();
+  assert.equal(bumped.status, 0, bumped.stderr);
+  const result = parseRegistry(await f.read());
+  assertRecordedHistory(repaired, result);
+  assert.deepEqual(result.repairs, repaired.repairs);
+  assert.equal(f.run('--check', '--base', old).status, 0);
 });
 
 test('CLI check fails unbumped changes without writing; bump fetches and is idempotent', async t => {

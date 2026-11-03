@@ -28,6 +28,7 @@ const versionPattern = /export const API_VERSION = ([1-9]\d*);/g;
 const versionDeclaration = /\bexport\s+(?:const|let|var)\s+API_VERSION\b/g;
 const registryPattern = /export const API_CONTRACT_DIGESTS = Object\.freeze\(\{([\s\S]*?)\}\);/g;
 const repairPattern = /export const API_CONTRACT_HISTORY_REPAIRS = Object\.freeze\((\[[\s\S]*?\])\);/g;
+const repairComment = '// Verified main-history recovery; displaced digests remain at higher revisions.';
 
 function repairRecords(source) {
   const matches = [...source.matchAll(repairPattern)];
@@ -85,7 +86,7 @@ export function renderRegistry(source, registry) {
   if (registry.repairs?.length) {
     const provenance = `export const API_CONTRACT_HISTORY_REPAIRS = Object.freeze(${JSON.stringify(registry.repairs, null, 2)});`;
     result = [...result.matchAll(repairPattern)].length ? result.replace(repairPattern, provenance)
-      : result.replace(versionPattern, `$&\n\n// Verified main-history recovery; displaced digests remain at higher revisions.\n${provenance}`);
+      : result.replace(versionPattern, `$&\n\n${repairComment}\n${provenance}`);
   }
   return result;
 }
@@ -117,7 +118,16 @@ export function registrySides(source) {
   if (state !== 'outside') throw new Error('Unterminated API version conflict');
   const sources = conflicts ? sides : [source];
   const registries = sources.map(text => parseRegistry(text, {allowMergedEntries: conflicts > 0}));
-  const skeletons = sources.map(text => renderRegistry(text, {version: 1, revision: 1, entries: [[1, '0'.repeat(64)]]}));
+  const skeletons = sources.map(text => {
+    const metadata = [...text.matchAll(repairPattern)][0];
+    if (metadata) {
+      let before = text.slice(0, metadata.index);
+      const generated = `\n\n${repairComment}\n`;
+      if (before.endsWith(generated)) before = before.slice(0, -generated.length);
+      text = before + text.slice(metadata.index + metadata[0].length);
+    }
+    return renderRegistry(text, {version: 1, revision: 1, entries: [[1, '0'.repeat(64)]]});
+  });
   if (skeletons.some(text => text !== skeletons[0])) throw new Error('Resolve conflicting code outside the API version declarations first');
   return {source: sources[0], registries};
 }
@@ -156,5 +166,22 @@ export function assertBranchHistory(main, branch, current) {
     const count = available.get(digest) ?? 0;
     if (!count) throw new Error(`Branch baseline contract ${version} was discarded; preserve its digest after main with npm run api:bump`);
     available.set(digest, count - 1);
+  }
+}
+
+// A digest can move between revisions in successive corrupt snapshots. Count
+// every distinct displaced (revision,digest) pair across the whole range once,
+// rather than letting snapshots share a single retained occurrence.
+export function assertHistoricalOccurrences(main, histories, current) {
+  assertBranchHistory(main, main, current);
+  const pairs = new Map();
+  for (const history of histories) for (const [revision, digest] of history.entries) {
+    if (main.entries[revision - 1]?.[1] !== digest) pairs.set(JSON.stringify([revision, digest]), digest);
+  }
+  const needed = new Map(), available = new Map();
+  for (const digest of pairs.values()) needed.set(digest, (needed.get(digest) ?? 0) + 1);
+  for (const [, digest] of current.entries.slice(main.revision)) available.set(digest, (available.get(digest) ?? 0) + 1);
+  for (const [digest, count] of needed) {
+    if ((available.get(digest) ?? 0) < count) throw new Error(`Historical API digest ${digest} occurrence was discarded: need ${count}, retained ${available.get(digest) ?? 0} after revision ${main.revision}`);
   }
 }
