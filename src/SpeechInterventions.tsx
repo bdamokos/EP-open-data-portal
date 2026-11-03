@@ -1,3 +1,5 @@
+import {retryableGap,gapRetryAt} from './automaticRetry.mjs';
+import {useAutomaticRetry} from './useAutomaticRetry';
 import {agendaTitle} from './topicPresentation.mjs';
 import {uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -58,10 +60,12 @@ export function InterventionBadges({value,language='en'}:{value?:Intervention;la
 export function InterventionStatistics({member,onItems,onStatus,filter}:{member:number;onItems?:(items:Speech[])=>void;onStatus?:(status:'loading'|'ready'|'unavailable')=>void;filter?:{selected:string;href:(category:SpeechCategory)=>string;select:(category:SpeechCategory)=>void}}) {
   const ui = useUiI18n();
   const [state,setState]=useState<{member:number;data:InterventionStatistics|null;loading:boolean;error:string|null}>({member,data:null,loading:true,error:null});
+  const failure=useRef<unknown>(null);
   const [attempt,setAttempt]=useState(0);
   const {data:result,loading,error}=(state.member===member) ? state : ({data:null,loading:true,error:null});
+  const retrying=useAutomaticRetry(String(member),failure.current,loading,()=>setAttempt(value=>value+1),retryableGap(result?.coverage),gapRetryAt(result?.coverage));
   const sourceUnavailable=Boolean(result?.coverage.issues?.includes('source-unavailable'));
-  const status=loading ? 'loading' : ((error||!result||sourceUnavailable) ? 'unavailable' : 'ready');
+  const status=loading||retrying ? 'loading' : ((error||!result||sourceUnavailable) ? 'unavailable' : 'ready');
   useEffect(()=>onStatus?.(status),[onStatus,status]);
   const missingContributions=result&&((result.coverage.total!==null&&result.coverage.available<result.coverage.total)||(result.coverage.issues||[]).some(issue=>!['retained-corpus','total-unavailable'].includes(issue)));
   useEffect(()=>{
@@ -73,17 +77,17 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
         while(active&&page!==null) {
           const data:InterventionStatistics=await api<InterventionStatistics>(`speech-statistics/${member}?page=${page}`,controller.signal, undefined, ui);
           if(!active)return;
-          if(data.restarted&&++restarts>2)throw new Error(ui.t("batch4.speechinterventions.tsx.counting.was.interrupted"));
+          if(data.restarted&&++restarts>2)throw Object.assign(new Error(ui.t("batch4.speechinterventions.tsx.counting.was.interrupted")),{code:'snapshot_changed'});
           onItems?.(data.items);
-          setState({member,data,loading:data.nextPage!==null,error:null});
+          failure.current=null;setState({member,data,loading:data.nextPage!==null,error:null});
           page=data.nextPage;
         }
-      }catch(error){if(active)setState(previous=>({...previous,loading:false,error:uiErrorText(error,ui)}));}
+      }catch(error){if(active)failure.current=error;if(active)setState(previous=>({...previous,loading:false,error:uiErrorText(error,ui)}));}
     })();return()=>{active=false;controller.abort();};
   },[member,attempt,onItems]);
   return <section className="intervention-statistics" lang={ui.language} aria-label={ui.t("batch4.speechinterventions.tsx.speaking.statistics")}>
-    <div className="intervention-stats-heading"><h3><UiMessage id="batch4.speechinterventions.tsx.at.the.microphone"/></h3><div className="intervention-stats-meta"><span><UiMessage id="batch4.speechinterventions.tsx.term.10"/></span>{loading&&<span className="intervention-counting" role="status"><span className="intervention-spinner" aria-hidden="true"/><span className="intervention-counting-label"><UiMessage id="batch4.speechinterventions.tsx.counting.contributions"/></span></span>}</div></div>
-    {result&&<><div className="intervention-stats-grid" aria-busy={loading}>{speechCategoriesUi(ui).map(([key,label,type])=>{
+    <div className="intervention-stats-heading"><h3><UiMessage id="batch4.speechinterventions.tsx.at.the.microphone"/></h3><div className="intervention-stats-meta"><span><UiMessage id="batch4.speechinterventions.tsx.term.10"/></span>{(loading||retrying)&&<span className="intervention-counting" role="status"><span className="intervention-spinner" aria-hidden="true"/><span className="intervention-counting-label"><UiMessage id="batch4.speechinterventions.tsx.counting.contributions"/></span></span>}</div></div>
+    {result&&<><div className="intervention-stats-grid" aria-busy={loading||retrying}>{speechCategoriesUi(ui).map(([key,label,type])=>{
       const chairs=result.items.filter(item=>matchesSpeechCategory(item,'chair')).length;
       if(key==='chair'&&!chairs)return null;
       const written=result.items.filter(item=>matchesSpeechCategory(item,'written')).length;
@@ -96,7 +100,7 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
         {result.coverage.unclassified>0&&<p className="intervention-caption">{<UiMessage id="batch4.speechinterventions.tsx.count.contributions.could.not.be.classified" values={{count: result.coverage.unclassified}} counts={{count: result.coverage.unclassified}}/>}</p>}
       </>}
     </>}
-    {(error||sourceUnavailable)&&!loading&&<p role="alert">{error||ui.t('app.contributions_unavailable')} <button onClick={()=>setAttempt(a=>a+1)}><UiMessage id="batch4.speechinterventions.tsx.retry.counts"/></button></p>}
+    {(error||sourceUnavailable)&&!loading&&!retrying&&<p role="alert">{error||ui.t('app.contributions_unavailable')} </p>}
   </section>;
 }
 
@@ -109,16 +113,13 @@ function ConnectedText({speech,language}:{speech:SpeechSequenceRow;language:stri
   return <div className="intervention-connected-text" lang={body?.textLanguage??''}>
     {video.toggle&&<div className="intervention-connected-tools">{video.toggle}</div>}
     {video.panel}<TextLanguagePicker available={state.availableTextLanguages} requested={language} value={body?.textLanguage||null} offer={!translation.showingOriginal} onChange={value=>{translation.reset();setRequested(value);}} status={<SpeechTextStatus translation={translation}/>} note={<TextLanguageFallback requested={translation.selected} actual={body?.textLanguage||null} interfaceLanguage={language}/>}/>{translation.originalGap&&<p lang={ui.language}><UiMessage id="batch4.speechinterventions.tsx.original.text.unavailable"/></p>}
-    {state.loading&&!body&&<p lang={ui.language} role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.contribution"/></p>}{state.error&&<p lang={ui.language}>{state.error} <button onClick={state.retry}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>}
+    {state.loading&&!body&&<p lang={ui.language} role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.contribution"/></p>}{state.error&&<p lang={ui.language}>{state.error} </p>}
     {body&&(paragraphs.length ? paragraphs.map((p,i)=><p key={i}><TranscriptText paragraph={p}/></p>) : <p lang={ui.language}><UiMessage id="batch4.speechinterventions.tsx.transcript.unavailable"/></p>)}
   </div>;
 }
 function SequenceError({message,retryAt,loading,retry}:{message:string;retryAt?:number;loading:boolean;retry:()=>void}) {
   const ui = useUiI18n();
-  const [now,setNow]=useState(Date.now);
-  useEffect(()=>{setNow(Date.now());if(!retryAt)return;const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[retryAt]);
-  const seconds=Math.max(0,Math.ceil(((retryAt||0)-now)/1000));
-  return <div className="intervention-error"><p>{message}</p><button onClick={retry} disabled={loading||seconds>0}>{loading ? ui.t("batch4.speechinterventions.tsx.retrying.sequence") : ((seconds>0) ? ui.t("batch4.speechinterventions.tsx.retry.sequence.in.seconds.s", {seconds: String(seconds)}) : ui.t("batch4.speechinterventions.tsx.retry.sequence"))}</button>{loading&&<p role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.debate.sequence"/></p>}</div>;
+  return <div className="intervention-error">{loading ? <p role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.debate.sequence"/></p> : <p>{message}</p>}</div>;
 }
 function scrollParent(node:HTMLElement):{scrollBy:(x:number,y:number)=>void;bottom:number} {
   for(let parent=node.parentElement;parent;parent=parent.parentElement){
@@ -188,11 +189,12 @@ export function SpeechContextPanel({id,language,transcriptLanguage=language,prel
   const ui = useUiI18n();
   const [open,setOpen]=useState(false);
   const route=`speech-context/${id}?lang=${language}`;
-  const state=useData<SpeechContext>(open ? route : null);
+  // Only an advertised per-debate deadline permits a new context read.
+  const state=useData<SpeechContext>(open ? route : null,{retryWhile:data=>data.debates.some(debate=>gapRetryAt(debate)>0),retryAtFor:data=>Math.max(0,...data.debates.map(debate=>gapRetryAt(debate)))});
   useEffect(()=>(preload && (!open)) ? prefetchData([route]) : undefined,[preload,open,route]);
   const controlId=useId();
   return <div className="intervention-context" lang={ui.language}><button className="intervention-context-toggle" onClick={()=>setOpen(value=>!value)} aria-expanded={open} aria-controls={controlId}><UiMessage id="batch4.speechinterventions.tsx.view.speech.in.context"/> <span aria-hidden="true">{open ? '−' : '+'}</span></button>{open&&<div id={controlId}>
-    {state.loading&&!state.data&&<p role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.debate.sequence"/></p>}{state.error&&<SequenceError message={state.error} retryAt={state.retryAt} loading={state.loading} retry={state.retry}/>}
-    {state.data&&<>{state.data.unavailable&&<p><UiMessage id="batch4.speechinterventions.tsx.no.debate.is.linked.to.this.contribution"/></p>}{state.data.debates.map(debate=><Sequence key={debate.id} debate={debate} speechId={id} language={language} transcriptLanguage={transcriptLanguage} loading={state.loading} retry={state.retry}/>)}</>}
+    {state.loading&&!state.data&&<p role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.debate.sequence"/></p>}{state.error&&<SequenceError message={state.error} retryAt={state.retryAt} loading={state.loading||state.retrying} retry={state.retry}/>}
+    {state.data&&<>{state.data.unavailable&&<p><UiMessage id="batch4.speechinterventions.tsx.no.debate.is.linked.to.this.contribution"/></p>}{state.data.debates.map(debate=><Sequence key={debate.id} debate={debate} speechId={id} language={language} transcriptLanguage={transcriptLanguage} loading={state.loading||state.retrying} retry={state.retry}/>)}</>}
   </div>}</div>;
 }

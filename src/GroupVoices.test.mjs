@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {viewReady} from './test-support/viewReady.mjs';
 import {test} from 'node:test';
 import {mkdtempSync,rmSync} from 'node:fs';
@@ -38,7 +39,7 @@ async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people',{websit
   return Response.json({...result,...response});
  });
  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
- const {default:App}=await loadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+ const {default:App}=await loadModule('/src/App.tsx'),{createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
  t.after(async()=>{await act(async()=>root.unmount());delays.forEach(resolve=>resolve(Response.json({people:[],months:[],coverage,window:{}})));await loadModule.close();await window.happyDOM.close();for(const [key,d] of originals)d?Object.defineProperty(globalThis,key,d):delete globalThis[key];});
  await act(async()=>root.render(createElement(App)));await viewReady(container);
  const click=async node=>{await act(async()=>{assert(node);node.focus();node.click();});await viewReady(container);};
@@ -84,7 +85,7 @@ test('search typing is one undo step; selected rows past 15 remain visible witho
 test('changing scope with delayed or failed data hides previous results and ignores late responses',async t=>{
  const h=await harness(t);const select=h.container.querySelector('.gv-controls select');
  await act(async()=>{select.value='RENEW';select.dispatchEvent(new window.Event('change',{bubbles:true}));});assert.equal(h.container.querySelector('.gv-person'),null);assert.equal(h.container.querySelector('.gv-contributions article'),null);
- h.fail();await h.restore('/?view=groups&gv-group=ECR&gv-tab=people');assert(h.container.querySelector('[role=alert]'));assert.equal(h.container.querySelector('.gv-person'),null);
+ h.fail();await h.restore('/?view=groups&gv-group=ECR&gv-tab=people');await exhaustAutomaticRetries(t);assert(h.container.querySelector('[role=alert]'));assert.equal(h.container.querySelector('[role=alert] button'),null);assert.equal(h.container.querySelector('.gv-person'),null);
  await act(async()=>{h.delays.forEach(resolve=>resolve(Response.json({people:basePeople,months:[],coverage,window:{}})));});assert.equal(new URLSearchParams(location.search).get('gv-group'),'ECR');assert.equal(h.container.querySelector('.gv-person'),null);
 });
 

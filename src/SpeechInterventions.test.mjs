@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -31,7 +32,7 @@ test('every contribution opens from its header while type badges remain informat
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
-  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id:records[0].id,language:'en',preload:false})));
   const toggle=container.querySelector('.intervention-context-toggle');assert.match(toggle.textContent,/^View speech in context/);
   await act(async()=>toggle.click());
@@ -93,7 +94,7 @@ test('procedural notes explain later contributions without speech controls, whil
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
-  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{key:first.id,id:first.id,language:'en'})));
   await act(async()=>container.querySelector('button').click());
   const caption=window.document.querySelector('.intervention-debate > .intervention-caption');assert.equal(caption.textContent,'Débat français');assert.equal(caption.lang,'fr');
@@ -130,7 +131,7 @@ test('failed debate sections offer a real retry that bypasses the partial-result
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const id='MTG-PL-2026-03-25-OTH-2017069380111',parent='MTG-PL-2026-03-25-PVCRE-ITM-13';
-  const result={speechId:id,unavailable:false,debates:[{id:parent,titles:{en:'European Council conclusions'},records:[],exchanges:[],coverage:{complete:false,available:0,expected:null},error:'Parliament data is unavailable (429). Please try again.'}]};
+  const result={speechId:id,unavailable:false,debates:[{id:parent,titles:{en:'European Council conclusions'},records:[],exchanges:[],coverage:{complete:false,available:0,expected:null},error:'Parliament data is unavailable (429). Please try again.',retryAt:Date.now()+5000}]};
   t.mock.method(globalThis,'fetch',async url=>{
     assert(String(url).includes('speech-context/'));calls++;
     if(calls===1)return Response.json(result);
@@ -138,14 +139,13 @@ test('failed debate sections offer a real retry that bypasses the partial-result
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
-  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id,language:'en'})));
   assert.equal(calls,0,'automatic preload is deferred');
   await act(async()=>container.querySelector('button').click());
   const retry=()=>[...container.querySelectorAll('button')].find(button=>button.textContent.includes('Retry'));
-  assert.equal(retry().textContent,'Retry sequence');assert.equal(calls,1);
-  await act(async()=>retry().click());assert.equal(calls,2);assert.equal(retry().disabled,true);
-  assert(container.textContent.includes('Retrying sequence…'));assert(container.querySelector('[role="status"]'));
+  assert.equal(retry(),undefined);assert.equal(calls,1);
+  await automaticRecovery(t);assert.equal(calls,2);assert.equal(retry(),undefined);assert(container.querySelector('[role="status"]'));
   await act(async()=>finish());assert.equal(retry(),undefined);assert(!container.textContent.includes('429'));assert(container.querySelector('ol'));
 });
 
@@ -159,25 +159,19 @@ test('top-level rate errors show a countdown and enable retry after the cooldown
     if(root)await act(async()=>root.unmount());t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  let calls=0;
-  t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({error:{message:'Parliament is temporarily limiting requests.',retryAt:Date.now()+500}},{status:503});});
+  let calls=0,recovered=false;
+  t.mock.method(globalThis,'fetch',async()=>{calls++;return recovered?Response.json({speechId:'MTG-PL-2026-03-25-OTH-2017069380108',unavailable:true,debates:[]}):Response.json({error:{message:'Parliament is temporarily limiting requests.',retryAt:Date.now()+20000}},{status:503});});
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
-  t.mock.timers.enable({apis:['Date','setInterval','setTimeout'],now:Date.now()});
-  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');root=createRoot(container);
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id:'MTG-PL-2026-03-25-OTH-2017069380108',language:'en'})));
   await act(async()=>container.querySelector('button').click());
-  const retry=()=>[...container.querySelectorAll('button')].find(button=>button.textContent.startsWith('Retry sequence'));
-  assert.equal(retry().disabled,true);assert.match(retry().textContent,/in 1s/);
-  await act(async()=>{t.mock.timers.tick(499);});assert.equal(retry().disabled,true);
-  await act(async()=>retry().click());assert.equal(calls,1,'cooldown blocks early retry');
-  // This countdown samples once per second: the original 500ms hint is
-  // reflected at the first 1000ms update, without an automatic request.
-  await act(async()=>{t.mock.timers.tick(1);});assert.equal(calls,1);
-  await act(async()=>{t.mock.timers.tick(499);});assert.equal(retry().disabled,true);
-  await act(async()=>{t.mock.timers.tick(1);});
-  assert.equal(calls,1,'expiry enables retry without automatically requesting');
-  assert.equal(retry().disabled,false);assert.equal(retry().textContent,'Retry sequence');
+  const noRetry=()=>assert.equal([...container.querySelectorAll('button')].some(button=>button.textContent.includes('Retry')),false);
+  noRetry();await installRetryClock(t).advance(19000);assert.equal(calls,1,'the later server deadline blocks early retry');
+  for(let i=0;i<6;i++){assert(!container.textContent.includes('Parliament is temporarily limiting requests.'));await automaticRecovery(t);noRetry();}
+  assert.equal(calls,7);assert(container.textContent.includes('Parliament is temporarily limiting requests.'));assert.equal(installRetryClock(t).timers.size,0);
+  recovered=true;await act(async()=>window.dispatchEvent(new window.Event('online')));assert.equal(calls,7,'even a foreground resume honours the later Retry-After');
+  await automaticRecovery(t);assert.equal(calls,8);noRetry();assert(!container.textContent.includes('Parliament is temporarily limiting requests.'));
 });
 
 test('missing debate records remain visible without the sequence sources disclosure',async t=>{
@@ -195,7 +189,7 @@ test('missing debate records remain visible without the sequence sources disclos
   t.mock.method(globalThis,'fetch',async()=>Response.json({speechId:row.id,unavailable:false,debates:[{id:fixture.parent.activity_id,titles:{en:'Debate'},records:[row],exchanges:[],coverage:{complete:false,available:1,expected:2,missingIds:['missing']},sources:[{url:'https://example.org/sequence-source',fetchedAt:'2026-10-16T12:00:00Z',stale:false}]}]}));
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
-  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');root=createRoot(container);
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id:row.id,language:'en'})));
   await act(async()=>container.querySelector('button').click());
   assert.match(container.textContent,/Debate records available: 1 of 2\. Links stop at missing contributions\./);
@@ -224,7 +218,7 @@ test('resolved adjacent-chapter records do not show as missing, while unfetched 
   t.mock.method(globalThis,'fetch',async()=>Response.json(contexts[calls++]));
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
-  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');root=createRoot(container);
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');installRetryClock(t);root=createRoot(container);
   for(const [index,id] of [rows[0].activity_id,rows[1].activity_id].entries()) {
     await act(async()=>root.render(createElement(SpeechContextPanel,{key:id,id,language:'en'})));
     await act(async()=>container.querySelector('button').click());
@@ -245,7 +239,7 @@ test('unavailable speech observations display no zero totals',async t=>{
   t.mock.method(globalThis,'fetch',async()=>Response.json({items:[],counts:{groupOrations:null,blueQuestions:null,blueAnswers:null,blueReactions:null},coverage:{complete:false,available:0,total:null,headers:0,unclassified:0,issues:['source-unavailable']},sources:[],nextPage:null}));
   loader=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {InterventionStatistics}=await loader('/src/SpeechInterventions.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(InterventionStatistics,{member:256956})));
   assert(container.querySelectorAll('.intervention-stats-grid strong').length>0);
   for(const cell of container.querySelectorAll('.intervention-stats-grid strong'))assert.equal(cell.textContent,'—');

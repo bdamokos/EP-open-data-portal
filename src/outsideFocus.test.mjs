@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -25,10 +26,10 @@ async function harness(t,query='?view=outside') {
   t.mock.method(globalThis,'fetch',input=>{const url=new URL(input,location.href);if(url.pathname.endsWith('/references'))return Promise.resolve(Response.json({references:[{key:'question:E-2026-003031',kind:'question',status:'found',id:'E-10-2026-003031',title:'Fixture referenced question'}]}));assert.match(url.pathname,/\/api\/(outside|speech)\//,'outside focus checks are limited to isolated outside and speech fixtures');if(url.pathname.endsWith('/directory'))return Promise.resolve(Response.json(directory));return new Promise((resolve,reject)=>requests.push({url,resolve,reject,finished:false}));});
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {OutsideVoices}=await loadModule('/src/OutsideVoices.tsx'),{ReferenceScope,ReferenceText}=await loadModule('/src/References.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);await act(async()=>root.render(createElement(OutsideVoices,{language:'en',onBack(){}})));
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);await act(async()=>root.render(createElement(OutsideVoices,{language:'en',onBack(){}})));
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
   const click=async target=>{const node=typeof target==='string'?button(target):target;assert(node,'Missing button '+target);await act(async()=>{node.focus();node.click();});return node;};
-  const finish=(id,error=false,extra={})=>act(async()=>{const request=requests.find(request=>!request.finished&&request.url.pathname.endsWith('/'+id));assert(request,'Missing outside detail '+id);request.finished=true;error?request.reject(new Error('Fixture unavailable.')):request.resolve(Response.json({...detail(id),...extra}));});
+  const finish=(id,error=false,extra={})=>act(async()=>{const request=requests.find(request=>!request.finished&&request.url.pathname.endsWith('/'+id));assert(request,'Missing outside detail '+id);request.finished=true;error?request.reject(new TypeError('Fixture unavailable.')):request.resolve(Response.json({...detail(id),...extra}));});
   const navigate=query=>act(async()=>{history.replaceState(null,'','/'+query);window.dispatchEvent(new window.PopStateEvent('popstate'));});
   const key=(key,shiftKey=false)=>act(async()=>{const event=new window.KeyboardEvent('keydown',{key,shiftKey,bubbles:true,cancelable:true});document.activeElement.dispatchEvent(event);return event;});
   const mountReference=async()=>{const host=document.createElement('div');container.querySelector('.ov-drawer .ov-contribution').append(host);const nested=createRoot(host);extraRoots.push(nested);const text='See question E-003031/2026.';await act(async()=>nested.render(createElement(ReferenceScope,{texts:[text],language:'en'},createElement('p',null,createElement(ReferenceText,{text})))));return host.querySelector('button.legal-ref');};
@@ -54,7 +55,7 @@ test('cached speaker destinations orient once and drawer-to-speaker Back returns
 
 test('superseded detail and error responses never reclaim focus; absent semantic openers use the retained directory search',async t=>{
   const h=await harness(t);await h.click('Fixture speaker 42');await h.click('← All speakers');const filter=h.container.querySelector('input[type="search"]');filter.focus();await h.finish('42');assert.equal(document.activeElement,filter);assert.equal(h.container.querySelector('.ov-person-heading'),null);
-  await h.click('Fixture speaker 43');const back=h.container.querySelector('.ov-back');await h.finish('43',true);assert.equal(document.activeElement,back);assert(h.container.querySelector('.insight-error'));
+  await h.click('Fixture speaker 43');const back=h.container.querySelector('.ov-back');await h.finish('43',true);assert.equal(document.activeElement,back);assert.equal(h.container.querySelector('.insight-error'),null);
   await h.navigate('?view=outside&ov-person=43&ov-q=absent');await h.click('← All speakers');assert.equal(document.activeElement,h.container.querySelector('input[type="search"]'));assert.equal(h.container.querySelector('[data-ov-focus="person:43"]'),null);
 });
 
@@ -123,13 +124,13 @@ test('opening the current speaker from its drawer consumes focus intent before a
   assert.equal(h.requests.filter(r=>r.url.pathname.includes('/outside/')).length,1,'the drawer reuses the exact cached speaker detail');await h.click('Open speaker page →');
   assert.equal(h.container.querySelector('.ov-drawer'),null);assert(document.activeElement===dataHeading,'same-speaker navigation consumes the explicit intent when its drawer closes');
   const retained=h.container.querySelector('.ov-tabs button');retained.focus();
-  await act(async()=>{assert.equal(polls.size,1);[...polls][0].run();});assert.equal(h.requests.filter(r=>r.url.pathname.includes('/outside/')).length,2,'incomplete coverage still starts its existing deferred refresh');assert.equal(document.activeElement,retained,'starting the refresh preserves the chosen control');
+  assert.equal(polls.size,0);await automaticRecovery(t);assert.equal(h.requests.filter(r=>r.url.pathname.includes('/outside/')).length,2,'incomplete coverage still starts its existing deferred refresh');assert.equal(document.activeElement,retained,'starting the refresh preserves the chosen control');
   retained.blur();assert.equal(document.activeElement,document.body);
   h.focusScrollEvents.length=0;await h.finish('42');assert(document.activeElement===document.body,'later completion cannot revive the consumed drawer navigation intent');assert.equal(h.focusScrollEvents.length,0,'later completion cannot refocus or reveal a consumed destination');
   assert.equal(h.container.querySelector('.ov-person-heading h2'),dataHeading);
 });
 
-test('drawer loading stays visible without shifting retained reading, and Reload retains focus inside the dialog',async t=>{
+test('drawer loading stays visible without shifting retained reading, and automatic recovery retains focus inside the dialog',async t=>{
   const h=await harness(t),polls=new Set(),setInterval=globalThis.setInterval,clearInterval=globalThis.clearInterval;
   t.mock.method(globalThis,'setInterval',(callback,delay,...args)=>{if(delay!==15000)return setInterval(callback,delay,...args);const timer={run:()=>callback(...args)};polls.add(timer);return timer;});
   t.mock.method(globalThis,'clearInterval',timer=>{if(!polls.delete(timer))clearInterval(timer);});
@@ -139,19 +140,19 @@ test('drawer loading stays visible without shifting retained reading, and Reload
   await h.finish('42',false,{coverage:{...coverage,complete:false,pending:1}});
   const heading=document.activeElement,content=h.container.querySelector('.ov-drawer-content');
   h.focusScrollEvents.length=0;
-  await act(async()=>{assert.equal(polls.size,1);[...polls][0].run();});
+  assert.equal(polls.size,0);await automaticRecovery(t);
   await act(async()=>{await new Promise(resolve=>setTimeout(resolve,350));});
   assert.equal(h.container.querySelector('.ov-drawer-status [role="status"]'),null,'a retained-data refresh adds no loading row that would shift the reading viewport');
   await h.finish('42',true);
-  const error=h.container.querySelector('.ov-drawer-status [role="alert"]');assert(error?.querySelector('button'));
+  const error=h.container.querySelector('.ov-drawer-status [role="alert"]');assert.equal(error,null);
   assert(!content.contains(error),'the retained-data retry stays above the scroll area');
   assert(document.activeElement===heading,'a refresh failure does not reclaim focus');
   assert(content.contains(heading),'the selected appearance remains available after refresh failure');
   assert.equal(h.focusScrollEvents.length,0,'status changes do not repeat the one-time reveal');
-  await h.click(error.querySelector('button'));
+  await automaticRecovery(t);
   const close=h.container.querySelector('[aria-label="Close speeches"]');
-  assert(document.activeElement===close,'Reload moves focus to the retained Close control before removing its button');
-  await h.finish('42');assert(document.activeElement===close,'successful retry does not revive the consumed reveal');
+  assert(document.activeElement===heading,'automatic recovery preserves the retained reading focus');
+  await h.finish('42');assert(document.activeElement===heading,'successful retry does not revive the consumed reveal');
   await h.key('Tab',true);assert(h.container.querySelector('.ov-drawer').contains(document.activeElement),'keyboard focus continues inside the dialog after retry');
 });
 

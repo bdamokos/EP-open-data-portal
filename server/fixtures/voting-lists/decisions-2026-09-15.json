@@ -1,0 +1,979 @@
+{
+  "sourceUrl": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-09-15/decisions",
+  "retrievedOn": "2026-11-03",
+  "voteItemId": "MTG-PL-2026-09-15-VOT-ITM-993066",
+  "data": [
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196250",
+      "activity_order": "19.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-15-VOT-ITM-993066-SPLIT-1-1",
+        "eli/dl/doc/A-10-2026-0201-AM-36"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 1 – after point e;"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>36</number></reference></am>",
+      "comment": {
+        "en": "1/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196243",
+      "activity_order": "9.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-65"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – separate and split votes"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>65</number></reference></am>",
+      "comment": {
+        "en": "sep"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196050",
+      "activity_order": "55.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-135"
+      ],
+      "referenceText": {
+        "en": "Regulation (EU) 2023/956; Annex I – point 2 – table on ‘Iron and steel’"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>135</number></reference></am>",
+      "comment": {
+        "en": "EV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196245",
+      "activity_order": "11.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-74"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – separate and split votes"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>74</number></reference></am>",
+      "comment": {
+        "en": "sep"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196258",
+      "activity_order": "30.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-121"
+      ],
+      "referenceText": {
+        "en": "Article 1, § 1, point 17; Regulation (EU) 2023/956 – Article 27 a"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>121</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196272",
+      "activity_order": "75.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-102"
+      ],
+      "referenceText": {
+        "en": "After § 53"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>102</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196051",
+      "activity_order": "56.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-85"
+      ],
+      "referenceText": {
+        "en": "After annex I; Regulation (EU) 2023/956 – Annex II"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>85</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196252",
+      "activity_order": "21.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-36",
+        "eli/dl/doc/MTG-PL-2026-09-15-VOT-ITM-993066-SPLIT-1-3"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 1 – after point e;"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>36</number></reference></am>",
+      "comment": {
+        "en": "3/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196059",
+      "activity_order": "64.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-114"
+      ],
+      "referenceText": {
+        "en": "After recital 11"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>114</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196063",
+      "activity_order": "68.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-24"
+      ],
+      "referenceText": {
+        "en": "Recital 37"
+      },
+      "decisionAboutId_XMLLiteral": "<am><equal_reference><reference><number>24</number><symbol href=\"https://xx.xx.xx/S\"/></reference></equal_reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196066",
+      "activity_order": "71.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-28"
+      ],
+      "referenceText": {
+        "en": "Recital 50"
+      },
+      "decisionAboutId_XMLLiteral": "<am><equal_reference><reference><number>28</number><symbol href=\"https://xx.xx.xx/S\"/></reference></equal_reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196255",
+      "activity_order": "27.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-88"
+      ],
+      "referenceText": {
+        "en": "Article 1, § 1, point 17; Regulation (EU) 2023/956 – Article 27 a"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>88</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196263",
+      "activity_order": "45.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-127"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – after point 20; Regulation (EU) 2023/956 – Article 30 – after § 8"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>127</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196235",
+      "activity_order": "1.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-17",
+        "eli/dl/doc/A-10-2026-0201-AM-21",
+        "eli/dl/doc/A-10-2026-0201-AM-63",
+        "eli/dl/doc/A-10-2026-0201-AM-8",
+        "eli/dl/doc/A-10-2026-0201-AM-10",
+        "eli/dl/doc/A-10-2026-0201-AM-64",
+        "eli/dl/doc/A-10-2026-0201-AM-43",
+        "eli/dl/doc/A-10-2026-0201-AM-45",
+        "eli/dl/doc/A-10-2026-0201-AM-78",
+        "eli/dl/doc/A-10-2026-0201-AM-25",
+        "eli/dl/doc/A-10-2026-0201-AM-35",
+        "eli/dl/doc/A-10-2026-0201-AM-67",
+        "eli/dl/doc/A-10-2026-0201-AM-14",
+        "eli/dl/doc/A-10-2026-0201-AM-40",
+        "eli/dl/doc/A-10-2026-0201-AM-61",
+        "eli/dl/doc/A-10-2026-0201-AM-26",
+        "eli/dl/doc/A-10-2026-0201-AM-15",
+        "eli/dl/doc/A-10-2026-0201-AM-47",
+        "eli/dl/doc/A-10-2026-0201-AM-20",
+        "eli/dl/doc/A-10-2026-0201-AM-52",
+        "eli/dl/doc/A-10-2026-0201-AM-62",
+        "eli/dl/doc/A-10-2026-0201-AM-4",
+        "eli/dl/doc/A-10-2026-0201-AM-42",
+        "eli/dl/doc/A-10-2026-0201-AM-23",
+        "eli/dl/doc/A-10-2026-0201-AM-77",
+        "eli/dl/doc/A-10-2026-0201-AM-12",
+        "eli/dl/doc/A-10-2026-0201-AM-66",
+        "eli/dl/doc/A-10-2026-0201-AM-38",
+        "eli/dl/doc/A-10-2026-0201-AM-48",
+        "eli/dl/doc/A-10-2026-0201-AM-13",
+        "eli/dl/doc/A-10-2026-0201-AM-60",
+        "eli/dl/doc/A-10-2026-0201-AM-32",
+        "eli/dl/doc/A-10-2026-0201-AM-9",
+        "eli/dl/doc/A-10-2026-0201-AM-75",
+        "eli/dl/doc/A-10-2026-0201-AM-54",
+        "eli/dl/doc/A-10-2026-0201-AM-46",
+        "eli/dl/doc/A-10-2026-0201-AM-19",
+        "eli/dl/doc/A-10-2026-0201-AM-79",
+        "eli/dl/doc/A-10-2026-0201-AM-68",
+        "eli/dl/doc/A-10-2026-0201-AM-30",
+        "eli/dl/doc/A-10-2026-0201-AM-22",
+        "eli/dl/doc/A-10-2026-0201-AM-11",
+        "eli/dl/doc/A-10-2026-0201-AM-1",
+        "eli/dl/doc/A-10-2026-0201-AM-37",
+        "eli/dl/doc/A-10-2026-0201-AM-44",
+        "eli/dl/doc/A-10-2026-0201-AM-84",
+        "eli/dl/doc/A-10-2026-0201-AM-53",
+        "eli/dl/doc/A-10-2026-0201-AM-34",
+        "eli/dl/doc/A-10-2026-0201-AM-49",
+        "eli/dl/doc/A-10-2026-0201-AM-59",
+        "eli/dl/doc/A-10-2026-0201-AM-81",
+        "eli/dl/doc/A-10-2026-0201-AM-56",
+        "eli/dl/doc/A-10-2026-0201-AM-5",
+        "eli/dl/doc/A-10-2026-0201-AM-29",
+        "eli/dl/doc/A-10-2026-0201-AM-18",
+        "eli/dl/doc/A-10-2026-0201-AM-50",
+        "eli/dl/doc/A-10-2026-0201-AM-57",
+        "eli/dl/doc/A-10-2026-0201-AM-6",
+        "eli/dl/doc/A-10-2026-0201-AM-3",
+        "eli/dl/doc/A-10-2026-0201-AM-41",
+        "eli/dl/doc/A-10-2026-0201-AM-51",
+        "eli/dl/doc/A-10-2026-0201-AM-31",
+        "eli/dl/doc/A-10-2026-0201-AM-33",
+        "eli/dl/doc/A-10-2026-0201-AM-55",
+        "eli/dl/doc/A-10-2026-0201-AM-27",
+        "eli/dl/doc/A-10-2026-0201-AM-16"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – put to the vote collectively"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>1</number><symbol href=\"https://xx.xx.xx/BR\"/></reference><reference_range><reference><number>3</number></reference><reference><number>6</number><symbol href=\"https://xx.xx.xx/BR\"/></reference></reference_range><reference_range><reference><number>8</number></reference><reference><number>23</number><symbol href=\"https://xx.xx.xx/BR\"/></reference></reference_range><reference_range><reference><number>25</number></reference><reference><number>27</number><symbol href=\"https://xx.xx.xx/BR\"/></reference></reference_range><reference_range><reference><number>29</number></reference><reference><number>35</number><symbol href=\"https://xx.xx.xx/BR\"/></reference></reference_range><reference_range><reference><number>37</number></reference><reference><number>38</number><symbol href=\"https://xx.xx.xx/BR\"/></reference></reference_range><reference_range><reference><number>40</number></reference><reference><number>57</number><symbol href=\"https://xx.xx.xx/BR\"/></reference></reference_range><reference_range><reference><number>59</number></reference><reference><number>64</number><symbol href=\"https://xx.xx.xx/BR\"/></reference></reference_range><reference_range><reference><number>66</number></reference><reference><number>68</number><symbol href=\"https://xx.xx.xx/BR\"/></reference></reference_range><reference><number>75</number><symbol href=\"https://xx.xx.xx/BR\"/></reference><reference_range><reference><number>77</number></reference><reference><number>79</number><symbol href=\"https://xx.xx.xx/BR\"/></reference></reference_range><reference><number>81</number><symbol href=\"https://xx.xx.xx/BR\"/></reference><reference><number>84</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196239",
+      "activity_order": "5.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-15-VOT-ITM-993066-SPLIT-2-3",
+        "eli/dl/doc/A-10-2026-0201-AM-7"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – separate and split votes"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>7</number></reference></am>",
+      "comment": {
+        "en": "3"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196057",
+      "activity_order": "62.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-2"
+      ],
+      "referenceText": {
+        "en": "Recital 3"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>2</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196267",
+      "activity_order": "61.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-98"
+      ],
+      "referenceText": {
+        "en": "Recital 3"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>98</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196015",
+      "activity_order": "14.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-131"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 1 – after point a; Regulation (EU) 2023/956 – Article 2 – § 2 a"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>131</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196018",
+      "activity_order": "17.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-109"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 1 – after point e;"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>109</number></reference></am>",
+      "comment": {
+        "en": "EV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196041",
+      "activity_order": "43.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-82"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – after point 20; Regulation (EU) 2023/956 – Article 30 – after § 8"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>82</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196270",
+      "activity_order": "67.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-116"
+      ],
+      "referenceText": {
+        "en": "After recital 36"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>116</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196024",
+      "activity_order": "26.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-130"
+      ],
+      "referenceText": {
+        "en": "Article 1, § 1, point 17; Regulation (EU) 2023/956 – Article 27 a"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>130</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196269",
+      "activity_order": "66.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-115"
+      ],
+      "referenceText": {
+        "en": "After recital 14"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>115</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196053",
+      "activity_order": "58.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-133",
+        "eli/dl/doc/A-10-2026-0201-AM-113",
+        "eli/dl/doc/A-10-2026-0201-AM-97"
+      ],
+      "referenceText": {
+        "en": "After annex II; Regulation (EU) 2023/956 – Annex VII"
+      },
+      "decisionAboutId_XMLLiteral": "<am><equal_reference><reference><number>97</number><symbol href=\"https://xx.xx.xx/=\"/><symbol href=\"https://xx.xx.xx/BR\"/></reference><reference><number>113</number><symbol href=\"https://xx.xx.xx/=\"/><symbol href=\"https://xx.xx.xx/BR\"/></reference><reference><number>133</number><symbol href=\"https://xx.xx.xx/=\"/></reference></equal_reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196241",
+      "activity_order": "7.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-39"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – separate and split votes"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>39</number></reference></am>",
+      "comment": {
+        "en": "sep"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196479",
+      "activity_order": "47.0",
+      "decided_on_a_part_of_a_realization_of": "eli/dl/doc/A-10-2026-0201-AM-83",
+      "referenceText": {
+        "en": "Regulation (EU) 2023/956; Annex I – point 2 – table on ‘Iron and steel’"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>83</number><symbol href=\"https://xx.xx.xx/PC\"/><text>1</text></reference></am>",
+      "comment": {
+        "en": "1"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196023",
+      "activity_order": "25.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-122"
+      ],
+      "referenceText": {
+        "en": "Article 1, § 1, point 17; Regulation (EU) 2023/956 – Article 27 a"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>122</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196254",
+      "activity_order": "24.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-70"
+      ],
+      "referenceText": {
+        "en": "Article 1, § 1, point 17; Regulation (EU) 2023/956 – Article 27 a"
+      },
+      "decisionAboutId_XMLLiteral": "<am><equal_reference><reference><number>70</number><symbol href=\"https://xx.xx.xx/S\"/></reference></equal_reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196262",
+      "activity_order": "44.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-90"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – after point 20; Regulation (EU) 2023/956 – Article 30 – after § 8"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>90</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196035",
+      "activity_order": "37.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-132"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 20; Regulation (EU) 2023/956 – Article 30 – § 6 – sub§ 2 – point b – point ii"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>132</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196054",
+      "activity_order": "59.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-136",
+        "eli/dl/doc/A-10-2026-0201-AM-112"
+      ],
+      "referenceText": {
+        "en": "Annex III – § 1 – table on ‘Aluminium’"
+      },
+      "decisionAboutId_XMLLiteral": "<am><equal_reference><reference><number>112</number><symbol href=\"https://xx.xx.xx/=\"/><symbol href=\"https://xx.xx.xx/BR\"/></reference><reference><number>136</number><symbol href=\"https://xx.xx.xx/=\"/></reference></equal_reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196481",
+      "activity_order": "54.0",
+      "decided_on_a_part_of_a_realization_of": "eli/dl/doc/A-10-2026-0201-AM-83",
+      "referenceText": {
+        "en": "Regulation (EU) 2023/956; Annex I – point 2 – table on ‘Iron and steel’"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>83</number><symbol href=\"https://xx.xx.xx/PC\"/><text>2</text></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196033",
+      "activity_order": "35.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-73"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – after point 18"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>73</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196268",
+      "activity_order": "63.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-99"
+      ],
+      "referenceText": {
+        "en": "After recital 4"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>99</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196261",
+      "activity_order": "42.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-128"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 20; Regulation (EU) 2023/956 – Article 30 – § 6 – after sub§ 2"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>128</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196030",
+      "activity_order": "32.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-123"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – after point 18"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>123</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196029",
+      "activity_order": "31.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-71"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – after point 18"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>71</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196037",
+      "activity_order": "39.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-91"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 20; Regulation (EU) 2023/956 – Article 30 – § 6 – sub§ 2 – point b – after point iii"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>91</number></reference></am>",
+      "comment": {
+        "en": "EV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196271",
+      "activity_order": "74.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-119"
+      ],
+      "referenceText": {
+        "en": "After § 50"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>119</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196067",
+      "activity_order": "72.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-118"
+      ],
+      "referenceText": {
+        "en": "Recital 50"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>118</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196071",
+      "activity_order": "76.0",
+      "referenceText": {
+        "en": "Commission proposal"
+      },
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196251",
+      "activity_order": "20.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-15-VOT-ITM-993066-SPLIT-1-2",
+        "eli/dl/doc/A-10-2026-0201-AM-36"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 1 – after point e;"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>36</number></reference></am>",
+      "comment": {
+        "en": "2/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196244",
+      "activity_order": "10.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-69"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – separate and split votes"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>69</number></reference></am>",
+      "comment": {
+        "en": "sep"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196036",
+      "activity_order": "38.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-76"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 20; Regulation (EU) 2023/956 – Article 30 – § 6 – sub§ 2 – point b – point ii"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>76</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196246",
+      "activity_order": "12.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-80"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – separate and split votes"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>80</number></reference></am>",
+      "comment": {
+        "en": "sep"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196238",
+      "activity_order": "4.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-7",
+        "eli/dl/doc/MTG-PL-2026-09-15-VOT-ITM-993066-SPLIT-2-2"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – separate and split votes"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>7</number></reference></am>",
+      "comment": {
+        "en": "2/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196242",
+      "activity_order": "8.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-58"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – separate and split votes"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>58</number></reference></am>",
+      "comment": {
+        "en": "sep"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196072",
+      "activity_order": "77.0",
+      "referenceText": {
+        "en": "Request for referral back to committee"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196020",
+      "activity_order": "22.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-134"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 1 – after point e;"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>134</number></reference></am>",
+      "comment": {
+        "en": "EV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196060",
+      "activity_order": "65.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-111"
+      ],
+      "referenceText": {
+        "en": "After recital 14"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>111</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196247",
+      "activity_order": "15.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-87"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 1 – after point e;"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>87</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196068",
+      "activity_order": "73.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-101"
+      ],
+      "referenceText": {
+        "en": "Recital 50"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>101</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196034",
+      "activity_order": "36.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-125"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – after point 18"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>125</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196046",
+      "activity_order": "50.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-107"
+      ],
+      "referenceText": {
+        "en": "Regulation (EU) 2023/956; Annex I – point 2 – table on ‘Iron and steel’"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>107</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196259",
+      "activity_order": "40.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-126"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 20; Regulation (EU) 2023/956 – Article 30 – § 6 – sub§ 2 – point b – after point v "
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>126</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196032",
+      "activity_order": "34.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-124"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – after point 18"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>124</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196257",
+      "activity_order": "29.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-86"
+      ],
+      "referenceText": {
+        "en": "Article 1, § 1, point 17; Regulation (EU) 2023/956 – Article 27 a"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>86</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196031",
+      "activity_order": "33.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-72"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – after point 18"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>72</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196480",
+      "activity_order": "48.0",
+      "decided_on_a_part_of_a_realization_of": "eli/dl/doc/A-10-2026-0201-AM-83",
+      "referenceText": {
+        "en": "Regulation (EU) 2023/956; Annex I – point 2 – table on ‘Iron and steel’"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>83</number><symbol href=\"https://xx.xx.xx/PC\"/><text>1</text></reference></am>",
+      "comment": {
+        "en": "2/EV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196045",
+      "activity_order": "49.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-92"
+      ],
+      "referenceText": {
+        "en": "Regulation (EU) 2023/956; Annex I – point 2 – table on ‘Iron and steel’"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>92</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196048",
+      "activity_order": "52.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-94"
+      ],
+      "referenceText": {
+        "en": "Regulation (EU) 2023/956; Annex I – point 2 – table on ‘Iron and steel’"
+      },
+      "decisionAboutId_XMLLiteral": "<am><equal_reference><reference><number>94</number><symbol href=\"https://xx.xx.xx/S\"/></reference></equal_reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196253",
+      "activity_order": "23.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-120"
+      ],
+      "referenceText": {
+        "en": "Article 1, § 1, after point 2 Regulation (EU) 2023/956 – Article 2 c"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>120</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196049",
+      "activity_order": "53.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-129"
+      ],
+      "referenceText": {
+        "en": "Regulation (EU) 2023/956; Annex I – point 2 – table on ‘Iron and steel’"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>129</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196248",
+      "activity_order": "16.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-103"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 1 – after point e;"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>103</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196064",
+      "activity_order": "69.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-117"
+      ],
+      "referenceText": {
+        "en": "Recital 37"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>117</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196240",
+      "activity_order": "6.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/MTG-PL-2026-09-15-VOT-ITM-993066-SPLIT-2-4",
+        "eli/dl/doc/A-10-2026-0201-AM-7"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – separate and split votes"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>7</number></reference></am>",
+      "comment": {
+        "en": "4/RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196260",
+      "activity_order": "41.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-105",
+        "eli/dl/doc/A-10-2026-0201-AM-89",
+        "eli/dl/doc/A-10-2026-0201-AM-108"
+      ],
+      "referenceText": {
+        "en": "Article 1 – § 1 – point 20; Regulation (EU) 2023/956 – Article 30 – § 6 – sub§ 2 – point b – after point v "
+      },
+      "decisionAboutId_XMLLiteral": "<am><equal_reference><reference><number>89</number><symbol href=\"https://xx.xx.xx/=\"/><symbol href=\"https://xx.xx.xx/BR\"/></reference><reference><number>105</number><symbol href=\"https://xx.xx.xx/=\"/><symbol href=\"https://xx.xx.xx/BR\"/></reference><reference><number>108</number><symbol href=\"https://xx.xx.xx/=\"/></reference></equal_reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196052",
+      "activity_order": "57.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-96"
+      ],
+      "referenceText": {
+        "en": "After annex I; Regulation (EU) 2023/956 – Annex II"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>96</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196065",
+      "activity_order": "70.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-100"
+      ],
+      "referenceText": {
+        "en": "Recital 37"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>100</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196256",
+      "activity_order": "28.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-104"
+      ],
+      "referenceText": {
+        "en": "Article 1, § 1, point 17; Regulation (EU) 2023/956 – Article 27 a"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>104</number></reference></am>",
+      "comment": {
+        "en": "RCV"
+      }
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196047",
+      "activity_order": "51.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-110"
+      ],
+      "referenceText": {
+        "en": "Regulation (EU) 2023/956; Annex I – point 2 – table on ‘Iron and steel’"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>110</number></reference></am>"
+    },
+    {
+      "activity_id": "MTG-PL-2026-09-15-DEC-196237",
+      "activity_order": "3.0",
+      "decided_on_a_realization_of": [
+        "eli/dl/doc/A-10-2026-0201-AM-7",
+        "eli/dl/doc/MTG-PL-2026-09-15-VOT-ITM-993066-SPLIT-2-1"
+      ],
+      "referenceText": {
+        "en": "Amendments by the committee responsible – separate and split votes"
+      },
+      "decisionAboutId_XMLLiteral": "<am><reference><number>7</number></reference></am>",
+      "comment": {
+        "en": "1/RCV"
+      }
+    }
+  ]
+}
