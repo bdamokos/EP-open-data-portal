@@ -9,6 +9,7 @@ import {assertArticleNotes} from './amendment-article-notes-oracle.mjs';
 import {inspectNativeNoteScope,assertNativeFirstRecital} from './amendment-note-scope-oracle.mjs';
 import {assertGuidelineAnnex} from './amendment-guideline-oracle.mjs';
 import {assertQuotedSectionPoint} from './amendment-quoted-section-oracle.mjs';
+import {assertBareAnnexReplacement} from './amendment-annex-replacement-oracle.mjs';
 import {assertBareAnnexIndent} from './amendment-annex-indent-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
@@ -601,6 +602,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if(guideline.status!=='unverified')return guideline;
   const sectionPoint=assertQuotedSectionPoint({proposal,wording,placement,nativeQuoted});
   if(sectionPoint.status!=='unverified')return sectionPoint;
+  const annexReplacement=assertBareAnnexReplacement({items,proposal,wording,placement,nativeQuoted});
+  if(annexReplacement.status!=='unverified')return annexReplacement;
   const annexIndent=assertBareAnnexIndent({items,proposal,wording,placement,nativeQuoted});
   if(annexIndent.status!=='unverified')return annexIndent;
   // Explicit inner labels must reach the independent native assertion before
