@@ -377,7 +377,7 @@ test('fetch acquisition binds native NLE lists before proposal discovery',async(
     async amendment(query){calls.push(query.amendmentId);return {variants:[{listId,language:'en',wordingStatus:'available',originalText:'old',proposedText:'new',source:{url,contentHash:'hash'}}]};}
     async readNleReferences(query){return {selected:query.amendmentId};}
   }
-  const runtime={...current,DocumentContext:Native,documentFiles:w=>w===list?[{url,language:'en',format:'DOCX'}]:[],createCouncilPositionBaseline:undefined,createExistingLawBaseline:undefined,createProposalBaseline:()=>async options=>{if(options.nativeReferencePair)calls.push(options.nativeReferencePair.selected+' discovery');return {items:[]};}};
+  const runtime={...current,DocumentContext:Native,documentFiles:w=>w.id===list.id?[{url,language:'en',format:'DOCX'}]:[],createCouncilPositionBaseline:undefined,createExistingLawBaseline:undefined,createProposalBaseline:()=>async options=>{if(options.nativeReferencePair)calls.push(options.nativeReferencePair.selected+' discovery');return {items:[]};}};
   const cache={get:async u=>({url:u,ok:true,status:200,sha256:'metadata',fetchedAt:'2026-11-03T09:00:00Z',body:Buffer.from(JSON.stringify({data:[u===publicDocumentUrl(id)?work:list]}))}),assertHealthy(){}};
   await sourceReplay(cache,runtime).acquire(id,['en']);
   assert.deepEqual(calls,[id+'-AM-1',id+'-AM-1 discovery',id+'-AM-2',id+'-AM-2 discovery']);
