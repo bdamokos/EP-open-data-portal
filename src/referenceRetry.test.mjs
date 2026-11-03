@@ -17,8 +17,9 @@ async function reader(t,fetch) {
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {ReferenceScope,ReferenceText}=await loadModule('/src/References.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
-  await act(async()=>root.render(createElement(ReferenceScope,{texts:[text],language:'en'},createElement('p',null,createElement(ReferenceText,{text})))));
-  return {container,retry:()=>[...container.querySelectorAll('button')].find(button=>button.textContent.includes('Retry'))};
+  const render=()=>root.render(createElement(ReferenceScope,{texts:[text],language:'en'},createElement('p',null,createElement(ReferenceText,{text}))));
+  await act(async()=>render());
+  return {container,revisit:()=>act(async()=>{root.render(null);}),render:()=>act(async()=>render()),retry:()=>[...container.querySelectorAll('button')].find(button=>button.textContent.includes('Retry'))};
 }
 test('failed reference details have an explicit retry while text remains readable',async t=>{
   let calls=0,finish;
@@ -31,13 +32,13 @@ test('failed reference details have an explicit retry while text remains readabl
   await automaticRecovery(t);assert.equal(calls,2);assert.equal(retry(),undefined);assert(container.textContent.includes(text));
   await act(async()=>finish());assert.equal(retry(),undefined);assert.equal(container.querySelector('button.legal-ref').textContent,'Regulation (EU) 2021/2116');
 });
-test('a failed retry preserves saved reference controls and a later retry replaces them',async t=>{
+test('stale references remain idle and a later failed read preserves their controls through recovery',async t=>{
   let calls=0;
-  const {container,retry}=await reader(t,async()=>{
+  const {container,retry,revisit,render}=await reader(t,async()=>{
     calls++;if(calls===2)return Response.json({error:{message:'Temporarily unavailable.'}},{status:503});
     return Response.json({references:[{...reference,stale:calls===1}]});
   });
   assert.equal(retry(),undefined);assert(container.querySelector('button.legal-ref'));
-  await automaticRecovery(t);assert.equal(calls,2);assert.equal(retry(),undefined);assert(container.querySelector('button.legal-ref'));assert(container.textContent.includes(text));
+  assert.equal(installRetryClock(t).timers.size,0);await installRetryClock(t).advance(31000);assert.equal(calls,1);await revisit();await render();assert.equal(calls,2);assert.equal(retry(),undefined);assert(container.querySelector('button.legal-ref'));assert(container.textContent.includes(text));
   await automaticRecovery(t);assert.equal(calls,3);assert.equal(retry(),undefined);assert(container.querySelector('button.legal-ref'));
 });

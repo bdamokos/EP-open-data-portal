@@ -102,7 +102,7 @@ test('missing summaries preserve unknown counts and known passages without claim
 test('saved sources and cached refresh failures retain wording and provenance with concise saved-data qualifiers',async t=>{
   let now=Date.now();t.mock.method(Date,'now',()=>now);const h=await harness(t);
   await h.render();await h.respond(0,{sources:[{url:'https://data.europarl.europa.eu/eli/dl/event/MTG-PL-2026-10-08',fetchedAt:'2026-10-16T15:00:00Z',stale:true,refreshError:'Source refresh failed'}]});await settle();
-  assert.equal(h.status().textContent,'');assert.doesNotMatch(h.container.textContent,/Showing saved sources/);
+  assert.match(h.status().textContent,/comparison available/);assert.equal(installRetryClock(t).timers.size,0,'stale source provenance does not schedule a refresh');assert.doesNotMatch(h.container.textContent,/Showing saved sources/);
   await h.clear();now+=31_000;await h.render();assert.equal(h.requests.length,2);assert.equal(h.status().textContent,'');assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2,'cached wording remains while refreshing');
   await h.respond(1,{error:'Refresh unavailable'},503);await settle();
   for(let i=0;i<6;i++){assert.equal(h.status().textContent,'');await automaticRecovery(t);await h.respond(i+2,{error:'Refresh unavailable'},503);}

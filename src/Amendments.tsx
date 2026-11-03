@@ -1,3 +1,4 @@
+import {retryableGap,gapRetryAt} from './automaticRetry.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {useDossierReaderState} from './dossierJourney';
@@ -14,6 +15,8 @@ import type {Amendment,AmendmentDecision,AmendmentPage,AmendmentSource,Amendment
 import {validCommitteeCode,amendmentContextSelection,amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentOutcomeLabel,amendmentPlanSummary,amendmentRoute,publicAmendmentSource} from './amendmentModel.mjs';
 import type {Directory} from './explorerTypes';
 import './Amendments.css';
+// coverage.pending is the amendment index's explicit fill progress.
+const amendmentRetry={retryWhile:(data:AmendmentPage)=>retryableGap(data.coverage),retryAtFor:(data:AmendmentPage)=>gapRetryAt(data.coverage)};
 import {FormattedWording} from './components/WordingFormatting';
 import {WordingDiff} from './components/WordingDiff';
 import {AmendmentJustification} from './components/AmendmentJustification';
@@ -205,7 +208,7 @@ const heading = headingProp ?? ui.t("amendments.amendment_trail.83497e");
   const committee=controlledCommittee??localCommittee;
   const [localOutcome,setLocalOutcome]=useState(''),[localOffset,setLocalOffset]=useState(0),[groupBy,setGroupBy]=useState('dossier');
   const outcome=controlledOutcome??localOutcome,offset=controlledOffset??localOffset,limit=20,headingId=useId(),headingRef=useRef<HTMLHeadingElement>(null);
-  const state=useData<AmendmentPage>(amendmentRoute({scope,list,committee,document,procedure,member,outcome,offset,limit,language}));
+  const state=useData<AmendmentPage>(amendmentRoute({scope,list,committee,document,procedure,member,outcome,offset,limit,language}),amendmentRetry);
   const committees=[...new Set([...(committee ? ([committee]) : ([])),...(state.data?.items||[]).flatMap(item=>item.committees?.map(c=>c.code)||[])])].filter(validCommitteeCode).sort();
   const groups=useMemo(()=>amendmentGroups(state.data?.items||[],groupBy, ui),[state.data,groupBy]);
   useEffect(()=>{if(controlledOffset===undefined)setLocalOffset(0);},[scope,list,committee,document,procedure,member,language,controlledOffset]);

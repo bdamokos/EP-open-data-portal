@@ -189,7 +189,8 @@ export function SpeechContextPanel({id,language,transcriptLanguage=language,prel
   const ui = useUiI18n();
   const [open,setOpen]=useState(false);
   const route=`speech-context/${id}?lang=${language}`;
-  const state=useData<SpeechContext>(open ? route : null);
+  // Only an advertised per-debate deadline permits a new context read.
+  const state=useData<SpeechContext>(open ? route : null,{retryWhile:data=>data.debates.some(debate=>gapRetryAt(debate)>0),retryAtFor:data=>Math.max(0,...data.debates.map(debate=>gapRetryAt(debate)))});
   useEffect(()=>(preload && (!open)) ? prefetchData([route]) : undefined,[preload,open,route]);
   const controlId=useId();
   return <div className="intervention-context" lang={ui.language}><button className="intervention-context-toggle" onClick={()=>setOpen(value=>!value)} aria-expanded={open} aria-controls={controlId}><UiMessage id="batch4.speechinterventions.tsx.view.speech.in.context"/> <span aria-hidden="true">{open ? '−' : '+'}</span></button>{open&&<div id={controlId}>

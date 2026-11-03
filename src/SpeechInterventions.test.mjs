@@ -131,7 +131,7 @@ test('failed debate sections offer a real retry that bypasses the partial-result
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   const id='MTG-PL-2026-03-25-OTH-2017069380111',parent='MTG-PL-2026-03-25-PVCRE-ITM-13';
-  const result={speechId:id,unavailable:false,debates:[{id:parent,titles:{en:'European Council conclusions'},records:[],exchanges:[],coverage:{complete:false,available:0,expected:null},error:'Parliament data is unavailable (429). Please try again.'}]};
+  const result={speechId:id,unavailable:false,debates:[{id:parent,titles:{en:'European Council conclusions'},records:[],exchanges:[],coverage:{complete:false,available:0,expected:null},error:'Parliament data is unavailable (429). Please try again.',retryAt:Date.now()+5000}]};
   t.mock.method(globalThis,'fetch',async url=>{
     assert(String(url).includes('speech-context/'));calls++;
     if(calls===1)return Response.json(result);
