@@ -2,7 +2,7 @@ import {prepareBaseBackfill} from './base-source-backfill.mjs';
 export const OFFICIAL_CONTEXT_STATUS_VERSION=1;
 export const DOCUMENT_BODY_STATUS_VERSION=1;
 import {prepareDocumentBodies} from './document-body-collector.mjs';
-import {prepareFastReads,registerFastReads,fastReadsReady,backfillFastReads} from './fast-read-projections.mjs';
+import {fastReadSchemaVersion,prepareFastReads,registerFastReads,fastReadsReady,backfillFastReads} from './fast-read-projections.mjs';
 import {prepareSittingSnapshots,SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
 import {generationGroupOn} from './group-attribution.mjs';
 import {activityAffiliation} from './group-aggregation.mjs';
@@ -29,7 +29,7 @@ import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches,GAP_LIMIT} from './refresh-policy.mjs';
-import {copyGenerationRows} from './generation-copy.mjs';
+import {copyProjectedGenerationRows} from './generation-copy.mjs';
 
 // Defaults gate both normal construction and writer acquisition. The explicit
 // exceptions preserve preparations historically allowed during normal acquire().
@@ -37,7 +37,7 @@ export const ACTIVITY_SCHEMA_GATES=Object.freeze([
   {key:'baseBackfillSchema',value:1,constructorGate:false},
   {key:'resourceIndexes',value:1},
   {key:'availabilityHistoryVersion',value:availabilityHistoryVersion,constructorGate:false,writerGate:false},
-  {key:'fastReadSchemaVersion',value:1,constructorGate:false,writerGate:false},
+  {key:'fastReadSchemaVersion',value:fastReadSchemaVersion,constructorGate:false,writerGate:false},
   {key:'recoveryScheduleVersion',value:1},
   {key:'committeeAmendmentIndexVersion',value:committeeAmendmentIndexVersion},
   {key:'amendmentReadVersion',value:amendmentReadVersion},
@@ -159,7 +159,7 @@ export class ActivityStore {
         initializeActivityReads(this.db);prepareQuestionFiles(this.db,this.prepareLog);
         this.set('activityReadVersion',activityReadVersion);initialized=true;refresh();
       }
-      if(this.get('fastReadSchemaVersion')!==1){prepareFastReads(this.db);this.set('fastReadSchemaVersion',1);}
+      if(this.get('fastReadSchemaVersion')!==fastReadSchemaVersion){prepareFastReads(this.db);this.set('fastReadSchemaVersion',fastReadSchemaVersion);}
       if(this.get('refreshPolicyVersion')!==1) {
         refreshPolicySchema(this);initialized=true;refresh();
       }
@@ -262,7 +262,7 @@ export class ActivityStore {
       if (active) {
         this.pruneGenerations(active);
         this.set('previous',null);
-        copyGenerationRows(this.db,{table:'sources',key:'key',select:'INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources'},generation,active);
+        copyProjectedGenerationRows(this.db,{table:'sources',key:'key',select:'INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources'},generation,active);
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
         copyQuestionFiles(this.db,generation,active);
         this.db.prepare('INSERT INTO refresh_gaps SELECT ?,key,kind,body,priority,error,attempts,failed_at,retry_at,sitting_id FROM refresh_gaps WHERE generation=?').run(generation,active);

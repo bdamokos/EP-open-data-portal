@@ -30,8 +30,13 @@ export function registerFastReads(db) {
   });
 }
 // Disk projections owned by the source writer. Large extracted bodies stay in sources.
+export const fastReadSchemaVersion=2;
 export function prepareFastReads(db) {
   registerFastReads(db);
+  // Gate existing insert triggers, including the nested question frontier
+  // projection. Add no new triggers; FTS insertion always runs.
+  for(const name of ['fast_reads_insert','fast_outside_contributions_insert','fast_amendment_targets_insert','question_frontier_insert'])db.exec('DROP TRIGGER IF EXISTS '+name);
+  const copyGuard="COALESCE((SELECT value FROM meta WHERE key='fastReadCopyGeneration'),'')<>CAST(NEW.generation AS TEXT)";
   const types="(json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
   db.exec(`CREATE TABLE IF NOT EXISTS source_reads(generation INTEGER,key TEXT,kind TEXT,body TEXT,fetched_at TEXT,PRIMARY KEY(generation,key));
     CREATE TABLE IF NOT EXISTS question_reads(generation INTEGER,key TEXT,kind TEXT,body TEXT,fetched_at TEXT,search_text TEXT,PRIMARY KEY(generation,key));
@@ -39,7 +44,7 @@ export function prepareFastReads(db) {
     CREATE INDEX IF NOT EXISTS read_question_window ON question_reads(generation,json_extract(body,'$.document_date') DESC,key) WHERE kind='document' AND ${types};`);
   db.exec(`CREATE TABLE IF NOT EXISTS question_frontiers(generation INTEGER,key TEXT,subtype TEXT,date TEXT,fetched_at TEXT,PRIMARY KEY(generation,key));
     CREATE INDEX IF NOT EXISTS question_frontier_date ON question_frontiers(generation,subtype,date DESC,key,fetched_at);
-    CREATE TRIGGER IF NOT EXISTS question_frontier_insert AFTER INSERT ON question_reads BEGIN
+    CREATE TRIGGER IF NOT EXISTS question_frontier_insert AFTER INSERT ON question_reads WHEN ${copyGuard} BEGIN
       INSERT OR REPLACE INTO question_frontiers VALUES (NEW.generation,NEW.key,compact_source_read(NEW.body,'subtype'),json_extract(NEW.body,'$.document_date'),NEW.fetched_at); END;
     CREATE TRIGGER IF NOT EXISTS question_frontier_delete AFTER DELETE ON question_reads BEGIN DELETE FROM question_frontiers WHERE generation=OLD.generation AND key=OLD.key; END;`);
   db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS question_title_search USING fts5(search_text,content='question_reads',content_rowid='rowid',tokenize='trigram');
@@ -70,12 +75,12 @@ export function prepareFastReads(db) {
     ['amendment_targets','amendment_target_reads','generation,id,body',ref=>`${ref}.generation,${ref}.id,compact_source_read(${ref}.body,'target')`],
   ]) {
     const identity=table==='outside_contributions'?'speech=OLD.speech AND person=OLD.person':'id=OLD.id';
-    for(const [label,event,ref] of [['insert','INSERT','NEW'],['update','UPDATE','NEW'],['delete','DELETE',null]])db.exec(`CREATE TRIGGER IF NOT EXISTS fast_${table}_${label} AFTER ${event} ON ${table} BEGIN
+    for(const [label,event,ref] of [['insert','INSERT','NEW'],['update','UPDATE','NEW'],['delete','DELETE',null]])db.exec(`CREATE TRIGGER IF NOT EXISTS fast_${table}_${label} AFTER ${event} ON ${table} ${label==='insert'?'WHEN '+copyGuard:''} BEGIN
       ${label!=='insert'?`DELETE FROM ${projection} WHERE generation=OLD.generation AND ${identity};`:''}
       ${ref?`INSERT OR REPLACE INTO ${projection}(${columns}) SELECT ${selection(ref)};`:''} END;`);
 
   }
-  for(const [name,event,ref] of [['insert','INSERT','NEW'],['update','UPDATE OF body,kind,fetched_at','NEW'],['delete','DELETE',null]])db.exec(`CREATE TRIGGER IF NOT EXISTS fast_reads_${name} AFTER ${event} ON sources BEGIN
+  for(const [name,event,ref] of [['insert','INSERT','NEW'],['update','UPDATE OF body,kind,fetched_at','NEW'],['delete','DELETE',null]])db.exec(`CREATE TRIGGER IF NOT EXISTS fast_reads_${name} AFTER ${event} ON sources ${name==='insert'?'WHEN '+copyGuard:''} BEGIN
     DELETE FROM source_reads WHERE generation=${ref||'OLD'}.generation AND key=${ref||'OLD'}.key;
     DELETE FROM question_reads WHERE generation=${ref||'OLD'}.generation AND key=${ref||'OLD'}.key;
     DELETE FROM procedure_event_reads WHERE generation=${ref||'OLD'}.generation AND source_key=${ref||'OLD'}.key;

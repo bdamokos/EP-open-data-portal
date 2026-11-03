@@ -2,12 +2,21 @@ import {useCallback,useLayoutEffect,useRef,useState} from 'react';
 import type {MemberVotesProps} from './MemberVotes';
 import {captureMemberJourneyScroll,memberVotesHistoryMode,memberVotesJourneyParams,memberVotesScrollKey,readMemberVotesJourney,restoreMemberJourneyScroll,type MemberVotesJourney} from './memberVotesJourney.mjs';
 
+// Where the whole page scrolls, the kept page offset can leave a new destination's
+// start (and its Back control) above the sticky profile tabs.
+function revealDestination() {
+  const page=document.querySelector<HTMLElement>('main.explorer'),start=document.querySelector<HTMLElement>('.member-votes-pane:not([hidden]),.document-context-reader');
+  if(!page||!start)return;
+  const tabs=page.querySelector<HTMLElement>('.explorer-tabs'),edge=tabs ? tabs.getBoundingClientRect().bottom : page.getBoundingClientRect().top,top=start.getBoundingClientRect().top;
+  if(top<edge)page.scrollTop=Math.max(0,page.scrollTop+top-edge-12);
+}
+
 export function useMemberVotesJourney(member:number|null,active:boolean,initial:URLSearchParams) {
   const [stored,setStored]=useState(()=>readMemberVotesJourney(initial,member));
   // Scope during render, before the module can issue a request for another MEP.
   const journey=stored.memberId===member?stored:readMemberVotesJourney(new URLSearchParams(),member);
   const current=useRef({journey,active});current.current={journey,active};
-  const positions=useRef(new Map<string,number[]>()),pending=useRef<number[]|null>(null),wasActive=useRef(active);
+  const positions=useRef(new Map<string,number[]>()),pending=useRef<number[]|null>(null),reveal=useRef(false),wasActive=useRef(active);
   const remember=useCallback(()=>{
     const value=current.current;
     if(!value.active||pending.current)return;
@@ -23,10 +32,11 @@ export function useMemberVotesJourney(member:number|null,active:boolean,initial:
     if(mode==='push'&&url.href!==location.href){
       remember();
       // Expanding a subject does not change the pane or its position. New
-      // destinations reset only the inner pane, preserving the mobile page.
+      // destinations reset only the inner pane and keep the page offset unless
+      // that hides their start.
       if(memberVotesScrollKey(updated)!==memberVotesScrollKey(value.journey)){
-        const scroll=captureMemberJourneyScroll(document);scroll[3]=0;
-        pending.current=positions.current.get(memberVotesScrollKey(updated))||scroll;
+        const scroll=captureMemberJourneyScroll(document),saved=positions.current.get(memberVotesScrollKey(updated));scroll[3]=0;
+        pending.current=saved||scroll;reveal.current=!saved;
       }
     }
     if(url.href!==location.href)mode==='replace'?history.replaceState(history.state,'',url):history.pushState(history.state,'',url);
@@ -48,11 +58,11 @@ export function useMemberVotesJourney(member:number|null,active:boolean,initial:
   const restore=(query:URLSearchParams,nextMember:number|null)=>{
     remember();
     const restored=readMemberVotesJourney(query,nextMember);
-    pending.current=positions.current.get(memberVotesScrollKey(restored))||null;
+    pending.current=positions.current.get(memberVotesScrollKey(restored))||null;reveal.current=false;
     setStored(restored);
   };
   useLayoutEffect(()=>{
-    if(!active){pending.current=null;wasActive.current=false;return;}
+    if(!active){pending.current=null;reveal.current=false;wasActive.current=false;return;}
     if(!wasActive.current){pending.current??=positions.current.get(memberVotesScrollKey(journey))||null;wasActive.current=true;}
     // Loading can temporarily remove the panes. Retry restoration when the exact
     // response mounts them, including after browser Back on a different page.
@@ -63,6 +73,7 @@ export function useMemberVotesJourney(member:number|null,active:boolean,initial:
       const context=document.querySelector('.document-context-reader');
       if(context&&(context.matches('[data-context-pending="true"]')||context.querySelector('[data-context-pending="true"]')))return;
       restoreMemberJourneyScroll(document,pending.current);pending.current=null;
+      if(reveal.current){reveal.current=false;revealDestination();}
     };
     apply();
     const target=document.querySelector('.explorer-profile-body');

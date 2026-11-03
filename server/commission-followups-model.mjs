@@ -13,6 +13,10 @@ export const spId=value=>{const ref=canonical(value);return /^eli\/dl\/doc\/SP-[
 // reference here; unknown values remain available for gap diagnosis.
 export const projectFollowupReferences=value=>Array.isArray(value)?value.map(ref=>
   ref&&typeof ref==='object'&&!Array.isArray(ref)&&spId(ref)?{id:ref.id}:ref):value;
+// ODP omits inverse_answers_to when it lists no reply, so a missing field on
+// an exact detail record (or a current projection of one) means none listed.
+// An explicit null stays unknown.
+export const followupReferences=(work,field)=>Object.hasOwn(work??{},field)?work[field]:[];
 const invalid=()=>new HttpError(502,'invalid_followup_source','Commission follow-up could not be checked.');
 const exactWork=(payload,id)=>{
   const nodes=payload?.data;
