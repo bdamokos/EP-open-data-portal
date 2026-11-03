@@ -137,8 +137,9 @@ test('voting-time groups without exact targets stay unlinked and never captioned
  assert(captions.some(c=>c.includes('Support for Ukraine')),'the real debate keeps its peak caption'); assert(!captions.some(c=>/Untitled|MTG-PL-2026-01-22/.test(c)),'an untitled peak group gets no caption');assert(!captions.some(c=>c.includes('(vote)')),'no caption names the voting-time item: '+captions.join(' | '));assert.equal(captions.length,1);
 });
 
-async function placesHarness(t,url,respond,{language='en'}={}){
+async function placesHarness(t,url,respond,{language='en',setup}={}){
  const window=new Window({url}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ setup?.(window);
  let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  t.mock.method(globalThis,'fetch',async input=>respond(new URL(String(input),location.href)));
  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);installRetryClock(t);root=createRoot(node);
@@ -233,4 +234,50 @@ for(const [name,version] of [['before',13],['after',14]])test(`Europe list and s
  await wait(()=>/In Europe and its neighbours/.test(story()));
  if(version===13){assert.match(story(),/Ukraine drew the most questions \(20\)/);assert.match(list()[0],/^Ukraine\s*20/);assert(!list().some(row=>/Russia/.test(row)),'the list leaves Russia out with the story');}
  else{assert.match(story(),/Russia drew the most questions \(50\)/);assert.match(list()[0],/^Russia\s*50/);}
+});
+
+for(const iso of ['UKR','GRC'])for(const input of ['pointer click','click with detail 0'])test(input+' activation on '+iso+' shares quarter selection across charts, URL and announcements without moving focus',async t=>{
+ const periods=['2026-Q1','2026-Q2'],detail={ready:true,concept:{key:'place:'+iso,label:iso,iso3:iso},periods,partial:{first:null,last:null},series:periods.map(period=>({period,question:4,questionHome:1,questionElsewhere:3,document:2,groups:6,speech:0})),groupsTotal:6,total:6,groups:[],facets:{keywords:[],places:[],topics:[]},nextOffset:null};
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&place='+iso,u=>Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:detail));
+ await wait(()=>node.querySelector('.topic-bars button'));
+ const charts=()=>[...node.querySelectorAll('.topic-bars')],selected=()=>charts().map(c=>[...c.querySelectorAll('[aria-pressed=true]')].map(b=>b.getAttribute('aria-label').slice(0,7)));
+ // Native buttons deliver click for both pointer and keyboard activation (detail 0).
+ const activate=button=>button.dispatchEvent(new window.MouseEvent('click',{bubbles:true,detail:input==='pointer click'?1:0}));
+ assert.equal(node.querySelector('[aria-live=polite]').textContent,'');
+ const first=charts()[0].querySelector('button');first.focus();await act(async()=>activate(first));
+ await wait(()=>new URL(location.href).searchParams.get('t-q')==='2026-Q1');assert.deepEqual(selected(),charts().map(()=>['2026 Q1']));assert.equal(document.activeElement,first);assert.match(node.querySelector('[aria-live=polite]').textContent,/January/);
+ const other=charts().at(-1).querySelector('button');other.focus();await act(async()=>activate(other));
+ assert.equal(new URL(location.href).searchParams.get('t-q'),'2026-Q1');assert.equal(new URL(location.href).searchParams.get('t-kind'),'document');assert.deepEqual(selected(),charts().map(()=>['2026 Q1']));assert.equal(document.activeElement,other);
+ const second=charts().at(-1).querySelectorAll('button')[1];second.focus();await act(async()=>activate(second));
+ await wait(()=>new URL(location.href).searchParams.get('t-q')==='2026-Q2');assert.deepEqual(selected(),charts().map(()=>['2026 Q2']));assert.equal(document.activeElement,second);
+ await act(async()=>activate(second));await wait(()=>!new URL(location.href).searchParams.has('t-q'));assert.deepEqual(selected(),charts().map(()=>[]));assert.equal(document.activeElement,second);assert.equal(node.querySelector('[aria-live=polite]').textContent,'This term');
+ await act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await popped;});await wait(()=>new URL(location.href).searchParams.get('t-q')==='2026-Q2');assert.deepEqual(selected(),charts().map(()=>['2026 Q2']));assert.match(node.querySelector('[aria-live=polite]').textContent,/April/);
+});
+
+
+const selectionDetail=()=>({ready:true,concept:{key:'place:UKR',label:'Ukraine',iso3:'UKR'},periods:['2026-Q1','2026-Q2'],partial:{first:null,last:null},series:['2026-Q1','2026-Q2'].map(period=>({period,question:4,document:2,groups:6,speech:0})),peaks:{document:[{period:'2026-Q2',n:2,groups:[{key:'2026-0001',kind:'procedure',title:'Support for Ukraine',n:2}]}]},groupsTotal:6,total:6,groups:[],facets:{keywords:[],places:[],topics:[]},nextOffset:null});
+const selectionFacts=()=>({ready:true,periods:['2026-Q1','2026-Q2'],counts:{questions:8,debates:0,adoptedTexts:0,groups:12},periodCounts:['2026-Q1','2026-Q2'].map(period=>({period,questions:4})),periodWinners:{},winners:{},sets:{},questions:[],debates:[],docs:[]});
+const popBack=()=>act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await popped;});
+
+test('a place URL with a quarter selects every chart silently; a no-op peak then Back never reveals the story',async t=>{
+ const scrolled=[],{node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&place=UKR&t-q=2026-Q1&t-kind=document',u=>Response.json(u.pathname==='/api/topics/story-facts'?selectionFacts():selectionDetail()),{setup:window=>{
+  window.HTMLElement.prototype.scrollIntoView=function(options){scrolled.push({element:this,options});};
+  window.HTMLElement.prototype.getBoundingClientRect=function(){return {top:-100};};
+ }});
+ await wait(()=>node.querySelector('.topic-story'));assert.equal(node.querySelectorAll('.topic-bars [aria-pressed=true]').length,2);assert.equal(node.querySelector('[aria-live=polite]').textContent,'');assert.deepEqual(scrolled,[]);
+ const q2=node.querySelectorAll('.topic-bars')[1].querySelectorAll('button')[1];q2.focus();await act(async()=>q2.click());
+ await wait(()=>new URL(location.href).searchParams.get('t-q')==='2026-Q2');assert.equal(scrolled.length,1);assert.equal(scrolled[0].element,node.querySelector('.topic-story'));assert.equal(document.activeElement,q2);
+ scrolled.length=0;const peak=node.querySelector('.topic-peak');peak.focus();await act(async()=>peak.click());assert.equal(new URL(location.href).searchParams.get('t-q'),'2026-Q2');assert.deepEqual(scrolled,[]);
+ await popBack();await wait(()=>new URL(location.href).searchParams.get('t-q')==='2026-Q1');assert.deepEqual(scrolled,[]);assert.match(node.querySelector('[aria-live=polite]').textContent,/January/);
+});
+
+test('showRecords uses the focused records heading without announcing the period a second time',async t=>{
+ const scrolled=[],{node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&place=UKR',u=>Response.json(u.pathname==='/api/topics/story-facts'?selectionFacts():selectionDetail()),{setup:window=>{
+  window.HTMLElement.prototype.scrollIntoView=function(){scrolled.push(this);};
+  window.HTMLElement.prototype.getBoundingClientRect=function(){return {top:-100};};
+ }});
+ await wait(()=>node.querySelector('.topic-story'));const bar=node.querySelector('.topic-bars button');bar.focus();await act(async()=>bar.click());await wait(()=>/January/.test(node.querySelector('[aria-live=polite]').textContent));
+ const previous=node.querySelector('[aria-live=polite]').textContent;scrolled.length=0;
+ const recordsLink=node.querySelector('.topic-detail-header p a');recordsLink.focus();await act(async()=>recordsLink.click());
+ await wait(()=>document.activeElement===node.querySelector('#topic-records h2'));assert.equal(new URL(location.href).searchParams.get('t-q'),null);assert.equal(node.querySelector('[aria-live=polite]').textContent,previous);assert.deepEqual(scrolled,[node.querySelector('#topic-records h2')]);
 });
