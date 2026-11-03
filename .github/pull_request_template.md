@@ -2,7 +2,6 @@
 
 Describe the problem and resulting behaviour.
 
-- [ ] If an API response contract changed, run `npm run api:bump` and commit the registry change
 
 ## HTTP routes and URLs
 

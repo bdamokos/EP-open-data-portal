@@ -31,7 +31,7 @@ test('HTTP progress works without an activity index and preserves transport/quer
   const documents=await read(route+'&detail=documents');assert.equal(documents.status,200);assert.match(JSON.parse(documents.text).documents[0].url,/eur-lex\.europa\.eu\/legal-content/);assert.equal(calls.length,2);
   const privateRead=await read(route,{headers:{Authorization:'test-only'}});assert.equal(privateRead.status,200);assert.equal(privateRead.headers['cache-control'],'no-store');
   for(const suffix of ['&reference=2025%2F0223(COD)','&lang=fr','&detail=','&detail=all','&url=https://example.test'])assert.equal((await read(route+suffix)).status,400,suffix);
-  assert.equal((await read(route.replace('v='+API_VERSION,'v='+(API_VERSION+1)))).status,409);
+  assert.equal((await read(route.replace('v='+API_VERSION,'v='+'ffffffffffff'))).status,409);
   assert.equal((await read(route+'&v='+API_VERSION)).status,400);
   assert.equal((await read(route,{method:'POST'})).status,405);
   assert.equal((await read(route,{headers:{Origin:'https://elsewhere.example'}})).status,403);
