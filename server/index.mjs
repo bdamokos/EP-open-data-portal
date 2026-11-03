@@ -149,8 +149,8 @@ async function handleApi(request,response,url,apiPrefix){
  }
 
  const versions=url.searchParams.getAll('v');
- if(versions.length>1 || versions.length===1 && (!/^[1-9][0-9]*$/.test(versions[0]) || !Number.isSafeInteger(Number(versions[0]))))
-   throw new HttpError(400,'invalid_api_version','v must be a single positive integer.');
+ if(versions.length>1 || versions.length===1 && (!/^[a-f0-9]{12}$/.test(versions[0]) && (!/^[1-9][0-9]*$/.test(versions[0]) || !Number.isSafeInteger(Number(versions[0])))))
+   throw new HttpError(400,'invalid_api_version','v must be a single contract version.');
  const segments=routeSegments(url.pathname,apiPrefix);
  // Keep current API-versioned URLs working for clients from before the split.
  const portraitRoute=segments.length===2&&segments[0]==='portrait';

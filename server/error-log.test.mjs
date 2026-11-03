@@ -7,8 +7,8 @@ import {createErrorLog,clientErrorEvent,serverErrorEvent} from './error-log.mjs'
 import {HttpError} from './http-utils.mjs';
 
 test('diagnostics exclude search, private bodies and untrusted free text',()=>{
- const event=clientErrorEvent({kind:'http',request:'/api/corpus/search?q=private&token=secret&lang=hu&v=425',method:'POST',status:502,message:'secret',body:{saved:['secret']},requestId:'bad'});
- assert.equal(event.request,'/api/corpus/search?lang=hu&v=425');assert.equal(event.status,502);assert(!JSON.stringify(event).includes('secret'));
+ const event=clientErrorEvent({apiVersion:'123456abcdef',kind:'http',request:'/api/corpus/search?q=private&token=secret&lang=hu&v=425',method:'POST',status:502,message:'secret',body:{saved:['secret']},requestId:'bad'});
+ assert.equal(event.apiVersion,'123456abcdef');assert.equal(event.request,'/api/corpus/search?lang=hu&v=425');assert.equal(event.status,502);assert(!JSON.stringify(event).includes('secret'));
  assert.equal(clientErrorEvent({kind:'network',request:'/other'}),null);
  const failure=serverErrorEvent({url:'/api/profile/123?token=secret',method:'GET'},new HttpError(503,'upstream_busy','Source unavailable'),{requestId:'id',elapsedMs:12});
  assert.equal(failure.code,'upstream_busy');assert.equal(failure.message,'Source unavailable');assert.equal(failure.request,'/api/profile/123');

@@ -39,7 +39,7 @@ export function clientErrorEvent(body) {
     frames:diagnosticFrames(Array.isArray(body.frames)?body.frames.filter(value=>typeof value==='string').slice(0,3).join('\n'):''),
     code:label(body.code),name:label(body.name),requestId:/^[a-f0-9-]{36}$/.test(body.requestId)?body.requestId:undefined,
     elapsedMs:Number.isFinite(body.elapsedMs)?Math.max(0,Math.min(3600000,Math.round(body.elapsedMs))):undefined,
-    apiVersion:Number.isInteger(body.apiVersion)?body.apiVersion:undefined};
+    apiVersion:typeof body.apiVersion==='string'&&/^[a-f0-9]{12}$/.test(body.apiVersion)?body.apiVersion:undefined};
 }
 export function serverErrorEvent(request,error,{requestId,elapsedMs}) {
   return {source:'server',kind:'http',request:diagnosticRequest(request.url),method:label(request.method,10),requestId,elapsedMs,

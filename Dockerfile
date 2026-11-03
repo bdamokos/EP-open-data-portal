@@ -8,7 +8,7 @@ COPY THIRD_PARTY_JAVASCRIPT_LICENSES.txt ./
 COPY src ./src
 COPY public ./public
 COPY server ./server
-COPY scripts/stage-runtime.mjs ./scripts/stage-runtime.mjs
+COPY scripts/stage-runtime.mjs scripts/api-contract.mjs ./scripts/
 RUN npm run build && node scripts/stage-runtime.mjs /runtime-server
 
 FROM ${NODE_IMAGE} AS dependencies
@@ -27,6 +27,7 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=8790 APP_REVISION=${APP_REVISION} \
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/package.json /app/package-lock.json ./
 COPY --from=build /runtime-server ./server
+COPY --from=build /app/scripts/api-contract.mjs ./scripts/api-contract.mjs
 COPY --from=build /app/src/speakerNames.mjs /app/src/speakerRoles.mjs /app/src/groupVoiceTerms.mjs /app/src/memberOrder.mjs /app/src/amendmentLanguageScope.mjs /app/src/amendmentJustification.mjs ./src/
 COPY --from=build /app/dist ./dist
 COPY THIRD_PARTY_NOTICES.md ./
