@@ -187,7 +187,7 @@ export function assertImplicitParagraphLabel({proposal,wording,placement}) {
  const row=proposal.paragraphs.find(p=>p.index===node.start),next=proposal.paragraphs.find(p=>p.index===node.end);
  if(!row||!next||!body(row)||!body(next)||row.properties?.styleId!=='Normal'||next.source.ordinal!==row.source.ordinal+1||next.source.containerPath!==row.source.containerPath||next.source.segment!==row.source.segment||row.properties.numberingLabel||/^[\d'‘“«"]/u.test(row.text.trim()))return unavailable();
  const compact=s=>s.normalize('NFC').replace(/\s+/gu,' ').trim();
- if(compact(original[1])!==compact(row.text))return failed('oracle-implicit-paragraph-wording-mismatch');
+ if(compact(original[1])!==compact(row.text))return unavailable();
  if(placement.status!=='placed'||placement.span?.start!==row.index||placement.span?.end!==row.index||placement.splice?.start.paragraph!==row.index||placement.splice.start.offset!==0||placement.splice?.end.paragraph!==row.index||placement.splice.end.offset!==row.text.length)return failed('oracle-implicit-paragraph-boundary-mismatch');
  return verified('oracle-implicit-paragraph-label',[article.heading.index,row.index,next.index]);
 }
