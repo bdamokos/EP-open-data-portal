@@ -750,6 +750,19 @@ export function compareBaseline(current, baseline, {placementOnly=false}={}) {
     const row = now.get(old.key);
     return !row || old.outcome === 'correct' && row.outcome !== 'correct' || old.outcome !== 'false-placement' && row.outcome === 'false-placement';
   }).map(old=>({key:old.key,id:old.id,before:old.outcome,after:now.get(old.key)?.outcome || 'missing',reason:now.get(old.key)?.reason}));
+  // Keep the strict raw ratchet above intact. The batch admission lane may
+  // accept the maintainer-authorized rejection denominator change separately;
+  // neither a reason string alone nor a loss of paragraph coordinates proves it.
+  const authorizedDenominatorTransitions=baseline.rows.flatMap(old=>{
+    const row=now.get(old.key),proof=row?.documentOperation,source=proof?.source,placement=row?.stages?.S5;
+    if(old.outcome!=='correct'||row?.outcome!=='not-placeable'||row.reason!=='whole-document-rejection'||proof?.status!=='verified'||proof.reason!=='source-attested-rejection'
+      ||placement?.status!=='document-operation'||placement.operation!=='reject'||placement.scope!==proof.scope||!['council-position','commission-proposal'].includes(proof.scope)
+      ||['span','splice','insertAfter','insertBefore'].some(key=>Object.hasOwn(placement,key))
+      ||source?.assertion!=='complete-native-comparison-cells'||source.originalText!==''||!source.proposedText?.trim()||!source.amendmentPath
+      ||!row.wordingSource?.url||!row.language||!/^[a-f0-9]{64}$/u.test(source.sha256)||source.sha256!==row.wordingSource.sha256)return [];
+    return [{gate:{snapshotId:current.snapshotId,sample:current.sample},key:row.key,id:row.id,language:row.language,sourceUrl:row.wordingSource.url,resolvedSourceUrl:row.wordingSource.resolvedSourceUrl||row.wordingSource.url,sha256:source.sha256,rejectionScope:proof.scope,before:old.outcome,after:row.outcome,reason:row.reason,nativeVerification:proof}];
+  });
+  const rawLostCorrect=regressions.filter(row=>row.before==='correct'&&row.after!=='correct').length;
   const deltas = {};
   const walk = (a,b,prefix='') => {for (const key of Object.keys(a)) {const name=prefix+key;if(typeof a[key]==='number'&&typeof b?.[key]==='number')deltas[name]=a[key]-b[key];else if(a[key]&&typeof a[key]==='object'&&!Array.isArray(a[key]))walk(a[key],b?.[key],name+'.');}};
   walk(current.metrics,baseline.metrics);
@@ -757,5 +770,5 @@ export function compareBaseline(current, baseline, {placementOnly=false}={}) {
   const before=new Map(baseline.metrics.taxonomy.map(row=>[taxonomyKey(row),row]));
   const after=new Map(current.metrics.taxonomy.map(row=>[taxonomyKey(row),row]));
   const taxonomyDeltas=[...new Set([...before.keys(),...after.keys()])].sort().map(key=>({key,count:(after.get(key)?.count||0)-(before.get(key)?.count||0),share:(after.get(key)?.share||0)-(before.get(key)?.share||0)}));
-  return {scope,warnings,deltas,taxonomyDeltas,regressions,failed:regressions.length>0||current.metrics.falsePlacements>0};
+  return {scope,warnings,deltas,taxonomyDeltas,regressions,rawLostCorrect,authorizedDenominatorTransitions,adjustedLostCorrect:rawLostCorrect-authorizedDenominatorTransitions.length,failed:regressions.length>0||current.metrics.falsePlacements>0};
 }

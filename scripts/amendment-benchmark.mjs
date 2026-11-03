@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {amendmentAlternative} from '../server/amendment-alternative.mjs';
+import {amendmentRejection} from '../server/amendment-rejection.mjs';
 import {verifyAlternative} from './amendment-alternative-oracle.mjs';
 import {hasCouncilQuotation,reportCouncilQuotation} from '../server/report-council-quotation.mjs';
 import {verifyRejection} from './amendment-rejection-oracle.mjs';
@@ -262,7 +263,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
       // Like the endpoint, a new amending instruction that the consolidated
       // law does not place reads the report's proposal and is placed again.
       const frameEligible=Boolean(replay&&existing&&row.targetDocumentId.startsWith('A-')&&runtime?.proposalInstructionTarget?.({...wording,targetLabelLanguage:language})&&!nleReport(work,wording.documentReferences,runtime));
-      if(stages.S2.status==='passed'&&(matching||frameEligible||(runtime?.amendmentAlternative||amendmentAlternative)(wording)||hasCouncilQuotation(wording)||expectedLanguageScope(wording)||wording.originalText===''&&/rejects|rejette|respinge/u.test(wording.proposedText))) {
+      if(stages.S2.status==='passed'&&(matching||frameEligible||(runtime?.amendmentAlternative||amendmentAlternative)(wording)||hasCouncilQuotation(wording)||expectedLanguageScope(wording)||(runtime?.amendmentRejection||amendmentRejection)(wording))) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
         const opts={...wording,targetLabelLanguage:language,resolutionDocument:true,referenceText:references[0]};
         const place=proposalItems=>(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,...(proposalItems?{proposalItems}:{}),referenceTexts:references,resolutionDocument:true});

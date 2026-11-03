@@ -170,6 +170,18 @@ test('baseline gate reports every deterioration, catches new false placements, c
   assert.equal(compareBaseline(wrap([row('a','false-placement')]),wrap([row('a','false-placement')])).failed,true);
   assert.equal(compareBaseline(wrap([]),before).regressions.length,2);
 });
+test('rejection denominator transitions retain raw losses and require complete source-bound native proof',()=>{
+  const wrap=rows=>({snapshotId:'frozen',sample:{mode:'documents'},inputs:[],rows,metrics:metrics(rows)}),before=wrap([row('a')]);
+  const excluded={...row('a','not-placeable'),reason:'whole-document-rejection',wordingSource:{url:'https://public.example/a_en.docx',sha256:'a'.repeat(64)},stages:{S5:{status:'document-operation',operation:'reject',scope:'council-position'}},documentOperation:{status:'verified',reason:'source-attested-rejection',scope:'council-position',source:{sha256:'a'.repeat(64),assertion:'complete-native-comparison-cells',originalText:'',proposedText:'The European Parliament rejects the Council position.',amendmentPath:'/w:document[1]/w:body[1]/w:p[1]'}}};
+  const diff=compareBaseline(wrap([excluded]),before);
+  assert.equal(diff.failed,true,'raw strict ratchet is not waived');assert.equal(diff.regressions.length,1);assert.equal(diff.rawLostCorrect,1);assert.equal(diff.adjustedLostCorrect,0);
+  assert.equal(diff.authorizedDenominatorTransitions.length,1);assert.equal(diff.authorizedDenominatorTransitions[0].sourceUrl,excluded.wordingSource.url);
+  for(const outcome of ['withheld-pipeline','placed-unverified','false-placement'])assert.equal(compareBaseline(wrap([{...excluded,outcome}]),before).authorizedDenominatorTransitions.length,0);
+  for(const change of [r=>r.stages.S5.insertAfter=1,r=>r.documentOperation.source.sha256='b'.repeat(64),r=>r.documentOperation.source.originalText='existing wording',r=>r.documentOperation.status='unverified',r=>delete r.documentOperation.source.assertion]){
+    const altered=structuredClone(excluded);change(altered);const result=compareBaseline(wrap([altered]),before);assert.equal(result.authorizedDenominatorTransitions.length,0);assert.equal(result.adjustedLostCorrect,1);
+  }
+  assert.equal(compareBaseline(wrap([]),before).adjustedLostCorrect,1);
+});
 test('patterns retain grammar and extraction limits; sample options select exact dates and term-10 IDs',()=>{
   assert(targetPatterns(wording('Article 1 – paragraph 2 a (new)'),[{code:'vertical-text-loss'},{code:'comparison-grid'}]).includes('letter-suffix'));
   assert(targetPatterns(wording('Article -1')).includes('negative-label'));
