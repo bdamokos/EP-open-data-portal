@@ -109,7 +109,7 @@ export class AdoptedCalibration {
       row.order=inversion?result('disagree','document-order-inversion',{other:inversion.id}):peers.some(p=>p.coordinate===row.coordinate&&p.ordinal!==row.ordinal)?unknown('same-gap-order-not-exposed'):peers.length?result('agree','document-order'):unknown('no-comparable-peer');
     }
     const counts={agree:0,disagree:0,inconclusive:0};
-    for(const row of this.rows){row.verdict=row.status==='disagree'||row.order.status==='disagree'?'disagree':row.status;counts[row.verdict]++;}
+    for(const row of this.rows){row.verdict=row.status==='disagree'||row.order.status==='disagree'?'disagree':row.status==='agree'&&(row.mode!=='amendment-list'||row.order.status==='agree')?'agree':'inconclusive';counts[row.verdict]++;}
     return {schemaVersion:1,measureOnly:true,snapshotId:this.sealed.snapshot.snapshotId,requests:0,counts,rows:this.rows,placedDisagreements:this.rows.filter(r=>r.placed&&r.verdict==='disagree')};
   }
 }
