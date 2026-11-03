@@ -509,7 +509,19 @@ function ancestorFallback(target,original,candidatesFor) {
 // original column are table rows (cells joined by tabs) or body lines; they
 // must match one unique contiguous run cell for cell inside that provision.
 const tableRowKey=path=>/^(.*\/w:tr\[\d+\])\/w:tc\[\d+\]\/w:p\[(\d+)\]$/u.exec(path??'');
-function annexTablePlacement(items,address,originalText,language,operation,evidence,unresolved) {
+// Only the opening caption decoration may differ; every table cell stays exact.
+function captionDecorationProfile(items,wording) {
+  if(wording.baseline!=='commission-proposal'||items.length!==2||items.filter(item=>item.kind==='act').length!==1||items.filter(item=>item.kind==='annex').length!==1||wording.targetPath?.underlying?.length)return null;
+  const header=/^Annex ([IVXLC]+) – paragraph 1 – table on ([^\r\n]+)\n(Regulation \((?:EU|EC)\) \d{4}\/\d+)\nAnnex ([IVXLC]+) – table ([^\r\n]+)$/u.exec(wording.targetLabel||'');
+  const caption=/^‘\[([^\r\n\t\[\]]+)\r?\nCN code\tGreenhouse gas\r?\n/u.exec(wording.originalText||'');
+  const key=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim().toLowerCase();
+  if(!header||!caption||key(header[2])!==key(caption[1])||key(header[5])!==key(caption[1]))return null;
+  if(wording.targetPath?.proposal?.length&&(wording.targetPath.proposal.length!==1||wording.targetPath.proposal[0].raw!==wording.targetLabel.split('\n')[0]))return null;
+  const lead=items.find(item=>item.kind==='act').proposal.paragraphs.filter(row=>row.text.normalize('NFC').replace(/\s+/gu,' ').trim()===header[3]+' is amended as follows:');
+  if(lead.length!==1||!lead[0].complete||lead[0].source?.complete!==true||lead[0].source.container!=='body')return null;
+  return {outer:header[1],inner:header[4]};
+}
+function annexTablePlacement(items,address,originalText,language,operation,evidence,unresolved,decoration) {
   let parsed;try{parsed=parseTargetLabel(address,language);}catch{return unresolved('target_reference_unavailable');}
   if(!parsed.complete||parsed.segments[0]?.kind!=='annex')return unresolved('target_reference_unavailable');
   const find=segments=>items.flatMap((item,itemIndex)=>item.kind!=='annex'?[]:proposalCandidates(item.proposal,{...parsed,segments}).map(unit=>({itemIndex,unit,proposal:item.proposal})));
@@ -522,7 +534,7 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   if(candidates.length!==1||candidates[0].unit.pathConflict)return unresolved(candidates.length?'multiple_published_targets':'target_not_found');
   const {itemIndex,unit,proposal}=candidates[0],cell=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
   const rows=[];let current=null;
-  for(const row of proposal.paragraphs.slice(unit.extent.start,unit.extent.end)){
+  for(const row of (decoration?proposal.paragraphs:proposal.paragraphs.slice(unit.extent.start,unit.extent.end))){
     if(row.source?.container==='table-cell'){
       const key=tableRowKey(row.source.path);
       if(!key)return unresolved('source_structure_unavailable');
@@ -544,23 +556,33 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   const tableOf=key=>key.replace(/\/w:tr\[\d+\]$/u,''),rowOf=key=>Number(/\/w:tr\[(\d+)\]$/u.exec(key)[1]);
   rows.forEach((row,index)=>{
     if(!row.key)return;
-    if(row.columns.some((column,at)=>column!==at+1)||cellCounts.get(row.rows[0].index)!==row.columns.length)row.cells=['\u0000'];
+    if(row.columns.some((column,at)=>column!==at+1)||cellCounts.get(row.rows[0].index)!==row.columns.length){if(decoration)row.broken=true;else row.cells=['\u0000'];}
     const previous=rows[index-1];
     row.gap=Boolean(previous?.key&&tableOf(previous.key)===tableOf(row.key)&&rowOf(row.key)!==rowOf(previous.key)+1);
   });
   const lines=originalText.split(/\r?\n/u).map(line=>line.split('\t').map(cell));
   const starts=[];
   for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>rows[i+offset].cells.length===line.length&&rows[i+offset].cells.every((value,index)=>value===line[index])))starts.push(i);
+  let repaired=false;
+  if(!starts.length&&decoration){
+    lines[0][0]=lines[0][0].slice(2);repaired=true;
+    for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>rows[i+offset].cells.length===line.length&&rows[i+offset].cells.every((value,index)=>value===line[index])))starts.push(i);
+  }
   if(starts.length!==1)return unresolved(starts.length?'duplicate_target_label':'conflicting_target_evidence');
+  if(repaired){
+    const run=rows.slice(starts[0],starts[0]+lines.length),before=rows.slice(0,starts[0]),heading=before.findLastIndex(row=>!row.key&&/^ANNEX [IVXLC]+$/u.test(row.cells[0]));
+    const scopeRows=before.slice(heading).filter(row=>!row.key),prefix=scopeRows.slice(1).map(row=>row.cells[0]),tableKey=run[1]?.key&&tableOf(run[1].key);
+    if(scopeRows.some(row=>row.rows.some(p=>!p.complete||p.source?.complete!==true))||run.some(row=>row.broken)||heading<0||before[heading].cells[0]!=='ANNEX '+decoration.outer||run[0].key||!tableKey||run.slice(1).some(row=>!row.key||tableOf(row.key)!==tableKey||row.cells.length!==2)||prefix.filter(value=>value==='‘ANNEX '+decoration.inner).length!==1||prefix.filter(value=>value==='The following Annex '+decoration.inner+' is added:').length!==1||run.some(row=>row.rows.some(p=>p.index<unit.extent.start||p.index>=unit.extent.end)))return unresolved('conflicting_target_evidence');
+  }
   if(rows.slice(starts[0]+1,starts[0]+lines.length).some(row=>row.gap))return unresolved('source_passage_incomplete');
   const matched=rows.slice(starts[0],starts[0]+lines.length).flatMap(row=>row.rows);
   if(matched.some(row=>!row.complete||!row.source||row.source.complete===false))return unresolved('source_passage_incomplete');
   const first=matched[0],last=matched.at(-1);
-  evidence.push({basis:'annex-table-rows',anchor:unit.id,rows:lines.length});
+  evidence.push({basis:repaired?'annex-table-caption-decoration':'annex-table-rows',anchor:unit.id,rows:lines.length});
   return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:matched.map(row=>row.text).join('\n'),evidence};
 }
 
-export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting}={}) {
+export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
   const mixedScope=amendmentMixedLanguageScope({originalText,proposedText,language});
@@ -577,7 +599,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   // A structured underlying-act target without a proposal address is not an outer location.
   if(!paths&&targetPath?.underlying?.length)return unresolved('target_reference_unavailable');
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
-  if(table)return annexTablePlacement(items,table[1],originalText,language,operation,evidence,unresolved);
+  if(table)return annexTablePlacement(items,table[1],originalText,language,operation,evidence,unresolved,captionDecorationProfile(items,{targetLabel,targetPath,originalText,baseline}));
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
