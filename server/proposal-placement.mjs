@@ -66,8 +66,8 @@ function unparsedArticleHeading(proposal,unit) {
 }
 // Detached notes do not establish the extent of an article. Require an
 // ordinary native article bounded by the next complete printed article.
-function articleNoteBoundary(proposal,unit,{operation,language}={}) {
-  if(language!=='en'||operation!=='delete'||proposal.sourceKind!=='docx'||unit.scope!=='proposal'||unit.pathConflict||!completeBoundary(proposal,unit))return false;
+function articleNoteBoundary(proposal,unit,{operation,language,baseline}={}) {
+  if(language!=='en'||baseline!=='commission-proposal'||operation!=='delete'||proposal.sourceKind!=='docx'||unit.scope!=='proposal'||unit.pathConflict||!completeBoundary(proposal,unit))return false;
   const rows=proposal.paragraphs.slice(unit.extent.start,unit.extent.end+1),first=rows[0],next=rows.at(-1);
   const header=p=>p?.properties?.styleId==='Titrearticle'&&/^Article \d+[a-z]*$/u.test(p.text.trim());
   if(!header(first)||!header(next)||first.text===next.text||proposal.paragraphs.filter(p=>header(p)&&p.text===first.text).length!==1)return false;
@@ -590,7 +590,7 @@ function ancestorFallback(target,original,candidatesFor) {
 }
 
 /** Outer addresses select proposal units; explicit inner insertions stay inside their owner. */
-export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting}={}) {
+export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
   const mixedScope=amendmentMixedLanguageScope({originalText,proposedText,language});
@@ -706,7 +706,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(candidates.length>1&&new Set(candidates.map(c=>c.itemIndex+'|'+parentKey(c.unit))).size!==1)return unresolved('multiple_published_targets');
   const adaptedOriginal=candidate=>{
     const {proposal,unit}=candidate;
-    const notes=footnoteBody(proposal,unit,originalText,originalFormatting,{operation,language});
+    const notes=footnoteBody(proposal,unit,originalText,originalFormatting,{operation,language,baseline});
     if(notes)return notes;
     if(candidates.length!==1||unit.pathConflict||!completeBoundary(proposal,unit))return originalText;
     const text=unitText(proposal,unit).text;
