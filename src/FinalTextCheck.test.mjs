@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -24,7 +24,7 @@ async function harness(t,respond) {
   });
   loader=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {FinalTextCheck}=await loader('/src/FinalTextCheck.tsx'),journey=await loader('/src/dossierJourney.ts'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,15)));
   const render=async picked=>{await act(async()=>root.render(createElement(FinalTextCheck,picked)));await settle();};
   const toggle=async(open=true)=>{await act(async()=>{const detail=container.querySelector('.final-text-check');detail.open=open;detail.dispatchEvent(new window.Event('toggle'));});await settle();};
@@ -77,7 +77,7 @@ test('a comparison produced by the earlier claim rules is rejected',async t=>{
   await h.render(selection);await h.toggle();
   assert(h.container.textContent.includes('Could not load comparison.'));
   assert(!h.container.textContent.includes('Same wording'));
-  version=2;await automaticRecovery(t);
+  version=2;await h.toggle(false);await h.toggle();
   assert(h.container.textContent.includes('Could not load comparison.'));
   assert(!h.container.textContent.includes('Same wording'));
 });

@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
@@ -49,7 +49,7 @@ async function harness(t,query='?view=legislation&pl-mode=dossier&dossier-ref='+
     throw new Error('Unexpected read '+url.href);
   });
   load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const module=await load('/src/DossierActivity.tsx'),{createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const module=await load('/src/DossierActivity.tsx'),{createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const settle=async()=>{const until=Date.now()+5000;while(container.querySelector('[data-dossier-pending="true"],[data-reader-pending="true"]')){assert(Date.now()<until,'Dossier rendering did not settle');await act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));});}};
   const render=async element=>{await act(async()=>root.render(element));await settle();};
   const click=async text=>{await act(async()=>{const control=[...container.querySelectorAll('button,a,summary')].find(node=>node.textContent.trim()===text||node.textContent.trim().startsWith(text+' '));assert(control,'Missing '+text);control.click();});await settle();};

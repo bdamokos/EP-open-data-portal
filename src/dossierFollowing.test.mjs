@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement,StrictMode} from 'react';
@@ -23,7 +23,7 @@ async function harness(t) {
   });
   loader=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const controls=await loader('/src/DossierControls.tsx'),{Saved}=await loader('/src/Saved.tsx'),{SavedNav}=await loader('/src/SavedControls.tsx'),{ProcedureContext}=await loader('/src/ProcedureContext.tsx'),{DossierCard}=await loader('/src/DossierCard.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const flush=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
   const renderSaved=()=>act(async()=>root.render(createElement(StrictMode,null,createElement(SavedNav,{onClick(){}}),createElement(Saved,{language:'en',onBack(){},onMember(){},renderActivity(){return null;}}))));
   const click=async label=>{await act(async()=>{const button=[...container.querySelectorAll('button')].find(button=>button.textContent.trim()===label);assert(button,'Missing '+label+' in '+container.textContent);button.click();});await flush();};

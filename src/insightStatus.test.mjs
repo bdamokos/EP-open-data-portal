@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import {LegislationInsights} from '../server/insights-legislation.mjs';
 import {insightQuery} from '../server/insights-store.mjs';
@@ -38,7 +38,7 @@ async function harness(t,path,component,query,respond,props={},withJourney=false
   // Module loading uses real timers; only mounted application deadlines are advanced.
   t.mock.timers.enable({apis:['setTimeout']});
   const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(withJourney?createElement(JourneyShell):createElement(Component,{language:'en',onBack(){},...props})));
   const status=()=>container.querySelector('[role="status"][aria-live="polite"][aria-atomic="true"]');
   assert(component==='Legislation'||status(),'the result status region is present before a result settles');

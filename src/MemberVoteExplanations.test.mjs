@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
@@ -30,7 +30,7 @@ async function mount(t,{response=result(),handler}={}) {
   });
   load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {MemberVoteExplanations}=await load('/src/MemberVoteExplanations.tsx');
-  const {createRoot}=await import('react-dom/client');const container=window.document.createElement('div');window.document.body.append(container);root=createRoot(container);
+  const {createRoot}=await import('react-dom/client');const container=window.document.createElement('div');window.document.body.append(container);installRetryClock(t);root=createRoot(container);
   let props={vote:{id:decision,sittingId:sitting,subjectId:subject},data:{snapshotId:snapshot,period:{kind:'sitting'}},memberId:'197655',language:'en',onDecision:id=>selected.push(id)};
   const render=()=>root.render(createElement(MemberVoteExplanations,{...props,key:props.vote.id+':'+props.memberId+':'+props.language}));
   await act(async()=>render());

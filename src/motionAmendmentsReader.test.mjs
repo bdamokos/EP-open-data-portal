@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import {contextOverlayResponse,assertContextOverlay} from './test-support/contextOverlay.mjs';
 import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
@@ -57,7 +57,7 @@ async function readerHarness(t,{state={},props={},focusContextChild=false,realCo
   const {MotionAmendments}=await load('/src/MotionAmendments.tsx'),{createRoot}=await import('react-dom/client');
   const DocumentContextReader=realContext?(await load('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
   const {PersonNamesProvider}=await load('/src/PersonName.tsx');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   function Host() {
     [currentState,setState]=useState({...initialState,...state});
     return createElement(MotionAmendments,{...currentProps,state:currentState,onStateChange:setState,renderContext:context=>{

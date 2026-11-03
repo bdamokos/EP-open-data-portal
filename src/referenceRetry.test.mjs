@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -16,7 +16,7 @@ async function reader(t,fetch) {
   t.mock.method(globalThis,'fetch',fetch);
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {ReferenceScope,ReferenceText}=await loadModule('/src/References.tsx');
-  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(ReferenceScope,{texts:[text],language:'en'},createElement('p',null,createElement(ReferenceText,{text})))));
   return {container,retry:()=>[...container.querySelectorAll('button')].find(button=>button.textContent.includes('Retry'))};
 }

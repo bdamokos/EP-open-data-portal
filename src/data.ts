@@ -11,7 +11,7 @@ import type {SpeechDetail,StoredSpeechTranscript} from './explorerTypes';
 export function api<T>(route: string, signal?: AbortSignal, { priority = 'auto', getPriority }: { priority?: 'auto' | 'low'; getPriority?: () => 'auto' | 'low' } = {}, ui: import('./uiI18n.mjs').UiFormatter = defaultUi): Promise<T> {
   return readJson<T>(`${API_ROOT}/${route}`, { signal, priority, getPriority, timeoutMs: dataTimeoutFor(route) }, ui);
 }
-const client = createDataClient(api, { timeoutFor: dataTimeoutFor });
+const client = createDataClient((route,signal,options)=>api(route==='directory'&&client.peek<{committeeDetails?:{error?:string}}>(route)?.committeeDetails?.error?'directory?retry=committee-details':route,signal,options), { timeoutFor: dataTimeoutFor });
 export function expireActivityReads() { client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route)); }
 export function useSpeechData(id:string,language:string) {
   const route=encodeURIComponent(id)+'?lang='+language;
@@ -31,9 +31,9 @@ export function useSpeechData(id:string,language:string) {
   const body=saved.data?.id===id&&saved.data.available&&saved.data.xml?saved:detail;
   const retry=useCallback(()=>{saved.retry();detail.retry();},[saved.retry,detail.retry]);
   const availableTextLanguages=[...new Set([...(saved.data?.id===id?saved.data.availableTextLanguages||[]:[]),...(data?.id===id?data.availableTextLanguages||[]:[])])];
-  return {...detail,data,transcript,retry,availableTextLanguages,loading:!transcript&&(saved.loading||detail.loading),
+  return {...detail,data,transcript,retry,retrying:saved.retrying||detail.retrying,availableTextLanguages,loading:!transcript&&(saved.loading||detail.loading),
     error:transcript?null:saved.loading?null:detail.error,
-    refreshing:saved.loading||detail.loading,refreshError:transcript?.xml?body.error:null,refreshRetryAt:transcript?.xml?body.retryAt:undefined};
+    refreshing:saved.loading||detail.loading||saved.retrying||detail.retrying,refreshError:transcript?.xml?body.error:null,refreshRetryAt:transcript?.xml?body.retryAt:undefined};
 }
 export function prefetchData(routes: string[]) { return client.prefetch(routes); }
 export function useData<T>(route: string | null, {retryWhile}: {retryWhile?:(data:T)=>boolean} = {}) {

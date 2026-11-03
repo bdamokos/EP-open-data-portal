@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createElement,act,StrictMode,Fragment} from 'react';import {Window} from 'happy-dom';import {freshLoader} from './test-support/viteRunner.mjs';
 const baseline={activityVersion:3,activityIdsComplete:true,revision:'old',answerIds:[],latestIds:['old']};
@@ -40,7 +40,7 @@ async function harness(t,items=[member()],v2=false,dossiers=[]) {
  // Control notification expiry and background-check deadlines after module loading.
  t.mock.timers.enable({apis:['setTimeout']});
  const tick=ms=>act(async()=>{t.mock.timers.tick(ms);});
- const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+ const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
  function Checks({language}){controls.useSavedChecks(language);return null;}
  const render=(language='en',strict=false,following=true,members)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,(harness.focusChecks||!following)&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),following&&createElement(Saved,{members,language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
  const click=async(text,scope=container)=>{await act(async()=>{const button=[...scope.querySelectorAll('button')].find(x=>x.textContent===text);assert(button,'Missing '+text+' in '+scope.textContent);button.click();});await settle();};

@@ -64,7 +64,7 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
   const {data:result,loading,error}=(state.member===member) ? state : ({data:null,loading:true,error:null});
   const retrying=useAutomaticRetry(String(member),failure.current,loading,()=>setAttempt(value=>value+1),Boolean(result?.coverage.issues?.includes('source-unavailable')));
   const sourceUnavailable=Boolean(result?.coverage.issues?.includes('source-unavailable'));
-  const status=loading ? 'loading' : ((error||!result||sourceUnavailable) ? 'unavailable' : 'ready');
+  const status=loading||retrying ? 'loading' : ((error||!result||sourceUnavailable) ? 'unavailable' : 'ready');
   useEffect(()=>onStatus?.(status),[onStatus,status]);
   const missingContributions=result&&((result.coverage.total!==null&&result.coverage.available<result.coverage.total)||(result.coverage.issues||[]).some(issue=>!['retained-corpus','total-unavailable'].includes(issue)));
   useEffect(()=>{
@@ -118,7 +118,7 @@ function ConnectedText({speech,language}:{speech:SpeechSequenceRow;language:stri
 }
 function SequenceError({message,retryAt,loading,retry}:{message:string;retryAt?:number;loading:boolean;retry:()=>void}) {
   const ui = useUiI18n();
-  return <div className="intervention-error"><p>{message}</p>{loading&&<p role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.debate.sequence"/></p>}</div>;
+  return <div className="intervention-error">{loading ? <p role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.debate.sequence"/></p> : <p>{message}</p>}</div>;
 }
 function scrollParent(node:HTMLElement):{scrollBy:(x:number,y:number)=>void;bottom:number} {
   for(let parent=node.parentElement;parent;parent=parent.parentElement){
@@ -192,7 +192,7 @@ export function SpeechContextPanel({id,language,transcriptLanguage=language,prel
   useEffect(()=>(preload && (!open)) ? prefetchData([route]) : undefined,[preload,open,route]);
   const controlId=useId();
   return <div className="intervention-context" lang={ui.language}><button className="intervention-context-toggle" onClick={()=>setOpen(value=>!value)} aria-expanded={open} aria-controls={controlId}><UiMessage id="batch4.speechinterventions.tsx.view.speech.in.context"/> <span aria-hidden="true">{open ? '−' : '+'}</span></button>{open&&<div id={controlId}>
-    {state.loading&&!state.data&&<p role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.debate.sequence"/></p>}{state.error&&<SequenceError message={state.error} retryAt={state.retryAt} loading={state.loading} retry={state.retry}/>}
-    {state.data&&<>{state.data.unavailable&&<p><UiMessage id="batch4.speechinterventions.tsx.no.debate.is.linked.to.this.contribution"/></p>}{state.data.debates.map(debate=><Sequence key={debate.id} debate={debate} speechId={id} language={language} transcriptLanguage={transcriptLanguage} loading={state.loading} retry={state.retry}/>)}</>}
+    {state.loading&&!state.data&&<p role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.debate.sequence"/></p>}{state.error&&<SequenceError message={state.error} retryAt={state.retryAt} loading={state.loading||state.retrying} retry={state.retry}/>}
+    {state.data&&<>{state.data.unavailable&&<p><UiMessage id="batch4.speechinterventions.tsx.no.debate.is.linked.to.this.contribution"/></p>}{state.data.debates.map(debate=><Sequence key={debate.id} debate={debate} speechId={id} language={language} transcriptLanguage={transcriptLanguage} loading={state.loading||state.retrying} retry={state.retry}/>)}</>}
   </div>}</div>;
 }

@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement as h,act,Suspense} from 'react';
@@ -13,7 +13,7 @@ async function harness(t) {
   const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);
-  const caught=[],root=createRoot(container,{onCaughtError:error=>caught.push(error)});
+  installRetryClock(t);const caught=[],root=createRoot(container,{onCaughtError:error=>caught.push(error)});
   t.after(async()=>{await act(async()=>root.unmount());await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
   const boundary=await loadModule('/src/ErrorBoundary.tsx');
   return {...boundary,load:path=>loadModule(path),window,container,caught,render:element=>act(async()=>root.render(element)),click:text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(node=>node.textContent===text);assert(button,text);button.focus();button.click();})};

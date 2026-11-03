@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -27,13 +28,13 @@ async function harness(t,query='') {
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(Legislation,{language:'en',onBack(){}})));
   const select=()=>container.querySelector('.insight-controls select');
   return {container,requests,select,
     choose:async value=>act(async()=>{select().value=value;select().dispatchEvent(new window.Event('change',{bubbles:true}));}),
     finish:async(request=requests.at(-1),status=200)=>act(async()=>request.resolve(status===200?Response.json(agenda(request.url.searchParams)):Response.json({error:{message:'Fixture unavailable'}},{status}))),
-    reload:async()=>act(async()=>container.querySelector('.insight-error button').click()),
+    reload:async()=>automaticRecovery(t),
     history:async direction=>act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history[direction]();await popped;}),
     restore:async query=>act(async()=>{history.replaceState(null,'','/?view=legislation'+query);window.dispatchEvent(new window.Event('popstate'));}),
   };
@@ -52,8 +53,8 @@ test('agenda period navigation survives delayed errors, manual retry, history an
   assert.match(container.querySelector('[role="status"]').textContent,/Loading agenda/);
   await h.finish(undefined,503);
   assert.equal(select().value,'week:2026-10-19');
-  assert(!container.textContent.includes('Loading'));
-  assert.match(container.querySelector('[role="alert"]').textContent,/Could not load this agenda.*Choose another period/);
+  assert.equal(container.querySelector('[role="alert"] button'),null);
+  assert.equal(container.querySelector('[role="alert"]'),null);
   assert.equal(requests.length,2,'failure does not automatically retry');
   await h.history('back');
   assert.equal(select().value,'week:2026-10-05');
@@ -62,7 +63,7 @@ test('agenda period navigation survives delayed errors, manual retry, history an
   assert.equal(select().value,'week:2026-10-19');
   assert(!container.querySelector('.insight-agenda'));
   await h.finish(undefined,503);
-  assert(!container.textContent.includes('Loading'));
+  assert.equal(container.querySelector('[role="alert"] button'),null);
   await h.reload();
   assert(!container.querySelector('[role="alert"]'));
   assert.equal(select().value,'week:2026-10-19');
@@ -100,7 +101,7 @@ test('failed direct links keep exact week/day identity without a catalogue and c
   assert.match(select().selectedOptions[0].textContent,/Week of/);
   await h.finish(undefined,503);
   assert.equal(select().value,'week:2026-09-14');
-  assert(!container.textContent.includes('Loading'));
+  assert.equal(container.querySelector('[role="alert"] button'),null);
   await h.choose('week:latest');
   assert.equal(h.requests.at(-1).url.searchParams.get('week'),'latest');
   await h.finish();
@@ -129,8 +130,8 @@ test('agenda timeout ends loading and leaves usable navigation without automatic
   assert(timeouts.length>0);
   await act(async()=>timeouts[0]());
   assert(h.requests.at(-1).signal.aborted);
-  assert(!h.container.textContent.includes('Loading'));
-  assert(h.container.querySelector('[role="alert"]'));
+  assert.equal(h.container.querySelector('[role="alert"]'),null);
+  await automaticRecovery(t);await h.finish();assert.match(h.container.textContent,/Agenda for 2026-10-07/);
   assert.equal(h.select().value,'week:2026-10-05');
-  assert.equal(h.requests.length,2);
+  assert.equal(h.requests.length,3);
 });

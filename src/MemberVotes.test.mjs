@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import {contextOverlayResponse,assertContextOverlay} from './test-support/contextOverlay.mjs';
 import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
@@ -97,7 +97,7 @@ async function mount(t,{state={},calendar={version:2,weeks:[{week:WEEK,sittings:
   const DocumentContextReader=renderContext==='reader'?(await load('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
   const {PersonNamesProvider}=await load('/src/PersonName.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   current={...structuredClone(module.defaultMemberVotesState),...state};
   const draw=()=>root.render(createElement(PersonNamesProvider,{members},createElement(module.MemberVotes,{...props,state:current,key:renderKey})));
   props={memberId:MEMBER,memberName:'Test member',language:'en',onStateChange:(next,options)=>{current=next;changes.push({state:structuredClone(next),options});draw();},
@@ -527,7 +527,7 @@ test('snapshot expiry offers no retry and preserves the requested period, decisi
   const h=await mount(t,{state:initial,statusCompatibility:true,handler:url=>stateFrom(url).snapshotId===SNAPSHOT?Response.json({error:{code:'snapshot_expired',message:'Snapshot expired'}},{status:409}):Response.json(responseFor(url,{items:[vote(1)],selected:{status:'found',item},subjects:[subject([item],{counts:{observed:51,filtered:51,page:1}})],snapshotId:nextSnapshot,pagination:{observedTotal:51,filteredTotal:51}}))});
   assert.match(h.container.textContent,/This page is out of date/);assert.equal(h.calls.length,1);assert.equal(h.changes.length,0);assert.equal(h.contexts.length,0);
   assert.equal(h.container.querySelector('.member-votes-notice button'),null);
-  await automaticRecovery(t);assert.equal(h.calls.length,1);assert.deepEqual(h.state,initial);
+  assert.equal(installRetryClock(t).timers.size,0);assert.equal(h.calls.length,1);assert.deepEqual(h.state,initial);
 });
 
 test('snapshot conflicts do not start a retry episode or reuse cached unpinned reads',async t=>{
@@ -543,7 +543,7 @@ test('snapshot conflicts do not start a retry episode or reuse cached unpinned r
   assert.equal(unpinnedReads,1);assert.equal(h.state.snapshotId,SNAPSHOT);
   assert.match(h.container.textContent,/This page is out of date/);
   assert.equal(h.container.querySelector('.member-votes-notice button'),null);
-  await automaticRecovery(t);assert.equal(unpinnedReads,1);assert.equal(h.state.snapshotId,SNAPSHOT);
+  assert.equal(installRetryClock(t).timers.size,0);assert.equal(unpinnedReads,1);assert.equal(h.state.snapshotId,SNAPSHOT);
 });
 
 test('a temporary 503 keeps the retry path usable while the backend load continues',async t=>{
@@ -1090,8 +1090,8 @@ for(const detail of [false])for(const failure of ['http','network','invalid'])te
  const attendance=()=>h.container.querySelector(detail?'.member-votes-attendance':'.member-votes-attendance-line');
  assert.match(attendance().textContent,/Attendance couldn’t be loaded|Loading attendance register/);
  assert.doesNotMatch(attendance().textContent,/unavailable|not yet published/);
+ if(failure!=='network'){assert.equal(attempts,1);assert.equal(button(h.container,'Retry attendance'),undefined);return;}
  await automaticRecovery(t);
- if(failure!=='network'){assert.equal(attempts,1);return;}
  assert.equal(attempts,2);assert.match(attendance().textContent,/Listed as present|listed present/);
  assert.equal(button(h.container,'Retry attendance'),undefined);
  assert.equal(h.state.decisionId,detail?decision(1):null);

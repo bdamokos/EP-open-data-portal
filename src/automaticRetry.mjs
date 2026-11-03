@@ -13,15 +13,16 @@ export function retryDelay(attempt,retryAt=0,now=Date.now(),random=Math.random()
 export function retryableGap(data) {
   if (!data || typeof data !== 'object') return false;
   if (Array.isArray(data)) return data.some(retryableGap);
-  if (data.retryable === false) return false;
-  if (data.cache?.complete === false || data.ready === false || data.pending === true || data.sourceError === true || data.agendaError || data.issues?.includes?.('source-unavailable')) return true;
+  if (data.retryable === false || data.coverage?.retryable === false) return false;
+  if (data.cache?.complete === false || data.pending === true || data.sourceError === true || data.agendaError || data.issues?.includes?.('source-unavailable')) return true;
+  if (data.error && (data.complete === false || data.failed > 0 || data.truncated === false || data.coverage?.complete === false)) return true;
   if (data.retryable === true || data.stale === true || data.refreshError || data.status === 'error' && data.nextRetryAt) return true;
   if (data.status === 'unavailable' && data.retryAt) return true;
-  return ['document','selectedText','text','textCache','source','sources','coverage','fallback','references','debates'].some(key=>retryableGap(data[key]));
+  return ['detail','voteCoverage','participantCoverage','index','committeeDetails','committeeMemberships','document','selectedText','text','textCache','source','sources','coverage','fallback','references','debates'].some(key=>retryableGap(data[key]));
 }
 export function gapRetryAt(data) {
   if(!data||typeof data!=='object')return 0;
   if(Array.isArray(data))return Math.max(0,...data.map(gapRetryAt));
   const at=typeof data.nextRetryAt==='string'?Date.parse(data.nextRetryAt):data.retryAt;
-  return Math.max(Number.isFinite(at)?at:0,...['document','selectedText','text','textCache','source','sources','coverage','fallback','references','debates'].map(key=>gapRetryAt(data[key])));
+  return Math.max(Number.isFinite(at)?at:0,...['detail','voteCoverage','participantCoverage','index','committeeDetails','committeeMemberships','document','selectedText','text','textCache','source','sources','coverage','fallback','references','debates'].map(key=>gapRetryAt(data[key])));
 }

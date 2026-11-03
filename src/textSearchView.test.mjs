@@ -1,4 +1,4 @@
-import {automaticRecovery} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -41,7 +41,7 @@ async function setup(t,{query='',respond,highlights=false,members}={}) {
   const module=await loadModule('/src/TextSearch.tsx');
   const {PersonNamesProvider}=await loadModule('/src/PersonName.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const defaults={prefix:'fixture-fts',label:'Search fixture speeches',language:'en'};
   const render=props=>act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(module.TextSearch,{...defaults,...props}))));
   const find=selector=>{const node=container.querySelector(selector);assert(node,'Missing '+selector);return node;};
