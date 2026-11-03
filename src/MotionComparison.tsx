@@ -20,12 +20,19 @@ interface Comparison {
 const names:Record<Stage,[string,string]>={'original-joint':['Original','Joint'],'original-adopted':['Original','Adopted'],'joint-adopted':['Joint','Adopted']};
 export const namesUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : typeof names => ({'original-joint':[ui.t("speechplayer.original.c0a806"),ui.t("MotionComparison.joint")],'original-adopted':[ui.t("speechplayer.original.c0a806"),ui.t("membervotespresentation.adopted")],'joint-adopted':[ui.t("MotionComparison.joint"),ui.t("membervotespresentation.adopted")]});
 
-export const contextNamesUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi):Record<'original'|'joint'|'adopted',string> => ui.language==='ro'
+export const contextNamesUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi):Record<'original'|'joint'|'adopted',string> => ui.language!=='en'&&['original','joint','adopted'].every(stage=>ui.messageLocale('MotionComparison.contextStage.'+stage)===ui.locale)
   ? {original:ui.t('MotionComparison.contextStage.original'),joint:ui.t('MotionComparison.contextStage.joint'),adopted:ui.t('MotionComparison.contextStage.adopted')}
   : {original:namesUi(ui)['original-joint'][0].toLowerCase(),joint:namesUi(ui)['original-joint'][1].toLowerCase(),adopted:namesUi(ui)['original-adopted'][1].toLowerCase()};
 
 const documentNames:Record<Stage,[string,string]>={'original-joint':['Original motion','Joint motion'],'original-adopted':['Original motion','Adopted text'],'joint-adopted':['Joint motion','Adopted text']};
 export const documentNamesUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : typeof documentNames => ({'original-joint':[ui.t("MotionComparison.original_motion"),ui.t("batch6.documentcontextreader.joint.motion.40")],'original-adopted':[ui.t("MotionComparison.original_motion"),ui.t("batch6.documentcontextreader.adopted.text.40")],'joint-adopted':[ui.t("batch6.documentcontextreader.joint.motion.40"),ui.t("batch6.documentcontextreader.adopted.text.40")]});
+
+/** Polish headings use nominative document names; summaries retain reviewed locatives. */
+export const comparisonNameUi = (stage:Stage,ui:import('./uiI18n.mjs').UiFormatter=defaultUi) => {
+ const context=contextNamesUi(ui),[from,to]=stage.split('-') as ['original'|'joint','joint'|'adopted'];
+ const labels=ui.language==='pl'?documentNamesUi(ui)[stage]:[ui.messageLocale('MotionComparison.contextStage.'+from)===ui.locale&&ui.language!=='en'?context[from]:namesUi(ui)[stage][0],context[to]];
+ return ui.t('MotionComparison.name',{fromStage:labels[0],toStage:labels[1]});
+};
 
 const reference=(block:Block, ui: import('./uiI18n.mjs').UiFormatter = defaultUi)=>(block.kind==='paragraph') ? ui.t("MotionComparison.paragraph", {label: String(block.label)}) : ((block.kind==='recital') ? ui.t("MotionComparison.recital", {label: String(block.label)}) : ((block.kind==='footnote') ? ui.t("batch6.references.note.label.178", {label: String(block.label)}) : ((block.kind==='citation') ? ui.t("MotionComparison.citation", {label: String(block.label)}) : ui.t("MotionComparison.passage", {label: String(block.label)}))));
 
@@ -75,7 +82,7 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
   const fullNames=documentNamesUi(ui)[stage],readIndex=(readSide==='before') ? 0 : 1;
   const noDifferences=summary&&summary.changed===0&&summary.added===0&&summary.removed===0&&summary.referenceChanged===0;
 
-  const comparisonName=ui.t("MotionComparison.name", {fromStage: ui.language==='ro'?contextLabels[0]:labels[0], toStage: contextLabels[1]});
+  const comparisonName=comparisonNameUi(stage,ui);
   const status=state.error ? (data ? ui.t("MotionComparison.refreshFailed", {comparisonName: String(comparisonName)}) : ui.t("MotionComparison.loadFailed", {comparisonName: String(comparisonName)})) : (data ? ((data.status==='unavailable') ? ui.t("MotionComparison.unavailable", {comparisonName: String(comparisonName)}) : ui.t("MotionComparison.available", {comparisonName: String(comparisonName), languageStatus: String(data.textLanguage ? ui.t("MotionComparison.textLanguage", {language: String(data.textLanguage.toUpperCase())}) : ''), countStatus: String(summary ? ui.t("MotionComparison.statusCounts", {changed: String(summary.changed), removed: String(summary.removed), fromStage: contextLabels[0], added: String(summary.added), toStage: contextLabels[1]}) : ui.t("MotionComparison.countsUnavailable"))})) : null);
   const retry=()=>{setAttempt(value=>value+1);state.retry();};
   return <section className="explorer-motion-comparison" lang={ui.language} aria-label={ui.t("MotionComparison.motion_wording_comparison")}>

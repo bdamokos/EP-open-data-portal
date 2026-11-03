@@ -44,9 +44,9 @@ export function TopicStories({selection,fallback,facts:provided,onRecords}:{sele
   const label=typeof v.text==='string'?v.text:render(v.text,path+'-label'),single=!v.browse&&!v.pageRecords&&v.records.length===1;
   const href=v.target||(v.pageRecords?storyHref({...display,period:v.period||display.period})+'#topic-records':v.period?storyHref({...display,period:v.period}):single?recordTarget(v.records[0]):setHref(v,display));
   const id='story-link-'+encodeURIComponent(v.setKey||storySetKey(v,{...display,period:v.period||display.period}));
-  const visible=text(v.text),count=(typeof v.text==='object'?v.text.counts?.count:undefined)??v.expected,b=v.browse,placeName=b?.places?new Intl.ListFormat(ui.language==='en'?'en-GB':ui.locale,{type:'conjunction'}).format(b.places.split(',').map(p=>display.labels?.[p]||p)):display.labels?.[b?.place||display.place||'']||b?.place||display.place;
-  const pageName=count&&b&&placeName?ui.t(b.places?'topics.story.links.tieHeading':'topics.story.links.heading',{count,kind:ui.t('topics.story.links.kind.'+b.list,{count},{count}),place:placeName,places:placeName}):'';
-  const accessible=pageName.toLocaleLowerCase().includes(visible.toLocaleLowerCase())?pageName+(display.period?', '+monthRangeLabel(display.period,ui.language):''):undefined;
+  const visible=text(v.text),count=(typeof v.text==='object'?v.text.counts?.count:undefined)??v.expected,b=v.browse,placeName=b?.places?new Intl.ListFormat(proseUi.language==='en'?'en-GB':proseUi.locale,{type:'conjunction'}).format(b.places.split(',').map(p=>display.labels?.[p]||p)):display.labels?.[b?.place||display.place||'']||b?.place||display.place;
+  const pageName=count!=null&&b&&placeName?proseUi.t(b.places?'topics.story.links.tieHeading':'topics.story.links.heading',{count,kind:proseUi.t('topics.story.links.kind.'+b.list,{count},{count}),place:placeName,places:placeName}):'';
+  const accessible=pageName?(pageName.toLocaleLowerCase().includes(visible.toLocaleLowerCase())?pageName:visible+', '+pageName)+(display.period?', '+monthRangeLabel(display.period,proseUi.language):''):undefined;
   return <a id={id} href={href} aria-label={accessible} onClick={e=>{
    if(e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
    if(v.pageRecords&&onRecords){e.preventDefault();onRecords(v.period||display.period,text(v.text),id);return;}

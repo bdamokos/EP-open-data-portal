@@ -25,7 +25,7 @@ test('reference rise and summary slots render the current canonical whole phrase
 });
 test('composed native count slots retain raw selectors and rich reference identity',()=>{
  const translation={plural:'count',one:'ONE {count}',few:'FEW {count}',other:'OTHER {count}'};
- const ui=createAppUiI18n({pl:{'topics.story.links.home':translation,'topics.story.links.elsewhere':translation,'topics.story.links.debatesEach':translation}}).forLocale('pl');
+ const ui=createAppUiI18n({pl:{'topics.story.links.home':translation,'topics.story.links.elsewhere':translation,'topics.story.links.debatesEach':translation}},{}).forLocale('pl');
  const payload={ready:true,counts:{questions:7,questionElsewhere:2},periodCounts:[],winners:{},periodWinners:{},debates:[],docs:[],questions:[],askers:'all'};
  const summary=buildExactTopicStories(payload,{place:'FRA',language:'pl'})[0];
  assert.equal(summary.values.elsewhere.text.counts.count,2);assert.equal(say(summary.values.elsewhere,ui),'FEW 2');
