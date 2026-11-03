@@ -110,6 +110,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 ### Amendments
 
+- Term-9 plenary reports and motions enter amendment discovery only when an exact current-term vote agenda item names them. Upcoming scope uses each list’s document date after the latest earlier exact plenary vote event; unavailable dates remain unclassified. During a part-session window (07:00 Brussels four days before the first sitting to 23:00 on the last day), its vote documents are re-read about hourly within the shared background allocation. New or changed list metadata receives extraction priority; held bytes are reused.
 - Amendment lists hang off `/plenary-documents/{id}` through `inverse_foresees_change_of`, and each list must point back with `foresees_change_of`. List detail uses `/documents/{id}`. Committee lists come from the procedure’s `COMMITTEE_TABLING_REPORT`, `_OPINION` and `_AMENDMENT` links, with draft detail from `/committee-documents/{id}`.
 - Each list’s DOCX supplies amendment numbers, proposers (`<Members>` bylines), target provisions and the original/proposed columns. List number ranges don’t prove that every number exists.
 - Offline adopted-text calibration reads `/adopted-texts?year=YYYY` listings and their declared English XML distributions. Exact `adopts` plus decision date binds the TA; `AMDLST/AMEND/TI.AMD` retains amendment numbers and `STI.AMD` the finalized path. The sealed calibration inputs stay outside Git and never feed runtime placement.

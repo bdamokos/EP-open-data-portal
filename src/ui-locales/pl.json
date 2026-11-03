@@ -2506,5 +2506,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Wystąpienia według miesięcy",
   "groupvoices.contributions_by_sitting_day.77a719": "Wystąpienia według dni posiedzeń",
   "membervotespresentation.votes_not_yet_published": "Głosowania nie zostały jeszcze opublikowane",
-  "membervotespresentation.votes_start_at": "Głosowania rozpoczynają się o {time}"
+  "membervotespresentation.votes_start_at": "Głosowania rozpoczynają się o {time}",
+  "topics.geopolitics": "Geopolityka",
+  "topics.plenaryMode": "Tematy",
+  "topics.findPlace": "Znajdź miejsce",
+  "topics.findTopic": "Znajdź temat"
 }

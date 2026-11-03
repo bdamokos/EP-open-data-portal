@@ -2168,7 +2168,7 @@ test('the published amendment-list processing limit remains an explicit gap afte
 test('amendment and failure queries reject unsupported, repeated, malformed and unbounded inputs',()=>{
   const valid=amendmentQuery(new URLSearchParams({document:targetId,procedure:'2025-0233',member:'101',outcome:'mixed',lang:'fr',limit:'50',offset:'10'}));
   assert.equal(valid.document,targetId);assert.equal(valid.member,'101');assert.equal(valid.language,'fr');
-  for(const query of ['document='+targetId+'&document='+targetId,'unknown=x','document='+targetId+'-AM-1','document=A-9-2024-0254','procedure=2025/0233','member=0','member=9007199254740993','outcome=adopted','limit=0','limit=51','limit=1.5','limit=01','offset=-1','offset=1000001','lang=not-a-language']) {
+  for(const query of ['document='+targetId+'&document='+targetId,'unknown=x','document='+targetId+'-AM-1','procedure=2025/0233','member=0','member=9007199254740993','outcome=adopted','limit=0','limit=51','limit=1.5','limit=01','offset=-1','offset=1000001','lang=not-a-language']) {
     assert.throws(()=>amendmentQuery(new URLSearchParams(query)),error=>error.status===400,query);
   }
   assert.equal(amendmentQuery(new URLSearchParams('status=unresolved&limit=1'),{failures:true}).status,'unresolved');

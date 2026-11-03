@@ -2523,5 +2523,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Intervenții pe luni",
   "groupvoices.contributions_by_sitting_day.77a719": "Intervenții pe zile de ședință",
   "membervotespresentation.votes_not_yet_published": "Voturile nu au fost încă publicate",
-  "membervotespresentation.votes_start_at": "Voturile încep la {time}"
+  "membervotespresentation.votes_start_at": "Voturile încep la {time}",
+  "topics.geopolitics": "Geopolitică",
+  "topics.plenaryMode": "Teme",
+  "topics.findPlace": "Caută un loc",
+  "topics.findTopic": "Caută o temă"
 }

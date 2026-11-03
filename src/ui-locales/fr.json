@@ -2506,5 +2506,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Interventions par mois",
   "groupvoices.contributions_by_sitting_day.77a719": "Interventions par jour de séance",
   "membervotespresentation.votes_not_yet_published": "Votes pas encore publiés",
-  "membervotespresentation.votes_start_at": "Les votes commencent à {time}"
+  "membervotespresentation.votes_start_at": "Les votes commencent à {time}",
+  "topics.geopolitics": "Géopolitique",
+  "topics.plenaryMode": "Thèmes",
+  "topics.findPlace": "Rechercher un lieu",
+  "topics.findTopic": "Rechercher un thème"
 }

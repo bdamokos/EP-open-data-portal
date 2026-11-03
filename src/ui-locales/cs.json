@@ -2506,5 +2506,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Vystoupení podle měsíců",
   "groupvoices.contributions_by_sitting_day.77a719": "Vystoupení podle jednacích dnů",
   "membervotespresentation.votes_not_yet_published": "Hlasování zatím nebyla zveřejněna",
-  "membervotespresentation.votes_start_at": "Hlasování začíná v {time}"
+  "membervotespresentation.votes_start_at": "Hlasování začíná v {time}",
+  "topics.geopolitics": "Geopolitika",
+  "topics.plenaryMode": "Témata",
+  "topics.findPlace": "Najít místo",
+  "topics.findTopic": "Najít téma"
 }

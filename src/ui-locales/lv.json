@@ -2506,5 +2506,9 @@
   "groupvoices.contributions_by_month.0ca3ec": "Uzstāšanās pa mēnešiem",
   "groupvoices.contributions_by_sitting_day.77a719": "Uzstāšanās pa sēžu dienām",
   "membervotespresentation.votes_not_yet_published": "Balsojumi vēl nav publicēti",
-  "membervotespresentation.votes_start_at": "Balsojumi sākas plkst. {time}"
+  "membervotespresentation.votes_start_at": "Balsojumi sākas plkst. {time}",
+  "topics.geopolitics": "Ģeopolitika",
+  "topics.plenaryMode": "Temati",
+  "topics.findPlace": "Meklēt vietu",
+  "topics.findTopic": "Meklēt tematu"
 }

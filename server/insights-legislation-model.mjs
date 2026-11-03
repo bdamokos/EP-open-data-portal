@@ -35,6 +35,7 @@ export function agendaTopics(meeting,foreseen) {
   return foreseen.payload.data.filter(n=>['PLENARY_DEBATE','PLENARY_VOTE'].includes(tail(n.had_activity_type)) && children.has(canonical(n.id))).map(n=>({
     id:n.activity_id||tail(n.id),uri:canonical(n.id),titles:n.activity_label||{},date:n.activity_date,kind:tail(n.had_activity_type),order:Number(n.activity_order)||0,
     documentIds:[...new Set(refs(n.based_on_a_realization_of).map(documentId).filter(Boolean))],procedureIds:[...new Set(refs(n.inverse_was_scheduled_in).map(procedureId).filter(Boolean))],
+    deadlines:array(n.was_purpose_of).map(value=>typeof value==='object'?value:foreseen.payload.data.find(node=>canonical(node.id)===canonical(value))).filter(value=>array(value?.type).some(type=>['Deadline','eli-dl:Deadline'].includes(tail(type)))).map(value=>({id:value.activity_id||tail(value.id),end:value.activity_end_date||null,type:value.had_activity_type||null,labels:value.activity_label||{}})),
     agendaCreatorIds:agendaCreatorIds(n.structuredContent),agendaDocumentIds:refs(n.documented_by_a_realization_of).map(documentId).filter(Boolean),
     evidence:{apiUrl:foreseen.url,fetchedAt:sourceDate(foreseen),relationship:'meeting.was_scheduled_in → MEETING_PART.consists_of → agenda item; item.based_on_a_realization_of → document; item.inverse_was_scheduled_in → procedure',containerId:children.get(canonical(n.id)).activity_id}
   })).sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));
