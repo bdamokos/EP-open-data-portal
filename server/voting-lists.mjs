@@ -1,13 +1,13 @@
 import {createHash} from 'node:crypto';
 import {docxContent} from './document-text.mjs';
-export const VOTING_LISTS_VERSION=1;
+export const VOTING_LISTS_VERSION=2;
 export const VOTING_LIST_PAGE='https://www.europarl.europa.eu/plenary/en/votes.html';
 export const votingDocumentId=value=>{const m=/^([ABC])(\d+)-(\d{4})\/(\d{4})$/.exec(value||'');return m?`${m[1]}-${Number(m[2])}-${m[4]}-${m[3]}`:null;};
 const lines=value=>value.split(/\n/).map(s=>s.trim()).filter(Boolean);
 function amendments(value){
   if(!value||!/^[\d\sDcp=,–-]+$/.test(value))return [];
   const result=[];
-  for(const token of value.split(/[\s,=]+/).filter(Boolean)){
+  for(const token of value.replace(/(\d)[ \t]*[–-][ \t]*(?=\d)/g,'$1-').split(/[\s,=]+/).filter(Boolean)){
     const range=/^(\d+)[–-](\d+)$/.exec(token),one=/^(\d+)(D|cp(\d+))?$/.exec(token);
     if(range){const a=+range[1],b=+range[2];if(b<a||b-a>500)return [];for(let n=a;n<=b;n++)result.push({number:n,cp:null,deleting:false});}
     else if(one)result.push({number:+one[1],cp:one[3]?+one[3]:null,deleting:one[2]==='D'});else return [];
@@ -17,13 +17,14 @@ function falls(text,documentId){
   const m=/^(?:adoption(?: \d+)?|ad\.)\s*=\s*(.*?)\s+falls?$/.exec(text);
   if(/^(?:adoption|ad\.)\s*=\s*MRs replaced$/.test(text))return {amendments:[],motions:[],replacesMotions:true};
   if(!m)return null;
+  const fallback={amendments:[],motions:[],replacesMotions:false,text};
   const targets=m[1].replace(/\band\b/g,',');
   if(/^B\d+-/.test(targets)){
     const refs=targets.split(/,\s*/).map(s=>s.trim());const year=documentId?.split('-')[2];
     const motions=refs.map(s=>votingDocumentId(s.includes('/')?s:`${s}/${year}`));
-    return motions.every(Boolean)?{amendments:[],motions,replacesMotions:false}:null;
+    return motions.every(Boolean)?{amendments:[],motions,replacesMotions:false}:fallback;
   }
-  const am=amendments(targets);return am.length?{amendments:am.map(({number,cp})=>({number,cp})),motions:[],replacesMotions:false}:null;
+  const am=amendments(targets);return am.length?{amendments:am.map(({number,cp})=>({number,cp})),motions:[],replacesMotions:false}:fallback;
 }
 // Expand physical cells into grid columns; merged continuations remain empty.
 function tableRows(table,paragraphs){
@@ -78,7 +79,9 @@ export function parseVotingList(buffer,{sourceUrl=null,observedAt=new Date().toI
     if(first)subject=lines(first);
     let kind='unrecognised',label=null,part=null,parentRow=null,ams=amendments(am),authors=lines(author),motion=null;
     if(table.rows[row].length===1){kind='heading';label=first;competing=/Motions for resolutions by political groups/.test(first);parent=null;}
-    else if(/^Rejection$/i.test(first)){kind='procedural';label=first;parent=null;}
+    else if(!am&&/^oral amendment$/i.test(remarks||'')){kind='oral';label=remarks;parent=null;}
+    else if(/^single vote$/i.test(first)){kind='final';label=first;parent=null;}
+    else if(/^(?:Rejection|Procedural motion)$/i.test(first)){kind='procedural';label=first;parent=null;}
     else if(/^vote:/i.test(first)){kind=/referral back|urgent decision|reject/i.test(first)?'procedural':'final';label=first;parent=null;}
     else if(competing&&(motion=votingDocumentId(first.trim()))){kind='motion';parent=null;}
     else if(am==='§'&&author==='original text')kind='text';

@@ -32,3 +32,14 @@ test('unknown row values remain unrecognised with raw cells and cannot acquire g
  const entry=Buffer.concat([local,name,body]),directory=Buffer.concat([central,name]);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(directory.length,12);end.writeUInt32LE(entry.length,16);
  const doc=parseVotingList(Buffer.concat([entry,directory,end]));assert.equal(doc.rows[0].kind,'unrecognised');assert.deepEqual(doc.rows[0].amendments,[]);assert.equal(doc.rows[0].cells[1],'not-an-amendment');assert.equal(doc.gaps[0].code,'unrecognised-row');
 });
+test('all forty September voting lists classify all 677 physical rows',()=>{
+ const manifest=JSON.parse(fixture('september/provenance.json'));assert.equal(manifest.files.length,40);let total=0;
+ const parsed=new Map(manifest.files.map(({file})=>[file,parse('september/'+file)]));
+ for(const [file,list] of parsed){assert.ok(list.documentId,file);assert.deepEqual(list.gaps,[],file);assert.ok(list.rows.every(r=>r.kind!=='unrecognised'),file);total+=list.rows.length;}
+ assert.equal(total,677);
+ for(const file of ['A10-0196_Wilmes.docx','A10-0205_Cabral.docx','A10-0221_Jerkovic.docx','A10-0226_Zdrojewski.docx']){const row=parsed.get(file).rows[0];assert.equal(row.kind,'final');assert.equal(row.vote.rollCall,true);}
+ const block=parsed.get('A10-0216_Dibrani.docx').rows[0];assert.equal(block.kind,'block');assert.deepEqual(block.amendments.map(a=>a.number),[...Array.from({length:83},(_,i)=>i+1)].filter(n=>![4,22,55,64,65,66,68].includes(n)));
+ const oral=parsed.get('A10-0168_FOURLAS_RAZZA.docx').rows[8];assert.equal(oral.kind,'oral');assert.equal(oral.row,9);assert.deepEqual(oral.amendments,[]);assert.deepEqual(oral.subject,['After § 13']);assert.equal(oral.cells[5],'oral amendment');
+ const motion=parsed.get('_A10-0098_2026__Nerudova.docx').rows[3];assert.equal(motion.kind,'procedural');assert.deepEqual(motion.authors,['ECR']);assert.equal(motion.falls.text,'adoption = vote on provisional agreement falls');
+ const free=parsed.get('_A10-0202_2026__Canfin.docx').rows.find(r=>r.remarks==='adoption 86 = all ams to article 7 fall');assert.deepEqual(free.falls,{amendments:[],motions:[],replacesMotions:false,text:free.remarks});
+});
