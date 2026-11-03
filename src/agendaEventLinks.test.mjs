@@ -32,14 +32,18 @@ test('voting-time group links require a supplied exact scheduled vote target',as
  const rows=node.querySelectorAll('.topic-record-group');assert.equal(rows.length,3);for(const a of rows[0].querySelectorAll('a'))assert.equal(new URL(a.href).searchParams.get('agenda-topic'),scheduled);assert.equal(rows[1].querySelectorAll('a').length,0);assert.equal(rows[2].querySelectorAll('a').length,0);assert(!rows[1].querySelector('small').textContent.includes('Debate'));
 });
 
-for(const status of [404,503])test('agenda topic '+status+' '+(status===404?'keeps the unavailable line without retry':'keeps a working transient retry'),async t=>{
- let attempts=0;
- const node=await harness(t,'Legislation','?view=legislation&agenda-period=sitting:'+sitting+'&agenda-topic='+sitting+'-PVCRE-ITM-99',u=>{
+for(const [status,terminal] of [[404,true],[503,false],[503,true]])test('agenda topic '+status+' '+(terminal?'settles without a retry control':'recovers automatically'),async t=>{
+ let attempts=0,failed=true;const id=sitting+'-PVCRE-ITM-'+(status===404?'98':terminal?'100':'99');
+ const node=await harness(t,'Legislation','?view=legislation&agenda-period=sitting:'+sitting+'&agenda-topic='+id,u=>{
   if(!u.pathname.endsWith('/insights/legislation'))return {ready:false};
-  if(u.searchParams.has('topic')){attempts++;return Response.json({error:{code:status===404?'topic_not_found':'odp_unavailable'}},{status});}
-  return {sitting:{id:sitting,date,phase:'past'},sittings:[{id:sitting,date,phase:'past'}],topics,coverage:{agendaError:null},detail:null};
+  const base={sitting:{id:sitting,date,phase:'past'},sittings:[{id:sitting,date,phase:'past'}],topics,coverage:{agendaError:null},detail:null};
+  if(u.searchParams.has('topic')){attempts++;if(failed)return Response.json({error:{code:status===404?'topic_not_found':'odp_unavailable'}},{status});return {...base,detail:{...topics[0],id,title:'Recovered exact debate',phase:'past',procedures:[],committeeWork:[],roles:[],speeches:[],people:[],stats:{denominator:0,dimensions:{country:[],group:[],gender:[],age:[]}},votes:[],selectedVote:null,voteCoverage:{truncated:false},coverage:{gaps:[],roleRowsTruncated:false,speechAssociations:{sources:[],truncated:false}}}};}
+  return base;
  });
- const panel=node.querySelector('.insight-topic-detail');assert.equal(panel.querySelector('h2').textContent,'Agenda item unavailable');
- const reload=[...panel.querySelectorAll('button')].find(b=>b.textContent==='Reload');
- if(status===404){assert(!reload);assert(!panel.querySelector('[role=alert]'));}else{assert(reload);const before=attempts;await act(async()=>reload.click());assert.equal(attempts,before+1);}
+ const panel=node.querySelector('.insight-topic-detail');assert.equal(panel.querySelector('button'),null);
+ if(status===404){assert.equal(panel.querySelector('h2').textContent,'Agenda item unavailable');assert.equal(panel.querySelector('[role=alert]'),null);assert.equal(attempts,1);assert.equal(installRetryClock(t).timers.size,0);return;}
+ assert.equal(panel.querySelector('h2').textContent,'Loading…');assert.equal(panel.querySelector('[role=alert]'),null);
+ if(terminal){await exhaustAutomaticRetries(t);assert.equal(attempts,7);assert.equal(panel.querySelector('h2').textContent,'Agenda item unavailable');assert.match(panel.querySelector('[role=alert]').textContent,/Could not load this item/);assert.equal(panel.querySelector('[role=alert] button'),null);assert.equal(installRetryClock(t).timers.size,0);}
+ failed=false;const before=attempts;if(terminal)await act(async()=>window.dispatchEvent(new window.Event('online')));else await automaticRecovery(t);
+ assert.equal(attempts,before+1);assert.equal(panel.querySelector('h2').textContent,'Recovered exact debate');assert.equal(panel.querySelector('[role=alert]'),null);assert.equal(panel.dataset.agendaTopic,id);
 });

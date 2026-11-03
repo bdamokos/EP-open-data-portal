@@ -9,13 +9,13 @@ async function harness(t,items=[member()],v2=false,dossiers=[]) {
  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.localStorage.setItem(v2?'ep.following.v2':'ep.bookmarks.v1',JSON.stringify({version:v2?2:1,items}));
  window.localStorage.setItem('ep.following.dossiers.v1',JSON.stringify({version:1,items:dossiers}));
- const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null,statusGate=null,manifestGate=null;
+ const requests=[],opened=[],waiting=[];let root,loadModule,fail='',failureStatus=503,conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null,statusGate=null,manifestGate=null;
  let status={epoch:'one',generation:5,marksReady:true,indexComplete:true,publishedAt:null};
  let ids=[['old',0,5]],entries=[],questionAnswers=[],membershipLists={incoming:{status:'fresh'},outgoing:{status:'fresh'}},invalidMembership=false;
  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
  t.mock.method(globalThis,'fetch',async(input,options)=>{
   const url=new URL(input,window.location.href),route=url.pathname.split('/').at(-1);requests.push({url,route,options});
-  if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:503});
+  if(fail===route)return Response.json({error:{code:'fixture_failure',message:'Fixture unavailable'}},{status:failureStatus,headers:failureStatus===429?{'Retry-After':'300'}:{}});
   if(conflict&&route==='following-manifest'){conflict--;return Response.json({error:{code:'generation_changed',message:'Changed'}},{status:409});}
   if(route==='following-status'){
    const response=Response.json(status),gate=statusGate;statusGate=null;
@@ -49,7 +49,7 @@ async function harness(t,items=[member()],v2=false,dossiers=[]) {
  const holdNextDetail=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);memberGate={started,wait};return {ready,release};};
  const holdNextStatus=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);statusGate={started,wait};return {ready,release};};
  const holdNextManifest=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);manifestGate={started,wait};return {ready,release};};
- return {holdNextManifest,tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,holdNextStatus,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
+ return {holdNextManifest,tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,holdNextStatus,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:(route,status=503)=>{fail=route;failureStatus=status;},conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
 }
 const cards=h=>[...h.container.querySelectorAll('.explorer-saved-items>article')];
 const rows=card=>[...card.querySelectorAll('.explorer-saved-disclosure')];
@@ -327,7 +327,7 @@ test('auto-resolution is at most four concurrent, dedupes StrictMode and repeate
  await h.check();assert.equal(h.requests.filter(x=>x.route==='following-member').length,4);await h.finish();await settle();assert.equal(h.requests.filter(x=>x.route==='following-member').length,8);await h.finish();await settle();await h.finish();await settle();assert.equal(h.requests.filter(x=>x.route==='following-member').length,9);assert.equal(h.max(),4);
  await h.render('en',true);await h.check();assert.equal(h.requests.filter(x=>x.route==='following-member').length,9);
 });
-test('failed auto-resolution retries explicitly and on focus no more than once per minute',async t=>{
+test('failed member resolution uses scheduled recovery without a parallel focus retry',async t=>{
  const h=await harness(t);await h.render();await h.check();h.fail('following-member');h.setStatus({generation:6});h.setDetail([['late',0,6]],[speech]);await h.check();await settle();assert.equal(cards(h)[0].querySelector('[role=alert] button'),null);
  const count=()=>h.requests.filter(x=>x.route==='following-member').length,first=count();await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));await settle();assert.equal(count(),first);
  await automaticRecovery(t);assert.equal(count(),first+1);h.fail('');await automaticRecovery(t);await settle();assert.equal(count(),first+2);assert.match(cards(h)[0].textContent,/Late speech/);
@@ -480,4 +480,26 @@ test('failed Following reads keep stored entries and show a terminal notice only
  assert.match(h.container.textContent,/Couldn't check for MEP updates/);assert.deepEqual(h.controls.savedStore.snapshot().items.map(item=>item.id),ids);
  assert.equal([...h.container.querySelectorAll('button')].some(button=>/Retry|Try again|Reload/.test(button.textContent)),false);
  h.fail('');await act(async()=>h.window.dispatchEvent(new h.window.Event('online')));await settle();assert.equal(h.controls.savedStore.snapshot().checkState,'available');
+});
+
+test('a permanent failure cannot block a new Following selection or language',async t=>{
+ const first={kind:'question',id:'E-10-2026-000001',title:'First question',savedAt:1};
+ const h=await harness(t,[first],true);h.fail('saved',404);await h.render('en',false,false);await settle();
+ assert.equal(h.controls.savedStore.snapshot().questionCheckState,'error');assert.equal(installRetryClock(t).timers.size,0);
+ const count=h.requests.filter(x=>x.route==='saved').length;h.fail('');
+ await act(async()=>{h.controls.savedStore.toggle(first);h.controls.savedStore.toggle({...first,id:'E-10-2026-000002',title:'Second question'});});await settle();
+ assert.equal(h.requests.filter(x=>x.route==='saved').length,count+1);assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');assert.equal(h.item().id,'E-10-2026-000002');
+ h.fail('saved',404);await h.background(true);const before=h.requests.filter(x=>x.route==='saved').length;h.fail('');await h.render('fr',false,false);await settle();
+ assert.equal(h.requests.filter(x=>x.route==='saved').length,before+1);assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
+});
+
+for(const status of [404,429])test('member resolution foreground events honour failure policy '+status,async t=>{
+ const h=await harness(t);await h.render();await h.check();h.fail('following-member',status);h.setStatus({generation:6});h.setDetail([['late',0,6]],[speech]);await h.check();await settle();
+ const count=()=>h.requests.filter(x=>x.route==='following-member').length,before=count();
+ if(status===429){const timer=[...installRetryClock(t).timers.values()][0];assert(timer);}
+ // Move the legacy one-minute throttle without firing policy timers. Neither
+ // event may bypass a permanent failure or an advertised server deadline.
+ const now=Date.now;t.mock.method(Date,'now',()=>now()+60_001);
+ await act(async()=>{h.window.dispatchEvent(new h.window.Event('focus'));h.window.document.dispatchEvent(new h.window.Event('visibilitychange'));});await settle();
+ assert.equal(count(),before);assert.equal(cards(h)[0].querySelector('[role=alert] button'),null);
 });

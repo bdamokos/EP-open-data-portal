@@ -60,7 +60,7 @@ export const requestedKeys=new WeakMap<Promise<unknown>,string>();
 let pending:Promise<SavedCheck|undefined>|null=null,lastStatus=0,status:FollowingStatus|null=null;
 let statusError=false;
 const checkListeners=new Set<()=>void>();
-let readState:{error:unknown;loading:boolean;retrying:boolean}={error:null,loading:false,retrying:false};
+let readState:{key:string;language:string;error:unknown;loading:boolean;retrying:boolean}={key:'',language:'',error:null,loading:false,retrying:false};
 const readListeners=new Set<()=>void>();
 function publishReadState(patch:Partial<typeof readState>){readState={...readState,...patch};readListeners.forEach(listener=>listener());}
 export function useSavedReadState(){return useSyncExternalStore(callback=>{readListeners.add(callback);return()=>{readListeners.delete(callback);};},()=>readState);}
@@ -191,12 +191,12 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
       throw error;
     }
   })().then(result=>{publishReadState({error:null});return result;},error=>{publishReadState({error});throw error;}).finally(()=>{pending=null;publishReadState({loading:false});checkListeners.forEach(listener=>listener());if(document.visibilityState==='visible'&&selectionKey()!==requestedKey)void checkSaved(language, undefined, ui).catch(()=>{});});
-  publishReadState({loading:true});requestedKeys.set(pending,requestedKey);return pending;
+  publishReadState({key:requestedKey,language,loading:true});requestedKeys.set(pending,requestedKey);return pending;
 }
 export function useSavedRecovery(language:string,enabled=true) {
   const ui=useUiI18n(),{items}=useSaved(),key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
-  const currentRead=useSavedReadState();
-  const retrying=useAutomaticRetry(enabled&&key?language+':'+key:null,currentRead.error,currentRead.loading,()=>{void checkSaved(language,true,ui).catch(()=>{});});
+  const currentRead=useSavedReadState(),matching=currentRead.key===key&&currentRead.language===language;
+  const retrying=useAutomaticRetry(enabled&&key?language+':'+key:null,matching?currentRead.error:null,matching&&currentRead.loading,()=>{void checkSaved(language,true,ui).catch(()=>{});});
   useEffect(()=>{if(enabled&&readState.retrying!==retrying)publishReadState({retrying});},[enabled,retrying]);
 }
 export function useSavedChecks(language:string,following=false) {
@@ -206,6 +206,7 @@ export function useSavedChecks(language:string,following=false) {
   useEffect(()=>{
     if(!key)return;
     let active=true,contextPending=true,timer:ReturnType<typeof setTimeout>|undefined;
+    const failed=()=>readState.key===key&&readState.language===language&&Boolean(readState.error);
     const delay=()=>{
       const saved=savedStore.snapshot(),hasMembers=saved.items.some(item=>item.kind==='mep'),hasQuestions=saved.items.some(item=>item.kind==='question');
       const waiting=statusError||!status||hasMembers&&(!status.marksReady||status.membershipReady===false||status.groupsReady===false||saved.checkState!=='available'||membershipCheck==='error'||groupsCheck==='error')||hasQuestions&&saved.questionCheckState!=='available';
@@ -213,11 +214,11 @@ export function useSavedChecks(language:string,following=false) {
     };
     const schedule=()=>{
       clearTimeout(timer);
-      if(active&&!readState.error&&document.visibilityState==='visible')timer=setTimeout(()=>void check(),contextPending ? 1000 : Math.max(1000,lastStatus+delay()-Date.now()));
+      if(active&&!failed()&&document.visibilityState==='visible')timer=setTimeout(()=>void check(),contextPending ? 1000 : Math.max(1000,lastStatus+delay()-Date.now()));
     };
     const check=async()=>{
       clearTimeout(timer);
-      if(document.visibilityState!=='visible'||readState.error)return;
+      if(document.visibilityState!=='visible'||failed())return;
       if(contextPending||Date.now()-lastStatus>=delay()){
         const checked=checkSaved(language, undefined, ui),matches=requestedKeys.get(checked)===key;
         try{
@@ -243,11 +244,11 @@ const resolutionAttempts=new Map<string,{at:number;error?:string;failure?:unknow
 export function useResolveSavedMembers(language:string) {
   const ui=useUiI18n();
   const saved=useSaved(),[resolutions,setResolutions]=useState<Record<string,Resolution>>({}),[wake,setWake]=useState(0);
-  const active=useRef(false),forced=useRef(new Set<string>()),retryEventAt=useRef(0);
+  const active=useRef(false),forced=useRef(new Set<string>());
   const resolveKey=(item:SavedItem)=>JSON.stringify([saved.epoch,saved.manifest?.generation,language,item.id,item.savedAt]);
   useEffect(()=>{
     active.current=true;
-    const retry=()=>{if(document.visibilityState==='visible'){retryEventAt.current=Date.now();setWake(value=>value+1);}};
+    const retry=()=>{if(document.visibilityState==='visible'){setWake(value=>value+1);}};
     window.addEventListener('focus',retry);document.addEventListener('visibilitychange',retry);
     return()=>{active.current=false;window.removeEventListener('focus',retry);document.removeEventListener('visibilitychange',retry);};
   },[]);
@@ -256,7 +257,7 @@ export function useResolveSavedMembers(language:string) {
     for(const item of saved.items) {
       if(item.kind!=='mep'||!(item.unresolved?.activity||item.unresolved?.answer))continue;
       const key=resolveKey(item),attempt=resolutionAttempts.get(key),force=forced.current.delete(key);
-      if(opening.has(taskKey(language,[item]))||attempt?.done||attempt&&!attempt.error||!force&&attempt&&retryEventAt.current-attempt.at<60_000)continue;
+      if(opening.has(taskKey(language,[item]))||attempt?.done||attempt&&!attempt.error||attempt&&!force)continue;
       if(opening.size>=4)break;
       resolutionAttempts.set(key,{at:Date.now()});setResolutions(previous=>({...previous,[key]:{pending:true}}));
       void openSavedMember(item,language).then(()=>{

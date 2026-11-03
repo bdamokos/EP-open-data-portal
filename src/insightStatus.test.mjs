@@ -325,3 +325,11 @@ test('unknown latest keeps known Agenda dates selectable on a fresh visit',async
  await act(async()=>{select.value='sitting:MTG-PL-2025-12-18';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});await h.tick();
  assert(h.calls.some(url=>url.pathname.endsWith('/insights/legislation')&&url.searchParams.get('sitting')==='MTG-PL-2025-12-18'));assert(!h.container.textContent.includes('Latest week unavailable'));
 });
+
+test('a recovered trend cannot leak rows into a changed period after a retry',async t=>{
+ let fail=true;const next=deferred();
+ const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',url=>url.searchParams.get('days')==='180'?next.promise:fail?Response.json({error:{message:'Busy'}},{status:503}):trends([trend(91)]));
+ await h.tick();fail=false;await automaticRecovery(t);await h.tick();assert.match(h.container.textContent,/Fixture topic 91/);
+ await h.navigate('?trend-days=180');await h.tick();assert(!h.container.textContent.includes('Fixture topic 91'),'new periods cannot display the previous series during loading');
+ await act(async()=>next.resolve(Response.json({error:{message:'Unknown period'}},{status:404})));await h.tick();assert(!h.container.textContent.includes('Fixture topic 91'),'a permanent failure cannot retain rows from another selection');assert.equal(h.container.querySelector('[role=alert] button'),null);assert.equal(installRetryClock(t).timers.size,0);
+});

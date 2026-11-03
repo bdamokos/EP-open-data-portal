@@ -66,15 +66,20 @@ const eventSummaryMessages={
 } as const;
 export function TopicTrends({language='en',initialTopic}:{language?:string;initialTopic?:string|null}) {
   const ui = useUiI18n();
-  const [days,setDays]=useExplorerParam<AnalysisPeriod>('trend-days',180,[90,180,365,'term']),[end,setEnd]=useExplorerParam<string>('trend-until',''),[metric,setMetric]=useExplorerParam<Metric>('trend-metric','debates',['debates','votes','committee']),[data,setData]=useState<Trends|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(false),[attempt,setAttempt]=useState(0),[selection,setSelection]=useExplorerParam<string>('trend-topic',initialTopic||''),[search,setSearch]=useExplorerParam<string>('trend-search',''),[week,setWeek]=useExplorerParam<string>('trend-week',''),[reference,setReference]=useExplorerParam<string|null>('trend-dossier',null),[more,setMore]=useState(false);
+  const [days,setDays]=useExplorerParam<AnalysisPeriod>('trend-days',180,[90,180,365,'term']),[end,setEnd]=useExplorerParam<string>('trend-until',''),[metric,setMetric]=useExplorerParam<Metric>('trend-metric','debates',['debates','votes','committee']),[loading,setLoading]=useState(true),[error,setError]=useState(false),[attempt,setAttempt]=useState(0),[selection,setSelection]=useExplorerParam<string>('trend-topic',initialTopic||''),[search,setSearch]=useExplorerParam<string>('trend-search',''),[week,setWeek]=useExplorerParam<string>('trend-week',''),[reference,setReference]=useExplorerParam<string|null>('trend-dossier',null),[more,setMore]=useState(false);
+  const requestKey=JSON.stringify([language,days,end,initialTopic]);
+  const [response,setResponse]=useState<{key:string;data:Trends}|null>(null);
+  const data=response?.key===requestKey?response.data:null;
+  const lastRequest=useRef({key:requestKey,attempt});
   const failure=useRef<unknown>(null);
-  const retrying=useAutomaticRetry(JSON.stringify([language,days,end,initialTopic]),failure.current,loading,()=>setAttempt(value=>value+1),Boolean(data?.coverage.sourceError));
+  const retrying=useAutomaticRetry(requestKey,failure.current,loading,()=>setAttempt(value=>value+1),Boolean(data?.coverage.sourceError));
   const [,setSource]=useExplorerParam<string|null>('trend-source',null);
   const heading=useRef<HTMLHeadingElement>(null),chart=useRef<SVGSVGElement>(null),[chartWidth,setChartWidth]=useState(960);
   useEffect(()=>{if(!chart.current)return;const observer=new ResizeObserver(entries=>setChartWidth(Math.max(260,Math.round(entries[0].contentRect.width))));observer.observe(chart.current);return()=>observer.disconnect();},[data,selection]);
   useEffect(()=>{
-    let active=true;const controller=new AbortController();setLoading(true);setError(false);if(!attempt)setData(null);
-    void(async()=>{let page:number|null=0;try{while(active&&page!==null){const result:Trends=await client.get('insights/topic-trends?'+new URLSearchParams({lang:language,days:String(days),page:String(page),...(end ? ({end}) : ({})),...(initialTopic ? ({concept:initialTopic.split('/').at(-1)!}) : ({}))}),{force:attempt>0,signal:controller.signal});if(!active)return;failure.current=null;setData(result);page=result.nextPage;}if(active)setLoading(false);}catch(error){if(active)failure.current=error;if(active){setError(true);setLoading(false);}}})();
+    let active=true;const controller=new AbortController();setLoading(true);setError(false);
+    const force=lastRequest.current.key===requestKey&&lastRequest.current.attempt!==attempt;lastRequest.current={key:requestKey,attempt};
+    void(async()=>{let page:number|null=0;try{while(active&&page!==null){const result:Trends=await client.get('insights/topic-trends?'+new URLSearchParams({lang:language,days:String(days),page:String(page),...(end ? ({end}) : ({})),...(initialTopic ? ({concept:initialTopic.split('/').at(-1)!}) : ({}))}),{force,signal:controller.signal});if(!active)return;failure.current=null;setResponse({key:requestKey,data:result});page=result.nextPage;}if(active)setLoading(false);}catch(error){if(active)failure.current=error;if(active){setError(true);setLoading(false);}}})();
     return()=>{active=false;controller.abort();};
   },[language,days,end,attempt,initialTopic]);
   const total=(topic:Trend)=>topic.series.reduce((sum,row)=>sum+(row[metric]??0),0);

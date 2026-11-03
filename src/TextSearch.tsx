@@ -1,3 +1,4 @@
+import {responseRetryAt} from './client.mjs';
 import {useAutomaticRetry} from './useAutomaticRetry';
 import {agendaTitle} from './topicPresentation.mjs';
 import {reportUiError} from './errorDiagnostics.mjs';
@@ -121,7 +122,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
         if(response.status===404||response.status===403||code==='corpus_disabled')message=ui.t("textsearch.text_search_is_not_available_yet");
         else if(code==='corpus_busy')message=ui.t("textsearch.search_is_busy_please_retry_in_a_moment");
         else if(code==='corpus_query_timeout')message=ui.t("textsearch.this_search_took_too_long_narrow_the_period_or_text_language");
-        throw Object.assign(new Error(message),{status:response.status,retryAt:data?.error?.retryAt});}
+        throw Object.assign(new Error(message),{status:response.status,retryAt:responseRetryAt(response,data)});}
       if(!data||!Array.isArray(data.results))throw new Error(ui.t("textsearch.search_failed_try_again"));
       failure.current=null;if(current)setState({key:request,data,loading:false,error:null});
     }).catch(error=>{if(current){failure.current=controller.signal.aborted?new DOMException('Timeout','TimeoutError'):error;reportUiError(controller.signal.aborted?new Error():error,{request:API_ROOT+'/corpus/search',...(controller.signal.aborted?{code:'textsearch.this_search_took_too_long_please_retry'}:{})});setState(old=>({...old,loading:false,error:controller.signal.aborted ? ui.t("textsearch.this_search_took_too_long_please_retry") : error.message}));}}).finally(()=>clearTimeout(timer));

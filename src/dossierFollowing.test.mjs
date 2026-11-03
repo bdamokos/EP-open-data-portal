@@ -82,6 +82,7 @@ test('a failed dossier source check offers a retry that recovers before the auto
   const h=await harness(t);h.fail(true);h.controls.dossierStore.toggle({id:reference});await h.renderSaved();await h.flush();
   assert.equal(h.container.querySelector('.dossier-follow-gap button'),null);assert(Object.values(h.controls.dossierStore.snapshot().items[0].gaps).some(Boolean));
   const progressReads=()=>h.requests.filter(url=>url.pathname.endsWith('/procedure-progress')).length,before=progressReads();
+  await act(async()=>{window.dispatchEvent(new window.Event('focus'));document.dispatchEvent(new window.Event('visibilitychange'));});await h.flush();assert.equal(progressReads(),before,'foreground events cannot turn a failed read into a six-hour no-op success');
   h.fail(false);await automaticRecovery(t);
   assert.equal(progressReads(),before+1,'retry forces the source read inside the automatic interval');
   assert.doesNotMatch(h.container.textContent,/Some sources couldn't be checked|Retry/);

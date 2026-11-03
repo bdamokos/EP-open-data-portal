@@ -750,3 +750,14 @@ test('handled invalid HTTP 200 search response reports context without the searc
  assert.equal(reports.length,1);assert.equal(reports[0].body.request,'/api/corpus/search');
  assert(!JSON.stringify(reports[0].body).includes('private-search'));
 });
+
+for(const deadline of ['header','body','latest'])test('automatic POST search recovery honours '+deadline+' deadlines',async t=>{
+ let count=0;const initial=Date.now(),at=initial+120_000;
+ const view=await setup(t,{query:'fixture-fts-search=hydrogen',respond:({url,body})=>{
+  if(!url.pathname.endsWith('/corpus/search'))return;
+  count++;if(count===1)return Response.json({error:{code:'corpus_busy',...(deadline==='header'?{}:{retryAfter:deadline==='latest'?60:120,retryAt:deadline==='latest'?at:undefined})}},{status:429,headers:deadline==='body'?{}:{'Retry-After':deadline==='latest'?'180':'120'}});
+  return Response.json(results(body));
+ }});
+ await view.render();assert.equal(count,1);assert.equal(view.container.querySelector('.explorer-search-error button'),null);
+ const clock=installRetryClock(t);await clock.advance(110_000);assert.equal(count,1,'backoff cannot bypass the server deadline');await automaticRecovery(t);assert.equal(count,2);assert(Date.now()>=initial+(deadline==='latest'?180_000:120_000));assert.match(view.container.textContent,/Energy/);
+});
