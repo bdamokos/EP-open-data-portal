@@ -38,6 +38,7 @@ export function buildExactTopicStories(payload,s={}){
  const fmt=d=>['council-commission','commission','hrvp','eucouncil','president','topical','oral-question'].includes(d.format)?msg('comma',{value:msg('format.'+d.format)}):null;
  const debateValues=d=>({title:ref(cleanStoryTitle(agendaTitle(d.rawTitle||d.title)),records(d),{italic:true,titleLanguage:d.titleLanguage}),meps:ref(cm(d.meps,'meps'),records(d)),date:day(d.date),format:fmt(d),outcome:outcome(d)});
  const told=new Set();
+ const home=p=>s.mode!=='d'&&!s.excludeOwn&&isEuPlace(p.id)&&payload.series?.[p.id]?.[period]?.questionHome?msg(payload.series[p.id][period].questionHome===p.count?'rise.eachHome':'rise.someHome',{questions:ref(num(payload.series[p.id][period].questionHome),[],{rawCount:payload.series[p.id][period].questionHome,target:topicsHref('place:'+p.id,{'t-q':period,'t-kind':'question','t-askers':'home'})})}):null;
  const busyValues=busy.map(d=>msg('exact.debate',debateValues(d)));
  if((period||!s.place&&!s.topic)&&busy.length){
   if(busy.length===1&&!s.place){const d=busy[0],p0=d.primaryPlace||primaryStoryPlace(d),pp=p0&&inView(p0)?p0:null,v=debateValues(d);
@@ -58,7 +59,6 @@ export function buildExactTopicStories(payload,s={}){
    const average=(p,ids)=>ref(p.baselineMean<1?msg('average.lessThanOne'):msg('average.value',{average:digits(Math.round(p.baselineMean*10)/10)}),[],{browse:{list:s.mode==='d'?'documents':'questions',place:ids[0],periods:payload.periods.slice(1,payload.periods.indexOf(period)).join(',')}});
    const placeRef=(p,i=0)=>s.mode!=='d'&&p.baselineMean<0.5?ref(name(p.id,i===0),[],{browse:{list:'questions',place:p.id,periods:payload.periods.slice(1,payload.periods.indexOf(period)+1).join(',')}}):browse(name(p.id),s.mode==='d'?'documents':'questions',p.id);
    const leader=p=>s.mode!=='d'&&w.mostQuestionedPlaces?.length===1&&w.mostQuestionedPlaces[0].id===p.id?msg('rise.leader',{questions:browse(msg('moreThanAny'),'questions',p.id)}):null;
-   const home=p=>s.mode!=='d'&&!s.excludeOwn&&isEuPlace(p.id)&&payload.series[p.id]?.[period]?.questionHome?msg(payload.series[p.id][period].questionHome===p.count?'rise.eachHome':'rise.someHome',{questions:ref(num(payload.series[p.id][period].questionHome),[],{rawCount:payload.series[p.id][period].questionHome,target:topicsHref('place:'+p.id,{'t-q':period,'t-kind':'question','t-askers':'home'})})}):null;
    // Several places with the same change share one sentence; otherwise each gets its own.
    const same=rises.length>1&&(s.mode==='d'||rises.every(p=>!payload.series?.[p.id]?.[period]?.debates))&&rises.every(p=>kindOf(p)===kindOf(rises[0])&&p.count===rises[0].count&&meanText(p)===meanText(rises[0])&&!leader(p)&&!home(p));
    if(same){const p=rises[0];add('exact.rises',{changes:[msg(kindOf(p).replace(/Few$/,'')+'Each',{places:rises.map((p,i)=>placeRef(p,i)),count:browse(num(p.count),s.mode==='d'?'documents':'questions',p.id),questions:browse(cm(p.count,'questions'),'questions',p.id),average:average(p,rises.map(r=>r.id))})]},s.mode==='d'?3:2,s.mode==='d'?6:5);}
@@ -107,10 +107,10 @@ export function buildExactTopicStories(payload,s={}){
   const amount=(p,kind)=>{const row=payload.series?.[p]?.[period],n=row?.[kind];return Number.isSafeInteger(n)&&n>0?browse(cm(n,kind==='debates'?'shortDebates':kind),kind,p):null;};
   const leaders=w.mostQuestionedPlaces||[];
   const busyLine=lines.find(l=>l.placeId);
-  if(busyLine){const p=busyLine.placeId,q=amount(p,'questions');
+  if(busyLine){const p=busyLine.placeId,joint=leaders.length>1&&leaders.find(l=>l.id===p),q=amount(p,'questions')||(joint?browse(cm(joint.count,'questions'),'questions',p):null);
    if(s.mode!=='d'&&leaders.length===1&&leaders[0].id===p){busyLine.id='topics.story.integrated.both';if(partialQuarter(period,payload.partial)){busyLine.id+='SoFar';busyLine.values.place=name(p);}busyLine.values.questions=bare(leaders[0].count,'questions',p);const periods=payload.periods||[],index=periods.indexOf(period);let streak=1;for(let i=index-1;i>=0&&!partialQuarter(periods[i],payload.partial);i--){const old=payload.periodWinners[periods[i]]?.mostQuestionedPlaces||[];if(old.length!==1||old[0].id!==p)break;streak++;}if(!partialQuarter(period,payload.partial)&&streak>=2){busyLine.id+=streak===2?'Again':'Streak';busyLine.values.ordinal=msg(s.language==='en'&&streak<=9?'ordinal.words.'+streak:'ordinal.'+new Intl.PluralRules(s.language,{type:'ordinal'}).select(streak),{count:num(streak)});}}
-   else if(q&&s.mode!=='d'){busyLine.id='topics.story.integrated.'+(leaders.length>1&&leaders.some(l=>l.id===p)?'busiestShared':'busiest');busyLine.values.questions=q;}
-   const rise=s.mode!=='d'&&(w.risingQuestionPlaces||[]).find(r=>r.id===p);if(rise&&busyLine.values.questions){busyLine.id+='Rise';busyLine.values.average=ref(rise.baselineMean<1?msg('average.lessThanOne'):msg('average.value',{average:digits(Math.round(rise.baselineMean*10)/10)}),[],{browse:{list:'questions',place:p,periods:payload.periods.slice(1,payload.periods.indexOf(period)).join(',')}});}
+   else if(q&&s.mode!=='d'){busyLine.id='topics.story.integrated.'+(joint?'busiestShared':'busiest');busyLine.values.questions=q;}
+   const rise=s.mode!=='d'&&(w.risingQuestionPlaces||[]).find(r=>r.id===p);if(rise&&busyLine.values.questions){busyLine.id+='Rise';busyLine.values.home=home(rise);busyLine.values.average=ref(rise.baselineMean<1?msg('average.lessThanOne'):msg('average.value',{average:digits(Math.round(rise.baselineMean*10)/10)}),[],{browse:{list:'questions',place:p,periods:payload.periods.slice(1,payload.periods.indexOf(period)).join(',')}});}
    const most=(w.mostDebatedPlaces||[]).find(r=>r.id===p&&r.count>=2);
    if(most){busyLine.id=busyLine.id==='topics.story.exact.busiestPlace'?'topics.story.integrated.busiestNoQuestions':busyLine.id;busyLine.id+='MostDebated';busyLine.values.debateCount=bare(most.count,'debates',p);
     // A co-leader gets its own sentence when the budget permits; otherwise name
@@ -127,14 +127,20 @@ export function buildExactTopicStories(payload,s={}){
    if(leaders.length>1){
     const remaining=leaders.filter(p=>!told.has(p.id));
     if(!remaining.length){l.priority=Infinity;continue;}
-    const details=(p,i)=>{const debates=amount(p.id,'debates'),rise=(w.risingQuestionPlaces||[]).find(r=>r.id===p.id),values={place:name(p.id,i===0)};
+    const riseOf=p=>(w.risingQuestionPlaces||[]).find(r=>r.id===p.id),kind=r=>r.baselineMean<0.5?'Rare':r.ratio>=4?'Jumped':'Rose',mean=r=>r.baselineMean<1?'<1':String(Math.round(r.baselineMean*10)/10);
+    const average=(r,ids)=>ref(r.baselineMean<1?msg('average.lessThanOne'):msg('average.value',{average:digits(Math.round(r.baselineMean*10)/10)}),[],{browse:{list:'questions',...(ids.length>1?{places:[...ids].sort().join(',')}:{place:ids[0]}),periods:payload.periods.slice(1,payload.periods.indexOf(period)).join(',')}});
+    // Co-leaders with the same change share one rise clause, as main's grouped rise sentence did.
+    const risen=remaining.map(riseOf).filter(Boolean),group=risen.length>1&&risen.every(r=>kind(r)!=='Rare'&&kind(r)===kind(risen[0])&&mean(r)===mean(risen[0])&&!home(r))?risen:[];
+    const details=(p,i)=>{const debates=amount(p.id,'debates'),rise=group.some(r=>r.id===p.id)?null:riseOf(p),values={place:name(p.id,i===0)};
      if(debates)values.debates=debates;
-     if(rise)values.average=ref(rise.baselineMean<1?msg('average.lessThanOne'):msg('average.value',{average:digits(Math.round(rise.baselineMean*10)/10)}),[],{browse:{list:'questions',place:p.id,periods:payload.periods.slice(1,payload.periods.indexOf(period)).join(',')}});
+     if(rise){values.average=average(rise,[p.id]);values.home=home(rise);}
      return debates||rise?msg('integrated.questionPlace'+(debates?'Debates':'')+(rise?'Rise':''),values):values.place;
     };
     const questions={...bare(leaders[0].count,'questions',remaining[0].id),browse:{list:'questions',places:remaining.map(p=>p.id).sort().join(',')}};
     l.id='topics.story.integrated.lead.'+(remaining.length>1?'tied':'shared');
-    l.values=remaining.length>1?{places:remaining.map(details),questions}:{place:details(remaining[0],0),questions};continue;
+    l.values=remaining.length>1?{places:remaining.map(details),questions}:{place:details(remaining[0],0),questions};
+    if(group.length){l.id+=(group.length===remaining.length?'Each':'With')+kind(group[0]);l.values.average=average(group[0],group.map(r=>r.id));if(group.length<remaining.length)l.values.risers=group.map(r=>name(r.id));}
+    continue;
    }
    if(ps.length===1){const d=amount(ps[0],'debates');l.id=l.id.replace('map.lead.','integrated.lead.');l.values.questions=bare(leaders[0].count,'questions',ps[0]);if(d)l.values.debates=d;else l.id+='Only';}
   }

@@ -14804,7 +14804,7 @@
     "topics.story.count.shortDebates": {
       "one": "{count} rozprava",
       "few": "{count} rozpravy",
-      "many": "{count} plenárnej rozpravy",
+      "many": "{count} rozpravy",
       "other": "{count} rozpráv"
     }
   },
@@ -15633,7 +15633,7 @@
     },
     "topics.story.count.shortDebates": {
       "one": "{count} razprava",
-      "two": "{count} plenarni razpravi",
+      "two": "{count} razpravi",
       "few": "{count} razprave",
       "other": "{count} razprav"
     }
