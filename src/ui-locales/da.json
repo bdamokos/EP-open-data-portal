@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Find et emne",
   "topics.plenaryMode": "Emner",
   "topics.findPlace": "Find et sted",
-  "topics.geopolitics": "Geopolitik"
+  "topics.geopolitics": "Geopolitik",
+  "topics.story.map.outside": "Også i plenarforsamlingen: {speakers}.",
+  "topics.story.map.outside.eu": "Taler i plenarforsamlingen fra Europa og nabolandene: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} talte i plenarforsamlingen ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

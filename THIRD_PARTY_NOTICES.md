@@ -12,3 +12,5 @@
 - Portrait resizing uses [sharp](https://sharp.pixelplumbing.com/) (Apache-2.0) and its platform-specific libvips distribution. Their licence and dependency notices ship with the installed `sharp` and `@img/sharp-libvips-*` packages in the server image.
 
 The interface font stack uses fonts already installed on the reader’s device. PDF.js page rendering also ships its published standard fonts, character maps and image decoders; their licence files accompany those assets and their notices are included in THIRD_PARTY_JAVASCRIPT_LICENSES.txt. SVG fallback artwork and interface labels are app-owned.
+
+- Unicode 17.0 case-fold mappings in `server/outside-name-casefold.json` come from [CaseFolding.txt](https://www.unicode.org/Public/17.0.0/ucd/CaseFolding.txt); the Unicode licence is retained in `server/outside-name-casefold.LICENSE.txt`.
