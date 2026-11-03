@@ -33,7 +33,7 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   const labelled=chosen.targetLabelLanguage===chosen.language&&Boolean(resolutionReference(chosen.targetLabel,chosen.language));
   let placement=['present-text','council-position'].includes(chosen.baseline)
     ?unresolved(chosen.baseline==='present-text'?'amends_existing_law':'council_position_unavailable')
-    :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:labelled?undefined:comparable[0],resolutionDocument});
+    :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:labelled?undefined:comparable[0],numberingReferenceTexts:referenceTexts,resolutionDocument});
   // Vote lists can rearrange provisions. The published amendment label owns
   // this view; retain disagreement only as a final-text check for the reader.
   if(!labelled&&comparable.length>1){placement={...placement,status:'unresolved',reason:'conflicting_target_evidence'};delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}

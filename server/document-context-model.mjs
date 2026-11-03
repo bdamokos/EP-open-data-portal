@@ -22,7 +22,9 @@ const MATCH_LIMITS = Object.freeze({
   comparedCharacters: 16 * 1024 * 1024,
 });
 
-function exceedsInputBudget(text, {originalText, targetLabel, referenceText}) {
+function exceedsInputBudget(text, {originalText, targetLabel, referenceText, numberingReferenceTexts}) {
+  if(numberingReferenceTexts!=null&&(!Array.isArray(numberingReferenceTexts)||numberingReferenceTexts.length>64
+    ||numberingReferenceTexts.some(value=>typeof value!=='string'||value.length>MATCH_LIMITS.referenceCharacters)))return true;
   if (typeof originalText === 'string' && originalText.length > MATCH_LIMITS.quoteCharacters) return true;
   if ([targetLabel, referenceText].some(value => typeof value === 'string' && value.length > MATCH_LIMITS.referenceCharacters)) return true;
   if (!Array.isArray(text?.paragraphs)) return false;
@@ -536,6 +538,24 @@ export function resolveAmendmentPlacement(text, options = {}) {
     evidence.push({basis:'published-ordinal-alias',publishedLabel:ref.label,sourceLabel:'Β'+ref.suffix,ordinal:2});
     ref={...ref,label:'Β'+ref.suffix,base:'Β'};
   }
+  // A one-step numbering drift needs two independent signals: the amendment's
+  // uniquely matching original and an agreeing vote reference. Keep this vote
+  // input separate from ordinary label-first placement in the endpoint wrapper.
+  const driftVotes=options.numberingReferenceTexts??(referenceText?[referenceText]:[]);
+  if(!options.requireUniqueOriginal&&options.language==='en'&&['replace','delete'].includes(operation)
+    &&ref?.kind==='paragraph'&&!ref.isNew&&!ref.suffix&&!ref.after&&!ref.parents.length
+    &&/^[1-9]\d{0,5}$/u.test(ref.label)&&driftVotes.length&&!/\n_{5,}\s*\n/u.test(options.originalText)) {
+    const votes=driftVotes.map(value=>/^(?:§|Paragraph)\s*([1-9]\d{0,5})$/iu.exec(whitespace(value))?.[1]);
+    const original=wordingNormal(options.originalText),target=votes[0];
+    if(votes.every(value=>value===target)&&target&&Math.abs(Number(target)-Number(ref.label))===1
+      &&original.length>=80&&original.length<=10000) {
+      const matches=units.filter(unit=>unit.kind==='paragraph'&&unit.label===target);
+      if(matches.length===1&&characterSimilarity(wordingNormal(text.paragraphs.slice(matches[0].start,matches[0].end+1).join(' ')),original,.95)>=.95) {
+        const drift=resolveAmendmentPlacement(text,{...options,targetLabel:'Paragraph '+target,referenceText:'§ '+target,numberingReferenceTexts:[],requireUniqueOriginal:true});
+        if(drift.status==='placed')return {...drift,evidence:[...drift.evidence,{basis:'original-and-vote-numbering-drift',publishedLabel:ref.label,sourceLabel:target,references:driftVotes}]};
+      }
+    }
+  }
   const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
   if (pointPlacement) return pointPlacement;
   const parentMatches = (unit, reference) => {
@@ -683,7 +703,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     // Detached notes require their own body, payload and anchor proof. A small
     // payload must never be mistaken for a damaged tail by edit distance.
     let nearMatch=false;
-    if(sourceKey!==originalKey&&!/\n_{5,}\s*\n/u.test(options.originalText)&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
+    if((sourceKey!==originalKey||options.requireUniqueOriginal)&&!/\n_{5,}\s*\n/u.test(options.originalText)&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
       const score=value=>{
         let prefix=0;while(prefix<Math.min(value.length,originalKey.length)&&value[prefix]===originalKey[prefix])prefix++;
         return {similarity:characterSimilarity(value,originalKey,.93),prefix:prefix>=80&&prefix<Math.min(value.length,originalKey.length)?prefix/Math.min(value.length,originalKey.length):0};
@@ -703,8 +723,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
       nearMatch=own.similarity>=.95&&others.every(other=>other.similarity<=own.similarity-.02&&other.prefix<.5)
         ||own.prefix>=.5&&others.every(other=>other.prefix<=own.prefix-.02&&other.similarity<.93);
     }
-    const wordingMatches = nearMatch || sourceKey === originalKey || footnotes
-      || numberedCitation && sourceKey.replace(/^[–—−\-•]\s*/u, '') === originalKey;
+    const wordingMatches = nearMatch || !options.requireUniqueOriginal&&(sourceKey === originalKey || footnotes
+      || numberedCitation && sourceKey.replace(/^[–—−\-•]\s*/u, '') === originalKey);
     // Exact whole-unit wording independently proves a labelled paragraph or
     // recital's extent, even when the following boundary is unclassified.
     // Never use it to recover incomplete rows, duplicate labels or point scope.
