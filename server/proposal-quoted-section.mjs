@@ -13,7 +13,12 @@ function parentProfile(buffer,proposal,root,parents){
   const parts=docxParts(buffer),parse=xml=>{if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)throw Error('XML unavailable');return new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);};
   const numbered=proposalNumberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(){}}),identity=parents[0]?.properties?.numbering;
   if(!identity||identity.level!==0||identity.format!=='decimal'||parents.some((row,index)=>row.properties.styleId!=='Point0number'||row.properties.numberingLabel!=='('+(index+1)+')'||JSON.stringify(row.properties.numbering)!==JSON.stringify(identity)))return false;
-  const numbering=children(parse(parts.get('word/numbering.xml')),'w:numbering')[0],instance=numbering.filter(node=>node['w:num']&&node[':@']?.['@_w:numId']===identity.id),abstract=numbering.filter(node=>node['w:abstractNum']&&node[':@']?.['@_w:abstractNumId']===identity.abstractId);
+  const numbers=parse(parts.get('word/numbering.xml')),styles=parse(parts.get('word/styles.xml')),URI='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  if(numbers.filter(node=>node['w:numbering']).length!==1||styles.filter(node=>node['w:styles']).length!==1||numbers.find(node=>node['w:numbering'])[':@']?.['@_xmlns:w']!==URI||styles.find(node=>node['w:styles'])[':@']?.['@_xmlns:w']!==URI)return false;
+  const numbering=children(numbers,'w:numbering')[0],styleRows=children(styles,'w:styles')[0],definitions=new Map();
+  for(const node of styleRows)if(node['w:style']){const id=node[':@']?.['@_w:styleId'];if(definitions.has(id))return false;definitions.set(id,node['w:style']);}
+  for(const name of ['w:num','w:abstractNum']){const ids=numbering.filter(node=>node[name]).map(node=>node[':@']?.['@_w:'+(name==='w:num'?'numId':'abstractNumId')]);if(new Set(ids).size!==ids.length)return false;}
+  const instance=numbering.filter(node=>node['w:num']&&node[':@']?.['@_w:numId']===identity.id),abstract=numbering.filter(node=>node['w:abstractNum']&&node[':@']?.['@_w:abstractNumId']===identity.abstractId);
   if(instance.length!==1||abstract.length!==1)return false;
   const level=abstract[0]['w:abstractNum'].filter(node=>node['w:lvl']&&node[':@']?.['@_w:ilvl']==='0'),override=instance[0]['w:num'].filter(node=>node['w:lvlOverride']&&node[':@']?.['@_w:ilvl']==='0');
   if(level.length!==1||override.length!==1||children(override[0]['w:lvlOverride'],'w:lvl').length||value(override[0]['w:lvlOverride'],'w:startOverride')!=='1'||value(level[0]['w:lvl'],'w:numFmt')!=='decimal'||value(level[0]['w:lvl'],'w:lvlText')!=='(%1)'||value(level[0]['w:lvl'],'w:start')!=='1'||![undefined,'0'].includes(value(level[0]['w:lvl'],'w:lvlRestart'))||![undefined,'tab'].includes(value(level[0]['w:lvl'],'w:suff')))return false;
@@ -21,8 +26,10 @@ function parentProfile(buffer,proposal,root,parents){
   const body=children(children(parse(parts.get('word/document.xml')),'w:document')[0]||[],'w:body')[0];if(!body)return false;
   const start=proposal.paragraphs[root.extent.start].source.path,end=proposal.paragraphs[root.extent.end]?.source?.path;if(!end)return false;
   const seen=[],paths=new Set(parents.map(row=>row.source.path));let ordinal=0,active=false,finished=false;
+  const defaultStyle=styleRows.find(node=>node['w:style']&&node[':@']?.['@_w:type']==='paragraph'&&['1','true','on'].includes(node[':@']?.['@_w:default']))?.[':@']?.['@_w:styleId'];
   const visit=(nodes,path)=>{
    const props=children(nodes,'w:pPr')[0]||[],ref=numbered.metadata(props);
+   let style=value(props,'w:pStyle')??defaultStyle;const visited=new Set();while(style){if(visited.has(style)||!definitions.has(style))throw Error('Unknown native style');visited.add(style);style=value(definitions.get(style),'w:basedOn');}
    if(!ref)return;
    if(!active&&!finished&&ref.id===identity.id)throw Error('List already started');
    if(!active)return;

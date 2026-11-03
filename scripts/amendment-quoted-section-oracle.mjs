@@ -13,7 +13,7 @@ function safe(nodes){
   else if(name==='w:t'){if(value.some(part=>Object.keys(part).some(key=>key!=='#text')))return false;}
   else if(!['w:tab','w:br','w:cr','w:noBreakHyphen','w:softHyphen','w:lastRenderedPageBreak','w:bookmarkStart','w:bookmarkEnd','w:proofErr'].includes(name)||value.length)return false;
  }
- return !['w:vanish','w:webHidden','w:del','w:moveFrom'].some(name=>descendants(nodes,name).length);
+ return !['w:vanish','w:webHidden','w:del','w:moveFrom','w:fldSimple','w:fldChar','w:instrText','w:footnoteReference','w:endnoteReference','w:drawing','w:pict','w:object'].some(name=>descendants(nodes,name).length);
 }
 const literal=nodes=>nodes.map(node=>Object.entries(node).map(([name,value])=>name==='w:t'?value.map(part=>part['#text']??'').join(''):name==='w:tab'?'\t':['w:br','w:cr'].includes(name)?'\n':['w:r','w:hyperlink'].includes(name)?literal(value):'').join('')).join('');
 function reportComparison(body,number){
@@ -39,12 +39,14 @@ function reportComparison(body,number){
 // a hidden parent-counter competitor cannot disappear from the proof.
 function outerPoints(parts,body,first,last){
  const parse=xml=>{if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)throw Error('XML unavailable');return new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);};
- const styles=children(parse(parts.get('word/styles.xml')),'w:styles')[0],numbering=children(parse(parts.get('word/numbering.xml')),'w:numbering')[0];if(!styles||!numbering)throw Error('Native lists unavailable');
+ const styleTree=parse(parts.get('word/styles.xml')),numberTree=parse(parts.get('word/numbering.xml')),styles=children(styleTree,'w:styles')[0],numbering=children(numberTree,'w:numbering')[0],URI='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+ if(!styles||!numbering||styleTree.filter(node=>node['w:styles']).length!==1||numberTree.filter(node=>node['w:numbering']).length!==1||styleTree.find(node=>node['w:styles'])[':@']?.['@_xmlns:w']!==URI||numberTree.find(node=>node['w:numbering'])[':@']?.['@_xmlns:w']!==URI)throw Error('Native lists unavailable');
  const definitions=new Map(),instances=new Map(),abstracts=new Map();
  for(const node of styles)if(node['w:style']){const id=node[':@']?.['@_w:styleId'];if(definitions.has(id))throw Error('Duplicate style');definitions.set(id,node['w:style']);}
  for(const node of numbering)for(const [name,map,key] of [['w:num',instances,'numId'],['w:abstractNum',abstracts,'abstractNumId']])if(node[name]){const id=node[':@']?.['@_w:'+key];if(map.has(id))throw Error('Duplicate numbering');map.set(id,node[name]);}
  const styleNumber=(id,seen=new Set())=>{if(!id)return {};if(seen.has(id)||!definitions.has(id))throw Error('Style unavailable');seen.add(id);const nodes=definitions.get(id),own=children(children(nodes,'w:pPr')[0]||[],'w:numPr')[0]||[];return {...styleNumber(attr(nodes,'w:basedOn'),seen),...(attr(own,'w:numId')!==undefined?{id:attr(own,'w:numId')}:{}),...(attr(own,'w:ilvl')!==undefined?{level:attr(own,'w:ilvl')}:{})};};
- const descriptor=nodes=>{const props=children(nodes,'w:pPr')[0]||[],style=attr(props,'w:pStyle'),own=children(props,'w:numPr')[0]||[],inherited=styleNumber(style),id=attr(own,'w:numId')??inherited.id,level=attr(own,'w:ilvl')??inherited.level??'0';if(!id||id==='0')return null;const instance=instances.get(id);if(!instance)throw Error('List instance unavailable');return {id,level,style,abstract:attr(instance,'w:abstractNumId')};};
+ const defaultStyle=styles.find(node=>node['w:style']&&node[':@']?.['@_w:type']==='paragraph'&&['1','true','on'].includes(node[':@']?.['@_w:default']))?.[':@']?.['@_w:styleId'];
+ const descriptor=nodes=>{const props=children(nodes,'w:pPr')[0]||[],style=attr(props,'w:pStyle')??defaultStyle,own=children(props,'w:numPr')[0]||[],inherited=styleNumber(style),id=attr(own,'w:numId')??inherited.id,level=attr(own,'w:ilvl')??inherited.level??'0';if(!id||id==='0')return null;const instance=instances.get(id);if(!instance)throw Error('List instance unavailable');return {id,level,style,abstract:attr(instance,'w:abstractNumId')};};
  const native=[];
  for(let index=0;index<body.length;index++){const row=body[index];if(row.kind==='paragraph')native.push({nodes:row.nodes,row,index});else for(const nodes of descendants([row.nodes],'w:p'))native.push({nodes,row:null,index});}
  const scoped=native.filter(p=>p.index>first&&p.index<last),lead=scoped.find(p=>descriptor(p.nodes)?.style==='Point0number'),identity=lead&&descriptor(lead.nodes);if(!identity||identity.level!=='0')throw Error('Parent list unavailable');
