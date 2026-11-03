@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Sök efter ett ämne",
   "topics.plenaryMode": "Ämnen",
   "topics.findPlace": "Sök efter en plats",
-  "topics.geopolitics": "Geopolitik"
+  "topics.geopolitics": "Geopolitik",
+  "topics.story.map.outside": "Även i plenum: {speakers}.",
+  "topics.story.map.outside.eu": "Tal i plenum från Europa och dess grannländer: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} talade i plenum ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }
