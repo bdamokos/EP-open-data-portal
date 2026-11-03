@@ -1,3 +1,4 @@
+import {prepareVotingLists,VotingListStore} from './voting-list-collector.mjs';
 import {prepareBaseBackfill} from './base-source-backfill.mjs';
 export const OFFICIAL_CONTEXT_STATUS_VERSION=1;
 export const DOCUMENT_BODY_STATUS_VERSION=1;
@@ -34,6 +35,7 @@ import {copyProjectedGenerationRows} from './generation-copy.mjs';
 // Defaults gate both normal construction and writer acquisition. The explicit
 // exceptions preserve preparations historically allowed during normal acquire().
 export const ACTIVITY_SCHEMA_GATES=Object.freeze([
+  {key:'votingListSchema',value:1,constructorGate:false},
   {key:'baseBackfillSchema',value:1,constructorGate:false},
   {key:'resourceIndexes',value:1},
   {key:'availabilityHistoryVersion',value:availabilityHistoryVersion,constructorGate:false,writerGate:false},
@@ -116,6 +118,7 @@ export class ActivityStore {
     if(!preparedOnly){membershipSchema(this.db);groupHistorySchema(this.db);}
     if(this.initializeIndexes){outsideSchema(this.db);amendmentsSchema(this.db);groupVoicesSchema(this.db);refreshPolicyTables(this.db);}
   }
+  votingListsForSitting(sittingId) { return new VotingListStore(this,{clock:this.clock}).votingListsForSitting(sittingId); }
   readSnapshot(fn) {
     if(this.db.isTransaction)return fn();
     this.db.exec('BEGIN');try {const value=fn();this.db.exec('COMMIT');return value;}catch(error){this.db.exec('ROLLBACK');throw error;}
@@ -138,6 +141,7 @@ export class ActivityStore {
       if(!this.initializeIndexes&&ACTIVITY_SCHEMA_GATES.some(gate=>gate.writerGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       initializeAvailabilityHistory(this);
+      if(this.get('votingListSchema')!==1){prepareVotingLists(this);initialized=true;}
       if(this.get('baseBackfillSchema')!==1){prepareBaseBackfill(this);initialized=true;}
       if(this.get('documentBodySchema')!==1){prepareDocumentBodies(this);initialized=true;}
       if(this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA){prepareSittingSnapshots(this);initialized=true;}
