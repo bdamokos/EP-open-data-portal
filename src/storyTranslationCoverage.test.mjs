@@ -1,3 +1,4 @@
+import {buildExactTopicStories} from './exactTopicStories.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -31,4 +32,42 @@ test('German additional-resolution stories agree at singular and plural counts',
   assert(story,`additional resolutions story at ${count}`);
   assert.equal(text(story),`Das Parlament nahm auch folgende Texte an, in denen der Ort genannt wurde: ${count} ${count===1?'Entschließung':'Entschließungen'}.`);
  }
+});
+
+const integrated=l=>Object.entries(catalogues[l]).filter(([k])=>k.startsWith('topics.story.integrated.'));
+test('integrated leader stories keep a verb in the debates clause and German debate capitalisation',()=>{
+ const q='2026-Q3',payload={ready:true,counts:{},winners:{},periodCounts:[{period:q}],periodWinners:{[q]:{mostQuestionedPlaces:[{id:'TUR',count:23}]}},periods:[q],partial:{},series:{TUR:{[q]:{debates:2}}},debates:[],docs:[],questions:[]};
+ // A debates slot must sit in a clause with its own words, not after a bare conjunction ("…(23), en 2 debatten").
+ const keys=k=>/^topics\.story\.(integrated\.lead\.(first|again|streak|soFar)|exact\.question(RiseFew|JumpedFew|Rare)Debates)(\.eu)?$/.test(k);
+ const clause=v=>{const i=v.indexOf('{debates}'),start=Math.max(...',;:·'.split('').map(c=>v.lastIndexOf(c,i)))+1,end=v.slice(i).search(/[,;:·.]/);return v.slice(start,end<0?v.length:i+end);};
+ for(const l of languages){
+  for(const [key,value]of Object.entries(catalogues[l]).filter(([k])=>keys(k))){const words=clause(value).replace(/\{\w+\}/g,' ').split(/[\s()]+/).filter(w=>/\p{L}/u.test(w));assert(words.length>=2,l+'/'+key+': '+value);}
+  const ui=i18n.forLocale(l),say=v=>v==null?'':typeof v==='string'?v:Array.isArray(v)?v.map(say).join(' / '):'text'in v?say(v.text):ui.t(v.message||v.id,Object.fromEntries(Object.entries(v.values).map(([k,x])=>[k,say(x)])),v.counts);
+  const rows=buildExactTopicStories(payload,{period:q,language:l,labels:{TUR:'Türkiye'},hasMessage:id=>ui.messageLocale(id)===ui.locale});
+  assert.equal(rows[0].id,'topics.story.integrated.lead.first',l);assert(say(rows[0]).includes(ui.t('topics.story.count.shortDebates',{count:'2'},{count:2})),l+': '+say(rows[0]));
+ }
+ for(const n of [1,2])assert.match(i18n.forLocale('de').t('topics.story.count.shortDebates',{count:String(n)},{count:n}),/Debatte/);
+ for(const [key,value]of integrated('pl'))assert(!/ z \{average\}|zabrali|\}: .*: \{/.test(value),key);
+ for(const [key,value]of integrated('fr'))assert(!/\S[:;]|:\S/.test(value),key);
+});
+
+test('Europe-zoom integrated stories open with the scope phrase, never the busiest-debate label',()=>{
+ const euKeys=Object.keys(english).filter(k=>k.startsWith('topics.story.integrated.')&&k.endsWith('.eu'));
+ for(const l of languages){
+  const values=euKeys.map(k=>catalogues[l][k]),label=catalogues[l]['topics.story.exact.busiestPlace.eu'].split('{')[0];
+  let scope=values[0];for(const v of values)while(!v.startsWith(scope))scope=scope.slice(0,-1);
+  scope=scope.split('{')[0];assert(scope.trim().length>=10,l+': '+scope);
+  // Main's busiest-debate opener is a label for that one sentence; it is not a scope phrase.
+  if(!catalogues[l]['topics.story.map.lead.first.eu'].startsWith(label))for(const v of values)assert(!v.startsWith(label),l+': '+v);
+  for(const k of euKeys){const world=catalogues[l][k.slice(0,-3)];assert.deepEqual(slots(catalogues[l][k]),slots(world),l+'/'+k);}
+ }
+});
+
+test('verb-second locales keep the verb second in so-far and Europe-zoom stories',()=>{
+ const scopes={de:'In Europa und seinen Nachbarregionen',nl:'In Europa en de buurlanden',sv:'I Europa och dess grannländer',da:'I Europa og nabolandene',et:'Euroopas ja selle naabruses'};
+ for(const [l,scope]of Object.entries(scopes))for(const [key,value]of integrated(l)){
+  assert(!/(Bisher|Tot nu toe|Hittills|Hidtil|Seni),? \{place/i.test(value),l+'/'+key+': '+value);
+  if(key.endsWith('.eu'))assert(value.startsWith(scope+' ')&&!value.startsWith(scope+' {')&&!value.startsWith(scope+','),l+'/'+key+': '+value);
+ }
+ assert.equal(i18n.forLocale('de').t('topics.story.integrated.bothSoFar',{place:'Österreich',questions:'11',meps:'10 Abgeordnete',title:'Bericht',date:'20. Januar',format:'',outcome:''}),'Österreich war bisher Thema sowohl der Debatte mit den meisten Rednern auf der Karte als auch der meisten Anfragen (11): 10 Abgeordnete sprachen zu Bericht (20. Januar).');
 });
