@@ -9,6 +9,13 @@ test('ballot endpoint validates selectors and uses scoped rows only',async()=>{f
 test('official list controls ballot identity and joins exact amendment IDs',async()=>{const data=await inputs();data.lists=[{documentId,agendaItemId,rows:[{kind:'amendment',amendments:[{number:1,cp:null}],subject:[],row:1,part:null}],revision:{sha256:'real-revision'},notes:{}}];data.amendments[0].scheduledVotes=[];const response=await upcomingVotes({sitting,language:'en'},{inputs:async()=>data});assert.equal(response.items[0].source,'voting-list');assert.equal(response.items[0].rows[0].revision,'real-revision');assert.equal(response.items[0].rows[0].amendmentRows[0].id,row.id);});
 test('vote without a published document remains available to star',async()=>{const data=await inputs();data.day.agenda=[{...agenda,based_on_a_realization_of:[]}];const response=await upcomingVotes({sitting,language:'en'},{inputs:async()=>data});assert.equal(response.items[0].id,agendaItemId);assert.equal(response.items[0].documentId,null);assert.deepEqual(response.items[0].rows,[]);});
 
+test('Commission proposals on a vote item do not become separate ballots',async()=>{
+ const data=await inputs();
+ data.day.agenda=[{...agenda,based_on_a_realization_of:['eli/dl/doc/C-10-2025-0141','eli/dl/doc/'+documentId]},{...agenda,activity_id:sitting+'-OJ-ITM-V-13',based_on_a_realization_of:['eli/dl/doc/C-9-2023-0182','eli/dl/doc/A-9-2024-0162']},{...agenda,activity_id:sitting+'-OJ-ITM-V-99',based_on_a_realization_of:['eli/dl/doc/C-10-2026-0176']}];
+ const response=await upcomingVotes({sitting,language:'en'},{inputs:async()=>data});
+ assert.deepEqual(response.items.map(item=>[item.id,item.documentId]),[[agendaItemId,documentId],[sitting+'-OJ-ITM-V-13','A-9-2024-0162'],[sitting+'-OJ-ITM-V-99',null]]);
+});
+
 test('unverified scope remains a gap when no amendments can be displayed',async()=>{const data=await inputs();data.amendments=[];data.partialDocuments=[documentId];const response=await upcomingVotes({sitting,language:'en'},{inputs:async()=>data});assert.equal(response.items[0].partial,true);assert.deepEqual(response.items[0].rows,[]);});
 
 test('an unavailable held sitting cannot become an empty successful ballot',async()=>{await assert.rejects(()=>ballotInputs({sitting:'MTG-PL-2026-09-15',language:'en'},{store:{},reader:{snapshot:async()=>({days:[]})}}),error=>error.status===503);});
