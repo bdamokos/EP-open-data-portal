@@ -185,7 +185,7 @@ export function assertImplicitParagraphLabel({proposal,wording,placement}) {
  const article=publishedContainer(proposal,target[0],'en'),node=article?.nodes[0];
  if(!node?.implicit||article.nodes.length!==1||node.kind!=='paragraph'||node.value!=='1'||node.end!==node.start+1)return unavailable();
  const row=proposal.paragraphs.find(p=>p.index===node.start),next=proposal.paragraphs.find(p=>p.index===node.end);
- if(!row||!next||!body(row)||!body(next)||row.properties?.styleId!=='Normal'||next.source.ordinal!==row.source.ordinal+1||next.source.containerPath!==row.source.containerPath||next.source.segment!==row.source.segment||row.properties.numberingLabel||/^[\d'‘“«"]/u.test(row.text.trim()))return unavailable();
+ if(!row||!next||row.text.includes('\uFFFC')||row.objects?.length||(proposal.anchors||[]).some(a=>a.paragraph===row.index)||!body(row)||!body(next)||row.properties?.styleId!=='Normal'||next.source.ordinal!==row.source.ordinal+1||next.source.containerPath!==row.source.containerPath||next.source.segment!==row.source.segment||row.properties.numberingLabel||/^[\d'‘“«"]/u.test(row.text.trim()))return unavailable();
  const compact=s=>s.normalize('NFC').replace(/\s+/gu,' ').trim();
  if(compact(original[1])!==compact(row.text))return unavailable();
  if(placement.status!=='placed'||placement.span?.start!==row.index||placement.span?.end!==row.index||placement.splice?.start.paragraph!==row.index||placement.splice.start.offset!==0||placement.splice?.end.paragraph!==row.index||placement.splice.end.offset!==row.text.length)return failed('oracle-implicit-paragraph-boundary-mismatch');
