@@ -31,6 +31,7 @@ export function assertRecitalCategoryRepair({text,wording,placement}) {
   if(recitals.some((u,i)=>u.label!==String.fromCharCode(65+i)))return unknown();
   const anchor=recitals.filter(u=>u.label===header[1]),next=recitals.filter(u=>u.label===String.fromCharCode(header[1].charCodeAt(0)+1));
   if(anchor.length!==1||next.length!==1||anchor[0].end+1!==next[0].start||preamble.some(u=>u.kind==='citation'&&u.label===header[1]))return unknown();
+  if(raw.units.filter(u=>u.kind==='recital'&&u.label===header[1]).length!==1||raw.units.some(u=>u.kind==='recital'&&u.label===header[1]+proposed[2]))return unknown();
   if(placement.insertAfter!==anchor[0].end||placement.insertBefore!==next[0].start)return {status:'failed',reason:'oracle-recital-category-boundary-mismatch'};
   return {status:'verified',reason:'oracle-independent-recital-category-repair'};
 }
