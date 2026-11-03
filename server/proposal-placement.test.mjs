@@ -149,7 +149,7 @@ test('numbered subparagraphs place only within their own paragraphs',()=>{
   assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
   assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 1','Second subparagraph text.').reason,'conflicting_target_evidence');
   assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 3','Second subparagraph text.').reason,'target_not_found');
-  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 2 a (new)').status,'unresolved');
+  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 2 a (new)').insertBefore,3);
   const pointed=source(['Article 1','1. Intro:','(a) point;','Closing subparagraph.']);
   assert.equal(resolve(pointed,'Article 1 – paragraph 1 – subparagraph 2','Closing subparagraph.').reason,'source_structure_unavailable');
 });
@@ -428,4 +428,17 @@ test('similarity recovery withholds table-cell passages without independent tabl
  proposal.paragraphs[3].source={...proposal.paragraphs[3].source,container:'table-cell',containerPath:'body/table/row/cell'};
  const placed=resolveProposalPlacement([{kind:'act',proposal}],{targetLabel:'Article 1 – paragraph 1 – point 1',originalText:text.replace('system','systen'),proposedText:'New text.',language:'en'});
  assert.equal(placed.status,'unresolved');
+});
+
+
+test('new unnumbered subparagraphs follow their ordinal source subtree',()=>{
+  const p=source(['Article 3','1. Lead:','(a) Point.','Second subparagraph.','Third subparagraph.','2. Next paragraph.','Article 4'],['Titrearticle','ManualNumPar1','Point2','Text1','Text1','ManualNumPar1','Titrearticle']);
+  p.paragraphFormats=p.paragraphs.map((_,i)=>({indent:i===2?200:0}));
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 a (new)').insertBefore,4);
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 1 a (new)').insertBefore,3);
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 3 a (new)').insertBefore,5);
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 9 a (new)').status,'unresolved');
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 b (new)').status,'unresolved');
+  p.paragraphSources[4].ordinal++;
+  assert.equal(resolve(p,'Article 3 – paragraph 1 – subparagraph 2 a (new)').status,'unresolved');
 });
