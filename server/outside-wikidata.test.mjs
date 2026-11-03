@@ -52,3 +52,22 @@ test('streaming byte cap cancels an oversized response and the source admits onl
  let active=0,max=0;const fetchImpl=async()=>{active++;max=Math.max(max,active);await new Promise(r=>setTimeout(r,5));active--;return Response.json({query:{searchinfo:{totalhits:0},search:[]}});};await Promise.all([1,2].map(()=>outsideWikidataRequest(outsideNameSearchUrl('Example Speaker'),{fetchImpl})));assert.equal(max,1);
  await assert.rejects(outsideWikidataRequest('https://example.com/api'),/Unsupported/);
 });
+test('full qualifier precision and unknown ends survive parser to matcher',async()=>{
+ const {matchOutsideName}=await import('./outside-speaker-country.mjs');
+ const discovery=[{item,key:l('example speaker'),value:l('Example Speaker'),property:u('http://www.w3.org/2000/01/rdf-schema#label')}];
+ const position={item,kind:l('position'),position:u('http://www.wikidata.org/entity/Q2'),statement:u('http://www.wikidata.org/entity/statement/Q1-123-abc'),international:l('false'),country:u('http://www.wikidata.org/entity/Q45'),countryCode:l('PRT')};
+ const qualifier=(key,value,precision)=>({[key]:l(value),[key+'Full']:l(value),[key+'Precision']:l(String(precision)),[key+'Calendar']:u('http://www.wikidata.org/entity/Q1985727')});
+ const match=(row,day)=>{const candidates=outsideCandidateEvidence(discovery,[...facts,{...position,...row}]);return matchOutsideName({date:day,header:{name:'Example Speaker'}},{status:'available',dateVersion:1,candidates});};
+ for(const [precision,before,bound] of [[9,'2026-12-30','2026-12-31'],[10,'2026-01-30','2026-01-31']]){
+  const row=qualifier('start','2026-01-01T00:00:00Z',precision);assert.equal(match(row,before).country,'BLR');assert.equal(match(row,bound).country,'PRT');assert.equal(match(row,'2026-01-21').basis,'wikidata-name-citizenship');
+ }
+ for(const [precision,bound,after] of [[9,'2026-01-01','2026-01-02'],[10,'2026-02-01','2026-02-02']]){
+  const row={...qualifier('start','2020-01-01T00:00:00Z',11),...qualifier('end',precision===9?'2026-01-01T00:00:00Z':'2026-02-01T00:00:00Z',precision)};assert.equal(match(row,bound).country,'PRT');assert.equal(match(row,after).country,'BLR');
+ }
+ const started=qualifier('start','2020-01-01T00:00:00Z',11);
+ assert.equal(match(started,'2026-01-21').country,'PRT','absent end is open');
+ for(const end of [u('http://www.wikidata.org/.well-known/genid/abc123'),l('not a date')])assert.equal(match({...started,end},'2026-01-21').country,'BLR','unknown/invalid end cannot establish tenure');
+ assert.equal(match({...started,...qualifier('end','not a date',11)},'2026-01-21').country,'BLR');
+ const legacy={status:'available',candidates:outsideCandidateEvidence(discovery,[...facts,{...position,...started}])};assert.equal(matchOutsideName({date:'2026-01-21',header:{name:'Example Speaker'}},legacy).status,'unavailable','legacy precision-less cache is fenced');
+ assert.match(outsideEvidenceQuery(['Q1']),/pqv:P580/);assert.match(outsideEvidenceQuery(['Q1']),/wikibase:timePrecision/);
+});

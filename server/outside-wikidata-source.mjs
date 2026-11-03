@@ -1,10 +1,11 @@
+import {outsideOfficeDate} from './outside-office-date.mjs';
 import {boundedUpstream,backoffUpstream,upstreamResponseError} from './odp.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import {userAgent} from './user-agent.mjs';
 import {normalizeOutsideName} from './outside-speaker-country.mjs';
 import {countryIdentity} from './topic-country-identity.mjs';
 export const OUTSIDE_WIKIDATA_LIMITS=Object.freeze({names:5,items:20,rows:1000,bytes:1024*1024,timeout:25_000,pattern:8192});
-const prefix='PREFIX wd: <http://www.wikidata.org/entity/> PREFIX wdt: <http://www.wikidata.org/prop/direct/> PREFIX p: <http://www.wikidata.org/prop/> PREFIX ps: <http://www.wikidata.org/prop/statement/> PREFIX pq: <http://www.wikidata.org/prop/qualifier/> PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> PREFIX skos: <http://www.w3.org/2004/02/skos/core#> PREFIX wikibase: <http://wikiba.se/ontology#>';
+const prefix='PREFIX wd: <http://www.wikidata.org/entity/> PREFIX wdt: <http://www.wikidata.org/prop/direct/> PREFIX p: <http://www.wikidata.org/prop/> PREFIX ps: <http://www.wikidata.org/prop/statement/> PREFIX pq: <http://www.wikidata.org/prop/qualifier/> PREFIX pqv: <http://www.wikidata.org/prop/qualifier/value/> PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> PREFIX skos: <http://www.w3.org/2004/02/skos/core#> PREFIX wikibase: <http://wikiba.se/ontology#>';
 // CirrusSearch's inlabel phrase searches labels and aliases in all languages.
 // Discovery may return a superset; rank/score never enter the identity decision.
 // Full exact NFC/whitespace/casefold equality is checked against returned terms.
@@ -20,12 +21,13 @@ export function outsideNamesUrl(ids){
 const itemPattern=/^Q[1-9]\d{0,11}$/;
 export function outsideEvidenceQuery(ids){
  if(!ids.length||ids.length>OUTSIDE_WIKIDATA_LIMITS.items||ids.some(id=>!itemPattern.test(id)))throw Error('Invalid candidate batch.');
- return `${prefix} SELECT DISTINCT ?item ?kind ?occupation ?politician ?statement ?position ?start ?end ?country ?countryCode ?jurisdiction ?jurisdictionCode ?international ?citizenship ?citizenshipCode WHERE {
+ return `${prefix} SELECT DISTINCT ?item ?kind ?occupation ?politician ?statement ?position ?start ?startFull ?startPrecision ?startCalendar ?end ?endFull ?endPrecision ?endCalendar ?country ?countryCode ?jurisdiction ?jurisdictionCode ?international ?citizenship ?citizenshipCode WHERE {
  VALUES ?item { ${ids.map(id=>'wd:'+id).join(' ')} }
  { ?item wdt:P31 wd:Q5 . BIND("human" AS ?kind) }
  UNION { ?item wdt:P106 ?occupation . BIND(EXISTS { ?occupation wdt:P279* wd:Q82955 } AS ?politician) BIND("occupation" AS ?kind) }
  UNION { ?item p:P39 ?statement . ?statement ps:P39 ?position ; wikibase:rank ?rank . FILTER(?rank!=wikibase:DeprecatedRank)
- OPTIONAL { ?statement pq:P580 ?start } OPTIONAL { ?statement pq:P582 ?end }
+ OPTIONAL { ?statement pq:P580 ?start . OPTIONAL { ?statement pqv:P580 ?startNode . ?startNode wikibase:timeValue ?startFull ; wikibase:timePrecision ?startPrecision ; wikibase:timeCalendarModel ?startCalendar FILTER(?startFull = ?start) } }
+ OPTIONAL { ?statement pq:P582 ?end . OPTIONAL { ?statement pqv:P582 ?endNode . ?endNode wikibase:timeValue ?endFull ; wikibase:timePrecision ?endPrecision ; wikibase:timeCalendarModel ?endCalendar FILTER(?endFull = ?end) } }
  OPTIONAL { ?position wdt:P17 ?country . OPTIONAL { ?country wdt:P298 ?countryCode } }
  OPTIONAL { ?position wdt:P1001 ?jurisdiction . OPTIONAL { ?jurisdiction wdt:P298 ?jurisdictionCode } }
  BIND(EXISTS { ?position wdt:P2389/(wdt:P361|wdt:P749)*/wdt:P31/wdt:P279* wd:Q484652 } AS ?international) BIND("position" AS ?kind) }
@@ -67,7 +69,7 @@ export async function resolveOutsideWikidata(names,{request=outsideWikidataReque
  const exactIds=[...new Set(discovery.map(r=>r.item.value.split('/').at(-1)))];if(!exactIds.length)return {status:'none',candidates:[],sources,urls:sources.map(s=>s.url),fetchedAt:sources.at(-1)?.fetchedAt};
  const facts=await get(outsideWikidataUrl(outsideEvidenceQuery(exactIds))),evidence=facts?.results?.bindings;if(!Array.isArray(evidence)||evidence.length>OUTSIDE_WIKIDATA_LIMITS.rows)throw Error('Wikidata evidence is incomplete or exceeds row cap.');
  const candidates=outsideCandidateEvidence(discovery,evidence).map(c=>({...c,revision:revisions.get(c.qid)}));
- return {status:'available',candidates,sources,urls:sources.map(s=>s.url),fetchedAt:sources.at(-1)?.fetchedAt};
+ return {status:'available',dateVersion:1,candidates,sources,urls:sources.map(s=>s.url),fetchedAt:sources.at(-1)?.fetchedAt};
 }
 const literal=b=>b?.type==='literal'&&typeof b.value==='string'?b.value:null;
 const qid=b=>b?.type==='uri'?String(b.value).match(/^http:\/\/www\.wikidata\.org\/entity\/(Q[1-9]\d{0,11})$/)?.[1]||null:null;
@@ -75,7 +77,8 @@ const qid=b=>b?.type==='uri'?String(b.value).match(/^http:\/\/www\.wikidata\.org
 // Preserve its presence without turning it into a country or a missing fact.
 const entityOrUnknown=b=>Boolean(qid(b)||b?.type==='uri'&&/^http:\/\/www\.wikidata\.org\/\.well-known\/genid\/[a-zA-Z0-9]+$/.test(b.value));
 const code=b=>{const v=literal(b);return /^[A-Z0-9]{3}$/.test(v||'')?countryIdentity(v)?.id||null:null;};
-const day=b=>{const v=literal(b);if(v===null)return null;if(!/^\d{4}-\d{2}-\d{2}T/.test(v))throw Error('Unsupported Wikidata office date.');return v.slice(0,10);};
+const date=(value,precision,calendar,full)=>!value?outsideOfficeDate(null,null,null,'absent'):entityOrUnknown(value)&&!qid(value)||value.type==='bnode'?outsideOfficeDate(null,null,null,'unknown'):outsideOfficeDate(literal(full),literal(precision),calendar?.value||null);
+
 export function outsideCandidateEvidence(discovery,evidence){
  const byId=new Map();for(const r of discovery){const id=qid(r.item),value=literal(r.value),key=literal(r.key),kind=r.property?.value==='http://www.w3.org/2000/01/rdf-schema#label'?'label':r.property?.value==='http://www.w3.org/2004/02/skos/core#altLabel'?'alias':null;
   if(!id||!value||!key||normalizeOutsideName(value)!==key||!kind)throw Error('Wikidata discovery identity mismatch.');
@@ -87,8 +90,8 @@ export function outsideCandidateEvidence(discovery,evidence){
   else if(kind==='occupation'){if(!qid(r.occupation)||!['true','false'].includes(literal(r.politician)))throw Error('Invalid occupation evidence.');c.politician ||= literal(r.politician)==='true';const value={id:qid(r.occupation),politician:literal(r.politician)==='true'};if(!c.occupations.some(o=>o.id===value.id))c.occupations.push(value);}
   else if(kind==='citizenship'){const citizenship=qid(r.citizenship);if(!citizenship)throw Error('Invalid citizenship evidence.');const v={id:citizenship,country:code(r.citizenshipCode)};if(!c.citizenships.some(x=>x.id===v.id&&x.country===v.country))c.citizenships.push(v);}
   else if(kind==='position'){const id=qid(r.position),statement=r.statement?.type==='uri'&&/^http:\/\/www\.wikidata\.org\/entity\/statement\/[qQ][1-9]\d*-[A-Za-z0-9-]+$/.test(r.statement.value)?r.statement.value:null;if(!id||!statement||!['true','false'].includes(literal(r.international))||r.country&&!entityOrUnknown(r.country)||r.jurisdiction&&!entityOrUnknown(r.jurisdiction))throw Error('Invalid office evidence.');
-   const value={id,statement,start:day(r.start),end:day(r.end),countries:code(r.countryCode)?[code(r.countryCode)]:[],jurisdictions:code(r.jurisdictionCode)?[code(r.jurisdictionCode)]:[],hasCountry:Boolean(r.country),hasJurisdiction:Boolean(r.jurisdiction),international:literal(r.international)==='true'};
-   const old=c.positions.find(p=>p.statement===statement&&p.start===value.start&&p.end===value.end);if(old){old.countries=[...new Set([...old.countries,...value.countries])];old.jurisdictions=[...new Set([...old.jurisdictions,...value.jurisdictions])];old.hasCountry ||= value.hasCountry;old.hasJurisdiction ||= value.hasJurisdiction;old.international ||= value.international;}else c.positions.push(value);
+   const value={id,statement,start:date(r.start,r.startPrecision,r.startCalendar,r.startFull),end:date(r.end,r.endPrecision,r.endCalendar,r.endFull),countries:code(r.countryCode)?[code(r.countryCode)]:[],jurisdictions:code(r.jurisdictionCode)?[code(r.jurisdictionCode)]:[],hasCountry:Boolean(r.country),hasJurisdiction:Boolean(r.jurisdiction),international:literal(r.international)==='true'};
+   const old=c.positions.find(p=>p.statement===statement&&JSON.stringify([p.start,p.end])===JSON.stringify([value.start,value.end]));if(old){old.countries=[...new Set([...old.countries,...value.countries])];old.jurisdictions=[...new Set([...old.jurisdictions,...value.jurisdictions])];old.hasCountry ||= value.hasCountry;old.hasJurisdiction ||= value.hasJurisdiction;old.international ||= value.international;}else c.positions.push(value);
   }else throw Error('Invalid Wikidata evidence kind.');
  }
  if([...byId.values()].some(c=>!c.human))throw Error('Wikidata human evidence missing or changed.');return [...byId.values()];

@@ -1,4 +1,4 @@
-import {validDay} from './source-availability.mjs';
+import {outsideOfficeOnDay} from './outside-office-date.mjs';
 import {outsideCapacity} from './outside-model.mjs';
 import {titlePlaces} from './insights-places.mjs';
 import {countryIdentity} from './topic-country-identity.mjs';
@@ -25,7 +25,7 @@ function officeCountry(position){
 export function matchOutsideName(appearance,record){
  if(!record||record.status==='unavailable')return {status:'unavailable'};
  if(record.status==='none')return {status:'none',reason:'no-exact-human'};
- if(record.status!=='available'||!Array.isArray(record.candidates))return {status:'unavailable'};
+ if(record.status!=='available'||record.dateVersion!==1||!Array.isArray(record.candidates))return {status:'unavailable'};
  const wanted=normalizeOutsideName(appearance.header?.name);if(!wanted)return {status:'none',reason:'name-unavailable'};
  const exact=record.candidates.filter(c=>c.human===true&&/^Q[1-9]\d*$/.test(c.qid||'')&&(c.names||[]).some(n=>['label','alias'].includes(n.kind)&&normalizeOutsideName(n.value)===wanted));
  const candidates=[...new Map(exact.map(c=>[c.qid,c])).values()];
@@ -33,7 +33,7 @@ export function matchOutsideName(appearance,record){
  if(candidates.length!==1)return {status:candidates.length?'ambiguous':'none',reason:candidates.length?'multiple-exact-humans':'no-exact-human',candidateIds:candidates.map(c=>c.qid)};
  const candidate=candidates[0],held=(candidate.positions||[]).filter(p=>p.statement&&/^Q[1-9]\d*$/.test(p.id||''));
  if(!candidate.politician&&!held.length)return {status:'none',reason:'not-politician-or-office-holder',qid:candidate.qid};
- const positions=held.filter(p=>validDay(p.start)&&p.start<=appearance.date&&(!p.end||validDay(p.end)&&p.end>=appearance.date));
+ const positions=held.filter(p=>held.filter(q=>q.statement===p.statement).every(q=>outsideOfficeOnDay(q,appearance.date)));
  if(positions.some(p=>p.international))return {status:'none',reason:'international-office',qid:candidate.qid};
  const choices=positions.map(p=>({position:p,country:officeCountry(p)})).filter(p=>p.country),countries=[...new Set(choices.map(p=>p.country))];
  const citizenships=candidate.citizenships||[],single=citizenships.length===1?country(citizenships[0]?.country??citizenships[0]):null;

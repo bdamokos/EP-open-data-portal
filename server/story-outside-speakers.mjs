@@ -21,7 +21,7 @@ export function outsideSpeakerAppearances(store,sourceGeneration,person,factGene
 // coverage so readers never mix a published topic generation with newer inputs.
 export async function projectOutsideSpeakers(store,generation,sourceGeneration){
  const put=store.db.prepare('INSERT OR REPLACE INTO story_facts VALUES (?,?,?,?,?)');
- const coverage={...outsideCoverage(store,sourceGeneration,false,{term:'10'}),europe:europe.ids,wikidataPolicyVersion:3,wikidataUnavailablePeriods:[],wikidataDiagnostics:[]};
+ const coverage={...outsideCoverage(store,sourceGeneration,false,{term:'10'}),europe:europe.ids,wikidataPolicyVersion:4,wikidataUnavailablePeriods:[],wikidataDiagnostics:[]};
  const people=store.db.prepare('SELECT DISTINCT person FROM outside_contributions WHERE generation=? ORDER BY person');
  await topicBatches(store,(function*(){for(const {person} of people.iterate(sourceGeneration)){
   yield;const appearances=outsideSpeakerAppearances(store,sourceGeneration,person,generation).filter(a=>a.date<=coverage.window.end);
@@ -48,7 +48,7 @@ export function readOutsideSpeakers(store,generation,q,key,coverage=outsideSpeak
  if(q.scope==='topic')return [];
  const db=store.db,complete=new Map();
  if(!coverage)return [];
- if(coverage.wikidataPolicyVersion!==3)return [];
+ if(coverage.wikidataPolicyVersion!==4)return [];
  const quarterComplete=period=>{
   if(!complete.has(period))complete.set(period,!coverage.wikidataUnavailablePeriods?.includes(period)&&(coverage.complete||periodAvailability(quarterWindow(period),coverage.availability,0,{today:coverage.window.end}).state==='observed'));
   return complete.get(period);

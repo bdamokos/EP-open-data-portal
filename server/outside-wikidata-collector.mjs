@@ -3,7 +3,7 @@ import {normalizeOutsideName,resolveOutsideSpeaker} from './outside-speaker-coun
 import {outsideSpeakerAppearances} from './story-outside-speakers.mjs';
 import {resolveOutsideWikidata,outsideWikidataRequest,OUTSIDE_WIKIDATA_LIMITS} from './outside-wikidata-source.mjs';
 const DAY=86400_000;
-export const OUTSIDE_WIKIDATA_POLICY='unique-human-politician-or-office-v1';
+export const OUTSIDE_WIKIDATA_POLICY='unique-human-politician-or-office-v2';
 const generationOf=s=>s.get('working')?.generation||s.get('active');
 const dueSql=`SELECT DISTINCT o.person FROM outside_contributions o LEFT JOIN sources s ON s.generation=o.generation AND s.key='wikidata:person:'||o.person
  WHERE o.generation=? AND o.date<=? AND json_extract(o.body,'$.term')=10 AND (COALESCE(json_extract(s.body,'$.nextRead'),0)<=? OR COALESCE(json_extract(s.body,'$.policy'),'')<>? OR o.date>substr(s.fetched_at,1,10)) ORDER BY o.person LIMIT 1`;

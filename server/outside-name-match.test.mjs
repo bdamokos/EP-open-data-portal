@@ -1,10 +1,11 @@
 import test from 'node:test';
+import {outsideOfficeDate} from './outside-office-date.mjs';
 import assert from 'node:assert/strict';
 import {normalizeOutsideName,matchOutsideName,resolveOutsideSpeaker} from './outside-speaker-country.mjs';
 const appearance={id:'speech',personId:'1',date:'2026-01-21',term:10,header:{name:'Example Speaker',role:'Guest speaker'},debatePlaces:[]};
 const position=(extra={})=>({id:'Q2',statement:'Q1$dated-position',start:'2020-01-01',end:null,countries:['PRT'],jurisdictions:[],...extra});
 const candidate=(extra={})=>({qid:'Q1',revision:12,human:true,names:[{value:'Example Speaker',language:'en',kind:'label'}],positions:[position()],citizenships:['PRT'],...extra});
-const record=candidates=>({status:'available',candidates,fetchedAt:'2026-11-02T12:00:00Z',urls:['https://www.wikidata.org/wiki/Q1']});
+const record=candidates=>({status:'available',dateVersion:1,candidates:candidates.map(c=>({...c,positions:(c.positions||[]).map(p=>({...p,start:typeof p.start==='string'?outsideOfficeDate(p.start+'T00:00:00Z',11):p.start||{state:'absent'},end:typeof p.end==='string'?outsideOfficeDate(p.end+'T00:00:00Z',11):p.end||{state:'absent'}}))})),fetchedAt:'2026-11-02T12:00:00Z',urls:['https://www.wikidata.org/wiki/Q1']});
 test('only NFC, whitespace collapse and Unicode case folding normalize speaker names',()=>{
  assert.equal(normalizeOutsideName('  NATAŠA\tPirc  Musar '),normalizeOutsideName('Natas\u030ca Pirc Musar'));assert.equal(normalizeOutsideName('Straße'),normalizeOutsideName('STRASSE'));assert.equal(normalizeOutsideName('ΟΣ'),normalizeOutsideName('ος'));assert.notEqual(normalizeOutsideName('Nataša'),normalizeOutsideName('Natasa'));assert.notEqual(normalizeOutsideName('İpek'),normalizeOutsideName('Ipek'));assert.notEqual(normalizeOutsideName('ı'),normalizeOutsideName('I'));
 });

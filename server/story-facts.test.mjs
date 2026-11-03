@@ -664,9 +664,16 @@ test('outside addresses and coverage are copied into the published generation',a
  const query=scope=>new URLSearchParams({scope,...(scope==='place'?{key:'place:ESP'}:{}),period:'2026-Q1'});
  let result=storyFacts(store,query('map'));assert.equal(result.outsideSpeakers.length,2,'speeches in one address deduplicate by exact person and item');assert.deepEqual(result.outsideSpeakers.map(a=>a.country),['ESP','PRT']);assert.equal(storyFacts(store,query('place')).outsideSpeakers.length,1);
  store.db.prepare('DELETE FROM outside_contributions WHERE generation=1').run();assert.equal(storyFacts(store,query('map')).outsideSpeakers.length,2,'published evidence is immutable until rebuilt');
- store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:false,window:{end:'2026-11-01'},availability:{sourceKey:'outside',checkedIntervals:[],gaps:[],limited:true}}));
+ store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({wikidataPolicyVersion:4,complete:false,window:{end:'2026-11-01'},availability:{sourceKey:'outside',checkedIntervals:[],gaps:[],limited:true}}));
  assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'incomplete coverage suppresses the line');
- store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:true,wikidataPolicyVersion:3,europe:['ESP']}));
+ const replaceCoverage=value=>store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify(value));
+ replaceCoverage({complete:false,wikidataPolicyVersion:4,window:{end:'2026-11-01'},availability:{checkedIntervals:[{start:'2026-01-01',end:'2026-06-30'}],gaps:[{start:'2026-04-10',end:'2026-04-10',reason:'missing-day'}],limited:false}});
+ assert.equal(storyFacts(store,query('map')).outsideSpeakers.length,2,'a Q2 gap does not suppress Q1');
+ store.db.prepare("INSERT INTO story_facts SELECT generation,kind,id||':q2','2026-04-21',json_set(body,'$.id',id||':q2','$.date','2026-04-21') FROM story_facts WHERE generation=2 AND kind='outsideSpeaker'").run();
+ const q2=query('map');q2.set('period','2026-Q2');assert.deepEqual(storyFacts(store,q2).outsideSpeakers,[],'dated gap suppresses its own quarter');
+ replaceCoverage({complete:true,wikidataPolicyVersion:3});assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'older projection is separately suppressed');
+
+ store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:true,wikidataPolicyVersion:4,europe:['ESP']}));
  const eu=query('map');eu.set('zoom','eu');assert.deepEqual(storyFacts(store,eu).outsideSpeakers.map(a=>a.country),['ESP'],'outside scope is pinned to its build-time set');
 
 });
