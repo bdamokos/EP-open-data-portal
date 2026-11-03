@@ -192,7 +192,7 @@ test('full projection pruning retains only the serving and previous story genera
   store.db.prepare('INSERT INTO story_parents VALUES (?,?,?)').run(generation,'old','speech');
  }
  await buildTopics(store);
- for(const table of ['story_facts','story_links','story_places','story_topics','story_parents'])assert.deepEqual(store.db.prepare('SELECT DISTINCT generation FROM '+table+' ORDER BY generation').all().map(r=>r.generation),[1]);
+ for(const table of ['story_facts','story_links','story_places','story_topics','story_parents'])assert.deepEqual(store.db.prepare('SELECT DISTINCT generation FROM '+table+' ORDER BY generation').all().map(r=>r.generation),table==='story_facts'?[1,2]:[1]);
 });
 
 
@@ -647,4 +647,33 @@ test('story facts report the Europe set their published projection was built wit
  // A projection built before version 14 recorded no set and keeps its earlier scope, without Russia.
  const published=store.get('storyProjection'),{europe:_,...older}=published;store.set('storyProjection',{...older,version:13});
  const response=storyFacts(store,new URLSearchParams('scope=map&zoom=eu'));assert.deepEqual(response.europe,[...europeBeforeV14]);assert(!response.europe.includes('RUS'));assert(europe.ids.includes('RUS'));
+});
+
+
+test('outside addresses and coverage are copied into the published generation',async t=>{
+ const {store}=await fixture(t,{clock:()=>Date.parse(stamp)}),date='2026-01-21',debateId='MTG-PL-2026-01-21-PVCRE-ITM-5';
+ store.putSource(1,'outside:state','outside-state',{},stamp);
+ for(const id of ['134834','165141'])store.putSource(1,'wikidata:person:'+id,'wikidata-person',{personId:id,status:'none'},stamp);
+ store.putSource(1,'outside:agenda:'+debateId,'outside-agenda',{id:debateId,date,titles:{en:'Formal sitting: Spain and Portugal'},procedureIds:[]},stamp);
+ const insert=store.db.prepare('INSERT INTO outside_contributions VALUES (?,?,?,?,?)');
+ for(const [personId,name,role] of [['134834','Felipe VI','King of Spain'],['165141','Marcelo Rebelo de Sousa','Presidente da República de Portugal']])for(const n of [1,2]){
+  const id='MTG-PL-'+date+'-OTH-'+personId+n;
+  insert.run(1,id,personId,date,JSON.stringify({id,personId,date,term:10,header:{name,role},parentIds:[debateId],source,rosterSource:{date,sources:[source]}}));
+ }
+ store.set('active',2);await buildTopics(store,{generation:2,sourceGeneration:1});
+ const query=scope=>new URLSearchParams({scope,...(scope==='place'?{key:'place:ESP'}:{}),period:'2026-Q1'});
+ let result=storyFacts(store,query('map'));assert.equal(result.outsideSpeakers.length,2,'speeches in one address deduplicate by exact person and item');assert.deepEqual(result.outsideSpeakers.map(a=>a.country),['ESP','PRT']);assert.equal(storyFacts(store,query('place')).outsideSpeakers.length,1);
+ store.db.prepare('DELETE FROM outside_contributions WHERE generation=1').run();assert.equal(storyFacts(store,query('map')).outsideSpeakers.length,2,'published evidence is immutable until rebuilt');
+ store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({wikidataPolicyVersion:4,complete:false,window:{end:'2026-11-01'},availability:{sourceKey:'outside',checkedIntervals:[],gaps:[],limited:true}}));
+ assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'incomplete coverage suppresses the line');
+ const replaceCoverage=value=>store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify(value));
+ replaceCoverage({complete:false,wikidataPolicyVersion:4,window:{end:'2026-11-01'},availability:{checkedIntervals:[{start:'2026-01-01',end:'2026-06-30'}],gaps:[{start:'2026-04-10',end:'2026-04-10',reason:'missing-day'}],limited:false}});
+ assert.equal(storyFacts(store,query('map')).outsideSpeakers.length,2,'a Q2 gap does not suppress Q1');
+ store.db.prepare("INSERT INTO story_facts SELECT generation,kind,id||':q2','2026-04-21',json_set(body,'$.id',id||':q2','$.date','2026-04-21') FROM story_facts WHERE generation=2 AND kind='outsideSpeaker'").run();
+ const q2=query('map');q2.set('period','2026-Q2');assert.deepEqual(storyFacts(store,q2).outsideSpeakers,[],'dated gap suppresses its own quarter');
+ replaceCoverage({complete:true,wikidataPolicyVersion:3});assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'older projection is separately suppressed');
+
+ store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:true,wikidataPolicyVersion:4,europe:['ESP']}));
+ const eu=query('map');eu.set('zoom','eu');assert.deepEqual(storyFacts(store,eu).outsideSpeakers.map(a=>a.country),['ESP'],'outside scope is pinned to its build-time set');
+
 });
