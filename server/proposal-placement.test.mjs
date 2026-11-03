@@ -551,3 +551,19 @@ test('two-row chapter titles preserve the CHAPTER prefix and source offsets',()=
 });
 
 test('chapter C does not splice the first letter of CHAPTER',()=>{const p=source(['HAVE ADOPTED THIS REGULATION:','CHAPTER C','PROGRAMMING','Article 15','Work programme','One.'],['Formuledadoption','ChapterTitle','ChapterTitle','Titrearticle','Titrearticle','Normal']);assert.equal(resolve(p,'Chapter C – title','C\tPROGRAMMING','C\tCHANGED').splice.start.offset,8);});
+test('whole-article note deletion requires consecutive native article boundaries and exact note parity',()=>{
+ const texts=['HAVE ADOPTED THIS REGULATION:','Article 1','1. Public body.','Article 2'];
+ const content={...source(texts,['Normal','Titrearticle','ManualNumPar1','Titrearticle']),sourceKind:'docx'};
+ content.paragraphSources.forEach((s,i)=>s.path=`/w:document[1]/w:body[1]/w:p[${i+1}]`);
+ const proposal=structuredClone(parseProposal(content));proposal.notes=[{id:'native',text:'Public note.',complete:true}];proposal.anchors=[{paragraph:2,offset:14,note:'native'}];
+ const originalText='Article 1\n1. Public body6.\n______\n6 Public note.',at=originalText.indexOf('6'),w={language:'en',baseline:'commission-proposal',targetLabel:'Article 1',originalText,originalFormatting:[{kind:'superscript',start:at,end:at+1}],proposedText:'deleted'};
+ const place=(p=proposal,wording=w)=>resolveProposalPlacement([{kind:'act',proposal:p}],wording);
+ assert.equal(place().status,'placed');assert.deepEqual(place().span,{start:1,end:2});
+ for(const mutate of [p=>p.sourceKind='text',p=>p.paragraphs[2].complete=false,p=>p.paragraphs[2].source.ordinal++,p=>p.paragraphs[3].source.ordinal++,p=>p.paragraphs[3].source.segment++,p=>p.paragraphs[3].properties.styleId='Normal',p=>p.paragraphs[2].properties.numberingLabel='1.',p=>p.notes[0].text='Other note.',p=>p.anchors[0].offset--,p=>p.paragraphs[0].text='Draft text:']){
+  const p=structuredClone(proposal);mutate(p);assert.equal(place(p).status,'unresolved',String(mutate));
+ }
+ assert.equal(place(proposal,{...w,language:'fr'}).status,'unresolved');
+ assert.equal(place(proposal,{...w,baseline:'present-text'}).status,'unresolved');
+ assert.equal(place(proposal,{...w,proposedText:'New text.'}).status,'unresolved');
+ assert.equal(place(proposal,{...w,originalText:w.originalText.replace('Public body','Other body')}).status,'unresolved');
+});
