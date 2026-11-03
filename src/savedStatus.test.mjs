@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createElement,act,StrictMode,Fragment} from 'react';import {Window} from 'happy-dom';import {freshLoader} from './test-support/viteRunner.mjs';
 const baseline={activityVersion:3,activityIdsComplete:true,revision:'old',answerIds:[],latestIds:['old']};
@@ -340,7 +341,7 @@ test('background storage errors retain entries and failed follow changes revert 
  const h=await harness(t);await h.render();await h.check();const prototype=h.window.localStorage,original=prototype.setItem;
  t.mock.method(prototype,'setItem',function(...args){if(this===h.window.localStorage)throw Object.assign(Error('full'),{name:'QuotaExceededError'});return original.apply(this,args);});
  h.setStatus({generation:6});h.setDetail([['late',0,6]],[speech]);await h.check();await settle();assert.equal(h.item().entries[0].id,'late');assert.match(h.container.querySelector('[role="alert"]').textContent,/will be lost on reload/);
- await act(async()=>cards(h)[0].querySelector('.explorer-save-button').click());assert.equal(h.controls.savedStore.snapshot().items.length,1);assert.match(h.container.textContent,/Couldn't save in this browser/);t.mock.restoreAll();await h.click('Retry saving');assert.equal(h.controls.savedStore.snapshot().storageError,null);
+ await act(async()=>cards(h)[0].querySelector('.explorer-save-button').click());assert.equal(h.controls.savedStore.snapshot().items.length,1);assert.match(h.container.textContent,/Couldn't save in this browser/);t.mock.restoreAll();await automaticRecovery(t);assert.equal(h.controls.savedStore.snapshot().storageError,null);
 });
 test('empty Following makes no requests; epoch reset keeps readable entries',async t=>{
  const h=await harness(t,[]);await h.render();assert(!h.container.querySelector('.explorer-saved-heading button'),'Following has no manual check');assert.equal(h.requests.length,0);
@@ -357,7 +358,7 @@ test('question answers update when MEP marks are unready and remain independent 
  h.setStatus({marksReady:true});h.fail('following-manifest');await h.check();
  assert.equal(snapshot().checkState,'error');assert.equal(snapshot().questionCheckState,'available');assert.equal(h.requests.filter(x=>x.route==='saved').length,2);
  assert.match(h.container.textContent,/Couldn't check for MEP updates/);assert.doesNotMatch(h.container.textContent,/Couldn't check for question answers/);
- h.fail('');await h.click('Retry');assert.equal(snapshot().checkState,'available');assert.equal(h.requests.filter(x=>x.route==='saved').length,2,'successful questions are not repeated on manifest retry');
+ h.fail('');await automaticRecovery(t);assert.equal(snapshot().checkState,'available');assert.equal(h.requests.filter(x=>x.route==='saved').length,2,'successful questions are not repeated on manifest retry');
 });
 test('question-only selections check answers without ready markers, a manifest or working status',async t=>{
  const h=await harness(t,[{kind:'question',id:'E-10-2026-003031',title:'Question'}]);h.setStatus({marksReady:false});await h.render();await h.check();
@@ -368,7 +369,7 @@ test('question failures do not turn successful MEP checks into failures and retr
  const h=await harness(t,[member(),{kind:'question',id:'E-10-2026-003031',title:'Question'}]);await h.render();h.fail('saved');await h.check();
  assert.equal(h.controls.savedStore.snapshot().checkState,'available');assert.equal(h.controls.savedStore.snapshot().questionCheckState,'error');
  assert.match(h.container.textContent,/Couldn't check for question answers/);assert.doesNotMatch(h.container.textContent,/Couldn't check for MEP updates/);
- const count=h.requests.filter(x=>x.route==='following-manifest').length;h.fail('');await h.click('Retry');assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');assert.equal(h.requests.filter(x=>x.route==='following-manifest').length,count);
+ const count=h.requests.filter(x=>x.route==='following-manifest').length;h.fail('');await automaticRecovery(t);assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');assert.equal(h.requests.filter(x=>x.route==='following-manifest').length,count);
 });
 test('opening updates retries a detail rejected after a concurrent manifest advance',async t=>{
  const h=await harness(t);await h.render();await h.check();await h.clear();h.setStatus({generation:6});h.setDetail([['late',0,6]],[{id:'late',title:'Late speech',kind:'activity'}]);await h.background(true);
@@ -435,7 +436,7 @@ for(const failure of ['fetch','verification'])test(`membership ${failure} failur
  assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,1);
  assert.match(h.container.querySelector('.explorer-membership-status').textContent,/Couldn't check membership updates/);
  assert(!h.window.localStorage.getItem('ep.following.membership.v1').includes('error'));
- h.fail('');h.invalidMembership(false);h.setStatus({generation:7});await h.click('Retry membership updates');
+ h.fail('');h.invalidMembership(false);h.setStatus({generation:7});await automaticRecovery(t);
  assert.equal(h.controls.membershipStore.snapshot().baselines['42'].generation,5);
  assert.equal(h.controls.membershipStore.snapshot().entries[0].mark,6);
  assert.equal(h.container.querySelectorAll('.explorer-membership-status').length,0);
@@ -469,5 +470,5 @@ test('group changes baseline separately, show accessible card text and Mark all 
 test('group transport errors preserve baseline and retry discovers the switch',async t=>{
  const h=await harness(t);h.setStatus({epoch:membershipEpoch,groupsReady:true});await h.render();await h.check();const before=h.controls.groupsStore.snapshot();
  h.fail('following-groups');h.setStatus({generation:6});await h.check();assert.deepEqual(h.controls.groupsStore.snapshot(),before);assert.match(h.container.textContent,/Couldn't check group updates/);
- h.fail('');h.setStatus({generation:7});await h.click('Retry group updates');assert.equal(h.controls.groupsStore.snapshot().baselines['42'].generation,5);assert.equal(h.controls.groupsStore.snapshot().entries[0].mark,6);
+ h.fail('');h.setStatus({generation:7});await automaticRecovery(t);assert.equal(h.controls.groupsStore.snapshot().baselines['42'].generation,5);assert.equal(h.controls.groupsStore.snapshot().entries[0].mark,6);
 });

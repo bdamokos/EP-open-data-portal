@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement as h,act,Suspense} from 'react';
@@ -96,7 +97,7 @@ test('retry remounts the view and restores its destination when the failure has 
   const x=await harness(t);let fail=true,ready=0;
   function View(){if(fail)return broken();return h('h1',{tabIndex:-1},'Recovered');}
   await x.render(h(x.ErrorBoundary,{resetKey:'same',language:'en'},h(x.ViewContent,{render:()=>h(View),onReady:()=>{ready++;document.querySelector('h1')?.focus();}})));
-  fail=false;await x.click('Try again');
+  fail=false;await automaticRecovery(t);
   assert.equal(x.container.querySelector('[role=alert]'),null);
   assert.equal(document.activeElement.textContent,'Recovered');assert.equal(ready,1);
 });
@@ -159,7 +160,7 @@ test('a delayed lazy loader can resolve without recovery, while its render error
   assert.equal(x.container.querySelector('[role=status]').textContent,'Loading…');
   await act(async()=>resolve({default:View}));
   assert([...x.container.querySelectorAll('button')].some(node=>node.textContent==='Try again'),'render failures are not classified by matching error messages');
-  fail=false;await x.click('Try again');
+  fail=false;await automaticRecovery(t);
   assert.equal(x.container.querySelector('[role=alert]'),null);
   assert.equal(document.activeElement.textContent,'Recovered view');
   assert.equal(loads,1,'ordinary retry keeps the successfully loaded module');

@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -140,7 +141,7 @@ test('a pending or failed topic lookup cannot hide member and question title res
   assert.match(view.container.textContent,/Searching plenary topics/);assert.deepEqual(calls,['mep','topic','question']);
   await act(async()=>finish(Response.json({error:{message:'Lookup timed out.'}},{status:503})));
   assert.match(view.container.textContent,/Plenary topics search unavailable/);assert.match(view.container.textContent,/Housing question/);
-  await view.click('Retry');assert.equal(topicAttempts,2);assert.deepEqual(calls,['mep','topic','question','topic']);
+  await automaticRecovery(t);assert.equal(topicAttempts,2);assert.deepEqual(calls,['mep','topic','question','topic']);
   await act(async()=>finish(Response.json({offset:0,sections:[section('topic')]})));
   assert.match(view.container.textContent,/Housing debate/);assert.equal(view.container.querySelector('[role="alert"]'),null);
 });
@@ -233,7 +234,7 @@ test('a same-query busy response and retry keep the previous matching results vi
   await view.submit();assert.equal(searchCount,2);
   assert.equal(view.find('.explorer-search-result h4'),title);
   assert.match(view.find('[role="alert"]').textContent,/Search is busy/);
-  await view.click('Retry');assert.equal(searchCount,3);
+  await automaticRecovery(t);assert.equal(searchCount,3);
   assert.equal(view.find('.explorer-search-result h4'),title);
   assert.equal(view.find('.explorer-search-results').getAttribute('aria-busy'),'true');
   await act(async()=>finishRetry(Response.json(results())));

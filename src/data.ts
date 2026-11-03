@@ -1,3 +1,5 @@
+import {retryableGap,gapRetryAt} from './automaticRetry.mjs';
+import {useAutomaticRetry} from './useAutomaticRetry';
 import {useUiI18n} from './UiI18nReact';
 import {uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -34,7 +36,7 @@ export function useSpeechData(id:string,language:string) {
     refreshing:saved.loading||detail.loading,refreshError:transcript?.xml?body.error:null,refreshRetryAt:transcript?.xml?body.retryAt:undefined};
 }
 export function prefetchData(routes: string[]) { return client.prefetch(routes); }
-export function useData<T>(route: string | null) {
+export function useData<T>(route: string | null, {retryWhile}: {retryWhile?:(data:T)=>boolean} = {}) {
   const ui=useUiI18n();
   const [state, setState] = useState<{
     route: string | null;
@@ -63,8 +65,9 @@ export function useData<T>(route: string | null) {
         });
     return () => { active = false; controller.abort(); };
   }, [route, retry]);
+  const retrying=useAutomaticRetry(route,state.route===route?state.error:null,state.route!==route||state.loading,refresh,Boolean(state.route===route&&state.data&&(retryWhile?retryWhile(state.data):retryableGap(state.data))),gapRetryAt(state.data));
   const current = state.route === route ? state : {route,data:route ? client.peek<T>(route) : null,error:null,loading:Boolean(route)};
   // Expose a retry before effects run, so dependent hooks do not briefly start
   // a fallback while this prerequisite is about to refresh.
-  return { ...current, error:current.error===null?null:uiErrorText(current.error,ui), ...(previousRequest.current.retry !== retry ? {error:null,status:undefined,retryAt:undefined,loading:Boolean(route)} : {}), retry: refresh };
+  return { ...current, loading:current.loading||retrying&&!current.data, retrying, error:retrying||current.error===null?null:uiErrorText(current.error,ui), ...(previousRequest.current.retry !== retry ? {error:null,status:undefined,retryAt:undefined,loading:Boolean(route)} : {}), retry: refresh };
 }

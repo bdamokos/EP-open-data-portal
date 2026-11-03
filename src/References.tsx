@@ -112,7 +112,7 @@ export function ReferenceScope({texts,language,textLanguage=null,children,render
   const scope=useMemo(()=>({references,noteKeys,notePrefix,textLanguage,open,show,hoverEnd,cardId}),[references,noteKeys,notePrefix,textLanguage,open,show,hoverEnd,cardId]);
   return <ReferenceScopeContext.Provider value={scope}><div className="legal-reference-scope" ref={wrapper} role="group" aria-label={ui.t("batch6.references.document.text.and.references.103")} tabIndex={-1}>
     {children}
-    {lookup.unavailable&&<p lang={ui.language} className="legal-reference-retry" role="status"><UiMessage id="batch6.references.reference.details.are.temporarily.unavailable.105"/> <button type="button" className="legal-reference-text-button" disabled={lookup.loading} onClick={lookup.retry}>{lookup.loading ? <UiMessage id="batch6.references.retrying.references.105"/> : <UiMessage id="batch6.references.retry.references.105"/>}</button></p>}
+    {lookup.unavailable&&<p lang={ui.language} className="legal-reference-retry" role="status"><UiMessage id="batch6.references.reference.details.are.temporarily.unavailable.105"/> </p>}
     {open&&reference&&position&&<div ref={card} id={cardId} className="legal-reference-card" lang={open.trigger.closest('[lang]')?.getAttribute('lang')??''} role="dialog" aria-label={open.text} tabIndex={-1} style={position}
       onPointerDownCapture={keepOpen} onFocusCapture={keepOpen}
       onPointerEnter={()=>window.clearTimeout(timer.current)} onPointerLeave={event=>{if(event.pointerType==='mouse')hoverEnd();}}>
@@ -155,7 +155,7 @@ function DossierSummary({reference,language,showTitle}:{reference:string;languag
   const [expanded,setExpanded]=useState(false);
   const {data,loading,error,retry}=useData<Summary>('reference-summary?'+new URLSearchParams({reference,lang:language}));
   if(loading&&!data)return <p lang={ui.language} className="legal-reference-summary" role="status"><UiMessage id="batch6.references.loading.dossier.summary.145"/></p>;
-  if(!data)return <p lang={ui.language} className="legal-reference-summary">{error ? <><UiMessage id="batch6.references.the.legislative.observatory.summary.is.temporarily.unavailable.146"/> <button type="button" className="legal-reference-text-button" onClick={retry}><UiMessage id="commissionfollowups.try_again"/></button></> : null}</p>;
+  if(!data)return <p lang={ui.language} className="legal-reference-summary">{error ? <><UiMessage id="batch6.references.the.legislative.observatory.summary.is.temporarily.unavailable.146"/> </> : null}</p>;
   const blocks=data.summary?.blocks||[],shown=expanded ? blocks : blocks.slice(0,2);
   return <section lang={ui.language} className="legal-reference-summary" aria-label={ui.t("batch6.references.dossier.summary.reference.148", {reference: String(reference)})}>
     {showTitle&&<p className="legal-reference-title" lang={data.language??''}>{data.title}</p>}

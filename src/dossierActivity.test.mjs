@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
@@ -165,7 +166,7 @@ test('section failures retain independent content and retry; generic next cursor
   await h.click('Load more amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);
   const last=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);assert.equal(last.searchParams.get('target-offset'),'1');assert.equal(last.searchParams.get('offset'),'0');
   assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='amendments').length,2,'pagination never walks additional targets automatically');
-  fail=false;await h.click('Retry speeches');assert.match(h.container.textContent,/Official joint debate title/);assert.doesNotMatch(h.container.textContent,/Speeches could not be loaded/);
+  fail=false;await automaticRecovery(t);assert.match(h.container.textContent,/Official joint debate title/);assert.doesNotMatch(h.container.textContent,/Speeches could not be loaded/);
 });
 
 test('full dossier keeps exact participant roles; document role dates do not become appointments',async t=>{
@@ -216,7 +217,7 @@ test('HTTP 200 unavailable target retains continuation and can retry the failed 
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,0);assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1,'an unavailable AM cannot suppress its standalone vote');
   await h.click('Load more amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('[aria-label="Amendments coverage"]').textContent,/Amendments for A10-0010\/2026/);
   assert([...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'),'a missing amendmentGeneration on the failed response cannot erase its retry owner');
-  failed=false;await h.click('Retry amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.doesNotMatch(h.container.textContent,/Date unavailable/);assert.doesNotMatch(h.container.textContent,/Exact target read failed/);
+  failed=false;await automaticRecovery(t);assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.doesNotMatch(h.container.textContent,/Date unavailable/);assert.doesNotMatch(h.container.textContent,/Exact target read failed/);
   assert.equal([...h.container.querySelectorAll('button')].filter(node=>node.textContent==='Load more amendments').length,0,'retrying an earlier target cannot reopen the completed continuation');
   assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1);
 });
@@ -242,7 +243,7 @@ test('a failed intermediate page cannot hide a later real amendment snapshot cha
   assert.doesNotMatch(h.container.querySelector('.dossier-amendment').textContent,/Amendment 3/);
   assert.match(h.container.textContent,/Amendments for A10-0011\/2026 could not be loaded/,'the row-free failure must survive an amendment-only publication');
   assert.equal(h.container.querySelector('[aria-label="Amendments coverage"] a').href,'https://www.europarl.europa.eu/doceo/document/A-10-2026-0011_EN.html');
-  failedTarget=false;await h.click('Retry amendments');
+  failedTarget=false;await automaticRecovery(t);
   assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1).searchParams.get('target-offset'),'1');
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.doesNotMatch(h.container.textContent,/could not be loaded|Amendment 3/);
 });
@@ -286,7 +287,7 @@ for(const cursor of [{offset:0,targetOffset:1},{offset:25,targetOffset:0}])test(
   assert(h.container.textContent.includes('Amendments for '+expected+' could not be loaded.'),'the incoming exact target failure must remain visible after publication');
   const notice=h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage');
   assert.equal(notice.querySelector('a').href,'https://www.europarl.europa.eu/doceo/document/'+(cursor.targetOffset?'A-10-2026-0011':'A-10-2026-0010')+'_EN.html');
-  failed=false;await h.click('Retry amendments');
+  failed=false;await automaticRecovery(t);
   const retry=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);
   assert.equal(Number(retry.searchParams.get('offset')),cursor.offset);assert.equal(Number(retry.searchParams.get('target-offset')),cursor.targetOffset);
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('.dossier-amendment').textContent,/Amendment 5/);
@@ -460,7 +461,7 @@ test('no-role RSP opens from a cold person link, keeps speech before gaps, and f
   assert.equal(h.container.querySelector('.dossier-speech h4').textContent,rsp.speech.title);
   assert(h.container.innerHTML.indexOf('dossier-timeline')<h.container.innerHTML.indexOf('dossier-section-status'));
   assert.match(h.container.textContent,/Votes could not be loaded/);assert.doesNotMatch(h.container.textContent,/No linked records|No participants|rapporteur/i);
-  failVotes=false;await h.click('Retry votes');assert(h.container.querySelector('.dossier-speech'));
+  failVotes=false;await automaticRecovery(t);assert(h.container.querySelector('.dossier-speech'));
   await h.click('Amendments');assert.doesNotMatch(h.container.textContent,/No linked amendments|No records available yet|Records unavailable/);
   await h.click('Full dossier');assert.equal(h.container.querySelector('.dossier-participants a').textContent,'Gabriele Bischoff');assert.match(h.container.textContent,/Speeches · 1 shown/);
   await h.click('Work on this dossier');assert(h.container.querySelector('.dossier-speech'));assert.equal(new URL(location.href).searchParams.get('dossier-person'),rsp.personId);
@@ -476,7 +477,7 @@ test('participant pages retain speech-only people and retries never erase succes
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more people');
   assert.match(h.container.textContent,/First speaker/);assert.doesNotMatch(h.container.textContent,/People availability|Partial coverage/);
-  fail=false;await h.click('Retry people');assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/Other speaker/);assert.doesNotMatch(h.container.textContent,/Debate unavailable/);
+  fail=false;await automaticRecovery(t);assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/Other speaker/);assert.doesNotMatch(h.container.textContent,/Debate unavailable/);
 });
 
 test('a new person and filter restart at the first page after earlier pagination',async t=>{
@@ -500,9 +501,9 @@ test('failed same-cursor contributor retry retains established speech evidence u
     return Response.json(data);
   });
   await h.render(createElement(h.module.DossierActivity,{reference:rsp.procedure.label}));
-  assert.match(h.container.textContent,/Gabriele Bischoff/);await h.click('Retry people');
+  assert.match(h.container.textContent,/Gabriele Bischoff/);await automaticRecovery(t);
   assert.match(h.container.textContent,/Gabriele Bischoff/);assert.doesNotMatch(h.container.textContent,/People availability|Partial coverage/);assert.doesNotMatch(h.container.textContent,/Earlier records retained/);
-  await h.click('Retry people');assert(!h.container.querySelector('.dossier-participants'));
+  await automaticRecovery(t);assert(!h.container.querySelector('.dossier-participants'));
 });
 
 test('partial contributor failure offers retry on its original cursor and clears the failure after recovery',async t=>{
@@ -514,7 +515,7 @@ test('partial contributor failure offers retry on its original cursor and clears
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more people');
   assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/Later speaker/);
-  failed=false;await h.click('Retry people');
+  failed=false;await automaticRecovery(t);
   assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='roles').at(-1).searchParams.get('target-offset'),'2');
   assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/Later speaker/);assert.doesNotMatch(h.container.textContent,/A linked debate is unavailable/);
   assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry people'));
@@ -608,7 +609,7 @@ test('amendment-only dossier participants render separate stage links and surviv
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));
   assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ committee amendment/);assert.doesNotMatch(h.container.querySelector('.dossier-participants').textContent,/plenary amendments/);
-  await h.click('Retry people');assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ committee amendment/);
+  await automaticRecovery(t);assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ committee amendment/);
 });
 
 test('a sole document opens after Read text without a second Read report action',async t=>{

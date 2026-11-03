@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import {contextOverlayResponse,assertContextOverlay} from './test-support/contextOverlay.mjs';
 import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
@@ -560,8 +561,8 @@ test('explicit snapshot refresh bypasses a cached unpinned response instead of r
 test('a temporary 503 keeps the retry path usable while the backend load continues',async t=>{
   let attempts=0,finish;
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>++attempts===1?Response.json({error:{message:'Loading the period; retry shortly.'}},{status:503}):new Promise(resolve=>{finish=()=>resolve(Response.json(responseFor(url)));})});
-  assert.match(h.container.textContent,/Voting records could not be loaded/);assert.equal(button(h.container,'Retry votes').disabled,false);
-  await h.click('Retry votes');assert.equal(attempts,2);assert.equal(button(h.container,'Retry votes'),undefined);assert.match(h.container.textContent,/Loading voting records/);
+  assert.equal(h.container.querySelector('.member-votes-notice button'),null);
+  await automaticRecovery(t);assert.equal(attempts,2);assert.equal(button(h.container,'Retry votes'),undefined);assert.match(h.container.textContent,/Loading voting records/);
   await act(async()=>finish());assert.equal(h.container.querySelector('[role="alert"]'),null);assert(h.container.querySelector('.member-votes-subject'));
 });
 
@@ -1002,7 +1003,7 @@ test('attendance starts only after valid votes settle and failures leave votes a
   assert.match(visiblePane(h.container).textContent,/Synthetic subject/);assert.equal(button(h.container,'Next page').disabled,false);
   await act(async()=>releaseAttendance());
   assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/Attendance couldn’t be loaded/);
-  assert(button(h.container,'Retry attendance'));
+  assert.equal(button(h.container,'Retry attendance'),undefined);
   assert.equal(h.container.querySelector('[role="alert"]'),null);assert.equal(button(h.container,'Next page').disabled,false);
   await h.click('Next page');assert.equal(h.state.offset,1);assert.equal(h.state.snapshotId,SNAPSHOT);
 });
@@ -1101,7 +1102,8 @@ for(const detail of [false])for(const failure of ['http','network','invalid'])te
  const attendance=()=>h.container.querySelector(detail?'.member-votes-attendance':'.member-votes-attendance-line');
  assert.match(attendance().textContent,/Attendance couldn’t be loaded/);
  assert.doesNotMatch(attendance().textContent,/unavailable|not yet published/);
- await h.click('Retry attendance');
+ await automaticRecovery(t);
+ if(failure!=='network'){assert.equal(attempts,1);return;}
  assert.equal(attempts,2);assert.match(attendance().textContent,/Listed as present|listed present/);
  assert.equal(button(h.container,'Retry attendance'),undefined);
  assert.equal(h.state.decisionId,detail?decision(1):null);

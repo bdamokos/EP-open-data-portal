@@ -35,16 +35,6 @@
     "count": "count"
   },
   {
-    "one": "readerretry.seconds_second.64657e",
-    "other": "readerretry.seconds_seconds.3724db",
-    "count": "seconds"
-  },
-  {
-    "one": "readerretry.minutes_minute.15a750",
-    "other": "readerretry.minutes_minutes.24f934",
-    "count": "minutes"
-  },
-  {
     "one": "batch4.insightcharts.tsx.count.contribution",
     "other": "batch4.insightcharts.tsx.count.contributions",
     "count": "count"

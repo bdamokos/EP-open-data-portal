@@ -1,3 +1,4 @@
+import {useAutomaticRetry} from './useAutomaticRetry';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {AvailabilityNote,PartialValue} from './AvailabilityNote';
@@ -66,12 +67,14 @@ const eventSummaryMessages={
 export function TopicTrends({language='en',initialTopic}:{language?:string;initialTopic?:string|null}) {
   const ui = useUiI18n();
   const [days,setDays]=useExplorerParam<AnalysisPeriod>('trend-days',180,[90,180,365,'term']),[end,setEnd]=useExplorerParam<string>('trend-until',''),[metric,setMetric]=useExplorerParam<Metric>('trend-metric','debates',['debates','votes','committee']),[data,setData]=useState<Trends|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(false),[attempt,setAttempt]=useState(0),[selection,setSelection]=useExplorerParam<string>('trend-topic',initialTopic||''),[search,setSearch]=useExplorerParam<string>('trend-search',''),[week,setWeek]=useExplorerParam<string>('trend-week',''),[reference,setReference]=useExplorerParam<string|null>('trend-dossier',null),[more,setMore]=useState(false);
+  const failure=useRef<unknown>(null);
+  const retrying=useAutomaticRetry(JSON.stringify([language,days,end,initialTopic]),failure.current,loading,()=>setAttempt(value=>value+1),Boolean(data?.coverage.sourceError));
   const [,setSource]=useExplorerParam<string|null>('trend-source',null);
   const heading=useRef<HTMLHeadingElement>(null),chart=useRef<SVGSVGElement>(null),[chartWidth,setChartWidth]=useState(960);
   useEffect(()=>{if(!chart.current)return;const observer=new ResizeObserver(entries=>setChartWidth(Math.max(260,Math.round(entries[0].contentRect.width))));observer.observe(chart.current);return()=>observer.disconnect();},[data,selection]);
   useEffect(()=>{
-    let active=true;const controller=new AbortController();setLoading(true);setError(false);setData(null);
-    void(async()=>{let page:number|null=0;try{while(active&&page!==null){const result:Trends=await client.get('insights/topic-trends?'+new URLSearchParams({lang:language,days:String(days),page:String(page),...(end ? ({end}) : ({})),...(initialTopic ? ({concept:initialTopic.split('/').at(-1)!}) : ({}))}),{force:attempt>0,signal:controller.signal});if(!active)return;setData(result);page=result.nextPage;}if(active)setLoading(false);}catch{if(active){setError(true);setLoading(false);}}})();
+    let active=true;const controller=new AbortController();setLoading(true);setError(false);if(!attempt)setData(null);
+    void(async()=>{let page:number|null=0;try{while(active&&page!==null){const result:Trends=await client.get('insights/topic-trends?'+new URLSearchParams({lang:language,days:String(days),page:String(page),...(end ? ({end}) : ({})),...(initialTopic ? ({concept:initialTopic.split('/').at(-1)!}) : ({}))}),{force:attempt>0,signal:controller.signal});if(!active)return;failure.current=null;setData(result);page=result.nextPage;}if(active)setLoading(false);}catch(error){if(active)failure.current=error;if(active){setError(true);setLoading(false);}}})();
     return()=>{active=false;controller.abort();};
   },[language,days,end,attempt,initialTopic]);
   const total=(topic:Trend)=>topic.series.reduce((sum,row)=>sum+(row[metric]??0),0);
@@ -93,8 +96,8 @@ export function TopicTrends({language='en',initialTopic}:{language?:string;initi
     <div className="insight-chart-switch" role="group" aria-label={ui.t("topictrends.activity_measure.5043f4")}>{(['debates','votes','committee'] as const).map(value=><button key={value} aria-pressed={metric===value} onClick={()=>{setMetric(value);setWeek('');setReference(null);}}>{metricNameUi(ui)[value]}</button>)}</div>
     {data&&Number.isFinite(data.coverage.procedures)&&Number.isFinite(data.coverage.mapped)&&<p className="insight-secondary"><UiMessage id={loading?(data.coverage.truncated?'topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d':'topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b'):(data.coverage.truncated?'topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37':'topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b')} values={{mapped:data.coverage.mapped,procedures:data.coverage.procedures}}/></p>}
     {loading&&!data&&<p role="status"><UiMessage id="topictrends.loading_topics.ff6c92"/></p>}
-    {error&&<p role="alert"><UiMessage id="topictrends.more_topics_could_not_be_loaded.e67582"/> <button onClick={()=>setAttempt(value=>value+1)}><UiMessage id="commissionfollowups.try_again"/></button></p>}
-    {data?.coverage.sourceError&&<p><UiMessage id="topictrends.topic_catalogue_temporarily_unavailable.c4a5c9"/> <button onClick={()=>setAttempt(value=>value+1)}><UiMessage id="commissionfollowups.try_again"/></button></p>}
+    {error&&!retrying&&<p role="alert"><UiMessage id="topictrends.more_topics_could_not_be_loaded.e67582"/> </p>}
+    {data?.coverage.sourceError&&<p><UiMessage id="topictrends.topic_catalogue_temporarily_unavailable.c4a5c9"/> </p>}
     {data&&data.coverage.unmapped>0&&<p className="insight-secondary"><UiMessage id="coverage.dossiersUnmapped" values={{count:data.coverage.unmapped}}/></p>}
     {data&&data.coverage.pending>0&&<p className="insight-secondary"><UiMessage id="coverage.dossiersUnloaded" values={{count:data.coverage.pending}}/></p>}
     {data&&<AvailabilityNote showGaps={false} sources={data.availability?.[metric]} kind="event" language={language} end={data.window.end}/>}

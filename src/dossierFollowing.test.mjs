@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement,StrictMode} from 'react';
@@ -81,7 +82,7 @@ test('a failed dossier source check offers a retry that recovers before the auto
   const h=await harness(t);h.fail(true);h.controls.dossierStore.toggle({id:reference});await h.renderSaved();await h.flush();
   assert.match(h.container.textContent,/Some sources couldn't be checked/);
   const progressReads=()=>h.requests.filter(url=>url.pathname.endsWith('/procedure-progress')).length,before=progressReads();
-  h.fail(false);await h.click('Retry');
+  h.fail(false);await automaticRecovery(t);
   assert.equal(progressReads(),before+1,'retry forces the source read inside the automatic interval');
   assert.doesNotMatch(h.container.textContent,/Some sources couldn't be checked|Retry/);
 });

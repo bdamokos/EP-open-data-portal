@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -120,7 +121,7 @@ test('lookup errors expose retry and a real profile link, then recover without l
   const h=await harness(t,{selected:[activity(questionId)],failFirst:true});
   assert.match(h.container.querySelector('[role="alert"]').textContent,/Activity fixture unavailable/);
   assert(h.container.querySelector('a[href*="member=42"]'));
-  await h.click('Try again');assert.match(h.container.textContent,/Exact question body/);
+  await automaticRecovery(t);assert.match(h.container.textContent,/Exact question body/);
   assert.equal(h.requests.filter(url=>url.pathname==='/api/latest-activities/42').length,2);
 });
 

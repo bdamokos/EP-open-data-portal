@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -26,8 +27,8 @@ test('failed reference details have an explicit retry while text remains readabl
     if(++calls===1)return Response.json({error:{message:'This data request took too long.'}},{status:503});
     return new Promise(resolve=>finish=()=>resolve(Response.json({references:[reference]})));
   });
-  assert(container.textContent.includes(text));assert.equal(container.querySelectorAll('button.legal-ref').length,0);assert(retry());
-  await act(async()=>retry().click());assert.equal(calls,2);assert.equal(retry().disabled,true);assert(container.textContent.includes(text));
+  assert(container.textContent.includes(text));assert.equal(container.querySelectorAll('button.legal-ref').length,0);assert.equal(retry(),undefined);
+  await automaticRecovery(t);assert.equal(calls,2);assert.equal(retry(),undefined);assert(container.textContent.includes(text));
   await act(async()=>finish());assert.equal(retry(),undefined);assert.equal(container.querySelector('button.legal-ref').textContent,'Regulation (EU) 2021/2116');
 });
 test('a failed retry preserves saved reference controls and a later retry replaces them',async t=>{
@@ -36,7 +37,7 @@ test('a failed retry preserves saved reference controls and a later retry replac
     calls++;if(calls===2)return Response.json({error:{message:'Temporarily unavailable.'}},{status:503});
     return Response.json({references:[{...reference,stale:calls===1}]});
   });
-  assert(retry());assert(container.querySelector('button.legal-ref'));
-  await act(async()=>retry().click());assert.equal(calls,2);assert(retry());assert(container.querySelector('button.legal-ref'));assert(container.textContent.includes(text));
-  await act(async()=>retry().click());assert.equal(calls,3);assert.equal(retry(),undefined);assert(container.querySelector('button.legal-ref'));
+  assert.equal(retry(),undefined);assert(container.querySelector('button.legal-ref'));
+  await automaticRecovery(t);assert.equal(calls,2);assert.equal(retry(),undefined);assert(container.querySelector('button.legal-ref'));assert(container.textContent.includes(text));
+  await automaticRecovery(t);assert.equal(calls,3);assert.equal(retry(),undefined);assert(container.querySelector('button.legal-ref'));
 });

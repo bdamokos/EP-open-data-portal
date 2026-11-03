@@ -1,3 +1,4 @@
+import {useAutomaticRetry} from './useAutomaticRetry';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
@@ -101,22 +102,24 @@ function canReplacePage(candidate:MotionAmendmentsPage,current:MotionAmendmentsP
 function useMotionAmendmentsRead(route:string|null,nextOrder:()=>number) {
   const [result,setResult]=useState<{route:string|null;attempt:number;data:MotionAmendmentsPage|null;error:string|null;loading:boolean;order:number}>({route:null,attempt:0,data:null,error:null,loading:false,order:0});
   const [attempt,setAttempt]=useState(0);
+  const failure=useRef<unknown>(null);
   const retry=useCallback(()=>setAttempt(value=>value+1),[]);
   useEffect(()=>{
     let active=true;
     const controller=new AbortController();
     const order=route ? nextOrder() : 0;
-    setResult({route,attempt,data:null,error:null,loading:Boolean(route),order});
+    setResult(previous=>({route,attempt,data:previous.route===route?previous.data:null,error:null,loading:Boolean(route),order}));
     // Working generations can change in place. Request order applies to both
     // list and exact reads, independently of their response completion order.
     if(route)api<MotionAmendmentsPage>(route,controller.signal).then(data=>{
-      if(active)setResult({route,attempt,data,error:null,loading:false,order});
+      failure.current=null;if(active)setResult({route,attempt,data,error:null,loading:false,order});
     }).catch(error=>{
-      if(active)setResult({route,attempt,data:null,error:error.message,loading:false,order});
+      if(active)failure.current=error;if(active)setResult(previous=>({...previous,error:error.message,loading:false}));
     });
     return ()=>{active=false;controller.abort();};
   },[route,attempt,nextOrder]);
-  return {...(((result.route===route) && (result.attempt===attempt)) ? result : ({route,attempt,data:null,error:null,loading:Boolean(route),order:0})),retry};
+  const retrying=useAutomaticRetry(route,failure.current,result.loading,retry);
+  return {retrying,...(((result.route===route) && (result.attempt===attempt)) ? result : ({route,attempt,data:null,error:null,loading:Boolean(route),order:0})),...(retrying?{error:null}:{}),retry};
 }
 function formatNumber(value:number,language:string) {try{return value.toLocaleString(language);}catch{return String(value);}}
 function dateLabel(value:string|null|undefined,language:string) {
@@ -350,7 +353,7 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
             ...((Object.hasOwn(state,'wordingLanguage') && (state.wordingLanguage!==undefined)) ? ({wordingLanguage:state.wordingLanguage}) : ({}))}) : ({})),view:state.contextView,onBack:backContext,backLabel:ui.t("motionamendments.back_to_amendments.66b96f"),
             ...((state.contextTarget==='amendment') ? ({summary:<section aria-label={ui.t("motionamendments.votes_on_this_amendment.79a422")}><ul className="motion-amendments__context-votes">{selected!.decisions.map((decision,index)=><Decision context snapshots={voteSnapshots.current} item={selected!} decision={decision} language={language} member={member} memberName={memberName} key={amendmentDecisionKey(decision)+':'+index}/>)}</ul>{!selected!.decisions.length&&<p><UiMessage id="membervotes.tsx.vote.unavailable"/></p>}</section>}) : ({}))}) : <div className="motion-amendments__context-gap"><button type="button" onClick={backContext}><UiMessage id="motionamendments.back_to_amendments.66b96f"/></button>
               <p>{((state.amendmentId && selected) && (!selectedRecord?.listId)) ? ui.t("motionamendments.choose_an_available_wording_version_before_opening_context.477d37") : ((list.loading||selectedPending) ? ui.t("motionamendments.loading_amendment_information.12d23b") : ui.t("motionamendments.the_requested_context_is_unavailable.db843e"))}</p>
-              {(list.error||badPage||selectedRoute&&(exact.error||badSelection))&&<button type="button" onClick={()=>{focusHeading();if(selectedRoute&&(exact.error||badSelection))exact.retry();else list.retry();}}><UiMessage id="commissionfollowups.try_again"/></button>}
+              {(list.error||badPage||selectedRoute&&(exact.error||badSelection))&&null}
             </div>}
         </div> : ((!allowed) ? null : <>
           <div className="motion-amendments__scope" role="group" aria-label={ui.t("motionamendments.amendment_scope.b90922")}>
@@ -359,9 +362,9 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
           </div>
           {page&&!page.coverage.complete&&page.items.length>0&&<p className="motion-amendments__coverage"><UiMessage id="motionamendments.some_amendment_records_are_unavailable.5bda66"/></p>}
           {list.loading&&!page&&<p className="motion-amendments__notice"><UiMessage id="legislation.loading_amendments.0d4c10"/></p>}
-          {(list.error||badPage)&&<div className="motion-amendments__notice"><p><UiMessage id="motionamendments.amendment_information_could_not_be_loaded.cce388"/></p><button type="button" onClick={()=>{focusHeading();list.retry();}}><UiMessage id="commissionfollowups.try_again"/></button></div>}
+          {(list.error||badPage)&&<div className="motion-amendments__notice"><p><UiMessage id="motionamendments.amendment_information_could_not_be_loaded.cce388"/></p></div>}
           {selectedPending&&<p className="motion-amendments__notice"><UiMessage id="motionamendments.loading_the_selected_amendment.7610e6"/></p>}
-          {selectedRoute&&(exact.error||badSelection)&&<div className="motion-amendments__notice"><p><UiMessage id="motionamendments.the_selected_amendment_could_not_be_loaded.0ff9de"/></p><button type="button" onClick={()=>{focusHeading();exact.retry();}}><UiMessage id="commissionfollowups.try_again"/></button></div>}
+          {selectedRoute&&(exact.error||badSelection)&&<div className="motion-amendments__notice"><p><UiMessage id="motionamendments.the_selected_amendment_could_not_be_loaded.0ff9de"/></p></div>}
           {selectionUnavailable&&<p className="motion-amendments__notice"><UiMessage id="motionamendments.amendment_unavailable.a89ebd"/></p>}
           {selected&&!inPage&&<div className="motion-amendments__selected"><p className="motion-amendments__outside">{(selection?.inRequestedScope===false) ? <UiMessage id="motionamendments.selected_amendment_outside_this_filter.236c09"/> : <UiMessage id="motionamendments.selected_amendment_outside_this_page.389d86"/>}</p>{detail(selected)}</div>}
           {page&&<>

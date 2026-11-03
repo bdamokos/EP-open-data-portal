@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import {contextOverlayResponse,assertContextOverlay} from './test-support/contextOverlay.mjs';
 import {wordingText,wordingViewText} from './test-support/wordingText.mjs';
@@ -300,7 +301,7 @@ test('scope, language and target changes immediately clear old wording and rejec
   await h.respond(page({scope:'all',items:[amendment(13,{proposedText:'Wrong language payload'})]}));
   assert.doesNotMatch(wordingViewText(h.container),/Wrong language payload|All-scope wording/);
   assert.match(h.container.textContent,/Amendment information could not be loaded/);
-  await h.click('Try again');
+  await automaticRecovery(t);
   await h.respond(page({scope:'all',language:'fr',items:[amendment(13,{proposedText:'Libellé français',wording:wording({language:'fr',requestedLanguage:'fr'})})]}));
   assert.match(h.container.textContent,/Libellé français/);
   const newTarget='RC-10-2026-0441';await h.updateProps({documentId:newTarget});
@@ -318,10 +319,10 @@ test('a failed read can be retried, and invalid target or payload version never 
   const h=await readerHarness(t,{state:{open:true}});
   await h.respond({error:{message:'Temporary public source failure'}},{status:503});
   assert.match(h.container.textContent,/Amendment information could not be loaded/);
-  await h.click('Try again');assert.equal(h.requests.length,2);
+  await automaticRecovery(t);assert.equal(h.requests.length,2);
   await h.respond({...page(),schemaVersion:3});
   assert.equal(h.container.querySelector('.motion-amendments__row'),null);
-  await h.click('Try again');await h.respond(page());
+  await automaticRecovery(t);await h.respond(page());
   assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,1);
   await h.updateProps({documentId:'TA-10-2026-0339'});
   assert.match(h.container.textContent,/This motion reader selection is unavailable/);
@@ -545,13 +546,13 @@ test('failed and older exact reads preserve the accepted newer page until a cohe
   assertNewerPage();
   assert.match(h.container.textContent,/The selected amendment could not be loaded\./);
   assert.equal(h.container.querySelector('.motion-amendments__detail'),null,'a failed new selection must not keep the earlier selected wording');
-  await h.click('Try again');
+  await automaticRecovery(t);
   const staleSelected=amendment(32,{proposedText:'Obsolete generation one selected wording'});
   await h.respond({...oldPage,selection:{requestedId:nextId,status:'available',item:staleSelected,inRequestedScope:true,inPage:false}});
   assertNewerPage();
   assert.match(h.container.textContent,/The selected amendment could not be loaded\./);
   assert.equal(h.container.querySelector('.motion-amendments__detail'),null,'an older exact response must not contribute selected wording to the newer page');
-  await h.click('Try again');
+  await automaticRecovery(t);
   await h.respond(latest(amendment(32,{proposedText:'Current generation two selected wording'})));
   assertNewerPage();
   assert.match(wordingViewText(h.container.querySelector('.motion-amendments__selected')),/Current generation two selected wording/);
@@ -627,7 +628,7 @@ test('failed exact revalidation hides earlier detail and context while preservin
     await h.updateState({view:'context',contextTarget:'amendment'});
     assert.equal(h.container.querySelector('[data-test-context]'),null,'a context deep link cannot reuse failed selection evidence');
     assert.match(h.container.textContent,/The requested context is unavailable/);
-    const requestCount=h.requests.length;await h.click('Try again');
+    const requestCount=h.requests.length;await automaticRecovery(t);
     assert.equal(h.requests.length,requestCount+1);
     const freshSelected={...initialSelected,proposedText:'Fresh authoritative selected wording'};
     const freshBase=navigation==='alias through primary'?page({scope:'all',items:[freshSelected,amendment(15)],total:2}):base;
@@ -686,7 +687,7 @@ test('revisiting an older exact selection revalidates without restoring an earli
   assert.match(h.container.textContent,/The selected amendment could not be loaded\./);
   assert.equal(h.container.querySelector('.motion-amendments__detail'),null);
   assert.equal(h.requests.length,5,'a failed revalidation waits for a user retry instead of starting a request loop');
-  await h.click('Try again');assert.equal(h.requests.length,6);
+  await automaticRecovery(t);assert.equal(h.requests.length,6);
   await h.respond(snapshot(currentItems,23,amendment(32,{listId,proposedText:'Retried current amendment 32 wording'})));
   assertCurrentPage();
   assert.match(wordingViewText(h.container.querySelector('.motion-amendments__selected')),/Retried current amendment 32 wording/);
@@ -940,9 +941,9 @@ test('failed and malformed reader responses settle readiness and retries become 
   const h=await readerHarness(t,{state:{open:true}}),pending=()=>h.container.querySelector('.motion-amendments').getAttribute('data-motion-pending');
   assert.equal(pending(),'true');
   await h.respond({error:{message:'Fixture source unavailable'}},{status:503});assert.equal(pending(),null);
-  await h.click('Try again');assert.equal(pending(),'true');
+  await automaticRecovery(t);assert.equal(pending(),'true');
   await h.respond({schemaVersion:2});assert.equal(pending(),null,'a malformed list is a settled error');
-  await h.click('Try again');assert.equal(pending(),'true');await h.respond(page());assert.equal(pending(),null);
+  await automaticRecovery(t);assert.equal(pending(),'true');await h.respond(page());assert.equal(pending(),null);
   for(const [number,response,status] of [[98,{error:{message:'Fixture exact read unavailable'}},503],[99,{schemaVersion:2},200]]) {
     await h.updateState({amendmentId:`${documentId}-AM-${number}`});assert.equal(pending(),'true');
     await h.respond(response,{status});assert.equal(pending(),null,'an exact failure is settled while the accepted list remains readable');

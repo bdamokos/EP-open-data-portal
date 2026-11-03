@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -58,10 +59,10 @@ test('mismatched responses are discarded and a failed reopen preserves a success
   let count=0;
   const h=await harness(t,()=>{count++;if(count===1)return response({...selection,wordingLanguage:'fr'});if(count===3)return new Response('{}',{status:502});return response();});
   await h.render(selection);await h.toggle();assert(!h.container.textContent.includes('Same wording'));assert(h.container.textContent.includes('Could not load comparison.'));
-  await h.click('Try again');assert(h.container.textContent.includes('Same wording'));
+  await automaticRecovery(t);assert(h.container.textContent.includes('Same wording'));
   assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Check again'),'a loaded comparison has no manual refresh');
   await h.toggle(false);await h.toggle();assert(h.container.textContent.includes('Same wording'));assert(h.container.querySelector('.wording-diff'));assert(h.container.textContent.includes('Could not refresh comparison.'));
-  await h.click('Try again');assert(h.container.textContent.includes('Same wording'));assert.equal(h.requests.length,4);
+  await automaticRecovery(t);assert(h.container.textContent.includes('Same wording'));assert.equal(h.requests.length,4);
 });
 
 test('published vote is separate from wording and unavailable destinations offer no invented outcome',async t=>{
@@ -76,7 +77,7 @@ test('a comparison produced by the earlier claim rules is rejected',async t=>{
   await h.render(selection);await h.toggle();
   assert(h.container.textContent.includes('Could not load comparison.'));
   assert(!h.container.textContent.includes('Same wording'));
-  version=2;await h.click('Try again');
+  version=2;await automaticRecovery(t);
   assert(h.container.textContent.includes('Could not load comparison.'));
   assert(!h.container.textContent.includes('Same wording'));
 });

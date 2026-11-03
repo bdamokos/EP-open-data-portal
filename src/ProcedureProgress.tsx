@@ -53,14 +53,6 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
   const savedFailure=Boolean(data&&(state.error||freshness.failed));
   const available=Boolean(data?.state==='mapped'&&(events.length||data.status));
   const retryAt=Math.max(state.retryAt||0,freshness.retryAt),docRetryAt=Math.max(documents.retryAt||0,docFreshness.retryAt);
-  const [retryClock,setRetryClock]=useState(0);
-  useEffect(()=>{
-    const future=[retryAt,docRetryAt].filter(at=>at>Date.now());
-    if(!future.length)return;
-    const at=Math.min(...future);
-    const timer=setTimeout(()=>setRetryClock(value=>value+1),Math.min(at-Date.now()+1,2_147_483_647));
-    return()=>clearTimeout(timer);
-  },[retryAt,docRetryAt,retryClock]);
   const retryDisabled=state.loading||retryAt>Date.now();
   const title=/\((COD|CNS)\)$/.test(reference) ? ui.t("dossierCard.event.11") : ui.t("batch6.procedureprogress.procedure.progress.57");
   const docData=(documents.data?.reference===reference) ? documents.data : null;
@@ -69,7 +61,7 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
       {available&&data?.status&&<span className="procedure-progress-stage" lang={data.status.language}>{data.status.label}</span>}
       {!available&&<span className="procedure-progress-muted" role="status">{state.loading ? <UiMessage id="batch6.procedureprogress.checking.62"/> : <UiMessage id="grouplabels.ts.unavailable"/>}</span>}
       {available&&(state.loading||savedFailure||freshness.stale)&&<span className="procedure-progress-muted" role="status">{state.loading ? ui.t("batch6.procedureprogress.checking.62") : (savedFailure ? ui.t("batch6.procedureprogress.update.unavailable.63") : ui.t("batch6.procedureprogress.saved.progress.63"))}</span>}
-      {!available&&!state.loading&&<button type="button" onClick={state.retry} disabled={retryDisabled}>{(retryAt>Date.now()) ? <UiMessage id="batch6.procedureprogress.try.later.64"/> : <UiMessage id="batch6.procedureprogress.check.again.64"/>}</button>}
+      {!available&&!state.loading&&null}
     </header>
     {data&&<>
       {data.state==='mapped'&&<>
@@ -92,7 +84,7 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
                 {event.issues.some(issue=>['type','label','status'].includes(issue))&&<p className="procedure-progress-muted">{[...new Set(event.issues.map(issue=>({type:ui.t('coverage.eventType'),label:ui.t('coverage.eventDescription'),status:ui.t('coverage.eventStatus')} as Record<string,string>)[issue]).filter(Boolean))].join(' · ')}</p>}
                 {event.works.length>0&&<details className="procedure-progress-documents" onToggle={toggle=>{if(toggle.currentTarget.open){setDocumentsNeeded(true);if(docData&&(documents.error||docFreshness.stale||docFreshness.failed)&&!documents.loading&&docRetryAt<=Date.now())documents.retry();}}}><summary><UiMessage id="batch6.procedureprogress.documents.82"/></summary>
                   {documents.loading&&!docData&&<p role="status"><UiMessage id="batch6.procedureprogress.loading.document.links.83"/></p>}
-                  {documents.error&&!docData&&<p role="status"><UiMessage id="batch6.procedureprogress.document.links.unavailable.84"/> <button type="button" onClick={documents.retry} disabled={docRetryAt>Date.now()}><UiMessage id="commissionfollowups.try_again"/></button></p>}
+                  {documents.error&&!docData&&<p role="status"><UiMessage id="batch6.procedureprogress.document.links.unavailable.84"/> </p>}
                   {docData&&<>
                     {(documents.loading||documents.error||docFreshness.failed||docFreshness.stale)&&<p className="procedure-progress-muted" role="status">{documents.loading ? ui.t("dossierCard.state.2") : ((documents.error||docFreshness.failed) ? ui.t("batch6.procedureprogress.couldn.t.check.for.updates.86") : ui.t("batch6.procedureprogress.not.checked.recently.86"))}</p>}
                     {partial(docData.coverage)&&<p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.some.document.details.unavailable.87"/></p>}

@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import {LegislationInsights} from '../server/insights-legislation.mjs';
 import {insightQuery} from '../server/insights-store.mjs';
@@ -169,7 +170,7 @@ test('topic status waits for every page, distinguishes shown topics and never tr
   await h.navigate('?trend-days=180');await h.tick();
   assert.equal(h.status().textContent,'Topic catalogue temporarily unavailable.');assert.doesNotMatch(h.status().textContent,/No topics|0 topics/);
   assert(!h.container.textContent.includes('No mapped debates'),'a source failure must not show a contradictory empty-result claim');
-  sourceError=false;await h.click('Try again');await h.tick();
+  sourceError=false;await automaticRecovery(t);await h.tick();
   assert.match(h.status().textContent,/1 topic.*Showing 1/,'explicit retry recovery announces the settled replacement');
 });
 

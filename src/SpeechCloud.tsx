@@ -1,3 +1,4 @@
+import {useAutomaticRetry} from './useAutomaticRetry';
 import {uiErrorText} from './uiErrors.mjs';
 import {TextLanguageFallback} from './TextLanguagePicker';
 import {UiMessage, useUiI18n} from './UiI18nReact';
@@ -24,6 +25,7 @@ const wordLabel=(word:string)=>['ai','gdp','nato'].includes(word) ? word.toUpper
 
 function useCloud(route:string) {
   const ui = useUiI18n();
+  const failure=useRef<unknown>(null);
   const [attempt,setAttempt]=useState(0),failedPage=useRef(0);
   const [state,setState]=useState<{route:string;data:SpeechCloudResult|null;loading:boolean;error:string|null}>({route,data:null,loading:true,error:null});
   useEffect(()=>{
@@ -41,14 +43,15 @@ function useCloud(route:string) {
             client.expireMatching(cachedRoute=>cachedRoute.startsWith(route+'&page='));
             if(++restarts>2){failedPage.current=0;throw new Error(ui.t("speechcloud.speeches_were_updated_while_loading_try_again.90be1f"));}
           }
-          setState({route,data,loading:data.nextPage!==null,error:null});
+          failure.current=null;setState({route,data,loading:data.nextPage!==null,error:null});
           page=data.nextPage;
         }
-      }catch(error){if(active)setState(previous=>({...previous,loading:false,error:uiErrorText(error,ui)}));}
+      }catch(error){if(active)failure.current=error;if(active)setState(previous=>({...previous,loading:false,error:uiErrorText(error,ui)}));}
     })();
     return()=>{active=false;controller.abort();};
   },[route,attempt]);
-  return {...((state.route===route) ? state : ({route,data:null,loading:true,error:null})),retry:()=>setAttempt(value=>value+1)};
+  const retrying=useAutomaticRetry(route,failure.current,state.loading,()=>setAttempt(value=>value+1));
+  return {retrying,...((state.route===route) ? state : ({route,data:null,loading:true,error:null})),...(retrying?{error:null}:{}),retry:()=>setAttempt(value=>value+1)};
 }
 
 export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage='en',title,controls,onSpeech,onSpeakers,onSpeechSpeakers}:{member?:number;sitting?:string;week?:string;topic?:string;country?:string|null;interfaceLanguage?:string;title?:string|false;controls?:ReactNode;onSpeech?:(id:string,language:string)=>void;onSpeakers?:(people:(SpeechSpeaker&{name:string})[],speechId?:string)=>void;onSpeechSpeakers?:(speeches:{id:string;people:CloudPerson[]}[])=>void}) {
@@ -83,7 +86,7 @@ export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage
     {data&&!loading&&(data.coverage.missingLanguage>0||data.coverage.unreadableText>0)&&<p className="explorer-cloud-caption">{(data.coverage.missingLanguage>0) ? ui.t("speechcloud.missinglanguage_without_text_in_this_language.ad0413", {missingLanguage: String(data.coverage.missingLanguage)}, {missingLanguage: data.coverage.missingLanguage}) : ''} { (data.coverage.unreadableText>0) ? ui.t("speechcloud.unreadabletext_texts_unreadable.20c3fb", {unreadableText: String(data.coverage.unreadableText)}, {unreadableText: data.coverage.unreadableText}) : ''}</p>}
     {data&&!loading&&data.coverage.truncated&&<p className="explorer-cloud-caption"><UiMessage id="coverage.speechAnalysisLimit" values={{count:data.coverage.transcripts}}/></p>}
     {loading&&data&&<p className="explorer-cloud-progress" role="status"><UiMessage id="speechcloud.loading_more_speeches.a3ae37"/></p>}
-    {error&&<p role="alert">{data?.words.length ? ui.t("speechcloud.some_speech_text_could_not_be_loaded.be591a") : ui.t("speechcloud.speech_text_could_not_be_loaded.9d3271")} <button onClick={retry}><UiMessage id="commissionfollowups.try_again"/></button></p>}
+    {error&&<p role="alert">{data?.words.length ? ui.t("speechcloud.some_speech_text_could_not_be_loaded.be591a") : ui.t("speechcloud.speech_text_could_not_be_loaded.9d3271")} </p>}
     {selected&&<section className="explorer-cloud-examples">
       <h4 ref={examples} tabIndex={-1}><span lang={data?.language??''} style={{fontSize:'inherit'}}>{selected.label||wordLabel(selected.word)}</span> <small>{<UiMessage id="speechcloud.in_count_speeches.a25a1a" values={{count: selected.speechCount}} counts={{count: selected.speechCount}}/>}</small></h4>
       {selected.speechIds.length<selected.speechCount&&<p className="explorer-cloud-caption"><UiMessage id="speechcloud.showing_count_examples.915265" values={{count: selected.speechIds.length}} counts={{count: selected.speechIds.length}}/></p>}

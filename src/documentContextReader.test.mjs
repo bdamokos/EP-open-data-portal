@@ -1,3 +1,4 @@
+import {automaticRecovery} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import {wordingText} from './test-support/wordingText.mjs';
 import {parseProposal,proposalCandidates} from '../server/proposal-structure.mjs';
@@ -338,10 +339,10 @@ test('controlled adopted selection preserves unavailable identity and never subs
 test('a local reader failure has an explicit retry and does not claim a parliamentary absence',async t=>{
   let calls=0;const h=await harness(t,()=>++calls===1?Response.json({error:{message:'This data request took too long.'}},{status:503}):response(report,sourceDocument(report,['Readable after retry.'])));
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
-  assert(h.container.textContent.includes('Document could not be loaded.'));
+  assert.equal(h.container.querySelector('[role=alert] button'),null);
   assert(!h.container.textContent.includes('Document unavailable here.'));
-  assert.equal(h.container.querySelector('[data-context-pending]'),null);
-  await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
+  assert.equal(h.container.querySelector('[data-context-pending]')?.dataset.contextPending,'true');
+  await automaticRecovery(t);
   assert(h.container.textContent.includes('Readable after retry.'));assert.equal(calls,2);
 });
 
@@ -352,13 +353,13 @@ test('an extraction failure returned with HTTP 200 offers retry and never claims
   })):response(report,sourceDocument(report,['Official text recovered after retry.'])));
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   const alert=h.container.querySelector('[role="alert"]');
-  assert(alert?.textContent.includes('Document text could not be loaded.'));
+  assert.equal(alert?.querySelector('button')??null,null);
   assert(!h.container.textContent.includes('Showing saved text.'));
   assert(!h.container.textContent.includes('Document text unavailable here.'));
   assert(!h.container.textContent.includes('official-document-download-failed'));
   assert.equal(h.container.querySelector('.document-context-text'),null);
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
-  await h.click([...alert.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
+  await automaticRecovery(t);
   assert.equal(calls,2);
   assert.deepEqual(h.requests,[`document-context/${report}?lang=en`,`document-context/${report}?lang=en`]);
   assert(h.container.textContent.includes('Official text recovered after retry.'));
@@ -374,7 +375,7 @@ test('a background extraction failure keeps the readable saved body and qualifie
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   assert.equal(h.container.querySelector('[data-source-paragraph="0"]').textContent,'Exact saved source paragraph.');
   assert(h.container.textContent.includes('Saved source note.'));
-  assert(h.container.textContent.includes('Couldn’t update the document. Showing saved text.'));
+  assert.equal(h.container.querySelector('[role=alert] button'),null);
   assert(!h.container.textContent.includes('Document text could not be loaded.'));
   assert(!h.container.textContent.includes('Document text unavailable here.'));
   assert(!h.container.textContent.includes('official-document-download-failed'));
@@ -396,7 +397,7 @@ test('retained readable text does not become pending while its expired client ca
   assert(h.container.querySelector('.document-context-text').textContent.includes('Readable saved body.'));
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
   await act(async()=>finish());await h.settle();
-  assert(h.container.textContent.includes('Couldn’t update the document. Showing saved text.'));
+  assert.equal(h.container.querySelector('[role=alert] button'),null);
   assert(h.container.querySelector('.document-context-text').textContent.includes('Readable saved body.'));
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
 });
@@ -1187,7 +1188,7 @@ test('failed and missing document bodies retain exact amendment wording, summary
     assert.deepEqual(['original','proposed'].map(side=>wordingText(block,side)),['Original wording.','Proposed wording.']);
     assert.equal(block.querySelector('.wording-diff__passage').getAttribute('lang'),'fr');
     assert.equal(h.container.querySelector('[data-context-target]'),null);
-    if(body==='error')assert(h.container.querySelector('[role="alert"] button'),'retry survives a failed extraction');
+    if(body==='error')assert.equal(h.container.querySelector('[role="alert"] button'),null);
     await h.click(h.container.querySelector('.document-context-back'));assert.equal(backs,1);
   });
 });
