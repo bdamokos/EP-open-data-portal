@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {resolveAmendmentPlacement} from './document-context-model.mjs';
@@ -18,4 +19,31 @@ test('resolution near matches preserve completeness and competing-match guards',
  assert.equal(resolveAmendmentPlacement(text,wording).status,'unresolved');
  text.paragraphs[2]='2. Unrelated;';text.paragraphSources[1].complete=false;
  assert.equal(resolveAmendmentPlacement(text,wording).status,'unresolved');
+});
+
+test('new recitals beyond the last append before the operative body',()=>{
+ for(const targetLabel of ['Recital C (new)','Recital Z a (new)']) {
+  const text=source(['The European Parliament,','A. First recital;','B. Last recital;','1. First operative paragraph;','2. Last paragraph;']);
+  const amendment={...wording,targetLabel,originalText:''};
+  const result=resolveAmendmentPlacement(text,amendment);
+  assert.equal(result.status,'placed',result.reason);assert.equal(result.insertBefore,3);
+  assert.equal(verifyPlacement({placement:result,wording:amendment,text}).status,'verified');
+  text.paragraphSources[2].complete=false;
+  assert.equal(resolveAmendmentPlacement(text,amendment).status,'unresolved');
+ }
+});
+test('a recital in a recital-free resolution precedes the operative body',()=>{
+ const text=source(['The European Parliament,','– having regard to the Treaty,','1. First operative paragraph;','2. Last paragraph;']);
+ const amendment={...wording,targetLabel:'Recital -A (new)',originalText:''};
+ const result=resolveAmendmentPlacement(text,amendment);
+ assert.equal(result.status,'placed',result.reason);assert.equal(result.insertBefore,2);
+ assert.equal(verifyPlacement({placement:result,wording:amendment,text}).status,'verified');
+});
+
+for(const example of JSON.parse(readFileSync(new URL('./fixtures/resolution-near-matches.json',import.meta.url))))test(`replaced ending in native source excerpt: ${example.id}`,()=>{
+ const text=source([example.language==='nl'?'Het Europees Parlement,':'The European Parliament,',...example.source]);text.textLanguage=example.language;
+ const amendment={...wording,...example,baseline:'motion-resolution'};
+ const placement=resolveAmendmentPlacement(text,amendment);
+ assert.equal(placement.status,'placed',placement.reason);assert.deepEqual(placement.span,{start:2,end:2});
+ assert.equal(verifyPlacement({placement,wording:amendment,text}).status,'verified');
 });

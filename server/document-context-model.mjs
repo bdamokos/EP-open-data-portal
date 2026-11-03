@@ -522,6 +522,17 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
   const span = unit => ({start: unit.start, end: unit.end});
   if (operation === 'insert') {
+    if(ref?.kind==='recital'&&ref.isNew&&!ref.parents.length) {
+      const recitals=units.filter(unit=>unit.kind==='recital'),first=units.find(unit=>unit.kind==='paragraph');
+      const ordinal=value=>/^[A-Z]+$/u.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+      const beyond=recitals.length&&ordinal(ref.base)>ordinal(recitals.at(-1).label);
+      if(first?.label==='1'&&(!recitals.length&&['-A','A'].includes(ref.label)||beyond)) {
+        const last=recitals.at(-1);
+        if(first.start<1||!complete(structure.start,first.start)||recitals.some((unit,i)=>ordinal(unit.label)!==i+1||structure.invalid.has(unit.start)||structure.uncertain.has(unit.start))||last&&last.end!==first.start-1)return unresolved('source_passage_incomplete');
+        evidence.push({basis:'published-reference',label:ref.label,anchor:last?.label??'body-start'});
+        return placed({insertAfter:first.start-1,insertBefore:first.start});
+      }
+    }
     // A negative first label (-1, -1a, -A, point -a) precedes the first
     // published sibling of its kind, after any heading that opens that part.
     // A negative number is never printed, so an empty original marks it new.
