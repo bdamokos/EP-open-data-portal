@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createAppUiI18n} from './uiCatalogues.mjs';
+import {buildReferenceTopicStories} from './topicStoryModel.mjs';
+import {storyLinkClaims} from './storyLinkModel.mjs';
 const languages='bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ');
 const read=name=>JSON.parse(readFileSync(new URL('./ui-locales/'+name+'.json',import.meta.url)));
 const catalogues=Object.fromEntries(languages.map(l=>[l,read(l)])),forms=read('plural-forms'),english=read('en'),pairs=read('plural-pairs');
@@ -18,4 +20,15 @@ test('story cardinal families retain numeric selectors including decimals and in
   for(const n of counts){const values=Object.fromEntries(slots(english[pair.other]).map(k=>[k,k===pair.count?String(n):'7']));const category=new Intl.PluralRules(ui.locale).select(n),expected=(fs[category]??fs.other).replace(/\{(\w+)\}/g,(_,k)=>values[k]);assert.equal(ui.t(pair.other,values,{[pair.count]:n}),expected,l+'/'+pair.other+'/'+n);}
  }}
  assert.equal(i18n.forLocale('pt').locale,'pt-PT');
+});
+test('German additional-resolution stories agree at singular and plural counts',()=>{
+ const ui=i18n.forLocale('de');
+ const text=value=>value==null?'':typeof value==='string'?value:Array.isArray(value)?value.map(text).join(' / '):'text'in value?text(value.text):ui.t(value.message||value.id,Object.fromEntries(Object.entries(value.values).map(([key,item])=>[key,text(item)])),value.counts);
+ for(const count of [1,2,22]){
+  const facts={questions:[],debates:[],docs:Array.from({length:count},(_,index)=>({id:`B10-${String(index+1).padStart(4,'0')}/2026`,title:'Opaque source title',date:'2026-07-01',type:'RESOLUTION_MOTION',places:['FRA'],outcome:{outcome:'ADOPTED'}}))};
+  const selection={place:'FRA',period:'2026-Q3',periods:['2026-Q3'],language:'de',proseLanguage:'de',labels:{FRA:'Frankreich'}};
+  const story=storyLinkClaims(buildReferenceTopicStories(facts,selection),selection).find(row=>row.id==='topics.story.place.quarter.otherResolutions');
+  assert(story,`additional resolutions story at ${count}`);
+  assert.equal(text(story),`Das Parlament nahm auch folgende Texte an, in denen der Ort genannt wurde: ${count} ${count===1?'Entschließung':'Entschließungen'}.`);
+ }
 });

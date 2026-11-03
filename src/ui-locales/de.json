@@ -2584,7 +2584,7 @@
   "topics.story.origin.onlyElsewhere": ", {questions}",
   "topics.story.origin.eachHome": ", jeweils mit einem dort gewählten Verfasser",
   "topics.story.comparison": ", gegenüber zuvor {average}",
-  "topics.story.place.quarter.otherResolutions": "Das Parlament nahm auch {resolutions} an, in denen der Ort genannt wurde.",
+  "topics.story.place.quarter.otherResolutions": "Das Parlament nahm auch folgende Texte an, in denen der Ort genannt wurde: {resolutions}.",
   "topics.story.outcome.jointPassed": "die {resolution}, ein gemeinsamer Text von {groups} Fraktionen, wurde mit {tally} angenommen",
   "topics.story.outcome.passed": "die {resolution} wurde mit {tally} angenommen",
   "topics.story.outcome.rejected": "die {resolution} wurde mit {tally} abgelehnt",
