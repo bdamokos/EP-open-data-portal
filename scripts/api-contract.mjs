@@ -27,6 +27,22 @@ const revisionDeclaration = /\bexport\s+(?:const|let|var)\s+API_CONTRACT_REVISIO
 const versionPattern = /export const API_VERSION = ([1-9]\d*);/g;
 const versionDeclaration = /\bexport\s+(?:const|let|var)\s+API_VERSION\b/g;
 const registryPattern = /export const API_CONTRACT_DIGESTS = Object\.freeze\(\{([\s\S]*?)\}\);/g;
+const repairPattern = /export const API_CONTRACT_HISTORY_REPAIRS = Object\.freeze\((\[[\s\S]*?\])\);/g;
+
+function repairRecords(source) {
+  const matches = [...source.matchAll(repairPattern)];
+  const declarations = source.match(/\bexport\s+(?:const|let|var)\s+API_CONTRACT_HISTORY_REPAIRS\b/g) ?? [];
+  if (!declarations.length) return [];
+  if (matches.length !== 1 || declarations.length !== 1) throw new Error('Malformed API history repair provenance');
+  const records = JSON.parse(matches[0][1]);
+  if (!records.length || records.some(record => !record || Object.keys(record).sort().join() !== 'base,tip'
+    || !/^[a-f0-9]{40}$/.test(record.base) || !/^[a-f0-9]{40}$/.test(record.tip) || record.base === record.tip)
+    || (matches[0][1].match(/"base"\s*:/g) ?? []).length !== records.length
+    || (matches[0][1].match(/"tip"\s*:/g) ?? []).length !== records.length) throw new Error('Malformed API history repair provenance');
+  const normalized = records.map(({base, tip}) => ({base, tip}));
+  if (new Set(normalized.map(record => JSON.stringify(record))).size !== records.length) throw new Error('Duplicate API history repair provenance');
+  return normalized;
+}
 
 // Parse data, never execute a registry read from a Git ref or conflict side.
 export function parseRegistry(source, {allowMergedEntries = false} = {}) {
@@ -54,7 +70,8 @@ export function parseRegistry(source, {allowMergedEntries = false} = {}) {
       || revision !== latest && !(allowMergedEntries && revision < latest)) {
     throw new Error('API_CONTRACT_REVISION must select the newest contiguous entry; API_VERSION must wrap from 999 to 1');
   }
-  return {version: (latest - 1) % 999 + 1, revision: latest, entries};
+  const repairs = repairRecords(source);
+  return {version: (latest - 1) % 999 + 1, revision: latest, entries, ...(repairs.length ? {repairs} : {})};
 }
 
 export function renderRegistry(source, registry) {
@@ -63,8 +80,14 @@ export function renderRegistry(source, registry) {
   const withRevision = source.match(revisionPattern)
     ? source.replace(revisionPattern, declaration)
     : source.replace(versionPattern, `${declaration}\n$&`);
-  return withRevision.replace(versionPattern, `export const API_VERSION = ${registry.version};`)
+  let result = withRevision.replace(versionPattern, `export const API_VERSION = ${registry.version};`)
     .replace(registryPattern, `export const API_CONTRACT_DIGESTS = Object.freeze({\n${registry.entries.map(([key, digest]) => `  ${key}: '${digest}',`).join('\n')}\n});`);
+  if (registry.repairs?.length) {
+    const provenance = `export const API_CONTRACT_HISTORY_REPAIRS = Object.freeze(${JSON.stringify(registry.repairs, null, 2)});`;
+    result = [...result.matchAll(repairPattern)].length ? result.replace(repairPattern, provenance)
+      : result.replace(versionPattern, `$&\n\n// Verified main-history recovery; displaced digests remain at higher revisions.\n${provenance}`);
+  }
+  return result;
 }
 
 // Both ordinary and diff3/zdiff3 Git conflicts are supported. Edits outside
@@ -112,7 +135,7 @@ export function reconcileRegistry(main, branches, digest, force = false) {
     entries.push([entries.length + 1, entry[1]]);
   }
   if (force || entries.at(-1)[1] !== digest) entries.push([entries.length + 1, digest]);
-  return {version: (entries.length - 1) % 999 + 1, revision: entries.length, entries};
+  return {version: (entries.length - 1) % 999 + 1, revision: entries.length, entries, ...(main.repairs?.length ? {repairs: main.repairs} : {})};
 }
 
 export function assertRecordedHistory(baseline, current) {
@@ -122,6 +145,7 @@ export function assertRecordedHistory(baseline, current) {
 }
 
 export function assertBranchHistory(main, branch, current) {
+  if (JSON.stringify(main.repairs ?? []) !== JSON.stringify(current.repairs ?? [])) throw new Error('API history repair provenance was changed or not verified');
   assertRecordedHistory(main, current);
   // Unpublished stack entries may be renumbered, but their digest occurrences
   // must survive after main, including repeated semantic-only records.
