@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import {viewReady} from './test-support/viewReady.mjs';
 import test from 'node:test';
@@ -67,7 +68,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
   loadModule=await navigationLoader(loaderOptions);
   const {default:App}=await loadModule('/src/App.tsx');
   const {createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container,{onCaughtError:()=>{}});
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container,{onCaughtError:()=>{}});
   await act(async()=>root.render(createElement(App)));
   if(!delayedModule||!query.includes('view='+(delayedModule==='legislation'?'legislation':'groups')))await viewReady(container);
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
@@ -210,7 +211,7 @@ test('speech pagination keeps a stable local destination through pending, error 
   assert.equal(h.button('Older'),undefined,'clicked page control is removed during request');
   await h.finish({error:{message:'Page unavailable.'}},503);
   assert.equal(document.activeElement,heading);
-  const retry=h.button('Try again');await h.click(retry);
+  assert.equal(h.button('Try again'),undefined);await automaticRecovery(t);
   assert.equal(document.activeElement,heading,'a disappearing retry keeps the local destination');
   const language=h.container.querySelector('[aria-label="Interface language"]');language.focus();
   await h.finish(page(10));

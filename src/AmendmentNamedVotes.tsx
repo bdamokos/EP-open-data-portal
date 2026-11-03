@@ -33,11 +33,11 @@ function NamedVoteRead({item,decision,language}:{item:Amendment;decision:Amendme
   const data=(((!request.error) && (!request.loading)) && validateDecisionVotes(request.data,decision.id)) ? request.data : null;
   const bound=data?.status==='found'&&amendmentVoteBinding(item,decision,data);
   if(request.loading)return <p role="status"><UiMessage id="amendmentnamedvotes.tsx.loading.named.votes"/></p>;
-  if(!data||data.status!=='found')return <p><UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/> <button type="button" onClick={request.retry}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>;
+  if(!data||data.status!=='found')return <p><UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/> </p>;
   if(!bound)return <p><UiMessage id="amendmentnamedvotes.tsx.vote.record.does.not.match.this.amendment"/></p>;
   if(data.decision!.ballotStatus==='not-conducted')return <p><UiMessage id="amendmentnamedvotes.tsx.not.put.to.a.vote"/></p>;
   if(data.decision!.method!=='VOTE_ELECTRONIC_ROLLCALL')return <p>{knownVoteMethodLabel(data.decision!.method, ui) ? <UiMessage id="amendmentnamedvotes.tsx.not.individually.recorded"/> : <UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/>}</p>;
-  if(data.integrity==='unavailable'||data.integrity==='conflicting')return <p><UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/> <button type="button" onClick={request.retry}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>;
+  if(data.integrity==='unavailable'||data.integrity==='conflicting')return <p><UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/> </p>;
   const groups=[...new Map(data.voters.map(voter=>[keyOf(voter),voter.group?.code??null])).entries()].sort(([a,ac],[b,bc])=>(a==='unavailable') ? 1 : ((b==='unavailable') ? (-1) : ((ac??'').localeCompare(bc??'')||a.localeCompare(b))));
   const metricRows=data.voters.filter(v=>v.status==='recorded').map(v=>({group:v.group?.code??null,position:v.position}));
   const majorities=groupMajorities(metricRows).sort((a,b)=>a.code.localeCompare(b.code));

@@ -28,14 +28,6 @@
       "one": "{group}, {position}: {count} член на ЕП",
       "other": "{group}, {position}: {count} членове на ЕП"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} секунда",
-      "other": "{seconds} секунди"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} минута",
-      "other": "{minutes} минути"
-    },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} участие",
       "other": "{count} участия"
@@ -633,18 +625,6 @@
       "few": "{group}, {position}: počet poslanců EP: {count}",
       "many": "{group}, {position}: počet poslanců EP: {count}",
       "other": "{group}, {position}: počet poslanců EP: {count}"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} sekunda",
-      "few": "{seconds} s",
-      "many": "{seconds} s",
-      "other": "Počet sekund: {seconds}"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minuta",
-      "few": "{minutes} min",
-      "many": "{minutes} min",
-      "other": "Počet minut: {minutes}"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} příspěvek",
@@ -1456,14 +1436,6 @@
       "one": "{group}, {position}: {count} medlem",
       "other": "{group}, {position}: {count} medlemmer"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} sekund",
-      "other": "{seconds} sekunder"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minut",
-      "other": "{minutes} minutter"
-    },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} bidrag",
       "other": "{count} bidrag"
@@ -2081,14 +2053,6 @@
     "legislation.grouplabel_position_count_meps.f476b0": {
       "one": "{group}, {position}: {count} Mitglied",
       "other": "{group}, {position}: {count} Abgeordnete"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} Sekunde",
-      "other": "{seconds} Sekunden"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} Minute",
-      "other": "{minutes} Minuten"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} Beitrag",
@@ -2708,14 +2672,6 @@
       "one": "{group}, {position}: {count} ευρωβουλευτής",
       "other": "{group}, {position}: {count} ευρωβουλευτές"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} δευτερόλεπτο",
-      "other": "{seconds} δευτερόλεπτα"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} λεπτό",
-      "other": "{minutes} λεπτά"
-    },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} παρέμβαση",
       "other": "{count} παρεμβάσεις"
@@ -3304,16 +3260,6 @@
       "one": "{group}, {position}: {count} eurodiputado",
       "many": "{group}, {position}: {count} eurodiputados",
       "other": "{group}, {position}: {count} eurodiputados"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} segundo",
-      "many": "{seconds} segundos",
-      "other": "{seconds} segundos"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minuto",
-      "many": "{minutes} minutos",
-      "other": "{minutes} minutos"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} intervención",
@@ -4002,14 +3948,6 @@
       "one": "{group}, {position}: {count} parlamendiliige",
       "other": "{group}, {position}: {count} parlamendiliiget"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} sekundi",
-      "other": "{seconds} sekundi"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minuti",
-      "other": "{minutes} minuti"
-    },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} kaastöö",
       "other": "{count} kaastööd"
@@ -4590,14 +4528,6 @@
     "legislation.grouplabel_position_count_meps.f476b0": {
       "one": "{group}, {position}: {count} jäsen",
       "other": "{group}, {position}: {count} jäsentä"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} s",
-      "other": "{seconds} s"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} min",
-      "other": "{minutes} min"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} puheenvuoro",
@@ -5228,16 +5158,6 @@
       "one": "{group}, {position} : {count} député",
       "many": "{group}, {position} : {count} députés",
       "other": "{group}, {position} : {count} députés"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} seconde",
-      "many": "{seconds} secondes",
-      "other": "{seconds} secondes"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minute",
-      "many": "{minutes} minutes",
-      "other": "{minutes} minutes"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} contribution",
@@ -5941,20 +5861,6 @@
       "two": "{group}, {position}: líon Feisirí: {count}",
       "few": "{group}, {position}: líon Feisirí: {count}",
       "many": "{group}, {position}: líon Feisirí: {count}"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "Líon soicindí: {seconds}",
-      "other": "Líon soicindí: {seconds}",
-      "two": "{seconds} s",
-      "few": "{seconds} s",
-      "many": "{seconds} s"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "Líon nóiméad: {minutes}",
-      "other": "Líon nóiméad: {minutes}",
-      "two": "{minutes} min",
-      "few": "{minutes} min",
-      "many": "{minutes} min"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "Líon rannchuidithe: {count}",
@@ -6851,16 +6757,6 @@
       "few": "{group}, {position}: broj zastupnika: {count}",
       "other": "{group}, {position}: broj zastupnika: {count}"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "Broj sekundi: {seconds}",
-      "few": "{seconds} s",
-      "other": "Broj sekundi: {seconds}"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "Broj minuta: {minutes}",
-      "few": "{minutes} min",
-      "other": "Broj minuta: {minutes}"
-    },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "Broj doprinosa: {count}",
       "few": "Broj doprinosa: {count}",
@@ -7542,14 +7438,6 @@
       "one": "{group}, {position}: {count} EP-képviselő",
       "other": "{group}, {position}: {count} EP-képviselő"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} másodperc",
-      "other": "{seconds} másodperc"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} perc",
-      "other": "{minutes} perc"
-    },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} felszólalás",
       "other": "{count} felszólalás"
@@ -8132,16 +8020,6 @@
       "one": "{group}, {position}: {count} deputato",
       "many": "{group}, {position}: {count} deputati",
       "other": "{group}, {position}: {count} deputati"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} secondo",
-      "many": "{seconds} secondi",
-      "other": "{seconds} secondi"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minuto",
-      "many": "{minutes} minuti",
-      "other": "{minutes} minuti"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} contributo",
@@ -8843,18 +8721,6 @@
       "other": "{group}, {position}: {count} EP narių",
       "few": "{group}, {position}: {count} EP nariai",
       "many": "{group}, {position}: EP narių skaičius: {count}"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} sekundės",
-      "other": "{seconds} sekundžių",
-      "few": "{seconds} s",
-      "many": "{seconds} s"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minutės",
-      "other": "{minutes} minučių",
-      "few": "{minutes} min",
-      "many": "{minutes} min"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} pasisakymas",
@@ -9648,16 +9514,6 @@
       "other": "{group}, {position}: {count} EP deputāti",
       "zero": "{group}, {position}: {count} EP deputātu"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} sekunde",
-      "other": "{seconds} sekundes",
-      "zero": "{seconds} s"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minūte",
-      "other": "{minutes} minūtes",
-      "zero": "{minutes} min"
-    },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} uzstāšanās",
       "other": "{count} uzstāšanās",
@@ -10358,20 +10214,6 @@
       "two": "{group}, {position}: għadd ta’ Membri tal-PE: {count}",
       "few": "{group}, {position}: għadd ta’ Membri tal-PE: {count}",
       "many": "{group}, {position}: għadd ta’ Membri tal-PE: {count}"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "Għadd ta’ sekondi: {seconds}",
-      "other": "Għadd ta’ sekondi: {seconds}",
-      "two": "{seconds} s",
-      "few": "{seconds} s",
-      "many": "{seconds} s"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "Għadd ta’ minuti: {minutes}",
-      "other": "Għadd ta’ minuti: {minutes}",
-      "two": "{minutes} min",
-      "few": "{minutes} min",
-      "many": "{minutes} min"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "Għadd ta’ kontribuzzjonijiet: {count}",
@@ -11261,14 +11103,6 @@
       "one": "{group}, {position}: {count} EP-lid",
       "other": "{group}, {position}: {count} EP-leden"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} seconde",
-      "other": "{seconds} seconden"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minuut",
-      "other": "{minutes} minuten"
-    },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} bijdrage",
       "other": "{count} bijdragen"
@@ -11900,18 +11734,6 @@
       "few": "{group}, {position}: liczba posłów: {count}",
       "many": "{group}, {position}: liczba posłów: {count}",
       "other": "{group}, {position}: liczba posłów: {count}"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} s",
-      "few": "{seconds} s",
-      "many": "{seconds} s",
-      "other": "{seconds} s"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} min",
-      "few": "{minutes} min",
-      "many": "{minutes} min",
-      "other": "{minutes} min"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "Liczba wystąpień: {count}",
@@ -12706,16 +12528,6 @@
       "many": "{group}, {position}: {count} deputados",
       "other": "{group}, {position}: {count} deputados"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} segundo",
-      "many": "{seconds} segundos",
-      "other": "{seconds} segundos"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minuto",
-      "many": "{minutes} minutos",
-      "other": "{minutes} minutos"
-    },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} intervenção",
       "many": "{count} intervenções",
@@ -13409,16 +13221,6 @@
       "one": "{group}, {position}: {count} deputat",
       "few": "{group}, {position}: {count} deputați",
       "other": "{group}, {position}: {count} de deputați"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} secundă",
-      "few": "{seconds} secunde",
-      "other": "{seconds} de secunde"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minut",
-      "few": "{minutes} minute",
-      "other": "{minutes} de minute"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} intervenție",
@@ -14510,18 +14312,6 @@
       "many": "Počet udalostí v tomto výbere: {count}",
       "other": "Počet udalostí v tomto výbere: {count}"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} s",
-      "few": "{seconds} s",
-      "many": "{seconds} s",
-      "other": "{seconds} s"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} min",
-      "few": "{minutes} min",
-      "many": "{minutes} min",
-      "other": "{minutes} min"
-    },
     "app.termContributions": {
       "other": "10. volebné obdobie · počet príspevkov: {count}"
     },
@@ -15346,18 +15136,6 @@
       "few": "Število dogodkov v tem izboru: {count}",
       "other": "Število dogodkov v tem izboru: {count}"
     },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} s",
-      "two": "{seconds} s",
-      "few": "{seconds} s",
-      "other": "{seconds} s"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} min",
-      "two": "{minutes} min",
-      "few": "{minutes} min",
-      "other": "{minutes} min"
-    },
     "app.termContributions": {
       "other": "10. mandat · število prispevkov: {count}"
     },
@@ -15777,14 +15555,6 @@
     "legislation.grouplabel_position_count_meps.f476b0": {
       "one": "{group}, {position}: {count} ledamot",
       "other": "{group}, {position}: {count} ledamöter"
-    },
-    "readerretry.seconds_seconds.3724db": {
-      "one": "{seconds} sekund",
-      "other": "{seconds} sekunder"
-    },
-    "readerretry.minutes_minutes.24f934": {
-      "one": "{minutes} minut",
-      "other": "{minutes} minuter"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} bidrag",

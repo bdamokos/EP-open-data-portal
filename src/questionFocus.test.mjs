@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -29,7 +30,7 @@ async function harness(t,respond,{query='?view=questions',props={}}={}) {
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {QuestionTopics}=await loadModule('/src/QuestionTopics.tsx'),{createRoot}=await import('react-dom/client');
-  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const render=element=>act(async()=>root.render(element));
   await render(createElement(QuestionTopics,{language:'en',onBack(){},...props}));
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
@@ -76,9 +77,9 @@ test('Questions pagination error and explicit Reload retain orientation without 
   const first=deferred(),retry=deferred();let attempts=0;
   const h=await harness(t,url=>url.searchParams.get('offset')==='25'?(++attempts===1?first.promise:retry.promise):questions());
   await h.click('Next');await act(async()=>first.resolve(Response.json({error:{message:'Fixture unavailable'}},{status:503})));
-  assert.equal(document.activeElement,h.pageHeading());assert(h.container.querySelector('[role="alert"]'));
+  assert.equal(document.activeElement,h.pageHeading());assert.equal(h.container.querySelector('[role="alert"]'),null);
   assert.equal(h.resultHeading(),null);assert.equal(h.status().textContent,'');
-  await h.click('Reload');assert.equal(document.activeElement,h.pageHeading());assert.equal(h.container.querySelector('[role="alert"]'),null);
+  await automaticRecovery(t);assert.equal(document.activeElement,h.pageHeading());assert.equal(h.container.querySelector('[role="alert"]'),null);
   assert.equal(h.calls.at(-1).searchParams.get('offset'),'25');assert.equal(attempts,2);
   await act(async()=>retry.resolve(questions(25)));
   assert.equal(document.activeElement,h.resultHeading());assert.equal(h.container.querySelector('.insight-pagination span').textContent,'26–27 of 27');
@@ -90,7 +91,7 @@ test('a generic destination heading and a retained filter after Reload never bec
   h.pageHeading().tabIndex=-1;h.pageHeading().focus();
   await act(async()=>initial.resolve(Response.json({error:{message:'Fixture unavailable'}},{status:503})));
   assert.equal(document.activeElement,h.pageHeading());
-  await h.click('Reload');const filter=h.container.querySelector('[data-question-country]');filter.focus();
+  await automaticRecovery(t);const filter=h.container.querySelector('[data-question-country]');filter.focus();
   await act(async()=>retry.resolve(questions()));
   assert.equal(document.activeElement,filter,'completion does not take focus back from the retained filter');
   assert.equal(h.reveals.length,0,'canceled Reload arrival never scrolls the results into view');

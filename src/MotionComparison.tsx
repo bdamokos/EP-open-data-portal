@@ -87,7 +87,7 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
   const retry=()=>{setAttempt(value=>value+1);state.retry();};
   return <section className="explorer-motion-comparison" lang={ui.language} aria-label={ui.t("MotionComparison.motion_wording_comparison")}>
     <h4><UiMessage id="finalTextCheck.compare_wording"/></h4>
-    <Status scope={JSON.stringify([originalId,jointId,stage,selectedLanguage,attempt])} message={status} pending={state.loading} oncePerScope/>
+    <Status scope={JSON.stringify([originalId,jointId,stage,selectedLanguage,state.attempt])} message={status} pending={state.loading||state.retrying} oncePerScope/>
     <div className="explorer-diff-controls">
       <label><UiMessage id="MotionComparison.stages"/><select value={stage} onChange={e=>{setStage(e.target.value as Stage);setShowUnchanged(true);}}>
         <option value="original-joint"><UiMessage id="MotionComparison.original_joint_motion"/></option><option value="original-adopted"><UiMessage id="MotionComparison.original_adopted_text"/></option><option value="joint-adopted"><UiMessage id="MotionComparison.joint_motion_adopted_text"/></option>
@@ -96,10 +96,10 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
     {showLanguage&&<TextLanguagePicker available={availableLanguages} requested={language} value={languageValue} onChange={setLanguage} note={data&&<TextLanguageFallback requested={selectedLanguage} actual={data.textLanguage} interfaceLanguage={language} comparison/>}/>}
     <div>
       {state.loading&&!data&&<p role="status"><UiMessage id="MotionComparison.loading_the_linked_texts"/></p>}
-      {state.error&&<p className="explorer-diff-error">{state.error} <button type="button" onClick={retry}><UiMessage id="commissionfollowups.try_again"/></button></p>}
+      {state.error&&<p className="explorer-diff-error">{state.error} </p>}
       {data&&<>
         {data.documents.length===2&&<div className="explorer-diff-documents">{data.documents.map((doc,i)=><div key={doc.id}><strong><>{labels[i]} · {doc.reference}</></strong>{doc.date&&<span lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(doc.date))}</span>}{doc.sourceUrl&&<a href={doc.sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="MotionComparison.sourceDocx" values={{language: doc.language?.toUpperCase()}}/></a>}</div>)}</div>}
-        {(data.status==='unavailable') ? <p className="explorer-diff-notice">{data.reason} <button type="button" onClick={retry}><UiMessage id="commissionfollowups.try_again"/></button></p> : <>
+        {(data.status==='unavailable') ? <p className="explorer-diff-notice">{data.reason} </p> : <>
           <p className="explorer-diff-summary"><UiMessage id="MotionComparison.summary" values={{changed: (summary?.changed ?? '—'), removed: (summary?.removed ?? '—'), fromStage: contextLabels[0], added: (summary?.added ?? '—'), toStage: contextLabels[1]}}/></p>
           <div className="explorer-diff-views" role="group" aria-label={ui.t("MotionComparison.reading_view")}>{([['inline',ui.t("MotionComparison.inline_changes")],['text',ui.t("MotionComparison.full_text")],['columns',ui.t("WordingDiff.side_by_side")]] as const).map(([value,label])=><button key={value} type="button" aria-pressed={view===value} onClick={()=>setView(value)}>{label}</button>)}</div>
           {(view==='text') ? <>

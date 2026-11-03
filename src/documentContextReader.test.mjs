@@ -1,3 +1,4 @@
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import {wordingText} from './test-support/wordingText.mjs';
 import {parseProposal,proposalCandidates} from '../server/proposal-structure.mjs';
@@ -114,7 +115,7 @@ async function harness(t,respond,followups=()=>({status:'none-listed',items:[],g
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {DocumentContextReader}=await loadModule('/src/DocumentContextReader.tsx');
-  const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,15)));
   const render=async(props,wait=true)=>{await act(async()=>root.render(el(DocumentContextReader,props)));if(wait)await settle();};
   const click=async element=>{assert(element,'Missing control');await act(async()=>element.click());await settle();};
@@ -338,27 +339,27 @@ test('controlled adopted selection preserves unavailable identity and never subs
 test('a local reader failure has an explicit retry and does not claim a parliamentary absence',async t=>{
   let calls=0;const h=await harness(t,()=>++calls===1?Response.json({error:{message:'This data request took too long.'}},{status:503}):response(report,sourceDocument(report,['Readable after retry.'])));
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
-  assert(h.container.textContent.includes('Document could not be loaded.'));
+  assert.equal(h.container.querySelector('[role=alert] button'),null);
   assert(!h.container.textContent.includes('Document unavailable here.'));
-  assert.equal(h.container.querySelector('[data-context-pending]'),null);
-  await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
+  assert.equal(h.container.querySelector('[data-context-pending]')?.dataset.contextPending,'true');
+  await automaticRecovery(t);
   assert(h.container.textContent.includes('Readable after retry.'));assert.equal(calls,2);
 });
 
 test('an extraction failure returned with HTTP 200 offers retry and never claims saved text',async t=>{
   let calls=0;
   const h=await harness(t,()=>++calls===1?response(report,sourceDocument(report,[],{
-    status:'error',textLanguage:null,refreshError:'official-document-download-failed',reason:'source-error',
+    status:'error',textLanguage:null,refreshError:'official-document-download-failed',reason:'source-error',nextRetryAt:new Date(Date.now()+5000).toISOString(),
   })):response(report,sourceDocument(report,['Official text recovered after retry.'])));
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   const alert=h.container.querySelector('[role="alert"]');
-  assert(alert?.textContent.includes('Document text could not be loaded.'));
+  assert.equal(alert?.querySelector('button')??null,null);
   assert(!h.container.textContent.includes('Showing saved text.'));
   assert(!h.container.textContent.includes('Document text unavailable here.'));
   assert(!h.container.textContent.includes('official-document-download-failed'));
   assert.equal(h.container.querySelector('.document-context-text'),null);
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
-  await h.click([...alert.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
+  await automaticRecovery(t);
   assert.equal(calls,2);
   assert.deepEqual(h.requests,[`document-context/${report}?lang=en`,`document-context/${report}?lang=en`]);
   assert(h.container.textContent.includes('Official text recovered after retry.'));
@@ -374,7 +375,7 @@ test('a background extraction failure keeps the readable saved body and qualifie
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   assert.equal(h.container.querySelector('[data-source-paragraph="0"]').textContent,'Exact saved source paragraph.');
   assert(h.container.textContent.includes('Saved source note.'));
-  assert(h.container.textContent.includes('Couldn’t update the document. Showing saved text.'));
+  assert.equal(h.container.querySelector('[role=alert] button'),null);
   assert(!h.container.textContent.includes('Document text could not be loaded.'));
   assert(!h.container.textContent.includes('Document text unavailable here.'));
   assert(!h.container.textContent.includes('official-document-download-failed'));
@@ -396,7 +397,7 @@ test('retained readable text does not become pending while its expired client ca
   assert(h.container.querySelector('.document-context-text').textContent.includes('Readable saved body.'));
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
   await act(async()=>finish());await h.settle();
-  assert(h.container.textContent.includes('Couldn’t update the document. Showing saved text.'));
+  assert.equal(h.container.querySelector('[role=alert] button'),null);
   assert(h.container.querySelector('.document-context-text').textContent.includes('Readable saved body.'));
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
 });
@@ -424,13 +425,14 @@ for(const [name,selected] of [
   assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
 });
 
-test('a failed adopted lookup offers retry without claiming that the selected text is unavailable',async t=>{
-  const h=await harness(t,()=>Response.json({error:{message:'This data request took too long.'}},{status:503}));
+test('a failed adopted lookup recovers automatically without claiming that the selected text is unavailable',async t=>{
+  let failed=true;
+  const h=await harness(t,(route,params)=>failed?Response.json({error:{message:'This data request took too long.'}},{status:503}):params.has('adopted')?response(original,null,{related:{status:'available',items:[choice(adopted)],gaps:[]}}):response(adopted,sourceDocument(adopted,['Recovered exact adopted wording.'])));
   await h.render({request:{documentId:original,view:'adopted',onBack:()=>{}},language:'en',selectedDocumentId:adopted});
-  assert(h.container.textContent.includes('Linked texts could not be loaded.'));
-  assert(!h.container.textContent.includes('This adopted text is unavailable here.'));
-  assert.equal(h.container.querySelectorAll('.document-context-notice button').length,1);
-  assert.equal(h.container.querySelector('[data-context-pending]'),null);
+  assert(h.container.textContent.includes('Loading linked texts…'));assert(!h.container.textContent.includes('This adopted text is unavailable here.'));assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);assert.equal(h.container.querySelector('.document-context-reader').getAttribute('data-context-pending'),'true');
+  await exhaustAutomaticRetries(t);assert.equal(h.requests.length,7);assert(h.container.textContent.includes('Linked texts could not be loaded.'));assert(!h.container.textContent.includes('This adopted text is unavailable here.'));assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);assert.equal(h.container.querySelector('[data-context-pending]'),null);
+  failed=false;await act(async()=>window.dispatchEvent(new window.Event('online')));await h.settle();assert.match(h.container.textContent,/Recovered exact adopted wording/);assert(!h.container.textContent.includes('Linked texts could not be loaded.'));assert(h.requests.some(route=>route.startsWith('document-context/'+adopted+'?')));
+
 });
 
 test('references keep the interface language when the source text language changes',async t=>{
@@ -1188,7 +1190,7 @@ test('failed and missing document bodies retain exact amendment wording, summary
     assert.deepEqual(['original','proposed'].map(side=>wordingText(block,side)),['Original wording.','Proposed wording.']);
     assert.equal(block.querySelector('.wording-diff__passage').getAttribute('lang'),'fr');
     assert.equal(h.container.querySelector('[data-context-target]'),null);
-    if(body==='error')assert(h.container.querySelector('[role="alert"] button'),'retry survives a failed extraction');
+    if(body==='error')assert.equal(h.container.querySelector('[role="alert"] button'),null);
     await h.click(h.container.querySelector('.document-context-back'));assert.equal(backs,1);
   });
 });

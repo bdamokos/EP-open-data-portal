@@ -1,3 +1,5 @@
+import {responseRetryAt} from './client.mjs';
+import {useAutomaticRetry} from './useAutomaticRetry';
 import {agendaTitle} from './topicPresentation.mjs';
 import {reportUiError} from './errorDiagnostics.mjs';
 import {EU_PROTOCOL_ORDER} from '../server/language-order.mjs';
@@ -43,7 +45,7 @@ function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity
   useEffect(()=>{if(!data)return;const frame=window.requestAnimationFrame(()=>body.current?.querySelector('mark')?.scrollIntoView({block:'nearest'}));return()=>window.cancelAnimationFrame(frame);},[data]);
   return <section className="explorer-search-reader" lang={ui.language} aria-label={ui.t("textsearch.matching_text")}>
     {loading&&!data&&<p role="status"><UiMessage id="textsearch.opening"/></p>}
-    {error&&<p role="alert">{error} <button type="button" className="explorer-search-link" onClick={retry}><UiMessage id="textsearch.retry.9f5cd8"/></button>{sourcePageUrl(sourceUrl)&&<> · <a href={sourcePageUrl(sourceUrl)!} target="_blank" rel="noreferrer"><UiMessage id="textsearch.parliament_page"/></a></>}</p>}
+    {error&&<p role="alert">{error} {sourcePageUrl(sourceUrl)&&<> · <a href={sourcePageUrl(sourceUrl)!} target="_blank" rel="noreferrer"><UiMessage id="textsearch.parliament_page"/></a></>}</p>}
     {data&&<><div className="explorer-search-meta"><span><>{<span lang={language}>{languageName(data.language,language)}</span>} · {((data.translationType==='machine') ? ui.t("textsearch.parliament_machine_translation") : ((data.translationType==='original') ? ui.t("textsearch.original_text") : ui.t("textsearch.published_text")))}</></span></div>
       {expectedHash&&expectedHash!==data.sha256&&<p className="explorer-search-status"><UiMessage id="textsearch.text_changed_since_the_search_search_again_to_update_the_exc"/></p>}
       <div className="explorer-search-body" ref={body} lang={data.language||''}>{data.highlightRanges ? searchRangeParts(data.body,data.highlightRanges).map((part,i)=>part.match ? <mark key={i}>{part.text}</mark> : <span key={i}>{part.text}</span>) : <Excerpt text={data.highlightedBody??data.body}/>}</div>
@@ -99,6 +101,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
     debounceTimer.current=timer;
     return()=>{window.clearTimeout(timer);if(debounceTimer.current===timer)debounceTimer.current=null;};
   },[pendingDraft,draft,setClosed,setQuery,setPage,setExactOffset,setRead]);
+  const failure=useRef<unknown>(null);
   const request=JSON.stringify({query,kinds:actualKinds,language:(searchedLanguage==='all') ? undefined : searchedLanguage,uiLanguage:language,member,country,addressee,from:dateFrom,to:dateTo,sourceIds,group,dateBasis,sort,limit:20,offset});
   const searchIdentity=JSON.stringify({...JSON.parse(request),offset:0});
   const predecessors=useRef<{key:string;offsets:Map<number,number>}>({key:searchIdentity,offsets:new Map()});
@@ -107,6 +110,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
   const previousLabel=(!predecessors.current.offsets.has(offset)) ? ui.t("textsearch.first_page") : ui.t("textsearch.previous");
   function moveTo(next:number){setExactOffset(next);setPage(0);setRead('');}
   const activeRequest=(inline||open)&&Boolean(query)&&!pendingDraft&&!disabledReason&&!scopeChanging&&showText;
+  const retrying=useAutomaticRetry(activeRequest?request:null,failure.current,state.loading,()=>setAttempt(value=>value+1));
   useEffect(()=>{
     if(!activeRequest)return;
     const controller=new AbortController();let current=true;
@@ -118,10 +122,10 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
         if(response.status===404||response.status===403||code==='corpus_disabled')message=ui.t("textsearch.text_search_is_not_available_yet");
         else if(code==='corpus_busy')message=ui.t("textsearch.search_is_busy_please_retry_in_a_moment");
         else if(code==='corpus_query_timeout')message=ui.t("textsearch.this_search_took_too_long_narrow_the_period_or_text_language");
-        throw new Error(message);}
+        throw Object.assign(new Error(message),{status:response.status,retryAt:responseRetryAt(response,data)});}
       if(!data||!Array.isArray(data.results))throw new Error(ui.t("textsearch.search_failed_try_again"));
-      if(current)setState({key:request,data,loading:false,error:null});
-    }).catch(error=>{if(current){reportUiError(controller.signal.aborted?new Error():error,{request:API_ROOT+'/corpus/search',...(controller.signal.aborted?{code:'textsearch.this_search_took_too_long_please_retry'}:{})});setState(old=>({...old,loading:false,error:controller.signal.aborted ? ui.t("textsearch.this_search_took_too_long_please_retry") : error.message}));}}).finally(()=>clearTimeout(timer));
+      failure.current=null;if(current)setState({key:request,data,loading:false,error:null});
+    }).catch(error=>{if(current){failure.current=controller.signal.aborted?new DOMException('Timeout','TimeoutError'):error;reportUiError(controller.signal.aborted?new Error():error,{request:API_ROOT+'/corpus/search',...(controller.signal.aborted?{code:'textsearch.this_search_took_too_long_please_retry'}:{})});setState(old=>({...old,loading:false,error:controller.signal.aborted ? ui.t("textsearch.this_search_took_too_long_please_retry") : error.message}));}}).finally(()=>clearTimeout(timer));
     return()=>{current=false;controller.abort();clearTimeout(timer);};
   },[request,activeRequest,attempt]);
   const data=(((((showText && (!disabledReason)) && (!scopeChanging)) && (!pendingDraft)) && (!inline||query)) && (state.key===request)) ? state.data : null,loading=activeRequest&&(state.key!==request||state.loading)||pendingDraft&&Boolean(draft.trim()),error=((((showText && (!disabledReason)) && (!pendingDraft)) && (!inline||query)) && (state.key===request)) ? state.error : null;
@@ -151,7 +155,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
       {!inline&&(from||to)&&<p className="explorer-search-hint">{(dateBasis==='question') ? <UiMessage id="textsearch.question_date_from_to" values={{from: <span lang={from ? language : ui.language}>{dateLabel(from,language)||ui.t('textsearch.start')}</span>, to: <span lang={to ? language : ui.language}>{dateLabel(to,language)||ui.t('textsearch.present')}</span>}}/> : <UiMessage id="textsearch.publication_date_from_to" values={{from: <span lang={from ? language : ui.language}>{dateLabel(from,language)||ui.t('textsearch.start')}</span>, to: <span lang={to ? language : ui.language}>{dateLabel(to,language)||ui.t('textsearch.present')}</span>}}/>}</p>}
       {disabledReason&&<p role="status" className="explorer-search-status">{disabledReason}</p>}
       {loading&&<p role="status" className="explorer-search-status"><UiMessage id="textsearch.searching"/></p>}
-      {error&&<p role="alert" className="explorer-search-status">{error} <button className="explorer-search-link" type="button" onClick={()=>setAttempt(v=>v+1)}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>}
+      {error&&!retrying&&<p role="alert" className="explorer-search-status">{error} </p>}
       {data&&<div className="explorer-search-results" aria-busy={loading}>
         <p role="status" className="explorer-search-count"><UiMessage id={group==='question'?'coverage.matchingQuestions':'coverage.matchingDocuments'} values={{count:<span lang={language}>{data.total.toLocaleString(language)}</span>}} counts={{count:data.total}}/></p>
         {!data.total&&<p><UiMessage id="textsearch.no_matches_in_available_text_try_another_phrase_language_or_"/></p>}

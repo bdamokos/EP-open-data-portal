@@ -26,6 +26,11 @@ function retryTime(value, now) {
   return Number.isFinite(at) ? at : null;
 }
 
+export function responseRetryAt(response,data,now=Date.now()) {
+  const times=[Number.isFinite(data?.error?.retryAt)?data.error.retryAt:null,retryTime(response.headers.get('Retry-After'),now),retryTime(data?.error?.retryAfter,now)].filter(at=>at!==null);
+  return times.length?Math.max(...times):undefined;
+}
+
 function pause(ms, signal) {
   return new Promise((resolve, reject) => {
     signal.throwIfAborted();
@@ -51,7 +56,11 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
     for (let attempt = 0; ; attempt++) {
       active.throwIfAborted();
       const response = await fetchImpl(versionedApiUrl(url), { method: 'GET', signal: active, priority: getPriority(), credentials: 'omit', headers: { Accept: 'application/json' } });
-      const data = await response.json().catch(() => null);
+      const data = await response.json().catch(error => {
+        if(active.aborted)throw active.reason;
+        if(error?.name==='AbortError'||response.ok&&error?.name!=='SyntaxError')throw error;
+        return null;
+      });
       active.throwIfAborted();
       reportApiVersionMismatch(response.status, data);
       if (response.ok) {
@@ -59,11 +68,7 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
         return data;
       }
       const now = Date.now();
-      const retryAt = Number.isFinite(data?.error?.retryAt) ? data.error.retryAt : null;
-      const headerAt = retryTime(response.headers.get('Retry-After'), now);
-      const bodyAt = retryTime(data?.error?.retryAfter, now);
-      const times = [retryAt, headerAt, bodyAt].filter(at => at !== null);
-      const at = times.length ? Math.max(...times) : null;
+      const at = responseRetryAt(response,data,now) ?? null;
       const error = Object.assign((typeof data?.error?.message==='string'&&data.error.message?new Error(data.error.message):new UiMessageError('batch6.client.the.data.service.is.unavailable.status.64',{status:String(response.status)})), {
         status: response.status, code: data?.error?.code, retryAt: at ?? undefined,
       });
