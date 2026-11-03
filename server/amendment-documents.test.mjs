@@ -821,3 +821,15 @@ test('Council quotation selects the exact main-report comparison and excludes th
  assert.equal(reportCouncilQuotation(buffer,{...chosen,originalText:'Opinion text.'},{reportId}),null);
  assert.equal(reportCouncilQuotation(buffer,{...chosen,targetLabel:'Recital 2'},{reportId}),null);
 });
+
+test('unstyled amended-act headings retain the second target line',()=>{
+ // Public A-10-2026-0201-AM-001-084_en.docx AM77–80 prints these headings without template tags.
+ const outer='Article 1 – paragraph 1 – point 20',act='Regulation (EU) 2023/956',inner='Article 30 – paragraph 6 – subparagraph 2 – point b – point ii a (new)';
+ const heading=p('<Amend>Amendment <NumAm>77</NumAm>','<Article>'+outer+'</Article>');
+ const comparison=`<w:tbl>${row(cell(p('Text proposed by the Commission')),cell(p('Amendment')))}${row(cell(p('')),cell(p('(iia) New assessment.')))}</w:tbl>`;
+ const make=extra=>archive(body(heading+p(act)+p(inner)+extra+comparison+p('</Amend>')));
+ const result=extractAmendments(make(''),{language:'en'}).amendments[0];
+ assert.equal(result.targetLabel,outer+'\n'+act+' — '+inner);
+ assert.equal(result.targetPath.underlying[0].document,act);assert.equal(result.targetPath.underlying[0].raw,inner);
+ assert.equal(extractAmendments(make(p('Other text')),{language:'en'}).amendments[0].targetLabel,outer);
+});
