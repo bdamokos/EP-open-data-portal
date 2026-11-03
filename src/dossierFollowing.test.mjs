@@ -15,8 +15,8 @@ async function harness(t) {
     const url=new URL(input,location.href),path=url.pathname.split('/').at(-1);requests.push(url);
     if(path==='following-status')return Response.json({epoch,generation,marksReady:true});
     if(path==='following-dossiers')return Response.json({epoch,generation,indexComplete:true,items:[{reference,status:'available',entries:generation===1?[]:[{id:'recorded-stage',mark:generation,eventKind:'stage',title:'Parliament position adopted',titleLanguage:'en',date:'2026-07-07'}]}]});
-    if(path==='procedure-progress'&&failing)return Response.json({error:{code:'fixture_failure',message:'Unavailable'}},{status:503});
-    if(path==='procedure-progress')return Response.json({reference,state:'mapped',coverage:{},events:[],source:{fetchedAt:'2026-10-23T10:00:00Z'}});
+    if(path==='procedure-progress'&&failing&&url.searchParams.get('reference')===reference)return Response.json({error:{code:'fixture_failure',message:'Unavailable'}},{status:503});
+    if(path==='procedure-progress')return Response.json({reference:url.searchParams.get('reference'),state:'mapped',coverage:{},events:[],source:{fetchedAt:'2026-10-23T10:00:00Z'}});
     if(path==='press-releases')return Response.json({reference,watermark:1,items:[],coverage:{followingSince:'2026-10-20',feeds:[],procedureLinks:{status:'available'}},dossier:{title:'Public dossier title',language:'en',summaries:[],source:{fetchedAt:'2026-10-23T10:00:00Z'}}});
     if(path==='procedure-context')return Response.json({reference,title:'Public dossier title',language:'en',summary:null,summaries:[],topics:[],subjects:[],source:{url:'https://oeil.europarl.europa.eu/'}});
     assert.fail('Unexpected route '+url);
@@ -86,4 +86,15 @@ test('a failed dossier source check offers a retry that recovers before the auto
   h.fail(false);await automaticRecovery(t);
   assert.equal(progressReads(),before+1,'retry forces the source read inside the automatic interval');
   assert.doesNotMatch(h.container.textContent,/Some sources couldn't be checked|Retry/);
+});
+
+for(const targeted of [false,true])test('adding a dossier cannot settle another failed source '+targeted,async t=>{
+ const h=await harness(t);h.fail(true);h.controls.dossierStore.toggle({id:reference});await h.renderSaved();await h.flush();
+ const reads=id=>h.requests.filter(url=>url.pathname.endsWith('/procedure-progress')&&url.searchParams.get('reference')===id).length;
+ const first=reads(reference),other='2026/2937(RSP)';
+ await act(async()=>{h.controls.dossierStore.toggle({id:other});});await h.flush();
+ if(targeted)await act(async()=>h.controls.checkDossiers({only:other,force:true}));
+ assert.equal(reads(reference),first,'an unrelated follow must not bypass the failed source deadline');assert(reads(other)>0);
+ h.fail(false);await automaticRecovery(t);await h.flush();assert.equal(reads(reference),first+1,'the failed read keeps its scheduled recovery after other sources succeed');
+ assert.equal(h.controls.dossierStore.snapshot().items.find(item=>item.id===reference).gaps.progress,false);assert.equal(h.container.querySelector('.dossier-follow-gap button'),null);
 });

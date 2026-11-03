@@ -1,4 +1,4 @@
-import {automaticRecovery,installRetryClock} from './test-support/automaticRecovery.mjs';
+import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
 import {topicFixture} from './test-support/topicFixtures.mjs';
 import {wordingText} from './test-support/wordingText.mjs';
 import {parseProposal,proposalCandidates} from '../server/proposal-structure.mjs';
@@ -425,13 +425,14 @@ for(const [name,selected] of [
   assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
 });
 
-test('a failed adopted lookup offers retry without claiming that the selected text is unavailable',async t=>{
-  const h=await harness(t,()=>Response.json({error:{message:'This data request took too long.'}},{status:503}));
+test('a failed adopted lookup recovers automatically without claiming that the selected text is unavailable',async t=>{
+  let failed=true;
+  const h=await harness(t,(route,params)=>failed?Response.json({error:{message:'This data request took too long.'}},{status:503}):params.has('adopted')?response(original,null,{related:{status:'available',items:[choice(adopted)],gaps:[]}}):response(adopted,sourceDocument(adopted,['Recovered exact adopted wording.'])));
   await h.render({request:{documentId:original,view:'adopted',onBack:()=>{}},language:'en',selectedDocumentId:adopted});
-  assert(h.container.textContent.includes('Loading linked texts…'));
-  assert(!h.container.textContent.includes('This adopted text is unavailable here.'));
-  assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);
-  assert.equal(h.container.querySelector('[data-context-pending]'),null);
+  assert(h.container.textContent.includes('Loading linked texts…'));assert(!h.container.textContent.includes('This adopted text is unavailable here.'));assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);assert.equal(h.container.querySelector('.document-context-reader').getAttribute('data-context-pending'),'true');
+  await exhaustAutomaticRetries(t);assert.equal(h.requests.length,7);assert(h.container.textContent.includes('Linked texts could not be loaded.'));assert(!h.container.textContent.includes('This adopted text is unavailable here.'));assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);assert.equal(h.container.querySelector('[data-context-pending]'),null);
+  failed=false;await act(async()=>window.dispatchEvent(new window.Event('online')));await h.settle();assert.match(h.container.textContent,/Recovered exact adopted wording/);assert(!h.container.textContent.includes('Linked texts could not be loaded.'));assert(h.requests.some(route=>route.startsWith('document-context/'+adopted+'?')));
+
 });
 
 test('references keep the interface language when the source text language changes',async t=>{

@@ -1,3 +1,4 @@
+import {RetryReads,retryFailure} from './RetryReads';
 import {useAutomaticRetry} from './useAutomaticRetry';
 import {StarControl} from './StarControl';
 import {UiMessageError,uiErrorText} from './uiErrors.mjs';
@@ -65,7 +66,8 @@ const readListeners=new Set<()=>void>();
 function publishReadState(patch:Partial<typeof readState>){readState={...readState,...patch};readListeners.forEach(listener=>listener());}
 export function useSavedReadState(){return useSyncExternalStore(callback=>{readListeners.add(callback);return()=>{readListeners.delete(callback);};},()=>readState);}
 
-let manifestDone='',questionsDone='',pendingLanguage='';
+let manifestDone='',questionsDone='',pendingLanguage='',readScope='',readGeneration='';
+const taskReads=new RetryReads();
 const taskKey=(language:string,items:SavedItem[])=>JSON.stringify([status?.epoch,status?.generation,status?.marksReady,language,items.map(item=>[savedKey(item),item.savedAt])]);
 const selectionKey=()=>savedStore.snapshot().items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
 function verify(data:{epoch:string;generation:number},expected:FollowingStatus, ui: import('./uiI18n.mjs').UiFormatter = defaultUi) {
@@ -115,6 +117,8 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
   pendingLanguage=language;
   const requestedKey=selectionKey();
   if(!requestedKey)return Promise.resolve(undefined);
+  const scope=JSON.stringify([requestedKey,language]);if(readScope!==scope){taskReads.errors.clear();readScope=scope;}
+  const read=<T,>(key:string,load:()=>Promise<T>)=>taskReads.read(key,load,force);
   const run=async()=>{
     const items=savedStore.snapshot().items,hasMembers=items.some(item=>item.kind==='mep');
     const failures:unknown[]=[];
@@ -122,9 +126,10 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
     // A new selection can use a fresh status already held by this tab.
     try {
       if(force||!status||Date.now()-lastStatus>=60_000) {
-        lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status', undefined, undefined, ui);statusError=false;
+        lastStatus=Date.now();status=await read('status',()=>api<FollowingStatus>('insights/following-status', undefined, undefined, ui));statusError=false;
       }
       expected=status;
+      const generation=JSON.stringify([status.epoch,status.generation]);if(readGeneration!==generation){taskReads.errors.clear();readGeneration=generation;}
     }catch(error){statusError=true;savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');setGroupsCheck('error');}failures.push(error);}
     let data:SavedStates={questions:[],checkedAt:'',coverage:{indexComplete:expected?.indexComplete===true}};
     const questions=items.filter(item=>item.kind==='question'),questionKey=taskKey(language,questions);
@@ -133,7 +138,7 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
     // prevent question answers from becoming available in the store.
     const checkQuestions=async()=>{
       if(questions.length&&questionsDone!==questionKey)try{
-        data=await postSavedQuestions(language,questions.map(item=>item.id), ui);savedStore.observe(data,questions);questionsDone=questionKey;
+        data=await read('questions:'+questionKey,()=>postSavedQuestions(language,questions.map(item=>item.id), ui));savedStore.observe(data,questions);questionsDone=questionKey;
         savedStore.setCheckState('available','question');
       }catch(error){savedStore.setCheckState('error','question');failures.push(error);}
     };
@@ -144,14 +149,14 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
         const key=JSON.stringify([expected.epoch,expected.generation,expected.marksReady,language]);
         if(manifestDone!==key||savedStore.snapshot().epoch!==expected.epoch||items.some(item=>item.kind==='mep'&&!item.seen&&!item.legacy)) {
           const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
-          const manifest=await api<FollowingManifest>('insights/following-manifest?'+params, undefined, undefined, ui);verify(manifest,expected, ui);
+          const manifest=await read('manifest:'+key,async()=>{const value=await api<FollowingManifest>('insights/following-manifest?'+params, undefined, undefined, ui);verify(value,expected!,ui);return value;});
           savedStore.applyManifest(manifest);manifestDone=key;
         }
         // Migration stays serial on constrained clients; successful members are
         // never requested again for migration.
         const migrationFailures:unknown[]=[];
-        for(const item of savedStore.snapshot().items.filter(item=>item.kind==='mep'&&item.legacy))try{await memberDetail(item,language,expected, ui);}catch(error){migrationFailures.push(error);}
-        if(migrationFailures.length)throw migrationFailures[0];
+        for(const item of savedStore.snapshot().items.filter(item=>item.kind==='mep'&&item.legacy))try{await read('member:'+taskKey(language,[item]),()=>memberDetail(item,language,expected!,ui));}catch(error){migrationFailures.push(error);}
+        if(migrationFailures.length)throw retryFailure(migrationFailures);
         savedStore.setCheckState('available');
       }catch(error){savedStore.setCheckState(((error as {code?:string}).code==='marks_unavailable') ? 'unavailable' : 'error');failures.push(error);}
     };
@@ -161,7 +166,7 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
       if(expected.membershipReady!==true)return;
       try {
         const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
-        const snapshot=await api<MembershipSnapshot>('insights/following-membership?'+params, undefined, undefined, ui);verify(snapshot,expected, ui);
+        const snapshot=await read('membership:'+taskKey(language,items),async()=>{const value=await api<MembershipSnapshot>('insights/following-membership?'+params, undefined, undefined, ui);verify(value,expected!,ui);return value;});
         if(!membershipStore.observe(snapshot,savedStore.snapshot().items))throw Object.assign(new UiMessageError('Saved.couldn_t_check_membership_updates',{},ui),{code:'invalid_membership_snapshot',cause:Error('Invalid membership snapshot.')});
         coverageStore.observeMembership(snapshot);
         setMembershipCheck(Object.values(snapshot.lists).some(list=>list.status==='unavailable') ? 'unavailable' : 'available');
@@ -173,13 +178,13 @@ export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs
       if(expected.groupsReady!==true)return;
       try {
         const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
-        const snapshot=await api<GroupsSnapshot>('insights/following-groups?'+params, undefined, undefined, ui);verify(snapshot,expected, ui);
+        const snapshot=await read('groups:'+taskKey(language,items),async()=>{const value=await api<GroupsSnapshot>('insights/following-groups?'+params, undefined, undefined, ui);verify(value,expected!,ui);return value;});
         if(!groupsStore.observe(snapshot,savedStore.snapshot().items))throw Object.assign(new UiMessageError('groupupdates.tsx.couldn.t.check.group.updates',{},ui),{code:'invalid_group_snapshot',cause:Error('Invalid group snapshot.')});
         setGroupsCheck(items.some(item=>item.kind==='mep'&&snapshot.members[item.id]?.coverage!=='complete') ? 'unavailable' : 'available');
       }catch(error){setGroupsCheck('error');failures.push(error);}
     };
     await Promise.all([checkQuestions(),checkMembers(),checkMembership(),checkGroups()]);
-    if(failures.length)throw failures[0];
+    if(failures.length)throw retryFailure(failures);
     expireActivityReads();return {data,requestedKey,language};
   };
   pending=(async()=>{
