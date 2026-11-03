@@ -242,7 +242,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
         stages.S5=(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,referenceTexts:references,resolutionDocument:true});
         if(stages.S5.status==='unresolved'&&text?.nativeBuffer)stages.S5=reportCouncilQuotation(text.nativeBuffer,wording,{operation:stages.S5.operation,reportId:row.targetDocumentId,sourceUrl:text.sourceUrl,fetchedAt:text.fetchedAt})??stages.S5;
         documentOperation=verifyRejection({id:row.id,language,buffer:fetched.body,wording,placement:stages.S5});
-        stages.S6=verifyPlacement({placement:stages.S5,wording,items:structured?items:null,text,target,nativeQuoted:nativeProposalInputs?.[stages.S5.itemIndex]?{proposalBuffer:nativeProposalInputs[stages.S5.itemIndex],amendmentBuffer:fetched.body,number:row.number}:undefined});
+        stages.S6=verifyPlacement({placement:stages.S5,wording,items:structured?items:null,text,target,nativeQuoted:nativeProposalInputs?.[stages.S5.itemIndex]?{proposalBuffer:nativeProposalInputs[stages.S5.itemIndex],proposalBuffers:nativeProposalInputs,amendmentBuffer:fetched.body,number:row.number}:undefined});
         if(replay) {
           const native=await sourceBoundCitationVerification({canonical:stages.S6,cache,row,variant,fetched,text,wording,placement:stages.S5,target});
           stages.S6=native.verification;nativeCitationEvidence=native.evidence;
