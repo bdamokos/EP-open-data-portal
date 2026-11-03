@@ -636,8 +636,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
       };
       const own=score(sourceKey),others=units.filter(candidate=>candidate.kind===unit.kind&&candidate!==unit)
         .map(candidate=>score(wordingNormal(text.paragraphs.slice(candidate.start,candidate.end+1).join(' '))));
-      nearMatch=own.similarity>=.95&&others.every(other=>other.similarity<=own.similarity-.02)
-        ||own.prefix>=.5&&others.every(other=>other.prefix<=own.prefix-.02);
+      nearMatch=own.similarity>=.95&&others.every(other=>other.similarity<=own.similarity-.02&&other.prefix<.5)
+        ||own.prefix>=.5&&others.every(other=>other.prefix<=own.prefix-.02&&other.similarity<.93);
     }
     const wordingMatches = nearMatch || sourceKey === originalKey || footnotes
       || numberedCitation && sourceKey.replace(/^[–—−\-•]\s*/u, '') === originalKey;

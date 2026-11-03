@@ -60,3 +60,11 @@ test('a quoted lead alone does not replace following unrelated source content',(
  const text=source(['The European Parliament,','1. '+original,'(Ex AM 49 (Or. EN) of FdR editorial reference in the source document)','2. Another paragraph;']);
  assert.equal(resolveAmendmentPlacement(text,wording).status,'unresolved');
 });
+
+test('a stronger near-exact competitor defeats a shared-opening candidate',()=>{
+ const example=JSON.parse(readFileSync(new URL('./fixtures/resolution-near-matches.json',import.meta.url)))[0];
+ const text=source(['The European Parliament,',...example.source,'9. '+example.originalText.replace(/^7\.\s*/u,'').replace('Stresses','stresses')]);
+ const amendment={...wording,...example,baseline:'motion-resolution'};
+ assert.equal(resolveAmendmentPlacement(text,amendment).status,'unresolved');
+ assert.equal(verifyPlacement({placement:{status:'placed',operation:'replace',span:{start:2,end:2}},wording:amendment,text}).status,'failed');
+});

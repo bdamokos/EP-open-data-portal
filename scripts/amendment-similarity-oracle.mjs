@@ -41,6 +41,6 @@ export function assertResolutionSimilarity(candidates,original,span) {
  });
  const wanted=scores.find(row=>row.start===span.start&&row.end===span.end);
  if(!wanted)return false;
- return (wanted.score>=.95&&scores.every(row=>row===wanted||row.score<=wanted.score-.02))
-  ||(wanted.prefix>=.5&&scores.every(row=>row===wanted||row.prefix<=wanted.prefix-.02));
+ return (wanted.score>=.95&&scores.every(row=>row===wanted||row.score<=wanted.score-.02&&row.prefix<.5))
+  ||(wanted.prefix>=.5&&scores.every(row=>row===wanted||row.prefix<=wanted.prefix-.02&&row.score<.93));
 }
