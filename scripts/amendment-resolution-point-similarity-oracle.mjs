@@ -9,12 +9,13 @@ export function assertResolutionPointSimilarity({text,wording,placement}){
  const unknown=()=>({status:'unverified',reason:'oracle-point-near-match-unavailable'});
  if(wording?.language!=='en'||wording.baseline!=='motion-resolution'||!['replace','delete'].includes(placement.operation)||/\n_{5,}\s*\n/u.test(wording.originalText||''))return unknown();
  const path=oracleAddress(wording.targetLabel||'','en');
- if(!path||path.length<2||path[0].kind!=='paragraph'||path.slice(1).some(p=>p.kind!=='point'||p.isNew)||label(wording.originalText)!==path.at(-1).value||placement.operation==='replace'&&label(wording.proposedText)!==path.at(-1).value)return unknown();
+ if(!path||path.length!==2||path[0].kind!=='paragraph'||path.slice(1).some(p=>p.kind!=='point'||p.isNew)||label(wording.originalText)!==path.at(-1).value||placement.operation==='replace'&&label(wording.proposedText)!==path.at(-1).value)return unknown();
  const motion=rawResolutionUnits(text,'en');if(motion.reason||!motion.units.length)return unknown();
  const parents=motion.units.filter(u=>u.kind==='paragraph'&&u.label===path[0].value);if(parents.length!==1)return unknown();
  const end=Math.max(...motion.units.map(u=>u.end)),points=rawResolutionPointUnits(text).units.filter(u=>u.start>=motion.start&&u.end<=end),wanted=points.filter(u=>same(u.path,path)&&u.group===parents[0].start);
- if(wanted.length!==1||!wanted[0].complete)return unknown();const own=wanted[0],labels=u=>points.filter(p=>p.start>=u.start&&p.end<=u.end).map(p=>p.label),ownLabels=labels(own),original=clean(wording.originalText,ownLabels),source=clean(text.paragraphs.slice(own.start,own.end+1).join('\n'),ownLabels);
- if(source.includes('\uFFFC')||(text.noteAnchors||text.anchors||[]).some(a=>a.paragraph>=own.start&&a.paragraph<=own.end)||(wording.originalFormatting||[]).some(m=>m.kind==='superscript'))return unknown();
+ if(wanted.length!==1||!wanted[0].complete)return unknown();const own=wanted[0];if(points.some(p=>p!==own&&p.start>own.start&&p.end<=own.end))return unknown();
+ const labels=u=>points.filter(p=>p.start>=u.start&&p.end<=u.end).map(p=>p.label),ownLabels=labels(own),original=clean(wording.originalText,ownLabels),source=clean(text.paragraphs.slice(own.start,own.end+1).join('\n'),ownLabels);
+ if(source.includes('\uFFFC')||[...(text.noteAnchors||[]),...(text.anchors||[])].some(a=>a.paragraph>=own.start&&a.paragraph<=own.end)||(wording.originalFormatting||[]).some(m=>m.kind==='superscript'))return unknown();
  if(original===source)return unknown();
  if(placement.status!=='placed'||placement.span?.start!==own.start||placement.span?.end!==own.end)return {status:'failed',reason:'oracle-point-near-match-boundary-mismatch'};
  const candidates=points.map(u=>({...u,text:clean(text.paragraphs.slice(u.start,u.end+1).join('\n'),labels(u))}));

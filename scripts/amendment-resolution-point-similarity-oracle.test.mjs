@@ -11,3 +11,7 @@ test('near wording needs the exact independent paragraph/point identity and comp
 test('equally similar complete and incomplete point competitors both prevent verification',()=>{
  for(const incomplete of [false,true]){const a=input();a.text.paragraphs[3]='(o) '+body.replace('safe water','clean water');a.text.paragraphSources[3].complete=!incomplete;assert.equal(assertResolutionPointSimilarity(a).status,'unverified');}
 });
+
+test('an incomplete similar point under another paragraph still competes',()=>{
+ const a=input();a.text.paragraphs.splice(5,0,'(a) '+a.wording.originalText.slice(4));a.text.paragraphFormats.splice(5,0,{indent:360});a.text.paragraphSources=a.text.paragraphs.map((_,ordinal)=>({ordinal,container:'body',containerPath:'body',segment:0,complete:ordinal!==5}));assert.equal(assertResolutionPointSimilarity(a).status,'unverified');
+});
