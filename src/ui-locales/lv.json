@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Meklēt tematu",
   "topics.plenaryMode": "Temati",
   "topics.findPlace": "Meklēt vietu",
-  "topics.geopolitics": "Ģeopolitika"
+  "topics.geopolitics": "Ģeopolitika",
+  "topics.story.map.outside": "Plenārsēdē uzstājās arī: {speakers}.",
+  "topics.story.map.outside.eu": "Runātāji plenārsēdē no Eiropas un tās kaimiņreģioniem: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} uzstājās plenārsēdē ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

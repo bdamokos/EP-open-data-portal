@@ -79,6 +79,10 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 - Story question lists include exact answer references from retained metadata in one bounded local read, without upstream requests. An unavailable answer observation is `null`; an observed empty list is `[]`.
 - Commission answers (`…-ASW`) are separate records linked by `inverse_answers_to`. A question or document with fewer than 24 language versions, or still unanswered, can still change.
 
+### Outside-speaker countries
+
+Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](https://www.wikidata.org/wiki/Wikidata:Data_access) (CC0) exact name match to a unique human politician or office-holder, with countries from a dated office or single citizenship, seven-day public API/SPARQL refreshes, and unreadable data withholding the quarter’s line.
+
 ### Speeches and debates
 
 - Speech headers are in `recorded_in_a_realization_of[].api:xmlFragment.<lang>` under `oralStatements/*/from/process`; request them with `include-output=xml_fragment`. Without `include-output` the API returns metadata only. Fragments marked `mtec` are machine translations, and translations arrive later, so recent months are re-checked.
