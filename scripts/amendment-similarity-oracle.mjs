@@ -40,7 +40,7 @@ export function assertResolutionSimilarity(candidates,original,span) {
   return {...row,score:Math.min(value.length,key.length)/Math.max(value.length,key.length)>=.93?oracleSimilarity(value,key):0,prefix:prefix>=80&&prefix<Math.min(value.length,key.length)?prefix/Math.min(value.length,key.length):0};
  });
  const wanted=scores.find(row=>row.start===span.start&&row.end===span.end);
- if(!wanted)return false;
+ if(!wanted||wanted.complete===false)return false;
  return (wanted.score>=.95&&scores.every(row=>row===wanted||row.score<=wanted.score-.02&&row.prefix<.5))
   ||(wanted.prefix>=.5&&scores.every(row=>row===wanted||row.prefix<=wanted.prefix-.02&&row.score<.93));
 }
