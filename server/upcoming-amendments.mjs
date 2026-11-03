@@ -10,11 +10,14 @@ export function upcomingAgenda(store,generation) {return upcomingSource(store,ge
 export function scheduledVotes(work,list,items,{number=null,votingLists=[],today=brusselsDay()}={}) {
   const id=work?.identifier||tail(work?.id);
   const candidates=items.filter(item=>agendaNamesDocument(item,id)&&item.date>=today);
+  // No matching upcoming agenda item is a known empty scope, even when
+  // earlier plenary history has not been observed.
+  if(!candidates.length)return [];
   const ballotFor=item=>votingLists.find(v=>v.sittingId==='MTG-PL-'+item.date&&v.agendaItemId===item.id&&v.documentId===id);
   // Held projections predate the history-observed flag. Their array alone
   // cannot prove there was no earlier vote; only an exact ballot can classify.
   const historyKnown=work?.plenaryVoteHistoryObserved===true&&Array.isArray(work?.inverse_based_on_a_realization_of)&&/^\d{4}-\d{2}-\d{2}/.test(list?.document_date||'');
-  if(!historyKnown&&(!candidates.length||candidates.some(item=>!ballotFor(item))))return null;
+  if(!historyKnown&&candidates.some(item=>!ballotFor(item)))return null;
   return candidates.flatMap(item=>{
     const ballot=ballotFor(item);
     const base={sittingId:'MTG-PL-'+item.date,agendaItemId:item.id};
@@ -38,6 +41,6 @@ export function withScheduledVotes(store,generation,row,context=upcomingScopeCon
   if(row.scope==='committee')return row;
   const read=key=>{if(!context.sources.has(key))context.sources.set(key,upcomingSource(store,generation,key));return context.sources.get(key);};
   const work=context.agenda?read('/plenary-documents/'+row.targetDocumentId):null;
-  const decorate=variant=>({...variant,scheduledVotes:!context.agenda?null:scheduledVotes(work,read('amendment:list:'+variant.listId),context.items,{number:row.number,today:context.today,votingLists:context.votingLists})});
+  const decorate=variant=>({...variant,scheduledVotes:!context.agenda?null:scheduledVotes(work||{identifier:row.targetDocumentId},read('amendment:list:'+variant.listId),context.items,{number:row.number,today:context.today,votingLists:context.votingLists})});
   return {...decorate(row),...(row.variants?{variants:row.variants.map(decorate)}:{})};
 }

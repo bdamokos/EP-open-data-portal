@@ -2,7 +2,7 @@ import type {AmendmentCounts,AmendmentScope} from './AmendmentTypes';
 import type {SourceAvailability} from '../server/source-availability.mjs';
 import type {VotePeriodsResponse} from './plenaryPeriods.mjs';
 import type {InsightPerson,InsightStats} from './InsightTypes';
-export type AgendaTopic={scheduledAgendaIds?:string[];sittingId?:string;id:string;title:string;titleLanguage:string|null;date:string;kind:string;documentIds:string[];procedureIds:string[];evidence:{apiUrl:string;fetchedAt:string;relationship:string;containerId:string}};
+export type AgendaTopic={deadlines?:{id:string;end:string|null;type:string|{id?:string}|null;labels:Record<string,string>}[];scheduledAgendaIds?:string[];sittingId?:string;id:string;title:string;titleLanguage:string|null;date:string;kind:string;documentIds:string[];procedureIds:string[];evidence:{apiUrl:string;fetchedAt:string;relationship:string;containerId:string}};
 export type RolePerson=InsightPerson&{role:string;sourceId:string;date:string|null;dateBasis:string;apiUrl:string;fetchedAt:string|null;relationships:string[];stage:string|null;procedureId:string|null};
 export type ContributorPerson=InsightPerson&{demographics:Record<'country'|'group'|'gender'|'age',string>|null};
 export type VoteSummary={id:string;date:string;title:string;subject:string|null;scope:string;outcome:string;namedVotersAvailable:boolean;aggregateTotals:Record<'for'|'against'|'abstaining',number|null>;uniqueNamedVoters:number|null};
