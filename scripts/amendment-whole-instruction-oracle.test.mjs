@@ -12,6 +12,12 @@ test('native instruction uniqueness includes wrapped and table-cell paragraph co
   }
  }
 });
+test('uniqueness reads text inside opaque inline wrappers without certifying their payloads',()=>{
+ for(const text of ['Regulation (EU) 2023/956 is amended as follows:','in point 2, the table ‘Iron and Steel’ is replaced by the following:','ANNEX I'])for(const name of ['w:ins','w:del','w:sdt','w:customXml','w:unknown']){
+  const field=text.startsWith('Regulation')?'actChange':'sourceChange',extra='<w:sdt><w:sdtContent><w:p><'+name+'><w:r><w:rPr><w:vanish/></w:rPr><w:t>'+text+'</w:t></w:r></'+name+'></w:p></w:sdtContent></w:sdt>';
+  const input=wholeInstructionNative({[field]:xml=>xml.replace('</w:body>',extra+'</w:body>')});assert.equal(assertWholeAnnexInstruction(input).status,'unverified');
+ }
+});
 test('native first instruction and its complete quoted table establish the full replacement extent',()=>{
  const input=wholeInstructionNative();Object.defineProperty(input.proposal,'units',{get(){throw Error('Production units forbidden');}});
  assert.equal(assertWholeAnnexInstruction(input).status,'verified');assert.equal(verifyPlacement(input).status,'verified');

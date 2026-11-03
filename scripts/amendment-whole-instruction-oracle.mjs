@@ -5,6 +5,9 @@ const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const children=(nodes,key)=>nodes.flatMap(node=>node[key]?[node[key]]:[]);
 const descendants=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,value])=>name===key?[value]:Array.isArray(value)?descendants(value,key):[]));
 const nativeParagraphs=body=>body.flatMap(row=>row.kind==='paragraph'?[row.nodes]:descendants([row.nodes],'w:p'));
+// Uniqueness includes opaque and revised content. Do not use the strict
+// payload reader here: it deliberately excludes unsupported inline wrappers.
+const uniquenessText=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key==='w:t'?value.map(part=>part['#text']??''):key==='w:tab'?['\t']:['w:br','w:cr'].includes(key)?['\n']:key==='w:noBreakHyphen'?['\u2011']:key==='w:softHyphen'?['\u00ad']:Array.isArray(value)?[uniquenessText(value)]:[])).join('');
 // Stacked comparison sections share a two-column native grid. Full-width
 // rows carry the section headings, instruction and caption, never legal cells.
 function stackedComparison(body,number){
@@ -54,10 +57,10 @@ export function assertWholeAnnexInstruction({items,proposal,wording,placement,na
   if(start<0||end<0)return unknown();const comparisonTables=amendmentBody.slice(start,end+1).filter(row=>row.kind==='other');
   if(comparisonTables.length!==1||comparisonTables[0].hidden||!comparisonTables[0].nodes['w:tbl']||!completeGrid(comparisonTables[0].nodes['w:tbl'])||descendants(comparisonTables[0].nodes['w:tbl'],'w:p').some(p=>!safe(p)))return unknown();
   const actBody=quotedWordBody(actBuffer),actLeads=actBody.filter(row=>row.kind==='paragraph'&&row.text.trim()===target[3]+' is amended as follows:');
-  if(nativeParagraphs(actBody).filter(nodes=>literal(nodes).trim()===target[3]+' is amended as follows:').length!==1)return unknown();
+  if(nativeParagraphs(actBody).filter(nodes=>uniquenessText(nodes).trim()===target[3]+' is amended as follows:').length!==1)return unknown();
   if(actLeads.length!==1||actLeads[0].hidden||!safe(actLeads[0].nodes))return unknown();
   const raw=quotedWordBody(nativeQuoted.proposalBuffer),heads=raw.filter(row=>row.kind==='paragraph'&&row.text.trim()==='ANNEX '+target[1]);
-  if(nativeParagraphs(raw).filter(nodes=>literal(nodes).trim()==='ANNEX '+target[1]).length!==1||nativeParagraphs(raw).filter(nodes=>literal(nodes).trim()===oldLines[0]).length!==1)return unknown();
+  if(nativeParagraphs(raw).filter(nodes=>uniquenessText(nodes).trim()==='ANNEX '+target[1]).length!==1||nativeParagraphs(raw).filter(nodes=>uniquenessText(nodes).trim()===oldLines[0]).length!==1)return unknown();
   if(heads.length!==1||heads[0].hidden||!safe(heads[0].nodes))return unknown();const first=raw.indexOf(heads[0]),last=raw.findIndex((row,index)=>index>first&&row.kind==='paragraph'&&/^ANNEX [IVXLC]+$/u.test(row.text.trim()));if(last<0)return unknown();
   const lead=raw[first+1];if(lead?.kind!=='paragraph'||lead.hidden||!safe(lead.nodes)||!['Annex '+target[4]+' is amended as follow:','Annex '+target[4]+' is amended as follows:'].includes(lead.text.trim()))return unknown();
   const points=nativeAnnexInstructionRows(quotedWordParts(nativeQuoted.proposalBuffer),raw,first,last),owner=points[0],next=points[1];
