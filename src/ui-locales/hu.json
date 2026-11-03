@@ -1,6 +1,7 @@
 {
   "documentcontext.final_placement_check": "Ellenőrizze a végleges helyet {adoptedText}.",
   "documentcontext.adopted_text": "az elfogadott szövegben",
+  "amendment.alternative_motion": "Alternatív indítvány",
   "documentcontext.council.quotation": "A Tanács szövege a jelentésben idézett formában.",
   "amendment.rejects_proposal": "Elutasítja a javaslatot",
   "amendment.rejects_council_position": "Elutasítja a Tanács álláspontját",

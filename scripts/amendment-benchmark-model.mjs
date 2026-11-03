@@ -41,6 +41,15 @@ export function classify(stages) {
   return stages.S6.status === 'verified' ? {outcome:'correct', reason:'oracle-verified'} : {outcome:'placed-unverified', reason:stages.S6.reason};
 }
 
+// Whole-document operations have no paragraph location and earn no placement credit.
+export function classifyRow(stages,documentOperation) {
+  if(documentOperation?.status==='verified'&&stages.S5.status==='document-operation') {
+    if(documentOperation.reason==='source-attested-rejection')return {outcome:'not-placeable',reason:'whole-document-rejection'};
+    if(documentOperation.reason==='source-attested-alternative-motion')return {outcome:'not-placeable',reason:'whole-document-alternative-motion'};
+  }
+  return classify(stages);
+}
+
 const flatten = units => units.flatMap(unit => [unit, ...flatten(unit.children || [])]);
 const parentKey = unit => JSON.stringify(unit.path.slice(0,-1));
 const pathKey = path => JSON.stringify(path.map(({kind,value}) => [kind,value]));
