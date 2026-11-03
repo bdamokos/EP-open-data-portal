@@ -234,3 +234,28 @@ for(const [name,version] of [['before',13],['after',14]])test(`Europe list and s
  if(version===13){assert.match(story(),/Ukraine was (?:the most asked-about|asked about more than any other) place \(20 questions\)/);assert.match(list()[0],/^Ukraine\s*20/);assert(!list().some(row=>/Russia/.test(row)),'the list leaves Russia out with the story');}
  else{assert.match(story(),/Russia was (?:the most asked-about|asked about more than any other) place \(50 questions\)/);assert.match(list()[0],/^Russia\s*50/);}
 });
+
+for(const iso of ['UKR','GRC'])for(const input of ['pointer','keyboard'])test(input+' activation on '+iso+' shares quarter selection across charts, URL and announcements without moving focus',async t=>{
+ const periods=['2026-Q1','2026-Q2'],detail={ready:true,concept:{key:'place:'+iso,label:iso,iso3:iso},periods,partial:{first:null,last:null},series:periods.map(period=>({period,question:4,questionHome:1,questionElsewhere:3,document:2,groups:6,speech:0})),groupsTotal:6,total:6,groups:[],facets:{keywords:[],places:[],topics:[]},nextOffset:null};
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&place='+iso,u=>Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:detail));
+ await wait(()=>node.querySelector('.topic-bars button'));
+ const charts=()=>[...node.querySelectorAll('.topic-bars')],selected=()=>charts().map(c=>[...c.querySelectorAll('[aria-pressed=true]')].map(b=>b.getAttribute('aria-label').slice(0,7)));
+ // Native buttons deliver click for both pointer and keyboard activation (detail 0).
+ const activate=button=>button.dispatchEvent(new window.MouseEvent('click',{bubbles:true,detail:input==='pointer'?1:0}));
+ const first=charts()[0].querySelector('button');first.focus();await act(async()=>activate(first));
+ await wait(()=>new URL(location.href).searchParams.get('t-q')==='2026-Q1');assert.deepEqual(selected(),charts().map(()=>['2026 Q1']));assert.equal(document.activeElement,first);assert.match(node.querySelector('[aria-live=polite]').textContent,/January/);
+ const second=charts().at(-1).querySelectorAll('button')[1];second.focus();await act(async()=>activate(second));
+ await wait(()=>new URL(location.href).searchParams.get('t-q')==='2026-Q2');assert.deepEqual(selected(),charts().map(()=>['2026 Q2']));assert.equal(document.activeElement,second);
+ await act(async()=>activate(second));await wait(()=>!new URL(location.href).searchParams.has('t-q'));assert.deepEqual(selected(),charts().map(()=>[]));assert.equal(document.activeElement,second);assert.equal(node.querySelector('[aria-live=polite]').textContent,'This term');
+ await act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await popped;});await wait(()=>new URL(location.href).searchParams.get('t-q')==='2026-Q2');assert.deepEqual(selected(),charts().map(()=>['2026 Q2']));
+});
+
+test('story reveal checks its top, respects reduced motion and leaves focus alone',async t=>{
+ const window=new Window(),old=Object.getOwnPropertyDescriptor(globalThis,'window');Object.defineProperty(globalThis,'window',{value:window,configurable:true});
+ const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null}},{sharedServerKey:'story-visibility'});t.after(async()=>{await load.close();await window.happyDOM.close();old?Object.defineProperty(globalThis,'window',old):delete globalThis.window;});
+ const {revealStoryPeriod}=await load('/src/storyPeriodVisibility.ts'),calls=[],element=window.document.createElement('div');element.scrollIntoView=options=>calls.push(options);let top=0; element.getBoundingClientRect=()=>({top});
+ const control=window.document.createElement('button');window.document.body.append(control);control.focus();
+ for(top of [0,20,window.innerHeight-1])revealStoryPeriod(element);assert.deepEqual(calls,[]);
+ for(const reduced of [false,true]){window.matchMedia=()=>({matches:reduced});for(top of [-1,window.innerHeight,window.innerHeight+1])revealStoryPeriod(element);assert.deepEqual(calls.splice(0),Array(3).fill({block:'start',behavior:reduced?'instant':'smooth'}));}
+ revealStoryPeriod(null);assert.equal(window.document.activeElement,control);
+});
