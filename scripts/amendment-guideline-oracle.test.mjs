@@ -18,3 +18,10 @@ test('guideline oracle verifies terminal insertion and rejects unsafe/native str
  for(const rows of [['Guideline 5: Demand','First body.','Guideline 7: Supply','Third body.'],['Guideline 5: Demand','First body.','Guideline 6: Supply']])assert.equal(assertGuidelineAnnex({...input,...fixture(rows)}).status,'unverified');
  const nativeQuoted={proposalBuffer:word(texts.map((t,i)=>p(t,'Normal',i===2)).join(''))};assert.equal(assertGuidelineAnnex({...input,nativeQuoted}).status,'unverified');
 });
+test('native bookmarks and whitespace do not manufacture or hide a body paragraph',()=>{
+ const input=fixture(),xml='<w:p><w:pPr><w:pStyle w:val="Pagedecouverture"/></w:pPr><w:r><w:pict/></w:r></w:p><w:bookmarkEnd w:id="0"/>'+texts.map(t=>p(t+' ')).join('');
+ const proposal={...input.proposal,paragraphs:input.proposal.paragraphs.map((row,i)=>({...row,source:{...row.source,path:`/w:document[1]/w:body[1]/w:p[${i+2}]`}}))};
+ assert.equal(assertGuidelineAnnex({...input,proposal,nativeQuoted:{proposalBuffer:word(xml)},wording,placement}).status,'verified');
+ const appended=xml+'<w:p><w:r><w:drawing/></w:r></w:p>';
+ assert.equal(assertGuidelineAnnex({...input,proposal,nativeQuoted:{proposalBuffer:word(appended)},wording,placement}).status,'unverified');
+});
