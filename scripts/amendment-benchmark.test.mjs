@@ -227,6 +227,8 @@ test('report evaluation re-extracts cached DOCX despite null live wording and ig
   const cache={apiBase,get:async()=>({ok:true,body,url,fetchedAt:'2026-10-23T00:00:00Z',sha256:digest(body)}),json:async url=>({input:{ok:true,url},value:{documentId:document,document:{selectedText:source(['The European Parliament,','1. First paragraph.','2. Second paragraph.','ANNEX'])},placement:{status:'placed',span:{start:999,end:999}}}})};
   const [result]=await evaluateReport([input],{mode:'documents',asOf:'2026-10-26'},cache);
   assert.equal(result.outcome,'correct',JSON.stringify(result.stages));assert.equal(result.stages.S5.span.start,1);assert.equal(result.stages.S2.status,'passed');
+  const observations=[];const calibrated=await evaluateReport([input],{mode:'documents',asOf:'2026-10-26'},cache,{adoptedCalibration:{observe:observation=>observations.push(observation)}});
+  assert.deepEqual(calibrated,[result]);assert.equal(observations.length,1);assert.equal(observations[0].wording.proposedText,'Changed paragraph.');assert.equal(observations[0].text.paragraphs[1],'1. First paragraph.');
   const [missing]=await evaluateReport([input],{mode:'documents',asOf:'2026-10-26'},{...cache,get:async()=>({ok:false,status:503,error:'http-503',url})});assert.equal(missing.outcome,'withheld-pipeline');
   const conflict=structuredClone(input);conflict.decisions.push({...input.decisions[0],id:'old-vote',date:'2026-09-01',sittingId:'MTG-PL-2026-09-01',reference:'Paragraph 2'});
   const [conflicting]=await evaluateReport([conflict],{mode:'date-window',from:'2026-10-01',to:'2026-10-26',asOf:'2026-10-26'},cache);
@@ -495,4 +497,9 @@ test('oracle places an insertion after a provision merged into its predecessor r
   const numbered=source(['The European Parliament,','– having regard to its rules,','A.\twhereas one;','71.\tUrges;72.\tStresses;','73.\tCalls;','74.\tNotes.']);
   const paragraph={...wording('Paragraph 72 a (new)','','72a.\tRecalls;'),baseline:'motion-resolution'};
   assert.equal(verifyPlacement({placement:placement({insertAfter:3,insertBefore:4}),wording:paragraph,text:numbered}).reason,'oracle-merged-provision-boundary');
+});
+
+test('adopted-text sidecar is offline-only and requires a zero request cap',()=>{
+ assert.equal(options(['--adopted-text-snapshot','/tmp/sealed','--request-cap','0']).adoptedTextSnapshot,'/tmp/sealed');
+ for(const extra of [[],['--fetch'],['--languages'],['--acquire-only']])assert.throws(()=>options(['--adopted-text-snapshot','/tmp/sealed',...extra]),/offline/);
 });
