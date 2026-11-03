@@ -41,6 +41,8 @@ git add server/api-version.mjs
 
 The command fetches main and renumbers this branch’s entries after main’s. After merging or rebasing main, rerun it; it resolves conflict markers in `server/api-version.mjs` itself. For a change of meaning with an unchanged digest, use `npm run api:bump -- --force` once. Never edit or delete recorded digests, and don’t bump for builds, releases or data refreshes. `npm run api:check` is the read-only check that CI runs.
 
+If main itself replaced a recorded mapping, use `npm run api:bump -- --repair-history KNOWN_GREEN_MAIN_REF`. The tool verifies the first-parent history, restores its append-only prefix and retains displaced digest occurrences at higher revisions. Recovery provenance stays in the registry; CI verifies it without fetching or writing. Reconcile each stacked PR against current main immediately before merging, even when its code was already measured together with the stack.
+
 ## Interface
 
 - **Colour:** style with the tokens in `src/theme.css`, never raw colour values. Every token has light and dark values; political-group, vote and status colours are reserved for data. Don’t use European Parliament branding. Check visible changes in both appearances.

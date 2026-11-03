@@ -1,3 +1,4 @@
+import {memberVotes} from './member-votes.mjs';
 import {loopback} from './test-support/loopback.mjs';
 import {test} from 'node:test';
 import {versionedApiUrl} from './api-version.mjs';
@@ -18,9 +19,19 @@ test('flat browser API preserves bounded reads, search POSTs and conditional res
   const base=`http://127.0.0.1:${server.address().port}`,read=globalThis.fetch;
   t.mock.method(globalThis,'fetch',()=>{throw Error('Route tests must not read public sources');});
   const request=(route,options)=>read(versionedApiUrl(`${base}/api/${route}`),options);
-  for(const route of ['commission-followups/B-10-2025-0247','commission-followups/TA-10-2025-0247?url=x','commission-followups/TA-10-2025-0247?lang=en&lang=fr','profile/0','profile/1?lang=en&lang=hu','directory?other=1','directory?retry=invalid','directory?retry=committee-details&retry=committee-details','portrait/1?other=1','speech-context/invalid','motion-amendments/invalid','member-votes/0','vote-periods?unknown=1','vote-periods?lang=en','speech-transcript/invalid?lang=bad','speeches/1?offset=1e2','source-record?url=x&url=y','amendments?limit=0','outside/directory?term=8','corpus/search?q=climate&other=1'])assert.equal((await request(route)).status,400,route);
+  // These top-level names must survive transport admission before source
+  // availability is considered (the production voting-lists 404 regression).
+  const voteStore=activityIndex().store;assert(voteStore.acquire());voteStore.release();
+  const snapshot=t.mock.method(memberVotes,'snapshot',async()=>({id:'a'.repeat(64),days:[{sittingId:'MTG-PL-2026-09-15',date:'2026-09-15',agenda:[],results:[],decisions:[],requests:[]}],coverage:{status:'complete'}}));
+  try{
+    for(const route of ['voting-lists?sitting=MTG-PL-2026-11-12','upcoming-votes?sitting=MTG-PL-2026-09-15','ballot-comparisons?sitting=MTG-PL-2026-09-15']){
+      const response=await request(route);assert.equal(response.status,200,route+' must be admitted, including empty source data');const data=await response.json();assert.deepEqual(data.documents||data.items,[]);
+    }
+  }finally{snapshot.mock.restore();}
+
+  for(const route of ['upcoming-votes?sitting=invalid','ballot-comparisons?sitting=invalid','ballot-comparisons?sitting=MTG-PL-2026-09-15&decision=MTG-PL-2026-09-15-DEC-1','ballot-comparisons?sitting=MTG-PL-2026-09-15&lang=en&lang=fr','commission-followups/B-10-2025-0247','commission-followups/TA-10-2025-0247?url=x','commission-followups/TA-10-2025-0247?lang=en&lang=fr','profile/0','profile/1?lang=en&lang=hu','directory?other=1','directory?retry=invalid','directory?retry=committee-details&retry=committee-details','portrait/1?other=1','speech-context/invalid','motion-amendments/invalid','member-votes/0','vote-periods?unknown=1','vote-periods?lang=en','speech-transcript/invalid?lang=bad','speeches/1?offset=1e2','source-record?url=x&url=y','amendments?limit=0','outside/directory?term=8','corpus/search?q=climate&other=1'])assert.equal((await request(route)).status,400,route);
   assert.equal((await request('corpus/status')).status,503,'a disabled corpus stays unavailable');
-  for(const route of ['session','admin','unknown'])assert.equal((await request(route)).status,404,route);
+  for(const route of ['session','admin','unknown','ballot-comparison/MTG-PL-2026-09-15-DEC-196237'])assert.equal((await request(route)).status,404,route);
   assert.equal((await request('profile/1',{method:'POST'})).status,405);
   assert.equal((await request('directory',{headers:{Origin:'https://other.example'}})).status,403);
   for(const [headers,body,status] of [[{'Content-Type':'application/json'},'{',400],[{'Content-Type':'text/plain'},'{}',415],[{'Content-Type':'application/json'},' '.repeat(128*1024+1),413]])assert.equal((await request('corpus/search',{method:'POST',headers,body})).status,status);
