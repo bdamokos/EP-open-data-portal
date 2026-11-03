@@ -1,5 +1,6 @@
 import {useAutomaticRetry} from './useAutomaticRetry';
 import {useSavedReadState,useSavedRecovery} from './SavedControls';
+import {YourVotes} from './YourVotes';
 import {PolicyAreaSourcesPage} from './PolicyAreaSources';
 import {FollowedTopics,useTopics} from './TopicFollowing';
 import {uiErrorText} from './uiErrors.mjs';
@@ -121,7 +122,7 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
     <Status scope={`saved-check:${context}:${attempt}`} message={((!dossiers.items.length) && (completion?.items===items)) ? completion.message : null} pending={checking||dossierChecking}/>
     <button onClick={onBack}><UiMessage id="document.back"/></button>
     <div className="explorer-saved-heading"><h1><UiMessage id="batch4.dossiercontrols.tsx.64.2"/></h1></div>
-    <FollowedTopics/>
+    <FollowedTopics/><YourVotes language={language} members={members}/>
     {!saved.persistent&&<p><UiMessage id="Saved.browser_storage_is_unavailable_follows_last_only_for_this_tab"/></p>}
     {saved.storageError&&<p role="alert" className="explorer-storage-error"><UiMessage id="Saved.storageError" values={{time:new Date(saved.unsavedSince||Date.now()).toLocaleTimeString(ui.locale)}}/> </p>}
     {items.some(item=>item.kind==='mep')&&<GroupUpdateStatus retry={check}/>}

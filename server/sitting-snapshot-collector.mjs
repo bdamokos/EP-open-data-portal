@@ -1,3 +1,5 @@
+import {ballotVotingLists} from './ballot-source-adapter.mjs';
+import {retainSittingBallotBindings} from './your-vote-ballot.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 import {odp} from './odp.mjs';
 import {array,tail} from './activity-index-model.mjs';
@@ -271,6 +273,7 @@ export class SittingSnapshotCollector {
         if(failure&&!complete)next=retryNext(failure);
         else this.store.db.prepare('DELETE FROM meta WHERE key=?').run(rejectionKey);
         this.writer.retain(job,value,{complete,now,next,preserveStage:!complete&&['calendar','agenda','debate'].includes(job.kind)});
+        if(job.kind==='votes'&&complete)retainSittingBallotBindings(this.store,value.day,ballotVotingLists(this.store,job.id));
         if(['agenda','debate'].includes(job.kind))this.store.set('availabilityRevision',Number(this.store.get('availabilityRevision')||0)+1);
         return true;
       });
