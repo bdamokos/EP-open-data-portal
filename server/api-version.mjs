@@ -1,6 +1,6 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_CONTRACT_REVISION = 768;
-export const API_VERSION = 768;
+export const API_CONTRACT_REVISION = 770;
+export const API_VERSION = 770;
 
 // Keys are monotonic revisions, including after the public version wraps.
 export const API_CONTRACT_DIGESTS = Object.freeze({
@@ -760,18 +760,20 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   754: '7a8cc13c7fb3943fec573571268a2e391f7ee06bf0fb71f8851843de6bc3b575',
   755: 'b3aa8b3ae45fe99441ae229bcd5bb4267acc862ca2e42474ffce123be9f8749a',
   756: '72a6098d4c3cf128f653190fa9b5cbb771877014f57dd12573b7de79c4d2745c',
-  757: '7a4aaad877a39df211d976541bc900ab565b4f403215f8318552943b3a08a35e',
-  758: '8eb5162ecb539e4587af7ecbb9d4ec8799a46ae69a2be6f419cdb9d04b3bc399',
-  759: '4779e8cc9c88eb0e2e2db7d29fdbb825b6a1ca98d2fffa3afb76ec3f112f0d86',
+  757: '49b7a84e7cf31da866dcc0226aa1ae78075811089aebd24c895885a85956a572',
+  758: '7a4aaad877a39df211d976541bc900ab565b4f403215f8318552943b3a08a35e',
+  759: '8eb5162ecb539e4587af7ecbb9d4ec8799a46ae69a2be6f419cdb9d04b3bc399',
   760: '4779e8cc9c88eb0e2e2db7d29fdbb825b6a1ca98d2fffa3afb76ec3f112f0d86',
   761: '4779e8cc9c88eb0e2e2db7d29fdbb825b6a1ca98d2fffa3afb76ec3f112f0d86',
-  762: '014b9319dffb11d0fa40b45df100a5d3bff248ca063137b2d753594db71c4afd',
-  763: 'f3e3bd1a9f40810bd1cc5972d94987627ee6f1f758fdd6c8ad1521f89900dd37',
-  764: '4dc21a104347589e367bac7f4c0ec3805b401e35c558f21cbca455744af0417c',
-  765: 'e21edcf3673dc256073d7ef74ae8bee49c56fe4bfbc921d1bc080e159053d148',
-  766: 'c34130a17b1c33867155b1ee8f9e056a6fbdd06647287cbbbd38ec0a584ea61e',
-  767: '4fbfbf654d376251b1ba358100c1026b49b2be89484de61855bbaa37e8858675',
-  768: '180bddca43ba7fd729a69873aceda14f46dade8e3de8e28f98a767ba17ddbbc0',
+  762: '4779e8cc9c88eb0e2e2db7d29fdbb825b6a1ca98d2fffa3afb76ec3f112f0d86',
+  763: '014b9319dffb11d0fa40b45df100a5d3bff248ca063137b2d753594db71c4afd',
+  764: 'f3e3bd1a9f40810bd1cc5972d94987627ee6f1f758fdd6c8ad1521f89900dd37',
+  765: '4dc21a104347589e367bac7f4c0ec3805b401e35c558f21cbca455744af0417c',
+  766: 'e21edcf3673dc256073d7ef74ae8bee49c56fe4bfbc921d1bc080e159053d148',
+  767: 'c34130a17b1c33867155b1ee8f9e056a6fbdd06647287cbbbd38ec0a584ea61e',
+  768: '4fbfbf654d376251b1ba358100c1026b49b2be89484de61855bbaa37e8858675',
+  769: '180bddca43ba7fd729a69873aceda14f46dade8e3de8e28f98a767ba17ddbbc0',
+  770: '7590dd05ce027d122ce4073ea3d37fdd3b1db19abd7adc451b1d23c1225cf4a9',
 });
 
 // Called at the transport boundary; route and page URL keys stay intact.
