@@ -54,7 +54,7 @@ export function votePageSummary(data:MemberVotesResponse, positions:string, ui:i
   const unit=(positions==='recorded') ? 'recorded.positions' : 'decisions';
   const recorded=(page.recordedTotal!==null) ? '.recordedcount.with.a.recorded.position' : '';
   const partial='';
-  const reviewedRecorded=(ui.language==='ro'||ui.language==='lt')&&positions==='recorded'&&page.recordedTotal!==null;
+  const reviewedRecorded=ui.language!=='en'&&['period','page','emptyPage'].every(mode=>ui.messageLocale('membervotes.summary.recorded.'+mode)===ui.locale)&&positions==='recorded'&&page.recordedTotal!==null;
   const id=reviewedRecorded ? `membervotes.summary.recorded.${page.mode==='period'?'period':page.returned?'page':'emptyPage'}` : (((prefix==='count') && (!recorded)) && (!partial)) ? (`membervotes.tsx.count.${unit}`) : (`batch2.membervotes.tsx.${prefix}.${unit}${recorded}${partial}`);
   return ui.t(id, {
     count:page.filteredTotal, start:page.offset+1, end:page.offset+page.returned,

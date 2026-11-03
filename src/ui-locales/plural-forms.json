@@ -517,6 +517,70 @@
     "votegroups.voted_differently": {
       "one": "{count} евродепутат гласува различно от мнозинството в своята група.",
       "other": "{count} евродепутати гласуваха различно от мнозинството в своята група."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} неотложно разискване",
+      "other": "{count} неотложни разисквания"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} срещу {against}, въздържали се: {abstentions}",
+      "other": "{for} срещу {against}, въздържали се: {abstentions}"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "въпрос",
+      "other": "въпроси"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "разискване",
+      "other": "разисквания"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "текст",
+      "other": "текстове"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "приет текст",
+      "other": "приети текстове"
+    },
+    "topics.story.links.kind.records": {
+      "one": "запис",
+      "other": "записи"
+    },
+    "topics.story.links.more": {
+      "one": "Показване на още {count}",
+      "other": "Показване на още {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} неотложно разискване по правата на човека",
+      "other": "{count} неотложни разисквания по правата на човека"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} място с приети текстове",
+      "other": "{count} места с приети текстове"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} неотложно разискване",
+      "other": "{count} неотложни разисквания"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "по {count} разискване",
+      "other": "по {count} разисквания"
+    },
+    "topics.story.links.places": {
+      "one": "{count} място",
+      "other": "{count} места"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "от тях зададени само от евродепутати от други държави: {count}",
+      "other": "от тях зададени само от евродепутати от други държави: {count}"
+    },
+    "topics.story.links.home": {
+      "one": "с автор, избран там: {count}",
+      "other": "с автор, избран там: {count}"
+    },
+    "topics.story.links.away": {
+      "one": "зададени само от евродепутати от други държави: {count}",
+      "other": "зададени само от евродепутати от други държави: {count}"
     }
   },
   "cs": {
@@ -1195,7 +1259,7 @@
     "topics.story.count.questionsEach": {
       "one": "po {count} otázce",
       "few": "po {count} otázkách",
-      "many": "po {count} otázky",
+      "many": "počet otázek na každé místo: {count}",
       "other": "po {count} otázkách"
     },
     "topics.story.count.debates": {
@@ -1245,6 +1309,102 @@
       "few": "{count} europoslanci hlasovali jinak než většina jejich skupiny.",
       "many": "Počet europoslanců s hlasem odlišným od většiny jejich skupiny: {count}.",
       "other": "{count} europoslanců hlasovalo jinak než většina jejich skupiny."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} naléhavá rozprava",
+      "other": "{count} naléhavých rozprav",
+      "few": "{count} naléhavé rozpravy",
+      "many": "{count} naléhavé rozpravy"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} ku {against}, zdržení se hlasování: {abstentions}",
+      "other": "{for} ku {against}, zdržení se hlasování: {abstentions}",
+      "few": "{for} ku {against}, zdržení se hlasování: {abstentions}",
+      "many": "{for} ku {against}, zdržení se hlasování: {abstentions}"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "otázka",
+      "other": "otázky",
+      "few": "otázky",
+      "many": "otázky"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "rozprava",
+      "other": "rozpravy",
+      "few": "rozpravy",
+      "many": "rozpravy"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "text",
+      "other": "texty",
+      "few": "texty",
+      "many": "texty"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "přijatý text",
+      "other": "přijaté texty",
+      "few": "přijaté texty",
+      "many": "přijaté texty"
+    },
+    "topics.story.links.kind.records": {
+      "one": "záznam",
+      "other": "záznamy",
+      "few": "záznamy",
+      "many": "záznamy"
+    },
+    "topics.story.links.more": {
+      "one": "Zobrazit ještě {count}",
+      "other": "Zobrazit dalších {count}",
+      "few": "Zobrazit ještě {count}",
+      "many": "Zobrazit dalších {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} naléhavá rozprava o lidských právech",
+      "other": "{count} naléhavých rozprav o lidských právech",
+      "few": "{count} naléhavé rozpravy o lidských právech",
+      "many": "{count} naléhavé rozpravy o lidských právech"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} místo s přijatými texty",
+      "other": "{count} míst s přijatými texty",
+      "few": "{count} místa s přijatými texty",
+      "many": "{count} místa s přijatými texty"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} naléhavá rozprava",
+      "other": "{count} naléhavých rozprav",
+      "few": "{count} naléhavé rozpravy",
+      "many": "{count} naléhavé rozpravy"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "rozpravy u každého místa: {count}",
+      "other": "rozpravy u každého místa: {count}",
+      "few": "rozpravy u každého místa: {count}",
+      "many": "rozpravy u každého místa: {count}"
+    },
+    "topics.story.links.places": {
+      "one": "{count} místo",
+      "other": "{count} míst",
+      "few": "{count} místa",
+      "many": "{count} místa"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "z toho otázky položené pouze europoslanci z jiných zemí: {count}",
+      "other": "z toho otázky položené pouze europoslanci z jiných zemí: {count}",
+      "few": "z toho otázky položené pouze europoslanci z jiných zemí: {count}",
+      "many": "z toho otázky položené pouze europoslanci z jiných zemí: {count}"
+    },
+    "topics.story.links.home": {
+      "one": "s autorem zvoleným v dané zemi: {count}",
+      "other": "s autorem zvoleným v dané zemi: {count}",
+      "few": "s autorem zvoleným v dané zemi: {count}",
+      "many": "s autorem zvoleným v dané zemi: {count}"
+    },
+    "topics.story.links.away": {
+      "one": "otázky položené pouze europoslanci z jiných zemí: {count}",
+      "other": "otázky položené pouze europoslanci z jiných zemí: {count}",
+      "few": "otázky položené pouze europoslanci z jiných zemí: {count}",
+      "many": "otázky položené pouze europoslanci z jiných zemí: {count}"
     }
   },
   "da": {
@@ -1799,6 +1959,70 @@
     "votegroups.voted_differently": {
       "one": "{count} medlem af Europa-Parlamentet stemte anderledes end flertallet i sin gruppe.",
       "other": "{count} medlemmer af Europa-Parlamentet stemte anderledes end flertallet i deres respektive grupper."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} uopsættelig debat",
+      "other": "{count} uopsættelige debatter"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} mod {against}, med {abstentions} hverken for eller imod",
+      "other": "{for} mod {against}, med {abstentions} hverken for eller imod"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "spørgsmål",
+      "other": "spørgsmål"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "debat",
+      "other": "debatter"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "tekst",
+      "other": "tekster"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "vedtaget tekst",
+      "other": "vedtagne tekster"
+    },
+    "topics.story.links.kind.records": {
+      "one": "post",
+      "other": "poster"
+    },
+    "topics.story.links.more": {
+      "one": "Vis {count} mere",
+      "other": "Vis {count} mere"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} uopsættelig debat om menneskerettigheder",
+      "other": "{count} uopsættelige debatter om menneskerettigheder"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} sted med vedtagne tekster",
+      "other": "{count} steder med vedtagne tekster"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} uopsættelig debat",
+      "other": "{count} uopsættelige debatter"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} debat hver",
+      "other": "{count} debatter hver"
+    },
+    "topics.story.links.places": {
+      "one": "{count} sted",
+      "other": "{count} steder"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "{count} af dem kun stillet af medlemmer fra andre lande",
+      "other": "{count} af dem kun stillet af medlemmer fra andre lande"
+    },
+    "topics.story.links.home": {
+      "one": "{count} havde en forfatter valgt der",
+      "other": "{count} havde en forfatter valgt der"
+    },
+    "topics.story.links.away": {
+      "one": "{count} kun stillet af medlemmer fra andre lande",
+      "other": "{count} kun stillet af medlemmer fra andre lande"
     }
   },
   "de": {
@@ -2353,6 +2577,70 @@
     "votegroups.voted_differently": {
       "one": "{count} Parlamentsmitglied stimmte anders als die Mehrheit der eigenen Fraktion.",
       "other": "{count} Abgeordnete stimmten anders als die Mehrheit ihrer jeweiligen Fraktion."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} Dringlichkeitsdebatte",
+      "other": "{count} Dringlichkeitsdebatten"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} zu {against}, bei {abstentions} Enthaltung",
+      "other": "{for} zu {against}, bei {abstentions} Enthaltungen"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "Anfrage",
+      "other": "Anfragen"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "Debatte",
+      "other": "Debatten"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "Text",
+      "other": "Texte"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "Angenommener Text",
+      "other": "Angenommene Texte"
+    },
+    "topics.story.links.kind.records": {
+      "one": "Eintrag",
+      "other": "Einträge"
+    },
+    "topics.story.links.more": {
+      "one": "Noch {count} anzeigen",
+      "other": "Weitere {count} anzeigen"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} Dringlichkeitsdebatte zu Menschenrechten",
+      "other": "{count} Dringlichkeitsdebatten zu Menschenrechten"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} Ort mit angenommenen Texten",
+      "other": "{count} Orte mit angenommenen Texten"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} Dringlichkeitsdebatte",
+      "other": "{count} Dringlichkeitsdebatten"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "je {count} Debatte",
+      "other": "je {count} Debatten"
+    },
+    "topics.story.links.places": {
+      "one": "{count} Ort",
+      "other": "{count} Orte"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "davon {count} ausschließlich von Abgeordneten aus anderen Ländern gestellt",
+      "other": "davon {count} ausschließlich von Abgeordneten aus anderen Ländern gestellt"
+    },
+    "topics.story.links.home": {
+      "one": "{count} hatte einen dort gewählten Verfasser",
+      "other": "{count} hatten einen dort gewählten Verfasser"
+    },
+    "topics.story.links.away": {
+      "one": "{count} ausschließlich von Abgeordneten aus anderen Ländern gestellt",
+      "other": "{count} ausschließlich von Abgeordneten aus anderen Ländern gestellt"
     }
   },
   "el": {
@@ -2871,6 +3159,70 @@
     "votegroups.voted_differently": {
       "one": "{count} ευρωβουλευτής ψήφισε διαφορετικά από την πλειοψηφία της ομάδας του.",
       "other": "{count} ευρωβουλευτές ψήφισαν διαφορετικά από την πλειοψηφία της ομάδας τους."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} συζήτηση κατεπείγοντος",
+      "other": "{count} συζητήσεις κατεπείγοντος"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} συζήτηση κατεπείγοντος",
+      "other": "{count} συζητήσεις κατεπείγοντος"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "ερώτηση",
+      "other": "ερωτήσεις"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "συζήτηση",
+      "other": "συζητήσεις"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "κείμενο",
+      "other": "κείμενα"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "εγκριθέν κείμενο",
+      "other": "εγκριθέντα κείμενα"
+    },
+    "topics.story.links.kind.records": {
+      "one": "εγγραφή",
+      "other": "εγγραφές"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} συζήτηση κατεπείγοντος για τα ανθρώπινα δικαιώματα",
+      "other": "{count} συζητήσεις κατεπείγοντος για τα ανθρώπινα δικαιώματα"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} τόπος με εγκριθέντα κείμενα",
+      "other": "{count} τόποι με εγκριθέντα κείμενα"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} συζήτηση ανά τόπο",
+      "other": "{count} συζητήσεις ανά τόπο"
+    },
+    "topics.story.links.places": {
+      "one": "{count} τόπος",
+      "other": "{count} τόποι"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} υπέρ και {against} κατά, αποχές: {abstentions}",
+      "other": "{for} υπέρ και {against} κατά, αποχές: {abstentions}"
+    },
+    "topics.story.links.more": {
+      "one": "Εμφάνιση {count} ακόμη",
+      "other": "Εμφάνιση {count} ακόμη"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "{count} από αυτές υποβλήθηκε μόνο από ευρωβουλευτές άλλων χωρών",
+      "other": "{count} από αυτές υποβλήθηκαν μόνο από ευρωβουλευτές άλλων χωρών"
+    },
+    "topics.story.links.home": {
+      "one": "{count} από αυτές είχε συντάκτη εκλεγμένο εκεί",
+      "other": "{count} από αυτές είχαν συντάκτη εκλεγμένο εκεί"
+    },
+    "topics.story.links.away": {
+      "one": "{count} υποβλήθηκε μόνο από ευρωβουλευτές άλλων χωρών",
+      "other": "{count} υποβλήθηκαν μόνο από ευρωβουλευτές άλλων χωρών"
     }
   },
   "es": {
@@ -3485,6 +3837,86 @@
       "one": "{count} eurodiputado votó de forma distinta a la mayoría de su grupo.",
       "other": "{count} eurodiputados votaron de forma distinta a la mayoría de su grupo.",
       "many": "{count} de eurodiputados votaron de forma distinta a la mayoría de su grupo."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} debate de urgencia",
+      "other": "{count} debates de urgencia",
+      "many": "{count} de debates de urgencia"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} a favor y {against} en contra, con {abstentions} abstención",
+      "other": "{for} a favor y {against} en contra, con {abstentions} abstenciones",
+      "many": "{for} a favor y {against} en contra, con {abstentions} de abstenciones"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "pregunta",
+      "other": "preguntas",
+      "many": "de preguntas"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "debate",
+      "other": "debates",
+      "many": "de debates"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "texto",
+      "other": "textos",
+      "many": "de textos"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "texto aprobado",
+      "other": "textos aprobados",
+      "many": "de textos aprobados"
+    },
+    "topics.story.links.kind.records": {
+      "one": "registro",
+      "other": "registros",
+      "many": "de registros"
+    },
+    "topics.story.links.more": {
+      "one": "Mostrar {count} más",
+      "other": "Mostrar {count} más",
+      "many": "Mostrar {count} más"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} debate de urgencia sobre derechos humanos",
+      "other": "{count} debates de urgencia sobre derechos humanos",
+      "many": "{count} de debates de urgencia sobre derechos humanos"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} lugar con textos aprobados",
+      "other": "{count} lugares con textos aprobados",
+      "many": "{count} de lugares con textos aprobados"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} debate de urgencia",
+      "other": "{count} debates de urgencia",
+      "many": "{count} de debates de urgencia"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} debate por lugar",
+      "other": "{count} debates por lugar",
+      "many": "{count} de debates por lugar"
+    },
+    "topics.story.links.places": {
+      "one": "{count} lugar",
+      "other": "{count} lugares",
+      "many": "{count} de lugares"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "{count} de ellas fue formulada solo por eurodiputados de otros países",
+      "other": "{count} de ellas fueron formuladas solo por eurodiputados de otros países",
+      "many": "{count} de ellas fueron formuladas solo por eurodiputados de otros países"
+    },
+    "topics.story.links.home": {
+      "one": "{count} tenía un autor elegido allí",
+      "other": "{count} tenían un autor elegido allí",
+      "many": "{count} tenían un autor elegido allí"
+    },
+    "topics.story.links.away": {
+      "one": "{count} fue formulada solo por eurodiputados de otros países",
+      "other": "{count} fueron formuladas solo por eurodiputados de otros países",
+      "many": "{count} fueron formuladas solo por eurodiputados de otros países"
     }
   },
   "et": {
@@ -4002,6 +4434,70 @@
     "votegroups.voted_differently": {
       "one": "{count} Euroopa Parlamendi liige hääletas oma fraktsiooni enamusest erinevalt.",
       "other": "{count} Euroopa Parlamendi liiget hääletas oma fraktsiooni enamusest erinevalt."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} kiireloomuline arutelu",
+      "other": "{count} kiireloomulist arutelu"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} poolt ja {against} vastu, {abstentions} erapooletu",
+      "other": "{for} poolt ja {against} vastu, {abstentions} erapooletut"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "küsimus",
+      "other": "küsimused"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "arutelu",
+      "other": "arutelud"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "tekst",
+      "other": "tekstid"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "vastuvõetud tekst",
+      "other": "vastuvõetud tekstid"
+    },
+    "topics.story.links.kind.records": {
+      "one": "kirje",
+      "other": "kirjed"
+    },
+    "topics.story.links.more": {
+      "one": "Kuva veel {count}",
+      "other": "Kuva veel {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} kiireloomuline arutelu inimõiguste teemal",
+      "other": "{count} kiireloomulist arutelu inimõiguste teemal"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} koht, mida mainivad vastuvõetud tekstid",
+      "other": "{count} kohta, mida mainivad vastuvõetud tekstid"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} kiireloomuline arutelu",
+      "other": "{count} kiireloomulist arutelu"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "igaühe kohta {count} arutelu",
+      "other": "igaühe kohta {count} arutelu"
+    },
+    "topics.story.links.places": {
+      "one": "{count} koht",
+      "other": "{count} kohta"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "neist {count} puhul esitasid küsimuse ainult teistes riikides valitud Euroopa Parlamendi liikmed",
+      "other": "neist {count} puhul esitasid küsimuse ainult teistes riikides valitud Euroopa Parlamendi liikmed"
+    },
+    "topics.story.links.home": {
+      "one": "{count} puhul oli autor valitud seal",
+      "other": "{count} puhul oli autor valitud seal"
+    },
+    "topics.story.links.away": {
+      "one": "{count} puhul esitasid küsimuse ainult teistes riikides valitud Euroopa Parlamendi liikmed",
+      "other": "{count} puhul esitasid küsimuse ainult teistes riikides valitud Euroopa Parlamendi liikmed"
     }
   },
   "fi": {
@@ -4556,6 +5052,70 @@
     "votegroups.voted_differently": {
       "one": "{count} meppi äänesti eri tavalla kuin oman ryhmänsä enemmistö.",
       "other": "{count} meppiä äänesti eri tavalla kuin oman ryhmänsä enemmistö."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} kiireellinen keskustelu",
+      "other": "{count} kiireellistä keskustelua"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for}–{against}, tyhjiä {abstentions}",
+      "other": "{for}–{against}, tyhjiä {abstentions}"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "kysymys",
+      "other": "kysymykset"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "keskustelu",
+      "other": "keskustelut"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "teksti",
+      "other": "tekstit"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "hyväksytty teksti",
+      "other": "hyväksytyt tekstit"
+    },
+    "topics.story.links.kind.records": {
+      "one": "tietue",
+      "other": "tietueet"
+    },
+    "topics.story.links.more": {
+      "one": "Näytä vielä {count}",
+      "other": "Näytä vielä {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} kiireellinen keskustelu ihmisoikeuksista",
+      "other": "{count} kiireellistä keskustelua ihmisoikeuksista"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} paikka, jota koskee hyväksytty teksti",
+      "other": "{count} paikkaa, joita koskee hyväksytty teksti"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} kiireellinen keskustelu",
+      "other": "{count} kiireellistä keskustelua"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} keskustelu kustakin",
+      "other": "{count} keskustelua kustakin"
+    },
+    "topics.story.links.places": {
+      "one": "{count} paikka",
+      "other": "{count} paikkaa"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "niistä {count} vain muista maista valittujen jäsenten esittämä",
+      "other": "niistä {count} vain muista maista valittujen jäsenten esittämiä"
+    },
+    "topics.story.links.home": {
+      "one": "{count} sisälsi siellä valitun jäsenen laatijana",
+      "other": "{count} sisälsi siellä valitun jäsenen laatijana"
+    },
+    "topics.story.links.away": {
+      "one": "{count} vain muista maista valittujen jäsenten esittämä",
+      "other": "{count} vain muista maista valittujen jäsenten esittämiä"
     }
   },
   "fr": {
@@ -5170,6 +5730,86 @@
       "one": "{count} député a voté différemment de la majorité de son groupe.",
       "other": "{count} députés ont voté différemment de la majorité de leur groupe.",
       "many": "{count} de députés ont voté différemment de la majorité de leur groupe."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} débat d’urgence",
+      "many": "{count} de débats d’urgence",
+      "other": "{count} débats d’urgence"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} pour et {against} contre, avec {abstentions} abstention",
+      "many": "{for} pour et {against} contre, avec {abstentions} d’abstentions",
+      "other": "{for} pour et {against} contre, avec {abstentions} abstentions"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "question",
+      "many": "questions",
+      "other": "questions"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "débat",
+      "many": "débats",
+      "other": "débats"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "texte",
+      "many": "textes",
+      "other": "textes"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "texte adopté",
+      "many": "textes adoptés",
+      "other": "textes adoptés"
+    },
+    "topics.story.links.kind.records": {
+      "one": "document",
+      "many": "documents",
+      "other": "documents"
+    },
+    "topics.story.links.more": {
+      "one": "Afficher {count} de plus",
+      "many": "Afficher {count} de plus",
+      "other": "Afficher {count} de plus"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} débat d’urgence sur les droits de l’homme",
+      "many": "{count} de débats d’urgence sur les droits de l’homme",
+      "other": "{count} débats d’urgence sur les droits de l’homme"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} lieu mentionné dans des textes adoptés",
+      "many": "{count} de lieux mentionnés dans des textes adoptés",
+      "other": "{count} lieux mentionnés dans des textes adoptés"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} débat d’urgence",
+      "many": "{count} de débats d’urgence",
+      "other": "{count} débats d’urgence"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} débat par lieu",
+      "many": "{count} de débats par lieu",
+      "other": "{count} débats par lieu"
+    },
+    "topics.story.links.places": {
+      "one": "{count} lieu",
+      "many": "{count} de lieux",
+      "other": "{count} lieux"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "parmi ces questions, {count} a été posée uniquement par des députés élus dans d’autres pays",
+      "many": "parmi ces questions, {count} ont été posées uniquement par des députés élus dans d’autres pays",
+      "other": "parmi ces questions, {count} ont été posées uniquement par des députés élus dans d’autres pays"
+    },
+    "topics.story.links.home": {
+      "one": "{count} avait un auteur élu sur place",
+      "many": "{count} avaient un auteur élu sur place",
+      "other": "{count} avaient un auteur élu sur place"
+    },
+    "topics.story.links.away": {
+      "one": "{count} a été posée uniquement par des députés élus dans d’autres pays",
+      "many": "{count} ont été posées uniquement par des députés élus dans d’autres pays",
+      "other": "{count} ont été posées uniquement par des députés élus dans d’autres pays"
     }
   },
   "ga": {
@@ -5929,9 +6569,9 @@
     "topics.story.count.groups": {
       "one": "{count} díospóireacht nó sainchomhad",
       "other": "{count} de dhíospóireachtaí agus de shainchomhaid",
-      "two": "{count} dhíospóireacht nó shainchomhad",
-      "few": "{count} dhíospóireacht nó shainchomhad",
-      "many": "{count} ndíospóireacht nó sainchomhad"
+      "two": "{count} de dhíospóireachtaí agus de shainchomhaid",
+      "few": "{count} de dhíospóireachtaí agus de shainchomhaid",
+      "many": "{count} de dhíospóireachtaí agus de shainchomhaid"
     },
     "topics.story.count.texts": {
       "one": "{count} téacs",
@@ -5967,6 +6607,118 @@
       "two": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
       "few": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
       "many": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} díospóireacht phráinneach",
+      "two": "{count} dhíospóireacht phráinneacha",
+      "few": "{count} dhíospóireacht phráinneacha",
+      "many": "{count} ndíospóireacht phráinneacha",
+      "other": "{count} de dhíospóireachtaí práinneacha"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} ar son, {against} i gcoinne, {abstentions} ag staonadh",
+      "two": "{for} ar son, {against} i gcoinne, {abstentions} ag staonadh",
+      "few": "{for} ar son, {against} i gcoinne, {abstentions} ag staonadh",
+      "many": "{for} ar son, {against} i gcoinne, {abstentions} ag staonadh",
+      "other": "{for} ar son, {against} i gcoinne, {abstentions} ag staonadh"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "cheist",
+      "two": "cheist",
+      "few": "cheist",
+      "many": "gceist",
+      "other": "de cheisteanna"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "díospóireacht",
+      "two": "dhíospóireacht",
+      "few": "dhíospóireacht",
+      "many": "ndíospóireacht",
+      "other": "de dhíospóireachtaí"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "téacs",
+      "two": "théacs",
+      "few": "théacs",
+      "many": "dtéacs",
+      "other": "de théacsanna"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "téacs glactha",
+      "two": "théacs ghlactha",
+      "few": "théacs ghlactha",
+      "many": "dtéacs ghlactha",
+      "other": "de théacsanna glactha"
+    },
+    "topics.story.links.kind.records": {
+      "one": "taifead",
+      "two": "thaifead",
+      "few": "thaifead",
+      "many": "dtaifead",
+      "other": "de thaifid"
+    },
+    "topics.story.links.more": {
+      "one": "Taispeáin {count} eile",
+      "two": "Taispeáin {count} eile",
+      "few": "Taispeáin {count} eile",
+      "many": "Taispeáin {count} eile",
+      "other": "Taispeáin {count} eile"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} díospóireacht phráinneach ar chearta an duine",
+      "two": "{count} dhíospóireacht phráinneacha ar chearta an duine",
+      "few": "{count} dhíospóireacht phráinneacha ar chearta an duine",
+      "many": "{count} ndíospóireacht phráinneacha ar chearta an duine",
+      "other": "{count} de dhíospóireachtaí práinneacha ar chearta an duine"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} áit ainmnithe i dtéacsanna glactha",
+      "two": "{count} áit ainmnithe i dtéacsanna glactha",
+      "few": "{count} áit ainmnithe i dtéacsanna glactha",
+      "many": "{count} n-áit ainmnithe i dtéacsanna glactha",
+      "other": "{count} d'áiteanna ainmnithe i dtéacsanna glactha"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} díospóireacht phráinneach",
+      "two": "{count} dhíospóireacht phráinneacha",
+      "few": "{count} dhíospóireacht phráinneacha",
+      "many": "{count} ndíospóireacht phráinneacha",
+      "other": "{count} de dhíospóireachtaí práinneacha"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} díospóireacht an ceann",
+      "two": "{count} dhíospóireacht an ceann",
+      "few": "{count} dhíospóireacht an ceann",
+      "many": "{count} ndíospóireacht an ceann",
+      "other": "{count} de dhíospóireachtaí an ceann"
+    },
+    "topics.story.links.places": {
+      "one": "{count} áit",
+      "two": "{count} áit",
+      "few": "{count} áit",
+      "many": "{count} n-áit",
+      "other": "{count} d'áiteanna"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "agus ba iad Feisirí ó thíortha eile amháin a chuir {count} díobh",
+      "two": "agus ba iad Feisirí ó thíortha eile amháin a chuir {count} díobh",
+      "few": "agus ba iad Feisirí ó thíortha eile amháin a chuir {count} díobh",
+      "many": "agus ba iad Feisirí ó thíortha eile amháin a chuir {count} díobh",
+      "other": "agus ba iad Feisirí ó thíortha eile amháin a chuir {count} díobh"
+    },
+    "topics.story.links.home": {
+      "one": "bhí údar a toghadh ansin ag {count} acu",
+      "two": "bhí údar a toghadh ansin ag {count} acu",
+      "few": "bhí údar a toghadh ansin ag {count} acu",
+      "many": "bhí údar a toghadh ansin ag {count} acu",
+      "other": "bhí údar a toghadh ansin ag {count} acu"
+    },
+    "topics.story.links.away": {
+      "one": "ba iad Feisirí ó thíortha eile amháin a chuir {count} acu",
+      "two": "ba iad Feisirí ó thíortha eile amháin a chuir {count} acu",
+      "few": "ba iad Feisirí ó thíortha eile amháin a chuir {count} acu",
+      "many": "ba iad Feisirí ó thíortha eile amháin a chuir {count} acu",
+      "other": "ba iad Feisirí ó thíortha eile amháin a chuir {count} acu"
     }
   },
   "hr": {
@@ -6575,6 +7327,86 @@
       "one": "{count} zastupnik u Europskom parlamentu glasovao je drukčije od većine svojeg kluba.",
       "few": "{count} zastupnika u Europskom parlamentu glasovala su drukčije od većine svojeg kluba.",
       "other": "{count} zastupnika u Europskom parlamentu glasovalo je drukčije od većine svojeg kluba."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} hitna rasprava",
+      "other": "{count} hitnih rasprava",
+      "few": "{count} hitne rasprave"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} za i {against} protiv, suzdržani: {abstentions}",
+      "other": "{for} za i {against} protiv, suzdržani: {abstentions}",
+      "few": "{for} za i {against} protiv, suzdržani: {abstentions}"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "pitanje",
+      "other": "pitanja",
+      "few": "pitanja"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "rasprava",
+      "other": "rasprave",
+      "few": "rasprave"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "tekst",
+      "other": "tekstovi",
+      "few": "tekstovi"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "usvojeni tekst",
+      "other": "usvojeni tekstovi",
+      "few": "usvojeni tekstovi"
+    },
+    "topics.story.links.kind.records": {
+      "one": "zapis",
+      "other": "zapisi",
+      "few": "zapisi"
+    },
+    "topics.story.links.more": {
+      "one": "Prikaži još {count}",
+      "other": "Prikaži još {count}",
+      "few": "Prikaži još {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} hitna rasprava o ljudskim pravima",
+      "other": "{count} hitnih rasprava o ljudskim pravima",
+      "few": "{count} hitne rasprave o ljudskim pravima"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} mjesto s usvojenim tekstovima",
+      "other": "{count} mjesta s usvojenim tekstovima",
+      "few": "{count} mjesta s usvojenim tekstovima"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} hitna rasprava",
+      "other": "{count} hitnih rasprava",
+      "few": "{count} hitne rasprave"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "rasprave po mjestu: {count}",
+      "other": "rasprave po mjestu: {count}",
+      "few": "rasprave po mjestu: {count}"
+    },
+    "topics.story.links.places": {
+      "one": "{count} mjesto",
+      "other": "{count} mjesta",
+      "few": "{count} mjesta"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "od toga pitanja koja su postavili samo zastupnici iz drugih zemalja: {count}",
+      "other": "od toga pitanja koja su postavili samo zastupnici iz drugih zemalja: {count}",
+      "few": "od toga pitanja koja su postavili samo zastupnici iz drugih zemalja: {count}"
+    },
+    "topics.story.links.home": {
+      "one": "s autorom izabranim ondje: {count}",
+      "other": "s autorom izabranim ondje: {count}",
+      "few": "s autorom izabranim ondje: {count}"
+    },
+    "topics.story.links.away": {
+      "one": "pitanja koja su postavili samo zastupnici iz drugih zemalja: {count}",
+      "other": "pitanja koja su postavili samo zastupnici iz drugih zemalja: {count}",
+      "few": "pitanja koja su postavili samo zastupnici iz drugih zemalja: {count}"
     }
   },
   "hu": {
@@ -7087,6 +7919,70 @@
     "votegroups.voted_differently": {
       "one": "{count} EP-képviselő a képviselőcsoportja többségétől eltérően szavazott.",
       "other": "{count} EP-képviselő a képviselőcsoportja többségétől eltérően szavazott."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} sürgősségi vita",
+      "other": "{count} sürgősségi vita"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} igen, {against} nem, {abstentions} tartózkodás",
+      "other": "{for} igen, {against} nem, {abstentions} tartózkodás"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "kérdés",
+      "other": "kérdés"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "vita",
+      "other": "vita"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "szöveg",
+      "other": "szöveg"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "elfogadott szöveg",
+      "other": "elfogadott szöveg"
+    },
+    "topics.story.links.kind.records": {
+      "one": "találat",
+      "other": "találat"
+    },
+    "topics.story.links.more": {
+      "one": "További {count} megjelenítése",
+      "other": "További {count} megjelenítése"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} sürgősségi vita emberi jogi ügyekben",
+      "other": "{count} sürgősségi vita emberi jogi ügyekben"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} hely elfogadott szövegekkel",
+      "other": "{count} hely elfogadott szövegekkel"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} sürgősségi vita",
+      "other": "{count} sürgősségi vita"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "egyenként {count} vita",
+      "other": "egyenként {count} vita"
+    },
+    "topics.story.links.places": {
+      "one": "{count} hely",
+      "other": "{count} hely"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "közülük {count} kérdést kizárólag más országokban megválasztott EP-képviselők nyújtottak be",
+      "other": "közülük {count} kérdést kizárólag más országokban megválasztott EP-képviselők nyújtottak be"
+    },
+    "topics.story.links.home": {
+      "one": "{count} kérdésnek volt ott megválasztott szerzője",
+      "other": "{count} kérdésnek volt ott megválasztott szerzője"
+    },
+    "topics.story.links.away": {
+      "one": "{count} kérdést kizárólag más országokban megválasztott EP-képviselők nyújtottak be",
+      "other": "{count} kérdést kizárólag más országokban megválasztott EP-képviselők nyújtottak be"
     }
   },
   "it": {
@@ -7701,6 +8597,86 @@
       "one": "{count} deputato ha votato diversamente dalla maggioranza del proprio gruppo.",
       "other": "{count} deputati hanno votato diversamente dalla maggioranza del proprio gruppo.",
       "many": "{count} di deputati hanno votato diversamente dalla maggioranza del proprio gruppo."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} dibattito d'urgenza",
+      "other": "{count} dibattiti d'urgenza",
+      "many": "{count} di dibattiti d'urgenza"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} a favore e {against} contro, con {abstentions} astensione",
+      "other": "{for} a favore e {against} contro, con {abstentions} astensioni",
+      "many": "{for} a favore e {against} contro, con {abstentions} di astensioni"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "interrogazione",
+      "other": "interrogazioni",
+      "many": "di interrogazioni"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "dibattito",
+      "other": "dibattiti",
+      "many": "di dibattiti"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "testo",
+      "other": "testi",
+      "many": "di testi"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "testo approvato",
+      "other": "testi approvati",
+      "many": "di testi approvati"
+    },
+    "topics.story.links.kind.records": {
+      "one": "documento",
+      "other": "documenti",
+      "many": "di documenti"
+    },
+    "topics.story.links.more": {
+      "one": "Mostra ancora {count}",
+      "many": "Mostra ancora {count}",
+      "other": "Mostra ancora {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} dibattito d'urgenza sui diritti umani",
+      "other": "{count} dibattiti d'urgenza sui diritti umani",
+      "many": "{count} di dibattiti d'urgenza sui diritti umani"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} luogo con testi approvati",
+      "other": "{count} luoghi con testi approvati",
+      "many": "{count} di luoghi con testi approvati"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} dibattito d'urgenza",
+      "other": "{count} dibattiti d'urgenza",
+      "many": "{count} di dibattiti d'urgenza"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} dibattito per luogo",
+      "other": "{count} dibattiti per luogo",
+      "many": "{count} di dibattiti per luogo"
+    },
+    "topics.story.links.places": {
+      "one": "{count} luogo",
+      "other": "{count} luoghi",
+      "many": "{count} di luoghi"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "{count} di esse è stata presentata solo da deputati di altri paesi",
+      "other": "{count} di esse sono state presentate solo da deputati di altri paesi",
+      "many": "{count} di esse sono state presentate solo da deputati di altri paesi"
+    },
+    "topics.story.links.home": {
+      "one": "{count} aveva un autore eletto sul posto",
+      "other": "{count} avevano un autore eletto sul posto",
+      "many": "{count} avevano un autore eletto sul posto"
+    },
+    "topics.story.links.away": {
+      "one": "{count} è stata presentata solo da deputati di altri paesi",
+      "other": "{count} sono state presentate solo da deputati di altri paesi",
+      "many": "{count} sono state presentate solo da deputati di altri paesi"
     }
   },
   "lt": {
@@ -8404,6 +9380,102 @@
       "other": "EP narių, balsavusių kitaip nei jų frakcijos dauguma: {count}.",
       "few": "EP narių, balsavusių kitaip nei jų frakcijos dauguma: {count}.",
       "many": "EP narių, balsavusių kitaip nei jų frakcijos dauguma: {count}."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} skubi diskusija",
+      "few": "{count} skubios diskusijos",
+      "many": "{count} skubios diskusijos",
+      "other": "{count} skubių diskusijų"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} už, {against} prieš, susilaikė {abstentions}",
+      "few": "{for} už, {against} prieš, susilaikė {abstentions}",
+      "many": "{for} už, {against} prieš, susilaikė {abstentions}",
+      "other": "{for} už, {against} prieš, susilaikė {abstentions}"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "klausimas",
+      "few": "klausimai",
+      "many": "klausimo",
+      "other": "klausimų"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "diskusija",
+      "few": "diskusijos",
+      "many": "diskusijos",
+      "other": "diskusijų"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "tekstas",
+      "few": "tekstai",
+      "many": "teksto",
+      "other": "tekstų"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "priimtas tekstas",
+      "few": "priimti tekstai",
+      "many": "priimto teksto",
+      "other": "priimtų tekstų"
+    },
+    "topics.story.links.kind.records": {
+      "one": "įrašas",
+      "few": "įrašai",
+      "many": "įrašo",
+      "other": "įrašų"
+    },
+    "topics.story.links.more": {
+      "one": "Rodyti dar {count}",
+      "few": "Rodyti dar {count}",
+      "many": "Rodyti dar {count}",
+      "other": "Rodyti dar {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} skubi diskusija žmogaus teisių klausimais",
+      "few": "{count} skubios diskusijos žmogaus teisių klausimais",
+      "many": "{count} skubios diskusijos žmogaus teisių klausimais",
+      "other": "{count} skubių diskusijų žmogaus teisių klausimais"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} vieta, minima priimtuose tekstuose",
+      "few": "{count} vietos, minimos priimtuose tekstuose",
+      "many": "{count} vietos, minimos priimtuose tekstuose",
+      "other": "{count} vietų, minimų priimtuose tekstuose"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} skubi diskusija",
+      "few": "{count} skubios diskusijos",
+      "many": "{count} skubios diskusijos",
+      "other": "{count} skubių diskusijų"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "po {count} diskusiją",
+      "few": "po {count} diskusijas",
+      "many": "po {count} diskusijos",
+      "other": "po {count} diskusijų"
+    },
+    "topics.story.links.places": {
+      "one": "{count} vieta",
+      "few": "{count} vietos",
+      "many": "{count} vietos",
+      "other": "{count} vietų"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "iš jų tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}",
+      "few": "iš jų tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}",
+      "many": "iš jų tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}",
+      "other": "iš jų tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}"
+    },
+    "topics.story.links.home": {
+      "one": "klausimų, kurių bent vienas autorius išrinktas toje šalyje, skaičius: {count}",
+      "few": "klausimų, kurių bent vienas autorius išrinktas toje šalyje, skaičius: {count}",
+      "many": "klausimų, kurių bent vienas autorius išrinktas toje šalyje, skaičius: {count}",
+      "other": "klausimų, kurių bent vienas autorius išrinktas toje šalyje, skaičius: {count}"
+    },
+    "topics.story.links.away": {
+      "one": "tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}",
+      "few": "tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}",
+      "many": "tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}",
+      "other": "tik kitose šalyse išrinktų EP narių pateiktų klausimų skaičius: {count}"
     }
   },
   "lv": {
@@ -9011,6 +10083,86 @@
       "one": "{count} EP deputāts balsoja citādi nekā savas politiskās grupas vairākums.",
       "other": "{count} EP deputāti balsoja citādi nekā savas politiskās grupas vairākums.",
       "zero": "EP deputātu, kas balsoja citādi nekā savas politiskās grupas vairākums: {count}."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} steidzamības debates",
+      "other": "{count} steidzamības debates",
+      "zero": "{count} steidzamības debašu"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} steidzamības debates",
+      "other": "{count} steidzamības debates",
+      "zero": "{count} steidzamības debašu"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "jautājums",
+      "other": "jautājumi",
+      "zero": "jautājumu"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "debates",
+      "other": "debates",
+      "zero": "debašu"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "teksts",
+      "other": "teksti",
+      "zero": "tekstu"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "pieņemtais teksts",
+      "other": "pieņemtie teksti",
+      "zero": "pieņemto tekstu"
+    },
+    "topics.story.links.kind.records": {
+      "one": "ieraksts",
+      "other": "ieraksti",
+      "zero": "ierakstu"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} steidzamības debates par cilvēktiesībām",
+      "other": "{count} steidzamības debates par cilvēktiesībām",
+      "zero": "{count} steidzamības debašu par cilvēktiesībām"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} vieta, par kuru pieņemti teksti",
+      "other": "{count} vietas, par kurām pieņemti teksti",
+      "zero": "{count} vietu, par kurām pieņemti teksti"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "katrai vietai {count} debates",
+      "other": "katrai vietai {count} debates",
+      "zero": "katrai vietai {count} debašu"
+    },
+    "topics.story.links.places": {
+      "one": "{count} vieta",
+      "other": "{count} vietas",
+      "zero": "{count} vietu"
+    },
+    "topics.story.tally.abstentions": {
+      "zero": "{for} pret {against}; atturējās: {abstentions}",
+      "one": "{for} pret {against}; atturējās: {abstentions}",
+      "other": "{for} pret {against}; atturējās: {abstentions}"
+    },
+    "topics.story.links.more": {
+      "zero": "Rādīt vēl {count}",
+      "one": "Rādīt vēl {count}",
+      "other": "Rādīt vēl {count}"
+    },
+    "topics.story.links.elsewhere": {
+      "zero": "{count} no tiem iesniedza tikai citās valstīs ievēlēti deputāti",
+      "one": "{count} no tiem iesniedza tikai citās valstīs ievēlēti deputāti",
+      "other": "{count} no tiem iesniedza tikai citās valstīs ievēlēti deputāti"
+    },
+    "topics.story.links.home": {
+      "zero": "{count} bija ar tur ievēlētu autoru",
+      "one": "{count} bija ar tur ievēlētu autoru",
+      "other": "{count} bija ar tur ievēlētu autoru"
+    },
+    "topics.story.links.away": {
+      "zero": "{count} iesniedza tikai citās valstīs ievēlēti deputāti",
+      "one": "{count} iesniedza tikai citās valstīs ievēlēti deputāti",
+      "other": "{count} iesniedza tikai citās valstīs ievēlēti deputāti"
     }
   },
   "mt": {
@@ -9808,6 +10960,118 @@
       "two": "Għadd ta’ Membri tal-PE li vvotaw b’mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
       "few": "Għadd ta’ Membri tal-PE li vvotaw b’mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
       "many": "Għadd ta’ Membri tal-PE li vvotaw b’mod differenti mill-maġġoranza tal-grupp tagħhom: {count}."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} dibattitu b’urġenza",
+      "two": "{count} dibattiti b’urġenza",
+      "few": "{count} dibattiti b’urġenza",
+      "many": "{count}-il dibattitu b’urġenza",
+      "other": "{count} dibattitu b’urġenza"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} dibattitu b’urġenza",
+      "two": "{count} dibattiti b’urġenza",
+      "few": "{count} dibattiti b’urġenza",
+      "many": "{count}-il dibattitu b’urġenza",
+      "other": "{count} dibattitu b’urġenza"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "mistoqsija",
+      "two": "mistoqsijiet",
+      "few": "mistoqsijiet",
+      "many": "mistoqsijiet",
+      "other": "mistoqsijiet"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "dibattitu",
+      "two": "dibattiti",
+      "few": "dibattiti",
+      "many": "dibattiti",
+      "other": "dibattiti"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "test",
+      "two": "testi",
+      "few": "testi",
+      "many": "testi",
+      "other": "testi"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "test adottat",
+      "two": "testi adottati",
+      "few": "testi adottati",
+      "many": "testi adottati",
+      "other": "testi adottati"
+    },
+    "topics.story.links.kind.records": {
+      "one": "rekord",
+      "two": "rekords",
+      "few": "rekords",
+      "many": "rekords",
+      "other": "rekords"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} dibattitu b’urġenza dwar id-drittijiet tal-bniedem",
+      "two": "{count} dibattiti b’urġenza dwar id-drittijiet tal-bniedem",
+      "few": "{count} dibattiti b’urġenza dwar id-drittijiet tal-bniedem",
+      "many": "{count}-il dibattitu b’urġenza dwar id-drittijiet tal-bniedem",
+      "other": "{count} dibattitu b’urġenza dwar id-drittijiet tal-bniedem"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} post b’testi adottati",
+      "two": "{count} postijiet b’testi adottati",
+      "few": "{count} postijiet b’testi adottati",
+      "many": "{count}-il post b’testi adottati",
+      "other": "{count} post b’testi adottati"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} dibattitu għal kull post",
+      "two": "{count} dibattiti għal kull post",
+      "few": "{count} dibattiti għal kull post",
+      "many": "{count}-il dibattitu għal kull post",
+      "other": "{count} dibattitu għal kull post"
+    },
+    "topics.story.links.places": {
+      "one": "{count} post",
+      "two": "{count} postijiet",
+      "few": "{count} postijiet",
+      "many": "{count}-il post",
+      "other": "{count} post"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} favur u {against} kontra u {abstentions} astensjoni",
+      "two": "{for} favur u {against} kontra u {abstentions} astensjonijiet",
+      "few": "{for} favur u {against} kontra u {abstentions} astensjonijiet",
+      "many": "{for} favur u {against} kontra u {abstentions}-il astensjoni",
+      "other": "{for} favur u {against} kontra u {abstentions} astensjoni"
+    },
+    "topics.story.links.more": {
+      "one": "Uri {count} oħra",
+      "two": "Uri {count} oħra",
+      "few": "Uri {count} oħra",
+      "many": "Uri {count} oħra",
+      "other": "Uri {count} oħra"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "{count} minnhom tressqet biss minn Membri tal-PE minn pajjiżi oħra",
+      "two": "{count} minnhom tressqu biss minn Membri tal-PE minn pajjiżi oħra",
+      "few": "{count} minnhom tressqu biss minn Membri tal-PE minn pajjiżi oħra",
+      "many": "{count} minnhom tressqu biss minn Membri tal-PE minn pajjiżi oħra",
+      "other": "{count} minnhom tressqu biss minn Membri tal-PE minn pajjiżi oħra"
+    },
+    "topics.story.links.home": {
+      "one": "{count} minnhom kellha awtur elett hemmhekk",
+      "two": "{count} minnhom kellhom awtur elett hemmhekk",
+      "few": "{count} minnhom kellhom awtur elett hemmhekk",
+      "many": "{count} minnhom kellhom awtur elett hemmhekk",
+      "other": "{count} minnhom kellhom awtur elett hemmhekk"
+    },
+    "topics.story.links.away": {
+      "one": "{count} tressqet biss minn Membri tal-PE minn pajjiżi oħra",
+      "two": "{count} tressqu biss minn Membri tal-PE minn pajjiżi oħra",
+      "few": "{count} tressqu biss minn Membri tal-PE minn pajjiżi oħra",
+      "many": "{count} tressqu biss minn Membri tal-PE minn pajjiżi oħra",
+      "other": "{count} tressqu biss minn Membri tal-PE minn pajjiżi oħra"
     }
   },
   "nl": {
@@ -10362,6 +11626,70 @@
     "votegroups.voted_differently": {
       "one": "{count} Europarlementariër stemde anders dan de meerderheid van de eigen fractie.",
       "other": "{count} Europarlementariërs stemden anders dan de meerderheid van hun eigen fractie."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} urgentiedebat",
+      "other": "{count} urgentiedebatten"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} tegen {against}, met {abstentions} onthouding",
+      "other": "{for} tegen {against}, met {abstentions} onthoudingen"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "vraag",
+      "other": "vragen"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "debat",
+      "other": "debatten"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "tekst",
+      "other": "teksten"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "aangenomen tekst",
+      "other": "aangenomen teksten"
+    },
+    "topics.story.links.kind.records": {
+      "one": "bronstuk",
+      "other": "bronstukken"
+    },
+    "topics.story.links.more": {
+      "one": "Toon er nog {count}",
+      "other": "Toon er nog {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} urgentiedebat over mensenrechten",
+      "other": "{count} urgentiedebatten over mensenrechten"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} plaats met aangenomen teksten",
+      "other": "{count} plaatsen met aangenomen teksten"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} urgentiedebat",
+      "other": "{count} urgentiedebatten"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "telkens {count} debat",
+      "other": "telkens {count} debatten"
+    },
+    "topics.story.links.places": {
+      "one": "{count} plaats",
+      "other": "{count} plaatsen"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "waarvan {count} uitsluitend gesteld door Europarlementariërs uit andere landen",
+      "other": "waarvan {count} uitsluitend gesteld door Europarlementariërs uit andere landen"
+    },
+    "topics.story.links.home": {
+      "one": "bij {count} was een indiener daar verkozen",
+      "other": "bij {count} was een indiener daar verkozen"
+    },
+    "topics.story.links.away": {
+      "one": "{count} uitsluitend gesteld door Europarlementariërs uit andere landen",
+      "other": "{count} uitsluitend gesteld door Europarlementariërs uit andere landen"
     }
   },
   "pl": {
@@ -11066,6 +12394,102 @@
       "few": "{count} posłów do PE zagłosowało inaczej niż większość ich grupy.",
       "many": "{count} posłów do PE zagłosowało inaczej niż większość ich grupy.",
       "other": "Liczba posłów do PE głosujących inaczej niż większość ich grupy: {count}."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} debata w trybie pilnym",
+      "few": "{count} debaty w trybie pilnym",
+      "many": "{count} debat w trybie pilnym",
+      "other": "{count} debaty w trybie pilnym"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} za, {against} przeciw; wstrzymujące się: {abstentions}",
+      "few": "{for} za, {against} przeciw; wstrzymujące się: {abstentions}",
+      "many": "{for} za, {against} przeciw; wstrzymujące się: {abstentions}",
+      "other": "{for} za, {against} przeciw; wstrzymujące się: {abstentions}"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "pytanie",
+      "few": "pytania",
+      "many": "pytań",
+      "other": "pytania"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "debata",
+      "few": "debaty",
+      "many": "debat",
+      "other": "debaty"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "tekst",
+      "few": "teksty",
+      "many": "tekstów",
+      "other": "tekstu"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "przyjęty tekst",
+      "few": "przyjęte teksty",
+      "many": "przyjętych tekstów",
+      "other": "przyjętego tekstu"
+    },
+    "topics.story.links.kind.records": {
+      "one": "zapis",
+      "few": "zapisy",
+      "many": "zapisów",
+      "other": "zapisu"
+    },
+    "topics.story.links.more": {
+      "one": "Pokaż więcej: {count}",
+      "few": "Pokaż więcej: {count}",
+      "many": "Pokaż więcej: {count}",
+      "other": "Pokaż więcej: {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} debata w trybie pilnym o prawach człowieka",
+      "few": "{count} debaty w trybie pilnym o prawach człowieka",
+      "many": "{count} debat w trybie pilnym o prawach człowieka",
+      "other": "{count} debaty w trybie pilnym o prawach człowieka"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} miejsce z przyjętymi tekstami",
+      "few": "{count} miejsca z przyjętymi tekstami",
+      "many": "{count} miejsc z przyjętymi tekstami",
+      "other": "{count} miejsca z przyjętymi tekstami"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} debata w trybie pilnym",
+      "few": "{count} debaty w trybie pilnym",
+      "many": "{count} debat w trybie pilnym",
+      "other": "{count} debaty w trybie pilnym"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} debata na każde miejsce",
+      "few": "{count} debaty na każde miejsce",
+      "many": "{count} debat na każde miejsce",
+      "other": "{count} debaty na każde miejsce"
+    },
+    "topics.story.links.places": {
+      "one": "{count} miejsce",
+      "few": "{count} miejsca",
+      "many": "{count} miejsc",
+      "other": "{count} miejsca"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "z tego {count} pytanie wyłącznie od posłów do PE z innych krajów",
+      "few": "z tego {count} pytania wyłącznie od posłów do PE z innych krajów",
+      "many": "z tego {count} pytań wyłącznie od posłów do PE z innych krajów",
+      "other": "z tego {count} pytania wyłącznie od posłów do PE z innych krajów"
+    },
+    "topics.story.links.home": {
+      "one": "{count} pytanie z autorem wybranym w tym kraju",
+      "few": "{count} pytania z autorem wybranym w tym kraju",
+      "many": "{count} pytań z autorem wybranym w tym kraju",
+      "other": "{count} pytania z autorem wybranym w tym kraju"
+    },
+    "topics.story.links.away": {
+      "one": "{count} pytanie wyłącznie od posłów do PE z innych krajów",
+      "few": "{count} pytania wyłącznie od posłów do PE z innych krajów",
+      "many": "{count} pytań wyłącznie od posłów do PE z innych krajów",
+      "other": "{count} pytania wyłącznie od posłów do PE z innych krajów"
     }
   },
   "pt": {
@@ -11680,6 +13104,86 @@
       "one": "{count} deputado votou de forma diferente da maioria do seu grupo.",
       "other": "{count} deputados votaram de forma diferente da maioria do seu grupo.",
       "many": "{count} de deputados votaram de forma diferente da maioria do seu grupo."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} debate de urgência",
+      "other": "{count} debates de urgência",
+      "many": "{count} de debates de urgência"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} a favor e {against} contra, com {abstentions} abstenção",
+      "other": "{for} a favor e {against} contra, com {abstentions} abstenções",
+      "many": "{for} a favor e {against} contra, com {abstentions} de abstenções"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "pergunta",
+      "other": "perguntas",
+      "many": "de perguntas"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "debate",
+      "other": "debates",
+      "many": "de debates"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "texto",
+      "other": "textos",
+      "many": "de textos"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "texto aprovado",
+      "other": "textos aprovados",
+      "many": "de textos aprovados"
+    },
+    "topics.story.links.kind.records": {
+      "one": "registo",
+      "other": "registos",
+      "many": "de registos"
+    },
+    "topics.story.links.more": {
+      "one": "Mostrar mais {count}",
+      "other": "Mostrar mais {count}",
+      "many": "Mostrar mais {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} debate de urgência sobre direitos humanos",
+      "other": "{count} debates de urgência sobre direitos humanos",
+      "many": "{count} de debates de urgência sobre direitos humanos"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} local com textos aprovados",
+      "other": "{count} locais com textos aprovados",
+      "many": "{count} de locais com textos aprovados"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} debate de urgência",
+      "other": "{count} debates de urgência",
+      "many": "{count} de debates de urgência"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} debate por local",
+      "other": "{count} debates por local",
+      "many": "{count} de debates por local"
+    },
+    "topics.story.links.places": {
+      "one": "{count} local",
+      "other": "{count} locais",
+      "many": "{count} de locais"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "{count} delas foi apresentada apenas por deputados de outros países",
+      "other": "{count} delas foram apresentadas apenas por deputados de outros países",
+      "many": "{count} delas foram apresentadas apenas por deputados de outros países"
+    },
+    "topics.story.links.home": {
+      "one": "{count} tinha um autor eleito nesse local",
+      "other": "{count} tinham um autor eleito nesse local",
+      "many": "{count} tinham um autor eleito nesse local"
+    },
+    "topics.story.links.away": {
+      "one": "{count} foi apresentada apenas por deputados de outros países",
+      "other": "{count} foram apresentadas apenas por deputados de outros países",
+      "many": "{count} foram apresentadas apenas por deputados de outros países"
     }
   },
   "ro": {
@@ -12293,6 +13797,86 @@
       "one": "{count} eurodeputat a votat diferit față de majoritatea grupului său.",
       "other": "{count} de eurodeputați au votat diferit față de majoritatea grupului lor.",
       "few": "{count} eurodeputați au votat diferit față de majoritatea grupului lor."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} dezbatere de urgență",
+      "few": "{count} dezbateri de urgență",
+      "other": "{count} de dezbateri de urgență"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} pentru și {against} împotrivă, cu {abstentions} abținere",
+      "few": "{for} pentru și {against} împotrivă, cu {abstentions} abțineri",
+      "other": "{for} pentru și {against} împotrivă, cu {abstentions} de abțineri"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "întrebare",
+      "few": "întrebări",
+      "other": "întrebări"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "dezbatere",
+      "few": "dezbateri",
+      "other": "dezbateri"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "text",
+      "few": "texte",
+      "other": "texte"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "text adoptat",
+      "few": "texte adoptate",
+      "other": "texte adoptate"
+    },
+    "topics.story.links.kind.records": {
+      "one": "document",
+      "few": "documente",
+      "other": "documente"
+    },
+    "topics.story.links.more": {
+      "one": "Afișează încă {count}",
+      "few": "Afișează încă {count}",
+      "other": "Afișează încă {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} dezbatere de urgență privind drepturile omului",
+      "few": "{count} dezbateri de urgență privind drepturile omului",
+      "other": "{count} de dezbateri de urgență privind drepturile omului"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} loc menționat în texte adoptate",
+      "few": "{count} locuri menționate în texte adoptate",
+      "other": "{count} de locuri menționate în texte adoptate"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} dezbatere de urgență",
+      "few": "{count} dezbateri de urgență",
+      "other": "{count} de dezbateri de urgență"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "câte {count} dezbatere",
+      "few": "câte {count} dezbateri",
+      "other": "câte {count} de dezbateri"
+    },
+    "topics.story.links.places": {
+      "one": "{count} loc",
+      "few": "{count} locuri",
+      "other": "{count} de locuri"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "dintre acestea, {count} a fost adresată doar de eurodeputați aleși în alte țări",
+      "few": "dintre acestea, {count} au fost adresate doar de eurodeputați aleși în alte țări",
+      "other": "dintre acestea, {count} au fost adresate doar de eurodeputați aleși în alte țări"
+    },
+    "topics.story.links.home": {
+      "one": "{count} a avut un autor ales în acel loc",
+      "few": "{count} au avut un autor ales în acel loc",
+      "other": "{count} au avut un autor ales în acel loc"
+    },
+    "topics.story.links.away": {
+      "one": "{count} a fost adresată doar de eurodeputați aleși în alte țări",
+      "few": "{count} au fost adresate doar de eurodeputați aleși în alte țări",
+      "other": "{count} au fost adresate doar de eurodeputați aleși în alte țări"
     }
   },
   "sk": {
@@ -13021,6 +14605,102 @@
       "few": "{count} europoslanci hlasovali inak než väčšina ich skupiny.",
       "many": "Počet europoslancov s hlasom odlišným od väčšiny ich skupiny: {count}.",
       "other": "{count} europoslancov hlasovalo inak než väčšina ich skupiny."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} naliehavá rozprava",
+      "few": "{count} naliehavé rozpravy",
+      "many": "{count} naliehavej rozpravy",
+      "other": "{count} naliehavých rozpráv"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} za, {against} proti; zdržanie sa: {abstentions}",
+      "few": "{for} za, {against} proti; zdržanie sa: {abstentions}",
+      "many": "{for} za, {against} proti; zdržanie sa: {abstentions}",
+      "other": "{for} za, {against} proti; zdržanie sa: {abstentions}"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "otázka",
+      "few": "otázky",
+      "many": "otázky",
+      "other": "otázok"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "rozprava",
+      "few": "rozpravy",
+      "many": "rozpravy",
+      "other": "rozpráv"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "text",
+      "few": "texty",
+      "many": "textu",
+      "other": "textov"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "prijatý text",
+      "few": "prijaté texty",
+      "many": "prijatého textu",
+      "other": "prijatých textov"
+    },
+    "topics.story.links.kind.records": {
+      "one": "záznam",
+      "few": "záznamy",
+      "many": "záznamu",
+      "other": "záznamov"
+    },
+    "topics.story.links.more": {
+      "one": "Zobraziť ďalšie: {count}",
+      "few": "Zobraziť ďalšie: {count}",
+      "many": "Zobraziť ďalšie: {count}",
+      "other": "Zobraziť ďalšie: {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} naliehavá rozprava o ľudských právach",
+      "few": "{count} naliehavé rozpravy o ľudských právach",
+      "many": "{count} naliehavej rozpravy o ľudských právach",
+      "other": "{count} naliehavých rozpráv o ľudských právach"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} miesto s prijatými textami",
+      "few": "{count} miesta s prijatými textami",
+      "many": "{count} miesta s prijatými textami",
+      "other": "{count} miest s prijatými textami"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} naliehavá rozprava",
+      "few": "{count} naliehavé rozpravy",
+      "many": "{count} naliehavej rozpravy",
+      "other": "{count} naliehavých rozpráv"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} rozprava na každé miesto",
+      "few": "{count} rozpravy na každé miesto",
+      "many": "{count} rozpravy na každé miesto",
+      "other": "{count} rozpráv na každé miesto"
+    },
+    "topics.story.links.places": {
+      "one": "{count} miesto",
+      "few": "{count} miesta",
+      "many": "{count} miesta",
+      "other": "{count} miest"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "z toho {count} otázka výlučne od europoslancov z iných krajín",
+      "few": "z toho {count} otázky výlučne od europoslancov z iných krajín",
+      "many": "z toho {count} otázky výlučne od europoslancov z iných krajín",
+      "other": "z toho {count} otázok výlučne od europoslancov z iných krajín"
+    },
+    "topics.story.links.home": {
+      "one": "{count} otázka s autorom zvoleným v danej krajine",
+      "few": "{count} otázky s autorom zvoleným v danej krajine",
+      "many": "{count} otázky s autorom zvoleným v danej krajine",
+      "other": "{count} otázok s autorom zvoleným v danej krajine"
+    },
+    "topics.story.links.away": {
+      "one": "{count} otázka výlučne od europoslancov z iných krajín",
+      "few": "{count} otázky výlučne od europoslancov z iných krajín",
+      "many": "{count} otázky výlučne od europoslancov z iných krajín",
+      "other": "{count} otázok výlučne od europoslancov z iných krajín"
     }
   },
   "sl": {
@@ -13749,6 +15429,102 @@
       "two": "{count} poslanca Evropskega parlamenta sta glasovala drugače kot večina njune skupine.",
       "few": "{count} poslanci Evropskega parlamenta so glasovali drugače kot večina njihove skupine.",
       "other": "{count} poslancev Evropskega parlamenta je glasovalo drugače kot večina njihove skupine."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} nujna razprava",
+      "two": "{count} nujni razpravi",
+      "few": "{count} nujne razprave",
+      "other": "{count} nujnih razprav"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} za, {against} proti; vzdržani: {abstentions}",
+      "two": "{for} za, {against} proti; vzdržani: {abstentions}",
+      "few": "{for} za, {against} proti; vzdržani: {abstentions}",
+      "other": "{for} za, {against} proti; vzdržani: {abstentions}"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "vprašanje",
+      "two": "vprašanji",
+      "few": "vprašanja",
+      "other": "vprašanj"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "razprava",
+      "two": "razpravi",
+      "few": "razprave",
+      "other": "razprav"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "besedilo",
+      "two": "besedili",
+      "few": "besedila",
+      "other": "besedil"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "sprejeto besedilo",
+      "two": "sprejeti besedili",
+      "few": "sprejeta besedila",
+      "other": "sprejetih besedil"
+    },
+    "topics.story.links.kind.records": {
+      "one": "zapis",
+      "two": "zapisa",
+      "few": "zapisi",
+      "other": "zapisov"
+    },
+    "topics.story.links.more": {
+      "one": "Prikaži več: {count}",
+      "two": "Prikaži več: {count}",
+      "few": "Prikaži več: {count}",
+      "other": "Prikaži več: {count}"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} nujna razprava o človekovih pravicah",
+      "two": "{count} nujni razpravi o človekovih pravicah",
+      "few": "{count} nujne razprave o človekovih pravicah",
+      "other": "{count} nujnih razprav o človekovih pravicah"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} kraj s sprejetimi besedili",
+      "two": "{count} kraja s sprejetimi besedili",
+      "few": "{count} kraji s sprejetimi besedili",
+      "other": "{count} krajev s sprejetimi besedili"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} nujna razprava",
+      "two": "{count} nujni razpravi",
+      "few": "{count} nujne razprave",
+      "other": "{count} nujnih razprav"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} razprava za vsak kraj",
+      "two": "{count} razpravi za vsak kraj",
+      "few": "{count} razprave za vsak kraj",
+      "other": "{count} razprav za vsak kraj"
+    },
+    "topics.story.links.places": {
+      "one": "{count} kraj",
+      "two": "{count} kraja",
+      "few": "{count} kraji",
+      "other": "{count} krajev"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "od tega {count} vprašanje izključno od poslancev Evropskega parlamenta iz drugih držav",
+      "two": "od tega {count} vprašanji izključno od poslancev Evropskega parlamenta iz drugih držav",
+      "few": "od tega {count} vprašanja izključno od poslancev Evropskega parlamenta iz drugih držav",
+      "other": "od tega {count} vprašanj izključno od poslancev Evropskega parlamenta iz drugih držav"
+    },
+    "topics.story.links.home": {
+      "one": "{count} vprašanje z avtorjem, izvoljenim v tej državi",
+      "two": "{count} vprašanji z avtorjem, izvoljenim v tej državi",
+      "few": "{count} vprašanja z avtorjem, izvoljenim v tej državi",
+      "other": "{count} vprašanj z avtorjem, izvoljenim v tej državi"
+    },
+    "topics.story.links.away": {
+      "one": "{count} vprašanje izključno od poslancev Evropskega parlamenta iz drugih držav",
+      "two": "{count} vprašanji izključno od poslancev Evropskega parlamenta iz drugih držav",
+      "few": "{count} vprašanja izključno od poslancev Evropskega parlamenta iz drugih držav",
+      "other": "{count} vprašanj izključno od poslancev Evropskega parlamenta iz drugih držav"
     }
   },
   "sv": {
@@ -14303,6 +16079,70 @@
     "votegroups.voted_differently": {
       "one": "{count} ledamot röstade annorlunda än den egna gruppens majoritet.",
       "other": "{count} ledamöter röstade annorlunda än sina respektive gruppers majoritet."
+    },
+    "topics.story.count.urgencyDebates": {
+      "one": "{count} brådskande debatt",
+      "other": "{count} brådskande debatter"
+    },
+    "topics.story.tally.abstentions": {
+      "one": "{for} mot {against}, med {abstentions} nedlagd röst",
+      "other": "{for} mot {against}, med {abstentions} nedlagda röster"
+    },
+    "topics.story.links.kind.questions": {
+      "one": "fråga",
+      "other": "frågor"
+    },
+    "topics.story.links.kind.debates": {
+      "one": "debatt",
+      "other": "debatter"
+    },
+    "topics.story.links.kind.documents": {
+      "one": "text",
+      "other": "texter"
+    },
+    "topics.story.links.kind.adoptedTexts": {
+      "one": "antagen text",
+      "other": "antagna texter"
+    },
+    "topics.story.links.kind.records": {
+      "one": "källpost",
+      "other": "källposter"
+    },
+    "topics.story.links.more": {
+      "one": "Visa {count} till",
+      "other": "Visa {count} till"
+    },
+    "topics.story.links.urgencyHeading": {
+      "one": "{count} brådskande debatt om mänskliga rättigheter",
+      "other": "{count} brådskande debatter om mänskliga rättigheter"
+    },
+    "topics.story.links.placesHeading": {
+      "one": "{count} plats med antagna texter",
+      "other": "{count} platser med antagna texter"
+    },
+    "topics.story.links.urgency": {
+      "one": "{count} brådskande debatt",
+      "other": "{count} brådskande debatter"
+    },
+    "topics.story.links.debatesEach": {
+      "one": "{count} debatt vardera",
+      "other": "{count} debatter vardera"
+    },
+    "topics.story.links.places": {
+      "one": "{count} plats",
+      "other": "{count} platser"
+    },
+    "topics.story.links.elsewhere": {
+      "one": "av dessa ställdes {count} enbart av Europaparlamentsledamöter från andra länder",
+      "other": "av dessa ställdes {count} enbart av Europaparlamentsledamöter från andra länder"
+    },
+    "topics.story.links.home": {
+      "one": "{count} hade en författare som valts där",
+      "other": "{count} hade en författare som valts där"
+    },
+    "topics.story.links.away": {
+      "one": "{count} ställdes enbart av Europaparlamentsledamöter från andra länder",
+      "other": "{count} ställdes enbart av Europaparlamentsledamöter från andra länder"
     }
   }
 }

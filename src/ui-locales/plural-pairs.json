@@ -473,5 +473,20 @@
     "one": "topics.story.links.placesOne",
     "other": "topics.story.links.places",
     "count": "count"
+  },
+  {
+    "one": "topics.story.links.elsewhereOne",
+    "other": "topics.story.links.elsewhere",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.homeOne",
+    "other": "topics.story.links.home",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.links.awayOne",
+    "other": "topics.story.links.away",
+    "count": "count"
   }
 ]
