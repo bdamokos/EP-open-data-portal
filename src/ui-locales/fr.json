@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Rechercher un thème",
   "topics.plenaryMode": "Thèmes",
   "topics.findPlace": "Rechercher un lieu",
-  "topics.geopolitics": "Géopolitique"
+  "topics.geopolitics": "Géopolitique",
+  "topics.story.map.outside": "Également en plénière : {speakers}.",
+  "topics.story.map.outside.eu": "Interventions en plénière depuis l’Europe et son voisinage : {speakers}.",
+  "topics.story.place.outside": "{place} : {speaker} a pris la parole en plénière ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

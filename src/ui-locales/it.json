@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Cerca un tema",
   "topics.plenaryMode": "Temi",
   "topics.findPlace": "Cerca un luogo",
-  "topics.geopolitics": "Geopolitica"
+  "topics.geopolitics": "Geopolitica",
+  "topics.story.map.outside": "In Aula anche: {speakers}.",
+  "topics.story.map.outside.eu": "Interventi in Aula dall’Europa e dai paesi vicini: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} ha preso la parola in Aula ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

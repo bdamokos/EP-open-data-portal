@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Téma keresése",
   "topics.plenaryMode": "Témák",
   "topics.findPlace": "Hely keresése",
-  "topics.geopolitics": "Geopolitika"
+  "topics.geopolitics": "Geopolitika",
+  "topics.story.map.outside": "A plenáris ülésen felszólalt még: {speakers}.",
+  "topics.story.map.outside.eu": "Felszólalók a plenáris ülésen Európából és szomszédságából: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} felszólalt a plenáris ülésen ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }
