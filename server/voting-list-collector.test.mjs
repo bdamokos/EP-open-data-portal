@@ -139,3 +139,8 @@ test('discovery and page errors are scoped to the sitting or session they concer
  assert.deepEqual(codes('MTG-PL-2026-11-11'),['page-unavailable']);assert.deepEqual(codes('MTG-PL-2026-11-12'),['day-gap','page-unavailable']);
  assert.deepEqual(codes('MTG-PL-2026-11-18'),['unmapped-section']);assert.deepEqual(codes('MTG-PL-2026-11-19'),['unmapped-section']);assert.deepEqual(codes('MTG-PL-2026-09-15'),[]);
 });
+test('a due page check warms active agendas through hints without inflating snapshots',async t=>{
+ const s=setup(t),hints=[];
+ const collector=new VotingListCollector(s.store,{clock:s.now,sessions:votingListSessions(nodes),snapshots:{read:()=>assert.fail('page check needs no agenda bytes'),enqueue:(kind,version,sitting)=>hints.push([kind,version,sitting])},fetchSource:async()=>({status:200,buffer:Buffer.from(html)})});
+ await collector.step({controller:new AbortController()});assert.deepEqual(hints,nodes.map(n=>['agenda',1,n.activity_id]));
+});

@@ -121,6 +121,8 @@ export class VotingListCollector {
       }
       return agendas.get(sitting);
     };
+    // Preserve agenda warming through the existing hint queue on page checks.
+    if(pageDue)for(const session of active)for(const sitting of session.sittings)this.snapshots.enqueue?.('agenda',1,sitting);
     const source=pageDue?null:sources.find(row=>{
       if(fileCheckAt(row,now)>now)return false;
       agendaFor(row.sitting);return fileCheckAt(row,now,ends)<=now;
