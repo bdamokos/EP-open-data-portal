@@ -77,3 +77,26 @@ test('cached automatic recital and paragraph numbers independently certify blank
  assert.equal(visible.filter(row=>row.numberingLabel).map(row=>row.numberingLabel).join(','),'A.,B.,C.,D.,E.,F.,1.,2.,3.,4.,5.,6.,7.,8.,9.');
  const units=rawResolutionUnits(text,'en').units;for(const label of ['D','1','2','5'])assert.equal(units.find(unit=>unit.label===label&&unit.kind===(label==='D'?'recital':'paragraph'))?.complete,true,label);
 });
+
+import {docxContent} from '../server/document-text.mjs';
+import {nativeAttachedTables} from './amendment-table-oracle.mjs';
+test('native table boundaries include all cells before the following numbered paragraph',()=>{
+  const source=fixture.find(row=>row.documentId==='A-10-2026-0081');
+  const xml=wrap('<w:p><w:r><w:t>The European Parliament,</w:t></w:r></w:p>'+source.paragraphXml.join(''));
+  const nativeBuffer=zip(xml),text={...docxContent(nativeBuffer),nativeBuffer};
+  const tables=nativeAttachedTables(text);
+  assert.deepEqual(tables,[{start:1,end:84,following:85,label:'149'}]);
+  const units=rawResolutionUnits(text,'en').units;
+  assert.equal(units.find(unit=>unit.label==='149').complete,true);
+  for(const suffix of ['a','b']) {
+    const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 149 '+suffix+' (new)',originalText:'',proposedText:'New provision;'};
+    const placement={operation:'insert',status:'placed',insertAfter:84,insertBefore:85};
+    assert.equal(verifyPlacement({text,wording,placement}).status,'verified');
+    assert.equal(verifyPlacement({text,wording,placement:{...placement,insertAfter:1,insertBefore:2}}).status,'failed');
+  }
+  assert.deepEqual(nativeAttachedTables({...text,nativeBuffer:null}),[]);
+  const changed={...text,paragraphs:text.paragraphs.map((value,index)=>index===5?value+' omitted':value)};
+  assert.deepEqual(nativeAttachedTables(changed),[]);
+  const incomplete={...text,paragraphSources:text.paragraphSources.map((value,index)=>index===5?{...value,complete:false}:value)};
+  assert.deepEqual(nativeAttachedTables(incomplete),[]);
+});
