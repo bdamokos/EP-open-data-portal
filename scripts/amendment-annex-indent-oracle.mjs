@@ -43,7 +43,7 @@ export function assertBareAnnexIndent({items,proposal,wording,placement,nativeQu
  if(!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||!nativeQuoted?.proposalBuffers?.every(Buffer.isBuffer)||nativeQuoted.proposalBuffers.length!==items.length||nativeQuoted.proposalBuffers.some((b,i)=>hash(b)!==items[i].proposal.sourceHash)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash)return unknown();
  let body,act,read;try{body=quotedWordBody(nativeQuoted.proposalBuffer);const other=items.findIndex(i=>i.kind==='act');if(other<0)return unknown();act=quotedWordBody(nativeQuoted.proposalBuffers[other]);read=listReader(quotedWordParts(nativeQuoted.proposalBuffer));}catch{return unknown();}
  const headings=body.filter(r=>r.kind==='paragraph'&&val(r.nodes,'w:pStyle')==='Annexetitre');
- if(headings.length!==1||headings[0].text.trim()!=='ANNEX'||unsafe(headings[0])||!act.some(r=>r.kind==='paragraph'&&!r.hidden&&!r.unsafe&&/\bthe Annex\b/u.test(r.text))||act.some(r=>r.kind==='paragraph'&&/\bAnnex\s+(?:[IVXLCDM]+|\d+)\b/u.test(r.text)))return unknown();
+ if(body.filter(r=>r.kind==='paragraph'&&/^ANNEX(?:\s+[IVXLCDM\d]+)?$/u.test(r.text.trim())).length!==1||headings.length!==1||headings[0].text.trim()!=='ANNEX'||unsafe(headings[0])||!act.some(r=>r.kind==='paragraph'&&!r.hidden&&!r.unsafe&&/\bthe Annex\b/u.test(r.text))||act.some(r=>r.kind==='paragraph'&&/\bAnnex\s+(?:[IVXLCDM]+|\d+)\b/u.test(r.text)))return unknown();
  if(proposal.paragraphs.filter(p=>p.source?.path===headings[0].path&&p.text==='ANNEX'&&p.complete&&p.source.complete===true).length!==1)return unknown();
  const raw=body.slice(body.indexOf(headings[0])+1),points=[];let point=null;
  try{for(const row of raw){

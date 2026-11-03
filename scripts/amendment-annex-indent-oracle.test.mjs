@@ -19,7 +19,7 @@ function input(){
 }
 function source(a,from,to){assert.notEqual(from,to);a.parts['word/document.xml']=a.parts['word/document.xml'].replace(from,to);a.nativeQuoted.proposalBuffer=zip(a.parts);a.nativeQuoted.proposalBuffers[1]=a.nativeQuoted.proposalBuffer;a.proposal.sourceHash=hash(a.nativeQuoted.proposalBuffer);}
 test('independent native list decoding proves interior indent order and bare first annex identity',()=>{
- const a=input();Object.defineProperty(a.proposal,'units',{get(){throw Error('placer tree forbidden');}});assert.equal(assertBareAnnexIndent(a).status,'verified');assert.equal(verifyPlacement(a).status,'verified');
+ const a=input();for(const item of a.items)Object.defineProperty(item.proposal,'units',{get(){throw Error('placer tree forbidden');}});assert.equal(assertBareAnnexIndent(a).status,'verified');assert.equal(verifyPlacement(a).status,'verified');
  for(const before of [7,8,12,14]){const a=input();a.placement.insertBefore=before;a.placement.insertAfter=before-1;assert.equal(assertBareAnnexIndent(a).status,'failed');}
 });
 test('source identity, native numbering and every projected row must agree',()=>{
@@ -27,4 +27,10 @@ test('source identity, native numbering and every projected row must agree',()=>
 });
 test('numbering changes cannot preserve a synthetic ordinal answer',()=>{
  for(const [from,to] of [['w:val="(%1)"','w:val="%1."'],['w:val="bullet"','w:val="decimal"'],['w:val=""','w:val="?"'],['w:ascii="Symbol"','w:ascii="Other"']]){const a=input();a.parts['word/numbering.xml']=a.parts['word/numbering.xml'].replace(from,to);a.nativeQuoted.proposalBuffer=zip(a.parts);a.nativeQuoted.proposalBuffers[1]=a.nativeQuoted.proposalBuffer;a.proposal.sourceHash=hash(a.nativeQuoted.proposalBuffer);assert.equal(assertBareAnnexIndent(a).status,'unverified');}
+});
+
+test('bookmarks carry no ordinal, but additional annex headings and act identity conflicts stay unavailable',()=>{
+ const a=input();source(a,p('Native bullet 4.','Bullet0','12'),'<w:bookmarkEnd w:id="2"/>'+p('Native bullet 4.','Bullet0','12'));assert.equal(assertBareAnnexIndent(a).status,'verified');
+ const extra=input();source(extra,p('Funding actions'),p('ANNEX II'));assert.equal(assertBareAnnexIndent(extra).status,'unverified');
+ const conflict=input();conflict.nativeQuoted.proposalBuffers[0]=zip({'word/document.xml':wrap(p('Eligible groups are listed in the Annex II.'))});conflict.items[0].proposal.sourceHash=hash(conflict.nativeQuoted.proposalBuffers[0]);assert.equal(assertBareAnnexIndent(conflict).status,'unverified');
 });
