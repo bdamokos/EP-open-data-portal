@@ -8,7 +8,7 @@ export function assertResolutionNumberingDrift({text,wording,placement,voteRefer
   if(wording.language!=='en'||!['motion-resolution','unknown'].includes(wording.baseline)
     ||!['replace','delete'].includes(placement.operation)||!placement.span
     ||/\n_{5,}\s*\n/u.test(wording.originalText||''))return null;
-  const path=oracleAddress(wording.targetLabel,wording.language),label=path[0];
+  const path=oracleAddress(wording.targetLabel,wording.language)||[],label=path[0];
   if(path.length!==1||label.kind!=='paragraph'||label.isNew||label.suffix||!/^\d+$/u.test(label.value))return null;
   if(!Array.isArray(voteReferences)||!voteReferences.length||voteReferences.length>64)return null;
   const votes=voteReferences.map(value=>typeof value==='string'&&value.length<=1024?/^(?:§|Paragraph)\s*([1-9]\d{0,5})$/iu.exec(oracleFold(value))?.[1]:undefined);

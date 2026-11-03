@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {assertResolutionNumberingDrift} from './amendment-numbering-drift-oracle.mjs';
 import {verifyPlacement} from './amendment-benchmark-model.mjs';
 const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/resolution-numbering-drift.json',import.meta.url)));
 const make=()=>({paragraphs:[...fixture.paragraphs],textLanguage:'en',structureStatus:'extracted',paragraphSources:fixture.paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))});
@@ -28,4 +29,10 @@ test('drift requires the unique complete whole paragraph, including damaged comp
   const text=make();text.paragraphSources[3].complete=false;assert.notEqual(verify(text).status,'verified');
   assert.notEqual(verify(make(),fixture.wording,fixture.voteReferences,{...placement,span:{start:3,end:4}}).status,'verified');
   assert.notEqual(verify(make(),{...fixture.wording,originalText:fixture.wording.originalText+'\n________\n1 Different note'}).status,'verified');
+});
+
+test('unsupported published labels decline drift verification without breaking ordinary quote fallback',()=>{
+  const text=make(),wording={...fixture.wording,targetLabel:'Unparsed heading'};
+  assert.equal(assertResolutionNumberingDrift({text,wording,placement,voteReferences:fixture.voteReferences}),null);
+  assert.equal(verify(text,wording).status,'verified');
 });
