@@ -470,3 +470,14 @@ test('similarity recovery withholds table-cell passages without independent tabl
  const placed=resolveProposalPlacement([{kind:'act',proposal}],{targetLabel:'Article 1 – paragraph 1 – point 1',originalText:text.replace('system','systen'),proposedText:'New text.',language:'en'});
  assert.equal(placed.status,'unresolved');
 });
+
+
+test('two-row chapter titles preserve the CHAPTER prefix and source offsets',()=>{
+  const p=source(['HAVE ADOPTED THIS REGULATION:','CHAPTER VI','PROGRAMMING','Article 15','Work programme','One.'],['Formuledadoption','ChapterTitle','ChapterTitle','Titrearticle','Titrearticle','Normal']);
+  const placed=resolve(p,'Chapter VI – title','VI\tPROGRAMMING','VI\tPROGRAMMING AND MONITORING');
+  assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:2});assert.deepEqual(placed.splice,{start:{paragraph:1,offset:8},end:{paragraph:2,offset:11}});
+  assert.equal(resolve(p,'Chapter VI – title','VI\tWRONG','VI\tNEW').status,'unresolved');
+  assert.equal(resolve(p,'Chapter VI – title','VI\tPROGRAMMING','VII\tNEW').status,'unresolved');
+  const gap=structuredClone(p);gap.paragraphSources[2].ordinal++;
+  assert.equal(resolve(gap,'Chapter VI – title','VI\tPROGRAMMING','VI\tNEW').status,'unresolved');
+});
