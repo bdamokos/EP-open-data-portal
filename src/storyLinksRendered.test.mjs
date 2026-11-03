@@ -160,3 +160,31 @@ test('retained story links browse their displayed mode, zoom and authors while r
  const request=h.calls.find(u=>u.searchParams.get('list')==='questions');assert(request);assert.equal(request.searchParams.get('askers'),'not-home');assert.equal(request.searchParams.get('mode'),'q');assert.equal(request.searchParams.get('zoom'),'world');
  await act(async()=>release());
 });
+
+for(const replace of [false,true])test('unrelated query updates preserve story return state ('+replace+')',async t=>{
+ await harness(t,{props:{selection}});
+ const saved={storyLinkId:'story-origin',storyScroll:380,storyReturn:true,other:'retained'};
+ history.replaceState(saved,'');const length=history.length;
+ const {updateExplorerQuery}=await load('/src/explorerUrl.ts');
+ await act(async()=>{updateExplorerQuery(url=>url.searchParams.set('t-q','2026-Q1'),replace);updateExplorerQuery(url=>url.searchParams.set('t-mode','d'),replace);});
+ assert.deepEqual(history.state,saved);assert.equal(new URL(location.href).searchParams.get('t-q'),'2026-Q1');assert.equal(new URL(location.href).searchParams.get('t-mode'),'d');assert.equal(history.length,length+(replace?0:1));
+});
+
+for(const intermediate of [false,true])test('paginated records focus the first appended row after Show more (intermediate='+intermediate+')',async t=>{
+ let finish;const pending=new Promise(resolve=>{finish=resolve;});
+ const total=intermediate?42:22;
+ const page=q=>{const f=recordLinkPage(q),offset=q.cursor==='another'?40:q.cursor?20:0,rows=Array.from({length:Math.min(20,total-offset)},(_,i)=>({id:'E-10-2026-'+String(offset+i+1).padStart(6,'0'),title:'Paged question '+(offset+i+1),date:'2026-01-10'}));return {...f,questions:rows,page:{total,items:rows.map(r=>({id:r.id,kind:'question',date:r.date})),nextCursor:offset+rows.length<total?(offset?'another':'next'):null}};};
+ const h=await harness(t,{fresh:true,component:'StoryBrowse',props:{selection:{...selection,place:'TUR'},browse:{list:'questions',place:'TUR',period:'2026-Q1'}},respond:async(u,q)=>{if(q?.list==='questions'){if(q.cursor)await pending;return page(q);}}});
+ await h.wait('Showing 20 of '+total);const more=h.node.querySelector('button');more.focus();
+ await act(async()=>more.click());assert(!h.node.textContent.includes('Paged question 21'));
+ await act(async()=>finish());await h.wait('Showing '+(intermediate?40:22)+' of '+total);
+ assert.equal(document.activeElement.textContent,'Paged question 21');assert.equal(Boolean(h.node.querySelector('button')),intermediate);
+});
+
+test('static records focus the first revealed row after the final Show more',async t=>{
+ const debates=Array.from({length:22},(_,i)=>({id:'MTG-PL-2026-01-07-PVCRE-ITM-'+(i+1),title:'Static debate '+(i+1),date:'2026-01-07'}));
+ const key='urgency-debates:map:2026-Q1:all:n=22';
+ const h=await harness(t,{component:'TopicStoryRecords',url:'?view=geopolitics&t-records='+encodeURIComponent(key),props:{selection},respond:(u,q)=>q?{...mapLinkFacts(),debates,sets:{urgencyDebates:{'2026-Q1':debates.map(d=>d.id)}}}:undefined});
+ await h.wait('Showing 20 of 22');const more=h.node.querySelector('button');more.focus();await act(async()=>more.click());await h.wait('Showing 22 of 22');
+ assert.equal(document.activeElement.textContent,'Static debate 21');assert(!h.node.querySelector('button'));
+});

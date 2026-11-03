@@ -114,5 +114,3 @@ export function buildReferenceTopicStories(facts,selection={}){
  }
  return capped(lines);
 }
-
-export {storyLinkClaims,storySetKey} from "./storyLinkModel.mjs";
