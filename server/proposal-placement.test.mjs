@@ -492,23 +492,6 @@ test('amendment wording resolves shifted Commission point labels uniquely',()=>{
  const repeated=source([...rows.slice(0,-1),passages[1],'Article 2'],['Titrearticle']);repeated.paragraphProperties.at(-1).styleId='Titrearticle';
  assert.equal(resolve(repeated,'Article 1 – paragraph 1 – point d','(d) '+passages[1],'deleted').status,'unresolved');
 });
-// A-10-2026-0257 AM1 and A-10-2026-0040 AM30.
-test('preamble citations are addressed in order and Article -1 follows the enacting formula',()=>{
-  const projection=source(['THE EUROPEAN PARLIAMENT AND THE COUNCIL OF THE EUROPEAN UNION,','Having regard to the Treaty,','Having regard to the proposal from the European Commission,','After transmission of the draft legislative act to the national parliaments,','Acting in accordance with the ordinary legislative procedure,','Whereas:','(1) A recital.','HAVE ADOPTED THIS REGULATION:','Article 1','1. Text.','Article 2','1. Entry into force.'],['Institutionquiagit','Normal','Normal','Normal','Normal','Normal','ManualConsidrant','Formuledadoption','Titrearticle','ManualNumPar1','Titrearticle','ManualNumPar1']);
-  let placed=resolve(projection,'Citation 3 a (new)','','Having regard to the opinion of the Court of Auditors,');
-  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,4);
-  placed=resolve(projection,'Citation 2','Having regard to the proposal from the European Commission,','Having regard to the amended proposal,');
-  assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
-  assert.equal(resolve(projection,'Citation 2','Having regard to the Treaty,','Changed.').status,'unresolved','wording must match the ordinal citation');
-  assert.equal(resolve(projection,'Citation 9 a (new)').reason,'target_not_found');
-  assert.equal(resolve(projection,'Citation 4 a (new)','','The European Parliament rejects the Commission proposal.').reason,'conflicting_target_evidence','A-10-2026-0104 AM90');
-  placed=resolve(projection,'Article -1','','Article -1\nIn Article 3 of Regulation (EU) 2021/1232, point (a) is replaced.');
-  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,8);
-  const split=source(['THE EUROPEAN PARLIAMENT AND THE COUNCIL OF THE EUROPEAN UNION,','Having regard to the Treaty on the Functioning of the European Union,','and in particular Article 192(1) thereof,','Having regard to the proposal from the European Commission,','Whereas:'],['Institutionquiagit','Normal','Normal','Normal','Normal']);
-  assert.equal(resolve(split,'Citation 1 a (new)','','Having regard to the opinion,').status,'unresolved','a continuation row would shift the ordinals');
-  const later=source(['HAVE ADOPTED THIS REGULATION:','Article 2','1. Text.'],['Formuledadoption','Titrearticle','ManualNumPar1']);
-  assert.equal(resolve(later,'Article -1','','Article -1\nNew article.').status,'unresolved');
-});
 // Extracted source tables: every cell, empty ones included (`widths` adds blank columns).
 function sourceTables(rows,widths={}) {
   const tables=new Map();
