@@ -32,3 +32,12 @@ test('overview reads reuse the last response until the projection or coverage ch
  store.acquire();store.set('recordTopicCoverage',{generation:1,referenced:1,read:1,unavailable:0,withSubjects:1});store.release();
  const covered=await read();assert.notEqual(covered,next);assert.equal(covered.coverage.referenced,1,'a coverage change replaces the cached response');
 });
+test('cached overviews follow projection readiness and the Brussels date',async t=>{
+ const dir=await mkdtemp(path.join(tmpdir(),'topics-reader-')),store=new ActivityStore(dir,{initializeIndexes:true});
+ t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});
+ store.acquire();store.set('active',1);writeTopicProjection(store,projectRecordTopics([{id:'E-10-2026-000001',kind:'question',date:'2026-10-07',titles:{en:'Greece'},members:['42']}]));store.release();
+ const read=()=>readTopics(store.filename,'overview',new URLSearchParams({role:'place',lang:'en'}));
+ assert.equal((await read()).ready,true);
+ store.acquire();store.set('active',3);store.set('previous',2);store.release();
+ assert.deepEqual(await read(),{ready:false},'an unreadable projection is not served from the cache');
+});
