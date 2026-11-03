@@ -203,7 +203,28 @@ function quotedConflictBoundary(proposal,unit,next) {
   return rows.every((row,index)=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&(!index||
     row.source.containerPath===rows[index-1].source.containerPath&&row.source.segment===rows[index-1].source.segment&&row.source.ordinal===rows[index-1].source.ordinal+1));
 }
+// Numeric additions to the final article precede its unnumbered binding formula.
+function closingFormulaInsertion(items,target,candidatesFor) {
+ const [article,label]=target.segments;
+ if(target.language!=='en'||target.segments.length!==2||article.kind!=='article'||label.kind!=='paragraph'||!label.isNew||label.suffix||!label.number)return null;
+ const parents=candidatesFor([article]);
+ if(parents.length!==1)return null;
+ const {proposal,unit,itemIndex}=parents[0];
+ if(unit.pathConflict||!completeBoundary(proposal,unit))return null;
+ const articles=flat(proposal.units).filter(u=>u.scope==='proposal'&&u.kind==='article');
+ if(articles.at(-1)!==unit)return null;
+ const rows=proposal.paragraphs.slice(unit.extent.start+1,unit.extent.end);
+ const formulas=rows.filter(p=>p.text.trim()==='This Regulation shall be binding in its entirety and directly applicable in all Member States.');
+ if(formulas.length!==1||formulas[0].index!==unit.extent.end-1)return null;
+ const paragraphs=unit.children.filter(u=>u.kind==='paragraph');
+ if(!paragraphs.length||paragraphs.some((u,i)=>u.label?.number!==i+1||u.label.suffix)||label.number<=paragraphs.length)return null;
+ const formula=formulas[0];
+ if(rows.some(p=>p.source?.container!=='body')||!rows.some(p=>/^This Regulation shall enter into force\b/u.test(p.text.trim())||/^1[.)]\s/u.test(p.text)))return null;
+ return {itemIndex,insertBefore:formula.index,anchor:unit,basis:'before-closing-formula'};
+}
 function insertionPlacement(items,target,candidatesFor,eligible) {
+  const closing=closingFormulaInsertion(items,target,candidatesFor);
+  if(closing)return closing;
   const label=target.segments.at(-1),rank=suffixRank(label.suffix,label.suffix),preceding=target.segments.slice(0,-1);
   if(!label.isNew||rank<0||(!label.suffix&&label.kind!=='point'))return {reason:'insertion_reference_unavailable'};
   const parents=preceding.length?candidatesFor(preceding):null;

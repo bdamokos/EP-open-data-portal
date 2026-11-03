@@ -429,3 +429,13 @@ test('similarity recovery withholds table-cell passages without independent tabl
  const placed=resolveProposalPlacement([{kind:'act',proposal}],{targetLabel:'Article 1 – paragraph 1 – point 1',originalText:text.replace('system','systen'),proposedText:'New text.',language:'en'});
  assert.equal(placed.status,'unresolved');
 });
+
+test('new final-article paragraphs precede the unnumbered closing formula',()=>{
+ const formula='This Regulation shall be binding in its entirety and directly applicable in all Member States.';
+ const rows=['Article 6','This Regulation shall enter into force tomorrow.',formula,'Done at Brussels'];
+ const projection=source(rows,['Titrearticle','Normal','Normal','Normal']);
+ for(const n of [2,3]){const placed=resolve(projection,`Article 6 – paragraph ${n} (new)`);assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,2);}
+ assert.equal(resolve(projection,'Article 6 – paragraph 1 (new)').status,'unresolved');
+ const missing=source(rows.filter(r=>r!==formula),['Titrearticle']);
+ assert.equal(resolve(missing,'Article 6 – paragraph 2 (new)').status,'unresolved');
+});
