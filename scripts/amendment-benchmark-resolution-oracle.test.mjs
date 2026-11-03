@@ -77,3 +77,14 @@ test('cached automatic recital and paragraph numbers independently certify blank
  assert.equal(visible.filter(row=>row.numberingLabel).map(row=>row.numberingLabel).join(','),'A.,B.,C.,D.,E.,F.,1.,2.,3.,4.,5.,6.,7.,8.,9.');
  const units=rawResolutionUnits(text,'en').units;for(const label of ['D','1','2','5'])assert.equal(units.find(unit=>unit.label===label&&unit.kind===(label==='D'?'recital':'paragraph'))?.complete,true,label);
 });
+
+test('label placement remains the oracle target when a vote list names another unit',()=>{
+ const p=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';
+ const text=input(p('The European Parliament,')+p('19. Exact wording;')+p('20. Next;')+p('21. Last;'));
+ text.paragraphSources.forEach(source=>source.segment=0);
+ for(const referenceText of ['After § 20','After recital D']) {
+  const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 19 a (new)',originalText:'',proposedText:'New wording;',referenceText};
+  assert.equal(verifyPlacement({text,wording,placement:{status:'placed',operation:'insert',insertAfter:1,insertBefore:2}}).status,'verified');
+  assert.equal(verifyPlacement({text,wording,placement:{status:'placed',operation:'insert',insertAfter:2,insertBefore:3}}).status,'failed');
+ }
+});
