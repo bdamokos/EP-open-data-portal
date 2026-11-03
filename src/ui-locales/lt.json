@@ -2720,5 +2720,9 @@
   "topics.findTopic": "Ieškoti temos",
   "topics.plenaryMode": "Temos",
   "topics.findPlace": "Ieškoti vietos",
-  "topics.geopolitics": "Geopolitika"
+  "topics.geopolitics": "Geopolitika",
+  "topics.story.map.outside": "Plenariniame posėdyje taip pat kalbėjo: {speakers}.",
+  "topics.story.map.outside.eu": "Kalbėtojai plenariniame posėdyje iš Europos ir kaimyninių šalių: {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} kalbėjo plenariniame posėdyje ({date}).",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }

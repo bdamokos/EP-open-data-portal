@@ -2795,5 +2795,9 @@
   "topics.story.links.elsewhereOne": "{count} of them asked only by MEPs from other countries",
   "topics.story.links.homeOne": "{count} had an author elected there",
   "topics.story.links.awayOne": "{count} asked only by MEPs from other countries",
-  "topics.story.ordinal.many": "{count}th"
+  "topics.story.ordinal.many": "{count}th",
+  "topics.story.map.outside": "Also in plenary: {speakers}.",
+  "topics.story.map.outside.eu": "In Europe and its neighbours, plenary heard from {speakers}.",
+  "topics.story.place.outside": "{place}: {speaker} addressed plenary on {date}.",
+  "topics.story.outside.speaker": "{speaker} ({place})"
 }
