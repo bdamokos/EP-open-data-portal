@@ -11,7 +11,7 @@ export function historyAuthority(root, mainSha, main, repairs) {
   const published = main.repairs ?? [];
   if (equal(published, repairs)) return {main, histories: []};
   if (repairs.length !== published.length + 1 || !prefix(published, repairs)) throw new Error('Published API history repair provenance must be preserved');
-  const git = (...args) => execFileSync('git', args, {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).trim();
+  const git = (...args) => execFileSync('git', args, {cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe']}).trim();
   const chain = git('rev-list', '--first-parent', '--reverse', mainSha).split('\n');
   const positions = new Map(chain.map((sha, i) => [sha, i]));
   const {base, tip} = repairs.at(-1);
