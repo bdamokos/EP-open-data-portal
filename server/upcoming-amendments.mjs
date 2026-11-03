@@ -24,11 +24,15 @@ export function scheduledVotes(work,list,items,{number=null,votingLists=[] ,toda
 // PR 1's store reader can supply official ballots without changing the exact
 // classifier or the API fields. Until it is installed, list-date scope applies.
 export function upcomingVotingLists(store,items) {return [...new Set(items.map(item=>'MTG-PL-'+item.date))].flatMap(sitting=>store.votingListsForSitting?.(sitting)||[]);}
-export function withScheduledVotes(store,generation,row) {
+export function upcomingScopeContext(store,generation) {
+  const agenda=upcomingSource(store,generation,'upcoming:agenda');
+  return {agenda,items:agenda?.items||[],sources:new Map(),today:new Date(store.clock?.()??Date.now()).toISOString().slice(0,10)};
+}
+export function withScheduledVotes(store,generation,row,context=upcomingScopeContext(store,generation)) {
   if(row.scope==='committee')return row;
-  const work=upcomingSource(store,generation,'/plenary-documents/'+row.targetDocumentId);
-  const agenda=upcomingSource(store,generation,'upcoming:agenda'),items=agenda?.items||[],today=new Date((store.clock?.()??Date.now())).toISOString().slice(0,10);
-  const votingLists=upcomingVotingLists(store,items);
-  const decorate=variant=>({...variant,scheduledVotes:!agenda?null:scheduledVotes(work,upcomingSource(store,generation,'amendment:list:'+variant.listId),items,{number:row.number,today,votingLists})});
+  const read=key=>{if(!context.sources.has(key))context.sources.set(key,upcomingSource(store,generation,key));return context.sources.get(key);};
+  const work=context.agenda?read('/plenary-documents/'+row.targetDocumentId):null;
+  const votingLists=context.agenda?upcomingVotingLists(store,context.items):[];
+  const decorate=variant=>({...variant,scheduledVotes:!context.agenda?null:scheduledVotes(work,read('amendment:list:'+variant.listId),context.items,{number:row.number,today:context.today,votingLists})});
   return {...decorate(row),...(row.variants?{variants:row.variants.map(decorate)}:{})};
 }

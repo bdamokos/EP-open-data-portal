@@ -1,4 +1,4 @@
-import {upcomingAgenda,upcomingVotingLists,upcomingSource,scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
+import {upcomingScopeContext,upcomingAgenda,upcomingVotingLists,upcomingSource,scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
 import {fastReadsReady} from './fast-read-projections.mjs';
 import {languagePreference} from './language-order.mjs';
 import { createHash } from 'node:crypto';
@@ -463,8 +463,9 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   const scalar=projected&&!committee&&!outcome&&!procedure&&!member&&!(document&&scope==='committee');
   const table=projected?'(SELECT page.*,source.body FROM amendment_page_reads page JOIN amendments source ON source.generation=page.generation AND source.id=page.id) amendments':'amendments',where=clauses.join(' AND '),total=store.db.prepare('SELECT COUNT(*) AS n FROM '+(scalar?'amendment_page_reads':table)+' WHERE '+where).get(...args).n;
   const pageSql=scalar?'SELECT source.body FROM (SELECT generation,id,date,target,number FROM amendment_page_reads WHERE '+where+' ORDER BY date DESC,target,number,id LIMIT ? OFFSET ?) page JOIN amendments source ON source.generation=page.generation AND source.id=page.id ORDER BY page.date DESC,page.target,page.number,page.id':'SELECT body FROM '+table+' WHERE '+where+" ORDER BY date DESC,target,"+(projected?'number':"CAST(json_extract(body,'$.number') AS INTEGER)")+",id LIMIT ? OFFSET ?";
+  const upcomingContext=scope!=='committee'?upcomingScopeContext(store,generation):null;
   const items=store.db.prepare(pageSql).all(...args,limit,offset).map(record=>{
-    const row=withScheduledVotes(store,generation,checkedAmendmentRead(parse(record.body)));
+    const row=withScheduledVotes(store,generation,checkedAmendmentRead(parse(record.body)),upcomingContext);
 
     if(member) {
       const {memberId,basis,variantListIds}=amendmentAuthorMatch(row,member);
@@ -506,7 +507,7 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   const indexedObservationComplete=Boolean((document||list)&&readCoverage.rows>0&&records.length&&records.every(record=>record.complete)&&!listProjectionUnverified&&!readCoverage.wording&&!readCoverage.proposer&&!readCoverage.splits&&!readCoverage.freshness);
   const emptyObservation=document&&records.length===1?checkedEmptyObservation(records[0],document,readCoverage.rows):null;
   const observationComplete=indexedObservationComplete||Boolean(emptyObservation);
-  const scheduledLists=scope==='plenary'&&document?store.db.prepare("SELECT body FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=? LIMIT ?").all(generation,document,AMENDMENT_LIMITS.listsPerTarget).map(record=>{const list=parse(record.body);return {listId:list.identifier,scheduledVotes:scheduledVotes(upcomingSource(store,generation,'/plenary-documents/'+document),list,upcomingAgenda(store,generation),{today:new Date(store.clock?.()??Date.now()).toISOString().slice(0,10),votingLists:upcomingVotingLists(store,upcomingAgenda(store,generation))})};}):[];
+  const scheduledLists=upcomingContext?.agenda&&document?store.db.prepare("SELECT body FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=? LIMIT ?").all(generation,document,AMENDMENT_LIMITS.listsPerTarget).map(record=>{const list=parse(record.body);return {listId:list.identifier,scheduledVotes:scheduledVotes(upcomingSource(store,generation,'/plenary-documents/'+document),list,upcomingAgenda(store,generation),{today:new Date(store.clock?.()??Date.now()).toISOString().slice(0,10),votingLists:upcomingVotingLists(store,upcomingContext.items)})};}):null;
   return {schemaVersion:AMENDMENTS_API_VERSION,items,total,offset,limit,scheduledLists,coverage:{complete:Boolean(indexedObservationComplete&&!pending&&!capacityGaps.length&&!refreshGaps),observationComplete,emptyObservation,targetGaps,discovery:{pending,refreshGaps,capacityGaps},
     observationScope:emptyObservation?'published-amendment-list-relationships':'indexed-'+scope+'-amendment-sources',indexed:Boolean(records.length),pending,gaps,lastUpdated,parserVersion:SPLIT_PARSER_VERSION,scope,servingGeneration:generation,workingGeneration:Boolean(working?.generation===generation),...(scope==='committee'?{discoveryCoverage:records.length?'partial':'unavailable',wordingCoverage:records.length&&!readCoverage.wording&&!readCoverage.freshness&&records.every(record=>record.wordingComplete)?'complete':'partial',proposerCoverage:records.length&&records.every(record=>record.proposerComplete)?'complete':'partial',outcomeCoverage:'unavailable'}:{})},failures:amendmentFailureSummary(store)};
 }
