@@ -92,7 +92,9 @@ export function assertNewQuotedOrdinal({proposal,wording,placement,nativeQuoted}
  const heading=body.filter(row=>row.kind==='paragraph'&&row.text.trim()==='Article '+outer[1]);if(heading.length!==1)return unknown();
  let rows=body.slice(body.indexOf(heading[0])+1),end=rows.findIndex(row=>row.kind==='paragraph'&&/^Article \d+$/u.test(row.text.trim()));if(end>=0)rows=rows.slice(0,end);
  const instructions=rows.filter(row=>row.kind==='paragraph'&&new RegExp('^\\('+outer[2]+'\\)\\s+in Article '+inner[1]+inner[2]+', the following paragraphs (.+) are inserted after paragraph \\d+:$','u').test(row.text.trim()));
- if(instructions.length!==1||instructions[0].hidden||instructions[0].unsafe||!rows.some(row=>row.kind==='paragraph'&&row.text.trim()===refs[0].document+' is amended as follows:'))return unknown();
+ if(instructions.length!==1||instructions[0].hidden||instructions[0].unsafe)return unknown();
+ const act=rows.slice(0,rows.indexOf(instructions[0])).filter(row=>row.kind==='paragraph'&&/^(?:Directive|Regulation|Decision) .+ is amended as follows:$/u.test(row.text.trim())).at(-1);
+ if(!act||act.hidden||act.unsafe||act.text.trim()!==refs[0].document+' is amended as follows:')return unknown();
  const parent=inner[3]+inner[4],names=/the following paragraphs (.+) are inserted/u.exec(instructions[0].text)?.[1].split(/,\s*| and /u);
  if(!names?.includes(parent))return unknown();
  rows=rows.slice(rows.indexOf(instructions[0])+1);
