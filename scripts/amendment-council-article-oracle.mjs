@@ -60,7 +60,7 @@ export function councilArticleNativeScope(raw,wording) {
  if(chosen.length!==1||points.some((p,i)=>Number(p[2])!==i+1))return null;
  const at=points.indexOf(chosen[0]),end=points[at+1]?.index??after.length,point=after.slice(chosen[0].index,end);
  // Require an explicit quoted replacement, plus a printed closing delimiter.
- if(!/[„“‘«»][ \t]*(?:Článek|Article|Artículo|Artikel)\s+\d/iu.test(point)||!/[“’»«][.;]?\s*(?:\n|$)/u.test(point))return null;
+ if(!/[„“‘«»"][ \t]*(?:Článek|Article|Artículo|Artikel|KAPITOLA|CHAPTER|CAPÍTULO|KAPITEL)\s+\d/iu.test(point)||!/[“’»«"][.;]?\s*(?:\n|$)/u.test(point))return null;
  const innerHeaders=[...point.matchAll(new RegExp('^[ \\t]*[„“‘«»]?(?:'+g.article+')\\s+(\\d+[a-z]?)\\s*$','gimu'))],matches=innerHeaders.filter(h=>h[1]===inner[0].value);
  if(matches.length!==1)return null;
  const h=matches[0],j=innerHeaders.indexOf(h),section=point.slice(h.index,innerHeaders[j+1]?.index??point.length);
@@ -95,7 +95,9 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
  const first=proposal.paragraphs[s.start].text,last=proposal.paragraphs[s.end].text;
  if(p.start.offset<0||p.start.offset>first.length||p.end.offset<0||p.end.offset>last.length||s.start===s.end&&p.end.offset<=p.start.offset)return failed();
  const rendered=proposal.paragraphs.slice(s.start,s.end+1).map((v,i)=>v.text.slice(i?0:p.start.offset,i===s.end-s.start?p.end.offset:v.text.length)).join(' '),original=literal(wording.originalText);
- if(!original||literal(rendered)!==original)return failed();
+ const lastAddress=scope.inner.at(-1),parentAddress=scope.inner.at(-2);
+ const labelledLead=lastAddress.kind==='subparagraph'&&lastAddress.value==='1'&&parentAddress?.kind==='paragraph'?parentAddress.value+'. '+original:null;
+ if(!original||![original,labelledLead].includes(literal(rendered)))return failed();
  const matches=scope.units.filter(u=>literal(u.text).split(original).length===2);if(matches.length!==1)return unknown('article-original-unproved');
  return {status:'verified',reason:'native-council-pdf-article-original-and-address'};
 }
