@@ -1,3 +1,4 @@
+import {resolutionPointCollision} from './resolution-point-collision.mjs';
 import {characterSimilarity} from './proposal-similarity.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {relativeResolutionHeading} from './resolution-labels.mjs';
@@ -575,6 +576,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
       }
     }
   }
+  const collision=resolutionPointCollision(text,rows,structure,{...options,referenceText},operation,ref);
+  if(collision)return collision;
   const nearPoint=resolutionPointNearPlacement(text,rows,structure,{...options,referenceText},operation);
   if(nearPoint)return nearPoint;
   const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
