@@ -1,4 +1,5 @@
 {
+  "documentcontext.single_word_difference": "Textul original diferă cu un cuvânt.",
   "documentcontext.final_placement_check": "Verificați poziția finală în {adoptedText}.",
   "documentcontext.adopted_text": "textul adoptat",
   "amendment.alternative_motion": "Propunere alternativă",

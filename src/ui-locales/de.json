@@ -1,4 +1,5 @@
 {
+  "documentcontext.single_word_difference": "Der ursprüngliche Wortlaut weicht um ein Wort ab.",
   "documentcontext.final_placement_check": "Prüfen Sie die endgültige Platzierung im {adoptedText}.",
   "documentcontext.adopted_text": "angenommenen Text",
   "amendment.alternative_motion": "Alternativer Entschließungsantrag",

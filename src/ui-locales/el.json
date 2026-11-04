@@ -1,4 +1,5 @@
 {
+  "documentcontext.single_word_difference": "Το αρχικό κείμενο διαφέρει κατά μία λέξη.",
   "documentcontext.final_placement_check": "Ελέγξτε την τελική θέση στο {adoptedText}.",
   "documentcontext.adopted_text": "εγκριθέν κείμενο",
   "amendment.alternative_motion": "Εναλλακτική πρόταση",

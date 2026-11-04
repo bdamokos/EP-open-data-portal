@@ -1,4 +1,5 @@
 {
+  "documentcontext.single_word_difference": "O texto original difere numa palavra.",
   "documentcontext.final_placement_check": "Verifique a posição final no {adoptedText}.",
   "documentcontext.adopted_text": "texto aprovado",
   "amendment.alternative_motion": "Proposta alternativa",

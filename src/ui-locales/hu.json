@@ -1,4 +1,5 @@
 {
+  "documentcontext.single_word_difference": "Az eredeti szöveg egy szóval eltér.",
   "documentcontext.final_placement_check": "Ellenőrizze a végleges helyet {adoptedText}.",
   "documentcontext.adopted_text": "az elfogadott szövegben",
   "amendment.alternative_motion": "Alternatív indítvány",

@@ -1,4 +1,5 @@
 {
+  "documentcontext.single_word_difference": "Alkuperäinen sanamuoto eroaa yhdellä sanalla.",
   "documentcontext.final_placement_check": "Tarkista lopullinen sijainti {adoptedText}.",
   "documentcontext.adopted_text": "hyväksytystä tekstistä",
   "amendment.alternative_motion": "Vaihtoehtoinen päätöslauselmaesitys",
