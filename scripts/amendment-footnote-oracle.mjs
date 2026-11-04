@@ -43,7 +43,8 @@ export function assertFootnoteComparison(proposal,wording,placement) {
 // each superscript's position and its payload with the source text's own notes.
 // A custom mark can print its label twice in the amendment payload.
 export function assertResolutionFootnotes(text,wording,placement) {
-  const cut=/\n_{5,}\s*\n/u.exec(wording.originalText??'')||/\n(?=[1-9]\d*\.\s+)/u.exec(wording.originalText??'');
+  let cut=/\n_{5,}\s*\n/u.exec(wording.originalText??'');
+  if(!cut){const lines=(wording.originalText??'').split('\n');let index=0;for(const line of lines){if(index>0&&/^\s*[1-9]\d*\.\s+\S/u.test(line)){cut=Object.assign(['\n'],{index:index-1});break;}index+=line.length+1;}}
   if(!cut||!placement.span||!Array.isArray(text?.paragraphs))return null;
   const {start,end}=placement.span,rows=text.paragraphs.slice(start,end+1);
   if(/\n_{5,}\s*\n/u.test(rows.join('\n')))return null;
