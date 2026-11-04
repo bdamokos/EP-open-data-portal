@@ -69,7 +69,7 @@ export function orderLegislationPeople(people, roles, members=[]) {
 
 export function legislationContributors(detail, headers, contribution='all') {
   const chairing=(speech,id)=>headers[speech.sourceId]?.[id]?.role==='Chairing the sitting';
-  const roles=[...detail.roles,...detail.speeches.flatMap(speech=>speech.people.filter(person=>!chairing(speech,person.id)).map(person=>({id:person.id,role:speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?'WRITTEN_STATEMENT':'SPEAKER'})))];
+  const roles=[...detail.roles,...detail.speeches.flatMap(speech=>speech.people.filter(person=>detail.people.some(p=>p.id===person.id)&&!chairing(speech,person.id)).map(person=>({id:person.id,role:speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?'WRITTEN_STATEMENT':'SPEAKER'})))];
   const included=new Set(roles.map(person=>person.id)),authors=new Set(detail.amendments?.authorIds||[]);
   for(const person of detail.people){
     const counts=legislationAmendmentCounts(detail,person.id);
@@ -92,7 +92,7 @@ export function legislationContributors(detail, headers, contribution='all') {
   if(stats.groupContributions) {
     const counts=new Map(stats.groupContributions.rows.map(row=>[row.label,row.count]));
     let unavailable=stats.groupContributions.unavailable,total=stats.groupContributions.total;
-    for(const speech of detail.speeches)for(const person of speech.people.filter(person=>chairing(speech,person.id))) {
+    for(const speech of detail.speeches)for(const person of speech.people.filter(person=>detail.people.some(p=>p.id===person.id)&&chairing(speech,person.id))) {
       total--;if(person.contributionGroup)counts.set(person.contributionGroup,(counts.get(person.contributionGroup)||0)-1);else unavailable--;
     }
     stats.groupContributions={...stats.groupContributions,total,unavailable,rows:[...counts].filter(([,count])=>count>0).map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label))};
