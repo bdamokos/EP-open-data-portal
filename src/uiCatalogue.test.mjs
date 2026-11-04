@@ -148,6 +148,8 @@ test('ballot messages use per-message English fallback without replacing transla
 
 test('other-gender wording falls back individually while adjacent gender labels remain translated',async()=>{
  const catalogue=JSON.parse(await readFile(new URL('./ui-locales/de.json',import.meta.url),'utf8'));
+ // Exercise an intentional omission, independent of future catalogue translations.
+ delete catalogue['insightshared.genderOther'];
  const ui=createAppUiI18n({de:catalogue}).forLocale('de');
  assert.equal(ui.t('insightshared.genderOther'),'Other / unspecified');
  assert.equal(ui.messageLocale('insightshared.genderOther'),'en');
