@@ -178,3 +178,20 @@ test('a printed paragraph-one prefix may identify a sole implicit paragraph with
  for(const mutate of [a=>a.placement.splice.start.offset++,a=>a.placement.span.end++]){const a=make();mutate(a);assert.equal(assertImplicitParagraphLabel(a).status,'failed');}
  for(const mutate of [a=>a.proposal.anchors=[{paragraph:2,note:'1',offset:5}],a=>a.proposal.paragraphs[2].objects=[{complete:true}],a=>a.wording.originalText='1. Another body.',a=>a.wording.language='fr',a=>a.wording.baseline='present-text',a=>a.wording.targetLabel='Article 1 – paragraph 2',a=>a.proposal.paragraphs[2].source.complete=false,a=>a.proposal.paragraphs[3].source.ordinal++,a=>a.proposal.paragraphs[2].properties.numberingLabel='1.',a=>a.proposal.paragraphs[2].properties.styleId='ManualNumPar1',a=>a.wording.proposedText='2. Changed paragraph.']){const a=make();mutate(a);assert.equal(assertImplicitParagraphLabel(a).status,'unverified');}
 });
+
+test('XHTML native rows verify article titles and subparagraph addresses without producer units',()=>{
+  const xhtml=rows=>{const p=proposal(rows.map(text=>[text,'Normal']));p.sourceKind='xhtml';for(const row of p.paragraphs){row.properties=null;row.source.part='xhtml';}return p;};
+  const p=xhtml(['Article 9','Database of decisions','1. The Commission shall establish a database.','The database shall contain:','(a) the name;','(b) the designation;','(c) the techniques;','(d) the traits;','(e) an identification number.','The database shall be public.','2. Changes shall be notified.','Article 10','Labelling of material','1. Material shall bear a label.','Article 11','Next title','1. Next paragraph.']);
+  const target='Article 9 – paragraph 1 – subparagraph 2 – point d a (new)';
+  assert.equal(check(p,target,insert(8)).status,'verified');
+  assert.equal(check(p,target,insert(7)).status,'failed');
+  assert.equal(check(p,'Article 9 – paragraph 1 – subparagraph 1 – point d a (new)',insert(8)).status,'unverified');
+  assert.equal(check(p,'Article 10 – title',replace(12)).status,'verified');
+  assert.equal(check(p,'Article 10 – title',replace(13)).status,'failed');
+  assert.equal(check(p,'Article 9 – paragraph 1 – subparagraph 3',replace(9)).status,'verified');
+  const wording={...amendment('Article 1 – paragraph 1 – point -1 (new)'),baseline:'present-text',targetPath:{underlying:[{raw:'Article 9 – paragraph 1 – subparagraph 3'}]}};
+  assert.equal(rawProposalAssertion({proposal:p,wording,placement:replace(9)}).status,'verified');
+  assert.equal(rawProposalAssertion({proposal:p,wording,placement:replace(3)}).status,'failed');
+  p.paragraphs[9].source.complete=false;
+  assert.equal(rawProposalAssertion({proposal:p,wording,placement:replace(9)}).status,'unverified');
+});
