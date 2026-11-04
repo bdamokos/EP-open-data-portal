@@ -5,6 +5,8 @@
   "amendment.provisional_marks": "Podebljani kurziv: novo ili izmijenjeno. ▌: izbrisano.",
   "amendment.provisional_unmarked": "Neke izmjene nisu označene.",
   "documentcontext.table_level_amendment": "Amandman na cijelu tablicu.",
+  "documentcontext.citation_before_existing": "Smješteno prije postojećeg pozivanja.",
+  "documentcontext.after_paragraph_lead": "Smješteno nakon uvodnog teksta stavka.",
   "documentcontext.final_placement_check": "Provjerite konačno mjesto u {adoptedText}.",
   "documentcontext.adopted_text": "usvojenom tekstu",
   "amendment.alternative_motion": "Alternativni prijedlog",

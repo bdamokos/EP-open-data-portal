@@ -5,6 +5,8 @@
   "amendment.provisional_marks": "Удебелен курсив: ново или променено. ▌: заличено.",
   "amendment.provisional_unmarked": "Някои промени не са отбелязани.",
   "documentcontext.table_level_amendment": "Изменение на ниво таблица.",
+  "documentcontext.citation_before_existing": "Поставено преди съществуващото позоваване.",
+  "documentcontext.after_paragraph_lead": "Поставено след уводния текст на параграфа.",
   "documentcontext.final_placement_check": "Проверете окончателното място в {adoptedText}.",
   "documentcontext.adopted_text": "приетия текст",
   "amendment.alternative_motion": "Алтернативно предложение",

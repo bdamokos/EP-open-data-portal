@@ -5,6 +5,8 @@
   "amendment.provisional_marks": "Gras et italique : nouveau ou modifié. ▌ : supprimé.",
   "amendment.provisional_unmarked": "Certaines modifications ne sont pas signalées.",
   "documentcontext.table_level_amendment": "Amendement portant sur le tableau entier.",
+  "documentcontext.citation_before_existing": "Placé avant le visa existant.",
+  "documentcontext.after_paragraph_lead": "Placé après le texte introductif du paragraphe.",
   "documentcontext.final_placement_check": "Vérifiez l’emplacement final dans {adoptedText}.",
   "documentcontext.adopted_text": "le texte adopté",
   "amendment.alternative_motion": "Proposition alternative",

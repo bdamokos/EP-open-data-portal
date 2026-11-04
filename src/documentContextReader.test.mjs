@@ -1499,3 +1499,20 @@ test('table-level amendments retain every source cell and show the comparison be
   assert.equal(blocks[0].nextElementSibling.querySelector('table').className,'proposal-table');
   assert.deepEqual([...item.querySelectorAll('.proposal-table td')].map(cell=>cell.textContent),['CN code','Greenhouse gas','ex 7602 Aluminium waste','Carbon dioxide']);
 });
+
+test('resolution boundary notes remain with the insertion and preserve the source on both sides',async t=>{
+  const data=overlayResponse({insertAfter:1,insertBefore:2});
+  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','– First citation,','– Existing second citation,','1. Source paragraph;']});
+  data.placement.evidence=[{basis:'citation-number-collision'}];
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  let block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/Placed before the existing citation\./);assert.match(block.previousElementSibling.textContent,/First citation/);assert.match(block.nextElementSibling.textContent,/Existing second citation/);
+});
+
+test('resolution boundary note follows the paragraph lead before its heading',async t=>{
+  const data=overlayResponse({insertAfter:1,insertBefore:2});
+  data.placement.evidence=[{basis:'first-numeric-point-in-lettered-list'}];
+  const h=await harness(t,()=>data);
+  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','1. Paragraph lead:','Topic heading','a) First source point;']});
+  await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/Placed after the paragraph lead\./);assert.match(block.previousElementSibling.textContent,/Paragraph lead/);assert.match(block.nextElementSibling.textContent,/Topic heading/);
+});

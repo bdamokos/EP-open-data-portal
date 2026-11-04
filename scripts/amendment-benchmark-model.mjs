@@ -5,6 +5,7 @@ import {assertPlaceholderDeletion} from './amendment-placeholder-oracle.mjs';
 import {assertNewParentBoundary} from './amendment-benchmark-proposal-oracle.mjs';
 import {assertCaptionedComparison} from './amendment-captioned-comparison-oracle.mjs';
 import {assertTableContext} from './amendment-table-context-oracle.mjs';
+import {assertResolutionBoundaryInsertion} from './amendment-resolution-boundary-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
@@ -494,6 +495,7 @@ function verifyAnnexTable({proposal,wording,placement,items}) {
 function verifyResolutionInsertion(text,wording,target,placement) {
   const mixed=assertMixedRecital({text,wording,placement});
   if(mixed.status!=='unverified')return mixed;
+  const boundary=assertResolutionBoundaryInsertion({text,wording,placement});if(boundary)return boundary;
   const label=target.segments.at(-1);
   if(label.kind==='recital'&&label.isNew&&target.segments.length===1) {
     const raw=rawResolutionUnits(text,wording.language),recitals=raw.units.filter(unit=>unit.kind==='recital');

@@ -5,6 +5,8 @@
   "amendment.provisional_marks": "Lihavoitu kursiivi: uusi tai muutettu. ▌: poistettu.",
   "amendment.provisional_unmarked": "Kaikkia muutoksia ei ole merkitty.",
   "documentcontext.table_level_amendment": "Koko taulukkoa koskeva tarkistus.",
+  "documentcontext.citation_before_existing": "Sijoitettu ennen nykyistä viittausta.",
+  "documentcontext.after_paragraph_lead": "Sijoitettu kohdan johdantotekstin jälkeen.",
   "documentcontext.final_placement_check": "Tarkista lopullinen sijainti {adoptedText}.",
   "documentcontext.adopted_text": "hyväksytystä tekstistä",
   "amendment.alternative_motion": "Vaihtoehtoinen päätöslauselmaesitys",

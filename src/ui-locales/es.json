@@ -5,6 +5,8 @@
   "amendment.provisional_marks": "Negrita y cursiva: nuevo o modificado. ▌: suprimido.",
   "amendment.provisional_unmarked": "Algunos cambios no están marcados.",
   "documentcontext.table_level_amendment": "Enmienda a la tabla completa.",
+  "documentcontext.citation_before_existing": "Se coloca antes de la referencia existente.",
+  "documentcontext.after_paragraph_lead": "Se coloca después de la introducción del apartado.",
   "documentcontext.final_placement_check": "Compruebe la ubicación definitiva en {adoptedText}.",
   "documentcontext.adopted_text": "el texto aprobado",
   "amendment.alternative_motion": "Propuesta alternativa",

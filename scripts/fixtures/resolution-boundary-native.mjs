@@ -1,0 +1,10 @@
+import {firstAnnexZip} from './first-annex-native.mjs';
+import {docxContent} from '../../server/document-text.mjs';
+const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;');
+export const boundaryParagraph=(text,{indent=null,topic=false}={})=>'<w:p><w:pPr>'+(indent===null?'':'<w:ind w:left="'+indent+'"/>')+'</w:pPr><w:r>'+(topic?'<w:rPr><w:b/><w:i/></w:rPr>':'')+'<w:t>'+escape(text).replaceAll('\t','</w:t><w:tab/><w:t>')+'</w:t></w:r></w:p>';
+export function resolutionBoundaryNative({point=false,note=false,change=xml=>xml}={}){
+ const p=boundaryParagraph,body=point?p('Le Parlement européen,')+p('1.\trecommande les actions suivantes:',{indent:100})+p('Sauvegarder le multilatéralisme',{topic:true})+p('a)\tpremier point;',{indent:300})+p('b)\tdeuxième point;',{indent:300})+p('2.\tcharge son Président.',{indent:100}):p('The European Parliament,')+p('–\thaving regard to the first source,')+p('–\thaving regard to the second source,')+p('–\thaving regard to the third source,')+p('A.\twhereas one;')+p('1.\tCalls for action;')+p('2.\tInstructs its President.');
+ const nativeBuffer=firstAnnexZip({...note?{'word/footnotes.xml':'<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:footnote w:id="1">'+p('Published source note.')+'</w:footnote></w:footnotes>'}:{},'word/document.xml':change('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+(note?body.replace('first source,</w:t>','first source,</w:t><w:footnoteReference w:id="1"/>'):body)+'</w:body></w:document>')}),text={...docxContent(nativeBuffer,{includeParagraphProperties:true}),nativeBuffer,textLanguage:point?'fr':'en'};
+ const wording={language:point?'fr':'en',baseline:'motion-resolution',targetLabel:point?'Paragraphe 1 – point 1 bis (nouveau)':'Citation 2 (new)',originalText:'',proposedText:point?'1 bis)\tnouveau point;':'–\thaving regard to the new source,'},before=2;
+ return {text,wording,placement:{status:'placed',operation:'insert',insertAfter:before-1,insertBefore:before}};
+}

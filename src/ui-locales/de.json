@@ -5,6 +5,8 @@
   "amendment.provisional_marks": "Fett und kursiv: neu oder geändert. ▌: gestrichen.",
   "amendment.provisional_unmarked": "Einige Änderungen sind nicht gekennzeichnet.",
   "documentcontext.table_level_amendment": "Änderungsantrag zur gesamten Tabelle.",
+  "documentcontext.citation_before_existing": "Vor dem bestehenden Bezugsvermerk eingefügt.",
+  "documentcontext.after_paragraph_lead": "Nach dem einleitenden Text des Absatzes eingefügt.",
   "documentcontext.final_placement_check": "Prüfen Sie die endgültige Platzierung im {adoptedText}.",
   "documentcontext.adopted_text": "angenommenen Text",
   "amendment.alternative_motion": "Alternativer Entschließungsantrag",

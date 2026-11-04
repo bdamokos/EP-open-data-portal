@@ -5,6 +5,8 @@
   "amendment.provisional_marks": "Aldin cursiv: nou sau modificat. ▌: eliminat.",
   "amendment.provisional_unmarked": "Unele modificări nu sunt marcate.",
   "documentcontext.table_level_amendment": "Amendament la întregul tabel.",
+  "documentcontext.citation_before_existing": "Plasat înaintea trimiterii existente.",
+  "documentcontext.after_paragraph_lead": "Plasat după textul introductiv al alineatului.",
   "documentcontext.final_placement_check": "Verificați poziția finală în {adoptedText}.",
   "documentcontext.adopted_text": "textul adoptat",
   "amendment.alternative_motion": "Propunere alternativă",

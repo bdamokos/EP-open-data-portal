@@ -5,6 +5,8 @@
   "amendment.provisional_marks": "Félkövér dőlt betű: új vagy módosított. ▌: törölt.",
   "amendment.provisional_unmarked": "Egyes módosítások nincsenek megjelölve.",
   "documentcontext.table_level_amendment": "A teljes táblázatra vonatkozó módosítás.",
+  "documentcontext.citation_before_existing": "A meglévő hivatkozás elé helyezve.",
+  "documentcontext.after_paragraph_lead": "A bekezdés bevezető szövege után helyezve.",
   "documentcontext.final_placement_check": "Ellenőrizze a végleges helyet {adoptedText}.",
   "documentcontext.adopted_text": "az elfogadott szövegben",
   "amendment.alternative_motion": "Alternatív indítvány",

@@ -5,6 +5,8 @@
   "amendment.provisional_marks": "Pusjuodis kursyvas: naujas arba pakeistas tekstas. ▌: išbraukta.",
   "amendment.provisional_unmarked": "Kai kurie pakeitimai nepažymėti.",
   "documentcontext.table_level_amendment": "Visai lentelei skirtas pakeitimas.",
+  "documentcontext.citation_before_existing": "Įterpta prieš esamą nuorodą.",
+  "documentcontext.after_paragraph_lead": "Įterpta po pastraipos įvadinio teksto.",
   "documentcontext.final_placement_check": "Galutinę vietą patikrinkite {adoptedText}.",
   "documentcontext.adopted_text": "priimtame tekste",
   "amendment.alternative_motion": "Alternatyvus pasiūlymas",

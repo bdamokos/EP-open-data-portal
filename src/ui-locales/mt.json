@@ -5,6 +5,8 @@
   "amendment.provisional_marks": "Grassett korsiv: ġdid jew mibdul. ▌: imħassar.",
   "amendment.provisional_unmarked": "Xi bidliet mhumiex immarkati.",
   "documentcontext.table_level_amendment": "Emenda għat-tabella kollha.",
+  "documentcontext.citation_before_existing": "Imqiegħed qabel ir-referenza eżistenti.",
+  "documentcontext.after_paragraph_lead": "Imqiegħed wara t-test introduttorju tal-paragrafu.",
   "documentcontext.final_placement_check": "Iċċekkja l-post finali fit-{adoptedText}.",
   "documentcontext.adopted_text": "test adottat",
   "amendment.alternative_motion": "Mozzjoni alternattiva",
