@@ -409,3 +409,10 @@ test('a rare-baseline co-leader keeps the rarely-asked sense',()=>{
  x.periodWinners[q]={mostQuestionedPlaces:[{id:'UKR',count:11},{id:'MAR',count:11}],risingQuestionPlaces:[{id:'MAR',count:11,baselineMean:0.2,ratio:55}]};x.series={MAR:{[q]:{debates:2}}};
  assert.equal(lineText(buildExactTopicStories(x,s)),'Ukraine and Morocco (two debates; rarely asked about before) drew the most questions (11 each).');
 });
+
+test('two guests at the same formal sitting retain distinct exact speech focus in map and place stories',()=>{
+ const x=base(),debateId='MTG-PL-2026-01-21-PVCRE-ITM-5';x.periodCounts=[{period:'2026-Q1'}];
+ x.outsideSpeakers=[['1','Felipe','ESP','100'],['2','Marcelo','PRT','200']].map(([personId,name,country,n])=>({id:personId+':'+debateId,personId,name,country,date:'2026-01-21',debateId,headerSource:{url:'https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-01-21-OTH-'+n+'?language=mul'}}));
+ const map=buildExactTopicStories(x,{period:'2026-Q1'}).find(l=>l.id==='topics.story.map.outside');assert.deepEqual(map.values.speakers.map(s=>s.values.speaker.records[0].speechId),['MTG-PL-2026-01-21-OTH-100','MTG-PL-2026-01-21-OTH-200']);
+ const place=buildExactTopicStories(x,{period:'2026-Q1',place:'ESP'}).find(l=>l.id==='topics.story.place.outside');assert.equal(place.values.speaker.records[0].speechId,'MTG-PL-2026-01-21-OTH-100');
+});
