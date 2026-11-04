@@ -2825,5 +2825,6 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} fik flest spørgsmål ({questions} hver), i alle tilfælde en stigning fra {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver), i alle tilfælde en stigning fra {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} fik flest spørgsmål ({questions} hver), i alle tilfælde en kraftig stigning fra {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver), i alle tilfælde en kraftig stigning fra {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver), i alle tilfælde en kraftig stigning fra {average}.",
+  "documentcontext.single_word_difference": "Den oprindelige ordlyd afviger med ét ord."
 }

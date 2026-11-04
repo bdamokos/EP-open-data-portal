@@ -2825,5 +2825,6 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} бяха местата с най-много въпроси (по {questions}), във всеки случай ръст спрямо {average} преди това.",
   "topics.story.integrated.lead.tiedEachRose.eu": "В Европа и съседните ѝ страни {places} бяха местата с най-много въпроси (по {questions}), във всеки случай ръст спрямо {average} преди това.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} бяха местата с най-много въпроси (по {questions}), във всеки случай рязък ръст спрямо {average} преди това.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "В Европа и съседните ѝ страни {places} бяха местата с най-много въпроси (по {questions}), във всеки случай рязък ръст спрямо {average} преди това."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "В Европа и съседните ѝ страни {places} бяха местата с най-много въпроси (по {questions}), във всеки случай рязък ръст спрямо {average} преди това.",
+  "documentcontext.single_word_difference": "Оригиналният текст се различава с една дума."
 }

@@ -2825,5 +2825,6 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} waren die Orte mit den meisten Anfragen (je {questions}), jeweils ein Anstieg gegenüber zuvor {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "In Europa und seinen Nachbarregionen waren {places} die Orte mit den meisten Anfragen (je {questions}), jeweils ein Anstieg gegenüber zuvor {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} waren die Orte mit den meisten Anfragen (je {questions}), jeweils ein sprunghafter Anstieg gegenüber zuvor {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "In Europa und seinen Nachbarregionen waren {places} die Orte mit den meisten Anfragen (je {questions}), jeweils ein sprunghafter Anstieg gegenüber zuvor {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "In Europa und seinen Nachbarregionen waren {places} die Orte mit den meisten Anfragen (je {questions}), jeweils ein sprunghafter Anstieg gegenüber zuvor {average}.",
+  "documentcontext.single_word_difference": "Der ursprüngliche Wortlaut weicht um ein Wort ab."
 }

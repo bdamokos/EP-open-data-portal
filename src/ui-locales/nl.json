@@ -2825,5 +2825,6 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} waren het onderwerp van de meeste vragen (elk {questions}), telkens een stijging tegenover {average} voorheen.",
   "topics.story.integrated.lead.tiedEachRose.eu": "In Europa en de buurlanden waren {places} het onderwerp van de meeste vragen (elk {questions}), telkens een stijging tegenover {average} voorheen.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} waren het onderwerp van de meeste vragen (elk {questions}), telkens een sprong tegenover {average} voorheen.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "In Europa en de buurlanden waren {places} het onderwerp van de meeste vragen (elk {questions}), telkens een sprong tegenover {average} voorheen."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "In Europa en de buurlanden waren {places} het onderwerp van de meeste vragen (elk {questions}), telkens een sprong tegenover {average} voorheen.",
+  "documentcontext.single_word_difference": "De oorspronkelijke tekst verschilt één woord."
 }
