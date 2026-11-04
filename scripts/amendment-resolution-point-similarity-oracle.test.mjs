@@ -15,3 +15,12 @@ test('equally similar complete and incomplete point competitors both prevent ver
 test('an incomplete similar point under another paragraph still competes',()=>{
  const a=input();a.text.paragraphs.splice(5,0,'(a) '+a.wording.originalText.slice(4));a.text.paragraphFormats.splice(5,0,{indent:360});a.text.paragraphSources=a.text.paragraphs.map((_,ordinal)=>({ordinal,container:'body',containerPath:'body',segment:0,complete:ordinal!==5}));assert.equal(assertResolutionPointSimilarity(a).status,'unverified');
 });
+
+test('a published decision comparison can verify the same exact point identity',()=>{
+ const a=input();a.wording.baseline='unknown';
+ a.wording.documentReferences=[{field:'DocAmend',raw:'Proposal for a decision'}];
+ a.wording.baselineSource={headings:[{left:{raw:'Proposal for a decision'},right:{raw:'Amendment'}}]};
+ assert.equal(assertResolutionPointSimilarity(a).status,'verified');
+ a.wording.documentReferences=[];assert.equal(assertResolutionPointSimilarity(a).status,'unverified');
+ a.wording.documentReferences=[{field:'DocAmend',raw:'Proposal for a decision'}];a.wording.baselineSource.headings[0].left.raw='Text proposed by the Commission';assert.equal(assertResolutionPointSimilarity(a).status,'unverified');
+});
