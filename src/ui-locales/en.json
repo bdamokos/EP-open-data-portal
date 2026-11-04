@@ -1,5 +1,4 @@
 {
-  "proposalcontexttext.original.wording.differs.by.one.word": "Original wording differs by one word",
   "documentcontext.final_placement_check": "Check final placement in {adoptedText}.",
   "documentcontext.adopted_text": "the adopted text",
   "amendment.alternative_motion": "Alternative motion",
@@ -2901,5 +2900,6 @@
   "topics.story.integrated.questionPlaceDebatesRise": "{place} ({debates}; up from {average}{home})",
   "topics.story.integrated.questionPlaceRare": "{place} (rarely asked about before{home})",
   "topics.story.integrated.questionPlaceDebatesRare": "{place} ({debates}; rarely asked about before{home})",
-  "topics.story.integrated.debateCountPeers": "{count}, as did {peers}"
+  "topics.story.integrated.debateCountPeers": "{count}, as did {peers}",
+  "documentcontext.single_word_difference": "Original wording differs by one word."
 }

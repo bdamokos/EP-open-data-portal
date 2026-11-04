@@ -2825,5 +2825,6 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} — najviac otázok (po {questions}), v každom prípade nárast, predtým {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "V Európe a jej susedstve: {places} — najviac otázok (po {questions}), v každom prípade nárast, predtým {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — najviac otázok (po {questions}), v každom prípade skok, predtým {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "V Európe a jej susedstve: {places} — najviac otázok (po {questions}), v každom prípade skok, predtým {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "V Európe a jej susedstve: {places} — najviac otázok (po {questions}), v každom prípade skok, predtým {average}.",
+  "documentcontext.single_word_difference": "Pôvodné znenie sa líši o jedno slovo."
 }
