@@ -9,3 +9,7 @@ test('context fallback rejects altered retained cells, headers, captions and dup
  for(const change of [xml=>xml.replace('Nitrate of potassium','Different substance'),xml=>xml.replace('Fertilisers','Aluminium'),xml=>xml.replace('</w:body>',tableParagraph('Fertilisers')+contextTable([['CN code','Description'],['28342100','Nitrate of potassium']])+'</w:body>')])assert.equal(place(tableContextNative({change})).status,'unresolved');
  for(const mutate of [a=>a.proposal.sourceHash='wrong',a=>a.proposal.paragraphs[a.placement.span.start].complete=false,a=>a.wording.originalText=a.wording.originalText.replace('CN code','Other header'),a=>a.wording.originalText=a.wording.originalText.replace('…\t…','…\tDescription'),a=>a.items.push(a.items[0])]){const input=tableContextNative();mutate(input);assert.equal(place(input).status,'unresolved',mutate.toString());}
 });
+test('the underlying annex and point must agree with the native governing and table instructions',()=>{
+ const positive=tableContextNative({instruction:true});assert.equal(place(positive).status,'placed');
+ for(const [from,to] of [['Annex II','Annex IX'],['point 2','point 99']]){const input=tableContextNative({instruction:true});input.wording.targetPath.underlying[0].raw=input.wording.targetPath.underlying[0].raw.replace(from,to);assert.equal(place(input).status,'unresolved');}
+});

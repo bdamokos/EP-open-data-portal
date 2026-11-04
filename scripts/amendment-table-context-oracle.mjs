@@ -10,10 +10,11 @@ export function assertTableContext({items,wording,placement,nativeQuoted}) {
  const unknown=()=>({status:'unverified',reason:'oracle-table-context-unavailable'});
  const outer=wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel?.split('\n')[0]??'';
  const named=/^Annex(?: ([IVXLCDM]+))? [–—-] table [–—-] (.+)$/u.exec(outer),point=/^Annex ([IVXLCDM]+) [–—-] point (\d+)$/u.exec(outer);
- const inner=wording.targetPath?.underlying?.length===1?/^Annex [IVXLCDM]+ [–—-] point \d+ [–—-] Table (.+)$/u.exec(wording.targetPath.underlying[0].raw):null;
+ const inner=wording.targetPath?.underlying?.length===1?/^Annex ([IVXLCDM]+) [–—-] point (\d+) [–—-] Table (.+)$/u.exec(wording.targetPath.underlying[0].raw):null;
  if(!named&&!(point&&inner))return null;
+ if(named&&wording.targetPath?.underlying?.length)return unknown();
  if(wording.targetPath?.proposal?.length>1||wording.targetPath?.language&&wording.targetPath.language!=='en')return unknown();
- const annex=named?.[1]??point?.[1]??'',caption=named?.[2]??inner[1],lines=wording.originalText.split(/\r?\n/u).map(line=>line.trimEnd()),at=lines.findIndex(line=>title(line)===title(caption));
+ const annex=named?.[1]??point?.[1]??'',caption=named?.[2]??inner[3],lines=wording.originalText.split(/\r?\n/u).map(line=>line.trimEnd()),at=lines.findIndex(line=>title(line)===title(caption));
  if(at<0||at>1||lines.filter(line=>title(line)===title(caption)).length!==1||point&&(at!==1||!new RegExp('^\\('+point[2]+'\\)\\s','u').test(lines[0]))||!point&&at!==0)return unknown();
  const original=lines.slice(at+1).map(line=>line.split('\t').map(clean));
  if(!original.length||!original.some(row=>row.every(elision))||original.some(row=>row.some(elision)&&!row.every(elision)))return unknown();
@@ -31,6 +32,10 @@ export function assertTableContext({items,wording,placement,nativeQuoted}) {
    if(!last||last.hidden||last.unsafe||!safe(last.nodes)||title(last.text)!==title(caption)||heading?.text.trim()!=='ANNEX'+(annex?' '+annex:''))continue;
    if(point){
     const owner=captions.at(-2);if(!owner||owner.hidden||!safe(owner.nodes))continue;
+    const leaders=body.slice(body.indexOf(heading)+1,body.indexOf(owner)).filter(row=>row.kind==='paragraph'&&/^Annex [IVXLCDM]+ is amended as follows?:$/u.test(clean(row.text)));
+    if(leaders.length!==1||leaders[0].hidden||leaders[0].unsafe||!safe(leaders[0].nodes)||!new RegExp('^Annex '+inner[1]+' is amended as follows?:$','u').test(clean(leaders[0].text)))continue;
+    const pointed=/^(?:\(\d+\)\s+)?in point (\d+), the table [‘'"](.+)[’'"] is replaced by the following:$/u.exec(clean(owner.text));
+    if(!pointed||pointed[1]!==inner[2]||title(pointed[2])!==title(inner[3]))continue;
     if(clean(owner.text)!==clean(lines[0])){
      const first=body.indexOf(heading),next=body.findIndex((row,i)=>i>first&&row.kind==='paragraph'&&/^ANNEX(?: [IVXLCDM]+)?$/u.test(row.text.trim()));
      let numbered;try{numbered=nativeAnnexInstructionRows(quotedWordParts(nativeQuoted?.proposalBuffers?.[itemIndex]??nativeQuoted?.proposalBuffer),body,first,next<0?body.length:next);}catch{continue;}

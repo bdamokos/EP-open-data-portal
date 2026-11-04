@@ -10,3 +10,7 @@ test('native caption, retained cells, identity, continuity and unique tables rem
  for(const change of changes)assert.notEqual(assertTableContext(tableContextNative({change})).status,'verified');
  for(const mutate of [a=>a.proposal.sourceHash='wrong',a=>a.proposal.paragraphs[a.placement.span.start].source.complete=false,a=>a.wording.originalText=a.wording.originalText.replace('CN code','Other header'),a=>a.wording.originalText=a.wording.originalText.replace('…\t…','…\tDescription'),a=>a.items.push(a.items[0]),a=>a.wording.targetPath={proposal:[{raw:a.wording.targetLabel},{raw:'Annex II'}]},a=>a.wording.targetPath={language:'pl'}]){const input=tableContextNative();mutate(input);assert.notEqual(assertTableContext(input).status,'verified',mutate.toString());}
 });
+test('the complete underlying annex and point are independently bound to native instructions',()=>{
+ const positive=tableContextNative({instruction:true});assert.equal(assertTableContext(positive).status,'verified');
+ for(const [from,to] of [['Annex II','Annex IX'],['point 2','point 99']]){const input=tableContextNative({instruction:true});input.wording.targetPath.underlying[0].raw=input.wording.targetPath.underlying[0].raw.replace(from,to);input.wording.targetLabel=input.wording.targetLabel.replace('— '+from,'— '+to).replace('– '+from,'– '+to);assert.notEqual(assertTableContext(input).status,'verified');}
+});

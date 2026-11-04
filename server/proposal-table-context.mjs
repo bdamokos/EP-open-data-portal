@@ -8,9 +8,9 @@ export function tableContextPlacement(items,wording,nativeProposalInputs) {
  if(wording.language!=='en'||wording.baseline!=='commission-proposal'||typeof wording.originalText!=='string'||typeof wording.proposedText!=='string'||!wording.proposedText.trim()||!/(?:…|\.{3})/u.test(wording.originalText)||wording.targetPath?.proposal?.length>1)return null;
  const raw=wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel?.split('\n')[0]??'';
  const simple=/^Annex(?: ([IVXLCDM]+))? [–—-] table [–—-] (.+)$/u.exec(raw),instruction=/^Annex ([IVXLCDM]+) [–—-] point (\d+)$/u.exec(raw);
- const under=wording.targetPath?.underlying?.length===1?/^Annex [IVXLCDM]+ [–—-] point \d+ [–—-] Table (.+)$/u.exec(wording.targetPath.underlying[0].raw):null;
- if(!simple&&!(instruction&&under))return null;
- const annexId=simple?.[1]??instruction?.[1]??'',caption=simple?.[2]??under[1],lines=wording.originalText.split(/\r?\n/u).map(line=>line.trimEnd());
+ const under=wording.targetPath?.underlying?.length===1?/^Annex ([IVXLCDM]+) [–—-] point (\d+) [–—-] Table (.+)$/u.exec(wording.targetPath.underlying[0].raw):null;
+ if(!simple&&!(instruction&&under)||simple&&wording.targetPath?.underlying?.length)return null;
+ const annexId=simple?.[1]??instruction?.[1]??'',caption=simple?.[2]??under[3],lines=wording.originalText.split(/\r?\n/u).map(line=>line.trimEnd());
  const captionAt=lines.findIndex(line=>captionKey(line)===captionKey(caption));
  if(captionAt<0||captionAt>1||lines.filter(line=>captionKey(line)===captionKey(caption)).length!==1||instruction&&(captionAt!==1||!new RegExp('^\\('+instruction[2]+'\\)\\s','u').test(lines[0]))||!instruction&&captionAt!==0)return null;
  const comparison=lines.slice(captionAt+1).map(line=>line.split('\t').map(clean));
@@ -28,6 +28,10 @@ export function tableContextPlacement(items,wording,nativeProposalInputs) {
    let owners=proposalCandidates(proposal,parsed);
    if(!owners.length&&body.length===1&&body[0].kind==='paragraph'&&body[0].implicit)owners=proposalCandidates(proposal,[parsed.segments[0],body[0].label,...parsed.segments.slice(1)]);
    if(owners.length!==1||owners[0].pathConflict)continue;container=owners[0];
+   const governing=proposal.paragraphs.slice(roots[0].extent.start+1,container.extent.start).filter(p=>/^Annex [IVXLCDM]+ is amended as follows?:$/u.test(clean(p.text)));
+   if(governing.length!==1||!governing[0].complete||governing[0].source?.container!=='body'||!new RegExp('^Annex '+under[1]+' is amended as follows?:$','u').test(clean(governing[0].text)))continue;
+   const addressed=/^\(\d+\)\s+in point (\d+), the table [‘'"](.+)[’'"] is replaced by the following:$/u.exec(clean(lines[0]));
+   if(!addressed||addressed[1]!==under[2]||captionKey(addressed[2])!==captionKey(under[3]))continue;
   }
   for(const unit of flat([container]).filter(unit=>unit.kind==='table'&&unit.table)){
    const table=unit.table,indices=table.paragraphs,first=Math.min(...indices),last=Math.max(...indices),captionRow=proposal.paragraphs[first-1];
