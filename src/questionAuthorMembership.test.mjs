@@ -98,10 +98,18 @@ test('Questions renders decoded title entities and markup-shaped source text as 
   const response=questions(),literal='DYPA&nbsp; &amp; &lt;img src=x onerror=alert(1)&gt; <b>literal</b> &amp;nbsp;';
   response.questions[0].title=sourceTitle(literal);
   const h=await harness(t,{response}),heading=h.container.querySelector('.insight-question-heading h3');
-  assert.equal(heading.textContent,'DYPA\u00a0 & <img src=x onerror=alert(1)> <b>literal</b> &nbsp;');
+  assert.equal(heading.textContent,'DYPA\u00a0 & <img src=x onerror=alert(1)> literal &nbsp;');
   assert.equal(heading.getAttribute('lang'),'en');
   assert.equal(heading.children.length,0,'decoded markup never creates elements');
-  assert(heading.innerHTML.includes('&lt;img'));assert(heading.innerHTML.includes('&lt;b&gt;'));
+  assert(heading.innerHTML.includes('&lt;img'));assert(!heading.innerHTML.includes('&lt;b&gt;'));
+});
+
+test('Questions renders the published CO2 title with a text subscript',async t=>{
+  const response=questions();
+  response.questions[0].title=sourceTitle('VAT and CO<sub class="chemical"><i>2</i></sub>-related costs in <strong>Cypriot</strong> electricity bills');
+  const h=await harness(t,{response}),heading=h.container.querySelector('.insight-question-heading h3');
+  assert.equal(heading.textContent,'VAT and CO₂-related costs in Cypriot electricity bills');
+  assert.equal(heading.children.length,0);
 });
 
 test('political groups count dated contributions while person demographics retain their own denominator',async t=>{
