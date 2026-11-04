@@ -4,6 +4,7 @@ import {execFileSync} from 'node:child_process';
 import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
+import {fileURLToPath} from 'node:url';
 import {compareCatalogues, renderReport, markdown, annotation, readRevision, diffBase, run, LANGUAGES, MARKER} from './translation-coverage-report.mjs';
 
 function snapshot(english = {label: 'Old'}) {
@@ -143,12 +144,25 @@ test('git reader uses exact revisions and rejects malformed refs/JSON; CLI fails
   git(['add', '.']); git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'fixture']);
   const sha = git(['rev-parse', 'HEAD']); assert.deepEqual(readRevision(sha, dir).english, {a: 'A'});
   for (const ref of ['HEAD', '--help', 'a'.repeat(40), sha + ':x']) assert.throws(() => readRevision(ref, dir));
+  writeFileSync(file, '{"a":"Changed"}'); git(['add', '.']); git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'changed']);
+  const changed = git(['rev-parse', 'HEAD']);
+  const statusOutput = join(dir, 'status-output'), statusSummary = join(dir, 'status-summary');
+  for (const [head, expected] of [[sha, 'false'], [changed, 'true']]) {
+    writeFileSync(statusOutput, ''); writeFileSync(statusSummary, '');
+    execFileSync(process.execPath, [fileURLToPath(new URL('./translation-coverage-report.mjs', import.meta.url))], {
+      cwd: dir, env: {...process.env, TRANSLATION_BASE: sha, TRANSLATION_HEAD: head, GITHUB_OUTPUT: statusOutput, GITHUB_STEP_SUMMARY: statusSummary},
+    });
+    assert(readFileSync(statusOutput, 'utf8').startsWith(`has_findings=${expected}\n`));
+    assert(readFileSync(statusSummary, 'utf8').startsWith(MARKER));
+  }
   writeFileSync(file, '{bad'); git(['add', '.']); git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'malformed']);
   assert.throws(() => readRevision(git(['rev-parse', 'HEAD']), dir));
   const output = join(dir, 'output'), summary = join(dir, 'summary');
   const report = run({TRANSLATION_BASE: '--help', TRANSLATION_HEAD: sha, GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: summary});
   assert.match(report, /comparison unavailable/); assert.equal(readFileSync(summary, 'utf8'), report);
-  const lines = readFileSync(output, 'utf8').trimEnd().split('\n'); assert.equal(lines[0].slice('report<<'.length), lines.at(-1));
+  const lines = readFileSync(output, 'utf8').trimEnd().split('\n');
+  assert.equal(lines[0], 'has_findings=unavailable');
+  assert.equal(lines[1].slice('report<<'.length), lines.at(-1));
 });
 test('comment job has no checkout/PR execution and preserves the existing workflow', () => {
   const workflow = readFileSync(new URL('../.github/workflows/checks.yml', import.meta.url), 'utf8');
@@ -160,35 +174,50 @@ test('comment job has no checkout/PR execution and preserves the existing workfl
   for (const job of ['test-and-build', 'runtime-image', 'read-benchmarks', 'read-benchmark-comment']) assert(workflow.includes(`  ${job}:`));
 });
 
-async function commentHarness(report, {comments = [], deny = false, stale = false} = {}) {
+async function commentHarness(report, {comments = [], deny = false, stale = false, hasFindings = 'true'} = {}) {
   const workflow = readFileSync(new URL('../.github/workflows/checks.yml', import.meta.url), 'utf8');
   const source = workflow.split('  translation-coverage-comment:')[1].split("node --input-type=module <<'JS'\n")[1].split('\n          JS')[0];
   const calls = [], warnings = [];
-  const fakeProcess = {env: {GH_TOKEN: 'fixture', REPO: 'owner/repo', PR: '1', EXPECTED_HEAD: 'abc', REPORT: report}, exit() { throw new Error('exit'); }};
+  const fakeProcess = {env: {GH_TOKEN: 'fixture', REPO: 'owner/repo', PR: '1', EXPECTED_HEAD: 'abc', REPORT: report, HAS_FINDINGS: hasFindings}, exit() { throw new Error('exit'); }};
   const fetch = async (url, options) => {
     calls.push({url, ...options});
-    return {ok: !deny, json: async () => url.includes('/pulls/') ? {state: 'open', head: {sha: stale ? 'other' : 'abc'}} : options.method === 'GET' ? comments : {id: 1}};
+    return {ok: !deny, status: options.method === 'DELETE' ? 204 : 200, json: async () => {
+      assert.notEqual(options.method, 'DELETE', '204 responses have no JSON body');
+      return url.includes('/pulls/') ? {state: 'open', head: {sha: stale ? 'other' : 'abc'}} : options.method === 'GET' ? comments : {id: 1};
+    }};
   };
   await new (Object.getPrototypeOf(async function() {}).constructor)('process', 'fetch', 'console', 'AbortSignal', source)(fakeProcess, fetch, {log: message => warnings.push(message)}, {timeout: () => undefined});
   return {calls, warnings};
 }
 
-test('comment updater clears stale findings in the one bot-owned comment', async () => {
+test('a clean comparison deletes stale findings without posting a neutral comment', async () => {
   const report = renderReport([]);
-  const {calls} = await commentHarness(report, {comments: [
+  const {calls, warnings} = await commentHarness(report, {hasFindings: 'false', comments: [
     {id: 7, user: {login: 'human', type: 'User'}, body: MARKER},
     {id: 8, user: {login: 'github-actions[bot]', type: 'Bot'}, body: MARKER + '\nold findings'},
   ]});
   const writes = calls.filter(call => call.method !== 'GET');
-  assert.equal(writes.length, 1); assert.equal(writes[0].method, 'PATCH'); assert(writes[0].url.endsWith('/issues/comments/8'));
-  assert.equal(JSON.parse(writes[0].body).body, report);
+  assert.equal(writes.length, 1); assert.equal(writes[0].method, 'DELETE'); assert(writes[0].url.endsWith('/issues/comments/8'));
+  assert.deepEqual(warnings, []);
+  const clean = await commentHarness(report, {hasFindings: 'false'});
+  assert(!clean.calls.some(call => call.method !== 'GET'));
+});
+test('unavailable or missing findings status leaves existing comments untouched', async () => {
+  for (const hasFindings of ['unavailable', undefined, '']) {
+    const {calls} = await commentHarness(renderReport([]), {hasFindings: hasFindings ?? ''});
+    assert.deepEqual(calls, []);
+  }
 });
 test('comment updater creates once when absent and leaves permission failures advisory', async () => {
-  const {calls} = await commentHarness(renderReport([]));
+  const report = renderReport([{key: 'label', value: 'New', missing: ['hu'], drift: []}]);
+  const {calls} = await commentHarness(report);
   assert.equal(calls.filter(call => call.method === 'POST').length, 1);
-  const denied = await commentHarness(renderReport([]), {deny: true});
+  const updated = await commentHarness(report, {comments: [{id: 8, user: {login: 'github-actions[bot]', type: 'Bot'}, body: MARKER}]});
+  const patch = updated.calls.find(call => call.method === 'PATCH');
+  assert(patch.url.endsWith('/issues/comments/8')); assert.equal(JSON.parse(patch.body).body, report);
+  const denied = await commentHarness(report, {deny: true});
   assert.equal(denied.calls.length, 1); assert.match(denied.warnings[0], /comment unavailable/);
-  const stale = await commentHarness(renderReport([]), {stale: true});
+  const stale = await commentHarness(report, {stale: true});
   assert(!stale.calls.some(call => call.method !== 'GET'));
 });
 
