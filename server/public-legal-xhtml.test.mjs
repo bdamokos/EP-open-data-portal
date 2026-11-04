@@ -40,7 +40,7 @@ test('a later XHTML list requires its own complete colon introduction and subpar
   const proposal=parse(edition);
   proposal.sourceKind='docx';
   assert.equal(place(edition,proposal,amendment).reason,'source_structure_unavailable');
-  assert.equal(place(edition,proposal,replacement).reason,'source_structure_unavailable');
+  assert.equal(place(edition,proposal,replacement).status,'placed');
 });
 
 test('unsupported objects in the complete predecessor subtree still withhold insertion',()=>{

@@ -630,3 +630,14 @@ test('annex caption decoration repair requires both native annex frames and exac
   const walk=units=>units.flatMap(u=>[u,...walk(u.children)]);walk(exact.units).find(u=>u.table).table.rows[0].cells[0].colSpan=2;assert.equal(run(w,exact).status,'unresolved','an exact caption match cannot bypass malformed geometry');
 
 });
+
+test('ordinal paragraphs in a wholly unnumbered DOCX article require exact whole-row wording',()=>{
+ const projection={...source(['Article 16','First unnumbered paragraph.','Second unnumbered paragraph.','Article 17','Next article.'],['Titrearticle','Normal','Normal','Titrearticle','Normal']),sourceKind:'docx'};
+ const opts={language:'en',targetLabel:'Article 16 – paragraph 2',originalText:'Second unnumbered paragraph.',proposedText:'Revised second paragraph.'};
+ const placed=resolveProposalPlacement([item(projection)],opts);
+ assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
+ assert(!resolveProposalPlacement([item(projection)],{...opts,targetLabel:'Article 16 – paragraph 3'}).evidence.some(e=>e.basis==='ordinal-unnumbered-paragraph'));
+ assert.equal(resolveProposalPlacement([item(projection)],{...opts,originalText:'Unrelated wording.'}).status,'unresolved');
+ projection.paragraphSources[2].complete=false;
+ assert.equal(resolveProposalPlacement([item(projection)],opts).status,'unresolved');
+});
