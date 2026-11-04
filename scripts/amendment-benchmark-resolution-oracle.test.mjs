@@ -70,7 +70,8 @@ test('native coalesced labels require a zero-width splice at the second printed 
  Object.defineProperty(text,'units',{get(){throw Error('placer units forbidden');}});
  assert.equal(assertCoalescedInsertion({text,wording,placement}).status,'verified');
  assert.equal(verifyPlacement({text,wording,placement}).status,'verified');
- for(const altered of [{...placement,splice:undefined},{...placement,splice:{start:{paragraph:1,offset:offset+1},end:{paragraph:1,offset:offset+1}}},{...placement,splice:{start:{paragraph:1,offset},end:{paragraph:1,offset:offset+1}}}])assert.equal(assertCoalescedInsertion({text,wording,placement:altered}).status,'failed');
+ assert.equal(assertCoalescedInsertion({text,wording,placement:{...placement,splice:undefined}}),null,'legacy insertion claims retain their existing oracle');
+ for(const altered of [{...placement,splice:{start:{paragraph:1,offset:offset+1},end:{paragraph:1,offset:offset+1}}},{...placement,splice:{start:{paragraph:1,offset},end:{paragraph:1,offset:offset+1}}}])assert.equal(assertCoalescedInsertion({text,wording,placement:altered}).status,'failed');
  for(const altered of [{...text,nativeBuffer:undefined},{...text,paragraphs:text.paragraphs.map((v,i)=>i===1?v.replace('First','Altered'):v)},{...text,paragraphSources:text.paragraphSources.map((v,i)=>i===1?{...v,complete:false}:v)},{...text,nativeBuffer:zip(wrap(xml.replace('First provision;','First</w:t><w:footnoteReference w:id="1"/><w:t> provision;')))}])assert.notEqual(assertCoalescedInsertion({text:altered,wording,placement})?.status,'verified');
  assert.notEqual(assertCoalescedInsertion({text,wording:{...wording,proposedText:'52a. Wrong;'},placement}).status,'verified');
  const noted=input(xml.replace('First provision;', 'First</w:t><w:footnoteReference w:id="7"/><w:t> provision;'));noted.paragraphSources.forEach(row=>row.segment=0);noted.anchors=[{paragraph:1,offset:9,note:'7'}];

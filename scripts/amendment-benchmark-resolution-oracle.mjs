@@ -38,7 +38,7 @@ function nativeBody(text) {
 export function assertCoalescedInsertion({text,wording,placement}) {
   const match=wording?.language==='en'&&wording.baseline==='motion-resolution'&&wording.originalText===''
     &&/^Paragraph ([1-9]\d{0,5}) a \(new\)$/u.exec(wording.targetLabel||'');
-  if(!match||placement?.operation!=='insert')return null;
+  if(!match||placement?.operation!=='insert'||!placement.splice)return null;
   const n=Number(match[1]),raw=rawResolutionUnits(text,'en'),owners=raw.units.filter(row=>row.kind==='paragraph'&&row.label===String(n));
   const coalesced=owners.filter(row=>new RegExp(';'+(n+1)+'[.]\\t\\S','u').test(text.paragraphs[row.start]||''));
   if(!coalesced.length)return null;
