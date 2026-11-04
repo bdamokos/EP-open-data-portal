@@ -6,6 +6,7 @@ import {assertNewParentBoundary} from './amendment-benchmark-proposal-oracle.mjs
 import {assertCaptionedComparison} from './amendment-captioned-comparison-oracle.mjs';
 import {assertTableContext} from './amendment-table-context-oracle.mjs';
 import {assertResolutionBoundaryInsertion} from './amendment-resolution-boundary-oracle.mjs';
+import {assertCouncilDraftPlacement} from './amendment-council-draft-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex,assertSequentialAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
@@ -603,6 +604,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 export function verifyPlacement(input) {
   const captioned=assertCaptionedComparison(input);if(captioned&&captioned.status!=='verified')return captioned;
   const formula=assertFormulaGap(input);if(formula&&formula.status!=='verified')return formula;
+  if(input.items?.[input.placement?.itemIndex]?.proposal?.sourceKind==='pdf')return assertCouncilDraftPlacement(input);
   const header=assertCompoundHeader(input);
   if(header&&header.status!=='verified')return header;
   const result=verifyProposalPlacement(input);

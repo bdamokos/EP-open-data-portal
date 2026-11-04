@@ -1535,3 +1535,14 @@ test('a successive new annex names its preceding amendment in the reader',async 
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
   assert.match(h.container.querySelector('[data-amendment-block]').textContent,/Follows Amendment 39 in amendment order\./);
 });
+
+test('PDF source spacing uses published columns without false whitespace edits',async t=>{
+ const data=proposalContextResponse(report,amendment,list,4);
+ data.proposal.items[0].proposal={...data.proposal.items[0].proposal,sourceKind:'pdf',anchors:[],links:[]};
+ const variant=data.amendment.variants[0];variant.originalText='(8)\u00a0Original\u00a0sentence.';variant.proposedText='(8)\u00a0Changed\u00a0sentence.';variant.originalFormatting=[];variant.proposedFormatting=[];
+ data.placement={...data.placement,status:'placed',operation:'replace',itemIndex:0,originalText:'(8) Original sentence.'};
+ const h=await harness(t,()=>data);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+ const block=h.container.querySelector('[data-amendment-block]');assert(block);
+ assert(![...block.querySelectorAll('ins,del')].some(node=>node.textContent.trim()===''));
+ assert(block.textContent.includes('Original'));assert(block.textContent.includes('Changed'));
+});

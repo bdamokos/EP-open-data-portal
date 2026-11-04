@@ -1,3 +1,6 @@
+import {reportCouncilDraftReference} from './council-draft-reference.mjs';
+import {councilDraftSource} from './council-draft-source.mjs';
+export {reportCouncilDraftReference} from './council-draft-reference.mjs';
 import {backfillSelectionMatches} from './base-source-backfill-context.mjs';
 import path from 'node:path';
 import {retainBaseSelection} from './base-source-store.mjs';
@@ -61,7 +64,10 @@ export function createCouncilPositionBaseline({documents=new CellarDocuments(),r
     const unavailable=gap=>({status:'unavailable',celex:null,workId:null,language,items:[],gaps:[gap],evidence});
     try {
       const report=await request(committeeDocumentEndpoint(reportId)||'/plenary-documents/'+reportId,{}, {staleWhileRevalidate:true});
-      const identity=reportCouncilReference(report.payload?.data?.length===1?report.payload.data[0]:null,{reportId,language,documentReferences});
+      const work=report.payload?.data?.length===1?report.payload.data[0]:null;
+      const draft=reportCouncilDraftReference(work,{reportId,language});
+      if(draft.status==='resolved'){const source=await councilDraftSource(documents,draft);return {...source,status:report.stale?'partial':source.status,gaps:[...source.gaps,...(report.stale?['stale-metadata']:[])],evidence:[...source.evidence,{kind:'report-source',url:report.url,fetchedAt:new Date(report.fetchedAt).toISOString(),stale:Boolean(report.stale)}]};}
+      const identity=reportCouncilReference(work,{reportId,language,documentReferences});
       evidence=[...identity.evidence,{kind:'report-source',url:report.url,fetchedAt:new Date(report.fetchedAt).toISOString(),stale:Boolean(report.stale)}];
       if(identity.status!=='resolved')return {...unavailable(identity.gaps[0]),status:identity.status};
       const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',councilCandidatesSparql(identity));url.searchParams.set('format','application/sparql-results+json');

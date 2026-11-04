@@ -76,7 +76,7 @@ function wireCollectorAdmission(queue){
 }
 wireCollectorAdmission(upstreamQueue);
 function sourceQueue(source,{backgroundRank=0}={}) {
-  if(!['wikidata','odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu'].includes(source))throw new Error('Unknown upstream source.');
+  if(!['wikidata','odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu','https://data.consilium.europa.eu'].includes(source))throw new Error('Unknown upstream source.');
   if(upstreamBridge)return upstreamBridge.queue(source);
   if(!sourceQueues.has(source))sourceQueues.set(source,wireCollectorAdmission(new UpstreamQueue(source==='wikidata'?{interval:1000,maximum:1,backgroundMaximum:1}:source==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:source==='https://publications.europa.eu'?{rateLimit:{maximum:500,windowMs:300_000,foregroundReserve:100},interval:750,adaptive:true,backgroundPacing:true}:{})));
   const queue=sourceQueues.get(source);

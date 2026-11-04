@@ -1,4 +1,5 @@
 export {amendmentProvisional} from './amendment-provisional.mjs';
+import {hasCouncilQuotation} from './report-council-quotation.mjs';
 import {amendmentAlternative} from './amendment-alternative.mjs';
 import {amendmentRejection} from './amendment-rejection.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
@@ -40,6 +41,7 @@ function proposalInstructionPlacement(items,chosen) {
  * Source acquisition, identity checks and proposal parsing belong to the caller. */
 export function documentContextPlacement({chosen,text,items,baseline,proposalItems=null,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true,nativeProposalInputs,amendmentNumber}={}) {
   if(!includeBody)return null;
+  if(hasCouncilQuotation(chosen)&&baseline?.evidence?.some(e=>e.kind==='report-council-draft')&&items?.some(i=>i.proposal?.sourceKind==='pdf'))chosen={...chosen,baseline:'council-position',baselineSource:{...chosen.baselineSource,category:'council-position'}};
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
   const alternative=amendmentAlternative(chosen);

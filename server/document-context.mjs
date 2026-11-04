@@ -259,7 +259,7 @@ export class DocumentContext {
       try {
         for(const item of source?.items||[]) {
           requestSignal()?.throwIfAborted();
-          const parsed=(councilKind||existingKind?parsePublicLegalXhtml:parseProposal)(item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,...(councilKind||existingKind?{celex:source.celex}:{})}});
+          const parsed=(item.format==='PDF'?parseProposal:councilKind||existingKind?parsePublicLegalXhtml:parseProposal)(item.projection??item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,...(councilKind||existingKind?{celex:source.celex}:{})}});
           items.push({kind:item.kind,index:item.index,proposal:{...parsed,imageAssets:await publishDocumentImages(parsed)}});
           baseline.items.push({kind:item.kind,index:item.index,source:item.source});
         }

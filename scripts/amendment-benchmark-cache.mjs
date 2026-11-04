@@ -34,6 +34,7 @@ export function allowedInput(url,apiBase) {
 export function allowedSource(url) {
   const value=new URL(url);
   if(value.protocol!=='https:'||value.username||value.password||value.port||value.hash)return false;
+  if(value.origin==='https://data.consilium.europa.eu'&&/^\/doc\/document\/ST-\d{4,5}-\d{4}-INIT\/[a-z]{2}\/pdf$/u.test(value.pathname)&&!value.search)return true;
   if(value.origin==='https://data.europarl.europa.eu'&&/^\/api\/v2\/plenary-documents\/(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(value.pathname)&&value.search==='?format=application%2Fld%2Bjson')return true;
   if(value.origin==='https://publications.europa.eu'&&value.pathname==='/webapi/rdf/sparql'&&!value.hash&&!value.username&&!value.password)return true;
   try{return cellarTransportUrl(url)===url;}catch{return false;}
