@@ -964,7 +964,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
-    const insertion=bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible);
+    const insertion=(originalText===''&&baseline==='commission-proposal'?newParentChildInsertion(items,target,candidatesFor,eligible):null)??bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible);
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
@@ -1033,4 +1033,22 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(candidates.length===1&&selected.unit.pathConflict&&!uniqueDocumentWording(selected.proposal,originalText))return unresolved('multiple_published_targets');
   evidence.push({basis:selected.match.similarity!==undefined?'unique-similar-original':candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id,...(selected.match.similarity!==undefined?{matchKind:'similar',similarity:selected.match.similarity}:{})});
   return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
+}
+
+// A new child under an absent Na occupies the same N/N+1 boundary as Na.
+// This places the amendment independently; it does not synthesize parent text.
+function newParentChildInsertion(items,target,candidatesFor,eligible) {
+  const path=target.segments,parent=path.at(-2),child=path.at(-1);
+  if(!parent||!child?.isNew||parent.suffix!=='a'||!/^\d+a$/u.test(parent.value)||!['article','point'].includes(parent.kind)||!['paragraph','point'].includes(child.kind)||candidatesFor(path.slice(0,-1)).length)return null;
+  const basePath=[...path.slice(0,-2),{...parent,value:String(parent.number),suffix:'',isNew:false}],nextPath=[...path.slice(0,-2),{...parent,value:String(parent.number+1),base:String(parent.number+1),number:parent.number+1,suffix:'',isNew:false}];
+  const bases=candidatesFor(basePath),next=candidatesFor(nextPath);
+  if(bases.length!==1||next.length!==1||bases[0].itemIndex!==next[0].itemIndex||bases[0].unit.pathConflict||next[0].unit.pathConflict)return null;
+  const a=bases[0],b=next[0];
+  if(a.unit.extent.end!==b.unit.extent.start||!completeBoundary(a.proposal,a.unit)||!completeBoundary(b.proposal,b.unit))return null;
+  const rows=a.proposal.paragraphs.slice(a.unit.extent.start,b.unit.extent.start+1);
+  if(rows.some((row,i)=>row.source?.container!=='body'||row.source?.complete===false||!row.complete||i&&(row.source.ordinal!==rows[i-1].source.ordinal+1||row.source.containerPath!==rows[i-1].source.containerPath||row.source.segment!==rows[i-1].source.segment)))return null;
+  const synthetic={...target,segments:[...path.slice(0,-2),{...parent,isNew:true}]};
+  const insertion=insertionPlacement(items,synthetic,candidatesFor,eligible);
+  if(insertion.reason||insertion.itemIndex!==a.itemIndex||insertion.insertBefore!==b.unit.extent.start)return null;
+  return {...insertion,basis:'new-parent-child-boundary'};
 }
