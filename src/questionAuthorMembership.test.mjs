@@ -104,6 +104,14 @@ test('Questions renders decoded title entities and markup-shaped source text as 
   assert(heading.innerHTML.includes('&lt;img'));assert(heading.innerHTML.includes('&lt;b&gt;'));
 });
 
+test('Questions renders the published CO2 title with a text subscript',async t=>{
+  const response=questions();
+  response.questions[0].title=sourceTitle('VAT and CO<sub>2</sub>-related costs in Cypriot electricity bills');
+  const h=await harness(t,{response}),heading=h.container.querySelector('.insight-question-heading h3');
+  assert.equal(heading.textContent,'VAT and CO₂-related costs in Cypriot electricity bills');
+  assert.equal(heading.children.length,0);
+});
+
 test('political groups count dated contributions while person demographics retain their own denominator',async t=>{
   const selected=stats();selected.groupContributions={rows:[{label:'S&D',count:2},{label:'Renew',count:1}],total:4,unavailable:1,dateBasis:'question document_date'};
   const h=await harness(t,{response:questions(selected)});
