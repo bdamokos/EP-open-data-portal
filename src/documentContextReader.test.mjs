@@ -1420,3 +1420,73 @@ test('provisional agreement labels the whole-text replacement and links the exac
  await h.render({request:{...overlayRequest,wordingLanguage:'fr'},language:'fr'});
  assert(!h.container.textContent.includes('Replaces the whole text'));
 });
+
+const agreementUrl='https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/'+list+'/'+list+'_en.docx',taId='TA-10-2026-0171';
+const agreementLinks=(extra={})=>({version:1,documentId:report,amendmentId:amendment,listId:list,requestedLanguage:'en',status:'verified',
+  agreement:{listId:list,language:'en',url:agreementUrl},adoptedText:{id:taId,url:'https://www.europarl.europa.eu/doceo/document/'+taId+'_EN.html'},text:{documentId:list,kind:'agreement'},
+  finalAct:{label:'Regulation (EU) 2026/1386',url:'https://eur-lex.europa.eu/eli/reg/2026/1386/oj'},proposal:{reference:'COM(2024)0023',year:'2024',number:'0023',url:'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52024PC0023'},...extra});
+function provisionalReports() {
+  const data=overlayResponse({status:'unresolved'});
+  Object.assign(data.amendment.variants[0],{wordingStatus:'unavailable',originalText:null,proposedText:null,source:{url:agreementUrl}});
+  data.amendment.status='unavailable';data.target.evidence=null;
+  data.placement={status:'document-operation',operation:'replace',scope:'whole-document',reason:'provisional_agreement',evidence:[{basis:'exact-provisional-agreement',reference:amendment,sourceUrl:agreementUrl}]};
+  return data;
+}
+const agreementText=(id,extra={})=>response(id,sourceDocument(id,['AMENDMENTS BY THE EUROPEAN PARLIAMENT','(4)\tThe framework for the screening ▌ by Member States of foreign investments.','Article 1\tNew provision.'],{
+  formatStatus:'extracted',paragraphFormats:[{},{marks:[{start:8,end:25,kind:'bold'},{start:8,end:25,kind:'italic'}]},{marks:[{start:10,end:24,kind:'bold'},{start:10,end:24,kind:'italic'}]}],tables:[],...extra}));
+function provisionalRoutes(links=agreementLinks(),text=id=>agreementText(id)) {
+  return (route,params)=>{
+    if(route.startsWith('provisional-agreement/')){assert.equal(route,'provisional-agreement/'+report);assert.deepEqual(Object.fromEntries(params),{lang:'en',amendment,list,'wording-lang':'en'});return links;}
+    if(route==='document-context/'+report)return provisionalReports();
+    const id=route.slice('document-context/'.length).split('?')[0];return text(id);
+  };
+}
+
+test('provisional agreement shows the whole agreement with Parliament’s marks, the legend and exact links',async t=>{
+  const h=await harness(t,provisionalRoutes());await h.render({request:overlayRequest,language:'en'});await h.settle();await h.settle();
+  assert.deepEqual(h.requests.map(route=>route.split('?')[0]),['document-context/'+report,'provisional-agreement/'+report,'document-context/'+list]);
+  const text=h.container.textContent;
+  assert.match(text,/Replaces the whole text\./);assert.match(text,/Bold italics: new or changed\. ▌: deleted\. Some changes are not marked\./);
+  assert(!text.includes('Exact target passage'),'the report text is replaced');assert(text.includes('AMENDMENTS BY THE EUROPEAN PARLIAMENT')&&text.includes('screening ▌ by Member States'));
+  const marked=[...h.container.querySelectorAll('.document-context-text b i')].map(node=>node.textContent);
+  assert.deepEqual(marked,['framework for the','New provision.']);
+  const links=Object.fromEntries([...h.container.querySelectorAll('.provisional-links a')].map(a=>[a.textContent,a.href]));
+  assert.deepEqual(links,{'Agreement text':agreementUrl,'Adopted text':'https://www.europarl.europa.eu/doceo/document/'+taId+'_EN.html','Commission proposal':'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52024PC0023','Regulation (EU) 2026/1386':'https://eur-lex.europa.eu/eli/reg/2026/1386/oj'});
+  assert.match(h.container.querySelector('.provisional-links').textContent,/Final act: Regulation \(EU\) 2026\/1386/);
+  assert.equal(h.container.querySelector('.document-context-kind').textContent,'Provisional agreement');
+  assert.equal(h.container.querySelector('ins,del'),null);
+});
+
+test('an unresolved proposal shows its COM number as plain text and no link is invented',async t=>{
+  await t.test('COM number only',async t=>{
+    const h=await harness(t,provisionalRoutes(agreementLinks({proposal:{reference:'COM(2024)0023',year:'2024',number:'0023',url:null},finalAct:null,adoptedText:null})));await h.render({request:overlayRequest,language:'en'});await h.settle();await h.settle();
+    const list=h.container.querySelector('.provisional-links');
+    assert.deepEqual([...list.querySelectorAll('a')].map(a=>a.textContent),['Agreement text']);
+    assert.match(list.textContent,/Commission proposal · COM\(2024\)0023/);assert(!list.textContent.includes('Final act'));
+  });
+  await t.test('no COM number',async t=>{
+    const h=await harness(t,provisionalRoutes(agreementLinks({proposal:null,finalAct:null,adoptedText:null})));await h.render({request:overlayRequest,language:'en'});await h.settle();await h.settle();
+    assert(!h.container.querySelector('.provisional-links').textContent.includes('Commission proposal'));
+  });
+});
+
+test('an adopted text that holds the position is the text shown',async t=>{
+  const requested=[];
+  const h=await harness(t,provisionalRoutes(agreementLinks({text:{documentId:taId,kind:'adopted-text'},finalAct:null}),id=>{requested.push(id);return agreementText(id);}));await h.render({request:overlayRequest,language:'en'});await h.settle();await h.settle();
+  assert.deepEqual(requested,[taId]);assert.equal(h.container.querySelector('.document-context-kind').textContent,'Adopted text');
+  assert.equal(h.container.querySelectorAll('.document-context-text b i').length,2);
+});
+
+test('links outside the expected hosts or for another amendment are not shown, and unverified agreements keep the report view',async t=>{
+  await t.test('unexpected hosts',async t=>{
+    const hostile=agreementLinks({agreement:{listId:list,language:'en',url:agreementUrl},adoptedText:{id:taId,url:'https://example.test/x'},finalAct:{label:'Regulation (EU) 2026/1386',url:'javascript:alert(1)'},proposal:{reference:'COM(2024)0023',year:'2024',number:'0023',url:'https://example.test/y'}});
+    const h=await harness(t,provisionalRoutes(hostile));await h.render({request:overlayRequest,language:'en'});await h.settle();await h.settle();
+    assert.deepEqual([...h.container.querySelectorAll('.provisional-links a')].map(a=>a.textContent),['Agreement text']);
+  });
+  const cases={unavailable:agreementLinks({status:'unavailable',agreement:null,text:null}),'another amendment':agreementLinks({amendmentId:amendment+'0'}),'another language':agreementLinks({requestedLanguage:'fr'}),'another source':agreementLinks({agreement:{listId:list,language:'en',url:agreementUrl.replace('_en','_fr')}})};
+  for(const [name,links] of Object.entries(cases))await t.test(name,async t=>{
+    const h=await harness(t,provisionalRoutes(links));await h.render({request:overlayRequest,language:'en'});await h.settle();await h.settle();
+    assert.match(h.container.textContent,/Replaces the whole text/);assert(h.container.textContent.includes('Main provision'),'the report text stays visible');
+    assert.equal(h.container.querySelector('.provisional-links'),null);
+  });
+});
