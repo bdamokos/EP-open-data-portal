@@ -1,3 +1,4 @@
+export {amendmentProvisional} from './amendment-provisional.mjs';
 import {amendmentAlternative} from './amendment-alternative.mjs';
 import {amendmentRejection} from './amendment-rejection.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';

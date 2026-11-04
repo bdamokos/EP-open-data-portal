@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import {amendmentProvisional} from '../server/amendment-provisional.mjs';
+import {verifyProvisional} from './amendment-provisional-oracle.mjs';
 import {amendmentAlternative} from '../server/amendment-alternative.mjs';
 import {amendmentRejection} from '../server/amendment-rejection.mjs';
 import {verifyAlternative} from './amendment-alternative-oracle.mjs';
@@ -296,6 +298,15 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
       }
     }
     stages.S2.gaps=gaps;
+    if(fetched?.ok&&stages.S1.status==='passed') {
+      const input={amendmentId:row.id,documentId:row.targetDocumentId,listId:variant.listId,decisions,buffer:fetched.body,source:{url:fetched.url,fetchedAt:fetched.fetchedAt,language}};
+      const operation=runtime?runtime.amendmentProvisional?.(input):amendmentProvisional(input);
+      if(operation) {
+        stages.S5=operation;
+        documentOperation=verifyProvisional({...input,id:row.id,placement:operation});
+        stages.S6=documentOperation;
+      }
+    }
     const classified=classifyRow(stages,documentOperation);
     const baseline=wording?.baseline||variant?.baseline;
     adoptedCalibration?.observe({row,wording,placement:stages.S5,...calibrationInput});

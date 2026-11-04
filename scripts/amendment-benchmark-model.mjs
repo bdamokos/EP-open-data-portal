@@ -62,6 +62,7 @@ export function classifyRow(stages,documentOperation) {
   if(documentOperation?.status==='verified'&&stages.S5.status==='document-operation') {
     if(documentOperation.reason==='source-attested-rejection')return {outcome:'correct',reason:'whole-document-rejection'};
     if(documentOperation.reason==='source-attested-alternative-motion')return {outcome:'correct',reason:'whole-document-alternative-motion'};
+    if(documentOperation.reason==='source-attested-provisional-agreement')return {outcome:'correct',reason:'whole-document-provisional-agreement'};
   }
   return classify(stages);
 }

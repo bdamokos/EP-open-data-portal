@@ -586,3 +586,15 @@ test('verified whole-document operations earn credit and retain distinct reasons
   assert.equal(metrics(rows).counts.correct,2);
   assert.equal(metrics(rows).votes.correct,metrics(rows).votes.total);
 });
+
+test('provisional placement uses exact source identity despite unavailable comparison columns',async()=>{
+ const {provisionalFixture}=await import('../server/test-support/provisionalFixture.mjs');
+ const fixture=provisionalFixture(),url=fixture.source.url;
+ const input={id:fixture.id,number:3,targetDocumentId:fixture.documentId,listId:fixture.listId,wordingSource:{url},language:'en',decisions:fixture.decisions.map(d=>({...d,date:'2026-10-22',sittingId:'MTG-PL-2026-10-22'}))};
+ const cache={apiBase,get:async()=>({ok:true,body:fixture.buffer,url,fetchedAt:fixture.source.fetchedAt,sha256:digest(fixture.buffer)}),json:async url=>({input:{ok:true,url},value:{documentId:fixture.documentId,document:{selectedText:source([])}}})};
+ const sample={mode:'documents',asOf:'2026-10-26'};
+ const [result]=await evaluateReport([input],sample,cache);
+ assert.equal(result.stages.S2.status,'blocked');assert.equal(result.outcome,'correct');assert.equal(result.reason,'whole-document-provisional-agreement');assert.equal(result.stages.S5.scope,'whole-document');
+ const [missing]=await evaluateReport([input],sample,{...cache,get:async()=>({ok:false,status:404,url})});assert.notEqual(missing.outcome,'correct');
+ const [oldRuntime]=await evaluateReport([input],sample,cache,{runtime:{}});assert.notEqual(oldRuntime.outcome,'correct','an older runtime must not use the current placement helper');
+});
