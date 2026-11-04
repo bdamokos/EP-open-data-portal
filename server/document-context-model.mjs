@@ -550,7 +550,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const driftVotes=options.numberingReferenceTexts??(referenceText?[referenceText]:[]);
   if(!options.requireUniqueOriginal&&options.language==='en'&&['replace','delete'].includes(operation)
     &&ref?.kind==='paragraph'&&!ref.isNew&&!ref.suffix&&!ref.after&&!ref.parents.length
-    &&/^[1-9]\d{0,5}$/u.test(ref.label)&&driftVotes.length&&!/\n_{5,}\s*\n/u.test(options.originalText)) {
+    &&/^[1-9]\d{0,5}$/u.test(ref.label)&&driftVotes.length&&!/\n(?:_{5,}\s*\n|[1-9]\d*\.\s+)/u.test(options.originalText)) {
     const votes=driftVotes.map(value=>/^(?:§|Paragraph)\s*([1-9]\d{0,5})$/iu.exec(whitespace(value))?.[1]);
     const original=wordingNormal(options.originalText),target=votes[0];
     if(votes.every(value=>value===target)&&target&&Math.abs(Number(target)-Number(ref.label))===1
@@ -711,7 +711,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     const numberedCitation = unit.kind === 'citation'
       && /^([1-9]\d*)\.\s+/u.exec(whitespace(options.originalText))?.[1] === unit.label
       && complete(structure.start, unit.end);
-    const footnotes = sourceKey !== originalKey && ['paragraph', 'recital', 'point'].includes(unit.kind)
+    const footnotes = sourceKey !== originalKey && ['paragraph', 'recital', 'point', 'citation'].includes(unit.kind)
       && resolutionFootnoteMatch(text, unit.start, unit.end, options.originalText, options.originalFormatting);
     // A unique labelled whole provision can survive small transcription damage
     // or a replaced tail. Compare all same-kind provisions in this motion so
@@ -719,7 +719,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     // Detached notes require their own body, payload and anchor proof. A small
     // payload must never be mistaken for a damaged tail by edit distance.
     let nearMatch=false;
-    if((sourceKey!==originalKey||options.requireUniqueOriginal)&&!/\n_{5,}\s*\n/u.test(options.originalText)&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
+    if((sourceKey!==originalKey||options.requireUniqueOriginal)&&!/\n(?:_{5,}\s*\n|[1-9]\d*\.\s+)/u.test(options.originalText)&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
       const score=value=>{
         let prefix=0;while(prefix<Math.min(value.length,originalKey.length)&&value[prefix]===originalKey[prefix])prefix++;
         return {similarity:characterSimilarity(value,originalKey,.93),prefix:prefix>=80&&prefix<Math.min(value.length,originalKey.length)?prefix/Math.min(value.length,originalKey.length):0};

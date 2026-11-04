@@ -60,10 +60,9 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   }
   const council=chosen.baseline==='council-position';
   const proposalKind=['commission-proposal','council-position'].includes(chosen.baseline)&&chosen.baselineSource?.category===chosen.baseline&&chosen.baselineSource.conflicted===false;
-  const consultation=chosen.baseline==='commission-proposal'&&(chosen.documentReferences||[]).some(r=>(r.field==='DocRef'||/^DocAmend\d?$/.test(r.field))&&/\b\d{4}\/\d{4}\s*\(CNS\)/u.test(r.raw||''));
   const nle=chosen.baseline==='commission-proposal'&&baseline?.evidence?.some(e=>e.kind==='native-procedure'&&e.status==='verified'&&/\(NLE\)$/u.test(e.procedure));
-  const detachedNotes=proposalKind&&(consultation||nle)&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text));
-  if(detachedNotes&&(!nle||!items?.length))return unresolved('proposal_note_scope_unavailable');
+  const detachedNotes=proposalKind&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text));
+  if(detachedNotes&&!items?.length)return unresolved('proposal_note_scope_unavailable');
   if(proposalKind&&nle&&baseline.evidence.some(e=>e.kind==='native-nle-annex-part'&&e.ordinal===null&&e.legalPlacement===false)&&/\bAnnex\b/iu.test(chosen.targetLabel||''))return unresolved('proposal_annex_ordinal_unverified');
   let selected=chosen;
   if(proposalKind&&nle&&chosen.language==='en'&&/^Annex I(?= [–-])/u.test(chosen.targetLabel||'')) {
@@ -101,19 +100,20 @@ export {amendmentAlternative,amendmentRejection};
 function comparisonColumn(value,formatting) {
   if(typeof value!=='string'||value.length>64*1024)return null;
   const lines=value.split('\n');let offset=0,separator;
-  for(const line of lines){if(/^_{3,}[ \t]*$/u.test(line)){if(separator||offset===0||offset+line.length>=value.length)return null;separator={start:offset-1,end:offset+line.length+1};}offset+=line.length+1;}
+  for(const line of lines){if(/^_{3,}[ \t]*$/u.test(line)){if(separator||offset===0)return null;separator={start:offset-1,end:offset+line.length+1};}offset+=line.length+1;}
   if(!separator)return {body:value,end:value.length,notes:[],references:[],clean:value};
   const body=value.slice(0,separator.start),notes=[];
   for(const line of value.slice(separator.end).split('\n')){
     if(!line.trim())continue;
     const match=/^\s*([1-9]\d*[a-z]{0,3})\.?\s+(.+)$/u.exec(line);
     if(match){if(notes.some(n=>n.label===match[1]))return null;notes.push({label:match[1],text:match[2]});}
-    else {if(!notes.length||/^\s*\+\s*OJ:/iu.test(line))return null;notes.at(-1).text+='\n'+line;}
+    else {if(!notes.length)return null;notes.at(-1).text+='\n'+line;}
   }
+  if(!notes.length)return {body,end:separator.start,notes:[],references:[],clean:body};
   const references=[];let clean='',cursor=0;
   for(const mark of (formatting||[]).filter(mark=>mark.kind==='superscript'&&mark.start<body.length).sort((a,b)=>a.start-b.start)){
     if(!Number.isSafeInteger(mark.start)||!Number.isSafeInteger(mark.end)||mark.start<cursor||mark.end<=mark.start||mark.end>body.length)return null;
-    const label=/^([1-9]\d*[a-z]{0,3})\.?$/u.exec(body.slice(mark.start,mark.end))?.[1];
+    const label=/^([1-9]\d*[a-z]{0,3})(?:\.|\+)?$/u.exec(body.slice(mark.start,mark.end))?.[1];
     if(!label||references.some(ref=>ref.label===label))return null;
     clean+=body.slice(cursor,mark.start);references.push({label,prefix:clean});cursor=mark.end;
   }
@@ -140,7 +140,7 @@ function resolveProposalNoteScope(items,chosen) {
   const withheld=()=>({operation:chosen.originalText?.trim()?'replace':'insert',status:'unresolved',reason:'proposal_note_scope_unavailable',evidence:[]});
   if(chosen.language!=='en')return withheld();
   const original=comparisonColumn(chosen.originalText,chosen.originalFormatting),proposed=comparisonColumn(chosen.proposedText,chosen.proposedFormatting);
-  if(!original||!proposed||!proposed.notes.length||original.notes.length!==original.references.length)return withheld();
+  if(!original||!proposed||!(original.notes.length||proposed.notes.length)||original.notes.length!==original.references.length)return withheld();
   // Word anchors have no text characters. Removing their comparison markers
   // can leave whitespace inside empty parentheses; the source proof below
   // still requires the complete paragraph and every original note.
