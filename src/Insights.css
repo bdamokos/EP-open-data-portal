@@ -144,7 +144,7 @@
 .insight-country-table li {display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px;}
 .insight-country-table li small {color:var(--ink-muted);}
 .insight-gender-strip {height:18px;display:flex;overflow:hidden;border-radius:3px;gap:2px;margin:18px 0;}
-.gender-female {background:var(--chart-1);}.gender-male {background:var(--chart-2);}.gender-unknown {background:var(--chart-neutral);}
+.gender-female {background:var(--chart-1);}.gender-male {background:var(--chart-2);}.gender-other {background:var(--chart-3);}.gender-unknown {background:var(--chart-neutral);}
 .insight-gender li {display:flex;justify-content:space-between;font-size:15px;margin:8px 0;}
 .insight-age-histogram {display:flex;align-items:end;gap:10px;margin-top:20px;}
 .insight-age-histogram>div {flex:1;min-width:0;text-align:center;display:flex;align-items:center;flex-direction:column;gap:5px;}

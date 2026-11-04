@@ -5,8 +5,9 @@ import {titlePlaces,countryLabelSource} from './insights-places.mjs';
 import {phraseModelSteps} from './insights-phrases.mjs';
 import {finishWork,cooperativeWork} from './cooperative-work.mjs';
 import {questionAddressees} from './question-addressees.mjs';
+import {sourceGender} from './gender.mjs';
 
-export const INSIGHTS_VERSION = 'titles-phrases-facets-v27-title-scripts';
+export const INSIGHTS_VERSION = 'titles-phrases-facets-v28-gender';
 export const officialApi = path => 'https://data.europarl.europa.eu/api/v2' + path;
 export function personId(value) {
   let reference=typeof value==='string' ? value : value?.id;
@@ -65,14 +66,14 @@ export function demographicStats(ids, members, metadata = new Map(), referenceDa
   const demographicEvidence={};
   const dimensions = {country:new Map(),group:new Map(),gender:new Map(),age:new Map()};
   for (const id of current) {
-    const meta = metadata.get(id) || {}, sex = tail(array(meta.hasGender)[0]);
+    const meta = metadata.get(id) || {}, sex = sourceGender(meta.hasGender);
     const age = ageAt(meta.bday,referenceDate);
     const provenance=meta.demographicProvenance||{};
     demographicEvidence[id]=Object.fromEntries(['bday','hasGender','api:country-of-representation'].map(field=>{
       const value=provenance[field]||{status:meta[field]===undefined?'missing_acquisition':'available',value:meta[field]??null,sources:[],lastAttempt:null};
       return [field,field==='bday'&&value.status==='available'&&age===null?{...value,status:'invalid',value:null}:value];
     }));
-    const values = {country:meta['api:country-of-representation'] || 'Unknown',group:meta['api:political-group'] || 'Unknown',gender:sex === 'FEMALE' ? 'Female' : sex === 'MALE' ? 'Male' : 'Unknown',age:age == null ? 'Unknown' : age < 35 ? '18–34' : age < 50 ? '35–49' : age < 65 ? '50–64' : '65+'};
+    const values = {country:meta['api:country-of-representation'] || 'Unknown',group:meta['api:political-group'] || 'Unknown',gender:sex === 'f' ? 'Female' : sex === 'm' ? 'Male' : sex === 'other' ? 'Other' : 'Unknown',age:age == null ? 'Unknown' : age < 35 ? '18–34' : age < 50 ? '35–49' : age < 65 ? '50–64' : '65+'};
     for (const [dimension,value] of Object.entries(values)) { const bucket=dimensions[dimension];bucket.set(value,(bucket.get(value)||0)+1); }
   }
   const sourceDates=current.flatMap(id=>{
