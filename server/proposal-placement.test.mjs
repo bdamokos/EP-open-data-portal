@@ -703,3 +703,14 @@ test('a complete adjacent recital pair survives unrelated later recast numbering
  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,3);assert(placed.evidence.some(e=>e.basis==='native-adjacent-recital-boundary'));
  for(const mutate of [p=>p.sourceKind='text',p=>p.paragraphs[3]='(4) Other recital.',p=>p.paragraphs[5]='(1) Duplicate anchor.',p=>p.paragraphSources[3].ordinal++,p=>p.paragraphSources[2].complete=false]){const p=make();mutate(p);assert.equal(resolve(p,'Recital 1 a (new)','','(1a) New recital.').status,'unresolved',String(mutate));}
 });
+
+test('new outer articles use the next native heading when an inner quote is incomplete',()=>{
+ const data=fixture('proposal-new-article-boundary.json'),wrap=body=>`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body></w:document>`;
+ const make=(change=x=>x)=>{const buffer=fixtureZip({'word/document.xml':wrap(change(data.bodyXml))});return {buffer,proposal:parseProposal(buffer,{language:'en'})};};
+ const wording={language:'en',baseline:'commission-proposal',originalText:'',proposedText:'Article1a\nDirective (EU) 2020/262 is amended as follows:',targetLabel:'Article 1 a (new)'};
+ const f=make(),place=f=>resolveProposalPlacement([{kind:'act',proposal:f.proposal}],wording),placement=place(f),before=f.proposal.paragraphs.find(row=>row.text==='Article 2').index;
+ assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,before);assert.equal(placement.insertAfter,before-1);assert(placement.evidence.some(e=>e.basis==='outer-article-heading-gap'));
+ assert.equal(verifyPlacement({items:[{proposal:f.proposal}],wording,placement,nativeQuoted:{proposalBuffer:f.buffer}}).status,'verified');
+ for(const change of [x=>x.replace('Article 2','Article 3'),x=>x.replace('Article 2','Article 1a'),x=>x.replace('HAS ADOPTED THIS DIRECTIVE:','An instruction:')])assert.equal(place(make(change)).status,'unresolved');
+ assert.equal(resolveProposalPlacement([{kind:'act',proposal:f.proposal}],{...wording,proposedText:'A differently numbered article.'}).status,'unresolved');
+});
