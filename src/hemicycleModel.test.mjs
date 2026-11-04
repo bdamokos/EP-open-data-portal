@@ -20,6 +20,9 @@ test('group and country narrow Members; seats without a Member never match',()=>
   assert(!seatMatches(weber,{group:'S&D'}));
   assert(!seatMatches(weber,{country:'FR'}));
   assert(!seatMatches(council));
+  assert(seatMatches(council,{query:'1'}),'a seat number reaches a seat without a Member');
+  assert(!seatMatches(council,{query:'1',group:'PPE'}));
+  assert(!seatMatches(council,{query:'council'}));
 });
 test('groups are counted from Members only, largest first',()=>{
   assert.deepEqual(groupCounts([weber,garcia,muresan,council]),[{group:'PPE',count:2},{group:'S&D',count:1}]);

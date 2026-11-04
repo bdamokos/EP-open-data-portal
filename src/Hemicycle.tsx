@@ -107,7 +107,7 @@ export function Hemicycle(props:InsightProps) {
         {filtering&&<section className="hemicycle-results">
           <h2>{results.length?ui.t('hemicycle.results',{count:String(results.length)}):ui.t('hemicycle.noResults')}</h2>
           {results.length>0&&<ul>{results.map(seat=><li key={seat.seat}><button type="button" aria-pressed={selected?.seat===seat.seat} onClick={()=>select(seat)}>
-            <span>{fullName(seat)}</span><span className="hemicycle-count">{seat.seat}</span>
+            <span>{seat.member?fullName(seat):seat.institution?ui.t(`hemicycle.${seat.institution}`):ui.t('hemicycle.emptySeat')}</span><span className="hemicycle-count">{seat.seat}</span>
           </button></li>)}</ul>}
         </section>}
         {Boolean(plan.changes?.length)&&<section className="hemicycle-changes">

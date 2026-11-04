@@ -156,7 +156,7 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 Parliament’s interactive plan loads `/erpl-public/hemicycle/{str,bru}/en.json` (seats, Members, groups, `startDate`) and an SVG of numbered seat circles under `/commonFrontResources/evostrap/4.0.1/lib/widgets/hemicycle/svg/`. That path carries the widget’s version, so a site release can retire it. Both need the `Mozilla/5.0 (compatible; …)` agent form. `persId` is the API’s MEP identifier.
 
 - The plan records allocated seats; a Member may occasionally sit elsewhere. The chambers are numbered differently, and each file is updated separately: Parliament says for each part-session, but the Brussels file can lag by months and then lists former Members. The PDF plans on the same page are updated separately again and can disagree with the JSON.
-- Only the latest plan is published. The single source writer checks each chamber every six hours with conditional requests and keeps a revision and a diff when seats or Members change, so history starts with the first check. A process without the index reads the source directly, at most hourly.
+- Only the latest plan is published. The single source writer checks each chamber every six hours with conditional requests and keeps a revision and a diff when seats or Members change, so history starts with the first check. A process without the index reads the source directly, at most hourly, or every five minutes after a failure.
 
 ### Voting lists
 

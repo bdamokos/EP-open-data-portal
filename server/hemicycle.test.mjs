@@ -32,6 +32,8 @@ test('damaged or placeholder files are rejected, not published as a smaller cham
   assert.throws(()=>parseGeometry('<html>Please wait</html>'),/viewBox/);
   assert.throws(()=>parseGeometry(svg(10)),/seat count/);
   assert.throws(()=>parseGeometry('<svg viewBox="0 0 9 9">'+'<circle id="1" cx="1" cy="1" r="1"/>'.repeat(700)+'</svg>'),/repeats/);
+  assert.throws(()=>parseGeometry('<svg viewBox="0 0 9 9">'+'<circle id="1" '.repeat(40)),/malformed/);
+  const started=performance.now();assert.throws(()=>parseGeometry('<svg viewBox="0 0 9 9">'+'<circle '.repeat(100000)),/malformed/);assert(performance.now()-started<200,'unterminated tags fail without rescanning');
   assert.throws(()=>normalizePlan('str',{},svg()),/shape/);
   assert.throws(()=>normalizePlan('str',source([person(1,10)]),svg()),/Member list/);
   assert.throws(()=>normalizePlan('str',source([person(1,9999)]),svg()),/disagree/);
@@ -94,7 +96,10 @@ test('without the index a plan is read live, cached and retained through a failu
   assert.equal(first.sourcePageUrl,'https://www.europarl.europa.eu/plenary/en/hemicycle.html');
   await hemicycleResponse('str',{clock,fetchPlan});assert.equal(reads,1);
   now=2*3600000;fail=true;assert.equal((await hemicycleResponse('str',{clock,fetchPlan})).seats.length,700);assert.equal(reads,2);
-  await assert.rejects(hemicycleResponse('bru',{clock,fetchPlan}),/down/);
+  assert.equal((await hemicycleResponse('str',{clock,fetchPlan})).seats.length,700);assert.equal(reads,2,'a failed read is not repeated by the next page view');
+  now+=5*60000;await hemicycleResponse('str',{clock,fetchPlan});assert.equal(reads,3,'it is retried after the pause');
+  await assert.rejects(hemicycleResponse('bru',{clock,fetchPlan}),error=>error.status===503);assert.equal(reads,4);
+  await assert.rejects(hemicycleResponse('bru',{clock,fetchPlan}),error=>error.status===503);assert.equal(reads,4,'a cold failure is held too');
   await assert.rejects(hemicycleResponse('xxx',{clock,fetchPlan}),error=>error.status===404);
 });
 test('source transport sends validators, refuses redirects and fetches a complete pair when one file changed',async t=>{
@@ -108,4 +113,14 @@ test('source transport sends validators, refuses redirects and fetches a complet
   const result=await fetchHemicyclePlan('str',{validators:{plan:'old',geometry:'shape'}});
   assert.deepEqual(calls.map(call=>[call[0].split('/').pop(),call[1]]),[['en.json','old'],['str.svg','shape'],['str.svg',undefined]]);
   assert.equal(result.plan.seats.length,700);assert.deepEqual(result.validators,{plan:'new',geometry:'shape'});
+});
+test('source reads stop at the size limit without a declared length and enforce a deadline',async t=>{
+  const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);
+  let pulled=0,cancelled=false;
+  globalThis.fetch=async()=>new Response(new ReadableStream({pull(controller){pulled++;controller.enqueue(new Uint8Array(256*1024));},cancel(){cancelled=true;}}),{status:200});
+  await assert.rejects(fetchHemicyclePlan('str'),/size limit/);
+  assert(cancelled,'the oversized body is cancelled');assert(pulled<=16,'reading stops near the limit: '+pulled);
+  let seen;globalThis.fetch=async(url,options)=>{seen=options.signal;return new Response('{}',{status:200});};
+  await fetchHemicyclePlan('str').catch(()=>{});
+  assert(seen instanceof AbortSignal,'every source read has a deadline signal');
 });

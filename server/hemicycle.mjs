@@ -7,7 +7,7 @@ import {browserCompatibleUserAgent} from './user-agent.mjs';
 export const HEMICYCLE_VERSION='hemicycle-v1';
 export const HEMICYCLE_PAGE='https://www.europarl.europa.eu/plenary/en/hemicycle.html';
 export const HEMICYCLE_CHAMBERS=['str','bru'];
-const HOUR=3600000,CHECK_EVERY=6*HOUR,RETRY_AFTER=HOUR,LIVE_TTL=HOUR,MAX_BYTES=1024*1024,MAX_CHANGES=20;
+const HOUR=3600000,CHECK_EVERY=6*HOUR,RETRY_AFTER=HOUR,LIVE_TTL=HOUR,LIVE_RETRY=5*60000,SOURCE_TIMEOUT=30000,MAX_BYTES=1024*1024,MAX_ELEMENT=512,MAX_CHANGES=20;
 // Below these a file is damaged or a placeholder, not a seating plan: 720 Members sit in 850+ seats.
 const MIN_MEMBERS=300,MIN_SEATS=600,MAX_SEATS=1500;
 // The numeric identifiers Parliament's plan uses for the seats that are not Members'.
@@ -22,19 +22,31 @@ const sourceUrls=chamber=>({
 const validChamber=chamber=>HEMICYCLE_CHAMBERS.includes(chamber);
 const text=(value,limit=200)=>typeof value==='string'&&value.trim()&&value.length<=limit?value.trim():null;
 
-// Both files are parsed as data only. The SVG supplies seat positions and nothing else is kept from it.
+// Both files are parsed as data only, in one pass over bounded tags: this runs in the
+// source writer, so hostile or damaged input must not cost more than linear time.
+const openingTag=(svg,from)=>{
+  const end=svg.indexOf('>',from);
+  if(end<0||end-from>MAX_ELEMENT)throw new Error('Hemicycle geometry has a malformed tag.');
+  return [svg.slice(from,end),end+1];
+};
 export function parseGeometry(svg) {
-  const viewBox=/<svg\b[^>]*\bviewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/.exec(svg);
+  const root=svg.indexOf('<svg');
+  if(root<0)throw new Error('Hemicycle geometry has no viewBox.');
+  const [rootTag,start]=openingTag(svg,root);
+  const viewBox=/\bviewBox="0 0 (\d{1,6}(?:\.\d{1,6})?) (\d{1,6}(?:\.\d{1,6})?)"/.exec(rootTag);
   if(!viewBox)throw new Error('Hemicycle geometry has no viewBox.');
   const seats=new Map();
-  for(const [element] of svg.matchAll(/<circle\b[^>]*>/g)){
-    const attr=name=>new RegExp(`\\b${name}="([^"]*)"`).exec(element)?.[1];
-    const id=attr('id'),x=Number(attr('cx')),y=Number(attr('cy')),r=Number(attr('r'));
+  for(let at=svg.indexOf('<circle',start);at>=0;){
+    const [element,next]=openingTag(svg,at);
+    const attrs=new Map([...element.matchAll(/\b(id|cx|cy|r)="([^"]*)"/g)].map(match=>[match[1],match[2]]));
+    const id=attrs.get('id'),x=Number(attrs.get('cx')),y=Number(attrs.get('cy')),r=Number(attrs.get('r'));
     if(!/^[1-9]\d{0,3}$/.test(id||'')||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(r)||r<=0)throw new Error('Hemicycle geometry has an invalid seat.');
     if(seats.has(Number(id)))throw new Error('Hemicycle geometry repeats a seat.');
     seats.set(Number(id),{x,y,r});
+    if(seats.size>MAX_SEATS)throw new Error('Hemicycle geometry has an unexpected seat count.');
+    at=svg.indexOf('<circle',next);
   }
-  if(seats.size<MIN_SEATS||seats.size>MAX_SEATS)throw new Error('Hemicycle geometry has an unexpected seat count.');
+  if(seats.size<MIN_SEATS)throw new Error('Hemicycle geometry has an unexpected seat count.');
   return {width:Number(viewBox[1]),height:Number(viewBox[2]),seats};
 }
 
@@ -78,16 +90,29 @@ export function diffPlans(previous,next) {
   };
 }
 
+// The size limit counts decoded bytes as they arrive; a declared length can be absent or wrong.
+async function boundedText(response) {
+  const reader=response.body.getReader(),decoder=new TextDecoder();
+  let body='',bytes=0;
+  try{
+    while(true){
+      const {done,value}=await reader.read();
+      if(done)return body+decoder.decode();
+      bytes+=value.byteLength;
+      if(bytes>MAX_BYTES)throw new Error('Hemicycle source exceeds size limit.');
+      body+=decoder.decode(value,{stream:true});
+    }
+  }finally{await reader.cancel().catch(()=>{});}
+}
 async function readSource(url,validator,accept,signal) {
   return boundedUpstream(async admitted=>{
-    const response=await fetch(url,{redirect:'error',signal:admitted,headers:{Accept:accept,'User-Agent':browserCompatibleUserAgent('hemicycle'),...(validator?{'If-None-Match':validator}:{})}});
+    // The timeout covers the body too: an unfinished response must not hold the source writer.
+    const deadline=AbortSignal.any([...(admitted?[admitted]:[]),AbortSignal.timeout(SOURCE_TIMEOUT)]);
+    const response=await fetch(url,{redirect:'error',signal:deadline,headers:{Accept:accept,'User-Agent':browserCompatibleUserAgent('hemicycle'),...(validator?{'If-None-Match':validator}:{})}});
     const busy=upstreamResponseError(response,{source:'website'});if(busy){await response.body?.cancel();throw busy;}
     if(response.status===304){await response.body?.cancel();return {notModified:true,etag:validator};}
     if(response.status!==200){await response.body?.cancel();throw new Error('Hemicycle source returned '+response.status);}
-    if(Number(response.headers.get('content-length'))>MAX_BYTES){await response.body?.cancel();throw new Error('Hemicycle source exceeds size limit.');}
-    const body=await response.text();
-    if(body.length>MAX_BYTES)throw new Error('Hemicycle source exceeds size limit.');
-    return {body,etag:response.headers.get('etag')};
+    return {body:await boundedText(response),etag:response.headers.get('etag')};
   },{source:'website',priority:'background',signal});
 }
 
@@ -160,17 +185,27 @@ function recentChanges(store,chamber) {
 
 const live=new Map();
 // A process without the index, or before its first check, reads the source directly.
+// A failure is held briefly so that page views cannot turn a broken source into repeated requests.
 async function livePlan(chamber,{clock,fetchPlan}) {
-  const held=live.get(chamber);
-  if(held?.plan&&clock()-held.at<LIVE_TTL)return held.plan;
-  if(!held?.pending){
+  const held=live.get(chamber)||{},now=clock();
+  if(held.plan&&now-held.at<LIVE_TTL)return held.plan;
+  if(!held.pending&&now<(held.retryAt||0)){
+    if(held.plan)return held.plan;
+    throw new HttpError(503,'hemicycle_unavailable','Seating plan unavailable.');
+  }
+  if(!held.pending){
     const pending=sharedRequest(signal=>fetchPlan(chamber,{signal}))
       .then(({plan})=>{live.set(chamber,{plan,at:clock()});return plan;})
-      .catch(error=>{const saved=live.get(chamber);if(saved?.pending===pending)live.set(chamber,{plan:saved.plan,at:saved.at});throw error;});
+      .catch(error=>{
+        live.set(chamber,{plan:held.plan,at:held.at,retryAt:clock()+LIVE_RETRY});
+        if(held.plan)return held.plan;
+        if(error instanceof HttpError)throw error;
+        throw new HttpError(503,'hemicycle_unavailable','Seating plan unavailable.');
+      });
     live.set(chamber,{...held,pending});
+    return pending;
   }
-  try{return await live.get(chamber).pending;}
-  catch(error){const plan=live.get(chamber)?.plan;if(plan)return plan;throw error;}
+  return held.pending;
 }
 export const clearHemicycleCache=()=>live.clear();
 

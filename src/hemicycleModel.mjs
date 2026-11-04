@@ -1,13 +1,14 @@
 const fold=value=>String(value||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLocaleLowerCase();
 
-// A number finds that seat; anything else finds Members by name.
+// A number finds that seat, which also gives the keyboard a route to seats without a Member;
+// anything else finds Members by name.
 export function seatMatches(seat,{query='',group=null,country=null}={},matchesCountry=(a,b)=>!a||a===b) {
-  if(!seat.member)return false;
+  const wanted=fold(query).trim(),number=/^\d+$/.test(wanted);
+  if(number&&String(seat.seat)!==wanted)return false;
+  if(!seat.member)return number&&!group&&!country;
   if(group&&seat.group!==group)return false;
   if(!matchesCountry(country,seat.country))return false;
-  const wanted=fold(query).trim();
-  if(!wanted)return true;
-  return /^\d+$/.test(wanted)?String(seat.seat)===wanted:fold(`${seat.firstName} ${seat.name}`).includes(wanted);
+  return number||!wanted||fold(`${seat.firstName} ${seat.name}`).includes(wanted);
 }
 
 export function groupCounts(seats) {
