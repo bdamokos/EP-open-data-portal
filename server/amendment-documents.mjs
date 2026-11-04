@@ -264,13 +264,14 @@ function documentBlocks(parts,warnings,language) {
     size+=raw.length+text.length;
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
     const structure=JSON.stringify(nodes);
-    return {raw,text,formatting,bold,...(compoundVisible?{compound:compoundHeader(nodes,raw,text,compoundVisible),compoundBlank:compoundHeader(nodes,raw,text,compoundVisible,true)===true}:{}),paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
+    const captionSafe=Boolean(compoundVisible?.(nodes)&&raw===text&&!/"w:(?:del|moveFrom|numPr|footnoteReference|endnoteReference|fldSimple|instrText)"/u.test(structure));
+    return {raw,text,formatting,bold,captionSafe,...(compoundVisible?{compound:compoundHeader(nodes,raw,text,compoundVisible),compoundBlank:compoundHeader(nodes,raw,text,compoundVisible,true)===true}:{}),paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
   };
   const blocks=[];
   const summary=content=>({
     ...joinWording(content.filter(part=>part.text)),raw:content.map(part=>part.raw).join('\n'),
     hasNotes:content.some(part=>part.hasNotes),losses:[...new Set(content.flatMap(part=>part.losses))],
-    symbolLoss:content.some(part=>part.symbolLoss),unsupportedBody:content.some(part=>part.unsupportedBody),
+    symbolLoss:content.some(part=>part.symbolLoss),unsupportedBody:content.some(part=>part.unsupportedBody),captionSafe:content.every(part=>part.kind==='paragraph'&&part.captionSafe),
   });
   const tableOf=nodes=>{
     let unsupported=unsupportedChildren(nodes,TABLE_CHILDREN),revised=structuralRevision(children(nodes,'w:tblPr'))||structuralMove(nodes);
@@ -459,7 +460,18 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const targetLabel=targetParts.map(metadata).filter(Boolean).join('\n')||null;
     const before=[],after=[],tables=group.filter(b=>b.kind==='table');let comparableRows=0,hasTable=false;
     const rows=tables.flatMap(sectionRows),first=rows.find(row=>row.cells.some(cell=>cell.text));
-    const stacked=first&&sectionHeading(first.cells,first.table,language)?.side==='original';
+    // A full-width table caption may precede the original-side heading.
+    // The proposed side must repeat it immediately after its own heading.
+    const visible=rows.filter(row=>row.cells.some(cell=>cell.text)),tableCaption=language==='en'&&/^Annex(?: [IVXLCDM]+)? [–—-] table [–—-] (.+)$/u.exec(targetLabel??'')?.[1];
+    const fullCaption=(row,value)=>row?.cells.length===1&&row.cells[0].grid.span===row.table.gridColumns&&row.cells[0].text===value&&row.cells[0].raw===value&&!row.cells[0].hasNotes&&!row.cells[0].losses.length;
+    const proposedHeaders=visible.flatMap((row,i)=>sectionHeading(row.cells,row.table,language)?.side==='proposed'?[i]:[]),proposedHeader=proposedHeaders[0];
+    const captionClasses=documentReferences.filter(ref=>['DocumentClass','DocAmend'].includes(ref.field)&&/^Proposal for a (?:regulation|directive|decision)$/u.test(ref.raw));
+    const captionGrids=tables.length===1?direct(tables[0].gridNodes,'w:tblGrid'):[];
+    const explicitCaptionGrid=captionGrids.length===1&&direct(captionGrids[0]['w:tblGrid'],'w:gridCol').length===2;
+    const captionPrefix=Boolean(explicitCaptionGrid&&tableCaption&&captionClasses.length===1&&tables.length===1&&rows.every(row=>row.cells.every(cell=>cell.captionSafe))&&tables[0].legalGridSupported&&fullCaption(visible[0],tableCaption)&&sectionHeading(visible[1]?.cells??[],visible[1]?.table,language)?.side==='original'&&proposedHeaders.length===1&&proposedHeader>2&&fullCaption(visible[proposedHeader+1],tableCaption)&&proposedHeader+2<visible.length&&visible.slice(2,proposedHeader).concat(visible.slice(proposedHeader+2)).every(row=>row.cells.length===2&&row.cells.every(cell=>cell.grid.span===1&&!['Text proposed by the Commission','Amendment'].includes(cell.text))));
+    const stacked=captionPrefix||first&&sectionHeading(first.cells,first.table,language)?.side==='original';
+    if(captionPrefix)documentReferences.push({field:'ComparisonCaption',raw:tableCaption,sourceRaw:visible[0].cells[0].raw,scope:'amendment',basis:'caption-before-original-heading'});
+    let pendingCaption=captionPrefix;
     const sections=[];let section=null;
     for(const table of tables) {
       hasTable=true;
@@ -475,6 +487,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
         for(const code of Object.keys(CONTENT_LOSSES))if(cells.some(cell=>cell.losses.includes(code)))gap(code,number,CONTENT_LOSSES[code]);
         if(cells.every(c=>!c.text))continue;
         if(stacked) {
+          if(pendingCaption){before.push(joinWording(cells,'\t'));pendingCaption=false;continue;}
           const heading=sectionHeading(cells,rowTable,language);
           if(heading){section=heading;sections.push(heading);continue;}
           if(!section){gap('comparison-header',number,'A stacked comparison section has no explicit heading.');continue;}

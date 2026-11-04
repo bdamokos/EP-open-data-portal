@@ -3,6 +3,7 @@ import {assertResolutionCollision} from './amendment-resolution-collision-oracle
 import {assertLocalRecitalBoundary} from './amendment-local-recital-oracle.mjs';
 import {assertPlaceholderDeletion} from './amendment-placeholder-oracle.mjs';
 import {assertNewParentBoundary} from './amendment-benchmark-proposal-oracle.mjs';
+import {assertCaptionedComparison} from './amendment-captioned-comparison-oracle.mjs';
 import {assertTableContext} from './amendment-table-context-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
@@ -597,6 +598,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const captioned=assertCaptionedComparison(input);if(captioned&&captioned.status!=='verified')return captioned;
   const header=assertCompoundHeader(input);
   if(header&&header.status!=='verified')return header;
   const result=verifyProposalPlacement(input);

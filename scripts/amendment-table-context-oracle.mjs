@@ -1,3 +1,4 @@
+import {assertCaptionedComparison} from './amendment-captioned-comparison-oracle.mjs';
 import {createHash} from 'node:crypto';
 import {quotedWordBody,quotedWordParts} from './amendment-benchmark-quoted-oracle.mjs';
 import {safe,literal,completeGrid,nativeAnnexInstructionRows} from './amendment-native-table-oracle.mjs';
@@ -14,9 +15,10 @@ export function assertTableContext({items,wording,placement,nativeQuoted}) {
  if(!named&&!(point&&inner))return null;
  if(named&&wording.targetPath?.underlying?.length)return unknown();
  if(wording.targetPath?.proposal?.length>1||wording.targetPath?.language&&wording.targetPath.language!=='en')return unknown();
- const annex=named?.[1]??point?.[1]??'',caption=named?.[2]??inner[3],lines=wording.originalText.split(/\r?\n/u).map(line=>line.trimEnd()),at=lines.findIndex(line=>title(line)===title(caption));
+ const annex=named?.[1]??point?.[1]??'',caption=named?.[2]??inner[3],lines=wording.originalText.split(/\r?\n/u),at=lines.findIndex(line=>title(line)===title(caption));
  if(at<0||at>1||lines.filter(line=>title(line)===title(caption)).length!==1||point&&(at!==1||!new RegExp('^\\('+point[2]+'\\)\\s','u').test(lines[0]))||!point&&at!==0)return unknown();
- const original=lines.slice(at+1).map(line=>line.split('\t').map(clean));
+ const captioned=assertCaptionedComparison({wording,nativeQuoted});if(captioned&&captioned.status!=='verified')return unknown();
+ const original=captioned?captioned.originalRows.map(row=>row.map(clean)):lines.slice(at+1).map(line=>line.split('\t').map(clean));
  if(!original.length||!original.some(row=>row.every(elision))||original.some(row=>row.some(elision)&&!row.every(elision)))return unknown();
  const found=[];
  for(const [itemIndex,item] of (items||[]).entries()){
