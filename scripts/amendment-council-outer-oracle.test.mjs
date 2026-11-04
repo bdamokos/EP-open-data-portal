@@ -5,6 +5,7 @@ function fixture(){
  return {geometry:{words:texts.flatMap(text=>text.split(' ').map(text=>({text,page:4})))},structure,items:[{proposal:{sourceKind:'pdf',paragraphs}}],placement:{status:'placed',operation:'insert',itemIndex:0,insertAfter:2,insertBefore:3},wording:{language:'es',originalText:'',proposedText:'-1) Se añade el considerando siguiente:\n«(15 bis) Nueva disposición.».',targetPath:{language:'es',proposal:[{raw:'Artículo 1 – párrafo 1 – punto -1'}],underlying:[{document:'Directiva (UE) 2020/123',raw:'Considerando 15 bis (nuevo)'}]}}};
 }
 test('native ordered P identities and printed prefix prove the first outer insertion cursor',()=>assert.equal(inspectCouncilOuterInsertion(fixture()).status,'verified'));
+test('a proved initial cursor does not declare later unsupported paragraphs complete',()=>{const f=fixture();f.items[0].proposal.paragraphs.push({text:'Later unsupported text.',complete:false,source:{path:'unproved-later'}});assert.equal(inspectCouncilOuterInsertion(f).status,'verified');assert.equal(f.items[0].proposal.paragraphs.at(-1).complete,false);});
 for(const [name,change] of [
  ['wrong act',f=>f.wording.targetPath.underlying[0].document='Directiva (UE) 2020/124'],
  ['wrong recital',f=>f.wording.proposedText=f.wording.proposedText.replace('15 bis','16 bis')],

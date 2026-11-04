@@ -21,8 +21,10 @@ export function inspectCouncilOuterInsertion({geometry,structure,placement,wordi
  if(indices[0]<0||indices.some((index,i)=>index!==indices[0]+i||JSON.stringify(native[index].pages)!==JSON.stringify([page])||JSON.stringify(native[index].mcids)!==JSON.stringify(frame[i].source.mcids)))return failed();
  // Native P identities keep the actual cursor in source order, even if an
  // otherwise identical text prefix is copied elsewhere in the projection.
- const paths=rows.map(row=>row.source?.path),known=new Set(native.map(p=>p.ref));
- if(new Set(paths).size!==paths.length||paths.some(ref=>!known.has(ref))||JSON.stringify(native.filter(p=>paths.includes(p.ref)).map(p=>p.ref))!==JSON.stringify(paths))return failed();
+ const allPaths=rows.map(row=>row.source?.path),paths=allPaths.slice(0,before+1),known=new Set(native.map(p=>p.ref));
+ // Later unsupported paragraphs do not make this already bounded prefix
+ // complete or incomplete. Only identities through the actual cursor count.
+ if(new Set(allPaths).size!==allPaths.length||paths.some(ref=>!known.has(ref))||JSON.stringify(native.filter(p=>paths.includes(p.ref)).map(p=>p.ref))!==JSON.stringify(paths))return failed();
  const printed=geometry.words.filter(w=>w.page===page&&!w.reference).map(w=>w.text).join(' '),text=frame.map(row=>row.text).join(' '),needle=compact(text),actual=compact(printed),at=actual.indexOf(needle);
  if(!needle||at<0||actual.lastIndexOf(needle)!==at)return failed();
  // No earlier peer instruction on the prefix page may be overlooked.
