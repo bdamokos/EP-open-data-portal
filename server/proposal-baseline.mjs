@@ -71,7 +71,7 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
         evidence.push({kind:'cellar-source',url:metadata.url,resolvedSourceUrl:metadata.resolvedSourceUrl,fetchedAt:metadata.fetchedAt,stale:Boolean(metadata.viewCache?.stale),refreshError:metadata.viewCache?.refreshError||null},...identity.evidence);
         if(identity.status!=='resolved')return unavailable(identity.status,identity.gaps,{workId:identity.workId});
         if(identity.workId!==candidate.workId)return unavailable('unresolved',['proposal-work-conflict']);
-        if(consultation&&identity.evidence.find(e=>e.kind==='cellar-identity')?.types?.[0]!=='http://publications.europa.eu/resource/authority/resource-type/PROP_DIR')return unavailable('unresolved',['native-procedure-type-unavailable'],{workId:identity.workId});
+        if(consultation&&!/^http:\/\/publications\.europa\.eu\/resource\/authority\/resource-type\/(?:AMEND_)?PROP_DIR$/.test(identity.evidence.find(e=>e.kind==='cellar-identity')?.types?.[0]||''))return unavailable('unresolved',['native-procedure-type-unavailable'],{workId:identity.workId});
         if(nle&&identity.evidence.find(e=>e.kind==='cellar-identity')?.types?.[0]!=='http://publications.europa.eu/resource/authority/resource-type/PROP_DEC')return unavailable('unresolved',['native-procedure-type-unavailable'],{workId:identity.workId});
         if(!backfillSelectionMatches(identity))return unavailable('unresolved',['retained-selection-conflict'],{workId:identity.workId});
         const items=[],gaps=[];let bytes=0;

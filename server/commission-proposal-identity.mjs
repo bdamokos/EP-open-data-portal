@@ -59,7 +59,7 @@ export function resolveProposalTree(xml,{celex,language,procedure}={}) {
   const dossierCodes=unique([...values('act_preparatory_initiates_dossier'),...values('work_part_of_dossier')]).flatMap(uri=>{const m=uri.match(/^http:\/\/publications\.europa\.eu\/resource\/procedure\/(\d{4})_(\d+)$/);return m?[`${m[1]}/${m[2].padStart(4,'0')}`]:[];});
   const gaps=[];
   if(!creators.includes('http://publications.europa.eu/resource/authority/corporate-body/COM'))gaps.push('commission-author-unverified');
-  if(types.length!==1||!/^http:\/\/publications\.europa\.eu\/resource\/authority\/resource-type\/PROP_(REG|DIR|DEC)$/.test(types[0]))gaps.push('proposal-type-unverified');
+  if(types.length!==1||!/^http:\/\/publications\.europa\.eu\/resource\/authority\/resource-type\/(?:AMEND_)?PROP_(REG|DIR|DEC)$/.test(types[0]))gaps.push('proposal-type-unverified');
   if(versions.length!==1||versions[0]!=='final')gaps.push('proposal-version-unresolved');
   if(values('resource_legal_id_celex').some(value=>value!==celex))gaps.push('proposal-celex-conflict');
   const year=celex.slice(1,5),number=String(Number(celex.slice(7))),comnat=`http://publications.europa.eu/resource/comnat/COM_${year}_${number.padStart(4,'0')}_FIN`;

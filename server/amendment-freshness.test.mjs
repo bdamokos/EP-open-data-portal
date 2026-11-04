@@ -33,12 +33,12 @@ const oldOriginal='The original legal wording.';
 const oldProposed='The previously verified proposed wording.';
 const freshProposed='The corrected proposal sets a detailed requirement for an annual public implementation report.';
 
-function amendmentDocx(proposed=oldProposed,author='Alex Common',number=1) {
+function amendmentDocx(proposed=oldProposed,author='Alex Common',number=1,nativeIdentity='') {
   const escape=value=>value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const paragraph=value=>'<w:p><w:r><w:t>'+escape(value)+'</w:t></w:r></w:p>';
   const row=values=>'<w:tr>'+values.map(value=>'<w:tc>'+paragraph(value)+'</w:tc>').join('')+'</w:tr>';
   const xml='<w:document xmlns:w="urn:word"><w:body>'+paragraph('<Amend><Date>2.10.2026</Date><NumAm>'+number+'</NumAm>')+
-    paragraph('<Members>'+author+'</Members>')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+
+    paragraph(nativeIdentity)+paragraph('<Members>'+author+'</Members>')+paragraph('<Article>Article 1</Article>')+'<w:tbl>'+
     row(['Text proposed by the Commission','Amendment'])+row([oldOriginal,proposed])+'</w:tbl>'+paragraph('</Amend>')+'</w:body></w:document>';
   const name=Buffer.from('word/document.xml'), body=Buffer.from(xml), compressed=deflateRawSync(body);
   const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50);local.writeUInt16LE(8,8);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(name.length,26);
@@ -410,12 +410,17 @@ for(const route of ['detail','expanded'])test(route+' ingestion distinguishes un
   }
 });
 
-test('initial unavailable or empty distributions stay incomplete without invented retained wording or extraction retries',async t=>{
+test('initial fileless distributions try the exact route while retaining the metadata gap',async t=>{
   for(const mode of ['omitted','null','empty','pdf-only']) {
-    const context=await fixture(t,{baseline:false,initialDistribution:mode}),{store,generation}=context;
+    const context=await fixture(t,{baseline:false,initialDistribution:mode}),{store,worker,generation}=context;
     assertAbsentDistribution(context,mode,'detail');
     assert.equal(store.source(generation,listKey).work.extraction,undefined);
-    assert.equal(extractionJob(store,generation),undefined);
+    if(mode==='pdf-only')assert.equal(extractionJob(store,generation),undefined);
+    else {
+      let downloads=0;worker.downloadAmendmentDocx=async()=>{downloads++;throw Object.assign(new Error('Exact native distribution unavailable.'),{status:404});};
+      for(let attempt=0;attempt<3;attempt++){const task=nextAmendmentTask(store,generation);assert.equal(task.kind,'amendment-extract');let error;try{await worker.task(task);}catch(e){error=e;}assert(error);if(!failAmendmentTask(worker,task,error))store.failTask(task,error);const job=extractionJob(store,generation);if(attempt<2)context.advance(job.retry_at-store.clock()+1);}
+      assert.equal(downloads,3);
+    }
     const page=amendmentsPage(store,{document:targetId});
     assert.equal(page.coverage.complete,false);assert.equal(page.coverage.pending,false);
     assert(page.coverage.gaps.length>0);
@@ -1532,3 +1537,14 @@ for(const mode of ['two 503s then maintenance HTML','three different archives','
   assert.equal(failure.state,'transient');assert.equal(Date.parse(failure.retryAfter),store.clock()+86400000);
   assert.equal(failure.rejectedSource.count,mode==='three immediate identical archives'?3:1);
 });
+
+ test('fileless exact route accepts native-proved wording and rejects a different report before retention',async t=>{
+  for(const valid of [true,false]){
+   const context=await fixture(t,{baseline:false,initialDistribution:'empty'}),{store,worker,generation}=context;
+   const proof='<TitreType>Report</TitreType>A10-'+(valid?'0254':'0255')+'/2026';
+   worker.downloadAmendmentDocx=async url=>{assert.equal(url,'https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/'+listId+'/'+listId+'_en.docx');return {buffer:amendmentDocx(freshProposed,'Alex Common',1,proof)};};
+   const task=nextAmendmentTask(store,generation);assert.equal(task.kind,'amendment-extract');
+   if(valid){await worker.task(task);const saved=store.source(generation,listKey);assert.equal(saved.work.extraction.amendments[0].proposedText,freshProposed);assert.equal(saved.work.distributionEvidence.state,'empty');}
+   else {await assert.rejects(worker.task(task),{code:'distribution_identity_unverified'});assert.equal(store.source(generation,listKey).work.extraction,undefined);}
+  }
+ });
