@@ -48,7 +48,7 @@ function recastStyleIds(styles) {
 
 // Text of one native paragraph in its recast reading: final-revision runs only,
 // no field instructions, no deleted or marker runs, no reference rows.
-function readingOf(paragraph,ids) {
+function readingOf(paragraph,ids,refs=[]) {
   const style=value(entries(paragraph,'w:pPr')[0]?.['w:pPr'],'w:pStyle');
   if(ids.references.has(style))return '';
   let text='';
@@ -59,6 +59,7 @@ function readingOf(paragraph,ids) {
       if(ids.removed.has(value(rPr,'w:rStyle'))||on(rPr,'w:vanish'))continue;
       walk(body);continue;
     }
+    if(key==='w:footnoteReference')refs.push({id:node[':@']?.['@_w:id'],offset:text.length});
     if(key==='w:t')text+=(body||[]).map(item=>item['#text']??'').join('');
     else if(key==='w:tab')text+='\t';
     else if(key==='w:br'||key==='w:cr')text+='\n';
@@ -106,4 +107,9 @@ export function assertRecastReading({proposal,placement,nativeQuoted}) {
     if(squash(projected)!==squash(readingOf(node,ids)))return {status:'failed',reason:'oracle-recast-reading-mismatch',paragraph:row};
   }
   return {status:'verified',reason:'oracle-recast-reading'};
+}
+
+export function nativeRecastNoteReading(buffer,path){
+ const source=nativeSource(buffer),node=source?.native.get(path);if(!node)return null;
+ const refs=[],text=readingOf(node,source.ids,refs);return {text,refs};
 }
