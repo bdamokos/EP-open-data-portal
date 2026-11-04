@@ -400,14 +400,22 @@ export class ActivityStore {
     for(const source of this.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind=?').iterate(generation,kind))
       yield {key:source.key,work:parse(source.body),fetchedAt:source.fetched_at};
   }
+  // The writer asks on every tick. Scanning sources parses every document body in
+  // the generation (hundreds of MB), while the projection holds only motion rows.
+  // This process only writes the current version, so a clean generation stays clean.
   motionClassificationPending(generation) {
-    return Boolean(this.db.prepare("SELECT 1 FROM sources WHERE generation=? AND "+motionDocuments+" AND COALESCE(json_extract(body,'$.motionClassificationVersion'),0)<>? LIMIT 1").get(generation,MOTION_CLASSIFICATION_VERSION));
+    if(this.motionsClassified===generation)return false;
+    const table=fastReadsReady(this,generation)?'source_reads INDEXED BY read_motion_documents':'sources';
+    const pending=Boolean(this.db.prepare(`SELECT 1 FROM ${table} WHERE generation=? AND ${motionDocuments} AND COALESCE(json_extract(body,'$.motionClassificationVersion'),0)<>? LIMIT 1`).get(generation,MOTION_CLASSIFICATION_VERSION));
+    if(!pending)this.motionsClassified=generation;
+    return pending;
   }
   reclassifyMotions(generation,limit=100) {
     this.transaction(()=>{
       this.assertWriter();
       // Work only on the unpublished generation. Retain metadata and retrieval times.
       if(this.get('working')?.generation!==generation)throw new Error('Motion classification requires a working generation.');
+      if(!this.motionClassificationPending(generation))return;
       const rows=this.db.prepare("SELECT key,body,fetched_at FROM sources WHERE generation=? AND "+motionDocuments+" AND COALESCE(json_extract(body,'$.motionClassificationVersion'),0)<>? ORDER BY key LIMIT ?").all(generation,MOTION_CLASSIFICATION_VERSION,limit);
       const update=this.db.prepare('UPDATE sources SET body=? WHERE generation=? AND key=?');
       for(const row of rows) {

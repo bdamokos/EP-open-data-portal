@@ -176,7 +176,15 @@ export class ActivityWorker {
     const lastBegin=this.store.get('lastBeginAt') ?? this.store.get('lastSuccess');
     return !lastBegin || this.clock()-Date.parse(lastBegin)>=this.recoveryBeginInterval;
   }
-  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
+  // Checked until clean, not on every tick: these read document bodies. Later
+  // discovery and repairs follow the normal daily cycle.
+  startupRepairDue() {
+    if(!this.repairOnStartup)return false;
+    const due=groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'));
+    if(!due)this.repairOnStartup=false;
+    return due;
+  }
+  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.startupRepairDue() || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
     if(upcomingRefreshDue(this))return true;
     if(outsideWikidataDue(this.store,this.clock())||storyCollectionDue(this.store,this.clock())||topicCollectionDue(this.store,this.clock())||this.topicBuildStep())return true;
