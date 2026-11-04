@@ -145,7 +145,8 @@ export function councilArticleNativeScope(raw,wording,{nativeBodyWords}={}) {
    if(raw===null)return [];
    if(raw.split(/\r?\n/u).slice(1).some(line=>/^[ \t]*[„“‘«»"]?(?:\([\p{L}\p{N}]+\)|[\p{L}]{1,3}[.)]|[ivxlcdm]+[.)]|\d+[.)])[ \t]+\S/iu.test(line))){
     const supported=inner[1]?.kind==='paragraph'&&inner[2]===segment&&(inner.length===3||inner.length===4&&inner[3].kind==='point'&&inner[3].suffix==='a');
-    const proved=wording.language==='cs'&&supported?nativeCouncilListSubparagraphs(raw,nativeBodyWords):null,block=proved?.[Number(segment.value)-1];
+    const peers=children(section,'paragraph'),index=peers.findIndex(p=>p.offset===u.offset&&p.value===u.value&&coordinates(p.text)===coordinates(u.text)),boundary=index<0?null:peers[index+1]?.blocks[0];
+    const proved=wording.language==='cs'&&supported?nativeCouncilListSubparagraphs(raw,nativeBodyWords,boundary):null,block=proved?.[Number(segment.value)-1];
     return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset,listGeometry:true,...(Number(segment.value)===1?{followingText:proved[1]?.text}:{})}]:[];
    }
    const direct=blocksWithOffsets(u.text),block=direct[Number(segment.value)-1];return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset}]:[];
