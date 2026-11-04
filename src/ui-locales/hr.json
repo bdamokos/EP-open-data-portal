@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.colliding.new.point": "Ovaj broj već postoji. Umetnuto nakon osnovne točke.",
   "documentcontext.final_placement_check": "Provjerite konačno mjesto u {adoptedText}.",
   "documentcontext.adopted_text": "usvojenom tekstu",
   "amendment.alternative_motion": "Alternativni prijedlog",

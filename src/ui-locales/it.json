@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.colliding.new.point": "Questo numero è già utilizzato. Inserito dopo il punto base.",
   "documentcontext.final_placement_check": "Verificare la collocazione definitiva nel {adoptedText}.",
   "documentcontext.adopted_text": "testo approvato",
   "amendment.alternative_motion": "Proposta alternativa",
