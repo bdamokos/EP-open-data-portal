@@ -51,6 +51,14 @@ test('a source editorial reference between recitals stays outside the replaced p
  }
 });
 
+test('terminal dash-list insertion stays inside its uniquely addressed paragraph',()=>{
+ const paragraphs=['The European Parliament,','122. Observes:','– first;','– second;','– third;','123. Next;'];
+ const paragraphFormats=paragraphs.map((_,i)=>({indent:i>=2&&i<=4?4.72:2.36,hanging:2.36}));
+ const text=document(paragraphs,{textLanguage:'en',paragraphFormats}),options={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 122 – indent 3 a (new)',originalText:'',proposedText:'– New item;'};
+ const result=resolveAmendmentPlacement(text,options);assert.equal(result.status,'placed');assert.equal(result.insertAfter,4);assert.equal(result.insertBefore,5);
+ for(const changed of [document(paragraphs.map((v,i)=>i===3?'Continuation;':v),{textLanguage:'en',paragraphFormats}),document(paragraphs,{textLanguage:'en',paragraphFormats,sources:{3:{complete:false}}}),document(paragraphs.map((v,i)=>i===2?'– first;\n– extra;':v),{textLanguage:'en',paragraphFormats}),document(paragraphs,{textLanguage:'en',paragraphFormats:paragraphFormats.map((v,i)=>i===3?{...v,indent:7}:v)})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+});
+
 test('published translated resolution labels preserve native numbering and script',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-labels.json',import.meta.url)));
   for(const example of fixture.examples) {

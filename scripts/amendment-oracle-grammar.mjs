@@ -81,6 +81,8 @@ export function oracleAddress(raw,language='en',{resolution=false}={}) {
  const vocabulary=words[language];if(!vocabulary)return null;
  const original=String(raw??'');
  if(resolution&&language==='en'){
+  const indent=/^Paragraph ([1-9]\d*) - indent ([1-9]\d*) a \(new\)$/u.exec(oracleFold(original));
+  if(indent)return [{kind:'paragraph',value:indent[1],number:Number(indent[1]),suffix:'',isNew:false},{kind:'indent',value:indent[2]+'a',base:indent[2],number:Number(indent[2]),suffix:'a',isNew:true}];
   const compound=/^Paragraph\s+(\d+)\s+\(([a-z])\)\s+([a-z]+)\s+\(new\)$/u.exec(oracleFold(original));
   if(compound)return [{kind:'paragraph',value:compound[1],number:Number(compound[1]),isNew:false,suffix:''},{kind:'point',value:compound[2]+compound[3],base:compound[2],number:compound[2],suffix:compound[3],isNew:true}];
   const bare=/^(\d+)\s*([a-z]{1,3})\s+\(new\)$/u.exec(oracleFold(original));

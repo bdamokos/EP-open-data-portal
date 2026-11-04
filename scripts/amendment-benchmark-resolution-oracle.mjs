@@ -239,3 +239,21 @@ export function assertMixedRecital({text,wording,placement}) {
  if(placement.insertAfter!==a.end||placement.insertBefore!==a.end+1)return {status:'failed',reason:'oracle-mixed-recital-boundary-mismatch'};
  return {status:'verified',reason:'oracle-mixed-recital-sequence'};
 }
+
+// Raw body rows independently establish a terminal dash-list insertion.
+export function assertTerminalIndent({text,wording,placement}) {
+ const unknown={status:'unverified',reason:'oracle-terminal-indent-unavailable'};
+ if(wording?.language!=='en'||wording.baseline!=='motion-resolution'||wording.originalText!==''||placement?.operation!=='insert'||!/^[-–—•]\s+\S/u.test(wording.proposedText||''))return unknown;
+ const match=/^Paragraph ([1-9]\d*) – indent ([1-9]\d*) a \(new\)$/u.exec(wording.targetLabel||'');if(!match)return unknown;
+ const raw=rawResolutionUnits(text,'en'),owners=raw.units.filter(u=>u.kind==='paragraph'&&u.label===match[1]);
+ if(raw.reason||owners.length!==1||!owners[0].complete||raw.incomplete.some(u=>u.kind==='paragraph'&&u.label===match[1]))return unknown;
+ const owner=owners[0], p=text.paragraphs, s=text.paragraphSources, count=Number(match[2]);
+ if(!/:\s*$/u.test(p[owner.start])||owner.end-owner.start!==count||count>100)return unknown;
+ const formats=text.paragraphFormats, lead=formats?.[owner.start], first=formats?.[owner.start+1];
+ if(!Number.isFinite(lead?.indent)||!Number.isFinite(first?.indent)||first.indent<=lead.indent||!Number.isFinite(first.hanging))return unknown;
+ for(let i=owner.start+1;i<=owner.end;i++)if(/[\r\n]/u.test(p[i])||!/^\s*[-–—•]\s+\S/u.test(p[i])||!contiguous(s[i-1],s[i])||formats[i]?.indent!==first.indent||formats[i]?.hanging!==first.hanging)return unknown;
+ const next=raw.units.filter(u=>u.start===owner.end+1&&u.kind==='paragraph');
+ if(next.length!==1||Number(next[0].label)!==Number(match[1])+1||!contiguous(s[owner.end],s[next[0].start]))return unknown;
+ if(placement.insertAfter!==owner.end||placement.insertBefore!==next[0].start)return {status:'failed',reason:'oracle-terminal-indent-boundary-mismatch'};
+ return {status:'verified',reason:'oracle-terminal-indent-boundary'};
+}

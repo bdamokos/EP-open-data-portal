@@ -27,7 +27,7 @@ import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-gramma
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-benchmark-proposal-oracle.mjs';
-import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,assertMixedRecital} from './amendment-benchmark-resolution-oracle.mjs';
+import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,assertMixedRecital,assertTerminalIndent} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 import {assertRecastReading} from './amendment-recast-oracle.mjs';
@@ -714,6 +714,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
     return locationOracle({proposal,text,target,wording,placement,labels});
   }
   if (placement.operation !== 'insert' || !target.complete || !target.segments.length) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  if(!proposal&&target.segments.at(-1)?.kind==='indent')return assertTerminalIndent({text,wording,placement});
   if (!proposal) return verifyResolutionInsertion(text,wording,target,placement);
   // COM(2025)531 puts an instruction's semicolon in a separate Word row
   // after its closing quotation. Even an otherwise unsupported point address
