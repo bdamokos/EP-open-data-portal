@@ -34,7 +34,7 @@ function printed(raw) {
  }).join('\n\n');
 }
 function chunks(text) {return text.split(/\n\s*\n/u).map(text=>text.replace(/\s+/gu,' ').trim()).filter(Boolean);}
-const starts=(text,kind)=>kind==='paragraph'?/^(\d+\s*(?:bis|[a-z])?)\.\s+/iu.exec(text):/^\(?([a-z]+)\)\s+/iu.exec(text);
+const starts=(text,kind)=>kind==='paragraph'?/^[„“‘«»"]?(\d+\s*(?:bis|[a-z])?)\.\s+/iu.exec(text):/^\(?([a-z]+)\)\s+/iu.exec(text);
 function children(text,kind) {
  const blocks=chunks(text),units=[];
  for(let i=0;i<blocks.length;i++){
@@ -52,18 +52,22 @@ export function councilArticleNativeScope(raw,wording) {
  const document=new RegExp('^'+g.act+'\\s+(?:\\((?:EU|UE)\\)\\s+)?(\\d{4}/\\d+)$','iu').exec(refs[0].document?.replace(/\s+/gu,' ').trim()??'');if(!document)return null;
  const source=printed(raw),headers=[...source.matchAll(new RegExp('^\\s*(?:'+g.article+')\\s+(\\d+[a-z]?)\\s*$','gimu'))];
  // The first exact, unquoted article with the named act lead owns its points.
- const candidates=headers.filter(h=>h[1]===outer[0].value&&new RegExp('^\\s*'+g.act+'[^\\n]*'+escape(document[1])+'[^\\n]*:\\s*$','imu').test(source.slice(h.index,h.index+500)));
+ const candidates=headers.filter(h=>h[1]===outer[0].value&&new RegExp('^\\s*(?:La |I )?'+g.act+'[^\\n]*'+escape(document[1])+'[^\\n]*:\\s*$','imu').test(source.slice(h.index,h.index+500)));
  if(candidates.length!==1)return null;
- const begin=candidates[0],after=source.slice(begin.index+begin[0].length),pointStarts=[...after.matchAll(/^([ \t]*)(\d+)\)\s+/gmu)];
+ const begin=candidates[0],after=source.slice(begin.index+begin[0].length),pointStarts=[...after.matchAll(/^([ \t]*)\(?(\d+)\)\s+/gmu)];
  if(!pointStarts.length)return null;
  const indent=pointStarts[0][1].length,points=pointStarts.filter(m=>m[1].length===indent),chosen=points.filter(m=>m[2]===outer[2].value);
  if(chosen.length!==1||points.some((p,i)=>Number(p[2])!==i+1))return null;
  const at=points.indexOf(chosen[0]),end=points[at+1]?.index??after.length,point=after.slice(chosen[0].index,end);
  // Require an explicit quoted replacement, plus a printed closing delimiter.
- if(!/[„“‘«»"][ \t]*(?:Článek|Article|Artículo|Artikel|KAPITOLA|CHAPTER|CAPÍTULO|KAPITEL)\s+\d/iu.test(point)||!/[“’»«"][.;]?\s*(?:\n|$)/u.test(point))return null;
- const innerHeaders=[...point.matchAll(new RegExp('^[ \\t]*[„“‘«»]?(?:'+g.article+')\\s+(\\d+[a-z]?)\\s*$','gimu'))],matches=innerHeaders.filter(h=>h[1]===inner[0].value);
- if(matches.length!==1)return null;
- const h=matches[0],j=innerHeaders.indexOf(h),section=point.slice(h.index,innerHeaders[j+1]?.index??point.length);
+ const inherited=wording.language==='cs'?/^\s*\(?\d+\)\s+V článku (\d+[a-z]?) se doplňuje nový odstavec (\d+[a-z]?), který zní:/u.exec(point):null;
+ if(!/[“’»«"][.;]?\s*(?:\n|$)/u.test(point))return null;
+ const innerHeaders=[...point.matchAll(new RegExp('^[ \\t]*[„“‘«»"]?(?:'+g.article+')\\s+(\\d+[a-z]?)\\s*$','gimu'))],matches=innerHeaders.filter(h=>h[1]===inner[0].value);
+ let section,followingSection='';
+ if(matches.length===1){const h=matches[0],j=innerHeaders.indexOf(h);section=point.slice(h.index,innerHeaders[j+1]?.index??point.length);if(innerHeaders[j+1])followingSection=point.slice(innerHeaders[j+1].index);}
+ else if(inherited&&inherited[1]===inner[0].value&&inner[1]?.kind==='paragraph'&&inherited[2]===inner[1].base){const start=point.search(/^[ \t]*[„“‘«»"]\d+\.\s/mu);if(start<0)return null;section=point.slice(start);}
+ else return null;
+ if(!/[„“‘«»"][ \t]*(?:Článek|Article|Artículo|Artikel|KAPITOLA|CHAPTER|CAPÍTULO|KAPITEL|\d+\.)/iu.test(point))return null;
  let units=[{text:section,blocks:chunks(section)}];
  for(const segment of inner.slice(1)){
   if(segment.suffix)break; // For insertions the final new label selects siblings below.
@@ -72,7 +76,7 @@ export function councilArticleNativeScope(raw,wording) {
    const direct=u.blocks.filter(b=>!starts(b,'point'));return direct[Number(segment.value)-1]?[{text:direct[Number(segment.value)-1],blocks:[direct[Number(segment.value)-1]]}]:[];
   });else return null;
  }
- return {section,units,inner,outer};
+ return {section,followingSection,units,inner,outer};
 }
 export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
  const scope=councilArticleNativeScope(raw,wording);if(!scope)return unknown('article-ownership-unproved');
@@ -82,11 +86,17 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
   const parents=scope.units;
   if(!parents?.length)return unknown('article-insertion-parent-unproved');
   const siblings=parents.flatMap(p=>children(p.text,last.kind)),anchors=siblings.filter(s=>s.value===last.base);if(anchors.length!==1)return unknown('article-insertion-anchor-unproved');
-  const index=siblings.indexOf(anchors[0]),next=siblings[index+1];if(!next)return unknown('article-insertion-end-unproved');
+  const index=siblings.indexOf(anchors[0]),next=siblings[index+1];
   const after=proposal.paragraphs[placement.insertAfter]?.text,before=proposal.paragraphs[placement.insertBefore]?.text;
-  if(!Number.isSafeInteger(placement.insertAfter)||placement.insertBefore!==placement.insertAfter+1||!after||!before)return failed();
-  const a=fold(after),b=fold(before),anchor=fold(anchors[0].text),following=fold(next.text);
-  if(!a||!b||!anchor.endsWith(a)||!following.startsWith(b))return failed();
+  if(!Number.isSafeInteger(placement.insertAfter)||placement.insertBefore!==placement.insertAfter+1||!after)return failed();
+  if(!literal(anchors[0].text).endsWith(literal(after)))return failed();
+  if(placement.splice){
+   const s=placement.splice,tail=/[“’»«"][.;]?\s*$/u.exec(after);
+   if(next||!tail||!/[“’»«"][.;]?\s*$/u.test(anchors[0].text)||s.start?.paragraph!==placement.insertAfter||s.end?.paragraph!==placement.insertAfter||s.start?.offset!==tail.index||s.end?.offset!==tail.index)return failed();
+  }else{
+   const following=next?.text??scope.followingSection;
+   if(!before||!following||!fold(following).startsWith(fold(before)))return unknown('article-insertion-end-unproved');
+  }
   return {status:'verified',reason:'native-council-pdf-article-insertion-boundaries'};
  }
  if(!['replace','delete'].includes(placement.operation))return unknown('article-operation-unproved');

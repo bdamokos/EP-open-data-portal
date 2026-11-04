@@ -45,3 +45,12 @@ test('native article oracle independently proves consecutive insertion siblings'
  v.placement.insertAfter=1;v.placement.insertBefore=2;
  assert.notEqual(assertCouncilDraftArticleText(raw,v).status,'verified');
 });
+test('terminal insertion must splice immediately before the native closing delimiter',()=>{
+ const v=fixture(),row=v.items[0].proposal.paragraphs[1].text,offset=row.indexOf('’');
+ v.wording.originalText='';v.wording.targetPath.underlying[0].raw='Article 7 – paragraph 2 a (new)';
+ v.placement={status:'placed',operation:'insert',itemIndex:0,insertAfter:1,insertBefore:2,splice:{start:{paragraph:1,offset},end:{paragraph:1,offset}}};
+ assert.equal(assertCouncilDraftArticleText(raw,v).status,'verified');
+ v.placement.splice.start.offset--;v.placement.splice.end.offset--;
+ assert.equal(assertCouncilDraftArticleText(raw,v).status,'failed');
+ delete v.placement.splice;assert.notEqual(assertCouncilDraftArticleText(raw,v).status,'verified');
+});
