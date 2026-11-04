@@ -80,6 +80,10 @@ export function oracleRelative(raw,language){
 export function oracleAddress(raw,language='en',{resolution=false}={}) {
  const vocabulary=words[language];if(!vocabulary)return null;
  const original=String(raw??'');
+ if(resolution&&language==='sv'){
+  const recommendation=/^Bilaga I - rekommendation ([1-9]\d*) - punkt 1$/u.exec(oracleFold(original));
+  if(recommendation)return [{kind:'annex',value:'I',isNew:false},{kind:'recommendation',value:recommendation[1],isNew:false},{kind:'point',value:'1',isNew:false}];
+ }
  if(resolution&&language==='en'){
   const indent=/^Paragraph ([1-9]\d*) - indent ([1-9]\d*) a \(new\)$/u.exec(oracleFold(original));
   if(indent)return [{kind:'paragraph',value:indent[1],number:Number(indent[1]),suffix:'',isNew:false},{kind:'indent',value:indent[2]+'a',base:indent[2],number:Number(indent[2]),suffix:'a',isNew:true}];

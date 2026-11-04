@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {deflateRawSync} from 'node:zlib';
 import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
-import {nativeBlankPairs,rawResolutionUnits,assertTerminalIndent} from './amendment-benchmark-resolution-oracle.mjs';
+import {nativeBlankPairs,rawResolutionUnits,assertTerminalIndent,assertSwedishRecommendation} from './amendment-benchmark-resolution-oracle.mjs';
 import {verifyPlacement,parseBenchmarkTarget} from './amendment-benchmark-model.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/resolution-blank-boundaries.json',import.meta.url)));
 test('a fully emphasized numbered section title does not duplicate a recital',()=>{
@@ -60,6 +60,15 @@ function input(xml) {
  const nativeBuffer=zip(wrap(xml)),body=quotedWordBody(nativeBuffer),visible=body.filter(row=>row.kind==='paragraph'&&row.text.trim());
  return {nativeBuffer,paragraphs:visible.map(row=>row.text.trim()),paragraphFormats:visible.map(()=>({})),paragraphSources:visible.map((row,i)=>({path:row.path,container:'body',containerPath:'/w:document[1]/w:body[1]',ordinal:body.indexOf(row),segment:i,complete:true}))};
 }
+test('native recommendation proof requires the identified annex and point boundaries',()=>{
+ const p=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';
+ const text=input(p('BILAGA TILL RESOLUTIONSFÖRSLAGET')+p('Rekommendation 5')+p('Ämne')+p('1. Original;')+p('2. Nästa;')+p('Rekommendation 6')+p('MOTIVERING'));
+ text.paragraphSources.forEach(source=>source.segment=0);
+ const wording={language:'sv',baseline:'motion-resolution',targetLabel:'Bilaga I – rekommendation 5 – punkt 1',originalText:'1. Original;',proposedText:'1. Ändrad;'},placement={status:'placed',operation:'replace',span:{start:3,end:3}};
+ assert.equal(assertSwedishRecommendation({text,wording,placement}).status,'verified');
+ assert.equal(verifyPlacement({text,wording,placement}).status,'verified');
+ for(const change of [x=>x.wording.originalText='1. Different;',x=>x.placement.span={start:4,end:4},x=>x.text.paragraphSources[3].complete=false]) {const modified={text:{...text,paragraphSources:text.paragraphSources.map(s=>({...s}))},wording:{...wording},placement:{...placement}};change(modified);assert.notEqual(assertSwedishRecommendation(modified).status,'verified');}
+});
 test('native corpus blank pairs are independent of production continuity claims',()=>{
  for(const row of fixture){const text=input(row.paragraphXml.join(''));for(const source of text.paragraphSources)Object.defineProperty(source,'previousParagraph',{get(){throw Error('placer proof forbidden');}});assert.equal(nativeBlankPairs(text).size>0,!['A-10-2026-0042','A-10-2026-0081'].includes(row.documentId),row.documentId+':'+row.label);}
 });

@@ -542,6 +542,26 @@ export function resolveAmendmentPlacement(text, options = {}) {
   if (!options.language || text?.textLanguage && text.textLanguage !== options.language) return unresolved('different_text_languages');
   const rows = sourceStructure(text);
   if (!rows) return unresolved('source_structure_unavailable');
+  // The first annex of this Swedish resolution format contains numbered
+  // recommendations, each followed by a title and numbered points.
+  const recommendation=options.language==='sv'&&operation==='replace'&&/^Bilaga I – rekommendation ([1-9]\d*) – punkt 1$/u.exec(options.targetLabel||'');
+  if(recommendation) {
+    const headings=rows.flatMap((row,i)=>/^BILAGA TILL RESOLUTIONSFÖRSLAGET(?:\n|$)/u.test(row.value)?[i]:[]);
+    const end=headings.length===1?rows.findIndex((row,i)=>i>headings[0]&&row.normal==='MOTIVERING'):-1;
+    const hits=rows.flatMap((row,i)=>i>headings[0]&&i<end&&row.normal==='Rekommendation '+recommendation[1]?[i]:[]);
+    if(headings.length===1&&end>headings[0]&&hits.length===1) {
+      const start=hits[0],target=start+2,part=rows.slice(start,start+4),next=rows.findIndex((row,i)=>i>start&&i<end&&row.normal==='Rekommendation '+(Number(recommendation[1])+1));
+      if(part.length===4&&part.every((row,i)=>row.complete&&row.source.container==='body'&&(!i||consecutive(part[i-1],row)))
+        &&next>target+1&&rows.slice(start+1,next).every((row,i)=>row.complete&&row.source.container==='body'&&consecutive(rows[start+i],row))
+        &&rows.slice(start+1,next).filter(row=>/^1[.)]\s+\S/u.test(row.normal)).length===1
+        &&/^1[.)]\s+\S/u.test(rows[target].normal)&&/^2[.)]\s+\S/u.test(rows[target+1].normal)
+        &&whitespace(rows[target].value)===whitespace(options.originalText)) {
+        evidence.push({basis:'published-recommendation',recommendation:recommendation[1],point:'1'});
+        return placed({span:{start:target,end:target}});
+      }
+    }
+    return unresolved('target_not_found');
+  }
   const structure = motionStructure(text, options.language), {units} = structure;
   if (!units.length) return unresolved('baseline_unavailable');
   if (structure.selection?.multipleOpenings) {

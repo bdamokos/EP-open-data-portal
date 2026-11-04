@@ -59,6 +59,15 @@ test('terminal dash-list insertion stays inside its uniquely addressed paragraph
  for(const changed of [document(paragraphs.map((v,i)=>i===3?'Continuation;':v),{textLanguage:'en',paragraphFormats}),document(paragraphs,{textLanguage:'en',paragraphFormats,sources:{3:{complete:false}}}),document(paragraphs.map((v,i)=>i===2?'– first;\n– extra;':v),{textLanguage:'en',paragraphFormats}),document(paragraphs,{textLanguage:'en',paragraphFormats:paragraphFormats.map((v,i)=>i===3?{...v,indent:7}:v)})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
 });
 
+test('Swedish recommendation point is resolved only within the identified annex section',()=>{
+ const paragraphs=['BILAGA TILL RESOLUTIONSFÖRSLAGET','Rekommendation 5','Ämne','1. Original;','2. Nästa;','Rekommendation 6','MOTIVERING'];
+ const options={language:'sv',baseline:'motion-resolution',targetLabel:'Bilaga I – rekommendation 5 – punkt 1',originalText:'1. Original;',proposedText:'1. Ändrad;'};
+ const text=document(paragraphs,{textLanguage:'sv'});assert.deepEqual(resolveAmendmentPlacement(text,options).span,{start:3,end:3});
+ for(const changed of [document(paragraphs.map((v,i)=>i===4?'3. Nästa;':v),{textLanguage:'sv'}),document(paragraphs,{textLanguage:'sv',sources:{3:{complete:false}}})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+ const withGap=document([...paragraphs.slice(0,5),'3. Other;',...paragraphs.slice(5)],{textLanguage:'sv',sources:{5:{ordinal:6},6:{ordinal:7},7:{ordinal:8}}});
+ assert.notEqual(resolveAmendmentPlacement(withGap,options).status,'placed');
+});
+
 test('published translated resolution labels preserve native numbering and script',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-labels.json',import.meta.url)));
   for(const example of fixture.examples) {

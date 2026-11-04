@@ -257,3 +257,28 @@ export function assertTerminalIndent({text,wording,placement}) {
  if(placement.insertAfter!==owner.end||placement.insertBefore!==next[0].start)return {status:'failed',reason:'oracle-terminal-indent-boundary-mismatch'};
  return {status:'verified',reason:'oracle-terminal-indent-boundary'};
 }
+
+// Prove the first numbered point of an identified recommendation in the
+// native Swedish resolution annex, independently of projected hierarchy.
+export function assertSwedishRecommendation({text,wording,placement}) {
+ const unknown={status:'unverified',reason:'oracle-recommendation-annex-unavailable'};
+ if(wording?.language!=='sv'||wording.baseline!=='motion-resolution'||placement?.operation!=='replace'||!text?.nativeBuffer)return unknown;
+ const address=/^Bilaga I – rekommendation ([1-9]\d*) – punkt 1$/u.exec(wording.targetLabel||'');if(!address)return unknown;
+ let body;try{body=quotedWordBody(text.nativeBuffer);}catch{return unknown;}
+ const headers=body.flatMap((row,i)=>row.kind==='paragraph'&&/^BILAGA TILL RESOLUTIONSFÖRSLAGET(?:\n|$)/u.test(row.text)?[i]:[]);
+ if(headers.length!==1)return unknown;
+ const end=body.findIndex((row,i)=>i>headers[0]&&row.kind==='paragraph'&&row.text.trim()==='MOTIVERING');if(end<0)return unknown;
+ const rows=body.slice(headers[0]+1,end),hits=rows.flatMap((row,i)=>row.kind==='paragraph'&&row.text.trim()==='Rekommendation '+address[1]?[i]:[]);
+ if(hits.length!==1)return unknown;
+ const at=hits[0],next=rows.findIndex((row,i)=>i>at&&row.kind==='paragraph'&&row.text.trim()==='Rekommendation '+(Number(address[1])+1));
+ if(next<0)return unknown;
+ if(rows.slice(at+1,next).some(row=>row.kind!=='paragraph'||row.hidden||row.unsafe||row.numbered))return unknown;
+ const section=rows.slice(at+1,next).filter(row=>row.text.trim());
+ if(section.some(row=>row.hidden||row.unsafe||row.numbered)||section.filter(row=>/^1[.)]\s+\S/u.test(row.text)).length!==1)return unknown;
+ const group=rows.slice(at,at+4);if(group.length!==4||group.some(r=>r.kind!=='paragraph'||r.hidden||r.unsafe||r.numbered)||!/^1[.)]\s+\S/u.test(group[2].text)||!/^2[.)]\s+\S/u.test(group[3].text))return unknown;
+ const projected=text.paragraphSources.flatMap((source,i)=>source?.path===group[2].path?[i]:[]),normal=s=>String(s).normalize('NFC').replace(/\s+/gu,' ').trim();
+ if(projected.length!==1)return unknown;
+ const index=projected[0];if(text.paragraphSources[index].complete!==true||normal(text.paragraphs[index])!==normal(group[2].text)||normal(wording.originalText)!==normal(group[2].text))return unknown;
+ if(placement.span?.start!==index||placement.span?.end!==index)return {status:'failed',reason:'oracle-recommendation-boundary-mismatch'};
+ return {status:'verified',reason:'oracle-native-recommendation-point'};
+}
