@@ -9,9 +9,6 @@ const prefixless=(text,unit)=>unit.label?.prefix&&text.startsWith(unit.label.pre
 
 export function existingLawReplacement(text,language) {
   if(typeof text!=='string')return null;
-  // ETS AM13 separates two closing quotes with a semicolon. Neither the
-  // normative ending nor the wrapper boundary can be established from it.
-  if(/[’”"'][;.]+\s*[’”"']\s*[;.]*\s*$/u.test(text))return null;
   // Keep the published wrapper and its replacement as exact separate slices.
   // Polish committee lists sometimes omit the opening quotation mark.
   const instruction=language==='en'?/[^\n]*(?:is|are) replaced by the following:\s*\n/u:language==='pl'?/[^\n]*otrzymuje brzmienie:\s*\n/u:null;
@@ -19,8 +16,14 @@ export function existingLawReplacement(text,language) {
   if(!match)return null;
   let start=match.index+match[0].length,end=text.length;
   while(/\s/u.test(text[start]||'')&&start<end)start++;
+  const opening=text[start];
+  // A straight opening quote can have the published mixed closing pair ’;".
+  // Keep that entire pair in the wrapper, preserving the normative full stop.
+  const mixed=/’;\s*"\s*$/u.exec(text.slice(start));
+  if(/[’”"'][;.]+\s*[’”"']\s*[;.]*\s*$/u.test(text)&&!(opening==='"'&&mixed))return null;
+  const mixedStart=mixed?start+mixed.index:null;
   if(/[‘“"„]/u.test(text[start]||''))start++;
-  const tail=/[’”"]\s*(?:["’”])?\s*[;.]*\s*$/u.exec(text.slice(start));
+  const tail=opening==='"'&&mixed?{index:mixedStart-start}:/[’”"]\s*(?:["’”])?\s*[;.]*\s*$/u.exec(text.slice(start));
   if(tail)end=start+tail.index;
   while(end>start&&/\s/u.test(text[end-1]))end--;
   if(start>=end)return null;
