@@ -4,9 +4,9 @@ const key=s=>String(s??'').normalize('NFC').replace(/\s/gu,'');
 const near=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<=.5;
 const literal=s=>s.normalize('NFC').replace(/\s+/gu,' ').trim();
 export function nativeTerminalParagraphFrame({point,section,siblings,nextInstruction,article,number,words}) {
- if(!Array.isArray(words)||!words.length||!Array.isArray(siblings)||siblings.length<3||!/^\d+\)\s+[^«»“”]+:$/u.test(nextInstruction??''))return false;
+ if(!Array.isArray(words)||!words.length||!Array.isArray(siblings)||siblings.length<3||siblings.length>64||!/^\d+\)\s+[^«»“”]+:$/u.test(nextInstruction??''))return false;
  const numbers=siblings.map(s=>Number(s.value));
- if(siblings.some((s,i)=>!/^\d+$/u.test(s.value)||!Number.isSafeInteger(numbers[i])||numbers[i]<1||(!i?numbers[i]!==1:numbers[i]<numbers[i-1]||numbers[i]>numbers[i-1]+1)||(i===siblings.length-1?numbers[i]!==number:numbers[i]>=number)))return false;
+ if(!/^[1-9]\d*$/u.test(article)||siblings.some((s,i)=>!/^\d+$/u.test(s.value)||String(numbers[i])!==s.value||!Number.isSafeInteger(numbers[i])||numbers[i]<1||(!i?numbers[i]!==1:numbers[i]<numbers[i-1]||numbers[i]>numbers[i-1]+1)||(i===siblings.length-1?numbers[i]!==number:numbers[i]>=number)))return false;
  if(siblings.at(-1).blocks?.length!==1)return false;
  const ordered=[];
  for(const page of [...new Set(words.map(w=>w.page))].sort((a,b)=>a-b)){

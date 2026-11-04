@@ -19,6 +19,8 @@ for(const [name,change] of [
  ['misaligned title',f=>f.words.filter(w=>w.text==='Preparedness').forEach(w=>{w.x+=2;w.right+=2;})],
  ['missing title',f=>{f.words=f.words.filter(w=>w.text!=='Preparedness');}],
  ['wrong article',f=>{f.article='8';}],
+ ['unsupported suffixed article',f=>{f.article='7a';}],
+ ['noncanonical numeric peer',f=>{f.siblings[0].value='01';}],
  ['number gap',f=>{f.siblings.at(-1).value='5';f.number=5;}],
  ['duplicate anchor',f=>{f.siblings[3].value='4';}],
  ['descending prefix',f=>{f.siblings[3].value='1';}],
