@@ -358,6 +358,19 @@ function motionStructure(text, language) {
     }
     const heading = formats[index]?.heading;
     const recordedHeading = Number.isInteger(heading) && heading >= 1 && heading <= 6;
+    // A Roman-numbered section title can look like a recital. Require both
+    // full emphasis and consecutive operative numbers before treating it as a heading.
+    const marks = formats[index]?.marks || [], length = row.value.trimEnd().length, start = row.value.search(/\S/u);
+    const fullyMarked = kind => start >= 0 && marks.some(mark => mark.kind === kind && mark.start <= start && mark.end >= length);
+    const priorNumber = /^([1-9]\d*)[.)]\s+/u.exec(rows[index - 1]?.normal || '')?.[1];
+    const nextNumber = /^([1-9]\d*)[.)]\s+/u.exec(rows[index + 1]?.normal || '')?.[1];
+    if (/^[IVXLCDM]+[.)]\s+\S/u.test(value) && fullyMarked('bold') && fullyMarked('italic')
+      && priorNumber && nextNumber && Number(priorNumber) + 1 === Number(nextNumber)
+      && rows[index + 1]?.complete && consecutive(rows[index - 1], row) && consecutive(row, rows[index + 1])) {
+      close(index - 1); certainHeadings.add(index);
+      units.push({kind: 'heading', label: value, parent: null, start: index, end: index, level: 0});
+      continue;
+    }
     let kind, label, level = 1;
     let match = /^([1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3})[.)]\s+/u.exec(value);
     if (match) {kind = 'paragraph'; label = match[1].replace(/\s/g, ''); provisionsStarted = true;}

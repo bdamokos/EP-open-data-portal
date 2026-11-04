@@ -17,6 +17,18 @@ const found = (paragraphs, basis = 'quoted-original', quoteMatches = true, relat
   status: 'found', paragraphs, basis, relation, quoteMatches, reason: null,
 });
 
+test('a fully emphasized Roman section between consecutive paragraphs does not compete with a recital',()=>{
+ const paragraphs=['The European Parliament,','V. whereas the recital;','W. whereas the next recital;','42. Previous;','V. Rule of law','43. Next;'];
+ const title=paragraphs[4], formats=paragraphs.map((_,i)=>i===4?{marks:[{kind:'bold',start:0,end:title.length},{kind:'italic',start:0,end:title.length}]}:{});
+ const text=document(paragraphs,{textLanguage:'en',paragraphFormats:formats});
+ const options={language:'en',baseline:'motion-resolution',targetLabel:'Recital V a (new)',originalText:'',proposedText:'Va. whereas a new recital;'};
+ const result=resolveAmendmentPlacement(text,options);
+ assert.equal(result.status,'placed'); assert.equal(result.insertAfter,1); assert.equal(result.insertBefore,2);
+ for(const changed of [{paragraphFormats:formats.map((v,i)=>i===4?{}:v)},{paragraphs:paragraphs.map((v,i)=>i===5?'44. Next;':v)}]) {
+  assert.notEqual(resolveAmendmentPlacement({...text,...changed},options).status,'placed');
+ }
+});
+
 test('published translated resolution labels preserve native numbering and script',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-labels.json',import.meta.url)));
   for(const example of fixture.examples) {
