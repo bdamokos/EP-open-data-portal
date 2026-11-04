@@ -1,3 +1,4 @@
+import {identicalProposalEditions} from './proposal-edition-text.mjs';
 import {nativeGuidelineAnnex} from './proposal-guideline-annex.mjs';
 import {backfillSelectionMatches} from './base-source-backfill-context.mjs';
 import path from 'node:path';
@@ -63,11 +64,14 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
         if(consultation&&language!=='en')return unavailable('language-unavailable',['native-procedure-language-unavailable']);
         if(nle&&!reportId)return unavailable('unresolved',['nle-report-reference-unavailable']);
         if(nle&&language!=='en')return unavailable('language-unavailable',['native-procedure-language-unavailable']);
-        const candidates=await documents.candidates(sourceCelex),candidate=resolveProposalCandidates(candidates.data,{celex:sourceCelex});
+        const candidates=await documents.candidates(sourceCelex);let candidate=resolveProposalCandidates(candidates.data,{celex:sourceCelex});
         evidence.push({kind:'candidate-source',url:candidates.url,fetchedAt:candidates.fetchedAt,stale:Boolean(candidates.viewCache?.stale),refreshError:candidates.viewCache?.refreshError||null},...candidate.evidence);
+        let equivalent=null;
+        if(candidate.gaps.includes('ambiguous-com-candidates'))equivalent=await identicalProposalEditions(documents,candidates.data,{celex:sourceCelex,language,procedure});
+        if(equivalent){candidate={...candidate,status:'resolved',workId:equivalent.identity.workId,gaps:[]};evidence.push(equivalent.evidence);}
         if(candidate.status!=='resolved')return unavailable(candidate.status,candidate.gaps);
         metadataStale ||= Boolean(candidates.viewCache?.stale);
-        const metadata=nativeDecision?await documents.metadataByWork(candidate.workId,{celex:sourceCelex}):await documents.metadata(sourceCelex),identity=resolveProposalTree(metadata.xml,{celex:sourceCelex,language,procedure});
+        const metadata=equivalent?.metadata??(nativeDecision?await documents.metadataByWork(candidate.workId,{celex:sourceCelex}):await documents.metadata(sourceCelex)),identity=resolveProposalTree(metadata.xml,{celex:sourceCelex,language,procedure});
         evidence.push({kind:'cellar-source',url:metadata.url,resolvedSourceUrl:metadata.resolvedSourceUrl,fetchedAt:metadata.fetchedAt,stale:Boolean(metadata.viewCache?.stale),refreshError:metadata.viewCache?.refreshError||null},...identity.evidence);
         if(identity.status!=='resolved')return unavailable(identity.status,identity.gaps,{workId:identity.workId});
         if(identity.workId!==candidate.workId)return unavailable('unresolved',['proposal-work-conflict']);
@@ -79,7 +83,7 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
         const items=[],gaps=[];let bytes=0;
         for(const item of identity.items) {
           try {
-            const content=await documents.docx({celex:sourceCelex,language:item.languageUri,...item});
+            const content=equivalent?.items.find(part=>part.itemId===item.itemId)??await documents.docx({celex:sourceCelex,language:item.languageUri,...item});
             docxParts(content.buffer);bytes+=content.buffer.length;
             if(bytes>CELLAR_LIMITS.bundleBytes){gaps.push({code:'bundle-too-large',itemId:item.itemId});break;}
             items.push({...item,source:content.source,buffer:content.buffer});

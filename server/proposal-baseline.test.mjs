@@ -381,3 +381,34 @@ test('shared request owner expiry propagates instead of returning stale content'
  assert.equal(resolveProposalTree(amended,{celex,language:'en'}).status,'resolved');
  assert(resolveProposalTree(amended.replaceAll('COM_2025_0087_FIN','COM_2025_0088_FIN'),{celex,language:'en'}).gaps.includes('com-reference-unverified'));
  });
+
+test('identical numbered final editions select the unqualified edition with all source evidence',async()=>{
+ const {identicalProposalEditions}=await import('./proposal-edition-text.mjs');
+ const work=resolved().workId,other=work.replace('731e787f','831e787f');
+ const revised=xml.replaceAll(work,other).replaceAll(celex,celex+'(01)').replaceAll('_FIN','_FIN2').replaceAll('>final<','>final/2<');
+ const bindings=[{work:{value:work},celex:{value:celex},version:{value:'final'}},{work:{value:other},celex:{value:celex+'(01)'},version:{value:'final/2'}}];
+ for(const mode of ['same','different','missing','stale','wrong-procedure','unknown-edition']){
+  const data={results:{bindings:structuredClone(bindings)}};
+  if(mode==='unknown-edition')data.results.bindings[1].version.value='draft';
+  const documents={metadataByWork:async w=>({xml:w===work?xml:mode==='wrong-procedure'?revised.replaceAll('2025_39','2025_99'):revised,url:w,fetchedAt:0}),docx:async item=>{
+   if(mode==='missing'&&item.itemId.startsWith(other))throw Error('missing');
+   return {buffer:docx(mode==='different'&&item.itemId.startsWith(other)?'Different text':'Equal text'),source:{url:item.itemId,sha256:'a'.repeat(64),fetchedAt:0,stale:mode==='stale'}};
+  }};
+  const result=await identicalProposalEditions(documents,data,{celex,language:'en',procedure:'2025/0039(COD)'});
+  if(mode==='same'){assert.equal(result.identity.workId,work);assert.equal(result.items.length,2);assert.equal(result.evidence.editions.length,2);assert.equal(result.evidence.editions[1].items.length,2);}
+  else assert.equal(result,null,mode);
+ }
+});
+
+test('proposal baseline uses edition equality only after the ordinary candidate guard withholds',async()=>{
+ const work=resolved().workId,other=work.replace('731e787f','831e787f');
+ const revised=xml.replaceAll(work,other).replaceAll(celex,celex+'(01)').replaceAll('_FIN','_FIN2').replaceAll('>final<','>final/2<');
+ const data={results:{bindings:[{work:{value:other},celex:{value:celex+'(01)'},version:{value:'final/2'}},{work:{value:work},celex:{value:celex},version:{value:'final'}}]}};
+ for(const different of [false,true]){
+  const documents={candidates:async()=>({data}),metadata:async()=>{throw Error('ambiguous CELEX route forbidden');},metadataByWork:async w=>({xml:w===work?xml:revised,url:w,fetchedAt:0}),docx:async item=>({buffer:docx(different&&item.itemId.startsWith(other)?'Different':'Identical'),source:{url:item.itemId,sha256:'a'.repeat(64),fetchedAt:0}})};
+  const result=await createProposalBaseline({documents})({celex,language:'en'});
+  assert.equal(result.status,different?'unresolved':'available');
+  if(different)assert(result.gaps.includes('ambiguous-com-candidates'));
+  else {assert.equal(result.workId,work);assert.equal(result.items.length,2);assert(result.evidence.some(e=>e.kind==='identical-extracted-proposal-editions'));}
+ }
+});

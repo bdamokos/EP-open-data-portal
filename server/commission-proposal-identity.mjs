@@ -50,9 +50,12 @@ export function reportProposalReference(report,{reportId,documentReferences=[],n
   return {status:'resolved',celex:celexes[0],procedure,evidence,gaps:[]};
 }
 
-export function resolveProposalTree(xml,{celex,language,procedure}={}) {
-  proposalCelex(celex);const graph=cellarGraph(xml),evidence=[];
-  const works=[...graph.graph.keys()].filter(id=>CELLAR_WORK_PATTERN.test(id)&&graph.values(id,'resource_legal_id_celex').includes(celex));
+export function resolveProposalTree(xml,{celex,language,procedure,edition}={}) {
+  proposalCelex(celex);
+  const editionCelex=edition?.celex??celex,version=edition?.version??'final';
+  if(edition&&!proposalEdition(celex,editionCelex,version))return unresolved('unresolved',['proposal-version-unresolved']);
+  const graph=cellarGraph(xml),evidence=[];
+  const works=[...graph.graph.keys()].filter(id=>CELLAR_WORK_PATTERN.test(id)&&graph.values(id,'resource_legal_id_celex').includes(editionCelex));
   if(works.length!==1)return unresolved('unresolved',[works.length?'ambiguous-proposal-work':'proposal-work-missing'],evidence,{celex,language});
   const workId=works[0],values=name=>graph.values(workId,name),aliases=graph.aliases(workId);
   const creators=values('work_created_by_agent'),types=values('work_has_resource-type'),versions=unique([...values('work_version'),...values('version')]);
@@ -60,9 +63,9 @@ export function resolveProposalTree(xml,{celex,language,procedure}={}) {
   const gaps=[];
   if(!creators.includes('http://publications.europa.eu/resource/authority/corporate-body/COM'))gaps.push('commission-author-unverified');
   if(types.length!==1||!/^http:\/\/publications\.europa\.eu\/resource\/authority\/resource-type\/(?:AMEND_)?PROP_(REG|DIR|DEC)$/.test(types[0]))gaps.push('proposal-type-unverified');
-  if(versions.length!==1||versions[0]!=='final')gaps.push('proposal-version-unresolved');
-  if(values('resource_legal_id_celex').some(value=>value!==celex))gaps.push('proposal-celex-conflict');
-  const year=celex.slice(1,5),number=String(Number(celex.slice(7))),comnat=`http://publications.europa.eu/resource/comnat/COM_${year}_${number.padStart(4,'0')}_FIN`;
+  if(versions.length!==1||versions[0]!==version)gaps.push('proposal-version-unresolved');
+  if(values('resource_legal_id_celex').some(value=>value!==editionCelex))gaps.push('proposal-celex-conflict');
+  const year=celex.slice(1,5),number=String(Number(celex.slice(7))),comnat=`http://publications.europa.eu/resource/comnat/COM_${year}_${number.padStart(4,'0')}_FIN${version==='final'?'':version.slice(6)}`;
   if(!aliases.includes(comnat)||values('resource_legal_internal_number_prefix').some(value=>value!=='COM')||!values('resource_legal_internal_number_year').includes(year)||!values('resource_legal_internal_number_sequential_number').includes(number))gaps.push('com-reference-unverified');
   const requested=procedure&&/^(\d{4}\/\d{4})\((COD|CNS|NLE)\)$/u.exec(procedure);
   if(dossierCodes.length!==1||procedure&&(!requested||dossierCodes[0]!==requested[1]))gaps.push('proposal-procedure-mismatch');
@@ -77,7 +80,7 @@ export function resolveProposalTree(xml,{celex,language,procedure}={}) {
   if(languageUris.length!==1)return unresolved('unresolved',['ambiguous-language-expression'],evidence,{celex,workId,language});
   const expressionVersions=graph.values(expressionId,'version');
   evidence.push({kind:'cellar-expression',expressionId,language:languageUris[0],versions:expressionVersions});
-  if(expressionVersions.some(version=>version!=='final'))return unresolved('unresolved',['proposal-expression-version-unresolved'],evidence,{celex,workId,language});
+  if(expressionVersions.some(value=>value!==version))return unresolved('unresolved',['proposal-expression-version-unresolved'],evidence,{celex,workId,language});
   const manifestations=[...graph.graph.keys()].filter(id=>new RegExp('^'+expressionId.replaceAll('.','\\.')+'\\.\\d{2,8}$').test(id)&&graph.values(id,'manifestation_manifests_expression').some(v=>graph.aliases(expressionId).includes(v))&&graph.values(id,'manifestation_type').some(v=>v==='docx'||v==='http://publications.europa.eu/resource/authority/file-type/DOCX'));
   if(manifestations.length!==1)return unresolved(manifestations.length?'unresolved':'format-unavailable',[manifestations.length?'ambiguous-docx-manifestation':'docx-unavailable'],evidence,{celex,workId,language});
   const manifestationId=manifestations[0];
@@ -121,4 +124,26 @@ export function resolveProposalCandidates(data,{celex}={}) {
   if(works.length!==1||!CELLAR_WORK_PATTERN.test(works[0]))return unresolved('unresolved',[works.length?'ambiguous-com-candidates':'proposal-work-missing'],evidence,{celex});
   if(selected.some(row=>row.celex?.value!==celex||row.version?.value!=='final'))return unresolved('unresolved',['proposal-version-unresolved'],evidence,{celex});
   return {status:'resolved',celex,workId:works[0],gaps:[],evidence};
+}
+
+// Numbered final editions of the same COM identity are comparison candidates,
+// never a selection until all their native extracted text has been compared.
+export function proposalEdition(celex,editionCelex,version) {
+  if(editionCelex===celex)return version==='final';
+  const suffix=String(editionCelex).slice(celex.length),match=/^\((\d{2})\)$/.exec(suffix);
+  return String(editionCelex).startsWith(celex)&&match&&Number(match[1])>=1&&version==='final/'+(Number(match[1])+1);
+}
+export function comparableProposalEditions(data,{celex}={}) {
+ const rows=data?.results?.bindings;
+ if(!Array.isArray(rows)||rows.length<2||rows.length>8)return null;
+ const editions=[];
+ for(const row of rows){
+  const value={workId:row.work?.value,celex:row.celex?.value,version:row.version?.value};
+  if(!CELLAR_WORK_PATTERN.test(value.workId)||!proposalEdition(celex,value.celex,value.version))return null;
+  const old=editions.find(e=>e.workId===value.workId);
+  if(old&&JSON.stringify(old)!==JSON.stringify(value))return null;
+  if(!old)editions.push(value);
+ }
+ if(editions.length<2||editions.filter(e=>e.celex===celex).length!==1||new Set(editions.map(e=>e.celex)).size!==editions.length)return null;
+ return editions.sort((a,b)=>a.celex===celex?-1:b.celex===celex?1:a.celex.localeCompare(b.celex));
 }
