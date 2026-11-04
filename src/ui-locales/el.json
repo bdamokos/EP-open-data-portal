@@ -2828,5 +2828,6 @@
   "topics.story.integrated.lead.tiedEachRose.eu": "Στην Ευρώπη και τις γειτονικές της περιοχές: {places} — οι τόποι με τις περισσότερες ερωτήσεις ({questions} ο καθένας), σε κάθε περίπτωση αύξηση, ενώ προηγουμένως {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — οι τόποι με τις περισσότερες ερωτήσεις ({questions} ο καθένας), σε κάθε περίπτωση απότομη αύξηση, ενώ προηγουμένως {average}.",
   "topics.story.integrated.lead.tiedEachJumped.eu": "Στην Ευρώπη και τις γειτονικές της περιοχές: {places} — οι τόποι με τις περισσότερες ερωτήσεις ({questions} ο καθένας), σε κάθε περίπτωση απότομη αύξηση, ενώ προηγουμένως {average}.",
-  "proposalcontexttext.colliding.new.point": "Ο αριθμός αυτός υπάρχει ήδη. Τοποθετείται μετά το βασικό σημείο."
+  "proposalcontexttext.colliding.new.point": "Ο αριθμός αυτός υπάρχει ήδη. Τοποθετείται μετά το βασικό σημείο.",
+  "proposalcontexttext.new.unnumbered.table": "Νέος μη αριθμημένος πίνακας στο τέλος του παραρτήματος."
 }

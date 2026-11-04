@@ -1,3 +1,4 @@
+import {unnumberedTableInsertion} from './proposal-unnumbered-table.mjs';
 import {rejectionWordingScope} from './amendment-rejection.mjs';
 import {nativeInlineRowsComplete} from './proposal-inline-guard.mjs';
 import {quotedSectionPointInsertion} from './proposal-quoted-section.mjs';
@@ -875,6 +876,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(!operation)return unresolved('amendment_wording_unavailable');
   if([originalText,proposedText].some(text=>text.length>MAX_COLUMN_CHARACTERS))return unresolved('matching_budget');
   if([originalText,proposedText].some(text=>text.includes('\uFFFC')))return unresolved('math_comparison_unavailable');
+  const unnumbered=unnumberedTableInsertion(items,{originalText,proposedText,targetLabel,targetPath,language,baseline});
+  if(unnumbered)return unnumbered;
   const firstAnnex=firstAnnexInsertion(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences},nativeProposalInputs);
   if(firstAnnex)return firstAnnex.reason?unresolved(firstAnnex.reason):firstAnnex;
   // Lists without structured location tags still publish the location as a

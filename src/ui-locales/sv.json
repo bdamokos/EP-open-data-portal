@@ -2828,5 +2828,6 @@
   "topics.story.integrated.lead.tiedEachRose.eu": "I Europa och dess grannländer fick {places} flest frågor ({questions} var), i samtliga fall en ökning från {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} fick flest frågor ({questions} var), i samtliga fall en kraftig ökning från {average}.",
   "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa och dess grannländer fick {places} flest frågor ({questions} var), i samtliga fall en kraftig ökning från {average}.",
-  "proposalcontexttext.colliding.new.point": "Detta nummer används redan. Infogat efter grundpunkten."
+  "proposalcontexttext.colliding.new.point": "Detta nummer används redan. Infogat efter grundpunkten.",
+  "proposalcontexttext.new.unnumbered.table": "Ny onumrerad tabell infogad sist i bilagan."
 }

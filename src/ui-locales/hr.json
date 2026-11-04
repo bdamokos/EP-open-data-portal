@@ -2828,5 +2828,6 @@
   "topics.story.integrated.lead.tiedEachRose.eu": "U Europi i njezinu susjedstvu: {places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju rast, prethodno {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju nagli rast, prethodno {average}.",
   "topics.story.integrated.lead.tiedEachJumped.eu": "U Europi i njezinu susjedstvu: {places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju nagli rast, prethodno {average}.",
-  "proposalcontexttext.colliding.new.point": "Ovaj broj već postoji. Umetnuto nakon osnovne točke."
+  "proposalcontexttext.colliding.new.point": "Ovaj broj već postoji. Umetnuto nakon osnovne točke.",
+  "proposalcontexttext.new.unnumbered.table": "Nova nenumerirana tablica smještena na kraju priloga."
 }

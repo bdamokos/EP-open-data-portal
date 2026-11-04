@@ -1,3 +1,4 @@
+import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
@@ -88,6 +89,8 @@ const fail = reason => ({status:'failed', reason});
 const verified = reason => ({status:'verified', reason});
 
 export function parseBenchmarkTarget(wording) {
+ const table=unnumberedTableAddress(wording);
+ if(table)return {raw:table.raw,language:wording.language,complete:true,segments:[{kind:'annex',value:''},{kind:'table',value:table.caption,isNew:true}],unparsed:[]};
  const paths=wording.baseline==='present-text'?wording.targetPath?.underlying:wording.targetPath?.proposal;
  const raw=paths?.length===1?paths[0].raw:wording.targetLabel||'';
  const resolution=['motion-resolution','unknown'].includes(wording.baseline);
@@ -602,6 +605,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
+  const tableEnd=assertUnnumberedTable({proposal,wording,placement,nativeQuoted,voteReferences});
+  if(tableEnd.status!=='unverified')return tableEnd;
   const firstAnnex=assertFirstAnnex({proposal,items,wording,placement,nativeQuoted});
   if(firstAnnex)return firstAnnex;
   if(proposal) {

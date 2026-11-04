@@ -2828,5 +2828,6 @@
   "topics.story.integrated.lead.tiedEachRose.eu": "V Evropi in njenem sosedstvu: {places} — največ vprašanj (po {questions}), v vsakem primeru porast, prej {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — največ vprašanj (po {questions}), v vsakem primeru skok, prej {average}.",
   "topics.story.integrated.lead.tiedEachJumped.eu": "V Evropi in njenem sosedstvu: {places} — največ vprašanj (po {questions}), v vsakem primeru skok, prej {average}.",
-  "proposalcontexttext.colliding.new.point": "Ta številka že obstaja. Vstavljeno za osnovno točko."
+  "proposalcontexttext.colliding.new.point": "Ta številka že obstaja. Vstavljeno za osnovno točko.",
+  "proposalcontexttext.new.unnumbered.table": "Nova neoštevilčena tabela je vstavljena na koncu priloge."
 }
