@@ -1,9 +1,14 @@
-import {readFileSync,existsSync} from 'node:fs';
+import {readFileSync,existsSync,appendFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import {compareReads} from './read-benchmark.mjs';
 
 // Hidden marker used to find and update the existing PR comment.
 export const reportMarker='<!-- read-benchmark-report -->';
+
+export function readBenchmarkHasFindings(before,after) {
+  if(!before||!after)return 'unavailable';
+  return String(compareReads(before,after).failures.length>0);
+}
 
 const cell=value=>String(value).replaceAll('|','\\|');
 const signed=value=>value>0?`+${value}`:String(value);
@@ -73,7 +78,7 @@ function readJson(file) {
   return text.trim()?JSON.parse(text):undefined;
 }
 
-export function main(args=process.argv.slice(2)) {
+export function main(args=process.argv.slice(2),env=process.env) {
   const options={};
   const known=new Set(['before','after','before-label','after-label','title','run-url','before-source','after-source']);
   for(let index=0;index<args.length;index+=2) {
@@ -83,6 +88,7 @@ export function main(args=process.argv.slice(2)) {
     options[key]=args[index+1];
   }
   const before=readJson(options.before),after=readJson(options.after);
+  if(env.GITHUB_OUTPUT)appendFileSync(env.GITHUB_OUTPUT,`has_findings=${readBenchmarkHasFindings(before,after)}\n`);
   process.stdout.write(renderReadBenchmarkReport({
     before,
     after,

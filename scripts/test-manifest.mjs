@@ -2,6 +2,7 @@ export const testDirectories = ['src', 'server', 'scripts'];
 
 // Subprocess startup and isolated cache/restart checks are kept in the slow profile.
 export const slow = [
+  {file: 'scripts/read-benchmark-report.test.mjs', reason: 'Spawns Bash to verify benchmark comment creation, updates and cleanup with a simulated GitHub CLI.'},
   {file: 'scripts/translation-coverage-report.test.mjs', reason: 'Spawns Git to verify advisory comparisons across exact revisions and diverged branches.'},
   {file: 'scripts/amendment-benchmark-hybrid.test.mjs', reason: 'Spawns fixture-only CLI acquisition and sealed replay processes.'},
   {file: 'scripts/amendment-rejection-oracle.test.mjs', reason: 'Spawns Python to verify bounded native XML reads and temporary-file cleanup.'},

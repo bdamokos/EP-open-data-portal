@@ -128,11 +128,12 @@ export function diffBase(base, head, cwd = process.cwd()) {
 }
 
 export function run(env = process.env) {
-  let report;
+  let report, hasFindings = 'unavailable';
   try {
     const base = diffBase(env.TRANSLATION_BASE, env.TRANSLATION_HEAD);
     const findings = compareCatalogues(readRevision(base), readRevision(env.TRANSLATION_HEAD));
     report = renderReport(findings, {base, head: env.TRANSLATION_HEAD});
+    hasFindings = String(findings.length > 0);
     for (const row of findings.slice(0, 40)) {
       const message = `${row.drift.length ? DRIFT + '. Verification before merge is required. ' : ''}${row.key}: missing ${row.missing.join(', ') || 'none'}; potential drift ${row.drift.join(', ') || 'none'}. Translations may be added in this PR or a follow-up; CI remains non-blocking.`;
       process.stdout.write(`::warning file=src/ui-locales/en.json::${annotation(message)}\n`);
@@ -143,7 +144,7 @@ export function run(env = process.env) {
   }
   // Output failures are advisory too, and never expose raw git errors/catalogue text.
   try { if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, report); } catch { process.stdout.write('::warning::Translation job summary unavailable.\n'); }
-  try { if (env.GITHUB_OUTPUT) { const delimiter = `translation_${randomUUID()}`; appendFileSync(env.GITHUB_OUTPUT, `report<<${delimiter}\n${report}\n${delimiter}\n`); } } catch { process.stdout.write('::warning::Translation comment output unavailable.\n'); }
+  try { if (env.GITHUB_OUTPUT) { const delimiter = `translation_${randomUUID()}`; appendFileSync(env.GITHUB_OUTPUT, `has_findings=${hasFindings}\nreport<<${delimiter}\n${report}\n${delimiter}\n`); } } catch { process.stdout.write('::warning::Translation comment output unavailable.\n'); }
   return report;
 }
 
