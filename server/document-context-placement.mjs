@@ -64,8 +64,9 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   const proposalKind=['commission-proposal','council-position'].includes(chosen.baseline)&&chosen.baselineSource?.category===chosen.baseline&&chosen.baselineSource.conflicted===false;
   const consultation=chosen.baseline==='commission-proposal'&&(chosen.documentReferences||[]).some(r=>(r.field==='DocRef'||/^DocAmend\d?$/.test(r.field))&&/\b\d{4}\/\d{4}\s*\(CNS\)/u.test(r.raw||''));
   const nle=chosen.baseline==='commission-proposal'&&baseline?.evidence?.some(e=>e.kind==='native-procedure'&&e.status==='verified'&&/\(NLE\)$/u.test(e.procedure));
-  const detachedNotes=proposalKind&&(consultation||nle)&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text));
-  if(detachedNotes&&(!nle||!items?.length))return unresolved('proposal_note_scope_unavailable');
+  const pdfCouncil=council&&baseline?.evidence?.some(e=>e.kind==='report-council-draft')&&items?.length===1&&items[0].proposal?.sourceKind==='pdf';
+  const detachedNotes=proposalKind&&(consultation||nle||council&&items?.some(item=>item.proposal?.sourceKind==='pdf'))&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text));
+  if(detachedNotes&&(!nle&&!pdfCouncil||!items?.length))return unresolved('proposal_note_scope_unavailable');
   if(proposalKind&&nle&&baseline.evidence.some(e=>e.kind==='native-nle-annex-part'&&e.ordinal===null&&e.legalPlacement===false)&&/\bAnnex\b/iu.test(chosen.targetLabel||''))return unresolved('proposal_annex_ordinal_unverified');
   let selected=chosen;
   if(proposalKind&&nle&&chosen.language==='en'&&/^Annex I(?= [–-])/u.test(chosen.targetLabel||'')) {
@@ -77,7 +78,7 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   }
   if(proposalKind){
     if(!items?.length||!chosen.language||(chosen.targetPath?.language??chosen.targetLabelLanguage)!==chosen.language)return unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
-    return detachedNotes?resolveProposalNoteScope(items,selected):resolveProposalPlacement(items,selected,{nativeProposalInputs});
+    return detachedNotes?(pdfCouncil?resolveCouncilPdfNoteScope(items,selected):resolveProposalNoteScope(items,selected)):resolveProposalPlacement(items,selected,{nativeProposalInputs});
   }
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
   const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
@@ -124,6 +125,33 @@ function comparisonColumn(value,formatting) {
   return {body,end:separator.start,notes,references,clean};
 }
 const textKey=value=>value.normalize('NFC').replace(/\s+/gu,'');
+
+function samePdfCitation(left,right) {
+  const protectedUrls=value=>value.match(/https?:\/\/[^\s)]+/giu)??[];
+  if(JSON.stringify(protectedUrls(left))!==JSON.stringify(protectedUrls(right)))return false;
+  const plain=value=>textKey(value.replace(/https?:\/\/[^\s)]+/giu,'§')),a=plain(left),b=plain(right);
+  if(a===b)return true;
+  if(Math.abs(a.length-b.length)!==1)return false;
+  const short=a.length<b.length?a:b,long=a.length>b.length?a:b;
+  return [...long.matchAll(/[.,;]/gu)].some(m=>!( /\d/u.test(long[m.index-1]??'')&&/\d/u.test(long[m.index+1]??''))&&long.slice(0,m.index)+long.slice(m.index+1)===short);
+}
+// A bounded PDF note comparison reuses the ordinary body resolver. Neither the
+// native note nor the report's detached payload becomes provision body text.
+function resolveCouncilPdfNoteScope(items,chosen) {
+  const withheld=reason=>({operation:'replace',status:'unresolved',reason:reason??'proposal_note_scope_unavailable',evidence:[]});
+  const old=comparisonColumn(chosen.originalText,chosen.originalFormatting),next=comparisonColumn(chosen.proposedText,chosen.proposedFormatting);
+  if(!old||!next||old.notes.length!==1||old.references.length!==1||next.notes.length!==1||next.references.length!==1||old.notes[0].label!==next.notes[0].label)return withheld();
+  const placement=resolveProposalPlacement(items,{...chosen,originalText:old.clean,originalFormatting:[],proposedText:next.body,proposedFormatting:(chosen.proposedFormatting??[]).filter(mark=>mark.end<=next.end)});
+  if(placement.status!=='placed')return placement;
+  const proposal=items[placement.itemIndex]?.proposal,{span,splice}=placement;
+  if(proposal?.sourceKind!=='pdf'||placement.operation!=='replace'||!span||span.start!==span.end||!splice||splice.start.paragraph!==span.start||splice.end.paragraph!==span.start||splice.start.offset!==0)return withheld();
+  const row=proposal.paragraphs[span.start],anchors=(proposal.anchors??[]).filter(a=>a.paragraph===span.start);
+  if(!row?.complete||row.source?.complete!==true||row.source.role!=='/P'||row.source.pages?.length!==1||row.properties?.notesComplete!==true||!row.properties.annotationsComplete||row.objects.length||splice.end.offset!==row.text.length||textKey(row.text)!==textKey(old.clean)||anchors.length!==1)return withheld();
+  const anchor=anchors[0],notes=(proposal.notes??[]).filter(n=>n.id===anchor.note),note=notes[0],page=row.source.pages[0];
+  if(notes.length!==1||!note.complete||note.objects?.length||JSON.stringify(note.source?.pages)!==JSON.stringify([page])||(proposal.notes??[]).filter(n=>n.source?.pages?.includes(page)).length!==1||(proposal.anchors??[]).filter(a=>a.note===note.id).length!==1||anchor.label!==old.references[0].label||note.label!==old.notes[0].label||!Number.isSafeInteger(anchor.offset)||anchor.offset<0||anchor.offset>row.text.length||row.text.slice(0,anchor.offset).trimEnd().length!==anchor.offset||textKey(row.text.slice(0,anchor.offset))!==textKey(old.references[0].prefix))return withheld();
+  if(!samePdfCitation(note.text,old.notes[0].text))return withheld('council_pdf_note_text_mismatch');
+  return {...placement,noteScope:{kind:'pdf-footnotes',originalBodyEnd:old.end,proposedBodyEnd:next.end,sourceNotes:[{id:note.id,label:anchor.label}],proposedLabels:[next.notes[0].label],unreferencedLabels:[]}};
+}
 
 function initialRecital(items,chosen) {
   if(chosen.targetLabel!=='Recital -1 (new)'||chosen.originalText!==''||!/^\(-1\)\s+\S/u.test(chosen.proposedText))return null;
