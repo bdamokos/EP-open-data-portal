@@ -2728,6 +2728,7 @@
   "topics.story.map.outside.eu": "Täysistunnon puhujat Euroopasta ja sen lähialueilta: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} puhui täysistunnossa ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} oli kartan vilkkaimman keskustelun aihe, ja siitä esitettiin {questions}: puheenvuoron käytti {meps}, aiheena {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "Euroopassa ja sen lähialueilla {place} oli vilkkaimman keskustelun aihe, ja siitä esitettiin {questions}: puheenvuoron käytti {meps}, aiheena {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} oli sekä kartan vilkkaimman keskustelun että useimpien kysymysten aihe ({questions}): puheenvuoron käytti {meps}, aiheena {title} ({date}{format}){outcome}.",

@@ -2728,6 +2728,7 @@
   "topics.story.map.outside.eu": "Diskorsi fil-plenarja mill-Ewropa u mill-viċinat tagħha: {speakers}.",
   "topics.story.place.outside": "{place}: diskors fil-plenarja minn {speaker} ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "L-aktar dibattitu attiv fuq il-mappa kien dwar {place}, u kien hemm {questions} dwar il-post: {title} ({date}{format}); kelliema: {meps}{outcome}.",
   "topics.story.integrated.busiest.eu": "Fl-Ewropa u fil-viċinat tagħha, l-aktar dibattitu attiv kien dwar {place}, u kien hemm {questions} dwar il-post: {title} ({date}{format}); kelliema: {meps}{outcome}.",
   "topics.story.integrated.both": "L-aktar dibattitu attiv fuq il-mappa u l-akbar għadd ta’ mistoqsijiet ({questions}) kienu dwar {place}: {title} ({date}{format}); kelliema: {meps}{outcome}.",

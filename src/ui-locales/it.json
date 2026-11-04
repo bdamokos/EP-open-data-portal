@@ -2728,6 +2728,7 @@
   "topics.story.map.outside.eu": "Interventi in Aula dall’Europa e dai paesi vicini: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} ha preso la parola in Aula ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place}: il dibattito con più oratori sulla mappa e {questions}; {meps} hanno parlato di {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "In Europa e nei paesi vicini, {place}: il dibattito con più oratori e {questions}; {meps} hanno parlato di {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place}: il dibattito con più oratori sulla mappa e il maggior numero di interrogazioni ({questions}); {meps} hanno parlato di {title} ({date}{format}){outcome}.",

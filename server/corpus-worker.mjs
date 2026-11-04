@@ -34,10 +34,8 @@ const SPEECH_ID=/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/;
 const SPEECH_TYPES='PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT';
 // Verbatim translations are added for weeks after a sitting; recheck recent months.
 const RECHECK_EVERY=7*DAY, DISCOVER_EVERY=6*60*60_000;
-export function speechRecheckCadence(end,today) {
-  const months=(Number(today.slice(0,4))-Number(end.slice(0,4)))*12+Number(today.slice(5,7))-Number(end.slice(5,7));
-  return months<4?null:months<12?{metadata:30*DAY,verification:90*DAY}:months<24?{metadata:90*DAY,verification:180*DAY}:{metadata:180*DAY,verification:365*DAY};
-}
+export {speechRecheckCadence} from './speech-recheck.mjs';
+import {speechRecheckCadence} from './speech-recheck.mjs';
 function speechDescriptor(activity) {
   return {...activity,recorded_in_a_realization_of:array(activity.recorded_in_a_realization_of).map(doc=>{
     if(!doc||typeof doc!=='object')return doc;

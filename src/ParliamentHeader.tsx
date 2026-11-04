@@ -45,7 +45,7 @@ function useStackedDestinations(language:string,items:string) {
   return [header,stacked] as const;
 }
 
-type ExplorerView = 'legislation' | 'questions' | 'geopolitics' | 'outside' | 'amendments' | 'groups';
+type ExplorerView = 'legislation' | 'questions' | 'geopolitics' | 'outside' | 'amendments' | 'groups' | 'hemicycle';
 
 export function ParliamentHeader({view,onMembers,onNavigate,onSaved,onLanguageChange,language='en'}: {
   view: 'members' | ExplorerView | 'saved';
@@ -61,12 +61,12 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,onLanguageCh
     <span className="parliament-brand" lang={ui.language}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></span>
     <nav aria-label={ui.t("batch4.parliamentheader.tsx.24.1")} lang={ui.language}>
       <button aria-current={(view==='members') ? 'page' : undefined} onClick={onMembers}><UiMessage id="batch4.parliamentheader.tsx.25.1"/></button>
-      {(['legislation','questions','geopolitics','amendments','outside','groups'] as const).filter(destination=>destination!=='amendments'||publicAmendmentsEnabled).map(destination=><button
+      {(['legislation','questions','geopolitics','amendments','outside','groups','hemicycle'] as const).filter(destination=>destination!=='amendments'||publicAmendmentsEnabled).map(destination=><button
         key={destination}
         aria-current={(view===destination) ? 'page' : undefined}
         disabled={!onNavigate&&view!==destination}
         onClick={()=>onNavigate?.(destination)}
-      >{destination==='legislation'?ui.t("plenarymodes.plenary_agenda"):destination==='geopolitics'?ui.t('topics.geopolitics'):destination==='questions'?ui.t("textsearch.questions"):destination==='amendments'?ui.t("legislation.amendments.900866"):destination==='groups'?ui.t("groupvoices.group_voices.f21b8b"):ui.t("outsidevoices.outside_voices.a027e6")}</button>)}
+      >{destination==='hemicycle'?ui.t('hemicycle.title'):destination==='legislation'?ui.t("plenarymodes.plenary_agenda"):destination==='geopolitics'?ui.t('topics.geopolitics'):destination==='questions'?ui.t("textsearch.questions"):destination==='amendments'?ui.t("legislation.amendments.900866"):destination==='groups'?ui.t("groupvoices.group_voices.f21b8b"):ui.t("outsidevoices.outside_voices.a027e6")}</button>)}
       {onSaved&&<SavedNav onClick={onSaved} current={view==='saved'}/>}
     </nav>
     <div className="parliament-header-tools">

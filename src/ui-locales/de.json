@@ -2728,6 +2728,7 @@
   "topics.story.map.outside.eu": "Reden im Plenum aus Europa und seinen Nachbarregionen: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} sprach im Plenum ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} war Thema der Debatte mit den meisten Rednern auf der Karte und von {questions}: {meps} sprachen zu {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "In Europa und seinen Nachbarregionen war {place} Thema der Debatte mit den meisten Rednern und von {questions}: {meps} sprachen zu {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} war Thema sowohl der Debatte mit den meisten Rednern auf der Karte als auch der meisten Anfragen ({questions}): {meps} sprachen zu {title} ({date}{format}){outcome}.",

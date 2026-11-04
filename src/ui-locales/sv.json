@@ -2728,6 +2728,7 @@
   "topics.story.map.outside.eu": "Tal i plenum från Europa och dess grannländer: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} talade i plenum ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} var föremål för kartans debatt med flest talare och för {questions}: {meps} talade om {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "I Europa och dess grannländer var {place} föremål för debatten med flest talare och för {questions}: {meps} talade om {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} var föremål för både kartans debatt med flest talare och flest frågor ({questions}): {meps} talade om {title} ({date}{format}){outcome}.",

@@ -3,11 +3,20 @@ import { languageCode, speechWebsite } from './ep-links.mjs';
 import {speechAgendaMembership,speechParentEvidence,speechParentDocumentId} from './speech-agenda.mjs';
 import countryLabels from './insights-country-labels.json' with {type:'json'};
 
+export const OUTSIDE_ROLE_PARSER_REVISION=1;
+
 const array = value => value == null ? [] : Array.isArray(value) ? value : [value];
 const canonical = value => String(value?.id || value || '').replace(/^https?:\/\/data\.europarl\.europa\.eu\//, '');
 const tail = value => canonical(value).split('/').at(-1);
 const text = value => typeof value === 'string' ? value : value?.['#text'] || '';
 const parser = new XMLParser({ignoreAttributes:false, parseTagValue:false, trimValues:false});
+const roleParser=new XMLParser({preserveOrder:true,ignoreAttributes:true,parseTagValue:false,trimValues:false});
+const orderedText=nodes=>array(nodes).map(node=>Object.entries(node).map(([key,value])=>key==='#text'?String(value):orderedText(value)).join('')).join('');
+function publishedRole(xml){
+ const header=xml.match(/<from\b[^>]*>([\s\S]*?)<\/from>/)?.[1]||'';
+ return [...header.matchAll(/<role\b[^>]*>[\s\S]*?<\/role>/g)].map(match=>orderedText(roleParser.parse(match[0]))).join(' ').trim()||null;
+}
+
 const personId = value => canonical(value).match(/^person\/([1-9]\d*)$/)?.[1];
 const specificName = value => value && !/^(?:(?:the|le|la|der|die|il|el)\s+)?(?:president[ea]?|président(?:e)?|präsident(?:in)?|chair(?:person|man)?|speaker)$/i.test(value);
 
@@ -50,7 +59,7 @@ export function outsideSpeech(activity, fetchedAt, queryUrl = null) {
         const personId = String(person?.['@_refersTo'] || '').match(/^(?:epdata:)?person\/(\d+)$/)?.[1];
         const name = text(person).trim();
         if (!participants.includes(personId) || !specificName(name)) continue;
-        observations.push({personId, name, role:array(from.role).map(text).join(' ').trim() || null, languageTag, fragmentKey:key, original});
+        observations.push({parserRevision:OUTSIDE_ROLE_PARSER_REVISION, personId, name, role:publishedRole(xml), machineTranslated:/(?:^|[-\s"'])mtec(?:[-\s"']|$)/.test(xml), languageTag, fragmentKey:key, original});
       }
     } catch { /* A malformed fragment leaves the identity unresolved. */ }
   }

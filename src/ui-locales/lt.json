@@ -2728,6 +2728,7 @@
   "topics.story.map.outside.eu": "Kalbėtojai plenariniame posėdyje iš Europos ir kaimyninių šalių: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} kalbėjo plenariniame posėdyje ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} – daugiausia kalbėtojų sulaukusi diskusija žemėlapyje ir {questions}: {title} ({date}{format}); kalbėjo {meps}{outcome}.",
   "topics.story.integrated.busiest.eu": "Europoje ir kaimyninėse šalyse: {place} – daugiausia kalbėtojų sulaukusi diskusija ir {questions}: {title} ({date}{format}); kalbėjo {meps}{outcome}.",
   "topics.story.integrated.both": "{place} – daugiausia kalbėtojų sulaukusi diskusija žemėlapyje ir daugiausia klausimų ({questions}): {title} ({date}{format}); kalbėjo {meps}{outcome}.",
