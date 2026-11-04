@@ -29,8 +29,8 @@ import {assertBareAnnexReplacement} from './amendment-annex-replacement-oracle.m
 import {assertBareAnnexIndent} from './amendment-annex-indent-oracle.mjs';
 import {assertWholeAnnexInstruction} from './amendment-whole-instruction-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
-import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
-import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
+import {assertFinnishQuotedSibling,assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
+import {assertNewQuotedOrdinal,assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
 import {assertFootnoteComparison,assertResolutionFootnotes} from './amendment-footnote-oracle.mjs';
 import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-grammar.mjs';
@@ -273,7 +273,9 @@ function verifyPreambleCitation({proposal,wording,placement,target}) {
   // The spliced source itself must be the original wording.
   const splice=placement.splice,text=String(row.text);
   if(splice?.start?.paragraph!==row.index||splice?.end?.paragraph!==row.index||!(splice.start.offset>=0&&splice.start.offset<=splice.end.offset&&splice.end.offset<=text.length))return fail('oracle-invalid-span');
-  if(oracleNormal(text.slice(splice.start.offset,splice.end.offset))!==oracleNormal(wording.originalText))return fail('oracle-original-span-mismatch');
+  const notes=assertFootnoteComparison(proposal,wording,placement);
+  if(notes?.status==='failed')return notes;
+  if(!notes&&oracleNormal(text.slice(splice.start.offset,splice.end.offset))!==oracleNormal(wording.originalText))return fail('oracle-original-span-mismatch');
   return verified('oracle-preamble-citation-span');
 }
 // Maintainer P2 for articles: a new Article -1 goes immediately after the
@@ -719,8 +721,10 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
   if(quoted.status!=='unverified')return quoted;
+  const finnishSibling=assertFinnishQuotedSibling({proposal,wording,placement,nativeQuoted});if(finnishSibling)return finnishSibling;
   const sibling=assertQuotedSibling({proposal,wording,placement,nativeQuoted});
   if(sibling.status!=='unverified')return sibling;
+  const ordinalSubparagraph=assertNewQuotedOrdinal({proposal,wording,placement,nativeQuoted});if(ordinalSubparagraph)return ordinalSubparagraph;
   const subparagraph=assertQuotedSubparagraph({proposal,wording,placement,nativeQuoted});
   if(subparagraph.status!=='unverified')return subparagraph;
   const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});

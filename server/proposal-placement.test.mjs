@@ -703,3 +703,31 @@ test('a complete adjacent recital pair survives unrelated later recast numbering
  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,3);assert(placed.evidence.some(e=>e.basis==='native-adjacent-recital-boundary'));
  for(const mutate of [p=>p.sourceKind='text',p=>p.paragraphs[3]='(4) Other recital.',p=>p.paragraphs[5]='(1) Duplicate anchor.',p=>p.paragraphSources[3].ordinal++,p=>p.paragraphSources[2].complete=false]){const p=make();mutate(p);assert.equal(resolve(p,'Recital 1 a (new)','','(1a) New recital.').status,'unresolved',String(mutate));}
 });
+
+test('preamble citation wording proves comparison notes before matching its legal body',()=>{
+ const projection=source(['THE COUNCIL OF THE EUROPEAN UNION,','Having regard to the opinion of the Committee of the Regions,','Whereas:','(1) A recital.'],['Institutionquiagit','Normal','Normal','ManualConsidrant']);
+ const proposal=structuredClone(parseProposal(projection)),text=proposal.paragraphs[1].text,at=text.length-1;
+ proposal.anchors=[{paragraph:1,offset:at,note:'8',label:'2'}];proposal.notes=[{id:'8',text:'OJ C , , p. .',complete:true}];
+ const wording={language:'en',baseline:'commission-proposal',targetLabel:'Citation 1',originalText:text.slice(0,at)+'2 '+text.slice(at)+'\n_________________\n2 OJ C , , p. .',proposedText:'After consulting the Committee of the Regions,\n_________________',originalFormatting:[{kind:'superscript',start:at,end:at+1}]};
+ const place=p=>resolveProposalPlacement([{kind:'act',proposal:p}],wording);
+ const placed=place(proposal);assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:1});assert.equal(verifyPlacement({items:[{proposal}],wording,placement:placed}).status,'verified');
+ for(const change of [a=>a.notes[0].text='Different note.',a=>a.anchors[0].offset--,a=>a.notes[0].complete=false]){const a=structuredClone(proposal);change(a);assert.equal(place(a).status,'unresolved');}
+ const changed={...wording,originalFormatting:[]};assert.equal(resolveProposalPlacement([{kind:'act',proposal}],changed).status,'unresolved');
+});
+
+test('new quoted subparagraph suffixes use their parent paragraph ordinal',()=>{
+ const f=fixture('proposal-quoted-ordinal.json'),wrap=x=>`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${x}</w:body></w:document>`,buffer=fixtureZip({'word/document.xml':wrap(f.bodyXml)}),proposal=parseProposal(buffer,{language:'en'}),items=[{kind:'act',proposal}];
+ for(const suffix of ['a','b']){
+  const wording={language:'en',baseline:'commission-proposal',originalText:'',proposedText:'Additional free allocation shall be provided.',targetLabel:'Article 1 – paragraph 1 – point 1',targetPath:{language:'en',proposal:[{raw:'Article 1 – paragraph 1 – point 1'}],underlying:[{document:'Directive 2003/87/EC',raw:'Article 10 a – paragraph 2 a – subparagraph 2 '+suffix+' (new)'}]}},placement=resolveProposalPlacement(items,wording),next=proposal.paragraphs.find(row=>row.text.startsWith('2b.')).index;
+  assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,next);assert.equal(placement.insertAfter,next-1);assert.equal(verifyPlacement({items,wording,placement,nativeQuoted:{proposalBuffer:buffer}}).status,'verified');
+  for(const modify of [w=>w.targetPath.underlying[0].document='Directive 2000/1/EC',w=>w.targetPath.underlying[0].raw=w.targetPath.underlying[0].raw.replace('subparagraph 2','subparagraph 3')]){const changed=structuredClone(wording);modify(changed);assert.equal(resolveProposalPlacement(items,changed).status,'unresolved');}
+ }
+});
+
+test('Finnish empty-original printed siblings remain within the exact quoted replacement',()=>{
+ const f=fixture('proposal-finnish-sibling.json'),wrap=x=>`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${x}</w:body></w:document>`,buffer=fixtureZip({'word/document.xml':wrap(f.bodyXml)}),proposal=parseProposal(buffer,{language:'fi'}),items=[{kind:'act',proposal}],inner='20 artikla – 1 a kohta';
+ const wording={language:'fi',baseline:'commission-proposal',originalText:'',proposedText:'1 a. Liikenteenharjoittajat voivat täyttää velvoitteensa.',targetLabel:'4 artikla – 1 kohta – 2 alakohta – a alakohta',targetPath:{language:'fi',proposal:[{raw:'4 artikla – 1 kohta – 2 alakohta – a alakohta'}],underlying:[{document:inner,raw:inner}]}};
+ const placement=resolveProposalPlacement(items,wording),next=proposal.paragraphs.find(row=>row.text.startsWith('(b)')&&row.text.includes('korvataan 4')).index;
+ assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,next);assert.equal(placement.insertAfter,next-1);assert.equal(verifyPlacement({items,wording,placement,nativeQuoted:{proposalBuffer:buffer}}).status,'verified');
+ for(const mutate of [a=>a.targetPath.underlying[0].raw='21 artikla – 1 a kohta',a=>a.targetPath.underlying[0].document='Regulation (EU) 999/999',a=>a.proposedText='2 a. Uusi kohta.']){const w=structuredClone(wording);mutate(w);assert.equal(resolveProposalPlacement(items,w).status,'unresolved');}
+});
