@@ -40,3 +40,12 @@ test('numbered annex additions use the complete native predecessor and next head
  const hidden=native('<w:altChunk/><w:p><w:r><w:t>ANNEX II</w:t></w:r></w:p>','ANNEX I');
  assert.equal(assertNumberedAnnexInsertion([i],w,placement,hidden).status,'unverified');
 });
+
+
+test('a native annex heading in Normal style cannot disappear from the independent heading census',()=>{
+ const i=item(),p=i.proposal;p.paragraphs[0].text='ANNEX I';
+ p.paragraphs.push({...p.paragraphs[0],index:2,text:'ANNEX Ia',properties:{styleId:'Normal'},source:{...p.paragraphs[0].source,ordinal:2,path:'/w:document[1]/w:body[1]/w:p[3]'}}, {...p.paragraphs[0],index:3,text:'ANNEX II',source:{...p.paragraphs[0].source,ordinal:3,path:'/w:document[1]/w:body[1]/w:p[4]'}});
+ const bytes=native('<w:p><w:r><w:t>ANNEX Ia</w:t></w:r></w:p><w:p><w:r><w:t>ANNEX II</w:t></w:r></w:p>','ANNEX I');
+ const w={...wording,baseline:'commission-proposal',originalText:''};
+ assert.equal(assertNumberedAnnexInsertion([i],w,{...placement,insertAfter:2,insertBefore:3},bytes).status,'unverified');
+});

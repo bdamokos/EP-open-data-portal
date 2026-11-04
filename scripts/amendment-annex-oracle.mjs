@@ -67,6 +67,10 @@ export function assertNumberedAnnexInsertion(items,wording,placement,nativeQuote
   const rows=proposal.paragraphs.filter(row=>row.index>=anchor.index&&row.index<=next.index);
   if(rows.some(row=>row.complete!==true||row.source?.complete!==true)||proposal.gaps?.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=anchor.index&&gap.paragraph<next.index))continue;
   let body;try{body=quotedWordBody(nativeQuoted?.proposalBuffers?.[itemIndex]??nativeQuoted?.proposalBuffer);}catch{continue;}
+  // Native heading discovery must not depend on the producer's style choice.
+  // An existing Annex Ia printed as Normal still occupies that identity.
+  const nativeHeadings=body.filter(row=>row.kind==='paragraph'&&/^ANNEX [IVXLCDM]+(?:\s*[a-z])?$/u.test(fold(row.text)));
+  if(nativeHeadings.length!==headings.length||nativeHeadings.some((row,index)=>row.path!==headings[index].source.path||fold(row.text)!==fold(headings[index].text)))continue;
   const first=body.findIndex(row=>row.path===anchor.source.path&&row.text?.trim()===anchor.text.trim()),last=body.findIndex(row=>row.path===next.source.path&&row.text?.trim()===next.text.trim());
   if(first<0||last<=first)continue;
   const scope=body.slice(first,last+1);
