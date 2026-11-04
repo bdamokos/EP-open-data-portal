@@ -308,7 +308,8 @@ const structuralRow = (row, format) => row.normal === '°' || row.normal === '°
 const emphasisedRow = (value, format) => {
   const start = value.search(/\S/u), end = value.trimEnd().length;
   return start >= 0 && ['bold', 'italic'].some(kind => (format?.marks || []).some(mark => mark.kind === kind
-    && Number.isInteger(mark.start) && Number.isInteger(mark.end) && mark.start <= start && mark.end >= end));
+    && Number.isInteger(mark.start) && Number.isInteger(mark.end) && mark.start <= start && mark.end >= end))
+    || start===0&&value.length<180&&!/[.;!?:]$/u.test(value)&&['bold','italic'].every(kind=>{const marks=(format?.marks||[]).filter(m=>m.kind===kind);return marks.some(m=>m.start===0&&m.end>=end/3)&&marks.some(m=>m.end===end&&m.start<=end*2/3);});
 };
 function motionStructure(text, language) {
   const paragraphs = text?.paragraphs || [], selection = motionBodySelection(paragraphs, language), {start} = selection, rows = sourceStructure(text);
@@ -703,6 +704,14 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if (matches.length > 1) return unresolved('multiple_published_targets');
     if (!matches.length) return unresolved(structure.incompleteLabels.has(ref.label) ? 'source_passage_incomplete' : 'target_not_found');
     const unit = matches[0];
+    // An amendment can quote only the lead while leaving its points intact.
+    if(operation==='replace'&&unit.kind==='paragraph'&&complete(unit.start,unit.end)&&!structure.invalid.has(unit.start)&&!structure.uncertain.has(unit.start)
+      &&!structure.incompleteLabels.has(unit.label)&&/:$/u.test(rows[unit.start].normal)
+      &&units.some(child=>child.kind==='point'&&child.label==='a'&&child.parent===unit.start&&child.start===unit.start+1)
+      &&whitespace(rows[unit.start].value)===whitespace(options.originalText)) {
+      evidence.push({basis:'exact-paragraph-lead',label:unit.label});
+      return placed({span:{start:unit.start,end:unit.start}});
+    }
     const source = text.paragraphs.slice(unit.start, unit.end + 1).join(' ');
     const sourceKey = wordingNormal(source), originalKey = wordingNormal(options.originalText);
     // B-10-2026-0424 prints dash-led citations, while its amendments print
