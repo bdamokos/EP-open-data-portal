@@ -474,7 +474,9 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
   const extractionVersion=format==='PDF'?4:EXTRACTION_VERSION;
   requestSignal()?.throwIfAborted();
   const declared=documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
-  const candidate=format==='DOCX'&&!selectedFile&&!declared.length?distributionCandidate(work,language):null;
+  const fallback=format==='DOCX'&&!declared.length?distributionCandidate(work,language):null;
+  const candidate=fallback&&(!selectedFile||selectedFile.identityRequired&&selectedFile.url===fallback.url&&selectedFile.documentId===fallback.documentId)?fallback:null;
+  if(selectedFile?.identityRequired&&!candidate)throw new Error('Standard distribution candidate no longer matches current metadata.');
   const files=selectedFile?[selectedFile]:candidate?[candidate]:declared;
   const languages=languagePreference(files.map(f=>f.language).filter(Boolean),language);
   const originals=array(work.originalLanguage).map(languageCode);
@@ -522,16 +524,16 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
   const failure=changedEdition?null:previousFailure;
   const present=async record=>({...base,status:'available',...(candidate?{availableTextLanguages:[chosen.language]}:{}),paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:await publishDocumentImages(record,{directory:collector?directory:null}),sourceHash:record.sourceHash||null,
     extractionVersion:record.extractionVersion,sourceVersion:record.source?{...record.source,...(format==='PDF'?{observedByteSize:record.observedByteSize,byteSizeMatches:record.byteSizeMatches}:{} )}:null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
-  if(saved&&candidate&&saved.distributionIdentity!==candidate.documentId)saved=null;
+  const needsIdentityProof=Boolean(candidate&&saved&&saved.distributionIdentity!==candidate.documentId);
   if(collector){
-    if(!saved||documentNeedsRefresh(saved,work,descriptor,clock())||saved.formattingVersion!==FORMATTING_VERSION) saved=await waitForRequest(refresh('background'));
+    if(!saved||needsIdentityProof||documentNeedsRefresh(saved,work,descriptor,clock())||saved.formattingVersion!==FORMATTING_VERSION) saved=await waitForRequest(refresh('background'));
     return present(saved);
   }
   if(!saved&&!cacheOnly&&enqueue)documentBodyHints.enqueue(sourceId,language);
   if(cacheOnly)return saved?present(saved):{...base,reason:'No saved document text is available.'};
   // Keep saved text readable while a background read adds formatting/byline metadata.
   if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),bylineUpgrade=documentAuthorIdentities(work).length>1&&!Array.isArray(saved.authorBylineParagraphs),reformat=format==='DOCX'&&(saved.formattingVersion!==FORMATTING_VERSION||bylineUpgrade)&&!reformatted.has(key);
-    if((stale||reformat) && (!failure || failure.retryAt<=clock())){
+    if((stale||reformat||needsIdentityProof) && (!failure || failure.retryAt<=clock())){
       if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}
       if(enqueue)documentBodyHints.enqueue(sourceId,language);
     }return {...await present(saved),stale,refreshInProgress:pending.has(pendingKey),refreshError:failure?.message || null};}

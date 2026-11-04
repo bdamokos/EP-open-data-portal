@@ -1,3 +1,4 @@
+import {distributionCandidate} from './ep-distribution-route.mjs';
 import {documentFileEdition} from './document-file-edition.mjs';
 import {DOCX_EXTRACTION_VERSION} from './docx-source-structure.mjs';
 import {DOCX_FORMATTING_VERSION} from './docx-formatting.mjs';
@@ -37,6 +38,7 @@ export class DocumentBodyCollector {
     for(const selected of [work,...array(work.inverse_answers_to)]){
       const id=selected.identifier||tail(selected.id);
       const files=documentFiles(selected).filter(file=>file.format==='DOCX'&&allowedDownload(file.url));
+      if(!files.length){const candidate=distributionCandidate(selected,language||'en');if(candidate)files.push(candidate);}
       for(const file of files){
         if(language&&file.language!==language)continue;
         const edition=JSON.stringify([{...file,...documentFileEdition(array(selected.is_realized_by).flatMap(expression=>array(expression.is_embodied_by)).find(manifestation=>manifestation.is_exemplified_by===file.url))},parserVersion]);
