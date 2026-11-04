@@ -29,3 +29,11 @@ export function similarPassage(rows,original,{threshold=SIMILARITY_THRESHOLD,mar
  candidates.sort((a,b)=>b.similarity-a.similarity);
  const best=candidates[0];return best?.similarity>=threshold&&best.similarity-(candidates[1]?.similarity??0)>=margin?best:null;
 }
+
+export function singleWordDifference(left,right) {
+ const parts=value=>similarityNormal(value).match(/[\p{L}\p{N}]+|[^\s]/gu)||[];
+ const a=parts(left),b=parts(right),long=a.length>b.length?a:b,short=a.length>b.length?b:a;
+ if(long.length>512||short.length<3||long.length!==short.length+1)return false;
+ let i=0;while(i<short.length&&short[i]===long[i])i++;
+ return /^\p{L}+$/u.test(long[i]||'')&&short.slice(i).every((value,j)=>value===long[i+j+1]);
+}

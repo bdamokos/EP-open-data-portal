@@ -529,7 +529,7 @@ test('annex table addresses replace a unique cell-exact run of rows',()=>{
   const place=(targetLabel,originalText)=>resolveProposalPlacement(items,{targetLabel,originalText,proposedText:'Changed',language:'en'});
   const placed=place('Annex III – paragraph 1 – table','Aluminium\nCN code\tGreenhouse gas\nex 7602 Aluminium waste\tCarbon dioxide');
   assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:7,end:11});
-  assert.equal(place('Annex III – paragraph 1 – table on aluminium','Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide').status,'unresolved','A-10-2026-0201 AM136 differs in one cell');
+  assert.equal(place('Annex III – paragraph 1 – table on aluminium','Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide').status,'placed','D6 permits one missing word on this uniquely addressed table');
   assert.equal(place('Annex III – paragraph 1 – table','CN code\tGreenhouse gas').status,'unresolved','repeated header rows are ambiguous');
   const gappedRows=[['ANNEX III','Annexetitre','body'],['Lead.','Normal','body'],['A','Normal','cell',1,1,1],['B','Normal','cell',1,1,3],['C','Normal','cell',1,2,1],['D','Normal','cell',1,2,2],['E','Normal','cell',1,2,3]];
   const trailingRows=[['ANNEX III','Annexetitre','body'],['Lead.','Normal','body'],['A','Normal','cell',1,1,1],['B','Normal','cell',1,1,2],['C','Normal','cell',1,2,1],['D','Normal','cell',1,2,2]];
