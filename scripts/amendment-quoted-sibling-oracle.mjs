@@ -65,3 +65,25 @@ export function assertQuotedSibling({proposal,wording,placement,nativeQuoted}){
  const before=projected[0].index+1;
  return placement.insertBefore===before&&placement.insertAfter===before-1?{status:'verified',reason:'oracle-native-whole-quoted-sibling'}:{status:'failed',reason:'oracle-native-quoted-sibling-boundary-mismatch',expectedBefore:before};
 }
+
+// Finnish whole-paragraph replacements can receive a printed suffixed sibling
+// even when the amendment's inner address omits the word "new".
+export function assertFinnishQuotedSibling({proposal,wording,placement,nativeQuoted}){
+ const outer=/^(\d+) artikla – 1 kohta – (\d+) alakohta – ([a-z]) alakohta$/u.exec(wording.targetLabel?.split('\n')[0]??''),refs=wording.targetPath?.underlying??[];
+ const inner=refs.length===1&&/^(\d+) artikla – (\d+) a kohta$/u.exec(refs[0].raw??'');
+ const printed=/^(\d+)\s*a[.]\s/u.exec(wording.proposedText??'');
+ if(wording.language!=='fi'||wording.originalText!==''||placement.operation!=='insert'||!outer||!inner||!printed||printed[1]!==inner[2])return null;
+ let body;try{body=quotedWordBody(nativeQuoted?.proposalBuffer);}catch{return null;}
+ const clean=s=>s.replace(/\s+/gu,' ').trim();
+ const headings=body.filter(row=>row.kind==='paragraph'&&clean(row.text)===outer[1]+' artikla');if(headings.length!==1||headings[0].hidden||headings[0].unsafe)return null;
+ let rows=body.slice(body.indexOf(headings[0])+1),end=rows.findIndex(row=>row.kind==='paragraph'&&/^\d+ artikla$/u.test(clean(row.text)));if(end>=0)rows=rows.slice(0,end);
+ const parents=rows.filter(row=>row.kind==='paragraph'&&clean(row.text)==='('+outer[2]+') Muutetaan '+inner[1]+' artikla seuraavasti:');if(parents.length!==1||parents[0].hidden||parents[0].unsafe)return null;
+ rows=rows.slice(rows.indexOf(parents[0])+1);end=rows.findIndex(row=>row.kind==='paragraph'&&/^\(\d+\)\s/u.test(row.text.trim()));if(end>=0)rows=rows.slice(0,end);
+ const owners=rows.filter(row=>row.kind==='paragraph'&&clean(row.text)==='('+outer[3]+') korvataan '+inner[2]+' kohta seuraavasti:');if(owners.length!==1||owners[0].hidden||owners[0].unsafe)return null;
+ rows=rows.slice(rows.indexOf(owners[0])+1);end=rows.findIndex(row=>row.kind==='paragraph'&&/^\([a-z]\)\s/u.test(row.text.trim()));if(end<0)return null;
+ const quote=rows.slice(0,end),following=rows[end];
+ if(quote.length!==1||quote[0].hidden||quote[0].unsafe||quote[0].numbered||!new RegExp('^”'+inner[2]+'[.]\\s[\\s\\S]+”$','u').test(quote[0].text.trim())||following.hidden||following.unsafe)return null;
+ const map=row=>proposal.paragraphs.filter(p=>p.source?.path===row.path&&p.text===row.text.trim()&&p.complete&&p.source.complete&&p.source.container==='body');
+ const a=map(quote[0]),b=map(following);if(a.length!==1||b.length!==1||b[0].index!==a[0].index+1)return null;
+ return placement.insertAfter===a[0].index&&placement.insertBefore===b[0].index?{status:'verified',reason:'oracle-native-finnish-quoted-sibling'}:{status:'failed',reason:'oracle-finnish-quoted-sibling-mismatch'};
+}
