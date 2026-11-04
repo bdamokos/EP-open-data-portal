@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Nahrádza celý text.",
+  "amendment.agreement_text": "Text dohody",
   "documentcontext.final_placement_check": "Konečné umiestnenie overte v {adoptedText}.",
   "documentcontext.adopted_text": "prijatom texte",
   "amendment.alternative_motion": "Alternatívny návrh",

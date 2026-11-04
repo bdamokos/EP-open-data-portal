@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Pakeičia visą tekstą.",
+  "amendment.agreement_text": "Susitarimo tekstas",
   "documentcontext.final_placement_check": "Galutinę vietą patikrinkite {adoptedText}.",
   "documentcontext.adopted_text": "priimtame tekste",
   "amendment.alternative_motion": "Alternatyvus pasiūlymas",

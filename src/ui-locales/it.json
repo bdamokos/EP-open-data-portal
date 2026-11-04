@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Sostituisce l’intero testo.",
+  "amendment.agreement_text": "Testo dell’accordo",
   "documentcontext.final_placement_check": "Verificare la collocazione definitiva nel {adoptedText}.",
   "documentcontext.adopted_text": "testo approvato",
   "amendment.alternative_motion": "Proposta alternativa",

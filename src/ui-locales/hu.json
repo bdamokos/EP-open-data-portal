@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "A teljes szöveg helyébe lép.",
+  "amendment.agreement_text": "A megállapodás szövege",
   "documentcontext.final_placement_check": "Ellenőrizze a végleges helyet {adoptedText}.",
   "documentcontext.adopted_text": "az elfogadott szövegben",
   "amendment.alternative_motion": "Alternatív indítvány",

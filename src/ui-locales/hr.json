@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Zamjenjuje cijeli tekst.",
+  "amendment.agreement_text": "Tekst sporazuma",
   "documentcontext.final_placement_check": "Provjerite konačno mjesto u {adoptedText}.",
   "documentcontext.adopted_text": "usvojenom tekstu",
   "amendment.alternative_motion": "Alternativni prijedlog",

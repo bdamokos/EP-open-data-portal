@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Ersätter hela texten.",
+  "amendment.agreement_text": "Överenskommelsens text",
   "documentcontext.final_placement_check": "Kontrollera den slutliga placeringen i {adoptedText}.",
   "documentcontext.adopted_text": "den antagna texten",
   "amendment.alternative_motion": "Alternativt resolutionsförslag",
