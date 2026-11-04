@@ -35,3 +35,10 @@ test('existing suffixed recitals bind their full native passage and ordered pred
  assert.notEqual(assertCouncilDraftNativeText(raw.replace('(9)',text+'\n(9)'),v).status,'verified');
  const insertion=structuredClone(v);insertion.placement={status:'placed',operation:'insert',itemIndex:0,insertAfter:0,insertBefore:1};assert.notEqual(assertCouncilDraftNativeText(raw,insertion).status,'verified');
 });
+
+test('native body geometry separates an intervening owned note from a suffixed recital predecessor',()=>{
+ const base='(8) Base native recital.',text='(8a) Existing native recital.',next='(9) Next recital.',raw=base+'\n99 Unrelated native citation.\n'+text+'\n'+next+'\nArticle 1\nBody.',v={wording:{targetLabel:'Recital 8a',originalText:text},items:[{proposal:{paragraphs:[{text:base},{text},{text:next}]}}],placement:{status:'placed',operation:'replace',itemIndex:0,span:{start:1,end:1},splice:{start:{paragraph:1,offset:0},end:{paragraph:1,offset:text.length}}}};
+ assert.notEqual(assertCouncilDraftNativeText(raw,v).status,'verified');
+ const words=[base,text,next].flatMap(s=>s.split(' ').map(text=>({text})));assert.equal(assertCouncilDraftNativeText(raw,{...v,nativeBodyWords:words}).status,'verified');
+ assert.notEqual(assertCouncilDraftNativeText(raw,{...v,nativeBodyWords:words.filter(w=>w.text!=='(8)')}).status,'verified');
+});
