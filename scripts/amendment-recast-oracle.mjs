@@ -113,3 +113,66 @@ export function nativeRecastNoteReading(buffer,path){
  const source=nativeSource(buffer),node=source?.native.get(path);if(!node)return null;
  const refs=[],text=readingOf(node,source.ids,refs);return {text,refs};
 }
+
+// Every complex marker field must contain only its own styled glyph result.
+function safeTitleFields(paragraph) {
+ let state='outside', instruction='', result='', styled=true;
+ for(const node of paragraph) {
+  if(node['w:pPr'])continue;
+  if(node['w:smartTag']&&state==='outside'){if(!safeTitleFields(node['w:smartTag']))return false;continue;}
+  if(!node['w:r'])return false;
+  const run=node['w:r'],style=value(entries(run,'w:rPr')[0]?.['w:rPr'],'w:rStyle');
+  for(const child of run) {
+   if(child['w:rPr'])continue;
+   if(child['w:fldChar']) {
+    const type=child[':@']?.['@_w:fldCharType'];
+    if(type==='begin'&&state==='outside'){state='instruction';instruction='';result='';styled=true;}
+    else if(type==='separate'&&state==='instruction')state='result';
+    else if(type==='end'&&state==='result'){
+     const match=/^\s*QUOTE\s*"([ðï])"\s*$/u.exec(instruction);
+     if(!match||!styled||result!==match[1])return false;
+     state='outside';
+    }else return false;
+   } else if(child['w:instrText']) {
+    if(state!=='instruction')return false;
+    instruction+=child['w:instrText'].map(x=>x['#text']??'').join('');
+   } else if(child['w:t']) {
+    if(state==='instruction')return false;
+    if(state==='result'){result+=child['w:t'].map(x=>x['#text']??'').join('');styled&&=style==='CRMarker';}
+   } else if(state!=='outside')return false;
+  }
+ }
+ return state==='outside';
+}
+
+// The native title, its procedure reference and the institution opening bind
+// the otherwise ambiguous published address "Title 1" to three body rows.
+export function assertNativeProposalTitle({proposal,wording,placement,nativeQuoted}) {
+ const unknown={status:'unverified',reason:'oracle-proposal-title-unavailable'};
+ if(wording?.language!=='en'||wording.baseline!=='commission-proposal'||wording.targetLabel!=='Title 1'||placement?.operation!=='replace'||!Array.isArray(proposal?.paragraphs)||!Buffer.isBuffer(nativeQuoted?.proposalBuffer))return unknown;
+ const source=nativeSource(nativeQuoted?.proposalBuffer);if(!source)return unknown;
+ const lines=String(wording.originalText||'').split('\n');if(lines.length!==3||lines[0]!=='Proposal for a'||lines[1]!=='COUNCIL DIRECTIVE')return unknown;
+ const direct=[...source.native].filter(([path])=>/^\/w:document\[1\]\/w:body\[1\]\/w:p\[\d+\]$/u.test(path));
+ const candidates=[];
+ for(let i=1;i+3<direct.length;i++) {
+  const group=direct.slice(i-1,i+4),read=group.map(([,node])=>squash(readingOf(node,source.ids)));
+  const all=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,body])=>name===key?[node]:Array.isArray(body)?all(body,key):[]));
+  if(group.some(([,node])=>!safeTitleFields(node)))continue;
+  if(group.some(([,node])=>['w:drawing','w:pict','w:object','m:oMath','w:fldSimple','w:footnoteReference','w:endnoteReference','w:vanish','w:webHidden'].some(name=>all(node,name).length)))continue;
+  const instruction=group.flatMap(([,node])=>all(node,'w:instrText')).map(node=>(node['w:instrText']||[]).map(part=>part['#text']??'').join('')).join('');
+  const fields=group.flatMap(([,node])=>all(node,'w:fldChar')).map(node=>node[':@']?.['@_w:fldCharType']);
+  if(fields.length%3||!/^(?:\s*QUOTE\s*"[ðï]"\s*)*$/u.test(instruction)||(instruction.match(/QUOTE/gu)||[]).length!==fields.length/3||fields.join('|')!==Array(fields.length/3).fill('begin|separate|end').join('|'))continue;
+  if(!/^\d{4}\/\d+ \(CNS\)$/u.test(read[0])||read[1]!==lines[0]||read[2]!==lines[1]||read[3]!==squash(lines[2])||read[4]!=='THE COUNCIL OF THE EUROPEAN UNION,')continue;
+  const styles=group.slice(1,4).map(([,node])=>value(entries(node,'w:pPr')[0]?.['w:pPr'],'w:pStyle'));
+  if(styles.join('|')!=='Statut|Typedudocument|Titreobjet')continue;
+  candidates.push(group);
+ }
+ if(candidates.length!==1)return unknown;
+ const group=candidates[0],paths=group.map(([path])=>path),projected=paths.map(path=>proposal.paragraphs.filter(p=>p.source?.path===path));
+ if(projected.some(rows=>rows.length!==1))return unknown;
+ const rows=projected.map(matches=>matches[0]);
+ if(rows.some((row,i)=>!row.complete||!row.source?.complete||row.source.container!=='body'||i&&(row.source.ordinal!==rows[i-1].source.ordinal+1||row.source.segment!==rows[i-1].source.segment||row.source.containerPath!==rows[i-1].source.containerPath)))return unknown;
+ const start=rows[1].index,end=rows[3].index,splice=placement.splice;
+ if(placement.span?.start!==start||placement.span?.end!==end||splice?.start?.paragraph!==start||splice.start.offset!==0||splice?.end?.paragraph!==end||splice.end.offset!==rows[3].text.length)return {status:'failed',reason:'oracle-proposal-title-boundary-mismatch'};
+ return {status:'verified',reason:'oracle-native-proposal-title'};
+}

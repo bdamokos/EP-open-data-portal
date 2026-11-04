@@ -32,3 +32,49 @@ export function nativeInlineRowsComplete(buffer,sourceHash,rows,{wholeBodyAfter=
   return rows.every(p=>{const path=/^\/w:document\[1\]\/w:body\[1\]\/w:p\[(\d+)\]$/u.exec(p.source?.path||'');return path&&paragraphs[Number(path[1])-1]&&safe(paragraphs[Number(path[1])-1]);});
  }catch{return false;}
 }
+
+// Title placement needs a native proof: a cached field result must not be
+// mistaken for body text. Only individually bounded recast marker fields pass.
+export function nativeTitleRowsComplete(buffer,sourceHash,rows){
+ if(!Buffer.isBuffer(buffer)||buffer.length>8*1024*1024||createHash('sha256').update(buffer).digest('hex')!==sourceHash)return false;
+ try{
+  const parts=docxParts(buffer),xml=parts.get('word/document.xml'),styles=parts.get('word/styles.xml');
+  if(!xml||!styles||[xml,styles].some(x=>/<!DOCTYPE|<!ENTITY/u.test(x)||XMLValidator.validate(x)!==true))return false;
+  const parse=x=>new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(x);
+  const tree=parse(xml),stylesTree=parse(styles),documents=tree.filter(n=>n['w:document']);
+  if(documents.length!==1||documents[0][':@']?.['@_xmlns:w']!==URI)return false;
+  const styleNodes=stylesTree.flatMap(x=>x['w:styles']||[]),marker=styleNodes.filter(x=>x['w:style']&&x[':@']?.['@_w:styleId']==='CRMarker'&&x[':@']?.['@_w:type']==='character'&&x['w:style'].some(n=>n['w:name']&&n[':@']?.['@_w:val']==='CR Marker'));
+  const bodies=children(documents[0]['w:document'],'w:body');if(bodies.length!==1)return false;
+  const paragraphs=children(bodies[0],'w:p');
+  const safe=nodes=>{
+   let state='outside',instruction='',result='',styled=true;
+   for(const n of nodes){
+    if(n['w:pPr'])continue;
+    if(n['w:smartTag']&&state==='outside'){if(!safe(n['w:smartTag']))return false;continue;}
+    if(!n['w:r'])return false;
+    const run=n['w:r'],props=run.find(x=>x['w:rPr'])?.['w:rPr']||[],style=props.find(x=>x['w:rStyle'])?.[':@']?.['@_w:val'];
+    if(props.some(x=>x['w:vanish']||x['w:webHidden']))return false;
+    for(const c of run){
+     if(c['w:rPr'])continue;
+     if(c['w:fldChar']){
+      const type=c[':@']?.['@_w:fldCharType'];
+      if(type==='begin'&&state==='outside'){state='instruction';instruction='';result='';styled=true;}
+      else if(type==='separate'&&state==='instruction')state='result';
+      else if(type==='end'&&state==='result'){
+       const m=/^\s*QUOTE\s*"([ðï])"\s*$/u.exec(instruction);
+       if(marker.length!==1||!m||result!==m[1]||!styled)return false;
+       state='outside';
+      }else return false;
+     }else if(c['w:instrText']){
+      if(state!=='instruction')return false;instruction+=c['w:instrText'].map(x=>x['#text']??'').join('');
+     }else if(c['w:t']){
+      if(state==='instruction')return false;
+      if(state==='result'){result+=c['w:t'].map(x=>x['#text']??'').join('');styled&&=style==='CRMarker';}
+     }else if(state!=='outside'||!['w:tab','w:br','w:cr','w:noBreakHyphen','w:softHyphen','w:lastRenderedPageBreak'].some(k=>Array.isArray(c[k])&&!c[k].length))return false;
+    }
+   }
+   return state==='outside';
+  };
+  return rows.every(p=>{const m=/^\/w:document\[1\]\/w:body\[1\]\/w:p\[(\d+)\]$/u.exec(p.source?.path||'');return m&&paragraphs[Number(m[1])-1]&&safe(paragraphs[Number(m[1])-1]);});
+ }catch{return false;}
+}
