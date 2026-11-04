@@ -192,3 +192,13 @@ test('label placement remains the oracle target when a vote list names another u
   assert.equal(verifyPlacement({text,wording,placement:{status:'placed',operation:'insert',insertAfter:2,insertBefore:3}}).status,'failed');
  }
 });
+
+test('native page-break-only rows close a final paragraph before its annex',()=>{
+ const p=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';
+ const gap='<w:p><w:pPr><w:widowControl/></w:pPr><w:r><w:br w:type="page"/></w:r></w:p><w:p/>';
+ for(const [middle,expected] of [[gap,true],[gap.replace('w:type="page"','w:type="column"'),false],[gap.replace('<w:br','<w:t>Hidden</w:t><w:br'),false],[gap.replace('<w:br','<w:rPr><w:vanish/></w:rPr><w:br'),false]]){
+  const buffer=zip(wrap(p('The European Parliament,')+p('50. Instructs its President to forward this resolution.')+middle+p('ANNEX: DECLARATION OF INPUT'))),body=quotedWordBody(buffer),visible=body.filter(row=>row.kind==='paragraph'&&row.text.trim());
+  const text={nativeBuffer:buffer,paragraphs:visible.map(row=>row.text.trim()),paragraphFormats:visible.map(()=>({})),paragraphSources:visible.map(row=>({path:row.path,container:'body',containerPath:'/w:document[1]/w:body[1]',ordinal:body.indexOf(row),segment:body.indexOf(row),complete:true}))};
+  assert.equal(rawResolutionUnits(text,'en').units.find(u=>u.label==='50')?.complete,expected);
+ }
+});

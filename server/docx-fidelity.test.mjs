@@ -282,3 +282,13 @@ test('direct and inherited hidden blank properties retain resolution source gaps
  assert.equal(resolveAmendmentPlacement(text,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'New;',targetLabel:'Paragraph 1 a (new)'}).status,'unresolved');
  }
 });
+
+test('a page-break-only paragraph closes a resolution before the annex',()=>{
+ const gap='<w:p><w:pPr><w:widowControl/></w:pPr><w:r><w:br w:type="page"/></w:r></w:p><w:p/>';
+ for(const [middle,expected] of [[gap,'placed'],[gap.replace('w:type="page"','w:type="column"'),'unresolved'],[gap.replace('<w:br','<w:rPr><w:vanish/></w:rPr><w:br'),'unresolved'],[gap.replace('<w:br','<w:t>Content</w:t><w:br'),'unresolved']]){
+  const text={...docxContent(zip(doc(p('The European Parliament,')+p('50. Instructs its President to forward this resolution.')+middle+p('ANNEX: DECLARATION OF INPUT')))),textLanguage:'en'};
+  const placement=resolveAmendmentPlacement(text,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'50a. Calls for streamlined services;',targetLabel:'Paragraph 50 a (new)'});
+  assert.equal(placement.status,expected);
+  if(expected==='placed')assert.deepEqual([placement.insertAfter,placement.insertBefore],[1,2]);
+ }
+});
