@@ -586,7 +586,14 @@ export function resolveAmendmentPlacement(text, options = {}) {
       const owners=units.filter(unit=>unit.kind==='paragraph'&&unit.label===indent[1]),owner=owners[0],count=Number(indent[2]);
       if(owners.length===1&&count<=100&&!structure.invalid.has(owner.start)&&!structure.uncertain.has(owner.start)&&!structure.incompleteLabels.has(owner.label)
         &&/:\s*$/u.test(rows[owner.start].normal)&&owner.end-owner.start===count&&complete(owner.start,owner.end+1)
-        &&rows.slice(owner.start+1,owner.end+1).every(row=>/^[-–—•]\s+\S/u.test(row.normal))
+        &&Number.isFinite(text.paragraphFormats?.[owner.start]?.indent)
+        &&Number.isFinite(text.paragraphFormats?.[owner.start+1]?.indent)
+        &&text.paragraphFormats[owner.start+1].indent>text.paragraphFormats[owner.start].indent
+        &&rows.slice(owner.start+1,owner.end+1).every((row,index)=>{
+          const format=text.paragraphFormats[owner.start+1+index],first=text.paragraphFormats[owner.start+1];
+          return !/[\r\n]/u.test(row.value)&&/^[-–—•]\s+\S/u.test(row.normal)
+            &&format?.indent===first.indent&&Number.isFinite(format?.hanging)&&format.hanging===first.hanging;
+        })
         &&units.some(unit=>unit.kind==='paragraph'&&unit.label===String(Number(indent[1])+1)&&unit.start===owner.end+1)) {
         evidence.push({basis:'terminal-indent-order',paragraph:indent[1],indent:count});
         return placed({insertAfter:owner.end,insertBefore:owner.end+1});

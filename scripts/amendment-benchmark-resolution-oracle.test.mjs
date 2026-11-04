@@ -8,13 +8,21 @@ import {verifyPlacement,parseBenchmarkTarget} from './amendment-benchmark-model.
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/resolution-blank-boundaries.json',import.meta.url)));
 test('raw terminal indent proof requires the complete dash list and next paragraph',()=>{
  const paragraphs=['The European Parliament,','122. Observes:','– first;','– second;','– third;','123. Next;'];
- const text={paragraphs,paragraphFormats:paragraphs.map(()=>({})),paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
+ const text={paragraphs,paragraphFormats:paragraphs.map((_,i)=>({indent:i>=2&&i<=4?4.72:2.36,hanging:2.36})),paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
  const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 122 – indent 3 a (new)',originalText:'',proposedText:'– New item;'},placement={operation:'insert',insertAfter:4,insertBefore:5};
  assert.equal(assertTerminalIndent({text,wording,placement}).status,'verified');
  assert.equal(parseBenchmarkTarget(wording).complete,true);
  assert.equal(verifyPlacement({text,wording,placement:{...placement,status:'placed'}}).status,'verified');
  for(const index of [2,3,4]){const modified={...text,paragraphSources:text.paragraphSources.map((v,i)=>i===index?{...v,complete:false}:v)};assert.equal(assertTerminalIndent({text:modified,wording,placement}).status,'unverified');}
  assert.notEqual(assertTerminalIndent({text,wording,placement:{...placement,insertAfter:3}}).status,'verified');
+ const multiline={...text,paragraphs:paragraphs.map((v,i)=>i===2?'– first;\n– extra;':v)};
+ const nested={...text,paragraphFormats:text.paragraphFormats.map((v,i)=>i===3?{...v,indent:7}:v)};
+ const duplicate={...text,paragraphs:[...paragraphs,'122. damaged duplicate;'],paragraphFormats:[...text.paragraphFormats,{}],paragraphSources:[...text.paragraphSources,{path:'p6',container:'body',containerPath:'body',ordinal:6,segment:0,complete:false}]};
+ for(const modified of [multiline,nested,duplicate]) {
+  assert.notEqual(assertTerminalIndent({text:modified,wording,placement}).status,'verified');
+  assert.notEqual(verifyPlacement({text:modified,wording,placement:{...placement,status:'placed'}}).status,'verified');
+ }
+
 });
 const wrap=body=>'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'</w:body></w:document>';
 function zip(document,extra={}) {
