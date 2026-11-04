@@ -866,7 +866,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(!operation)return unresolved('amendment_wording_unavailable');
   if([originalText,proposedText].some(text=>text.length>MAX_COLUMN_CHARACTERS))return unresolved('matching_budget');
   if([originalText,proposedText].some(text=>text.includes('\uFFFC')))return unresolved('math_comparison_unavailable');
-  const tableContext=operation==='replace'?tableContextPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline},nativeProposalInputs):null;if(tableContext)return tableContext;
+  const tableContext=operation==='replace'?tableContextPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences},nativeProposalInputs):null;if(tableContext)return tableContext;
+  if(operation==='replace'&&documentReferences?.some(ref=>ref.basis==='caption-before-original-heading'))return unresolved('conflicting_target_evidence');
   const firstAnnex=firstAnnexInsertion(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences},nativeProposalInputs);
   if(firstAnnex)return firstAnnex.reason?unresolved(firstAnnex.reason):firstAnnex;
   // Lists without structured location tags still publish the location as a

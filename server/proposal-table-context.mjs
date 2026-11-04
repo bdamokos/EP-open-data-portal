@@ -10,10 +10,12 @@ export function tableContextPlacement(items,wording,nativeProposalInputs) {
  const simple=/^Annex(?: ([IVXLCDM]+))? [–—-] table [–—-] (.+)$/u.exec(raw),instruction=/^Annex ([IVXLCDM]+) [–—-] point (\d+)$/u.exec(raw);
  const under=wording.targetPath?.underlying?.length===1?/^Annex ([IVXLCDM]+) [–—-] point (\d+) [–—-] Table (.+)$/u.exec(wording.targetPath.underlying[0].raw):null;
  if(!simple&&!(instruction&&under)||simple&&wording.targetPath?.underlying?.length)return null;
- const annexId=simple?.[1]??instruction?.[1]??'',caption=simple?.[2]??under[3],lines=wording.originalText.split(/\r?\n/u).map(line=>line.trimEnd());
+ const annexId=simple?.[1]??instruction?.[1]??'',caption=simple?.[2]??under[3],lines=wording.originalText.split(/\r?\n/u);
  const captionAt=lines.findIndex(line=>captionKey(line)===captionKey(caption));
  if(captionAt<0||captionAt>1||lines.filter(line=>captionKey(line)===captionKey(caption)).length!==1||instruction&&(captionAt!==1||!new RegExp('^\\('+instruction[2]+'\\)\\s','u').test(lines[0]))||!instruction&&captionAt!==0)return null;
- const comparison=lines.slice(captionAt+1).map(line=>line.split('\t').map(clean));
+ const captioned=wording.documentReferences?.some(ref=>ref.field==='ComparisonCaption'&&ref.basis==='caption-before-original-heading'&&ref.raw===caption);
+ const comparison=[];
+ for(const line of lines.slice(captionAt+1)){const cells=line.split('\t').map(clean),prior=comparison.at(-1);if(captioned&&cells.length===1&&cells[0]&&prior?.length===2&&!prior.some(omitted))prior[1]=clean(prior[1]+' '+cells[0]);else comparison.push(cells);}
  if(!comparison.some(row=>row.every(omitted))||comparison.some(row=>row.some(omitted)&&!row.every(omitted)))return null;
  const candidates=[];
  for(const [itemIndex,item] of (items||[]).entries()){

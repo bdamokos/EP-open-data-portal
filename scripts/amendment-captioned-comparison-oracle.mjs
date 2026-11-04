@@ -20,7 +20,7 @@ export function assertCaptionedComparison({wording,nativeQuoted}){
   const amendment=row=>row.kind==='paragraph'&&/^Amendment\s+[1-9]\d*$/u.test(row.text.trim()),starts=body.flatMap((row,i)=>amendment(row)&&Number(row.text.match(/\d+$/u)[0])===wording.number?[i]:[]);
   if(starts.length!==1)return unknown();
   const next=body.findIndex((row,i)=>i>starts[0]&&amendment(row)),block=body.slice(starts[0],next<0?body.length:next),tables=block.filter(row=>row.kind==='other'&&row.nodes['w:tbl']);
-  const targets=block.filter(row=>row.kind==='paragraph'&&row.text.trim()===wording.targetLabel),classes=block.filter(row=>row.kind==='paragraph'&&row.text.trim()==='Proposal for a regulation');
+  const targets=block.filter(row=>row.kind==='paragraph'&&row.text.trim()===wording.targetLabel),classes=block.filter(row=>row.kind==='paragraph'&&/^Proposal for a (?:regulation|directive|decision)$/u.test(row.text.trim()));
   if(block[0].hidden||block[0].unsafe||targets.length!==1||targets[0].hidden||targets[0].unsafe||classes.length!==1||classes[0].hidden||classes[0].unsafe||tables.length!==1||tables[0].hidden)return unknown();
   const table=tables[0].nodes['w:tbl'];if(!completeGrid(table)||children(table,'w:tblGrid').length!==1||children(children(table,'w:tblGrid')[0],'w:gridCol').length!==2||all(table,'w:numPr').length)return unknown();
   const defs=new Map(all(styles,'w:style').map(node=>[node[':@']?.['@_w:styleId'],node['w:style']]));
@@ -45,6 +45,6 @@ export function assertCaptionedComparison({wording,nativeQuoted}){
   if(data.some(row=>row.length!==2||row.some(cell=>cell.span!==1))||data.some(row=>row.some(cell=>['Text proposed by the Commission','Amendment'].includes(cell.text))))return unknown();
   const column=rows=>[named[1],...rows.map(row=>row.map(cell=>cell.text).join('\t'))].join('\n');
   if(wording.originalText!==column(oldRows)||wording.proposedText!==column(newRows))return {status:'failed',reason:'oracle-captioned-comparison-wording-mismatch'};
-  return {status:'verified',reason:'oracle-native-captioned-comparison'};
+  return {status:'verified',reason:'oracle-native-captioned-comparison',originalRows:oldRows.map(row=>row.map(cell=>cell.text))};
  }catch{return unknown();}
 }
