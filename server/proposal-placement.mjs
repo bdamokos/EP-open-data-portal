@@ -927,7 +927,7 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:article?originalText:matched.map(row=>row.text).join('\n'),evidence};
 }
 
-function preambleCitationPlacement(items,label,operation,originalText,evidence,unresolved) {
+function preambleCitationPlacement(items,label,operation,originalText,originalFormatting,evidence,unresolved) {
   const preambles=[];
   for(const [itemIndex,item] of items.entries()) {
     if(item.kind==='annex')continue;
@@ -952,7 +952,10 @@ function preambleCitationPlacement(items,label,operation,originalText,evidence,u
     return {operation,status:'placed',itemIndex,insertAfter:row.index,insertBefore:row.index+1,evidence};
   }
   if(label.isNew||label.suffix)return unresolved('conflicting_target_evidence');
-  const match=matchUnit(proposal,{kind:'citation',extent:{start:row.index,end:row.index+1},content:[row.index],children:[]},originalText);
+  const unit={kind:'citation',extent:{start:row.index,end:row.index+1},content:[row.index],children:[]};
+  const notes=footnoteBody(proposal,unit,originalText,originalFormatting,{operation,language:'en'});
+  if(notes===false)return unresolved('conflicting_target_evidence');
+  const match=matchUnit(proposal,unit,notes??originalText);
   if(!match.span)return unresolved(match.reason??'conflicting_target_evidence');
   return {operation,status:'placed',itemIndex,span:match.span,splice:match.splice,originalText:match.originalText,evidence};
 }
@@ -1078,7 +1081,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   const sole=target.segments.length===1?target.segments[0]:null;
   // A numbered address whose whole cell rejects the proposal (A-10-2026-0104 AM90) is no citation or article.
   if(sole&&['citation','article'].includes(sole.kind)&&rejectionWordingScope(language,proposedText))return unresolved('conflicting_target_evidence');
-  if(language==='en'&&sole?.kind==='citation'&&Number.isInteger(sole.number))return preambleCitationPlacement(items,sole,operation,originalText,evidence,unresolved);
+  if(language==='en'&&sole?.kind==='citation'&&Number.isInteger(sole.number))return preambleCitationPlacement(items,sole,operation,originalText,originalFormatting,evidence,unresolved);
   if(sole?.kind==='article'&&sole.negative&&sole.value==='-1'&&operation==='insert')return negativeArticlePlacement(items,proposedText,language,evidence,unresolved);
   if(operation==='insert'){const indent=bareAnnexIndentInsertion(items,target,{language,baseline,originalText,proposedText,nativeProposalInputs});if(indent)return {...indent,evidence:[...evidence,...indent.evidence]};}
   if(operation==='replace'){const annex=bareAnnexReplacement(items,target,{language,baseline,originalText,proposedText,targetLabel,targetPath,nativeProposalInputs});if(annex)return {...annex,evidence:[...evidence,...annex.evidence]};}
