@@ -41,6 +41,9 @@ test('a later XHTML list requires its own complete colon introduction and subpar
   proposal.sourceKind='docx';
   assert.equal(place(edition,proposal,amendment).reason,'source_structure_unavailable');
   assert.equal(place(edition,proposal,replacement).status,'placed');
+  const lead={...replacement,targetLabel:'Article 9 – paragraph 1 – subparagraph 2 – introductory part',originalText:intro};
+  assert.equal(place(edition,proposal,lead).status,'placed');
+  assert.equal(place(edition,proposal,{...lead,originalText:'Unrelated introduction:'}).status,'unresolved');
 });
 
 test('unsupported objects in the complete predecessor subtree still withhold insertion',()=>{

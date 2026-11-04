@@ -889,12 +889,12 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       const headings=proposal.paragraphs.filter(row=>row.properties?.styleId==='Titrearticle'&&new RegExp('^Article\\s+'+escape(target.segments[0].value)+'(?:$|\\n)','u').test(row.text));
       if(headings.length!==1)continue;
       const start=headings[0].index,next=proposal.paragraphs.find(row=>row.index>start&&row.properties?.styleId==='Titrearticle');
-      if(!next)continue;
+      if(!next||!next.complete||next.source?.complete!==true||next.source.container!=='body')continue;
       const rows=proposal.paragraphs.filter(row=>row.index>start&&row.index<next.index);
       if(!rows.length||rows.some(row=>row.properties?.styleId!=='Normal'||row.properties.numberingLabel||/^\d+[.)]\s/u.test(row.text)||row.source?.container!=='body'||!row.complete||row.source.complete!==true||row.objects?.length))continue;
       const row=rows[target.segments[1].number-1],compact=v=>v.normalize('NFC').replace(/\s+/gu,'').trim();
       if(!row||compact(row.text)!==compact(originalText)||rows.filter(r=>compact(r.text)===compact(originalText)).length!==1)continue;
-      const boundary=[headings[0],...rows,next];
+      const boundary=[headings[0],...rows];
       if(boundary.some((r,i)=>!r.complete||r.source?.complete!==true||r.source.container!=='body'||i&&(r.source.ordinal!==boundary[i-1].source.ordinal+1||r.source.containerPath!==boundary[i-1].source.containerPath||r.source.segment!==boundary[i-1].source.segment)))continue;
       found.push({operation,status:'placed',itemIndex,span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,evidence:[...evidence,{basis:'ordinal-unnumbered-paragraph'}]});
     }
@@ -951,7 +951,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
           &&list.at(-1).extent.end===end){
           subparagraphBounds={itemIndex,start:intro.extent.start,end};
           target={...target,segments:target.segments.filter((_,index)=>index!==subparagraph)};
-          evidence.push({basis:'xhtml-subparagraph-points',anchor:unit.id});
+          evidence.push({basis:proposal.sourceKind==='docx'?'docx-subparagraph-points':'xhtml-subparagraph-points',anchor:unit.id});
         }
       }
     }
@@ -990,8 +990,9 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
     return {operation,status:'placed',itemIndex:insertion.itemIndex,insertAfter:insertion.insertBefore-1,insertBefore:insertion.insertBefore,evidence};
   }
-  if(subparagraphBounds&&target.segments.at(-1).kind==='introductory-part'&&candidates.length===1){
-    const c=candidates[0],row=c.proposal.paragraphs[subparagraphBounds.start];
+  const introParents=subparagraphBounds&&target.segments.at(-1).kind==='introductory-part'?candidatesFor(target.segments.slice(0,-1)):[];
+  if(introParents.length===1){
+    const c=introParents[0],row=c.proposal.paragraphs[subparagraphBounds.start];
     if(c.itemIndex===subparagraphBounds.itemIndex&&normal(row.text)===normal(originalText)){
       const match=matchUnit(c.proposal,{...c.unit,extent:{start:row.index,end:row.index+1}},originalText);
       if(match.span)return placedMatch({...c,match},'subparagraph-introductory-wording');
