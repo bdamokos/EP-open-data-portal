@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Pozměňovací návrh k celé tabulce.",
   "documentcontext.citation_before_existing": "Vloženo před stávající citaci.",
   "documentcontext.after_paragraph_lead": "Vloženo za úvodní text odstavce.",
+  "documentcontext.single_word_difference": "Původní znění se liší o jedno slovo."
   "documentcontext.final_placement_check": "Konečné umístění ověřte v {adoptedText}.",
   "documentcontext.adopted_text": "přijatém textu",
   "amendment.alternative_motion": "Alternativní návrh",

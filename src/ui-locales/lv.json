@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Grozījums visai tabulai.",
   "documentcontext.citation_before_existing": "Ievietots pirms esošās atsauces.",
   "documentcontext.after_paragraph_lead": "Ievietots pēc punkta ievadteksta.",
+  "documentcontext.single_word_difference": "Sākotnējais teksts atšķiras par vienu vārdu."
   "documentcontext.final_placement_check": "Pārbaudiet galīgo vietu {adoptedText}.",
   "documentcontext.adopted_text": "pieņemtajā tekstā",
   "amendment.alternative_motion": "Alternatīvs priekšlikums",

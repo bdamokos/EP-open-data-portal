@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Kogu tabelit puudutav muudatusettepanek.",
   "documentcontext.citation_before_existing": "Paigutatud olemasoleva viite ette.",
   "documentcontext.after_paragraph_lead": "Paigutatud lõike sissejuhatava teksti järele.",
+  "documentcontext.single_word_difference": "Algne sõnastus erineb ühe sõna võrra."
   "documentcontext.final_placement_check": "Kontrollige lõplikku asukohta {adoptedText}.",
   "documentcontext.adopted_text": "vastuvõetud tekstis",
   "amendment.alternative_motion": "Alternatiivne ettepanek",

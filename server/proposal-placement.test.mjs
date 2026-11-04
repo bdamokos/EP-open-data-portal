@@ -1,3 +1,4 @@
+import {verifyPlacement} from '../scripts/amendment-benchmark-model.mjs';
 import {documentContextPlacement} from './document-context-placement.mjs';
 import {makeAnnexIndentCase,fixtureZip} from '../scripts/fixtures/bare-annex-indent-native.mjs';
 import test from 'node:test';
@@ -564,8 +565,18 @@ test('annex table addresses replace a unique cell-exact run of rows',()=>{
   const place=(targetLabel,originalText)=>resolveProposalPlacement(items,{targetLabel,originalText,proposedText:'Changed',language:'en'});
   const placed=place('Annex III – paragraph 1 – table','Aluminium\nCN code\tGreenhouse gas\nex 7602 Aluminium waste\tCarbon dioxide');
   assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:7,end:11});
-  assert.equal(place('Annex III – paragraph 1 – table on aluminium','Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide').status,'unresolved','A-10-2026-0201 AM136 differs in one cell');
+  assert.equal(place('Annex III – paragraph 1 – table on aluminium','Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide').status,'placed','D6 permits one missing word on this uniquely addressed table');
   assert.equal(place('Annex III – paragraph 1 – table','CN code\tGreenhouse gas').status,'unresolved','repeated header rows are ambiguous');
+  const label='Annex III – paragraph 1 – table on aluminium',original='Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide';
+  for(const changed of [original.replace('waste\tCarbon','waste Carbon\t'),original.replace('Aluminium\nCN code','Aluminium CN\ncode')]){
+    assert.equal(place(label,changed).status,'unresolved','one word cannot cross a cell or row boundary');
+    assert.notEqual(verifyPlacement({items,wording:{language:'en',targetLabel:label,originalText:changed,proposedText:'Changed'},placement:placed}).status,'verified','independent oracle preserves separators');
+  }
+  const quotedItems=structuredClone(items);quotedItems[0].proposal.paragraphs[10].text='ex 7602 “Aluminium” waste';
+  const quotedOriginal=original.replace('7602 Aluminium waste','7602 "Aluminium" waste'),quotedWording={language:'en',targetLabel:label,originalText:quotedOriginal,proposedText:'Changed'};
+  assert.equal(resolveProposalPlacement(quotedItems,quotedWording).status,'unresolved','one omitted word cannot conceal quote substitution');
+  assert.notEqual(verifyPlacement({items:quotedItems,wording:quotedWording,placement:placed}).status,'verified');
+
   const gappedRows=[['ANNEX III','Annexetitre','body'],['Lead.','Normal','body'],['A','Normal','cell',1,1,1],['B','Normal','cell',1,1,3],['C','Normal','cell',1,2,1],['D','Normal','cell',1,2,2],['E','Normal','cell',1,2,3]];
   const trailingRows=[['ANNEX III','Annexetitre','body'],['Lead.','Normal','body'],['A','Normal','cell',1,1,1],['B','Normal','cell',1,1,2],['C','Normal','cell',1,2,1],['D','Normal','cell',1,2,2]];
   const trailing={paragraphs:trailingRows.map(r=>r[0]),structureStatus:'extracted',paragraphSources:trailingRows.map((r,ordinal)=>r[2]==='cell'?{path:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`,ordinal,container:'table-cell',containerPath:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]`,segment:ordinal,complete:true}:{path:'/w:document[1]/w:body[1]/w:p['+ordinal+']',ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true}),paragraphProperties:trailingRows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(trailingRows,{1:3})};

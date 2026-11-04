@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Amendament la întregul tabel.",
   "documentcontext.citation_before_existing": "Plasat înaintea trimiterii existente.",
   "documentcontext.after_paragraph_lead": "Plasat după textul introductiv al alineatului.",
+  "documentcontext.single_word_difference": "Textul original diferă cu un cuvânt."
   "documentcontext.final_placement_check": "Verificați poziția finală în {adoptedText}.",
   "documentcontext.adopted_text": "textul adoptat",
   "amendment.alternative_motion": "Propunere alternativă",

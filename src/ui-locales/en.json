@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Table-level amendment.",
   "documentcontext.citation_before_existing": "Placed before the existing citation.",
   "documentcontext.after_paragraph_lead": "Placed after the paragraph lead.",
+  "documentcontext.single_word_difference": "Original wording differs by one word."
   "documentcontext.final_placement_check": "Check final placement in {adoptedText}.",
   "documentcontext.adopted_text": "the adopted text",
   "amendment.alternative_motion": "Alternative motion",

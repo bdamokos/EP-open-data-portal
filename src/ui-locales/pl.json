@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Poprawka dotycząca całej tabeli.",
   "documentcontext.citation_before_existing": "Umieszczono przed istniejącym przywołaniem.",
   "documentcontext.after_paragraph_lead": "Umieszczono po tekście wprowadzającym ustępu.",
+  "documentcontext.single_word_difference": "Pierwotne brzmienie różni się o jedno słowo."
   "documentcontext.final_placement_check": "Sprawdź ostateczne umiejscowienie w {adoptedText}.",
   "documentcontext.adopted_text": "przyjętym tekście",
   "amendment.alternative_motion": "Alternatywny projekt rezolucji",

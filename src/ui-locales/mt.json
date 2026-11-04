@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Emenda għat-tabella kollha.",
   "documentcontext.citation_before_existing": "Imqiegħed qabel ir-referenza eżistenti.",
   "documentcontext.after_paragraph_lead": "Imqiegħed wara t-test introduttorju tal-paragrafu.",
+  "documentcontext.single_word_difference": "It-test oriġinali jvarja b’kelma waħda."
   "documentcontext.final_placement_check": "Iċċekkja l-post finali fit-{adoptedText}.",
   "documentcontext.adopted_text": "test adottat",
   "amendment.alternative_motion": "Mozzjoni alternattiva",

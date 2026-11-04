@@ -4,7 +4,7 @@ import {rejectionWordingScope} from './amendment-rejection.mjs';
 import {nativeInlineRowsComplete,nativeTitleRowsComplete} from './proposal-inline-guard.mjs';
 import {quotedSectionPointInsertion} from './proposal-quoted-section.mjs';
 import {wholeAnnexInstructionPlacement} from './proposal-whole-instruction.mjs';
-import {similarPassage} from './proposal-similarity.mjs';
+import {similarPassage,singleWordDifference} from './proposal-similarity.mjs';
 import {firstAnnexInsertion,sequentialAnnexInsertion} from './proposal-first-annex.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
@@ -732,6 +732,14 @@ function similarMatch(proposal,unit,original){
  return {span:{start,end},splice:{start:{paragraph:start,offset:0},end:{paragraph:end,offset:rows.at(-1).text.length}},originalText:rows.map(p=>p.text).join('\n'),whole:start===unit.extent.start&&end===unit.extent.end-1,similarity};
 }
 
+function singleWordMatch(proposal,unit,original) {
+ if(unit.pathConflict||unit.scope!=='proposal'||unit.kind!=='point'||unit.path[0]?.kind!=='article'||unit.children.length||!completeBoundary(proposal,unit)||unit.extent.end!==unit.extent.start+1)return null;
+ const row=proposal.paragraphs[unit.extent.start];
+ const body=value=>value.replace(/^\(?(\d+)\)?[.)]?\s+/u,(full,number)=>number===unit.label.value?'':full);
+ if(row.source?.container!=='body'||!singleWordDifference(body(row.text),body(original)))return null;
+ return {span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,whole:true,singleWord:true};
+}
+
 // A parser can lose a target's final levels while preserving its containing
 // provision. Wording is sufficient only when it selects complete source lines
 // inside the deepest unique ancestor and occurs once in the entire document.
@@ -891,6 +899,13 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
     lines[0][0]=lines[0][0].slice(2);repaired=true;
     for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>rows[i+offset].cells.length===line.length&&rows[i+offset].cells.every((value,index)=>value===line[index])))starts.push(i);
   }
+  let wordDifference=false;
+  if(!starts.length&&!decoration)for(let i=0;i+lines.length<=rows.length;i++){
+    const run=rows.slice(i,i+lines.length);
+    let differences=0;
+    const compatible=run.every((row,j)=>row.cells.length===lines[j].length&&row.cells.every((value,k)=>value===lines[j][k]||++differences===1&&singleWordDifference(value,lines[j][k])));
+    if(compatible&&differences===1){starts.push(i);wordDifference=true;}
+  }
   if(starts.length!==1)return unresolved(starts.length?'duplicate_target_label':'conflicting_target_evidence');
   if(article){
     const run=rows.slice(starts[0],starts[0]+lines.length),key=run[0]?.key&&tableOf(run[0].key);
@@ -907,8 +922,8 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   const matched=rows.slice(starts[0],starts[0]+lines.length).flatMap(row=>row.rows);
   if(matched.some(row=>!row.complete||!row.source||row.source.complete===false))return unresolved('source_passage_incomplete');
   const first=matched[0],last=matched.at(-1);
-  evidence.push({basis:repaired?'annex-table-caption-decoration':'annex-table-rows',anchor:unit.id,rows:lines.length});
-  return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:article?originalText:matched.map(row=>row.text).join('\n'),evidence};
+  evidence.push({basis:wordDifference?'single-word-original-difference':repaired?'annex-table-caption-decoration':'annex-table-rows',anchor:unit.id,rows:lines.length});
+  return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:matched.map(row=>row.text).join('\n'),evidence};
 }
 
 function preambleCitationPlacement(items,label,operation,originalText,evidence,unresolved) {
@@ -1217,7 +1232,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return originalText;
   };
   const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,adaptedOriginal(candidate))}));
-  for(const candidate of candidates.length===1?matches:[])if(!candidate.match.span){const tolerant=similarMatch(candidate.proposal,candidate.unit,originalText);if(tolerant)candidate.match=tolerant;}
+  for(const candidate of candidates.length===1?matches:[])if(!candidate.match.span){const tolerant=similarMatch(candidate.proposal,candidate.unit,originalText)??singleWordMatch(candidate.proposal,candidate.unit,originalText);if(tolerant)candidate.match=tolerant;}
   const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole||uniqueDocumentWording(candidate.proposal,originalText)));
   if(matching.length!==1&&candidates.length===1&&candidates[0].unit.instruction){
     const c=candidates[0],lead=originalText.split(/\r?\n/u)[0],row=c.proposal.paragraphs[c.unit.extent.start];
@@ -1234,7 +1249,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(wordDifferenceUnits.has(selected.unit))return placedMatch(selected,'one-alphabetic-word-original-difference');
   if(candidates.length===1&&selected.unit.pathConflict&&!uniqueDocumentWording(selected.proposal,originalText))return unresolved('multiple_published_targets');
   if(bound)return placedMatch(selected,'normalised-original-match');
-  evidence.push({basis:selected.match.similarity!==undefined?'unique-similar-original':candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id,...(selected.match.similarity!==undefined?{matchKind:'similar',similarity:selected.match.similarity}:{})});
+  evidence.push({basis:selected.match.singleWord?'single-word-original-difference':selected.match.similarity!==undefined?'unique-similar-original':candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id,...(selected.match.similarity!==undefined?{matchKind:'similar',similarity:selected.match.similarity}:{})});
   return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
 }
 

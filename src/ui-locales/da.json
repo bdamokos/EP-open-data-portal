@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Ændringsforslag til hele tabellen.",
   "documentcontext.citation_before_existing": "Placeret før den eksisterende henvisning.",
   "documentcontext.after_paragraph_lead": "Placeret efter afsnittets indledning.",
+  "documentcontext.single_word_difference": "Den oprindelige ordlyd afviger med ét ord."
   "documentcontext.final_placement_check": "Kontrollér den endelige placering i {adoptedText}.",
   "documentcontext.adopted_text": "den vedtagne tekst",
   "amendment.alternative_motion": "Alternativt forslag",

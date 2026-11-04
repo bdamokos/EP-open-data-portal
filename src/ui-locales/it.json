@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Emendamento relativo all’intera tabella.",
   "documentcontext.citation_before_existing": "Collocato prima del riferimento esistente.",
   "documentcontext.after_paragraph_lead": "Collocato dopo il testo introduttivo del paragrafo.",
+  "documentcontext.single_word_difference": "Il testo originale differisce di una parola."
   "documentcontext.final_placement_check": "Verificare la collocazione definitiva nel {adoptedText}.",
   "documentcontext.adopted_text": "testo approvato",
   "amendment.alternative_motion": "Proposta alternativa",

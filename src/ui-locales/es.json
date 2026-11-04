@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Enmienda a la tabla completa.",
   "documentcontext.citation_before_existing": "Se coloca antes de la referencia existente.",
   "documentcontext.after_paragraph_lead": "Se coloca después de la introducción del apartado.",
+  "documentcontext.single_word_difference": "El texto original difiere en una palabra."
   "documentcontext.final_placement_check": "Compruebe la ubicación definitiva en {adoptedText}.",
   "documentcontext.adopted_text": "el texto aprobado",
   "amendment.alternative_motion": "Propuesta alternativa",

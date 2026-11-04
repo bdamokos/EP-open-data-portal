@@ -35,7 +35,8 @@ test('annex table rows verify cell for cell inside the named annex', () => {
   assert.deepEqual(check(wording('Annex III – paragraph 1 – table',original),replace(7,11)),{status:'verified',reason:'oracle-annex-table-rows'});
   assert.equal(check(wording('Annex III – paragraph 1 – table',original),replace(2,6)).status,'failed');
   assert.equal(check(wording('Annex II – paragraph 1 – table',original),replace(7,11)).status,'unverified','another annex');
-  assert.equal(check(wording('Annex III – paragraph 1 – table','Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide'),replace(7,11)).status,'unverified','a cell that differs never matches');
+  assert.equal(check(wording('Annex III – paragraph 1 – table','Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide'),replace(7,11)).status,'verified','one omitted word in a corresponding cell is accepted');
+  assert.equal(check(wording('Annex III – paragraph 1 – table',original.replace('7602','7603')),replace(7,11)).status,'unverified','a changed code is not a small word difference');
   assert.equal(check(wording('Annex III – paragraph 1 – table','CN code\tGreenhouse gas'),replace(8,9)).status,'unverified','repeated rows are not unique');
 });
 

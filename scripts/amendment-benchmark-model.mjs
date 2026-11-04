@@ -16,7 +16,7 @@ import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 import {assertBareAnnexInsertion,assertNumberedAnnexInsertion} from './amendment-annex-oracle.mjs';
 import {assertResolutionNumberingDrift} from './amendment-numbering-drift-oracle.mjs';
 import {assertResolutionPointSimilarity} from './amendment-resolution-point-similarity-oracle.mjs';
-import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
+import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity,oracleSingleWord} from './amendment-similarity-oracle.mjs';
 import {assertChapterTitle} from './amendment-chapter-title-oracle.mjs';
 import {assertStandaloneQuote} from './amendment-standalone-quote-oracle.mjs';
 import {assertArticleNotes} from './amendment-article-notes-oracle.mjs';
@@ -466,6 +466,13 @@ function verifyAnnexTable({proposal,wording,placement,items}) {
     decoration=rawCaptionDecoration(wording,items,proposal);
     if(decoration){lines[0][0]=lines[0][0].slice(2);for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>same(rows[i+offset],line)))starts.push(i);}
   }
+  let wordDifference=false;
+  if(!starts.length&&!decoration)for(let i=0;i+lines.length<=rows.length;i++){
+    const run=rows.slice(i,i+lines.length);
+    if(!run.every((row,j)=>row.cells.length===lines[j].length))continue;
+    const changed=run.flatMap((row,j)=>row.cells.flatMap((value,k)=>value===lines[j][k]?[]:[[value,lines[j][k]]]));
+    if(changed.length===1&&oracleSingleWord(...changed[0])){starts.push(i);wordDifference=true;}
+  }
   if(starts.length!==1)return {status:'unverified',reason:'oracle-table-rows-not-unique'};
   const run=rows.slice(starts[0],starts[0]+lines.length);
   if(run.some((row,index)=>row.broken||index&&row.gapBefore))return {status:'unverified',reason:'oracle-table-rows-incomplete'};
@@ -491,7 +498,7 @@ function verifyAnnexTable({proposal,wording,placement,items}) {
   // The splice must cover those rows exactly, from offset 0 to the last row's end.
   const splice=placement.splice,lastText=String(proposal.paragraphs.find(row=>row.index===last)?.text??'');
   if(splice?.start?.paragraph!==first||splice?.end?.paragraph!==last||splice.start.offset!==0||splice.end.offset!==lastText.length)return fail('oracle-invalid-span');
-  return verified(decoration?'oracle-annex-table-caption-decoration':'oracle-annex-table-rows');
+  return verified(wordDifference?'oracle-annex-table-single-word':decoration?'oracle-annex-table-caption-decoration':'oracle-annex-table-rows');
 }
 
 function verifyResolutionInsertion(text,wording,target,placement) {
@@ -751,6 +758,11 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
       const quotes=value=>value.normalize('NFC').replace(/[‘’‚‛ʻʼ“”„‟«»"'\s]/gu,'');
       if(proposal&&quotes(source)===quotes(wording.originalText))return locationOracle({proposal,text,target,wording,placement,labels});
       if(proposal&&placement.operation==='delete'&&/^\(\d+\)\s*\[\.\.\.\]$/u.test(wording.originalText.trim()))return assertElidedDeletion(proposal,wording,placement);
+      const literalWordOriginal=value=>value.replace(/^\(?(\d+)\)?[.)]?\s+/u,(full,number)=>number===target.segments.at(-1)?.value?'':full);
+      if(proposal&&placement.span.start===placement.span.end&&oracleSingleWord(literalWordOriginal(source),literalWordOriginal(wording.originalText))){
+        const address=rawProposalAssertion({proposal,wording,placement}),bounds=address.rawSourceRows;
+        if(address.status==='verified'&&bounds&&bounds[1]===placement.span.start&&bounds[2]===placement.span.end+1&&placement.splice.start.offset===0&&placement.splice.end.offset===source.length)return verified('oracle-single-word-addressed-unit');
+      }
       if(proposal&&oracleSimilarity(source,wording.originalText)>=.95)return assertSimilarPlacement({proposal,wording,placement,address:rawProposalAssertion({proposal,wording,placement})});
       if(!proposal&&target.complete&&target.segments.length===1&&['paragraph','recital'].includes(target.segments[0].kind)) {
         const raw=rawResolutionUnits(text,wording.language),part=target.segments[0];
