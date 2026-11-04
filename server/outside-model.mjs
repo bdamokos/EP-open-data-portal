@@ -3,6 +3,8 @@ import { languageCode, speechWebsite } from './ep-links.mjs';
 import {speechAgendaMembership,speechParentEvidence,speechParentDocumentId} from './speech-agenda.mjs';
 import countryLabels from './insights-country-labels.json' with {type:'json'};
 
+export const OUTSIDE_ROLE_PARSER_REVISION=1;
+
 const array = value => value == null ? [] : Array.isArray(value) ? value : [value];
 const canonical = value => String(value?.id || value || '').replace(/^https?:\/\/data\.europarl\.europa\.eu\//, '');
 const tail = value => canonical(value).split('/').at(-1);
@@ -57,7 +59,7 @@ export function outsideSpeech(activity, fetchedAt, queryUrl = null) {
         const personId = String(person?.['@_refersTo'] || '').match(/^(?:epdata:)?person\/(\d+)$/)?.[1];
         const name = text(person).trim();
         if (!participants.includes(personId) || !specificName(name)) continue;
-        observations.push({personId, name, role:publishedRole(xml), machineTranslated:/(?:^|[-\s"'])mtec(?:[-\s"']|$)/.test(xml), languageTag, fragmentKey:key, original});
+        observations.push({parserRevision:OUTSIDE_ROLE_PARSER_REVISION, personId, name, role:publishedRole(xml), machineTranslated:/(?:^|[-\s"'])mtec(?:[-\s"']|$)/.test(xml), languageTag, fragmentKey:key, original});
       }
     } catch { /* A malformed fragment leaves the identity unresolved. */ }
   }

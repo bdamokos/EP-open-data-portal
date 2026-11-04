@@ -439,4 +439,6 @@ test('two guests at the same formal sitting retain distinct exact speech focus i
  x.outsideSpeakers=[['1','Felipe','ESP','100'],['2','Marcelo','PRT','200']].map(([personId,name,country,n])=>({id:personId+':'+debateId,personId,name,country,date:'2026-01-21',debateId,headerSource:{url:'https://data.europarl.europa.eu/api/v2/speeches/MTG-PL-2026-01-21-OTH-'+n+'?language=mul'}}));
  const map=buildExactTopicStories(x,{period:'2026-Q1'}).find(l=>l.id==='topics.story.map.outside');assert.deepEqual(map.values.speakers.map(s=>s.values.speaker.records[0].speechId),['MTG-PL-2026-01-21-OTH-100','MTG-PL-2026-01-21-OTH-200']);
  const place=buildExactTopicStories(x,{period:'2026-Q1',place:'ESP'}).find(l=>l.id==='topics.story.place.outside');assert.equal(place.values.speaker.records[0].speechId,'MTG-PL-2026-01-21-OTH-100');
+ x.outsideSpeakers=x.outsideSpeakers.map(a=>{const speechId=a.headerSource.url.split('/speeches/')[1].split('?')[0];const {headerSource,...publicRow}=a;return {...publicRow,speechId};});
+ const narrowed=buildExactTopicStories(x,{period:'2026-Q1'}).find(l=>l.id==='topics.story.map.outside');assert.deepEqual(narrowed.values.speakers.map(s=>s.values.speaker.records[0].speechId),['MTG-PL-2026-01-21-OTH-100','MTG-PL-2026-01-21-OTH-200']);
 });

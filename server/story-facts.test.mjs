@@ -658,17 +658,20 @@ test('outside addresses and coverage are copied into the published generation',a
  const insert=store.db.prepare('INSERT INTO outside_contributions VALUES (?,?,?,?,?)');
  for(const [personId,name,role] of [['134834','Felipe VI','King of Spain'],['165141','Marcelo Rebelo de Sousa','Presidente da República de Portugal']])for(const n of [1,2]){
   const id='MTG-PL-'+date+'-OTH-'+personId+n;
-  insert.run(1,id,personId,date,JSON.stringify({id,personId,date,term:10,header:{name,role},parentIds:[debateId],source,rosterSource:{date,sources:[source]}}));
+  const en=personId==='134834'?'King of Spain':'President of the Republic of Portugal',hu=personId==='134834'?'spanyol király':'a Portugál Köztársaság elnöke';
+  const headerSource={url:'https://data.europarl.europa.eu/api/v2/speeches/'+id+'?include-output=xml_fragment',fetchedAt:stamp};
+  const {outsideSpeech}=await import('./outside-model.mjs');
+  const parsed=outsideSpeech({activity_id:id,activity_date:date,had_activity_type:'PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+personId]}],recorded_in_a_realization_of:[{'api:xmlFragment':Object.fromEntries([['en',en],['hu',hu]].map(([lang,title])=>[lang,`<oralStatements><speech><from xml:lang="${lang}"><person refersTo="person/${personId}">${name}</person><role>${title}</role></from></speech></oralStatements>`]))}]},stamp,headerSource.url);
+  insert.run(1,id,personId,date,JSON.stringify({id,personId,date,term:10,header:{name,role,observations:parsed.headers[0].observations},headerSource,parentIds:[debateId],source,rosterSource:{date,sources:[source]}}));
  }
  store.set('active',2);await buildTopics(store,{generation:2,sourceGeneration:1});
  const query=scope=>new URLSearchParams({scope,...(scope==='place'?{key:'place:ESP'}:{}),period:'2026-Q1'});
  let result=storyFacts(store,query('map'));assert.equal(result.outsideSpeakers.length,2,'speeches in one address deduplicate by exact person and item');assert.deepEqual(result.outsideSpeakers.map(a=>a.country),['ESP','PRT']);assert.equal(storyFacts(store,query('place')).outsideSpeakers.length,1);
- for(const row of store.db.prepare("SELECT id,body FROM story_facts WHERE generation=2 AND kind='outsideSpeaker'").all()){
-  const value=JSON.parse(row.body);value.roles={en:{role:'King of Spain',source:{url:'retained-source',fetchedAt:stamp}},hu:{role:'spanyol király',source:{url:'retained-source',fetchedAt:stamp}}};
-  store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideSpeaker' AND id=?").run(JSON.stringify(value),row.id);
- }
+ const held=store.db.prepare("SELECT body FROM story_facts WHERE generation=2 AND kind='outsideSpeaker' ORDER BY id").all().map(r=>JSON.parse(r.body));
+ assert.equal(held[0].roles.en.role,'King of Spain');assert.equal(held[0].roles.hu.role,'spanyol király');assert.match(held[0].roles.hu.source.url,/\/speeches\/MTG-PL-/);
+ assert.equal(store.db.prepare('SELECT COUNT(*) n FROM outside_role_speech_reads').get().n,2,'one seeded job per deduplicated address');
  const requested=query('map');requested.set('lang','hu');const localized=storyFacts(store,requested).outsideSpeakers[0];
- assert.deepEqual(localized.roles,{hu:{role:'spanyol király',languageTag:'hu'}});for(const key of ['role','language','headerSource','source','rosterSource','debateSource','wikidata'])assert(!Object.hasOwn(localized,key),key);
+ assert.deepEqual(localized.roles,{hu:{role:'spanyol király',languageTag:'hu'}});assert.equal(localized.speechId,'MTG-PL-2026-01-21-OTH-1348341');for(const key of ['role','language','headerSource','source','rosterSource','debateSource','wikidata'])assert(!Object.hasOwn(localized,key),key);
  store.db.prepare('DELETE FROM outside_contributions WHERE generation=1').run();assert.equal(storyFacts(store,query('map')).outsideSpeakers.length,2,'published evidence is immutable until rebuilt');
  store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({wikidataPolicyVersion:4,complete:false,window:{end:'2026-11-01'},availability:{sourceKey:'outside',checkedIntervals:[],gaps:[],limited:true}}));
  assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'incomplete coverage suppresses the line');
