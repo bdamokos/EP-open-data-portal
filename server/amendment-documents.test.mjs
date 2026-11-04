@@ -849,3 +849,11 @@ for(const language of ['en','es'])for(const number of [1,2])test('standalone Rul
   assert.equal(verifyAlternative({buffer:bytes,wording:{...wording,targetDocumentId:'A-10-2026-0001'},placement}),null);
   for(const fields of [{targetDocumentId:'A-10-2026-0001',listId:'A-10-2026-0001-AM-001-002'},{documentReferences:[]},{documentReferences:null},{language:'de'},{proposedText:null},{originalText:'Existing wording'},{gaps:[{code:'inline-content-loss'}]}])assert.notEqual(documentContextPlacement({chosen:{...wording,...fields}}).operation,'alternative-motion');
 });
+
+test('tagged revised amendment numbers preserve their integer identity',()=>{
+ const native=n=>archive(body(p('<Amend><NumAm>'+n+'</NumAm>')+p('<Article>Paragraph 10 a (new)</Article>')+table(row(cell(p('')),cell(p('10a. New paragraph.'))))+p('</Amend>')));
+ const options={listId:'A-10-2026-0124-AM-014-014',targetDocumentId:'A-10-2026-0124',language:'en'};
+ const parsed=extractAmendments(native('14/rev'),options);
+ assert.equal(parsed.amendments.length,1);assert.equal(parsed.amendments[0].number,14);assert.equal(parsed.amendments[0].proposedText,'10a. New paragraph.');
+ for(const n of ['14/revised','14/rev2'])assert.equal(extractAmendments(native(n),options).amendments.length,0);
+});
