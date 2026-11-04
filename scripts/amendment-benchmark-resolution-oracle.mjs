@@ -68,7 +68,7 @@ export function nativeBlankPairs(text) {
     if([...first.text.matchAll(/(?:^|[;.!?])\s*[1-9]\d*[.)]\t/gu)].length>1)continue;
     if(first.hidden||last.hidden||nativeValue(first)!==text.paragraphs[i-1]||nativeValue(last)!==text.paragraphs[i])continue;
     const omitted=body.slice(a+1,b);
-    if(omitted.every(row=>row.kind==='paragraph'&&!row.hidden&&!row.unsafe&&!row.numbered&&row.nodes.every(node=>Object.keys(node).every(key=>key===':@'||key==='w:pPr'))
+    if(omitted.every(row=>row.kind==='paragraph'&&!row.hidden&&!row.unsafe&&!row.numbered&&row.nodes.every(node=>Object.keys(node).every(key=>key===':@'||key==='w:pPr'||key==='w:r'&&node[key].length===1&&node[key][0]['w:br']?.length===0&&node[key][0][':@']?.['@_w:type']==='page'))
       &&!row.nodes.some(node=>node['w:pPr']?.some(prop=>prop['w:numPr']||prop['w:sectPr']))))pairs.add(left.path+'|'+right.path);
   }
   return pairs;
