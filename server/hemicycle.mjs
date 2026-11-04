@@ -129,17 +129,17 @@ async function readSource(url,validator,accept,signal,timeoutMs) {
 }
 
 // The two files change independently. A plan always comes from one complete pair.
-export async function fetchHemicyclePlan(chamber,{signal,validators={},timeoutMs=SOURCE_TIMEOUT}={}) {
+export async function fetchHemicyclePlan(chamber,{signal,validators={},timeoutMs=SOURCE_TIMEOUT,onExtraRead}={}) {
   const urls=sourceUrls(chamber);
   let [plan,geometry]=await Promise.all([
     readSource(urls.plan,validators.plan,'application/json',signal,timeoutMs),
     readSource(urls.geometry,validators.geometry,'image/svg+xml',signal,timeoutMs),
   ]);
   if(plan.notModified&&geometry.notModified)return {notModified:true,validators};
-  const notModifiedPair=plan.notModified||geometry.notModified;
+  if(plan.notModified||geometry.notModified)onExtraRead?.();
   if(plan.notModified)plan=await readSource(urls.plan,null,'application/json',signal,timeoutMs);
   if(geometry.notModified)geometry=await readSource(urls.geometry,null,'image/svg+xml',signal,timeoutMs);
-  return {plan:normalizePlan(chamber,JSON.parse(plan.body),geometry.body),validators:{plan:plan.etag,geometry:geometry.etag},extraReads:Number(notModifiedPair)};
+  return {plan:normalizePlan(chamber,JSON.parse(plan.body),geometry.body),validators:{plan:plan.etag,geometry:geometry.etag}};
 }
 
 export function prepareHemicycle(store) {
@@ -170,8 +170,7 @@ export class HemicycleCollector {
     const held=this.state()[chamber]||{};
     if(worker.requests!==undefined)worker.requests+=2;
     try{
-      const result=await this.fetchPlan(chamber,{signal:worker.controller.signal,validators:latestRevision(this.store,chamber)?held.validators:undefined});
-      if(worker.requests!==undefined)worker.requests+=result.extraReads||0;
+      const result=await this.fetchPlan(chamber,{signal:worker.controller.signal,validators:latestRevision(this.store,chamber)?held.validators:undefined,onExtraRead:()=>{if(worker.requests!==undefined)worker.requests++;}});
       this.write(()=>{
         const checked={checkedAt:now,nextCheck:now+CHECK_EVERY,error:null,validators:result.validators};
         if(result.plan){

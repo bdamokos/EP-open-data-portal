@@ -119,9 +119,9 @@ test('without the index a plan is read live, cached and retained through a failu
 });
 test('the collector leaves a check for a run with enough request budget and counts a third read',async t=>{
   const s=memoryStore(t);let checks=0;
-  const collector=new HemicycleCollector(s.store,{clock:s.now,fetchPlan:async()=>{checks++;return {plan:plan(),validators:{},extraReads:1};}});
+  const collector=new HemicycleCollector(s.store,{clock:s.now,fetchPlan:async(chamber,options)=>{checks++;options.onExtraRead();throw new Error('third read failed');}});
   assert.equal(await collector.step({...worker(),budget:10,requests:8}),false);assert.equal(checks,0);assert(collector.due());
-  const run={...worker(),budget:10,requests:7};assert.equal(await collector.step(run),true);assert.equal(run.requests,10);
+  const run={...worker(),budget:10,requests:7};assert.equal(await collector.step(run),true);assert.equal(run.requests,10,'a failed third read is still counted');
 });
 test('source transport sends validators, refuses redirects and fetches a complete pair when one file changed',async t=>{
   const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);const calls=[];

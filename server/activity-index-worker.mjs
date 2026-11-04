@@ -1088,7 +1088,8 @@ export function activityIndex() {
   if(readerMode){service={store,press};return service;}
   const worker=new ActivityWorker(store,{...options,sittingSnapshots:new SittingSnapshotCollector(store),press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
   worker.votingLists=new VotingListCollector(store);
-  worker.hemicycle=new HemicycleCollector(store);
+  // A check needs three requests, so a smaller budget could never run one and would stay due.
+  if(options.budget>=3)worker.hemicycle=new HemicycleCollector(store);
   const warmer=new OfficialContextWarmer(store);
   const schedule=warmer.sources.run;
   warmer.sources.run=(operation,settings)=>{
