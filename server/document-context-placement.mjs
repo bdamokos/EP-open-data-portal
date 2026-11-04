@@ -82,7 +82,7 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
     if(!items?.length||!chosen.language||(chosen.targetPath?.language??chosen.targetLabelLanguage)!==chosen.language)return unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
     // Preserve established exact body/note rules outside the guarded CNS/NLE
     // templates. The new column-scope proof is a recovery for unresolved rows.
-    if(detachedNotes&&!consultation&&!nle){
+    if(detachedNotes&&!consultation&&!nle&&!pdfCouncil){
       const established=resolveProposalPlacement(items,{...selected,number:selected.number??amendmentNumber},{nativeProposalInputs});
       if(established.status==='placed')return established;
     }
