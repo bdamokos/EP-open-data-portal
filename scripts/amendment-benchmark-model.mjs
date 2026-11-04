@@ -1,6 +1,7 @@
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
 import {assertResolutionCollision} from './amendment-resolution-collision-oracle.mjs';
 import {assertLocalRecitalBoundary} from './amendment-local-recital-oracle.mjs';
+import {assertPlaceholderDeletion} from './amendment-placeholder-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
@@ -654,6 +655,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const annexIndent=assertBareAnnexIndent({items,proposal,wording,placement,nativeQuoted});
   if(annexIndent.status!=='unverified')return annexIndent;
   if(!proposal){const lead=assertResolutionLead({text,wording,placement});if(lead.status!=='unverified')return lead;}
+  if(!proposal){const placeholder=assertPlaceholderDeletion({text,wording,placement});if(placeholder.status!=='unverified')return placeholder;}
   if(!proposal){const pointNear=assertResolutionPointSimilarity({text,wording,placement});if(pointNear.status!=='unverified')return pointNear;}
   if(!proposal) {
     const category=assertRecitalCategoryRepair({text,wording,placement});
