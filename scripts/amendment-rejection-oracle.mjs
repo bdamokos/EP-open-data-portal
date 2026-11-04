@@ -12,7 +12,7 @@ const normal=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
 const children=(nodes,name)=>nodes.flatMap(node=>node[name]?[node[name]]:[]);
 const descendants=(nodes,name)=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key===name?[value]:Array.isArray(value)?descendants(value,name):[]));
 const nativeText=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key==='w:t'?value.map(v=>v['#text']??''):Array.isArray(value)?[nativeText(value)]:[])).join('');
-export function nativeRejectionCell(buffer,id) {
+export function nativeRejectionCell(buffer,id,language='en') {
   const identity=/^A-(\d+)-(\d{4})-(\d{4})-AM-([1-9]\d*)$/u.exec(id||'');
   if(!identity)return null;
   let body;try{body=quotedWordBody(buffer);}catch{return null;}
@@ -37,13 +37,16 @@ export function nativeRejectionCell(buffer,id) {
   if(firstCells?.length===1&&!nativeText(first).trim()&&descendants(first,'w:gridSpan').length===1&&firstCells[0].some(node=>node['w:tcPr']?.some(prop=>prop['w:gridSpan']&&prop[':@']?.['@_w:val']==='2')))tableRows.shift();
   if(tableRows.some(row=>descendants(row,'w:gridSpan').length))return null;
   const grid=tableRows.map(row=>children(row,'w:tc').map(cell=>children(cell,'w:p').map(nativeText).join('\n')));
-  if(grid.length<2||grid.some(row=>row.length!==2)||grid[0].some(cell=>!cell.trim()))return null;
+  if(grid.length<2||grid.some(row=>row.length!==2))return null;
+  const rejectionHeadings={en:'Proposal for rejection',cs:'Návrh na zamítnutí',fr:'Proposition de rejet',it:'Proposta di reiezione'};
+  const heading=grid[0].map(normal);
+  if(!heading[1]||!heading[0]&&heading[1]!==rejectionHeadings[language])return null;
   return {original:normal(grid.slice(1).map(row=>row[0]).join('\n')),proposed:normal(grid.slice(1).map(row=>row[1]).join('\n')),path:paragraphs[0].path};
 }
 function verifySentence({id,language,buffer,wording,placement}) {
   const index=typeof wording?.proposedText==='string'?sentences[language]?.indexOf(normal(wording.proposedText)):-1;
   if(index===undefined||index<0)return null;
-  const scope=index===2?'council-position':'commission-proposal',cell=nativeRejectionCell(buffer,id);
+  const scope=index>=2?'council-position':'commission-proposal',cell=nativeRejectionCell(buffer,id,language);
   if(!cell||cell.original!==''||wording.originalText!==''||cell.proposed!==normal(wording.proposedText))return {status:'unverified',reason:'rejection-native-cell-unverified'};
   const observed=placement?.status==='document-operation'&&placement.operation==='reject'&&placement.scope===scope&&!['span','splice','insertAfter','insertBefore'].some(key=>Object.hasOwn(placement,key));
   return {status:observed?'verified':'unverified',reason:observed?'source-attested-rejection':'rejection-not-observed',scope,source:{sha256:createHash('sha256').update(buffer).digest('hex'),path:'word/document.xml',amendmentPath:cell.path,assertion:'complete-native-comparison-cells',originalText:cell.original,proposedText:cell.proposed}};

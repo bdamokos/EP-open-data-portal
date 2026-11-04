@@ -17,6 +17,57 @@ const found = (paragraphs, basis = 'quoted-original', quoteMatches = true, relat
   status: 'found', paragraphs, basis, relation, quoteMatches, reason: null,
 });
 
+test('a fully emphasized Roman section between consecutive paragraphs does not compete with a recital',()=>{
+ const paragraphs=['The European Parliament,','V. whereas the recital;','W. whereas the next recital;','42. Previous;','V. Rule of law','43. Next;'];
+ const title=paragraphs[4], formats=paragraphs.map((_,i)=>i===4?{marks:[{kind:'bold',start:0,end:title.length},{kind:'italic',start:0,end:title.length}]}:{});
+ const text=document(paragraphs,{textLanguage:'en',paragraphFormats:formats});
+ const options={language:'en',baseline:'motion-resolution',targetLabel:'Recital V a (new)',originalText:'',proposedText:'Va. whereas a new recital;'};
+ const result=resolveAmendmentPlacement(text,options);
+ assert.equal(result.status,'placed'); assert.equal(result.insertAfter,1); assert.equal(result.insertBefore,2);
+ for(const changed of [{paragraphFormats:formats.map((v,i)=>i===4?{}:v)},{paragraphs:paragraphs.map((v,i)=>i===5?'44. Next;':v)}]) {
+  assert.notEqual(resolveAmendmentPlacement({...text,...changed},options).status,'placed');
+ }
+});
+
+test('a complete Latin sequence identifies mixed Greek M and N glyphs in an English motion',()=>{
+ const labels=[...'ABCDEFGHIJKL','Μ','Ν'];
+ const paragraphs=['The European Parliament,',...labels.map(label=>label+'. whereas published;'),'1. Operative;','2. Next;'];
+ const text=document(paragraphs,{textLanguage:'en'}),options={language:'en',baseline:'motion-resolution',targetLabel:'Recital M a (new)',originalText:'',proposedText:'Ma. whereas new;'};
+ const placed=resolveAmendmentPlacement(text,options);assert.equal(placed.status,'placed');assert.equal(placed.insertAfter,13);assert.equal(placed.insertBefore,14);
+ for(const changed of [document(paragraphs.map((p,i)=>i===14?'P. whereas wrong;':p),{textLanguage:'en'}),document(paragraphs,{textLanguage:'en',sources:{13:{complete:false}}})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+ for(const label of ['M','Μ']) {
+  const modified=[paragraphs[0],label+'. whereas incomplete competitor;',...paragraphs.slice(1)];
+  assert.notEqual(resolveAmendmentPlacement(document(modified,{textLanguage:'en',sources:{1:{complete:false}}}),options).status,'placed',label);
+ }
+});
+
+test('a source editorial reference between recitals stays outside the replaced passage',()=>{
+ const paragraphs=['The European Parliament,','AG. whereas original;','(Ex AM 49 (Or. EN) of FdR example.docx)','AH. whereas next;','1. Operative;'];
+ const text=document(paragraphs,{textLanguage:'en'}),options={language:'en',baseline:'motion-resolution',targetLabel:'Recital AG',originalText:'AG. whereas original;',proposedText:'AG. whereas changed;'};
+ const result=resolveAmendmentPlacement(text,options);assert.equal(result.status,'placed');assert.deepEqual(result.span,{start:1,end:1});
+ for(const continuation of ['(Some legal continuation)','(Ex AM 49 (Or. EN) of FdR example.docx) (whereas safeguards apply in annex.docx)','(Ex AM49 (Or. EN) of FdR example.docx) (whereas safeguards apply)','(Ex  AM 49 (Or. EN) of FdR example.docx) (whereas safeguards apply)','(Ex AM 49 (Or. EN) of FdR example\n.docx)','(Ex AM 49 (Or. EN) of FdR example.docx)\n']) {
+  const changed=document(paragraphs.map((v,i)=>i===2?continuation:v),{textLanguage:'en'});
+  assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed',continuation);
+ }
+});
+
+test('terminal dash-list insertion stays inside its uniquely addressed paragraph',()=>{
+ const paragraphs=['The European Parliament,','122. Observes:','– first;','– second;','– third;','123. Next;'];
+ const paragraphFormats=paragraphs.map((_,i)=>({indent:i>=2&&i<=4?4.72:2.36,hanging:2.36}));
+ const text=document(paragraphs,{textLanguage:'en',paragraphFormats}),options={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 122 – indent 3 a (new)',originalText:'',proposedText:'– New item;'};
+ const result=resolveAmendmentPlacement(text,options);assert.equal(result.status,'placed');assert.equal(result.insertAfter,4);assert.equal(result.insertBefore,5);
+ for(const changed of [document(paragraphs.map((v,i)=>i===3?'Continuation;':v),{textLanguage:'en',paragraphFormats}),document(paragraphs,{textLanguage:'en',paragraphFormats,sources:{3:{complete:false}}}),document(paragraphs.map((v,i)=>i===2?'– first;\n– extra;':v),{textLanguage:'en',paragraphFormats}),document(paragraphs,{textLanguage:'en',paragraphFormats:paragraphFormats.map((v,i)=>i===3?{...v,indent:7}:v)})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+});
+
+test('Swedish recommendation point is resolved only within the identified annex section',()=>{
+ const paragraphs=['BILAGA TILL RESOLUTIONSFÖRSLAGET','Rekommendation 5','Ämne','1. Original;','2. Nästa;','Rekommendation 6','MOTIVERING'];
+ const options={language:'sv',baseline:'motion-resolution',targetLabel:'Bilaga I – rekommendation 5 – punkt 1',originalText:'1. Original;',proposedText:'1. Ändrad;'};
+ const text=document(paragraphs,{textLanguage:'sv'});assert.deepEqual(resolveAmendmentPlacement(text,options).span,{start:3,end:3});
+ for(const changed of [document(paragraphs.map((v,i)=>i===4?'3. Nästa;':v),{textLanguage:'sv'}),document(paragraphs,{textLanguage:'sv',sources:{3:{complete:false}}})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+ const withGap=document([...paragraphs.slice(0,5),'3. Other;',...paragraphs.slice(5)],{textLanguage:'sv',sources:{5:{ordinal:6},6:{ordinal:7},7:{ordinal:8}}});
+ assert.notEqual(resolveAmendmentPlacement(withGap,options).status,'placed');
+});
+
 test('published translated resolution labels preserve native numbering and script',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-labels.json',import.meta.url)));
   for(const example of fixture.examples) {
@@ -1043,4 +1094,22 @@ test('a suffixed insertion after a provision merged into its predecessor row goe
   const twoMissing=motion(['K.\twhereas one;L.\twhereas merged;','N.\twhereas three;','1.\tCalls for action.']);
   assert.equal(placement(twoMissing,{targetLabel:'Recital L a (new)',originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution'}).reason,'relative_target_not_found');
   assert.equal(placement(paragraphs,{targetLabel:'Paragraph 72 a (new)',originalText:'',proposedText:'72a.\tRecalls;',baseline:'motion-resolution',referenceText:'After § 73'}).reason,'conflicting_target_evidence');
+});
+
+test('split bold italic title between consecutive numbers closes insertion scope',()=>{
+ const heading='Partnering – Towards an integrated approach to fragility';
+ const text=document(['The European Parliament,','18. Calls for action;',heading,'19. Underlines the next measure;'],{paragraphFormats:[{},{},{marks:['bold','italic'].flatMap(kind=>[{kind,start:0,end:24},{kind,start:34,end:heading.length}])},{}]});
+ const opts={language:'en',originalText:'',proposedText:'18a. New measure;',targetLabel:'Paragraph 18 a (new)',resolutionDocument:true};
+ assert.equal(resolveAmendmentPlacement(text,opts).insertBefore,2);
+ text.paragraphFormats[2].marks=[];
+ assert(!resolveAmendmentPlacement(text,opts).evidence.some(e=>e.basis==='exact-paragraph-lead'));
+});
+
+test('exact paragraph lead replacement preserves its directly owned points',()=>{
+ const text=document(['The European Parliament,','3. Calls for the following recommendations:','(a) First recommendation;','(b) Second recommendation;','4. Closing instruction;']);
+ const opts={language:'en',originalText:text.paragraphs[1],proposedText:'3. Calls for revised recommendations:',targetLabel:'Paragraph 3',resolutionDocument:true};
+ assert.deepEqual(resolveAmendmentPlacement(text,opts).span,{start:1,end:1});
+ assert.equal(resolveAmendmentPlacement(text,{...opts,originalText:'3. Unrelated instructions:'}).status,'unresolved');
+ text.paragraphSources[2].complete=false;
+ assert(!resolveAmendmentPlacement(text,opts).evidence.some(e=>e.basis==='exact-paragraph-lead'));
 });

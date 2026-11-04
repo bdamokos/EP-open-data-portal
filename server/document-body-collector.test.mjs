@@ -123,3 +123,31 @@ test('one-request slices resume PDF fallback without repeating the rejected DOCX
  await collector.step(f.worker,{requestBudget:1});assert.equal(docx,1);assert.equal(pdf,1);
  assert.equal(f.store.db.prepare('SELECT state FROM document_body_jobs').get().state,'retained');
 });
+
+test('fileless motions admit bounded collector candidates and enforce proof with selectedFile',async t=>{
+ const f=await fixture(t),item={...f.item,work_type:'def/ep-document-types/RESOLUTION_MOTION',is_realized_by:[]};
+ f.store.db.prepare('UPDATE sources SET body=?').run(JSON.stringify(item));
+ let proved=false,calls=0;
+ const collector=new DocumentBodyCollector(f.store,{directory:f.directory,hints:new DocumentBodyHints(),read:(work,language,options)=>documentText(work,language,{...options,download:async(url,downloadOptions)=>{
+   calls++;assert.equal(downloadOptions.distributionIdentity,item.identifier);assert.equal(options.selectedFile.identityRequired,true);
+   return {paragraphs:['Retained verified motion'],formattingVersion:DOCX_FORMATTING_VERSION,...(proved?{distributionIdentity:item.identifier}:{})};
+ }})});
+ collector.enqueue(f.key,item,1,'en');assert.equal(f.store.db.prepare('SELECT COUNT(*) AS n FROM document_body_jobs').get().n,1);
+ await collector.step(f.worker);assert.equal(calls,1);assert.equal(f.store.db.prepare('SELECT state FROM document_body_jobs').get().state,'transient');
+ assert.equal((await documentText(item,'en',{directory:f.directory,cacheOnly:true})).status,'unavailable');
+ proved=true;f.setTime(f.store.db.prepare('SELECT next_check FROM document_body_jobs').get().next_check);f.store.acquire();await collector.step(f.worker);
+ assert.equal(f.store.db.prepare('SELECT state FROM document_body_jobs').get().state,'retained');
+ assert.deepEqual((await documentText(item,'en',{directory:f.directory,cacheOnly:true})).paragraphs,['Retained verified motion']);
+});
+
+test('a disappeared declaration preserves accepted standard-route text while collector proof is pending',async t=>{
+ const f=await fixture(t),url=`https://data.europarl.europa.eu/distribution/reds_iPlRe/${f.item.identifier}/${f.item.identifier}_en.docx`;
+ const declared={...f.item,work_type:'def/ep-document-types/RESOLUTION_MOTION',is_realized_by:[{language:'en',is_embodied_by:[{format:'DOCX',is_exemplified_by:url}]}]};
+ const download=async()=>({paragraphs:['Previously accepted text'],formattingVersion:DOCX_FORMATTING_VERSION});
+ await documentText(declared,'en',{directory:f.directory,collector:true,download,clock:()=>now});
+ const fileless={...declared,is_realized_by:[]};
+ const result=await documentText(fileless,'en',{directory:f.directory,cacheOnly:true,download:()=>{throw Error('Cache-only must not download');},clock:()=>now});
+ assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,['Previously accepted text']);
+ await assert.rejects(documentText(fileless,'en',{directory:f.directory,collector:true,download,clock:()=>now}),/identity proof is unavailable/);
+ assert.deepEqual((await documentText(fileless,'en',{directory:f.directory,cacheOnly:true,clock:()=>now})).paragraphs,['Previously accepted text']);
+});

@@ -1,6 +1,9 @@
 {
   "amendment.replaces_whole_text": "Ersätter hela texten.",
   "amendment.agreement_text": "Överenskommelsens text",
+  "amendment.final_act": "Slutlig akt: {act}",
+  "amendment.provisional_marks": "Fetkursiv: nytt eller ändrat. ▌: struket.",
+  "amendment.provisional_unmarked": "Vissa ändringar är inte markerade.",
   "documentcontext.final_placement_check": "Kontrollera den slutliga placeringen i {adoptedText}.",
   "documentcontext.adopted_text": "den antagna texten",
   "amendment.alternative_motion": "Alternativt resolutionsförslag",

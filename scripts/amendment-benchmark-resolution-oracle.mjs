@@ -142,7 +142,7 @@ export function rawResolutionUnits(text,language,{includeTables=false}={}) {
   const number=i=>/^\s*([1-9]\d{0,5})\s*[a-zα-ωа-я]{0,3}[.)]\s+/u.exec(paragraphs[i]??'')?.[1];
   const italicTitle=i=>{
     const value=paragraphs[i].trim(),after=number(i+1);
-    if(!value||value.length>=180||!/^\p{Lu}/u.test(value)||/[.;!?:]$/u.test(value)||!wholeBold(paragraphs[i],text.paragraphFormats?.[i],'italic'))return false;
+    if(!value||value.length>=180||!/^\p{Lu}/u.test(value)||/[.;!?:]$/u.test(value)||!(wholeBold(paragraphs[i],text.paragraphFormats?.[i],'italic')||['bold','italic'].every(kind=>{const marks=(text.paragraphFormats?.[i]?.marks||[]).filter(m=>m.kind===kind);return marks.some(m=>m.start===0&&m.end>=value.length/3)&&marks.some(m=>m.end===value.length&&m.start<=value.length*2/3);})))return false;
     // Only native XML may certify omitted blank rows between title and number.
     if(!after||!adjacent(sources[i],sources[i+1])||/:\s*$/u.test(paragraphs[i-1]??''))return false;
     let before=null;
@@ -165,6 +165,15 @@ export function rawResolutionUnits(text,language,{includeTables=false}={}) {
       }
     }
     const separator=/^[°\s/]+$/u.test(value)&&value.includes('°');
+    // A standalone Word editorial reference between successive recitals is
+    // outside the legal wording; preserve it as its own boundary.
+    const prior=label((paragraphs[i-1]||'').trim()), following=label((paragraphs[i+1]||'').trim());
+    const ordinal=s=>/^[A-Z]{1,3}$/u.test(s||'')?[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+    if(language==='en'&&!/[\r\n]/u.test(paragraphs[i])&&/^\(Ex AM [1-9]\d* \(Or\. [A-Z]{2}\) of FdR [^()\r\n]+\.docx\)$/u.test(value)
+      &&prior?.kind==='recital'&&following?.kind==='recital'&&ordinal(prior.label)!==null&&ordinal(following.label)===ordinal(prior.label)+1
+      &&adjacent(sources[i-1],source)&&adjacent(source,sources[i+1])) {
+      events.push({start:i,boundary:true});group++;parent=null;continue;
+    }
     const translatedEnd=Object.values(LANGUAGE_SECTIONS[language]||{}).filter(v=>typeof v==='string').some(v=>headingKey(value)===headingKey(v))||languageEnd?.test(value.split(/[\r\n]/u)[0]);
     const section=(translatedEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter|anexă|expunere de motive|aviz)(?![\p{L}\p{N}_])/iu.test(value))&&!/[.;!?]$/u.test(value);
     const bold=wholeBold(paragraphs[i],format),heading=bold||Number.isInteger(format?.heading)&&format.heading>=1&&format.heading<=6;
@@ -209,4 +218,79 @@ export function rawResolutionUnits(text,language,{includeTables=false}={}) {
     unit.end=i;
   }
   return {units,start,incomplete};
+}
+
+
+// Independently prove a Latin ordinal from its complete published sequence.
+export function assertMixedRecital({text,wording,placement}) {
+ const unknown={status:'unverified',reason:'oracle-mixed-recital-unavailable'};
+ if(wording?.language!=='en'||wording.baseline!=='motion-resolution'||wording.originalText!==''||placement?.operation!=='insert')return unknown;
+ const match=/^Recital ([MN]) ([a-z]) \(new\)$/u.exec(wording.targetLabel||'');
+ if(!match||!new RegExp('^'+match[1]+match[2]+'[.)]\\s+whereas\\b','u').test(wording.proposedText||''))return unknown;
+ const raw=rawResolutionUnits(text,'en'), units=raw.units.filter(u=>u.kind==='recital'),first=raw.units.find(u=>u.kind==='paragraph');
+ const aliases={'Μ':'M','Ν':'N'}, normal=s=>aliases[s]||s;
+ // An incomplete native row can hide a competing recital, including one
+ // spelled with the other script. It cannot support a complete sequence.
+ if((raw.incomplete||[]).some(unit=>unit.kind==='recital'))return unknown;
+ if(raw.reason||!first||first.label!=='1'||!units.length||units.some((u,i)=>normal(u.label)!==String.fromCharCode(65+i)||!u.complete||u.end>=first.start||i>0&&units[i-1].end+1!==u.start))return unknown;
+ const pos=units.findIndex(u=>normal(u.label)===match[1]);
+ if(pos<1||pos>=units.length-1||units[pos].label===match[1]||units[pos].end+1!==units[pos+1].start)return unknown;
+ const a=units[pos];
+ if(placement.insertAfter!==a.end||placement.insertBefore!==a.end+1)return {status:'failed',reason:'oracle-mixed-recital-boundary-mismatch'};
+ return {status:'verified',reason:'oracle-mixed-recital-sequence'};
+}
+
+// Raw body rows independently establish a terminal dash-list insertion.
+export function assertTerminalIndent({text,wording,placement}) {
+ const unknown={status:'unverified',reason:'oracle-terminal-indent-unavailable'};
+ if(wording?.language!=='en'||wording.baseline!=='motion-resolution'||wording.originalText!==''||placement?.operation!=='insert'||!/^[-–—•]\s+\S/u.test(wording.proposedText||''))return unknown;
+ const match=/^Paragraph ([1-9]\d*) – indent ([1-9]\d*) a \(new\)$/u.exec(wording.targetLabel||'');if(!match)return unknown;
+ const raw=rawResolutionUnits(text,'en'),owners=raw.units.filter(u=>u.kind==='paragraph'&&u.label===match[1]);
+ if(raw.reason||owners.length!==1||!owners[0].complete||raw.incomplete.some(u=>u.kind==='paragraph'&&u.label===match[1]))return unknown;
+ const owner=owners[0], p=text.paragraphs, s=text.paragraphSources, count=Number(match[2]);
+ if(!/:\s*$/u.test(p[owner.start])||owner.end-owner.start!==count||count>100)return unknown;
+ const formats=text.paragraphFormats, lead=formats?.[owner.start], first=formats?.[owner.start+1];
+ if(!Number.isFinite(lead?.indent)||!Number.isFinite(first?.indent)||first.indent<=lead.indent||!Number.isFinite(first.hanging))return unknown;
+ for(let i=owner.start+1;i<=owner.end;i++)if(/[\r\n]/u.test(p[i])||!/^\s*[-–—•]\s+\S/u.test(p[i])||!contiguous(s[i-1],s[i])||formats[i]?.indent!==first.indent||formats[i]?.hanging!==first.hanging)return unknown;
+ const next=raw.units.filter(u=>u.start===owner.end+1&&u.kind==='paragraph');
+ if(next.length!==1||Number(next[0].label)!==Number(match[1])+1||!contiguous(s[owner.end],s[next[0].start]))return unknown;
+ if(placement.insertAfter!==owner.end||placement.insertBefore!==next[0].start)return {status:'failed',reason:'oracle-terminal-indent-boundary-mismatch'};
+ return {status:'verified',reason:'oracle-terminal-indent-boundary'};
+}
+
+// Prove the first numbered point of an identified recommendation in the
+// native Swedish resolution annex, independently of projected hierarchy.
+export function assertSwedishRecommendation({text,wording,placement}) {
+ const unknown={status:'unverified',reason:'oracle-recommendation-annex-unavailable'};
+ if(wording?.language!=='sv'||wording.baseline!=='motion-resolution'||placement?.operation!=='replace'||!text?.nativeBuffer)return unknown;
+ const address=/^Bilaga I – rekommendation ([1-9]\d*) – punkt 1$/u.exec(wording.targetLabel||'');if(!address)return unknown;
+ let body;try{body=quotedWordBody(text.nativeBuffer);}catch{return unknown;}
+ const headers=body.flatMap((row,i)=>row.kind==='paragraph'&&/^BILAGA TILL RESOLUTIONSFÖRSLAGET(?:\n|$)/u.test(row.text)?[i]:[]);
+ if(headers.length!==1)return unknown;
+ const end=body.findIndex((row,i)=>i>headers[0]&&row.kind==='paragraph'&&row.text.trim()==='MOTIVERING');if(end<0)return unknown;
+ const rows=body.slice(headers[0]+1,end),hits=rows.flatMap((row,i)=>row.kind==='paragraph'&&row.text.trim()==='Rekommendation '+address[1]?[i]:[]);
+ if(hits.length!==1)return unknown;
+ const at=hits[0],next=rows.findIndex((row,i)=>i>at&&row.kind==='paragraph'&&row.text.trim()==='Rekommendation '+(Number(address[1])+1));
+ if(next<0)return unknown;
+ if(rows.slice(at+1,next).some(row=>row.kind!=='paragraph'||row.hidden||row.unsafe||row.numbered))return unknown;
+ const section=rows.slice(at+1,next).filter(row=>row.text.trim());
+ if(section.some(row=>row.hidden||row.unsafe||row.numbered)||section.filter(row=>/^1[.)]\s+\S/u.test(row.text)).length!==1)return unknown;
+ const group=rows.slice(at,at+4);if(group.length!==4||group.some(r=>r.kind!=='paragraph'||r.hidden||r.unsafe||r.numbered)||!/^1[.)]\s+\S/u.test(group[2].text)||!/^2[.)]\s+\S/u.test(group[3].text))return unknown;
+ const projected=text.paragraphSources.flatMap((source,i)=>source?.path===group[2].path?[i]:[]),normal=s=>String(s).normalize('NFC').replace(/\s+/gu,' ').trim();
+ if(projected.length!==1)return unknown;
+ const index=projected[0];if(text.paragraphSources[index].complete!==true||normal(text.paragraphs[index])!==normal(group[2].text)||normal(wording.originalText)!==normal(group[2].text))return unknown;
+ if(placement.span?.start!==index||placement.span?.end!==index)return {status:'failed',reason:'oracle-recommendation-boundary-mismatch'};
+ return {status:'verified',reason:'oracle-native-recommendation-point'};
+}
+
+// An exact printed paragraph lead can be replaced without replacing its points.
+export function assertResolutionLead({text,wording,placement}) {
+ const target=/^Paragraph ([1-9]\d*)$/u.exec(wording.targetLabel||'');
+ if(wording.language!=='en'||!target||placement.operation!=='replace')return {status:'unverified',reason:'oracle-lead-unavailable'};
+ const raw=rawResolutionUnits(text,'en'),units=raw.units.filter(u=>u.kind==='paragraph'&&u.label===target[1]);
+ if(raw.reason||units.length!==1)return {status:'unverified',reason:'oracle-lead-unavailable'};
+ const unit=units[0],next=text.paragraphs[unit.start+1],source=text.paragraphSources;
+ const compact=v=>v.normalize('NFC').replace(/\s+/gu,' ').trim();
+ if(!unit.complete||!/:$/u.test(text.paragraphs[unit.start])||!/^\(a\)\s/u.test(next||'')||!contiguous(source[unit.start],source[unit.start+1])||compact(wording.originalText)!==compact(text.paragraphs[unit.start]))return {status:'unverified',reason:'oracle-lead-unavailable'};
+ return placement.span?.start===unit.start&&placement.span?.end===unit.start?{status:'verified',reason:'oracle-exact-paragraph-lead'}:{status:'failed',reason:'oracle-lead-boundary-mismatch'};
 }

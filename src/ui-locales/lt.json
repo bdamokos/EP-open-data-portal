@@ -1,6 +1,9 @@
 {
   "amendment.replaces_whole_text": "Pakeičia visą tekstą.",
   "amendment.agreement_text": "Susitarimo tekstas",
+  "amendment.final_act": "Galutinis aktas: {act}",
+  "amendment.provisional_marks": "Pusjuodis kursyvas: naujas arba pakeistas tekstas. ▌: išbraukta.",
+  "amendment.provisional_unmarked": "Kai kurie pakeitimai nepažymėti.",
   "documentcontext.final_placement_check": "Galutinę vietą patikrinkite {adoptedText}.",
   "documentcontext.adopted_text": "priimtame tekste",
   "amendment.alternative_motion": "Alternatyvus pasiūlymas",

@@ -1,6 +1,9 @@
 {
   "amendment.replaces_whole_text": "Nahrádza celý text.",
   "amendment.agreement_text": "Text dohody",
+  "amendment.final_act": "Konečný akt: {act}",
+  "amendment.provisional_marks": "Tučná kurzíva: nové alebo zmenené. ▌: vypustené.",
+  "amendment.provisional_unmarked": "Niektoré zmeny nie sú označené.",
   "documentcontext.final_placement_check": "Konečné umiestnenie overte v {adoptedText}.",
   "documentcontext.adopted_text": "prijatom texte",
   "amendment.alternative_motion": "Alternatívny návrh",

@@ -66,3 +66,13 @@ test('caption repair rejects a competing native inner annex frame',()=>{
  const w=wording('Annex III – paragraph 1 – table on iron and steel\nRegulation (EU) 2023/956\nAnnex VIII – table Iron and Steel','‘[Iron and steel\nCN code\tGreenhouse gas\nex 7204 Ferrous waste\tCarbon dioxide'),act={paragraphs:[{text:'Regulation (EU) 2023/956 is amended as follows:',complete:true,source:{complete:true,container:'body'}}]};
  for(const source of [p,proposal(rows.filter(r=>r[0]!=='The following Annex VII is added:')),proposal(rows.filter(r=>r[0]!=='‘ANNEX VII'))]){const start=source.paragraphs.findIndex(r=>r.text==='Iron and steel');assert.notEqual(verifyPlacement({items:[{kind:'annex',proposal:source},{kind:'act',proposal:act}],wording:w,placement:replace(start,start+4,source)}).status,'verified');}
 });
+
+
+test('an annex point can address exact published table wording without the word table',()=>{
+ const p=proposal([['ANNEX I',body(1)],['(1) Earlier instruction.',body(2)],['(2) The combined products table is replaced:',body(3)],['CN code',cellPath(1,1,1)],['Greenhouse gas',cellPath(1,1,2)],['7314 Metal products',cellPath(1,2,1)],['Carbon dioxide',cellPath(1,2,2)],['ANNEX II',body(4)]]);
+ const w=wording('Annex I – point 2','CN code\tGreenhouse gas\n7314 Metal products\tCarbon dioxide');
+ assert.equal(check(w,replace(3,6,p),p).status,'verified');
+ assert.equal(check({...w,targetLabel:'Annex I – point 1'},replace(3,6,p),p).status,'unverified');
+ assert.equal(check(w,replace(3,5,p),p).status,'failed');
+ assert.notEqual(check({...w,originalText:w.originalText.replace('7314','7315')},replace(3,6,p),p).status,'verified');
+});

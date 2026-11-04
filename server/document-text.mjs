@@ -1,3 +1,4 @@
+import {distributionCandidate,requireDistributionIdentity,nativeDistributionText} from './ep-distribution-route.mjs';
 import {backfillContext} from './base-source-backfill-context.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {documentBodyHints} from './document-body-hints.mjs';
@@ -456,7 +457,7 @@ export async function downloadDocx(sourceUrl,options={}) {
   if(options.retainedDescriptor)await retainBaseObservation({url:sourceUrl,resolvedSourceUrl,fetchedAt,status:200,request:{accept:'*/*',language:options.retainedDescriptor.language},headers:{'content-type':requests.at(-1)?.response.contentType},descriptor:options.retainedDescriptor},buffer,{directory:options.directory});
   const sourceHash=createHash('sha256').update(buffer).digest('hex');
   if(sourceHash===options?.rejectedHash)throw Object.assign(invalidDocx(Error('Unchanged rejected DOCX bytes.')),{sourceHash});
-  try{return {...docxContent(buffer,{includeNoteObjects:true}),resolvedSourceUrl};}
+  try{if(options.distributionIdentity)requireDistributionIdentity([nativeDistributionText(docxParts(buffer).get('word/document.xml'))],options.distributionIdentity);return {...docxContent(buffer,{includeNoteObjects:true}),resolvedSourceUrl,...(options.distributionIdentity?{distributionIdentity:options.distributionIdentity}:{})};}
   catch(error){throw Object.assign(invalidDocx(error),{sourceHash:createHash('sha256').update(buffer).digest('hex')});}
 }
 
@@ -472,14 +473,18 @@ export function documentNotes(record) {
 async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now,cacheOnly=false,format='DOCX',selectedFile=null,collector=false,enqueue=true}={}) {
   const extractionVersion=format==='PDF'?4:EXTRACTION_VERSION;
   requestSignal()?.throwIfAborted();
-  const files=selectedFile?[selectedFile]:documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
+  const declared=documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
+  const fallback=format==='DOCX'&&!declared.length?distributionCandidate(work,language):null;
+  const candidate=fallback&&(!selectedFile||selectedFile.identityRequired&&selectedFile.url===fallback.url&&selectedFile.documentId===fallback.documentId)?fallback:null;
+  if(selectedFile?.identityRequired&&!candidate)throw new Error('Standard distribution candidate no longer matches current metadata.');
+  const files=selectedFile?[selectedFile]:candidate?[candidate]:declared;
   const languages=languagePreference(files.map(f=>f.language).filter(Boolean),language);
   const originals=array(work.originalLanguage).map(languageCode);
   const chosen=files.find(f=>f.language===languages[0]) || files[0];
   const adoptedTextXml=adoptedTextXmlSources(work,chosen?.language??language);
   const base={status:'unavailable',paragraphs:[],authorBylineParagraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],
     structureStatus:'not-extracted',paragraphSources:[],documentObjects:[],formatStatus:'not-extracted',paragraphFormats:[],tables:[],extractionVersion:null,sourceVersion:null,
-    textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?format:null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?(format==='PDF'?'official-pdf-text':'official-docx-paragraphs'):null,
+    textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:candidate?[]:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?format:null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?(format==='PDF'?'official-pdf-text':'official-docx-paragraphs'):null,
     ...(adoptedTextXml?{adoptedTextXml}:{})};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
   const sourceId=work.identifier||tail(work.id),sourceUrl=chosen.url;
@@ -495,7 +500,7 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
   const refresh=priority=> {
     if(pending.has(pendingKey))return pending.get(pendingKey);
     const job=sharedRequest(signal=>boundedUpstream(async()=>{
-      const result=await download(sourceUrl,{signal,priority,directory,retainedDescriptor:{...descriptor,url:sourceUrl,language:chosen.language,sourceId,format}});signal.throwIfAborted();if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document',sourceHash:result.sourceHash});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
+      const result=await download(sourceUrl,{signal,priority,directory,...(candidate?{distributionIdentity:candidate.documentId}:{}),retainedDescriptor:{...descriptor,url:sourceUrl,language:chosen.language,sourceId,format}});signal.throwIfAborted();if(candidate&&result.distributionIdentity!==candidate.documentId)throw new Error('Standard distribution identity proof is unavailable.');if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document',sourceHash:result.sourceHash});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
       const serialized=JSON.stringify(record);
       if(file&&collector){
         const size=Buffer.byteLength(serialized);
@@ -517,17 +522,18 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
   const previousFailure=failures.get(key);
   const changedEdition=previousFailure&&['byteSize','issued'].some(field=>descriptor[field]!==null&&descriptor[field]!==previousFailure.source?.[field]);
   const failure=changedEdition?null:previousFailure;
-  const present=async record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:await publishDocumentImages(record,{directory:collector?directory:null}),sourceHash:record.sourceHash||null,
+  const present=async record=>({...base,status:'available',...(candidate?{availableTextLanguages:[chosen.language]}:{}),paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:await publishDocumentImages(record,{directory:collector?directory:null}),sourceHash:record.sourceHash||null,
     extractionVersion:record.extractionVersion,sourceVersion:record.source?{...record.source,...(format==='PDF'?{observedByteSize:record.observedByteSize,byteSizeMatches:record.byteSizeMatches}:{} )}:null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
+  const needsIdentityProof=Boolean(candidate&&saved&&saved.distributionIdentity!==candidate.documentId);
   if(collector){
-    if(!saved||documentNeedsRefresh(saved,work,descriptor,clock())||saved.formattingVersion!==FORMATTING_VERSION) saved=await waitForRequest(refresh('background'));
+    if(!saved||needsIdentityProof||documentNeedsRefresh(saved,work,descriptor,clock())||saved.formattingVersion!==FORMATTING_VERSION) saved=await waitForRequest(refresh('background'));
     return present(saved);
   }
   if(!saved&&!cacheOnly&&enqueue)documentBodyHints.enqueue(sourceId,language);
   if(cacheOnly)return saved?present(saved):{...base,reason:'No saved document text is available.'};
   // Keep saved text readable while a background read adds formatting/byline metadata.
   if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),bylineUpgrade=documentAuthorIdentities(work).length>1&&!Array.isArray(saved.authorBylineParagraphs),reformat=format==='DOCX'&&(saved.formattingVersion!==FORMATTING_VERSION||bylineUpgrade)&&!reformatted.has(key);
-    if((stale||reformat) && (!failure || failure.retryAt<=clock())){
+    if((stale||reformat||needsIdentityProof) && (!failure || failure.retryAt<=clock())){
       if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}
       if(enqueue)documentBodyHints.enqueue(sourceId,language);
     }return {...await present(saved),stale,refreshInProgress:pending.has(pendingKey),refreshError:failure?.message || null};}
