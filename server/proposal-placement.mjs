@@ -1,5 +1,5 @@
 import {rejectionWordingScope} from './amendment-rejection.mjs';
-import {nativeInlineRowsComplete} from './proposal-inline-guard.mjs';
+import {nativeInlineRowsComplete,nativeTitleRowsComplete} from './proposal-inline-guard.mjs';
 import {quotedSectionPointInsertion} from './proposal-quoted-section.mjs';
 import {wholeAnnexInstructionPlacement} from './proposal-whole-instruction.mjs';
 import {similarPassage} from './proposal-similarity.mjs';
@@ -886,6 +886,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
           ||group[1].text.trim()!=='Proposal for a'||group[2].text.trim()!=='COUNCIL DIRECTIVE'||group[4].text.trim()!=='THE COUNCIL OF THE EUROPEAN UNION,')continue;
         if(group.some((row,n)=>!row.complete||row.source?.complete!==true||row.source.container!=='body'||n&&(row.source.ordinal!==group[n-1].source.ordinal+1||row.source.segment!==group[n-1].source.segment||row.source.containerPath!==group[n-1].source.containerPath)))continue;
         if(normal(group.slice(1,4).map(row=>row.text).join('\n'))!==normal(originalText))continue;
+        if(!nativeTitleRowsComplete(nativeProposalInputs?.[itemIndex],item.proposal.sourceHash,group))continue;
         candidates.push({itemIndex,start:group[1],end:group[3]});
       }
     }

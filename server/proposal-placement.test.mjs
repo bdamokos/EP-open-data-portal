@@ -11,14 +11,23 @@ const item=projection=>({kind:'act',index:1,proposal:parseProposal(projection)})
 const resolve=(projection,targetLabel,originalText='',proposedText='New provision.')=>resolveProposalPlacement([item(projection)],{targetLabel,originalText,proposedText,language:'en'});
 const cbamItems=['act','annex'].map(kind=>({kind,index:1,proposal:parseProposal(fixture(`52025PC0087-${kind}-excerpt.json`),{item:kind})}));
 
-test('proposal title one needs the consecutive identified heading and exact wording',()=>{
- const paragraphs=['2025/580 (CNS)','Proposal for a','COUNCIL DIRECTIVE','on a subject (recast)','THE COUNCIL OF THE EUROPEAN UNION,'];
+test('proposal title requires native proof and rejects unsupported field output',()=>{
+ const ns='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+ const values=['2025/580 (CNS)','Proposal for a','COUNCIL DIRECTIVE','on a subject (recast)','THE COUNCIL OF THE EUROPEAN UNION,'];
  const styles=['Rfrenceinterinstitutionnelle','Statut','Typedudocument','Titreobjet','Institutionquiagit'];
- const proposal={...structuredClone(parseProposal(source(paragraphs,styles))),sourceKind:'docx'};
- const wording={language:'en',baseline:'commission-proposal',targetLabel:'Title 1',originalText:paragraphs.slice(1,4).join('\n'),proposedText:'Changed title'};
- const place=()=>resolveProposalPlacement([{kind:'act',proposal}],wording);
- assert.deepEqual(place().span,{start:1,end:3});
- proposal.paragraphs[2].source.complete=false;assert.notEqual(place().status,'placed');
+ const p=(style,body)=>`<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr>${body}</w:p>`;
+ const body=values.map((v,i)=>p(styles[i],`<w:r><w:t>${v}</w:t></w:r>`));
+ const styleXml=`<w:styles xmlns:w="${ns}"><w:style w:type="character" w:styleId="CRMarker"><w:name w:val="CR Marker"/></w:style><w:style w:type="character" w:styleId="deleted"><w:name w:val="CR Deleted"/><w:rPr><w:strike/></w:rPr></w:style></w:styles>`;
+ const wording={language:'en',baseline:'commission-proposal',targetLabel:'Title 1',originalText:values.slice(1,4).join('\n'),proposedText:'Changed title'};
+ const make=rows=>{const buffer=fixtureZip({'word/document.xml':`<w:document xmlns:w="${ns}"><w:body>${rows.join('')}</w:body></w:document>`,'word/styles.xml':styleXml});return {buffer,proposal:parseProposal(buffer,{item:'act'})};};
+ const place=x=>resolveProposalPlacement([{kind:'act',proposal:x.proposal}],wording,{nativeProposalInputs:[x.buffer]});
+ const good=make(body);assert.equal(place(good).status,'placed');
+ assert.notEqual(resolveProposalPlacement([{kind:'act',proposal:good.proposal}],wording).status,'placed');
+ const fld=(instruction,result,style='')=>`<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText>${instruction}</w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r>${style?`<w:rPr><w:rStyle w:val="${style}"/></w:rPr>`:''}<w:t>${result}</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`;
+ for(const replacement of [`<w:fldSimple w:instr="DOCPROPERTY Title"><w:r><w:t>${values[3]}</w:t></w:r></w:fldSimple>`,fld('DOCPROPERTY Title',values[3]),fld('QUOTE &quot;ð&quot;',values[3])]){
+  const rows=[...body];rows[3]=p(styles[3],replacement);assert.notEqual(place(make(rows)).status,'placed');
+ }
+ const rows=[...body];rows[3]=p(styles[3],`<w:r><w:t>${values[3]}</w:t></w:r>`+fld('QUOTE &quot;ð&quot;','ð','CRMarker'));assert.equal(place(make(rows)).status,'placed');
 });
 
 test('CBAM recorded amendments 4–8 place only the changed source extent',()=>{

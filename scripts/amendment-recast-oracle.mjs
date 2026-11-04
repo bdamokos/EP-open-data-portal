@@ -108,6 +108,37 @@ export function assertRecastReading({proposal,placement,nativeQuoted}) {
   return {status:'verified',reason:'oracle-recast-reading'};
 }
 
+// Every complex marker field must contain only its own styled glyph result.
+function safeTitleFields(paragraph) {
+ let state='outside', instruction='', result='', styled=true;
+ for(const node of paragraph) {
+  if(node['w:pPr'])continue;
+  if(node['w:smartTag']&&state==='outside'){if(!safeTitleFields(node['w:smartTag']))return false;continue;}
+  if(!node['w:r'])return false;
+  const run=node['w:r'],style=value(entries(run,'w:rPr')[0]?.['w:rPr'],'w:rStyle');
+  for(const child of run) {
+   if(child['w:rPr'])continue;
+   if(child['w:fldChar']) {
+    const type=child[':@']?.['@_w:fldCharType'];
+    if(type==='begin'&&state==='outside'){state='instruction';instruction='';result='';styled=true;}
+    else if(type==='separate'&&state==='instruction')state='result';
+    else if(type==='end'&&state==='result'){
+     const match=/^\s*QUOTE\s*"([ðï])"\s*$/u.exec(instruction);
+     if(!match||!styled||result!==match[1])return false;
+     state='outside';
+    }else return false;
+   } else if(child['w:instrText']) {
+    if(state!=='instruction')return false;
+    instruction+=child['w:instrText'].map(x=>x['#text']??'').join('');
+   } else if(child['w:t']) {
+    if(state==='instruction')return false;
+    if(state==='result'){result+=child['w:t'].map(x=>x['#text']??'').join('');styled&&=style==='CRMarker';}
+   } else if(state!=='outside')return false;
+  }
+ }
+ return state==='outside';
+}
+
 // The native title, its procedure reference and the institution opening bind
 // the otherwise ambiguous published address "Title 1" to three body rows.
 export function assertNativeProposalTitle({proposal,wording,placement,nativeQuoted}) {
@@ -120,6 +151,7 @@ export function assertNativeProposalTitle({proposal,wording,placement,nativeQuot
  for(let i=1;i+3<direct.length;i++) {
   const group=direct.slice(i-1,i+4),read=group.map(([,node])=>squash(readingOf(node,source.ids)));
   const all=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,body])=>name===key?[node]:Array.isArray(body)?all(body,key):[]));
+  if(group.some(([,node])=>!safeTitleFields(node)))continue;
   if(group.some(([,node])=>['w:drawing','w:pict','w:object','m:oMath','w:fldSimple','w:footnoteReference','w:endnoteReference','w:vanish','w:webHidden'].some(name=>all(node,name).length)))continue;
   const instruction=group.flatMap(([,node])=>all(node,'w:instrText')).map(node=>(node['w:instrText']||[]).map(part=>part['#text']??'').join('')).join('');
   const fields=group.flatMap(([,node])=>all(node,'w:fldChar')).map(node=>node[':@']?.['@_w:fldCharType']);
