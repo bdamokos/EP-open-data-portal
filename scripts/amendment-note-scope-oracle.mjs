@@ -3,15 +3,16 @@ import {nativeNoteRows} from './amendment-native-note-oracle.mjs';
 const compact=text=>text.normalize('NFC').replace(/\s/gu,'');
 function column(text,formatting=[]) {
  if(typeof text!=='string')return null;
- const cuts=[...text.matchAll(/\n_{3,}[ \t]*\n/gu)];
+ const cuts=[...text.matchAll(/\n_{3,}[ \t]*(?:\n|$)/gu)];
  if(!cuts.length)return {body:text,bodyEnd:text.length,notes:[],markers:[],detached:false};
  if(cuts.length!==1)return null;
  const cut=cuts[0],body=text.slice(0,cut.index),payload=text.slice(cut.index+cut[0].length);
+ if(!payload.trim())return {body,bodyEnd:cut.index,notes:[],markers:[],detached:true};
  const markers=formatting.filter(f=>f.kind==='superscript'&&f.start<body.length).sort((a,b)=>a.start-b.start);
  let previous=0;const labels=[];
  for(const mark of markers){
   if(!Number.isSafeInteger(mark.start)||!Number.isSafeInteger(mark.end)||mark.start<previous||mark.end<=mark.start||mark.end>body.length)return null;
-  const label=/^(\d+[a-z]{0,3})\.?$/u.exec(body.slice(mark.start,mark.end))?.[1];
+  const label=/^(\d+[a-z]{0,3})(?:\.|\+)?$/u.exec(body.slice(mark.start,mark.end))?.[1];
   if(!label||labels.includes(label))return null;labels.push(label);previous=mark.end;
  }
  if(!labels.length)return null;
@@ -20,7 +21,7 @@ function column(text,formatting=[]) {
   if(!line.trim())continue;
   const header=/^\s*(\d+[a-z]{0,3})\.?\s+(.+)$/u.exec(line);
   if(header){if(notes.some(note=>note.label===header[1]))return null;notes.push({label:header[1],text:header[2]});}
-  else {if(!notes.length||/^\s*\+\s*OJ:/iu.test(line))return null;notes.at(-1).text+='\n'+line;}
+  else {if(!notes.length)return null;notes.at(-1).text+='\n'+line;}
  }
  if(labels.some(label=>!notes.some(note=>note.label===label))||notes.filter(note=>labels.includes(note.label)).map(note=>note.label).join('|')!==labels.join('|'))return null;
  return {body,bodyEnd:cut.index,notes,markers,detached:true};
@@ -60,7 +61,7 @@ export function inspectNativeNoteScope({proposal,wording,placement,nativeQuoted}
    sourceNotes.push({id:note.id,label:old.notes[i].label});
   }
  }
- const referenced=next.markers.map(mark=>next.body.slice(mark.start,mark.end).replace(/\.$/u,''));
+ const referenced=next.markers.map(mark=>next.body.slice(mark.start,mark.end).replace(/[.+]$/u,''));
  const unreferencedLabels=next.notes.filter(note=>!referenced.includes(note.label)).map(note=>note.label);
  for(const label of unreferencedLabels){const previous=old.notes.find(note=>note.label===label),retained=next.notes.find(note=>note.label===label);if(!previous||compact(previous.text)!==compact(retained.text)||!sourceNotes.some(note=>note.label===label))return fail();}
  const noteScope={kind:'word-footnotes',originalBodyEnd:old.bodyEnd,proposedBodyEnd:next.bodyEnd,sourceNotes,proposedLabels:next.notes.map(note=>note.label),unreferencedLabels};

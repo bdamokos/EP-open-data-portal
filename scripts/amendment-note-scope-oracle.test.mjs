@@ -37,3 +37,8 @@ test('native Whereas block independently binds a new negative recital before the
 test('original-only detached notes independently verify deletion and note-free replacement',()=>{
  for(const proposedText of ['deleted','(1) Changed.']){const f=fixture();f.wording.proposedText=proposedText;f.wording.proposedFormatting=[];assert.equal(inspectNativeNoteScope(f).status,'verified');f.wording.originalText=f.wording.originalText.replace('First citation.','Wrong citation.');assert.equal(inspectNativeNoteScope(f).status,'failed');}
 });
+
+test('proposed editorial instructions and empty trailing rules keep their column boundaries',()=>{
+ const f=fixture();f.placement={operation:'insert'};f.wording.originalText='';f.wording.originalFormatting=[];f.wording.proposedText='New1a+ text.\n_____\n1a Citation.\n+ OJ: Please complete the reference.';f.wording.proposedFormatting=[{kind:'superscript',start:3,end:6}];assert.equal(inspectNativeNoteScope(f).status,'verified');
+ const g=fixture();g.wording.proposedText='Changed.\n_____';g.wording.proposedFormatting=[];assert.equal(inspectNativeNoteScope(g).status,'verified');
+});
