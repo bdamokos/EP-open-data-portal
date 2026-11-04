@@ -527,7 +527,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if(headings.length===1&&end>headings[0]&&hits.length===1) {
       const start=hits[0],target=start+2,part=rows.slice(start,start+4),next=rows.findIndex((row,i)=>i>start&&i<end&&row.normal==='Rekommendation '+(Number(recommendation[1])+1));
       if(part.length===4&&part.every((row,i)=>row.complete&&row.source.container==='body'&&(!i||consecutive(part[i-1],row)))
-        &&next>target+1&&rows.slice(start+1,next).every(row=>row.complete&&row.source.container==='body')
+        &&next>target+1&&rows.slice(start+1,next).every((row,i)=>row.complete&&row.source.container==='body'&&consecutive(rows[start+i],row))
         &&rows.slice(start+1,next).filter(row=>/^1[.)]\s+\S/u.test(row.normal)).length===1
         &&/^1[.)]\s+\S/u.test(rows[target].normal)&&/^2[.)]\s+\S/u.test(rows[target+1].normal)
         &&whitespace(rows[target].value)===whitespace(options.originalText)) {

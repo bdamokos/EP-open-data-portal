@@ -22,6 +22,8 @@ test('Swedish recommendation point is resolved only within the identified annex 
  const options={language:'sv',baseline:'motion-resolution',targetLabel:'Bilaga I – rekommendation 5 – punkt 1',originalText:'1. Original;',proposedText:'1. Ändrad;'};
  const text=document(paragraphs,{textLanguage:'sv'});assert.deepEqual(resolveAmendmentPlacement(text,options).span,{start:3,end:3});
  for(const changed of [document(paragraphs.map((v,i)=>i===4?'3. Nästa;':v),{textLanguage:'sv'}),document(paragraphs,{textLanguage:'sv',sources:{3:{complete:false}}})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+ const withGap=document([...paragraphs.slice(0,5),'3. Other;',...paragraphs.slice(5)],{textLanguage:'sv',sources:{5:{ordinal:6},6:{ordinal:7},7:{ordinal:8}}});
+ assert.notEqual(resolveAmendmentPlacement(withGap,options).status,'placed');
 });
 
 test('published translated resolution labels preserve native numbering and script',()=>{
