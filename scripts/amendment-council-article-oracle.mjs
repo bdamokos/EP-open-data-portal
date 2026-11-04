@@ -90,6 +90,16 @@ function nativeUnitRange(owner,unit) {
  const value=coordinates(unit.text),at=unit.offset;
  return !Number.isSafeInteger(at)||at<0||owner.section.slice(at,at+value.length)!==value?null:{start:owner.start+at,end:owner.start+at+value.length};
 }
+function nativeUnitText(section,unit) {
+ const text=section.normalize('NFC'),end=unit.offset+coordinates(unit.text).length;let position=0,start,finish;
+ for(let i=0;i<text.length;i++){
+  if(/\s/u.test(text[i]))continue;
+  if(position===unit.offset)start=i;
+  if(++position===end){finish=i+1;break;}
+ }
+ const result=start===undefined||finish===undefined?null:text.slice(start,finish);
+ return result!==null&&coordinates(result)===coordinates(unit.text)?result:null;
+}
 export function councilArticleNativeScope(raw,wording) {
  const g=grammar[wording.language];if(!g)return null;
  const outer=label(wording.targetPath?.proposal?.[0]?.raw??String(wording.targetLabel??'').split('\n')[0],g);
@@ -101,7 +111,7 @@ export function councilArticleNativeScope(raw,wording) {
  const inner=label(refs[0].raw,g);if(!inner||inner[0].kind!=='article'||inner.length<2)return null;
  // Point leads and nested lists need a separate ordinal proof. Never count a
  // continuation as subparagraph one by dropping its labelled parent lead.
- if(inner.some((segment,index)=>segment.kind==='subparagraph'&&inner[index-1]?.kind==='point'))return null;
+ if(inner.some((segment,index)=>segment.kind==='subparagraph'&&inner[index-1]?.kind!=='paragraph'))return null;
  const document=new RegExp('^'+g.act+'\\s+(?:\\((?:EU|UE)\\)\\s+)?(\\d{4}/\\d+)$','iu').exec(refs[0].document?.replace(/\s+/gu,' ').trim()??'');if(!document)return null;
  const source=printed(raw),headers=[...source.matchAll(new RegExp('^\\s*(?:'+g.article+')\\s+(\\d+[a-z]?)\\s*$','gimu'))];
  // The first exact, unquoted article with the named act lead owns its points.
@@ -126,7 +136,12 @@ export function councilArticleNativeScope(raw,wording) {
   if(segment.suffix)break; // For insertions the final new label selects siblings below.
   if(segment.kind==='paragraph'||segment.kind==='point')units=units.flatMap(u=>children(u.text,segment.kind).map(child=>({...child,offset:u.offset+child.offset}))).filter(u=>u.value===segment.value);
   else if(segment.kind==='subparagraph')units=units.flatMap(u=>{
-   const direct=blocksWithOffsets(u.text).filter(b=>!starts(b.text,'point')),block=direct[Number(segment.value)-1];return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset}]:[];
+   // A labelled child and all its continuations need subtree ownership. Flat
+   // filtering cannot prove where that child ends. Check original native lines
+   // too, so a list without blank separators cannot hide inside a flat block.
+   const raw=nativeUnitText(section,u);
+   if(raw===null||raw.split(/\r?\n/u).slice(1).some(line=>/^[ \t]*[„“‘«»"]?(?:\([\p{L}\p{N}]+\)|[\p{L}]{1,3}[.)]|[ivxlcdm]+[.)]|\d+[.)])[ \t]+\S/iu.test(line)))return [];
+   const direct=blocksWithOffsets(u.text),block=direct[Number(segment.value)-1];return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset}]:[];
   });else return null;
  }
  return {section,followingSection,units,inner,outer,point,frame:source.slice(begin.index,begin.index+begin[0].length+end)};

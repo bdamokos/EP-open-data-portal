@@ -134,3 +134,18 @@ test('an unsupported point subparagraph cannot promote its continuation to the f
   assert.notEqual(assertCouncilDraftArticleText(native,v).status,'verified');
  }
 });
+
+test('paragraph subparagraphs with nested list subtrees remain withheld, including unlabelled child continuations',()=>{
+ for(const [a,b] of [['a)','b)'],['i)','ii)'],['(a)','(b)'],['a.','b.'],['1)','2)']])for(const separator of ['\n\n','\n']){
+  const body=`1. Paragraph lead:${separator}${a} First list item.\n\nContinuation belonging to the first list item.\n\n${b} Second list item.\n\nActual parent continuation.`;
+  const native=raw.replace('1. First native paragraph.',body),paragraphs=native.split(/\n\s*\n/u).map(text=>({text:text.replace(/\s+/gu,' ').trim()}));
+  for(const text of ['Continuation belonging to the first list item.','Actual parent continuation.']){
+   const v=fixture(),at=paragraphs.findIndex(p=>p.text===text);v.items[0].proposal.paragraphs=paragraphs;v.wording.originalText=text;v.wording.targetPath.underlying[0].raw='Article 7 – paragraph 1 – subparagraph 2';v.placement.span={start:at,end:at};v.placement.splice={start:{paragraph:at,offset:0},end:{paragraph:at,offset:text.length}};
+   assert.notEqual(assertCouncilDraftArticleText(native,v).status,'verified',`${a} with ${JSON.stringify(separator)}`);
+  }
+ }
+});
+test('a plain paragraph continuation keeps its native ordinal',()=>{
+ const text='Direct second subparagraph.',native=raw.replace('1. First native paragraph.','1. First native paragraph.\n\n'+text),v=fixture();v.items[0].proposal.paragraphs=native.split(/\n\s*\n/u).map(text=>({text:text.replace(/\s+/gu,' ').trim()}));const at=v.items[0].proposal.paragraphs.findIndex(p=>p.text===text);v.wording.originalText=text;v.wording.targetPath.underlying[0].raw='Article 7 – paragraph 1 – subparagraph 2';v.placement.span={start:at,end:at};v.placement.splice={start:{paragraph:at,offset:0},end:{paragraph:at,offset:text.length}};
+ assert.equal(assertCouncilDraftArticleText(native,v).status,'verified');
+});
