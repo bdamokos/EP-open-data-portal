@@ -1,10 +1,11 @@
 import {unnumberedTableInsertion} from './proposal-unnumbered-table.mjs';
+import {tableContextPlacement} from './proposal-table-context.mjs';
 import {rejectionWordingScope} from './amendment-rejection.mjs';
-import {nativeInlineRowsComplete} from './proposal-inline-guard.mjs';
+import {nativeInlineRowsComplete,nativeTitleRowsComplete} from './proposal-inline-guard.mjs';
 import {quotedSectionPointInsertion} from './proposal-quoted-section.mjs';
 import {wholeAnnexInstructionPlacement} from './proposal-whole-instruction.mjs';
 import {similarPassage} from './proposal-similarity.mjs';
-import {firstAnnexInsertion} from './proposal-first-annex.mjs';
+import {firstAnnexInsertion,sequentialAnnexInsertion} from './proposal-first-annex.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
@@ -264,8 +265,8 @@ function wordingNumberingMatch(target,original,candidatesFor) {
  return {...selected,match:{span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text}};
 }
 
-// A suffixed outer annex follows its complete base annex, before the next
-// published annex. Incomplete predecessors and source EOF remain unsupported.
+// A suffixed outer annex follows its base. Native headings establish an
+// interior boundary even when objects in the preceding annex are unreadable.
 function numberedAnnexInsertion(items,target,language,nativeProposalInputs) {
  const label=target.segments[0];
  if(language!=='en'||target.segments.length!==1||label.kind!=='annex'||!label.isNew||label.suffix!=='a'||!/^([IVXLCDM]+)$/u.test(label.base||''))return null;
@@ -273,10 +274,12 @@ function numberedAnnexInsertion(items,target,language,nativeProposalInputs) {
  const bases=annexes.filter(({unit})=>unit.label.value===label.base);
  if(bases.length!==1||annexes.some(({unit})=>unit.label.value.startsWith(label.base)&&/^[a-z]$/u.test(unit.label.value.slice(label.base.length))))return null;
  const base=bases[0],peers=annexes.filter(a=>a.itemIndex===base.itemIndex).sort((a,b)=>a.unit.extent.start-b.unit.extent.start),next=peers[peers.indexOf(base)+1];
- if(!next||base.unit.extent.end!==next.unit.extent.start||base.unit.pathConflict||!completeBoundary(base.proposal,base.unit)||new Set(peers.map(a=>a.unit.label.value)).size!==peers.length)return null;
- const rows=[base.proposal.paragraphs[base.unit.extent.start],base.proposal.paragraphs[next.unit.extent.start]];
- if(rows.some(row=>row.properties?.styleId!=='Annexetitre'||!row.complete||row.source?.complete!==true)||base.proposal.gaps.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=base.unit.extent.start&&gap.paragraph<base.unit.extent.end)||!nativeInlineRowsComplete(nativeProposalInputs?.[base.itemIndex],base.proposal.sourceHash,rows))return null;
- return {...base,insertBefore:next.unit.extent.start,anchor:base.unit,basis:'numbered-annex-before-next-heading'};
+ if(next&&base.unit.extent.end!==next.unit.extent.start||base.unit.pathConflict||new Set(peers.map(a=>a.unit.label.value)).size!==peers.length)return null;
+ if(!next&&(!completeBoundary(base.proposal,base.unit)||base.unit.extent.end!==base.proposal.paragraphs.length||base.proposal.gaps.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=base.unit.extent.start)))return null;
+ const rows=[base.proposal.paragraphs[base.unit.extent.start],...(next?[base.proposal.paragraphs[next.unit.extent.start]]:[])];
+ if(rows.some(row=>row.properties?.styleId!=='Annexetitre'||!row.complete||row.source?.complete!==true)||!nativeInlineRowsComplete(nativeProposalInputs?.[base.itemIndex],base.proposal.sourceHash,rows,{annexHeadings:peers.map(peer=>base.proposal.paragraphs[peer.unit.extent.start])}))return null;
+ if(!next&&!nativeInlineRowsComplete(nativeProposalInputs?.[base.itemIndex],base.proposal.sourceHash,[base.proposal.paragraphs.at(-1)],{wholeBodyAfter:true,onlyBlankAfter:true}))return null;
+ return {...base,insertBefore:next?.unit.extent.start??base.unit.extent.end,anchor:base.unit,basis:next?'numbered-annex-before-next-heading':'numbered-annex-at-end'};
 }
 
 // Amendments call a proposal's sole bare ANNEX 'Annex I'. Keep that alias
@@ -797,8 +800,9 @@ function captionDecorationProfile(items,wording) {
 }
 function annexTablePlacement(items,address,originalText,language,operation,evidence,unresolved,decoration) {
   let parsed;try{parsed=parseTargetLabel(address,language);}catch{return unresolved('target_reference_unavailable');}
-  if(!parsed.complete||parsed.segments[0]?.kind!=='annex')return unresolved('target_reference_unavailable');
-  const find=segments=>items.flatMap((item,itemIndex)=>item.kind!=='annex'?[]:proposalCandidates(item.proposal,{...parsed,segments}).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  const article=parsed.segments[0]?.kind==='article';
+  if(!parsed.complete||!['annex','article'].includes(parsed.segments[0]?.kind)||article&&(parsed.segments.length!==2||parsed.segments[1].kind!=='paragraph'))return unresolved('target_reference_unavailable');
+  const find=segments=>items.flatMap((item,itemIndex)=>(article?item.kind==='annex':item.kind!=='annex')?[]:proposalCandidates(item.proposal,{...parsed,segments}).map(unit=>({itemIndex,unit,proposal:item.proposal})));
   let candidates=find(parsed.segments);
   // A published annex point address omits the annex's sole implicit paragraph.
   if(!candidates.length&&parsed.segments[1]?.kind==='point'){
@@ -843,6 +847,12 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
     for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>rows[i+offset].cells.length===line.length&&rows[i+offset].cells.every((value,index)=>value===line[index])))starts.push(i);
   }
   if(starts.length!==1)return unresolved(starts.length?'duplicate_target_label':'conflicting_target_evidence');
+  if(article){
+    const run=rows.slice(starts[0],starts[0]+lines.length),key=run[0]?.key&&tableOf(run[0].key);
+    if(!key||run.some(row=>!row.key||tableOf(row.key)!==key)||rows[starts[0]-1]?.key&&tableOf(rows[starts[0]-1].key)===key||rows[starts[0]+lines.length]?.key&&tableOf(rows[starts[0]+lines.length].key)===key)return unresolved('source_structure_unavailable');
+    const geometry=flat(proposal.units).filter(unit=>unit.table).flatMap(unit=>[unit.table,...(unit.table.nestedTables??[])]).filter(table=>table.sourcePath===key);
+    if(geometry.length!==1||geometry[0].complete!==true||!Array.isArray(geometry[0].rows)||geometry[0].rows.length!==run.length||rowOf(run[0].key)!==1||rowOf(run.at(-1).key)!==geometry[0].rows.length)return unresolved('source_structure_unavailable');
+  }
   if(repaired){
     const run=rows.slice(starts[0],starts[0]+lines.length),before=rows.slice(0,starts[0]),heading=before.findLastIndex(row=>!row.key&&/^ANNEX [IVXLC]+$/u.test(row.cells[0]));
     const scopeRows=before.slice(heading).filter(row=>!row.key),prefix=scopeRows.slice(1).map(row=>row.cells[0]),tableKey=run[1]?.key&&tableOf(run[1].key);
@@ -853,7 +863,7 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   if(matched.some(row=>!row.complete||!row.source||row.source.complete===false))return unresolved('source_passage_incomplete');
   const first=matched[0],last=matched.at(-1);
   evidence.push({basis:repaired?'annex-table-caption-decoration':'annex-table-rows',anchor:unit.id,rows:lines.length});
-  return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:matched.map(row=>row.text).join('\n'),evidence};
+  return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:article?originalText:matched.map(row=>row.text).join('\n'),evidence};
 }
 
 function preambleCitationPlacement(items,label,operation,originalText,evidence,unresolved) {
@@ -897,7 +907,7 @@ function negativeArticlePlacement(items,proposedText,language,evidence,unresolve
   return {operation:'insert',status:'placed',itemIndex:first.itemIndex,insertAfter:unit.extent.start-1,insertBefore:unit.extent.start,evidence};
 }
 
-export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline,documentReferences}={}, {nativeProposalInputs}={}) {
+export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline,documentReferences,number,listId}={}, {nativeProposalInputs}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
   const mixedScope=amendmentMixedLanguageScope({originalText,proposedText,language});
@@ -909,6 +919,10 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if([originalText,proposedText].some(text=>text.includes('\uFFFC')))return unresolved('math_comparison_unavailable');
   const unnumbered=unnumberedTableInsertion(items,{originalText,proposedText,targetLabel,targetPath,language,baseline});
   if(unnumbered)return unnumbered;
+  const tableContext=operation==='replace'?tableContextPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences},nativeProposalInputs):null;if(tableContext)return tableContext;
+  if(operation==='replace'&&documentReferences?.some(ref=>ref.basis==='caption-before-original-heading'))return unresolved('conflicting_target_evidence');
+  const sequence=sequentialAnnexInsertion(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences,number,listId},nativeProposalInputs);
+  if(sequence)return sequence.status==='placed'?{...sequence,evidence:[...evidence,...sequence.evidence]}:unresolved(sequence.reason);
   const firstAnnex=firstAnnexInsertion(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences},nativeProposalInputs);
   if(firstAnnex)return firstAnnex.reason?unresolved(firstAnnex.reason):firstAnnex;
   // Lists without structured location tags still publish the location as a
@@ -917,6 +931,27 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(paths&&paths.length!==1)return unresolved('target_reference_unavailable');
   // A structured underlying-act target without a proposal address is not an outer location.
   if(!paths&&targetPath?.underlying?.length)return unresolved('target_reference_unavailable');
+  // This title is a contiguous three-row act heading after the procedure
+  // reference, not one of the separately numbered chapters or articles.
+  if(language==='en'&&baseline==='commission-proposal'&&operation==='replace'&&targetLabel==='Title 1'&&!targetPath?.underlying?.length) {
+    const candidates=[];
+    for(const [itemIndex,item] of items.entries()) {
+      if(item.kind==='annex'||item.proposal?.sourceKind!=='docx')continue;
+      const paragraphs=item.proposal.paragraphs;
+      for(let i=1;i+3<paragraphs.length;i++) {
+        const group=paragraphs.slice(i-1,i+4),styles=group.slice(1,4).map(row=>row.properties?.styleId);
+        if(styles.join('|')!=='Statut|Typedudocument|Titreobjet'||!/^\d{4}\/\d+ \(CNS\)$/u.test(group[0].text.trim())
+          ||group[1].text.trim()!=='Proposal for a'||group[2].text.trim()!=='COUNCIL DIRECTIVE'||group[4].text.trim()!=='THE COUNCIL OF THE EUROPEAN UNION,')continue;
+        if(group.some((row,n)=>!row.complete||row.source?.complete!==true||row.source.container!=='body'||n&&(row.source.ordinal!==group[n-1].source.ordinal+1||row.source.segment!==group[n-1].source.segment||row.source.containerPath!==group[n-1].source.containerPath)))continue;
+        if(normal(group.slice(1,4).map(row=>row.text).join('\n'))!==normal(originalText))continue;
+        if(!nativeTitleRowsComplete(nativeProposalInputs?.[itemIndex],item.proposal.sourceHash,group))continue;
+        candidates.push({itemIndex,start:group[1],end:group[3]});
+      }
+    }
+    if(candidates.length!==1)return unresolved('target_not_found');
+    const {itemIndex,start,end}=candidates[0];evidence.push({basis:'published-proposal-title'});
+    return {operation,status:'placed',itemIndex,span:{start:start.index,end:end.index},splice:{start:{paragraph:start.index,offset:0},end:{paragraph:end.index,offset:end.text.length}},originalText,evidence};
+  }
   const instruction=wholeAnnexInstructionPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences,operation},unresolved,nativeProposalInputs);
   if(instruction)return instruction;
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
@@ -925,7 +960,11 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   // is enough to scope an exact table match, without an extra table suffix.
   const matrix=language==='en'&&baseline==='commission-proposal'&&operation==='replace'&&originalText.includes('\t')&&originalText.includes('\n')&&/^Annex [IVXLC]+ – point [1-9]\d*$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
   if(matrix)return annexTablePlacement(items,matrix[0],originalText,language,operation,evidence,unresolved);
-  let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
+  const articleTable=language==='en'&&operation!=='insert'&&/^(Article [1-9]\d* – paragraph [1-9]\d*) – table$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0]);
+  if(articleTable&&!targetPath?.underlying?.length)return annexTablePlacement(items,articleTable[1],originalText,language,operation,evidence,unresolved,null);
+  const targetRaw=paths?.[0]?.raw??targetLabel;
+  const outerAnnexRaw=language==='en'&&/^Annex [IVXLCDM]+\s*a \(new\) [-–—] table$/u.test(targetRaw?.split('\n')[0]??'')?targetRaw.replace(/(\(new\)) [-–—] table/u,'$1'):targetRaw;
+  let target;try{target=parseTargetLabel(outerAnnexRaw,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
   // A source with no printed paragraph numbers is addressed by native row
@@ -1032,7 +1071,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
-    const insertion=numberedAnnexInsertion(items,target,language,nativeProposalInputs)??bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,proposedText);
+    const insertion=(originalText===''&&baseline==='commission-proposal'?newParentChildInsertion(items,target,candidatesFor,eligible):null)??numberedAnnexInsertion(items,target,language,nativeProposalInputs)??bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,proposedText);
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
@@ -1109,4 +1148,22 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(candidates.length===1&&selected.unit.pathConflict&&!uniqueDocumentWording(selected.proposal,originalText))return unresolved('multiple_published_targets');
   evidence.push({basis:selected.match.similarity!==undefined?'unique-similar-original':candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id,...(selected.match.similarity!==undefined?{matchKind:'similar',similarity:selected.match.similarity}:{})});
   return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
+}
+
+// A new child under an absent Na occupies the same N/N+1 boundary as Na.
+// This places the amendment independently; it does not synthesize parent text.
+function newParentChildInsertion(items,target,candidatesFor,eligible) {
+  const path=target.segments,parent=path.at(-2),child=path.at(-1);
+  if(!parent||!child?.isNew||parent.suffix!=='a'||!/^\d+a$/u.test(parent.value)||!['article','point'].includes(parent.kind)||!['paragraph','point'].includes(child.kind)||candidatesFor(path.slice(0,-1)).length)return null;
+  const basePath=[...path.slice(0,-2),{...parent,value:String(parent.number),suffix:'',isNew:false}],nextPath=[...path.slice(0,-2),{...parent,value:String(parent.number+1),base:String(parent.number+1),number:parent.number+1,suffix:'',isNew:false}];
+  const bases=candidatesFor(basePath),next=candidatesFor(nextPath);
+  if(bases.length!==1||next.length!==1||bases[0].itemIndex!==next[0].itemIndex||bases[0].unit.pathConflict||next[0].unit.pathConflict)return null;
+  const a=bases[0],b=next[0];
+  if(a.unit.extent.end!==b.unit.extent.start||!completeBoundary(a.proposal,a.unit)||!completeBoundary(b.proposal,b.unit))return null;
+  const rows=a.proposal.paragraphs.slice(a.unit.extent.start,b.unit.extent.start+1);
+  if(rows.some((row,i)=>row.source?.container!=='body'||row.source?.complete===false||!row.complete||i&&(row.source.ordinal!==rows[i-1].source.ordinal+1||row.source.containerPath!==rows[i-1].source.containerPath||row.source.segment!==rows[i-1].source.segment)))return null;
+  const synthetic={...target,segments:[...path.slice(0,-2),{...parent,isNew:true}]};
+  const insertion=insertionPlacement(items,synthetic,candidatesFor,eligible);
+  if(insertion.reason||insertion.itemIndex!==a.itemIndex||insertion.insertBefore!==b.unit.extent.start)return null;
+  return {...insertion,basis:'new-parent-child-boundary'};
 }

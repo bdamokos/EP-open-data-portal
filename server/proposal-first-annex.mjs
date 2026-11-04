@@ -49,6 +49,11 @@ export function firstAnnexInsertion(items,wording,nativeProposalInputs) {
  const unavailable=()=>({reason:'source_structure_unavailable'}),lines=wording.proposedText?.split('\n')||[];
  const classes=(wording.documentReferences||[]).filter(ref=>ref.field==='DocumentClass'&&ref.scope==='amendment');if(classes.length!==1||classes[0].raw!=='Proposal for a regulation')return unavailable();
  if(wording.language!=='en'||wording.baseline!=='commission-proposal'||wording.targetPath?.underlying?.length||wording.targetPath?.proposal?.length&&(wording.targetPath.proposal.length!==1||wording.targetPath.proposal[0].raw!==wording.targetLabel)||items.length!==1||items[0].kind!=='act'||items[0].proposal.sourceKind!=='docx'||lines.length<3||!/^ANNEX(?: (?:1|I))?$/u.test(lines[0])||lines.some(line=>!line.trim())||lines.slice(1).some(line=>/^ANNEX\b/u.test(line))||/[\u2026]|\.{3}|\uFFFC/u.test(wording.proposedText)||label[1]&&trim(label[1]).toUpperCase()!==trim(lines[1]).toUpperCase())return unavailable();
+ return annexSignatureBoundary(items,nativeProposalInputs);
+}
+export function annexSignatureBoundary(items,nativeProposalInputs) {
+ const unavailable=()=>({reason:'source_structure_unavailable'});
+ if(items?.length!==1||items[0].kind!=='act'||items[0].proposal?.sourceKind!=='docx')return unavailable();
  const proposal=items[0].proposal,buffer=nativeProposalInputs?.[0];
  if(!Buffer.isBuffer(buffer)||buffer.length>8*1024*1024||createHash('sha256').update(buffer).digest('hex')!==proposal.sourceHash)return unavailable();
  try {
@@ -67,4 +72,15 @@ export function firstAnnexInsertion(items,wording,nativeProposalInputs) {
   if(coordinates.some((row,i)=>i&&(row.index!==coordinates[i-1].index+1||row.source.ordinal!==coordinates[i-1].source.ordinal+1)))return unavailable();
   return {operation:'insert',status:'placed',itemIndex:0,insertAfter:coordinates[2].index,insertBefore:coordinates[3].index,evidence:[{basis:'first-annex-before-financial-statement',anchor:rows[2].path}]};
  }catch{return unavailable();}
+}
+
+export function sequentialAnnexInsertion(items,wording,nativeProposalInputs) {
+ const refs=wording.documentReferences?.filter(ref=>ref.field==='PrecedingAnnex')??[];
+ if(!refs.length)return null;
+ const unavailable=()=>({reason:'source_structure_unavailable'}),classes=wording.documentReferences?.filter(ref=>ref.field==='DocumentClass'&&ref.scope==='amendment')??[],range=wording.listId?.match(/-AM-(\d+)-(\d+)$/u),lines=wording.proposedText?.split('\n')??[];
+ if(wording.language!=='en'||wording.baseline!=='commission-proposal'||wording.originalText!==''||!/^Annex (?:2|II)(?: \(new\))?(?: [–-] [^\n\t]+)?$/u.test(wording.targetLabel??'')||classes.length!==1||classes[0].raw!=='Proposal for a regulation'||!Number.isSafeInteger(wording.number)||wording.number<2||refs.length!==1||refs[0].scope!=='amendment'||refs[0].basis!=='native-annex-order'||refs[0].raw!==String(wording.number-1)||!/^Annex(?: (?:1|I))?(?: \(new\))?(?: [–-] [^\n\t]+)?$/u.test(refs[0].sourceRaw??'')||!range||Number(range[1])>wording.number-1||Number(range[2])<wording.number||wording.targetPath?.underlying?.length||wording.targetPath?.proposal?.length&&(wording.targetPath.proposal.length!==1||wording.targetPath.proposal[0].raw!==wording.targetLabel)||lines.length<4||!/^ANNEX(?: (?:2|II))?$/u.test(lines[0])||!/[.:]$/u.test(lines[1])||/[\u2026]|\.{3}|\uFFFC/u.test(wording.proposedText))return unavailable();
+ const rows=lines.slice(2).map(line=>line.split('\t')),count=rows[0].length;
+ if(count<2||count>20||rows[0].some(cell=>!cell.trim())||rows.some(row=>row.length!==count||!row.some(cell=>cell.trim())))return unavailable();
+ const boundary=annexSignatureBoundary(items,nativeProposalInputs);
+ return boundary.status==='placed'?{...boundary,evidence:[...boundary.evidence,{basis:'sequential-new-annex',reference:String(wording.number-1),label:refs[0].sourceRaw}]}:boundary;
 }

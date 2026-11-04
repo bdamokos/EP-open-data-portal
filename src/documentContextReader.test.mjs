@@ -1491,3 +1491,47 @@ test('links outside the expected hosts or for another amendment are not shown, a
     assert.equal(h.container.querySelector('.provisional-links'),null);
   });
 });
+
+test('table-level amendments retain every source cell and show the comparison before the table',async t=>{
+  const placement={operation:'replace',status:'placed',itemIndex:0,span:{start:3,end:6},evidence:[{basis:'table-level-elision',label:'Aluminium'}]};
+  const {item}=await tableReader(t,'Aluminium\nCN code\tGreenhouse gas\n…\t…','Aluminium\nCN code\tGreenhouse gas\n…\t…\n7603 New row\tCarbon dioxide',placement);
+  const blocks=item.querySelectorAll('[data-amendment-block]');assert.equal(blocks.length,1);
+  assert.match(blocks[0].textContent,/Table-level amendment\./);
+  assert.equal(blocks[0].nextElementSibling.querySelector('table').className,'proposal-table');
+  assert.deepEqual([...item.querySelectorAll('.proposal-table td')].map(cell=>cell.textContent),['CN code','Greenhouse gas','ex 7602 Aluminium waste','Carbon dioxide']);
+});
+
+test('resolution boundary notes remain with the insertion and preserve the source on both sides',async t=>{
+  const data=overlayResponse({insertAfter:1,insertBefore:2});
+  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','– First citation,','– Existing second citation,','1. Source paragraph;']});
+  data.placement.evidence=[{basis:'citation-number-collision'}];
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  let block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/Placed before the existing citation\./);assert.match(block.previousElementSibling.textContent,/First citation/);assert.match(block.nextElementSibling.textContent,/Existing second citation/);
+});
+
+test('resolution boundary note follows the paragraph lead before its heading',async t=>{
+  const data=overlayResponse({insertAfter:1,insertBefore:2});
+  data.placement.evidence=[{basis:'first-numeric-point-in-lettered-list'}];
+  const h=await harness(t,()=>data);
+  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','1. Paragraph lead:','Topic heading','a) First source point;']});
+  await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/Placed after the paragraph lead\./);assert.match(block.previousElementSibling.textContent,/Paragraph lead/);assert.match(block.nextElementSibling.textContent,/Topic heading/);
+});
+
+test('new-paragraph formula gap remains labelled with its native source link',async t=>{
+  const value=proposalContextResponse(report,amendment,list),variant=value.amendment.variants[0];
+  variant.gaps=[{code:'formula-not-shown'}];variant.source={url:source};
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]'),notice=block.querySelector('.document-context-notice');
+  assert.match(notice.textContent,/Formula not shown\./);
+  assert.equal(notice.querySelector('a').href,source);
+  assert(block.textContent.includes(variant.originalText.slice(0,30)));
+});
+
+test('a successive new annex names its preceding amendment in the reader',async t=>{
+  const value=proposalContextResponse(report,amendment,list);value.placement.evidence.push({basis:'sequential-new-annex',reference:'39',label:'Annex 1 - Indicators'});
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert.match(h.container.querySelector('[data-amendment-block]').textContent,/Follows Amendment 39 in amendment order\./);
+});

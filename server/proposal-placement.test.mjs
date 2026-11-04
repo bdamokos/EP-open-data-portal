@@ -11,6 +11,25 @@ const item=projection=>({kind:'act',index:1,proposal:parseProposal(projection)})
 const resolve=(projection,targetLabel,originalText='',proposedText='New provision.')=>resolveProposalPlacement([item(projection)],{targetLabel,originalText,proposedText,language:'en'});
 const cbamItems=['act','annex'].map(kind=>({kind,index:1,proposal:parseProposal(fixture(`52025PC0087-${kind}-excerpt.json`),{item:kind})}));
 
+test('proposal title requires native proof and rejects unsupported field output',()=>{
+ const ns='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+ const values=['2025/580 (CNS)','Proposal for a','COUNCIL DIRECTIVE','on a subject (recast)','THE COUNCIL OF THE EUROPEAN UNION,'];
+ const styles=['Rfrenceinterinstitutionnelle','Statut','Typedudocument','Titreobjet','Institutionquiagit'];
+ const p=(style,body)=>`<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr>${body}</w:p>`;
+ const body=values.map((v,i)=>p(styles[i],`<w:r><w:t>${v}</w:t></w:r>`));
+ const styleXml=`<w:styles xmlns:w="${ns}"><w:style w:type="character" w:styleId="CRMarker"><w:name w:val="CR Marker"/></w:style><w:style w:type="character" w:styleId="deleted"><w:name w:val="CR Deleted"/><w:rPr><w:strike/></w:rPr></w:style></w:styles>`;
+ const wording={language:'en',baseline:'commission-proposal',targetLabel:'Title 1',originalText:values.slice(1,4).join('\n'),proposedText:'Changed title'};
+ const make=rows=>{const buffer=fixtureZip({'word/document.xml':`<w:document xmlns:w="${ns}"><w:body>${rows.join('')}</w:body></w:document>`,'word/styles.xml':styleXml});return {buffer,proposal:parseProposal(buffer,{item:'act'})};};
+ const place=x=>resolveProposalPlacement([{kind:'act',proposal:x.proposal}],wording,{nativeProposalInputs:[x.buffer]});
+ const good=make(body);assert.equal(place(good).status,'placed');
+ assert.notEqual(resolveProposalPlacement([{kind:'act',proposal:good.proposal}],wording).status,'placed');
+ const fld=(instruction,result,style='')=>`<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText>${instruction}</w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r>${style?`<w:rPr><w:rStyle w:val="${style}"/></w:rPr>`:''}<w:t>${result}</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`;
+ for(const replacement of [`<w:fldSimple w:instr="DOCPROPERTY Title"><w:r><w:t>${values[3]}</w:t></w:r></w:fldSimple>`,fld('DOCPROPERTY Title',values[3]),fld('QUOTE &quot;ð&quot;',values[3])]){
+  const rows=[...body];rows[3]=p(styles[3],replacement);assert.notEqual(place(make(rows)).status,'placed');
+ }
+ const rows=[...body];rows[3]=p(styles[3],`<w:r><w:t>${values[3]}</w:t></w:r>`+fld('QUOTE &quot;ð&quot;','ð','CRMarker'));assert.equal(place(make(rows)).status,'placed');
+});
+
 test('CBAM recorded amendments 4–8 place only the changed source extent',()=>{
   const amendments=fixture('proposal-placement-cbam.json').amendments;
   assert.deepEqual(amendments.map(amendment=>amendment.number),[4,5,6,7,8]);
@@ -523,6 +542,17 @@ function sourceTables(rows,widths={}) {
   return [...tables].map(([tbl,t])=>({sourcePath:`/w:document[1]/w:body[1]/w:tbl[${tbl}]`,paragraphs:[...t.values()].flatMap(r=>[...r.values()].flat()),complete:true,
     rows:[...t.values()].map(r=>{const width=Math.max(...r.keys(),widths[tbl]??0);return {cells:Array.from({length:width},(_,i)=>({paragraphs:r.get(i+1)??[],colSpan:1}))};})}));
 }
+
+test('an article table must cover all complete cells in its addressed paragraph',()=>{
+ const rows=[['Article 20','Titrearticle','body'],['2. The following applies:','ManualNumPar1','body'],['(a)','Normal','cell',1,1,1],['Cigars','Normal','cell',1,1,2],['(b)','Normal','cell',1,2,1],['Other','Normal','cell',1,2,2],['3. Next paragraph.','ManualNumPar1','body'],['Article 21','Titrearticle','body']];
+ const projection={paragraphs:rows.map(r=>r[0]),structureStatus:'extracted',paragraphSources:rows.map((r,ordinal)=>r[2]==='cell'?{path:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`,ordinal,container:'table-cell',containerPath:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]`,segment:ordinal,complete:true}:{path:`/w:document[1]/w:body[1]/w:p[${ordinal+1}]`,ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true}),paragraphProperties:rows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(rows)};
+ const proposal=parseProposal(projection),items=[{kind:'act',proposal}],w={language:'en',targetLabel:'Article 20 – paragraph 2 – table',originalText:'(a)\tCigars\n(b)\tOther',proposedText:'Changed'};
+ const result=resolveProposalPlacement(items,w);assert.deepEqual(result.span,{start:2,end:5});assert.equal(result.originalText,w.originalText);
+ assert.notEqual(resolveProposalPlacement(items,{...w,originalText:'(a)\tCigars'}).status,'placed');
+ assert.notEqual(resolveProposalPlacement(items,{...w,targetLabel:'Article 20 – paragraph 1 – table'}).status,'placed');
+ const flatten=units=>units.flatMap(u=>[u,...flatten(u.children??[])]);const find=units=>flatten(units).find(u=>u.table)?.table;
+ for(const at of ['start','end']){const changed=structuredClone(proposal),table=find(changed.units),empty={cells:[{paragraphs:[],colSpan:1},{paragraphs:[],colSpan:1}]};if(at==='start')table.rows.unshift(empty);else table.rows.push(empty);assert.notEqual(resolveProposalPlacement([{kind:'act',proposal:changed}],w).status,'placed');}
+});
 
 // A-10-2026-0201 AM107/AM112: cell-exact table rows inside the addressed annex provision.
 test('annex table addresses replace a unique cell-exact run of rows',()=>{

@@ -1,9 +1,15 @@
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
 import {assertResolutionCollision} from './amendment-resolution-collision-oracle.mjs';
 import {assertLocalRecitalBoundary} from './amendment-local-recital-oracle.mjs';
+import {assertPlaceholderDeletion} from './amendment-placeholder-oracle.mjs';
+import {assertNewParentBoundary} from './amendment-benchmark-proposal-oracle.mjs';
+import {assertCaptionedComparison} from './amendment-captioned-comparison-oracle.mjs';
+import {assertTableContext} from './amendment-table-context-oracle.mjs';
+import {assertResolutionBoundaryInsertion} from './amendment-resolution-boundary-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
-import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
+import {assertFirstAnnex,assertSequentialAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
+import {assertFormulaGap} from './amendment-formula-gap-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
 import {assertBareAnnexInsertion,assertNumberedAnnexInsertion} from './amendment-annex-oracle.mjs';
@@ -31,7 +37,7 @@ import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-ben
 import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,assertMixedRecital,assertTerminalIndent,assertSwedishRecommendation,assertResolutionLead} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
-import {assertRecastReading} from './amendment-recast-oracle.mjs';
+import {assertRecastReading,assertNativeProposalTitle} from './amendment-recast-oracle.mjs';
 import {assertRecitalCategoryRepair} from './amendment-recital-category-oracle.mjs';
 
 
@@ -411,6 +417,31 @@ function rawLogicalRows(proposal) {
   });
   return rows;
 }
+// Reconstruct a whole table from cell paths inside the literal article and
+// paragraph headings. This assertion never reads placer units or evidence.
+function verifyArticleTable({proposal,wording,placement}) {
+ const match=/^Article ([1-9]\d*) – paragraph ([1-9]\d*) – table$/u.exec(wording.targetLabel||'');
+ if(!match||wording.language!=='en'||!['replace','delete'].includes(placement.operation))return null;
+ const unknown={status:'unverified',reason:'oracle-article-table-unavailable'}, rows=rawLogicalRows(proposal);if(!rows)return unknown;
+ const articles=rows.flatMap((row,i)=>!row.key&&row.cells[0]==='Article '+match[1]?[i]:[]);if(articles.length!==1)return unknown;
+ const start=articles[0],nextArticle=rows.findIndex((row,i)=>i>start&&!row.key&&/^Article \d+[a-z]*$/u.test(row.cells[0]));
+ if(nextArticle<0)return unknown;
+ const owners=rows.flatMap((row,i)=>i>start&&i<nextArticle&&!row.key&&new RegExp('^'+match[2]+'[.)]\\s','u').test(row.cells[0])?[i]:[]);
+ if(owners.length!==1)return unknown;
+ const lines=String(wording.originalText||'').split('\n').map(line=>line.split('\t').map(rawCell)),at=owners[0]+1,run=rows.slice(at,at+lines.length);
+ if(!lines.length||run.length!==lines.length||run.some((row,i)=>!row.key||row.broken||i&&row.gapBefore||row.cells.length!==lines[i].length||row.cells.some((cell,j)=>cell!==lines[i][j])))return unknown;
+ const table=row=>row?.key?.replace(/\/w:tr\[\d+\]$/u,'');const key=table(run[0]);
+ const end=rows.findIndex((row,i)=>i>owners[0]&&i<nextArticle&&!row.key&&/^[1-9]\d*[.)]\s/u.test(row.cells[0]));
+ const limit=end<0?nextArticle:end,tableKeys=new Set(rows.slice(owners[0]+1,limit).filter(row=>row.key).map(table));
+ if(tableKeys.size!==1||!tableKeys.has(key))return unknown;
+ if(run.some(row=>table(row)!==key)||table(rows[at-1])===key||table(rows[at+run.length])===key||at+run.length>nextArticle)return unknown;
+ const geometry=[];const scan=units=>{for(const unit of units??[]){if(unit.table)geometry.push(unit.table,...(unit.table.nestedTables??[]));scan(unit.children);}};scan(proposal.units);
+ const matches=geometry.filter(value=>value.sourcePath===key),number=row=>Number(/\/w:tr\[(\d+)\]$/u.exec(row.key)?.[1]);
+ if(matches.length!==1||matches[0].complete!==true||!Array.isArray(matches[0].rows)||matches[0].rows.length!==run.length||number(run[0])!==1||number(run.at(-1))!==matches[0].rows.length)return unknown;
+ const first=run[0].indexes[0],last=run.at(-1).indexes.at(-1),endText=proposal.paragraphs[last]?.text??'';
+ if(placement.span?.start!==first||placement.span?.end!==last||placement.splice?.start?.paragraph!==first||placement.splice.start.offset!==0||placement.splice?.end?.paragraph!==last||placement.splice.end.offset!==endText.length)return fail('oracle-article-table-boundary-mismatch');
+ return verified('oracle-article-table-rows');
+}
 function rawCaptionDecoration(wording,items,proposal){
   if(wording.baseline!=='commission-proposal'||items?.length!==2||items.filter(item=>item.kind==='act').length!==1||items.filter(item=>item.kind==='annex'&&item.proposal===proposal).length!==1||wording.targetPath?.underlying?.length)return null;
   const path=/^Annex ([IVXLC]+) – paragraph 1 – table on ([^\r\n]+)\n(Regulation \((?:EU|EC)\) \d{4}\/\d+)\nAnnex ([IVXLC]+) – table ([^\r\n]+)$/u.exec(wording.targetLabel||''),caption=/^‘\[([^\r\n\t\[\]]+)\r?\nCN code\tGreenhouse gas\r?\n/u.exec(wording.originalText||'');
@@ -465,6 +496,7 @@ function verifyAnnexTable({proposal,wording,placement,items}) {
 function verifyResolutionInsertion(text,wording,target,placement) {
   const mixed=assertMixedRecital({text,wording,placement});
   if(mixed.status!=='unverified')return mixed;
+  const boundary=assertResolutionBoundaryInsertion({text,wording,placement});if(boundary)return boundary;
   const label=target.segments.at(-1);
   if(label.kind==='recital'&&label.isNew&&target.segments.length===1) {
     const raw=rawResolutionUnits(text,wording.language),recitals=raw.units.filter(unit=>unit.kind==='recital');
@@ -569,6 +601,8 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const captioned=assertCaptionedComparison(input);if(captioned&&captioned.status!=='verified')return captioned;
+  const formula=assertFormulaGap(input);if(formula&&formula.status!=='verified')return formula;
   const header=assertCompoundHeader(input);
   if(header&&header.status!=='verified')return header;
   const result=verifyProposalPlacement(input);
@@ -611,11 +645,15 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const numberedAnnex=assertNumberedAnnexInsertion(items,wording,placement,nativeQuoted);
   if(numberedAnnex)return numberedAnnex;
   if(!items?.length&&wording.language==='sv'&&/^Bilaga I – rekommendation [1-9]\d* – punkt 1$/u.test(wording.targetLabel||''))return assertSwedishRecommendation({text,wording,placement});
+  if(items?.length&&wording.targetLabel==='Title 1')return assertNativeProposalTitle({proposal:items[placement.itemIndex]?.proposal,wording,placement,nativeQuoted});
+  const tableContext=assertTableContext({items,wording,placement,nativeQuoted});if(tableContext)return tableContext;
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
   const tableEnd=assertUnnumberedTable({proposal,wording,placement,nativeQuoted,voteReferences});
   if(tableEnd.status!=='unverified')return tableEnd;
+  const newParent=assertNewParentBoundary({proposal,wording,placement});if(newParent.status!=='unverified')return newParent;
+  const sequence=assertSequentialAnnex({proposal,items,wording,placement,nativeQuoted});if(sequence)return sequence;
   const firstAnnex=assertFirstAnnex({proposal,items,wording,placement,nativeQuoted});
   if(firstAnnex)return firstAnnex;
   if(proposal) {
@@ -631,6 +669,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   if(instruction)return instruction;
   const table=proposal?verifyAnnexTable({proposal,wording,placement,items}):null;
   if(table)return table;
+  const articleTable=proposal?verifyArticleTable({proposal,wording,placement}):null;
+  if(articleTable)return articleTable;
 
   if(proposal&&placement.operation==='insert'&&target.segments.at(-1)?.kind==='subparagraph')return rawProposalAssertion({proposal,wording,placement});
   const chapter=assertChapterTitle({proposal,wording,placement});
@@ -654,6 +694,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const annexIndent=assertBareAnnexIndent({items,proposal,wording,placement,nativeQuoted});
   if(annexIndent.status!=='unverified')return annexIndent;
   if(!proposal){const lead=assertResolutionLead({text,wording,placement});if(lead.status!=='unverified')return lead;}
+  if(!proposal){const placeholder=assertPlaceholderDeletion({text,wording,placement});if(placeholder.status!=='unverified')return placeholder;}
   if(!proposal){const pointNear=assertResolutionPointSimilarity({text,wording,placement});if(pointNear.status!=='unverified')return pointNear;}
   if(!proposal) {
     const category=assertRecitalCategoryRepair({text,wording,placement});

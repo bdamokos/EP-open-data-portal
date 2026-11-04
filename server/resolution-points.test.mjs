@@ -84,3 +84,9 @@ test('a damaged competing point retains matching continuations before an opaque 
  const placement=nearPlace(t);assert.equal(placement.status,'unresolved');
  const forced={status:'placed',operation:'replace',span:{start:2,end:3}};assert.notEqual(verifyPlacement({text:t,wording:nearWording,placement:forced}).status,'verified');
 });
+
+test('published decision comparisons use the same bounded exact point near-match',()=>{
+ const text=nearFixture(),options={...nearWording,baseline:'unknown',resolutionDocument:true,documentReferences:[{field:'DocAmend',raw:'Proposal for a decision'}],baselineSource:{headings:[{left:{raw:'Proposal for a decision'},right:{raw:'Amendment'}}]}};
+ assert.equal(nearPlace(text,options).status,'placed');
+ for(const patch of [{resolutionDocument:false},{documentReferences:[]},{baselineSource:{headings:[]}},{baseline:'commission-proposal'}])assert.equal(nearPlace(text,{...options,...patch}).status,'unresolved');
+});

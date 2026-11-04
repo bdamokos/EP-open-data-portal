@@ -4,7 +4,7 @@
 const compact = value => value.normalize('NFC').replace(/\s/gu, '');
 
 export function resolutionFootnoteMatch(text, start, end, original, formatting) {
-  const divider = /\n_{5,}\s*\n/u.exec(original ?? '') || /\n(?=[1-9]\d*\.\s+)/u.exec(original ?? '');
+  const divider = /\n_{5,}\s*\n/u.exec(original ?? '') || /\n(?=\s*[1-9]\d*\.\s+\S)/u.exec(original ?? '');
   if (!divider || text?.notesStatus !== 'extracted') return false;
   const rows = text.paragraphs.slice(start, end + 1);
   if (!rows.length || /\n_{5,}\s*\n/u.test(rows.join('\n'))) return false;

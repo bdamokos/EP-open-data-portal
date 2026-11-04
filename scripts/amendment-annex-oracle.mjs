@@ -51,7 +51,7 @@ export function assertBareAnnexInsertion(items,wording,placement,nativeQuoted) {
 // the amended act describes the new annex's contents, not its source position.
 export function assertNumberedAnnexInsertion(items,wording,placement,nativeQuoted) {
  const raw=(wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel??'').split('\n')[0];
- const label=/^Annex ([IVXLCDM]+)\s*(a) \(new\)$/u.exec(raw);
+ const label=/^Annex ([IVXLCDM]+)\s*(a) \(new\)(?: [-–—] table)?$/u.exec(raw);
  if(wording.language!=='en'||wording.baseline!=='commission-proposal'||placement.operation!=='insert'||wording.originalText!==''||!label)return null;
  const unknown=()=>({status:'unverified',reason:'oracle-numbered-annex-boundary-unavailable'});
  if(!(items||[]).some(item=>item.proposal?.paragraphs.some(row=>row.properties?.styleId==='Annexetitre'&&/^ANNEX [IVXLCDM]+[a-z]?$/u.test(row.text.trim()))))return null;
@@ -63,19 +63,20 @@ export function assertNumberedAnnexInsertion(items,wording,placement,nativeQuote
   if(base.length!==1||headings.some(row=>row.text.trim()==='ANNEX '+label[1]+label[2]))continue;
   if(new Set(headings.map(row=>row.text.trim())).size!==headings.length||headings.some(row=>new RegExp('^ANNEX '+label[1]+'[a-z]$','u').test(row.text.trim())))continue;
   const anchor=base[0],next=headings[headings.indexOf(anchor)+1];
-  if(!next)continue;
-  const rows=proposal.paragraphs.filter(row=>row.index>=anchor.index&&row.index<=next.index);
-  if(rows.some(row=>row.complete!==true||row.source?.complete!==true)||proposal.gaps?.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=anchor.index&&gap.paragraph<next.index))continue;
+  const tail=proposal.paragraphs.at(-1);if(!next&&(!tail||proposal.paragraphs.filter(row=>row.index>=anchor.index).some(row=>row.complete!==true||row.source?.complete!==true)||proposal.gaps?.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=anchor.index)))continue;
   let body;try{body=quotedWordBody(nativeQuoted?.proposalBuffers?.[itemIndex]??nativeQuoted?.proposalBuffer);}catch{continue;}
   // Native heading discovery must not depend on the producer's style choice.
   // An existing Annex Ia printed as Normal still occupies that identity.
   const nativeHeadings=body.filter(row=>row.kind==='paragraph'&&/^ANNEX [IVXLCDM]+(?:\s*[a-z])?$/u.test(fold(row.text)));
   if(nativeHeadings.length!==headings.length||nativeHeadings.some((row,index)=>row.path!==headings[index].source.path||fold(row.text)!==fold(headings[index].text)))continue;
-  const first=body.findIndex(row=>row.path===anchor.source.path&&row.text?.trim()===anchor.text.trim()),last=body.findIndex(row=>row.path===next.source.path&&row.text?.trim()===next.text.trim());
+  const first=body.findIndex(row=>row.path===anchor.source.path&&row.text?.trim()===anchor.text.trim()),last=next?body.findIndex(row=>row.path===next.source.path&&row.text?.trim()===next.text.trim()):body.findIndex(row=>row.path===tail.source.path);
   if(first<0||last<=first)continue;
-  const scope=body.slice(first,last+1);
-  if(scope.some(row=>row.hidden||contentUnsafe(row.kind==='paragraph'?row.nodes:[row.nodes])||row.kind!=='paragraph'&&!row.nodes['w:tbl']))continue;
-  candidates.push({itemIndex,before:next.index});
+  const style=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key==='w:pStyle'?[node[':@']?.['@_w:val']]:Array.isArray(value)?style(value):[]));
+  const nativeHeads=body.filter(row=>row.kind==='paragraph'&&style(row.nodes).includes('Annexetitre'));
+  if(body.some(row=>row.kind==='other'&&!row.nodes['w:tbl']&&!row.nodes['w:sectPr']||row.kind==='other'&&style([row.nodes]).includes('Annexetitre')))continue;
+  if(nativeHeads.length!==headings.length||nativeHeads.some((row,i)=>row.hidden||row.unsafe||row.numbered||row.path!==headings[i].source.path||row.text.trim()!==headings[i].text.trim()))continue;
+  if(!next&&!nativeAnnexEnd(tail,nativeQuoted?.proposalBuffers?.[itemIndex]??nativeQuoted?.proposalBuffer))continue;
+  candidates.push({itemIndex,before:next?.index??tail.index+1});
  }
  if(candidates.length!==1)return unknown();
  const {itemIndex,before}=candidates[0];

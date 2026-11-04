@@ -7,7 +7,8 @@ const same=(a,b)=>JSON.stringify(a.map(({kind,value})=>[kind,value]))===JSON.str
 const clean=(s,labels)=>s.split(/\r?\n/u).map(line=>labels.includes(label(line))?line.replace(marker,''):line).join(' ').normalize('NFC').replace(/\u00ad/gu,'').replace(/[‘’‚‛ʻʼ]/gu,"'").replace(/[“”„‟«»]/gu,'"').replace(/[‐‑‒–—]/gu,'-').replace(/\s+/gu,' ').trim();
 export function assertResolutionPointSimilarity({text,wording,placement}){
  const unknown=()=>({status:'unverified',reason:'oracle-point-near-match-unavailable'});
- if(wording?.language!=='en'||wording.baseline!=='motion-resolution'||!['replace','delete'].includes(placement.operation)||/\n_{5,}\s*\n/u.test(wording.originalText||''))return unknown();
+ const decision=wording?.baseline==='unknown'&&wording.documentReferences?.some(r=>r.field==='DocAmend'&&r.raw==='Proposal for a decision')&&wording.baselineSource?.headings?.length>0&&wording.baselineSource.headings.every(h=>h.left?.raw==='Proposal for a decision'&&h.right?.raw==='Amendment');
+ if(wording?.language!=='en'||!(wording.baseline==='motion-resolution'||decision)||!['replace','delete'].includes(placement.operation)||/\n_{5,}\s*\n/u.test(wording.originalText||''))return unknown();
  const path=oracleAddress(wording.targetLabel||'','en');
  if(!path||path.length!==2||path[0].kind!=='paragraph'||path.slice(1).some(p=>p.kind!=='point'||p.isNew)||label(wording.originalText)!==path.at(-1).value||placement.operation==='replace'&&label(wording.proposedText)!==path.at(-1).value)return unknown();
  const motion=rawResolutionUnits(text,'en');if(motion.reason||!motion.units.length)return unknown();

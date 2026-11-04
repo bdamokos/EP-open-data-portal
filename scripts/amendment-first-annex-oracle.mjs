@@ -23,16 +23,16 @@ function parse(xml){
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const clean=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
 const format=['w:spacing','w:noProof','w:b','w:bCs','w:i','w:iCs','w:lang','w:rFonts','w:sz','w:szCs','w:color','w:u','w:highlight','w:shd'];
-function known(nodes,{legal=false,context='paragraph'}={}) {
+function known(nodes,{legal=false,context='paragraph',typography=false}={}) {
  const nesting={paragraph:{'w:pPr':'paragraph-properties','w:r':'run','w:hyperlink':'paragraph'},run:{'w:rPr':'run-properties'},'paragraph-properties':{'w:rPr':'run-properties','w:sectPr':'section','w:tabs':'tabs',...(legal?{'w:numPr':'number'}:{})}};
- const leaves={paragraph:['w:bookmarkStart','w:bookmarkEnd','w:proofErr'],run:['w:lastRenderedPageBreak','w:tab','w:br','w:cr','w:noBreakHyphen','w:softHyphen',...(legal?['w:footnoteReference','w:endnoteReference']:[])],'paragraph-properties':['w:pStyle','w:keepNext','w:keepLines','w:widowControl','w:spacing','w:ind','w:jc'],'run-properties':['w:rStyle',...format],section:['w:pgSz','w:pgMar','w:cols','w:docGrid','w:type','w:pgNumType'],tabs:['w:tab'],number:['w:numId','w:ilvl']};
+ const leaves={paragraph:['w:bookmarkStart','w:bookmarkEnd','w:proofErr'],run:['w:lastRenderedPageBreak','w:tab','w:br','w:cr','w:noBreakHyphen','w:softHyphen',...(legal?['w:footnoteReference','w:endnoteReference']:[])],'paragraph-properties':['w:pStyle','w:keepNext','w:keepLines','w:widowControl','w:spacing','w:ind','w:jc'],'run-properties':['w:rStyle',...format,...(typography?['w:kern','w14:ligatures']:[])],section:['w:pgSz','w:pgMar','w:cols','w:docGrid','w:type','w:pgNumType'],tabs:['w:tab'],number:['w:numId','w:ilvl']};
  const counts=new Map();
  return nodes.every(node=>Object.entries(node).every(([key,value])=>{
   if(key===':@')return true;
   const count=(counts.get(key)||0)+1;counts.set(key,count);
   if((context.endsWith('properties')||['section','number'].includes(context)||['w:pPr','w:rPr'].includes(key))&&count>1)return false;
   if(key==='w:t')return context==='run'&&value.every(part=>Object.keys(part).length===1&&typeof part['#text']==='string');
-  const next=nesting[context]?.[key];if(next)return known(value,{legal,context:next});
+  const next=nesting[context]?.[key];if(next)return known(value,{legal,context:next,typography});
   return leaves[context]?.includes(key)&&Array.isArray(value)&&!value.length;
  }));
 }
@@ -75,6 +75,13 @@ export function assertFirstAnnex({proposal,items,wording,placement,nativeQuoted}
  if(!annexPayload(wording)||wording.targetPath?.underlying?.length||wording.targetPath?.proposal?.length&&(wording.targetPath.proposal.length!==1||wording.targetPath.proposal[0].raw!==wording.targetLabel)||items?.length!==1||items[0].kind!=='act'||proposal!==items[0].proposal||placement?.operation!=='insert'||!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash||!Buffer.isBuffer(nativeQuoted.amendmentBuffer)||nativeQuoted.number!==wording.number)return unknown();
  try {
   if(!comparison(nativeQuoted.amendmentBuffer,wording,nativeQuoted.number))return unknown();
+  return assertAnnexSignatureBoundary({proposal,items,placement,nativeQuoted});
+ }catch{return unknown();}
+}
+export function assertAnnexSignatureBoundary({proposal,items,placement,nativeQuoted}) {
+ const unknown=()=>({status:'unverified',reason:'oracle-first-annex-unavailable'});
+ if(items?.length!==1||items[0].kind!=='act'||proposal!==items[0].proposal||!Buffer.isBuffer(nativeQuoted?.proposalBuffer)||hash(nativeQuoted.proposalBuffer)!==proposal.sourceHash||!Buffer.isBuffer(nativeQuoted.amendmentBuffer))return unknown();
+ try {
   const parts=quotedWordParts(nativeQuoted.proposalBuffer),tree=parse(parts.get('word/document.xml')),documents=children(tree,'w:document');if(documents.length!==1||tree.find(node=>node['w:document'])?.[':@']?.['@_xmlns:w']!==URI)return unknown();
   const bodies=children(documents[0],'w:body');if(bodies.length!==1)return unknown();const all=descendants(bodies[0],'w:p'),body=quotedWordBody(nativeQuoted.proposalBuffer);
   if(parts.has('word/numbering.xml')&&values(parse(parts.get('word/numbering.xml')),'w:lvlText').some(value=>/annex/iu.test(value)))return unknown();
@@ -90,3 +97,46 @@ export function assertFirstAnnex({proposal,items,wording,placement,nativeQuoted}
   return {status:'verified',reason:'oracle-native-first-annex-before-statement',assertion:{nativeSignatureEnd:rows[2].path,nativeFinancialStatement:rows[3].path,proposalSha256:proposal.sourceHash,amendmentSha256:hash(nativeQuoted.amendmentBuffer)}};
  }catch{return unknown();}
 }
+
+// A second annex may follow the first annex introduced by the immediately
+// preceding published amendment. Read both amendments, including paragraphs
+// printed between the comparison headings and the second annex's legal table.
+export function assertSequentialAnnex({proposal,items,wording,placement,nativeQuoted}) {
+ if(!/^Annex (?:2|II)(?: \(new\))?(?: [–-] [^\n\t]+)?$/u.test(wording?.targetLabel??'')||wording.originalText!=='')return null;
+ const unknown=()=>({status:'unverified',reason:'oracle-sequential-annex-unavailable'});
+ const refs=wording.documentReferences?.filter(ref=>ref.field==='PrecedingAnnex')??[];if(!refs.length)return null;
+ const classes=wording.documentReferences?.filter(ref=>ref.field==='DocumentClass'&&ref.scope==='amendment')??[];
+ if(classes.length!==1||classes[0].raw!=='Proposal for a regulation'||wording.targetPath?.proposal?.length&&(wording.targetPath.proposal.length!==1||wording.targetPath.proposal[0].raw!==wording.targetLabel)||wording.language!=='en'||wording.baseline!=='commission-proposal'||!Number.isSafeInteger(wording.number)||wording.number<2||nativeQuoted?.number!==wording.number||refs.length!==1||refs[0].basis!=='native-annex-order'||refs[0].scope!=='amendment'||refs[0].raw!==String(wording.number-1)||wording.targetPath?.underlying?.length)return unknown();
+ try {
+  const bytes=nativeQuoted.amendmentBuffer,parts=quotedWordParts(bytes),tree=parse(parts.get('word/document.xml')),body=quotedWordBody(bytes);
+  const w14='http://schemas.microsoft.com/office/word/2010/wordml',w14Bindings=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w14']===undefined||node[':@']['@_xmlns:w14']===w14)&&Object.values(node).every(value=>!Array.isArray(value)||w14Bindings(value)));if(!w14Bindings(tree)||descendants(tree,'w14:ligatures').length&&tree.find(node=>node['w:document'])?.[':@']?.['@_xmlns:w14']!==w14)return unknown();
+  const head=row=>row.kind==='paragraph'&&/^Amendment\s*[1-9]\d*$/iu.test(row.text.trim()),heads=body.flatMap((row,index)=>head(row)?[{index,number:Number(row.text.match(/\d+$/u)[0])}]:[]),current=heads.filter(row=>row.number===wording.number),prior=heads.filter(row=>row.number===wording.number-1);
+  if(current.length!==1||prior.length!==1||heads.indexOf(current[0])!==heads.indexOf(prior[0])+1||descendants(tree,'w:p').filter(p=>new RegExp('^Amendment\\s*'+wording.number+'$','iu').test(text(p).trim())).length!==1)return unknown();
+  const priorBlock=body.slice(prior[0].index,current[0].index),priorPrinted=priorBlock.filter(row=>row.kind==='paragraph'&&row.text.trim()),priorTables=priorBlock.filter(row=>row.kind==='other'&&row.nodes['w:tbl']);
+  if(priorPrinted.length!==3||priorTables.length!==1)return unknown();
+  const priorRows=children(priorTables[0].nodes['w:tbl'],'w:tr'),priorCell=children(priorRows[2]??[],'w:tc')[1];if(!priorCell)return unknown();
+  const previous={language:'en',baseline:'commission-proposal',targetLabel:priorPrinted[2].text.trim(),originalText:'',proposedText:children(priorCell,'w:p').map(p=>literal(p).trim()).filter(Boolean).join('\n')};
+  if(!annexPayload(previous)||previous.targetLabel!==refs[0].sourceRaw||!comparison(bytes,previous,wording.number-1))return unknown();
+  const next=heads[heads.indexOf(current[0])+1],block=body.slice(current[0].index,next?.index??body.length);
+  // A final body section definition carries layout only, outside the amendment.
+  if(block.at(-1)?.nodes?.['w:sectPr']){const last=block.pop();if(!sectionLayout(last.nodes['w:sectPr']))return unknown();}
+  const tables=block.filter(row=>row.kind==='other');if(tables.length!==2||tables.some(row=>!row.nodes['w:tbl']||row.hidden)||!visible(parts,block.flatMap(row=>row.kind==='paragraph'?row.nodes:[row.nodes])))return unknown();
+  const first=block.indexOf(tables[0]),last=block.indexOf(tables[1]),header=block.slice(0,first).filter(row=>row.kind==='paragraph'&&row.text.trim());
+  if(header.length!==3||!head(header[0])||header[1].text.trim()!=='Proposal for a regulation'||header[2].text.trim()!==wording.targetLabel||block.filter(row=>row.kind==='paragraph').some(row=>row.hidden||row.unsafe||row.numbered||!known(row.nodes,{typography:true})))return unknown();
+  const column=cell=>children(cell,'w:p').every(p=>known(p,{typography:true})&&visible(parts,p))?children(cell,'w:p').map(p=>literal(p).trim()).filter(Boolean).join('\n'):null;
+  const headerTable=tables[0].nodes['w:tbl'],grid=tables[1].nodes['w:tbl'],count=children(children(grid,'w:tblGrid')[0]??[],'w:gridCol').length;
+  if(!completeGrid(headerTable)||children(headerTable,'w:tblGrid').length!==1||children(children(headerTable,'w:tblGrid')[0],'w:gridCol').length!==1||!completeGrid(grid)||children(grid,'w:tblGrid').length!==1||count<2||count>20)return unknown();
+  const headerRows=children(headerTable,'w:tr').map(row=>children(row,'w:tc'));
+  if(headerRows.length!==2||headerRows.some(row=>row.length!==1||values(children(row[0],'w:tcPr').flat(),'w:gridSpan').length)||column(headerRows[0][0])!=='Text proposed by the Commission'||column(headerRows[1][0])!=='Amendment')return unknown();
+  const prefix=block.slice(first+1,last).filter(row=>row.kind==='paragraph'&&row.text.trim()).map(row=>row.text.trim());
+  if(prefix.length!==2||!/^ANNEX(?: (?:2|II))?$/u.test(prefix[0])||!/[.:]$/u.test(prefix[1])||block.slice(last+1).some(row=>row.kind!=='paragraph'||row.text.trim()))return unknown();
+  const cells=children(grid,'w:tr').map(row=>children(row,'w:tc'));if(cells.length<2||cells.some(row=>row.length!==count||row.some(cell=>values(children(cell,'w:tcPr').flat(),'w:gridSpan').length)))return unknown();
+  const matrix=cells.map(row=>row.map(column));if(matrix.some(row=>row.some(value=>value===null))||matrix[0].some(value=>!value)||matrix.some(row=>!row.some(Boolean)))return unknown();
+  const proposed=[...prefix,...matrix.map(row=>row.join('\t'))].join('\n');
+  if(wording.proposedText!==proposed)return {status:'failed',reason:'oracle-sequential-annex-wording-mismatch'};
+  const result=assertAnnexSignatureBoundary({proposal,items,placement,nativeQuoted});
+  return result.status==='verified'?{...result,reason:'oracle-native-sequential-annex',assertion:{...result.assertion,precedingAmendment:wording.number-1,precedingTarget:previous.targetLabel}}:result;
+ }catch{return unknown();}
+}
+
+function sectionLayout(nodes){return nodes.every(node=>Object.entries(node).every(([key,value])=>key===':@'||Array.isArray(value)&&(['w:footnotePr','w:endnotePr'].includes(key)?value.every(part=>Object.entries(part).every(([name,children])=>name===':@'||['w:pos','w:numFmt','w:numStart','w:numRestart'].includes(name)&&Array.isArray(children)&&!children.length)):['w:headerReference','w:footerReference','w:pgSz','w:pgMar','w:cols','w:noEndnote','w:docGrid','w:type','w:pgNumType','w:titlePg'].includes(key)&&!value.length)));}

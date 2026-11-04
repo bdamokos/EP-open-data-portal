@@ -1,0 +1,626 @@
+{
+  "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+  "paragraphs": [
+    "The European Parliament,",
+    "22.\tRestores the Council cuts of EUR 12 900 000 and increases by EUR 60 000 000 in commitment appropriations above the DB and by EUR 72 900 000 compared to the Council position in order to reinforce the following programs above DB as follows:",
+    "(a)\tThe Asylum, Migration and Integration Fund by EUR 20 000 000;",
+    "i.\tbudget line 10 02 01 – Asylum, Migration and Integration Fund by EUR 20 000 000;",
+    "(b)\tThe Border Management and Visa Instrument (BMVI) by EUR 40 000 000;",
+    "i.\tbudget line 11 02 01 – Instrument for Financial Support for Border Management and Visa Policy by EUR 40 000 000;",
+    "23.\tGrants:",
+    "(a) \tthree additional SNEs to the European Union Agency for Asylum (EUAA);",
+    "(b) \tthe transformation of 20 SNEs into Contract Agents to the European the European Border and Coast Guard Agency (Frontex);",
+    "24.\tModifies budgetary remarks as relevant;",
+    "Heading 5 - Security and Defence",
+    "25.\tRestores the Council cuts of EUR 11 522 000 and increases by EUR 54 800 000 in commitment appropriations above the DB and by EUR 66 322 000 compared to the Council position in order to reinforce the following programs above DB as follows:",
+    "(a)\tThe Internal Security Fund (ISF) by EUR 10 000 000;",
+    "i.\tbudget line 12 02 01 – Internal Security Fund (ISF) by EUR 10 000 000;",
+    "(b)\tThe European Defence Fund (EDF) by EUR 5 000 000;",
+    "i.\tbudget line 13 02 01 – Capability development by EUR 5 000 000;",
+    "(c)\tMilitary Mobility by EUR 20 000 000;",
+    "i.\tbudget line 13 04 01 – Military mobility by EUR 20 000 000;",
+    "(d)\tThe European Defence Industry Programme by EUR 6 800 000;",
+    "i.\tbudget line 13 08 01 – European Defence Industry Programme by EUR 6 800 000;",
+    "(e)\tThe agencies in heading 5 by EUR 13 000 000;",
+    "i.\tbudget line 12 10 01 – European Union Agency for Law Enforcement Cooperation (Europol) by EUR 12 000 000;",
+    "ii.\tbudget line 12 10 02 – European Union Agency for Law Enforcement Training (CEPOL) by EUR 1 000 000;",
+    "26.\tModifies budgetary remarks as relevant;"
+  ],
+  "paragraphFormats": [
+    {},
+    {
+      "indent": 2.36,
+      "hanging": 2.36
+    },
+    {
+      "indent": 4.72,
+      "hanging": 1.77
+    },
+    {
+      "indent": 8.25,
+      "hanging": 1.49
+    },
+    {
+      "indent": 4.72,
+      "hanging": 1.77
+    },
+    {
+      "indent": 8.25,
+      "hanging": 1.49
+    },
+    {
+      "indent": 2.36,
+      "hanging": 2.36
+    },
+    {
+      "indent": 4.72,
+      "hanging": 1.77
+    },
+    {
+      "indent": 4.72,
+      "hanging": 1.77
+    },
+    {
+      "indent": 2.36,
+      "hanging": 2.36
+    },
+    {
+      "indent": 2.36,
+      "hanging": 2.36,
+      "marks": [
+        {
+          "start": 0,
+          "end": 32,
+          "kind": "bold"
+        },
+        {
+          "start": 0,
+          "end": 32,
+          "kind": "italic"
+        }
+      ]
+    },
+    {
+      "indent": 2.36,
+      "hanging": 2.36
+    },
+    {
+      "indent": 4.72,
+      "hanging": 1.77
+    },
+    {
+      "indent": 8.25,
+      "hanging": 1.5
+    },
+    {
+      "indent": 4.72,
+      "hanging": 1.77
+    },
+    {
+      "indent": 8.25,
+      "hanging": 1.5
+    },
+    {
+      "indent": 4.72,
+      "hanging": 1.77
+    },
+    {
+      "indent": 8.25,
+      "hanging": 1.5
+    },
+    {
+      "indent": 4.72,
+      "hanging": 1.77
+    },
+    {
+      "indent": 8.25,
+      "hanging": 1.49
+    },
+    {
+      "indent": 4.72,
+      "hanging": 1.77
+    },
+    {
+      "indent": 8.25,
+      "hanging": 1.5
+    },
+    {
+      "indent": 8.25,
+      "hanging": 1.49
+    },
+    {
+      "indent": 2.36,
+      "hanging": 2.36
+    }
+  ],
+  "cases": [
+    {
+      "id": "A-10-2026-0272-AM-16",
+      "wording": {
+        "baselineSource": {
+          "category": "motion-resolution",
+          "headings": [
+            {
+              "left": {
+                "raw": "Motion for a resolution",
+                "category": "motion-resolution"
+              },
+              "right": {
+                "raw": "Amendment",
+                "category": "other"
+              }
+            }
+          ],
+          "conflicted": false,
+          "language": "en",
+          "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+          "fetchedAt": null
+        },
+        "documentReferences": [
+          {
+            "field": "DocRef",
+            "raw": "(11547/2026 – C10-0218/2026 – 2026/0196(BUD))",
+            "sourceRaw": "(11547/2026 – C10-0218/2026 – 2026/0196(BUD))",
+            "scope": "amendment"
+          },
+          {
+            "field": "DocAmend",
+            "raw": "Motion for a resolution",
+            "sourceRaw": "Motion for a resolution",
+            "scope": "amendment"
+          },
+          {
+            "field": "Article",
+            "raw": "Paragraph 22 – point b – point i",
+            "sourceRaw": "Paragraph 22 – point b – point i",
+            "scope": "amendment"
+          }
+        ],
+        "targetPath": {
+          "proposal": [
+            {
+              "raw": "Paragraph 22 – point b – point i",
+              "labels": [
+                {
+                  "raw": "Paragraph 22"
+                },
+                {
+                  "raw": "point b"
+                },
+                {
+                  "raw": "point i"
+                }
+              ]
+            }
+          ],
+          "underlying": [],
+          "language": "en",
+          "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+          "fetchedAt": null
+        },
+        "number": 16,
+        "listId": "A-10-2026-0272-AM-011-020",
+        "targetDocumentId": "A-10-2026-0272",
+        "date": "2026-10-15",
+        "documentDate": "2026-10-15",
+        "dateBasis": "individual-amendment-document",
+        "authors": [
+          "João Oliveira"
+        ],
+        "committeeProposer": null,
+        "onBehalfOf": "on behalf of The Left Group",
+        "baseline": "motion-resolution",
+        "targetLabel": "Paragraph 22 – point b – point i",
+        "originalText": "i.\tbudget line 11 02 01 – Instrument for Financial Support for Border Management and Visa Policy by EUR XXX",
+        "proposedText": "deleted",
+        "originalFormatting": [],
+        "proposedFormatting": [],
+        "justification": null,
+        "language": "en",
+        "sources": [
+          {
+            "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+            "fetchedAt": null,
+            "date": "2026-10-15",
+            "dateBasis": "individual-amendment-document",
+            "language": "en",
+            "format": "DOCX"
+          }
+        ],
+        "gaps": []
+      },
+      "span": {
+        "start": 5,
+        "end": 5
+      }
+    },
+    {
+      "id": "A-10-2026-0272-AM-17",
+      "wording": {
+        "baselineSource": {
+          "category": "motion-resolution",
+          "headings": [
+            {
+              "left": {
+                "raw": "Motion for a resolution",
+                "category": "motion-resolution"
+              },
+              "right": {
+                "raw": "Amendment",
+                "category": "other"
+              }
+            }
+          ],
+          "conflicted": false,
+          "language": "en",
+          "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+          "fetchedAt": null
+        },
+        "documentReferences": [
+          {
+            "field": "DocRef",
+            "raw": "(11547/2026 – C10-0218/2026 – 2026/0196(BUD))",
+            "sourceRaw": "(11547/2026 – C10-0218/2026 – 2026/0196(BUD))",
+            "scope": "amendment"
+          },
+          {
+            "field": "DocAmend",
+            "raw": "Motion for a resolution",
+            "sourceRaw": "Motion for a resolution",
+            "scope": "amendment"
+          },
+          {
+            "field": "Article",
+            "raw": "Paragraph 25 – point a",
+            "sourceRaw": "Paragraph 25 – point a",
+            "scope": "amendment"
+          }
+        ],
+        "targetPath": {
+          "proposal": [
+            {
+              "raw": "Paragraph 25 – point a",
+              "labels": [
+                {
+                  "raw": "Paragraph 25"
+                },
+                {
+                  "raw": "point a"
+                }
+              ]
+            }
+          ],
+          "underlying": [],
+          "language": "en",
+          "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+          "fetchedAt": null
+        },
+        "number": 17,
+        "listId": "A-10-2026-0272-AM-011-020",
+        "targetDocumentId": "A-10-2026-0272",
+        "date": "2026-10-15",
+        "documentDate": "2026-10-15",
+        "dateBasis": "individual-amendment-document",
+        "authors": [
+          "João Oliveira"
+        ],
+        "committeeProposer": null,
+        "onBehalfOf": "on behalf of The Left Group",
+        "baseline": "motion-resolution",
+        "targetLabel": "Paragraph 25 – point a",
+        "originalText": "(a)\tInternal Security Fund (ISF) by EUR XXX, including i. budget line 12 02 01 – Internal Security Fund (ISF) by EUR XXX.",
+        "proposedText": "deleted",
+        "originalFormatting": [],
+        "proposedFormatting": [],
+        "justification": null,
+        "language": "en",
+        "sources": [
+          {
+            "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+            "fetchedAt": null,
+            "date": "2026-10-15",
+            "dateBasis": "individual-amendment-document",
+            "language": "en",
+            "format": "DOCX"
+          }
+        ],
+        "gaps": []
+      },
+      "span": {
+        "start": 12,
+        "end": 13
+      }
+    },
+    {
+      "id": "A-10-2026-0272-AM-18",
+      "wording": {
+        "baselineSource": {
+          "category": "motion-resolution",
+          "headings": [
+            {
+              "left": {
+                "raw": "Motion for a resolution",
+                "category": "motion-resolution"
+              },
+              "right": {
+                "raw": "Amendment",
+                "category": "other"
+              }
+            }
+          ],
+          "conflicted": false,
+          "language": "en",
+          "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+          "fetchedAt": null
+        },
+        "documentReferences": [
+          {
+            "field": "DocRef",
+            "raw": "(11547/2026 – C10-0218/2026 – 2026/0196(BUD))",
+            "sourceRaw": "(11547/2026 – C10-0218/2026 – 2026/0196(BUD))",
+            "scope": "amendment"
+          },
+          {
+            "field": "DocAmend",
+            "raw": "Motion for a resolution",
+            "sourceRaw": "Motion for a resolution",
+            "scope": "amendment"
+          },
+          {
+            "field": "Article",
+            "raw": "Paragraph 25 – point b",
+            "sourceRaw": "Paragraph 25 – point b",
+            "scope": "amendment"
+          }
+        ],
+        "targetPath": {
+          "proposal": [
+            {
+              "raw": "Paragraph 25 – point b",
+              "labels": [
+                {
+                  "raw": "Paragraph 25"
+                },
+                {
+                  "raw": "point b"
+                }
+              ]
+            }
+          ],
+          "underlying": [],
+          "language": "en",
+          "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+          "fetchedAt": null
+        },
+        "number": 18,
+        "listId": "A-10-2026-0272-AM-011-020",
+        "targetDocumentId": "A-10-2026-0272",
+        "date": "2026-10-15",
+        "documentDate": "2026-10-15",
+        "dateBasis": "individual-amendment-document",
+        "authors": [
+          "João Oliveira"
+        ],
+        "committeeProposer": null,
+        "onBehalfOf": "on behalf of The Left Group",
+        "baseline": "motion-resolution",
+        "targetLabel": "Paragraph 25 – point b",
+        "originalText": "(b)\tEuropean Defence Fund (EDF) by EUR XXX, including i. budget line 13 02 01 – Capability development by EUR XXX.",
+        "proposedText": "deleted",
+        "originalFormatting": [],
+        "proposedFormatting": [],
+        "justification": null,
+        "language": "en",
+        "sources": [
+          {
+            "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+            "fetchedAt": null,
+            "date": "2026-10-15",
+            "dateBasis": "individual-amendment-document",
+            "language": "en",
+            "format": "DOCX"
+          }
+        ],
+        "gaps": []
+      },
+      "span": {
+        "start": 14,
+        "end": 15
+      }
+    },
+    {
+      "id": "A-10-2026-0272-AM-19",
+      "wording": {
+        "baselineSource": {
+          "category": "motion-resolution",
+          "headings": [
+            {
+              "left": {
+                "raw": "Motion for a resolution",
+                "category": "motion-resolution"
+              },
+              "right": {
+                "raw": "Amendment",
+                "category": "other"
+              }
+            }
+          ],
+          "conflicted": false,
+          "language": "en",
+          "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+          "fetchedAt": null
+        },
+        "documentReferences": [
+          {
+            "field": "DocRef",
+            "raw": "(11547/2026 – C10-0218/2026 – 2026/0196(BUD))",
+            "sourceRaw": "(11547/2026 – C10-0218/2026 – 2026/0196(BUD))",
+            "scope": "amendment"
+          },
+          {
+            "field": "DocAmend",
+            "raw": "Motion for a resolution",
+            "sourceRaw": "Motion for a resolution",
+            "scope": "amendment"
+          },
+          {
+            "field": "Article",
+            "raw": "Paragraph 25 – point c",
+            "sourceRaw": "Paragraph 25 – point c",
+            "scope": "amendment"
+          }
+        ],
+        "targetPath": {
+          "proposal": [
+            {
+              "raw": "Paragraph 25 – point c",
+              "labels": [
+                {
+                  "raw": "Paragraph 25"
+                },
+                {
+                  "raw": "point c"
+                }
+              ]
+            }
+          ],
+          "underlying": [],
+          "language": "en",
+          "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+          "fetchedAt": null
+        },
+        "number": 19,
+        "listId": "A-10-2026-0272-AM-011-020",
+        "targetDocumentId": "A-10-2026-0272",
+        "date": "2026-10-15",
+        "documentDate": "2026-10-15",
+        "dateBasis": "individual-amendment-document",
+        "authors": [
+          "João Oliveira"
+        ],
+        "committeeProposer": null,
+        "onBehalfOf": "on behalf of The Left Group",
+        "baseline": "motion-resolution",
+        "targetLabel": "Paragraph 25 – point c",
+        "originalText": "(c) Military Mobility by EUR XXX, including i. budget line 13 04 01 – Military Mobility by EUR XXX.",
+        "proposedText": "deleted",
+        "originalFormatting": [],
+        "proposedFormatting": [],
+        "justification": null,
+        "language": "en",
+        "sources": [
+          {
+            "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+            "fetchedAt": null,
+            "date": "2026-10-15",
+            "dateBasis": "individual-amendment-document",
+            "language": "en",
+            "format": "DOCX"
+          }
+        ],
+        "gaps": []
+      },
+      "span": {
+        "start": 16,
+        "end": 17
+      }
+    },
+    {
+      "id": "A-10-2026-0272-AM-20",
+      "wording": {
+        "baselineSource": {
+          "category": "motion-resolution",
+          "headings": [
+            {
+              "left": {
+                "raw": "Motion for a resolution",
+                "category": "motion-resolution"
+              },
+              "right": {
+                "raw": "Amendment",
+                "category": "other"
+              }
+            }
+          ],
+          "conflicted": false,
+          "language": "en",
+          "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+          "fetchedAt": null
+        },
+        "documentReferences": [
+          {
+            "field": "DocRef",
+            "raw": "(11547/2026 – C10-0218/2026 – 2026/0196(BUD))",
+            "sourceRaw": "(11547/2026 – C10-0218/2026 – 2026/0196(BUD))",
+            "scope": "amendment"
+          },
+          {
+            "field": "DocAmend",
+            "raw": "Motion for a resolution",
+            "sourceRaw": "Motion for a resolution",
+            "scope": "amendment"
+          },
+          {
+            "field": "Article",
+            "raw": "Paragraph 25 – point d",
+            "sourceRaw": "Paragraph 25 – point d",
+            "scope": "amendment"
+          }
+        ],
+        "targetPath": {
+          "proposal": [
+            {
+              "raw": "Paragraph 25 – point d",
+              "labels": [
+                {
+                  "raw": "Paragraph 25"
+                },
+                {
+                  "raw": "point d"
+                }
+              ]
+            }
+          ],
+          "underlying": [],
+          "language": "en",
+          "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+          "fetchedAt": null
+        },
+        "number": 20,
+        "listId": "A-10-2026-0272-AM-011-020",
+        "targetDocumentId": "A-10-2026-0272",
+        "date": "2026-10-15",
+        "documentDate": "2026-10-15",
+        "dateBasis": "individual-amendment-document",
+        "authors": [
+          "João Oliveira"
+        ],
+        "committeeProposer": null,
+        "onBehalfOf": "on behalf of The Left Group",
+        "baseline": "motion-resolution",
+        "targetLabel": "Paragraph 25 – point d",
+        "originalText": "(d)\tEuropean Defence Industry Programme by EUR XXX, including i. budget line 13 08 01 – European Defence Industry Programme by EUR XXX.",
+        "proposedText": "deleted",
+        "originalFormatting": [],
+        "proposedFormatting": [],
+        "justification": null,
+        "language": "en",
+        "sources": [
+          {
+            "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0272-AM-011-020/A-10-2026-0272-AM-011-020_en.docx",
+            "fetchedAt": null,
+            "date": "2026-10-15",
+            "dateBasis": "individual-amendment-document",
+            "language": "en",
+            "format": "DOCX"
+          }
+        ],
+        "gaps": []
+      },
+      "span": {
+        "start": 18,
+        "end": 19
+      }
+    }
+  ]
+}

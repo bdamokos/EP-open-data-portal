@@ -82,13 +82,22 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   try { target = parseTargetLabel(options.targetLabel, options.language); } catch { return null; }
   const segments = target.segments;
   if (!target.complete || segments?.length < 2 || segments[0].kind !== 'paragraph' || segments.slice(1).some(part => part.kind !== 'point')) return null;
-  if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))) return null;
-  if (segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
+  const firstNumeric=options.language==='fr'&&operation==='insert'&&segments.length===2&&segments[1].isNew&&segments[1].base==='1'&&segments[1].suffix==='bis';
+  if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))&&!firstNumeric) return null;
+  if (!/\bEUR\s+XXX\b/u.test(options.originalText||'') && segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
     && unit.label === (operation === 'insert' ? segments[1].base : segments[1].value)
     && structure.units.find(parent => parent.start === unit.parent)?.label === segments[0].value)) return null;
   const units = pointUnits(text, rows, structure), evidence = [{basis: 'published-point-path', path: segments.map(({kind, value}) => ({kind, value}))}];
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const matches = units.filter(unit => samePath(unit.path, segments));
+  if(firstNumeric){
+    const points=units.filter(unit=>unit.path.length===2&&unit.path[0].value===segments[0].value).sort((a,b)=>a.start-b.start),first=points[0],parent=first?.parent;
+    if(!first||first.value!=='a'||!first.complete||points.some(unit=>unit.parent!==parent)||!/^1\s*bis\)\s/u.test(options.proposedText)||options.originalText!==''||options.referenceText)return unresolved('insertion_reference_unavailable');
+    const start=parent.start,interior=first.start-start;
+    if(![1,2].includes(interior)||!/:\s*$/u.test(rows[start].value)||interior===2&&!resolutionSubheading(rows[start+1].value,text.paragraphFormats?.[start+1])||rows.slice(start,first.start+1).some((row,i)=>!row.complete||row.source.container!=='body'||i&&!contiguous(rows[start+i-1],row)))return unresolved('source_passage_incomplete');
+    evidence.push({basis:'first-numeric-point-in-lettered-list',anchor:start});
+    return {operation,status:'placed',insertAfter:start,insertBefore:start+1,evidence};
+  }
   if (operation === 'insert') {
     if (matches.length) return unresolved('duplicate_target_label');
     const label = segments.at(-1);
@@ -124,13 +133,18 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
     const match = pointLabel(line.trim());
     return match && labels.includes(pointValue(match)) ? line.trim().slice(match[0].length) : line;
   }).join(' ').normalize('NFC').replace(/\u00ad/g, '').replace(/[‘’‚‛ʻʼ]/g, "'").replace(/[“”„‟«»]/g, '"').replace(/[‐‑‒–—]/g, '-').replace(/\s+/gu, ' ').trim();
-  const footnotes = normalize(text.paragraphs.slice(unit.start, unit.end + 1).join('\n')) !== normalize(options.originalText);
+  const sourceText=text.paragraphs.slice(unit.start,unit.end+1).join('\n');
+  const placeholder=operation==='delete'&&options.language==='en'&&options.baseline==='motion-resolution'
+    && /\bEUR\s+XXX\b/u.test(options.originalText||'')&&/\bbudget line\b/u.test(sourceText)
+    && /\bEUR\s+\d/u.test(sourceText)&&!sourceText.includes('\uFFFC')
+    && placeholderMatches(sourceText,options.originalText);
+  const footnotes = !placeholder && normalize(sourceText) !== normalize(options.originalText);
   if (footnotes && !resolutionFootnoteMatch(text, unit.start, unit.end, options.originalText, options.originalFormatting)) return unresolved('conflicting_target_evidence');
   if (options.referenceText) {
     let decision; try { decision = parseTargetLabel(options.referenceText, 'en'); } catch { /* Unparsed references cannot verify a path. */ }
     if (!decision?.complete || !samePath(decision.segments, segments)) return unresolved('conflicting_target_evidence');
   }
-  evidence.push({basis: footnotes ? 'quoted-original-source-notes' : 'quoted-original'});
+  evidence.push({basis: placeholder ? 'addressed-budget-placeholder' : footnotes ? 'quoted-original-source-notes' : 'quoted-original'});
   return {operation, status: 'placed', span: {start: unit.start, end: unit.end}, evidence};
 }
 
@@ -138,7 +152,8 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
 // complete point extent must already identify it. This leaves the top-level
 // paragraph/recital matcher and the strict point matcher unchanged.
 export function resolutionPointNearPlacement(text,rows,structure,options,operation){
- if(options.language!=='en'||options.baseline!=='motion-resolution'||!['replace','delete'].includes(operation)||/\n_{5,}\s*\n/u.test(options.originalText||'')||(options.originalFormatting||[]).some(m=>m.kind==='superscript'))return null;
+ const decision=options.baseline==='unknown'&&options.resolutionDocument===true&&options.documentReferences?.some(ref=>ref.field==='DocAmend'&&ref.raw==='Proposal for a decision')&&options.baselineSource?.headings?.length>0&&options.baselineSource.headings.every(heading=>heading.left?.raw==='Proposal for a decision'&&heading.right?.raw==='Amendment');
+ if(options.language!=='en'||!(options.baseline==='motion-resolution'||decision)||!['replace','delete'].includes(operation)||/\n_{5,}\s*\n/u.test(options.originalText||'')||(options.originalFormatting||[]).some(m=>m.kind==='superscript'))return null;
  let target;try{target=parseTargetLabel(options.targetLabel,'en');}catch{return null;}
  const path=target.segments;if(!target.complete||path.length!==2||path[0].kind!=='paragraph'||path.slice(1).some(p=>p.kind!=='point'||p.isNew))return null;
  const old=pointLabel((options.originalText||'').trim()),proposed=pointLabel((options.proposedText||'').trim());
@@ -163,4 +178,17 @@ export function resolutionPointNearPlacement(text,rows,structure,options,operati
  const own=score(source),others=candidates.filter(p=>p.start!==unit.start||p.end!==unit.end).map(p=>score(p.wording));
  const unique=own.similarity>=.95&&others.every(p=>p.similarity<=own.similarity-.02&&p.prefix<.5)||own.prefix>=.5&&others.every(p=>p.prefix<=own.prefix-.02&&p.similarity<.93);
  return unique?{operation,status:'placed',span:{start:unit.start,end:unit.end},evidence:[{basis:'published-point-path',path:path.map(({kind,value})=>({kind,value}))},{basis:'unique-similar-point-original',anchor:unit.start}]}:null;
+}
+
+// Budget comparisons may compress a child into an 'including' clause. Only
+// explicit EUR XXX deletions reach this comparison, after unique path proof.
+function placeholderMatches(source,original) {
+  const key=value=>value.normalize('NFC').toLowerCase()
+    .replace(/(^|\s)(\([a-z]+\)|[a-z]+[.)])\s+(?:the\s+)?/gu,'$1$2 ')
+    .replace(/,\s*including\s+/gu,' ').replace(/[–—]/gu,'-')
+    .replace(/[.;,]/gu,' ').replace(/\s+/gu,' ').trim();
+  const parts=key(original).split(/(?<=\beur )xxx\b/u);
+  if(parts.length<2||parts.join('').includes('xxx'))return false;
+  const pattern=parts.map(part=>part.replace(/[.*+?^${}()|[\]\\]/gu,'\\$&')).join('\\d+(?: \\d{3})*');
+  return new RegExp('^'+pattern+'$','u').test(key(source));
 }

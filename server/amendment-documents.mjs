@@ -7,7 +7,7 @@ import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTarget
 import { numberingLabels } from './docx-numbering.mjs';
 import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='24';
+export const AMENDMENT_EXTRACTION_VERSION='25';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -244,6 +244,43 @@ function documentBlocks(parts,warnings,language) {
   const nativeBindings=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w']===undefined||node[':@']['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main')&&Object.values(node).every(value=>!Array.isArray(value)||nativeBindings(value)));
   const nativeHeader=language==='en'&&!/<!DOCTYPE|<!ENTITY/u.test(documentXml)&&XMLValidator.validate(documentXml)===true&&child(documentTree,'w:document')?.[':@']?.['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main'&&nativeBindings(documentTree)&&(!stylesXml||!/<!DOCTYPE|<!ENTITY/u.test(stylesXml)&&XMLValidator.validate(stylesXml)===true&&nativeBindings(parser().parse(stylesXml)));
   const compoundVisible=nativeHeader?compoundStyleSafety(stylesXml):null;
+  const mathURI='http://schemas.openxmlformats.org/officeDocument/2006/math';
+  const mathBindings=nodes=>nodes.every(node=>Object.entries(node[':@']||{}).every(([key,value])=>key==='@_xmlns:m'?value===mathURI:!key.startsWith('@_xmlns')||value!==mathURI)&&Object.values(node).every(value=>!Array.isArray(value)||mathBindings(value)));
+  const formulaNative=Boolean(nativeHeader&&child(documentTree,'w:document')?.[':@']?.['@_xmlns:m']===mathURI&&mathBindings(documentTree));
+  const formulaParagraph=nodes=>{
+    let count=0;
+    const math=nodes=>nodes.every(node=>Object.entries(node).every(([key,value])=>key===':@'||key==='#text'&&typeof value==='string'||Array.isArray(value)&&(key.startsWith('m:')?math(value):key==='w:rPr'?math(value):['w:rFonts','w:b','w:bCs','w:i','w:iCs','w:sz','w:szCs','w:lang','w:color'].includes(key)&&!value.length)));
+    const plain=nodes=>nodes.every(node=>Object.entries(node).every(([key,value])=>{
+      if(key===':@')return true;
+      if(key==='m:oMathPara'||key==='m:oMath'){
+        const total=key==='m:oMath'?1:(JSON.stringify(value).match(/"m:oMath":/gu)||[]).length;
+        count++;return total===1&&math(value);
+      }
+      if(['w:pPr','w:rPr'].includes(key))return !/"w:(?:numPr|vanish|webHidden|ins|del|moveFrom|moveTo|rPrChange|pPrChange)"/u.test(JSON.stringify(value));
+      if(key==='w:r'||key==='w:hyperlink')return plain(value);
+      if(key==='w:t')return value.every(part=>Object.keys(part).length===1&&typeof part['#text']==='string');
+      if(['w:br','w:cr'].includes(key))return !value.length&&[undefined,'textWrapping'].includes(node[':@']?.['@_w:type']);
+      return ['w:tab','w:noBreakHyphen','w:softHyphen','w:lastRenderedPageBreak','w:bookmarkStart','w:bookmarkEnd','w:proofErr'].includes(key)&&!value.length;
+    }));
+    return {formulaCount:count,formulaSafe:false,...(formulaNative&&compoundVisible(nodes)&&plain(nodes)?{formulaCount:count,formulaSafe:true}:{})};
+  };
+  const annexPlain=(nodes,mode='paragraph')=>{
+    const properties={paragraph:['w:pStyle','w:keepNext','w:keepLines','w:widowControl','w:spacing','w:ind','w:jc'],run:['w:spacing','w:rStyle','w:noProof','w:b','w:bCs','w:i','w:iCs','w:lang','w:rFonts','w:sz','w:szCs','w:color','w:u','w:highlight','w:shd','w:kern','w14:ligatures']};
+    const seen=new Set();
+    return nodes.every(node=>Object.entries(node).every(([key,value])=>{
+      if(key===':@')return true;
+      if(['paragraph-properties','run-properties'].includes(mode)||['w:pPr','w:rPr'].includes(key)){if(seen.has(key))return false;seen.add(key);}
+      if(key==='w:pPr')return mode==='paragraph'&&annexPlain(value,'paragraph-properties');
+      if(key==='w:rPr')return ['run','paragraph-properties'].includes(mode)&&annexPlain(value,'run-properties');
+      if(key==='w:r')return mode==='paragraph'&&annexPlain(value,'run');
+      if(key==='w:hyperlink')return mode==='paragraph'&&annexPlain(value,'paragraph');
+      if(key==='w:t')return mode==='run'&&value.every(part=>Object.keys(part).length===1&&typeof part['#text']==='string');
+      const allowed=mode==='paragraph-properties'?properties.paragraph:mode==='run-properties'?properties.run:mode==='paragraph'?['w:bookmarkStart','w:bookmarkEnd','w:proofErr']:['w:lastRenderedPageBreak','w:tab','w:br','w:cr','w:noBreakHyphen','w:softHyphen'];
+      return allowed.includes(key)&&Array.isArray(value)&&!value.length;
+    }));
+  };
+  const w14='http://schemas.microsoft.com/office/word/2010/wordml',annexBindings=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w14']===undefined||node[':@']['@_xmlns:w14']===w14)&&Object.values(node).every(value=>!Array.isArray(value)||annexBindings(value)));
+  const annexNative=Boolean(nativeHeader&&annexBindings(documentTree)&&(!documentXml.includes('w14:ligatures')||child(documentTree,'w:document')?.[':@']?.['@_xmlns:w14']===w14));
   if(language==='hr')style.formatting=styleFormatting(children(parser().parse(parts.get('word/styles.xml')||''),'w:styles'));
   const label=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),warnings);
   let count=0,size=0;
@@ -264,13 +301,16 @@ function documentBlocks(parts,warnings,language) {
     size+=raw.length+text.length;
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
     const structure=JSON.stringify(nodes);
-    return {raw,text,formatting,bold,...(compoundVisible?{compound:compoundHeader(nodes,raw,text,compoundVisible),compoundBlank:compoundHeader(nodes,raw,text,compoundVisible,true)===true}:{}),paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
+    const captionSafe=Boolean(compoundVisible?.(nodes)&&raw===text&&!/"w:(?:del|moveFrom|numPr|footnoteReference|endnoteReference|fldSimple|instrText)"/u.test(structure));
+    return {raw,text,formatting,bold,captionSafe,annexSafe:Boolean(annexNative&&compoundVisible(nodes)&&annexPlain(nodes)&&raw===text&&!losses.size),...formulaParagraph(nodes),...(compoundVisible?{compound:compoundHeader(nodes,raw,text,compoundVisible),compoundBlank:compoundHeader(nodes,raw,text,compoundVisible,true)===true}:{}),paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
   };
   const blocks=[];
   const summary=content=>({
     ...joinWording(content.filter(part=>part.text)),raw:content.map(part=>part.raw).join('\n'),
+    formulaCount:content.reduce((count,part)=>count+(part.formulaCount||0),0),formulaSafe:content.every(part=>part.kind==='paragraph'&&part.formulaSafe),
+    annexSafe:content.every(part=>part.kind==='paragraph'&&part.annexSafe),
     hasNotes:content.some(part=>part.hasNotes),losses:[...new Set(content.flatMap(part=>part.losses))],
-    symbolLoss:content.some(part=>part.symbolLoss),unsupportedBody:content.some(part=>part.unsupportedBody),
+    symbolLoss:content.some(part=>part.symbolLoss),unsupportedBody:content.some(part=>part.unsupportedBody),captionSafe:content.every(part=>part.kind==='paragraph'&&part.captionSafe),
   });
   const tableOf=nodes=>{
     let unsupported=unsupportedChildren(nodes,TABLE_CHILDREN),revised=structuralRevision(children(nodes,'w:tblPr'))||structuralMove(nodes);
@@ -459,7 +499,23 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const targetLabel=targetParts.map(metadata).filter(Boolean).join('\n')||null;
     const before=[],after=[],tables=group.filter(b=>b.kind==='table');let comparableRows=0,hasTable=false;
     const rows=tables.flatMap(sectionRows),first=rows.find(row=>row.cells.some(cell=>cell.text));
-    const stacked=first&&sectionHeading(first.cells,first.table,language)?.side==='original';
+    // A full-width table caption may precede the original-side heading.
+    // The proposed side must repeat it immediately after its own heading.
+    const visible=rows.filter(row=>row.cells.some(cell=>cell.text)),tableCaption=language==='en'&&/^Annex(?: [IVXLCDM]+)? [–—-] table [–—-] (.+)$/u.exec(targetLabel??'')?.[1];
+    const fullCaption=(row,value)=>row?.cells.length===1&&row.cells[0].grid.span===row.table.gridColumns&&row.cells[0].text===value&&row.cells[0].raw===value&&!row.cells[0].hasNotes&&!row.cells[0].losses.length;
+    const proposedHeaders=visible.flatMap((row,i)=>sectionHeading(row.cells,row.table,language)?.side==='proposed'?[i]:[]),proposedHeader=proposedHeaders[0];
+    const captionClasses=documentReferences.filter(ref=>['DocumentClass','DocAmend'].includes(ref.field)&&/^Proposal for a (?:regulation|directive|decision)$/u.test(ref.raw));
+    const captionGrids=tables.length===1?direct(tables[0].gridNodes,'w:tblGrid'):[];
+    const explicitCaptionGrid=captionGrids.length===1&&direct(captionGrids[0]['w:tblGrid'],'w:gridCol').length===2;
+    const captionPrefix=Boolean(explicitCaptionGrid&&tableCaption&&captionClasses.length===1&&tables.length===1&&rows.every(row=>row.cells.every(cell=>cell.captionSafe))&&tables[0].legalGridSupported&&fullCaption(visible[0],tableCaption)&&sectionHeading(visible[1]?.cells??[],visible[1]?.table,language)?.side==='original'&&proposedHeaders.length===1&&proposedHeader>2&&fullCaption(visible[proposedHeader+1],tableCaption)&&proposedHeader+2<visible.length&&visible.slice(2,proposedHeader).concat(visible.slice(proposedHeader+2)).every(row=>row.cells.length===2&&row.cells.every(cell=>cell.grid.span===1&&!['Text proposed by the Commission','Amendment'].includes(cell.text))));
+    const stacked=captionPrefix||first&&sectionHeading(first.cells,first.table,language)?.side==='original';
+    if(captionPrefix)documentReferences.push({field:'ComparisonCaption',raw:tableCaption,sourceRaw:visible[0].cells[0].raw,scope:'amendment',basis:'caption-before-original-heading'});
+    let pendingCaption=captionPrefix;
+    const formulaTarget=/^Article [1-9]\d* – paragraph ([1-9]\d*) ?([a-z]) \(new\)$/u.exec(targetLabel??'');
+    const formulaRows=tables[0]?.rows.filter(cells=>cells.some(cell=>cell.text||cell.formulaCount))??[];
+    let formulaSource=false;try{const url=new URL(sourceUrl);formulaSource=url.protocol==='https:'&&!url.username&&!url.password;}catch{}
+    const formulaRecovery=Boolean(formulaSource&&language==='en'&&formulaTarget&&tables.length===1&&!tables[0].unsupported&&!tables[0].revised&&!tables[0].gridUnsupported&&direct(tables[0].gridNodes,'w:tblGrid').length===1&&direct(children(tables[0].gridNodes,'w:tblGrid'),'w:gridCol').length===2&&documentReferences.filter(ref=>ref.field==='DocAmend'&&/^Proposal for a (?:regulation|directive|decision)$/u.test(ref.raw)).length===1&&!documentReferences.some(ref=>/^(?:Article|DocAmend)[2-4]$/u.test(ref.field))&&tables[0].rows.every(cells=>cells.every(cell=>cell.formulaSafe))&&formulaRows.length>1&&formulaRows.every(cells=>cells.length===2)&&formulaRows[0][0].text==='Text proposed by the Commission'&&formulaRows[0][1].text==='Amendment'&&formulaRows[0].every(cell=>!cell.formulaCount)&&formulaRows.slice(1).every(cells=>!cells[0].text&&!cells[0].formulaCount)&&formulaRows.slice(1).reduce((count,cells)=>count+cells[1].formulaCount,0)===1&&formulaRows[1][1].text.startsWith(formulaTarget[1]+formulaTarget[2]+'.\t'));
+    if(formulaRecovery)gap('formula-not-shown',number,'Formula not shown.');
     const sections=[];let section=null;
     for(const table of tables) {
       hasTable=true;
@@ -472,9 +528,10 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       for(const {table:rowTable,cells} of comparisonRows) {
         if(cells.some(c=>c.nested)){gap('nested-table',number,'A nested comparison table is unsupported.');continue;}
         if(cells.some(c=>c.symbolLoss))gap('symbol-text-loss',number,'A visible font-encoded symbol cannot be decoded reliably; comparison wording is withheld.');
-        for(const code of Object.keys(CONTENT_LOSSES))if(cells.some(cell=>cell.losses.includes(code)))gap(code,number,CONTENT_LOSSES[code]);
+        for(const code of Object.keys(CONTENT_LOSSES))if(!(formulaRecovery&&code==='non-text-content')&&cells.some(cell=>cell.losses.includes(code)))gap(code,number,CONTENT_LOSSES[code]);
         if(cells.every(c=>!c.text))continue;
         if(stacked) {
+          if(pendingCaption){before.push(joinWording(cells,'\t'));pendingCaption=false;continue;}
           const heading=sectionHeading(cells,rowTable,language);
           if(heading){section=heading;sections.push(heading);continue;}
           if(!section){gap('comparison-header',number,'A stacked comparison section has no explicit heading.');continue;}
@@ -567,6 +624,29 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       amendment.proposedText=null;
       amendment.originalFormatting=[];amendment.proposedFormatting=[];
     }
+  }
+  // The second annex's frame can be printed outside its one-column comparison
+  // headings. Keep it only with native layout and preceding-amendment proof.
+  const order=groups.map(group=>groupNumber(group,language));
+  const safeTable=(table,count)=>table&&!table.unsupported&&!table.revised&&table.legalGridSupported&&direct(table.gridNodes,'w:tblGrid').length===1&&direct(children(table.gridNodes,'w:tblGrid'),'w:gridCol').length===count&&table.rows.every(cells=>cells.every(cell=>cell.annexSafe&&!cell.hasNotes&&!cell.nested));
+  const classes=row=>row.documentReferences.filter(ref=>ref.field==='DocumentClass'&&ref.scope==='amendment');
+  for(const current of amendments) {
+    if(language!=='en'||!/^Annex (?:2|II)(?: \(new\))?(?: [–-] [^\n\t]+)?$/u.test(current.targetLabel??'')||current.originalText!==''||current.baseline!=='commission-proposal'||classes(current).length!==1||classes(current)[0].raw!=='Proposal for a regulation'||current.targetPath.underlying.length||current.gaps.some(gap=>TEXT_LOSS_CODES.has(gap.code)||gap.code==='notes-unavailable'))continue;
+    const at=order.indexOf(current.number),previous=amendments.find(row=>row.number===order[at-1]);
+    if(at<1||order.lastIndexOf(current.number)!==at||!previous||previous.number!==current.number-1||order.indexOf(previous.number)!==at-1||previous.language!=='en'||previous.baseline!=='commission-proposal'||previous.originalText!==''||!/^Annex(?: (?:1|I))?(?: \(new\))?(?: [–-] [^\n\t]+)?$/u.test(previous.targetLabel??'')||classes(previous).length!==1||classes(previous)[0].raw!=='Proposal for a regulation'||previous.targetPath.underlying.length||previous.gaps.some(gap=>TEXT_LOSS_CODES.has(gap.code)||gap.code==='notes-unavailable')||!/^ANNEX(?: (?:1|I))?\n[^\n]+\n/u.test(previous.proposedText??'')||/[\u2026]|\.{3}|\uFFFC/u.test(previous.proposedText))continue;
+    const old=groups[at-1],group=groups[at],tables=group.filter(block=>block.kind==='table'),oldTables=old.filter(block=>block.kind==='table');
+    const oldLines=previous.proposedText.split('\n'),oldCaption=/^Annex(?: (?:1|I))?(?: \(new\))?(?: [–-] ([^\n\t]+))?$/u.exec(previous.targetLabel)?.[1];
+    if(oldLines.some(line=>!line.trim())||oldLines.slice(1).some(line=>/^ANNEX\b/u.test(line))||oldCaption&&oldCaption.normalize('NFC').replace(/\s+/gu,' ').trim().toUpperCase()!==oldLines[1].normalize('NFC').replace(/\s+/gu,' ').trim().toUpperCase())continue;
+    if(oldTables.length!==1||!safeTable(oldTables[0],2)||old.some(block=>block.kind==='paragraph'&&!block.annexSafe)||tables.length!==2||!safeTable(tables[0],1)||!safeTable(tables[1],tables[1].gridColumns)||group.some(block=>block.kind==='paragraph'&&!block.annexSafe))continue;
+    const oldRows=oldTables[0].rows,oldHeader=old.filter(block=>block.kind==='paragraph'&&block.text);
+    if(oldHeader.map(block=>block.text).join('\n')!==`Amendment\t\t${previous.number}\nProposal for a regulation\n${previous.targetLabel}`||oldRows.length!==3||oldRows[0].length!==1||oldRows[0][0].grid.span!==2||oldRows[0][0].text||oldRows.slice(1).some(cells=>cells.length!==2||cells.some(cell=>cell.grid.span!==1))||oldRows[1][0].text!=='Text proposed by the Commission'||oldRows[1][1].text!=='Amendment'||oldRows[2][0].text||oldRows[2][1].text!==previous.proposedText)continue;
+    const first=group.indexOf(tables[0]),last=group.indexOf(tables[1]),header=group.slice(0,first).filter(block=>block.kind==='paragraph'&&block.text),prefix=group.slice(first+1,last).filter(block=>block.kind==='paragraph'&&block.text);
+    if(header.map(block=>block.text).join('\n')!==`Amendment\t\t${current.number}\nProposal for a regulation\n${current.targetLabel}`||prefix.length!==2||!/^ANNEX(?: (?:2|II))?$/u.test(prefix[0].text)||!/[.:]$/u.test(prefix[1].text)||group.slice(last+1).some(block=>block.kind!=='paragraph'||block.text)||tables[0].rows.length!==2||tables[0].rows.some(cells=>cells.length!==1||cells[0].grid.span!==1)||tables[0].rows[0][0].text!=='Text proposed by the Commission'||tables[0].rows[1][0].text!=='Amendment')continue;
+    const grid=tables[1],count=grid.gridColumns;if(count<2||count>20||grid.rows.length<2||grid.rows.some(cells=>cells.length!==count||cells.some(cell=>cell.grid.span!==1)||!cells.some(cell=>cell.text))||grid.rows[0].some(cell=>!cell.text))continue;
+    const literal=grid.rows.map(cells=>cells.map(cell=>cell.text).join('\t')).join('\n');if(current.proposedText!==literal)continue;
+    const nativePrefix=prefix.map(block=>block.text).join('\n')+'\n',offset=nativePrefix.length;
+    current.proposedText=nativePrefix+current.proposedText;current.proposedFormatting=current.proposedFormatting.map(mark=>({...mark,start:mark.start+offset,end:mark.end+offset}));
+    current.documentReferences.push({field:'PrecedingAnnex',raw:String(previous.number),sourceRaw:previous.targetLabel,scope:'amendment',basis:'native-annex-order'});
   }
   return {amendments,gaps,...(reportId?{reportId}:{})};
 }
