@@ -10,9 +10,12 @@ import {groupVoiceSource} from './group-voices-store.mjs';
 // writes here and it resumes first, so the active rows cannot change underneath.
 const MARKER='generationBegin';
 // Row size varies by three orders of magnitude and the disk may be busy, so batches
-// follow commit time. It also bounds how long shutdown waits on a synchronous commit.
-const BATCH={initial:50,min:10,max:2000,targetMs:1000};
-const PRUNED=[['sources','prune'],['items','prune'],['amendments','prune']];
+// follow commit time and bytes. That also bounds how long shutdown waits on a
+// synchronous commit, and the temporary copy SQLite holds of a batch.
+const BATCH={initial:50,min:10,max:2000,targetMs:1000,bytes:16*1024*1024};
+const PRUNED=['sources','items','amendments'].map(table=>({step:'prune',table,prune:true}));
+// Tables without a primary key name their range key here.
+const RANGE_KEYS={procedure_event_reads:'source_key'};
 const STEPS=[
   ...[['sources',{seen:'0'}],...projectionTables('sources').map(table=>[table])].map(([table,literal])=>({step:'sources',table,literal})),
   {step:'items',table:'items'},
@@ -33,24 +36,27 @@ function columns(db,table,literal={}) {
   const info=db.prepare(`PRAGMA table_info(${table})`).all();
   const names=info.map(row=>row.name).filter(name=>name!=='generation');
   // The range key is the primary-key column after generation, when there is one.
-  const key=info.filter(row=>row.pk>0).sort((a,b)=>a.pk-b.pk).map(row=>row.name)[1];
-  return {names,values:names.map(name=>literal[name]??name),key};
+  const key=RANGE_KEYS[table]??info.filter(row=>row.pk>0).sort((a,b)=>a.pk-b.pk).map(row=>row.name)[1];
+  if(!key)throw new Error(`Generation copy of ${table} has no range key.`);
+  return {names,values:names.map(name=>literal[name]??name),key,sized:names.includes('body')};
 }
-// Ranges never split one key, so a commit may slightly exceed the batch size.
-function copyBatch(db,{table,literal},generation,active,cursor,batch) {
-  const {names,values,key}=columns(db,table,literal);
+// Ranges never split one key, so a commit can slightly exceed its bounds.
+function copyBatch(db,{table,literal},generation,active,cursor,rows,bytes) {
+  const {names,values,key,sized}=columns(db,table,literal);
   const insert=where=>`INSERT INTO ${table}(generation,${names.join(',')}) SELECT ?,${values.join(',')} FROM ${table} WHERE generation=? ${where}`;
   db.prepare("INSERT INTO meta(key,value) VALUES ('fastReadCopyGeneration',?)").run(String(generation));
   let changes=0,next;
   try {
-    if(!key)changes=Number(db.prepare(insert('')).run(generation,active).changes);
-    else {
-      // NULL sorts first and fails every range comparison, so copy it up front.
-      if(cursor===undefined)changes+=Number(db.prepare(insert(`AND ${key} IS NULL`)).run(generation,active).changes);
-      const after=cursor===undefined?`${key} IS NOT NULL`:`${key}>?`,args=cursor===undefined?[]:[cursor];
-      next=db.prepare(`SELECT ${key} value FROM ${table} WHERE generation=? AND ${after} ORDER BY ${key} LIMIT ?`).all(active,...args,batch).at(-1)?.value;
-      if(next!==undefined)changes+=Number(db.prepare(insert(`AND ${after} AND ${key}<=?`)).run(generation,active,...args,next).changes);
+    // NULL sorts first and fails every range comparison, so copy it up front.
+    if(cursor===undefined)changes+=Number(db.prepare(insert(`AND ${key} IS NULL`)).run(generation,active).changes);
+    const after=cursor===undefined?`${key} IS NOT NULL`:`${key}>?`,args=cursor===undefined?[]:[cursor];
+    let total=0;
+    // octet_length reads only the record header, on pages this batch is about to copy.
+    for(const row of db.prepare(`SELECT ${key} value,${sized?'octet_length(body)':'0'} size FROM ${table} WHERE generation=? AND ${after} ORDER BY ${key} LIMIT ?`).iterate(active,...args,rows)) {
+      next=row.value;total+=row.size||0;
+      if(total>=bytes)break;
     }
+    if(next!==undefined)changes+=Number(db.prepare(insert(`AND ${after} AND ${key}<=?`)).run(generation,active,...args,next).changes);
     if(table==='amendments'&&changes)db.prepare("INSERT INTO meta(key,value) VALUES ('amendmentMutationRevision',?) ON CONFLICT(key) DO UPDATE SET value=CAST(CAST(value AS INTEGER)+CAST(excluded.value AS INTEGER) AS TEXT)").run(String(changes));
   } finally {db.prepare("DELETE FROM meta WHERE key='fastReadCopyGeneration'").run();}
   return next;
@@ -63,18 +69,38 @@ function pruneBatch(db,table,active,generation,batch) {
   }
   return true;
 }
+const allTables=[...new Set(STEPS.map(stage=>stage.table))].reverse(),GENERATION_DISCARD_BATCH=200;
+// The marker keeps these rows out of amendment adoption and reads, so it goes only
+// in the commit that removes the last of them. Interrupted, this simply runs again.
+function discardPartialGeneration(store,{generation},pause) {
+  const {db}=store,active=store.get('active')||0;
+  if(generation!==active&&generation!==store.get('working')?.generation)for(const table of allTables) {
+    for(let changes=GENERATION_DISCARD_BATCH;changes>=GENERATION_DISCARD_BATCH;) {
+      const started=performance.now();
+      // Tables without a rowid hold only small projections; remove them in one step.
+      const whole=db.prepare("SELECT wr FROM pragma_table_list WHERE schema='main' AND name=?").get(table).wr;
+      changes=store.generationTransaction(()=>Number((whole?db.prepare(`DELETE FROM ${table} WHERE generation=?`).run(generation):db.prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE generation=? LIMIT ?)`).run(generation,GENERATION_DISCARD_BATCH)).changes));
+      if(whole)break;
+      pause?.(performance.now()-started);
+    }
+  }
+  store.generationTransaction(()=>store.set(MARKER,null));
+}
 
 // Returns the new cycle, or null when the caller must use the atomic path.
-export function beginGenerationInBatches(store,{pause,batch,memoryTemp=false,log=console.log,finish}) {
-  const db=store.db,saved=store.get(MARKER),sequence=store.get('sequence')||0,active=store.get('active')||0;
-  if(store.get('working')){if(saved)store.generationTransaction(()=>store.set(MARKER,null));return null;}
-  const voices=groupVoiceSource(db,active)!==null,stages=[...PRUNED.map(([table,step])=>({step,table,prune:true})),...STEPS.filter(stage=>!stage.voices||voices)];
-  // A cursor is only meaningful to the plan that wrote it. An image with a
-  // different plan starts a new generation and prunes the partial one.
-  const plan=stages.map(stage=>stage.table).join();
-  const resuming=saved?.generation===sequence&&saved.active===active&&saved.plan===plan;
-  if(!resuming&&!batchedBeginEligible(store,active)){if(saved)store.generationTransaction(()=>store.set(MARKER,null));return null;}
-  let state=resuming?{...saved,resumes:(saved.resumes||0)+1}:{generation:sequence+1,active,plan,startedAt:new Date(store.clock()).toISOString(),stage:0,steps:{},batches:0,resumes:0};
+export function beginGenerationInBatches(store,{pause,batch,batchBytes=BATCH.bytes,memoryTemp=false,log=console.log,finish}) {
+  const db=store.db,saved=store.get(MARKER);
+  if(store.get('working')){if(saved)discardPartialGeneration(store,saved,pause);return null;}
+  const sequence=store.get('sequence')||0,active=store.get('active')||0;
+  const voices=groupVoiceSource(db,active)!==null,stages=[...PRUNED,...STEPS.filter(stage=>!stage.voices||voices)];
+  // A cursor is only meaningful to the plan that wrote it. Every iteration of any
+  // image advances documentBodyTurn before it can write, and the writer resumes
+  // before its own, so a changed turn means active rows may have changed since.
+  const plan=stages.map(stage=>stage.table).join(),turn=store.get('documentBodyTurn')??0;
+  const resuming=saved&&!saved.discard&&saved.generation===sequence&&saved.active===active&&saved.plan===plan&&saved.turn===turn;
+  if(saved&&!resuming)discardPartialGeneration(store,saved,pause);
+  if(!resuming&&!batchedBeginEligible(store,active))return null;
+  let state=resuming?{...saved,resumes:(saved.resumes||0)+1}:{generation:sequence+1,active,plan,turn,startedAt:new Date(store.clock()).toISOString(),stage:0,steps:{},batches:0,resumes:0};
   const {generation}=state;
   // Each batch's INSERT ... SELECT reads its own table, so SQLite buffers the rows
   // in a temporary table. They are small now; keep them off the disk. Not for the
@@ -98,28 +124,32 @@ export function beginGenerationInBatches(store,{pause,batch,memoryTemp=false,log
     for(const table of ['tasks','follow_summary','dossier_events','follow_generations','follow_touched','membership_snapshots','group_history_snapshots'])store.pruneGenerationTable(table,active);
     db.prepare('DELETE FROM outside_contributions WHERE generation<>?').run(active);
   });
+  const matchesSource=table=>{
+    const count=g=>db.prepare(`SELECT COUNT(*) n FROM ${table} WHERE generation=?`).get(g).n;
+    if(count(generation)!==count(active))throw Object.assign(new Error(`Generation copy of ${table} does not match its source.`),{restartBegin:true});
+  };
   while(state.stage<stages.length) {
     const stage=stages[state.stage],started=performance.now();
     commit(()=>{
       const next={...state,batches:state.batches+1};
+      const advance=()=>{next.stage++;delete next.cursor;if(batch===undefined)size=BATCH.initial;};
       if(stage.prune) {
-        if(pruneBatch(db,stage.table,active,generation,size)){next.stage++;delete next.cursor;}
+        if(pruneBatch(db,stage.table,active,generation,size))advance();
       } else {
-        const cursor=copyBatch(db,stage,generation,active,state.cursor,size);
-        if(cursor===undefined){
-          // Row counts catch a source that changed across a resume, such as an
-          // older image writing during a rollback. Restart rather than publish it.
-          const count=g=>db.prepare(`SELECT COUNT(*) n FROM ${stage.table} WHERE generation=?`).get(g).n;
-          if(count(generation)!==count(active))throw Object.assign(new Error(`Generation copy of ${stage.table} does not match its source.`),{restartBegin:true});
-          next.stage++;delete next.cursor;
-        } else next.cursor=cursor;
+        const cursor=copyBatch(db,stage,generation,active,state.cursor,size,batchBytes);
+        if(cursor===undefined)advance();
+        else next.cursor=cursor;
       }
       next.steps={...state.steps,[stage.step]:(state.steps[stage.step]||0)+Math.round(performance.now()-started)};
       state=next;
     });
   }
+  if(memoryTemp)db.exec('PRAGMA temp_store=FILE');
   return store.generationTransaction(()=>{
-    const started=performance.now(),cycle=finish(state,{log});
+    const started=performance.now();
+    // Row counts catch a source that changed unseen, across every copied table.
+    for(const {table,prune} of stages)if(!prune)matchesSource(table);
+    const cycle=finish(state,{log});
     copyFastReadProgress(db,'sources',generation,active);copyFastReadProgress(db,'outside',generation,active);copyFastReadProgress(db,'amendments',generation,active);
     state.steps.finish=Math.round(performance.now()-started);
     log('[generation-begin]',JSON.stringify({generation,active,steps:state.steps,batches:state.batches,resumes:state.resumes}));
@@ -128,4 +158,5 @@ export function beginGenerationInBatches(store,{pause,batch,memoryTemp=false,log
   });
 }
 export const generationBeginPending=store=>Boolean(store.get(MARKER));
-export const abandonGenerationBegin=store=>store.generationTransaction(()=>store.set(MARKER,null));
+// Anything that may have rebuilt rows under a partial generation ends its resume.
+export const discardGenerationBegin=store=>{const saved=store.get(MARKER);if(saved&&!saved.discard)store.set(MARKER,{...saved,discard:true});};

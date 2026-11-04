@@ -6,6 +6,7 @@ import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {amendmentGeneration} from './amendments-store.mjs';
+import {prepareIndexes} from './migrate-indexes.mjs';
 
 const at='2026-11-02T02:00:00Z',instant=()=>Date.parse(at);
 const FILE='activities-v1.sqlite';
@@ -79,7 +80,7 @@ test('an unsized begin adapts its batches and stays equal, with temporary rows i
   const directory=base(t),atomic=expected(t,directory),store=open(clone(t,directory));
   try {
     assert.deepEqual(store.beginCycle({memoryTemp:true}),atomic.cycle);assert.deepEqual(dump(store),atomic.dump);
-    assert.equal(store.db.prepare('PRAGMA temp_store').get().temp_store,2);
+    assert.equal(store.db.prepare('PRAGMA temp_store').get().temp_store,1,'file-backed again for the rest of the transaction');
   } finally {store.close();}
 });
 
@@ -112,7 +113,7 @@ test('an active generation that changed across a resume restarts the begin inste
     const copied=store.db.prepare('SELECT source_id FROM items WHERE generation=3 LIMIT 1').get().source_id;
     store.db.prepare('DELETE FROM items WHERE generation=2 AND source_id=?').run(copied);
     assert.throws(()=>store.beginCycle({batch:2}),/does not match/);
-    assert.equal(store.get('generationBegin'),null);
+    assert.equal(store.get('generationBegin').discard,true);
     const cycle=store.beginCycle({batch:2});assert.equal(cycle.generation,4);
     const count=generation=>store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(generation).n;
     assert.equal(count(3),0);assert.equal(count(4),count(2));
@@ -142,6 +143,111 @@ test('a partly built generation from a different copy plan is restarted, not res
     assert.equal(store.beginCycle({batch:2}).generation,4);
     assert.equal(store.db.prepare('SELECT COUNT(*) n FROM sources WHERE generation=3').get().n,0);
     assert.equal(store.db.prepare('SELECT COUNT(*) n FROM sources WHERE generation=4').get().n,store.db.prepare('SELECT COUNT(*) n FROM sources WHERE generation=2').get().n);
+  } finally {store.close();}
+});
+
+const rowCount=(store,table,generation)=>store.db.prepare(`SELECT COUNT(*) n FROM ${table} WHERE generation=?`).get(generation).n;
+const stopWhen=(store,ready)=>()=>{if(ready(store))throw new Error('stop');};
+const copied=(table,generation=3)=>store=>rowCount(store,table,generation)>0;
+
+test('a discarded copy stays out of adoption until its rows are gone, and the active snapshot survives',t=>{
+  for(const reason of ['changed-source','ineligible']) {
+    const directory=base(t),store=open(clone(t,directory));
+    try {
+      assert.throws(()=>store.beginCycle({batch:2,pause:stopWhen(store,copied('amendment_page_reads'))}),/stop/);
+      const victim=store.db.prepare('SELECT id FROM amendments WHERE generation=2 LIMIT 1').get().id;
+      if(reason==='changed-source') {
+        store.db.prepare('DELETE FROM amendments WHERE generation=2 AND id=?').run(victim);
+        assert.throws(()=>store.beginCycle({batch:2}),/does not match/);
+        assert.equal(store.get('generationBegin').discard,true);
+        assert.equal(amendmentGeneration(store),2,'the excluded rows are not read');
+      } else {
+        store.db.prepare("DELETE FROM fast_read_progress WHERE projection='amendments' AND generation=2").run();
+        store.set('generationBegin',{...store.get('generationBegin'),plan:'older-plan'});
+      }
+      const active=rowCount(store,'amendments',2);
+      assert.equal(store.beginCycle({batch:2}).generation,4);
+      assert.equal(store.get('generationBegin'),null);
+      for(const table of ['sources','amendments','amendment_contributors','amendment_page_reads','group_voice_observations'])assert.equal(rowCount(store,table,3),0,reason+' '+table);
+      assert.equal(rowCount(store,'amendments',2),active,reason+' active');
+      assert.equal(rowCount(store,'amendments',4),active,reason+' new');
+      if(reason==='changed-source')assert.equal(store.db.prepare('SELECT COUNT(*) n FROM amendments WHERE generation=4 AND id=?').get(victim).n,0,'the deleted row stays deleted');
+    } finally {store.close();}
+  }
+});
+
+test('a discard stopped partway finishes on the next begin, still excluded',t=>{
+  const directory=base(t),store=open(clone(t,directory));
+  try {
+    assert.throws(()=>store.beginCycle({batch:2,pause:stopWhen(store,copied('amendment_page_reads'))}),/stop/);
+    store.set('generationBegin',{...store.get('generationBegin'),discard:true});
+    let commits=0;
+    assert.throws(()=>store.beginCycle({batch:2,pause:()=>{if(++commits===2)throw new Error('stop');}}),/stop/);
+    assert.equal(store.get('generationBegin').discard,true);assert.equal(amendmentGeneration(store),2);
+    assert.equal(store.beginCycle({batch:2}).generation,4);assert.equal(rowCount(store,'sources',3),0);
+  } finally {store.close();}
+});
+
+test('a source changed after its table finished is caught before the generation opens',t=>{
+  const directory=base(t),store=open(clone(t,directory));
+  try {
+    assert.throws(()=>store.beginCycle({batch:2,pause:stopWhen(store,copied('items'))}),/stop/);
+    store.db.prepare("INSERT INTO sources VALUES (2,'/plenary-documents/late','document','{}',?,1)").run(at);
+    assert.throws(()=>store.beginCycle({batch:2}),/sources does not match/);
+    assert.equal(store.get('working'),null);
+    assert.equal(store.beginCycle({batch:2}).generation,4);
+    assert.equal(rowCount(store,'sources',4),rowCount(store,'sources',2));
+  } finally {store.close();}
+});
+
+test('any other writer iteration ends the resume, even when row counts still match',t=>{
+  const directory=base(t),store=open(clone(t,directory));
+  try {
+    assert.throws(()=>store.beginCycle({batch:2,pause:stopWhen(store,copied('items'))}),/stop/);
+    store.db.prepare("UPDATE sources SET fetched_at='changed' WHERE generation=2").run();
+    store.set('documentBodyTurn',(store.get('documentBodyTurn')||0)+1);
+    assert.equal(store.beginCycle({batch:2}).generation,4);
+    assert.equal(store.db.prepare("SELECT COUNT(*) n FROM sources WHERE generation=4 AND fetched_at='changed'").get().n,rowCount(store,'sources',2));
+  } finally {store.close();}
+});
+
+test('startup preparation that replays projections discards the partial generation',t=>{
+  const directory=base(t),working=clone(t,directory);
+  let store=open(working);
+  try {
+    assert.throws(()=>store.beginCycle({batch:2,pause:stopWhen(store,copied('amendments'))}),/stop/);
+    store.set('committeeAmendmentIndexVersion',0);store.close();
+    prepareIndexes({activityDirectory:working,clock:instant,log:()=>{}});
+    store=open(working);
+    assert.equal(store.get('generationBegin').discard,true);
+    assert.equal(store.beginCycle({batch:2}).generation,4);
+    assert.equal(rowCount(store,'amendments',3),0);assert.equal(rowCount(store,'amendment_contributors',3),0);
+    assert.equal(rowCount(store,'amendment_contributors',4),rowCount(store,'amendment_contributors',2));
+  } finally {store.close();}
+});
+
+test('batches stay bounded: a keyless projection pages, and large rows split by bytes',t=>{
+  const directory=base(t),store=open(clone(t,directory));
+  try {
+    store.db.prepare('DELETE FROM procedure_event_reads').run();
+    const event=store.db.prepare("INSERT INTO procedure_event_reads VALUES (2,?,'2026-10-10','t',?,'2026-10-10')");
+    for(let i=0;i<20;i++)event.run('/procedures/'+String(i).padStart(4,'0'),at);
+    const large=JSON.stringify({pad:'x'.repeat(1024*1024)}),row=store.db.prepare("INSERT INTO items VALUES (2,'/s',?,'9','question','2026-10-10',?)");
+    for(let i=0;i<6;i++)row.run('big-'+i,large);
+    let events=0,items=0;
+    const counts=()=>[rowCount(store,'procedure_event_reads',3),rowCount(store,'items',3)];
+    let before=[0,0];
+    store.beginCycle({batch:1,batchBytes:1024*1024,pause:()=>{const now=counts();events=Math.max(events,now[0]-before[0]);items=Math.max(items,now[1]-before[1]);before=now;}});
+    assert.equal(rowCount(store,'procedure_event_reads',3),20);assert.equal(rowCount(store,'items',3),rowCount(store,'items',2));
+    assert.equal(events,1,'one event row per commit');assert.ok(items<=2,'large rows are not copied together');
+    const bytes=open(clone(t,directory));
+    try {
+      const big=bytes.db.prepare("INSERT INTO items VALUES (2,'/s',?,'9','question','2026-10-10',?)");
+      for(let i=0;i<6;i++)big.run('big-'+i,large);
+      let most=0,seen=0;
+      bytes.beginCycle({batch:100,batchBytes:1024*1024,pause:()=>{const n=rowCount(bytes,'items',3);most=Math.max(most,n-seen);seen=n;}});
+      assert.ok(most<100,'the byte bound ends a batch before its row bound');
+    } finally {bytes.close();}
   } finally {store.close();}
 });
 

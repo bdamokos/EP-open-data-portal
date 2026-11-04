@@ -35,7 +35,7 @@ import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSitt
 import {generationPruneSchemaVersion,prepareGenerationPrune} from './generation-prune.mjs';
 import {copyProjectedGenerationRows,prepareGenerationCopy,generationCopySchemaVersion} from './generation-copy.mjs';
 import {speechSourceGapSchema} from './speech-source-gaps.mjs';
-import {beginGenerationInBatches,abandonGenerationBegin} from './generation-begin.mjs';
+import {beginGenerationInBatches,discardGenerationBegin} from './generation-begin.mjs';
 
 // Defaults gate both normal construction and writer acquisition. The explicit
 // exceptions preserve preparations historically allowed during normal acquire().
@@ -62,6 +62,7 @@ export const ACTIVITY_SCHEMA_GATES=Object.freeze([
   {key:'documentBodySchema',value:1,constructorGate:false},
 ].map(Object.freeze));
 
+const schemaGateState=store=>JSON.stringify(ACTIVITY_SCHEMA_GATES.map(gate=>store.get(gate.key)));
 const parse = value => value == null ? null : JSON.parse(value);
 const motionReferenceValue = `CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END`;
 const originalMotionRef = `CASE
@@ -146,6 +147,8 @@ export class ActivityStore {
     const acquired=this.transaction(()=> {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
+      // Preparation can replay projections into a partly built generation.
+      const gatesBefore=this.get('generationBegin')?schemaGateState(this):null;
       assertRefreshSnapshot(this);
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion,initializeLinks=this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion;
       if(!this.initializeIndexes&&ACTIVITY_SCHEMA_GATES.some(gate=>gate.writerGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
@@ -199,6 +202,7 @@ export class ActivityStore {
       }
       if(initialized||this.get('generationPruneSchemaVersion')!==generationPruneSchemaVersion){prepareGenerationPrune(this.db);this.set('generationPruneSchemaVersion',generationPruneSchemaVersion);}
       if(initialized||this.get('generationCopySchemaVersion')!==generationCopySchemaVersion){prepareGenerationCopy(this.db);this.set('generationCopySchemaVersion',generationCopySchemaVersion);}
+      if(gatesBefore&&(initialized||gatesBefore!==schemaGateState(this)))discardGenerationBegin(this);
       refresh();
       return true;
     });
@@ -287,11 +291,11 @@ export class ActivityStore {
     const cycle={ generation, initial:!active, startedAt, phase:'discovering', error:null, requests:0 };
     this.set('working',cycle);return cycle;
   }
-  beginCycle({pause,batch,memoryTemp,batched:useBatches=true}={}) {
+  beginCycle({pause,batch,batchBytes,memoryTemp,batched:useBatches=true}={}) {
     this.invalidateMemberProfiles();
     assertRefreshSnapshot(this);
     try {
-      const batched=useBatches&&beginGenerationInBatches(this,{pause,batch,memoryTemp,finish:({generation,active,startedAt})=>{
+      const batched=useBatches&&beginGenerationInBatches(this,{pause,batch,batchBytes,memoryTemp,finish:({generation,active,startedAt})=>{
         assertRefreshSnapshot(this);
         this.set('lastBeginAt',startedAt);
         this.db.prepare('INSERT OR REPLACE INTO meta SELECT ?,value FROM meta WHERE key=?').run('questionFileBackfill:'+generation,'questionFileBackfill:'+active);
@@ -303,7 +307,7 @@ export class ActivityStore {
       }});
       if(batched)return batched;
     } catch(error) {
-      if(error.restartBegin){console.warn('[generation-begin]',error.message);abandonGenerationBegin(this);}
+      if(error.restartBegin){console.warn('[generation-begin]',error.message);this.generationTransaction(()=>discardGenerationBegin(this));}
       throw error;
     }
     return this.generationTransaction(()=> {
