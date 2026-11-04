@@ -175,6 +175,7 @@ export const COMPARISON_HEADINGS=Object.freeze({
 const HEADING_ALIASES={
   en:{'Commission proposal':'commission-proposal',Modification:'amendment','Proposal for rejection':'amendment'},
   it:{'Proposta di reiezione':'amendment'},
+  cs:{'Návrh na zamítnutí':'amendment'},
   fr:{'Proposition de rejet':'amendment'},
   ro:{'Propunere de rezoluție':'motion-resolution'},
   hu:{'Állásfoglalási indítvány':'motion-resolution'},
