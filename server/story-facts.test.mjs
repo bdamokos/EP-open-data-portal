@@ -663,6 +663,12 @@ test('outside addresses and coverage are copied into the published generation',a
  store.set('active',2);await buildTopics(store,{generation:2,sourceGeneration:1});
  const query=scope=>new URLSearchParams({scope,...(scope==='place'?{key:'place:ESP'}:{}),period:'2026-Q1'});
  let result=storyFacts(store,query('map'));assert.equal(result.outsideSpeakers.length,2,'speeches in one address deduplicate by exact person and item');assert.deepEqual(result.outsideSpeakers.map(a=>a.country),['ESP','PRT']);assert.equal(storyFacts(store,query('place')).outsideSpeakers.length,1);
+ for(const row of store.db.prepare("SELECT id,body FROM story_facts WHERE generation=2 AND kind='outsideSpeaker'").all()){
+  const value=JSON.parse(row.body);value.roles={en:{role:'King of Spain',source:{url:'retained-source',fetchedAt:stamp}},hu:{role:'spanyol király',source:{url:'retained-source',fetchedAt:stamp}}};
+  store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideSpeaker' AND id=?").run(JSON.stringify(value),row.id);
+ }
+ const requested=query('map');requested.set('lang','hu');const localized=storyFacts(store,requested).outsideSpeakers[0];
+ assert.deepEqual(localized.roles,{hu:{role:'spanyol király',languageTag:'hu'}});for(const key of ['role','language','headerSource','source','rosterSource','debateSource','wikidata'])assert(!Object.hasOwn(localized,key),key);
  store.db.prepare('DELETE FROM outside_contributions WHERE generation=1').run();assert.equal(storyFacts(store,query('map')).outsideSpeakers.length,2,'published evidence is immutable until rebuilt');
  store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({wikidataPolicyVersion:4,complete:false,window:{end:'2026-11-01'},availability:{sourceKey:'outside',checkedIntervals:[],gaps:[],limited:true}}));
  assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'incomplete coverage suppresses the line');

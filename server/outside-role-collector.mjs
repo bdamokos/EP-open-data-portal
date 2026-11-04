@@ -5,84 +5,114 @@ import {absolutePathFromEnvironment} from './config.mjs';
 import {CorpusStore} from './corpus-store.mjs';
 import {outsideSpeech} from './outside-model.mjs';
 import {EU_PROTOCOL_ORDER} from './language-order.mjs';
-import {collectorRetry} from './collector-retry.mjs';
+import {collectorPaused,collectorPermanent,collectorRetry} from './collector-retry.mjs';
 
 const DAY=86400_000;
-export const trimPublishedRole=value=>typeof value==='string'?value.replace(/^[\s.,;:–—-]+|[\s.,;:–—-]+$/gu,'')||null:null;
-export function roleObservation(observation,language,source){
- if(!observation||observation.fragmentKey!==language&&observation.languageTag?.split('-')[0]!==language)return null;
- // Translation tags describe the original first (sl-t-en-mtec). The fragment
- // key is the publication language; never infer it from that original prefix.
- if(observation.fragmentKey!==language&&observation.languageTag?.includes('-t-'))return null;
- return {role:trimPublishedRole(observation.role),languageTag:observation.languageTag,machineTranslated:/(?:^|-)mtec(?:-|$)/.test(observation.languageTag||''),source};
+export function trimPublishedRole(value){
+ if(typeof value!=='string')return null;
+ let role=value.replace(/^[\s.,;:–—-]+|[\s,;:–—-]+$/gu,'');
+ // A separated full stop is header punctuation; an abbreviation's last dot
+ // belongs to the published title (including U.S. and single-word Dr.).
+ role=role.replace(/\s+\.$/u,'').trim();
+ if(role.endsWith('.')&&!/(?:\b\p{L}\.){2,}$|\b(?:Dr|Mr|Mrs|Ms|Prof|Sr|Jr)\.$/u.test(role))role=role.slice(0,-1).trim();
+ return role||null;
+}
+export const listOrCategoryRole=role=>/^(?:(?:category|kategorie|catégorie|categoria|categoría|kategória)\s*:|(?:(?:anexo|annex|annexe)\s*:\s*)?(?:lista\s+(?:de|dos|das|över)|liste\s+(?:des|der)|list\s+of|lijst\s+van)\b)/iu.test(role||'');
+const select=(observations,language)=>observations.find(o=>o.fragmentKey===language)||observations.find(o=>o.fragmentKey==='mul'&&o.languageTag===language);
+export function roleObservation(observation,language,source,observations=[]){
+ if(!observation||observation.fragmentKey!==language&&!(observation.fragmentKey==='mul'&&observation.languageTag===language))return null;
+ const title=trimPublishedRole(observation.role),tag=observation.languageTag;
+ const reference=/^[a-z]{2}$/.test(tag||'')&&tag!==language?trimPublishedRole(select(observations,tag)?.role):null;
+ const rejected=title&&listOrCategoryRole(title)?'list-or-category':title&&reference&&title.toLowerCase()===reference.toLowerCase()?'untranslated':null;
+ return {role:rejected?null:title,languageTag:tag,machineTranslated:observation.machineTranslated??(/(?:^|-)mtec(?:-|$)/.test(tag||'')?true:null),source,rejected};
+}
+function mergePeople(people,incoming){
+ const result=structuredClone(people||{});
+ for(const [person,observations]of Object.entries(incoming)){
+  const byKey=new Map((result[person]||[]).map(o=>[o.fragmentKey,o]));
+  for(const o of observations){const old=byKey.get(o.fragmentKey);if(!old||Date.parse(o.source?.fetchedAt)>Date.parse(old.source?.fetchedAt))byKey.set(o.fragmentKey,o);}
+  result[person]=[...byKey.values()];
+ }
+ return result;
 }
 export function seedOutsideRoles(store,appearance,person){
- const insert=store.db.prepare('INSERT OR IGNORE INTO outside_role_jobs(speech,language,person,next_read,body) VALUES (?,?,?,?,?)');
- for(const language of EU_PROTOCOL_ORDER){
-  const observation=appearance.header?.observations?.find(o=>o.fragmentKey===language)||appearance.header?.observations?.find(o=>!o.languageTag?.includes('-t-')&&o.languageTag===language);
-  const role=roleObservation(observation,language,appearance.headerSource||appearance.source);
-  insert.run(appearance.id,language,person,role?null:0,JSON.stringify({appearance,role}));
-  if(role)store.db.prepare('UPDATE outside_role_jobs SET body=?,next_read=NULL,attempts=0 WHERE speech=? AND language=? AND person=?').run(JSON.stringify({appearance,role}),appearance.id,language,person);
- }
+ const saved=store.db.prepare('SELECT body FROM outside_role_speech_reads WHERE speech=?').get(appearance.id);
+ const body=saved?JSON.parse(saved.body):{people:{},fullRead:false};
+ const incoming=(appearance.header?.observations||[]).map(o=>({...o,source:appearance.headerSource||appearance.source}));
+ body.people=mergePeople(body.people,{[person]:incoming});
+ if(saved)store.db.prepare('UPDATE outside_role_speech_reads SET body=? WHERE speech=?').run(JSON.stringify(body),appearance.id);
+ else store.db.prepare('INSERT INTO outside_role_speech_reads VALUES (?,?,0,0,?)').run(appearance.id,appearance.date,JSON.stringify(body));
 }
 export function publishedOutsideRoles(store,speech,person){
- return Object.fromEntries(store.db.prepare('SELECT language,body FROM outside_role_jobs WHERE speech=? AND person=?').all(speech,person).map(r=>[r.language,JSON.parse(r.body).role]).filter(([,r])=>r));
+ const row=store.db.prepare('SELECT body FROM outside_role_speech_reads WHERE speech=?').get(speech);
+ const observations=row?JSON.parse(row.body).people[person]||[]:[];
+ return Object.fromEntries(EU_PROTOCOL_ORDER.map(language=>{const o=select(observations,language);return [language,roleObservation(o,language,o?.source,observations)];}).filter(([,r])=>r));
 }
 export function outsideRolesDue(store,now){
  if((store.get('outsideRoleNextRequest')||0)>now)return false;
- return Boolean(store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='outside_role_jobs'").get()&&store.db.prepare('SELECT 1 FROM outside_role_jobs WHERE next_read<=? LIMIT 1').get(now));
+ return Boolean(store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='outside_role_speech_reads'").get()&&store.db.prepare('SELECT 1 FROM outside_role_speech_reads WHERE next_read<=? LIMIT 1').get(now));
 }
-// Reuse the corpus verification windows: weekly for recent translations,
-// then 90/180/365 days. Successful held language reads never go upstream again.
-function nextMissingRead(date,now){
- const today=new Date(now).toISOString().slice(0,10);
- return now+(speechRecheckCadence(date,today)?.verification||7*DAY);
+export function nextRoleRead(date,now){if(now-Date.parse(date)<=7*DAY)return now+DAY;return now+(speechRecheckCadence(date,new Date(now).toISOString().slice(0,10))?.verification||7*DAY);}
+export function outsideRoleRetry(error,attempts,now){
+ if(collectorPaused(error))return collectorRetry(error,attempts,now);
+ if(collectorPermanent(error))return {next:null,attempts:attempts+1};
+ // Optional enrichment has a finite failure budget. A persistent 500 stops
+ // after seven reads rather than settling into steady weekly traffic.
+ const delays=[DAY,3*DAY,7*DAY,30*DAY,90*DAY,180*DAY];
+ return {next:attempts<delays.length?Math.max(now+delays[attempts],Number(error.retryAt)||0,now+(Number(error.retryAfter)||0)*1000):null,attempts:attempts+1};
 }
-export function heldOutsideRole(store,appearance,person,language){
- const metadata=store.speechMetadata(appearance.id),retained=store.retainedSpeechFragments(appearance.id);
+function project(activity,people,source,compactKeys=new Set()){
+ const speech=outsideSpeech(activity,source.fetchedAt,source.url),result={};
+ for(const person of people)result[person]=(speech?.headers.find(h=>h.personId===person)?.observations||[]).map(o=>({...o,...(compactKeys.has(o.fragmentKey)&&!o.machineTranslated?{machineTranslated:null}:{}),source}));
+ return result;
+}
+export function heldOutsideRoles(corpus,{speech,date},people){
+ const metadata=corpus.speechMetadata(speech),retained=corpus.retainedSpeechFragments(speech);
  const fragments={...(metadata?.interventionHeaders||{}),...retained.fragments};
- const projected=outsideSpeech({...metadata?.activity,activity_id:appearance.id,activity_date:appearance.date,had_activity_type:'PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+person]}],recorded_in_a_realization_of:[{'api:xmlFragment':fragments}]},metadata?.fetchedAt);
- const observations=projected?.headers.find(h=>h.personId===person)?.observations||[];
- const observation=observations.find(o=>o.fragmentKey===language)||observations.find(o=>o.languageTag===language);
- if(!observation)return null;
- const row=store.db.prepare(`SELECT t.source_url,t.fetched_at FROM texts t JOIN documents d ON d.id=t.document_id WHERE d.source_id=? AND t.source_key=? AND t.raw IS NOT NULL`).get(appearance.id,observation.fragmentKey);
- // Old compact headers retain a source list, without always binding a read to
- // a language. Keep that gap explicit instead of attributing every header to
- // the latest (possibly metadata-only) read. Held bytes still prevent refetch.
- const candidates=(metadata?.headerSources||[]).filter(source=>{try{return new URL(source.url).searchParams.get('language')===observation.fragmentKey;}catch{return false;}});
- const source=row?{url:row.source_url,fetchedAt:row.fetched_at}:metadata?.interventionHeaderSources?.[observation.fragmentKey]||candidates.at(-1)||{url:null,fetchedAt:null,headerSources:metadata?.headerSources||[]};
- return roleObservation(observation,language,source);
+ const activity={...metadata?.activity,activity_id:speech,activity_date:date,had_activity_type:'PLENARY_DEBATE_SPEECH',had_participation:people.map(person=>({had_participant_person:['person/'+person]})),recorded_in_a_realization_of:[{'api:xmlFragment':fragments}]};
+ const projected=project(activity,people,{},new Set(Object.keys(metadata?.interventionHeaders||{}).filter(key=>!retained.fragments[key])));
+ for(const observations of Object.values(projected))for(const o of observations){
+  const row=corpus.db.prepare(`SELECT t.source_url,t.fetched_at FROM texts t JOIN documents d ON d.id=t.document_id WHERE d.source_id=? AND t.source_key=? AND t.raw IS NOT NULL`).get(speech,o.fragmentKey);
+  const candidates=(metadata?.headerSources||[]).filter(source=>{try{return new URL(source.url).searchParams.get('language')===o.fragmentKey;}catch{return false;}});
+  o.source=row?{url:row.source_url,fetchedAt:row.fetched_at}:metadata?.interventionHeaderSources?.[o.fragmentKey]||candidates.at(-1)||{url:null,fetchedAt:null,headerSources:metadata?.headerSources||[]};
+ }
+ return projected;
 }
-export async function collectOutsideRoles(worker,{held=heldOutsideRole}={}){
+function readHeld(row,people){
+ const directory=absolutePathFromEnvironment('CORPUS_DIR');
+ if(!directory)throw Object.assign(Error('CORPUS_DIR is required for outside title collection.'),{code:'admission_paused'});
+ if(!existsSync(path.join(directory,'corpus-v1.sqlite')))return {};
+ const corpus=new CorpusStore(directory,{readOnly:true});
+ try{return heldOutsideRoles(corpus,row,people);}finally{corpus.close();}
+}
+export async function collectOutsideRoles(worker,{held=readHeld}={}){
  const {store}=worker;store.assertWriter();
  if(worker.requests>=worker.budget||worker.controller.signal.aborted||!outsideRolesDue(store,worker.clock()))return false;
- // Durable single-flight pacing, also across short runs and restarts. These
- // optional reads share the collector allocation and visitor-reserved limiter.
- if((store.get('outsideRoleNextRequest')||0)>worker.clock())return false;
- const row=store.db.prepare('SELECT * FROM outside_role_jobs WHERE next_read<=? ORDER BY next_read,speech,language,person LIMIT 1').get(worker.clock());
- const {appearance}=JSON.parse(row.body);let corpus,role;
+ const row=store.db.prepare('SELECT * FROM outside_role_speech_reads WHERE next_read<=? ORDER BY next_read,speech LIMIT 1').get(worker.clock());
+ const body=JSON.parse(row.body),people=Object.keys(body.people);
  try{
-  const directory=absolutePathFromEnvironment('CORPUS_DIR');
-  if(directory&&existsSync(path.join(directory,'corpus-v1.sqlite'))){
-   corpus=new CorpusStore(directory,{readOnly:true});
-   role=held(corpus,appearance,row.person,row.language);
-  }
-  if(!role){
+  const local=held(row,people);body.people=mergePeople(body.people,local);
+  const corpusComplete=people.every(person=>EU_PROTOCOL_ORDER.every(language=>select(local[person]||[],language)));
+  const heldComplete=!body.fullRead&&people.every(person=>EU_PROTOCOL_ORDER.every(language=>select(body.people[person]||[],language)));
+  if(!corpusComplete&&!heldComplete){
+   // One all-language read per speech, serialized by the activity writer and
+   // paced across restarts. The existing optional allocation and background
+   // limiter reserve visitor traffic; Retry-After remains authoritative.
    store.set('outsideRoleNextRequest',worker.clock()+5000);
-   const record=await worker.request('/speeches/'+row.speech,{'include-output':'xml_fragment',language:row.language},{backgroundLow:true});
+   const record=await worker.request('/speeches/'+row.speech,{'include-output':'xml_fragment'},{backgroundLow:true});
    worker.controller.signal.throwIfAborted();store.assertWriter();
    const activity=record.payload?.data?.find(a=>a.activity_id===row.speech);
-   if(!activity)throw Error('Outside role speech identity does not match the request.');
-   const speech=outsideSpeech(activity,record.fetchedAt,record.url);
-   const observations=speech?.headers.find(h=>h.personId===row.person)?.observations||[];
-   role=roleObservation(observations.find(o=>o.fragmentKey===row.language),row.language,{url:record.url,fetchedAt:record.fetchedAt});
+   if(!activity||activity.activity_date!==row.date)throw Error('Outside role speech identity does not match the request.');
+   body.people=mergePeople(body.people,project(activity,people,{url:record.url,fetchedAt:record.fetchedAt}));body.fullRead=true;
   }
-  store.db.prepare('UPDATE outside_role_jobs SET body=?,next_read=?,attempts=0 WHERE speech=? AND language=? AND person=?').run(JSON.stringify({appearance,role}),role?null:nextMissingRead(appearance.date,worker.clock()),row.speech,row.language,row.person);
-  if(role)store.set('storyProjectionDirty',true);
+  store.assertWriter();
+  store.db.prepare('UPDATE outside_role_speech_reads SET body=?,next_read=?,attempts=0 WHERE speech=?').run(JSON.stringify(body),nextRoleRead(row.date,worker.clock()),row.speech);
+  store.set('storyProjectionDirty',true);
  }catch(error){
   if(worker.controller.signal.aborted)throw error;
-  const retry=collectorRetry(error,row.attempts,worker.clock());
-  store.db.prepare('UPDATE outside_role_jobs SET next_read=?,attempts=? WHERE speech=? AND language=? AND person=?').run(retry.next,retry.attempts,row.speech,row.language,row.person);
- }finally{corpus?.close();}
+  store.assertWriter();
+  const retry=outsideRoleRetry(error,row.attempts,worker.clock());
+  store.db.prepare('UPDATE outside_role_speech_reads SET body=?,next_read=?,attempts=? WHERE speech=?').run(JSON.stringify(body),retry.next,retry.attempts,row.speech);
+ }
  return true;
 }

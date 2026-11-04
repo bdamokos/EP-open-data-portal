@@ -420,3 +420,16 @@ for(const language of ['en','fr','hu'])test('outside map title in '+language+' a
  delete roles[language];const fallback=buildExactTopicStories(x,{language,period:'2026-Q1',labels:{ESP:'Local country'}}).find(l=>l.id.startsWith('topics.story.map.outside')).values.speakers[0];assert.equal(fallback.values.place,{en:'Spain',fr:'Espagne',hu:'Spanyolország'}[language]);
  roles[language]={role:null};assert.equal(buildExactTopicStories(x,{language,period:'2026-Q1',labels:{ESP:'Local country'}}).find(l=>l.id.startsWith('topics.story.map.outside')).values.speakers[0].values.place,{en:'Spain',fr:'Espagne',hu:'Spanyolország'}[language]);
 });
+
+test('every title keeps its lang in a multi-speaker rendered story',async t=>{
+ const {Window}=await import('happy-dom'),{createElement:h,act}=await import('react'),{freshLoader}=await import('./test-support/viteRunner.mjs');
+ const window=new Window({url:'http://localhost/?view=geopolitics&t-q=2026-Q1'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,Event:window.Event,PopStateEvent:window.PopStateEvent,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const[k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const[k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
+ const payload=base();payload.counts={questions:0,debates:0};payload.periodCounts=[{period:'2026-Q1'}];payload.outsideSpeakers=[['1','Felipe VI','ESP','King of Spain'],['2','Marcelo Rebelo de Sousa','PRT','President of the Republic of Portugal']].map(([personId,name,country,role])=>({personId,name,country,date:'2026-01-21',debateId:'D'+personId,roles:{en:{role}}}));
+ t.mock.method(globalThis,'fetch',async()=>Response.json(payload));load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'outside-role-render'});
+ const {TopicStories}=await load('/src/TopicStories.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
+ await act(async()=>root.render(h(TopicStories,{selection:{period:'2026-Q1',periods:['2026-Q1']}})));
+ for(let i=0;i<30&&!node.textContent.includes('King of Spain');i++)await act(async()=>new Promise(r=>setTimeout(r,20)));
+ for(const title of ['King of Spain','President of the Republic of Portugal'])assert([...node.querySelectorAll('span[lang="en"]')].some(span=>span.textContent===title),node.innerHTML);
+ assert.equal([...node.querySelectorAll('a')].filter(a=>['Felipe VI','Marcelo Rebelo de Sousa'].includes(a.textContent)).length,2);
+});
