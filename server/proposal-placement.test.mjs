@@ -644,3 +644,14 @@ test('a matrix comparison can replace exact table rows inside its named annex po
  assert.equal(resolveProposalPlacement(items,{...w,targetLabel:'Annex I – point 1'}).status,'unresolved');
  assert.equal(resolveProposalPlacement(items,{...w,originalText:w.originalText.replace('7314','7315')}).status,'unresolved');
 });
+
+test('ordinal paragraphs in a wholly unnumbered DOCX article require exact whole-row wording',()=>{
+ const projection={...source(['Article 16','First unnumbered paragraph.','Second unnumbered paragraph.','Article 17','Next article.'],['Titrearticle','Normal','Normal','Titrearticle','Normal']),sourceKind:'docx'};
+ const opts={language:'en',targetLabel:'Article 16 – paragraph 2',originalText:'Second unnumbered paragraph.',proposedText:'Revised second paragraph.'};
+ const placed=resolveProposalPlacement([item(projection)],opts);
+ assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
+ assert(!resolveProposalPlacement([item(projection)],{...opts,targetLabel:'Article 16 – paragraph 3'}).evidence.some(e=>e.basis==='ordinal-unnumbered-paragraph'));
+ assert.equal(resolveProposalPlacement([item(projection)],{...opts,originalText:'Unrelated wording.'}).status,'unresolved');
+ projection.paragraphSources[2].complete=false;
+ assert.equal(resolveProposalPlacement([item(projection)],opts).status,'unresolved');
+});

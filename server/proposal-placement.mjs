@@ -912,6 +912,26 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
+  // A source with no printed paragraph numbers is addressed by native row
+  // order. Match the whole row only; points and titled articles stay excluded.
+  if(operation==='replace'&&language==='en'&&target.segments.length===2&&target.segments[0].kind==='article'&&target.segments[1].kind==='paragraph'&&!target.segments[1].isNew){
+    const found=[];
+    for(const [itemIndex,item] of items.entries()){
+      const proposal=item.proposal;if(proposal.sourceKind!=='docx')continue;
+      const headings=proposal.paragraphs.filter(row=>row.properties?.styleId==='Titrearticle'&&new RegExp('^Article\\s+'+escape(target.segments[0].value)+'(?:$|\\n)','u').test(row.text));
+      if(headings.length!==1)continue;
+      const start=headings[0].index,next=proposal.paragraphs.find(row=>row.index>start&&row.properties?.styleId==='Titrearticle');
+      if(!next||!next.complete||next.source?.complete!==true||next.source.container!=='body')continue;
+      const rows=proposal.paragraphs.filter(row=>row.index>start&&row.index<next.index);
+      if(!rows.length||rows.some(row=>row.properties?.styleId!=='Normal'||row.properties.numberingLabel||/^\d+[.)]\s/u.test(row.text)||row.source?.container!=='body'||!row.complete||row.source.complete!==true||row.objects?.length))continue;
+      const row=rows[target.segments[1].number-1],compact=v=>v.normalize('NFC').replace(/\s+/gu,'').trim();
+      if(!row||compact(row.text)!==compact(originalText)||rows.filter(r=>compact(r.text)===compact(originalText)).length!==1)continue;
+      const boundary=[headings[0],...rows];
+      if(boundary.some((r,i)=>!r.complete||r.source?.complete!==true||r.source.container!=='body'||i&&(r.source.ordinal!==boundary[i-1].source.ordinal+1||r.source.containerPath!==boundary[i-1].source.containerPath||r.source.segment!==boundary[i-1].source.segment)))continue;
+      found.push({operation,status:'placed',itemIndex,span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,evidence:[...evidence,{basis:'ordinal-unnumbered-paragraph'}]});
+    }
+    if(found.length===1)return found[0];
+  }
   const sole=target.segments.length===1?target.segments[0]:null;
   // A numbered address whose whole cell rejects the proposal (A-10-2026-0104 AM90) is no citation or article.
   if(sole&&['citation','article'].includes(sole.kind)&&rejectionWordingScope(language,proposedText))return unresolved('conflicting_target_evidence');
@@ -950,10 +970,10 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
         target={...target,segments:target.segments.filter((_,index)=>index!==subparagraph)};
         evidence.push({basis:'first-subparagraph-points',anchor:unit.id});
       }
-      // XHTML retains native, directly owned unnumbered paragraphs in source
+      // Native XHTML and DOCX retain directly owned unnumbered paragraphs in source
       // order. A later colon introduction owns only the following list, up to
       // the next direct paragraph; nested Roman children stay with their point.
-      if(label.number>1&&proposal.sourceKind==='xhtml'&&unit.complete&&!unit.pathConflict&&['paragraph','point'].includes(unit.kind)){
+      if(label.number>1&&(proposal.sourceKind==='xhtml'||proposal.sourceKind==='docx'&&operation==='replace')&&unit.complete&&!unit.pathConflict&&['paragraph','point'].includes(unit.kind)){
         const continuations=unit.children.filter(child=>child.kind==='subparagraph');
         const index=label.number-(unit.content.length?2:1),intro=continuations[index];
         const end=continuations[index+1]?.extent.start??unit.extent.end;
@@ -963,7 +983,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
           &&list.at(-1).extent.end===end){
           subparagraphBounds={itemIndex,start:intro.extent.start,end};
           target={...target,segments:target.segments.filter((_,index)=>index!==subparagraph)};
-          evidence.push({basis:'xhtml-subparagraph-points',anchor:unit.id});
+          evidence.push({basis:proposal.sourceKind==='docx'?'docx-subparagraph-points':'xhtml-subparagraph-points',anchor:unit.id});
         }
       }
     }
@@ -1001,6 +1021,14 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
     return {operation,status:'placed',itemIndex:insertion.itemIndex,insertAfter:insertion.insertBefore-1,insertBefore:insertion.insertBefore,evidence};
+  }
+  const introParents=subparagraphBounds&&target.segments.at(-1).kind==='introductory-part'?candidatesFor(target.segments.slice(0,-1)):[];
+  if(introParents.length===1){
+    const c=introParents[0],row=c.proposal.paragraphs[subparagraphBounds.start];
+    if(c.itemIndex===subparagraphBounds.itemIndex&&normal(row.text)===normal(originalText)){
+      const match=matchUnit(c.proposal,{...c.unit,extent:{start:row.index,end:row.index+1}},originalText);
+      if(match.span)return placedMatch({...c,match},'subparagraph-introductory-wording');
+    }
   }
   if(target.segments.at(-1).kind==='introductory-part'){
     const intro=introductoryMatch(target,originalText,candidatesFor);
