@@ -1,7 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {mkdtempSync,mkdirSync,rmSync,writeFileSync} from 'node:fs';
+import {copyFileSync,mkdtempSync,mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
+import {DatabaseSync} from 'node:sqlite';
 import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
@@ -10,7 +11,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {CorpusWorker} from './corpus-worker.mjs';
 import {auditIndex} from './data-gap-audit.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
-import {acquireBothLeases,importRecord,loadRecords,parentFromEvidence,parseSpeechXml,rehearseImport,rollbackRecord,runImport,speechActivity} from './import-speech-record-xml.mjs';
+import {acquireBothLeases,CORPUS_TABLES,importRecord,INDEX_TABLES,loadRecords,parentFromEvidence,parseSpeechXml,rehearseImport,rollbackRecord,runImport,snapshotQueries,speechActivity} from './import-speech-record-xml.mjs';
 import {observeSpeechGap,scheduleWebsiteRechecks,WEBSITE_RECHECK_MS} from './speech-source-gaps.mjs';
 
 // Synthetic records only: no captured speech text belongs in Git.
@@ -128,12 +129,12 @@ test('a written statement keeps its type, marker and group',t=>{
   assert.equal(corpus.db.prepare('SELECT body FROM texts').get().body,'Primul paragraf sintetic.\nAl doilea paragraf sintetic.');
 });
 
-test('a dry run reports exact row changes and leaves every table as it was',async t=>{
+test('a dry run reports exact row changes and leaves every table as it was',t=>{
   const {store,corpus,worker,generation}=fixture(t);logged(t);
   store.enqueue(generation,'recovery:/speeches/'+id,'speeches',{recoveryId:id},103);
   const counts=()=>[store.db.prepare('SELECT COUNT(*) n FROM sources').get().n,store.db.prepare('SELECT COUNT(*) n FROM items').get().n,store.db.prepare('SELECT COUNT(*) n FROM speech_source_gaps').get().n,store.db.prepare('SELECT done FROM tasks WHERE key=?').get('recovery:/speeches/'+id).done,corpus.db.prepare('SELECT COUNT(*) n FROM texts').get().n,corpus.db.prepare('SELECT COUNT(*) n FROM speech_metadata').get().n];
   const before=counts();
-  const [report]=await rehearseImport({store,corpus,worker},[record()],{waitSeconds:0});
+  const [report]=rehearseImport({store,corpus,worker},[record()]);
   assert.deepEqual(counts(),before);
   const changed=report.changes.map(change=>`${change.store}.${change.table}:${change.change}`).sort();
   assert.deepEqual(changed,['corpus.documents:insert','corpus.speech_catalog:insert','corpus.speech_metadata:insert','corpus.texts:insert','index.group_voice_observations:insert','index.items:insert','index.sources:insert','index.speech_source_gaps:insert','index.tasks:update'].sort());
@@ -319,29 +320,34 @@ test('the data-gap audit lists open and held IDs',t=>{
   assert.deepEqual(audit.records.map(row=>[row.id,row.state,row.httpStatus]),[[`MTG-PL-${day}-OTH-5`,'detail-failed',500],[id,'held-website',null]]);
 });
 
-test('a dry run retains no lease row, no table and no record, even on an index the writer has not prepared',async t=>{
+test('a dry run retains no lease row, no table and no record, even on an index the writer has not prepared',t=>{
   const {corpusDir,store,corpus,worker}=fixture(t);logged(t);
   store.db.exec('DROP TABLE speech_source_gaps');
   store.release();corpus.release();
   const reader=(handle,sql)=>handle.db.prepare(sql).all().map(row=>({...row}));
+  // A lease copied from the live store must not stop or be replaced by the rehearsal.
+  const other=new CorpusStore(corpusDir,{clock:corpus.clock});t.after(()=>other.close());
+  assert(other.acquire());
   const state=()=>[...[store,corpus].flatMap(handle=>[
     reader(handle,"SELECT type,name FROM sqlite_master ORDER BY type,name"),reader(handle,'SELECT * FROM lease'),reader(handle,"SELECT key,value FROM meta WHERE key NOT LIKE 'availabilityHistoryPrunedAt' ORDER BY key"),reader(handle,'SELECT COUNT(*) n FROM tasks'),
   ]),reader(store,'SELECT COUNT(*) n FROM sources'),reader(store,'SELECT COUNT(*) n FROM items'),reader(corpus,'SELECT COUNT(*) n FROM texts'),reader(corpus,'SELECT COUNT(*) n FROM speech_metadata')];
   const before=state();
-  assert.deepEqual(before[1],[]);assert.deepEqual(before[5],[]);
-  const [report]=await rehearseImport({store,corpus,worker},[record()],{waitSeconds:0});
+  assert.deepEqual(before[1],[]);assert.equal(before[5].length,1);
+  const [report]=rehearseImport({store,corpus,worker},[record()]);
   assert.equal(report.outcome,'imported');
   assert(report.changes.some(change=>change.table==='sources'&&change.change==='insert'));
   assert.deepEqual(state(),before);
   assert.equal(store.db.prepare("SELECT 1 FROM sqlite_master WHERE name='speech_source_gaps'").get(),undefined);
   assert(!store.db.isTransaction&&!corpus.db.isTransaction);
-  // A live writer lease on either store stops the rehearsal before any write.
-  assert(store.acquire());
-  const other=new CorpusStore(corpusDir,{clock:corpus.clock});t.after(()=>other.close());
-  assert(other.acquire());
-  store.release();
-  await assert.rejects(rehearseImport({store,corpus,worker},[record()],{waitSeconds:0}),/not both free/);
-  assert(!store.db.isTransaction,'the first store is released when the second is busy');
+});
+
+test('the row report reads every table through an index, scoped by generation',t=>{
+  const {store,corpus,generation}=fixture(t);logged(t);
+  const plan=(db,{sql,args})=>db.prepare('EXPLAIN QUERY PLAN '+sql).all(...args).map(row=>row.detail);
+  const queries=snapshotQueries(INDEX_TABLES,id,[generation,generation+1]);
+  assert.equal(queries.filter(query=>query.table==='sources').length,2);
+  for(const query of queries){const detail=plan(store.db,query);assert(!detail.some(line=>/^SCAN/.test(line)),query.table+': '+detail.join('; '));}
+  for(const query of snapshotQueries(CORPUS_TABLES,id)){const detail=plan(corpus.db,query);assert(!detail.some(line=>/^SCAN/.test(line)),query.table+': '+detail.join('; '));}
 });
 
 test('rollback removes only imported rows',t=>{
@@ -427,7 +433,7 @@ test('waiting for the corpus lease leaves the index writer free',async t=>{
   assert.equal(corpus.acquire(),false);
 });
 
-test('the command takes both writer leases, rehearses and then writes',async t=>{
+test('the command rehearses only on backup copies, then writes under both leases',async t=>{
   const {root,indexDir,corpusDir,store,corpus,generation}=fixture(t);logged(t);
   store.close();corpus.close();
   const raw=path.join(root,'raw');mkdirSync(raw);writeFileSync(path.join(raw,'a.xml'),chairXml());
@@ -435,12 +441,25 @@ test('the command takes both writer leases, rehearses and then writes',async t=>
   writeFileSync(manifest,JSON.stringify({files:[{file:'raw/a.xml',url,status:200,retrievedAt,sha256:createHash('sha256').update(chairXml()).digest('hex')},{url:url.replace('_FR','_EN'),status:404}]}));
   writeFileSync(evidenceFile,JSON.stringify(evidence()));
   const output=[],options={manifest,evidence:evidenceFile,index:indexDir,corpus:corpusDir,waitSeconds:0,log:line=>output.push(line)};
-  const rehearsal=await runImport({...options,dryRun:true});
+  await assert.rejects(runImport({...options,dryRun:true}),/reads backup copies only/,'live databases are refused');
+  const copies=path.join(root,'copies');mkdirSync(copies);
+  const files=[[path.join(indexDir,'activities-v1.sqlite'),'activities-v1.sqlite'],[path.join(corpusDir,'corpus-v1.sqlite'),'corpus-v1.sqlite']].map(([from,name])=>{
+    const copy=path.join(copies,name);copyFileSync(from,copy);
+    // The live writer held its lease when the copy was taken.
+    const db=new DatabaseSync(copy);db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run('live-writer',Date.now()+3_600_000);db.close();
+    writeFileSync(copy+'.sha256','recorded\n');
+    return copy;
+  });
+  const hashes=()=>files.map(file=>createHash('sha256').update(readFileSync(file)).digest('hex'));
+  const before=hashes();
+  const rehearsal=await runImport({...options,index:copies,corpus:copies,waitSeconds:0,dryRun:true});
   assert.equal(rehearsal[0].outcome,'imported');assert(rehearsal[0].changes.length>0);
+  assert.deepEqual(hashes(),before,'a dry run leaves the backup copies byte-identical');
   const reopened=new ActivityStore(indexDir,{preparedOnly:true});t.after(()=>reopened.close());
   assert.equal(reopened.source(generation,'/speeches/'+id),undefined);
   const written=await runImport(options);
   assert.equal(written[0].outcome,'imported');assert.equal(reopened.source(generation,'/speeches/'+id).work.acquisition,'website-xml');
+  assert(Number.isInteger(written[0].lockMs));
   assert.equal((await runImport(options))[0].outcome,'unchanged');
   assert.match(output.at(-1),/--rollback/);
   assert(reopened.acquire());

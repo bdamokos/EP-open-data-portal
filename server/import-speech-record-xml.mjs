@@ -9,8 +9,10 @@
 // evidence.json: public API reads of each speech's PRE and SUIV neighbours and their debate:
 //   {speeches:{<id>:{url,fetchedAt,activity}},events:{<id>:{url,fetchedAt,consists_of}}}
 //
-// --dry-run retains nothing: no record, table, task or lease row. It briefly holds each
-// database's write lock while the real writes run, then rolls them back.
+// --dry-run reads only backup copies, identified by the .sha256 file `ops.mjs backup`
+// leaves beside each one. It runs the real writes on them and rolls everything back,
+// with no leases to wait for and no contact with the live app. A real write holds a
+// write lock for one record at a time, and its row report is read outside the lock.
 import {createHash} from 'node:crypto';
 import {existsSync,readFileSync,realpathSync} from 'node:fs';
 import path from 'node:path';
@@ -133,7 +135,7 @@ export function speechActivity(speech,placement,{url,retrievedAt,sha256}) {
 
 const generations=store=>[...new Set([store.get('active'),store.get('working')?.generation].filter(Number.isInteger))];
 const indexKeys=id=>['/speeches/'+id,'recovery:/speeches/'+id,'website-recheck:/speeches/'+id,'/events/'+id,'outside:detail:'+id,'outside:english:'+id,'outside:upgrade:'+id];
-const INDEX_TABLES=[
+export const INDEX_TABLES=[
   ['sources',id=>['key=?',['/speeches/'+id]]],['items',id=>['source_key=?',['/speeches/'+id]]],
   ['outside_contributions',id=>['speech=?',[id]]],['group_voice_observations',id=>['speech=?',[id]]],['group_voice_designations',id=>['speech=?',[id]]],
   ['tasks',id=>[`key IN (${indexKeys(id).map(()=>'?')})`,indexKeys(id)]],['amendment_jobs',id=>[`key IN (${indexKeys(id).map(()=>'?')})`,indexKeys(id)]],['group_voice_jobs',id=>['key=?',[groupVoiceJobKey('recovery',id)]]],
@@ -141,7 +143,7 @@ const INDEX_TABLES=[
   ['speech_source_gaps',id=>['id=?',[id]]],
 ];
 const corpusKeys=id=>['speech:'+id,'speech-metadata-detail:'+id];
-const CORPUS_TABLES=[
+export const CORPUS_TABLES=[
   ['documents',id=>['source_id=?',[id]]],['texts',id=>['document_id IN (SELECT id FROM documents WHERE source_id=?)',[id]]],
   ['speech_metadata',id=>['source_id=?',[id]]],['speech_catalog',id=>['source_id=?',[id]]],
   ['tasks',id=>[`key IN (${corpusKeys(id).map(()=>'?')})`,corpusKeys(id)]],['source_failures',id=>[`key IN (${corpusKeys(id).map(()=>'?')})`,corpusKeys(id)]],
@@ -150,14 +152,18 @@ const shown=value=>{
   if(value instanceof Uint8Array)return `<${value.length} bytes sha256:${createHash('sha256').update(value).digest('hex').slice(0,16)}>`;
   return typeof value==='string'&&value.length>200?`${value.slice(0,120)}… <${value.length} chars sha256:${createHash('sha256').update(value).digest('hex').slice(0,16)}>`:value;
 };
-function snapshot(db,tables,id) {
+// Index tables lead with generation, so naming it keeps each read on its primary key.
+export function snapshotQueries(tables,id,targets=null) {
+  return tables.flatMap(([table,scope])=>{
+    const [where,args]=scope(id),sql=condition=>`SELECT rowid AS _rowid,* FROM ${table} WHERE ${condition}`;
+    return targets&&table!=='speech_source_gaps'?targets.map(generation=>({table,sql:sql('generation=? AND '+where),args:[generation,...args]})):[{table,sql:sql(where),args}];
+  });
+}
+function snapshot(db,tables,id,targets) {
   const rows=new Map();
-  for(const [table,scope] of tables) {
-    const [where,args]=scope(id);
-    for(const row of db.prepare(`SELECT rowid AS _rowid,* FROM ${table} WHERE ${where}`).all(...args)) {
-      const {_rowid,...values}=row;
-      rows.set(table+':'+('generation' in values?values.generation+':':'')+_rowid,{table,values});
-    }
+  for(const {table,sql,args} of snapshotQueries(tables,id,targets))for(const row of db.prepare(sql).all(...args)) {
+    const {_rowid,...values}=row;
+    rows.set(table+':'+('generation' in values?values.generation+':':'')+_rowid,{table,values});
   }
   return rows;
 }
@@ -208,37 +214,37 @@ export function importRecord({store,corpus,worker},{speech,placement,activity,ur
   if(targets.some(generation=>{const work=heldIndex(generation);return work&&work.acquisition!==WEBSITE_ACQUISITION;}))return {id,outcome:'api-record-held',changes:[],gapChange:null};
   const apiText=corpus.db.prepare("SELECT 1 FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=? AND COALESCE(json_extract(t.source_edition,'$.acquisition'),'')<>'website-xml' LIMIT 1").get(id);
   if(apiText||corpus.db.prepare('SELECT 1 FROM speech_metadata WHERE source_id=?').get(id)&&!corpus.websiteSpeechHeld(id))return {id,outcome:'api-record-held',changes:[],gapChange:null};
-  const beforeIndex=snapshot(store.db,INDEX_TABLES,id),beforeCorpus=snapshot(corpus.db,CORPUS_TABLES,id);
-  let result;
+  const beforeIndex=snapshot(store.db,INDEX_TABLES,id,targets),beforeCorpus=snapshot(corpus.db,CORPUS_TABLES,id);
+  const {document,texts}=speechTexts(activity,url,retrievedAt);
+  if(!texts.length)refuse(`${id} produced no corpus text.`);
+  let gapChange=null;const started=performance.now();
   // Each store commits atomically. The index commits first inside the corpus
   // transaction, so a crash between them leaves a state this tool can finish.
   within(corpus,()=>{
-      corpus.assertWriter();
-      const {document,texts}=speechTexts(activity,url,retrievedAt);
-      if(!texts.length)refuse(`${id} produced no corpus text.`);
-      const held=corpus.db.prepare("SELECT t.source_edition FROM texts t JOIN documents d ON d.id=t.document_id WHERE d.source_id=? AND t.source_key=?").get(id,speech.language);
-      if(JSON.parse(held?.source_edition||'{}').sha256!==sha256) {
-        corpus.putDocument(document,texts.map(text=>({...text,sourceEdition:{acquisition:WEBSITE_ACQUISITION,sha256,fromApi:false}})),{acquisition:WEBSITE_ACQUISITION});
-        corpus.putSpeechMetadata(activity,url,retrievedAt,{acquisition:WEBSITE_ACQUISITION});
+    corpus.assertWriter();
+    const held=corpus.db.prepare("SELECT t.source_edition FROM texts t JOIN documents d ON d.id=t.document_id WHERE d.source_id=? AND t.source_key=?").get(id,speech.language);
+    if(JSON.parse(held?.source_edition||'{}').sha256!==sha256) {
+      corpus.putDocument(document,texts.map(text=>({...text,sourceEdition:{acquisition:WEBSITE_ACQUISITION,sha256,fromApi:false}})),{acquisition:WEBSITE_ACQUISITION});
+      corpus.putSpeechMetadata(activity,url,retrievedAt,{acquisition:WEBSITE_ACQUISITION});
+    }
+    clearCorpusOwners(corpus,id);
+    within(store,()=>{
+      store.assertWriter();
+      for(const generation of targets) {
+        if(heldIndex(generation)?.website?.sha256!==sha256)worker.saveSpeech(generation,activity,retrievedAt,false,url,false,{acquisition:WEBSITE_ACQUISITION});
+        clearIndexOwners(store,generation,id);
       }
-      clearCorpusOwners(corpus,id);
-      within(store,()=>{
-        store.assertWriter();
-        for(const generation of targets) {
-          if(heldIndex(generation)?.website?.sha256!==sha256)worker.saveSpeech(generation,activity,retrievedAt,false,url,false,{acquisition:WEBSITE_ACQUISITION});
-          clearIndexOwners(store,generation,id);
-        }
-        const alreadyHeld=store.db.prepare("SELECT 1 FROM speech_source_gaps WHERE id=? AND state='held-website'").get(id);
-        const gapChange=alreadyHeld?null:observeSpeechGap(store,{id,state:'held-website',nextCheck:store.clock()+WEBSITE_RECHECK_MS},{log:false});
-        result={id,outcome:'imported',gapChange,changes:[...rowChanges(beforeIndex,snapshot(store.db,INDEX_TABLES,id),'index'),...rowChanges(beforeCorpus,snapshot(corpus.db,CORPUS_TABLES,id),'corpus')]};
-      });
+      const alreadyHeld=store.db.prepare("SELECT 1 FROM speech_source_gaps WHERE id=? AND state='held-website'").get(id);
+      gapChange=alreadyHeld?null:observeSpeechGap(store,{id,state:'held-website',nextCheck:store.clock()+WEBSITE_RECHECK_MS},{log:false});
     });
-  if(!result.changes.length)result.outcome='unchanged';
-  return result;
+  });
+  const lockMs=Math.round(performance.now()-started);
+  const changes=[...rowChanges(beforeIndex,snapshot(store.db,INDEX_TABLES,id,targets),'index'),...rowChanges(beforeCorpus,snapshot(corpus.db,CORPUS_TABLES,id),'corpus')];
+  return {id,outcome:changes.length?'imported':'unchanged',gapChange,changes,lockMs};
 }
 // Removes only rows this tool wrote. The gap reappears through normal discovery.
 export function rollbackRecord({store,corpus},id) {
-  const targets=generations(store),beforeIndex=snapshot(store.db,INDEX_TABLES,id),beforeCorpus=snapshot(corpus.db,CORPUS_TABLES,id);
+  const targets=generations(store),beforeIndex=snapshot(store.db,INDEX_TABLES,id,targets),beforeCorpus=snapshot(corpus.db,CORPUS_TABLES,id);
   corpus.transaction(()=>{
     corpus.assertWriter();
     // Text and metadata refresh separately, so each row answers for itself.
@@ -261,7 +267,7 @@ export function rollbackRecord({store,corpus},id) {
       store.db.prepare("DELETE FROM speech_source_gaps WHERE id=? AND state='held-website'").run(id);
     });
   });
-  return {id,outcome:'rolled-back',changes:[...rowChanges(beforeIndex,snapshot(store.db,INDEX_TABLES,id),'index'),...rowChanges(beforeCorpus,snapshot(corpus.db,CORPUS_TABLES,id),'corpus')]};
+  return {id,outcome:'rolled-back',changes:[...rowChanges(beforeIndex,snapshot(store.db,INDEX_TABLES,id,targets),'index'),...rowChanges(beforeCorpus,snapshot(corpus.db,CORPUS_TABLES,id),'corpus')]};
 }
 
 export function loadRecords(manifestFile,evidence,{today}={}) {
@@ -289,33 +295,20 @@ export async function acquireBothLeases(store,corpus,seconds,{pauseMs=5000}={}) 
     await sleep(pauseMs);
   }
 }
-// A dry run runs the real writes under each database's write lock and rolls all
-// of it back, the lease and any table the writer would prepare included. Nothing
-// is retained, and readers never see it. Writers wait for the moment it takes.
+// Rehearses on backup copies. A lease row copied from the live store means nothing
+// here. The real writes run on the real tables, and everything is rolled back.
 function holdForRehearsal(target,gates,label) {
   target.db.exec('BEGIN IMMEDIATE');
   try {
-    const lease=target.db.prepare('SELECT owner,expires FROM lease WHERE id=1').get();
-    if(lease&&lease.owner!==target.owner&&lease.expires>target.clock()){target.db.exec('ROLLBACK');return false;}
     if(gates.some(gate=>gate.writerGate!==false&&target.get(gate.key)!==gate.value))refuse(`The ${label} needs preparation; run node server/migrate-indexes.mjs.`);
     target.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(target.owner,target.clock()+90_000);
     initializeAvailabilityHistory(target);
-    return true;
   } catch(error) {target.db.exec('ROLLBACK');throw error;}
 }
-export async function rehearseImport({store,corpus,worker},records,{waitSeconds=600,pauseMs=5000}={}) {
-  const deadline=Date.now()+waitSeconds*1000;
-  for(;;) {
-    if(holdForRehearsal(store,ACTIVITY_SCHEMA_GATES,'activity index')) {
-      let held=false;
-      try {held=holdForRehearsal(corpus,CORPUS_SCHEMA_GATES,'corpus');}
-      catch(error){store.db.exec('ROLLBACK');throw error;}
-      if(held)break;
-      store.db.exec('ROLLBACK');
-    }
-    if(Date.now()>=deadline)refuse(`The writer leases were not both free within ${waitSeconds} seconds; nothing was written.`);
-    await sleep(pauseMs);
-  }
+export function rehearseImport({store,corpus,worker},records) {
+  holdForRehearsal(store,ACTIVITY_SCHEMA_GATES,'activity index');
+  try {holdForRehearsal(corpus,CORPUS_SCHEMA_GATES,'corpus');}
+  catch(error){store.db.exec('ROLLBACK');throw error;}
   try {
     speechSourceGapSchema(store.db);
     return records.map(record=>importRecord({store,corpus,worker},record));
@@ -330,13 +323,16 @@ export function rollbackRecipe(records,{manifest,evidence,index,corpus}) {
 export async function runImport({manifest,evidence,index,corpus:corpusDirectory,dryRun=false,rollback=false,waitSeconds=600,log=console.log}) {
   const records=loadRecords(manifest,JSON.parse(readFileSync(evidence,'utf8')));
   // CorpusStore creates a missing database; a mistyped path must not do that.
-  for(const file of [path.join(index,'activities-v1.sqlite'),path.join(corpusDirectory,'corpus-v1.sqlite')])if(!existsSync(file))refuse(`${file} does not exist.`);
+  for(const file of [path.join(index,'activities-v1.sqlite'),path.join(corpusDirectory,'corpus-v1.sqlite')]) {
+    if(!existsSync(file))refuse(`${file} does not exist.`);
+    if(dryRun&&!existsSync(file+'.sha256'))refuse(`--dry-run reads backup copies only, and ${file} has no .sha256 beside it. Point --index and --corpus at the copies from ops.mjs backup.`);
+  }
   const store=new ActivityStore(index,{preparedOnly:true}),corpus=new CorpusStore(corpusDirectory),worker=new ActivityWorker(store,{fetchRecord:()=>refuse('The import tool makes no upstream requests.')});
-  const renew=setInterval(()=>{store.renew();corpus.renew();},20_000);renew.unref();
+  const renew=dryRun?null:setInterval(()=>{store.renew();corpus.renew();},20_000);renew?.unref();
   const reports=[],describe=(record,report)=>({...report,parent:record.placement.parent,basis:record.placement.basis,kind:record.speech.kind,language:record.speech.language,mepId:record.speech.mepId,sourceUrl:record.url,retrievedAt:record.retrievedAt});
   try {
     if(dryRun) {
-      const rehearsed=await rehearseImport({store,corpus,worker},records,{waitSeconds});
+      const rehearsed=rehearseImport({store,corpus,worker},records);
       reports.push(...rehearsed.map((report,index)=>describe(records[index],report)));
     } else {
       await acquireBothLeases(store,corpus,waitSeconds);
@@ -346,7 +342,7 @@ export async function runImport({manifest,evidence,index,corpus:corpusDirectory,
         if(report.gapChange)logSpeechGapChange(report.gapChange);
       }
     }
-  } finally {clearInterval(renew);corpus.close();store.close();}
+  } finally {if(renew)clearInterval(renew);corpus.close();store.close();}
   log(JSON.stringify({mode:rollback?'rollback':dryRun?'dry-run':'write',records:reports},null,1));
   log(rollbackRecipe(records,{manifest,evidence,index,corpus:corpusDirectory}));
   return reports;
