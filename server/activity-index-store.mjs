@@ -32,6 +32,7 @@ import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches,GAP_LIMIT} from './refresh-policy.mjs';
+import {generationPruneSchemaVersion,prepareGenerationPrune} from './generation-prune.mjs';
 import {copyProjectedGenerationRows,prepareGenerationCopy,generationCopySchemaVersion} from './generation-copy.mjs';
 import {speechSourceGapSchema} from './speech-source-gaps.mjs';
 
@@ -42,6 +43,7 @@ export const ACTIVITY_SCHEMA_GATES=Object.freeze([
   {key:'ballotBindingSchema',value:1,constructorGate:false},
   {key:'baseBackfillSchema',value:1,constructorGate:false},
   {key:'resourceIndexes',value:1},
+  {key:'generationPruneSchemaVersion',value:generationPruneSchemaVersion},
   {key:'generationCopySchemaVersion',value:generationCopySchemaVersion},
   {key:'availabilityHistoryVersion',value:availabilityHistoryVersion,constructorGate:false,writerGate:false},
   {key:'fastReadSchemaVersion',value:fastReadSchemaVersion,constructorGate:false,writerGate:false},
@@ -191,6 +193,7 @@ export class ActivityStore {
         this.set('slowGapAdmissions',null);
         this.set('recoveryScheduleVersion',1);
       }
+      if(initialized||this.get('generationPruneSchemaVersion')!==generationPruneSchemaVersion){prepareGenerationPrune(this.db);this.set('generationPruneSchemaVersion',generationPruneSchemaVersion);}
       if(initialized||this.get('generationCopySchemaVersion')!==generationCopySchemaVersion){prepareGenerationCopy(this.db);this.set('generationCopySchemaVersion',generationCopySchemaVersion);}
       refresh();
       return true;

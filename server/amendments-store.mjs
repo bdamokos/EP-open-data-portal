@@ -1,3 +1,4 @@
+import {pruneAmendmentGenerations} from './generation-prune.mjs';
 import {upcomingScopeContext,upcomingAgenda,upcomingSource,scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
 import {fastReadsReady} from './fast-read-projections.mjs';
 import {languagePreference} from './language-order.mjs';
@@ -207,11 +208,11 @@ export function amendmentsCopy(db,generation,active) {
     db.prepare('INSERT OR IGNORE INTO amendment_jobs SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM amendment_jobs WHERE generation=? AND done=0').run(generation,source);
   }
   db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run('amendmentSnapshotGeneration',JSON.stringify(generation));
-  if(source!==generation)for(const table of ['amendments','amendment_targets','amendment_jobs','amendment_member_dependencies','amendment_member_pending','amendment_author_targets','amendment_member_current','amendment_dependency_bootstrap'])db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,source || generation);
+  if(source!==generation)pruneAmendmentGenerations(db,generation,source || generation);
 }
 
 export function amendmentsPrune(db,generation,old) {
-  for(const table of ['amendments','amendment_targets','amendment_jobs','amendment_member_dependencies','amendment_member_pending','amendment_author_targets','amendment_member_current','amendment_dependency_bootstrap'])db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,old || generation);
+  pruneAmendmentGenerations(db,generation,old || generation);
 }
 export function recordSplitResults(store,result) {
   store.assertWriter();
