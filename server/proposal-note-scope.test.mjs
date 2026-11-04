@@ -22,7 +22,7 @@ test('proposed-only notes before recital one use a complete Whereas block, indep
 });
 
 test('original-only notes support deletions across proposal procedures',()=>{
- for(const procedure of ['CNS','COD','NLE']){const input={...setup(),chosen:chosen()};input.baseline.evidence[0].procedure=`2028/0045(${procedure})`;input.chosen.proposedText='deleted';input.chosen.proposedFormatting=[];const a=documentContextPlacement(input);assert.equal(a.status,'placed');assert.equal(a.operation,'delete');assert.deepEqual(a.noteScope.proposedLabels,[]);input.chosen.originalText=input.chosen.originalText.replace('First citation.','Wrong citation.');assert.equal(documentContextPlacement(input).status,'unresolved');}
+ for(const procedure of ['CNS','COD','NLE']){const input={...setup(),chosen:chosen()};input.baseline.evidence[0].procedure=`2028/0045(${procedure})`;input.chosen.documentReferences=[{field:'DocRef',raw:`2028/0045(${procedure})`}];input.chosen.proposedText='deleted';input.chosen.proposedFormatting=[];const a=documentContextPlacement(input);assert.equal(a.status,'placed');assert.equal(a.operation,'delete');if(procedure==='COD')assert.equal(a.noteScope,undefined);else assert.deepEqual(a.noteScope.proposedLabels,[]);input.chosen.originalText=input.chosen.originalText.replace('First citation.','Wrong citation.');assert.equal(documentContextPlacement(input).status,'unresolved');}
 });
 test('proposed instructions with a plus marker stay in the note comparison',()=>{
  const input={...setup(),chosen:chosen()};input.chosen.proposedText='(1) Changed1a+.\n_____\n1a New citation.\n+ OJ: Please complete the reference.';input.chosen.proposedFormatting=[{kind:'superscript',start:11,end:14}];assert.equal(documentContextPlacement(input).status,'placed');
