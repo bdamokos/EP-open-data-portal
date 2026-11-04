@@ -125,8 +125,8 @@ test('all reachable messages have translated values in each supported language',
       // grammatical branches; other languages use the common reviewed messages.
       if(id.startsWith('MotionComparison.contextStage.')&&language!=='ro')continue;
       if((id.startsWith('membervotesummary.fullPosition.')||id.startsWith('membervotes.summary.recorded.'))&&!['ro','lt'].includes(language))continue;
-      // New Topics, vote-group and ballot messages use the documented per-message English fallback.
-      if((id.startsWith('topics.')||id.startsWith('votegroups.')||id.startsWith('yourVote.'))&&!Object.hasOwn(catalogue,id))continue;
+      // New Topics, vote-group, ballot and hemicycle messages use the documented per-message English fallback.
+      if((id.startsWith('topics.')||id.startsWith('votegroups.')||id.startsWith('yourVote.')||id.startsWith('hemicycle.'))&&!Object.hasOwn(catalogue,id))continue;
       assert.equal(typeof catalogue[id],'string',language+': '+id);
       assert(catalogue[id].trim(),language+': '+id);
     }

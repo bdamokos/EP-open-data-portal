@@ -1,5 +1,6 @@
 import {collectOutsideWikidata} from './outside-wikidata-collector.mjs';
 import {collectVotingList} from './voting-list-collector.mjs';
+import {collectHemicycle} from './hemicycle.mjs';
 import {collectUpcomingAmendments} from './upcoming-amendments-collector.mjs';
 import {dispatchBaseBackfill} from './base-source-backfill-dispatch.mjs';
 import {collectorTurnEvery} from './collector-share.mjs';
@@ -13,6 +14,7 @@ export async function dispatchCollector(worker,{busy=false,every=collectorTurnEv
  // both the core count and next lane across short iterations and restarts.
  const lanes=worker.baseBackfill?[['topic',topic],['story',story],['backfill',dispatchBaseBackfill]]:[['topic',topic],['story',story]];
  if(worker.votingLists)lanes.push(['voting-lists',collectVotingList]);
+ if(worker.hemicycle)lanes.push(['hemicycle',collectHemicycle]);
  lanes.push(['upcoming',upcoming]);
  if(worker.outsideWikidata)lanes.push(['wikidata',collectOutsideWikidata]);
  const start=Math.max(0,lanes.findIndex(([name])=>name===s.next));

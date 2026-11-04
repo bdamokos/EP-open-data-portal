@@ -295,7 +295,7 @@ test('Geopolitics owns its main-nav position and Topics is a plenary mode while 
   const h=await harness(t,'?view=geopolitics');
   const {default:App}=await h.load('/src/App.tsx');await h.render(createElement(App));
   const nav=()=>h.container.querySelector('.parliament-header nav');
-  assert.deepEqual([...nav().children].map(n=>n.textContent),['MEPs','Plenary agenda','Questions','Geopolitics','Outside voices','Group voices','Following']);
+  assert.deepEqual([...nav().children].map(n=>n.textContent),['MEPs','Plenary agenda','Questions','Geopolitics','Outside voices','Group voices','Hemicycle','Following']);
   assert.equal(nav().querySelector('[aria-current="page"]').textContent,'Geopolitics');
   await h.click(h.button('Plenary agenda'));await h.click(h.button('Topics'));
   assert.equal(new URL(location.href).searchParams.get('pl-mode'),'topics');

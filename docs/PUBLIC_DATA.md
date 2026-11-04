@@ -11,6 +11,7 @@ This page lists the external sources the application uses, what each provides, a
 | [Publications Office knowledge graph (Cellar)](https://op.europa.eu/en/web/cellar/cellar-data/metadata/knowledge-graph) | Legislative progress and event-linked documents, EuroVoc, country terminology, procedure-phase labels, cited EU acts, Commission proposals, Council positions and consolidated acts | Anonymous SPARQL GET to `publications.europa.eu/webapi/rdf/sparql`; RDF-tree, DOCX and XHTML reads from `publications.europa.eu/resource/` |
 | [Parliament Multimedia Centre](https://multimedia.europarl.europa.eu/) | Recording metadata and the official embed URL | Undocumented JSON endpoint behind the public website |
 | [Parliament’s published player](https://webstreaming.europarl.europa.eu/) | Playback and the list of interpretation tracks | Official iframe, created only after Play; undocumented player metadata |
+| [Hemicycle seating plans](https://www.europarl.europa.eu/plenary/en/hemicycle.html) | Allocated seat, political group and country of each Member, and seat positions, for the Strasbourg and Brussels chambers | Undocumented JSON and SVG files behind the public interactive plan |
 | [Plenary live status](https://www.europarl.europa.eu/plenary/en/home.html) | Current debate title and update time, in English | Anonymous JSON behind the plenary homepage |
 | [European Commission EbS+](https://audiovisual.ec.europa.eu/en/ebs/grid?ebs=no&ebsplus=yes) | Current broadcast metadata and live video | Anonymous JSON and the broadcaster’s official iframe |
 | [EUR-Lex](https://eur-lex.europa.eu/), DOCEO and other official pages | Reader links | Outbound links only; never fetched |
@@ -149,6 +150,13 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 - Each announced release page is read once. Press-room listings and search are never crawled, and page links are never followed. robots.txt allows `/rss/` and `/news/`; pages marked `noindex`, `nofollow` or `none` are not used.
 - Only exact links in the page’s “Further information” list count: OEIL procedure files and summaries, and Doceo reports, motions, adopted texts and committee drafts (`A`, `B`, `RC`, `TA`, `PR`, `AD`, `AM`, `AL`, `PA`). A summary or document matches a dossier only when that dossier’s OEIL page links the same ID.
 - The committee “latest news” feed is not used: its pages are `noindex, nofollow` and have no procedure links.
+
+### Hemicycle
+
+Parliament’s interactive plan loads `/erpl-public/hemicycle/{str,bru}/en.json` (seats, Members, groups, `startDate`) and an SVG of numbered seat circles under `/commonFrontResources/evostrap/4.0.1/lib/widgets/hemicycle/svg/`. That path carries the widget’s version, so a site release can retire it. Both need the `Mozilla/5.0 (compatible; …)` agent form. `persId` is the API’s MEP identifier.
+
+- The plan records allocated seats; a Member may occasionally sit elsewhere. The chambers are numbered differently, and each file is updated separately: Parliament says for each part-session, but the Brussels file can lag by months and then lists former Members. The PDF plans on the same page are updated separately again and can disagree with the JSON.
+- Only the latest plan is published. The single source writer checks each chamber every six hours with conditional requests and keeps a revision and a diff when seats or Members change, so history starts with the first check. A process without the index reads the source directly, at most hourly, or every five minutes after a failure.
 
 ### Voting lists
 
