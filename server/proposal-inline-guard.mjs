@@ -3,8 +3,8 @@ import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {docxParts,styleVisibility} from './document-text.mjs';
 const URI='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const children=(nodes,key)=>nodes.flatMap(n=>n[key]?[n[key]]:[]);
-// Scoped to the new interior-indent rule. Raw bytes stay request-local and are
-// never added to the public proposal projection. Unknown inline constructs,
+// Native checks for placement boundaries. Raw bytes stay request-local and
+// never enter the public proposal projection. Unknown inline constructs,
 // including simple fields, cannot establish a newly placed insertion.
 function inline(nodes){
  for(const node of nodes)for(const [key,value] of Object.entries(node)){
