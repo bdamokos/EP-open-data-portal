@@ -1,6 +1,7 @@
 // Independent printed-text oracle. Deliberately imports no producer, label
 // parser, proposal parser or placer. Poppler text is supplied by its caller.
 import {nativeCouncilListSubparagraphs} from './amendment-council-list-oracle.mjs';
+import {nativeTerminalParagraphFrame} from './amendment-council-terminal-oracle.mjs';
 const fold=s=>String(s??'').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 const literal=s=>String(s??'').normalize('NFC').replace(/\s+/gu,' ').trim();
 const unknown=reason=>({status:'unverified',reason:'oracle-council-pdf-'+reason});
@@ -152,9 +153,9 @@ export function councilArticleNativeScope(raw,wording,{nativeBodyWords}={}) {
    const direct=blocksWithOffsets(u.text),block=direct[Number(segment.value)-1];return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset}]:[];
   });else return null;
  }
- return {section,followingSection,units,inner,outer,point,frame:source.slice(begin.index,begin.index+begin[0].length+end)};
+ return {section,followingSection,units,inner,outer,point,followingOuterInstruction:points[at+1]?blocksWithOffsets(after.slice(end,points[at+2]?.index??after.length))[0]?.text:null,frame:source.slice(begin.index,begin.index+begin[0].length+end)};
 }
-export function assertCouncilDraftArticleText(raw,{placement,wording,items,nativeBodyWords}) {
+export function assertCouncilDraftArticleText(raw,{placement,wording,items,nativeBodyWords,nativePdfHash}) {
  const scope=councilArticleNativeScope(raw,wording,{nativeBodyWords});if(!scope)return unknown('article-ownership-unproved');
  const proposal=items?.[placement.itemIndex]?.proposal;if(!proposal)return unknown('projection-unavailable');
  const owner=projectedOwner(proposal,scope);if(!owner)return failed();
@@ -168,7 +169,10 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items,nativ
   if(!parents?.length)return unknown('article-insertion-parent-unproved');
   const siblings=parents.flatMap(p=>children(p.text,last.kind).map(child=>({...child,offset:p.offset+child.offset,followingText:p.followingText,listGeometry:p.listGeometry}))),anchors=siblings.filter(s=>s.value===last.base);if(anchors.length!==1)return unknown('article-insertion-anchor-unproved');
   if(anchors[0].listGeometry&&(wording.originalText?.trim()||last.kind!=='point'||last.suffix!=='a'||!new RegExp('^'+escape(last.value)+'\\)\\s+\\S','u').test(wording.proposedText?.trim()??'')))return unknown('article-list-insertion-label-unproved');
-  if(new Set(siblings.map(s=>s.value)).size!==siblings.length)return unknown('article-insertion-numbering-unproved');
+  if(new Set(siblings.map(s=>s.value)).size!==siblings.length){
+   const terminal=wording.language==='cs'&&scope.inner.length===2&&last.kind==='paragraph'&&last.suffix==='a'&&!wording.originalText?.trim()&&new RegExp('^'+escape(last.value)+'\\.\\s+\\S','u').test(wording.proposedText?.trim()??'')&&items.length===1&&items[0].kind==='act'&&placement.itemIndex===0&&proposal.sourceKind==='pdf'&&/^[a-f0-9]{64}$/u.test(nativePdfHash??'')&&proposal.nativeSourceHash===nativePdfHash&&siblings.at(-1)===anchors[0]&&!scope.followingSection&&coordinates(scope.section).endsWith(coordinates(anchors[0].text))&&/[“’»«"][.;]?\s*$/u.test(anchors[0].text)&&nativeTerminalParagraphFrame({point:scope.point,section:scope.section,siblings,nextInstruction:scope.followingOuterInstruction,article:scope.inner[0].value,number:Number(last.base),words:nativeBodyWords});
+   if(!terminal)return unknown('article-insertion-numbering-unproved');
+  }
   const index=siblings.indexOf(anchors[0]),next=siblings[index+1];
   const after=proposal.paragraphs[placement.insertAfter]?.text,before=proposal.paragraphs[placement.insertBefore]?.text;
   if(!Number.isSafeInteger(placement.insertAfter)||placement.insertBefore!==placement.insertAfter+1||!after||!owner.rows.has(placement.insertAfter))return failed();

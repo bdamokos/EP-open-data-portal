@@ -32,7 +32,7 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
   native.structure??=councilNoteStructure(buffer);
   return inspectCouncilOuterInsertion({geometry:councilNoteGeometry(native.bbox),structure:native.structure,placement,wording,items});
  }
- return assertCouncilDraftNativeText(native.raw,{placement,wording,items,nativeBodyWords:items?.[placement.itemIndex]?.proposal?.nativeSourceHash===key?councilNoteGeometry(native.bbox)?.words:undefined});
+ return assertCouncilDraftNativeText(native.raw,{placement,wording,items,nativePdfHash:key,nativeBodyWords:items?.[placement.itemIndex]?.proposal?.nativeSourceHash===key?councilNoteGeometry(native.bbox)?.words:undefined});
 }
 // Independent spelling of the maintainer's bounded rule: exactly one complete
 // alphabetic word is replaced. All surrounding characters, including digits
@@ -50,10 +50,10 @@ function nativeWordDifference(left,right) {
 }
 // Separate entry point for coordinate regression tests; the runtime oracle supplies
 // only independently extracted native text.
-export function assertCouncilDraftNativeText(raw,{placement,wording,items,nativeBodyWords}) {
+export function assertCouncilDraftNativeText(raw,{placement,wording,items,nativeBodyWords,nativePdfHash}) {
  if(!raw)return unknown('oracle-council-pdf-text-unavailable');
  const target=/^(?:Recital|Bod odůvodnění|Betragtning|Considerando)\s+(\d+)\s*([a-z]?)\s*(?:\([^)]*\))?$/iu.exec(wording.targetLabel??'');
- if(!target)return assertCouncilDraftArticleText(raw,{placement,wording,items,nativeBodyWords});
+ if(!target)return assertCouncilDraftArticleText(raw,{placement,wording,items,nativeBodyWords,nativePdfHash});
  if(target[2]&&placement.operation!=='insert')raw=councilPrintedText(raw);
  const heading=/^\s*(?:Article|Článek|Artikel|Artículo)\s+1\s*$/imu.exec(raw);if(!heading)return unknown('oracle-council-pdf-recital-boundary-unavailable');
  const preamble=raw.slice(0,heading.index),labels=[...preamble.matchAll(/^\s*\((\d+)\s*([a-z]?)\)\s+/gmu)],number=Number(target[1]),suffix=placement.operation==='insert'?'':target[2].toLowerCase(),found=labels.filter(m=>Number(m[1])===number&&m[2].toLowerCase()===suffix);
