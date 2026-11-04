@@ -31,7 +31,7 @@ export function inspectNativeNoteScope({proposal,wording,placement,nativeQuoted}
  if(wording.language!=='en'||proposal?.sourceKind!=='docx')return unknown();
  let native;try{native=nativeNoteRows(nativeQuoted?.proposalBuffer);}catch{return unknown();}
  const old=column(wording.originalText,wording.originalFormatting),next=column(wording.proposedText,wording.proposedFormatting);
- if(!old||!next||!next.detached||old.notes.length!==old.markers.length)return unknown();
+ if(!old||!next||!(next.detached||old.detached)||old.notes.length!==old.markers.length)return unknown();
  let sourceNotes=[],sourceText='';
  if(placement.operation==='insert'){if(old.body.trim()||old.notes.length)return fail();}
  else {
