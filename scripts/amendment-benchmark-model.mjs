@@ -656,6 +656,12 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
       const following=text?.paragraphs?.[placement.span.end+1];
       if(typeof following==='string'&&/^\s*\(Ex AM\b/u.test(following)
         &&(/[\r\n]/u.test(following)||!/^\s*\(Ex AM [1-9]\d* \(Or\. [A-Z]{2}\) of FdR [^()\r\n]+\.docx\)\s*$/u.test(following)))return {status:'unverified',reason:'oracle-editorial-boundary-unavailable'};
+      // A parenthetical row after a recital may be substantive continuation,
+      // regardless of whether it resembles a malformed editorial reference.
+      if(typeof following==='string'&&/^\s*\(/u.test(following)&&target.segments.at(-1)?.kind==='recital') {
+        const raw=rawResolutionUnits(text,wording.language),matches=raw.units.filter(unit=>unit.kind==='recital'&&unit.start===placement.span.start);
+        if(raw.reason||matches.length!==1||matches[0].end!==placement.span.end)return {status:'unverified',reason:'oracle-editorial-boundary-unavailable'};
+      }
     }
     const drift=!proposal&&assertResolutionNumberingDrift({text,wording,placement,voteReferences});
     if(drift)return drift;
