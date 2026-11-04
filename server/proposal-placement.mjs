@@ -18,6 +18,15 @@ const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const labelPattern=label=>new RegExp(`^(?:\\(${escape(label.value)}\\)\\s*|${escape(label.value)}[.)]${/^\d/u.test(label.value)?'(?:\\s+|(?=\\p{Lu}))':'\\s*'})`,'u');
 const MAX_UNIT_CHARACTERS=256*1024,MAX_COLUMN_CHARACTERS=64*1024;
 const flat=units=>units.flatMap(unit=>[unit,...flat(unit.children)]);
+// Whole whitespace-delimited words only. Keep every other token and every
+// punctuation mark; do not reinterpret identifiers or URL fragments as words.
+export function singleAlphabeticWordDifference(left,right) {
+  const tokens=s=>s.normalize('NFC').trim().split(/\s+/u),a=tokens(left),b=tokens(right);
+  if(a.length!==b.length)return false;
+  const changed=a.flatMap((token,index)=>token===b[index]?[]:[index]);if(changed.length!==1)return false;
+  const word=/^([("“‘«„]*)(\p{L}+)([).,;!?…”’»"]*)$/u,x=word.exec(a[changed[0]]),y=word.exec(b[changed[0]]);
+  return !!x&&!!y&&x[1]===y[1]&&x[3]===y[3]&&x[2]!==y[2];
+}
 const parentKey=unit=>JSON.stringify(unit.path.slice(0,-1).map(({kind,value,occurrence})=>[kind,value,occurrence??null]));
 const suffixes=['','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','ab','ac'];
 const greekSuffixes=['','α','β','γ','δ','ε','στ','ζ','η','θ','ι','ια','ιβ','ιγ','ιδ','ιε','ιστ','ιζ','ιη','ιθ','κ'];
@@ -1103,12 +1112,15 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     if(chapter)return chapter.reason?unresolved(chapter.reason):{...chapter,evidence:[...evidence,...chapter.evidence]};
   }
   const candidates=candidatesFor(target);
+  const wordDifferenceUnits=new Set();
   const drafting=candidates.length===1?draftingInsertion(candidates[0],proposedText,language):null;
   if(drafting&&(operation==='insert'||/^[-−]1(?:a)?\.\s/u.test(proposedText.trim()))){
     evidence.push(...drafting.evidence);
     return {operation:'insert',status:'placed',itemIndex:drafting.itemIndex,insertBefore:drafting.insertBefore,insertAfter:drafting.insertBefore-1,evidence};
   }
   const placedMatch=(selected,basis)=>{
+    const wordDifference=wordDifferenceUnits.has(selected.unit);
+    if(wordDifference&&(selected.match.span.start!==selected.unit.extent.start||selected.match.span.end!==selected.unit.extent.end-1||selected.match.splice.start.offset!==0||selected.match.splice.end.offset!==selected.proposal.paragraphs[selected.match.span.end].text.length))return unresolved('source_structure_unavailable');
     if(subparagraphBounds&&(selected.itemIndex!==subparagraphBounds.itemIndex||selected.match.span.start<subparagraphBounds.start||selected.match.span.end>=subparagraphBounds.end))return unresolved('conflicting_target_evidence');
     if(bound){
       const proposal=selected.proposal??bound.proposal,unit=selected.unit,match=selected.match,start={...match.splice.start},end={...match.splice.end},first=proposal.paragraphs[start.paragraph].text,last=proposal.paragraphs[end.paragraph].text;
@@ -1129,7 +1141,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       selected={...selected,match:{...match,splice:{start,end},originalText:text}};
     }
     evidence.push({basis,anchor:selected.unit.id});
-    return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
+    return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,...(wordDifference?{originalDifference:'one-word'}:{}),evidence};
   };
   if(operation==='insert') {
     const quoted=candidates.length===1?(quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],printedInnerPath(targetLabel,targetPath,language),proposedText,language)):null;
@@ -1179,6 +1191,10 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     if(notes)return notes;
     if(candidates.length!==1||unit.pathConflict||!completeBoundary(proposal,unit))return originalText;
     const text=unitText(proposal,unit).text;
+    const row=proposal.paragraphs[unit.extent.start];
+    if(baseline==='council-position'&&proposal.sourceKind==='pdf'&&operation==='replace'&&sole?.kind==='recital'&&unit.kind==='recital'&&unit.extent.end===unit.extent.start+1&&row.complete&&row.source?.complete===true&&row.source.role==='/P'&&row.properties?.annotationsComplete===true&&!row.objects.length&&!(proposal.anchors??[]).some(a=>a.paragraph===row.index)&&!(proposal.links??[]).some(l=>l.paragraph===row.index)&&singleAlphabeticWordDifference(text,originalText)){
+      wordDifferenceUnits.add(unit);return text;
+    }
     // A printed “1.” can address the article's sole unnumbered paragraph.
     // Retain every word and require its complete, single native body row.
     if(baseline==='commission-proposal'&&language==='en'&&operation==='replace'&&proposal.sourceKind==='docx'&&
@@ -1215,6 +1231,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(matching.length!==1&&!bound){const numbering=wordingNumberingMatch(target,originalText,candidatesFor);if(numbering)return placedMatch(numbering,'unique-wording-numbering');}
   if(matching.length!==1)return unresolved(matches.find(c=>c.match.reason==='math_comparison_unavailable')?'math_comparison_unavailable':matches.find(c=>c.match.reason==='source_structure_unavailable')?'source_structure_unavailable':'conflicting_target_evidence');
   const selected=matching[0];
+  if(wordDifferenceUnits.has(selected.unit))return placedMatch(selected,'one-alphabetic-word-original-difference');
   if(candidates.length===1&&selected.unit.pathConflict&&!uniqueDocumentWording(selected.proposal,originalText))return unresolved('multiple_published_targets');
   if(bound)return placedMatch(selected,'normalised-original-match');
   evidence.push({basis:selected.match.similarity!==undefined?'unique-similar-original':candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id,...(selected.match.similarity!==undefined?{matchKind:'similar',similarity:selected.match.similarity}:{})});

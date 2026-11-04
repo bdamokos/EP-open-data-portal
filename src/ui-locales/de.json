@@ -2837,5 +2837,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "In Europa und seinen Nachbarregionen waren {places} die Orte mit den meisten Anfragen (je {questions}), jeweils ein sprunghafter Anstieg gegenüber zuvor {average}.",
   "proposalcontexttext.colliding.new.point": "Diese Nummer ist bereits vergeben. Nach dem Basispunkt eingefügt.",
   "proposalcontexttext.new.unnumbered.table": "Neue unnummerierte Tabelle am Ende des Anhangs eingefügt.",
-  "proposalcontexttext.new.point.order": "Die neue Nummer {point} folgt auf Nummer {base}."
+  "proposalcontexttext.new.point.order": "Die neue Nummer {point} folgt auf Nummer {base}.",
+  "documentcontext.single_word_difference": "Der ursprüngliche Wortlaut weicht um ein Wort ab."
 }

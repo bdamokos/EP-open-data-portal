@@ -42,3 +42,14 @@ test('native body geometry separates an intervening owned note from a suffixed r
  const words=[base,text,next].flatMap(s=>s.split(' ').map(text=>({text})));assert.equal(assertCouncilDraftNativeText(raw,{...v,nativeBodyWords:words}).status,'verified');
  assert.notEqual(assertCouncilDraftNativeText(raw,{...v,nativeBodyWords:words.filter(w=>w.text!=='(8)')}).status,'verified');
 });
+
+test('one alphabetic word may differ only in the whole independently addressed native recital',()=>{
+ const first='(1) First recital.',text='(2) Native national protection in 2026.',next='(3) Next recital.',raw=first+'\n'+text+'\n'+next+'\nArticle 1\nBody.',words=[first,text,next].flatMap(s=>s.split(' ').map(text=>({text}))),v={wording:{targetLabel:'Recital 2',originalText:text.replace('national','regional')},items:[{proposal:{paragraphs:[{text:first},{text,complete:true},{text:next}]}}],placement:{status:'placed',operation:'replace',originalDifference:'one-word',itemIndex:0,span:{start:1,end:1},splice:{start:{paragraph:1,offset:0},end:{paragraph:1,offset:text.length}}},nativeBodyWords:words};
+ assert.equal(assertCouncilDraftNativeText(raw,v).status,'verified');
+ for(const original of [text,text.replace('2026','2025'),text.replace('2026.','2026;'),text.replace('national','regional').replace('protection','assistance'),text.replace('national','national regional'),text.replace('national','national-'),text.replace('national','national2')]){
+  const f=structuredClone(v);f.wording.originalText=original;assert.notEqual(assertCouncilDraftNativeText(raw,f).status,'verified',original);
+ }
+ for(const change of [f=>delete f.nativeBodyWords,f=>f.placement.splice.start.offset++,f=>f.placement.splice.end.offset--,f=>f.items[0].proposal.paragraphs[1].complete=false,f=>f.wording.targetLabel='Recital 3',f=>delete f.placement.originalDifference]){const f=structuredClone(v);change(f);assert.notEqual(assertCouncilDraftNativeText(raw,f).status,'verified');}
+ const moved=structuredClone(v);moved.items[0].proposal.paragraphs.push({text,complete:true});moved.placement.span={start:3,end:3};moved.placement.splice.start.paragraph=3;moved.placement.splice.end.paragraph=3;assert.notEqual(assertCouncilDraftNativeText(raw,moved).status,'verified');
+ for(const fragment of ['AB123','http://example.test/a','name@example.test']){const f=structuredClone(v);f.items[0].proposal.paragraphs[1].text=text.replace('national',fragment);f.placement.splice.end.offset=f.items[0].proposal.paragraphs[1].text.length;f.nativeBodyWords=[first,f.items[0].proposal.paragraphs[1].text,next].flatMap(s=>s.split(' ').map(text=>({text})));f.wording.originalText=f.items[0].proposal.paragraphs[1].text.replace(/AB|example/u,'other');assert.notEqual(assertCouncilDraftNativeText(raw,f).status,'verified');}
+});

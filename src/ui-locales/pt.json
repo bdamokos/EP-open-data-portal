@@ -2837,5 +2837,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "Na Europa e nos países vizinhos, {places}: os locais mais referidos nas perguntas ({questions} cada um), em cada caso um salto face a {average}.",
   "proposalcontexttext.colliding.new.point": "Este número já existe. Inserido após o ponto de base.",
   "proposalcontexttext.new.unnumbered.table": "Nova tabela sem número inserida no final do anexo.",
-  "proposalcontexttext.new.point.order": "O novo ponto {point} segue o ponto {base}."
+  "proposalcontexttext.new.point.order": "O novo ponto {point} segue o ponto {base}.",
+  "documentcontext.single_word_difference": "O texto original difere numa palavra."
 }

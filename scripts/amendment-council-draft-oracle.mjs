@@ -11,7 +11,7 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
  if(placement?.status!=='placed')return {status:'not-applicable',reason:'not-placed'};
  const buffer=nativeQuoted?.proposalBuffer;if(!Buffer.isBuffer(buffer))return unknown('oracle-council-pdf-native-unavailable');
  const key=createHash('sha256').update(buffer).digest('hex'),detached=/\n_{3,}[ \t]*\n/u.test(wording.originalText??'');
- if(detached&&items?.[placement.itemIndex]?.proposal?.nativeSourceHash!==key)return {status:'failed',reason:'oracle-council-pdf-note-source-hash-mismatch'};
+ if((detached||placement.originalDifference)&&items?.[placement.itemIndex]?.proposal?.nativeSourceHash!==key)return {status:'failed',reason:'oracle-council-pdf-note-source-hash-mismatch'};
  let native=cached.get(key);
  if(native===undefined){
   const text=spawnSync('pdftotext',['-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024});
@@ -26,7 +26,21 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
   const proof=inspectCouncilPdfNoteScope({bbox:native.bbox,structure:native.structure,placement,wording,items});if(proof.status!=='verified')return proof;
   const body=assertCouncilDraftNativeText(native.raw,{placement,wording:proof.bodyWording,items});return body.status==='verified'?{status:'verified',reason:proof.reason}:body;
  }
- return assertCouncilDraftNativeText(native.raw,{placement,wording,items,nativeBodyWords:/\d\s*[a-z]\s*$/iu.test(wording.targetLabel??'')?councilNoteGeometry(native.bbox)?.words:undefined});
+ return assertCouncilDraftNativeText(native.raw,{placement,wording,items,nativeBodyWords:placement.originalDifference==='one-word'||/\d\s*[a-z]\s*$/iu.test(wording.targetLabel??'')?councilNoteGeometry(native.bbox)?.words:undefined});
+}
+// Independent spelling of the maintainer's bounded rule: exactly one complete
+// alphabetic word is replaced. All surrounding characters, including digits
+// and punctuation, must agree; URLs and identifier fragments are not words.
+function nativeWordDifference(left,right) {
+ const clean=s=>s.normalize('NFC').replace(/\s+/gu,' ').trim(),a=clean(left),b=clean(right),words=[...a.matchAll(/\p{L}+/gu)];
+ if(a===b)return false;
+ return words.some(m=>{
+  const start=m.index,end=start+m[0].length,tail=a.slice(end),prefix=a.slice(0,start);
+  if(start&&!/[\s(“‘«„"]$/u.test(prefix)||tail&&!/^(?:\s|[).,;!?…”’»"](?:\s|$))/u.test(tail))return false;
+  if(!b.startsWith(prefix)||!b.endsWith(tail))return false;
+  const replacement=b.slice(prefix.length,b.length-tail.length);
+  return replacement!==m[0]&&/^\p{L}+$/u.test(replacement);
+ });
 }
 // Separate entry point for coordinate regression tests; the runtime oracle supplies
 // only independently extracted native text.
@@ -58,6 +72,17 @@ export function assertCouncilDraftNativeText(raw,{placement,wording,items,native
  // punctuation or whitespace boundary must fail rather than disappear in fold().
  if(splice.start.offset!==0||splice.end.offset!==endText.length)return fail();
  const rendered=proposal.paragraphs.slice(span.start,span.end+1).map((p,j)=>p.text.slice(j===0?splice.start.offset:0,j===span.end-span.start?splice.end.offset:p.text.length)).join(' ');
+ if(placement.originalDifference==='one-word'){
+  if(placement.operation!=='replace'||span.start!==span.end||!proposal.paragraphs[span.start].complete||!nativeBodyWords)return unknown('oracle-council-pdf-word-owner-unproved');
+  const heads=nativeBodyWords.flatMap((w,index)=>/^\(\d+[a-z]?\)$/u.test(w.text)?[{word:w,index}]:[]),selected=heads.filter(h=>h.word.text==='('+number+suffix+')'),first=heads.filter(h=>h.word.text==='(1)');
+  if(selected.length!==1||first.length!==1)return unknown('oracle-council-pdf-word-owner-unproved');
+  const end=heads[heads.indexOf(selected[0])+1]?.index;if(end===undefined||first[0].index>selected[0].index)return unknown('oracle-council-pdf-word-owner-unproved');
+  const text=words=>words.filter(w=>!w.reference).map(w=>w.text).join(' '),literal=s=>s.normalize('NFC').replace(/\s+/gu,' ').trim(),body=text(nativeBodyWords.slice(selected[0].index,end));
+  if(literal(body)!==literal(rendered)||!nativeWordDifference(body,wording.originalText))return fail();
+  const compact=s=>s.normalize('NFC').replace(/\s/gu,''),frame=compact(text(nativeBodyWords.slice(first[0].index,end))),projected=proposal.paragraphs.map(p=>compact(p.text)).join(''),at=projected.indexOf(frame),actualEnd=proposal.paragraphs.slice(0,span.end+1).reduce((n,p)=>n+compact(p.text).length,0);
+  if(at<0||projected.lastIndexOf(frame)!==at||actualEnd!==at+frame.length)return fail();
+  return {status:'verified',reason:'native-council-pdf-one-word-disagreement'};
+ }
  if(fold(rendered)!==fold(wording.originalText))return fail();
  const original=fold(wording.originalText),actual=fold(proposal.paragraphs.slice(placement.span?.start,placement.span?.end+1).map(p=>p.text).join(' '));
  if(!original||fold(raw).split(original).length!==2||!fold(unit).includes(original))return unknown('oracle-council-pdf-original-unverified');
