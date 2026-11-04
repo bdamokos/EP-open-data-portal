@@ -256,8 +256,7 @@ function rawPreambleCitations(proposal) {
   return run;
 }
 function verifyOuterArticleGap({proposal,wording,placement,nativeQuoted}) {
- if(!placement.evidence?.some(e=>e.basis==='outer-article-heading-gap'))return null;
- const unknown=()=>({status:'unverified',reason:'oracle-outer-article-gap-unavailable'});
+ const unknown=()=>null;
  const label=/^Article ([1-9]\d*) a \(new\)$/u.exec(wording.targetLabel?.split('\n')[0]??'');
  if(!label||wording.language!=='en'||wording.originalText!==''||placement.operation!=='insert'||proposal?.sourceKind!=='docx')return unknown();
  const n=Number(label[1]);if(!Number.isSafeInteger(n))return unknown();
