@@ -16,3 +16,10 @@ test('native cell line breaks stay inside their cell when verifying a table-leve
  const placement=resolveProposalPlacement(source.items,wording,{nativeProposalInputs:source.nativeProposalInputs});assert.equal(placement.status,'placed',placement.reason);assert.equal(placement.splice,undefined);assert.equal(verifyPlacement({...source,wording,placement,nativeQuoted:{...source.nativeQuoted,...amendment.nativeQuoted}}).status,'verified');
  const wrong={...wording,originalText:wording.originalText.replace('aluminium\ndescription','aluminium\t\ndescription')};assert.equal(resolveProposalPlacement(source.items,wrong,{nativeProposalInputs:source.nativeProposalInputs}).status,'unresolved');assert.notEqual(verifyPlacement({...source,wording:wrong,placement,nativeQuoted:{...source.nativeQuoted,...amendment.nativeQuoted}}).status,'verified');
 });
+
+test('caption recovery requires one explicit two-column grid, not an inferred width',()=>{
+ for(const replacement of ['', '<w:tblGrid/>']){
+  const wording=read(captionedComparisonNative({change:xml=>xml.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/u,replacement)}));
+  assert.equal(wording.originalText,null);assert.equal(wording.proposedText,null);assert(!wording.documentReferences.some(ref=>ref.basis==='caption-before-original-heading'));
+ }
+});
