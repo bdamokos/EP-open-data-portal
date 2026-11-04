@@ -52,8 +52,8 @@ test('the site notice says policy-area names are translated only outside English
   t.after(()=>load.close());
   const {renderToStaticMarkup}=await import('react-dom/server');
   const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await load('/src/uiCatalogues.mjs'),{DataNotice}=await load('/src/components/DataNotice.tsx');
-  const note='Translated names note';
-  const i18n=createAppUiI18n({en:{'topics.explorerTranslation':note},fr:{'topics.explorerTranslation':note},hu:{'topics.explorerTranslation':note}});
+  const note='Policy-area names translated by the explorer.';
+  const i18n=createAppUiI18n({fr:{'topics.explorerTranslation':note},hu:{'topics.explorerTranslation':note}});
   const html=language=>renderToStaticMarkup(createElement(UiI18nProvider,{i18n,language},createElement(DataNotice)));
   for(const language of ['hu','hu-HU'])assert.match(html(language),new RegExp(note),language);
   for(const language of ['en','en-GB','fr','fr-BE'])assert.doesNotMatch(html(language),new RegExp(note),language);
