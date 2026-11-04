@@ -88,6 +88,17 @@ function sameCitation(a,b) {
  for(let i=0;i<longer.length;i++)if(/[.,;]/u.test(longer[i])&&longer.slice(0,i)+longer.slice(i+1)===shorter&&!(/\d/u.test(longer[i-1]??'')&&/\d/u.test(longer[i+1]??'')))return true;
  return false;
 }
+// A whole institutional reference may be absent only from the owned note,
+// while the exact same reference is retained once in its native body. All
+// other note characters and the literal URI must agree; no typo composition.
+function nativeOmittedReference(note,reported,body) {
+ const references=text=>[...text.matchAll(/(?<![\p{L}\p{N}])([A-Z]{1,4})\s*\(\s*(\d{4})\s*\)\s*(\d{1,6})(?![\p{L}\p{N}])/gu)];
+ const urls=text=>text.match(/https?:\/\/[^\s)]+/giu)??[];
+ if(JSON.stringify(urls(note))!==JSON.stringify(urls(reported)))return false;
+ const bodyRefs=references(body),ids=references(note);if(ids.length>8)return false;
+ const matches=ids.filter(ref=>bodyRefs.filter(candidate=>key(candidate[0])===key(ref[0])).length===1&&key(note.slice(0,ref.index)+note.slice(ref.index+ref[0].length))===key(reported));
+ return matches.length===1;
+}
 export function inspectCouncilPdfNoteScope({bbox,structure,placement,wording,items}) {
  const native=councilNoteGeometry(bbox),old=column(wording.originalText,wording.originalFormatting),next=column(wording.proposedText,wording.proposedFormatting),proposal=items?.[placement.itemIndex]?.proposal;
  const target=/^(?:Recital|Bod odůvodnění|Betragtning|Considerando)\s+(\d+)$/iu.exec(wording.targetLabel??'');
@@ -107,8 +118,10 @@ export function inspectCouncilPdfNoteScope({bbox,structure,placement,wording,ite
  const anchors=(proposal.anchors??[]).filter(a=>a.paragraph===span.start),note=(proposal.notes??[]).filter(n=>n.label===old.label);
  if(anchors.length!==1||note.length!==1||!note[0].complete||note[0].source?.path!==notes[0].ref||anchors[0].label!==old.label||anchors[0].note!==note[0].id||!Number.isSafeInteger(anchors[0].offset)||anchors[0].offset<0||anchors[0].offset>row.text.length)return fail();
  const nativePrefix=unit.slice(0,unit.indexOf(refs[0])).filter(w=>!w.reference).map(w=>w.text).join(' ');
- if(row.text.slice(0,anchors[0].offset).trimEnd().length!==anchors[0].offset||key(row.text.slice(0,anchors[0].offset))!==key(nativePrefix)||key(old.prefix)!==key(nativePrefix)||key(note[0].text)!==key(printed[0].text)||!sameCitation(printed[0].text,old.note))return fail();
+ if(row.text.slice(0,anchors[0].offset).trimEnd().length!==anchors[0].offset||key(row.text.slice(0,anchors[0].offset))!==key(nativePrefix)||key(old.prefix)!==key(nativePrefix)||key(note[0].text)!==key(printed[0].text))return fail();
+ const omitted=!sameCitation(printed[0].text,old.note);
+ if(omitted&&!nativeOmittedReference(printed[0].text,old.note,body)||placement.originalDifference!==(omitted?'omitted-citation-identifier':undefined))return fail();
  const noteScope={kind:'pdf-footnotes',originalBodyEnd:old.end,proposedBodyEnd:next.end,sourceNotes:[{id:note[0].id,label:old.label}],proposedLabels:[next.label],unreferencedLabels:[]};
  if(placement.noteScope&&(Object.keys(placement.noteScope).length!==Object.keys(noteScope).length||Object.entries(noteScope).some(([name,value])=>JSON.stringify(placement.noteScope[name])!==JSON.stringify(value))))return fail();
- return {status:'verified',reason:'native-council-pdf-body-and-owned-note',noteScope,bodyWording:{...wording,originalText:old.clean,originalFormatting:[],proposedText:next.body,proposedFormatting:(wording.proposedFormatting??[]).filter(m=>m.end<=next.end)}};
+ return {status:'verified',reason:omitted?'native-council-pdf-omitted-citation-identifier':'native-council-pdf-body-and-owned-note',noteScope,bodyWording:{...wording,originalText:old.clean,originalFormatting:[],proposedText:next.body,proposedFormatting:(wording.proposedFormatting??[]).filter(m=>m.end<=next.end)}};
 }

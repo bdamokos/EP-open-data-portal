@@ -144,6 +144,18 @@ function samePdfCitation(left,right) {
   const short=a.length<b.length?a:b,long=a.length>b.length?a:b;
   return [...long.matchAll(/[.,;]/gu)].some(m=>!( /\d/u.test(long[m.index-1]??'')&&/\d/u.test(long[m.index+1]??''))&&long.slice(0,m.index)+long.slice(m.index+1)===short);
 }
+// Bound omission to one whole reference also printed in this exact body.
+// Nothing else, including URL punctuation or another identifier, is repaired.
+function omittedPdfCitationIdentifier(native,reported,body) {
+  const pattern=/(?<![\p{L}\p{N}])([A-Z]{1,4})\s*\(\s*(\d{4})\s*\)\s*(\d{1,6})(?![\p{L}\p{N}])/gu;
+  const urls=s=>s.match(/https?:\/\/[^\s)]+/giu)??[];
+  if(JSON.stringify(urls(native))!==JSON.stringify(urls(reported)))return false;
+  const inBody=[...body.matchAll(pattern)].map(m=>textKey(m[0])),refs=[...native.matchAll(pattern)];
+  if(refs.length>8)return false;
+  let matches=0;
+  for(const ref of refs)if(inBody.filter(id=>id===textKey(ref[0])).length===1&&textKey(native.slice(0,ref.index)+native.slice(ref.index+ref[0].length))===textKey(reported))matches++;
+  return matches===1;
+}
 // A bounded PDF note comparison reuses the ordinary body resolver. Neither the
 // native note nor the report's detached payload becomes provision body text.
 function resolveCouncilPdfNoteScope(items,chosen) {
@@ -158,8 +170,9 @@ function resolveCouncilPdfNoteScope(items,chosen) {
   if(!row?.complete||row.source?.complete!==true||row.source.role!=='/P'||row.source.pages?.length!==1||row.properties?.notesComplete!==true||!row.properties.annotationsComplete||row.objects.length||splice.end.offset!==row.text.length||textKey(row.text)!==textKey(old.clean)||anchors.length!==1)return withheld();
   const anchor=anchors[0],notes=(proposal.notes??[]).filter(n=>n.id===anchor.note),note=notes[0],page=row.source.pages[0];
   if(notes.length!==1||!note.complete||note.objects?.length||JSON.stringify(note.source?.pages)!==JSON.stringify([page])||(proposal.notes??[]).filter(n=>n.source?.pages?.includes(page)).length!==1||(proposal.anchors??[]).filter(a=>a.note===note.id).length!==1||anchor.label!==old.references[0].label||note.label!==old.notes[0].label||!Number.isSafeInteger(anchor.offset)||anchor.offset<0||anchor.offset>row.text.length||row.text.slice(0,anchor.offset).trimEnd().length!==anchor.offset||textKey(row.text.slice(0,anchor.offset))!==textKey(old.references[0].prefix))return withheld();
-  if(!samePdfCitation(note.text,old.notes[0].text))return withheld('council_pdf_note_text_mismatch');
-  return {...placement,noteScope:{kind:'pdf-footnotes',originalBodyEnd:old.end,proposedBodyEnd:next.end,sourceNotes:[{id:note.id,label:anchor.label}],proposedLabels:[next.notes[0].label],unreferencedLabels:[]}};
+  const omitted=!samePdfCitation(note.text,old.notes[0].text);
+  if(omitted&&!omittedPdfCitationIdentifier(note.text,old.notes[0].text,row.text))return withheld('council_pdf_note_text_mismatch');
+  return {...placement,...(omitted?{originalDifference:'omitted-citation-identifier'}:{}),noteScope:{kind:'pdf-footnotes',originalBodyEnd:old.end,proposedBodyEnd:next.end,sourceNotes:[{id:note.id,label:anchor.label}],proposedLabels:[next.notes[0].label],unreferencedLabels:[]}};
 }
 
 function initialRecital(items,chosen) {

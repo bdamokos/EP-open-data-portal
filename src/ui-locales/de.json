@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Diese Nummer ist bereits vergeben. Nach dem Basispunkt eingefügt.",
   "proposalcontexttext.new.unnumbered.table": "Neue unnummerierte Tabelle am Ende des Anhangs eingefügt.",
   "proposalcontexttext.new.point.order": "Die neue Nummer {point} folgt auf Nummer {base}.",
-  "documentcontext.single_word_difference": "Der ursprüngliche Wortlaut weicht um ein Wort ab."
+  "documentcontext.single_word_difference": "Der ursprüngliche Wortlaut weicht um ein Wort ab.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "In der ursprünglichen Quellenangabe fehlt eine Kennung"
 }

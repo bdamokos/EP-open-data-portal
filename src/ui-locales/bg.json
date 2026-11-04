@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Този номер съвпада със съществуваща точка. Поставено след основната точка.",
   "proposalcontexttext.new.unnumbered.table": "Нова неномерирана таблица, поставена в края на приложението.",
   "proposalcontexttext.new.point.order": "Нова точка {point} следва точка {base}.",
-  "documentcontext.single_word_difference": "Оригиналният текст се различава с една дума."
+  "documentcontext.single_word_difference": "Оригиналният текст се различава с една дума.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "В първоначалното позоваване е пропуснат идентификатор"
 }

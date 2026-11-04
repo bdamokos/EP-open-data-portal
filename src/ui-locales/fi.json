@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Tämä numero on jo käytössä. Sijoitettu peruskohdan jälkeen.",
   "proposalcontexttext.new.unnumbered.table": "Uusi numeroimaton taulukko on sijoitettu liitteen loppuun.",
   "proposalcontexttext.new.point.order": "Uusi kohta {point} seuraa kohtaa {base}.",
-  "documentcontext.single_word_difference": "Alkuperäinen sanamuoto eroaa yhdellä sanalla."
+  "documentcontext.single_word_difference": "Alkuperäinen sanamuoto eroaa yhdellä sanalla.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "Alkuperäisestä viitteestä puuttuu tunniste"
 }

@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Ta številka že obstaja. Vstavljeno za osnovno točko.",
   "proposalcontexttext.new.unnumbered.table": "Nova neoštevilčena tabela je vstavljena na koncu priloge.",
   "proposalcontexttext.new.point.order": "Nova točka {point} sledi točki {base}.",
-  "documentcontext.single_word_difference": "Izvirno besedilo se razlikuje za eno besedo."
+  "documentcontext.single_word_difference": "Izvirno besedilo se razlikuje za eno besedo.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "V izvirnem sklicu manjka identifikator"
 }

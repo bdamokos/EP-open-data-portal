@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Dit nummer bestaat al. Ingevoegd na het basispunt.",
   "proposalcontexttext.new.unnumbered.table": "Nieuwe ongenummerde tabel aan het einde van de bijlage ingevoegd.",
   "proposalcontexttext.new.point.order": "Het nieuwe punt {point} volgt op punt {base}.",
-  "documentcontext.single_word_difference": "De oorspronkelijke tekst verschilt één woord."
+  "documentcontext.single_word_difference": "De oorspronkelijke tekst verschilt één woord.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "In de oorspronkelijke verwijzing ontbreekt een identificatiecode"
 }

@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Acest număr există deja. Inserat după punctul de bază.",
   "proposalcontexttext.new.unnumbered.table": "Tabel nou nenumerotat inserat la sfârșitul anexei.",
   "proposalcontexttext.new.point.order": "Noul punct {point} urmează după punctul {base}.",
-  "documentcontext.single_word_difference": "Textul original diferă cu un cuvânt."
+  "documentcontext.single_word_difference": "Textul original diferă cu un cuvânt.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "Citarea originală omite un identificator"
 }

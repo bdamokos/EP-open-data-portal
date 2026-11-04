@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Dan in-numru diġà jeżisti. Imqiegħed wara l-punt bażi.",
   "proposalcontexttext.new.unnumbered.table": "Tabella ġdida bla numru mqiegħda fl-aħħar tal-anness.",
   "proposalcontexttext.new.point.order": "Il-punt il-ġdid {point} jiġi wara l-punt {base}.",
-  "documentcontext.single_word_difference": "It-test oriġinali jvarja b’kelma waħda."
+  "documentcontext.single_word_difference": "It-test oriġinali jvarja b’kelma waħda.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "Iċ-ċitazzjoni oriġinali tħalli barra identifikatur"
 }

@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Ο αριθμός αυτός υπάρχει ήδη. Τοποθετείται μετά το βασικό σημείο.",
   "proposalcontexttext.new.unnumbered.table": "Νέος μη αριθμημένος πίνακας στο τέλος του παραρτήματος.",
   "proposalcontexttext.new.point.order": "Το νέο σημείο {point} ακολουθεί το σημείο {base}.",
-  "documentcontext.single_word_difference": "Το αρχικό κείμενο διαφέρει κατά μία λέξη."
+  "documentcontext.single_word_difference": "Το αρχικό κείμενο διαφέρει κατά μία λέξη.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "Από την αρχική παραπομπή λείπει αναγνωριστικό"
 }

@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "See number on juba olemas. Paigutatud põhipunkti järele.",
   "proposalcontexttext.new.unnumbered.table": "Uus nummerdamata tabel on paigutatud lisa lõppu.",
   "proposalcontexttext.new.point.order": "Uus punkt {point} järgneb punktile {base}.",
-  "documentcontext.single_word_difference": "Algne sõnastus erineb ühe sõna võrra."
+  "documentcontext.single_word_difference": "Algne sõnastus erineb ühe sõna võrra.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "Algses viites puudub identifikaator"
 }

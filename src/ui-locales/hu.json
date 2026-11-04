@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Ez a szám már szerepel egy pontnál. Az alappont után elhelyezve.",
   "proposalcontexttext.new.unnumbered.table": "Az új, számozatlan táblázat a melléklet végére kerül.",
   "proposalcontexttext.new.point.order": "Az új {point} pont a(z) {base} pontot követi.",
-  "documentcontext.single_word_difference": "Az eredeti szöveg egy szóval eltér."
+  "documentcontext.single_word_difference": "Az eredeti szöveg egy szóval eltér.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "Az eredeti hivatkozásból hiányzik egy azonosító"
 }

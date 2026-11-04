@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Este número já existe. Inserido após o ponto de base.",
   "proposalcontexttext.new.unnumbered.table": "Nova tabela sem número inserida no final do anexo.",
   "proposalcontexttext.new.point.order": "O novo ponto {point} segue o ponto {base}.",
-  "documentcontext.single_word_difference": "O texto original difere numa palavra."
+  "documentcontext.single_word_difference": "O texto original difere numa palavra.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "A citação original omite um identificador"
 }

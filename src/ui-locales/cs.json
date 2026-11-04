@@ -2838,5 +2838,6 @@
   "proposalcontexttext.colliding.new.point": "Toto číslo již má jiný bod. Umístěno za základní bod.",
   "proposalcontexttext.new.unnumbered.table": "Nová nečíslovaná tabulka je umístěna na konci přílohy.",
   "proposalcontexttext.new.point.order": "Nový bod {point} následuje za bodem {base}.",
-  "documentcontext.single_word_difference": "Původní znění se liší o jedno slovo."
+  "documentcontext.single_word_difference": "Původní znění se liší o jedno slovo.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "V původní citaci chybí identifikátor"
 }
