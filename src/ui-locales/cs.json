@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "V Evropě a jejím sousedství: {places} — nejvíce otázek (po {questions}), v každém případě prudký nárůst, dříve {average}.",
   "proposalcontexttext.colliding.new.point": "Toto číslo již má jiný bod. Umístěno za základní bod.",
   "proposalcontexttext.new.unnumbered.table": "Nová nečíslovaná tabulka je umístěna na konci přílohy.",
-  "proposalcontexttext.new.point.order": "Nový bod {point} následuje za bodem {base}."
+  "proposalcontexttext.new.point.order": "Nový bod {point} následuje za bodem {base}.",
+  "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uveden bod {base}."
 }

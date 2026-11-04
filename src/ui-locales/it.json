@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "In Europa e nei paesi vicini, {places}: i luoghi più citati nelle interrogazioni ({questions} ciascuno), in ogni caso un balzo rispetto a {average}.",
   "proposalcontexttext.colliding.new.point": "Questo numero è già utilizzato. Inserito dopo il punto base.",
   "proposalcontexttext.new.unnumbered.table": "Nuova tabella senza numero inserita alla fine dell’allegato.",
-  "proposalcontexttext.new.point.order": "Il nuovo punto {point} segue il punto {base}."
+  "proposalcontexttext.new.point.order": "Il nuovo punto {point} segue il punto {base}.",
+  "proposalcontexttext.printed.point.label": "Nuovo punto {point}. L’etichetta indica il punto {base}."
 }

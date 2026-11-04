@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "Európában és szomszédságában {places} voltak a legtöbb kérdés témái (egyenként {questions}), ami mindegyiküknél ugrásszerű növekedés volt, korábban {average}.",
   "proposalcontexttext.colliding.new.point": "Ez a szám már szerepel egy pontnál. Az alappont után elhelyezve.",
   "proposalcontexttext.new.unnumbered.table": "Az új, számozatlan táblázat a melléklet végére kerül.",
-  "proposalcontexttext.new.point.order": "Az új {point} pont a(z) {base} pontot követi."
+  "proposalcontexttext.new.point.order": "Az új {point} pont a(z) {base} pontot követi.",
+  "proposalcontexttext.printed.point.label": "Új {point}. pont. A címkén ez áll: {base}. pont."
 }

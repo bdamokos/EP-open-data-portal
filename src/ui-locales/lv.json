@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "Eiropā un tās kaimiņreģionos: {places} — visbiežāk jautājumos minētās vietas (katrai {questions}), katrā gadījumā straujš kāpums, iepriekš — {average}.",
   "proposalcontexttext.colliding.new.point": "Šis numurs jau tiek izmantots. Ievietots pēc pamatpunkta.",
   "proposalcontexttext.new.unnumbered.table": "Jauna nenumurēta tabula ievietota pielikuma beigās.",
-  "proposalcontexttext.new.point.order": "Jaunais punkts {point} seko punktam {base}."
+  "proposalcontexttext.new.point.order": "Jaunais punkts {point} seko punktam {base}.",
+  "proposalcontexttext.printed.point.label": "Jauns {point}. punkts. Norādē minēts {base}. punkts."
 }
