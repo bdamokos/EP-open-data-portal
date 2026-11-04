@@ -33,6 +33,7 @@ export function storyLinkClaims(lines,s={}) {
    if(key!=='title'&&!(key==='places'&&parent==='topics.story.amongPlaces')&&typeof v.text==='string'&&/^(?:[\d\s.,]+|zero|one|two|three|four|five|six|seven|eight|nine)$/i.test(v.text))return plain(v);
    if(v.text?.message==='topics.story.moreThanAny')return plain(v);
    if(key==='average'&&v.browse&&!v.browse.periods)return plain(v);
+   if(v.labelLanguage&&!v.records?.length&&!v.browse&&!v.pageRecords&&!v.period)return {...v,text:plain(v.text)};
    const r={...v,text:plain(v.text)};
    if(typeof r.text==='object'&&/topics\.story\.(?:count\.|links\.(?:urgency|debatesEach|places))/.test(r.text.message)){const n=countValue(r.text);if(n!==null){r.expected=n;r.text={...r.text,counts:{...r.text.counts,count:n}};}}
    if(/urgency/.test(parent)&&['count','urgencyDebates'].includes(key))r.setKind='urgency-debates';

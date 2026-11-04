@@ -2725,6 +2725,7 @@
   "topics.story.map.outside.eu": "Toespraken in de plenaire vergadering uit Europa en de buurlanden: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} sprak de plenaire vergadering toe ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} was het onderwerp van het drukste debat op de kaart en van {questions}: {meps} spraken over {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "In Europa en de buurlanden was {place} het onderwerp van het drukste debat en van {questions}: {meps} spraken over {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} was het onderwerp van zowel het drukste debat op de kaart als de meeste vragen ({questions}): {meps} spraken over {title} ({date}{format}){outcome}.",

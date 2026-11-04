@@ -425,7 +425,9 @@ export class CorpusStore {
       for(const key of ['type','process','speaker','headerAvailable','evidence'])summary.intervention[key]=previousIntervention[key];
     }
     const body=JSON.stringify({version:1,activity:metadata,summary,speakers:people,headerSources,availableTextLanguages,
-      interventionHeaders:interventionHeaders(fragments),interventionClassificationVersion:INTERVENTION_CLASSIFICATION_VERSION});
+      interventionHeaders:interventionHeaders(fragments),
+      interventionHeaderSources:{...(previousMetadata?.interventionHeaderSources||{}),...Object.fromEntries(Object.keys(supplied).map(key=>[key,{url:sourceUrl,fetchedAt:new Date(fetchedAt).toISOString()}]))},
+      interventionClassificationVersion:INTERVENTION_CLASSIFICATION_VERSION});
     if(Buffer.byteLength(body)>2*1024*1024)throw new Error('Speech metadata exceeded the allowed size.');
     const write=()=>{
       this.assertWriter();

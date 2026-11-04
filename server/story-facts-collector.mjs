@@ -1,3 +1,4 @@
+import {collectOutsideRoles,outsideRolesDue} from './outside-role-collector.mjs';
 import {collectorRetry} from './collector-retry.mjs';
 import {createHash} from 'node:crypto';
 import {storyTables,stageStoryInput,adoptHeldEventSnapshots} from './story-facts-storage.mjs';
@@ -10,7 +11,7 @@ export const brusselsDay=now=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/
 export function decisionRecheck(sittingId,now){const sitting=Date.parse(sittingId.slice(7,17)+'T00:00:00Z');for(const days of [1,3,7,30])if(sitting+days*DAY>now)return sitting+days*DAY;return null;}
 export function storyCollectionDue(store,now){
  if(!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='story_jobs'").get())return false;
- return Boolean(store.db.prepare("SELECT 1 FROM story_jobs WHERE state IN ('pending','unavailable') AND next_read<=? LIMIT 1").get(now));
+ return outsideRolesDue(store,now)||Boolean(store.db.prepare("SELECT 1 FROM story_jobs WHERE state IN ('pending','unavailable') AND next_read<=? LIMIT 1").get(now));
 }
 function* expanded(work){
  const stack=[[work][Symbol.iterator]()],seen=new WeakSet();
@@ -19,7 +20,7 @@ function* expanded(work){
 export async function collectStorySource(worker){
  const store=worker.store;store.assertWriter();storyTables(store.db);
  if(worker.controller.signal.aborted||worker.requests>=worker.budget)return false;
- const row=store.db.prepare("SELECT * FROM story_jobs WHERE state IN ('pending','unavailable') AND next_read<=? ORDER BY next_read,key LIMIT 1").get(worker.clock());if(!row)return false;
+ const row=store.db.prepare("SELECT * FROM story_jobs WHERE state IN ('pending','unavailable') AND next_read<=? ORDER BY next_read,key LIMIT 1").get(worker.clock());if(!row)return collectOutsideRoles(worker);
  const update=(state,error=null,offset=row.offset,signature=null)=>store.db.prepare('UPDATE story_jobs SET attempts=0,state=?,next_read=?,offset=?,signature=?,error=? WHERE key=?').run(state,state==='pending'?0:null,offset,signature,error,row.key);
  const day=row.id.slice(7,17);
  if(row.kind==='decisions'&&day>=brusselsDay(worker.clock())){store.db.prepare('UPDATE story_jobs SET next_read=? WHERE key=?').run(Math.max(Date.parse(day+'T00:00:00Z')+DAY,worker.clock()+60_000),row.key);return true;}

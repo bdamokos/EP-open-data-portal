@@ -1,5 +1,6 @@
 import {prepareBallotBindingStore} from './ballot-bindings-store.mjs';
 import {prepareVotingLists,VotingListStore} from './voting-list-collector.mjs';
+import {prepareHemicycle} from './hemicycle.mjs';
 import {prepareBaseBackfill} from './base-source-backfill.mjs';
 export const OFFICIAL_CONTEXT_STATUS_VERSION=1;
 export const DOCUMENT_BODY_STATUS_VERSION=1;
@@ -147,6 +148,7 @@ export class ActivityStore {
       initializeAvailabilityHistory(this);speechSourceGapSchema(this.db);
       if(this.get('ballotBindingSchema')!==1){prepareBallotBindingStore(this);initialized=true;}
       if(this.get('votingListSchema')!==1){prepareVotingLists(this);initialized=true;}
+      if(this.get('hemicycleSchema')!==1){prepareHemicycle(this);initialized=true;}
       if(this.get('baseBackfillSchema')!==1){prepareBaseBackfill(this);initialized=true;}
       if(this.get('documentBodySchema')!==1){prepareDocumentBodies(this);initialized=true;}
       if(this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA){prepareSittingSnapshots(this);initialized=true;}

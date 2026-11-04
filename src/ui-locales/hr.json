@@ -2725,6 +2725,7 @@
   "topics.story.map.outside.eu": "Govori na plenarnoj sjednici iz Europe i njezina susjedstva: {speakers}.",
   "topics.story.place.outside": "{place}: govor na plenarnoj sjednici – {speaker} ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} — najživlja rasprava na karti i {questions}: {title} ({date}{format}); sudjelovanje: {meps}{outcome}.",
   "topics.story.integrated.busiest.eu": "U Europi i njezinu susjedstvu: {place} — najživlja rasprava i {questions}: {title} ({date}{format}); sudjelovanje: {meps}{outcome}.",
   "topics.story.integrated.both": "{place} — najživlja rasprava na karti i najviše pitanja ({questions}): {title} ({date}{format}); sudjelovanje: {meps}{outcome}.",

@@ -23,6 +23,7 @@ import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {API_VERSION} from './api-version.mjs';
 import {plenaryLive} from './plenary-live.mjs';
+import {hemicycleResponse} from './hemicycle.mjs';
 import {odpDirectory,odpProfileWithMemberships,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,startCorporateBodyWarmup,upstreamStatus,odpHeaderStatus,startOdpMonitoring} from './odp.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
@@ -132,7 +133,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 
 // Browser transport for this app. The gateway admits the same finite route set.
 let diagnosticWindow=0,diagnosticCount=0;
-const apiEndpoints=new Set(['voting-lists','upcoming-votes','ballot-comparisons','client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['hemicycle','voting-lists','upcoming-votes','ballot-comparisons','client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -258,6 +259,14 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'procedure-progress') {
       result=await official().progress.query(procedureProgressQuery(url.searchParams));
+    }
+    else if (segments.length === 2 && segments[0] === 'hemicycle') {
+      requireQuery(url.searchParams,[]);
+      let store=null;try{store=activityIndex().store;}catch{/* Without the index the source is read directly. */}
+      result=await hemicycleResponse(segments[1],{store});
+      const cacheControl=request.headers.authorization?'no-store':'public, max-age=3600';
+      sendJson(request,response,200,result,{cacheControl,cdnCacheControl:currentVersion?cacheControl:'no-store'});
+      return;
     }
     else if (segments.length === 1 && segments[0] === 'voting-lists') {
       result=votingListsResponse(activityIndex().store,url.searchParams);

@@ -13,7 +13,7 @@ import {publishedEurope} from './story-europe.mjs';
 import {HttpError} from './http-utils.mjs';
 import {topicPeriods,quarter} from './topics-store.mjs';
 
-export const STORY_FACTS_VIEW_VERSION=2;
+export const STORY_FACTS_VIEW_VERSION=5;
 
 /* Frontend contract (all counts are exact over the generation's retained evidence):
  * mode=q/d is a presentation selector; counts retain every kind.
@@ -165,7 +165,10 @@ export function storyFacts(store,params,{pressFilename}={}){
   for(const id of procedureIds)if(/^\d{4}-\d{4}[A-Z]?$/.test(id))for(const row of read.iterate(id.replace('-','/')+'(',id.replace('-','/')+')')){const m=row.value.match(/^(\d{4})\/(\d{4}[A-Z]?)\([A-Z]+\)$/);if(m&&m[1]+'-'+m[2]===id)(press[id]??=[]).push({id:row.id,url:row.url,title:row.title,date:row.date?.slice(0,10)||null,reference:row.value,ref:row.value});}
  }}catch{pressReady=false;}finally{pdb.close();}}
  let topic=null;if(q.scope==='topic'){const c=db.prepare('SELECT body FROM record_topic_concepts WHERE generation=? AND key=?').get(generation,q.key);topic={key:q.key,...conceptLabel(c?JSON.parse(c.body):{key:q.key},q.language),groups:Object.fromEntries(periodCounts.map(p=>[p.period,p.groups]))};}
- const outsideCoverage=outsideSpeakerCoverage(store,generation),outsideSpeakers=readOutsideSpeakers(store,generation,q,key,outsideCoverage);
+ const outsideCoverage=outsideSpeakerCoverage(store,generation),outsideSpeakers=readOutsideSpeakers(store,generation,q,key,outsideCoverage).map(({roles,role,language,source,headerSource,rosterSource,debateSource,wikidata,...a})=>{
+  const speechId=[a.speechId,headerSource?.url,a.id].map(value=>String(value||'').match(/(?:^|\/speeches\/)(MTG-PL-\d{4}-\d{2}-\d{2}-OTH-[A-Z0-9-]+)(?:[?]|$)/)?.[1]).find(id=>id?.startsWith('MTG-PL-'+a.date+'-'));
+  return {...a,...(speechId?{speechId}:{}),roles:roles?.[q.language]?{[q.language]:{role:roles[q.language].role,languageTag:q.language}}:{}};
+ });
  // Address sets also need their complete records when a person spoke twice;
  // these evidence rows do not participate in any aggregate or ranking.
  for(const a of outsideSpeakers)if(!debates.some(d=>d.id===a.debateId)){const title=choose(a.debateTitles,a.name);debates.push({id:a.debateId,date:a.date,q:quarter(a.date),title:cleanTitle(title.value),rawTitle:title.value,titleLanguage:title.language,meps:0,speeches:0,places:[{id:a.country,basis:a.basis}],docs:[],procedures:[]});}

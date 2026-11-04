@@ -3,7 +3,7 @@
   var shell = document.getElementById('initial-shell');
   if (!shell) return; // React may already have replaced it.
   var query = new URLSearchParams(window.location.search);
-  var titles = { members: 'Members of the European Parliament', legislation: 'Plenary agenda', questions: 'Questions', geopolitics: 'Geopolitics', outside: 'Outside voices', groups: 'Group voices', saved: 'Following' };
+  var titles = { members: 'Members of the European Parliament', legislation: 'Plenary agenda', questions: 'Questions', geopolitics: 'Geopolitics', outside: 'Outside voices', groups: 'Group voices', hemicycle: 'Hemicycle', saved: 'Following' };
   var view = query.get('view');
   if (!Object.hasOwn(titles, view)) view = 'members';
   var title = titles[view];
