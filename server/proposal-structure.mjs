@@ -16,7 +16,7 @@ export {normaliseForMatching} from './proposal-matching.mjs';
 // source identity, content and path for this parser version; they are not official
 // legal-unit identifiers. Results are cached frozen, so consumers copy before
 // modifying them. Bump PROPOSAL_PARSER_VERSION for any change in parsing semantics.
-export const PROPOSAL_PARSER_VERSION='20';
+export const PROPOSAL_PARSER_VERSION='21';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -409,7 +409,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   }
   finish(root);
   const structureComplete=sourceStructured&&!gaps.length;
-  return {imageAssets:content.imageAssets??{},parserVersion:PROPOSAL_PARSER_VERSION,language,item,identity,sourceUrl,sourceHash,sourceKind:content.sourceKind??'extracted-text',
+  return {imageAssets:content.imageAssets??{},parserVersion:PROPOSAL_PARSER_VERSION,language,item,identity,sourceUrl,sourceHash,...(content.sourceKind==='pdf'&&/^[a-f0-9]{64}$/u.test(content.sourceHash??'')?{nativeSourceHash:content.sourceHash}:{}),sourceKind:content.sourceKind??'extracted-text',
     complete:root.complete&&structureComplete,contentComplete:paragraphs.every(paragraph=>paragraph.complete)&&notes.every(note=>note.complete),structureComplete,
     paragraphs,notes,anchors:content.anchors??[],links:content.links??[],units:root.children,gaps,numberingMode:content.numberingMode??'supplied-text',
     objects:[...paragraphs.flatMap(paragraph=>paragraph.objects),...notes.flatMap(note=>note.objects)]};

@@ -11,7 +11,7 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
  if(placement?.status!=='placed')return {status:'not-applicable',reason:'not-placed'};
  const buffer=nativeQuoted?.proposalBuffer;if(!Buffer.isBuffer(buffer))return unknown('oracle-council-pdf-native-unavailable');
  const key=createHash('sha256').update(buffer).digest('hex'),detached=/\n_{3,}[ \t]*\n/u.test(wording.originalText??'');
- if(detached&&items?.[placement.itemIndex]?.proposal?.sourceHash!==key)return {status:'failed',reason:'oracle-council-pdf-note-source-hash-mismatch'};
+ if(detached&&items?.[placement.itemIndex]?.proposal?.nativeSourceHash!==key)return {status:'failed',reason:'oracle-council-pdf-note-source-hash-mismatch'};
  let native=cached.get(key);
  if(native===undefined){
   const text=spawnSync('pdftotext',['-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024});
