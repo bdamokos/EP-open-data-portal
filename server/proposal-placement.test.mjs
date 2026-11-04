@@ -526,6 +526,8 @@ test('an article table must cover all complete cells in its addressed paragraph'
  const result=resolveProposalPlacement(items,w);assert.deepEqual(result.span,{start:2,end:5});assert.equal(result.originalText,w.originalText);
  assert.notEqual(resolveProposalPlacement(items,{...w,originalText:'(a)\tCigars'}).status,'placed');
  assert.notEqual(resolveProposalPlacement(items,{...w,targetLabel:'Article 20 – paragraph 1 – table'}).status,'placed');
+ const flatten=units=>units.flatMap(u=>[u,...flatten(u.children??[])]);const find=units=>flatten(units).find(u=>u.table)?.table;
+ for(const at of ['start','end']){const changed=structuredClone(proposal),table=find(changed.units),empty={cells:[{paragraphs:[],colSpan:1},{paragraphs:[],colSpan:1}]};if(at==='start')table.rows.unshift(empty);else table.rows.push(empty);assert.notEqual(resolveProposalPlacement([{kind:'act',proposal:changed}],w).status,'placed');}
 });
 
 // A-10-2026-0201 AM107/AM112: cell-exact table rows inside the addressed annex provision.

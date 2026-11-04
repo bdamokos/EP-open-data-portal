@@ -805,6 +805,8 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   if(article){
     const run=rows.slice(starts[0],starts[0]+lines.length),key=run[0]?.key&&tableOf(run[0].key);
     if(!key||run.some(row=>!row.key||tableOf(row.key)!==key)||rows[starts[0]-1]?.key&&tableOf(rows[starts[0]-1].key)===key||rows[starts[0]+lines.length]?.key&&tableOf(rows[starts[0]+lines.length].key)===key)return unresolved('source_structure_unavailable');
+    const geometry=flat(proposal.units).filter(unit=>unit.table).flatMap(unit=>[unit.table,...(unit.table.nestedTables??[])]).filter(table=>table.sourcePath===key);
+    if(geometry.length!==1||geometry[0].complete!==true||!Array.isArray(geometry[0].rows)||geometry[0].rows.length!==run.length||rowOf(run[0].key)!==1||rowOf(run.at(-1).key)!==geometry[0].rows.length)return unresolved('source_structure_unavailable');
   }
   if(repaired){
     const run=rows.slice(starts[0],starts[0]+lines.length),before=rows.slice(0,starts[0]),heading=before.findLastIndex(row=>!row.key&&/^ANNEX [IVXLC]+$/u.test(row.cells[0]));

@@ -420,6 +420,9 @@ function verifyArticleTable({proposal,wording,placement}) {
  if(!lines.length||run.length!==lines.length||run.some((row,i)=>!row.key||row.broken||i&&row.gapBefore||row.cells.length!==lines[i].length||row.cells.some((cell,j)=>cell!==lines[i][j])))return unknown;
  const table=row=>row?.key?.replace(/\/w:tr\[\d+\]$/u,'');const key=table(run[0]);
  if(run.some(row=>table(row)!==key)||table(rows[at-1])===key||table(rows[at+run.length])===key||at+run.length>nextArticle)return unknown;
+ const geometry=[];const scan=units=>{for(const unit of units??[]){if(unit.table)geometry.push(unit.table,...(unit.table.nestedTables??[]));scan(unit.children);}};scan(proposal.units);
+ const matches=geometry.filter(value=>value.sourcePath===key),number=row=>Number(/\/w:tr\[(\d+)\]$/u.exec(row.key)?.[1]);
+ if(matches.length!==1||matches[0].complete!==true||!Array.isArray(matches[0].rows)||matches[0].rows.length!==run.length||number(run[0])!==1||number(run.at(-1))!==matches[0].rows.length)return unknown;
  const first=run[0].indexes[0],last=run.at(-1).indexes.at(-1),endText=proposal.paragraphs[last]?.text??'';
  if(placement.span?.start!==first||placement.span?.end!==last||placement.splice?.start?.paragraph!==first||placement.splice.start.offset!==0||placement.splice?.end?.paragraph!==last||placement.splice.end.offset!==endText.length)return fail('oracle-article-table-boundary-mismatch');
  return verified('oracle-article-table-rows');

@@ -11,7 +11,7 @@ function proposal(rows,widths={}) {
   const tables=new Map();
   for(const p of paragraphs){const m=/w:tbl\[(\d+)\]\/w:tr\[(\d+)\]\/w:tc\[(\d+)\]/u.exec(p.source.path);if(!m)continue;
     const t=tables.get(m[1])??new Map();tables.set(m[1],t);const r=t.get(m[2])??new Map();t.set(m[2],r);r.set(Number(m[3]),[...(r.get(Number(m[3]))??[]),p.index]);}
-  const units=[...tables].map(([tbl,t])=>({kind:'table',children:[],table:{rows:[...t.values()].map(r=>{const width=Math.max(...r.keys(),widths[tbl]??0);return {cells:Array.from({length:width},(_,i)=>({paragraphs:r.get(i+1)??[],colSpan:1}))};})}}));
+  const units=[...tables].map(([tbl,t])=>({kind:'table',children:[],table:{sourcePath:`/w:document[1]/w:body[1]/w:tbl[${tbl}]`,complete:true,rows:[...t.values()].map(r=>{const width=Math.max(...r.keys(),widths[tbl]??0);return {cells:Array.from({length:width},(_,i)=>({paragraphs:r.get(i+1)??[],colSpan:1}))};})}}));
   return {sourceKind:'docx',units,paragraphs};
 }
 const annex=()=>proposal([['ANNEX III',body(1)],['The following Annex VIII is added:',body(2)],['Iron and steel',body(3)],['CN code',cellPath(1,1,1)],['Greenhouse gas',cellPath(1,1,2)],['ex 7204 Ferrous waste',cellPath(1,2,1)],['Carbon dioxide',cellPath(1,2,2)],['Aluminium',body(4)],['CN code',cellPath(2,1,1)],['Greenhouse gas',cellPath(2,1,2)],['ex 7602 Aluminium waste',cellPath(2,2,1)],['Carbon dioxide',cellPath(2,2,2)],['’',body(5)]]);
@@ -26,6 +26,8 @@ test('an article table is verified as all cells within the unique paragraph',()=
  assert.notEqual(check({...w,targetLabel:'Article 20 – paragraph 1 – table'},replace(2,5,p),p).status,'verified');
  assert.notEqual(check({...w,originalText:'(a)\tCigars'},replace(2,3,p),p).status,'verified');
  assert.notEqual(check(w,replace(3,5,p),p).status,'verified');
+ const flatten=units=>units.flatMap(u=>[u,...flatten(u.children??[])]);const find=units=>flatten(units).find(u=>u.table)?.table;
+ for(const at of ['start','end']){const changed=structuredClone(p),table=find(changed.units),empty={cells:[{paragraphs:[],colSpan:1},{paragraphs:[],colSpan:1}]};if(at==='start')table.rows.unshift(empty);else table.rows.push(empty);assert.notEqual(check(w,replace(2,5,changed),changed).status,'verified');}
 });
 
 test('annex table rows verify cell for cell inside the named annex', () => {
@@ -74,4 +76,21 @@ test('caption repair rejects a competing native inner annex frame',()=>{
  const rows=[['ANNEX III',body(1)],['The following Annex VIII is added:',body(2)],['‘ANNEX VIII',body(3)],['The following Annex VII is added:',body(4)],['‘ANNEX VII',body(5)],['Iron and steel',body(6)],['CN code',cellPath(1,1,1)],['Greenhouse gas',cellPath(1,1,2)],['ex 7204 Ferrous waste',cellPath(1,2,1)],['Carbon dioxide',cellPath(1,2,2)],['’',body(7)]],p=proposal(rows);
  const w=wording('Annex III – paragraph 1 – table on iron and steel\nRegulation (EU) 2023/956\nAnnex VIII – table Iron and Steel','‘[Iron and steel\nCN code\tGreenhouse gas\nex 7204 Ferrous waste\tCarbon dioxide'),act={paragraphs:[{text:'Regulation (EU) 2023/956 is amended as follows:',complete:true,source:{complete:true,container:'body'}}]};
  for(const source of [p,proposal(rows.filter(r=>r[0]!=='The following Annex VII is added:')),proposal(rows.filter(r=>r[0]!=='‘ANNEX VII'))]){const start=source.paragraphs.findIndex(r=>r.text==='Iron and steel');assert.notEqual(verifyPlacement({items:[{kind:'annex',proposal:source},{kind:'act',proposal:act}],wording:w,placement:replace(start,start+4,source)}).status,'verified');}
+});
+
+test('native empty first or last table rows prevent article-table placement and verification',async()=>{
+ const {fixtureZip}=await import('./fixtures/bare-annex-indent-native.mjs');
+ const {parseProposal}=await import('../server/proposal-structure.mjs');
+ const {resolveProposalPlacement}=await import('../server/proposal-placement.mjs');
+ const ns='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+ const paragraph=(style,text)=>`<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
+ const tr=(a,b)=>`<w:tr>${[a,b].map(v=>`<w:tc><w:p>${v?`<w:r><w:t>${v}</w:t></w:r>`:''}</w:p></w:tc>`).join('')}</w:tr>`;
+ const w=wording('Article 20 – paragraph 2 – table','(a)\tCigars\n(b)\tOther');
+ for(const at of ['none','first','last']){
+  const table=[...(at==='first'?[tr('','')]:[]),tr('(a)','Cigars'),tr('(b)','Other'),...(at==='last'?[tr('','')]:[])].join('');
+  const xml=`<w:document xmlns:w="${ns}"><w:body>${paragraph('Titrearticle','Article 20')}${paragraph('ManualNumPar1','2. The following applies:')}<w:tbl>${table}</w:tbl>${paragraph('ManualNumPar1','3. Next paragraph;')}${paragraph('Titrearticle','Article 21')}</w:body></w:document>`;
+  const buffer=fixtureZip({'word/document.xml':xml}),p=parseProposal(buffer),items=[{kind:'act',proposal:p}],placed=resolveProposalPlacement(items,w);
+  if(at==='none'){assert.equal(placed.status,'placed');assert.equal(verifyPlacement({items,wording:w,placement:placed}).status,'verified');}
+  else {assert.notEqual(placed.status,'placed');const first=p.paragraphs.find(x=>x.text==='(a)').index,last=p.paragraphs.find(x=>x.text==='Other').index;assert.notEqual(verifyPlacement({items,wording:w,placement:replace(first,last,p)}).status,'verified');}
+ }
 });
