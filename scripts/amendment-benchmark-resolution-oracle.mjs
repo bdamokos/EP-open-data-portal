@@ -43,13 +43,14 @@ export function assertCoalescedInsertion({text,wording,placement}) {
   const coalesced=owners.filter(row=>new RegExp(';'+(n+1)+'[.]\\t\\S','u').test(text.paragraphs[row.start]||''));
   if(!coalesced.length)return null;
   const unknown={status:'unverified',reason:'oracle-coalesced-boundary-unverified'};
-  if(raw.reason||owners.length!==1||coalesced.length!==1||!new RegExp('^'+n+'a[.]\\s+\\S','u').test(wording.proposedText||''))return unknown;
+  if(raw.reason||owners.length!==1||coalesced.length!==1||raw.incomplete.some(row=>row.kind==='paragraph'&&[String(n),String(n+1),n+'a'].includes(row.label))
+    ||!new RegExp('^'+n+'a[.]\\s+\\S','u').test(wording.proposedText||''))return unknown;
   const at=owners[0].start,source=text.paragraphSources[at],body=nativeBody(text),native=body?.find(row=>row.path===source?.path);
   if(!native||native.kind!=='paragraph'||native.hidden||native.numbered||source?.complete!==true||source.container!=='body'||nativeValue(native)!==text.paragraphs[at])return unknown;
   let visible='',unsafe=false;const references=[];
   const visit=nodes=>{for(const node of nodes)for(const [key,children] of Object.entries(node)) {
     if(['w:del','w:moveFrom','w:instrText','w:fldChar','w:drawing','w:pict','w:object','m:oMath','w:endnoteReference'].includes(key))unsafe=true;
-    if(key==='w:t')visible+=children.map(child=>child['#text']??'').join('');
+    if(key==='w:t') {if(children.some(child=>Object.keys(child).some(name=>name!=='#text')))unsafe=true;visible+=children.map(child=>child['#text']??'').join('');}
     else if(key==='w:tab')visible+='\t';
     else if(key==='w:footnoteReference')references.push({offset:visible.length,note:node[':@']?.['@_w:id']});
     else if(Array.isArray(children))visit(children);

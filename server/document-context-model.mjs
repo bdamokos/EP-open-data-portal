@@ -635,6 +635,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
       if(owners.length===1&&row.complete&&row.source.container==='body'&&Number.isSafeInteger(n)
         &&new RegExp('^'+n+'a[.]\\s+\\S','u').test(options.proposedText)
         &&value.startsWith(n+'.\t')&&value.endsWith(';')&&!/[\r\n]/u.test(value)
+        &&![String(n),String(n+1),ref.label].some(label=>structure.incompleteLabels.has(label))
         &&!units.some(unit=>unit.kind==='paragraph'&&[String(n+1),ref.label].includes(unit.label))) {
         const labels=[...value.matchAll(/(?:^|[;.!?])\s*([1-9]\d{0,5})[.]\t(?=\S)/gu)];
         const next=units.find(unit=>unit.kind==='paragraph'&&unit.start>owner.start);

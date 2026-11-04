@@ -1121,4 +1121,8 @@ test('new paragraph between coalesced native numbers uses an insertion splice',(
  assert.equal(result.status,'placed');assert.deepEqual(result.splice,{start:{paragraph:1,offset},end:{paragraph:1,offset}});assert.equal(result.insertAfter,1);assert.equal(result.insertBefore,2);
  for(const changed of [document(paragraphs.map((p,i)=>i===1?p.replace(';52.',';53.'):p),{textLanguage:'en'}),document(paragraphs.map((p,i)=>i===1?p.replace('52.\t','52. '):p),{textLanguage:'en'}),document(paragraphs,{textLanguage:'en',documentObjects:[{paragraph:1,offset:4}]}),document(paragraphs,{textLanguage:'en',noteAnchors:[{paragraph:1,offset}]}),document(paragraphs,{textLanguage:'en',sources:{1:{complete:false}}})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
  assert.notEqual(resolveAmendmentPlacement(text,{...options,proposedText:'52a. Wrong;'}).status,'placed');
+ for(const label of ['51','52','51a']) {
+   const duplicate=document([...paragraphs,label+'. Damaged duplicate;'],{textLanguage:'en',sources:{4:{complete:false}}});
+   assert.notEqual(resolveAmendmentPlacement(duplicate,options).status,'placed',label);
+ }
 });
