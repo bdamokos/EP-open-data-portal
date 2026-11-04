@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.preceding.new.annex": "Follows Amendment {number} in amendment order.",
   "amendment.replaces_whole_text": "Replaces the whole text.",
   "amendment.agreement_text": "Agreement text",
   "documentcontext.final_placement_check": "Check final placement in {adoptedText}.",

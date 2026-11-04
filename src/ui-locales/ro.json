@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.preceding.new.annex": "Urmează amendamentului {number}, în ordinea amendamentelor.",
   "amendment.replaces_whole_text": "Înlocuiește întregul text.",
   "amendment.agreement_text": "Textul acordului",
   "documentcontext.final_placement_check": "Verificați poziția finală în {adoptedText}.",

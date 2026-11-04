@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.preceding.new.annex": "Folgt Änderungsantrag {number} in der Reihenfolge der Änderungsanträge.",
   "amendment.replaces_whole_text": "Ersetzt den gesamten Text.",
   "amendment.agreement_text": "Text der Einigung",
   "documentcontext.final_placement_check": "Prüfen Sie die endgültige Platzierung im {adoptedText}.",

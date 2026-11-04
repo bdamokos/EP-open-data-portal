@@ -1420,3 +1420,10 @@ test('provisional agreement labels the whole-text replacement and links the exac
  await h.render({request:{...overlayRequest,wordingLanguage:'fr'},language:'fr'});
  assert(!h.container.textContent.includes('Replaces the whole text'));
 });
+
+test('a successive new annex names its preceding amendment in the reader',async t=>{
+  const value=proposalContextResponse(report,amendment,list);value.placement.evidence.push({basis:'sequential-new-annex',reference:'39',label:'Annex 1 - Indicators'});
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert.match(h.container.querySelector('[data-amendment-block]').textContent,/Follows Amendment 39 in amendment order\./);
+});

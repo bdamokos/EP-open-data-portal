@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.preceding.new.annex": "Segue l’emendamento {number}, nell’ordine degli emendamenti.",
   "amendment.replaces_whole_text": "Sostituisce l’intero testo.",
   "amendment.agreement_text": "Testo dell’accordo",
   "documentcontext.final_placement_check": "Verificare la collocazione definitiva nel {adoptedText}.",

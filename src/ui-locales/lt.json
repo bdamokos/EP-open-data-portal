@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.preceding.new.annex": "Eina po pakeitimo {number} pakeitimų eilės tvarka.",
   "amendment.replaces_whole_text": "Pakeičia visą tekstą.",
   "amendment.agreement_text": "Susitarimo tekstas",
   "documentcontext.final_placement_check": "Galutinę vietą patikrinkite {adoptedText}.",

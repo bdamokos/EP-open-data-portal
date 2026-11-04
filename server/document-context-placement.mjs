@@ -38,7 +38,7 @@ function proposalInstructionPlacement(items,chosen) {
 
 /** Pure final placement selection shared by the endpoint and offline consumers.
  * Source acquisition, identity checks and proposal parsing belong to the caller. */
-export function documentContextPlacement({chosen,text,items,baseline,proposalItems=null,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true,nativeProposalInputs}={}) {
+export function documentContextPlacement({chosen,text,items,baseline,proposalItems=null,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true,nativeProposalInputs,amendmentNumber}={}) {
   if(!includeBody)return null;
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
@@ -77,7 +77,7 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   if(proposalKind){
     if(/^Annex – table – .+ \(new\)$/u.test(chosen.targetLabel??'')&&referenceTexts.some(ref=>/\b(?:before|after|following|preceding|point|paragraph)\b|\btable\s+\d/iu.test(ref)))return unresolved('insertion_reference_unavailable');
     if(!items?.length||!chosen.language||(chosen.targetPath?.language??chosen.targetLabelLanguage)!==chosen.language)return unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
-    return detachedNotes?resolveProposalNoteScope(items,selected):resolveProposalPlacement(items,selected,{nativeProposalInputs});
+    return detachedNotes?resolveProposalNoteScope(items,selected):resolveProposalPlacement(items,{...selected,number:selected.number??amendmentNumber},{nativeProposalInputs});
   }
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
   const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
