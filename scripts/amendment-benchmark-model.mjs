@@ -27,7 +27,7 @@ import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-gramma
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-benchmark-proposal-oracle.mjs';
-import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
+import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,assertMixedRecital} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 import {assertRecastReading} from './amendment-recast-oracle.mjs';
@@ -462,6 +462,8 @@ function verifyAnnexTable({proposal,wording,placement,items}) {
 }
 
 function verifyResolutionInsertion(text,wording,target,placement) {
+  const mixed=assertMixedRecital({text,wording,placement});
+  if(mixed.status!=='unverified')return mixed;
   const label=target.segments.at(-1);
   if(label.kind==='recital'&&label.isNew&&target.segments.length===1) {
     const raw=rawResolutionUnits(text,wording.language),recitals=raw.units.filter(unit=>unit.kind==='recital');

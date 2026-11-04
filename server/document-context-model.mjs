@@ -651,6 +651,21 @@ export function resolveAmendmentPlacement(text, options = {}) {
       }
     }
     if (!ref || ref.negative || (!ref.suffix && !ref.after) || !['paragraph', 'recital', 'point', 'citation'].includes(ref.kind)) return unresolved('insertion_reference_unavailable');
+    // A Latin sequence may contain visually identical Greek M/N glyphs in a
+    // published English motion. Require the entire sequence and both neighbours.
+    if(options.language==='en'&&ref.kind==='recital'&&ref.isNew&&['M','N'].includes(ref.base)&&ref.suffix&&!ref.parents?.length&&!ref.after&&!referenceText
+      &&new RegExp('^'+ref.base+ref.suffix+'[.)]\\s+whereas\\b','u').test(options.proposedText)) {
+      const aliases={'Μ':'M','Ν':'N'},recitals=units.filter(unit=>unit.kind==='recital').sort((a,b)=>a.start-b.start);
+      const normal=label=>aliases[label]||label,at=recitals.findIndex(unit=>normal(unit.label)===ref.base),first=units.find(unit=>unit.kind==='paragraph');
+      if(at>0&&at<recitals.length-1&&recitals[at].label!==ref.base&&first?.label==='1'
+        &&![...structure.incompleteLabels].some(label=>/^\p{Lu}/u.test(label))
+        &&recitals.every((unit,i)=>normal(unit.label)===String.fromCharCode(65+i)&&unit.end<first.start&&(!i||recitals[i-1].end+1===unit.start)
+          &&!structure.invalid.has(unit.start)&&!structure.uncertain.has(unit.start)&&!structure.incompleteLabels.has(unit.label)&&complete(unit.start,unit.end))
+        &&recitals[at].end+1===recitals[at+1].start&&complete(recitals[at].start,recitals[at+1].start)) {
+        evidence.push({basis:'published-ordinal-alias',publishedLabel:ref.label,sourceLabel:recitals[at].label+ref.suffix});
+        return placed({insertAfter:recitals[at].end,insertBefore:recitals[at+1].start});
+      }
+    }
     if (!ref.after && matching(ref).length) return unresolved('duplicate_target_label');
     if (ref.kind === 'point') {
       const path = ref.parents || [], parent = path.at(-1);

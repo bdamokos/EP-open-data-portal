@@ -29,6 +29,18 @@ test('a fully emphasized Roman section between consecutive paragraphs does not c
  }
 });
 
+test('a complete Latin sequence identifies mixed Greek M and N glyphs in an English motion',()=>{
+ const labels=[...'ABCDEFGHIJKL','Μ','Ν'];
+ const paragraphs=['The European Parliament,',...labels.map(label=>label+'. whereas published;'),'1. Operative;','2. Next;'];
+ const text=document(paragraphs,{textLanguage:'en'}),options={language:'en',baseline:'motion-resolution',targetLabel:'Recital M a (new)',originalText:'',proposedText:'Ma. whereas new;'};
+ const placed=resolveAmendmentPlacement(text,options);assert.equal(placed.status,'placed');assert.equal(placed.insertAfter,13);assert.equal(placed.insertBefore,14);
+ for(const changed of [document(paragraphs.map((p,i)=>i===14?'P. whereas wrong;':p),{textLanguage:'en'}),document(paragraphs,{textLanguage:'en',sources:{13:{complete:false}}})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+ for(const label of ['M','Μ']) {
+  const modified=[paragraphs[0],label+'. whereas incomplete competitor;',...paragraphs.slice(1)];
+  assert.notEqual(resolveAmendmentPlacement(document(modified,{textLanguage:'en',sources:{1:{complete:false}}}),options).status,'placed',label);
+ }
+});
+
 test('published translated resolution labels preserve native numbering and script',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-labels.json',import.meta.url)));
   for(const example of fixture.examples) {
