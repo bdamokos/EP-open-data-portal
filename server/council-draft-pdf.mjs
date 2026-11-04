@@ -60,7 +60,15 @@ async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,source
    }
    // A page with any non-text paint is unproved until its geometry has been
    // classified. An Artifact tag alone does not prove that a graphic is harmless.
-   const paint=ops.fnArray.flatMap((op,i)=>[OPS.paintImageXObject,OPS.paintInlineImageXObject,OPS.paintImageMaskXObject,OPS.shadingFill,OPS.constructPath,OPS.paintFormXObjectBegin].includes(op)?[{operation:Object.keys(OPS).find(k=>OPS[k]===op),index:i}]:[]);
+   const marked=[],paint=[];
+   for(let i=0;i<ops.fnArray.length;i++){
+    const op=ops.fnArray[i],args=ops.argsArray[i];
+    if(op===OPS.beginMarkedContent||op===OPS.beginMarkedContentProps)marked.push(args);
+    else if(op===OPS.endMarkedContent)marked.pop();
+    else if([OPS.paintImageXObject,OPS.paintInlineImageXObject,OPS.paintImageMaskXObject,OPS.shadingFill].includes(op)||op===OPS.constructPath&&args[0]!==OPS.endPath)
+     paint.push({operation:Object.keys(OPS).find(k=>OPS[k]===op),index:i,marked:structuredClone(marked)});
+   }
+
    const annotations=await page.getAnnotations({intent:'display'});
    pageProofs.push({page:n,untagged,paint,annotations:annotations.map(a=>({subtype:a.subtype,annotationType:a.annotationType,rect:a.rect}))});page.cleanup();
   }
