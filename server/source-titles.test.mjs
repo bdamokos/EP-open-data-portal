@@ -15,7 +15,7 @@ const source=()=>({identifier:id,id:'eli/dl/doc/'+id,work_type:'def/ep-document-
 test('source titles decode named and numeric entities once, preserving literal and malformed text',()=>{
   assert.equal(sourceTitle(title+'&nbsp;'),title+'\u00a0');
   assert.equal(sourceTitle('&eacute; &Eacute; &amp; &#160; &#x1F642; &#X26;'), 'é É & \u00a0 🙂 &');
-  assert.equal(sourceTitle('&lt;img src=x onerror=alert(1)&gt; <b>literal</b>'),'<img src=x onerror=alert(1)> <b>literal</b>');
+  assert.equal(sourceTitle('&lt;img src=x onerror=alert(1)&gt; <b>literal</b>'),'<img src=x onerror=alert(1)> literal');
   assert.equal(sourceTitle('&amp;nbsp; &amp;lt;'),'&nbsp; &lt;','no recursive decoding');
   for(const text of ['&unknown;','&constructor;','&nbsp','&#xZZ;','&#12oops;','&#0;','&#xD800;','&#1114112;','& copy;','R&D'])assert.equal(sourceTitle(text),text);
   const titles={en:'English&nbsp;',el:'Ελληνικά &amp; κείμενο',mul:'FR &amp; EN',fr:''},original=structuredClone(titles);
@@ -45,8 +45,27 @@ test('source titles normalize subscript and superscript pairs without interpreti
   assert.equal(sourceTitle('x<sup>0123456789+-=()</sup>'), 'x⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾');
   assert.equal(sourceTitle('x<sub>0123456789+-=()</sub>'), 'x₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎');
   assert.equal(sourceTitle('x<sub>letters &amp; symbols</sub>'), 'xletters & symbols');
-  for(const literal of ['CO<sub>2','CO</sub>2','CO<sub>2</sup>','CO<sub class="x">2</sub>','<img src=x onerror=alert(1)>','<script>alert(1)</script>'])assert.equal(sourceTitle(literal),literal);
+  for(const literal of ['<img src=x onerror=alert(1)>','<script>alert(1)</script>'])assert.equal(sourceTitle(literal),literal);
   assert.equal(sourceTitle('CO&amp;lt;sub&amp;gt;2&amp;lt;/sub&amp;gt;'),'CO&lt;sub&gt;2&lt;/sub&gt;');
+});
+
+test('common title formatting is plain text, including attributes, nesting and line breaks',()=>{
+  for(const tag of ['b','strong','i','em','u','span','small']){
+    assert.equal(sourceTitle(`<${tag}>European</${tag}> policy`),'European policy');
+    assert.equal(sourceTitle(`<${tag} class="source" lang='en'>European</${tag}> policy`),'European policy');
+  }
+  assert.equal(sourceTitle('CO<sub class="chemical"><i>2</i></sub> and m<sup title="area">2</sup>'),'CO₂ and m²');
+  assert.equal(sourceTitle('&lt;em&gt;In situ&lt;/em&gt; &amp; action'),'In situ & action');
+  for(const br of ['<br>','<br/>','<BR />','<br class="line">'])assert.equal(sourceTitle('First'+br+'second'),'First second');
+  assert.equal(sourceTitle('CO<sub data-label=chemical>2</sub>'),'CO₂');
+  assert.equal(sourceTitle('<span title="A > B">European</span> policy'),'European policy');
+  for(const input of ['CO<sub>2','CO</sub>2','CO<sub>2</sup>'])assert.equal(sourceTitle(input),'CO2');
+  // Retained E-10-2024-002503 (el), E-10-2025-000488 (fr) and E-10-2025-000548 (de).
+  assert.equal(sourceTitle('CO<sup><sub>2</sub></sup>'),'CO₂');
+  assert.equal(sourceTitle('10<sup>e</sup> PC and NO<sub>x</sub>'),'10e PC and NOx');
+  for(const literal of ['capacity < 5 MW and > 2 MW','<custom>word</custom>','<iframe src=x>word</iframe>','<b title="unfinished>word','&amp;lt;i&amp;gt;word&amp;lt;/i&amp;gt;']){
+    assert.equal(sourceTitle(literal),literal.replaceAll('&amp;','&'));
+  }
 });
 
 test('question titles normalize on retained source reads across question, document, activity and saved previews',()=>{
