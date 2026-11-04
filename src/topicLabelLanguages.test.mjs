@@ -28,6 +28,7 @@ test('followed policy labels keep their language with no inline provenance',asyn
  await act(async()=>root.render(h(FollowedTopics)));
  await wait(()=>node.querySelector('h2 a'));
  assert.equal(node.querySelector('h2 a').getAttribute('lang'),'hu');assert(!node.textContent.includes('translated by'));assert(!node.querySelector('details'));
+ await act(async()=>node.querySelector('.explorer-saved-card button').click());await wait(()=>!node.querySelector('.explorer-saved-card'));
 });
 
 
