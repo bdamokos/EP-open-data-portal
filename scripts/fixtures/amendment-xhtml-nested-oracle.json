@@ -1,0 +1,473 @@
+{
+  "source": {
+    "url": "https://publications.europa.eu/resource/cellar/94b1ab29-4450-11f1-8095-01aa75ed71a1.0006.03/DOC_1",
+    "sha256": "74dbc7ddf2f1a7c54dca32aacce1b3115f36995f8a8704c937666712fa5f08e9",
+    "fetchedAt": "2026-11-02T16:53:36.129Z"
+  },
+  "paragraphs": [
+    {
+      "index": 141,
+      "text": "Article 6",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/1",
+        "ordinal": 141,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 142,
+      "text": "Procedure for the verification of category 1 NGT plant status for requests submitted prior to the deliberate release for any purpose other than placing on the market",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/3/1",
+        "ordinal": 142,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 143,
+      "text": "1.   To obtain the declaration of category 1 NGT plant status referred to in Article 4, point (a)(i), of this Regulation before undertaking a deliberate release of an NGT plant for any purpose other than placing on the market, the person intending to undertake the deliberate release shall submit a request to verify whether the conditions set out in Article 3, point (13)(a), of this Regulation are met (‘verification request’) to the competent authority designated in accordance with Article 4(4) of Directive 2001/18/EC of the Member State within whose territory the release is to take place, in accordance with paragraphs 2, 3 and 4 of this Article and the delegated act adopted in accordance with Article 25, point (b) of this Regulation.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/5/1",
+        "ordinal": 143,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 144,
+      "text": "2.   Where a person intends to undertake the deliberate release as referred to in paragraph 1 simultaneously in more than one Member State, that person shall submit the verification request to the competent authority of one of those Member States.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/7/1",
+        "ordinal": 144,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 145,
+      "text": "3.   The verification request shall be submitted in accordance with standard data formats, where they exist, in accordance with Article 39f of Regulation (EC) No 178/2002, and shall include, without prejudice to any additional information that may be required in accordance with Article 32b of Regulation (EC) No 178/2002:",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/9/1",
+        "ordinal": 145,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 146,
+      "text": "(a) the name and the address of the requester;",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/9/3/5/1/3/1",
+        "ordinal": 146,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 147,
+      "text": "(b) the designation and specification of the NGT plant;",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/9/5/5/1/3/1",
+        "ordinal": 147,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 148,
+      "text": "(c) a description of the traits and characteristics which have been introduced or modified;",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/9/7/5/1/3/1",
+        "ordinal": 148,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 149,
+      "text": "(d) a copy of the studies, including relevant DNA sequence information, and any other available material to demonstrate that:",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/9/9/5/1/3/1",
+        "ordinal": 149,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 150,
+      "text": "(i) the plant is an NGT plant, including information on the techniques used to obtain it as well as information that it does not contain any genetic material originating from outside the gene pool for conventional breeding purposes where such genetic material has been temporarily inserted during the development of the plant, in accordance with the information requirements laid down in the delegated act adopted in accordance with Article 25, point (a);",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/9/9/5/1/3/3/5/1/3/1",
+        "ordinal": 150,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 151,
+      "text": "(ii) the NGT plant meets the criteria set out in Annex I;",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/9/9/5/1/3/5/5/1/3/1",
+        "ordinal": 151,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 152,
+      "text": "(e) in the cases referred to in paragraph 2 of this Article, an indication of the Member States in which the requester intends to undertake the deliberate release;",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/9/11/5/1/3/1",
+        "ordinal": 152,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 153,
+      "text": "(f) an identification of the parts of the verification request and any other supplementary information that the requester demands to be treated as confidential, accompanied by verifiable justification, in accordance with Article 11 of this Regulation.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/9/13/5/1/3/1",
+        "ordinal": 153,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 154,
+      "text": "4.   The verification request shall also include a declaration that none of the traits intended to be conveyed by the genetic modifications is listed in Annex II. The declaration shall be accompanied by scientific evidence, available at the time of submission of the request, substantiating the relation between the introduced genetic modifications and the traits intended to be conveyed by those genetic modifications.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/11/1",
+        "ordinal": 154,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 155,
+      "text": "5.   Together with the verification request, the requester shall submit information, to the best of its knowledge, on patents or published patent applications including one or more claims on the biological material of the NGT plant, or declare the absence of such patents or published patent applications.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/13/1",
+        "ordinal": 155,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 156,
+      "text": "6.   Together with the verification request and the patent information referred to in paragraph 5, the requester may submit a written declaration of the holder of a patent identified under paragraph 5 confirming the patent holder’s willingness to license the protected subject matter under fair and reasonable conditions in all Member States where the patent holder is entitled to grant such a licence. If the requester is the patent holder, it shall submit a written declaration clarifying whether:",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/15/1",
+        "ordinal": 156,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 157,
+      "text": "(a) it is willing to license the protected subject matter under fair and reasonable conditions in all Member States where it is entitled to grant such a licence; and",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/15/3/5/1/3/1",
+        "ordinal": 157,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 158,
+      "text": "(b) it is, or intends to become, a member of relevant and appropriate licensing platforms.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/15/5/5/1/3/1",
+        "ordinal": 158,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 159,
+      "text": "7.   The patent information referred to in paragraph 5 and the licence declarations referred to in paragraph 6 shall not be subject to verification and shall have only declaratory value.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/17/1",
+        "ordinal": 159,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 160,
+      "text": "8.   The competent authority shall acknowledge receipt of the verification request, the patent information referred to in paragraph 5 and, where applicable, the licence declarations referred to in paragraph 6 to the requester without undue delay, stating the date of receipt, and shall make them available to the Commission and to the other Member States without undue delay.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/19/1",
+        "ordinal": 160,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 161,
+      "text": "9.   If the verification request does not contain all the necessary information, or if the patent information referred to in paragraph 5 or, where the requester is the holder of a patent identified under paragraph 5, the licence declaration referred to in paragraph 6 is missing, the competent authority shall declare the verification request inadmissible within 30 working days of the date of its receipt. The competent authority shall inform the requester, the Commission and the other Member States without undue delay of the inadmissibility of the verification request and shall provide the reasons of its decision.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/21/1",
+        "ordinal": 161,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 162,
+      "text": "10.   If the verification request is not declared inadmissible in accordance with paragraph 9 of this Article, the competent authority shall verify whether the NGT plant fulfils the conditions set out in Article 3, point (13)(a), and prepare a verification report within 30 working days of the date of receipt of that verification request. The competent authority shall make available the verification report to the Commission and to the other Member States without undue delay.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/23/1",
+        "ordinal": 162,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 163,
+      "text": "11.   The Commission and the other Member States may make reasoned objections to the verification report as regards the fulfilment of the conditions set out in Article 3, point (13)(a), within 20 days of the date of receipt of that report.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/25/1",
+        "ordinal": 163,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 164,
+      "text": "12.   In the absence of any reasoned objection from the Commission or a Member State, the competent authority that prepared the verification report shall adopt, within 10 working days of the expiry of the deadline referred to in paragraph 11, a decision declaring whether the NGT plant is a category 1 NGT plant. It shall transmit the decision without undue delay to the requester, to the Commission and to the other Member States.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/27/1",
+        "ordinal": 164,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 165,
+      "text": "13.   Where the Commission or the Member States make reasoned objections within the deadline referred to in paragraph 11, the competent authority that prepared the verification report shall forward those reasoned objections to the Commission and to the other Member States without undue delay.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/29/1",
+        "ordinal": 165,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 166,
+      "text": "14.   In the cases referred to in paragraph 13 of this Article, the Commission, after having consulted the Authority, shall prepare an implementing decision declaring whether the NGT plant is a category 1 NGT plant within 45 working days of the expiry of the deadline referred to in paragraph 11 of this Article, taking the reasoned objections received into account. That implementing decision shall be adopted in accordance with the procedure referred to in Article 28(2).",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/31/1",
+        "ordinal": 166,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 167,
+      "text": "15.   Where the Authority is consulted in accordance with paragraph 14 of this Article, it shall make public the verification request, relevant supporting information and any supplementary information supplied by the requester, the reasoned objections, as well as its statement delivered in the framework of the consultation, with the exception of any information to which the Member State competent authority has granted confidential treatment in accordance with Article 11.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/33/1",
+        "ordinal": 167,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 168,
+      "text": "16.   The Commission shall publish a summary of the decisions referred to in paragraphs 12 and 14 in the Official Journal of the European Union.",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/7/35/1",
+        "ordinal": 168,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    },
+    {
+      "index": 169,
+      "text": "Article 7",
+      "source": {
+        "part": "xhtml",
+        "path": "/1/2/7/5/3/9/1",
+        "ordinal": 169,
+        "container": "body",
+        "containerPath": "xhtml",
+        "segment": 0,
+        "complete": true
+      },
+      "properties": null,
+      "objects": [],
+      "complete": true
+    }
+  ]
+}

@@ -114,6 +114,14 @@ export function rawProposalAssertion({proposal,wording,placement}) {
   if(!target)return unknown('oracle-raw-proposal-grammar-unavailable');
   const article=publishedContainer(proposal,target[0],wording.language);
   if(!article)return unknown('oracle-raw-article-unavailable');
+  // XHTML tables can nest Roman points inside a lettered point. Raw text
+  // labels alone do not establish those levels. Withhold insertions when
+  // their native DOM paths have different depths, or no usable paths.
+  if(proposal.sourceKind==='xhtml'&&placement.operation==='insert') {
+    const points=article.rows.filter(row=>row.index>=article.start&&row.index<article.end&&point(row,wording.language));
+    const depths=points.map(row=>/^\/\d+(?:\/\d+)*$/u.test(row.source?.path||'')?row.source.path.split('/').length:null);
+    if(depths.includes(null)||new Set(depths).size>1)return unknown('oracle-raw-xhtml-point-nesting-unavailable');
+  }
   let scope={start:article.start,end:article.end},parent=null,sub=null;
   const tail=target.slice(1),last=tail.at(-1);
   if(last?.kind==='title') {

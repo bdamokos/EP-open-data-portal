@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -180,7 +181,7 @@ test('a printed paragraph-one prefix may identify a sole implicit paragraph with
 });
 
 test('XHTML native rows verify article titles and subparagraph addresses without producer units',()=>{
-  const xhtml=rows=>{const p=proposal(rows.map(text=>[text,'Normal']));p.sourceKind='xhtml';for(const row of p.paragraphs){row.properties=null;row.source.part='xhtml';}return p;};
+  const xhtml=rows=>{const p=proposal(rows.map(text=>[text,'Normal']));p.sourceKind='xhtml';for(const row of p.paragraphs){row.properties=null;row.source.part='xhtml';row.source.path='/1/2/'+(row.index+1)+'/1';}return p;};
   const p=xhtml(['Article 9','Database of decisions','1. The Commission shall establish a database.','The database shall contain:','(a) the name;','(b) the designation;','(c) the techniques;','(d) the traits;','(e) an identification number.','The database shall be public.','2. Changes shall be notified.','Article 10','Labelling of material','1. Material shall bear a label.','Article 11','Next title','1. Next paragraph.']);
   const target='Article 9 – paragraph 1 – subparagraph 2 – point d a (new)';
   assert.equal(check(p,target,insert(8)).status,'verified');
@@ -194,4 +195,16 @@ test('XHTML native rows verify article titles and subparagraph addresses without
   assert.equal(rawProposalAssertion({proposal:p,wording,placement:replace(3)}).status,'failed');
   p.paragraphs[9].source.complete=false;
   assert.equal(rawProposalAssertion({proposal:p,wording,placement:replace(9)}).status,'unverified');
+});
+
+
+test('native Council Article 6 Roman children cannot be flattened into sibling insertion boundaries',()=>{
+  const excerpt=JSON.parse(readFileSync(new URL('./fixtures/amendment-xhtml-nested-oracle.json',import.meta.url)));
+  const proposal={sourceKind:'xhtml',paragraphs:excerpt.paragraphs};
+  const wording=amendment('Article 6 – paragraph 3 – point d a (new)');
+  for(const before of [150,151,152]) {
+    const result=rawProposalAssertion({proposal,wording,placement:insert(before)});
+    assert.equal(result.status,'unverified');
+    assert.equal(result.reason,'oracle-raw-xhtml-point-nesting-unavailable');
+  }
 });
