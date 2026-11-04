@@ -60,6 +60,7 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   }
   const council=chosen.baseline==='council-position';
   const proposalKind=['commission-proposal','council-position'].includes(chosen.baseline)&&chosen.baselineSource?.category===chosen.baseline&&chosen.baselineSource.conflicted===false;
+  const consultation=chosen.baseline==='commission-proposal'&&(chosen.documentReferences||[]).some(r=>(r.field==='DocRef'||/^DocAmend\d?$/.test(r.field))&&/\b\d{4}\/\d{4}\s*\(CNS\)/u.test(r.raw||''));
   const nle=chosen.baseline==='commission-proposal'&&baseline?.evidence?.some(e=>e.kind==='native-procedure'&&e.status==='verified'&&/\(NLE\)$/u.test(e.procedure));
   const detachedNotes=proposalKind&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text));
   if(detachedNotes&&!items?.length)return unresolved('proposal_note_scope_unavailable');
@@ -74,6 +75,12 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   }
   if(proposalKind){
     if(!items?.length||!chosen.language||(chosen.targetPath?.language??chosen.targetLabelLanguage)!==chosen.language)return unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
+    // Preserve established exact body/note rules outside the guarded CNS/NLE
+    // templates. The new column-scope proof is a recovery for unresolved rows.
+    if(detachedNotes&&!consultation&&!nle){
+      const established=resolveProposalPlacement(items,selected,{nativeProposalInputs});
+      if(established.status==='placed')return established;
+    }
     return detachedNotes?resolveProposalNoteScope(items,selected):resolveProposalPlacement(items,selected,{nativeProposalInputs});
   }
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
