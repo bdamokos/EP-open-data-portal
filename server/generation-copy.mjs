@@ -40,6 +40,10 @@ const projections={
   outside_contributions:['outside',['outside_directory_reads']],
   amendment_targets:['targets',['amendment_target_reads']],
 };
+export const projectionTables=projection=>Object.values(projections).find(([name])=>name===projection)[1];
+export function copyFastReadProgress(db,projection,generation,source) {
+  db.prepare('INSERT OR REPLACE INTO fast_read_progress(projection,generation,cursor,ready) SELECT projection,?,cursor,ready FROM fast_read_progress WHERE projection=? AND generation=?').run(generation,projection,source);
+}
 export function copyProjectedGenerationRows(db,spec,generation,source,{replay=false}={}) {
   const [projection,tables]=projections[spec.table];
   // Existing destination rows (extension replay) and incomplete backfills must
@@ -58,7 +62,7 @@ export function copyProjectedGenerationRows(db,spec,generation,source,{replay=fa
       const columns=db.prepare(`PRAGMA table_info(${table})`).all().map(row=>row.name).filter(name=>name!=='generation');
       db.prepare(`INSERT INTO ${table}(generation,${columns.join(',')}) SELECT ?,${columns.join(',')} FROM ${table} WHERE generation=?`).run(generation,source);
     }
-    db.prepare('INSERT OR REPLACE INTO fast_read_progress(projection,generation,cursor,ready) SELECT projection,?,cursor,ready FROM fast_read_progress WHERE projection=? AND generation=?').run(generation,projection,source);
+    copyFastReadProgress(db,projection,generation,source);
   } finally {
     db.prepare("DELETE FROM meta WHERE key='fastReadCopyGeneration'").run();
   }

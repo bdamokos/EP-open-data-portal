@@ -16,15 +16,18 @@ export function groupVoicesSchema(db){
 }
 // Older images ignore these additive tables. If a rollback advanced the core
 // generation, adopt the latest retained projection and its durable cursors.
-export function groupVoicesCopy(db,generation,active){
+export const groupVoiceSource=(db,active)=>db.prepare('SELECT generation FROM group_voice_state WHERE generation<=? ORDER BY generation DESC LIMIT 1').get(active)?.generation??null;
+export function groupVoicesCopy(db,generation,active,{rowsCopied=false}={}){
   // Adoption is once per target generation. Re-copying after a restart would
   // resurrect source rows corrected or deleted in the working snapshot.
   if(db.prepare('SELECT 1 FROM group_voice_state WHERE generation=?').get(generation))return;
-  const saved=db.prepare('SELECT generation FROM group_voice_state WHERE generation<=? ORDER BY generation DESC LIMIT 1').get(active)?.generation;
+  const saved=groupVoiceSource(db,active);
   if(!saved||saved===generation)return;
   db.prepare('INSERT OR IGNORE INTO group_voice_state SELECT ?,version FROM group_voice_state WHERE generation=?').run(generation,saved);
-  db.prepare('INSERT OR IGNORE INTO group_voice_observations SELECT ?,speech,date,body FROM group_voice_observations WHERE generation=?').run(generation,saved);
-  db.prepare('INSERT OR IGNORE INTO group_voice_designations SELECT ?,speech,person,group_id,date,subject FROM group_voice_designations WHERE generation=?').run(generation,saved);
+  if(!rowsCopied){
+    db.prepare('INSERT OR IGNORE INTO group_voice_observations SELECT ?,speech,date,body FROM group_voice_observations WHERE generation=?').run(generation,saved);
+    db.prepare('INSERT OR IGNORE INTO group_voice_designations SELECT ?,speech,person,group_id,date,subject FROM group_voice_designations WHERE generation=?').run(generation,saved);
+  }
   db.prepare('INSERT OR IGNORE INTO group_voice_jobs SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM group_voice_jobs WHERE generation=?').run(generation,saved);
 }
 export function groupVoicesPrune(db,generation,old){

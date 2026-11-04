@@ -204,13 +204,19 @@ function extensionGeneration(db) {
   const newest=['amendments','amendment_targets','amendment_jobs'].flatMap(table=>[`SELECT MAX(generation) generation FROM ${table} WHERE generation>?1`,`SELECT MAX(generation) FROM ${table} WHERE generation<?1`]).join(' UNION ALL ');
   return db.prepare(`SELECT MAX(generation) AS generation FROM (${newest})`).get(building)?.generation || 0;
 }
-export function amendmentsCopy(db,generation,active) {
+// The generation amendmentsCopy would read from. Active when it can serve reads
+// by itself: a generation being built must never become the reader's fallback.
+export function amendmentSnapshotSource(db,active) {
+  const source=extensionGeneration(db)||active;
+  if(source!==active)return source;
+  return !db.prepare('SELECT 1 FROM amendments WHERE generation=? LIMIT 1').get(active)||db.prepare('SELECT 1 FROM amendment_targets WHERE generation=? LIMIT 1').get(active)?active:null;
+}
+export function amendmentsCopy(db,generation,active,{source=extensionGeneration(db)||active,amendmentsCopied=false}={}) {
   // Legacy workers advance core generations without knowing these additive
   // tables. Adopt their last retained extension snapshot before deleting any
   // rows, including pending page cursors, rather than copying an empty core ID.
-  const source=extensionGeneration(db) || active;
   if(source && source!==generation) {
-    copyProjectedGenerationRows(db,{table:'amendments',key:'id',select:'INSERT OR IGNORE INTO amendments SELECT ?,id,target,date,outcome,body FROM amendments'},generation,source,{replay:source!==active});
+    if(!amendmentsCopied)copyProjectedGenerationRows(db,{table:'amendments',key:'id',select:'INSERT OR IGNORE INTO amendments SELECT ?,id,target,date,outcome,body FROM amendments'},generation,source,{replay:source!==active});
     db.prepare('INSERT OR IGNORE INTO amendment_author_targets SELECT ?,name,target FROM amendment_author_targets WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_member_dependencies SELECT ?,person_id,target FROM amendment_member_dependencies WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_dependency_bootstrap SELECT ?,stage,after_key,ready FROM amendment_dependency_bootstrap WHERE generation=?').run(generation,source);
