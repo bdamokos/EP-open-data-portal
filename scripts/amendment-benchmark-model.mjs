@@ -419,6 +419,9 @@ function verifyArticleTable({proposal,wording,placement}) {
  const lines=String(wording.originalText||'').split('\n').map(line=>line.split('\t').map(rawCell)),at=owners[0]+1,run=rows.slice(at,at+lines.length);
  if(!lines.length||run.length!==lines.length||run.some((row,i)=>!row.key||row.broken||i&&row.gapBefore||row.cells.length!==lines[i].length||row.cells.some((cell,j)=>cell!==lines[i][j])))return unknown;
  const table=row=>row?.key?.replace(/\/w:tr\[\d+\]$/u,'');const key=table(run[0]);
+ const end=rows.findIndex((row,i)=>i>owners[0]&&i<nextArticle&&!row.key&&/^[1-9]\d*[.)]\s/u.test(row.cells[0]));
+ const limit=end<0?nextArticle:end,tableKeys=new Set(rows.slice(owners[0]+1,limit).filter(row=>row.key).map(table));
+ if(tableKeys.size!==1||!tableKeys.has(key))return unknown;
  if(run.some(row=>table(row)!==key)||table(rows[at-1])===key||table(rows[at+run.length])===key||at+run.length>nextArticle)return unknown;
  const geometry=[];const scan=units=>{for(const unit of units??[]){if(unit.table)geometry.push(unit.table,...(unit.table.nestedTables??[]));scan(unit.children);}};scan(proposal.units);
  const matches=geometry.filter(value=>value.sourcePath===key),number=row=>Number(/\/w:tr\[(\d+)\]$/u.exec(row.key)?.[1]);

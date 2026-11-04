@@ -86,9 +86,10 @@ test('native empty first or last table rows prevent article-table placement and 
  const paragraph=(style,text)=>`<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
  const tr=(a,b)=>`<w:tr>${[a,b].map(v=>`<w:tc><w:p>${v?`<w:r><w:t>${v}</w:t></w:r>`:''}</w:p></w:tc>`).join('')}</w:tr>`;
  const w=wording('Article 20 – paragraph 2 – table','(a)\tCigars\n(b)\tOther');
- for(const at of ['none','first','last']){
+ for(const at of ['none','first','last','duplicate']){
   const table=[...(at==='first'?[tr('','')]:[]),tr('(a)','Cigars'),tr('(b)','Other'),...(at==='last'?[tr('','')]:[])].join('');
-  const xml=`<w:document xmlns:w="${ns}"><w:body>${paragraph('Titrearticle','Article 20')}${paragraph('ManualNumPar1','2. The following applies:')}<w:tbl>${table}</w:tbl>${paragraph('ManualNumPar1','3. Next paragraph;')}${paragraph('Titrearticle','Article 21')}</w:body></w:document>`;
+  const extra=at==='duplicate'?`<w:tbl>${tr('(a)','Cigars')}${tr('(b)','Other')}</w:tbl>`:'';
+  const xml=`<w:document xmlns:w="${ns}"><w:body>${paragraph('Titrearticle','Article 20')}${paragraph('ManualNumPar1','2. The following applies:')}<w:tbl>${table}</w:tbl>${extra}${paragraph('ManualNumPar1','3. Next paragraph;')}${paragraph('Titrearticle','Article 21')}</w:body></w:document>`;
   const buffer=fixtureZip({'word/document.xml':xml}),p=parseProposal(buffer),items=[{kind:'act',proposal:p}],placed=resolveProposalPlacement(items,w);
   if(at==='none'){assert.equal(placed.status,'placed');assert.equal(verifyPlacement({items,wording:w,placement:placed}).status,'verified');}
   else {assert.notEqual(placed.status,'placed');const first=p.paragraphs.find(x=>x.text==='(a)').index,last=p.paragraphs.find(x=>x.text==='Other').index;assert.notEqual(verifyPlacement({items,wording:w,placement:replace(first,last,p)}).status,'verified');}
