@@ -2,7 +2,7 @@ import {canonicalEPReference} from './amendments.mjs';
 
 // A listing provides the inverse adopts relationship, which reports need not
 // expose. Match both identity and decision date; competing editions stay unbound.
-export function adoptedPlacementRecord(records,{documentId,dates}) {
+export function adoptedPlacementText(records,{documentId,dates,language}) {
   const uniqueDates=[...new Set(dates)];
   if(uniqueDates.length!==1||!/^\d{4}-\d{2}-\d{2}$/u.test(uniqueDates[0]||''))return null;
   const matches=records.filter(work=>canonicalEPReference(work.id)==='eli/dl/doc/'+work.identifier
@@ -10,13 +10,9 @@ export function adoptedPlacementRecord(records,{documentId,dates}) {
     &&String(work.work_type?.id||work.work_type||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//u,'')==='def/ep-document-types/TEXT_ADOPTED'
     &&work.document_date===uniqueDates[0]
     &&(Array.isArray(work.adopts)?work.adopts:[]).some(value=>canonicalEPReference(value)==='eli/dl/doc/'+documentId));
-  return matches.length===1?matches[0]:null;
-}
-export function adoptedPlacementText(records,{documentId,dates,language}) {
-  const match=adoptedPlacementRecord(records,{documentId,dates});
-  if(!match)return null;
+  if(matches.length!==1)return null;
   const code=/^[a-z]{2}$/u.test(language||'')?language:'en';
-  return `https://www.europarl.europa.eu/doceo/document/${match.identifier}_${code.toUpperCase()}.html`;
+  return `https://www.europarl.europa.eu/doceo/document/${matches[0].identifier}_${code.toUpperCase()}.html`;
 }
 
 let listingTail=Promise.resolve(),nextListingAt=0,listingPausedUntil=0;

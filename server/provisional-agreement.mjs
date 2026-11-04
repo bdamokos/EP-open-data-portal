@@ -1,6 +1,5 @@
 import {documentContext,documentContextQuery} from './document-context.mjs';
 import {provisionalDecisions} from './amendment-provisional.mjs';
-import {adoptedPlacementRecord,placementAdoptedListing} from './amendment-placement-check.mjs';
 import {adoptedTextFinalAct} from './provisional-final-act.mjs';
 import {commissionReferences} from './commission-proposal-identity.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
@@ -36,8 +35,8 @@ const reportPlacement=(context,query)=>{
 // vote date, the act number the adopted text states, and the COM number the
 // agreement file cites. Nothing is joined by title or wording similarity.
 export class ProvisionalAgreement {
-  constructor({context=documentContext,request=odp,readText=documentText,readProposal=proposalBaseline,listing=placementAdoptedListing,findAmendment=(store,query)=>amendmentStore.amendmentById?.(store,query)||null}={}) {
-    Object.assign(this,{context,request,readText,readProposal,listing,findAmendment});
+  constructor({context=documentContext,request=odp,readText=documentText,readProposal=proposalBaseline,findAmendment=(store,query)=>amendmentStore.amendmentById?.(store,query)||null}={}) {
+    Object.assign(this,{context,request,readText,readProposal,findAmendment});
   }
   async query(query,{store=null}={}) {
     requestSignal()?.throwIfAborted();
@@ -48,20 +47,22 @@ export class ProvisionalAgreement {
     const variant=context.amendment.variants.find(item=>item.listId===query.listId&&item.language===query.wordingLanguage);
     const indexed=this.findAmendment(store,{document:query.id,id:query.amendmentId,language:query.language});
     const decisions=indexed?.id===query.amendmentId&&indexed.targetDocumentId===query.id?provisionalDecisions(indexed.decisions,query.amendmentId):[];
-    const adoptedText=await this.adoptedText(query,[...new Set(decisions.map(decision=>decision.date))],sources);
+    const adoptedText=await this.adoptedText(query,[...new Set(decisions.map(decision=>decision.date))],sources,store);
     return {...base,status:'verified',agreement,adoptedText:adoptedText&&{id:adoptedText.id,url:adoptedText.url},
       // The adopted text only when it holds the position; otherwise the agreement file.
       text:adoptedText?.holdsText?{documentId:adoptedText.id,kind:'adopted-text'}:{documentId:query.listId,kind:'agreement'},
       finalAct:adoptedText?.act??null,proposal:await this.proposal(query,variant,sources),sources};
   }
-  async adoptedText(query,dates,sources) {
+  async adoptedText(query,dates,sources,store) {
     try {
       if(dates.length!==1||!/^\d{4}-\d{2}-\d{2}$/u.test(dates[0]||''))return null;
-      const listing=await this.listing(this.request,Number(dates[0].slice(0,4))),records=listing?.payload?.data;
-      if(!Array.isArray(records)||records.length>=500)return null;
-      const match=adoptedPlacementRecord(records,{documentId:query.id,dates});
-      if(!match)return null;
-      sources.push(source(ODP_BASE+'/adopted-texts',listing));
+      // The reader's own exact discovery: the report's procedure lists the texts adopted on it.
+      const found=await this.context.query(documentContextQuery(query.id,new URLSearchParams({lang:query.language,adopted:'1'})),{store});
+      const matches=found.related?.status==='available'?array(found.related.items).filter(item=>/^TA-10-\d{4}-\d{4,6}$/u.test(item.id)&&item.relationship?.field==='adopts'&&item.relationship.from===item.id&&item.relationship.to===query.id&&item.date===dates[0]):[];
+      // Competing texts on the decision date stay unbound.
+      if(matches.length!==1)return null;
+      const match={identifier:matches[0].id};
+      sources.push(...array(found.sources));
       const endpoint='/adopted-texts/'+match.identifier,exact=await this.request(endpoint,{},{staleWhileRevalidate:true});
       const works=array(exact.payload?.data).filter(work=>canonicalEPReference(work?.id)==='eli/dl/doc/'+match.identifier);
       if(works.length!==1||!array(works[0].adopts).some(value=>canonicalEPReference(value)==='eli/dl/doc/'+query.id))return null;

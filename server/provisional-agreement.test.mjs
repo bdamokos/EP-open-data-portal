@@ -9,17 +9,21 @@ const url=`https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/${listId}
 const params=(extra={})=>new URLSearchParams({lang:'en',amendment:amendmentId,list:listId,'wording-lang':'en',...extra});
 const stub=['Position of the European Parliament adopted at first reading',"(As an agreement was reached between Parliament and Council, Parliament's position corresponds to the final legislative act, Regulation (EU) 2026/1386.)"];
 const full=['Position of the European Parliament adopted at first reading','(1)\tThe Union welcomes foreign investments.','Article 1'];
-function harness({paragraphs=stub,placement,decisions,records,texts=[],proposal,status='available',textLanguage='en',variantReferences=[{field:'DocRef',raw:'(COM(2024)0023 – C9-0011/2024 – 2024/0017(COD))'}]}={}) {
-  const calls={listing:[],request:[],text:[],proposal:[]};
+const adoptedItem=(id,date='2026-05-19',to=report)=>({id,date,kind:'TEXT_ADOPTED',relationship:{from:id,field:'adopts',to}});
+function harness({paragraphs=stub,placement,decisions,items,relatedStatus='available',texts=[],proposal,status='available',textLanguage='en',variantReferences=[{field:'DocRef',raw:'(COM(2024)0023 – C9-0011/2024 – 2024/0017(COD))'}]}={}) {
+  const calls={context:[],request:[],text:[],proposal:[]};
   const operation=placement===undefined?{status:'document-operation',operation:'replace',scope:'whole-document',reason:'provisional_agreement',evidence:[{basis:'exact-provisional-agreement',reference:amendmentId,sourceUrl:url,language:'en',fetchedAt:'2026-11-04T08:00:00.000Z'}]}:placement;
-  const context={query:async()=>({documentId:report,placement:operation,amendment:{id:amendmentId,variants:[{listId,language:'en',documentReferences:variantReferences}]},target:{evidence:{listId}}})};
+  const context={query:async query=>{
+    calls.context.push(query.adopted?'adopted':'amendment');
+    if(query.adopted)return {documentId:report,related:{status:relatedStatus,items:items??[adoptedItem(ta)],gaps:[]},sources:[{url:'https://data.europarl.europa.eu/api/v2/procedures/2024-0017',fetchedAt:'2026-11-04T08:00:00.000Z'}]};
+    return {documentId:report,placement:operation,amendment:{id:amendmentId,variants:[{listId,language:'en',documentReferences:variantReferences}]},target:{evidence:{listId}}};
+  }};
   const taRecord={id:'eli/dl/doc/'+ta,identifier:ta,work_type:'def/ep-document-types/TEXT_ADOPTED',document_date:'2026-05-19',adopts:['eli/dl/doc/'+report],parliamentary_term:['org/ep-10']};
-  const listing=async(_request,year)=>{calls.listing.push(year);return {url:'https://data.europarl.europa.eu/api/v2/adopted-texts?year=2026&limit=500',fetchedAt:Date.UTC(2026,10,4),payload:{data:records??[taRecord]}};};
   const request=async endpoint=>{calls.request.push(endpoint);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.UTC(2026,10,4),payload:{data:[taRecord]}};};
   const readText=async(work,language,options)=>{calls.text.push([work.identifier,language,options]);return {status,textLanguage,paragraphs};};
   const readProposal=async options=>{calls.proposal.push(options);return proposal??{status:'identified',celex:'52024PC0023',workId:'w',evidence:[{kind:'cellar-source',url:'https://publications.europa.eu/resource/celex/52024PC0023',fetchedAt:'2026-11-04T08:00:01.000Z'}]};};
   const findAmendment=()=>({id:amendmentId,targetDocumentId:report,decisions:decisions??[{id:'d1',date:'2026-05-19',reference:'Provisional agreement',amendmentIds:[amendmentId],source:{url:'https://data.europarl.europa.eu/api/v2/x',fetchedAt:'2026-11-04T08:00:00.000Z'}}]});
-  return {view:new ProvisionalAgreement({context,request,readText,readProposal,listing,findAmendment}),calls};
+  return {view:new ProvisionalAgreement({context,request,readText,readProposal,findAmendment}),calls};
 }
 const ask=(view,extra)=>view.query(provisionalAgreementQuery(report,params(extra)));
 
@@ -38,7 +42,7 @@ test('a stub adopted text shows the agreement file and links the exact final act
   assert.deepEqual(result.text,{documentId:listId,kind:'agreement'});
   assert.deepEqual(result.finalAct,{label:'Regulation (EU) 2026/1386',type:'reg',year:2026,number:1386,url:'https://eur-lex.europa.eu/eli/reg/2026/1386/oj'});
   assert.deepEqual(result.proposal,{reference:'COM(2024)0023',year:'2024',number:'0023',url:'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52024PC0023'});
-  assert.deepEqual(calls.listing,[2026]);assert.deepEqual(calls.request,['/adopted-texts/'+ta]);
+  assert.deepEqual(calls.context,['amendment','adopted']);assert.deepEqual(calls.request,['/adopted-texts/'+ta]);
   assert.deepEqual(calls.text,[[ta,'en',{enqueue:false}]]);
   assert.deepEqual(calls.proposal,[{reportId:report,language:'en',documentReferences:[{field:'DocRef',raw:'(COM(2024)0023 – C9-0011/2024 – 2024/0017(COD))'}],identityOnly:true}]);
   assert(result.sources.length>=3);
@@ -66,12 +70,16 @@ test('before a vote, or when the vote date binds no single adopted text, only th
   assert.equal(none.status,'verified');assert.equal(none.adoptedText,null);assert.deepEqual(none.text,{documentId:listId,kind:'agreement'});assert.equal(none.finalAct,null);
   const twoDates=[{id:'d1',date:'2026-05-19'},{id:'d2',date:'2026-05-20'}].map(item=>({...item,reference:'Provisional agreement',amendmentIds:[amendmentId],source:{url:'https://data.europarl.europa.eu/api/v2/x',fetchedAt:'2026-11-04T08:00:00.000Z'}}));
   assert.equal((await ask(harness({decisions:twoDates}).view)).adoptedText,null);
-  const wrongDate=await ask(harness({records:[{id:'eli/dl/doc/'+ta,identifier:ta,work_type:'def/ep-document-types/TEXT_ADOPTED',document_date:'2026-05-20',adopts:['eli/dl/doc/'+report]}]}).view);
+  const wrongDate=await ask(harness({items:[adoptedItem(ta,'2026-05-20')]}).view);
   assert.equal(wrongDate.adoptedText,null);
-  const otherReport=await ask(harness({records:[{id:'eli/dl/doc/'+ta,identifier:ta,work_type:'def/ep-document-types/TEXT_ADOPTED',document_date:'2026-05-19',adopts:['eli/dl/doc/A-10-2025-0062']}]}).view);
+  const otherReport=await ask(harness({items:[adoptedItem(ta,'2026-05-19','A-10-2025-0062')]}).view);
   assert.equal(otherReport.adoptedText,null);
-  const competing=await ask(harness({records:[0,1].map(n=>({id:'eli/dl/doc/TA-10-2026-017'+n,identifier:'TA-10-2026-017'+n,work_type:'def/ep-document-types/TEXT_ADOPTED',document_date:'2026-05-19',adopts:['eli/dl/doc/'+report]}))}).view);
+  const competing=await ask(harness({items:[adoptedItem('TA-10-2026-0170'),adoptedItem(ta)]}).view);
   assert.equal(competing.adoptedText,null);
+  const earlier=await ask(harness({items:[adoptedItem('TA-10-2025-0102','2025-05-08'),adoptedItem(ta)]}).view);
+  assert.equal(earlier.adoptedText.id,ta);
+  const partial=await ask(harness({relatedStatus:'partial'}).view);
+  assert.equal(partial.adoptedText,null);assert.deepEqual(partial.text,{documentId:listId,kind:'agreement'});
 });
 
 test('the COM number is plain text unless the proposal identity passes',async()=>{
@@ -96,7 +104,7 @@ test('anything but the verified exact provisional placement reveals no links',as
     const {view,calls}=harness({placement});
     const result=await ask(view);
     assert.equal(result.status,'unavailable');assert.equal(result.agreement,null);assert.equal(result.text,null);
-    assert.deepEqual(calls.listing,[]);assert.deepEqual(calls.proposal,[]);
+    assert.deepEqual(calls.context,['amendment']);assert.deepEqual(calls.proposal,[]);
   }
 });
 
