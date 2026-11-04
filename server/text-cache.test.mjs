@@ -260,7 +260,7 @@ test('old extracted text is refreshed on demand and current extraction survives 
     const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
     const content=docxContent(zip(fixture.documentXml,fixture.stylesXml)),{paragraphs}=content;
     const upgraded=[];
-    for(const version of [undefined,1,2,3,4,5,6,7,8]) {
+    for(const version of [undefined,...Array.from({length:DOCX_EXTRACTION_VERSION-1},(_,i)=>i+1)]) {
       const url=`https://data.europarl.europa.eu/distribution/upgrade-${Date.now()}-${version}/motion.docx`;
       const work={identifier:fixture.sourceId,is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
       const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
@@ -276,7 +276,7 @@ test('old extracted text is refreshed on demand and current extraction survives 
     // One cold process verifies every upgraded record without sharing parent memory.
     const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});let downloads=0;const results=[];for(const work of ${JSON.stringify(upgraded)})results.push(await documentText(work,'en',{directory:${JSON.stringify(dir)},download:async()=>{downloads++;throw new Error('Unexpected redownload');}}));if(downloads)throw new Error('Restart attempted '+downloads+' downloads');console.log(JSON.stringify(results));`;
     const restarted=JSON.parse((await execFileAsync(t,process.execPath,['--input-type=module','-e',script],{encoding:'utf8'})).stdout);
-    assert.equal(restarted.length,9);
+    assert.equal(restarted.length,DOCX_EXTRACTION_VERSION);
     for(const [index,result] of restarted.entries()) {
       assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);
       assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,DOCX_EXTRACTION_VERSION);assert.equal(result.refreshInProgress,false);
@@ -389,4 +389,19 @@ test('document display fallback prefers translations over original language and 
     assert.equal(text.translationType,expected===original?'original':'unspecified');
     assert.equal(calls.length,1);assert(calls[0].endsWith(`-${expected}.docx`));
   }
+});
+
+test('a settled version-12 report is re-extracted to recover page-break boundary metadata',async()=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'page-boundary-upgrade-'));
+ try{
+  const url='https://data.europarl.europa.eu/distribution/page-boundary-upgrade/report.docx',sourceId='A-10-2026-0272';
+  const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>The European Parliament,</w:t></w:r></w:p><w:p><w:r><w:t>50. Instructs its President to forward this resolution.</w:t></w:r></w:p><w:p><w:r><w:br w:type="page"/></w:r></w:p><w:p/><w:p><w:r><w:t>ANNEX: DECLARATION OF INPUT</w:t></w:r></w:p></w:body></w:document>',content=docxContent(zip(xml));
+  const old=structuredClone(content);for(const source of old.paragraphSources)delete source.previousParagraph;
+  const work={identifier:sourceId,date:'2026-01-01',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
+  const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');await mkdir(path.dirname(file));
+  await writeFile(file,JSON.stringify({...old,schemaVersion:1,extractionVersion:12,sourceId,sourceUrl:url,fetchedAt:'2026-06-01T00:00:00Z'}));
+  let downloads=0;const result=await documentText(work,'en',{directory:dir,collector:true,clock:()=>Date.parse('2026-11-04T12:00:00Z'),download:async()=>{downloads++;return content;}});
+  assert.equal(downloads,1);assert.equal(result.extractionVersion,DOCX_EXTRACTION_VERSION);assert.equal(result.paragraphSources[2].previousParagraph,result.paragraphSources[1].path);
+  const saved=JSON.parse(await readFile(file,'utf8'));assert.equal(saved.extractionVersion,DOCX_EXTRACTION_VERSION);assert.equal(saved.paragraphSources[2].previousParagraph,result.paragraphSources[1].path);
+ }finally{await rm(dir,{recursive:true,force:true});}
 });

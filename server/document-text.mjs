@@ -283,7 +283,7 @@ function paragraphsOf(nodes,context) {
       // Only physically empty paragraphs certify an omitted blank. Hidden text,
       // numbering and unsupported blocks retain their ordinary source gaps.
       const hiddenBlank=paragraphVisibility.vanish||paragraphVisibility.webHidden||hiddenValue(children(properties,'w:rPr'))===true||hiddenValue(children(properties,'w:rPr'),'webHidden')===true;
-      const empty=!hiddenBlank&&!child(properties,'w:sectPr')&&!number?.label&&!number?.incomplete&&(value||[]).every(item=>Object.keys(item).every(key=>key===':@'||key==='w:pPr'));
+      const empty=!hiddenBlank&&!child(properties,'w:sectPr')&&!number?.label&&!number?.incomplete&&(value||[]).every(item=>Object.keys(item).every(key=>key===':@'||key==='w:pPr'||key==='w:r'&&item[key].length===1&&item[key][0]['w:br']?.length===0&&item[key][0][':@']?.['@_w:type']==='page'));
       const previous=result.at(-1)?.source, location=context.sourceIndex.get(node);
       const previousParagraph=previous&&previous.container===boundary.container&&previous.containerPath===boundary.containerPath
         &&location.ordinal-previous.ordinal===segment-previous.segment+1&&segment>previous.segment&&blankStart===previous.path?previous.path:null;
