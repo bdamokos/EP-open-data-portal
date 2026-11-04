@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Nahrazuje celý text.",
+  "amendment.agreement_text": "Text dohody",
   "documentcontext.final_placement_check": "Konečné umístění ověřte v {adoptedText}.",
   "documentcontext.adopted_text": "přijatém textu",
   "amendment.alternative_motion": "Alternativní návrh",
@@ -2823,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} — nejvíce otázek (po {questions}), v každém případě nárůst, dříve {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "V Evropě a jejím sousedství: {places} — nejvíce otázek (po {questions}), v každém případě nárůst, dříve {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — nejvíce otázek (po {questions}), v každém případě prudký nárůst, dříve {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "V Evropě a jejím sousedství: {places} — nejvíce otázek (po {questions}), v každém případě prudký nárůst, dříve {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "V Evropě a jejím sousedství: {places} — nejvíce otázek (po {questions}), v každém případě prudký nárůst, dříve {average}.",
+  "proposalcontexttext.colliding.new.point": "Toto číslo již má jiný bod. Umístěno za základní bod.",
+  "proposalcontexttext.new.unnumbered.table": "Nová nečíslovaná tabulka je umístěna na konci přílohy.",
+  "proposalcontexttext.new.point.order": "Nový bod {point} následuje za bodem {base}."
 }

@@ -1406,3 +1406,17 @@ test('placed NLE comparison keeps detached notes outside the provision body with
  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
  const block=h.container.querySelector('[data-amendment-block]'),notes=block.querySelector('[data-amendment-notes]');assert(notes);assert.equal(notes.querySelector('h5').textContent,'Notes · 2');const body=block.querySelector('.wording-diff');assert(!body.textContent.includes('citation'));assert.equal(wordingText(body,'proposed'),'(1)\tChanged2.');assert.equal(body.querySelectorAll('sup').length,3);assert(notes.textContent.includes('1 First citation.'));assert(notes.textContent.includes('2 Second citation.'));assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,1);
 });
+
+test('provisional agreement labels the whole-text replacement and links the exact source without a diff',async t=>{
+ const data=overlayResponse({status:'unresolved'}),url='https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/'+list+'/'+list+'_en.docx';
+ Object.assign(data.amendment.variants[0],{wordingStatus:'unavailable',originalText:null,proposedText:null,source:{url}});
+ data.amendment.status='unavailable';data.target.evidence=null;
+ data.placement={status:'document-operation',operation:'replace',scope:'whole-document',reason:'provisional_agreement',evidence:[{basis:'exact-provisional-agreement',reference:amendment,sourceUrl:url}]};
+ let current=data;const h=await harness(t,()=>current);await h.render({request:overlayRequest,language:'en'});
+ assert.match(h.container.textContent,/Replaces the whole text/);
+ assert.equal([...h.container.querySelectorAll('a')].find(a=>a.textContent==='Agreement text').href,url);
+ assert(!h.container.textContent.includes('location could not be determined'));assert.equal(h.container.querySelector('ins,del'),null);
+ current={...data,requestedLanguage:'fr',requestedWordingLanguage:'fr',amendment:{...data.amendment,variants:data.amendment.variants.map(v=>({...v,language:'fr'}))},placement:{...data.placement,evidence:[{...data.placement.evidence[0],reference:amendment+'0'}]}};
+ await h.render({request:{...overlayRequest,wordingLanguage:'fr'},language:'fr'});
+ assert(!h.container.textContent.includes('Replaces the whole text'));
+});
