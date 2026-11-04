@@ -93,7 +93,7 @@ async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,source
  for(const record of records.filter(r=>r.role==='/P'&&r.parents.some(p=>p.role==='/Note'))){
   const value=text(entries(record)),match=/^(\d{1,3})\s+(.+)$/u.exec(value);
   if(!match){ownershipGaps.push({code:'council-pdf-note-label-unproved',ref:record.ref});continue;}
-  const label=match[1],note={id:'pdf-note:'+record.ref,label,text:match[2],complete:true,source:{part:'pdf',path:record.ref},objects:[]};
+  const label=match[1],note={id:'pdf-note:'+record.ref,label,text:match[2],links:[],complete:true,source:{part:'pdf',path:record.ref},objects:[]};
   if(noteLabels.has(label))ownershipGaps.push({code:'council-pdf-note-label-ambiguous',label});
   noteLabels.set(label,note);notes.push(note);
  }

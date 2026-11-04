@@ -38,7 +38,7 @@ test('source proof refuses absent tags, wrong identity, bytes and cancellation',
 
 test('native note paragraphs bind one superscript owner; repeated owners stay incomplete',async()=>{
  const bound=await extractCouncilDraftPdf(await fixture({noteOwners:1}),identity);
- assert.equal(bound.notes.length,1);assert.equal(bound.notes[0].text,'Note body.');assert.equal(bound.anchors.length,1);assert.equal(bound.anchors[0].note,bound.notes[0].id);assert.deepEqual(bound.proof.ownershipGaps,[]);assert.equal(bound.paragraphProperties[0].notesComplete,true);
+ assert.equal(bound.notes.length,1);assert.equal(bound.notes[0].text,'Note body.');assert.deepEqual(bound.notes[0].links,[]);assert.equal(bound.anchors.length,1);assert.equal(bound.anchors[0].note,bound.notes[0].id);assert.deepEqual(bound.proof.ownershipGaps,[]);assert.equal(bound.paragraphProperties[0].notesComplete,true);
  const ambiguous=await extractCouncilDraftPdf(await fixture({noteOwners:2}),identity);
  assert(ambiguous.proof.ownershipGaps.some(g=>g.code==='council-pdf-note-owner-unproved'));
  assert.equal(ambiguous.paragraphProperties[0].notesComplete,false);
