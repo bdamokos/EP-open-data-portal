@@ -4,6 +4,7 @@
   "amendment.final_act": "Galīgais akts: {act}",
   "amendment.provisional_marks": "Treknā slīprakstā: jauns vai grozīts. ▌: svītrots.",
   "amendment.provisional_unmarked": "Daži grozījumi nav atzīmēti.",
+  "documentcontext.table_level_amendment": "Grozījums visai tabulai.",
   "documentcontext.final_placement_check": "Pārbaudiet galīgo vietu {adoptedText}.",
   "documentcontext.adopted_text": "pieņemtajā tekstā",
   "amendment.alternative_motion": "Alternatīvs priekšlikums",

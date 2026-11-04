@@ -4,6 +4,7 @@
   "amendment.final_act": "Final act: {act}",
   "amendment.provisional_marks": "Bold italics: new or changed. ▌: deleted.",
   "amendment.provisional_unmarked": "Some changes are not marked.",
+  "documentcontext.table_level_amendment": "Table-level amendment.",
   "documentcontext.final_placement_check": "Check final placement in {adoptedText}.",
   "documentcontext.adopted_text": "the adopted text",
   "amendment.alternative_motion": "Alternative motion",

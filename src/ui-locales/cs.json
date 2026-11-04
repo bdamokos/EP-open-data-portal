@@ -4,6 +4,7 @@
   "amendment.final_act": "Konečný akt: {act}",
   "amendment.provisional_marks": "Tučná kurzíva: nové nebo změněné. ▌: vypuštěno.",
   "amendment.provisional_unmarked": "Některé změny nejsou označeny.",
+  "documentcontext.table_level_amendment": "Pozměňovací návrh k celé tabulce.",
   "documentcontext.final_placement_check": "Konečné umístění ověřte v {adoptedText}.",
   "documentcontext.adopted_text": "přijatém textu",
   "amendment.alternative_motion": "Alternativní návrh",

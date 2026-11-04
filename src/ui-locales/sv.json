@@ -4,6 +4,7 @@
   "amendment.final_act": "Slutlig akt: {act}",
   "amendment.provisional_marks": "Fetkursiv: nytt eller ändrat. ▌: struket.",
   "amendment.provisional_unmarked": "Vissa ändringar är inte markerade.",
+  "documentcontext.table_level_amendment": "Ändringsförslag för hela tabellen.",
   "documentcontext.final_placement_check": "Kontrollera den slutliga placeringen i {adoptedText}.",
   "documentcontext.adopted_text": "den antagna texten",
   "amendment.alternative_motion": "Alternativt resolutionsförslag",

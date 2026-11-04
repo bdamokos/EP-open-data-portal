@@ -4,6 +4,7 @@
   "amendment.final_act": "Actul final: {act}",
   "amendment.provisional_marks": "Aldin cursiv: nou sau modificat. ▌: eliminat.",
   "amendment.provisional_unmarked": "Unele modificări nu sunt marcate.",
+  "documentcontext.table_level_amendment": "Amendament la întregul tabel.",
   "documentcontext.final_placement_check": "Verificați poziția finală în {adoptedText}.",
   "documentcontext.adopted_text": "textul adoptat",
   "amendment.alternative_motion": "Propunere alternativă",

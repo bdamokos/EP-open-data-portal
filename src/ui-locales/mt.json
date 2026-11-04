@@ -4,6 +4,7 @@
   "amendment.final_act": "L-att finali: {act}",
   "amendment.provisional_marks": "Grassett korsiv: ġdid jew mibdul. ▌: imħassar.",
   "amendment.provisional_unmarked": "Xi bidliet mhumiex immarkati.",
+  "documentcontext.table_level_amendment": "Emenda għat-tabella kollha.",
   "documentcontext.final_placement_check": "Iċċekkja l-post finali fit-{adoptedText}.",
   "documentcontext.adopted_text": "test adottat",
   "amendment.alternative_motion": "Mozzjoni alternattiva",

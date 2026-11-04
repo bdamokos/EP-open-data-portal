@@ -4,6 +4,7 @@
   "amendment.final_act": "Endelig retsakt: {act}",
   "amendment.provisional_marks": "Fed kursiv: nyt eller ændret. ▌: udeladt.",
   "amendment.provisional_unmarked": "Nogle ændringer er ikke markeret.",
+  "documentcontext.table_level_amendment": "Ændringsforslag til hele tabellen.",
   "documentcontext.final_placement_check": "Kontrollér den endelige placering i {adoptedText}.",
   "documentcontext.adopted_text": "den vedtagne tekst",
   "amendment.alternative_motion": "Alternativt forslag",

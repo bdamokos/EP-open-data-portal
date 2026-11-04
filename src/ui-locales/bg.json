@@ -4,6 +4,7 @@
   "amendment.final_act": "Окончателен акт: {act}",
   "amendment.provisional_marks": "Удебелен курсив: ново или променено. ▌: заличено.",
   "amendment.provisional_unmarked": "Някои промени не са отбелязани.",
+  "documentcontext.table_level_amendment": "Изменение на ниво таблица.",
   "documentcontext.final_placement_check": "Проверете окончателното място в {adoptedText}.",
   "documentcontext.adopted_text": "приетия текст",
   "amendment.alternative_motion": "Алтернативно предложение",

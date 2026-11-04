@@ -4,6 +4,7 @@
   "amendment.final_act": "Končni akt: {act}",
   "amendment.provisional_marks": "Krepki ležeči tisk: novo ali spremenjeno. ▌: črtano.",
   "amendment.provisional_unmarked": "Nekatere spremembe niso označene.",
+  "documentcontext.table_level_amendment": "Predlog spremembe celotne tabele.",
   "documentcontext.final_placement_check": "Končno mesto preverite v {adoptedText}.",
   "documentcontext.adopted_text": "sprejetem besedilu",
   "amendment.alternative_motion": "Alternativni predlog",

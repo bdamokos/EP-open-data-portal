@@ -4,6 +4,7 @@
   "amendment.final_act": "Endgültiger Rechtsakt: {act}",
   "amendment.provisional_marks": "Fett und kursiv: neu oder geändert. ▌: gestrichen.",
   "amendment.provisional_unmarked": "Einige Änderungen sind nicht gekennzeichnet.",
+  "documentcontext.table_level_amendment": "Änderungsantrag zur gesamten Tabelle.",
   "documentcontext.final_placement_check": "Prüfen Sie die endgültige Platzierung im {adoptedText}.",
   "documentcontext.adopted_text": "angenommenen Text",
   "amendment.alternative_motion": "Alternativer Entschließungsantrag",

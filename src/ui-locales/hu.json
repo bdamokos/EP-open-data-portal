@@ -4,6 +4,7 @@
   "amendment.final_act": "Végleges jogi aktus: {act}",
   "amendment.provisional_marks": "Félkövér dőlt betű: új vagy módosított. ▌: törölt.",
   "amendment.provisional_unmarked": "Egyes módosítások nincsenek megjelölve.",
+  "documentcontext.table_level_amendment": "A teljes táblázatra vonatkozó módosítás.",
   "documentcontext.final_placement_check": "Ellenőrizze a végleges helyet {adoptedText}.",
   "documentcontext.adopted_text": "az elfogadott szövegben",
   "amendment.alternative_motion": "Alternatív indítvány",

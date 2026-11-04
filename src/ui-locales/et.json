@@ -4,6 +4,7 @@
   "amendment.final_act": "Lõplik õigusakt: {act}",
   "amendment.provisional_marks": "Rasvane kursiiv: uus või muudetud. ▌: välja jäetud.",
   "amendment.provisional_unmarked": "Mõned muudatused ei ole märgitud.",
+  "documentcontext.table_level_amendment": "Kogu tabelit puudutav muudatusettepanek.",
   "documentcontext.final_placement_check": "Kontrollige lõplikku asukohta {adoptedText}.",
   "documentcontext.adopted_text": "vastuvõetud tekstis",
   "amendment.alternative_motion": "Alternatiivne ettepanek",

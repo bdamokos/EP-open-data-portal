@@ -4,6 +4,7 @@
   "amendment.final_act": "Atto finale: {act}",
   "amendment.provisional_marks": "Grassetto corsivo: nuovo o modificato. ▌: soppresso.",
   "amendment.provisional_unmarked": "Alcune modifiche non sono contrassegnate.",
+  "documentcontext.table_level_amendment": "Emendamento relativo all’intera tabella.",
   "documentcontext.final_placement_check": "Verificare la collocazione definitiva nel {adoptedText}.",
   "documentcontext.adopted_text": "testo approvato",
   "amendment.alternative_motion": "Proposta alternativa",

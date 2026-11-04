@@ -4,6 +4,7 @@
   "amendment.final_act": "Definitieve handeling: {act}",
   "amendment.provisional_marks": "Vet en cursief: nieuw of gewijzigd. ▌: geschrapt.",
   "amendment.provisional_unmarked": "Sommige wijzigingen zijn niet gemarkeerd.",
+  "documentcontext.table_level_amendment": "Amendement op de hele tabel.",
   "documentcontext.final_placement_check": "Controleer de definitieve plaatsing in {adoptedText}.",
   "documentcontext.adopted_text": "de aangenomen tekst",
   "amendment.alternative_motion": "Alternatieve ontwerpresolutie",

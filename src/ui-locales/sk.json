@@ -4,6 +4,7 @@
   "amendment.final_act": "Konečný akt: {act}",
   "amendment.provisional_marks": "Tučná kurzíva: nové alebo zmenené. ▌: vypustené.",
   "amendment.provisional_unmarked": "Niektoré zmeny nie sú označené.",
+  "documentcontext.table_level_amendment": "Pozmeňujúci návrh k celej tabuľke.",
   "documentcontext.final_placement_check": "Konečné umiestnenie overte v {adoptedText}.",
   "documentcontext.adopted_text": "prijatom texte",
   "amendment.alternative_motion": "Alternatívny návrh",

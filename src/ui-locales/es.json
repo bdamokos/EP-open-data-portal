@@ -4,6 +4,7 @@
   "amendment.final_act": "Acto final: {act}",
   "amendment.provisional_marks": "Negrita y cursiva: nuevo o modificado. ▌: suprimido.",
   "amendment.provisional_unmarked": "Algunos cambios no están marcados.",
+  "documentcontext.table_level_amendment": "Enmienda a la tabla completa.",
   "documentcontext.final_placement_check": "Compruebe la ubicación definitiva en {adoptedText}.",
   "documentcontext.adopted_text": "el texto aprobado",
   "amendment.alternative_motion": "Propuesta alternativa",

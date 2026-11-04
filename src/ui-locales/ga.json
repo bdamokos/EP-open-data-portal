@@ -4,6 +4,7 @@
   "amendment.final_act": "An gníomh deiridh: {act}",
   "amendment.provisional_marks": "Cló trom iodálach: nua nó athraithe. ▌: scriosta.",
   "amendment.provisional_unmarked": "Níl roinnt athruithe marcáilte.",
+  "documentcontext.table_level_amendment": "Leasú ar an tábla iomlán.",
   "documentcontext.final_placement_check": "Seiceáil an suíomh deiridh sa {adoptedText}.",
   "documentcontext.adopted_text": "téacs a glacadh",
   "amendment.alternative_motion": "Tairiscint mhalartach",

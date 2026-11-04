@@ -1490,3 +1490,12 @@ test('links outside the expected hosts or for another amendment are not shown, a
     assert.equal(h.container.querySelector('.provisional-links'),null);
   });
 });
+
+test('table-level amendments retain every source cell and show the comparison before the table',async t=>{
+  const placement={operation:'replace',status:'placed',itemIndex:0,span:{start:3,end:6},evidence:[{basis:'table-level-elision',label:'Aluminium'}]};
+  const {item}=await tableReader(t,'Aluminium\nCN code\tGreenhouse gas\n…\t…','Aluminium\nCN code\tGreenhouse gas\n…\t…\n7603 New row\tCarbon dioxide',placement);
+  const blocks=item.querySelectorAll('[data-amendment-block]');assert.equal(blocks.length,1);
+  assert.match(blocks[0].textContent,/Table-level amendment\./);
+  assert.equal(blocks[0].nextElementSibling.querySelector('table').className,'proposal-table');
+  assert.deepEqual([...item.querySelectorAll('.proposal-table td')].map(cell=>cell.textContent),['CN code','Greenhouse gas','ex 7602 Aluminium waste','Carbon dioxide']);
+});

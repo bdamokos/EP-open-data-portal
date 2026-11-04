@@ -3,6 +3,7 @@ import {assertResolutionCollision} from './amendment-resolution-collision-oracle
 import {assertLocalRecitalBoundary} from './amendment-local-recital-oracle.mjs';
 import {assertPlaceholderDeletion} from './amendment-placeholder-oracle.mjs';
 import {assertNewParentBoundary} from './amendment-benchmark-proposal-oracle.mjs';
+import {assertTableContext} from './amendment-table-context-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
@@ -639,6 +640,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   if(numberedAnnex)return numberedAnnex;
   if(!items?.length&&wording.language==='sv'&&/^Bilaga I – rekommendation [1-9]\d* – punkt 1$/u.test(wording.targetLabel||''))return assertSwedishRecommendation({text,wording,placement});
   if(items?.length&&wording.targetLabel==='Title 1')return assertNativeProposalTitle({proposal:items[placement.itemIndex]?.proposal,wording,placement,nativeQuoted});
+  const tableContext=assertTableContext({items,wording,placement,nativeQuoted});if(tableContext)return tableContext;
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
