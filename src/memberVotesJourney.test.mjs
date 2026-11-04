@@ -295,8 +295,14 @@ test('legacy mv journeys without a positions key preserve recorded pages while c
   for(const positions of ['all','recorded'])assert.equal(saved(read({'mv-positions':positions})).get('mv-positions'),positions);
 });
 
-test('vote panes do not trap the wheel in the one-page scroll layout', async () => {
-  const css = await readFile(new URL('./explorer.css', import.meta.url), 'utf8');
-  const pageScroll = css.slice(css.indexOf('@media (max-width:767px), (max-height:900px), (hover:none) {'));
-  assert.match(pageScroll.slice(0, pageScroll.indexOf('\n}')), /\.explorer \.member-votes-pane \{ overscroll-behavior: auto; \}/);
+test('the page is the only scroller for the member views', async () => {
+  const explorer = await readFile(new URL('./explorer.css', import.meta.url), 'utf8');
+  const votes = await readFile(new URL('./MemberVotes.css', import.meta.url), 'utf8');
+  assert.match(explorer, /\.explorer \{[^}]*overflow-y: auto;/);
+  assert.doesNotMatch(explorer, /max-height: ?900px/);
+  for (const [css, selector] of [[explorer, 'explorer-portraits'], [explorer, 'explorer-profile-body'], [votes, 'member-votes'], [votes, 'member-votes-pane']]) {
+    const rule = css.match(new RegExp(`(?:^|[}\\s])\\.${selector} ?\\{([^}]*)\\}`))?.[1];
+    assert.ok(rule !== undefined, selector);
+    assert.doesNotMatch(rule, /overflow(-y)?: ?(auto|scroll)|overscroll-behavior/, selector);
+  }
 });
