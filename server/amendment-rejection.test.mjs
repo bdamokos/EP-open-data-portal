@@ -22,7 +22,7 @@ test('a complete rejection sentence owns scope regardless of the local target la
   for(const [language,texts] of Object.entries(sentences))for(const [index,proposedText] of texts.entries())for(const targetLabel of ['–','Citation 1 a (new)','Article 1','']){
     const result=documentContextPlacement({chosen:{language,originalText:'',proposedText,targetLabel}});
     assert.equal(result.status,'document-operation',language+': '+proposedText);
-    assert.equal(result.scope,index===2?'council-position':'commission-proposal');
+    assert.equal(result.scope,index>=2?'council-position':'commission-proposal');
     assert(!['span','splice','insertAfter','insertBefore'].some(key=>Object.hasOwn(result,key)));
   }
 });
