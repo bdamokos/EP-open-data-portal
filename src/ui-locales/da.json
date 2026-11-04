@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Erstatter hele teksten.",
+  "amendment.agreement_text": "Aftalens tekst",
   "documentcontext.final_placement_check": "Kontrollér den endelige placering i {adoptedText}.",
   "documentcontext.adopted_text": "den vedtagne tekst",
   "amendment.alternative_motion": "Alternativt forslag",
@@ -2823,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} fik flest spørgsmål ({questions} hver), i alle tilfælde en stigning fra {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver), i alle tilfælde en stigning fra {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} fik flest spørgsmål ({questions} hver), i alle tilfælde en kraftig stigning fra {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver), i alle tilfælde en kraftig stigning fra {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver), i alle tilfælde en kraftig stigning fra {average}.",
+  "proposalcontexttext.colliding.new.point": "Dette nummer bruges allerede af et punkt. Placeret efter grundpunktet.",
+  "proposalcontexttext.new.unnumbered.table": "Ny unummereret tabel placeret sidst i bilaget.",
+  "proposalcontexttext.new.point.order": "Nyt punkt {point} følger efter punkt {base}."
 }

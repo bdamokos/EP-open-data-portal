@@ -20,7 +20,7 @@ import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v20-agenda-deadlines';
+export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v23-preserve-debate-participation';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -134,17 +134,18 @@ export class LegislationInsights {
     let detail=null;
     if(query.topic) {
       let topic=topics.find(t=>t.id===query.topic),actualDebate=null,creatorAgendaItems=null;
-      // Story records identify the actual debate, rather than its scheduled item.
+      // Story records identify the actual debate or formal address, rather than its scheduled item.
+      // Formal sittings are PLENARY_ACTIVITY and need not execute a scheduled agenda item.
       // Resolve only the published executed relationship; agenda numbers differ.
       if(!topic&&/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+(?:-\d+)?$/.test(query.topic)&&query.topic.startsWith(sitting.activity_id+'-PVCRE-ITM-')) {
         let record;try{record=await recordSource('/events/'+query.topic);}catch(error){if(error.upstreamStatus===404||error.source?.httpStatus===404)throw Object.assign(new HttpError(404,'topic_not_found','That agenda topic is not in the selected sitting.'),{upstreamStatus:404,source:error.source});throw error;}
         const event=sourceNode(record,'event',query.topic);
         if(event.activity_date===sitting.activity_date&&phase!=='upcoming') {
           const scheduled=topics.filter(item=>refs(event.executed).includes(item.uri));
-          if(tail(event.had_activity_type)==='PLENARY_DEBATE') {
+          if(['PLENARY_DEBATE','PLENARY_ACTIVITY'].includes(tail(event.had_activity_type))) {
             creatorAgendaItems=scheduled;
             const merge=field=>[...new Set(scheduled.flatMap(item=>item[field]||[]))];
-            topic={id:query.topic,uri:canonical(event.id),titles:event.activity_label||{},date:event.activity_date,kind:'PLENARY_DEBATE',
+            topic={id:query.topic,uri:canonical(event.id),titles:event.activity_label||{},date:event.activity_date,kind:tail(event.had_activity_type),
               documentIds:merge('documentIds'),procedureIds:merge('procedureIds'),agendaCreatorIds:merge('agendaCreatorIds'),agendaDocumentIds:merge('agendaDocumentIds'),scheduledAgendaIds:scheduled.map(item=>item.id),
               evidence:{...sourceEvidence(record),relationship:'actual debate identity and date; executed → scheduled agenda items'}};
             actualDebate={id:query.topic,evidence:{...sourceEvidence(record),relationship:'selected actual debate → consists_of → contribution'}};
@@ -190,7 +191,7 @@ export class LegislationInsights {
       const contributionIds=new Set();let contributionsTruncated=false;
       for(const [eventId,evidence] of [...debateCandidates].filter(([id])=>id.slice(7,17)<=today&&id.slice(7,17)<=sitting.activity_date).sort(([a],[b])=>b.slice(7,17).localeCompare(a.slice(7,17))).slice(0,LEGISLATION_LIMITS.debateEvents))try {
         const record=await recordSource('/events/'+eventId);const event=sourceNode(record,'event',eventId);
-        if(tail(event?.had_activity_type)!=='PLENARY_DEBATE'||!event.activity_date||event.activity_date>today||event.activity_date>sitting.activity_date)continue;
+        if(!(tail(event?.had_activity_type)==='PLENARY_DEBATE'||eventId===actualDebate?.id&&tail(event?.had_activity_type)==='PLENARY_ACTIVITY')||!event.activity_date||event.activity_date>today||event.activity_date>sitting.activity_date)continue;
         if(evidence.speechId && !refs(event.executed).includes(topic.uri))continue;
         if(evidence.documentId && !topic.documentIds.includes(evidence.documentId))continue;
         const children=refs(event.consists_of);for(const uri of children)contributionIds.add(tail(uri));
@@ -199,21 +200,35 @@ export class LegislationInsights {
       if(contributionIds.size>LEGISLATION_LIMITS.contributions)contributionsTruncated=true;
       const selectedContributions=[...contributionIds].slice(0,LEGISLATION_LIMITS.contributions);
       const speechRows=selectedContributions.length?this.store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${selectedContributions.map(()=>'?').join(',')}) LIMIT 1000`).all(status.servingGeneration,...selectedContributions).map(r=>JSON.parse(r.body)).filter(row=>typeof row.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(row.date)&&row.date<=sitting.activity_date&&row.date<=today):[];
-      const speeches=[...new Map(speechRows.map(r=>[r.sourceId,r])).values()].map(row=>({sourceId:row.sourceId,date:row.date,title:displayTitle(row.titles,query.language,row.reference),kind:row.speechKind,start:row.start,end:row.end,people:memberPeople(speechRows.filter(r=>r.sourceId===row.sourceId).map(r=>r.mepId),members,metadata).map(person=>({...datedPerson(person,row.date,groupOn),contributionGroup:contributionGroup(person.id,row.date,groupOn)})),provenance:row.provenance}));
+      // Outside speakers are held separately from the MEP activity index. Join only
+      // exact children of the selected event, retaining the observed speech header.
+      const outsideRows=selectedContributions.length?this.store.db.prepare(`SELECT body FROM outside_contributions WHERE generation=? AND speech IN (${selectedContributions.map(()=>'?').join(',')})`).all(status.servingGeneration,...selectedContributions).map(r=>JSON.parse(r.body)).filter(r=>speechSources.some(source=>source.eventDate===r.date&&source.contributionIds.includes(r.id))):[];
+      const guestKeys=new Set(outsideRows.map(r=>r.id+':'+r.personId));
+      // Preserve the base participation population for ordinary debates, including
+      // non-roster speakers indexed by saveSpeech. Only new formal activities
+      // exclude their guest rows from participation. Reader-only rows add no counts.
+      const participationRows=topic.kind==='PLENARY_ACTIVITY'?speechRows.filter(r=>!guestKeys.has(r.sourceId+':'+r.mepId)):speechRows;
+      const readerRows=[...speechRows];
+      for(const row of outsideRows)if(!readerRows.some(r=>r.sourceId===row.id&&String(r.mepId)===row.personId))readerRows.push({sourceId:row.id,mepId:row.personId,date:row.date,titles:row.titles||{},reference:row.reference,speechKind:'PLENARY_DEBATE_SPEECH',start:row.start,end:row.end,provenance:row.source});
+      const speeches=[...new Map(readerRows.map(r=>[r.sourceId,r])).values()].sort((a,b)=>Number(!a.start)-Number(!b.start)||(a.start||'').localeCompare(b.start||'')||a.sourceId.localeCompare(b.sourceId)).map(row=>({sourceId:row.sourceId,date:row.date,title:displayTitle(row.titles,query.language,row.reference),kind:row.speechKind,start:row.start,end:row.end,people:memberPeople(readerRows.filter(r=>r.sourceId===row.sourceId).map(r=>r.mepId),members,metadata).map(person=>({...datedPerson(person,row.date,groupOn),contributionGroup:contributionGroup(person.id,row.date,groupOn)})),provenance:row.provenance}));
       const amendments=this.store.readSnapshot(()=>topicAmendments(this.store,topic.documentIds,[],{procedureIds:topic.procedureIds,asOf:sitting.activity_date}));
-      const participantIds=[...amendments.authorIds,...roles.map(r=>r.id),...speechRows.map(r=>String(r.mepId))];
+      const participantIds=[...amendments.authorIds,...roles.map(r=>r.id),...participationRows.map(r=>String(r.mepId))];
       const participantDate=id=>[amendments.authorDates[id],...roles.filter(role=>role.id===id).map(role=>role.date),...speeches.filter(speech=>speech.people.some(person=>person.id===id)).map(speech=>speech.date)].filter(Boolean).sort().at(-1)||null;
       const people=memberPeople(participantIds,members,metadata).map(person=>({...datedPerson(person,participantDate(person.id),groupOn),
         demographics:person.currentMep?Object.fromEntries(Object.entries(demographicStats([person.id],members,metadata,sitting.activity_date).dimensions).map(([key,rows])=>[key,rows[0].label])):null}));
-      // Resolve only guests actually linked to selected contributions, never the roster or voters.
-      const guests=new Set(speeches.flatMap(speech=>speech.people.filter(person=>!person.currentMep&&!speakerNameIsSpecific(person.name)).map(person=>person.id)));
-      for(const id of [...guests].slice(0,4))try {
+      for(const row of outsideRows)if(speakerNameIsSpecific(row.header?.name))for(const person of [...people,...speeches.flatMap(s=>s.people)].filter(p=>p.id===row.personId&&!p.currentMep))Object.assign(person,{name:row.header.name,nameSource:row.headerSource||row.source});
+      // Former MEPs without an outside contribution retain the base bounded name
+      // lookup. Held outsiders use their speech header and never trigger this read.
+      const outsideIds=new Set(outsideRows.map(row=>row.personId));
+      const formerIds=new Set(speeches.flatMap(speech=>speech.people.filter(person=>!person.currentMep&&!outsideIds.has(person.id)&&!speakerNameIsSpecific(person.name)).map(person=>person.id)));
+      for(const id of [...formerIds].slice(0,4))try {
         const record=await recordSource('/meps/'+id);
         const person=record.payload.data.find(node=>String(node.identifier)===id&&canonical(node.id)==='person/'+id);
         const name=person&&([person.givenName,person.familyName].filter(Boolean).join(' ')||person.label);
         if(!speakerNameIsSpecific(name))continue;
         for(const target of [...people,...roles,...speeches.flatMap(speech=>speech.people)].filter(person=>person.id===id))Object.assign(target,{name,profileUrl:'https://www.europarl.europa.eu/meps/en/'+id,nameSource:{apiUrl:record.url,fetchedAt:new Date(record.fetchedAt).toISOString()}});
       }catch(error){gaps.push({source:'guest identity',message:error.message,sourceError:true});}
+      if(topic.kind==='PLENARY_ACTIVITY'&&!speeches.length)throw new HttpError(404,'topic_not_found','That agenda topic has no held address speeches.');
       let votes=[];let voteCoverage={available:false,sourceDecisionCount:null,truncated:false,sourceUrl:null,fetchedAt:null,error:null};
       if(topic.kind==='PLENARY_VOTE'&&phase!=='upcoming') {
         try {
@@ -228,7 +243,7 @@ export class LegislationInsights {
       }
       const selectedVote=query.vote?votes.find(v=>v.id===query.vote):votes[0]||null;
       if(query.vote&&!selectedVote)throw new HttpError(404,'vote_not_found','That roll-call is not joined to this agenda topic.');
-      detail={...localize(topic),phase,procedures,committeeWork:[...new Map(committeeWork.map(e=>[e.id,e])).values()].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12),roles,speeches,people,amendments:{...amendments,counts:Object.fromEntries(people.map(person=>[person.id,amendments.counts[person.id]??null])),countsByStage:Object.fromEntries(people.map(person=>[person.id,amendments.countsByStage[person.id]||{committee:null,plenary:null}]))},stats:{...demographicStats(participantIds,members,metadata,sitting.activity_date),groupContributions:groupContributions([...amendments.authorIds.map(id=>({id,date:amendments.authorDates[id]})),...roles.map(r=>({id:r.id,date:r.date})),...speechRows.map(r=>({id:String(r.mepId),date:r.date}))],groupOn)},
+      detail={...localize(topic),phase,procedures,committeeWork:[...new Map(committeeWork.map(e=>[e.id,e])).values()].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12),roles,speeches,people,amendments:{...amendments,counts:Object.fromEntries(people.map(person=>[person.id,amendments.counts[person.id]??null])),countsByStage:Object.fromEntries(people.map(person=>[person.id,amendments.countsByStage[person.id]||{committee:null,plenary:null}]))},stats:{...demographicStats(participantIds,members,metadata,sitting.activity_date),groupContributions:groupContributions([...amendments.authorIds.map(id=>({id,date:amendments.authorDates[id]})),...roles.map(r=>({id:r.id,date:r.date})),...participationRows.map(r=>({id:String(r.mepId),date:r.date}))],groupOn)},
         votes:votes.map(v=>({id:v.id,date:v.date,title:displayTitle(v.titles,query.language,v.id),subject:displayTitle(v.subjects,query.language,null),scope:v.scope,outcome:v.outcome,namedVotersAvailable:v.namedVotersAvailable,aggregateTotals:v.aggregateTotals,uniqueNamedVoters:v.uniqueNamedVoters})),
         selectedVote,finalVotePatterns:finalVotePatterns(votes,members,metadata,groupOn),voteCoverage,
         coverage:{missingDocumentIds:missingDocuments,roleRowsTruncated:rows.length>=LEGISLATION_LIMITS.roleRows,speechAssociations:{status:speechSources.length?'exact-bounded-joins':phase==='upcoming'?'not-yet-held':'source-unavailable',context:phase==='upcoming'?'previous-debates':'debates',count:speechSources.length?speeches.length:null,exactChildReferences:contributionIds.size,childrenWithoutSavedContributionRows:selectedContributions.filter(id=>!speeches.some(s=>s.sourceId===id)).length,truncated:contributionsTruncated||debateCandidates.size>LEGISLATION_LIMITS.debateEvents,sources:speechSources,reason:speechSources.length?'Speakers are joined only from exact actual-debate child IDs to saved contribution rows. Document-backed debates can precede the selected sitting. Unmatched child refs include chair/non-contribution activities and unresolved records; they are not a count of missing speeches. This bounded selection is not a full corpus.':'No exact debate association was resolved within the selected source bounds. Whole-day activities/procedure-event listing timed out in verification. No title matching or inferred counterpart IDs are used.'},gaps}};

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   isMemberVotesParam,
   readMemberVotesJourney,
@@ -292,4 +293,10 @@ test('legacy mv journeys without a positions key preserve recorded pages while c
     assert.equal(saved(legacy).get('mv-positions'),'recorded');assert.deepEqual(readMemberVotesJourney(saved(legacy),MEMBER),legacy);
   }
   for(const positions of ['all','recorded'])assert.equal(saved(read({'mv-positions':positions})).get('mv-positions'),positions);
+});
+
+test('vote panes do not trap the wheel in the one-page scroll layout', async () => {
+  const css = await readFile(new URL('./explorer.css', import.meta.url), 'utf8');
+  const pageScroll = css.slice(css.indexOf('@media (max-width:767px), (max-height:900px), (hover:none) {'));
+  assert.match(pageScroll.slice(0, pageScroll.indexOf('\n}')), /\.explorer \.member-votes-pane \{ overscroll-behavior: auto; \}/);
 });

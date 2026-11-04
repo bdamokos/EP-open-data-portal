@@ -259,6 +259,9 @@
      from detail, native page anchoring can move a disclosure on expansion;
      excluding an inner pane does not exclude anchors in its outer layout. */
   .explorer:has(.member-votes) { overflow-anchor: none; }
+  /* The pane grows to its content here, and containing overscroll on a scroll container
+     with nothing to scroll stops the wheel from reaching the page. */
+  .explorer .member-votes-pane { overscroll-behavior: auto; }
   .explorer-wall, .explorer-profile, .explorer-saved-view { flex: none; min-height: auto; overflow: visible; }
   .explorer-portraits, .explorer-profile-body { overflow: visible; min-height: auto; }
   .explorer-profile { grid-template-rows: auto auto auto; }

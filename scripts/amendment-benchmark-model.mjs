@@ -1,3 +1,4 @@
+import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
@@ -57,11 +58,12 @@ export function classify(stages) {
   return stages.S6.status === 'verified' ? {outcome:'correct', reason:'oracle-verified'} : {outcome:'placed-unverified', reason:stages.S6.reason};
 }
 
-// Whole-document operations have no paragraph location and earn no placement credit.
+// A verified operation on the whole document is a placement at document scope.
 export function classifyRow(stages,documentOperation) {
   if(documentOperation?.status==='verified'&&stages.S5.status==='document-operation') {
-    if(documentOperation.reason==='source-attested-rejection')return {outcome:'not-placeable',reason:'whole-document-rejection'};
-    if(documentOperation.reason==='source-attested-alternative-motion')return {outcome:'not-placeable',reason:'whole-document-alternative-motion'};
+    if(documentOperation.reason==='source-attested-rejection')return {outcome:'correct',reason:'whole-document-rejection'};
+    if(documentOperation.reason==='source-attested-alternative-motion')return {outcome:'correct',reason:'whole-document-alternative-motion'};
+    if(documentOperation.reason==='source-attested-provisional-agreement')return {outcome:'correct',reason:'whole-document-provisional-agreement'};
   }
   return classify(stages);
 }
@@ -87,6 +89,8 @@ const fail = reason => ({status:'failed', reason});
 const verified = reason => ({status:'verified', reason});
 
 export function parseBenchmarkTarget(wording) {
+ const table=unnumberedTableAddress(wording);
+ if(table)return {raw:table.raw,language:wording.language,complete:true,segments:[{kind:'annex',value:''},{kind:'table',value:table.caption,isNew:true}],unparsed:[]};
  const paths=wording.baseline==='present-text'?wording.targetPath?.underlying:wording.targetPath?.proposal;
  const raw=paths?.length===1?paths[0].raw:wording.targetLabel||'';
  const resolution=['motion-resolution','unknown'].includes(wording.baseline);
@@ -601,6 +605,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
+  const tableEnd=assertUnnumberedTable({proposal,wording,placement,nativeQuoted,voteReferences});
+  if(tableEnd.status!=='unverified')return tableEnd;
   const firstAnnex=assertFirstAnnex({proposal,items,wording,placement,nativeQuoted});
   if(firstAnnex)return firstAnnex;
   if(proposal) {

@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Înlocuiește întregul text.",
+  "amendment.agreement_text": "Textul acordului",
   "documentcontext.final_placement_check": "Verificați poziția finală în {adoptedText}.",
   "documentcontext.adopted_text": "textul adoptat",
   "amendment.alternative_motion": "Propunere alternativă",
@@ -2823,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} au făcut obiectul celor mai multe întrebări (câte {questions}), în fiecare caz o creștere față de {average} anterior.",
   "topics.story.integrated.lead.tiedEachRose.eu": "În Europa și în vecinătatea sa, {places} au făcut obiectul celor mai multe întrebări (câte {questions}), în fiecare caz o creștere față de {average} anterior.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} au făcut obiectul celor mai multe întrebări (câte {questions}), în fiecare caz un salt față de {average} anterior.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "În Europa și în vecinătatea sa, {places} au făcut obiectul celor mai multe întrebări (câte {questions}), în fiecare caz un salt față de {average} anterior."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "În Europa și în vecinătatea sa, {places} au făcut obiectul celor mai multe întrebări (câte {questions}), în fiecare caz un salt față de {average} anterior.",
+  "proposalcontexttext.colliding.new.point": "Acest număr există deja. Inserat după punctul de bază.",
+  "proposalcontexttext.new.unnumbered.table": "Tabel nou nenumerotat inserat la sfârșitul anexei.",
+  "proposalcontexttext.new.point.order": "Noul punct {point} urmează după punctul {base}."
 }

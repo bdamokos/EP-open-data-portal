@@ -16,7 +16,7 @@ import {useSpeechTranslation,SpeechTextStatus} from './SpeechTranslation';
 import {MemberAffiliation} from './components/MemberAffiliation';
 import {ActivityDossierLinks} from './DossierActivity';
 import {navigateDossier,useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
-import {matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
+import {committeeCoverageComplete,matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
 import {AvailabilityNote} from './AvailabilityNote';
 import {coverageStore} from './SavedControls';
 import {FormerMemberNotice} from './MembershipUpdates';
@@ -625,9 +625,13 @@ export default function App() {
       if (body) setCommittee(body.id);
       else if (directory.index.complete) setCommittee("");
     }
+    // A link to a listed committee is the committee filter, so the control, role and count agree.
+    if (organization && (!committee || committee === organization) && directory.committees.some(b => b.id === organization)) {
+      setCommittee(organization);setOrganization("");setOrganizationName("");
+    }
     if (country && !directory.members.some(m => matchesCountry(country,m.countryCode))) setCountry("");
     if (group && !directory.members.some(m => m.groupCode === group)) setGroup("");
-  }, [directory, committee, country, group]);
+  }, [directory, committee, organization, country, group]);
   useEffect(() => {
     const u = new URL(location.href);
     const ownParams=explorerParams(u.searchParams,view,member);
@@ -671,7 +675,7 @@ export default function App() {
       ).sort(compareMembers) || [],
     [directory, country, group, search, committee, role,organization,directoryState.loading],
   );
-  const partialCommittee = Boolean((committee||organization) && (!directory?.index.complete||Boolean(organization&&directoryState.loading)||Boolean(organization&&directory?.members.some(m=>!organizationCoverageComplete(m,organization)))));
+  const partialCommittee = Boolean((committee||organization) && (!directory?.index.complete||Boolean(organization&&directoryState.loading)||Boolean(organization&&directory?.members.some(m=>!organizationCoverageComplete(m,organization)))||Boolean(committee&&directory?.members.some(m=>!committeeCoverageComplete(m,committee)))));
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = (profile.data?.id === member) ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(member)});

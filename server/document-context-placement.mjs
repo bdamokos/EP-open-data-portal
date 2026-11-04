@@ -1,3 +1,4 @@
+export {amendmentProvisional} from './amendment-provisional.mjs';
 import {amendmentAlternative} from './amendment-alternative.mjs';
 import {amendmentRejection} from './amendment-rejection.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
@@ -74,6 +75,7 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
     }
   }
   if(proposalKind){
+    if(/^Annex – table – .+ \(new\)$/u.test(chosen.targetLabel??'')&&referenceTexts.some(ref=>/\b(?:before|after|following|preceding|point|paragraph)\b|\btable\s+\d/iu.test(ref)))return unresolved('insertion_reference_unavailable');
     if(!items?.length||!chosen.language||(chosen.targetPath?.language??chosen.targetLabelLanguage)!==chosen.language)return unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
     return detachedNotes?resolveProposalNoteScope(items,selected):resolveProposalPlacement(items,selected,{nativeProposalInputs});
   }

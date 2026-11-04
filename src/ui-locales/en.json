@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Replaces the whole text.",
+  "amendment.agreement_text": "Agreement text",
   "documentcontext.final_placement_check": "Check final placement in {adoptedText}.",
   "documentcontext.adopted_text": "the adopted text",
   "amendment.alternative_motion": "Alternative motion",
@@ -2924,5 +2926,8 @@
   "topics.story.integrated.questionPlaceDebatesRise": "{place} ({debates}; up from {average}{home})",
   "topics.story.integrated.questionPlaceRare": "{place} (rarely asked about before{home})",
   "topics.story.integrated.questionPlaceDebatesRare": "{place} ({debates}; rarely asked about before{home})",
-  "topics.story.integrated.debateCountPeers": "{count}, as did {peers}"
+  "topics.story.integrated.debateCountPeers": "{count}, as did {peers}",
+  "proposalcontexttext.colliding.new.point": "This number collides with an existing point. Placed after the base point.",
+  "proposalcontexttext.new.unnumbered.table": "New unnumbered table placed at the end of the annex.",
+  "proposalcontexttext.new.point.order": "New point {point} follows point {base}."
 }
