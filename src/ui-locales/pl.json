@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "Nowy punkt {point} następuje po punkcie {base}.",
   "documentcontext.single_word_difference": "Pierwotne brzmienie różni się o jedno słowo.",
   "proposalcontexttext.original.citation.omits.an.identifier": "W pierwotnym odesłaniu pominięto identyfikator",
-  "proposalcontexttext.printed.point.label": "Nowy punkt {point}. Etykieta wskazuje punkt {base}."
+  "proposalcontexttext.printed.point.label": "Nowy punkt {point}. Etykieta wskazuje punkt {base}.",
+  "proposalcontexttext.unique.entry.labels": "Umieszczono według jedynego pasującego wpisu. Etykiety są rozbieżne."
 }

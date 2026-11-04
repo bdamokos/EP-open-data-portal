@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "Jaunais punkts {point} seko punktam {base}.",
   "documentcontext.single_word_difference": "Sākotnējais teksts atšķiras par vienu vārdu.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Sākotnējā atsaucē trūkst identifikatora",
-  "proposalcontexttext.printed.point.label": "Jauns {point}. punkts. Norādē minēts {base}. punkts."
+  "proposalcontexttext.printed.point.label": "Jauns {point}. punkts. Norādē minēts {base}. punkts.",
+  "proposalcontexttext.unique.entry.labels": "Novietots pēc vienīgā atbilstošā ieraksta. Norādes atšķiras."
 }

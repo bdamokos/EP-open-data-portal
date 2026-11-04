@@ -1,4 +1,5 @@
 import {assertPrintedInsertion} from './amendment-printed-insertion-oracle.mjs';
+import {assertUniqueEntry} from './amendment-unique-entry-oracle.mjs';
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
 import {assertResolutionCollision} from './amendment-resolution-collision-oracle.mjs';
 import {assertLocalRecitalBoundary} from './amendment-local-recital-oracle.mjs';
@@ -644,6 +645,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
   const printedInsertion=assertPrintedInsertion({items,wording,placement,nativeQuoted});
   if(printedInsertion)return printedInsertion;
+  const uniqueEntry=assertUniqueEntry({items,wording,placement,nativeQuoted});
+  if(uniqueEntry)return uniqueEntry;
   const maintainer=assertMaintainerPrinciple({proposal:items?.[placement.itemIndex]?.proposal,wording,placement});
   if(maintainer.status!=='unverified'){
     const expected=maintainer.reason==='oracle-maintainer-P2'?'insert':expectedOperation(wording);

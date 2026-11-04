@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "Het nieuwe punt {point} volgt op punt {base}.",
   "documentcontext.single_word_difference": "De oorspronkelijke tekst verschilt één woord.",
   "proposalcontexttext.original.citation.omits.an.identifier": "In de oorspronkelijke verwijzing ontbreekt een identificatiecode",
-  "proposalcontexttext.printed.point.label": "Nieuw punt {point}. Het opschrift noemt punt {base}."
+  "proposalcontexttext.printed.point.label": "Nieuw punt {point}. Het opschrift noemt punt {base}.",
+  "proposalcontexttext.unique.entry.labels": "Geplaatst op basis van de unieke vermelding. De opschriften verschillen."
 }

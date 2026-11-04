@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "Naujas {point} punktas eina po {base} punkto.",
   "documentcontext.single_word_difference": "Pradinis tekstas skiriasi vienu žodžiu.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Pradinėje nuorodoje trūksta identifikatoriaus",
-  "proposalcontexttext.printed.point.label": "Naujas {point} punktas. Žymoje nurodytas {base} punktas."
+  "proposalcontexttext.printed.point.label": "Naujas {point} punktas. Žymoje nurodytas {base} punktas.",
+  "proposalcontexttext.unique.entry.labels": "Vieta nustatyta pagal vienintelį atitinkantį įrašą. Žymos nesutampa."
 }

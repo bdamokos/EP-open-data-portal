@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "Нова точка {point} следва точка {base}.",
   "documentcontext.single_word_difference": "Оригиналният текст се различава с една дума.",
   "proposalcontexttext.original.citation.omits.an.identifier": "В първоначалното позоваване е пропуснат идентификатор",
-  "proposalcontexttext.printed.point.label": "Нова точка {point}. В обозначението е посочена точка {base}."
+  "proposalcontexttext.printed.point.label": "Нова точка {point}. В обозначението е посочена точка {base}.",
+  "proposalcontexttext.unique.entry.labels": "Позицията е определена по единственото съвпадение. Обозначенията се различават."
 }

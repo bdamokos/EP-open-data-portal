@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "Az új {point} pont a(z) {base} pontot követi.",
   "documentcontext.single_word_difference": "Az eredeti szöveg egy szóval eltér.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Az eredeti hivatkozásból hiányzik egy azonosító",
-  "proposalcontexttext.printed.point.label": "Új {point}. pont. A címkén ez áll: {base}. pont."
+  "proposalcontexttext.printed.point.label": "Új {point}. pont. A címkén ez áll: {base}. pont.",
+  "proposalcontexttext.unique.entry.labels": "Az egyetlen egyező bejegyzés alapján elhelyezve. A címkék eltérnek."
 }

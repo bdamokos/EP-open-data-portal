@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "O novo ponto {point} segue o ponto {base}.",
   "documentcontext.single_word_difference": "O texto original difere numa palavra.",
   "proposalcontexttext.original.citation.omits.an.identifier": "A citação original omite um identificador",
-  "proposalcontexttext.printed.point.label": "Novo ponto {point}. A designação indica o ponto {base}."
+  "proposalcontexttext.printed.point.label": "Novo ponto {point}. A designação indica o ponto {base}.",
+  "proposalcontexttext.unique.entry.labels": "Posicionado pela entrada única. As designações divergem."
 }

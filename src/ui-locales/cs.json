@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "Nový bod {point} následuje za bodem {base}.",
   "documentcontext.single_word_difference": "Původní znění se liší o jedno slovo.",
   "proposalcontexttext.original.citation.omits.an.identifier": "V původní citaci chybí identifikátor",
-  "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uveden bod {base}."
+  "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uveden bod {base}.",
+  "proposalcontexttext.unique.entry.labels": "Umístěno podle jediného shodného záznamu. Označení se liší."
 }

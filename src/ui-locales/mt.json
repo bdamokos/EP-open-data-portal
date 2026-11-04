@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "Il-punt il-ġdid {point} jiġi wara l-punt {base}.",
   "documentcontext.single_word_difference": "It-test oriġinali jvarja b’kelma waħda.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Iċ-ċitazzjoni oriġinali tħalli barra identifikatur",
-  "proposalcontexttext.printed.point.label": "Punt ġdid {point}. It-tikketta tindika l-punt {base}."
+  "proposalcontexttext.printed.point.label": "Punt ġdid {point}. It-tikketta tindika l-punt {base}.",
+  "proposalcontexttext.unique.entry.labels": "Imqiegħed skont l-entrata unika. It-tikketti ma jaqblux."
 }

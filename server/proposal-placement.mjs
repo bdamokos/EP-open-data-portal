@@ -1,3 +1,4 @@
+import {uniqueAnnexEntryPlacement} from './proposal-unique-entry.mjs';
 import {unnumberedTableInsertion} from './proposal-unnumbered-table.mjs';
 import {tableContextPlacement} from './proposal-table-context.mjs';
 import {rejectionWordingScope} from './amendment-rejection.mjs';
@@ -1022,6 +1023,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     if(placed.status!=='placed')return placed;
     return {...placed,evidence:[...evidence,{basis:'proposal-target-path',label:paths?.[0]?.raw??targetLabel.split('\n')[0]},{basis:'printed-new-point-label',label:printedBase[1],reference:printedBase[1]+'a'},...placed.evidence.filter(e=>e.basis!=='proposal-target-path')]};
   }
+  const uniqueEntry=uniqueAnnexEntryPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline},nativeProposalInputs);
+  if(uniqueEntry)return uniqueEntry;
   const instruction=wholeAnnexInstructionPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences,operation},unresolved,nativeProposalInputs);
   if(instruction)return instruction;
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());

@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "Il nuovo punto {point} segue il punto {base}.",
   "documentcontext.single_word_difference": "Il testo originale differisce di una parola.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Nella citazione originale manca un identificativo",
-  "proposalcontexttext.printed.point.label": "Nuovo punto {point}. L’etichetta indica il punto {base}."
+  "proposalcontexttext.printed.point.label": "Nuovo punto {point}. L’etichetta indica il punto {base}.",
+  "proposalcontexttext.unique.entry.labels": "Posizionato in base alla voce unica. Le etichette non coincidono."
 }

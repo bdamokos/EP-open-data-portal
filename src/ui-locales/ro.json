@@ -2841,5 +2841,6 @@
   "proposalcontexttext.new.point.order": "Noul punct {point} urmează după punctul {base}.",
   "documentcontext.single_word_difference": "Textul original diferă cu un cuvânt.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Citarea originală omite un identificator",
-  "proposalcontexttext.printed.point.label": "Punct nou {point}. Eticheta indică punctul {base}."
+  "proposalcontexttext.printed.point.label": "Punct nou {point}. Eticheta indică punctul {base}.",
+  "proposalcontexttext.unique.entry.labels": "Poziționat pe baza intrării unice. Etichetele diferă."
 }
