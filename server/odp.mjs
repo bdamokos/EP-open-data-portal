@@ -26,6 +26,7 @@ import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,creat
 import {userAgent} from './user-agent.mjs';
 import {speechParagraphText} from './transcript-text.mjs';
 import {compareMembers} from '../src/memberOrder.mjs';
+import {sourceGender} from './gender.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
 const TTL = 6 * 60 * 60 * 1000;
@@ -682,7 +683,7 @@ export function memberSummary(p) {
     imageUrl:
       p.img ||
       `https://www.europarl.europa.eu/mepphoto/${Number(p.identifier)}.jpg`,
-    gender: firstString(p.hasGender).endsWith("/FEMALE") ? "f" : "m",
+    gender: sourceGender(p.hasGender),
     hasCv: null,
     hasEmail: p.hasEmail == null ? null : Boolean(firstString(p.hasEmail).replace(/^mailto:/, "").trim()),
     hasNews: null,
@@ -697,8 +698,8 @@ let directorySources = [];
 let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
-export const DIRECTORY_VERSION = 4;
-export const PROFILE_VERSION = 8;
+export const DIRECTORY_VERSION = 5;
+export const PROFILE_VERSION = 9;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -1028,7 +1029,7 @@ export async function odpDirectory({retryCommitteeDetails=false}={}) {
         organizationMemberships,
         organizationMembershipsComplete: Boolean(profile?.organizationMembershipsComplete && organizationMemberships?.every(row=>row.current!==null)),
         birthDate: profile?.birthDate,
-        gender: profile?.gender || m.gender,
+        gender: profile ? profile.gender : m.gender,
         memberships: profile?.memberships.map(membership => ({
           ...membership,
           current: validDuring({startDate:membership.start,endDate:membership.end}),

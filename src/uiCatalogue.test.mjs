@@ -125,8 +125,8 @@ test('all reachable messages have translated values in each supported language',
       // grammatical branches; other languages use the common reviewed messages.
       if(id.startsWith('MotionComparison.contextStage.')&&language!=='ro')continue;
       if((id.startsWith('membervotesummary.fullPosition.')||id.startsWith('membervotes.summary.recorded.'))&&!['ro','lt'].includes(language))continue;
-      // New Topics, vote-group, ballot and hemicycle messages use the documented per-message English fallback.
-      if((id.startsWith('topics.')||id.startsWith('votegroups.')||id.startsWith('yourVote.')||id.startsWith('hemicycle.'))&&!Object.hasOwn(catalogue,id))continue;
+      // New Topics, vote-group, ballot, hemicycle and other-gender messages use the documented per-message English fallback.
+      if((id.startsWith('topics.')||id.startsWith('votegroups.')||id.startsWith('yourVote.')||id.startsWith('hemicycle.')||id==='insightshared.genderOther')&&!Object.hasOwn(catalogue,id))continue;
       assert.equal(typeof catalogue[id],'string',language+': '+id);
       assert(catalogue[id].trim(),language+': '+id);
     }
@@ -144,4 +144,16 @@ test('ballot messages use per-message English fallback without replacing transla
   const ui=createAppUiI18n({hu:{'yourVote.for':'Mellette'}}).forLocale('hu');
   assert.equal(ui.t('yourVote.for'),'Mellette');assert.equal(ui.messageLocale('yourVote.for'),'hu');
   assert.equal(ui.t('yourVote.list'),'Voting list');assert.equal(ui.messageLocale('yourVote.list'),'en');
+});
+
+test('other-gender wording falls back individually while adjacent gender labels remain translated',async()=>{
+ const catalogue=JSON.parse(await readFile(new URL('./ui-locales/de.json',import.meta.url),'utf8'));
+ // Exercise an intentional omission, independent of future catalogue translations.
+ delete catalogue['insightshared.genderOther'];
+ const ui=createAppUiI18n({de:catalogue}).forLocale('de');
+ assert.equal(ui.t('insightshared.genderOther'),'Other / unspecified');
+ assert.equal(ui.messageLocale('insightshared.genderOther'),'en');
+ for(const id of ['insightshared.genderFemale','insightshared.genderMale','insightshared.not_provided']){
+  assert.equal(ui.t(id),catalogue[id]);assert.equal(ui.messageLocale(id),'de');
+ }
 });

@@ -66,7 +66,7 @@ test('current unique-person denominator excludes people outside roster; absent g
   const metadata=new Map([['1',{'api:country-of-representation':'HU','api:political-group':'PPE',hasGender:'authority/FEMALE',bday:'1980-10-15'}],['2',{hasGender:'authority/NKN',bday:'2026-99-99'}]]);
   const s=demographicStats(['1','1','2','3','99'],members,metadata,'2026-10-14');
   assert.equal(s.uniquePeople,4);assert.equal(s.uniqueCurrentMeps,3);assert.equal(s.peopleOutsideCurrentRoster,1);
-  assert.equal(s.dimensions.gender.find(d=>d.label==='Unknown').count,2);assert(!s.dimensions.gender.some(d=>d.label==='Male'));
+  assert.equal(s.dimensions.gender.find(d=>d.label==='Unknown').count,1);assert.equal(s.dimensions.gender.find(d=>d.label==='Other').count,1);assert(!s.dimensions.gender.some(d=>d.label==='Male'));
   for(const values of Object.values(s.dimensions))assert.equal(values.reduce((n,v)=>n+v.count,0),3);
   assert.equal(ageAt('1980-10-15','2026-10-14'),45);assert.equal(ageAt('1980-10-15','2026-10-15'),46);assert.equal(ageAt('2020-02-30','2026-10-14'),null);
 });

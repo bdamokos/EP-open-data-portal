@@ -72,6 +72,7 @@
   /* Other categorical chart series. */
   --chart-1: light-dark(#2f6fa8, #78b9ed);
   --chart-2: light-dark(#23845a, #83d8bc);
+  --chart-3: light-dark(#8b5ba7, #c5a3de);
   --chart-neutral: light-dark(#8a929c, #8292a6);
   /* Sequential map scale; values blend from low to high. */
   --map-low: light-dark(#d9e9ea, #1f3437);
