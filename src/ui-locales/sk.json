@@ -1,5 +1,6 @@
 {
   "proposalcontexttext.formula.not.shown": "Vzorec nie je zobrazený.",
+  "proposalcontexttext.preceding.new.annex": "Nasleduje po pozmeňujúcom návrhu {number} v poradí návrhov.",
   "amendment.replaces_whole_text": "Nahrádza celý text.",
   "amendment.agreement_text": "Text dohody",
   "amendment.final_act": "Konečný akt: {act}",

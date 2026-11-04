@@ -1,5 +1,6 @@
 {
   "proposalcontexttext.formula.not.shown": "Formula nije prikazana.",
+  "proposalcontexttext.preceding.new.annex": "Slijedi amandman {number} prema redoslijedu amandmana.",
   "amendment.replaces_whole_text": "Zamjenjuje cijeli tekst.",
   "amendment.agreement_text": "Tekst sporazuma",
   "amendment.final_act": "Konačni akt: {act}",

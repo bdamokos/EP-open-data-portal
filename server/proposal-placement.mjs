@@ -5,7 +5,7 @@ import {nativeInlineRowsComplete,nativeTitleRowsComplete} from './proposal-inlin
 import {quotedSectionPointInsertion} from './proposal-quoted-section.mjs';
 import {wholeAnnexInstructionPlacement} from './proposal-whole-instruction.mjs';
 import {similarPassage} from './proposal-similarity.mjs';
-import {firstAnnexInsertion} from './proposal-first-annex.mjs';
+import {firstAnnexInsertion,sequentialAnnexInsertion} from './proposal-first-annex.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
@@ -907,7 +907,7 @@ function negativeArticlePlacement(items,proposedText,language,evidence,unresolve
   return {operation:'insert',status:'placed',itemIndex:first.itemIndex,insertAfter:unit.extent.start-1,insertBefore:unit.extent.start,evidence};
 }
 
-export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline,documentReferences}={}, {nativeProposalInputs}={}) {
+export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline,documentReferences,number,listId}={}, {nativeProposalInputs}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
   const mixedScope=amendmentMixedLanguageScope({originalText,proposedText,language});
@@ -921,6 +921,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(unnumbered)return unnumbered;
   const tableContext=operation==='replace'?tableContextPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences},nativeProposalInputs):null;if(tableContext)return tableContext;
   if(operation==='replace'&&documentReferences?.some(ref=>ref.basis==='caption-before-original-heading'))return unresolved('conflicting_target_evidence');
+  const sequence=sequentialAnnexInsertion(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences,number,listId},nativeProposalInputs);
+  if(sequence)return sequence.status==='placed'?{...sequence,evidence:[...evidence,...sequence.evidence]}:unresolved(sequence.reason);
   const firstAnnex=firstAnnexInsertion(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences},nativeProposalInputs);
   if(firstAnnex)return firstAnnex.reason?unresolved(firstAnnex.reason):firstAnnex;
   // Lists without structured location tags still publish the location as a

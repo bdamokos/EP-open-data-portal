@@ -1,5 +1,6 @@
 {
   "proposalcontexttext.formula.not.shown": "Ο τύπος δεν εμφανίζεται.",
+  "proposalcontexttext.preceding.new.annex": "Ακολουθεί την τροπολογία {number} κατά τη σειρά των τροπολογιών.",
   "amendment.replaces_whole_text": "Αντικαθιστά ολόκληρο το κείμενο.",
   "amendment.agreement_text": "Κείμενο της συμφωνίας",
   "amendment.final_act": "Τελική πράξη: {act}",

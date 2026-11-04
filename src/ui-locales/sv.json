@@ -1,5 +1,6 @@
 {
   "proposalcontexttext.formula.not.shown": "Formeln visas inte.",
+  "proposalcontexttext.preceding.new.annex": "Följer ändringsförslag {number} i ändringsförslagens ordning.",
   "amendment.replaces_whole_text": "Ersätter hela texten.",
   "amendment.agreement_text": "Överenskommelsens text",
   "amendment.final_act": "Slutlig akt: {act}",

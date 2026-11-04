@@ -1,5 +1,6 @@
 {
   "proposalcontexttext.formula.not.shown": "Formlen vises ikke.",
+  "proposalcontexttext.preceding.new.annex": "Følger ændringsforslag {number} i ændringsforslagenes rækkefølge.",
   "amendment.replaces_whole_text": "Erstatter hele teksten.",
   "amendment.agreement_text": "Aftalens tekst",
   "amendment.final_act": "Endelig retsakt: {act}",

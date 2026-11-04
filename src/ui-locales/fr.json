@@ -1,5 +1,6 @@
 {
   "proposalcontexttext.formula.not.shown": "Formule non affichée.",
+  "proposalcontexttext.preceding.new.annex": "Suit l’amendement {number}, dans l’ordre des amendements.",
   "amendment.replaces_whole_text": "Remplace tout le texte.",
   "amendment.agreement_text": "Texte de l’accord",
   "amendment.final_act": "Acte final : {act}",

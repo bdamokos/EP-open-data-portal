@@ -38,7 +38,7 @@ function proposalInstructionPlacement(items,chosen) {
 
 /** Pure final placement selection shared by the endpoint and offline consumers.
  * Source acquisition, identity checks and proposal parsing belong to the caller. */
-export function documentContextPlacement({chosen,text,items,baseline,proposalItems=null,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true,nativeProposalInputs}={}) {
+export function documentContextPlacement({chosen,text,items,baseline,proposalItems=null,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true,nativeProposalInputs,amendmentNumber}={}) {
   if(!includeBody)return null;
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
@@ -80,10 +80,10 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
     // Preserve established exact body/note rules outside the guarded CNS/NLE
     // templates. The new column-scope proof is a recovery for unresolved rows.
     if(detachedNotes&&!consultation&&!nle){
-      const established=resolveProposalPlacement(items,selected,{nativeProposalInputs});
+      const established=resolveProposalPlacement(items,{...selected,number:selected.number??amendmentNumber},{nativeProposalInputs});
       if(established.status==='placed')return established;
     }
-    return detachedNotes?resolveProposalNoteScope(items,selected):resolveProposalPlacement(items,selected,{nativeProposalInputs});
+    return detachedNotes?resolveProposalNoteScope(items,selected):resolveProposalPlacement(items,{...selected,number:selected.number??amendmentNumber},{nativeProposalInputs});
   }
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
   const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));

@@ -7,7 +7,7 @@ import {assertCaptionedComparison} from './amendment-captioned-comparison-oracle
 import {assertTableContext} from './amendment-table-context-oracle.mjs';
 import {assertResolutionBoundaryInsertion} from './amendment-resolution-boundary-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
-import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
+import {assertFirstAnnex,assertSequentialAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
 import {assertFormulaGap} from './amendment-formula-gap-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
@@ -653,6 +653,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const tableEnd=assertUnnumberedTable({proposal,wording,placement,nativeQuoted,voteReferences});
   if(tableEnd.status!=='unverified')return tableEnd;
   const newParent=assertNewParentBoundary({proposal,wording,placement});if(newParent.status!=='unverified')return newParent;
+  const sequence=assertSequentialAnnex({proposal,items,wording,placement,nativeQuoted});if(sequence)return sequence;
   const firstAnnex=assertFirstAnnex({proposal,items,wording,placement,nativeQuoted});
   if(firstAnnex)return firstAnnex;
   if(proposal) {

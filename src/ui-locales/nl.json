@@ -1,5 +1,6 @@
 {
   "proposalcontexttext.formula.not.shown": "Formule niet weergegeven.",
+  "proposalcontexttext.preceding.new.annex": "Volgt op amendement {number} in de volgorde van de amendementen.",
   "amendment.replaces_whole_text": "Vervangt de volledige tekst.",
   "amendment.agreement_text": "Tekst van het akkoord",
   "amendment.final_act": "Definitieve handeling: {act}",
