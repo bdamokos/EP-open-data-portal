@@ -1,5 +1,6 @@
 // Independent printed-text oracle. Deliberately imports no producer, label
 // parser, proposal parser or placer. Poppler text is supplied by its caller.
+import {nativeCouncilListSubparagraphs} from './amendment-council-list-oracle.mjs';
 const fold=s=>String(s??'').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 const literal=s=>String(s??'').normalize('NFC').replace(/\s+/gu,' ').trim();
 const unknown=reason=>({status:'unverified',reason:'oracle-council-pdf-'+reason});
@@ -100,8 +101,9 @@ function nativeUnitText(section,unit) {
  const result=start===undefined||finish===undefined?null:text.slice(start,finish);
  return result!==null&&coordinates(result)===coordinates(unit.text)?result:null;
 }
-export function councilArticleNativeScope(raw,wording) {
+export function councilArticleNativeScope(raw,wording,{nativeBodyWords}={}) {
  const g=grammar[wording.language];if(!g)return null;
+ if(wording.targetLabel!==undefined&&wording.targetPath?.proposal?.[0]?.raw!==undefined&&literal(String(wording.targetLabel).split('\n')[0])!==literal(wording.targetPath.proposal[0].raw))return null;
  const outer=label(wording.targetPath?.proposal?.[0]?.raw??String(wording.targetLabel??'').split('\n')[0],g);
  // Spanish uses párrafo for the proposal's unnumbered article lead and for
  // subparagraphs. The full outer article/lead/point frame disambiguates it.
@@ -140,14 +142,20 @@ export function councilArticleNativeScope(raw,wording) {
    // filtering cannot prove where that child ends. Check original native lines
    // too, so a list without blank separators cannot hide inside a flat block.
    const raw=nativeUnitText(section,u);
-   if(raw===null||raw.split(/\r?\n/u).slice(1).some(line=>/^[ \t]*[„“‘«»"]?(?:\([\p{L}\p{N}]+\)|[\p{L}]{1,3}[.)]|[ivxlcdm]+[.)]|\d+[.)])[ \t]+\S/iu.test(line)))return [];
+   if(raw===null)return [];
+   if(raw.split(/\r?\n/u).slice(1).some(line=>/^[ \t]*[„“‘«»"]?(?:\([\p{L}\p{N}]+\)|[\p{L}]{1,3}[.)]|[ivxlcdm]+[.)]|\d+[.)])[ \t]+\S/iu.test(line))){
+    const supported=inner[1]?.kind==='paragraph'&&inner[2]===segment&&(inner.length===3||inner.length===4&&inner[3].kind==='point'&&inner[3].suffix==='a');
+    const peers=children(section,'paragraph'),index=peers.findIndex(p=>p.offset===u.offset&&p.value===u.value&&coordinates(p.text)===coordinates(u.text)),boundary=index<0?null:peers[index+1]?.blocks[0];
+    const proved=wording.language==='cs'&&supported?nativeCouncilListSubparagraphs(raw,nativeBodyWords,boundary):null,block=proved?.[Number(segment.value)-1];
+    return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset,listGeometry:true,...(Number(segment.value)===1?{followingText:proved[1]?.text}:{})}]:[];
+   }
    const direct=blocksWithOffsets(u.text),block=direct[Number(segment.value)-1];return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset}]:[];
   });else return null;
  }
  return {section,followingSection,units,inner,outer,point,frame:source.slice(begin.index,begin.index+begin[0].length+end)};
 }
-export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
- const scope=councilArticleNativeScope(raw,wording);if(!scope)return unknown('article-ownership-unproved');
+export function assertCouncilDraftArticleText(raw,{placement,wording,items,nativeBodyWords}) {
+ const scope=councilArticleNativeScope(raw,wording,{nativeBodyWords});if(!scope)return unknown('article-ownership-unproved');
  const proposal=items?.[placement.itemIndex]?.proposal;if(!proposal)return unknown('projection-unavailable');
  const owner=projectedOwner(proposal,scope);if(!owner)return failed();
  if(placement.operation==='insert'){
@@ -158,7 +166,8 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
   }
   const parents=scope.units;
   if(!parents?.length)return unknown('article-insertion-parent-unproved');
-  const siblings=parents.flatMap(p=>children(p.text,last.kind).map(child=>({...child,offset:p.offset+child.offset}))),anchors=siblings.filter(s=>s.value===last.base);if(anchors.length!==1)return unknown('article-insertion-anchor-unproved');
+  const siblings=parents.flatMap(p=>children(p.text,last.kind).map(child=>({...child,offset:p.offset+child.offset,followingText:p.followingText,listGeometry:p.listGeometry}))),anchors=siblings.filter(s=>s.value===last.base);if(anchors.length!==1)return unknown('article-insertion-anchor-unproved');
+  if(anchors[0].listGeometry&&(wording.originalText?.trim()||last.kind!=='point'||last.suffix!=='a'||!new RegExp('^'+escape(last.value)+'\\)\\s+\\S','u').test(wording.proposedText?.trim()??'')))return unknown('article-list-insertion-label-unproved');
   if(new Set(siblings.map(s=>s.value)).size!==siblings.length)return unknown('article-insertion-numbering-unproved');
   const index=siblings.indexOf(anchors[0]),next=siblings[index+1];
   const after=proposal.paragraphs[placement.insertAfter]?.text,before=proposal.paragraphs[placement.insertBefore]?.text;
@@ -169,7 +178,7 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
    const s=placement.splice,tail=/[“’»«"][.;]?\s*$/u.exec(after);
    if(next||!tail||!/[“’»«"][.;]?\s*$/u.test(anchors[0].text)||s.start?.paragraph!==placement.insertAfter||s.end?.paragraph!==placement.insertAfter||s.start?.offset!==tail.index||s.end?.offset!==tail.index)return failed();
   }else{
-   const following=next?.text??scope.followingSection;
+   const following=next?.text??anchors[0].followingText??scope.followingSection;
    if(!before||!following||!fold(following).startsWith(fold(before)))return unknown('article-insertion-end-unproved');
   }
   return {status:'verified',reason:'native-council-pdf-article-insertion-boundaries'};
