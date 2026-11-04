@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Nuova tabella senza numero inserita alla fine dell’allegato.",
   "proposalcontexttext.new.point.order": "Il nuovo punto {point} segue il punto {base}.",
   "documentcontext.single_word_difference": "Il testo originale differisce di una parola.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "Nella citazione originale manca un identificativo"
+  "proposalcontexttext.original.citation.omits.an.identifier": "Nella citazione originale manca un identificativo",
+  "proposalcontexttext.printed.point.label": "Nuovo punto {point}. L’etichetta indica il punto {base}."
 }

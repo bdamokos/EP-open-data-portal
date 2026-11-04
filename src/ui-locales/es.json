@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Nueva tabla sin numerar situada al final del anexo.",
   "proposalcontexttext.new.point.order": "El nuevo punto {point} sigue al punto {base}.",
   "documentcontext.single_word_difference": "El texto original difiere en una palabra.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "La cita original omite un identificador"
+  "proposalcontexttext.original.citation.omits.an.identifier": "La cita original omite un identificador",
+  "proposalcontexttext.printed.point.label": "Nuevo punto {point}. La etiqueta indica el punto {base}."
 }

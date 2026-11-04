@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Neue unnummerierte Tabelle am Ende des Anhangs eingefügt.",
   "proposalcontexttext.new.point.order": "Die neue Nummer {point} folgt auf Nummer {base}.",
   "documentcontext.single_word_difference": "Der ursprüngliche Wortlaut weicht um ein Wort ab.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "In der ursprünglichen Quellenangabe fehlt eine Kennung"
+  "proposalcontexttext.original.citation.omits.an.identifier": "In der ursprünglichen Quellenangabe fehlt eine Kennung",
+  "proposalcontexttext.printed.point.label": "Neue Nummer {point}. Die Überschrift nennt Nummer {base}."
 }

@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Nowa tabela bez numeru umieszczona na końcu załącznika.",
   "proposalcontexttext.new.point.order": "Nowy punkt {point} następuje po punkcie {base}.",
   "documentcontext.single_word_difference": "Pierwotne brzmienie różni się o jedno słowo.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "W pierwotnym odesłaniu pominięto identyfikator"
+  "proposalcontexttext.original.citation.omits.an.identifier": "W pierwotnym odesłaniu pominięto identyfikator",
+  "proposalcontexttext.printed.point.label": "Nowy punkt {point}. Etykieta wskazuje punkt {base}."
 }

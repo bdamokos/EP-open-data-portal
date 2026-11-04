@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Tábla nua gan uimhir curtha ag deireadh na hiarscríbhinne.",
   "proposalcontexttext.new.point.order": "Tagann pointe nua {point} i ndiaidh phointe {base}.",
   "documentcontext.single_word_difference": "Tá difríocht aon fhocail sa bhuntéacs.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "Tá aitheantóir ar iarraidh sa tagairt bhunaidh"
+  "proposalcontexttext.original.citation.omits.an.identifier": "Tá aitheantóir ar iarraidh sa tagairt bhunaidh",
+  "proposalcontexttext.printed.point.label": "Pointe nua {point}. Léiríonn an lipéad pointe {base}."
 }

@@ -2941,5 +2941,6 @@
   "proposalcontexttext.new.unnumbered.table": "New unnumbered table placed at the end of the annex.",
   "proposalcontexttext.new.point.order": "New point {point} follows point {base}.",
   "documentcontext.single_word_difference": "Original wording differs by one word.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "Original citation omits an identifier"
+  "proposalcontexttext.original.citation.omits.an.identifier": "Original citation omits an identifier",
+  "proposalcontexttext.printed.point.label": "New point {point}. The label reads point {base}."
 }

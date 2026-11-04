@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Ny unummereret tabel placeret sidst i bilaget.",
   "proposalcontexttext.new.point.order": "Nyt punkt {point} følger efter punkt {base}.",
   "documentcontext.single_word_difference": "Den oprindelige ordlyd afviger med ét ord.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "Den oprindelige henvisning mangler en identifikator"
+  "proposalcontexttext.original.citation.omits.an.identifier": "Den oprindelige henvisning mangler en identifikator",
+  "proposalcontexttext.printed.point.label": "Nyt punkt {point}. Betegnelsen angiver punkt {base}."
 }

@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Tabel nou nenumerotat inserat la sfârșitul anexei.",
   "proposalcontexttext.new.point.order": "Noul punct {point} urmează după punctul {base}.",
   "documentcontext.single_word_difference": "Textul original diferă cu un cuvânt.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "Citarea originală omite un identificator"
+  "proposalcontexttext.original.citation.omits.an.identifier": "Citarea originală omite un identificator",
+  "proposalcontexttext.printed.point.label": "Punct nou {point}. Eticheta indică punctul {base}."
 }

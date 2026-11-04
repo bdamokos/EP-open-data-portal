@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Νέος μη αριθμημένος πίνακας στο τέλος του παραρτήματος.",
   "proposalcontexttext.new.point.order": "Το νέο σημείο {point} ακολουθεί το σημείο {base}.",
   "documentcontext.single_word_difference": "Το αρχικό κείμενο διαφέρει κατά μία λέξη.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "Από την αρχική παραπομπή λείπει αναγνωριστικό"
+  "proposalcontexttext.original.citation.omits.an.identifier": "Από την αρχική παραπομπή λείπει αναγνωριστικό",
+  "proposalcontexttext.printed.point.label": "Νέο σημείο {point}. Η ένδειξη αναφέρει το σημείο {base}."
 }

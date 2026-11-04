@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Nouveau tableau non numéroté placé à la fin de l’annexe.",
   "proposalcontexttext.new.point.order": "Le nouveau point {point} suit le point {base}.",
   "documentcontext.single_word_difference": "Le texte original diffère d’un mot.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "La référence d’origine omet un identifiant"
+  "proposalcontexttext.original.citation.omits.an.identifier": "La référence d’origine omet un identifiant",
+  "proposalcontexttext.printed.point.label": "Nouveau point {point}. Le libellé indique le point {base}."
 }

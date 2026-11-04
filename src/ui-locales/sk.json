@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Nová nečíslovaná tabuľka je umiestnená na konci prílohy.",
   "proposalcontexttext.new.point.order": "Nový bod {point} nasleduje za bodom {base}.",
   "documentcontext.single_word_difference": "Pôvodné znenie sa líši o jedno slovo.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "V pôvodnej citácii chýba identifikátor"
+  "proposalcontexttext.original.citation.omits.an.identifier": "V pôvodnej citácii chýba identifikátor",
+  "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uvedený bod {base}."
 }

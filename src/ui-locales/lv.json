@@ -2840,5 +2840,6 @@
   "proposalcontexttext.new.unnumbered.table": "Jauna nenumurēta tabula ievietota pielikuma beigās.",
   "proposalcontexttext.new.point.order": "Jaunais punkts {point} seko punktam {base}.",
   "documentcontext.single_word_difference": "Sākotnējais teksts atšķiras par vienu vārdu.",
-  "proposalcontexttext.original.citation.omits.an.identifier": "Sākotnējā atsaucē trūkst identifikatora"
+  "proposalcontexttext.original.citation.omits.an.identifier": "Sākotnējā atsaucē trūkst identifikatora",
+  "proposalcontexttext.printed.point.label": "Jauns {point}. punkts. Norādē minēts {base}. punkts."
 }
