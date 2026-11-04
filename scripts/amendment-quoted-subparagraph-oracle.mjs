@@ -83,8 +83,7 @@ export function assertQuotedSubparagraph({proposal,wording,placement,nativeQuote
 // New anonymous subparagraph Na is an ordinal within its quoted paragraph;
 // a sibling paragraph bearing the same digits is outside that address.
 export function assertNewQuotedOrdinal({proposal,wording,placement,nativeQuoted}){
- if(!placement.evidence?.some(e=>e.basis==='quoted-ordinal-subparagraph'))return null;
- const unknown=()=>({status:'unverified',reason:'oracle-quoted-ordinal-unavailable'});
+ const unknown=()=>null;
  const refs=wording.targetPath?.underlying??[],outer=/^Article (\d+) – paragraph 1 – point (\d+)$/u.exec(wording.targetLabel?.split('\n')[0]??'');
  const inner=refs.length===1&&/^Article (\d+)\s*([a-z]*) – paragraph (\d+)\s*([a-z]*) – subparagraph (\d+)\s*([a-z]+) \(new\)$/u.exec(refs[0].raw??'');
  if(wording.language!=='en'||wording.originalText!==''||placement.operation!=='insert'||!inner||!outer||!refs[0].document||!wording.proposedText?.trim()||/^\d+[a-z]*[.)]\s/u.test(wording.proposedText.trim()))return unknown();

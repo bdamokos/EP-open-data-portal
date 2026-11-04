@@ -639,7 +639,7 @@ function printedInnerPath(targetLabel,targetPath,language) {
 }
 const SUBPARAGRAPH_ORDINALS=['first','second','third','fourth','fifth','sixth'];
 function quotedOrdinalSubparagraphInsertion(selected,targetPath,proposedText,language) {
- const refs=targetPath?.underlying??[];if(language!=='en'||targetPath.language!==language||refs.length!==1||!refs[0].document)return null;
+ const refs=targetPath?.underlying??[];if(language!=='en'||targetPath?.language!==language||refs.length!==1||!refs[0].document)return null;
  const inner=parseTargetLabel(refs[0].raw,language),label=inner.segments.at(-1);
  if(!inner.complete||inner.segments.length!==3||inner.segments[0].kind!=='article'||inner.segments[1].kind!=='paragraph'||label?.kind!=='subparagraph'||!label.isNew||!label.suffix||label.negative||!proposedText?.trim()||/^\d+[a-z]*[.)]\s/u.test(proposedText.trim())||instructionOperation(proposedText,language))return null;
  const {proposal,unit:owner,itemIndex}=selected;if(owner.scope!=='proposal'||!owner.instruction||!completeBoundary(proposal,owner))return null;
