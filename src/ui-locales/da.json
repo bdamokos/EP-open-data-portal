@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "Placeret før den eksisterende henvisning.",
+  "documentcontext.after_paragraph_lead": "Placeret efter afsnittets indledning.",
   "documentcontext.final_placement_check": "Kontrollér den endelige placering i {adoptedText}.",
   "documentcontext.adopted_text": "den vedtagne tekst",
   "amendment.alternative_motion": "Alternativt forslag",

@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "Se coloca antes de la referencia existente.",
+  "documentcontext.after_paragraph_lead": "Se coloca después de la introducción del apartado.",
   "documentcontext.final_placement_check": "Compruebe la ubicación definitiva en {adoptedText}.",
   "documentcontext.adopted_text": "el texto aprobado",
   "amendment.alternative_motion": "Propuesta alternativa",

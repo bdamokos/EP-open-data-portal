@@ -579,6 +579,13 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
   const span = unit => ({start: unit.start, end: unit.end});
   if (operation === 'insert') {
+    if(ref?.kind==='citation'&&ref.isNew&&!ref.suffix&&!ref.parents.length&&/^[1-9]\d{0,5}$/u.test(ref.label)){
+      const citations=units.filter(unit=>unit.kind==='citation').sort((a,b)=>a.start-b.start),at=Number(ref.label)-1,following=citations[at],prior=citations[at-1];
+      if(at<1||!following||!prior||citations.some((unit,i)=>unit.label!==String(i+1)||unit.start!==unit.end)||prior.end+1!==following.start||!complete(structure.start,following.end)||[prior,following].some(unit=>structure.invalid.has(unit.start)||structure.uncertain.has(unit.start)))return unresolved('insertion_reference_unavailable');
+      if(referenceText||!/^[–—−-]\s*\S/u.test(options.proposedText))return unresolved('conflicting_target_evidence');
+      evidence.push({basis:'citation-number-collision',label:ref.label,anchor:prior.label});
+      return placed({insertAfter:prior.end,insertBefore:following.start});
+    }
     if(ref?.kind==='recital'&&ref.isNew&&!ref.parents.length) {
       const recitals=units.filter(unit=>unit.kind==='recital'),first=units.find(unit=>unit.kind==='paragraph');
       const ordinal=value=>/^[A-Z]+$/u.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;

@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "Paigutatud olemasoleva viite ette.",
+  "documentcontext.after_paragraph_lead": "Paigutatud lõike sissejuhatava teksti järele.",
   "documentcontext.final_placement_check": "Kontrollige lõplikku asukohta {adoptedText}.",
   "documentcontext.adopted_text": "vastuvõetud tekstis",
   "amendment.alternative_motion": "Alternatiivne ettepanek",

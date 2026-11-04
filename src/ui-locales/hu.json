@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "A meglévő hivatkozás elé helyezve.",
+  "documentcontext.after_paragraph_lead": "A bekezdés bevezető szövege után helyezve.",
   "documentcontext.final_placement_check": "Ellenőrizze a végleges helyet {adoptedText}.",
   "documentcontext.adopted_text": "az elfogadott szövegben",
   "amendment.alternative_motion": "Alternatív indítvány",

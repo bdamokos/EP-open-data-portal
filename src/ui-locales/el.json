@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "Τοποθετείται πριν από την υπάρχουσα αναφορά.",
+  "documentcontext.after_paragraph_lead": "Τοποθετείται μετά το εισαγωγικό κείμενο της παραγράφου.",
   "documentcontext.final_placement_check": "Ελέγξτε την τελική θέση στο {adoptedText}.",
   "documentcontext.adopted_text": "εγκριθέν κείμενο",
   "amendment.alternative_motion": "Εναλλακτική πρόταση",

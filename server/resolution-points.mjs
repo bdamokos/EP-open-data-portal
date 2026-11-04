@@ -82,13 +82,22 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   try { target = parseTargetLabel(options.targetLabel, options.language); } catch { return null; }
   const segments = target.segments;
   if (!target.complete || segments?.length < 2 || segments[0].kind !== 'paragraph' || segments.slice(1).some(part => part.kind !== 'point')) return null;
-  if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))) return null;
+  const firstNumeric=options.language==='fr'&&operation==='insert'&&segments.length===2&&segments[1].isNew&&segments[1].base==='1'&&segments[1].suffix==='bis';
+  if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))&&!firstNumeric) return null;
   if (segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
     && unit.label === (operation === 'insert' ? segments[1].base : segments[1].value)
     && structure.units.find(parent => parent.start === unit.parent)?.label === segments[0].value)) return null;
   const units = pointUnits(text, rows, structure), evidence = [{basis: 'published-point-path', path: segments.map(({kind, value}) => ({kind, value}))}];
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const matches = units.filter(unit => samePath(unit.path, segments));
+  if(firstNumeric){
+    const points=units.filter(unit=>unit.path.length===2&&unit.path[0].value===segments[0].value).sort((a,b)=>a.start-b.start),first=points[0],parent=first?.parent;
+    if(!first||first.value!=='a'||!first.complete||points.some(unit=>unit.parent!==parent)||!/^1\s*bis\)\s/u.test(options.proposedText)||options.originalText!==''||options.referenceText)return unresolved('insertion_reference_unavailable');
+    const start=parent.start,interior=first.start-start;
+    if(![1,2].includes(interior)||!/:\s*$/u.test(rows[start].value)||interior===2&&!resolutionSubheading(rows[start+1].value,text.paragraphFormats?.[start+1])||rows.slice(start,first.start+1).some((row,i)=>!row.complete||row.source.container!=='body'||i&&!contiguous(rows[start+i-1],row)))return unresolved('source_passage_incomplete');
+    evidence.push({basis:'first-numeric-point-in-lettered-list',anchor:start});
+    return {operation,status:'placed',insertAfter:start,insertBefore:start+1,evidence};
+  }
   if (operation === 'insert') {
     if (matches.length) return unresolved('duplicate_target_label');
     const label = segments.at(-1);

@@ -1406,3 +1406,20 @@ test('placed NLE comparison keeps detached notes outside the provision body with
  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
  const block=h.container.querySelector('[data-amendment-block]'),notes=block.querySelector('[data-amendment-notes]');assert(notes);assert.equal(notes.querySelector('h5').textContent,'Notes · 2');const body=block.querySelector('.wording-diff');assert(!body.textContent.includes('citation'));assert.equal(wordingText(body,'proposed'),'(1)\tChanged2.');assert.equal(body.querySelectorAll('sup').length,3);assert(notes.textContent.includes('1 First citation.'));assert(notes.textContent.includes('2 Second citation.'));assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,1);
 });
+
+test('resolution boundary notes remain with the insertion and preserve the source on both sides',async t=>{
+  const data=overlayResponse({insertAfter:1,insertBefore:2});
+  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','– First citation,','– Existing second citation,','1. Source paragraph;']});
+  data.placement.evidence=[{basis:'citation-number-collision'}];
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  let block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/Placed before the existing citation\./);assert.match(block.previousElementSibling.textContent,/First citation/);assert.match(block.nextElementSibling.textContent,/Existing second citation/);
+});
+
+test('resolution boundary note follows the paragraph lead before its heading',async t=>{
+  const data=overlayResponse({insertAfter:1,insertBefore:2});
+  data.placement.evidence=[{basis:'first-numeric-point-in-lettered-list'}];
+  const h=await harness(t,()=>data);
+  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','1. Paragraph lead:','Topic heading','a) First source point;']});
+  await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/Placed after the paragraph lead\./);assert.match(block.previousElementSibling.textContent,/Paragraph lead/);assert.match(block.nextElementSibling.textContent,/Topic heading/);
+});

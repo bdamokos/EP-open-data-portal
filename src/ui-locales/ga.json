@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "Curtha roimh an tagairt atá ann cheana.",
+  "documentcontext.after_paragraph_lead": "Curtha i ndiaidh théacs tosaigh na míre.",
   "documentcontext.final_placement_check": "Seiceáil an suíomh deiridh sa {adoptedText}.",
   "documentcontext.adopted_text": "téacs a glacadh",
   "amendment.alternative_motion": "Tairiscint mhalartach",

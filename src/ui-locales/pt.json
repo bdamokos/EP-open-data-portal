@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "Colocado antes da referência existente.",
+  "documentcontext.after_paragraph_lead": "Colocado após o texto introdutório do número.",
   "documentcontext.final_placement_check": "Verifique a posição final no {adoptedText}.",
   "documentcontext.adopted_text": "texto aprovado",
   "amendment.alternative_motion": "Proposta alternativa",

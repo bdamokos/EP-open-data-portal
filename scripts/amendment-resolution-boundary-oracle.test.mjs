@@ -9,3 +9,7 @@ test('incomplete, nonnative and ambiguous boundary evidence never verifies',()=>
  for(const change of [xml=>xml.replace('The European Parliament,','Other opener'),xml=>xml.replace('</w:body>',boundaryParagraph('The European Parliament,')+'</w:body>'),xml=>xml.replace('<w:t>–','<w:object/><w:t>–')])assert.notEqual(assertResolutionBoundaryInsertion(resolutionBoundaryNative({change})).status,'verified');
  for(const change of [xml=>xml.replace('<w:b/>',''),xml=>xml.replace('<w:i/>',''),xml=>xml.replace('a)','c)'),xml=>xml.replace('suivantes:','suivantes;'),xml=>xml.replace('w:left="300"','w:left="100"')])assert.notEqual(assertResolutionBoundaryInsertion(resolutionBoundaryNative({point:true,change})).status,'verified');
 });
+test('native note references preserve citation ordinals while visible objects cannot',()=>{
+ const input=resolutionBoundaryNative({note:true});assert.equal(assertResolutionBoundaryInsertion(input).status,'verified');
+ const object=resolutionBoundaryNative({change:xml=>xml.replace('first source,</w:t>','first source,</w:t><w:object/>')});assert.notEqual(assertResolutionBoundaryInsertion(object).status,'verified');
+});

@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "Поставено преди съществуващото позоваване.",
+  "documentcontext.after_paragraph_lead": "Поставено след уводния текст на параграфа.",
   "documentcontext.final_placement_check": "Проверете окончателното място в {adoptedText}.",
   "documentcontext.adopted_text": "приетия текст",
   "amendment.alternative_motion": "Алтернативно предложение",

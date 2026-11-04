@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "Sijoitettu ennen nykyistä viittausta.",
+  "documentcontext.after_paragraph_lead": "Sijoitettu kohdan johdantotekstin jälkeen.",
   "documentcontext.final_placement_check": "Tarkista lopullinen sijainti {adoptedText}.",
   "documentcontext.adopted_text": "hyväksytystä tekstistä",
   "amendment.alternative_motion": "Vaihtoehtoinen päätöslauselmaesitys",

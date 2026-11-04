@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "Placed before the existing citation.",
+  "documentcontext.after_paragraph_lead": "Placed after the paragraph lead.",
   "documentcontext.final_placement_check": "Check final placement in {adoptedText}.",
   "documentcontext.adopted_text": "the adopted text",
   "amendment.alternative_motion": "Alternative motion",

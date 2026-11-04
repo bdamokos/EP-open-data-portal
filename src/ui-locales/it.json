@@ -1,4 +1,6 @@
 {
+  "documentcontext.citation_before_existing": "Collocato prima del riferimento esistente.",
+  "documentcontext.after_paragraph_lead": "Collocato dopo il testo introduttivo del paragrafo.",
   "documentcontext.final_placement_check": "Verificare la collocazione definitiva nel {adoptedText}.",
   "documentcontext.adopted_text": "testo approvato",
   "amendment.alternative_motion": "Proposta alternativa",
