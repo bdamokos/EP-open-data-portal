@@ -273,7 +273,9 @@ function verifyPreambleCitation({proposal,wording,placement,target}) {
   // The spliced source itself must be the original wording.
   const splice=placement.splice,text=String(row.text);
   if(splice?.start?.paragraph!==row.index||splice?.end?.paragraph!==row.index||!(splice.start.offset>=0&&splice.start.offset<=splice.end.offset&&splice.end.offset<=text.length))return fail('oracle-invalid-span');
-  if(oracleNormal(text.slice(splice.start.offset,splice.end.offset))!==oracleNormal(wording.originalText))return fail('oracle-original-span-mismatch');
+  const notes=assertFootnoteComparison(proposal,wording,placement);
+  if(notes?.status==='failed')return notes;
+  if(!notes&&oracleNormal(text.slice(splice.start.offset,splice.end.offset))!==oracleNormal(wording.originalText))return fail('oracle-original-span-mismatch');
   return verified('oracle-preamble-citation-span');
 }
 // Maintainer P2 for articles: a new Article -1 goes immediately after the
