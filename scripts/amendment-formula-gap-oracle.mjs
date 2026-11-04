@@ -21,7 +21,7 @@ export function assertFormulaGap({wording,nativeQuoted}){
   const end=body.findIndex((row,i)=>i>starts[0]&&row.kind==='paragraph'&&row.text.includes('</Amend>'));
   if(end<0)return unknown();
   const block=body.slice(starts[0],end+1),paragraphs=block.filter(row=>row.kind==='paragraph'),field=key=>paragraphs.flatMap(row=>[...row.text.matchAll(new RegExp('<'+key+'>([\\s\\S]*?)</'+key+'>','gu'))].map(match=>match[1]));
-  if(paragraphs.slice(1).some(row=>row.text.includes('<Amend>'))||field('Article').length!==1||field('Article')[0]!==wording.targetLabel||field('DocAmend').length!==1||!/^Proposal for a (?:regulation|directive|decision)$/u.test(field('DocAmend')[0])||['Article2','DocAmend2'].some(key=>field(key).length))return unknown();
+  if(paragraphs.slice(1).some(row=>row.text.includes('<Amend>'))||field('Article').length!==1||field('Article')[0]!==wording.targetLabel||field('DocAmend').length!==1||!/^Proposal for a (?:regulation|directive|decision)$/u.test(field('DocAmend')[0])||field('Original').length>1||field('Original').length===1&&field('Original')[0]!=='{EN}en'||['Article2','DocAmend2'].some(key=>field(key).length))return unknown();
   const tables=block.filter(row=>row.kind==='other');if(tables.length!==1||tables[0].hidden||!tables[0].nodes['w:tbl'])return unknown();
   const table=tables[0].nodes['w:tbl'];
   if(!completeGrid(table)||children(table,'w:tblGrid').length!==1||children(children(table,'w:tblGrid')[0],'w:gridCol').length!==2||all(table,'w:numPr').length)return unknown();
@@ -29,7 +29,7 @@ export function assertFormulaGap({wording,nativeQuoted}){
   // styles may change any comparison cell's printed wording.
   const styles=parts.has('word/styles.xml')?parser.parse(parts.get('word/styles.xml')):[];
   if(!bindings(styles))return unknown();
-  const definitions=new Map(all(styles,'w:style').map(node=>[node[':@']?.['@_w:styleId'],node['w:style']]));
+  const definitions=new Map(all(styles,'w:style').map(node=>[node[':@']?.['@_w:styleId'],node['w:style']]));if(definitions.size!==all(styles,'w:style').length)return unknown();
   const styleSafe=(id,seen=new Set())=>{if(!id)return true;if(seen.has(id)||!definitions.has(id))return false;seen.add(id);const nodes=definitions.get(id);return !['w:vanish','w:webHidden','w:numPr'].some(key=>all(nodes,key).length)&&all(nodes,'w:basedOn').every(node=>styleSafe(node[':@']?.['@_w:val'],seen));};
   if(all(styles,'w:docDefaults').some(node=>['w:vanish','w:webHidden','w:numPr'].some(key=>all(node['w:docDefaults'],key).length))||all(styles,'w:style').some(node=>['1','true','on'].includes(node[':@']?.['@_w:default'])&&!styleSafe(node[':@']?.['@_w:styleId']))||['w:pStyle','w:rStyle'].some(key=>all(table,key).some(node=>!styleSafe(node[':@']?.['@_w:val']))))return unknown();
   let count=0;
