@@ -10,7 +10,7 @@ import {parseProposal} from '../server/proposal-structure.mjs';
 import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
 import {documentContextPlacement} from '../server/document-context-placement.mjs';
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
-import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility,instructionFrameWording} from './amendment-benchmark-model.mjs';
+import {classifyRow,classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility,instructionFrameWording} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
 import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport} from './amendment-benchmark.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
@@ -322,8 +322,8 @@ test('transient failures are never cached and overlong Retry-After aborts withou
   }finally{await rm(directory,{recursive:true,force:true});}
 });
 
- test('provisional agreement ballots are excluded even when an amendment has other placeable decisions',()=>{
-  assert.equal(placeableDecision({reference:'Provisional agreement'}),false);
+ test('provisional agreement ballots remain in the vote denominator',()=>{
+  assert.equal(placeableDecision({reference:'Provisional agreement'}),true);
   assert.equal(placeableDecision({reference:'Paragraph 1'}),true);
   assert.equal(placeableDecision({reference:null}),true);
 });
@@ -570,4 +570,19 @@ test('oracle places an insertion after a provision merged into its predecessor r
 test('adopted-text sidecar is offline-only and requires a zero request cap',()=>{
  assert.equal(options(['--adopted-text-snapshot','/tmp/sealed','--request-cap','0']).adoptedTextSnapshot,'/tmp/sealed');
  for(const extra of [[],['--fetch'],['--languages'],['--acquire-only']])assert.throws(()=>options(['--adopted-text-snapshot','/tmp/sealed',...extra]),/offline/);
+});
+
+test('verified whole-document operations earn credit and retain distinct reasons',()=>{
+  const rows=[];
+  for(const [operation,reason] of [['reject','rejection'],['alternative-motion','alternative-motion']]) {
+    const proof={status:'verified',reason:'source-attested-'+reason};
+    const state={...stages(),S5:{status:'document-operation',operation}};
+    const result=classifyRow(state,proof);
+    assert.deepEqual(result,{outcome:'correct',reason:'whole-document-'+reason});
+    assert.notEqual(classifyRow(state,{...proof,status:'unverified'}).outcome,'correct');
+    rows.push({...row(operation),...result});
+  }
+  assert.equal(metrics(rows).eligible,2);
+  assert.equal(metrics(rows).counts.correct,2);
+  assert.equal(metrics(rows).votes.correct,metrics(rows).votes.total);
 });

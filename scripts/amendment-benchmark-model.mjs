@@ -57,11 +57,11 @@ export function classify(stages) {
   return stages.S6.status === 'verified' ? {outcome:'correct', reason:'oracle-verified'} : {outcome:'placed-unverified', reason:stages.S6.reason};
 }
 
-// Whole-document operations have no paragraph location and earn no placement credit.
+// A verified operation on the whole document is a placement at document scope.
 export function classifyRow(stages,documentOperation) {
   if(documentOperation?.status==='verified'&&stages.S5.status==='document-operation') {
-    if(documentOperation.reason==='source-attested-rejection')return {outcome:'not-placeable',reason:'whole-document-rejection'};
-    if(documentOperation.reason==='source-attested-alternative-motion')return {outcome:'not-placeable',reason:'whole-document-alternative-motion'};
+    if(documentOperation.reason==='source-attested-rejection')return {outcome:'correct',reason:'whole-document-rejection'};
+    if(documentOperation.reason==='source-attested-alternative-motion')return {outcome:'correct',reason:'whole-document-alternative-motion'};
   }
   return classify(stages);
 }
