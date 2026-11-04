@@ -1,5 +1,7 @@
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {assertCouncilDraftArticleText} from './amendment-council-article-oracle.mjs';
+import {councilNativeSuperscripts} from './amendment-council-superscript-oracle.mjs';
 const cached=new Map();
 const fold=s=>String(s??'').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 const unknown=reason=>({status:'unverified',reason});
@@ -8,7 +10,7 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
  if(placement?.status!=='placed')return {status:'not-applicable',reason:'not-placed'};
  const buffer=nativeQuoted?.proposalBuffer;if(!Buffer.isBuffer(buffer))return unknown('oracle-council-pdf-native-unavailable');
  const key=createHash('sha256').update(buffer).digest('hex');let raw=cached.get(key);
- if(raw===undefined){const result=spawnSync('pdftotext',['-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024});raw=result.status===0?result.stdout:null;cached.set(key,raw);if(cached.size>4)cached.delete(cached.keys().next().value);}
+ if(raw===undefined){const result=spawnSync('pdftotext',['-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024});raw=result.status===0?result.stdout:null;if(raw){const bbox=spawnSync('pdftotext',['-bbox-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024});if(bbox.status===0)raw=councilNativeSuperscripts(raw,bbox.stdout);}cached.set(key,raw);if(cached.size>4)cached.delete(cached.keys().next().value);}
  return assertCouncilDraftNativeText(raw,{placement,wording,items});
 }
 // Separate entry point for coordinate regression tests; the runtime oracle supplies
@@ -16,7 +18,7 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
 export function assertCouncilDraftNativeText(raw,{placement,wording,items}) {
  if(!raw)return unknown('oracle-council-pdf-text-unavailable');
  const target=/^(?:Recital|Bod odůvodnění|Betragtning|Considerando)\s+(\d+)\s*([a-z]?)\s*(?:\([^)]*\))?$/iu.exec(wording.targetLabel??'');
- if(!target)return unknown('oracle-council-pdf-address-unavailable');
+ if(!target)return assertCouncilDraftArticleText(raw,{placement,wording,items});
  const heading=/^\s*(?:Article|Článek|Artikel|Artículo)\s+1\s*$/imu.exec(raw);if(!heading)return unknown('oracle-council-pdf-recital-boundary-unavailable');
  const preamble=raw.slice(0,heading.index),labels=[...preamble.matchAll(/^\s*\((\d+)\)\s+/gmu)],number=Number(target[1]),found=labels.filter(m=>Number(m[1])===number);
  if(found.length!==1)return unknown('oracle-council-pdf-recital-not-unique');
