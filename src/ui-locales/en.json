@@ -2902,5 +2902,6 @@
   "topics.story.integrated.questionPlaceDebatesRise": "{place} ({debates}; up from {average}{home})",
   "topics.story.integrated.questionPlaceRare": "{place} (rarely asked about before{home})",
   "topics.story.integrated.questionPlaceDebatesRare": "{place} ({debates}; rarely asked about before{home})",
-  "topics.story.integrated.debateCountPeers": "{count}, as did {peers}"
+  "topics.story.integrated.debateCountPeers": "{count}, as did {peers}",
+  "proposalcontexttext.colliding.new.point": "This number collides with an existing point. Placed after the base point."
 }

@@ -2827,5 +2827,6 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä kasvoi kaikissa, aiemmin {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "Euroopassa ja sen lähialueilla {places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä kasvoi kaikissa, aiemmin {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä nousi jyrkästi kaikissa, aiemmin {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "Euroopassa ja sen lähialueilla {places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä nousi jyrkästi kaikissa, aiemmin {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "Euroopassa ja sen lähialueilla {places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä nousi jyrkästi kaikissa, aiemmin {average}.",
+  "proposalcontexttext.colliding.new.point": "Tämä numero on jo käytössä. Sijoitettu peruskohdan jälkeen."
 }

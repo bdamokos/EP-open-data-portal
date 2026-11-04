@@ -2827,5 +2827,6 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} – dažniausiai klausimuose minimos vietos (po {questions}), kiekvienu atveju padidėjimas, anksčiau – {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "Europoje ir kaimyninėse šalyse: {places} – dažniausiai klausimuose minimos vietos (po {questions}), kiekvienu atveju padidėjimas, anksčiau – {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} – dažniausiai klausimuose minimos vietos (po {questions}), kiekvienu atveju staigus padidėjimas, anksčiau – {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "Europoje ir kaimyninėse šalyse: {places} – dažniausiai klausimuose minimos vietos (po {questions}), kiekvienu atveju staigus padidėjimas, anksčiau – {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "Europoje ir kaimyninėse šalyse: {places} – dažniausiai klausimuose minimos vietos (po {questions}), kiekvienu atveju staigus padidėjimas, anksčiau – {average}.",
+  "proposalcontexttext.colliding.new.point": "Šis numeris jau naudojamas. Įterpta po pagrindinio punkto."
 }
