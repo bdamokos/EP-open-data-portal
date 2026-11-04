@@ -34,8 +34,8 @@ export async function projectOutsideSpeakers(store,generation,sourceGeneration){
   const addresses=new Map();
   for(const a of appearances.filter(a=>a.term===10&&a.date>='2024-07-16'&&result.has(a.id)&&a.parentIds?.length===1)){
    const debateId=a.parentIds[0],id=person+':'+debateId;
-   seedOutsideRoles(store,a,person);const roles=publishedOutsideRoles(store,a.id,person);
    if(addresses.has(id))continue;
+   seedOutsideRoles(store,a,person);const roles=publishedOutsideRoles(store,a.id,person);
    addresses.set(id,{id,roles,personId:person,name:a.header?.name||null,role:a.header?.role||null,language:a.header?.languageTag||null,date:a.date,debateId,debateTitles:store.source(sourceGeneration,'outside:agenda:'+debateId)?.work?.titles||{},debateSource:store.source(sourceGeneration,'outside:agenda:'+debateId)?.work?.source,country:result.get(a.id).country,basis:result.get(a.id).basis,...(result.get(a.id).wikidata?{wikidata:result.get(a.id).wikidata}:{}),source:a.source,headerSource:a.headerSource,rosterSource:a.rosterSource});
   }
   for(const a of addresses.values())put.run(generation,'outsideSpeaker',a.id,a.date,JSON.stringify(a));
