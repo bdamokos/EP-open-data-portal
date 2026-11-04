@@ -83,7 +83,7 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   const segments = target.segments;
   if (!target.complete || segments?.length < 2 || segments[0].kind !== 'paragraph' || segments.slice(1).some(part => part.kind !== 'point')) return null;
   if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))) return null;
-  if (segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
+  if (!/\bEUR\s+XXX\b/u.test(options.originalText||'') && segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
     && unit.label === (operation === 'insert' ? segments[1].base : segments[1].value)
     && structure.units.find(parent => parent.start === unit.parent)?.label === segments[0].value)) return null;
   const units = pointUnits(text, rows, structure), evidence = [{basis: 'published-point-path', path: segments.map(({kind, value}) => ({kind, value}))}];
@@ -124,13 +124,18 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
     const match = pointLabel(line.trim());
     return match && labels.includes(pointValue(match)) ? line.trim().slice(match[0].length) : line;
   }).join(' ').normalize('NFC').replace(/\u00ad/g, '').replace(/[‘’‚‛ʻʼ]/g, "'").replace(/[“”„‟«»]/g, '"').replace(/[‐‑‒–—]/g, '-').replace(/\s+/gu, ' ').trim();
-  const footnotes = normalize(text.paragraphs.slice(unit.start, unit.end + 1).join('\n')) !== normalize(options.originalText);
+  const sourceText=text.paragraphs.slice(unit.start,unit.end+1).join('\n');
+  const placeholder=operation==='delete'&&options.language==='en'&&options.baseline==='motion-resolution'
+    && /\bEUR\s+XXX\b/u.test(options.originalText||'')&&/\bbudget line\b/u.test(sourceText)
+    && /\bEUR\s+\d/u.test(sourceText)&&!sourceText.includes('\uFFFC')
+    && placeholderMatches(sourceText,options.originalText);
+  const footnotes = !placeholder && normalize(sourceText) !== normalize(options.originalText);
   if (footnotes && !resolutionFootnoteMatch(text, unit.start, unit.end, options.originalText, options.originalFormatting)) return unresolved('conflicting_target_evidence');
   if (options.referenceText) {
     let decision; try { decision = parseTargetLabel(options.referenceText, 'en'); } catch { /* Unparsed references cannot verify a path. */ }
     if (!decision?.complete || !samePath(decision.segments, segments)) return unresolved('conflicting_target_evidence');
   }
-  evidence.push({basis: footnotes ? 'quoted-original-source-notes' : 'quoted-original'});
+  evidence.push({basis: placeholder ? 'addressed-budget-placeholder' : footnotes ? 'quoted-original-source-notes' : 'quoted-original'});
   return {operation, status: 'placed', span: {start: unit.start, end: unit.end}, evidence};
 }
 
@@ -163,4 +168,17 @@ export function resolutionPointNearPlacement(text,rows,structure,options,operati
  const own=score(source),others=candidates.filter(p=>p.start!==unit.start||p.end!==unit.end).map(p=>score(p.wording));
  const unique=own.similarity>=.95&&others.every(p=>p.similarity<=own.similarity-.02&&p.prefix<.5)||own.prefix>=.5&&others.every(p=>p.prefix<=own.prefix-.02&&p.similarity<.93);
  return unique?{operation,status:'placed',span:{start:unit.start,end:unit.end},evidence:[{basis:'published-point-path',path:path.map(({kind,value})=>({kind,value}))},{basis:'unique-similar-point-original',anchor:unit.start}]}:null;
+}
+
+// Budget comparisons may compress a child into an 'including' clause. Only
+// explicit EUR XXX deletions reach this comparison, after unique path proof.
+function placeholderMatches(source,original) {
+  const key=value=>value.normalize('NFC').toLowerCase()
+    .replace(/(^|\s)(\([a-z]+\)|[a-z]+[.)])\s+(?:the\s+)?/gu,'$1$2 ')
+    .replace(/,\s*including\s+/gu,' ').replace(/[–—]/gu,'-')
+    .replace(/[.;,]/gu,' ').replace(/\s+/gu,' ').trim();
+  const parts=key(original).split(/(?<=\beur )xxx\b/u);
+  if(parts.length<2||parts.join('').includes('xxx'))return false;
+  const pattern=parts.map(part=>part.replace(/[.*+?^${}()|[\]\\]/gu,'\\$&')).join('\\d+(?: \\d{3})*');
+  return new RegExp('^'+pattern+'$','u').test(key(source));
 }

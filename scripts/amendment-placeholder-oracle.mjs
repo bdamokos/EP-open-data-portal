@@ -14,8 +14,15 @@ export function assertPlaceholderDeletion({text,wording,placement}) {
   const units=points.filter(u=>u.group===parents[0].start&&JSON.stringify(u.path)===JSON.stringify(address.map(({kind,value})=>({kind,value}))));
   if(units.length!==1||!units[0].complete)return unknown;
   const unit=units[0],source=text.paragraphs.slice(unit.start,unit.end+1).join('\n');
-  const tokens=value=>value.normalize('NFC').toLowerCase().replace(/\beur\s+(?:xxx|\d+(?:[\s\u00a0]\d{3})*(?:[.,]\d+)?)\b/gu,'eur amount').replace(/(?:^|[\s,;])(?:\([a-z]+\)|[a-z]+[.)])\s+/gu,' ').replace(/\bincluding\b|\bthe\b/gu,' ').replace(/[–—]/gu,'-').replace(/[.;,]/gu,' ').replace(/\s+/gu,' ').trim();
-  if(source.includes('\uFFFC')||! /\bbudget line\b/u.test(source)||! /\bEUR\s+\d/u.test(source)||tokens(source)!==tokens(wording.originalText))return unknown;
+  const tokens=value=>value.normalize('NFC').toLowerCase().replace(/(^|\s)(\([a-z]+\)|[a-z]+[.)])\s+(?:the\s+)?/gu,'$1$2 ').replace(/,\s*including\s+/gu,' ').replace(/[–—]/gu,'-').replace(/[.;,]/gu,' ').replace(/\s+/gu,' ').trim().split(' ');
+  const native=tokens(source),quoted=tokens(wording.originalText);let at=0,placeholders=0;
+  for(let i=0;i<quoted.length;i++) {
+    if(quoted[i]==='xxx'&&quoted[i-1]==='eur') {
+      if(!/^\d+$/u.test(native[at]||''))return unknown;
+      at++;while(/^\d{3}$/u.test(native[at]||''))at++;placeholders++;
+    } else if(quoted[i]!==native[at++])return unknown;
+  }
+  if(!placeholders||at!==native.length||source.includes('\uFFFC')||! /\bbudget line\b/u.test(source))return unknown;
   if(placement.status!=='placed'||placement.span?.start!==unit.start||placement.span?.end!==unit.end)return {status:'failed',reason:'oracle-placeholder-boundary-mismatch'};
   return {status:'verified',reason:'oracle-addressed-placeholder-deletion'};
 }
