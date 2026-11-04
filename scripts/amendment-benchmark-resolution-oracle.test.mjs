@@ -6,6 +6,12 @@ import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
 import {nativeBlankPairs,rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
 import {verifyPlacement} from './amendment-benchmark-model.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/resolution-blank-boundaries.json',import.meta.url)));
+test('a fully emphasized numbered section title does not duplicate a recital',()=>{
+ const paragraphs=['The European Parliament,','V. whereas a recital;','W. whereas another;','42. Previous;','V. Rule of law','43. Next;'];
+ const text={paragraphs,paragraphFormats:paragraphs.map((v,i)=>i===4?{marks:[{kind:'bold',start:0,end:v.length},{kind:'italic',start:0,end:v.length}]}:{}),paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
+ const units=rawResolutionUnits(text,'en').units;
+ assert.deepEqual(units.filter(u=>u.kind==='recital'&&u.label==='V').map(u=>u.start),[1]);
+});
 const wrap=body=>'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'</w:body></w:document>';
 function zip(document,extra={}) {
   const locals=[],centrals=[],entries=Object.entries({'word/document.xml':document,...extra});let offset=0;
