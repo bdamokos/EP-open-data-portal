@@ -2,6 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {PDFDocument,PDFName,PDFOperator,PDFString,StandardFonts} from 'pdf-lib';
 import {extractCouncilDraftPdf} from './council-draft-pdf.mjs';
 import {parseProposal} from './proposal-structure.mjs';
+import {createHash} from 'node:crypto';
 
 async function fixture({tagged=true,paint=false,noteOwners=0,extraRole=null}={}) {
  const pdf=await PDFDocument.create(),page=pdf.addPage(),context=pdf.context;
@@ -18,7 +19,9 @@ async function fixture({tagged=true,paint=false,noteOwners=0,extraRole=null}={})
 }
 const identity={number:1234,year:2026,procedure:'2023/0123(CNS)'};
 test('native structure reference owns paragraph; complete text needs an empty paint audit',async()=>{
- const result=await extractCouncilDraftPdf(await fixture(),identity);
+ const buffer=await fixture(),result=await extractCouncilDraftPdf(buffer,identity),parsedNative=parseProposal(result);
+ assert.equal(parsedNative.nativeSourceHash,createHash('sha256').update(buffer).digest('hex'));
+ assert.notEqual(parsedNative.sourceHash,parsedNative.nativeSourceHash);
  assert.equal(result.paragraphs[0],'1234/26 2023/0123 (CNS)');
  assert.match(result.paragraphSources[0].path,/^\d+ 0 R$/u);
  assert.equal(result.paragraphSources[0].complete,true);
