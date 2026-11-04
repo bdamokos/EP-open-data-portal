@@ -29,3 +29,10 @@ test('oracle rejects resolution footnotes with a moved anchor, changed note or c
  assert.equal(assertResolutionFootnotes({...resolution,notesStatus:'not-extracted'},resolutionWording,{span:{start:0,end:0}}).status,'failed');
 });
 test('resolution originals without a detached note payload are not footnote comparisons',()=>assert.equal(assertResolutionFootnotes(resolution,{originalText:'26.\tStresses.',originalFormatting:[]},{span:{start:0,end:0}}),null));
+
+test('unruled numbered note payloads still require exact native body, payload and position',()=>{
+ const wording={...resolutionWording,originalText:resolutionWording.originalText.replace('\n_________________\n25 ','\n25. ')};
+ assert.equal(assertResolutionFootnotes(resolution,wording,{span:{start:0,end:0}}).status,'verified');
+ for(const originalText of [wording.originalText.replace('2024/1359','2024/1360'),wording.originalText.replace('25. ','26. ')])assert.equal(assertResolutionFootnotes(resolution,{...wording,originalText},{span:{start:0,end:0}}).status,'failed');
+ assert.equal(assertResolutionFootnotes({...resolution,noteAnchors:[{paragraph:0,offset:1,note:'25'}]},wording,{span:{start:0,end:0}}).status,'failed');
+});
