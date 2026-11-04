@@ -197,7 +197,7 @@ export function amendmentsCopy(db,generation,active) {
   // rows, including pending page cursors, rather than copying an empty core ID.
   const source=extensionGeneration(db) || active;
   if(source && source!==generation) {
-    db.prepare('INSERT OR IGNORE INTO amendments SELECT ?,id,target,date,outcome,body FROM amendments WHERE generation=?').run(generation,source);
+    copyProjectedGenerationRows(db,{table:'amendments',key:'id',select:'INSERT OR IGNORE INTO amendments SELECT ?,id,target,date,outcome,body FROM amendments'},generation,source,{replay:source!==active});
     db.prepare('INSERT OR IGNORE INTO amendment_author_targets SELECT ?,name,target FROM amendment_author_targets WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_member_dependencies SELECT ?,person_id,target FROM amendment_member_dependencies WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_dependency_bootstrap SELECT ?,stage,after_key,ready FROM amendment_dependency_bootstrap WHERE generation=?').run(generation,source);

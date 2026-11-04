@@ -35,22 +35,25 @@ export function updateGenerationRows(db,{table,key,where='1',indexedBy='',set},g
 }
 
 const projections={
-  sources:['sources',['source_reads','question_reads','question_frontiers','procedure_event_reads']],
+  sources:['sources',['source_reads','question_reads','question_frontiers','procedure_event_reads','motion_links','report_procedures','amendment_sitting_references','motion_sitting_summary','continuation_sittings','dossier_documents','committee_document_procedures']],
+  amendments:['amendments',['amendment_contributors','amendment_read_flags','amendment_page_reads']],
   outside_contributions:['outside',['outside_directory_reads']],
   amendment_targets:['targets',['amendment_target_reads']],
 };
-export function copyProjectedGenerationRows(db,spec,generation,source) {
+export function copyProjectedGenerationRows(db,spec,generation,source,{replay=false}={}) {
   const [projection,tables]=projections[spec.table];
   // Existing destination rows (extension replay) and incomplete backfills must
   // retain ordinary trigger semantics. The caller owns the single transaction.
   if(!db.isTransaction)throw new Error('Generation copy requires a transaction.');
-  if(!db.prepare('SELECT ready FROM fast_read_progress WHERE projection=? AND generation=?').get(projection,source)?.ready ||
+  if(replay || !db.prepare('SELECT ready FROM fast_read_progress WHERE projection=? AND generation=?').get(projection,source)?.ready ||
       db.prepare(`SELECT 1 FROM ${spec.table} WHERE generation=? LIMIT 1`).get(generation)) {
     return copyGenerationRows(db,spec,generation,source);
   }
   db.prepare("INSERT INTO meta(key,value) VALUES ('fastReadCopyGeneration',?)").run(String(generation));
   try {
-    db.prepare(`${spec.select} WHERE generation=?`).run(generation,source);
+    const result=db.prepare(`${spec.select} WHERE generation=?`).run(generation,source);
+    // The contributor insert trigger also invalidates mutation-sensitive cursors.
+    if(spec.table==='amendments' && Number(result.changes))db.prepare("INSERT INTO meta(key,value) VALUES ('amendmentMutationRevision',?) ON CONFLICT(key) DO UPDATE SET value=CAST(CAST(value AS INTEGER)+CAST(excluded.value AS INTEGER) AS TEXT)").run(String(result.changes));
     for(const table of tables) {
       const columns=db.prepare(`PRAGMA table_info(${table})`).all().map(row=>row.name).filter(name=>name!=='generation');
       db.prepare(`INSERT INTO ${table}(generation,${columns.join(',')}) SELECT ?,${columns.join(',')} FROM ${table} WHERE generation=?`).run(generation,source);
@@ -58,5 +61,19 @@ export function copyProjectedGenerationRows(db,spec,generation,source) {
     db.prepare('INSERT OR REPLACE INTO fast_read_progress(projection,generation,cursor,ready) SELECT projection,?,cursor,ready FROM fast_read_progress WHERE projection=? AND generation=?').run(generation,projection,source);
   } finally {
     db.prepare("DELETE FROM meta WHERE key='fastReadCopyGeneration'").run();
+  }
+}
+
+// A separate shared schema gate installs only trigger definitions. Keep existing
+// SQL (including mutation revisions) intact and never replay the retained corpus.
+export const generationCopySchemaVersion=1;
+export function prepareGenerationCopy(db) {
+  for(const name of ['amendment_contributor_insert','amendment_read_insert','fast_amendment_page_insert',
+    'motion_links_insert','report_procedures_insert','amendment_sitting_insert','motion_sitting_insert',
+    'refresh_policy_insert','dossier_documents_insert','committee_document_insert']) {
+    const {sql}=db.prepare("SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?").get(name);
+    if(sql.includes('fastReadCopyGeneration'))continue;
+    db.exec('DROP TRIGGER '+name);
+    db.exec(sql.replace(/\bBEGIN\b/i,"WHEN COALESCE((SELECT value FROM meta WHERE key='fastReadCopyGeneration'),'')<>CAST(NEW.generation AS TEXT) BEGIN"));
   }
 }
