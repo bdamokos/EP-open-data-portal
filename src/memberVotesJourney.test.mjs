@@ -302,8 +302,9 @@ test('the page is the only scroller for the member views', async () => {
   assert.doesNotMatch(explorer, /max-height: ?900px/);
   for (const [css, selector] of [[explorer, 'explorer-portraits'], [explorer, 'explorer-profile-body'], [explorer, 'explorer-saved-view'], [votes, 'member-votes'], [votes, 'member-votes-pane']]) {
     // Every rule whose selector ends at this class, including later overrides and media rules.
-    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selectors]) => selectors.split(',').some(item => item.trim().endsWith(`.${selector}`)));
+    const lastCompound = new RegExp(`\\.${selector}(?![\\w-])[^\\s>+~]*$`);
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selectors]) => selectors.split(',').some(item => lastCompound.test(item.trim())));
     assert.ok(rules.length, selector);
-    for (const [, , body] of rules) assert.doesNotMatch(body, /overflow(-y)?: ?(auto|scroll)|overscroll-behavior|max-height/, selector);
+    for (const [, , body] of rules) assert.doesNotMatch(body, /overflow(-y)?\s*:\s*(auto|scroll)|overscroll-behavior|max-height\s*:\s*(?!none)/, selector);
   }
 });
