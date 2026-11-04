@@ -30,7 +30,7 @@ function mergePeople(people,incoming){
  const result=structuredClone(people||{});
  for(const [person,observations]of Object.entries(incoming)){
   const byKey=new Map((result[person]||[]).map(o=>[o.fragmentKey,o]));
-  for(const o of observations){const old=byKey.get(o.fragmentKey);if(!old||Date.parse(o.source?.fetchedAt)>Date.parse(old.source?.fetchedAt))byKey.set(o.fragmentKey,o);}
+  for(const o of observations){const old=byKey.get(o.fragmentKey);if(!old||!Number.isFinite(Date.parse(old.source?.fetchedAt))||Date.parse(o.source?.fetchedAt)>=Date.parse(old.source?.fetchedAt))byKey.set(o.fragmentKey,o);}
   result[person]=[...byKey.values()];
  }
  return result;

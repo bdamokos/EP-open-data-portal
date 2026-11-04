@@ -84,3 +84,7 @@ test('ordinary read failures persist growing retries per speech',async t=>{
  const f=setup(t);let calls=0;f.worker.request=async()=>{calls++;throw {status:500};};await collectOutsideRoles(f.worker,{held:()=>({})});assert.equal(f.row().attempts,1);assert.equal(f.row().next_read,f.worker.clock()+86400_000);
  f.advance(86400_000);await collectOutsideRoles(f.worker,{held:()=>({})});assert.equal(f.row().attempts,2);assert.equal(f.row().next_read,f.worker.clock()+3*86400_000);assert.equal(calls,2);
 });
+test('a fresh all-language read replaces a legacy header with unknown retrieval date',async t=>{
+ const f=setup(t,{en:fragment('Old title')});const body=JSON.parse(f.row().body);body.people['42'][0].source={url:null,fetchedAt:null};f.store.db.prepare('UPDATE outside_role_speech_reads SET body=?').run(JSON.stringify(body));
+ await collectOutsideRoles(f.worker,{held:()=>({})});assert.equal(publishedOutsideRoles(f.store,id,'42').en.role,'King of Spain');
+});
