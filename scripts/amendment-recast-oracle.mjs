@@ -143,7 +143,7 @@ function safeTitleFields(paragraph) {
 // the otherwise ambiguous published address "Title 1" to three body rows.
 export function assertNativeProposalTitle({proposal,wording,placement,nativeQuoted}) {
  const unknown={status:'unverified',reason:'oracle-proposal-title-unavailable'};
- if(wording?.language!=='en'||wording.baseline!=='commission-proposal'||wording.targetLabel!=='Title 1'||placement?.operation!=='replace')return unknown;
+ if(wording?.language!=='en'||wording.baseline!=='commission-proposal'||wording.targetLabel!=='Title 1'||placement?.operation!=='replace'||!Array.isArray(proposal?.paragraphs)||!Buffer.isBuffer(nativeQuoted?.proposalBuffer))return unknown;
  const source=nativeSource(nativeQuoted?.proposalBuffer);if(!source)return unknown;
  const lines=String(wording.originalText||'').split('\n');if(lines.length!==3||lines[0]!=='Proposal for a'||lines[1]!=='COUNCIL DIRECTIVE')return unknown;
  const direct=[...source.native].filter(([path])=>/^\/w:document\[1\]\/w:body\[1\]\/w:p\[\d+\]$/u.test(path));

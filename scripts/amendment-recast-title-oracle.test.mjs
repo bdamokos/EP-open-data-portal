@@ -29,3 +29,9 @@ test('native title oracle rejects substantive and unsupported field results thro
  }
  const a=input(`<w:r><w:t>${subject}</w:t></w:r>`+field('QUOTE &quot;ð&quot;','ð','CRMarker'));assert.equal(assertNativeProposalTitle(a).status,'verified');
 });
+
+test('native title verification withholds absent evidence and invalid item selection',()=>{
+ const a=input();a.placement.itemIndex=0;const items=[{kind:'act',proposal:a.proposal}];
+ assert.equal(verifyPlacement({items,wording:a.wording,placement:a.placement}).status,'unverified');
+ assert.equal(verifyPlacement({items,wording:a.wording,placement:{...a.placement,itemIndex:9},nativeQuoted:a.nativeQuoted}).status,'unverified');
+});
