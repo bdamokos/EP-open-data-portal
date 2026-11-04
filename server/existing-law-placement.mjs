@@ -5,7 +5,11 @@ import {amendmentOperation} from './document-context-model.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 
 const exactKey=text=>normaliseForMatching(text,{stripNumbering:false,stripTerminators:false}).replace(/\s+/gu,' ').trim().replace(/[.;’”'"]+$/u,'').trim();
-const prefixless=(text,unit)=>unit.label?.prefix&&text.startsWith(unit.label.prefix)?text.slice(unit.label.prefix.length):text;
+const prefixless=(text,unit)=>{
+ if(unit.label?.prefix&&text.startsWith(unit.label.prefix))return text.slice(unit.label.prefix.length);
+ if(unit.kind==='point'&&/^[a-z0-9]+$/u.test(unit.label?.value||''))return text.replace(new RegExp('^\\(?'+unit.label.value+'\\)\\s+','u'),'');
+ return text;
+};
 
 export function existingLawReplacement(text,language) {
   if(typeof text!=='string')return null;
@@ -53,7 +57,7 @@ export function resolveExistingLawPlacement(items,chosen,baseline) {
   // per-line terminators; only an enclosing boundary and typography may differ.
   if(result.status!=='placed'&&target.segments.at(-1)?.kind!=='subparagraph'&&unit.complete&&exactKey(source)===exactKey(chosen.originalText))result={operation:'replace',status:'placed',itemIndex,span:{start:unit.extent.start,end:unit.extent.end-1},splice:{start:{paragraph:unit.extent.start,offset:0},end:{paragraph:unit.extent.end-1,offset:proposal.paragraphs[unit.extent.end-1].text.length}},originalText:source,evidence:[{basis:'existing-law-exact-original',anchor:unit.id}]};
   if(result.status!=='placed')return result;
-  if(exactKey(result.originalText)!==exactKey(chosen.originalText)&&exactKey(prefixless(result.originalText,unit))!==exactKey(chosen.originalText))return unresolved('existing-law-wording-conflict');
+  if(exactKey(result.originalText)!==exactKey(chosen.originalText)&&exactKey(prefixless(result.originalText,unit))!==exactKey(prefixless(chosen.originalText,unit)))return unresolved('existing-law-wording-conflict');
   // AM55 quotes only the end of Article 8 while instructing replacement of the
   // whole article. A partial quotation cannot define that replacement's extent.
   if(target.segments.length===1&&/\bArticle\s+\d+\w*\s+is replaced/u.test(replacement.instruction)) {

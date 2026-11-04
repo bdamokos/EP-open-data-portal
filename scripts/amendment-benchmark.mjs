@@ -162,6 +162,13 @@ export async function placeWithInstructionFrame({place,eligible,matching,languag
   return {placement:matching?placement:{status:'unresolved',reason:'placement-not-evaluated'},frame:null};
 }
 
+// Preserve the native amendment date. The exact public list record supplies
+// only its separate fallback date, as it does in the runtime context.
+export function withListDocumentDate(wording,variant) {
+ return wording&&wording.listId===variant?.listId&&wording.language===variant?.language&&variant.listDocumentDate
+  ?{...wording,listDocumentDate:variant.listDocumentDate}:wording;
+}
+
 export async function evaluateReport(rows,sample,cache,{runtime,replay,selection,adoptedCalibration}={}) {
   const selected=rows.filter(row=>decisionsInSample(row,sample).length),extractions=new Map(),results=[];
   const contexts=await acquireReport(rows,sample,cache,undefined,selection);
@@ -203,7 +210,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
       if(!input.ok)stages.S2={...blocked(input.acquisitionUnavailable?'acquisition-unavailable':[404,410].includes(input.status)?'source-document-unavailable':'input-'+(input.error||'unavailable')),...(input.acquisitionUnavailableReason?{acquisitionUnavailableReason:input.acquisitionUnavailableReason}:{})};
       else if(error)stages.S2=blocked('docx-parser-error');
       else {
-        wording=extraction.amendments.find(a=>a.number===row.number);
+        wording=withListDocumentDate(extraction.amendments.find(a=>a.number===row.number),variant);
         gaps=wording?(runtime?.amendmentTextLosses||amendmentTextLosses)(extraction,wording):extraction.gaps;
         if(!wording)stages.S2=blocked('docx-amendment-not-extracted');
         else if(gaps.length||typeof wording.originalText!=='string'||typeof wording.proposedText!=='string')stages.S2=blocked('wording-'+(gaps[0]?.code||'unavailable'));
@@ -230,7 +237,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
         // Bind every eligible or unresolved native NLE selection. Ordinary
         // projections retain their accepted sharing and source-read sequence.
         const selectedProposal=commission&&(replay.proposalRequiresSelection?.(proposalOptions,work)??true)?{listId:variant.listId,number:row.number,wordingSource:{url:fetched.url,sha256:fetched.sha256},originalText:wording.originalText,proposedText:wording.proposedText}:null;
-        const key=JSON.stringify([language,wording.baseline,structured?[wording.documentReferences,existing?wording.targetPath:null,existing?wording.documentDate:null]:[],...(selectedProposal?[[selectedProposal.listId,selectedProposal.number,selectedProposal.wordingSource]]:[])]);
+        const key=JSON.stringify([language,wording.baseline,structured?[wording.documentReferences,existing?wording.targetPath:null,existing?(wording.documentDate||wording.date||wording.listDocumentDate):null]:[],...(selectedProposal?[[selectedProposal.listId,selectedProposal.number,selectedProposal.wordingSource]]:[])]);
         if(!projected.has(key)) {
           projected.set(key,await observeFrozenInputs(cache,async()=>{
             if(commission)return replay.proposal(proposalOptions,selectedProposal??undefined);

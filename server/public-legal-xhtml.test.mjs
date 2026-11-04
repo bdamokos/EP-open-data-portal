@@ -61,3 +61,13 @@ test('two-column grids and prose labels remain unsupported tables',()=>{
   const proposal=parsePublicLegalXhtml('<html><body><div id="art_1"><table><tr><td><p>a)</p></td><td><p>Body</p></td></tr><tr><td><p>b)</p></td><td><p>Body</p></td></tr></table></div></body></html>');
   assert(proposal.gaps.some(gap=>gap.code==='unsupported-xhtml-table'));
 });
+
+test('consolidated grid dash indents retain all published tobacco quantities under their point',()=>{
+ // Native structure of 02020L0262-20220426, Article 32(3)(a), ENG DOC_2.
+ const texts=['cigarettes: 800 items,','cigarillos (cigars weighing not more than 3 g each): 400 items,','cigars: 200 items,','smoking tobacco: 1,0 kg;'];
+ const indents=texts.map(t=>'<div class="grid-container grid-list"><div class="list grid-list-column-1"><span>— </span></div><div class="grid-list-column-2"><div class="list">'+t+'</div></div></div>').join('');
+ const xml='<html xmlns="http://www.w3.org/1999/xhtml"><body><p class="reference">02020L0262 — EN</p><div id="art_32"><p class="title-article-norm">Article 32</p><div><span class="no-parag">3.</span><div class="norm inline-element"><p class="norm inline-element">These guide levels may not be lower than:</p><div class="grid-container grid-list"><div class="list grid-list-column-1"><span>(a) </span></div><div class="grid-list-column-2"><p class="norm">for tobacco products:</p>'+indents+'</div></div></div></div></div></body></html>';
+ const p=parsePublicLegalXhtml(xml),point=flat(p.units).find(u=>u.kind==='point'&&u.label.value==='a');
+ assert(point.complete);assert.deepEqual(point.children.map(u=>[u.kind,u.label.value]),texts.map((_,i)=>['indent',String(i+1)]));
+ assert.deepEqual(p.paragraphs.slice(point.extent.start,point.extent.end).map(p=>p.text),['(a) for tobacco products:',...texts.map(t=>'— '+t)]);
+});

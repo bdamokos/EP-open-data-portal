@@ -12,7 +12,7 @@ import {documentContextPlacement} from '../server/document-context-placement.mjs
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
 import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility,instructionFrameWording} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
-import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport} from './amendment-benchmark.mjs';
+import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport,withListDocumentDate} from './amendment-benchmark.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 beforeEach(registerSubprocesses);
@@ -570,4 +570,14 @@ test('oracle places an insertion after a provision merged into its predecessor r
 test('adopted-text sidecar is offline-only and requires a zero request cap',()=>{
  assert.equal(options(['--adopted-text-snapshot','/tmp/sealed','--request-cap','0']).adoptedTextSnapshot,'/tmp/sealed');
  for(const extra of [[],['--fetch'],['--languages'],['--acquire-only']])assert.throws(()=>options(['--adopted-text-snapshot','/tmp/sealed',...extra]),/offline/);
+});
+
+
+test('list date replay metadata is bound to the exact selected list and language',()=>{
+ const wording={listId:'A-10-2026-0160-AM-001-003',language:'en',documentDate:null};
+ const record={listId:wording.listId,language:'en',listDocumentDate:'2026-06-10'};
+ assert.deepEqual(withListDocumentDate(wording,record),{...wording,listDocumentDate:'2026-06-10'});
+ assert.equal(withListDocumentDate(wording,{...record,listId:'A-10-2026-0160-AM-004-005'}),wording);
+ assert.equal(withListDocumentDate(wording,{...record,language:'fr'}),wording);
+ assert.equal(withListDocumentDate(wording,{}),wording);assert.equal(wording.documentDate,null);
 });

@@ -99,3 +99,21 @@ test('mixed replacement wrapper offsets remain exact after leading whitespace',(
  assert.equal(text.slice(r.start,r.end),r.text);assert.equal(r.instruction+r.text+r.closing,text);
  assert.equal(existingLawReplacement(text.replace('  "','  ‘'),'en'),null);
 });
+
+
+test('a date-free amendment uses its exact list record date for historical law selection',()=>{
+ const options={...chosen(cbam,'Article 5 – paragraph 1'),documentDate:null,date:null,listDocumentDate:'2026-09-09'};
+ assert.equal(existingLawReference(options).amendmentDate,'2026-09-09');
+ assert.equal(existingLawReference({...options,listDocumentDate:null}).status,'unresolved');
+ assert.equal(existingLawReference({...options,documentDate:'2026-02-30'}).status,'unresolved');
+ assert.equal(existingLawReference({...options,listDocumentDate:'2026-02-30'}).status,'unresolved');
+});
+
+
+test('published point prefixes a) and (a) identify the same exact existing-law wording',()=>{
+ const p=projection(cbam),target='Article 27 – paragraph 2 – point a',u=proposalCandidates(p,parseTargetLabel(target,'en'))[0];
+ const original=p.paragraphs.slice(u.extent.start,u.extent.end).map(p=>p.text).join('\n').replace(/^\(a\)/u,'a)');
+ const w={...chosen(cbam,target),originalText:original,proposedText:'point (a) is replaced by the following:\n"Replacement text."'};
+ assert.equal(resolveExistingLawPlacement([{kind:'act',proposal:p}],w,baseline(cbam)).status,'placed');
+ assert.equal(resolveExistingLawPlacement([{kind:'act',proposal:p}],{...w,originalText:original.replace(/^a\)/u,'b)')},baseline(cbam)).status,'unresolved');
+});
