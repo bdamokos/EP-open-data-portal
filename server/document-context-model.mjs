@@ -1,3 +1,4 @@
+import {resolutionPointCollision} from './resolution-point-collision.mjs';
 import {characterSimilarity} from './proposal-similarity.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {relativeResolutionHeading} from './resolution-labels.mjs';
@@ -308,7 +309,8 @@ const structuralRow = (row, format) => row.normal === '°' || row.normal === '°
 const emphasisedRow = (value, format) => {
   const start = value.search(/\S/u), end = value.trimEnd().length;
   return start >= 0 && ['bold', 'italic'].some(kind => (format?.marks || []).some(mark => mark.kind === kind
-    && Number.isInteger(mark.start) && Number.isInteger(mark.end) && mark.start <= start && mark.end >= end));
+    && Number.isInteger(mark.start) && Number.isInteger(mark.end) && mark.start <= start && mark.end >= end))
+    || start===0&&value.length<180&&!/[.;!?:]$/u.test(value)&&['bold','italic'].every(kind=>{const marks=(format?.marks||[]).filter(m=>m.kind===kind);return marks.some(m=>m.start===0&&m.end>=end/3)&&marks.some(m=>m.end===end&&m.start<=end*2/3);});
 };
 function motionStructure(text, language) {
   const paragraphs = text?.paragraphs || [], selection = motionBodySelection(paragraphs, language), {start} = selection, rows = sourceStructure(text);
@@ -356,8 +358,32 @@ function motionStructure(text, language) {
       units.push({kind: 'heading', label: value, parent: null, start: index, end: index, level: 0});
       continue;
     }
+    // A standalone source editorial reference between consecutive recitals
+    // is retained in the document but is not part of either recital's text.
+    const beforeRecital=/^([A-Z]{1,3})[.)]\s+/u.exec(rows[index-1]?.normal||'')?.[1];
+    const afterRecital=/^([A-Z]{1,3})[.)]\s+/u.exec(rows[index+1]?.normal||'')?.[1];
+    const recitalOrdinal=s=>s?[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+    if(language==='en'&&!/[\r\n]/u.test(row.value)&&/^\(Ex AM [1-9]\d* \(Or\. [A-Z]{2}\) of FdR [^()\r\n]+\.docx\)$/u.test(value)
+      &&beforeRecital&&afterRecital&&recitalOrdinal(afterRecital)===recitalOrdinal(beforeRecital)+1
+      &&rows[index+1]?.complete&&consecutive(rows[index-1],row)&&consecutive(row,rows[index+1])) {
+      close(index-1);certainHeadings.add(index);
+      units.push({kind:'heading',label:value,parent:null,start:index,end:index,level:0});continue;
+    }
     const heading = formats[index]?.heading;
     const recordedHeading = Number.isInteger(heading) && heading >= 1 && heading <= 6;
+    // A Roman-numbered section title can look like a recital. Require both
+    // full emphasis and consecutive operative numbers before treating it as a heading.
+    const marks = formats[index]?.marks || [], length = row.value.trimEnd().length, start = row.value.search(/\S/u);
+    const fullyMarked = kind => start >= 0 && marks.some(mark => mark.kind === kind && mark.start <= start && mark.end >= length);
+    const priorNumber = /^([1-9]\d*)[.)]\s+/u.exec(rows[index - 1]?.normal || '')?.[1];
+    const nextNumber = /^([1-9]\d*)[.)]\s+/u.exec(rows[index + 1]?.normal || '')?.[1];
+    if (/^[IVXLCDM]+[.)]\s+\S/u.test(value) && fullyMarked('bold') && fullyMarked('italic')
+      && priorNumber && nextNumber && Number(priorNumber) + 1 === Number(nextNumber)
+      && rows[index + 1]?.complete && consecutive(rows[index - 1], row) && consecutive(row, rows[index + 1])) {
+      close(index - 1); certainHeadings.add(index);
+      units.push({kind: 'heading', label: value, parent: null, start: index, end: index, level: 0});
+      continue;
+    }
     let kind, label, level = 1;
     let match = /^([1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3})[.)]\s+/u.exec(value);
     if (match) {kind = 'paragraph'; label = match[1].replace(/\s/g, ''); provisionsStarted = true;}
@@ -517,6 +543,26 @@ export function resolveAmendmentPlacement(text, options = {}) {
   if (!options.language || text?.textLanguage && text.textLanguage !== options.language) return unresolved('different_text_languages');
   const rows = sourceStructure(text);
   if (!rows) return unresolved('source_structure_unavailable');
+  // The first annex of this Swedish resolution format contains numbered
+  // recommendations, each followed by a title and numbered points.
+  const recommendation=options.language==='sv'&&operation==='replace'&&/^Bilaga I – rekommendation ([1-9]\d*) – punkt 1$/u.exec(options.targetLabel||'');
+  if(recommendation) {
+    const headings=rows.flatMap((row,i)=>/^BILAGA TILL RESOLUTIONSFÖRSLAGET(?:\n|$)/u.test(row.value)?[i]:[]);
+    const end=headings.length===1?rows.findIndex((row,i)=>i>headings[0]&&row.normal==='MOTIVERING'):-1;
+    const hits=rows.flatMap((row,i)=>i>headings[0]&&i<end&&row.normal==='Rekommendation '+recommendation[1]?[i]:[]);
+    if(headings.length===1&&end>headings[0]&&hits.length===1) {
+      const start=hits[0],target=start+2,part=rows.slice(start,start+4),next=rows.findIndex((row,i)=>i>start&&i<end&&row.normal==='Rekommendation '+(Number(recommendation[1])+1));
+      if(part.length===4&&part.every((row,i)=>row.complete&&row.source.container==='body'&&(!i||consecutive(part[i-1],row)))
+        &&next>target+1&&rows.slice(start+1,next).every((row,i)=>row.complete&&row.source.container==='body'&&consecutive(rows[start+i],row))
+        &&rows.slice(start+1,next).filter(row=>/^1[.)]\s+\S/u.test(row.normal)).length===1
+        &&/^1[.)]\s+\S/u.test(rows[target].normal)&&/^2[.)]\s+\S/u.test(rows[target+1].normal)
+        &&whitespace(rows[target].value)===whitespace(options.originalText)) {
+        evidence.push({basis:'published-recommendation',recommendation:recommendation[1],point:'1'});
+        return placed({span:{start:target,end:target}});
+      }
+    }
+    return unresolved('target_not_found');
+  }
   const structure = motionStructure(text, options.language), {units} = structure;
   if (!units.length) return unresolved('baseline_unavailable');
   if (structure.selection?.multipleOpenings) {
@@ -550,7 +596,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const driftVotes=options.numberingReferenceTexts??(referenceText?[referenceText]:[]);
   if(!options.requireUniqueOriginal&&options.language==='en'&&['replace','delete'].includes(operation)
     &&ref?.kind==='paragraph'&&!ref.isNew&&!ref.suffix&&!ref.after&&!ref.parents.length
-    &&/^[1-9]\d{0,5}$/u.test(ref.label)&&driftVotes.length&&!/\n_{5,}\s*\n/u.test(options.originalText)) {
+    &&/^[1-9]\d{0,5}$/u.test(ref.label)&&driftVotes.length&&!/\n(?:_{5,}\s*\n|[1-9]\d*\.\s+)/u.test(options.originalText)) {
     const votes=driftVotes.map(value=>/^(?:§|Paragraph)\s*([1-9]\d{0,5})$/iu.exec(whitespace(value))?.[1]);
     const original=wordingNormal(options.originalText),target=votes[0];
     if(votes.every(value=>value===target)&&target&&Math.abs(Number(target)-Number(ref.label))===1
@@ -562,6 +608,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
       }
     }
   }
+  const collision=resolutionPointCollision(text,rows,structure,{...options,referenceText},operation,ref);
+  if(collision)return collision;
   const nearPoint=resolutionPointNearPlacement(text,rows,structure,{...options,referenceText},operation);
   if(nearPoint)return nearPoint;
   const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
@@ -579,6 +627,26 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
   const span = unit => ({start: unit.start, end: unit.end});
   if (operation === 'insert') {
+    // Terminal unnumbered dash items acquire their ordinal from this one
+    // complete paragraph, not from dashes elsewhere in the document.
+    const indent=options.language==='en'&&/^Paragraph ([1-9]\d*) – indent ([1-9]\d*) a \(new\)$/u.exec(options.targetLabel||'');
+    if(indent&&!referenceText&&options.originalText===''&&/^[-–—•]\s+\S/u.test(options.proposedText)) {
+      const owners=units.filter(unit=>unit.kind==='paragraph'&&unit.label===indent[1]),owner=owners[0],count=Number(indent[2]);
+      if(owners.length===1&&count<=100&&!structure.invalid.has(owner.start)&&!structure.uncertain.has(owner.start)&&!structure.incompleteLabels.has(owner.label)
+        &&/:\s*$/u.test(rows[owner.start].normal)&&owner.end-owner.start===count&&complete(owner.start,owner.end+1)
+        &&Number.isFinite(text.paragraphFormats?.[owner.start]?.indent)
+        &&Number.isFinite(text.paragraphFormats?.[owner.start+1]?.indent)
+        &&text.paragraphFormats[owner.start+1].indent>text.paragraphFormats[owner.start].indent
+        &&rows.slice(owner.start+1,owner.end+1).every((row,index)=>{
+          const format=text.paragraphFormats[owner.start+1+index],first=text.paragraphFormats[owner.start+1];
+          return !/[\r\n]/u.test(row.value)&&/^[-–—•]\s+\S/u.test(row.normal)
+            &&format?.indent===first.indent&&Number.isFinite(format?.hanging)&&format.hanging===first.hanging;
+        })
+        &&units.some(unit=>unit.kind==='paragraph'&&unit.label===String(Number(indent[1])+1)&&unit.start===owner.end+1)) {
+        evidence.push({basis:'terminal-indent-order',paragraph:indent[1],indent:count});
+        return placed({insertAfter:owner.end,insertBefore:owner.end+1});
+      }
+    }
     if(ref?.kind==='recital'&&ref.isNew&&!ref.parents.length) {
       const recitals=units.filter(unit=>unit.kind==='recital'),first=units.find(unit=>unit.kind==='paragraph');
       const ordinal=value=>/^[A-Z]+$/u.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
@@ -635,6 +703,21 @@ export function resolveAmendmentPlacement(text, options = {}) {
       }
     }
     if (!ref || ref.negative || (!ref.suffix && !ref.after) || !['paragraph', 'recital', 'point', 'citation'].includes(ref.kind)) return unresolved('insertion_reference_unavailable');
+    // A Latin sequence may contain visually identical Greek M/N glyphs in a
+    // published English motion. Require the entire sequence and both neighbours.
+    if(options.language==='en'&&ref.kind==='recital'&&ref.isNew&&['M','N'].includes(ref.base)&&ref.suffix&&!ref.parents?.length&&!ref.after&&!referenceText
+      &&new RegExp('^'+ref.base+ref.suffix+'[.)]\\s+whereas\\b','u').test(options.proposedText)) {
+      const aliases={'Μ':'M','Ν':'N'},recitals=units.filter(unit=>unit.kind==='recital').sort((a,b)=>a.start-b.start);
+      const normal=label=>aliases[label]||label,at=recitals.findIndex(unit=>normal(unit.label)===ref.base),first=units.find(unit=>unit.kind==='paragraph');
+      if(at>0&&at<recitals.length-1&&recitals[at].label!==ref.base&&first?.label==='1'
+        &&![...structure.incompleteLabels].some(label=>/^\p{Lu}/u.test(label))
+        &&recitals.every((unit,i)=>normal(unit.label)===String.fromCharCode(65+i)&&unit.end<first.start&&(!i||recitals[i-1].end+1===unit.start)
+          &&!structure.invalid.has(unit.start)&&!structure.uncertain.has(unit.start)&&!structure.incompleteLabels.has(unit.label)&&complete(unit.start,unit.end))
+        &&recitals[at].end+1===recitals[at+1].start&&complete(recitals[at].start,recitals[at+1].start)) {
+        evidence.push({basis:'published-ordinal-alias',publishedLabel:ref.label,sourceLabel:recitals[at].label+ref.suffix});
+        return placed({insertAfter:recitals[at].end,insertBefore:recitals[at+1].start});
+      }
+    }
     if (!ref.after && matching(ref).length) return unresolved('duplicate_target_label');
     if (ref.kind === 'point') {
       const path = ref.parents || [], parent = path.at(-1);
@@ -703,6 +786,14 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if (matches.length > 1) return unresolved('multiple_published_targets');
     if (!matches.length) return unresolved(structure.incompleteLabels.has(ref.label) ? 'source_passage_incomplete' : 'target_not_found');
     const unit = matches[0];
+    // An amendment can quote only the lead while leaving its points intact.
+    if(operation==='replace'&&unit.kind==='paragraph'&&complete(unit.start,unit.end)&&!structure.invalid.has(unit.start)&&!structure.uncertain.has(unit.start)
+      &&!structure.incompleteLabels.has(unit.label)&&/:$/u.test(rows[unit.start].normal)
+      &&units.some(child=>child.kind==='point'&&child.label==='a'&&child.parent===unit.start&&child.start===unit.start+1)
+      &&whitespace(rows[unit.start].value)===whitespace(options.originalText)) {
+      evidence.push({basis:'exact-paragraph-lead',label:unit.label});
+      return placed({span:{start:unit.start,end:unit.start}});
+    }
     const source = text.paragraphs.slice(unit.start, unit.end + 1).join(' ');
     const sourceKey = wordingNormal(source), originalKey = wordingNormal(options.originalText);
     // B-10-2026-0424 prints dash-led citations, while its amendments print
@@ -711,7 +802,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     const numberedCitation = unit.kind === 'citation'
       && /^([1-9]\d*)\.\s+/u.exec(whitespace(options.originalText))?.[1] === unit.label
       && complete(structure.start, unit.end);
-    const footnotes = sourceKey !== originalKey && ['paragraph', 'recital', 'point'].includes(unit.kind)
+    const footnotes = sourceKey !== originalKey && ['paragraph', 'recital', 'point', 'citation'].includes(unit.kind)
       && resolutionFootnoteMatch(text, unit.start, unit.end, options.originalText, options.originalFormatting);
     // A unique labelled whole provision can survive small transcription damage
     // or a replaced tail. Compare all same-kind provisions in this motion so
@@ -719,7 +810,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     // Detached notes require their own body, payload and anchor proof. A small
     // payload must never be mistaken for a damaged tail by edit distance.
     let nearMatch=false;
-    if((sourceKey!==originalKey||options.requireUniqueOriginal)&&!/\n_{5,}\s*\n/u.test(options.originalText)&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
+    if((sourceKey!==originalKey||options.requireUniqueOriginal)&&!/\n(?:_{5,}\s*\n|[1-9]\d*\.\s+)/u.test(options.originalText)&&['paragraph','recital'].includes(unit.kind)&&originalKey.length>=80&&originalKey.length<=10000) {
       const score=value=>{
         let prefix=0;while(prefix<Math.min(value.length,originalKey.length)&&value[prefix]===originalKey[prefix])prefix++;
         return {similarity:characterSimilarity(value,originalKey,.93),prefix:prefix>=80&&prefix<Math.min(value.length,originalKey.length)?prefix/Math.min(value.length,originalKey.length):0};

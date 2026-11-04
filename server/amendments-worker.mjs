@@ -1,3 +1,5 @@
+import {requireDistributionIdentity,nativeDistributionText} from './ep-distribution-route.mjs';
+import {docxParts} from './document-text.mjs';
 import {upcomingAgenda} from './upcoming-amendments.mjs';
 import {confirmSourceRejection,SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {committeeDiscoveryTask,rebuildCommitteeList} from './committee-amendments-worker.mjs';
@@ -924,6 +926,7 @@ export async function amendmentTask(worker,task) {
     };
     const parseSource=async (descriptor,downloaded)=>{
       const fetchedAt=downloaded.fetchedAt;
+      if(descriptor.identityRequired)requireDistributionIdentity([nativeDistributionText(docxParts(downloaded.buffer).get('word/document.xml'))],body.listId);
       const reportId=saved.work.reportWording&&sameDocxDescriptor(descriptor,currentDocxDescriptor({...saved.work,distributionEvidence:saved.work.reportWording.distributionEvidence}))?saved.work.reportWording.reportId:null;
       const extraction=await worker.extractAmendmentList(downloaded.buffer,{listId:body.listId,targetDocumentId:saved.work.scope==='committee'?saved.work.targetDocumentId:body.targetDocumentId,language:descriptor.language,sourceUrl:descriptor.url,fetchedAt,...(saved.work.scope==='committee'?{scope:'committee',sourceKind:'amendment-list'}:{}),...(reportId?{reportId}:{})},{signal});
       signal.throwIfAborted();

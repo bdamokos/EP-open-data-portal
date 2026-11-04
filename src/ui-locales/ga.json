@@ -1,6 +1,9 @@
 {
   "amendment.replaces_whole_text": "Tagann sé in ionad an téacs iomláin.",
   "amendment.agreement_text": "Téacs an chomhaontaithe",
+  "amendment.final_act": "An gníomh deiridh: {act}",
+  "amendment.provisional_marks": "Cló trom iodálach: nua nó athraithe. ▌: scriosta.",
+  "amendment.provisional_unmarked": "Níl roinnt athruithe marcáilte.",
   "documentcontext.final_placement_check": "Seiceáil an suíomh deiridh sa {adoptedText}.",
   "documentcontext.adopted_text": "téacs a glacadh",
   "amendment.alternative_motion": "Tairiscint mhalartach",

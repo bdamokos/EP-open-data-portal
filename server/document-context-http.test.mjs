@@ -13,6 +13,8 @@ test('document context HTTP contract is bounded, query-separated and never start
   process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=directory;
   const {server}=await import('./index.mjs');const {activityIndex}=await import('./activity-index-worker.mjs');
   const {store,worker}=activityIndex();store.db.exec('PRAGMA query_only=ON');
+  const {documentContext}=await import('./document-context.mjs');
+  t.mock.method(documentContext,'readText',async (_work,language)=>({status:'unavailable',paragraphs:[],textLanguage:null,requestedLanguage:language,availableTextLanguages:[],reason:'No saved document text is available.'}));
   const calls=[];
   t.mock.method(globalThis,'fetch',async value=>{
     const url=new URL(value);calls.push(url.href);const id=url.pathname.split('/').at(-1);
@@ -33,7 +35,7 @@ test('document context HTTP contract is bounded, query-separated and never start
   assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);assert.equal(calls.length,2);
   assert(calls.every(url=>url.startsWith('https://data.europarl.europa.eu/api/v2/')));
 
-  const {documentContext}=await import('./document-context.mjs');
+
   const id='B-10-2026-0424',amendmentId=id+'-AM-13',listId=id+'-AM-001-020',fetchedAt='2026-10-18T10:00:00.000Z';
   const wording={en:'1. Published English wording.',hu:'1. Közzétett magyar szöveg.'};
   const variants=['en','hu',null].map(language=>{

@@ -635,3 +635,30 @@ test('annex caption decoration repair requires both native annex frames and exac
   const walk=units=>units.flatMap(u=>[u,...walk(u.children)]);walk(exact.units).find(u=>u.table).table.rows[0].cells[0].colSpan=2;assert.equal(run(w,exact).status,'unresolved','an exact caption match cannot bypass malformed geometry');
 
 });
+
+test('a matrix comparison can replace exact table rows inside its named annex point',()=>{
+ const rows=[['ANNEX I','Annexetitre','body'],['The annex is amended:','Normal','body'],['(1) Earlier instruction.','Point0','body'],['(2) The table is replaced:','Point0','body'],['CN code','Normal','cell',1,1,1],['Greenhouse gas','Normal','cell',1,1,2],['7314 Metal products','Normal','cell',1,2,1],['Carbon dioxide','Normal','cell',1,2,2],['ANNEX II','Annexetitre','body']];
+ const projection={paragraphs:rows.map(r=>r[0]),structureStatus:'extracted',paragraphSources:rows.map((r,ordinal)=>({path:r[2]==='cell'?`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`:`/w:document[1]/w:body[1]/w:p[${ordinal+1}]`,ordinal,segment:ordinal,container:r[2]==='cell'?'table-cell':'body',complete:true})),paragraphProperties:rows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(rows)};
+ const items=[{kind:'annex',proposal:parseProposal(projection,{item:'annex'})}],w={baseline:'commission-proposal',language:'en',targetLabel:'Annex I – point 2',originalText:'CN code\tGreenhouse gas\n7314 Metal products\tCarbon dioxide',proposedText:'CN code\tGreenhouse gas\n7314 Changed metal products\tCarbon dioxide'};
+ const placed=resolveProposalPlacement(items,w);assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:4,end:7});
+ assert.equal(resolveProposalPlacement(items,{...w,targetLabel:'Annex I – point 1'}).status,'unresolved');
+ assert.equal(resolveProposalPlacement(items,{...w,originalText:w.originalText.replace('7314','7315')}).status,'unresolved');
+});
+
+test('ordinal paragraphs in a wholly unnumbered DOCX article require exact whole-row wording',()=>{
+ const projection={...source(['Article 16','First unnumbered paragraph.','Second unnumbered paragraph.','Article 17','Next article.'],['Titrearticle','Normal','Normal','Titrearticle','Normal']),sourceKind:'docx'};
+ const opts={language:'en',targetLabel:'Article 16 – paragraph 2',originalText:'Second unnumbered paragraph.',proposedText:'Revised second paragraph.'};
+ const placed=resolveProposalPlacement([item(projection)],opts);
+ assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
+ assert(!resolveProposalPlacement([item(projection)],{...opts,targetLabel:'Article 16 – paragraph 3'}).evidence.some(e=>e.basis==='ordinal-unnumbered-paragraph'));
+ assert.equal(resolveProposalPlacement([item(projection)],{...opts,originalText:'Unrelated wording.'}).status,'unresolved');
+ projection.paragraphSources[2].complete=false;
+ assert.equal(resolveProposalPlacement([item(projection)],opts).status,'unresolved');
+});
+
+test('a complete adjacent recital pair survives unrelated later recast numbering damage',()=>{
+ const make=()=>({...source(['2025/0001 (COD)','Whereas:','(1) First recital.','(2) Second recital.','(11) Old label.','(11) New label.','HAVE ADOPTED THIS DIRECTIVE:','Article 1']),sourceKind:'docx'});
+ const content=make(),placed=resolve(content,'Recital 1 a (new)','','(1a) New recital.');
+ assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,3);assert(placed.evidence.some(e=>e.basis==='native-adjacent-recital-boundary'));
+ for(const mutate of [p=>p.sourceKind='text',p=>p.paragraphs[3]='(4) Other recital.',p=>p.paragraphs[5]='(1) Duplicate anchor.',p=>p.paragraphSources[3].ordinal++,p=>p.paragraphSources[2].complete=false]){const p=make();mutate(p);assert.equal(resolve(p,'Recital 1 a (new)','','(1a) New recital.').status,'unresolved',String(mutate));}
+});

@@ -116,7 +116,7 @@ export async function buildTopics(store,{generation=store.get('active'),sourceGe
  const speechRows=store.db.prepare("SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind IN ('speech','outside-speech') ORDER BY key");
  let pendingSpeeches=[];
  for(const row of speechRows.iterate(sourceGeneration)){
-  const w=readWork(row.body);stageStoryInput(store,w,w.outside?.source||{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:sourceDate(row.fetched_at)},{rank:2});pendingSpeeches.push(...topicObservationNodes([{work:w,source:{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:sourceDate(row.fetched_at)},projection:w.outside?'outside-speech':'speech'}]).filter(n=>n.kind==='speech'));
+  const w=readWork(row.body),source={url:w.website?.url||'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:sourceDate(row.fetched_at)};stageStoryInput(store,w,w.outside?.source||source,{rank:2});pendingSpeeches.push(...topicObservationNodes([{work:w,source,projection:w.outside?'outside-speech':'speech'}]).filter(n=>n.kind==='speech'));
   if(pendingSpeeches.length>=25){store.transaction(()=>{store.assertWriter();for(const n of pendingSpeeches)stageSpeech(n);});pendingSpeeches=[];store.renew();await new Promise(setImmediate);}
  }
  if(pendingSpeeches.length)store.transaction(()=>{store.assertWriter();for(const n of pendingSpeeches)stageSpeech(n);});

@@ -11,3 +11,9 @@ test('merged ordinal marker cannot hide an altered original or detached payload'
  const moved={...proposal,anchors:proposal.anchors.map(a=>({...a,offset:a.offset+2}))};
  assert.equal(resolveProposalPlacement([{kind:'act',proposal:moved}],wording).status,'unresolved');
 });
+test('context placement preserves the established merged-ordinal note proof',async()=>{
+ const {documentContextPlacement}=await import('./document-context-placement.mjs');
+ const chosen={...wording,baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false},language:'en',targetLabelLanguage:'en'};
+ const placement=documentContextPlacement({chosen,items,baseline:{language:'en'}});
+ assert.equal(placement.status,'placed');assert.equal(placement.noteScope,undefined);assert.equal(verifyPlacement({placement,items,wording}).status,'verified');
+});

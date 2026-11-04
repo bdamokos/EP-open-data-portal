@@ -1,6 +1,9 @@
 {
   "amendment.replaces_whole_text": "Zamjenjuje cijeli tekst.",
   "amendment.agreement_text": "Tekst sporazuma",
+  "amendment.final_act": "Konačni akt: {act}",
+  "amendment.provisional_marks": "Podebljani kurziv: novo ili izmijenjeno. ▌: izbrisano.",
+  "amendment.provisional_unmarked": "Neke izmjene nisu označene.",
   "documentcontext.final_placement_check": "Provjerite konačno mjesto u {adoptedText}.",
   "documentcontext.adopted_text": "usvojenom tekstu",
   "amendment.alternative_motion": "Alternativni prijedlog",

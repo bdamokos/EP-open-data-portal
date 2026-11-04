@@ -2,6 +2,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
 import {adoptedTextProjectionVersion,followupReferences,spId,validateTA,validateReply} from './commission-followups-model.mjs';
 import {mutableDocumentCandidates,mutableBackfillCutoff} from './mutable-document-recovery.mjs';
+import {speechSourceGapAudit} from './speech-source-gaps.mjs';
 
 export function failureClass(message='') {
   const status=String(message).match(/(?:returned|HTTP|unavailable\s*\()\s*(404|410|429|5\d\d)/i)?.[1];
@@ -17,7 +18,7 @@ export function failureClass(message='') {
 export const RECOVERY_PATHS=Object.freeze([
   {family:'members and memberships',owner:'activity index',recovery:'daily roster, membership and history queues'},
   {family:'questions, answers, reports and procedures',owner:'activity index',recovery:'catalogues, feeds, mutable-document and slow-gap queues'},
-  {family:'speech metadata and outside speakers',owner:'activity index',recovery:'monthly catalogues, exact-ID recoveries and dated-roster retries'},
+  {family:'speech metadata and outside speakers',owner:'activity index',recovery:'monthly catalogues, exact-ID recoveries and dated-roster retries; website-XML imports recheck monthly'},
   {family:'group designations',owner:'activity index',recovery:'group_voice_jobs after core work; monitor for starvation'},
   {family:'amendments and sitting outcomes',owner:'activity index',recovery:'amendment_jobs, saved continuations, daily gap and parser recovery'},
   {family:'speech and question/answer search text',owner:'corpus',recovery:'monthly speech tasks and exact distribution URL tasks'},
@@ -138,6 +139,7 @@ export function auditIndex(db,now) {
         continuations:saved?{tasks:saved.tasks?.length??0,discovery:saved.discovery?.length??0,capacityGap:saved.capacityGap??null}:null,
         mutableDocuments:auditMutableDocuments(db,generation,now),mutableAdmission:auditMutableAdmission(db,generation,now)};
     }),
+    speechSourceGaps:speechSourceGapAudit(db),
     adoptedTextDiscovery:meta(db,'adoptedTextDiscovery'),followupAdmissionRepair:meta(db,'followupAdmissionRepair'),amendmentDocumentRouteRepair:meta(db,'amendmentDocumentRouteRepair'),amendmentDocumentRouteVerification:meta(db,'amendmentDocumentRouteVerification'),unresolvedJoins:(meta(db,'unresolved')||[]).length,
     nonRetryableCoverageWindows:has(db,'refresh_gaps')?db.prepare("SELECT COUNT(*) AS count FROM refresh_gaps WHERE generation=? AND kind='coverage'").get(active??0).count:null};
 }
