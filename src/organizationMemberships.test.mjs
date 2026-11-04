@@ -16,6 +16,17 @@ test('organisation membership uses exact IDs and valid inclusive dates',()=>{
  assert.equal(new URL(membershipHref('org/12','hu','A & B'),'https://example.org').searchParams.get('organization'),'12');
 });
 
+test('committee memberships read object references like organisation memberships',async()=>{
+ const {memberships}=await import('../server/odp.mjs');
+ const committee='https://data.europarl.europa.eu/def/ep-entities/COMMITTEE_PARLIAMENTARY_STANDING';
+ const during={startDate:'2024-07-16'},day='2026-10-31';
+ const person=wrap=>({hasMembership:[{organization:wrap('org/6567'),role:wrap('def/ep-roles/MEMBER'),membershipClassification:wrap(committee),memberDuring:during}]});
+ const plain=memberships(person(value=>value),day);
+ assert.deepEqual(memberships(person(id=>({id})),day),plain);
+ assert.equal(plain[0].id,'6567');assert.equal(plain[0].role,'MEMBER');assert.equal(plain[0].current,true);
+ assert.equal(organizationMemberships(person(id=>({id})),day)[0].id,plain[0].id);
+});
+
 test('object references and observation completeness remain independent of known matches',async()=>{
  const {organizationMembershipSnapshot}=await import('../server/organization-memberships.mjs');
  const {organizationCoverageComplete}=await import('./memberFilters.mjs');

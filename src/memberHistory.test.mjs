@@ -157,6 +157,25 @@ test('opening and leaving an MEP from the member wall are Back/Forward steps',as
   assert.deepEqual([...h.container.querySelectorAll('[data-member-id]')].map(n=>Number(n.dataset.memberId)),[2]);
  });
 
+ test('uncertain observations of a listed committee keep its count qualified',async t=>{
+  const sourceDirectory={...directory,members:members.map(m=>({...m,organizationMemberships:m.id===5?[{id:'6567',current:null}]:[],organizationMembershipsComplete:m.id!==5}))};
+  const h=await harness(t,'organization=6567',sourceDirectory);
+  assert.equal(new URLSearchParams(location.search).get('committee'),'6567');
+  assert.equal(h.container.querySelector('.explorer-results strong').textContent,'4+');
+ });
+
+ test('unavailable membership observations keep a committee count qualified',async t=>{
+  const sourceDirectory={...directory,members:members.map(m=>({...m,organizationMemberships:m.id===5?null:[],organizationMembershipsComplete:m.id!==5}))};
+  const h=await harness(t,'committee=6567',sourceDirectory);
+  assert.equal(h.container.querySelector('.explorer-results strong').textContent,'4+');
+ });
+
+ test('uncertainty about another body leaves a committee count exact',async t=>{
+  const sourceDirectory={...directory,members:members.map(m=>({...m,organizationMemberships:[{id:'9999',current:null}],organizationMembershipsComplete:false}))};
+  const h=await harness(t,'committee=6567',sourceDirectory);
+  assert.equal(h.container.querySelector('.explorer-results strong').textContent,'4');
+ });
+
  test('uncertain observations never make a loaded organisation filter count definitive',async t=>{
   const sourceDirectory={...directory,members:members.map(m=>({...m,organizationMemberships:m.id===4?[{id:'6831',current:true}]:[{id:'6831',current:null}],organizationMembershipsComplete:m.id===4}))};
   const h=await harness(t,'organization=6831',sourceDirectory);

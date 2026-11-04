@@ -16,7 +16,7 @@ import {useSpeechTranslation,SpeechTextStatus} from './SpeechTranslation';
 import {MemberAffiliation} from './components/MemberAffiliation';
 import {ActivityDossierLinks} from './DossierActivity';
 import {navigateDossier,useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
-import {matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
+import {committeeCoverageComplete,matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
 import {AvailabilityNote} from './AvailabilityNote';
 import {coverageStore} from './SavedControls';
 import {FormerMemberNotice} from './MembershipUpdates';
@@ -674,7 +674,7 @@ export default function App() {
       ).sort(compareMembers) || [],
     [directory, country, group, search, committee, role,organization,directoryState.loading],
   );
-  const partialCommittee = Boolean((committee||organization) && (!directory?.index.complete||Boolean(organization&&directoryState.loading)||Boolean(organization&&directory?.members.some(m=>!organizationCoverageComplete(m,organization)))));
+  const partialCommittee = Boolean((committee||organization) && (!directory?.index.complete||Boolean(organization&&directoryState.loading)||Boolean(organization&&directory?.members.some(m=>!organizationCoverageComplete(m,organization)))||Boolean(committee&&directory?.members.some(m=>!committeeCoverageComplete(m,committee)))));
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = (profile.data?.id === member) ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(member)});
