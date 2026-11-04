@@ -703,3 +703,14 @@ test('a complete adjacent recital pair survives unrelated later recast numbering
  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,3);assert(placed.evidence.some(e=>e.basis==='native-adjacent-recital-boundary'));
  for(const mutate of [p=>p.sourceKind='text',p=>p.paragraphs[3]='(4) Other recital.',p=>p.paragraphs[5]='(1) Duplicate anchor.',p=>p.paragraphSources[3].ordinal++,p=>p.paragraphSources[2].complete=false]){const p=make();mutate(p);assert.equal(resolve(p,'Recital 1 a (new)','','(1a) New recital.').status,'unresolved',String(mutate));}
 });
+
+test('preamble citation wording proves comparison notes before matching its legal body',()=>{
+ const projection=source(['THE COUNCIL OF THE EUROPEAN UNION,','Having regard to the opinion of the Committee of the Regions,','Whereas:','(1) A recital.'],['Institutionquiagit','Normal','Normal','ManualConsidrant']);
+ const proposal=structuredClone(parseProposal(projection)),text=proposal.paragraphs[1].text,at=text.length-1;
+ proposal.anchors=[{paragraph:1,offset:at,note:'8',label:'2'}];proposal.notes=[{id:'8',text:'OJ C , , p. .',complete:true}];
+ const wording={language:'en',baseline:'commission-proposal',targetLabel:'Citation 1',originalText:text.slice(0,at)+'2 '+text.slice(at)+'\n_________________\n2 OJ C , , p. .',proposedText:'After consulting the Committee of the Regions,\n_________________',originalFormatting:[{kind:'superscript',start:at,end:at+1}]};
+ const place=p=>resolveProposalPlacement([{kind:'act',proposal:p}],wording);
+ const placed=place(proposal);assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:1});assert.equal(verifyPlacement({items:[{proposal}],wording,placement:placed}).status,'verified');
+ for(const change of [a=>a.notes[0].text='Different note.',a=>a.anchors[0].offset--,a=>a.notes[0].complete=false]){const a=structuredClone(proposal);change(a);assert.equal(place(a).status,'unresolved');}
+ const changed={...wording,originalFormatting:[]};assert.equal(resolveProposalPlacement([{kind:'act',proposal}],changed).status,'unresolved');
+});
