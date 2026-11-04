@@ -169,7 +169,7 @@ export function rawResolutionUnits(text,language,{includeTables=false}={}) {
     // outside the legal wording; preserve it as its own boundary.
     const prior=label((paragraphs[i-1]||'').trim()), following=label((paragraphs[i+1]||'').trim());
     const ordinal=s=>/^[A-Z]{1,3}$/u.test(s||'')?[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
-    if(language==='en'&&/^\(Ex AM [1-9]\d* \(Or\. [A-Z]{2}\) of FdR [^\r\n]+\.docx\)$/u.test(value)
+    if(language==='en'&&!/[\r\n]/u.test(paragraphs[i])&&/^\(Ex AM [1-9]\d* \(Or\. [A-Z]{2}\) of FdR [^()\r\n]+\.docx\)$/u.test(value)
       &&prior?.kind==='recital'&&following?.kind==='recital'&&ordinal(prior.label)!==null&&ordinal(following.label)===ordinal(prior.label)+1
       &&adjacent(sources[i-1],source)&&adjacent(source,sources[i+1])) {
       events.push({start:i,boundary:true});group++;parent=null;continue;

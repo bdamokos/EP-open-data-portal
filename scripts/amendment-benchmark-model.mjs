@@ -652,6 +652,11 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});
   if(letterPoint.status!=='unverified')return letterPoint;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
+    if(!proposal&&Number.isInteger(placement.span?.end)) {
+      const following=text?.paragraphs?.[placement.span.end+1];
+      if(typeof following==='string'&&/^\s*\(Ex AM\b/u.test(following)
+        &&(/[\r\n]/u.test(following)||!/^\s*\(Ex AM [1-9]\d* \(Or\. [A-Z]{2}\) of FdR [^()\r\n]+\.docx\)\s*$/u.test(following)))return {status:'unverified',reason:'oracle-editorial-boundary-unavailable'};
+    }
     const drift=!proposal&&assertResolutionNumberingDrift({text,wording,placement,voteReferences});
     if(drift)return drift;
     let source, labels = [];

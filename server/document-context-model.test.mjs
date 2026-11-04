@@ -21,8 +21,10 @@ test('a source editorial reference between recitals stays outside the replaced p
  const paragraphs=['The European Parliament,','AG. whereas original;','(Ex AM 49 (Or. EN) of FdR example.docx)','AH. whereas next;','1. Operative;'];
  const text=document(paragraphs,{textLanguage:'en'}),options={language:'en',baseline:'motion-resolution',targetLabel:'Recital AG',originalText:'AG. whereas original;',proposedText:'AG. whereas changed;'};
  const result=resolveAmendmentPlacement(text,options);assert.equal(result.status,'placed');assert.deepEqual(result.span,{start:1,end:1});
- const changed=document(paragraphs.map((v,i)=>i===2?'(Some legal continuation)':v),{textLanguage:'en'});
- assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+ for(const continuation of ['(Some legal continuation)','(Ex AM 49 (Or. EN) of FdR example.docx) (whereas safeguards apply in annex.docx)','(Ex AM 49 (Or. EN) of FdR example\n.docx)','(Ex AM 49 (Or. EN) of FdR example.docx)\n']) {
+  const changed=document(paragraphs.map((v,i)=>i===2?continuation:v),{textLanguage:'en'});
+  assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed',continuation);
+ }
 });
 
 test('published translated resolution labels preserve native numbering and script',()=>{

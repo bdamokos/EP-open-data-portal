@@ -11,9 +11,11 @@ test('a bounded source editorial reference is not recital wording',()=>{
  const text={paragraphs,paragraphFormats:paragraphs.map(()=>({})),paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
  const raw=rawResolutionUnits(text,'en'),ag=raw.units.find(u=>u.label==='AG');
  assert.deepEqual({start:ag.start,end:ag.end,complete:ag.complete},{start:1,end:1,complete:true});
- for(const altered of ['(Ex AM 49 (Or. EN) of FdR example.pdf)','(Some legal continuation)']) {
+ for(const altered of ['(Ex AM 49 (Or. EN) of FdR example.pdf)','(Some legal continuation)','(Ex AM 49 (Or. EN) of FdR example.docx) (whereas safeguards apply in annex.docx)','(Ex AM 49 (Or. EN) of FdR example\n.docx)','(Ex AM 49 (Or. EN) of FdR example.docx)\n']) {
   const modified={...text,paragraphs:paragraphs.map((v,i)=>i===2?altered:v)};
   assert.notEqual(rawResolutionUnits(modified,'en').units.find(u=>u.label==='AG').end,1);
+  const wording={language:'en',baseline:'motion-resolution',targetLabel:'Recital AG',originalText:'AG. whereas original;',proposedText:'AG. whereas changed;'};
+  if(altered.startsWith('(Ex AM'))assert.notEqual(verifyPlacement({text:modified,wording,placement:{status:'placed',operation:'replace',span:{start:1,end:1}}}).status,'verified');
  }
 });
 const wrap=body=>'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'</w:body></w:document>';

@@ -361,7 +361,7 @@ function motionStructure(text, language) {
     const beforeRecital=/^([A-Z]{1,3})[.)]\s+/u.exec(rows[index-1]?.normal||'')?.[1];
     const afterRecital=/^([A-Z]{1,3})[.)]\s+/u.exec(rows[index+1]?.normal||'')?.[1];
     const recitalOrdinal=s=>s?[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
-    if(language==='en'&&/^\(Ex AM [1-9]\d* \(Or\. [A-Z]{2}\) of FdR [^\r\n]+\.docx\)$/u.test(value)
+    if(language==='en'&&!/[\r\n]/u.test(row.value)&&/^\(Ex AM [1-9]\d* \(Or\. [A-Z]{2}\) of FdR [^()\r\n]+\.docx\)$/u.test(value)
       &&beforeRecital&&afterRecital&&recitalOrdinal(afterRecital)===recitalOrdinal(beforeRecital)+1
       &&rows[index+1]?.complete&&consecutive(rows[index-1],row)&&consecutive(row,rows[index+1])) {
       close(index-1);certainHeadings.add(index);
