@@ -32,3 +32,12 @@ test('missing languages use one paced background request and retain null header 
   assert(await collectOutsideRoles(worker));assert.equal(calls,1);const role=publishedOutsideRoles(store,appearance.id,'42').en;assert.equal(role.role,null);assert.equal(role.source.url,'exact-source?language=en');assert.equal(await collectOutsideRoles(worker),false);assert.equal(calls,1);
  }finally{db.close();}
 });
+test('compact header provenance binds to its language and leaves legacy ambiguity explicit',()=>{
+ const xml='<oralStatements><speech><from xml:lang="en"><person refersTo="person/42">Felipe VI</person><role>King of Spain</role></from></speech></oralStatements>';
+ const source={url:'https://data.europarl.europa.eu/api/v2/speeches/'+appearance.id+'?language=en',fetchedAt:'2026-10-01'};
+ const metadata={interventionHeaders:{en:xml},interventionHeaderSources:{en:source},sourceUrl:'latest-metadata-read',fetchedAt:'2026-11-04',headerSources:[]};
+ const corpus={speechMetadata:()=>metadata,retainedSpeechFragments:()=>({fragments:{}}),db:{prepare:()=>({get:()=>undefined})}};
+ assert.deepEqual(heldOutsideRole(corpus,appearance,'42','en').source,source);
+ delete metadata.interventionHeaderSources;metadata.headerSources=[source];assert.deepEqual(heldOutsideRole(corpus,appearance,'42','en').source,source);
+ metadata.headerSources=[{url:'https://example.org/unknown-language',fetchedAt:'2026-09-01'}];assert.deepEqual(heldOutsideRole(corpus,appearance,'42','en').source,{url:null,fetchedAt:null,headerSources:metadata.headerSources});
+});

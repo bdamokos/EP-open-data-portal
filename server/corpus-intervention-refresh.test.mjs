@@ -119,12 +119,14 @@ test('metadata-only refresh preserves no-text chair headers and updates current 
   const before=store.speechMetadata(source.activity_id);assert.equal(before.summary.intervention.type,'chair');
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM texts').get().n,0);
   assert.match(before.interventionHeaders.en,/<from>/);assert.doesNotMatch(before.interventionHeaders.en,/<p[ >]/);
+  assert.deepEqual(before.interventionHeaderSources.en,{url:sourceUrl,fetchedAt});
   const metadataOnly=structuredClone(source);delete metadataOnly.recorded_in_a_realization_of[0]['api:xmlFragment'];
   metadataOnly.inverse_consists_of=['eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-2'];
   store.putSpeechMetadata(metadataOnly,'https://data.europarl.europa.eu/api/v2/speeches/'+source.activity_id,'2026-10-18T10:00:00.000Z');
   const after=store.speechMetadata(source.activity_id);assert.equal(after.summary.intervention.type,'chair');assert.equal(after.summary.intervention.headerAvailable,true);
   assert.deepEqual(after.summary.intervention.parentIds,['MTG-PL-2026-10-07-PVCRE-ITM-2']);assert.deepEqual(after.headerSources,before.headerSources);
   assert.deepEqual(after.speakers,before.speakers);assert.equal(after.activity.recorded_in_a_realization_of[0]['api:xmlFragment'],undefined);
+  assert.deepEqual(after.interventionHeaderSources,before.interventionHeaderSources);
   metadataOnly.had_participation[0].had_participant_person=['person/43'];
   store.putSpeechMetadata(metadataOnly,sourceUrl,'2026-10-18T11:00:00.000Z');
   assert.equal(store.speechMetadata(source.activity_id).summary.intervention.headerAvailable,false);

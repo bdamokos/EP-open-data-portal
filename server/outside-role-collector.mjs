@@ -46,7 +46,12 @@ export function heldOutsideRole(store,appearance,person,language){
  const observation=observations.find(o=>o.fragmentKey===language)||observations.find(o=>o.languageTag===language);
  if(!observation)return null;
  const row=store.db.prepare(`SELECT t.source_url,t.fetched_at FROM texts t JOIN documents d ON d.id=t.document_id WHERE d.source_id=? AND t.source_key=? AND t.raw IS NOT NULL`).get(appearance.id,observation.fragmentKey);
- return roleObservation(observation,language,row?{url:row.source_url,fetchedAt:row.fetched_at}:{url:metadata.sourceUrl,fetchedAt:metadata.fetchedAt,headerSources:metadata.headerSources});
+ // Old compact headers retain a source list, without always binding a read to
+ // a language. Keep that gap explicit instead of attributing every header to
+ // the latest (possibly metadata-only) read. Held bytes still prevent refetch.
+ const candidates=(metadata?.headerSources||[]).filter(source=>{try{return new URL(source.url).searchParams.get('language')===observation.fragmentKey;}catch{return false;}});
+ const source=row?{url:row.source_url,fetchedAt:row.fetched_at}:metadata?.interventionHeaderSources?.[observation.fragmentKey]||candidates.at(-1)||{url:null,fetchedAt:null,headerSources:metadata?.headerSources||[]};
+ return roleObservation(observation,language,source);
 }
 export async function collectOutsideRoles(worker,{held=heldOutsideRole}={}){
  const {store}=worker;store.assertWriter();
