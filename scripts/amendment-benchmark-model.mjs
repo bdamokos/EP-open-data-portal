@@ -1,3 +1,4 @@
+import {assertPlaceholderDeletion} from './amendment-placeholder-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
@@ -636,6 +637,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   if(annexReplacement.status!=='unverified')return annexReplacement;
   const annexIndent=assertBareAnnexIndent({items,proposal,wording,placement,nativeQuoted});
   if(annexIndent.status!=='unverified')return annexIndent;
+  if(!proposal){const placeholder=assertPlaceholderDeletion({text,wording,placement});if(placeholder.status!=='unverified')return placeholder;}
   if(!proposal){const pointNear=assertResolutionPointSimilarity({text,wording,placement});if(pointNear.status!=='unverified')return pointNear;}
   if(!proposal) {
     const category=assertRecitalCategoryRepair({text,wording,placement});
