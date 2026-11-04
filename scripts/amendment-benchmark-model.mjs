@@ -29,7 +29,7 @@ import {assertBareAnnexReplacement} from './amendment-annex-replacement-oracle.m
 import {assertBareAnnexIndent} from './amendment-annex-indent-oracle.mjs';
 import {assertWholeAnnexInstruction} from './amendment-whole-instruction-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
-import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
+import {assertFinnishQuotedSibling,assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertNewQuotedOrdinal,assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
 import {assertFootnoteComparison,assertResolutionFootnotes} from './amendment-footnote-oracle.mjs';
@@ -721,6 +721,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
   if(quoted.status!=='unverified')return quoted;
+  const finnishSibling=assertFinnishQuotedSibling({proposal,wording,placement,nativeQuoted});if(finnishSibling)return finnishSibling;
   const sibling=assertQuotedSibling({proposal,wording,placement,nativeQuoted});
   if(sibling.status!=='unverified')return sibling;
   const ordinalSubparagraph=assertNewQuotedOrdinal({proposal,wording,placement,nativeQuoted});if(ordinalSubparagraph)return ordinalSubparagraph;
