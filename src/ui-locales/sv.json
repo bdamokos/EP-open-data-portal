@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Ändringsförslag för hela tabellen.",
   "documentcontext.citation_before_existing": "Placerat före den befintliga hänvisningen.",
   "documentcontext.after_paragraph_lead": "Placerat efter punktens inledande text.",
+  "documentcontext.single_word_difference": "Den ursprungliga lydelsen skiljer sig med ett ord.",
   "documentcontext.final_placement_check": "Kontrollera den slutliga placeringen i {adoptedText}.",
   "documentcontext.adopted_text": "den antagna texten",
   "amendment.alternative_motion": "Alternativt resolutionsförslag",
@@ -2837,5 +2838,9 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa och dess grannländer fick {places} flest frågor ({questions} var), i samtliga fall en kraftig ökning från {average}.",
   "proposalcontexttext.colliding.new.point": "Detta nummer används redan. Infogat efter grundpunkten.",
   "proposalcontexttext.new.unnumbered.table": "Ny onumrerad tabell infogad sist i bilagan.",
-  "proposalcontexttext.new.point.order": "Den nya punkten {point} följer efter punkt {base}."
+  "proposalcontexttext.new.point.order": "Den nya punkten {point} följer efter punkt {base}.",
+  "documentcontext.single_word_difference": "Den ursprungliga lydelsen skiljer sig med ett ord.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "Den ursprungliga hänvisningen saknar en identifierare",
+  "proposalcontexttext.printed.point.label": "Ny punkt {point}. Beteckningen anger punkt {base}.",
+  "proposalcontexttext.unique.entry.labels": "Placerad utifrån den unika posten. Beteckningarna skiljer sig åt."
 }

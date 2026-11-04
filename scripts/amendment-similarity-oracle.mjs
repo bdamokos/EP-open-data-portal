@@ -44,3 +44,13 @@ export function assertResolutionSimilarity(candidates,original,span) {
  return (wanted.score>=.95&&scores.every(row=>row===wanted||row.score<=wanted.score-.02&&row.prefix<.5))
   ||(wanted.prefix>=.5&&scores.every(row=>row===wanted||row.prefix<=wanted.prefix-.02&&row.score<.93));
 }
+
+// Independently allow one inserted/omitted alphabetic word; every digit and
+// punctuation token remains literal. This is not a substitution distance.
+export function oracleSingleWord(left,right) {
+ const tokenize=value=>value.normalize('NFC').match(/[\p{L}\p{N}]+|[^\s]/gu)||[];
+ const a=tokenize(left),b=tokenize(right);if(Math.min(a.length,b.length)<3||Math.max(a.length,b.length)>512||Math.abs(a.length-b.length)!==1)return false;
+ const long=a.length>b.length?a:b,short=a.length>b.length?b:a;
+ for(let omitted=0;omitted<long.length;omitted++)if(/^\p{L}+$/u.test(long[omitted])&&short.every((word,i)=>word===long[i<omitted?i:i+1]))return true;
+ return false;
+}

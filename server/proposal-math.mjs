@@ -62,7 +62,7 @@ const child=(nodes,key)=>nodes?.find(value=>Object.hasOwn(value,key));
 const children=(nodes,key)=>child(nodes,key)?.[key]??[];
 const val=(nodes,key)=>child(nodes,key)?.[':@']?.['@_m:val'];
 export function officialDocumentUrl(value) {
-  try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password&&!url.port&&['publications.europa.eu','eur-lex.europa.eu','data.europarl.europa.eu','redmapl3.europarl.europa.eu'].includes(url.hostname)?url.href:null;}catch{return null;}
+  try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password&&!url.port&&(['publications.europa.eu','eur-lex.europa.eu','data.europarl.europa.eu','redmapl3.europarl.europa.eu'].includes(url.hostname)||url.hostname==='data.consilium.europa.eu'&&/^\/doc\/document\/ST-\d{4,5}-\d{4}-INIT\/[a-z]{2}\/pdf$/u.test(url.pathname)&&!url.search&&!url.hash)?url.href:null;}catch{return null;}
 }
 export function isSafeMathML(tree) {
   let count=0,characters=0;

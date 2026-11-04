@@ -184,7 +184,7 @@ export function parseTargetLabel(label,language='en') {
   // The published Lithuanian genitive names point 1 of the bare annex, not
   // a numbered Annex 1. Keep the complete original address in raw above.
   if(language==='lt'&&/^Priedo\s+\d+[\p{L}.]*\s+punkt/iu.test(primary))primary=primary.replace(/^Priedo\s+/iu,'Priedo – ');
-  const parts=primary.split(/\s*[–—]\s+|\s+-\s+/u);
+  const parts=primary.split(/\s*[–—]\s*(?=\p{L})|\s*[–—]\s+|\s+-\s+/u);
   for(const part of parts) {
     let parsed=parseLabelSegment(part,language);
     if(!parsed&&language==='nl'&&segments.at(-1)?.kind==='point'&&/^[a-z]$/u.test(part.trim()))parsed={kind:'point',...proposalNumber(part.trim(),language),isNew:false,raw:part};

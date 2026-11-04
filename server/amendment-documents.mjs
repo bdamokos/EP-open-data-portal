@@ -481,12 +481,13 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     }
     // Some published lists omit template fields and styles on the amended-act
     // line. Recover only the complete two-line tail before the comparison table.
-    if(language==='en'&&targetParts.length===1&&!field(raw,'Article2').length&&!field(raw,'DocAmend2').length) {
+    if(['en','cs'].includes(language)&&targetParts.length===1&&!field(raw,'Article2').length&&!field(raw,'DocAmend2').length) {
       const tableAt=group.findIndex(block=>block.kind==='table');
       const header=group.slice(0,tableAt<0?0:tableAt).filter(block=>block.kind==='paragraph'&&block.text.trim());
       const at=header.findIndex(block=>metadata(field(block.raw,'Article')[0]??block.text)===metadata(targetParts[0]));
       const tail=at<0?[]:header.slice(at+1);
-      if(tail.length===2&&tail.every(block=>!block.losses?.length)&&/^(?:Regulation|Directive) (?:\((?:EU|EC|EEC)\) )?\d{4}\/\d+(?:\/(?:EC|EU|EEC))?$/u.test(tail[0].text.trim())) {
+      const actShape=language==='cs'?/^(?:Nařízení|Směrnice) \((?:EU|ES|EHS)\) \d{4}\/\d+$/u:/^(?:Regulation|Directive) (?:\((?:EU|EC|EEC)\) )?\d{4}\/\d+(?:\/(?:EC|EU|EEC))?$/u;
+      if(tail.length===2&&tail.every(block=>!block.losses?.length)&&actShape.test(tail[0].text.trim())) {
         const inner=parseTargetLabel(tail[1].text.trim(),language);
         if(inner.complete&&inner.segments[0]?.kind==='article'&&inner.segments.length>1) {
           const act=tail[0].text.trim(),address=tail[1].text.trim();

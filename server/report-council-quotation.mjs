@@ -1,6 +1,6 @@
 import {extractAmendments} from './amendment-documents.mjs';
 const normal=s=>String(s??'').normalize('NFC').replace(/\s+/gu,' ').trim();
-const headings=new Set(['Text proposed by the Council','Znění navržené Radou']);
+const headings=new Set(['Text proposed by the Council','Znění navržené Radou','Texto del Consejo','Rådets tekst']);
 export function hasCouncilQuotation(chosen){return chosen?.baselineSource?.conflicted===false&&chosen.baselineSource.headings?.length===1&&headings.has(normal(chosen.baselineSource.headings[0].left.raw));}
 // This is a quotation outcome, never a location in the Council's full text.
 export function reportCouncilQuotation(buffer,chosen,{reportId,sourceUrl,fetchedAt,operation='replace'}={}){

@@ -16,7 +16,7 @@ export {normaliseForMatching} from './proposal-matching.mjs';
 // source identity, content and path for this parser version; they are not official
 // legal-unit identifiers. Results are cached frozen, so consumers copy before
 // modifying them. Bump PROPOSAL_PARSER_VERSION for any change in parsing semantics.
-export const PROPOSAL_PARSER_VERSION='19';
+export const PROPOSAL_PARSER_VERSION='22';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -87,6 +87,10 @@ function instruction(text,language) {
     const found=parseLabelSegment(words.slice(start,start+width).join(' ').replace(/[,:;]$/,''),language);
     if(found&&!targets.some(target=>target.kind===found.kind&&target.value===found.value))targets.push(found);
   }
+  // The Czech locative is explicit in a whole-paragraph insertion instruction;
+  // it supplies the quoted paragraph's article when no article heading repeats.
+  const czech=language==='cs'?/^V článku (\d+[a-z]?) se doplňuje nový odstavec (\d+[a-z]?), který zní:$/u.exec(cleanLead(text).replace(/^\(?\d+\)\s*/u,'')):null;
+  if(czech){targets.length=0;for(const raw of ['Článek '+czech[1],'odstavec '+czech[2]]){const found=parseLabelSegment(raw,language);if(found)targets.push(found);}}
   return {operation,raw:text,underlyingTargets:targets};
 }
 
@@ -347,7 +351,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       continue;
     }
     const number=leadingNumber(trim,language,style,p.properties?.numbering,points,p.properties?.recastLabelPrefix);
-    if((/Considrant/i.test(style)||area.kind!=='body'&&/^\(?\d+\)/u.test(trim))&&number?.kind==='point') {
+    if((/Considrant/i.test(style)||area.kind!=='body'&&/^\(?\d+\)/u.test(trim)||area.kind==='preamble'&&/^\(\d+\s*[a-z]\)/u.test(trim))&&number?.kind==='point') {
       if(area.kind!=='preamble')region('preamble',i,false);
       last=make(area,'recital',i,{segment:{...number,kind:'recital'}});retain(last,i);continue;
     }
@@ -405,7 +409,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   }
   finish(root);
   const structureComplete=sourceStructured&&!gaps.length;
-  return {imageAssets:content.imageAssets??{},parserVersion:PROPOSAL_PARSER_VERSION,language,item,identity,sourceUrl,sourceHash,sourceKind:content.sourceKind??'extracted-text',
+  return {imageAssets:content.imageAssets??{},parserVersion:PROPOSAL_PARSER_VERSION,language,item,identity,sourceUrl,sourceHash,...(content.sourceKind==='pdf'&&/^[a-f0-9]{64}$/u.test(content.sourceHash??'')?{nativeSourceHash:content.sourceHash}:{}),sourceKind:content.sourceKind??'extracted-text',
     complete:root.complete&&structureComplete,contentComplete:paragraphs.every(paragraph=>paragraph.complete)&&notes.every(note=>note.complete),structureComplete,
     paragraphs,notes,anchors:content.anchors??[],links:content.links??[],units:root.children,gaps,numberingMode:content.numberingMode??'supplied-text',
     objects:[...paragraphs.flatMap(paragraph=>paragraph.objects),...notes.flatMap(note=>note.objects)]};

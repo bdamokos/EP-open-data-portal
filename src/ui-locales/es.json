@@ -9,6 +9,7 @@
   "documentcontext.table_level_amendment": "Enmienda a la tabla completa.",
   "documentcontext.citation_before_existing": "Se coloca antes de la referencia existente.",
   "documentcontext.after_paragraph_lead": "Se coloca después de la introducción del apartado.",
+  "documentcontext.single_word_difference": "El texto original difiere en una palabra.",
   "documentcontext.final_placement_check": "Compruebe la ubicación definitiva en {adoptedText}.",
   "documentcontext.adopted_text": "el texto aprobado",
   "amendment.alternative_motion": "Propuesta alternativa",
@@ -2837,5 +2838,9 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "En Europa y sus países vecinos, {places} fueron objeto del mayor número de preguntas ({questions} cada uno), lo que supuso en cada caso un salto frente a {average}.",
   "proposalcontexttext.colliding.new.point": "Este número coincide con un punto existente. Situado después del punto base.",
   "proposalcontexttext.new.unnumbered.table": "Nueva tabla sin numerar situada al final del anexo.",
-  "proposalcontexttext.new.point.order": "El nuevo punto {point} sigue al punto {base}."
+  "proposalcontexttext.new.point.order": "El nuevo punto {point} sigue al punto {base}.",
+  "documentcontext.single_word_difference": "El texto original difiere en una palabra.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "La cita original omite un identificador",
+  "proposalcontexttext.printed.point.label": "Nuevo punto {point}. La etiqueta indica el punto {base}.",
+  "proposalcontexttext.unique.entry.labels": "Ubicado por la entrada única. Las etiquetas no coinciden."
 }

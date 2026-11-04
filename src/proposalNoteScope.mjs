@@ -1,7 +1,7 @@
 // Slice only server-bound comparison cuts. Keep body/note formatting in the
 // published columns' coordinate systems; notes never become provision text.
 export function proposalNoteComparison(wording,scope) {
-  if(scope?.kind!=='word-footnotes')return null;
+  if(!['word-footnotes','pdf-footnotes'].includes(scope?.kind))return null;
   const slice=(text,formatting,end)=>{
     if(typeof text!=='string'||!Number.isSafeInteger(end)||end<0||end>text.length)return null;
     const separator=end===text.length?null:/^\n_{3,}[ \t]*(?:\n|$)/u.exec(text.slice(end));
