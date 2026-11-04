@@ -27,6 +27,16 @@ test('committee memberships read object references like organisation memberships
  assert.equal(organizationMemberships(person(id=>({id})),day)[0].id,plain[0].id);
 });
 
+test('a membership naming no body qualifies organisation counts but not a committee count',async()=>{
+ const {organizationMembershipSnapshot}=await import('../server/organization-memberships.mjs');
+ const {committeeCoverageComplete,organizationCoverageComplete}=await import('./memberFilters.mjs');
+ const snapshot=organizationMembershipSnapshot({hasMembership:[{role:'def/ep-roles/MEMBER',memberDuring:{startDate:'2026-01-28'}}]},'2026-10-31');
+ const member={organizationMemberships:snapshot.items,organizationMembershipsComplete:snapshot.complete};
+ assert.deepEqual(snapshot,{items:[],complete:false});
+ assert.equal(organizationCoverageComplete(member,'6576'),false);
+ assert.equal(committeeCoverageComplete(member,'6576'),true);
+});
+
 test('object references and observation completeness remain independent of known matches',async()=>{
  const {organizationMembershipSnapshot}=await import('../server/organization-memberships.mjs');
  const {organizationCoverageComplete}=await import('./memberFilters.mjs');
