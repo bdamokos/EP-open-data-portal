@@ -21,7 +21,7 @@ function label(raw,g) {
   if(!found)return null;result.push(found);
  }return result;
 }
-function printed(raw) {
+export function councilPrintedText(raw) {
  // Remove only the two independently recognizable native footer lines, at the
  // bottom of each page. All other printed text remains part of the proof.
  return raw.split('\f').map(page=>{
@@ -113,7 +113,7 @@ export function councilArticleNativeScope(raw,wording) {
  // continuation as subparagraph one by dropping its labelled parent lead.
  if(inner.some((segment,index)=>segment.kind==='subparagraph'&&inner[index-1]?.kind!=='paragraph'))return null;
  const document=new RegExp('^'+g.act+'\\s+(?:\\((?:EU|UE)\\)\\s+)?(\\d{4}/\\d+)$','iu').exec(refs[0].document?.replace(/\s+/gu,' ').trim()??'');if(!document)return null;
- const source=printed(raw),headers=[...source.matchAll(new RegExp('^\\s*(?:'+g.article+')\\s+(\\d+[a-z]?)\\s*$','gimu'))];
+ const source=councilPrintedText(raw),headers=[...source.matchAll(new RegExp('^\\s*(?:'+g.article+')\\s+(\\d+[a-z]?)\\s*$','gimu'))];
  // The first exact, unquoted article with the named act lead owns its points.
  const candidates=headers.filter(h=>h[1]===outer[0].value&&new RegExp('^\\s*(?:La |I )?'+g.act+'[^\\n]*'+escape(document[1])+'[^\\n]*:\\s*$','imu').test(source.slice(h.index,h.index+500)));
  if(candidates.length!==1)return null;

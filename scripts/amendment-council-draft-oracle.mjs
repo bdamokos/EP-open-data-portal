@@ -1,8 +1,8 @@
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {assertCouncilDraftArticleText} from './amendment-council-article-oracle.mjs';
+import {assertCouncilDraftArticleText,councilPrintedText} from './amendment-council-article-oracle.mjs';
 import {councilNativeSuperscripts} from './amendment-council-superscript-oracle.mjs';
-import {councilNoteStructure,inspectCouncilPdfNoteScope} from './amendment-council-note-oracle.mjs';
+import {councilNoteStructure,councilNoteGeometry,inspectCouncilPdfNoteScope} from './amendment-council-note-oracle.mjs';
 const cached=new Map();
 const fold=s=>String(s??'').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 const unknown=reason=>({status:'unverified',reason});
@@ -26,27 +26,29 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
   const proof=inspectCouncilPdfNoteScope({bbox:native.bbox,structure:native.structure,placement,wording,items});if(proof.status!=='verified')return proof;
   const body=assertCouncilDraftNativeText(native.raw,{placement,wording:proof.bodyWording,items});return body.status==='verified'?{status:'verified',reason:proof.reason}:body;
  }
- return assertCouncilDraftNativeText(native.raw,{placement,wording,items});
+ return assertCouncilDraftNativeText(native.raw,{placement,wording,items,nativeBodyWords:/\d\s*[a-z]\s*$/iu.test(wording.targetLabel??'')?councilNoteGeometry(native.bbox)?.words:undefined});
 }
 // Separate entry point for coordinate regression tests; the runtime oracle supplies
 // only independently extracted native text.
-export function assertCouncilDraftNativeText(raw,{placement,wording,items}) {
+export function assertCouncilDraftNativeText(raw,{placement,wording,items,nativeBodyWords}) {
  if(!raw)return unknown('oracle-council-pdf-text-unavailable');
  const target=/^(?:Recital|Bod odůvodnění|Betragtning|Considerando)\s+(\d+)\s*([a-z]?)\s*(?:\([^)]*\))?$/iu.exec(wording.targetLabel??'');
  if(!target)return assertCouncilDraftArticleText(raw,{placement,wording,items});
+ if(target[2]&&placement.operation!=='insert')raw=councilPrintedText(raw);
  const heading=/^\s*(?:Article|Článek|Artikel|Artículo)\s+1\s*$/imu.exec(raw);if(!heading)return unknown('oracle-council-pdf-recital-boundary-unavailable');
- const preamble=raw.slice(0,heading.index),labels=[...preamble.matchAll(/^\s*\((\d+)\)\s+/gmu)],number=Number(target[1]),found=labels.filter(m=>Number(m[1])===number);
+ const preamble=raw.slice(0,heading.index),labels=[...preamble.matchAll(/^\s*\((\d+)\s*([a-z]?)\)\s+/gmu)],number=Number(target[1]),suffix=placement.operation==='insert'?'':target[2].toLowerCase(),found=labels.filter(m=>Number(m[1])===number&&m[2].toLowerCase()===suffix);
  if(found.length!==1)return unknown('oracle-council-pdf-recital-not-unique');
  const i=labels.indexOf(found[0]),end=labels[i+1]?.index??preamble.length,unit=preamble.slice(found[0].index,end),proposal=items?.[placement.itemIndex]?.proposal;
  if(!proposal)return unknown('oracle-council-pdf-projection-unavailable');
  if(placement.operation==='insert'&&target[2]){
+  if(labels.some(m=>Number(m[1])===number&&m[2].toLowerCase()===target[2].toLowerCase()))return unknown('oracle-council-pdf-recital-already-exists');
   if(!labels[i+1]||Number(labels[i+1][1])!==number+1)return unknown('oracle-council-pdf-next-recital-unavailable');
   const before=proposal.paragraphs[placement.insertBefore]?.text,after=proposal.paragraphs[placement.insertAfter]?.text;
   const afterFold=fold(after);if(!afterFold||!fold(unit).includes(afterFold)||!new RegExp('^\\s*\\('+ (number+1)+'\\)').test(before??''))return {status:'failed',reason:'oracle-council-pdf-insertion-mismatch'};
   if(placement.insertBefore!==placement.insertAfter+1)return {status:'failed',reason:'oracle-council-pdf-boundary-gap'};
   return {status:'verified',reason:'native-council-pdf-recital-boundaries'};
  }
- if(target[2]||!['replace','delete'].includes(placement.operation))return unknown('oracle-council-pdf-operation-unavailable');
+ if(!['replace','delete'].includes(placement.operation))return unknown('oracle-council-pdf-operation-unavailable');
  const span=placement.span,splice=placement.splice;
  const fail=()=>({status:'failed',reason:'oracle-council-pdf-splice-mismatch'});
  if(!span||!splice||![span.start,span.end,splice.start?.paragraph,splice.end?.paragraph,splice.start?.offset,splice.end?.offset].every(Number.isSafeInteger))return fail();
@@ -60,5 +62,17 @@ export function assertCouncilDraftNativeText(raw,{placement,wording,items}) {
  const original=fold(wording.originalText),actual=fold(proposal.paragraphs.slice(placement.span?.start,placement.span?.end+1).map(p=>p.text).join(' '));
  if(!original||fold(raw).split(original).length!==2||!fold(unit).includes(original))return unknown('oracle-council-pdf-original-unverified');
  if(actual!==original)return {status:'failed',reason:'oracle-council-pdf-span-mismatch'};
+ if(suffix){
+  const bases=labels.filter(m=>Number(m[1])===number&&!m[2]);if(bases.length!==1||bases[0].index>=found[0].index||fold(unit)!==original)return unknown('oracle-council-pdf-existing-recital-boundary-unproved');
+  let frame=fold(preamble.slice(bases[0].index,end));
+  if(nativeBodyWords){
+   const starts=nativeBodyWords.flatMap((word,index)=>/^\(\d+[a-z]?\)$/u.test(word.text)?[{word,index}]:[]),base=starts.filter(s=>s.word.text==='('+number+')'),selected=starts.filter(s=>s.word.text==='('+number+suffix+')');
+   if(base.length!==1||selected.length!==1)return unknown('oracle-council-pdf-existing-recital-geometry-unproved');
+   const next=starts[starts.indexOf(selected[0])+1];if(!next||base[0].index>=selected[0].index)return unknown('oracle-council-pdf-existing-recital-geometry-unproved');
+   frame=fold(nativeBodyWords.slice(base[0].index,next.index).filter(w=>!w.reference).map(w=>w.text).join(' '));
+  }
+  const projected=proposal.paragraphs.map(p=>fold(p.text)).join(''),at=projected.indexOf(frame),actualEnd=proposal.paragraphs.slice(0,span.end+1).reduce((n,p)=>n+fold(p.text).length,0);
+  if(at<0||projected.lastIndexOf(frame)!==at||actualEnd!==at+frame.length)return fail();
+ }
  return {status:'verified',reason:'native-council-pdf-original-and-address'};
 }
