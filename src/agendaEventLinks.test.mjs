@@ -48,11 +48,16 @@ for(const [status,terminal] of [[404,true],[503,false],[503,true]])test('agenda 
  assert.equal(attempts,before+1);assert.equal(panel.querySelector('h2').textContent,'Recovered exact debate');assert.equal(panel.querySelector('[role=alert]'),null);assert.equal(panel.dataset.agendaTopic,id);
 });
 
-for(const index of [0,1,2])test('exact speech focus selects guest '+index+' with MEP rows present',async t=>{
+for(const index of [0,1,2,3])test('exact speech focus selects guest '+index+' with MEP rows present',async t=>{
  const id=sitting+'-PVCRE-ITM-'+(65+index),ids=[sitting+'-OTH-100',sitting+'-OTH-200',sitting+'-OTH-300',sitting+'-OTH-400'],names=['President','Felipe VI','Marcelo Rebelo de Sousa','President'];
- const node=await harness(t,'Legislation','?view=legislation&agenda-period=sitting:'+sitting+'&agenda-topic='+id+(index?'&agenda-speech='+ids[index]:''),u=>{
+ const node=await harness(t,'Legislation','?view=legislation&agenda-period=sitting:'+sitting+'&agenda-topic='+id+(index?'&agenda-speech='+(index===3?sitting+'-OTH-999':ids[index]):''),u=>{
   if(!u.pathname.endsWith('/insights/legislation'))return {ready:false};
   return {sitting:{id:sitting,date,phase:'past'},sittings:[{id:sitting,date,phase:'past'}],topics,coverage:{agendaError:null},detail:u.searchParams.has('topic')?{...topics[0],id,kind:'PLENARY_ACTIVITY',title:'Formal sitting',phase:'past',procedures:[],committeeWork:[],roles:[],speeches:ids.map((sourceId,i)=>({sourceId,date,title:'Speech',kind:'PLENARY_DEBATE_SPEECH',start:null,people:[{id:String(i),name:names[i],currentMep:i===0||i===3}]})),people:[],stats:{denominator:0,dimensions:{country:[],group:[],gender:[],age:[]}},votes:[],selectedVote:null,voteCoverage:{truncated:false},coverage:{gaps:[],roleRowsTruncated:false,speechAssociations:{sources:[],truncated:false}}}:null};
  });
- assert.match(node.querySelector('.insight-speech-position').textContent,new RegExp('Speech '+(index+1)+' of 4'));assert(node.querySelector('.insight-speech-position').textContent.includes(names[index]));assert(node.querySelector('.insight-eyebrow').textContent.includes('Special event'));
+ assert.match(node.querySelector('.insight-speech-position').textContent,new RegExp('Speech '+(index===3?1:index+1)+' of 4'));assert(node.querySelector('.insight-speech-position').textContent.includes(names[index===3?0:index]));assert(node.querySelector('.insight-eyebrow').textContent.includes('Special event'));if(index===1){const select=node.querySelector('.insight-agenda-select select');await act(async()=>{select.value=topics[1].id;select.dispatchEvent(new window.Event('change',{bubbles:true}));});assert.equal(new URL(location.href).searchParams.get('agenda-speech'),null);}
+});
+
+test('failed agenda navigation renders a single external fallback',async t=>{
+ const day='MTG-PL-2026-10-08',id=day+'-PVCRE-ITM-180';const node=await harness(t,'Legislation','?view=legislation&agenda-period=sitting:'+day+'&agenda-topic='+id,()=>Response.json({error:{code:'unavailable'}},{status:503}));
+ await exhaustAutomaticRetries(t);const links=node.querySelectorAll('a[href*="CRE-10-2026-10-08-ITM-180_EN.html"]');assert.equal(links.length,1);assert.equal(links[0].target,'_blank');assert.equal(links[0].rel,'noreferrer');
 });

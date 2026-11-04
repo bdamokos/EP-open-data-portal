@@ -245,3 +245,11 @@ test('Topics passes authority label languages into its map story without replaci
  assert.equal(h.node.querySelector('.places-ranking a > span').getAttribute('lang'),'ga');
  assert.equal(h.node.querySelector('.places-map title').getAttribute('lang'),'ga');
 });
+
+test('rendered guest link and record-set row carry the exact speech ID through recordTarget',async t=>{
+ const facts=mapLinkFacts(),id='MTG-PL-2026-01-21-PVCRE-ITM-5',speechId='MTG-PL-2026-01-21-OTH-2017056975107';
+ facts.outsideSpeakers=[{id:'1:'+id,personId:'1',name:'Felipe VI',country:'ESP',date:'2026-01-21',debateId:id,headerSource:{url:'https://data.europarl.europa.eu/api/v2/speeches/'+speechId+'?language=mul'}}];facts.debates.push({id,title:'Formal sitting',date:'2026-01-21',q:'2026-Q1',docs:[],places:{ESP:['title']}});
+ const h=await harness(t,{fresh:true,props:{selection:{...selection,period:'2026-Q1'}},respond:u=>u.pathname==='/api/topics/story-facts'?facts:undefined});await h.wait('Felipe VI');const guest=[...h.node.querySelectorAll('a')].find(a=>a.textContent==='Felipe VI');assert(guest);assert.equal(new URL(guest.href).searchParams.get('agenda-speech'),speechId);
+ const key=storySetKey({records:[{kind:'debate',id,speechId}]},{period:'2026-Q1'});await act(async()=>{history.replaceState({},'','?view=geopolitics&t-records='+encodeURIComponent(key));window.dispatchEvent(new window.PopStateEvent('popstate'));});await h.wait('Formal sitting');
+ const link=[...h.node.querySelectorAll('a')].find(a=>a.textContent==='Formal sitting');assert(link,h.node.textContent);assert.equal(new URL(link.href).searchParams.get('agenda-speech'),speechId);
+});

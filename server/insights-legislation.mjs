@@ -20,7 +20,7 @@ import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v22-address-speech-focus';
+export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v23-preserve-debate-participation';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -204,17 +204,30 @@ export class LegislationInsights {
       // exact children of the selected event, retaining the observed speech header.
       const outsideRows=selectedContributions.length?this.store.db.prepare(`SELECT body FROM outside_contributions WHERE generation=? AND speech IN (${selectedContributions.map(()=>'?').join(',')})`).all(status.servingGeneration,...selectedContributions).map(r=>JSON.parse(r.body)).filter(r=>speechSources.some(source=>source.eventDate===r.date&&source.contributionIds.includes(r.id))):[];
       const guestKeys=new Set(outsideRows.map(r=>r.id+':'+r.personId));
-      const participationRows=speechRows.filter(r=>!guestKeys.has(r.sourceId+':'+r.mepId));
+      // Preserve the base participation population for ordinary debates, including
+      // non-roster speakers indexed by saveSpeech. Only new formal activities
+      // exclude their guest rows from participation. Reader-only rows add no counts.
+      const participationRows=topic.kind==='PLENARY_ACTIVITY'?speechRows.filter(r=>!guestKeys.has(r.sourceId+':'+r.mepId)):speechRows;
       const readerRows=[...speechRows];
       for(const row of outsideRows)if(!readerRows.some(r=>r.sourceId===row.id&&String(r.mepId)===row.personId))readerRows.push({sourceId:row.id,mepId:row.personId,date:row.date,titles:row.titles||{},reference:row.reference,speechKind:'PLENARY_DEBATE_SPEECH',start:row.start,end:row.end,provenance:row.source});
-      const speeches=[...new Map(readerRows.map(r=>[r.sourceId,r])).values()].sort((a,b)=>(a.start||'').localeCompare(b.start||'')||a.sourceId.localeCompare(b.sourceId)).map(row=>({sourceId:row.sourceId,date:row.date,title:displayTitle(row.titles,query.language,row.reference),kind:row.speechKind,start:row.start,end:row.end,people:memberPeople(readerRows.filter(r=>r.sourceId===row.sourceId).map(r=>r.mepId),members,metadata).map(person=>({...datedPerson(person,row.date,groupOn),contributionGroup:contributionGroup(person.id,row.date,groupOn)})),provenance:row.provenance}));
+      const speeches=[...new Map(readerRows.map(r=>[r.sourceId,r])).values()].sort((a,b)=>Number(!a.start)-Number(!b.start)||(a.start||'').localeCompare(b.start||'')||a.sourceId.localeCompare(b.sourceId)).map(row=>({sourceId:row.sourceId,date:row.date,title:displayTitle(row.titles,query.language,row.reference),kind:row.speechKind,start:row.start,end:row.end,people:memberPeople(readerRows.filter(r=>r.sourceId===row.sourceId).map(r=>r.mepId),members,metadata).map(person=>({...datedPerson(person,row.date,groupOn),contributionGroup:contributionGroup(person.id,row.date,groupOn)})),provenance:row.provenance}));
       const amendments=this.store.readSnapshot(()=>topicAmendments(this.store,topic.documentIds,[],{procedureIds:topic.procedureIds,asOf:sitting.activity_date}));
       const participantIds=[...amendments.authorIds,...roles.map(r=>r.id),...participationRows.map(r=>String(r.mepId))];
       const participantDate=id=>[amendments.authorDates[id],...roles.filter(role=>role.id===id).map(role=>role.date),...speeches.filter(speech=>speech.people.some(person=>person.id===id)).map(speech=>speech.date)].filter(Boolean).sort().at(-1)||null;
       const people=memberPeople(participantIds,members,metadata).map(person=>({...datedPerson(person,participantDate(person.id),groupOn),
         demographics:person.currentMep?Object.fromEntries(Object.entries(demographicStats([person.id],members,metadata,sitting.activity_date).dimensions).map(([key,rows])=>[key,rows[0].label])):null}));
       for(const row of outsideRows)if(speakerNameIsSpecific(row.header?.name))for(const person of [...people,...speeches.flatMap(s=>s.people)].filter(p=>p.id===row.personId&&!p.currentMep))Object.assign(person,{name:row.header.name,nameSource:row.headerSource||row.source});
-      // Reader-only guest rows never alter the MEP participation denominators.
+      // Former MEPs without an outside contribution retain the base bounded name
+      // lookup. Held outsiders use their speech header and never trigger this read.
+      const outsideIds=new Set(outsideRows.map(row=>row.personId));
+      const formerIds=new Set(speeches.flatMap(speech=>speech.people.filter(person=>!person.currentMep&&!outsideIds.has(person.id)&&!speakerNameIsSpecific(person.name)).map(person=>person.id)));
+      for(const id of [...formerIds].slice(0,4))try {
+        const record=await recordSource('/meps/'+id);
+        const person=record.payload.data.find(node=>String(node.identifier)===id&&canonical(node.id)==='person/'+id);
+        const name=person&&([person.givenName,person.familyName].filter(Boolean).join(' ')||person.label);
+        if(!speakerNameIsSpecific(name))continue;
+        for(const target of [...people,...roles,...speeches.flatMap(speech=>speech.people)].filter(person=>person.id===id))Object.assign(target,{name,profileUrl:'https://www.europarl.europa.eu/meps/en/'+id,nameSource:{apiUrl:record.url,fetchedAt:new Date(record.fetchedAt).toISOString()}});
+      }catch(error){gaps.push({source:'guest identity',message:error.message,sourceError:true});}
       if(topic.kind==='PLENARY_ACTIVITY'&&!speeches.length)throw new HttpError(404,'topic_not_found','That agenda topic has no held address speeches.');
       let votes=[];let voteCoverage={available:false,sourceDecisionCount:null,truncated:false,sourceUrl:null,fetchedAt:null,error:null};
       if(topic.kind==='PLENARY_VOTE'&&phase!=='upcoming') {
