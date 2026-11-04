@@ -16,7 +16,7 @@ function zip(body) {
 }
 function input(text,language='en',{original='',extra='',prefix='',suffix=''}={}) {
   const body=p('<Amend><ANo>A10-0175</ANo>/<NumAm>17</NumAm>')+p('<TitreType>Recommendation for second reading</TitreType> A10-0175/2026')+p('<Article>Citation 1 a (new)</Article>')+'<w:tbl><w:tr><w:tc>'+p('Council position')+'</w:tc><w:tc>'+p('Amendment')+'</w:tc></w:tr><w:tr><w:tc>'+p(original)+'</w:tc><w:tc>'+prefix+p(text)+extra+suffix+'</w:tc></w:tr></w:tbl>'+p('</Amend>');
-  const scope=sentences[language].indexOf(text)===2?'council-position':'commission-proposal';
+  const scope=sentences[language].indexOf(text)>=2?'council-position':'commission-proposal';
   return {id:'A-10-2026-0175-AM-17',language,buffer:zip(body),wording:{originalText:original,proposedText:text},placement:{status:'document-operation',operation:'reject',scope}};
 }
 test('complete native rejection cells in all 24 languages verify document scope independently of a numbered citation',()=>{
@@ -58,4 +58,15 @@ with zipfile.ZipFile(out,'w',compression=zipfile.ZIP_STORED) as source: source.w
 sys.stdout.buffer.write(out.getvalue())`],{maxBuffer:1024*1024,timeout:30_000,stdio:['ignore','pipe','pipe']});
   assert.ok(buffer.length>64*1024);assert.deepEqual(nativeRejectionParagraphs(buffer,{temporaryRoot}),['A'.repeat(262144),'Native paragraph.']);assert.deepEqual(readdirSync(temporaryRoot),[]);
   assert.throws(()=>nativeRejectionParagraphs(Buffer.from('broken ZIP'),{temporaryRoot}));assert.deepEqual(readdirSync(temporaryRoot),[]);
+});
+
+test('native rejection templates permit only attested proposed-only headings with complete blank original cells',()=>{
+ const headings={cs:'Návrh na zamítnutí',fr:'Proposition de rejet',it:'Proposta di reiezione'};
+ for(const [language,heading] of Object.entries(headings)) {
+  const text=sentences[language].at(-1),arg=input(text,language);
+  const body=p('<Amend><ANo>A10-0175</ANo>/<NumAm>17</NumAm>')+p('<TitreType>Report</TitreType> A10-0175/2026')+'<w:tbl><w:tr><w:tc>'+p('')+'</w:tc><w:tc>'+p(heading)+'</w:tc></w:tr><w:tr><w:tc>'+p('')+'</w:tc><w:tc>'+p(text)+'</w:tc></w:tr></w:tbl>'+p('</Amend>');
+  assert.equal(verifyRejection({...arg,buffer:zip(body)}).status,'verified');
+  assert.notEqual(verifyRejection({...arg,buffer:zip(body.replace(escape(heading),'Unverified heading'))}).status,'verified');
+  assert.notEqual(verifyRejection({...arg,buffer:zip(body.replace(escape(text),escape(text+' Additional legal wording.')))}).status,'verified');
+ }
 });
