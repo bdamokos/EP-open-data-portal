@@ -33,3 +33,12 @@ test('native list ownership proves the addressed second subparagraph across a re
 test('native geometry is required, rather than flat filtering of labelled blocks',()=>{const f=addressed();delete f.nativeBodyWords;assert.notEqual(assertCouncilDraftArticleText(f.raw,f).status,'verified');});
 test('the actual splice cannot move to another continuation under the repeated label',()=>{const f=addressed(),at=f.items[0].proposal.paragraphs.findIndex(p=>p.text==='Different continuation.');f.placement.span={start:at,end:at};f.placement.splice={start:{paragraph:at,offset:0},end:{paragraph:at,offset:f.wording.originalText.length}};assert.notEqual(assertCouncilDraftArticleText(f.raw,f).status,'verified');});
 test('shifted start coordinates do not pass a list subparagraph proof',()=>{const f=addressed();f.placement.splice.start.offset=1;assert.notEqual(assertCouncilDraftArticleText(f.raw,f).status,'verified');});
+test('a contradicted published outer line cannot borrow native ownership',()=>{const f=addressed();f.wording.targetLabel='Čl. 1 – odst. 1 – bod 2';assert.notEqual(assertCouncilDraftArticleText(f.raw,f).status,'verified');});
+test('native list insertion checks the printed new point as well as the addressed gap',()=>{
+ const f=addressed(),at=f.items[0].proposal.paragraphs.findIndex(p=>p.text==='Parent continuation.');
+ f.wording.targetPath.underlying[0].raw='Čl. 13 – odst. 2 – pododstavec 1 – písm. b a (nové)';f.wording.originalText='';f.wording.proposedText='ba) New point.';f.placement={status:'placed',operation:'insert',itemIndex:0,insertAfter:at-1,insertBefore:at};assert.equal(assertCouncilDraftArticleText(f.raw,f).status,'verified');
+ f.wording.proposedText='ca) Different point.';assert.notEqual(assertCouncilDraftArticleText(f.raw,f).status,'verified');
+});
+test('a deeper point path cannot inherit the direct paragraph list proof',()=>{
+ const f=addressed(),at=f.items[0].proposal.paragraphs.findIndex(p=>p.text==='Parent continuation.');f.wording.targetPath.underlying[0].raw='Čl. 13 – odst. 2 – pododstavec 1 – písm. b – písm. b a (nové)';f.wording.originalText='';f.wording.proposedText='ba) New point.';f.placement={status:'placed',operation:'insert',itemIndex:0,insertAfter:at-1,insertBefore:at};assert.notEqual(assertCouncilDraftArticleText(f.raw,f).status,'verified');
+});

@@ -103,6 +103,7 @@ function nativeUnitText(section,unit) {
 }
 export function councilArticleNativeScope(raw,wording,{nativeBodyWords}={}) {
  const g=grammar[wording.language];if(!g)return null;
+ if(wording.targetLabel!==undefined&&wording.targetPath?.proposal?.[0]?.raw!==undefined&&literal(String(wording.targetLabel).split('\n')[0])!==literal(wording.targetPath.proposal[0].raw))return null;
  const outer=label(wording.targetPath?.proposal?.[0]?.raw??String(wording.targetLabel??'').split('\n')[0],g);
  // Spanish uses párrafo for the proposal's unnumbered article lead and for
  // subparagraphs. The full outer article/lead/point frame disambiguates it.
@@ -143,8 +144,9 @@ export function councilArticleNativeScope(raw,wording,{nativeBodyWords}={}) {
    const raw=nativeUnitText(section,u);
    if(raw===null)return [];
    if(raw.split(/\r?\n/u).slice(1).some(line=>/^[ \t]*[„“‘«»"]?(?:\([\p{L}\p{N}]+\)|[\p{L}]{1,3}[.)]|[ivxlcdm]+[.)]|\d+[.)])[ \t]+\S/iu.test(line))){
-    const proved=wording.language==='cs'?nativeCouncilListSubparagraphs(raw,nativeBodyWords):null,block=proved?.[Number(segment.value)-1];
-    return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset,...(Number(segment.value)===1?{followingText:proved[1]?.text}:{})}]:[];
+    const supported=inner[1]?.kind==='paragraph'&&inner[2]===segment&&(inner.length===3||inner.length===4&&inner[3].kind==='point'&&inner[3].suffix==='a');
+    const proved=wording.language==='cs'&&supported?nativeCouncilListSubparagraphs(raw,nativeBodyWords):null,block=proved?.[Number(segment.value)-1];
+    return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset,listGeometry:true,...(Number(segment.value)===1?{followingText:proved[1]?.text}:{})}]:[];
    }
    const direct=blocksWithOffsets(u.text),block=direct[Number(segment.value)-1];return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset}]:[];
   });else return null;
@@ -163,7 +165,8 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items,nativ
   }
   const parents=scope.units;
   if(!parents?.length)return unknown('article-insertion-parent-unproved');
-  const siblings=parents.flatMap(p=>children(p.text,last.kind).map(child=>({...child,offset:p.offset+child.offset,followingText:p.followingText}))),anchors=siblings.filter(s=>s.value===last.base);if(anchors.length!==1)return unknown('article-insertion-anchor-unproved');
+  const siblings=parents.flatMap(p=>children(p.text,last.kind).map(child=>({...child,offset:p.offset+child.offset,followingText:p.followingText,listGeometry:p.listGeometry}))),anchors=siblings.filter(s=>s.value===last.base);if(anchors.length!==1)return unknown('article-insertion-anchor-unproved');
+  if(anchors[0].listGeometry&&(wording.originalText?.trim()||last.kind!=='point'||last.suffix!=='a'||!new RegExp('^'+escape(last.value)+'\\)\\s+\\S','u').test(wording.proposedText?.trim()??'')))return unknown('article-list-insertion-label-unproved');
   if(new Set(siblings.map(s=>s.value)).size!==siblings.length)return unknown('article-insertion-numbering-unproved');
   const index=siblings.indexOf(anchors[0]),next=siblings[index+1];
   const after=proposal.paragraphs[placement.insertAfter]?.text,before=proposal.paragraphs[placement.insertBefore]?.text;
