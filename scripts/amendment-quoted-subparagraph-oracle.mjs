@@ -64,7 +64,8 @@ export function assertQuotedSubparagraph({proposal,wording,placement,nativeQuote
    if(!block)return unknown();
    const inside=quote.slice(block.start+1,block.end),roman=row=>/^\([ivxl]+[a-z]?\)/u.test(row.text.trim());
    const bases=inside.filter(opens(suffix[1]));
-   if(bases.length!==1||inside.some(opens(label)))return unknown();
+   if(bases.length!==1)return unknown();
+   if(inside.some(opens(label))&&!/\(new\)\s*$/u.test(parts.at(-1)))return unknown();
    const next=inside.slice(inside.indexOf(bases[0])+1).find(roman);
    target=next?{before:next}:block.end<quote.length?{before:quote[block.end]}:{after:quote.at(-1)};
   }

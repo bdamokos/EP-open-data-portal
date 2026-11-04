@@ -15,6 +15,15 @@ test('native quoted subparagraph rows locate new Roman points, letter points and
  assert.equal(assertQuotedSubparagraph(input('Article 30 – paragraph 6 – subparagraph 2 – point b – point iii a (new)',13)).status,'failed');
 });
 test('existing labels, another article or another subparagraph are not verified',()=>{
- for(const raw of ['Article 30 – paragraph 6 – subparagraph 2 – point b – point ii a (new)','Article 31 – paragraph 6 – subparagraph 2 – point b – point iii a (new)','Article 30 – paragraph 6 – subparagraph 1 – point b – point iii a (new)','Article 30 – paragraph 6 – fourth subparagraph (new)'])
+ for(const raw of ['Article 31 – paragraph 6 – subparagraph 2 – point b – point iii a (new)','Article 30 – paragraph 6 – subparagraph 1 – point b – point iii a (new)','Article 30 – paragraph 6 – fourth subparagraph (new)'])
   assert.equal(assertQuotedSubparagraph(input(raw,12)).status,'unverified',raw);
+});
+
+test('colliding new Roman numbers follow their base before existing suffixed peers',()=>{
+ for(const suffix of ['a','b','c','d']) {
+  const raw='Article 30 – paragraph 6 – subparagraph 2 – point b – point ii '+suffix+' (new)';
+  assert.equal(assertQuotedSubparagraph(input(raw,10)).status,'verified');
+  assert.equal(assertQuotedSubparagraph(input(raw,11)).status,'failed');
+ }
+ assert.equal(assertQuotedSubparagraph(input('Article 30 – paragraph 6 – subparagraph 2 – point b – point ii a',10)).status,'unverified');
 });
