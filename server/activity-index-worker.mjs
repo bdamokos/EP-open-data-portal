@@ -1,5 +1,6 @@
 import {outsideWikidataDue} from './outside-wikidata-collector.mjs';
 import {VotingListCollector} from './voting-list-collector.mjs';
+import {HemicycleCollector} from './hemicycle.mjs';
 import {upcomingRefreshDue} from './upcoming-amendments-collector.mjs';
 import {dispatchBaseBackfill} from './base-source-backfill-dispatch.mjs';
 import {topicBootstrapRequired} from './topic-projection-state.mjs';
@@ -855,7 +856,7 @@ export class ActivityWorker {
   }
   async runIteration() {
     if(this.stopped)return;
-    const votingListsDue=Boolean(this.votingLists?.due());
+    const votingListsDue=Boolean(this.votingLists?.due())||Boolean(this.hemicycle?.due());
     const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
     const officialDue=Boolean(this.officialContext?.due());
     const documentBodiesDue=this.documentBodies.due(),baseBackfillDue=this.baseBackfill?.due();
@@ -1087,6 +1088,7 @@ export function activityIndex() {
   if(readerMode){service={store,press};return service;}
   const worker=new ActivityWorker(store,{...options,sittingSnapshots:new SittingSnapshotCollector(store),press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
   worker.votingLists=new VotingListCollector(store);
+  worker.hemicycle=new HemicycleCollector(store);
   const warmer=new OfficialContextWarmer(store);
   const schedule=warmer.sources.run;
   warmer.sources.run=(operation,settings)=>{

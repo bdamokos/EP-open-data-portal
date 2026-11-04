@@ -8,7 +8,7 @@ export function localizeInitialShell(document: Document, query: URLSearchParams)
   const titles: Record<string, string> = {
     geopolitics: 'topics.geopolitics', members: 'shell.heading.members', legislation: 'shell.navigation.plenaryAgenda',
     questions: 'shell.navigation.questions', outside: 'shell.navigation.outsideVoices',
-    groups: 'shell.navigation.groupVoices', saved: 'shell.navigation.following',
+    groups: 'shell.navigation.groupVoices', hemicycle: 'hemicycle.title', saved: 'shell.navigation.following',
   };
   const view = Object.hasOwn(titles, query.get('view') || '') ? query.get('view')! : 'members';
   const modes: Record<string, string> = {participation: 'shell.heading.whatsHot', cloud: 'shell.heading.plenaryWordCloud', topics: 'topics.plenaryMode', dossier: 'shell.heading.dossiers'};
