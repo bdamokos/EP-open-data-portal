@@ -20,6 +20,15 @@ export function setCommonSecurityHeaders(response) {
   response.setHeader("Cross-Origin-Resource-Policy", "same-origin");
 }
 
+// One other site may read the API, named by API_READ_ORIGIN. The header goes on every read and
+// not only on that site's requests, because a shared cache keeps one copy of each URL.
+export function allowCrossOriginRead(request, response) {
+  const allowed = config.apiReadOrigin;
+  if (!allowed || !["GET", "HEAD", "OPTIONS"].includes(request.method)) return false;
+  response.setHeader("Access-Control-Allow-Origin", allowed);
+  return request.headers.origin === allowed;
+}
+
 export function assertSameOrigin(request) {
   const origin = request.headers.origin;
   if (!origin) {
