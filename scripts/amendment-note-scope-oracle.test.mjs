@@ -49,3 +49,16 @@ test('native section numbering restarts before the next section, leaving repeate
  const rows=nativeNoteRows(noteWord(p('7',`<w:pPr>${end}</w:pPr>`)+p('9')+end,{notes:noteDefinitions}));
  assert.deepEqual(rows.flatMap(row=>row.refs.map(ref=>ref.label)),['1','1']);
 });
+
+test('notes in prior table cells count toward body labels without certifying table wording',async()=>{
+ const {nativeNoteRows}=await import('./amendment-native-note-oracle.mjs');
+ const ref=id=>`<w:r><w:t>Body</w:t><w:footnoteReference w:id="${id}"/></w:r>`;
+ const rows=nativeNoteRows(noteWord(`<w:tbl><w:tr><w:tc><w:p>${ref('7')}</w:p></w:tc></w:tr></w:tbl><w:p>${ref('9')}</w:p>`,{notes:noteDefinitions}));
+ assert.deepEqual(rows.flatMap(row=>row.refs.map(ref=>ref.label)),['2']);
+});
+test('native recast reading preserves note offsets after deleted runs',async()=>{
+ const {nativeRecastNoteReading}=await import('./amendment-recast-oracle.mjs');
+ const styles='<w:styles><w:style w:type="character" w:styleId="Gone"><w:name w:val="CR Deleted"/><w:rPr><w:strike/></w:rPr></w:style></w:styles>';
+ const body='<w:p><w:r><w:rPr><w:rStyle w:val="Gone"/></w:rPr><w:t>Removed </w:t></w:r><w:r><w:t>Kept</w:t><w:footnoteReference w:id="7"/></w:r></w:p>';
+ const reading=nativeRecastNoteReading(noteWord(body,{styles,notes:noteDefinitions}),'/w:document[1]/w:body[1]/w:p[1]');assert.equal(reading.text,'Kept');assert.deepEqual(reading.refs,[{id:'7',offset:4}]);
+});

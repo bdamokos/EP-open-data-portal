@@ -50,17 +50,17 @@ export function nativeNoteRows(bytes) {
   definitionsById.set(id,{id,text:paragraphs.map(n=>words(n['w:p'])).join('\n').trim(),safe:paragraphs.length===nodes.length&&!unsupported(nodes)&&!hiddenUse(nodes)});
  }
  const body=quotedWordBody(bytes);
- if(body.some(row=>row.kind!=='paragraph'&&all([row.nodes],'w:footnoteReference').length||row.kind==='paragraph'&&all(row.nodes,'w:footnoteReference').length&&(row.hidden||unsupported(row.nodes))))throw Error('unreadable numbering context');
+ if(body.some(row=>row.hidden&&all(Array.isArray(row.nodes)?row.nodes:[row.nodes],'w:footnoteReference').length))throw Error('unreadable numbering context');
  let counter=0;const seen=new Set(),result=[];let sectionStart=0;
  for(let end=0;end<body.length;end++){
   const section=all(Array.isArray(body[end].nodes)?body[end].nodes:[body[end].nodes],'w:sectPr');
   if(!section.length&&end<body.length-1)continue;
   const restart=attr(section,'w:numRestart')??attr(settings,'w:numRestart');
   if(restart==='eachSect')counter=0;
-  for(const row of body.slice(sectionStart,end+1).filter(row=>row.kind==='paragraph')){
-  const refs=[];words(row.nodes,refs);
+  for(const row of body.slice(sectionStart,end+1)){
+  const refs=[];words(Array.isArray(row.nodes)?row.nodes:[row.nodes],refs);
   for(const ref of refs){if(!ref.id||seen.has(ref.id))throw Error('ambiguous note');seen.add(ref.id);ref.label=String(++counter);ref.note=definitionsById.get(ref.id);}
-  result.push({...row,nativeIndex:body.indexOf(row),refs,safe:!row.hidden&&!row.numbered&&!unsupported(row.nodes)});
+  if(row.kind==='paragraph')result.push({...row,nativeIndex:body.indexOf(row),refs,safe:!row.hidden&&!row.numbered&&!unsupported(row.nodes)});
   }sectionStart=end+1;
  }return result;
 }

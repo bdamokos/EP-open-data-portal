@@ -1,3 +1,4 @@
+import {nativeRecastNoteReading} from './amendment-recast-oracle.mjs';
 import {nativeNoteRows} from './amendment-native-note-oracle.mjs';
 // Independent note assertion: no production split/normalizer/placer imports.
 const compact=text=>text.normalize('NFC').replace(/\s/gu,'');
@@ -41,7 +42,14 @@ export function inspectNativeNoteScope({proposal,wording,placement,nativeQuoted}
   const rows=proposal.paragraphs.filter(row=>row.index>=span.start&&row.index<=span.end);
   if(!rows.length||rows[0].index!==span.start||rows.at(-1).index!==span.end||splice.end.offset!==rows.at(-1).text.length||rows.some(row=>!row.complete||row.source?.complete!==true))return fail();
   sourceText=rows.map(row=>row.text).join('\n');
-  const raw=rows.map(row=>native.find(n=>n.path===row.source.path));
+  const raw=rows.map(row=>{
+   const n=native.find(n=>n.path===row.source.path),reading=nativeRecastNoteReading(nativeQuoted.proposalBuffer,row.source.path);
+   if(!reading||!n)return n;
+   const label=row.properties?.numberingLabel,prefix=label&&row.text.startsWith(label+'\t')?label+'\t':'';
+   if(compact(prefix+reading.text)!==compact(row.text)||reading.refs.some(r=>!n.refs.some(a=>a.id===r.id)))return n;
+   const shift=prefix?prefix.length:reading.text.trimStart().length-reading.text.length;
+   return {...n,safe:true,text:prefix+(prefix?reading.text.trimEnd():reading.text.trim()),refs:reading.refs.map(r=>({...n.refs.find(a=>a.id===r.id),offset:r.offset+shift}))};
+  });
   if(raw.some((n,i)=>!n?.safe||compact(n.text)!==compact(rows[i].text)))return fail();
   const anchors=raw.flatMap((n,i)=>n.refs.map(ref=>({...ref,paragraph:rows[i].index})));
   const projected=(proposal.anchors||[]).filter(a=>a.paragraph>=span.start&&a.paragraph<=span.end);
