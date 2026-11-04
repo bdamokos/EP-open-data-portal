@@ -17,6 +17,13 @@ const found = (paragraphs, basis = 'quoted-original', quoteMatches = true, relat
   status: 'found', paragraphs, basis, relation, quoteMatches, reason: null,
 });
 
+test('terminal dash-list insertion stays inside its uniquely addressed paragraph',()=>{
+ const paragraphs=['The European Parliament,','122. Observes:','– first;','– second;','– third;','123. Next;'];
+ const text=document(paragraphs,{textLanguage:'en'}),options={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 122 – indent 3 a (new)',originalText:'',proposedText:'– New item;'};
+ const result=resolveAmendmentPlacement(text,options);assert.equal(result.status,'placed');assert.equal(result.insertAfter,4);assert.equal(result.insertBefore,5);
+ for(const changed of [document(paragraphs.map((v,i)=>i===3?'Continuation;':v),{textLanguage:'en'}),document(paragraphs,{textLanguage:'en',sources:{3:{complete:false}}})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+});
+
 test('published translated resolution labels preserve native numbering and script',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-labels.json',import.meta.url)));
   for(const example of fixture.examples) {

@@ -579,6 +579,19 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
   const span = unit => ({start: unit.start, end: unit.end});
   if (operation === 'insert') {
+    // Terminal unnumbered dash items acquire their ordinal from this one
+    // complete paragraph, not from dashes elsewhere in the document.
+    const indent=options.language==='en'&&/^Paragraph ([1-9]\d*) – indent ([1-9]\d*) a \(new\)$/u.exec(options.targetLabel||'');
+    if(indent&&!referenceText&&options.originalText===''&&/^[-–—•]\s+\S/u.test(options.proposedText)) {
+      const owners=units.filter(unit=>unit.kind==='paragraph'&&unit.label===indent[1]),owner=owners[0],count=Number(indent[2]);
+      if(owners.length===1&&count<=100&&!structure.invalid.has(owner.start)&&!structure.uncertain.has(owner.start)&&!structure.incompleteLabels.has(owner.label)
+        &&/:\s*$/u.test(rows[owner.start].normal)&&owner.end-owner.start===count&&complete(owner.start,owner.end+1)
+        &&rows.slice(owner.start+1,owner.end+1).every(row=>/^[-–—•]\s+\S/u.test(row.normal))
+        &&units.some(unit=>unit.kind==='paragraph'&&unit.label===String(Number(indent[1])+1)&&unit.start===owner.end+1)) {
+        evidence.push({basis:'terminal-indent-order',paragraph:indent[1],indent:count});
+        return placed({insertAfter:owner.end,insertBefore:owner.end+1});
+      }
+    }
     if(ref?.kind==='recital'&&ref.isNew&&!ref.parents.length) {
       const recitals=units.filter(unit=>unit.kind==='recital'),first=units.find(unit=>unit.kind==='paragraph');
       const ordinal=value=>/^[A-Z]+$/u.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;

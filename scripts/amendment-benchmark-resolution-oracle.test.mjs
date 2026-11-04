@@ -3,9 +3,19 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {deflateRawSync} from 'node:zlib';
 import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
-import {nativeBlankPairs,rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
-import {verifyPlacement} from './amendment-benchmark-model.mjs';
+import {nativeBlankPairs,rawResolutionUnits,assertTerminalIndent} from './amendment-benchmark-resolution-oracle.mjs';
+import {verifyPlacement,parseBenchmarkTarget} from './amendment-benchmark-model.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/resolution-blank-boundaries.json',import.meta.url)));
+test('raw terminal indent proof requires the complete dash list and next paragraph',()=>{
+ const paragraphs=['The European Parliament,','122. Observes:','– first;','– second;','– third;','123. Next;'];
+ const text={paragraphs,paragraphFormats:paragraphs.map(()=>({})),paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
+ const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 122 – indent 3 a (new)',originalText:'',proposedText:'– New item;'},placement={operation:'insert',insertAfter:4,insertBefore:5};
+ assert.equal(assertTerminalIndent({text,wording,placement}).status,'verified');
+ assert.equal(parseBenchmarkTarget(wording).complete,true);
+ assert.equal(verifyPlacement({text,wording,placement:{...placement,status:'placed'}}).status,'verified');
+ for(const index of [2,3,4]){const modified={...text,paragraphSources:text.paragraphSources.map((v,i)=>i===index?{...v,complete:false}:v)};assert.equal(assertTerminalIndent({text:modified,wording,placement}).status,'unverified');}
+ assert.notEqual(assertTerminalIndent({text,wording,placement:{...placement,insertAfter:3}}).status,'verified');
+});
 const wrap=body=>'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'</w:body></w:document>';
 function zip(document,extra={}) {
   const locals=[],centrals=[],entries=Object.entries({'word/document.xml':document,...extra});let offset=0;

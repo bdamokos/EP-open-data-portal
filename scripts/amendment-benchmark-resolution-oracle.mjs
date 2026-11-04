@@ -210,3 +210,19 @@ export function rawResolutionUnits(text,language,{includeTables=false}={}) {
   }
   return {units,start,incomplete};
 }
+
+// Raw body rows independently establish a terminal dash-list insertion.
+export function assertTerminalIndent({text,wording,placement}) {
+ const unknown={status:'unverified',reason:'oracle-terminal-indent-unavailable'};
+ if(wording?.language!=='en'||wording.baseline!=='motion-resolution'||wording.originalText!==''||placement?.operation!=='insert'||!/^[-–—•]\s+\S/u.test(wording.proposedText||''))return unknown;
+ const match=/^Paragraph ([1-9]\d*) – indent ([1-9]\d*) a \(new\)$/u.exec(wording.targetLabel||'');if(!match)return unknown;
+ const raw=rawResolutionUnits(text,'en'),owners=raw.units.filter(u=>u.kind==='paragraph'&&u.label===match[1]);
+ if(raw.reason||owners.length!==1||!owners[0].complete)return unknown;
+ const owner=owners[0], p=text.paragraphs, s=text.paragraphSources, count=Number(match[2]);
+ if(!/:\s*$/u.test(p[owner.start])||owner.end-owner.start!==count||count>100)return unknown;
+ for(let i=owner.start+1;i<=owner.end;i++)if(!/^\s*[-–—•]\s+\S/u.test(p[i])||!contiguous(s[i-1],s[i]))return unknown;
+ const next=raw.units.filter(u=>u.start===owner.end+1&&u.kind==='paragraph');
+ if(next.length!==1||Number(next[0].label)!==Number(match[1])+1||!contiguous(s[owner.end],s[next[0].start]))return unknown;
+ if(placement.insertAfter!==owner.end||placement.insertBefore!==next[0].start)return {status:'failed',reason:'oracle-terminal-indent-boundary-mismatch'};
+ return {status:'verified',reason:'oracle-terminal-indent-boundary'};
+}
