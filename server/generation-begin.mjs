@@ -2,6 +2,7 @@ import {performance} from 'node:perf_hooks';
 import {copyFastReadProgress,projectionTables} from './generation-copy.mjs';
 import {amendmentSnapshotSource} from './amendments-store.mjs';
 import {groupVoiceSource} from './group-voices-store.mjs';
+import {questionFileBackfillDue} from './activity-read-projections.mjs';
 
 // One transaction over a whole rotation spills its page cache again and again,
 // rewrites the WAL at COMMIT, and loses everything when the process stops. Readers
@@ -27,6 +28,9 @@ const STEPS=[
 
 function batchedBeginEligible(store,active) {
   if(!active||!['sources','outside','amendments'].every(projection=>store.fastReadsReady(active,projection)))return false;
+  // These are the only writes a released image makes to active rows before it
+  // advances documentBodyTurn. Finished, a rollback cannot change rows unseen.
+  if(questionFileBackfillDue(store,active))return false;
   // Older images can leave extension tables behind the core generation. Their
   // adoption replays through triggers, so it keeps the single-transaction path.
   const voices=groupVoiceSource(store.db,active);

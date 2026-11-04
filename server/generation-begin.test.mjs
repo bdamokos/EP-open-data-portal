@@ -41,6 +41,7 @@ function base(t) {
     seed(store,generation);store.publish(generation);
   }
   while(store.backfillFastReads(2)){/* ready projections */}
+  store.set('questionFileBackfill:2',{version:1});
   store.db.prepare('INSERT OR REPLACE INTO fast_read_progress(projection,generation,cursor,ready) VALUES (\'targets\',1,\'\',1)').run();
   store.db.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get();store.close();
   return directory;
@@ -248,6 +249,14 @@ test('batches stay bounded: a keyless projection pages, and large rows split by 
       bytes.beginCycle({batch:100,batchBytes:1024*1024,pause:()=>{const n=rowCount(bytes,'items',3);most=Math.max(most,n-seen);seen=n;}});
       assert.ok(most<100,'the byte bound ends a batch before its row bound');
     } finally {bytes.close();}
+  } finally {store.close();}
+});
+
+test('an unfinished question-file backfill keeps the single-transaction path',t=>{
+  const directory=base(t),store=open(clone(t,directory));
+  try {
+    store.db.prepare("DELETE FROM meta WHERE key='questionFileBackfill:2'").run();
+    let paused=0;assert.equal(store.beginCycle({batch:2,pause:()=>paused++}).generation,3);assert.equal(paused,0);
   } finally {store.close();}
 });
 
