@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Asendab kogu teksti.",
+  "amendment.agreement_text": "Kokkuleppe tekst",
   "documentcontext.final_placement_check": "Kontrollige lõplikku asukohta {adoptedText}.",
   "documentcontext.adopted_text": "vastuvõetud tekstis",
   "amendment.alternative_motion": "Alternatiivne ettepanek",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "Kõige aktiivsem kvartal arutelude ja toimikute poolest: {period} · {title}",
   "topics.peak.documents": "Kõige aktiivsem kvartal täiskogu dokumentide poolest: {period} · {title}",
   "topics.peak.questions": "Kõige aktiivsem kvartal küsimuste poolest: {period} · {title}",
-  "topics.partialLegend": "Viirutus: osaline kvartal.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "Suurim kasv: {place}, {count} {unit}, tavalisest {ratio}× rohkem.",
   "topics.mostTied": "Enim nimetatud: {place}, igaühe kohta {count} {unit}.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} tekst",
   "topics.story.count.meps": "{count} Euroopa Parlamendi liiget",
   "topics.story.count.mepsOne": "{count} Euroopa Parlamendi liige",
-  "topics.policyAreaSource": "Poliitikavaldkondade nimetused: {source}.",
   "topics.explorerTranslation": "Poliitikavaldkondade nimed on tõlkinud sirvija.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Sõnavõtud kuude kaupa",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} olid kohad, mille kohta esitati kõige rohkem küsimusi (igaüks {questions}), igal juhul kasv, varem {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "Euroopas ja selle naabruses olid {places} kohad, mille kohta esitati kõige rohkem küsimusi (igaüks {questions}), igal juhul kasv, varem {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} olid kohad, mille kohta esitati kõige rohkem küsimusi (igaüks {questions}), igal juhul järsk kasv, varem {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "Euroopas ja selle naabruses olid {places} kohad, mille kohta esitati kõige rohkem küsimusi (igaüks {questions}), igal juhul järsk kasv, varem {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "Euroopas ja selle naabruses olid {places} kohad, mille kohta esitati kõige rohkem küsimusi (igaüks {questions}), igal juhul järsk kasv, varem {average}.",
+  "proposalcontexttext.colliding.new.point": "See number on juba olemas. Paigutatud põhipunkti järele.",
+  "proposalcontexttext.new.unnumbered.table": "Uus nummerdamata tabel on paigutatud lisa lõppu.",
+  "proposalcontexttext.new.point.order": "Uus punkt {point} järgneb punktile {base}."
 }

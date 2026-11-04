@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Tagann sé in ionad an téacs iomláin.",
+  "amendment.agreement_text": "Téacs an chomhaontaithe",
   "documentcontext.final_placement_check": "Seiceáil an suíomh deiridh sa {adoptedText}.",
   "documentcontext.adopted_text": "téacs a glacadh",
   "amendment.alternative_motion": "Tairiscint mhalartach",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "An ráithe is gnóthaí do dhíospóireachtaí agus sainchomhaid: {period} · {title}",
   "topics.peak.documents": "An ráithe is gnóthaí do dhoiciméid iomlánacha: {period} · {title}",
   "topics.peak.questions": "An ráithe is gnóthaí do cheisteanna: {period} · {title}",
-  "topics.partialLegend": "Scáthlíniú: ráithe pháirteach.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "An méadú is mó: {place}, {count} {unit}, {ratio} oiread an ghnáthleibhéil.",
   "topics.mostTied": "Na háiteanna is mó a luaitear: {place}, {count} {unit} an ceann.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} téacs",
   "topics.story.count.meps": "{count} d’Fheisirí",
   "topics.story.count.mepsOne": "{count} Fheisire",
-  "topics.policyAreaSource": "Ainmneacha réimsí beartais: {source}.",
   "topics.explorerTranslation": "Ainmneacha réimsí beartais aistrithe ag an taiscéalaí.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Ráitis de réir míosa",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "Tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú i ngach cás, ó {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "San Eoraip agus sna tíortha comharsanacha, tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú i ngach cás, ó {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "Tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú géar i ngach cás, ó {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "San Eoraip agus sna tíortha comharsanacha, tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú géar i ngach cás, ó {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "San Eoraip agus sna tíortha comharsanacha, tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú géar i ngach cás, ó {average}.",
+  "proposalcontexttext.colliding.new.point": "Tá an uimhir seo in úsáid cheana. Curtha i ndiaidh an bhunphointe.",
+  "proposalcontexttext.new.unnumbered.table": "Tábla nua gan uimhir curtha ag deireadh na hiarscríbhinne.",
+  "proposalcontexttext.new.point.order": "Tagann pointe nua {point} i ndiaidh phointe {base}."
 }

@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Jissostitwixxi t-test kollu.",
+  "amendment.agreement_text": "Test tal-ftehim",
   "documentcontext.final_placement_check": "Iċċekkja l-post finali fit-{adoptedText}.",
   "documentcontext.adopted_text": "test adottat",
   "amendment.alternative_motion": "Mozzjoni alternattiva",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "L-aktar trimestru attiv għad-dibattiti u d-dossiers: {period} · {title}",
   "topics.peak.documents": "L-aktar trimestru attiv għad-dokumenti plenarji: {period} · {title}",
   "topics.peak.questions": "L-aktar trimestru attiv għall-mistoqsijiet: {period} · {title}",
-  "topics.partialLegend": "Linji djagonali: trimestru parzjali.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "L-akbar żieda: {place}, {count} {unit}, {ratio} darbiet il-livell tas-soltu.",
   "topics.mostTied": "L-aktar postijiet imsemmija: {place}, {count} {unit} kull wieħed.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} test",
   "topics.story.count.meps": "{count} Membru tal-PE",
   "topics.story.count.mepsOne": "{count} Membru tal-PE",
-  "topics.policyAreaSource": "Ismijiet tal-oqsma ta’ politika: {source}.",
   "topics.explorerTranslation": "L-ismijiet tal-oqsma ta’ politika ġew tradotti mill-għodda tal-esplorazzjoni.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Interventi skont ix-xahar",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "L-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda, minn {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "Fl-Ewropa u fil-viċinat tagħha, l-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda, minn {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "L-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda qawwija, minn {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "Fl-Ewropa u fil-viċinat tagħha, l-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda qawwija, minn {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "Fl-Ewropa u fil-viċinat tagħha, l-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda qawwija, minn {average}.",
+  "proposalcontexttext.colliding.new.point": "Dan in-numru diġà jeżisti. Imqiegħed wara l-punt bażi.",
+  "proposalcontexttext.new.unnumbered.table": "Tabella ġdida bla numru mqiegħda fl-aħħar tal-anness.",
+  "proposalcontexttext.new.point.order": "Il-punt il-ġdid {point} jiġi wara l-punt {base}."
 }

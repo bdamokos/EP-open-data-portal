@@ -19,12 +19,12 @@ function input(text,language='en',{original='',extra='',prefix='',suffix=''}={})
   const scope=sentences[language].indexOf(text)===2?'council-position':'commission-proposal';
   return {id:'A-10-2026-0175-AM-17',language,buffer:zip(body),wording:{originalText:original,proposedText:text},placement:{status:'document-operation',operation:'reject',scope}};
 }
-test('complete native rejection cells in all 24 languages exclude a numbered citation from the denominator',()=>{
+test('complete native rejection cells in all 24 languages verify document scope independently of a numbered citation',()=>{
   assert.equal(Object.keys(sentences).length,24);
   for(const [language,texts] of Object.entries(sentences))for(const text of texts){
     const arg=input(text,language),result=verifyRejection(arg);
     assert.equal(result.status,'verified',language+': '+text);
-    assert.deepEqual(classifyRow({S5:arg.placement},result),{outcome:'not-placeable',reason:'whole-document-rejection'});
+    assert.deepEqual(classifyRow({S5:arg.placement},result),{outcome:'correct',reason:'whole-document-rejection'});
     const insertion={...arg,placement:{status:'placed',operation:'insert',insertBefore:0}};
     assert.equal(verifyRejection(insertion).status,'unverified');
   }

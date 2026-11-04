@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Zamjenjuje cijeli tekst.",
+  "amendment.agreement_text": "Tekst sporazuma",
   "documentcontext.final_placement_check": "Provjerite konačno mjesto u {adoptedText}.",
   "documentcontext.adopted_text": "usvojenom tekstu",
   "amendment.alternative_motion": "Alternativni prijedlog",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "Najaktivnije tromjesečje za rasprave i predmete: {period} · {title}",
   "topics.peak.documents": "Najaktivnije tromjesečje za plenarne dokumente: {period} · {title}",
   "topics.peak.questions": "Najaktivnije tromjesečje za pitanja: {period} · {title}",
-  "topics.partialLegend": "Šrafirano: nepotpuno tromjesečje.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "{place}: najveći porast — {count} {unit}, {ratio}× u odnosu na uobičajeno.",
   "topics.mostTied": "Najčešće se spominju: {place}, po {count} {unit}.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} tekst",
   "topics.story.count.meps": "{count} zastupnika u Europskom parlamentu",
   "topics.story.count.mepsOne": "{count} zastupnik u Europskom parlamentu",
-  "topics.policyAreaSource": "Nazivi područja politike: {source}.",
   "topics.explorerTranslation": "Nazive područja politika preveo je preglednik.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Izlaganja po mjesecima",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju rast, prethodno {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "U Europi i njezinu susjedstvu: {places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju rast, prethodno {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju nagli rast, prethodno {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "U Europi i njezinu susjedstvu: {places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju nagli rast, prethodno {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "U Europi i njezinu susjedstvu: {places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju nagli rast, prethodno {average}.",
+  "proposalcontexttext.colliding.new.point": "Ovaj broj već postoji. Umetnuto nakon osnovne točke.",
+  "proposalcontexttext.new.unnumbered.table": "Nova nenumerirana tablica smještena na kraju priloga.",
+  "proposalcontexttext.new.point.order": "Nova točka {point} slijedi iza točke {base}."
 }

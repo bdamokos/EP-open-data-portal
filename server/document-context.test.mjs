@@ -765,3 +765,17 @@ test('a vote-list disagreement links only the exact adopted text on the decision
  assert.equal(result.placement.status,'placed');assert.deepEqual(result.placement.span,{start:1,end:1});
  assert.equal(result.placement.finalPlacementCheck.adoptedTextUrl,`https://www.europarl.europa.eu/doceo/document/${ta}_EN.html`);assert.equal(listings,1);
 });
+
+test('provisional agreement can locate a source whose comparison columns are withheld',async()=>{
+ const {provisionalFixture}=await import('./test-support/provisionalFixture.mjs');
+ const input=provisionalFixture(),node={...work,id:'eli/dl/doc/'+input.documentId,identifier:input.documentId};
+ const indexed={id:input.id,targetDocumentId:input.documentId,listId:input.listId,language:'en',textIntegrity:'incomplete',wordingSource:input.source,decisions:input.decisions,gaps:[]};
+ let downloads=0;
+ const reader=service({request:async()=>record(node),findAmendment:()=>indexed,download:async()=>{downloads++;return {buffer:input.buffer};}});
+ const selected={...documentContextQuery(input.documentId,new URLSearchParams()),amendmentId:input.id,listId:input.listId,wordingLanguage:'en'};
+ const result=await reader.query(selected,{store:{}});
+ assert.equal(result.placement.scope,'whole-document');assert.equal(result.placement.operation,'replace');assert.equal(result.amendment.status,'unavailable');assert.equal(downloads,1);
+ const noBody=await reader.query({...selected,includeBody:false},{store:{}});assert.equal(noBody.placement,null);assert.equal(downloads,1);
+ const wrongSource=service({request:async()=>record(node),findAmendment:()=>indexed,download:async()=>({buffer:provisionalFixture({report:'A10-0002/2026'}).buffer})});
+ assert.notEqual((await wrongSource.query(selected,{store:{}})).placement?.scope,'whole-document');
+});

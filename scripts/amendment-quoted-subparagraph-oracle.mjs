@@ -12,7 +12,8 @@ export function assertQuotedSubparagraph({proposal,wording,placement,nativeQuote
  const unknown=()=>({status:'unverified',reason:'oracle-quoted-subparagraph-unavailable'});
  if(wording.language!=='en'||placement.operation!=='insert'||!nativeQuoted||!proposal)return unknown();
  const owner=/^Article (\d+) – paragraph 1 – point (\d+)$/u.exec(wording.targetLabel.split('\n')[0]);
- const inner=wording.targetPath?.underlying;
+ const lines=wording.targetLabel.split('\n');
+ const inner=wording.targetPath?.underlying?.length?wording.targetPath.underlying:lines.length===3&&/^(?:Regulation|Directive|Decision) \(EU\) \d{4}\/\d+$/u.test(lines[1])?[{document:lines[1],raw:lines[2]}]:[];
  if(!owner||inner?.length!==1)return unknown();
  const parts=inner[0].raw.split(/\s+[–-]\s+/u);
  const article=/^Article (\d+[a-z]*)$/u.exec(parts[0]??''),paragraph=/^paragraph (\d+)$/u.exec(parts[1]??'');
@@ -45,7 +46,7 @@ export function assertQuotedSubparagraph({proposal,wording,placement,nativeQuote
  } else {
   if(subNumber!==replaced||sub[3])return unknown();
   const label=tokens.at(-1),parents=tokens.slice(0,-1),suffix=/^([a-z]+?)([a-z])$/u.exec(label);
-  if(parents.length>1||!suffix)return unknown();
+  if(parents.length>1||!suffix||/^[ivxl]+$/u.test(label))return unknown();
   const opens=value=>row=>row.text.trim().replace(/^‘/u,'').startsWith('('+value+')');
   const letterBlock=letter=>{
    const at=quote.findIndex(opens(letter));
@@ -64,7 +65,9 @@ export function assertQuotedSubparagraph({proposal,wording,placement,nativeQuote
    if(!block)return unknown();
    const inside=quote.slice(block.start+1,block.end),roman=row=>/^\([ivxl]+[a-z]?\)/u.test(row.text.trim());
    const bases=inside.filter(opens(suffix[1]));
-   if(bases.length!==1||inside.some(opens(label)))return unknown();
+   if(bases.length!==1)return unknown();
+   const family=inside.some(row=>new RegExp('^\\('+suffix[1]+'[a-z]\\)','u').test(row.text.trim()));
+   if(family&&(!/\(new\)\s*$/u.test(parts.at(-1))||!wording.proposedText?.trim().replace(/^\(([^)]+)\)/u,(_,value)=>'('+value.replace(/\s/gu,'')+')').startsWith('('+label+')')))return unknown();
    const next=inside.slice(inside.indexOf(bases[0])+1).find(roman);
    target=next?{before:next}:block.end<quote.length?{before:quote[block.end]}:{after:quote.at(-1)};
   }

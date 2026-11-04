@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Remplace tout le texte.",
+  "amendment.agreement_text": "Texte de l’accord",
   "documentcontext.final_placement_check": "Vérifiez l’emplacement final dans {adoptedText}.",
   "documentcontext.adopted_text": "le texte adopté",
   "amendment.alternative_motion": "Proposition alternative",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "Trimestre le plus actif pour les débats et dossiers : {period} · {title}",
   "topics.peak.documents": "Trimestre le plus actif pour les documents de séance plénière : {period} · {title}",
   "topics.peak.questions": "Trimestre le plus actif pour les questions : {period} · {title}",
-  "topics.partialLegend": "Hachures : trimestre partiel.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "Plus forte hausse : {place} ; {unit} : {count}, soit {ratio}× le niveau habituel.",
   "topics.mostTied": "En tête des mentions : {place} ; {unit} : {count} par lieu.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} texte",
   "topics.story.count.meps": "{count} députés",
   "topics.story.count.mepsOne": "{count} député",
-  "topics.policyAreaSource": "Noms des domaines d’action : {source}.",
   "topics.explorerTranslation": "Noms des domaines d’action traduits par l’explorateur.",
   "groupvoices.date_count.692412": "{date} : {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Interventions par mois",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} : en tête des lieux mentionnés dans les questions ({questions} chacun), soit pour chacun une hausse, contre {average} auparavant.",
   "topics.story.integrated.lead.tiedEachRose.eu": "En Europe et dans son voisinage, {places} : en tête des lieux mentionnés dans les questions ({questions} chacun), soit pour chacun une hausse, contre {average} auparavant.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} : en tête des lieux mentionnés dans les questions ({questions} chacun), soit pour chacun un bond, contre {average} auparavant.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "En Europe et dans son voisinage, {places} : en tête des lieux mentionnés dans les questions ({questions} chacun), soit pour chacun un bond, contre {average} auparavant."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "En Europe et dans son voisinage, {places} : en tête des lieux mentionnés dans les questions ({questions} chacun), soit pour chacun un bond, contre {average} auparavant.",
+  "proposalcontexttext.colliding.new.point": "Ce numéro existe déjà. Placé après le point de base.",
+  "proposalcontexttext.new.unnumbered.table": "Nouveau tableau non numéroté placé à la fin de l’annexe.",
+  "proposalcontexttext.new.point.order": "Le nouveau point {point} suit le point {base}."
 }

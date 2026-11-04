@@ -26,7 +26,7 @@ test('kicker renders +N and place links, keeps keywords reader-only, and hides e
  const translated={...record,topics:[{key:'oeil:1.10',label:'Magyar név',labelLanguage:'hu',labelSource:'explorer-translation'}]};
  const translatedMarkup=renderToStaticMarkup(h(TopicLine,{record:translated,full:true,language:'fr'}));
  assert.match(translatedMarkup,/lang="hu"[^>]*>Magyar név/);
- assert.match(translatedMarkup,/<details[^>]*><summary>Sources<\/summary><p[^>]*>Policy-area names translated by the explorer/);
+ assert(!translatedMarkup.includes('<details'));
  assert(!renderToStaticMarkup(h(TopicLine,{record:translated,language:'fr'})).includes('translated by'));
  assert(!full.includes('translated by'));
 

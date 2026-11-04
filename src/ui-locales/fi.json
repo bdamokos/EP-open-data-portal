@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Korvaa koko tekstin.",
+  "amendment.agreement_text": "Sopimusteksti",
   "documentcontext.final_placement_check": "Tarkista lopullinen sijainti {adoptedText}.",
   "documentcontext.adopted_text": "hyväksytystä tekstistä",
   "amendment.alternative_motion": "Vaihtoehtoinen päätöslauselmaesitys",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "Eniten keskusteluja ja asiakokonaisuuksia: {period} · {title}",
   "topics.peak.documents": "Eniten täysistuntoasiakirjoja: {period} · {title}",
   "topics.peak.questions": "Eniten kysymyksiä: {period} · {title}",
-  "topics.partialLegend": "Viivoitus: osittainen vuosineljännes.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "Suurin kasvu: {place}, {count} {unit}, {ratio}× tavanomainen määrä.",
   "topics.mostTied": "Eniten mainintoja: {place}, kullakin {count} {unit}.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} teksti",
   "topics.story.count.meps": "{count} meppiä",
   "topics.story.count.mepsOne": "{count} meppi",
-  "topics.policyAreaSource": "Politiikan alojen nimet: {source}.",
   "topics.explorerTranslation": "Politiikan alojen nimet on kääntänyt selailusovellus.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Puheenvuorot kuukausittain",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä kasvoi kaikissa, aiemmin {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "Euroopassa ja sen lähialueilla {places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä kasvoi kaikissa, aiemmin {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä nousi jyrkästi kaikissa, aiemmin {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "Euroopassa ja sen lähialueilla {places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä nousi jyrkästi kaikissa, aiemmin {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "Euroopassa ja sen lähialueilla {places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä nousi jyrkästi kaikissa, aiemmin {average}.",
+  "proposalcontexttext.colliding.new.point": "Tämä numero on jo käytössä. Sijoitettu peruskohdan jälkeen.",
+  "proposalcontexttext.new.unnumbered.table": "Uusi numeroimaton taulukko on sijoitettu liitteen loppuun.",
+  "proposalcontexttext.new.point.order": "Uusi kohta {point} seuraa kohtaa {base}."
 }

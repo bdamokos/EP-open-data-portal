@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Ersätter hela texten.",
+  "amendment.agreement_text": "Överenskommelsens text",
   "documentcontext.final_placement_check": "Kontrollera den slutliga placeringen i {adoptedText}.",
   "documentcontext.adopted_text": "den antagna texten",
   "amendment.alternative_motion": "Alternativt resolutionsförslag",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "Kvartalet med flest debatter och ärenden: {period} · {title}",
   "topics.peak.documents": "Kvartalet med flest plenardokument: {period} · {title}",
   "topics.peak.questions": "Kvartalet med flest frågor: {period} · {title}",
-  "topics.partialLegend": "Skrafferat: ofullständigt kvartal.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "Största ökning: {place}, {count} {unit}, {ratio}× det vanliga antalet.",
   "topics.mostTied": "Flest omnämnanden: {place}, med {count} {unit} vardera.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} text",
   "topics.story.count.meps": "{count} Europaparlamentsledamöter",
   "topics.story.count.mepsOne": "{count} Europaparlamentsledamot",
-  "topics.policyAreaSource": "Namn på politikområden: {source}.",
   "topics.explorerTranslation": "Politikområdenas namn har översatts av utforskaren.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Anföranden per månad",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} fick flest frågor ({questions} var), i samtliga fall en ökning från {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "I Europa och dess grannländer fick {places} flest frågor ({questions} var), i samtliga fall en ökning från {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} fick flest frågor ({questions} var), i samtliga fall en kraftig ökning från {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa och dess grannländer fick {places} flest frågor ({questions} var), i samtliga fall en kraftig ökning från {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa och dess grannländer fick {places} flest frågor ({questions} var), i samtliga fall en kraftig ökning från {average}.",
+  "proposalcontexttext.colliding.new.point": "Detta nummer används redan. Infogat efter grundpunkten.",
+  "proposalcontexttext.new.unnumbered.table": "Ny onumrerad tabell infogad sist i bilagan.",
+  "proposalcontexttext.new.point.order": "Den nya punkten {point} följer efter punkt {base}."
 }

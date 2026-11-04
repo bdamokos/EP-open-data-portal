@@ -1,6 +1,5 @@
 import {defaultUi} from './uiDefault.mjs';
 import {storyLinkClick,focusStoryLink} from './storyLinkNavigation';
-import {usePolicyAreaLabels} from './PolicyAreaSources';
 import {buildExactTopicStories,storyFactsRoute,storyRecord} from './exactTopicStories.mjs';
 import {useInsightData} from './InsightData';
 import {useEffect,useRef,useState,type ReactNode,type MouseEvent,type Ref} from 'react';
@@ -16,7 +15,7 @@ import {sourcePageUrl} from './SourceLink';
 function storyHref(s:StorySelection){const filters={'t-q':s.period||'','t-mode':s.mode||'q','t-own':s.excludeOwn?'1':'0','t-zoom':s.zoom||'world'};return s.place||s.topic?topicsHref(s.place?'place:'+s.place:s.topic!,filters):'?'+new URLSearchParams({view:'geopolitics',...filters});}
 function storyBackClick(e:MouseEvent<HTMLAnchorElement>){if(e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey&&history.state?.storyReturn){e.preventDefault();history.back();}else dossierLinkClick(e);}
 function setHref(ref:StoryReference,s:StorySelection){const u=new URL(storyHref(s),location.href);u.searchParams.set('t-records',ref.setKey||storySetKey(ref,s));return u.pathname+u.search;}
-function recordTarget(r:StoryRecord,locale:string){if(r.kind==='document'){const u=new URL(location.href);u.searchParams.delete('t-records');u.searchParams.set('t-record',r.id);return storyInterfaceHref(u.pathname+u.search,locale);}return r.kind==='press'?sourcePageUrl(r.url)||'':storyInterfaceHref(recordHref(r.id,r.kind==='answer'?'question':r.kind),locale);}
+function recordTarget(r:StoryRecord,locale:string){if(r.kind==='document'){const u=new URL(location.href);u.searchParams.delete('t-records');u.searchParams.set('t-record',r.id);return storyInterfaceHref(u.pathname+u.search,locale);}return r.kind==='press'?sourcePageUrl(r.url)||'':storyInterfaceHref(recordHref(r.id,r.kind==='answer'?'question':r.kind,undefined,undefined,r.speechId),locale);}
 export function TopicStories({selection,fallback,facts:provided,onRecords}:{selection:StorySelection;fallback?:ReactNode;facts?:StoryFacts;onRecords?:(period?:string,claim?:string,linkId?:string)=>void}){
  const ui=useUiI18n(),[,setQuarter]=useExplorerParam<string>('t-q',''),[selected]=useExplorerParam<string>('t-records','');
  const response=useInsightData<any>(provided?null:storyFactsRoute({...selection,language:ui.language,period:undefined}));
@@ -94,7 +93,6 @@ export function TopicStoryRecords({selection}:{selection:StorySelection}){
  for(const item of overview.data?.items||[])labels.set(item.id||item.key.replace(/^place:/,''),item);
  if(data.data?.topic)labels.set(data.data.topic.key,data.data.topic);
  if(names.data?.concept)labels.set(scope,names.data.concept);
- usePolicyAreaLabels([names.data?.concept,data.data?.topic,...(overview.data?.items||[])]);
  const name=(p:string)=>labels.get(p)?.label||'',named=(p:string)=><span lang={labels.get(p)?.labelLanguage||undefined}>{name(p)}</span>;
  const labelsReady=needed.every(p=>Boolean(name(p)&&name(p)!==p));
  const labelsUnavailable=!labelsReady&&Boolean(names.error||overview.error||names.data?.ready===false||overview.data?.ready===false||single&&names.data?.ready||needsOverview&&overview.data?.ready);
@@ -108,7 +106,7 @@ export function TopicStoryRecords({selection}:{selection:StorySelection}){
  useEffect(()=>{if(headingReady&&!dossierJourneyRestoring()){heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start'});}},[key,headingReady]);
  const back=storyHref({...selection,mode:resolvedSelection.mode,zoom:resolvedSelection.zoom,excludeOwn:new URLSearchParams(location.search).has('t-own')?selection.excludeOwn:resolvedSelection.excludeOwn}),meta=period?(monthRangeLabel(parsed!.period,ui.language)):ui.t('topics.thisTerm');
  const ids=parsed?.ids?.split(',').map(x=>x.split('~')[1])||[];
- const found:StoryRecord[]=parsed?.list==='urgency-debates'?(data.data?.sets?.urgencyDebates?.[period||'']||[]).map((id:string)=>data.data.debates.find((r:any)=>r.id===id)).filter(Boolean).map((r:any)=>storyRecord(r,'debate')):ids.map(id=>{const r=data.data?.debates?.find((r:any)=>r.id===id)||data.data?.docs?.find((r:any)=>r.id===id)||data.data?.questions?.find((r:any)=>r.id===id);return r?storyRecord(r,data.data?.debates?.includes(r)?'debate':data.data?.docs?.includes(r)?'document':'question'):null;}).filter(Boolean);
+ const found:StoryRecord[]=parsed?.list==='urgency-debates'?(data.data?.sets?.urgencyDebates?.[period||'']||[]).map((id:string)=>data.data.debates.find((r:any)=>r.id===id)).filter(Boolean).map((r:any)=>storyRecord(r,'debate')):ids.map(id=>{const r=data.data?.debates?.find((r:any)=>r.id===id)||data.data?.docs?.find((r:any)=>r.id===id)||data.data?.questions?.find((r:any)=>r.id===id);return r?{...storyRecord(r,data.data?.debates?.includes(r)?'debate':data.data?.docs?.includes(r)?'document':'question'),speechId:parsed?.ids?.split(',').map(v=>v.split('~')).find(v=>v[1]===id)?.[2]}:null;}).filter(Boolean);
  const records=parsed?.list==='records'&&kind==='debates'?found.filter(r=>r.kind==='debate'):found;
  const requested=parsed?.list==='urgency-debates'?data.data?.sets?.urgencyDebates?.[period||'']||[]:ids,expected=parsed?.expected??(parsed?.list==='urgency-debates'?data.data?.counts?.urgencyDebates:undefined);
  const incomplete=Boolean(data.data?.ready&&['records','urgency-debates'].includes(parsed?.list||'')&&(requested.some((id:string)=>!found.some(r=>r.id===id))||expected!==undefined&&records.length!==expected));

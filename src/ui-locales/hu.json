@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "A teljes szöveg helyébe lép.",
+  "amendment.agreement_text": "A megállapodás szövege",
   "documentcontext.final_placement_check": "Ellenőrizze a végleges helyet {adoptedText}.",
   "documentcontext.adopted_text": "az elfogadott szövegben",
   "amendment.alternative_motion": "Alternatív indítvány",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "A legtöbb vitát és dossziét tartalmazó negyedév: {period} · {title}",
   "topics.peak.documents": "A legtöbb plenáris dokumentumot tartalmazó negyedév: {period} · {title}",
   "topics.peak.questions": "A legtöbb kérdést tartalmazó negyedév: {period} · {title}",
-  "topics.partialLegend": "Sraffozás: részleges negyedév.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "A legnagyobb növekedés: {place}, {count} {unit}, a szokásos értékhez viszonyítva: {ratio}×.",
   "topics.mostTied": "A legtöbbet említett helyek: {place}, egyenként {count} {unit}.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} szöveg",
   "topics.story.count.meps": "{count} EP-képviselő",
   "topics.story.count.mepsOne": "{count} EP-képviselő",
-  "topics.policyAreaSource": "A szakpolitikai területek nevei: {source}.",
   "topics.explorerTranslation": "A szakpolitikai területek nevét az adatböngésző fordította le.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Felszólalások havonta",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} voltak a legtöbb kérdés témái (egyenként {questions}), ami mindegyiküknél emelkedés volt, korábban {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "Európában és szomszédságában {places} voltak a legtöbb kérdés témái (egyenként {questions}), ami mindegyiküknél emelkedés volt, korábban {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} voltak a legtöbb kérdés témái (egyenként {questions}), ami mindegyiküknél ugrásszerű növekedés volt, korábban {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "Európában és szomszédságában {places} voltak a legtöbb kérdés témái (egyenként {questions}), ami mindegyiküknél ugrásszerű növekedés volt, korábban {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "Európában és szomszédságában {places} voltak a legtöbb kérdés témái (egyenként {questions}), ami mindegyiküknél ugrásszerű növekedés volt, korábban {average}.",
+  "proposalcontexttext.colliding.new.point": "Ez a szám már szerepel egy pontnál. Az alappont után elhelyezve.",
+  "proposalcontexttext.new.unnumbered.table": "Az új, számozatlan táblázat a melléklet végére kerül.",
+  "proposalcontexttext.new.point.order": "Az új {point} pont a(z) {base} pontot követi."
 }

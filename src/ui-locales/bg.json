@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Заменя целия текст.",
+  "amendment.agreement_text": "Текст на споразумението",
   "documentcontext.final_placement_check": "Проверете окончателното място в {adoptedText}.",
   "documentcontext.adopted_text": "приетия текст",
   "amendment.alternative_motion": "Алтернативно предложение",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "Най-активно тримесечие за разисквания и досиета: {period} · {title}",
   "topics.peak.documents": "Най-активно тримесечие за пленарни документи: {period} · {title}",
   "topics.peak.questions": "Най-активно тримесечие за въпроси: {period} · {title}",
-  "topics.partialLegend": "Щриховка: непълно тримесечие.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "{place}: най-голям ръст — {count} {unit}, {ratio}× спрямо обичайното.",
   "topics.mostTied": "Най-често посочвани: {place}, по {count} {unit}.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} текст",
   "topics.story.count.meps": "{count} евродепутати",
   "topics.story.count.mepsOne": "{count} евродепутат",
-  "topics.policyAreaSource": "Наименования на областите на политиката: {source}.",
   "topics.explorerTranslation": "Наименованията на областите на политиката са преведени от инструмента за разглеждане.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Изказвания по месеци",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} бяха местата с най-много въпроси (по {questions}), във всеки случай ръст спрямо {average} преди това.",
   "topics.story.integrated.lead.tiedEachRose.eu": "В Европа и съседните ѝ страни {places} бяха местата с най-много въпроси (по {questions}), във всеки случай ръст спрямо {average} преди това.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} бяха местата с най-много въпроси (по {questions}), във всеки случай рязък ръст спрямо {average} преди това.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "В Европа и съседните ѝ страни {places} бяха местата с най-много въпроси (по {questions}), във всеки случай рязък ръст спрямо {average} преди това."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "В Европа и съседните ѝ страни {places} бяха местата с най-много въпроси (по {questions}), във всеки случай рязък ръст спрямо {average} преди това.",
+  "proposalcontexttext.colliding.new.point": "Този номер съвпада със съществуваща точка. Поставено след основната точка.",
+  "proposalcontexttext.new.unnumbered.table": "Нова неномерирана таблица, поставена в края на приложението.",
+  "proposalcontexttext.new.point.order": "Нова точка {point} следва точка {base}."
 }

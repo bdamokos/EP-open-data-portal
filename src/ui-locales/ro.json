@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Înlocuiește întregul text.",
+  "amendment.agreement_text": "Textul acordului",
   "documentcontext.final_placement_check": "Verificați poziția finală în {adoptedText}.",
   "documentcontext.adopted_text": "textul adoptat",
   "amendment.alternative_motion": "Propunere alternativă",
@@ -2393,7 +2395,6 @@
   "topics.peak.groups": "Trimestrul cu cele mai multe dezbateri și dosare: {period} · {title}",
   "topics.peak.documents": "Trimestrul cu cele mai multe documente de plen: {period} · {title}",
   "topics.peak.questions": "Trimestrul cu cele mai multe întrebări: {period} · {title}",
-  "topics.partialLegend": "Hașuri: trimestru parțial.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "Cea mai mare creștere: {place}; {unit}: {count}, de {ratio}× nivelul obișnuit.",
   "topics.mostTied": "Cele mai multe mențiuni: {place}; {unit}: {count} pentru fiecare loc.",
@@ -2479,7 +2480,6 @@
   "topics.story.count.textsOne": "{count} text",
   "topics.story.count.meps": "{count} de eurodeputați",
   "topics.story.count.mepsOne": "{count} eurodeputat",
-  "topics.policyAreaSource": "Denumirile domeniilor de politică: {source}.",
   "topics.explorerTranslation": "Denumirile domeniilor de politică sunt traduse de explorator.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Intervenții pe luni",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} au făcut obiectul celor mai multe întrebări (câte {questions}), în fiecare caz o creștere față de {average} anterior.",
   "topics.story.integrated.lead.tiedEachRose.eu": "În Europa și în vecinătatea sa, {places} au făcut obiectul celor mai multe întrebări (câte {questions}), în fiecare caz o creștere față de {average} anterior.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} au făcut obiectul celor mai multe întrebări (câte {questions}), în fiecare caz un salt față de {average} anterior.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "În Europa și în vecinătatea sa, {places} au făcut obiectul celor mai multe întrebări (câte {questions}), în fiecare caz un salt față de {average} anterior."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "În Europa și în vecinătatea sa, {places} au făcut obiectul celor mai multe întrebări (câte {questions}), în fiecare caz un salt față de {average} anterior.",
+  "proposalcontexttext.colliding.new.point": "Acest număr există deja. Inserat după punctul de bază.",
+  "proposalcontexttext.new.unnumbered.table": "Tabel nou nenumerotat inserat la sfârșitul anexei.",
+  "proposalcontexttext.new.point.order": "Noul punct {point} urmează după punctul {base}."
 }

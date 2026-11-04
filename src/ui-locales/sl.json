@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Nadomešča celotno besedilo.",
+  "amendment.agreement_text": "Besedilo sporazuma",
   "documentcontext.final_placement_check": "Končno mesto preverite v {adoptedText}.",
   "documentcontext.adopted_text": "sprejetem besedilu",
   "amendment.alternative_motion": "Alternativni predlog",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "Najdejavnejše četrtletje za razprave in dosjeje: {period} · {title}",
   "topics.peak.documents": "Najdejavnejše četrtletje za plenarne dokumente: {period} · {title}",
   "topics.peak.questions": "Najdejavnejše četrtletje za vprašanja: {period} · {title}",
-  "topics.partialLegend": "Šrafirano: nepopolno četrtletje.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "{place}: največja rast — {count} {unit}, {ratio}× glede na običajno vrednost.",
   "topics.mostTied": "Največ omemb: {place}, po {count} {unit}.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} besedilo",
   "topics.story.count.meps": "{count} poslancev Evropskega parlamenta",
   "topics.story.count.mepsOne": "{count} poslanec Evropskega parlamenta",
-  "topics.policyAreaSource": "Imena področij politike: {source}.",
   "topics.explorerTranslation": "Imena področij politike je prevedel raziskovalnik.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Govori po mesecih",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} — največ vprašanj (po {questions}), v vsakem primeru porast, prej {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "V Evropi in njenem sosedstvu: {places} — največ vprašanj (po {questions}), v vsakem primeru porast, prej {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — največ vprašanj (po {questions}), v vsakem primeru skok, prej {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "V Evropi in njenem sosedstvu: {places} — največ vprašanj (po {questions}), v vsakem primeru skok, prej {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "V Evropi in njenem sosedstvu: {places} — največ vprašanj (po {questions}), v vsakem primeru skok, prej {average}.",
+  "proposalcontexttext.colliding.new.point": "Ta številka že obstaja. Vstavljeno za osnovno točko.",
+  "proposalcontexttext.new.unnumbered.table": "Nova neoštevilčena tabela je vstavljena na koncu priloge.",
+  "proposalcontexttext.new.point.order": "Nova točka {point} sledi točki {base}."
 }

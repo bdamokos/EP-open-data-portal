@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Erstatter hele teksten.",
+  "amendment.agreement_text": "Aftalens tekst",
   "documentcontext.final_placement_check": "Kontrollér den endelige placering i {adoptedText}.",
   "documentcontext.adopted_text": "den vedtagne tekst",
   "amendment.alternative_motion": "Alternativt forslag",
@@ -2376,7 +2378,6 @@
   "topics.peak.groups": "Kvartalet med flest debatter og sager: {period} · {title}",
   "topics.peak.documents": "Kvartalet med flest plenardokumenter: {period} · {title}",
   "topics.peak.questions": "Kvartalet med flest spørgsmål: {period} · {title}",
-  "topics.partialLegend": "Skravering: delvist kvartal.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "Største stigning: {place}, {count} {unit}, {ratio}× det sædvanlige antal.",
   "topics.mostTied": "Oftest nævnt: {place}, med {count} {unit} hver.",
@@ -2462,7 +2463,6 @@
   "topics.story.count.textsOne": "{count} tekst",
   "topics.story.count.meps": "{count} medlemmer af Europa-Parlamentet",
   "topics.story.count.mepsOne": "{count} medlem af Europa-Parlamentet",
-  "topics.policyAreaSource": "Navne på politikområder: {source}.",
   "topics.explorerTranslation": "Politikområdernes navne er oversat af udforskeren.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Indlæg pr. måned",
@@ -2825,5 +2825,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} fik flest spørgsmål ({questions} hver), i alle tilfælde en stigning fra {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver), i alle tilfælde en stigning fra {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} fik flest spørgsmål ({questions} hver), i alle tilfælde en kraftig stigning fra {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver), i alle tilfælde en kraftig stigning fra {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver), i alle tilfælde en kraftig stigning fra {average}.",
+  "proposalcontexttext.colliding.new.point": "Dette nummer bruges allerede af et punkt. Placeret efter grundpunktet.",
+  "proposalcontexttext.new.unnumbered.table": "Ny unummereret tabel placeret sidst i bilaget.",
+  "proposalcontexttext.new.point.order": "Nyt punkt {point} følger efter punkt {base}."
 }
