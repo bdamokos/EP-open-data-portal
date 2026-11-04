@@ -25,7 +25,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows, tail, MOTION_CLASSIFICATION_VERSION } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
-import {committeeAmendmentIndexVersion,prepareCommitteeAmendmentIndexes} from './amendments-store.mjs';
+import {committeeAmendmentIndexVersion,prepareCommitteeAmendmentIndexes,amendmentContributorIdentityIndexVersion,prepareAmendmentContributorIdentityIndex} from './amendments-store.mjs';
 import { amendmentReadVersion, amendmentReadIndexes, amendmentLinkIndexVersion, amendmentLinkIndexes, amendmentParserSourceRevisionKey, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
@@ -45,6 +45,7 @@ export const ACTIVITY_SCHEMA_GATES=Object.freeze([
   {key:'fastReadSchemaVersion',value:fastReadSchemaVersion,constructorGate:false,writerGate:false},
   {key:'recoveryScheduleVersion',value:1},
   {key:'committeeAmendmentIndexVersion',value:committeeAmendmentIndexVersion},
+  {key:'amendmentContributorIdentityIndexVersion',value:amendmentContributorIdentityIndexVersion,constructorGate:false},
   {key:'amendmentReadVersion',value:amendmentReadVersion},
   {key:'amendmentLinkIndexVersion',value:amendmentLinkIndexVersion},
   {key:'motionLinksIndexVersion',value:1,writerGate:false},
@@ -74,7 +75,7 @@ const SOURCE_CACHE_CHARS=8*1024*1024;
 const deepFreeze=value=>{if(value&&typeof value==='object'&&!Object.isFrozen(value)){Object.freeze(value);for(const child of Object.values(value))deepFreeze(child);}return value;};
 export class ActivityStore {
   #generationLeaseOwner;
-  constructor(directory, { clock = Date.now, initializeIndexes=false, prepareLog=()=>{}, preparedOnly=false, readOnly=false } = {}) {
+  constructor(directory, { clock = Date.now, initializeIndexes=false, prepareLog=()=>{}, preparedOnly=false, readOnly=false, observation=undefined } = {}) {
     if(readOnly)preparedOnly=true;
     this.readOnly=readOnly;
     if(!preparedOnly)mkdirSync(directory, { recursive: true });
@@ -82,7 +83,7 @@ export class ActivityStore {
     this.filename = path.join(directory, 'activities-v1.sqlite');
     if(preparedOnly&&!existsSync(this.filename))throw new Error('Prepared activity database is unavailable.');
     this.initializeIndexes=!preparedOnly&&(initializeIndexes||!existsSync(this.filename));
-    this.db = observeSqlite(new DatabaseSync(this.filename,{readOnly}),'activity');registerFastReads(this.db);
+    this.db = observeSqlite(new DatabaseSync(this.filename,{readOnly}),'activity',observation);registerFastReads(this.db);
     if(!this.initializeIndexes) {
       try {
         if(ACTIVITY_SCHEMA_GATES.some(gate=>gate.constructorGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Unprepared activity indexes.');
@@ -156,6 +157,7 @@ export class ActivityStore {
       if(initialize){this.initializeResourceIndexes();initialized=true;refresh();}
       if(initializeProofs){amendmentReadIndexes(this.db);this.set('amendmentReadVersion',amendmentReadVersion);initialized=true;refresh();}
       if(this.get('committeeAmendmentIndexVersion')!==committeeAmendmentIndexVersion){prepareCommitteeAmendmentIndexes(this.db);this.set('committeeAmendmentIndexVersion',committeeAmendmentIndexVersion);initialized=true;refresh();}
+      if(this.get('amendmentContributorIdentityIndexVersion')!==amendmentContributorIdentityIndexVersion){prepareAmendmentContributorIdentityIndex(this.db);this.set('amendmentContributorIdentityIndexVersion',amendmentContributorIdentityIndexVersion);initialized=true;refresh();}
       if(initializeLinks){amendmentLinkIndexes(this.db);this.set('amendmentLinkIndexVersion',amendmentLinkIndexVersion);initialized=true;refresh();}
       if(this.get('motionLinksIndexVersion')!==1) {
         this.assertWriter();

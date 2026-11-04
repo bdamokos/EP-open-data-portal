@@ -169,6 +169,21 @@ test('contributor continuation and source mutation revision survive a prepared r
   try {assert.equal(reopened.get('committeeAmendmentIndexVersion'),committeeAmendmentIndexVersion);assert.equal(reopened.get('amendmentReadVersion'),amendmentReadVersion);assert.equal(amendmentContributors(reopened,{procedures:['2024-0318']}).items.length,2);assert.equal(reopened.db.prepare('SELECT COUNT(*) n FROM amendment_read_flags').get().n,2);}finally{reopened.close();}
 });
 
+test('existing indexes gain the contributor identity index without replaying amendments',t=>{
+  const x=setup(t);roster(x);seed(x);
+  const plan=store=>store.db.prepare("EXPLAIN QUERY PLAN DELETE FROM amendment_contributors WHERE generation=1 AND amendment_id='x'").all().map(row=>row.detail).join(' ');
+  x.store.release();x.store.db.exec("DROP INDEX amendment_contributor_identity; DELETE FROM meta WHERE key='amendmentContributorIdentityIndexVersion';");
+  assert.doesNotMatch(plan(x.store),/amendment_contributor_identity/);
+  const revision=x.store.get('amendmentMutationRevision'),contributors=x.store.db.prepare('SELECT COUNT(*) n FROM amendment_contributors').get().n;
+  prepareIndexes({activityDirectory:x.directory,clock:()=>Date.parse(at),log:()=>{}});
+  const reopened=new ActivityStore(x.directory,{preparedOnly:true,clock:()=>Date.parse(at)});
+  try {
+    assert.match(plan(reopened),/amendment_contributor_identity/);
+    assert.equal(reopened.get('amendmentMutationRevision'),revision);
+    assert.equal(reopened.db.prepare('SELECT COUNT(*) n FROM amendment_contributors').get().n,contributors);
+  } finally {reopened.db.close();}
+});
+
 test('competing distributions, conflicting targets and exact joint source links stay explicit',t=>{
   const x=setup(t),work=doc('AGRI-AM-773343');
   work.is_realized_by.push(structuredClone(work.is_realized_by[0]));

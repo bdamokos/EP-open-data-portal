@@ -80,6 +80,13 @@ const splitUnverifiedSql=body=>`(EXISTS(SELECT 1 FROM json_each(${body},'$.decis
 const memberMatchesSql=body=>`(COALESCE(json_extract(${body},'$.conflicted'),0)=0 AND ${supportedProposerDateSql(body)} AND EXISTS(SELECT 1 FROM json_each(${body},'$.authors') AS author WHERE json_extract(author.value,'$.status')='resolved' AND CAST(json_extract(author.value,'$.personId') AS TEXT) IN (?,?)))`;
 
 export const committeeAmendmentIndexVersion=1;
+// Added after version 1 shipped. Without it, each deleted or updated amendment
+// scans the generation's contributors. Separate from the version above, whose
+// upgrade replays every retained amendment.
+export const amendmentContributorIdentityIndexVersion=1;
+export function prepareAmendmentContributorIdentityIndex(db) {
+  db.exec('CREATE INDEX IF NOT EXISTS amendment_contributor_identity ON amendment_contributors(generation,amendment_id,person_id)');
+}
 // These projections are populated under the ordinary writer lease. Reads seek
 // by exact dossier/person/date and never fan out through amendment bodies.
 export function prepareCommitteeAmendmentIndexes(db) {
