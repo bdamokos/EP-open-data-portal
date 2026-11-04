@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.formula.not.shown": "Ο τύπος δεν εμφανίζεται.",
   "amendment.replaces_whole_text": "Αντικαθιστά ολόκληρο το κείμενο.",
   "amendment.agreement_text": "Κείμενο της συμφωνίας",
   "documentcontext.final_placement_check": "Ελέγξτε την τελική θέση στο {adoptedText}.",
