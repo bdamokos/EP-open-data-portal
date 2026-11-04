@@ -2,6 +2,7 @@ import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumber
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
+import {assertFormulaGap} from './amendment-formula-gap-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
 import {assertBareAnnexInsertion} from './amendment-annex-oracle.mjs';
@@ -565,6 +566,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const formula=assertFormulaGap(input);if(formula&&formula.status!=='verified')return formula;
   const header=assertCompoundHeader(input);
   if(header&&header.status!=='verified')return header;
   const result=verifyProposalPlacement(input);
