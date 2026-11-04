@@ -9,6 +9,7 @@ This page lists the external sources the application uses, what each provides, a
 | [Parliament’s public website](https://www.europarl.europa.eu/) | Portraits, press-release feeds and the releases they announce, document files (DOCX/PDF), minutes and verbatim reports | Only URLs the API supplies (portraits, document distributions) or validated official paths |
 | [Legislative Observatory (OEIL)](https://oeil.europarl.europa.eu/oeil/en/find-out-more) | Dossier stages, policy areas and document summaries, in English and French where supplied | Anonymous HTML of exact procedure-file and document-summary pages |
 | [Publications Office knowledge graph (Cellar)](https://op.europa.eu/en/web/cellar/cellar-data/metadata/knowledge-graph) | Legislative progress and event-linked documents, EuroVoc, country terminology, procedure-phase labels, cited EU acts, Commission proposals, Council positions and consolidated acts | Anonymous SPARQL GET to `publications.europa.eu/webapi/rdf/sparql`; RDF-tree, DOCX and XHTML reads from `publications.europa.eu/resource/` |
+| [Council public document service](https://data.consilium.europa.eu/) | Native validation of Council re-consultation drafts; not connected to the public reader | Anonymous PDF at `doc/document/ST-{number}-{year}-INIT/{language}/pdf`, derived from the exact ST/C10/CNS reference in the EP report record |
 | [Parliament Multimedia Centre](https://multimedia.europarl.europa.eu/) | Recording metadata and the official embed URL | Undocumented JSON endpoint behind the public website |
 | [Parliament’s published player](https://webstreaming.europarl.europa.eu/) | Playback and the list of interpretation tracks | Official iframe, created only after Play; undocumented player metadata |
 | [Plenary live status](https://www.europarl.europa.eu/plenary/en/home.html) | Current debate title and update time, in English | Anonymous JSON behind the plenary homepage |
@@ -16,6 +17,8 @@ This page lists the external sources the application uses, what each provides, a
 | [EUR-Lex](https://eur-lex.europa.eu/), DOCEO and other official pages | Reader links | Outbound links only; never fetched |
 
 Bundled data: committee labels from the corporate-bodies API, country labels from the Publications Office authority scheme, Parliament’s [procedure-type taxonomy](https://data.europarl.europa.eu/def/ep-procedure-types.ttl) (`server/procedure-types.mjs`), Natural Earth map geometry and stopword lists. See [Third-party notices](../THIRD_PARTY_NOTICES.md).
+
+Council draft validation retains native paragraph object references and binds each note to one superscript owner. Vector painting, untagged text, ambiguous notes and unrepresented annotations prevent a passage from being complete. Text extraction alone does not prove that visible content was retained.
 
 ## Access rules
 
