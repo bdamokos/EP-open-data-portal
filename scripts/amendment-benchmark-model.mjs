@@ -255,7 +255,7 @@ function rawPreambleCitations(proposal) {
   if(run.some(row=>!/^(?:Having regard to|After (?:transmission|consulting|consultation)|Acting in accordance with)\b/u.test(String(row.text).trim())))return null;
   return run;
 }
-function verifyOuterArticleGap({proposal,wording,placement,nativeQuoted}) {
+export function verifyOuterArticleGap({proposal,wording,placement,nativeQuoted}) {
  const unknown=()=>null;
  const label=/^Article ([1-9]\d*) a \(new\)$/u.exec(wording.targetLabel?.split('\n')[0]??'');
  if(!label||wording.language!=='en'||wording.originalText!==''||placement.operation!=='insert'||proposal?.sourceKind!=='docx')return unknown();
@@ -632,7 +632,13 @@ export function verifyPlacement(input) {
   if(input.items?.[input.placement?.itemIndex]?.proposal?.sourceKind==='pdf')return assertCouncilDraftPlacement(input);
   const header=assertCompoundHeader(input);
   if(header&&header.status!=='verified')return header;
-  const result=verifyProposalPlacement(input);
+  let result=verifyProposalPlacement(input);
+  // A native gap proof cannot preempt an existing verified address. The
+  // generic anchor ID is unavailable for this independently proved fallback.
+  if(result.status==='unverified'||result.reason==='oracle-anchor-missing') {
+    const proposal=input.items?.[input.placement?.itemIndex]?.proposal;
+    result=verifyOuterArticleGap({proposal,wording:input.wording,placement:input.placement,nativeQuoted:input.nativeQuoted})??result;
+  }
   if(result.status!=='verified')return result;
   // A recast's legal reading omits its struck deletions and markers; the
   // native Word runs must establish that reading for every touched row.
@@ -681,7 +687,6 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
-  const articleGap=verifyOuterArticleGap({proposal,wording,placement,nativeQuoted});if(articleGap)return articleGap;
   const tableEnd=assertUnnumberedTable({proposal,wording,placement,nativeQuoted,voteReferences});
   if(tableEnd.status!=='unverified')return tableEnd;
   const newParent=assertNewParentBoundary({proposal,wording,placement});if(newParent.status!=='unverified')return newParent;
