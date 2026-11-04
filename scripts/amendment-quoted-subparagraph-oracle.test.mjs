@@ -22,8 +22,8 @@ test('existing labels, another article or another subparagraph are not verified'
 test('colliding new Roman numbers follow their base before existing suffixed peers',()=>{
  for(const suffix of ['a','b','c','d']) {
   const raw='Article 30 – paragraph 6 – subparagraph 2 – point b – point ii '+suffix+' (new)';
-  assert.equal(assertQuotedSubparagraph(input(raw,10)).status,'verified');
-  assert.equal(assertQuotedSubparagraph(input(raw,11)).status,'failed');
+  assert.equal(assertQuotedSubparagraph(input(raw,10,'(ii'+suffix+') New.')).status,'verified');
+  assert.equal(assertQuotedSubparagraph(input(raw,11,'(ii'+suffix+') New.')).status,'failed');
  }
  assert.equal(assertQuotedSubparagraph(input('Article 30 – paragraph 6 – subparagraph 2 – point b – point ii a',10)).status,'unverified');
 });
