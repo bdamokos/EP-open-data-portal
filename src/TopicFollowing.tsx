@@ -1,4 +1,3 @@
-import {usePolicyAreaLabels} from './PolicyAreaSources';
 import {StarControl} from './StarControl';
 import {dossierLinkClick} from './dossierJourney';
 import {useState,useSyncExternalStore} from 'react';
@@ -11,4 +10,4 @@ function reload(){try{const value=JSON.parse(localStorage.getItem(key)||'[]');it
 reload();window.addEventListener('storage',e=>{if(e.key===key||e.key===null)reload();});
 export function useTopics(){return useSyncExternalStore(f=>{listeners.add(f);return()=>listeners.delete(f);},()=>items);}
 export function FollowTopic({concept}:{concept:TopicConcept}){const ui=useUiI18n(),[error,setError]=useState(false),saved=useTopics().some(i=>i.key===concept.key);return <><StarControl saved={saved} label={ui.t(saved?'topics.following':'topics.follow')} labelLanguage={ui.language} onClick={()=>{const next=saved?items.filter(i=>i.key!==concept.key):[...items,concept];try{localStorage.setItem(key,JSON.stringify(next));setError(false);reload();}catch{setError(true);}}}/>{error&&<p role="alert"><UiMessage id="topics.saveError"/></p>}</>;}
-export function FollowedTopics(){const saved=useTopics();usePolicyAreaLabels(saved);return <>{saved.map(c=><article className="explorer-saved-card" key={c.key}><small><UiMessage id={c.key.startsWith('place:')?'topics.place':'topics.topic'}/></small><h2><a onClick={dossierLinkClick} lang={c.labelLanguage||c.language||undefined} href={topicsHref(c.key)}>{c.label}</a></h2><FollowTopic concept={c}/></article>)}</>;}
+export function FollowedTopics(){const saved=useTopics();return <>{saved.map(c=><article className="explorer-saved-card" key={c.key}><small><UiMessage id={c.key.startsWith('place:')?'topics.place':'topics.topic'}/></small><h2><a onClick={dossierLinkClick} lang={c.labelLanguage||c.language||undefined} href={topicsHref(c.key)}>{c.label}</a></h2><FollowTopic concept={c}/></article>)}</>;}

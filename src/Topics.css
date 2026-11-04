@@ -121,8 +121,6 @@
 
 .topic-facets [aria-pressed=true] {background:var(--accent-soft);border-color:var(--accent)}
 
-.policy-area-sources {max-width:1240px;margin:16px auto 0;padding:0 28px;font-size:15px;color:var(--ink-muted)}
-.policy-area-sources summary {cursor:pointer}
 
 .story-supporting{margin-inline-start:20px;padding-inline-start:16px;border-inline-start:1px solid var(--line)}
 .topic-story-records{max-width:800px;margin-block:16px}
