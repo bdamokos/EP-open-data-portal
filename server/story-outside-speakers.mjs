@@ -1,4 +1,4 @@
-import {periodAvailability} from './source-availability.mjs';
+import {periodAvailability,validDay} from './source-availability.mjs';
 import europe from './story-europe-countries.json' with {type:'json'};
 import {quarter} from './topics-store.mjs';
 import {resolveOutsideSpeaker} from './outside-speaker-country.mjs';
@@ -49,8 +49,11 @@ export function readOutsideSpeakers(store,generation,q,key,coverage=outsideSpeak
  const db=store.db,complete=new Map();
  if(!coverage)return [];
  if(coverage.wikidataPolicyVersion!==4)return [];
+ // A missing exact speech is not evidence against the addresses we hold.
+ // Filter only this read's gate; published coverage keeps every source gap.
+ const availability=coverage.availability&&{...coverage.availability,gaps:coverage.availability.gaps.filter(gap=>!(gap.reason==='source-gap'&&validDay(gap.start)&&gap.start===gap.end&&new RegExp('(?:^|[:/])MTG-PL-'+gap.start+'-OTH-\\d+$').test(gap.sourceId||'')))};
  const quarterComplete=period=>{
-  if(!complete.has(period))complete.set(period,!coverage.wikidataUnavailablePeriods?.includes(period)&&(coverage.complete||periodAvailability(quarterWindow(period),coverage.availability,0,{today:coverage.window.end}).state==='observed'));
+  if(!complete.has(period))complete.set(period,coverage.initialized!==false&&!coverage.pending&&!coverage.truncated&&!coverage.wikidataUnavailablePeriods?.includes(period)&&(coverage.complete||periodAvailability(quarterWindow(period),availability,0,{today:coverage.window.end}).state==='observed'));
   return complete.get(period);
  };
  const window=q.period?quarterWindow(q.period):null;

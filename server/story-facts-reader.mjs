@@ -13,7 +13,7 @@ import {publishedEurope} from './story-europe.mjs';
 import {HttpError} from './http-utils.mjs';
 import {topicPeriods,quarter} from './topics-store.mjs';
 
-export const STORY_FACTS_VIEW_VERSION=1;
+export const STORY_FACTS_VIEW_VERSION=2;
 
 /* Frontend contract (all counts are exact over the generation's retained evidence):
  * mode=q/d is a presentation selector; counts retain every kind.

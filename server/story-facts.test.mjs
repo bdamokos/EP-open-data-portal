@@ -667,10 +667,17 @@ test('outside addresses and coverage are copied into the published generation',a
  store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({wikidataPolicyVersion:4,complete:false,window:{end:'2026-11-01'},availability:{sourceKey:'outside',checkedIntervals:[],gaps:[],limited:true}}));
  assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'incomplete coverage suppresses the line');
  const replaceCoverage=value=>store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify(value));
- replaceCoverage({complete:false,wikidataPolicyVersion:4,window:{end:'2026-11-01'},availability:{checkedIntervals:[{start:'2026-01-01',end:'2026-06-30'}],gaps:[{start:'2026-04-10',end:'2026-04-10',reason:'missing-day'}],limited:false}});
+ replaceCoverage({complete:false,wikidataPolicyVersion:4,window:{end:'2026-11-01'},availability:{checkedIntervals:[{start:'2026-01-01',end:'2026-06-30'}],gaps:[{start:'2026-04-10',end:'2026-04-10',reason:'source-gap',sourceId:'recovery:/speeches/MTG-PL-2026-04-10-OTH-123'}],limited:false}});
  assert.equal(storyFacts(store,query('map')).outsideSpeakers.length,2,'a Q2 gap does not suppress Q1');
  store.db.prepare("INSERT INTO story_facts SELECT generation,kind,id||':q2','2026-04-21',json_set(body,'$.id',id||':q2','$.date','2026-04-21') FROM story_facts WHERE generation=2 AND kind='outsideSpeaker'").run();
- const q2=query('map');q2.set('period','2026-Q2');assert.deepEqual(storyFacts(store,q2).outsideSpeakers,[],'dated gap suppresses its own quarter');
+ const q2=query('map');q2.set('period','2026-Q2');assert.equal(storyFacts(store,q2).outsideSpeakers.length,2,'a dated speech gap does not suppress held addresses in its quarter');
+ const datedCoverage=JSON.parse(store.db.prepare("SELECT body FROM story_facts WHERE generation=2 AND kind='outsideCoverage'").get().body);
+ assert.equal(storyFacts(store,q2).coverage.outside.complete,false);
+ assert.deepEqual(storyFacts(store,q2).coverage.outside.availability.gaps,datedCoverage.availability.gaps,'response preserves the gaps');
+ for(const extra of [{initialized:false},{pending:1},{truncated:true},{wikidataUnavailablePeriods:['2026-Q2']},{availability:{...datedCoverage.availability,checkedIntervals:[]}},{availability:{...datedCoverage.availability,limited:true}},{availability:{...datedCoverage.availability,gaps:[{start:'2026-04-10',end:'2026-04-10',reason:'source-gap',sourceId:'outside:roster:2026-04-10'}]}},{availability:{...datedCoverage.availability,gaps:[{reason:'source-gap'}]}}]){
+  replaceCoverage({...datedCoverage,...extra});assert.deepEqual(storyFacts(store,q2).outsideSpeakers,[],JSON.stringify(extra));
+ }
+ replaceCoverage(datedCoverage);
  replaceCoverage({complete:true,wikidataPolicyVersion:3});assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'older projection is separately suppressed');
 
  store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:true,wikidataPolicyVersion:4,europe:['ESP']}));
