@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {fixtureZip} from './fixtures/bare-annex-indent-native.mjs';
+import {verifyPlacement} from './amendment-benchmark-model.mjs';
+const p=(text,style='Normal')=>`<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`;
+const values=['HAS ADOPTED THIS DIRECTIVE:','Article 1','The Directive is amended as follows:','Incomplete quoted inner wording.','Article 2','1. Entry into force.'];
+const fixture=(change=x=>x)=>{const rows=values.map((text,index)=>p(text,[1,4].includes(index)?'Titrearticle':'Normal')).join(''),proposalBuffer=fixtureZip({'word/document.xml':change(`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${rows}</w:body></w:document>`)});return {items:[{proposal:{sourceKind:'docx',paragraphs:values.map((text,index)=>({index,text,complete:true,source:{path:`/w:document[1]/w:body[1]/w:p[${index+1}]`,container:'body',complete:true}}))}}],wording:{language:'en',baseline:'commission-proposal',originalText:'',proposedText:'Article1a\nNew instruction.',targetLabel:'Article 1 a (new)'},placement:{status:'placed',operation:'insert',itemIndex:0,insertAfter:3,insertBefore:4,evidence:[{basis:'outer-article-heading-gap'}]},nativeQuoted:{proposalBuffer}};};
+test('native consecutive outer article headings establish the new article boundary',()=>{assert.equal(verifyPlacement(fixture()).status,'verified');const f=fixture();f.placement.insertBefore=3;assert.equal(verifyPlacement(f).status,'failed');});
+test('changed headings, source coordinates, adoption lines and existing new labels fail proof',()=>{
+ for(const mutate of [f=>delete f.nativeQuoted,f=>f.items[0].proposal.paragraphs[4].source.path='wrong',f=>f.items[0].proposal.paragraphs[4].complete=false]){const f=fixture();mutate(f);assert.notEqual(verifyPlacement(f).status,'verified');}
+ for(const change of [x=>x.replace('Article 2','Article 3'),x=>x.replace('HAS ADOPTED THIS DIRECTIVE:','An instruction:'),x=>x.replace(p('Article 2','Titrearticle'),p('Article 1a','Titrearticle')+p('Article 2','Titrearticle')),x=>x.replace(p('Article 1','Titrearticle'),p('Article 1','Titrearticle')+p('Article 1','Titrearticle'))])assert.notEqual(verifyPlacement(fixture(change)).status,'verified');
+});
