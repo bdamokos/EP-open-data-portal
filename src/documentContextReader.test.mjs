@@ -1546,3 +1546,21 @@ test('PDF source spacing uses published columns without false whitespace edits',
  assert(![...block.querySelectorAll('ins,del')].some(node=>node.textContent.trim()===''));
  assert(block.textContent.includes('Original'));assert(block.textContent.includes('Changed'));
 });
+
+test('intraparagraph insertion preserves source text, styles, links and both native note anchors',async t=>{
+ const value='51.\tFirst provision;52.\tSecond provision;',offset=value.indexOf('52.');
+ const data=overlayResponse({insertAfter:1,insertBefore:2});data.placement.splice={start:{paragraph:1,offset},end:{paragraph:1,offset}};
+ Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,',value,'53. Following;'],formatStatus:'extracted',paragraphFormats:[{},{indent:2,hanging:2,marks:[{kind:'bold',start:4,end:9},{kind:'italic',start:offset+4,end:value.length}]},{}],tables:[],noteAnchors:[{paragraph:1,offset:9,note:'48',label:'48'},{paragraph:1,offset:offset+10,note:'49',label:'49'}],notes:[{id:'48',label:'48',text:'First native note.',links:[]},{id:'49',label:'49',text:'Second native note.',links:[]}],documentLinks:[{paragraph:1,start:4,end:9,url:'https://example.org/first'},{paragraph:1,start:offset+4,end:offset+10,url:'https://example.org/second'}]});
+ const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+ const block=h.container.querySelector('[data-amendment-block]'),before=block.previousElementSibling,after=block.nextElementSibling;
+ const plain=node=>{const copy=node.cloneNode(true);copy.querySelectorAll('sup').forEach(x=>x.remove());return copy.textContent;};
+ assert.equal(plain(before)+plain(after),value);assert.equal(before.dataset.sourceParagraph,'1');assert.equal(after.dataset.sourceParagraph,'1');
+ assert.equal(before.querySelector('.doc-label').textContent,'51.\t');assert.equal(after.querySelector('.doc-label').textContent,'52.\t');
+ assert.equal(before.querySelector('b').textContent,'First');assert(after.querySelector('i').textContent.includes('Second'));
+ assert.equal(before.querySelector('sup').textContent,'48');assert.equal(after.querySelector('sup').textContent,'49');
+ assert.equal(before.querySelector('a[href="https://example.org/first"]').textContent,'First');assert.equal(after.querySelector('a[href="https://example.org/second"]').textContent,'Second');
+ assert.match(after.nextElementSibling.textContent,/53\. Following/);
+ data.placement.splice.end.offset++;await h.render({request:{...overlayRequest,wordingLanguage:undefined},language:'en'});
+ const unplaced=h.container.querySelector('[data-amendment-block]');assert.notEqual(unplaced.dataset.contextTarget,'true');
+ assert.equal(h.container.querySelectorAll('[data-source-paragraph="1"]').length,1);assert.equal(plain(h.container.querySelector('[data-source-paragraph="1"]')),value);
+});

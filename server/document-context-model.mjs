@@ -627,6 +627,29 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
   const span = unit => ({start: unit.start, end: unit.end});
   if (operation === 'insert') {
+    // Some Word sources print two consecutive provisions in one physical row.
+    // Keep its identity and place at the literal second label, not after both.
+    if(options.language==='en'&&options.originalText===''&&!referenceText&&ref?.kind==='paragraph'&&ref.isNew&&ref.suffix==='a'&&!ref.parents.length) {
+      const n=Number(ref.base),owners=units.filter(unit=>unit.kind==='paragraph'&&unit.label===String(n));
+      const owner=owners[0],row=owner&&rows[owner.start],value=row?.value;
+      if(owners.length===1&&row.complete&&row.source.container==='body'&&Number.isSafeInteger(n)
+        &&new RegExp('^'+n+'a[.]\\s+\\S','u').test(options.proposedText)
+        &&value.startsWith(n+'.\t')&&value.endsWith(';')&&!/[\r\n]/u.test(value)
+        &&!units.some(unit=>unit.kind==='paragraph'&&[String(n+1),ref.label].includes(unit.label))) {
+        const labels=[...value.matchAll(/(?:^|[;.!?])\s*([1-9]\d{0,5})[.]\t(?=\S)/gu)];
+        const next=units.find(unit=>unit.kind==='paragraph'&&unit.start>owner.start);
+        const offset=labels.length===2?value.indexOf((n+1)+'.\t',labels[1].index):-1;
+        const anchors=text.noteAnchors??text.anchors??[];
+        if(labels.length===2&&labels[0][1]===String(n)&&labels[1][1]===String(n+1)&&next?.label===String(n+2)&&offset>0
+          &&!(text.documentObjects||[]).some(item=>item.paragraph===owner.start)
+          &&!anchors.some(item=>item.paragraph===owner.start&&(!Number.isInteger(item.offset)||item.offset<0||item.offset>value.length||item.offset===offset))
+          &&!(text.documentLinks||[]).some(link=>link.paragraph===owner.start&&link.start<offset&&link.end>offset)) {
+          evidence.push({basis:'printed-coalesced-boundary',label:ref.label,anchor:String(n)});
+          return placed({insertAfter:owner.start,insertBefore:owner.start+1,splice:{start:{paragraph:owner.start,offset},end:{paragraph:owner.start,offset}}});
+        }
+      }
+      if(value&&/[;.!?]\s*[1-9]\d{0,5}[.)]\s/u.test(value))return unresolved('source_passage_incomplete');
+    }
     // Terminal unnumbered dash items acquire their ordinal from this one
     // complete paragraph, not from dashes elsewhere in the document.
     const indent=options.language==='en'&&/^Paragraph ([1-9]\d*) – indent ([1-9]\d*) a \(new\)$/u.exec(options.targetLabel||'');

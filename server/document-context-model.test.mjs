@@ -1113,3 +1113,12 @@ test('exact paragraph lead replacement preserves its directly owned points',()=>
  text.paragraphSources[2].complete=false;
  assert(!resolveAmendmentPlacement(text,opts).evidence.some(e=>e.basis==='exact-paragraph-lead'));
 });
+
+test('new paragraph between coalesced native numbers uses an insertion splice',()=>{
+ const paragraphs=['The European Parliament,','51.\tFirst provision;52.\tSecond provision;','53.\tFollowing;','54.\tLast;'];
+ const options={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 51 a (new)',originalText:'',proposedText:'51a.\tInserted;'};
+ const text=document(paragraphs,{textLanguage:'en'}),result=resolveAmendmentPlacement(text,options),offset=paragraphs[1].indexOf('52.');
+ assert.equal(result.status,'placed');assert.deepEqual(result.splice,{start:{paragraph:1,offset},end:{paragraph:1,offset}});assert.equal(result.insertAfter,1);assert.equal(result.insertBefore,2);
+ for(const changed of [document(paragraphs.map((p,i)=>i===1?p.replace(';52.',';53.'):p),{textLanguage:'en'}),document(paragraphs.map((p,i)=>i===1?p.replace('52.\t','52. '):p),{textLanguage:'en'}),document(paragraphs,{textLanguage:'en',documentObjects:[{paragraph:1,offset:4}]}),document(paragraphs,{textLanguage:'en',noteAnchors:[{paragraph:1,offset}]}),document(paragraphs,{textLanguage:'en',sources:{1:{complete:false}}})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+ assert.notEqual(resolveAmendmentPlacement(text,{...options,proposedText:'52a. Wrong;'}).status,'placed');
+});
