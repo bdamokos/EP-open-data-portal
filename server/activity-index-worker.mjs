@@ -44,6 +44,7 @@ import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PR
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
 import {spId,validateTA,validateReply,projectFollowup,projectFollowupReferences,followupReferences} from './commission-followups-model.mjs';
 import {mutableRecoveryDue} from './mutable-document-recovery.mjs';
+import {generationBeginPending} from './generation-begin.mjs';
 import {amendmentListDocumentId,documentDetailEndpoint,documentRouteOwned,documentRouteBlocker,documentRouteDeferredOwners,sanitizeFreshDocument,validateAmendmentListMetadata} from './document-detail-routing.mjs';
 import {reconcileAmendmentDocumentGaps,amendmentDocumentRouteRepairPending,amendmentDocumentRouteVerificationPending,scheduleAmendmentDocumentRouteVerification} from './document-route-recovery.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
@@ -186,7 +187,7 @@ export class ActivityWorker {
   }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.startupRepairDue() || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
-    if(upcomingRefreshDue(this))return true;
+    if(generationBeginPending(this.store)||upcomingRefreshDue(this))return true;
     if(outsideWikidataDue(this.store,this.clock())||storyCollectionDue(this.store,this.clock())||topicCollectionDue(this.store,this.clock())||this.topicBuildStep())return true;
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
@@ -914,6 +915,13 @@ export class ActivityWorker {
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew())this.controller.abort(new Error('Activity-index writer lease was lost.'));},20_000);heartbeat.unref();
     try {
+      // A rotation copies the active generation in several commits. Finish it
+      // before anything else can write to the rows it is copying.
+      if(generationBeginPending(this.store)) {
+        await (this.generationExecutor?this.generationExecutor('begin',{signal:this.controller.signal}):this.store.beginCycle());
+        if(this.stopped)return;
+        this.controller.signal.throwIfAborted();
+      }
       for(const generation of this.questionFileGenerations()) {
         backfillQuestionFiles(this.store,generation);
         await projectionYield(undefined,{signal:this.controller.signal});

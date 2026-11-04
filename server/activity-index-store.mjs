@@ -29,12 +29,13 @@ import { isMotion, motionOutcome, motionReference, motionSourceKey } from './mot
 import {committeeAmendmentIndexVersion,prepareCommitteeAmendmentIndexes,amendmentContributorIdentityIndexVersion,prepareAmendmentContributorIdentityIndex} from './amendments-store.mjs';
 import { amendmentReadVersion, amendmentReadIndexes, amendmentLinkIndexVersion, amendmentLinkIndexes, amendmentParserSourceRevisionKey, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
-import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
+import {outsideSchema,outsideCopy,outsideTasksCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches,GAP_LIMIT} from './refresh-policy.mjs';
 import {generationPruneSchemaVersion,prepareGenerationPrune} from './generation-prune.mjs';
 import {copyProjectedGenerationRows,prepareGenerationCopy,generationCopySchemaVersion} from './generation-copy.mjs';
 import {speechSourceGapSchema} from './speech-source-gaps.mjs';
+import {beginGenerationInBatches,discardGenerationBegin} from './generation-begin.mjs';
 
 // Defaults gate both normal construction and writer acquisition. The explicit
 // exceptions preserve preparations historically allowed during normal acquire().
@@ -61,6 +62,7 @@ export const ACTIVITY_SCHEMA_GATES=Object.freeze([
   {key:'documentBodySchema',value:1,constructorGate:false},
 ].map(Object.freeze));
 
+const schemaGateState=store=>JSON.stringify(ACTIVITY_SCHEMA_GATES.map(gate=>store.get(gate.key)));
 const parse = value => value == null ? null : JSON.parse(value);
 const motionReferenceValue = `CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END`;
 const originalMotionRef = `CASE
@@ -119,7 +121,8 @@ export class ActivityStore {
     if(readOnly)this.db.exec('PRAGMA query_only=ON; PRAGMA busy_timeout=250;');
     else if(!this.initializeIndexes) {
       if(preparedOnly&&this.db.prepare('PRAGMA journal_mode').get().journal_mode!=='wal'){this.db.close();throw new Error('Prepared activity database requires WAL mode.');}
-      this.db.exec(`${preparedOnly?'':'PRAGMA journal_mode=WAL;'} PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;`);
+      // The limit returns the file to the system once a checkpoint resets a large WAL.
+      this.db.exec(`${preparedOnly?'':'PRAGMA journal_mode=WAL;'} PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA journal_size_limit=67108864;`);
     }
     if (this.get('schema') !== 1) throw new Error('Unsupported activity-index schema.');
     try {assertRefreshSnapshot(this);}catch(error){this.db.close();throw error;}
@@ -144,6 +147,8 @@ export class ActivityStore {
     const acquired=this.transaction(()=> {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
+      // Preparation can replay projections into a partly built generation.
+      const gatesBefore=this.get('generationBegin')?schemaGateState(this):null;
       assertRefreshSnapshot(this);
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion,initializeLinks=this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion;
       if(!this.initializeIndexes&&ACTIVITY_SCHEMA_GATES.some(gate=>gate.writerGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
@@ -197,6 +202,7 @@ export class ActivityStore {
       }
       if(initialized||this.get('generationPruneSchemaVersion')!==generationPruneSchemaVersion){prepareGenerationPrune(this.db);this.set('generationPruneSchemaVersion',generationPruneSchemaVersion);}
       if(initialized||this.get('generationCopySchemaVersion')!==generationCopySchemaVersion){prepareGenerationCopy(this.db);this.set('generationCopySchemaVersion',generationCopySchemaVersion);}
+      if(gatesBefore&&(initialized||gatesBefore!==schemaGateState(this)))discardGenerationBegin(this);
       refresh();
       return true;
     });
@@ -268,8 +274,42 @@ export class ActivityStore {
       } finally {this.#generationLeaseOwner=undefined;}
     });
   }
-  beginCycle() {
+  // Metadata is small and stays with the final commit, in both begin paths.
+  copyGenerationMetadata(generation,active) {
+    this.db.prepare('INSERT INTO refresh_gaps SELECT ?,key,kind,body,priority,error,attempts,failed_at,retry_at,sitting_id FROM refresh_gaps WHERE generation=?').run(generation,active);
+    this.db.prepare('INSERT INTO mutable_refresh_admissions SELECT ?,key FROM mutable_refresh_admissions WHERE generation=?').run(generation,active);
+    this.db.prepare('INSERT INTO refresh_gap_admissions SELECT ?,key FROM refresh_gap_admissions WHERE generation=?').run(generation,active);
+    this.db.prepare('INSERT INTO sitting_refresh SELECT ?,sitting_id,next_check FROM sitting_refresh WHERE generation=?').run(generation,active);
+    this.db.prepare('INSERT INTO feed_catalog_recovery SELECT ?,endpoint,start,end FROM feed_catalog_recovery WHERE generation=?').run(generation,active);
+    // Preserve bounded selection progress across generations.
+    this.db.prepare('INSERT INTO mutable_documents SELECT ?,key,next_check FROM mutable_documents WHERE generation=?').run(generation,active);
+    for(const table of ['mutable_refresh_admissions','refresh_gaps','refresh_gap_admissions','mutable_documents','continuation_sittings','sitting_refresh','feed_catalog_recovery'])this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(active,generation);
+  }
+  openCycle(generation,active,startedAt) {
+    // The copied active rows are unchanged; only later writes are touched.
+    this.db.exec('DELETE FROM follow_touched');
+    const cycle={ generation, initial:!active, startedAt, phase:'discovering', error:null, requests:0 };
+    this.set('working',cycle);return cycle;
+  }
+  beginCycle({pause,batch,batchBytes,memoryTemp,batched:useBatches=true}={}) {
     this.invalidateMemberProfiles();
+    assertRefreshSnapshot(this);
+    try {
+      const batched=useBatches&&beginGenerationInBatches(this,{pause,batch,batchBytes,memoryTemp,finish:({generation,active,startedAt})=>{
+        assertRefreshSnapshot(this);
+        this.set('lastBeginAt',startedAt);
+        this.db.prepare('INSERT OR REPLACE INTO meta SELECT ?,value FROM meta WHERE key=?').run('questionFileBackfill:'+generation,'questionFileBackfill:'+active);
+        this.copyGenerationMetadata(generation,active);
+        outsideTasksCopy(this.db,generation,active);
+        groupVoicesCopy(this.db,generation,active,{rowsCopied:true});
+        amendmentsCopy(this.db,generation,active,{source:active,amendmentsCopied:true});
+        return this.openCycle(generation,active,startedAt);
+      }});
+      if(batched)return batched;
+    } catch(error) {
+      if(error.restartBegin){console.warn('[generation-begin]',error.message);this.generationTransaction(()=>discardGenerationBegin(this));}
+      throw error;
+    }
     return this.generationTransaction(()=> {
       assertRefreshSnapshot(this);
       const working=this.get('working');
@@ -286,23 +326,13 @@ export class ActivityStore {
         timed('sources',()=>copyProjectedGenerationRows(this.db,{table:'sources',key:'key',select:'INSERT INTO sources SELECT ?,key,kind,body,fetched_at,0 FROM sources'},generation,active));
         timed('items',()=>this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active));
         timed('questionFiles',()=>copyQuestionFiles(this.db,generation,active));
-        this.db.prepare('INSERT INTO refresh_gaps SELECT ?,key,kind,body,priority,error,attempts,failed_at,retry_at,sitting_id FROM refresh_gaps WHERE generation=?').run(generation,active);
-        this.db.prepare('INSERT INTO mutable_refresh_admissions SELECT ?,key FROM mutable_refresh_admissions WHERE generation=?').run(generation,active);
-        this.db.prepare('INSERT INTO refresh_gap_admissions SELECT ?,key FROM refresh_gap_admissions WHERE generation=?').run(generation,active);
-        this.db.prepare('INSERT INTO sitting_refresh SELECT ?,sitting_id,next_check FROM sitting_refresh WHERE generation=?').run(generation,active);
-        this.db.prepare('INSERT INTO feed_catalog_recovery SELECT ?,endpoint,start,end FROM feed_catalog_recovery WHERE generation=?').run(generation,active);
-        // Preserve bounded selection progress across generations.
-        this.db.prepare('INSERT INTO mutable_documents SELECT ?,key,next_check FROM mutable_documents WHERE generation=?').run(generation,active);
-        for(const table of ['mutable_refresh_admissions','refresh_gaps','refresh_gap_admissions','mutable_documents','continuation_sittings','sitting_refresh','feed_catalog_recovery'])this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(active,generation);
+        this.copyGenerationMetadata(generation,active);
         timed('outside',()=>outsideCopy(this.db,generation,active));
         timed('groupVoices',()=>groupVoicesCopy(this.db,generation,active));
         timed('amendments',()=>amendmentsCopy(this.db,generation,active));
         console.log('[generation-begin]',JSON.stringify({generation,active,steps}));
       }
-      // The copied active rows are unchanged; only later writes are touched.
-      this.db.exec('DELETE FROM follow_touched');
-      const cycle={ generation, initial:!active, startedAt:new Date(this.clock()).toISOString(), phase:'discovering', error:null, requests:0 };
-      this.set('working',cycle);return cycle;
+      return this.openCycle(generation,active,new Date(this.clock()).toISOString());
     });
   }
   updateCycle(values) { this.assertWriter();this.set('working',{...this.get('working'),...values}); }
@@ -526,14 +556,15 @@ export class ActivityStore {
   }
   pruneGenerations(first,second=first) {
     this.invalidateMemberProfiles();
+    for(const table of ['sources','items','tasks','follow_summary','dossier_events','follow_generations','follow_touched','membership_snapshots','group_history_snapshots'])this.pruneGenerationTable(table,first,second);
+  }
+  pruneGenerationTable(table,first,second=first) {
     const low=Math.min(first,second),high=Math.max(first,second);
     // NOT IN / <> scans all retained item bodies even when nothing is deleted.
     // Separate indexed ranges also handle a nonadjacent recovery generation.
-    for(const table of ['sources','items','tasks','follow_summary','dossier_events','follow_generations','follow_touched','membership_snapshots','group_history_snapshots']) {
-      this.db.prepare(`DELETE FROM ${table} WHERE generation<?`).run(low);
-      this.db.prepare(`DELETE FROM ${table} WHERE generation>?`).run(high);
-      if(low!==high)this.db.prepare(`DELETE FROM ${table} WHERE generation>? AND generation<?`).run(low,high);
-    }
+    this.db.prepare(`DELETE FROM ${table} WHERE generation<?`).run(low);
+    this.db.prepare(`DELETE FROM ${table} WHERE generation>?`).run(high);
+    if(low!==high)this.db.prepare(`DELETE FROM ${table} WHERE generation>? AND generation<?`).run(low,high);
   }
   status() {
     return this.readSnapshot(()=>this.statusSnapshot());

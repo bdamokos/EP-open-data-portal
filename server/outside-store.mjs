@@ -50,6 +50,9 @@ export function outsideSchema(db) {
 export function outsideCopy(db, generation, active) {
   db.prepare('DELETE FROM outside_contributions WHERE generation<>?').run(active);
   copyProjectedGenerationRows(db,{table:'outside_contributions',key:'speech',select:'INSERT INTO outside_contributions SELECT ?,speech,person,date,body FROM outside_contributions'},generation,active);
+  outsideTasksCopy(db,generation,active);
+}
+export function outsideTasksCopy(db,generation,active) {
   // Preserve exact progress and backoff when the daily core snapshot advances.
   db.prepare("INSERT OR IGNORE INTO tasks SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key LIKE 'outside:agenda-membership:%'").run(generation,active);
 }
