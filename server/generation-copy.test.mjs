@@ -52,7 +52,7 @@ test('direct projections equal trigger replay, including frontiers, FTS and late
     ['/parliamentary-questions/Q1','document',{work_type:'def/QUESTION_WRITTEN',title_dcterms:{en:'Energy policy'},document_date:'2026-10-19',extraction:{text:'omit'}}],
     ['/procedures/2026-0001','procedure',{id:'2026-0001',consists_of:[{id:'eli/dl/event/EV1',had_activity_type:'def/PLENARY_VOTE',activity_date:'2026-10-19'}]}],
     ['/other','document',{title_dcterms:{en:'Other'}}],
-    ['/joint','document',{work_type:'def/RESOLUTION_MOTION_JOINT',replaces:[{id:'eli/dl/doc/B-10-1'}]}],
+    ['/joint','document',{work_type:'def/RESOLUTION_MOTION_JOINT',is_derivative_of:[{id:'eli/dl/doc/B-10-1'}]}],
     ['/report','document',{work_type:'def/REPORT_PLENARY',inverse_created_a_realization_of:[{id:'2026-0001'},{id:'2026-0001'}]}],
     ['/committee','document',{work_type:'def/ep-document-types/REPORT_PARLIAMENTARY_COMMITTEE_DRAFT',inverse_created_a_realization_of:['2026-0002']}],
     ['/motion-outcomes/PV-10-2026-10-19','motion-outcomes',{amendmentVersion:1,decisions:[{id:'eli/dl/event/PV-10-2026-10-19-DEC-1',decided_on_a_realization_of:['eli/dl/doc/B-10-1']}]}],
@@ -76,7 +76,7 @@ test('direct projections equal trigger replay, including frontiers, FTS and late
   db.exec('CREATE TABLE deletes(n); INSERT INTO deletes VALUES(0); CREATE TRIGGER count_report_replay BEFORE INSERT ON report_procedures BEGIN UPDATE deletes SET n=n+1; END');
   store.generationTransaction(()=>{for(const spec of specs)copyProjectedGenerationRows(db,spec,3,1);});
   assert.equal(db.prepare('SELECT n FROM deletes').get().n,1);
-  for(const table of tables)assert.deepEqual(snapshot(table,3),snapshot(table,2),table);
+  for(const table of tables){assert.ok(snapshot(table,2).length,table+' fixture must populate projection');assert.deepEqual(snapshot(table,3),snapshot(table,2),table);}
   assert.equal(db.prepare("SELECT COUNT(*) n FROM question_title_search JOIN question_reads q ON q.rowid=question_title_search.rowid WHERE question_title_search MATCH 'Energy' AND q.generation=3").get().n,1);
   assert.equal(store.fastReadsReady(3),true);
   assert.equal(db.prepare("SELECT value FROM meta WHERE key='fastReadCopyGeneration'").get(),undefined);
