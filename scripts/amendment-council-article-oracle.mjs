@@ -99,6 +99,9 @@ export function councilArticleNativeScope(raw,wording) {
  const refs=wording.targetPath?.underlying;
  if(!outer||outer.length!==3||outer[0].kind!=='article'||outer[1].kind!=='paragraph'||outer[1].value!=='1'||outer[2].kind!=='point'||!/^\d+$/u.test(outer[2].value)||refs?.length!==1)return null;
  const inner=label(refs[0].raw,g);if(!inner||inner[0].kind!=='article'||inner.length<2)return null;
+ // Point leads and nested lists need a separate ordinal proof. Never count a
+ // continuation as subparagraph one by dropping its labelled parent lead.
+ if(inner.some((segment,index)=>segment.kind==='subparagraph'&&inner[index-1]?.kind==='point'))return null;
  const document=new RegExp('^'+g.act+'\\s+(?:\\((?:EU|UE)\\)\\s+)?(\\d{4}/\\d+)$','iu').exec(refs[0].document?.replace(/\s+/gu,' ').trim()??'');if(!document)return null;
  const source=printed(raw),headers=[...source.matchAll(new RegExp('^\\s*(?:'+g.article+')\\s+(\\d+[a-z]?)\\s*$','gimu'))];
  // The first exact, unquoted article with the named act lead owns its points.

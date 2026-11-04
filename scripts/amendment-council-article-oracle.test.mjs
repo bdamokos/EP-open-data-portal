@@ -125,3 +125,12 @@ test('repeated insertion predecessors bind their addressed native parent',()=>{
  f.placement.insertAfter=indexes[0];f.placement.insertBefore=indexes[0]+1;
  assert.equal(assertCouncilDraftArticleText(repeatedRaw,f).status,'failed');
 });
+
+test('an unsupported point subparagraph cannot promote its continuation to the first ordinal',()=>{
+ const native=raw.replace('1. First native paragraph.','1. First native paragraph.\n\nd) First subparagraph of point d.\n\nSecond subparagraph of point d.\n\ne) Following point.');
+ const paragraphs=native.split(/\n\s*\n/u).map(text=>({text:text.replace(/\s+/gu,' ').trim()}));
+ for(const [ordinal,text] of [[1,'Second subparagraph of point d.'],[1,'d) First subparagraph of point d.'],[2,'Second subparagraph of point d.']]){
+  const v=fixture(),at=paragraphs.findIndex(p=>p.text===text);v.items[0].proposal.paragraphs=paragraphs;v.wording.originalText=text;v.wording.targetPath.underlying[0].raw=`Article 7 – paragraph 1 – point d – subparagraph ${ordinal}`;v.placement.span={start:at,end:at};v.placement.splice={start:{paragraph:at,offset:0},end:{paragraph:at,offset:text.length}};
+  assert.notEqual(assertCouncilDraftArticleText(native,v).status,'verified');
+ }
+});
