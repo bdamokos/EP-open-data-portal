@@ -12,7 +12,7 @@ const grammar={
 };
 const escape=s=>s.replace(/[.*+?^${}()|[\]\\]/gu,'\\$&');
 function label(raw,g) {
- const parts=String(raw??'').split(/\s+[–—-]\s+/u),result=[];
+ const parts=String(raw??'').split(/[–—]|\s+-\s+/u),result=[];
  for(const part of parts){let found;
   for(const kind of ['article','subparagraph','paragraph','point']){
    const m=new RegExp('^(?:'+g[kind]+')\\s+(-?\\d+|[a-z])\\s*(bis|[a-z])?\\s*(?:\\([^)]*\\))?$','iu').exec(part.trim());

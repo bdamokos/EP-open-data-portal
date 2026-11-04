@@ -27,6 +27,8 @@ const text='1. First native paragraph.';
 const fixture=()=>({wording:{language:'en',targetLabel:'Article 1 – paragraph 1 – point 1',targetPath:{proposal:[{raw:'Article 1 – paragraph 1 – point 1'}],underlying:[{document:'Directive (EU) 2020/123',raw:'Article 7 – paragraph 1'}]},originalText:text},items:[{proposal:{paragraphs:[{text},{text:'2. Second native paragraph.’'}]}}],placement:{status:'placed',operation:'replace',itemIndex:0,span:{start:0,end:0},splice:{start:{paragraph:0,offset:0},end:{paragraph:0,offset:text.length}}}});
 test('native article oracle binds outer point, named act, inner article and paragraph',()=>{
  assert.equal(assertCouncilDraftArticleText(raw,fixture()).status,'verified');
+ const compact=fixture();compact.wording.targetPath.underlying[0].raw='Article 7 –paragraph 1';
+ assert.equal(assertCouncilDraftArticleText(raw,compact).status,'verified');
 });
 for(const [name,mutate] of [
  ['outer owner',v=>v.wording.targetPath.proposal[0].raw='Article 1 – paragraph 1 – point 2'],
