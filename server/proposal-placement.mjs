@@ -263,8 +263,8 @@ function wordingNumberingMatch(target,original,candidatesFor) {
  return {...selected,match:{span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text}};
 }
 
-// A suffixed outer annex follows its complete base annex, before the next
-// published annex. Incomplete predecessors and source EOF remain unsupported.
+// A suffixed outer annex follows its base. Native headings establish an
+// interior boundary even when objects in the preceding annex are unreadable.
 function numberedAnnexInsertion(items,target,language,nativeProposalInputs) {
  const label=target.segments[0];
  if(language!=='en'||target.segments.length!==1||label.kind!=='annex'||!label.isNew||label.suffix!=='a'||!/^([IVXLCDM]+)$/u.test(label.base||''))return null;
@@ -272,10 +272,12 @@ function numberedAnnexInsertion(items,target,language,nativeProposalInputs) {
  const bases=annexes.filter(({unit})=>unit.label.value===label.base);
  if(bases.length!==1||annexes.some(({unit})=>unit.label.value.startsWith(label.base)&&/^[a-z]$/u.test(unit.label.value.slice(label.base.length))))return null;
  const base=bases[0],peers=annexes.filter(a=>a.itemIndex===base.itemIndex).sort((a,b)=>a.unit.extent.start-b.unit.extent.start),next=peers[peers.indexOf(base)+1];
- if(!next||base.unit.extent.end!==next.unit.extent.start||base.unit.pathConflict||!completeBoundary(base.proposal,base.unit)||new Set(peers.map(a=>a.unit.label.value)).size!==peers.length)return null;
- const rows=[base.proposal.paragraphs[base.unit.extent.start],base.proposal.paragraphs[next.unit.extent.start]];
- if(rows.some(row=>row.properties?.styleId!=='Annexetitre'||!row.complete||row.source?.complete!==true)||base.proposal.gaps.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=base.unit.extent.start&&gap.paragraph<base.unit.extent.end)||!nativeInlineRowsComplete(nativeProposalInputs?.[base.itemIndex],base.proposal.sourceHash,rows))return null;
- return {...base,insertBefore:next.unit.extent.start,anchor:base.unit,basis:'numbered-annex-before-next-heading'};
+ if(next&&base.unit.extent.end!==next.unit.extent.start||base.unit.pathConflict||new Set(peers.map(a=>a.unit.label.value)).size!==peers.length)return null;
+ if(!next&&(!completeBoundary(base.proposal,base.unit)||base.unit.extent.end!==base.proposal.paragraphs.length||base.proposal.gaps.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=base.unit.extent.start)))return null;
+ const rows=[base.proposal.paragraphs[base.unit.extent.start],...(next?[base.proposal.paragraphs[next.unit.extent.start]]:[])];
+ if(rows.some(row=>row.properties?.styleId!=='Annexetitre'||!row.complete||row.source?.complete!==true)||!nativeInlineRowsComplete(nativeProposalInputs?.[base.itemIndex],base.proposal.sourceHash,rows,{annexHeadings:peers.map(peer=>base.proposal.paragraphs[peer.unit.extent.start])}))return null;
+ if(!next&&!nativeInlineRowsComplete(nativeProposalInputs?.[base.itemIndex],base.proposal.sourceHash,[base.proposal.paragraphs.at(-1)],{wholeBodyAfter:true,onlyBlankAfter:true}))return null;
+ return {...base,insertBefore:next?.unit.extent.start??base.unit.extent.end,anchor:base.unit,basis:next?'numbered-annex-before-next-heading':'numbered-annex-at-end'};
 }
 
 // Amendments call a proposal's sole bare ANNEX 'Annex I'. Keep that alias
@@ -892,7 +894,9 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(instruction)return instruction;
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
   if(table)return annexTablePlacement(items,table[1],originalText,language,operation,evidence,unresolved,captionDecorationProfile(items,{targetLabel,targetPath,originalText,baseline}));
-  let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
+  const targetRaw=paths?.[0]?.raw??targetLabel;
+  const outerAnnexRaw=language==='en'&&/^Annex [IVXLCDM]+\s*a \(new\) [-–—] table$/u.test(targetRaw?.split('\n')[0]??'')?targetRaw.replace(/(\(new\)) [-–—] table/u,'$1'):targetRaw;
+  let target;try{target=parseTargetLabel(outerAnnexRaw,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
   const sole=target.segments.length===1?target.segments[0]:null;

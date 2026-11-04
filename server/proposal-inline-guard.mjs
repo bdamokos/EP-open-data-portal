@@ -17,7 +17,7 @@ function inline(nodes){
  }
  return true;
 }
-export function nativeInlineRowsComplete(buffer,sourceHash,rows,{wholeBodyAfter=false}={}){
+export function nativeInlineRowsComplete(buffer,sourceHash,rows,{wholeBodyAfter=false,annexHeadings=null,onlyBlankAfter=false}={}){
  if(!Buffer.isBuffer(buffer)||buffer.length>8*1024*1024||createHash('sha256').update(buffer).digest('hex')!==sourceHash)return false;
  try{
   const parts=docxParts(buffer),xml=parts.get('word/document.xml'),visibility=styleVisibility(parts.get('word/styles.xml')); if(!xml||/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)return false;
@@ -28,7 +28,17 @@ export function nativeInlineRowsComplete(buffer,sourceHash,rows,{wholeBodyAfter=
   const hidden=state=>state.vanish||state.webHidden;
   const hiddenOrField=nodes=>nodes.some(node=>Object.entries(node).some(([key,value])=>['w:fldSimple','w:fldChar','w:instrText','w:vanish','w:webHidden','w:del','w:moveFrom'].includes(key)||['w:pStyle','w:rStyle'].includes(key)&&hidden(visibility.styledHidden(node[':@']?.['@_w:val'],visibility.defaults))||Array.isArray(value)&&hiddenOrField(value)));
   const safe=p=>!hidden(visibility.defaults)&&!hidden(visibility.styledHidden(visibility.defaultParagraph,visibility.defaults))&&!hidden(visibility.styledHidden(visibility.defaultCharacter,visibility.defaults))&&!hiddenOrField(p)&&inline(p);
-  if(wholeBodyAfter){const first=Math.min(...rows.map(p=>Number(/^\/w:document\[1\]\/w:body\[1\]\/w:p\[(\d+)\]$/u.exec(p.source?.path||'')?.[1]||Infinity)));if(!Number.isFinite(first))return false;let ordinal=0;for(const node of bodies[0]){if(node['w:p']){ordinal++;if(ordinal>=first&&!safe(node['w:p']))return false;}else if(ordinal>=first&&!node['w:sectPr']&&!['w:bookmarkStart','w:bookmarkEnd'].some(k=>Array.isArray(node[k])&&!node[k].length)&&!(Object.keys(node).every(k=>k==='#text')&&String(node['#text']??'').trim()===''))return false;}}
+  const visibleText=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key==='w:t'?value.map(v=>v['#text']??''):Array.isArray(value)?[visibleText(value)]:[])).join('');
+  if(annexHeadings){
+   if(bodies[0].some(node=>!node['w:p']&&!node['w:tbl']&&!node['w:sectPr']))return false;
+   const styles=p=>children(p,'w:pPr').flat().filter(node=>node['w:pStyle']).map(node=>node[':@']?.['@_w:val']);
+   // Count nested headings too; a table must not hide another outer boundary.
+   const all=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>Array.isArray(value)?[...(key==='w:p'?[value]:[]),...all(value)]:[]));
+   const found=all(bodies[0]).filter(p=>styles(p).includes('Annexetitre'));
+   const text=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key==='w:t'?value.map(v=>v['#text']??''):Array.isArray(value)?[text(value)]:[])).join('');
+   if(found.length!==annexHeadings.length||found.some((p,i)=>{const expected=annexHeadings[i],ordinal=paragraphs.indexOf(p)+1;return !ordinal||!safe(p)||expected.source.path!==`/w:document[1]/w:body[1]/w:p[${ordinal}]`||text(p).trim()!==expected.text.trim();}))return false;
+  }
+  if(wholeBodyAfter){const first=Math.min(...rows.map(p=>Number(/^\/w:document\[1\]\/w:body\[1\]\/w:p\[(\d+)\]$/u.exec(p.source?.path||'')?.[1]||Infinity)));if(!Number.isFinite(first))return false;let ordinal=0;for(const node of bodies[0]){if(node['w:p']){ordinal++;if(ordinal>=first&&!safe(node['w:p'])||onlyBlankAfter&&ordinal>first&&visibleText(node['w:p']).trim())return false;}else if(ordinal>=first&&!node['w:sectPr']&&!['w:bookmarkStart','w:bookmarkEnd'].some(k=>Array.isArray(node[k])&&!node[k].length)&&!(Object.keys(node).every(k=>k==='#text')&&String(node['#text']??'').trim()===''))return false;}}
   return rows.every(p=>{const path=/^\/w:document\[1\]\/w:body\[1\]\/w:p\[(\d+)\]$/u.exec(p.source?.path||'');return path&&paragraphs[Number(path[1])-1]&&safe(paragraphs[Number(path[1])-1]);});
  }catch{return false;}
 }
