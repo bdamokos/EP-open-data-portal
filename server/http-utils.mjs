@@ -26,6 +26,7 @@ export function allowCrossOriginRead(request, response) {
   const allowed = config.apiReadOrigin;
   if (!allowed || !["GET", "HEAD", "OPTIONS"].includes(request.method)) return false;
   response.setHeader("Access-Control-Allow-Origin", allowed);
+  if (request.method === "OPTIONS") response.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
   return request.headers.origin === allowed;
 }
 

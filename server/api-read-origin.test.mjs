@@ -24,6 +24,11 @@ test('one configured origin may read the API and nothing else changes',loopback,
 
   assert.equal((await fetch(base+'/healthz',{headers:{Origin:'https://evil.example'}})).status,403);
 
+  const preflight=await fetch(base+'/healthz',{method:'OPTIONS',headers:{Origin:'https://kiosk.example'}});
+  assert.equal(preflight.status,204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'),'https://kiosk.example');
+  assert.equal(preflight.headers.get('access-control-allow-methods'),'GET, HEAD, OPTIONS');
+
   const write=await fetch(base+'/client-errors',{method:'POST',headers:{Origin:'https://kiosk.example','Content-Type':'application/json'},body:'{}'});
   assert.equal(write.status,403);
   assert.equal(write.headers.get('access-control-allow-origin'),null);
