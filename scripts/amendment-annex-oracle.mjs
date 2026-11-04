@@ -54,6 +54,7 @@ export function assertNumberedAnnexInsertion(items,wording,placement,nativeQuote
  const label=/^Annex ([IVXLCDM]+)\s*(a) \(new\)$/u.exec(raw);
  if(wording.language!=='en'||wording.baseline!=='commission-proposal'||placement.operation!=='insert'||wording.originalText!==''||!label)return null;
  const unknown=()=>({status:'unverified',reason:'oracle-numbered-annex-boundary-unavailable'});
+ if(!(items||[]).some(item=>item.proposal?.paragraphs.some(row=>row.properties?.styleId==='Annexetitre'&&/^ANNEX [IVXLCDM]+[a-z]?$/u.test(row.text.trim()))))return null;
  const candidates=[];
  for(const [itemIndex,item] of (items||[]).entries()){
   if(item.kind!=='annex'||item.proposal?.sourceKind!=='docx')continue;
