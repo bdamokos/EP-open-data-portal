@@ -26,3 +26,9 @@ for(const instruction of ['1) Článek 91 se nahrazuje tímto:','1) Článek 7 s
  const value=source();value.paragraphs=[...value.paragraphs];value.paragraphs[2]=instruction;
  assert.equal(resolveProposalPlacement([{kind:'act',proposal:parseProposal(value,{language:'cs'})}],wording()).status,'unresolved');
 });
+
+test('PDF point subparagraphs stay withheld until their labelled lead and nested-list ownership are proved',()=>{
+ const data=source(),at=4;data.paragraphs=[...data.paragraphs];data.paragraphs[at]='1. Úvod.\n\nd) První pododstavec.\n\nDruhý pododstavec.\n\ne) Následující bod.';
+ const items=[{kind:'act',proposal:parseProposal(data,{language:'cs'})}];
+ for(const ordinal of [1,2]){const w=wording(`Čl. 7 – odst. 1 – písm. d – pododstavec ${ordinal}`);w.originalText='Druhý pododstavec.';assert.equal(resolveProposalPlacement(items,w).reason,'council_pdf_subparagraph_owner_unverified');}
+});
