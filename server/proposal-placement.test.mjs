@@ -422,6 +422,11 @@ test('points inserted inside a quoted replacement subparagraph follow the printe
  assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point iii a (new)','(iiib)\tNew.').status,'unresolved','the printed label must match the address');
  assert.equal(place('Article 31 – paragraph 6 – subparagraph 2 – point b – point iii a (new)','(iiia)\tNew.').status,'unresolved','another article');
  assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point ii a (new)','(iia)\tNew.').insertBefore,10);
+ texts.splice(10,0,'(iia) acts;','(iib) values;');styles.splice(10,0,'Normal','Normal');
+ for(const suffix of ['a','b','c','d']) {
+  const result=place('Article 30 – paragraph 6 – subparagraph 2 – point b – point ii '+suffix+' (new)','(ii'+suffix+')\tNew.');
+  assert.equal(result.insertBefore,10);assert(result.evidence.some(e=>e.basis==='colliding-new-point'));
+ }
  assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point iii (new)','(iii)\tNew.').status,'unresolved','an existing printed label');
 });
 

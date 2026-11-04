@@ -103,3 +103,9 @@ test('card activity deduplicates exact speech IDs, separates statements and excl
   assert.deepEqual(legislationActivity(input,headers,'2'),{speeches:1,statements:null,amendments:null});
   assert.deepEqual(legislationActivity(input,headers,'unseen'),{speeches:null,statements:null,amendments:null});
 });
+
+test('reader-only guests never change people or group contribution captions, even with a chair header',()=>{
+ const mep=person('1'),guest=person('2',false),input=detail([mep],[speech('mep',[mep])]);input.stats.groupContributions={total:1,unavailable:0,rows:[{label:'PPE',count:1}]};
+ const expected=legislationContributors(input,{});input.speeches.push(speech('guest',[guest]));
+ assert.deepEqual(legislationContributors(input,{}),expected);assert.deepEqual(legislationContributors(input,mergeSpeechSpeakers({},[header('guest','2')])),expected);
+});

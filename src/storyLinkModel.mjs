@@ -10,7 +10,7 @@ const countValue=v=>{
 const recordKind=records=>records.some(r=>r.kind==='debate')?'debates':records.every(r=>r.kind==='question')?'questions':records.every(r=>r.kind==='document')?'documents':'records';
 export function storySetKey(ref,s={}) {
  const b=ref.browse||{},kind=b.list||ref.setKind||'records';
- const core=[kind,b.places||b.place||s.place||s.topic||'map',b.periods||b.period||s.period||'term',b.askers||(s.excludeOwn?'not-home':'all'),...(kind==='records'?[ref.records.map(r=>r.kind+'~'+r.id).sort().join(',')]:[])].map(encodeURIComponent);
+ const core=[kind,b.places||b.place||s.place||s.topic||'map',b.periods||b.period||s.period||'term',b.askers||(s.excludeOwn?'not-home':'all'),...(kind==='records'?[ref.records.map(r=>r.kind+'~'+r.id+(r.speechId?'~'+r.speechId:'')).sort().join(',')]:[])].map(encodeURIComponent);
  if(ref.claimId)core.push('claim='+encodeURIComponent(ref.claimId));
  core.push('zoom='+(s.zoom||'world'),'mode='+(s.mode||'q'));
  if(kind==='records'){core.push('kind='+(ref.recordKind||recordKind(ref.records)));if(Number.isSafeInteger(ref.expected))core.push('n='+ref.expected);}

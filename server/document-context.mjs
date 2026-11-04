@@ -1,3 +1,4 @@
+import {amendmentProvisional,provisionalDecision} from './amendment-provisional.mjs';
 import {adoptedPlacementText,placementAdoptedListing} from './amendment-placement-check.mjs';
 import {hasCouncilQuotation,reportCouncilQuotation} from './report-council-quotation.mjs';
 import {isDeepStrictEqual} from 'node:util';
@@ -30,7 +31,7 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=98;
+export const DOCUMENT_CONTEXT_VERSION=99;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-(?:[1-9]|10)-\d{4}-\d{4,6}$/.test(id)||committeeDraftId(id)||committeeListId(id));
 const ref=value=>canonicalEPReference(value);
@@ -305,6 +306,17 @@ export class DocumentContext {
           placement.finalPlacementCheck.adoptedTextUrl=adoptedPlacementText(records,{documentId:query.id,dates,language:chosen.language});
           sources.push({url:listing.url||ODP_BASE+'/adopted-texts',fetchedAt:new Date(listing.fetchedAt).toISOString(),stale:Boolean(listing.stale),refreshInProgress:Boolean(listing.refreshInProgress),refreshError:listing.refreshError||null,contentHash:createHash('sha256').update(JSON.stringify(listing.payload)).digest('hex')});
         }
+      }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;}
+    }
+    // Whole-document placement is independent of comparison-column parsing.
+    // Read only the selected exact public source; no source or language search.
+    if(query.includeBody!==false&&candidates.length===1&&provisionalDecision(indexed?.decisions,query.amendmentId)) {
+      const candidate=candidates[0],url=candidate.source?.url;
+      if(url&&allowedDownload(url))try {
+        const downloaded=await this.download(url);
+        const source={url,language:candidate.language,fetchedAt:downloaded.fetchedAt??new Date(this.clock()).toISOString()};
+        const operation=amendmentProvisional({amendmentId:query.amendmentId,documentId:query.id,listId:candidate.listId,decisions:indexed.decisions,buffer:downloaded.buffer,source});
+        if(operation){placement=operation;sources.push(source);}
       }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;}
     }
     return {version:DOCUMENT_CONTEXT_VERSION,baseline,proposal,documentId:query.id,requestedLanguage:query.language,...(wordingSelected?{requestedWordingLanguage:query.wordingLanguage}:{}),wordingLanguageFallback,document,related,amendment,placement,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingLanguage:chosen.language,wordingSource:chosen.source,targetLabelLanguage:chosen.targetLabelLanguage,targetLabelSource:chosen.targetLabelSource,fieldSources:chosen.fieldSources,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};

@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Jissostitwixxi t-test kollu.",
+  "amendment.agreement_text": "Test tal-ftehim",
   "documentcontext.final_placement_check": "Iċċekkja l-post finali fit-{adoptedText}.",
   "documentcontext.adopted_text": "test adottat",
   "amendment.alternative_motion": "Mozzjoni alternattiva",
@@ -2824,5 +2826,8 @@
   "topics.story.integrated.lead.tiedEachRose": "L-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda, minn {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "Fl-Ewropa u fil-viċinat tagħha, l-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda, minn {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "L-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda qawwija, minn {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "Fl-Ewropa u fil-viċinat tagħha, l-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda qawwija, minn {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "Fl-Ewropa u fil-viċinat tagħha, l-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda qawwija, minn {average}.",
+  "proposalcontexttext.colliding.new.point": "Dan in-numru diġà jeżisti. Imqiegħed wara l-punt bażi.",
+  "proposalcontexttext.new.unnumbered.table": "Tabella ġdida bla numru mqiegħda fl-aħħar tal-anness.",
+  "proposalcontexttext.new.point.order": "Il-punt il-ġdid {point} jiġi wara l-punt {base}."
 }

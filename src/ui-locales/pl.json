@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Zastępuje cały tekst.",
+  "amendment.agreement_text": "Tekst porozumienia",
   "documentcontext.final_placement_check": "Sprawdź ostateczne umiejscowienie w {adoptedText}.",
   "documentcontext.adopted_text": "przyjętym tekście",
   "amendment.alternative_motion": "Alternatywny projekt rezolucji",
@@ -2824,5 +2826,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} — najwięcej pytań (po {questions}), w każdym przypadku wzrost w porównaniu ze {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "W Europie i jej sąsiedztwie: {places} — najwięcej pytań (po {questions}), w każdym przypadku wzrost w porównaniu ze {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — najwięcej pytań (po {questions}), w każdym przypadku skok w porównaniu ze {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "W Europie i jej sąsiedztwie: {places} — najwięcej pytań (po {questions}), w każdym przypadku skok w porównaniu ze {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "W Europie i jej sąsiedztwie: {places} — najwięcej pytań (po {questions}), w każdym przypadku skok w porównaniu ze {average}.",
+  "proposalcontexttext.colliding.new.point": "Ten numer już istnieje. Umieszczono po punkcie podstawowym.",
+  "proposalcontexttext.new.unnumbered.table": "Nowa tabela bez numeru umieszczona na końcu załącznika.",
+  "proposalcontexttext.new.point.order": "Nowy punkt {point} następuje po punkcie {base}."
 }

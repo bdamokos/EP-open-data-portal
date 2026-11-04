@@ -1,5 +1,5 @@
 export type StoryOutcome={id?:string;date?:string;label?:string;outcome:string;for:number|null;against:number|null;abst:number|null;method?:string;decision_method?:string};
-export type StoryRecord={titleLanguage?:string|null;id:string;kind:string;title:string;date?:string;url?:string;groups?:string[];outcome?:StoryOutcome;supporting?:StoryRecord[]};
+export type StoryRecord={titleLanguage?:string|null;id:string;kind:string;title:string;speechId?:string;date?:string;url?:string;groups?:string[];outcome?:StoryOutcome;supporting?:StoryRecord[]};
 export type StoryMessage={message:string;values:Record<string,StoryValue>;counts?:Record<string,number>};
 export type StoryReference={claimId?:string;rawCount?:number;titleLanguage?:string|null;labelLanguage?:string|null;text:string|StoryMessage;records:StoryRecord[];italic?:boolean;pageRecords?:boolean;period?:string;target?:string;setKey?:string;setKind?:string;recordKind?:string;expected?:number;browse?:Record<string,string>};
 export type StoryValue=string|null|StoryReference|StoryMessage|StoryValue[];

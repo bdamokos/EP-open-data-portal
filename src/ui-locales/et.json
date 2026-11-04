@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Asendab kogu teksti.",
+  "amendment.agreement_text": "Kokkuleppe tekst",
   "documentcontext.final_placement_check": "Kontrollige lõplikku asukohta {adoptedText}.",
   "documentcontext.adopted_text": "vastuvõetud tekstis",
   "amendment.alternative_motion": "Alternatiivne ettepanek",
@@ -2824,5 +2826,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} olid kohad, mille kohta esitati kõige rohkem küsimusi (igaüks {questions}), igal juhul kasv, varem {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "Euroopas ja selle naabruses olid {places} kohad, mille kohta esitati kõige rohkem küsimusi (igaüks {questions}), igal juhul kasv, varem {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} olid kohad, mille kohta esitati kõige rohkem küsimusi (igaüks {questions}), igal juhul järsk kasv, varem {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "Euroopas ja selle naabruses olid {places} kohad, mille kohta esitati kõige rohkem küsimusi (igaüks {questions}), igal juhul järsk kasv, varem {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "Euroopas ja selle naabruses olid {places} kohad, mille kohta esitati kõige rohkem küsimusi (igaüks {questions}), igal juhul järsk kasv, varem {average}.",
+  "proposalcontexttext.colliding.new.point": "See number on juba olemas. Paigutatud põhipunkti järele.",
+  "proposalcontexttext.new.unnumbered.table": "Uus nummerdamata tabel on paigutatud lisa lõppu.",
+  "proposalcontexttext.new.point.order": "Uus punkt {point} järgneb punktile {base}."
 }

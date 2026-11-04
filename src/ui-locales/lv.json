@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Aizstāj visu tekstu.",
+  "amendment.agreement_text": "Vienošanās teksts",
   "documentcontext.final_placement_check": "Pārbaudiet galīgo vietu {adoptedText}.",
   "documentcontext.adopted_text": "pieņemtajā tekstā",
   "amendment.alternative_motion": "Alternatīvs priekšlikums",
@@ -2824,5 +2826,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} — visbiežāk jautājumos minētās vietas (katrai {questions}), katrā gadījumā kāpums, iepriekš — {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "Eiropā un tās kaimiņreģionos: {places} — visbiežāk jautājumos minētās vietas (katrai {questions}), katrā gadījumā kāpums, iepriekš — {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — visbiežāk jautājumos minētās vietas (katrai {questions}), katrā gadījumā straujš kāpums, iepriekš — {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "Eiropā un tās kaimiņreģionos: {places} — visbiežāk jautājumos minētās vietas (katrai {questions}), katrā gadījumā straujš kāpums, iepriekš — {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "Eiropā un tās kaimiņreģionos: {places} — visbiežāk jautājumos minētās vietas (katrai {questions}), katrā gadījumā straujš kāpums, iepriekš — {average}.",
+  "proposalcontexttext.colliding.new.point": "Šis numurs jau tiek izmantots. Ievietots pēc pamatpunkta.",
+  "proposalcontexttext.new.unnumbered.table": "Jauna nenumurēta tabula ievietota pielikuma beigās.",
+  "proposalcontexttext.new.point.order": "Jaunais punkts {point} seko punktam {base}."
 }

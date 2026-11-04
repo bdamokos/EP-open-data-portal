@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Tagann sé in ionad an téacs iomláin.",
+  "amendment.agreement_text": "Téacs an chomhaontaithe",
   "documentcontext.final_placement_check": "Seiceáil an suíomh deiridh sa {adoptedText}.",
   "documentcontext.adopted_text": "téacs a glacadh",
   "amendment.alternative_motion": "Tairiscint mhalartach",
@@ -2824,5 +2826,8 @@
   "topics.story.integrated.lead.tiedEachRose": "Tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú i ngach cás, ó {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "San Eoraip agus sna tíortha comharsanacha, tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú i ngach cás, ó {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "Tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú géar i ngach cás, ó {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "San Eoraip agus sna tíortha comharsanacha, tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú géar i ngach cás, ó {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "San Eoraip agus sna tíortha comharsanacha, tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú géar i ngach cás, ó {average}.",
+  "proposalcontexttext.colliding.new.point": "Tá an uimhir seo in úsáid cheana. Curtha i ndiaidh an bhunphointe.",
+  "proposalcontexttext.new.unnumbered.table": "Tábla nua gan uimhir curtha ag deireadh na hiarscríbhinne.",
+  "proposalcontexttext.new.point.order": "Tagann pointe nua {point} i ndiaidh phointe {base}."
 }

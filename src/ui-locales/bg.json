@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Заменя целия текст.",
+  "amendment.agreement_text": "Текст на споразумението",
   "documentcontext.final_placement_check": "Проверете окончателното място в {adoptedText}.",
   "documentcontext.adopted_text": "приетия текст",
   "amendment.alternative_motion": "Алтернативно предложение",
@@ -2824,5 +2826,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} бяха местата с най-много въпроси (по {questions}), във всеки случай ръст спрямо {average} преди това.",
   "topics.story.integrated.lead.tiedEachRose.eu": "В Европа и съседните ѝ страни {places} бяха местата с най-много въпроси (по {questions}), във всеки случай ръст спрямо {average} преди това.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} бяха местата с най-много въпроси (по {questions}), във всеки случай рязък ръст спрямо {average} преди това.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "В Европа и съседните ѝ страни {places} бяха местата с най-много въпроси (по {questions}), във всеки случай рязък ръст спрямо {average} преди това."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "В Европа и съседните ѝ страни {places} бяха местата с най-много въпроси (по {questions}), във всеки случай рязък ръст спрямо {average} преди това.",
+  "proposalcontexttext.colliding.new.point": "Този номер съвпада със съществуваща точка. Поставено след основната точка.",
+  "proposalcontexttext.new.unnumbered.table": "Нова неномерирана таблица, поставена в края на приложението.",
+  "proposalcontexttext.new.point.order": "Нова точка {point} следва точка {base}."
 }

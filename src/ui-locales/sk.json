@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Nahrádza celý text.",
+  "amendment.agreement_text": "Text dohody",
   "documentcontext.final_placement_check": "Konečné umiestnenie overte v {adoptedText}.",
   "documentcontext.adopted_text": "prijatom texte",
   "amendment.alternative_motion": "Alternatívny návrh",
@@ -2824,5 +2826,8 @@
   "topics.story.integrated.lead.tiedEachRose": "{places} — najviac otázok (po {questions}), v každom prípade nárast, predtým {average}.",
   "topics.story.integrated.lead.tiedEachRose.eu": "V Európe a jej susedstve: {places} — najviac otázok (po {questions}), v každom prípade nárast, predtým {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — najviac otázok (po {questions}), v každom prípade skok, predtým {average}.",
-  "topics.story.integrated.lead.tiedEachJumped.eu": "V Európe a jej susedstve: {places} — najviac otázok (po {questions}), v každom prípade skok, predtým {average}."
+  "topics.story.integrated.lead.tiedEachJumped.eu": "V Európe a jej susedstve: {places} — najviac otázok (po {questions}), v každom prípade skok, predtým {average}.",
+  "proposalcontexttext.colliding.new.point": "Toto číslo už existuje. Umiestnené za základný bod.",
+  "proposalcontexttext.new.unnumbered.table": "Nová nečíslovaná tabuľka je umiestnená na konci prílohy.",
+  "proposalcontexttext.new.point.order": "Nový bod {point} nasleduje za bodom {base}."
 }
