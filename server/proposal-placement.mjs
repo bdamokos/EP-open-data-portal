@@ -607,7 +607,7 @@ function quotedSubparagraphInsertion(selected,targetPath,proposedText,language) 
     if(base.length!==1)return {reason:'relative_target_not_found'};
     const suffixed=new RegExp('^\\('+escape(split[1])+'[a-z]\\)','u');
     collision=inside.some(row=>suffixed.test(row.text.trim()));
-    if(inside.some(opens(label))&&!/\(new\)\s*$/u.test(points.at(-1)))return {reason:'duplicate_target_label'};
+    if(collision&&!/\(new\)\s*$/u.test(points.at(-1)))return {reason:'duplicate_target_label'};
     const following=inside.slice(inside.indexOf(base[0])+1).findIndex(row=>/^\([ivxl]+[a-z]?\)/u.test(row.text.trim()));
     at=following<0?own.end:own.start+1+inside.indexOf(base[0])+1+following;
   }
