@@ -73,13 +73,17 @@ export function assertFinnishQuotedSibling({proposal,wording,placement,nativeQuo
  const inner=refs.length===1&&/^(\d+) artikla – (\d+) a kohta$/u.exec(refs[0].raw??'');
  const printed=/^(\d+)\s*a[.]\s/u.exec(wording.proposedText??'');
  if(wording.language!=='fi'||wording.originalText!==''||placement.operation!=='insert'||!outer||!inner||!printed||printed[1]!==inner[2])return null;
+ if(refs[0].document&&refs[0].document!==refs[0].raw)return null;
  let body;try{body=quotedWordBody(nativeQuoted?.proposalBuffer);}catch{return null;}
  const clean=s=>s.replace(/\s+/gu,' ').trim();
- const headings=body.filter(row=>row.kind==='paragraph'&&clean(row.text)===outer[1]+' artikla');if(headings.length!==1||headings[0].hidden||headings[0].unsafe)return null;
+ const style=row=>row.nodes?.flatMap(node=>node['w:pPr']??[]).find(node=>node['w:pStyle'])?.[':@']?.['@_w:val'];
+ const adoption=body.filter(row=>row.kind==='paragraph'&&!row.hidden&&!row.unsafe&&clean(row.text)==='OVAT HYVÄKSYNEET TÄMÄN ASETUKSEN:');
+ const headings=body.filter(row=>row.kind==='paragraph'&&style(row)==='Titrearticle'&&clean(row.text)===outer[1]+' artikla');if(headings.length!==1||headings[0].hidden||headings[0].unsafe||adoption.length!==1||body.indexOf(adoption[0])>=body.indexOf(headings[0]))return null;
  let rows=body.slice(body.indexOf(headings[0])+1),end=rows.findIndex(row=>row.kind==='paragraph'&&/^\d+ artikla$/u.test(clean(row.text)));if(end>=0)rows=rows.slice(0,end);
- const parents=rows.filter(row=>row.kind==='paragraph'&&clean(row.text)==='('+outer[2]+') Muutetaan '+inner[1]+' artikla seuraavasti:');if(parents.length!==1||parents[0].hidden||parents[0].unsafe)return null;
+ if(rows.some(row=>row.kind==='paragraph'&&/^(?:Manual)?NumPar1$/iu.test(style(row)??'')))return null;
+ const parents=rows.filter(row=>row.kind==='paragraph'&&style(row)==='Point0'&&clean(row.text)==='('+outer[2]+') Muutetaan '+inner[1]+' artikla seuraavasti:');if(parents.length!==1||parents[0].hidden||parents[0].unsafe)return null;
  rows=rows.slice(rows.indexOf(parents[0])+1);end=rows.findIndex(row=>row.kind==='paragraph'&&/^\(\d+\)\s/u.test(row.text.trim()));if(end>=0)rows=rows.slice(0,end);
- const owners=rows.filter(row=>row.kind==='paragraph'&&clean(row.text)==='('+outer[3]+') korvataan '+inner[2]+' kohta seuraavasti:');if(owners.length!==1||owners[0].hidden||owners[0].unsafe)return null;
+ const owners=rows.filter(row=>row.kind==='paragraph'&&style(row)==='Point1'&&clean(row.text)==='('+outer[3]+') korvataan '+inner[2]+' kohta seuraavasti:');if(owners.length!==1||owners[0].hidden||owners[0].unsafe)return null;
  rows=rows.slice(rows.indexOf(owners[0])+1);end=rows.findIndex(row=>row.kind==='paragraph'&&/^\([a-z]\)\s/u.test(row.text.trim()));if(end<0)return null;
  const quote=rows.slice(0,end),following=rows[end];
  if(quote.length!==1||quote[0].hidden||quote[0].unsafe||quote[0].numbered||!new RegExp('^”'+inner[2]+'[.]\\s[\\s\\S]+”$','u').test(quote[0].text.trim())||following.hidden||following.unsafe)return null;
