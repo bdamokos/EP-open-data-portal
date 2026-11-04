@@ -196,7 +196,12 @@ export function amendmentReadIndexes(db) {
 }
 
 function extensionGeneration(db) {
-  return db.prepare('SELECT MAX(generation) AS generation FROM (SELECT MAX(generation) generation FROM amendments UNION ALL SELECT MAX(generation) FROM amendment_targets UNION ALL SELECT MAX(generation) FROM amendment_jobs)').get()?.generation || 0;
+  // A newer image can leave a generation partly built. Never adopt or read it, so
+  // that rolling back to this image stays safe.
+  const building=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='generationBegin'").get()?.value??'null')?.generation??-1;
+  // Two ranges keep each MAX an index seek. A generation number is never reused.
+  const newest=['amendments','amendment_targets','amendment_jobs'].flatMap(table=>[`SELECT MAX(generation) generation FROM ${table} WHERE generation>?1`,`SELECT MAX(generation) FROM ${table} WHERE generation<?1`]).join(' UNION ALL ');
+  return db.prepare(`SELECT MAX(generation) AS generation FROM (${newest})`).get(building)?.generation || 0;
 }
 export function amendmentsCopy(db,generation,active) {
   // Legacy workers advance core generations without knowing these additive

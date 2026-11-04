@@ -11,7 +11,7 @@ import {projectProcedure,projectDocument} from './activity-index-model.mjs';
 import {committeeAmendmentReference,committeeDiscoveryReferences,committeeTargetRelationship,committeeProcedureIds} from './committee-amendments.mjs';
 import {prepareCommitteeList,scheduleCommitteeDiscovery,prepareCommitteeAmendments} from './committee-amendments-worker.mjs';
 import {amendmentTask,rebuildAmendmentTarget} from './amendments-worker.mjs';
-import {amendmentById,amendmentsPage,amendmentContributors,amendmentProcedureTargets,saveAmendmentRows,nextAmendmentTask,enqueueAmendment,amendmentReadVersion,committeeAmendmentIndexVersion} from './amendments-store.mjs';
+import {amendmentById,amendmentsPage,amendmentContributors,amendmentProcedureTargets,saveAmendmentRows,nextAmendmentTask,enqueueAmendment,amendmentReadVersion,committeeAmendmentIndexVersion,amendmentGeneration} from './amendments-store.mjs';
 import {amendmentReference,amendmentQuery,currentDocxDescriptor,amendmentProposerDate} from './amendments.mjs';
 import {extractAmendments,AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {topicAmendments} from './topic-involvement.mjs';
@@ -182,6 +182,19 @@ test('existing indexes gain the contributor identity index without replaying ame
     assert.equal(reopened.get('amendmentMutationRevision'),revision);
     assert.equal(reopened.db.prepare('SELECT COUNT(*) n FROM amendment_contributors').get().n,contributors);
   } finally {reopened.db.close();}
+});
+
+test('a partly built generation is neither adopted nor read as an amendment snapshot',t=>{
+  const x=setup(t);roster(x);seed(x);
+  const active=amendmentGeneration(x.store),partial=active+7;
+  x.store.db.prepare('INSERT INTO amendments SELECT ?,id,target,date,outcome,body FROM amendments WHERE generation=? LIMIT 1').run(partial,active);
+  x.store.db.exec('DELETE FROM amendment_targets');
+  assert.equal(amendmentGeneration(x.store),partial);
+  x.store.set('generationBegin',{generation:partial,active});
+  assert.equal(amendmentGeneration(x.store),active);
+  // An older image that ignores the marker keeps later generations visible.
+  x.store.db.prepare('INSERT INTO amendments SELECT ?,id,target,date,outcome,body FROM amendments WHERE generation=? LIMIT 1').run(partial+1,active);
+  assert.equal(amendmentGeneration(x.store),partial+1);
 });
 
 test('competing distributions, conflicting targets and exact joint source links stay explicit',t=>{
