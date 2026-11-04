@@ -2826,5 +2826,6 @@
   "topics.story.integrated.lead.tiedEachRose.eu": "En Europe et dans son voisinage, {places} : en tête des lieux mentionnés dans les questions ({questions} chacun), soit pour chacun une hausse, contre {average} auparavant.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} : en tête des lieux mentionnés dans les questions ({questions} chacun), soit pour chacun un bond, contre {average} auparavant.",
   "topics.story.integrated.lead.tiedEachJumped.eu": "En Europe et dans son voisinage, {places} : en tête des lieux mentionnés dans les questions ({questions} chacun), soit pour chacun un bond, contre {average} auparavant.",
-  "documentcontext.single_word_difference": "Le texte original diffère d’un mot."
+  "documentcontext.single_word_difference": "Le texte original diffère d’un mot.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "La référence d’origine omet un identifiant"
 }

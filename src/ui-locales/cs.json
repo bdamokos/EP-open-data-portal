@@ -2826,5 +2826,6 @@
   "topics.story.integrated.lead.tiedEachRose.eu": "V Evropě a jejím sousedství: {places} — nejvíce otázek (po {questions}), v každém případě nárůst, dříve {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — nejvíce otázek (po {questions}), v každém případě prudký nárůst, dříve {average}.",
   "topics.story.integrated.lead.tiedEachJumped.eu": "V Evropě a jejím sousedství: {places} — nejvíce otázek (po {questions}), v každém případě prudký nárůst, dříve {average}.",
-  "documentcontext.single_word_difference": "Původní znění se liší o jedno slovo."
+  "documentcontext.single_word_difference": "Původní znění se liší o jedno slovo.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "V původní citaci chybí identifikátor"
 }

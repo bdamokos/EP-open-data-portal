@@ -2826,5 +2826,6 @@
   "topics.story.integrated.lead.tiedEachRose.eu": "San Eoraip agus sna tíortha comharsanacha, tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú i ngach cás, ó {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "Tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú géar i ngach cás, ó {average}.",
   "topics.story.integrated.lead.tiedEachJumped.eu": "San Eoraip agus sna tíortha comharsanacha, tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú géar i ngach cás, ó {average}.",
-  "documentcontext.single_word_difference": "Tá difríocht aon fhocail sa bhuntéacs."
+  "documentcontext.single_word_difference": "Tá difríocht aon fhocail sa bhuntéacs.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "Tá aitheantóir ar iarraidh sa tagairt bhunaidh"
 }

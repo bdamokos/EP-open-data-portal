@@ -2901,5 +2901,6 @@
   "topics.story.integrated.questionPlaceRare": "{place} (rarely asked about before{home})",
   "topics.story.integrated.questionPlaceDebatesRare": "{place} ({debates}; rarely asked about before{home})",
   "topics.story.integrated.debateCountPeers": "{count}, as did {peers}",
-  "documentcontext.single_word_difference": "Original wording differs by one word."
+  "documentcontext.single_word_difference": "Original wording differs by one word.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "Original citation omits an identifier"
 }

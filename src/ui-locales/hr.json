@@ -2826,5 +2826,6 @@
   "topics.story.integrated.lead.tiedEachRose.eu": "U Europi i njezinu susjedstvu: {places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju rast, prethodno {average}.",
   "topics.story.integrated.lead.tiedEachJumped": "{places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju nagli rast, prethodno {average}.",
   "topics.story.integrated.lead.tiedEachJumped.eu": "U Europi i njezinu susjedstvu: {places} — mjesta s najviše pitanja (po {questions}), u svakom slučaju nagli rast, prethodno {average}.",
-  "documentcontext.single_word_difference": "Izvorni tekst razlikuje se u jednoj riječi."
+  "documentcontext.single_word_difference": "Izvorni tekst razlikuje se u jednoj riječi.",
+  "proposalcontexttext.original.citation.omits.an.identifier": "U izvornom navodu nedostaje identifikator"
 }
