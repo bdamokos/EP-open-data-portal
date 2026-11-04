@@ -550,9 +550,16 @@ function quotedSiblingInsertion(selected,targetPath,proposedText,language) {
 // that whole subparagraph. Its published inner address (point b – point iii a,
 // point (b)(va), point (ba), third subparagraph) is read from the quoted rows'
 // printed labels: the parser flattens nested Roman points (A-10-2026-0201).
+function printedInnerPath(targetLabel,targetPath,language) {
+  if(targetPath?.underlying?.length)return targetPath;
+  const lines=String(targetLabel??'').split('\n');
+  if(lines.length!==3||language!=='en'||!/^(?:Regulation|Directive|Decision) \(EU\) \d{4}\/\d+$/u.test(lines[1]))return targetPath;
+  return {...targetPath,language,underlying:[{document:lines[1],raw:lines[2]}]};
+}
 const SUBPARAGRAPH_ORDINALS=['first','second','third','fourth','fifth','sixth'];
 function quotedSubparagraphInsertion(selected,targetPath,proposedText,language) {
-  const {unit:owner,proposal,itemIndex}=selected,reference=targetPath?.underlying;
+  const {unit:owner,proposal,itemIndex}=selected;
+  const reference=targetPath?.underlying;
   if(language!=='en'||targetPath?.language!==language||proposal.language!==language||reference?.length!==1||!reference[0].raw)return null;
   // The parser's nested-list ambiguity is what the printed labels resolve here;
   // every row must still be complete, with no other source gap in the owner.
@@ -580,7 +587,7 @@ function quotedSubparagraphInsertion(selected,targetPath,proposedText,language) 
     return nested?[nested[1],nested[2]]:[value.replace(/[()\s]/gu,'')];
   });
   const label=labels.at(-1),split=/^([a-z]+?)([a-z])$/u.exec(label),printed=new RegExp(`^\\(${escape(label)}\\)\\s`,'u');
-  if(labels.length>2||!split||!printed.test(proposedText.trim()))return null;
+  if(labels.length>2||!split||/^[ivxl]+$/u.test(label)||!printed.test(proposedText.trim().replace(/^\(([^)]+)\)/u,(_,value)=>'('+value.replace(/\s/gu,'')+')')))return null;
   const opens=value=>row=>row.text.trim().replace(/^‘/u,'').startsWith('('+value+')');
   const block=letter=>{
     const at=rows.findIndex(opens(letter));
@@ -588,7 +595,7 @@ function quotedSubparagraphInsertion(selected,targetPath,proposedText,language) 
     const next=rows.findIndex(opens(String.fromCharCode(letter.charCodeAt(0)+1)));
     return {start:at,end:next>at?next:rows.length};
   };
-  let at;
+  let at,collision=false;
   if(labels.length===1){
     const own=/^[a-z]$/u.test(split[1])&&block(split[1]);
     if(!own||rows.some(opens(label)))return null;
@@ -597,11 +604,14 @@ function quotedSubparagraphInsertion(selected,targetPath,proposedText,language) 
     const own=/^[a-z]$/u.test(labels[0])&&/^[ivxl]+$/u.test(split[1])&&block(labels[0]);
     if(!own)return null;
     const inside=rows.slice(own.start+1,own.end),base=inside.filter(opens(split[1]));
-    if(base.length!==1||inside.some(opens(label)))return {reason:base.length?'duplicate_target_label':'relative_target_not_found'};
+    if(base.length!==1)return {reason:'relative_target_not_found'};
+    const suffixed=new RegExp('^\\('+escape(split[1])+'[a-z]\\)','u');
+    collision=inside.some(row=>suffixed.test(row.text.trim()));
+    if(inside.some(opens(label))&&!/\(new\)\s*$/u.test(points.at(-1)))return {reason:'duplicate_target_label'};
     const following=inside.slice(inside.indexOf(base[0])+1).findIndex(row=>/^\([ivxl]+[a-z]?\)/u.test(row.text.trim()));
     at=following<0?own.end:own.start+1+inside.indexOf(base[0])+1+following;
   }
-  return {itemIndex,insertBefore:at<rows.length?rows[at].index:end,evidence:[{basis:'quoted-subparagraph-point',owner:owner.id,quotation:quotes[0].id,label:labels.join('/')}]};
+  return {itemIndex,insertBefore:at<rows.length?rows[at].index:end,evidence:[{basis:collision?'colliding-new-point':'quoted-subparagraph-point',owner:owner.id,quotation:quotes[0].id,label:labels.join('/')}]};
 }
 
 // Explicit drafting conventions within the instruction selected by the label.
@@ -957,7 +967,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?(quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],targetPath,proposedText,language)):null;
+    const quoted=candidates.length===1?(quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],printedInnerPath(targetLabel,targetPath,language),proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);
