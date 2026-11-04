@@ -10,7 +10,9 @@ const unknown=reason=>({status:'unverified',reason});
 export function assertCouncilDraftPlacement({placement,wording,items,nativeQuoted}) {
  if(placement?.status!=='placed')return {status:'not-applicable',reason:'not-placed'};
  const buffer=nativeQuoted?.proposalBuffer;if(!Buffer.isBuffer(buffer))return unknown('oracle-council-pdf-native-unavailable');
- const key=createHash('sha256').update(buffer).digest('hex');let native=cached.get(key);
+ const key=createHash('sha256').update(buffer).digest('hex'),detached=/\n_{3,}[ \t]*\n/u.test(wording.originalText??'');
+ if(detached&&items?.[placement.itemIndex]?.proposal?.sourceHash!==key)return {status:'failed',reason:'oracle-council-pdf-note-source-hash-mismatch'};
+ let native=cached.get(key);
  if(native===undefined){
   const text=spawnSync('pdftotext',['-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024});
   const bbox=text.status===0?spawnSync('pdftotext',['-bbox-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024}):null;
@@ -18,7 +20,7 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
   if(native.raw&&native.bbox)native.raw=councilNativeSuperscripts(native.raw,native.bbox);
   cached.set(key,native);if(cached.size>4)cached.delete(cached.keys().next().value);
  }
- if(/\n_{3,}[ \t]*\n/u.test(wording.originalText??'')){
+ if(detached){
   if(placement.noteScope?.kind!=='pdf-footnotes')return {status:'failed',reason:'oracle-council-pdf-note-scope-missing'};
   native.structure??=councilNoteStructure(buffer);
   const proof=inspectCouncilPdfNoteScope({bbox:native.bbox,structure:native.structure,placement,wording,items});if(proof.status!=='verified')return proof;

@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {inspectCouncilPdfNoteScope,councilNoteGeometry} from './amendment-council-note-oracle.mjs';
+import {assertCouncilDraftPlacement} from './amendment-council-draft-oracle.mjs';
 function fixture(citation='Published citation.'){
  const word=(text,x,y,width=20,height=10)=>`<word xMin="${x}" yMin="${y}" xMax="${x+width}" yMax="${y+height}">${text}</word>`;
  const bbox='<page width="200" height="300">'+word('(1)',10,100,15)+word('Alpha',30,100,29)+word('8',60,96,4,6)+word('body.',65,100)+word('(2)',10,140,15)+word('Next.',30,140)+word('8',10,240,4,6)+word(citation,30,241,130)+word('1234/26',10,280,40)+word('1',180,280,10)+'</page>';
@@ -40,4 +41,8 @@ test('a copied body elsewhere cannot certify moved coordinates',()=>{
 });
 test('invalid geometry and non-native ordinary digits cannot create a note owner',()=>{
  for(const bbox of ['',fixture().bbox.replace('yMax="102"','yMax="106"'),fixture().bbox.replace('1234/26','not-a-footer')])assert.equal(councilNoteGeometry(bbox),null);
+});
+test('the public PDF assertion refuses native bytes from another projected source',()=>{
+ const f=fixture();f.items[0].proposal.sourceHash='0'.repeat(64);
+ assert.deepEqual(assertCouncilDraftPlacement({...f,nativeQuoted:{proposalBuffer:Buffer.from('different PDF')}}),{status:'failed',reason:'oracle-council-pdf-note-source-hash-mismatch'});
 });
