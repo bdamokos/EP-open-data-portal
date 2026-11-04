@@ -16,6 +16,11 @@ export function membershipHref(id, language='en', name='') {
   return '?'+query;
 }
 
+// Only observations of this committee qualify its count; a row naming no organization cannot.
+export function committeeCoverageComplete(member,id) {
+  return member.organizationMemberships!==null && !member.organizationMemberships?.some(row=>row.id===id&&row.current===null);
+}
+
 export function organizationCoverageComplete(member,id) {
   return member.organizationMemberships!=null&&member.organizationMembershipsComplete!==false
     && !member.organizationMemberships.some(row=>row.id===id&&row.current===null);
