@@ -974,6 +974,24 @@ function preambleCitationPlacement(items,label,operation,originalText,originalFo
   return {operation,status:'placed',itemIndex,span:match.span,splice:match.splice,originalText:match.originalText,evidence};
 }
 
+function outerArticleHeadingGap(items,target,{language,originalText,proposedText}) {
+ const label=target.segments[0];
+ if(language!=='en'||target.segments.length!==1||label?.kind!=='article'||!label.isNew||label.suffix!=='a'||label.negative||originalText!==''||!new RegExp('^Article\\s*'+label.number+'a(?:\\s|$)','u').test(proposedText??''))return null;
+ const matches=[];
+ for(const [itemIndex,item] of items.entries()){
+  const proposal=item.proposal;if(item.kind==='annex'||proposal.sourceKind!=='docx')continue;
+  const articles=flat(proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind==='article').sort((a,b)=>a.extent.start-b.extent.start);
+  const anchors=articles.filter(unit=>unit.label?.value===String(label.number)),nexts=articles.filter(unit=>unit.label?.value===String(label.number+1));
+  if(anchors.length!==1||nexts.length!==1||articles.some(unit=>unit.label?.value===label.value))continue;
+  const anchor=anchors[0],next=nexts[0];if(anchor.pathConflict||next.pathConflict||articles.indexOf(next)!==articles.indexOf(anchor)+1||anchor.extent.end!==next.extent.start)continue;
+  const first=proposal.paragraphs[anchor.extent.start],last=proposal.paragraphs[next.extent.start];
+  const heading=(row,value)=>row?.complete&&row.source?.complete===true&&row.source.container==='body'&&['Titrearticle','ArticleTitle'].includes(row.properties?.styleId)&&row.text.trim()==='Article '+value;
+  const adoption=proposal.paragraphs.filter(row=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&/^(?:HAS|HAVE) ADOPTED THIS (?:DIRECTIVE|REGULATION|DECISION):$/u.test(row.text.trim()));
+  if(!heading(first,label.number)||!heading(last,label.number+1)||adoption.length!==1||adoption[0].index>=first.index)continue;
+  matches.push({itemIndex,insertBefore:last.index,anchor,basis:'outer-article-heading-gap'});
+ }
+ return matches.length===1?matches[0]:null;
+}
 function negativeArticlePlacement(items,proposedText,language,evidence,unresolved) {
   const articles=items.flatMap((item,itemIndex)=>item.kind==='annex'?[]:flat(item.proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind==='article').map(unit=>({itemIndex,unit,proposal:item.proposal})));
   const first=articles.sort((a,b)=>a.itemIndex-b.itemIndex||a.unit.extent.start-b.unit.extent.start)[0];
@@ -1204,7 +1222,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
-    const insertion=(originalText===''&&baseline==='commission-proposal'?newParentChildInsertion(items,target,candidatesFor,eligible):null)??numberedAnnexInsertion(items,target,language,nativeProposalInputs)??bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,proposedText,bound?{scope:'quoted',unitsFor:item=>item.proposal===bound.proposal?bound.units:[],quoted:bound.quote,listOwnership:nativeList}:{outerPrefix});
+    let insertion=(originalText===''&&baseline==='commission-proposal'?newParentChildInsertion(items,target,candidatesFor,eligible):null)??numberedAnnexInsertion(items,target,language,nativeProposalInputs)??bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,proposedText,bound?{scope:'quoted',unitsFor:item=>item.proposal===bound.proposal?bound.units:[],quoted:bound.quote,listOwnership:nativeList}:{outerPrefix});
+    if(insertion.reason==='source_passage_incomplete')insertion=outerArticleHeadingGap(items,target,{language,originalText,proposedText})??insertion;
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
