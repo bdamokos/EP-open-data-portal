@@ -43,6 +43,33 @@ function children(text,kind) {
   units.push({value:m[1].replace(/\s/gu,'').toLowerCase(),text:blocks.slice(i,end).join('\n\n'),blocks:blocks.slice(i,end)});
  }return units;
 }
+// Closed native instruction grammar: the quoted heading cannot contradict the
+// positive operation or targets printed in its enclosing instruction.
+function ownsArticle(point,inner,language) {
+ const lead=literal(point.slice(0,point.indexOf(':')+1)).replace(/^\(?\d+[).]\s*/u,'');
+ const rules={
+  en:{replace:/^Articles? (.+) (?:is|are) replaced by the following:$/u,insert:/^(?:In Chapter \d+[a-z]?, )?[Tt]he following Article (\d+[a-z]?) is inserted:$/u,chapter:/^The following Chapter (\d+[a-z]?) is inserted:$/u,heading:'CHAPTER'},
+  cs:{replace:/^Člán(?:ek|ky) (.+) se nahrazuj(?:e|í) tímto:$/u,insert:/^(?:V kapitole \d+[a-z]? se vkládá nový článek|Vkládá se nový článek) (\d+[a-z]?), který zní:$/u,chapter:/^Vkládá se nová kapitola (\d+[a-z]?), která zní:$/u,heading:'KAPITOLA'},
+  es:{replace:/^(?:El artículo|Los artículos) (.+) se sustituy(?:e|en) por el texto siguiente:$/u,insert:/^(?:En el capítulo \d+(?: bis)?, se inserta el artículo|Se inserta el artículo) (\d+(?: bis)?) siguiente:$/u,chapter:/^Se inserta el capítulo (\d+(?: bis)?) siguiente:$/u,heading:'CAPÍTULO'},
+  da:{replace:/^Artikel (.+) affattes således:$/u,insert:/^(?:I kapitel \d+[a-z]? indsættes følgende som artikel|Følgende indsættes som artikel) (\d+[a-z]?):$/u,chapter:/^Følgende indsættes som Kapitel (\d+[a-z]?):$/u,heading:'KAPITEL'},
+ }[language];
+ if(!rules)return false;
+ const replacement=rules.replace.exec(lead),insert=rules.insert.exec(lead),chapter=rules.chapter.exec(lead);
+ if(replacement){const targets=replacement[1].split(/,\s*|\s+(?:and|a|y|og)\s+/u);return targets.every(n=>/^\d+(?:\s*bis|[a-z])?$/u.test(n))&&new Set(targets).size===targets.length&&targets.map(n=>n.replace(/\s/gu,'')).includes(inner[0].value);}
+ if(insert)return insert[1].replace(/\s/gu,'')===inner[0].value;
+ if(chapter){const quoted=point.slice(point.indexOf(':')+1).trimStart();return new RegExp('^[„“‘«»"]'+rules.heading+'\\s+'+escape(chapter[1])+'(?:\\s|$)','iu').test(quoted);}
+ const inherited=language==='cs'?/^V článku (\d+[a-z]?) se doplňuje nový odstavec (\d+[a-z]?), který zní:$/u.exec(lead):null;
+ return !!inherited&&inherited[1]===inner[0].value&&inner[1]?.kind==='paragraph'&&inherited[2]===inner[1].base;
+}
+// Bind paragraph coordinates to an ordered native prefix from the named outer
+// article through this whole point. A matching slice elsewhere is insufficient.
+function projectedOwner(proposal,scope) {
+ const rows=proposal.paragraphs.map(p=>literal(p.text)),joined=rows.join(' '),frame=literal(scope.frame),point=literal(scope.point);
+ const start=joined.indexOf(frame);if(!frame||start<0||joined.lastIndexOf(frame)!==start)return null;
+ const end=start+frame.length,begin=end-point.length;let offset=0;const owned=[];
+ for(const [index,row] of rows.entries()){if(offset>=begin&&offset+row.length<=end)owned.push(index);offset+=row.length+1;}
+ return new Set(owned);
+}
 export function councilArticleNativeScope(raw,wording) {
  const g=grammar[wording.language];if(!g)return null;
  const outer=label(wording.targetPath?.proposal?.[0]?.raw??String(wording.targetLabel??'').split('\n')[0],g);
@@ -64,7 +91,7 @@ export function councilArticleNativeScope(raw,wording) {
  const at=points.indexOf(chosen[0]),end=points[at+1]?.index??after.length,point=after.slice(chosen[0].index,end);
  // Require an explicit quoted replacement, plus a printed closing delimiter.
  const inherited=wording.language==='cs'?/^\s*\(?\d+\)\s+V článku (\d+[a-z]?) se doplňuje nový odstavec (\d+[a-z]?), který zní:/u.exec(point):null;
- if(!/[“’»«"][.;]?\s*(?:\n|$)/u.test(point))return null;
+ if(!/[“’»«"][.;]?\s*(?:\n|$)/u.test(point)||!ownsArticle(point,inner,wording.language))return null;
  const innerHeaders=[...point.matchAll(new RegExp('^[ \\t]*[„“‘«»"]?(?:'+g.article+')\\s+(\\d+[a-z]?)\\s*$','gimu'))],matches=innerHeaders.filter(h=>h[1]===inner[0].value);
  let section,followingSection='';
  if(matches.length===1){const h=matches[0],j=innerHeaders.indexOf(h);section=point.slice(h.index,innerHeaders[j+1]?.index??point.length);if(innerHeaders[j+1])followingSection=point.slice(innerHeaders[j+1].index);}
@@ -79,11 +106,12 @@ export function councilArticleNativeScope(raw,wording) {
    const direct=u.blocks.filter(b=>!starts(b,'point'));return direct[Number(segment.value)-1]?[{text:direct[Number(segment.value)-1],blocks:[direct[Number(segment.value)-1]]}]:[];
   });else return null;
  }
- return {section,followingSection,units,inner,outer};
+ return {section,followingSection,units,inner,outer,point,frame:source.slice(begin.index,begin.index+begin[0].length+end)};
 }
 export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
  const scope=councilArticleNativeScope(raw,wording);if(!scope)return unknown('article-ownership-unproved');
  const proposal=items?.[placement.itemIndex]?.proposal;if(!proposal)return unknown('projection-unavailable');
+ const owner=projectedOwner(proposal,scope);if(!owner)return failed();
  if(placement.operation==='insert'){
   const last=scope.inner.at(-1);if(!last.suffix||!['paragraph','point'].includes(last.kind))return unknown('article-insertion-address-unproved');
   if(!/\([^)]*\)\s*$/u.test(wording.targetPath.underlying[0].raw)){
@@ -96,7 +124,7 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
   if(new Set(siblings.map(s=>s.value)).size!==siblings.length)return unknown('article-insertion-numbering-unproved');
   const index=siblings.indexOf(anchors[0]),next=siblings[index+1];
   const after=proposal.paragraphs[placement.insertAfter]?.text,before=proposal.paragraphs[placement.insertBefore]?.text;
-  if(!Number.isSafeInteger(placement.insertAfter)||placement.insertBefore!==placement.insertAfter+1||!after)return failed();
+  if(!Number.isSafeInteger(placement.insertAfter)||placement.insertBefore!==placement.insertAfter+1||!after||!owner.has(placement.insertAfter))return failed();
   if(!literal(anchors[0].text).endsWith(literal(after)))return failed();
   if(placement.splice){
    const s=placement.splice,tail=/[“’»«"][.;]?\s*$/u.exec(after);
@@ -110,6 +138,7 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
  if(!['replace','delete'].includes(placement.operation))return unknown('article-operation-unproved');
  const s=placement.span,p=placement.splice;
  if(!s||!p||![s.start,s.end,p.start?.paragraph,p.end?.paragraph,p.start?.offset,p.end?.offset].every(Number.isSafeInteger)||s.start<0||s.end<s.start||s.end>=proposal.paragraphs.length||p.start.paragraph!==s.start||p.end.paragraph!==s.end)return failed();
+ if(Array.from({length:s.end-s.start+1},(_,i)=>s.start+i).some(i=>!owner.has(i)))return failed();
  const first=proposal.paragraphs[s.start].text,last=proposal.paragraphs[s.end].text;
  if(p.start.offset<0||p.start.offset>first.length||p.end.offset<0||p.end.offset>last.length||s.start===s.end&&p.end.offset<=p.start.offset)return failed();
  const rendered=proposal.paragraphs.slice(s.start,s.end+1).map((v,i)=>v.text.slice(i?0:p.start.offset,i===s.end-s.start?p.end.offset:v.text.length)).join(' '),original=literal(wording.originalText);
