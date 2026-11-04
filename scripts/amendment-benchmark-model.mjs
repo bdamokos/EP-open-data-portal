@@ -3,7 +3,7 @@ import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
-import {assertBareAnnexInsertion} from './amendment-annex-oracle.mjs';
+import {assertBareAnnexInsertion,assertNumberedAnnexInsertion} from './amendment-annex-oracle.mjs';
 import {assertResolutionNumberingDrift} from './amendment-numbering-drift-oracle.mjs';
 import {assertResolutionPointSimilarity} from './amendment-resolution-point-similarity-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
@@ -598,6 +598,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
+  const numberedAnnex=assertNumberedAnnexInsertion(items,wording,placement,nativeQuoted);
+  if(numberedAnnex)return numberedAnnex;
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;

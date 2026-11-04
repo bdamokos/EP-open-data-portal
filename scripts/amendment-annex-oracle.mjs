@@ -46,3 +46,34 @@ export function assertBareAnnexInsertion(items,wording,placement,nativeQuoted) {
   return placement.itemIndex===itemIndex&&placement.insertAfter===before-1&&placement.insertBefore===before
     ?{status:'verified',reason:'oracle-sole-bare-annex-end'}:{status:'failed',reason:'oracle-bare-annex-boundary-mismatch'};
 }
+
+// Outer annex additions are ordered from native Annex headings. The line naming
+// the amended act describes the new annex's contents, not its source position.
+export function assertNumberedAnnexInsertion(items,wording,placement,nativeQuoted) {
+ const raw=(wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel??'').split('\n')[0];
+ const label=/^Annex ([IVXLCDM]+)\s*(a) \(new\)$/u.exec(raw);
+ if(wording.language!=='en'||wording.baseline!=='commission-proposal'||placement.operation!=='insert'||wording.originalText!==''||!label)return null;
+ const unknown=()=>({status:'unverified',reason:'oracle-numbered-annex-boundary-unavailable'});
+ const candidates=[];
+ for(const [itemIndex,item] of (items||[]).entries()){
+  if(item.kind!=='annex'||item.proposal?.sourceKind!=='docx')continue;
+  const proposal=item.proposal,headings=proposal.paragraphs.filter(row=>row.properties?.styleId==='Annexetitre'&&/^ANNEX [IVXLCDM]+[a-z]?$/u.test(row.text.trim()));
+  const base=headings.filter(row=>row.text.trim()==='ANNEX '+label[1]);
+  if(base.length!==1||headings.some(row=>row.text.trim()==='ANNEX '+label[1]+label[2]))continue;
+  if(new Set(headings.map(row=>row.text.trim())).size!==headings.length||headings.some(row=>new RegExp('^ANNEX '+label[1]+'[a-z]$','u').test(row.text.trim())))continue;
+  const anchor=base[0],next=headings[headings.indexOf(anchor)+1];
+  if(!next)continue;
+  const rows=proposal.paragraphs.filter(row=>row.index>=anchor.index&&row.index<=next.index);
+  if(rows.some(row=>row.complete!==true||row.source?.complete!==true)||proposal.gaps?.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=anchor.index&&gap.paragraph<next.index))continue;
+  let body;try{body=quotedWordBody(nativeQuoted?.proposalBuffers?.[itemIndex]??nativeQuoted?.proposalBuffer);}catch{continue;}
+  const first=body.findIndex(row=>row.path===anchor.source.path&&row.text?.trim()===anchor.text.trim()),last=body.findIndex(row=>row.path===next.source.path&&row.text?.trim()===next.text.trim());
+  if(first<0||last<=first)continue;
+  const scope=body.slice(first,last+1);
+  if(scope.some(row=>row.hidden||contentUnsafe(row.kind==='paragraph'?row.nodes:[row.nodes])||row.kind!=='paragraph'&&!row.nodes['w:tbl']))continue;
+  candidates.push({itemIndex,before:next.index});
+ }
+ if(candidates.length!==1)return unknown();
+ const {itemIndex,before}=candidates[0];
+ return placement.itemIndex===itemIndex&&placement.insertBefore===before&&placement.insertAfter===before-1
+  ?{status:'verified',reason:'oracle-native-numbered-annex-boundary'}:{status:'failed',reason:'oracle-numbered-annex-boundary-mismatch'};
+}
