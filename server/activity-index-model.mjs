@@ -141,7 +141,7 @@ export function speechRows(activity, fetchedAt) {
   const doc = array(activity.recorded_in_a_realization_of).find(w => w && typeof w === 'object') || {};
   const participation = array(activity.had_participation);
   return ids(participation).map(mepId => ({ mepId, id: activity.activity_id, sourceId: activity.activity_id, term: 10, category: 'plenary-contributions', categoryLabel: CATEGORIES['plenary-contributions'], recordKind: 'speech', speechKind: tail(activity.had_activity_type), date: activity.activity_date, start: activity.activity_start_date || null, end: activity.activity_end_date || null, titles: activity.activity_label || {}, reference: doc.number || activity.activity_id, files: [], originalLanguages: array(doc.originalLanguage), ...speechWebsite(doc),
-    provenance: evidence('/speeches/'+activity.activity_id, fetchedAt, 'speech.had_participation → person', 'SPEAKER') }));
+    provenance: evidence('/speeches/'+activity.activity_id, fetchedAt, 'speech.had_participation → person', 'SPEAKER', activity.acquisition ? { acquisition: activity.acquisition, websiteSource: activity.website?.url } : {}) }));
 }
 export function localize(row, language) {
   const code = languagePreference(Object.keys(row.titles).filter(code=>row.titles[code]?.trim()),language)[0], titleLanguage=code||null;

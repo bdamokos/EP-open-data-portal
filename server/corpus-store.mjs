@@ -312,12 +312,15 @@ export class CorpusStore {
   // row (and FTS entry); only the confirmation time moves forward.
   putDocument(document,texts,{acquisition='unknown'}={}) {
     if(!KINDS.includes(document.kind) || !/^[A-Z0-9-]{1,100}$/.test(document.sourceId))throw new Error('Invalid corpus document.');
-    this.transaction(()=>{
+    const write=()=>{
       this.assertWriter();
       this.db.prepare(`INSERT INTO documents(source_id,kind,parent_id,date,term,original_languages) VALUES (?,?,?,?,?,?)
         ON CONFLICT(source_id) DO UPDATE SET kind=excluded.kind,parent_id=excluded.parent_id,date=COALESCE(excluded.date,date),term=COALESCE(excluded.term,term),original_languages=excluded.original_languages`)
         .run(document.sourceId,document.kind,document.parentId||null,document.date||null,document.term??null,JSON.stringify(document.originalLanguages||[]));
       const id=this.db.prepare('SELECT id FROM documents WHERE source_id=?').get(document.sourceId).id;
+      // A real API text replaces every website-imported variant of this speech.
+      if(document.kind==='speech'&&texts.length&&texts.every(text=>text.sourceEdition?.acquisition!=='website-xml'))
+        this.db.prepare("DELETE FROM texts WHERE document_id=? AND json_extract(source_edition,'$.acquisition')='website-xml'").run(id);
       const existing=this.db.prepare('SELECT id,sha256 FROM texts WHERE document_id=? AND source_key=?');
       const insert=this.db.prepare(`INSERT INTO texts(document_id,language,source_key,translation_type,source_format,source_url,fetched_at,checked_at,sha256,chars,body,raw,source_edition) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
       const update=this.db.prepare(`UPDATE texts SET language=?,translation_type=?,source_format=?,source_url=?,fetched_at=?,checked_at=?,sha256=?,chars=?,body=?,raw=?,source_edition=? WHERE id=?`);
@@ -334,7 +337,12 @@ export class CorpusStore {
       }
       if(document.kind==='speech')this.db.prepare('UPDATE speech_catalog SET revision=? WHERE source_id=?').run(this.nextSpeechRevision(),document.sourceId);
       finishAvailabilityWrite(this);
-    });
+    };
+    return this.db.isTransaction?write():this.transaction(write);
+  }
+  // Speech text imported from a website XML file, not from the API.
+  websiteSpeechHeld(sourceId) {
+    return Boolean(this.db.prepare("SELECT 1 FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=? AND json_extract(t.source_edition,'$.acquisition')='website-xml' LIMIT 1").get(sourceId));
   }
   raw(sourceId,sourceKey) {
     const row=this.db.prepare('SELECT t.raw FROM texts t JOIN documents d ON d.id=t.document_id WHERE d.source_id=? AND t.source_key=?').get(sourceId,sourceKey);
@@ -419,7 +427,7 @@ export class CorpusStore {
     const body=JSON.stringify({version:1,activity:metadata,summary,speakers:people,headerSources,availableTextLanguages,
       interventionHeaders:interventionHeaders(fragments),interventionClassificationVersion:INTERVENTION_CLASSIFICATION_VERSION});
     if(Buffer.byteLength(body)>2*1024*1024)throw new Error('Speech metadata exceeded the allowed size.');
-    this.transaction(()=>{
+    const write=()=>{
       this.assertWriter();
       const updated=this.db.prepare(`INSERT INTO speech_metadata VALUES (?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET
         body=excluded.body,source_url=excluded.source_url,fetched_at=excluded.fetched_at WHERE excluded.fetched_at>=speech_metadata.fetched_at`)
@@ -430,7 +438,8 @@ export class CorpusStore {
         for(const language of Object.keys(supplied))observeSource(this,{sourceId:activity.activity_id,family:'speeches',subtype:summary.kind,stage:'language-metadata',language,variant:language,date:activity.activity_date,fetchedAt,url:sourceUrl,acquisition,existed:Boolean(previousMetadata?.availableTextLanguages?.includes(language))});
         finishAvailabilityWrite(this);
       }
-    });
+    };
+    return this.db.isTransaction?write():this.transaction(write);
   }
 
   refreshSpeechInterventions(task,{limit=100,maxDuration=1000}={}) {

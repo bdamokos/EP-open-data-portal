@@ -53,7 +53,8 @@ export function interventionMetadata(activity) {
   const docs=array(activity.recorded_in_a_realization_of).filter(d=>d&&typeof d==='object');
   const fragments=Object.assign({},...docs.map(d=>d['api:xmlFragment']||{}));
   // Classification uses one supplied English fragment, including Parliament's translations.
-  const xml=fragments.en;
+  // A website-imported record can have only its original-language fragment.
+  const xml=fragments.en??(activity.acquisition==='website-xml'?Object.values(fragments)[0]:undefined);
   let root=null;
   if(typeof xml==='string'&&xml.length<=2*1024*1024&&!/<!DOCTYPE|<!ENTITY/i.test(xml)&&XMLValidator.validate(xml)===true) {
     try {root=parser.parse(xml);}catch{ /* Retain missing metadata as such. */ }

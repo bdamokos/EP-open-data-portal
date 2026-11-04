@@ -52,6 +52,7 @@ import {activityGenerationTask} from './activity-generation-task.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
 import { HttpError } from './http-utils.mjs';
 import {outsideSpeech,outsideAgenda} from './outside-model.mjs';
+import {WEBSITE_ACQUISITION,observeSpeechGap,scheduleWebsiteRechecks,websiteSpeechHeld} from './speech-source-gaps.mjs';
 import {procedureClassification} from './procedure-types.mjs';
 import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade,TERM_FIRST_DAYS,mandateRosterBody,rebuildFirstDayRoster} from './outside-store.mjs';
 import {parliamentaryService} from './parliamentary-service.mjs';
@@ -110,6 +111,12 @@ export function feedDocuments(xml,endpoint) {
   if(entries.length && !result.length)throw new Error('Update feed entries contain no recognised API identifiers.');
   return result;
 }
+// A 500 can wrap a backend dataset 404. Keep that fact, never the response text.
+export async function wrapsMissingDataset(response) {
+  let text='';
+  try {for await(const chunk of response.body){text+=Buffer.from(chunk).toString('utf8');if(text.length>16384){await response.body.cancel().catch(()=>{});break;}}}catch{/* An unread body is not evidence. */}
+  return /Dataset Resource\b[^"]*\bfailed: 404\b/.test(text);
+}
 export async function apiFetch(endpoint,params={}, {xml=false,signal,backgroundLow=false,preserveStatus=false,snapshotObservation=false}={}) {
   const url=new URL(ODP_BASE+endpoint);
   for (const [key,value] of Object.entries({...params,...(!xml?{format:'application/ld+json'}:{})})) url.searchParams.set(key,String(value));
@@ -117,7 +124,7 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal,backgroundL
     const response=await observedOdpFetch(url,{headers:{Accept:xml?'application/atom+xml':'application/ld+json','User-Agent':userAgent('activity index')},redirect:'error',signal:AbortSignal.any([AbortSignal.timeout(45_000),...(signal?[signal]:[])])});
     if(snapshotObservation)await snapshotHttpObservation(response,url,{signal});
     if (response.status===204) return xml ? {xml:'<feed/>',fetchedAt:new Date().toISOString()} : {payload:{data:[]},fetchedAt:new Date().toISOString(),...(preserveStatus?{status:204}:{})};
-    if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;const hint=response.headers.get('retry-after');e.retryAfter=hint?retryAfterSeconds(hint):0;if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(hint);backoffUpstream(e.retryAfter);}throw e; }
+    if (!response.ok) { const datasetMissing=response.status===500&&await wrapsMissingDataset(response);if(response.status!==500)await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;if(datasetMissing)e.datasetMissing=true;const hint=response.headers.get('retry-after');e.retryAfter=hint?retryAfterSeconds(hint):0;if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(hint);backoffUpstream(e.retryAfter);}throw e; }
     const contentType=response.headers.get('content-type') || '';
     if (!(xml?/xml/.test(contentType):/json/.test(contentType))) {await response.body?.cancel();throw new Error(`EP API returned unexpected ${contentType || 'missing content type'} at ${endpoint}.`);}
     const chunks=[];let bytes=0;
@@ -354,9 +361,19 @@ export class ActivityWorker {
         if(!old&&!(adoptedDeferred&&adoptedTextOwnedElsewhere(this.store,generation,endpoint,adoptedDeferred)))this.store.enqueue(generation,endpoint,'document',{endpoint},101,Boolean(adoptedDeferred));
       }
       this.store.taskProgress(task,{...body,offset:body.offset+nodes.length,lastPage:signatures,availabilityCheck});
+    } else if(task.kind==='speeches' && body.websiteRecheck) {
+      await this.recheckWebsiteSpeech(task);
     } else if(task.kind==='speeches' && body.recoveryId) {
       if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(body.recoveryId))throw new Error('Invalid speech recovery identifier.');
-      const r=await this.request('/speeches/'+body.recoveryId);
+      // A checkpoint can hold a recovery queued before the record was imported.
+      if(websiteSpeechHeld(this.store,generation,body.recoveryId)){this.store.finishTask(task);return;}
+      let r;
+      try {r=await this.request('/speeches/'+body.recoveryId);}
+      catch(error) {
+        this.controller.signal.throwIfAborted();
+        if(error.status)observeSpeechGap(this.store,{id:body.recoveryId,state:error.datasetMissing?'detail-failed':null,searchWindow:body.searchWindow,status:error.status});
+        throw error;
+      }
       this.controller.signal.throwIfAborted();this.store.assertWriter();
       const activity=body.declaredParent!==undefined?declaredSpeechDetail(r,body.recoveryId,body.declaredParent,this.clock()):r.payload.data.find(node=>node.activity_id===body.recoveryId);
       if(!activity)throw new Error(`Published speech ${body.recoveryId} has no matching detail record.`);
@@ -388,9 +405,12 @@ export class ActivityWorker {
       for(const {hit} of missing) {
         const id=tail(hit.id);
         if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(id))throw new Error('Speech search hit has an invalid recovery identifier.');
-        const sitting=id.slice(7,17);
+        const sitting=id.slice(7,17),searchWindow={start:body.params['sitting-date'],end:body.params['sitting-date-end'],offset:body.offset};
+        observeSpeechGap(this.store,{id,state:'missing-hit',searchWindow});
+        // An imported record already answers this hit. A real API record replaces it through a list node or the slow recheck.
+        if(websiteSpeechHeld(this.store,generation,id))continue;
         const recovery={
-          recoveryId:id,outsideOnly:body.outsideOnly || false,detectedAt:r.fetchedAt,searchHit:hit.id,searchWindow:{start:body.params['sitting-date'],end:body.params['sitting-date-end'],offset:body.offset},
+          recoveryId:id,outsideOnly:body.outsideOnly || false,detectedAt:r.fetchedAt,searchHit:hit.id,searchWindow,
           // Keep the existing task kind and a valid day window for safe old-image
           // rollback: old code continues strict list validation, never marks an
           // unavailable reference as a completed document.
@@ -520,7 +540,8 @@ export class ActivityWorker {
     // catalogue refresh does not erase it or invent an omitted reverse edge.
     declaredParent=declaredParent??retained?.declaredParent??null;
     let outside=outsideSpeech(activity,fetchedAt,queryUrl);
-    const previous=retained?.outside;
+    // A real API record replaces an imported one outright, including its header.
+    const website=activity.acquisition===WEBSITE_ACQUISITION,previous=retained?.acquisition===WEBSITE_ACQUISITION?undefined:retained?.outside;
     if(outside && previous) {
       outside={...outside,titles:{...previous.titles,...outside.titles},...(outside.headerChecked?{source:previous.source}:{} )};
     }
@@ -534,9 +555,25 @@ export class ActivityWorker {
       observeSource(this.store,{sourceId:activity.activity_id,family:'speeches',subtype:tail(activity.had_activity_type),date:activity.activity_date,fetchedAt,url:queryUrl,acquisition,existed});
       finishAvailabilityWrite(this.store);
     });return;}
-    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,date:activity.activity_date,kind:tail(activity.had_activity_type),...(declaredParent?{declaredParent}:{}),...(activity.inverse_consists_of!==undefined?{inverse_consists_of:activity.inverse_consists_of}:{}),...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt),{acquisition,sourceUrl:queryUrl});
+    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,date:activity.activity_date,kind:tail(activity.had_activity_type),...(website?{acquisition:WEBSITE_ACQUISITION,website:activity.website}:{}),...(declaredParent?{declaredParent}:{}),...(activity.inverse_consists_of!==undefined?{inverse_consists_of:activity.inverse_consists_of}:{}),...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt),{acquisition,sourceUrl:queryUrl});
     const classified=recordOutside(this.store,generation,outside);
     if(outsideOnly && classified && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,outside.id))this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-speech'").run(generation,key);
+    if(!website)observeSpeechGap(this.store,{id:activity.activity_id,state:'resolved',at:fetchedAt});
+  }
+  async recheckWebsiteSpeech(task) {
+    const {generation,body}=task,id=body.recoveryId;
+    if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(id))throw new Error('Invalid speech recovery identifier.');
+    let r;
+    try {r=await this.request('/speeches/'+id);}
+    catch(error) {
+      this.controller.signal.throwIfAborted();
+      this.store.transaction(()=>{this.store.assertWriter();observeSpeechGap(this.store,{id,status:error.status??null});this.store.finishTask(task);});
+      return;
+    }
+    this.controller.signal.throwIfAborted();this.store.assertWriter();
+    const activity=r.payload.data.find(node=>node.activity_id===id);
+    if(activity)this.saveSpeech(generation,activity,r.fetchedAt,false,r.url,false,{acquisition:'recovery'});
+    this.store.finishTask(task);
   }
   initializeOutside(cycle) {
     const {generation}=cycle;
@@ -1018,7 +1055,7 @@ export class ActivityWorker {
           if(!amendmentDependenciesReady(this.store,generation))bootstrapAmendmentDependencies(this.store,generation);
           if(ruleVersionRecoveryDue(this.store,generation))reopenRuleVersions(this.store,generation);
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
-          if(cycle&&this.store.get('working')){this.scheduleRecovery(generation);scheduleDeclaredDebateRecovery(this,generation);}
+          if(cycle&&this.store.get('working')){this.scheduleRecovery(generation);scheduleDeclaredDebateRecovery(this,generation);scheduleWebsiteRechecks(this.store,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
           if(++sittingSnapshotTurn%8===0){await this.fillProjectionBatch();if(this.documentBodies.due())await this.documentBodies.step(this,{requestBudget:1});if(this.requests>=this.budget)break;}
           if(sittingSnapshotTurn%8===0&&this.officialContext?.due()&&this.requests<this.budget&&this.monotonic()<this.runDeadline)await this.officialContext.step(this);

@@ -3,6 +3,7 @@ import {sourceRuleError} from './source-retry.mjs';
 import {array} from './activity-index-model.mjs';
 import {groupVoiceJobKey} from './group-voices-store.mjs';
 import {createHash} from 'node:crypto';
+import {websiteSpeechHeld} from './speech-source-gaps.mjs';
 
 const marker='declaredDebateRecovery',batch=100,week=7*86400_000,relationshipBytes=8*1024*1024;
 const childId=/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/;
@@ -104,7 +105,7 @@ export async function declaredDebateTask(worker,task) {
   // An owner acquired after admission must also win at execution. Completing
   // this redundant check is not a source acquisition; its real owner survives.
   const admittedElsewhere=!task.amendmentJob&&store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND (done IS NULL OR done<>1)').get(generation,task.key);
-  if(admittedElsewhere||body.role==='child'&&speechOwned(store,generation,body.id)) {
+  if(admittedElsewhere||body.role==='child'&&(speechOwned(store,generation,body.id)||websiteSpeechHeld(store,generation,body.id))) {
     store.transaction(()=>{
       store.assertWriter();
       // Transfer service to the existing owner without pretending that this

@@ -32,6 +32,7 @@ import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches,GAP_LIMIT} from './refresh-policy.mjs';
 import {copyProjectedGenerationRows,prepareGenerationCopy,generationCopySchemaVersion} from './generation-copy.mjs';
+import {speechSourceGapSchema} from './speech-source-gaps.mjs';
 
 // Defaults gate both normal construction and writer acquisition. The explicit
 // exceptions preserve preparations historically allowed during normal acquire().
@@ -143,7 +144,7 @@ export class ActivityStore {
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion,initializeLinks=this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion;
       if(!this.initializeIndexes&&ACTIVITY_SCHEMA_GATES.some(gate=>gate.writerGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
-      initializeAvailabilityHistory(this);
+      initializeAvailabilityHistory(this);speechSourceGapSchema(this.db);
       if(this.get('ballotBindingSchema')!==1){prepareBallotBindingStore(this);initialized=true;}
       if(this.get('votingListSchema')!==1){prepareVotingLists(this);initialized=true;}
       if(this.get('baseBackfillSchema')!==1){prepareBaseBackfill(this);initialized=true;}
@@ -436,7 +437,7 @@ export class ActivityStore {
   putSource(generation,key,kind,work,fetchedAt,rows=[],{acquisition='unknown',sourceUrl=null}={}) {
     if(kind==='amendment-member')this.invalidateMemberProfiles();
     {const id=generation+'\u0000'+key,entry=this.sourceCache?.get(id);if(entry){this.sourceCache.delete(id);this.sourceCacheChars-=entry.chars;}}
-    this.transaction(()=> {
+    const write=()=> {
       this.assertWriter();
       const existed=Boolean(this.db.prepare('SELECT 1 FROM sources WHERE generation=? AND key=?').get(generation,key));
       this.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,key,kind,JSON.stringify(work),fetchedAt);
@@ -460,7 +461,8 @@ export class ActivityStore {
       }
       if(kind==='motion-outcomes')for(const decision of work.decisions||[])observeSource(this,{sourceId:decision.activity_id||decision.id,family:'votes',subtype:'decision',date:decision.activity_date,fetchedAt,url,acquisition,existed});
       finishAvailabilityWrite(this);
-    });
+    };
+    return this.db.isTransaction?write():this.transaction(write);
   }
   replaceRows(generation,key,rows) {
     this.assertWriter();

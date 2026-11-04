@@ -251,7 +251,7 @@ export class CorpusWorker {
         if(editions) {
           const seen=new Set(body.seen||[]),prefix='MTG-PL-'+body.start.slice(0,7);
           for(const {source_id:id} of this.store.db.prepare('SELECT source_id FROM speech_metadata WHERE source_id>=? AND source_id<?').all(prefix,prefix+'~'))
-            if(!seen.has(id))this.queueSpeechEdition(id);
+            if(!seen.has(id)&&!this.store.websiteSpeechHeld(id))this.queueSpeechEdition(id);
         }
         this.store.finishTask({...task,body:{...body,availabilityCheck}});return;
       }
@@ -262,6 +262,8 @@ export class CorpusWorker {
         if(!SPEECH_ID.test(id))throw new Error('EP speech identifier was invalid.');
         // A search reference without its graph node becomes a durable detail fetch.
         if(!node?.activity_id){
+          // An imported text already answers this hit. A later list node replaces it.
+          if(this.store.websiteSpeechHeld(id))continue;
           if(editions){this.queueSpeechEdition(id);continue;}
           const kind=metadataOnly?'speech-metadata-detail':'speech',key=kind+':'+id;
           if(!this.store.enqueue(key,kind,{id},PRIORITY.speech))this.store.reopen(key,{id},PRIORITY.speech);
