@@ -219,3 +219,12 @@ test('nested XHTML Roman points cannot verify a replacement at the outer point a
   assert.equal(rawProposalAssertion({proposal,wording,placement}).status,'unverified');
   assert.equal(verifyPlacement({items:[{proposal}],wording,placement}).status,'unverified');
 });
+
+test('native consolidated Article 32 point a includes its four tobacco indents',()=>{
+ // 02020L0262-20220426, ENG DOC_2, Article 32(3)(a): literal native grid text.
+ const texts=['Article 32','Acquisition by private individuals','3. These guide levels may not be lower than:','(a) for tobacco products:','— cigarettes: 800 items,','— cigarillos (cigars weighing not more than 3 g each): 400 items,','— cigars: 200 items,','— smoking tobacco: 1,0 kg;','(b) for alcoholic beverages:','Article 33'];
+ const p=proposal(texts.map(text=>[text,'Normal']));p.sourceKind='xhtml';for(const row of p.paragraphs){row.source.part='xhtml';row.source.path='/1/2/'+(row.index+1)+'/1';row.properties=null;}
+ const w={...amendment('Article 1 – paragraph 1 – point 1 a (new)'),baseline:'present-text',targetPath:{underlying:[{raw:'Article 32 – paragraph 3 – point a'}]}};
+ assert.equal(rawProposalAssertion({proposal:p,wording:w,placement:{status:'placed',operation:'replace',span:{start:3,end:7}}}).status,'verified');
+ assert.equal(rawProposalAssertion({proposal:p,wording:w,placement:replace(8)}).status,'failed');
+});
