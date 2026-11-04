@@ -2725,6 +2725,7 @@
   "topics.story.map.outside.eu": "Изказвания в пленарна зала от Европа и съседните ѝ страни: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} се изказа в пленарна зала ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} беше тема на най-оживеното разискване на картата и на {questions}: {meps} се изказаха по {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "В Европа и съседните ѝ страни {place} беше тема на най-оживеното разискване и на {questions}: {meps} се изказаха по {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} беше тема както на най-оживеното разискване на картата, така и на най-много въпроси ({questions}): {meps} се изказаха по {title} ({date}{format}){outcome}.",

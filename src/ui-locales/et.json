@@ -2725,6 +2725,7 @@
   "topics.story.map.outside.eu": "Täiskogul esinejad Euroopast ja selle naabritest: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} esines täiskogul ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} oli kaardi suurima sõnavõtjate arvuga arutelu keskmes ning selle kohta esitati {questions}: teemal {title} ({date}{format}) võttis sõna {meps}{outcome}.",
   "topics.story.integrated.busiest.eu": "Euroopas ja selle naabruses oli {place} suurima sõnavõtjate arvuga arutelu keskmes ning selle kohta esitati {questions}: teemal {title} ({date}{format}) võttis sõna {meps}{outcome}.",
   "topics.story.integrated.both": "{place} oli nii kaardi suurima sõnavõtjate arvuga arutelu kui ka kõige suurema arvu küsimuste keskmes ({questions}): teemal {title} ({date}{format}) võttis sõna {meps}{outcome}.",

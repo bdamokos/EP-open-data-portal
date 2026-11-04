@@ -2725,6 +2725,7 @@
   "topics.story.map.outside.eu": "Runātāji plenārsēdē no Eiropas un tās kaimiņreģioniem: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} uzstājās plenārsēdē ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} — aktīvākās debates kartē un {questions}: {title} ({date}{format}); runātāji: {meps}{outcome}.",
   "topics.story.integrated.busiest.eu": "Eiropā un tās kaimiņreģionos: {place} — aktīvākās debates un {questions}: {title} ({date}{format}); runātāji: {meps}{outcome}.",
   "topics.story.integrated.both": "{place} — aktīvākās debates kartē un visvairāk jautājumu ({questions}): {title} ({date}{format}); runātāji: {meps}{outcome}.",

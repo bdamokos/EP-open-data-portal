@@ -2725,6 +2725,7 @@
   "topics.story.map.outside.eu": "Wystąpienia na posiedzeniu plenarnym z Europy i jej sąsiedztwa: {speakers}.",
   "topics.story.place.outside": "{place}: wystąpienie na posiedzeniu plenarnym – {speaker} ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} — debata z największą liczbą mówców na mapie i {questions}; {meps} zabrało głos na temat {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "W Europie i jej sąsiedztwie: {place} — debata z największą liczbą mówców i {questions}; {meps} zabrało głos na temat {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} — debata z największą liczbą mówców na mapie i najwięcej pytań ({questions}); {meps} zabrało głos na temat {title} ({date}{format}){outcome}.",

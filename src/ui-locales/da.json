@@ -2725,6 +2725,7 @@
   "topics.story.map.outside.eu": "Taler i plenarforsamlingen fra Europa og nabolandene: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} talte i plenarforsamlingen ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} var genstand for kortets debat med flest talere og for {questions}: {meps} tog ordet om {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "I Europa og nabolandene var {place} genstand for debatten med flest talere og for {questions}: {meps} tog ordet om {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} var genstand for både kortets debat med flest talere og flest spørgsmål ({questions}): {meps} tog ordet om {title} ({date}{format}){outcome}.",

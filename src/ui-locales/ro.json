@@ -2725,6 +2725,7 @@
   "topics.story.map.outside.eu": "Discursuri în plen din Europa și din vecinătatea sa: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} a luat cuvântul în plen ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} a făcut obiectul dezbaterii cu cei mai mulți vorbitori de pe hartă și a {questions}: {meps} au vorbit despre {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "În Europa și în vecinătatea sa, {place} a făcut obiectul dezbaterii cu cei mai mulți vorbitori și a {questions}: {meps} au vorbit despre {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} a făcut obiectul atât al dezbaterii cu cei mai mulți vorbitori de pe hartă, cât și al celor mai multe întrebări ({questions}): {meps} au vorbit despre {title} ({date}{format}){outcome}.",
