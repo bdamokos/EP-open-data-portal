@@ -22,3 +22,17 @@ test('bare annex append withholds an unlocated extraction gap after its retained
  const cleanProjection={...proposal,gaps:[]};
  assert.equal(verifyPlacement({placement:forced,wording:example.wording,items:[{kind:'annex',proposal:cleanProjection}],nativeQuoted:{proposalBuffer:native}}).status,'unverified');
 });
+
+test('new outer numbered Annex Ia follows Annex I before Annex II, preserving incomplete/EOF guards',()=>{
+ const native=buffer([{style:'Annexetitre',text:'ANNEX I'},{style:'Normal',text:'The first annex is amended.'},{style:'Annexetitre',text:'ANNEX II'},{style:'Normal',text:'The second annex is amended.'},{style:'Annexetitre',text:'ANNEX III'},{style:'Normal',text:'The final annex is amended.'}]);
+ const proposal=structuredClone(parseProposal(native,{language:'en',item:'annex'})),items=[{kind:'annex',proposal}],wording={language:'en',baseline:'commission-proposal',targetLabel:'Annex I a (new)\nRegulation (EU) 2023/956 — Annex II',originalText:'',proposedText:'In point 1 of ANNEX II, an exception is added.'};
+ const placement=resolveProposalPlacement(items,wording,{nativeProposalInputs:[native]});
+ assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,2);assert.equal(placement.insertAfter,1);
+ assert.equal(verifyPlacement({items,wording,placement,nativeQuoted:{proposalBuffers:[native]}}).status,'verified');
+ assert.equal(resolveProposalPlacement(items,wording).status,'unresolved');
+ proposal.paragraphs[1].complete=false;
+ assert.equal(resolveProposalPlacement(items,wording,{nativeProposalInputs:[native]}).status,'unresolved');
+ proposal.paragraphs[1].complete=true;
+ assert.equal(resolveProposalPlacement(items,{...wording,targetLabel:'Annex III a (new)'},{nativeProposalInputs:[native]}).status,'unresolved');
+ assert.equal(resolveProposalPlacement([items[0],items[0]],wording,{nativeProposalInputs:[native,native]}).status,'unresolved');
+});

@@ -263,6 +263,21 @@ function wordingNumberingMatch(target,original,candidatesFor) {
  return {...selected,match:{span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text}};
 }
 
+// A suffixed outer annex follows its complete base annex, before the next
+// published annex. Incomplete predecessors and source EOF remain unsupported.
+function numberedAnnexInsertion(items,target,language,nativeProposalInputs) {
+ const label=target.segments[0];
+ if(language!=='en'||target.segments.length!==1||label.kind!=='annex'||!label.isNew||label.suffix!=='a'||!/^([IVXLCDM]+)$/u.test(label.base||''))return null;
+ const annexes=items.flatMap((item,itemIndex)=>item.kind!=='annex'?[]:flat(item.proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind==='annex'&&unit.path.length===1).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+ const bases=annexes.filter(({unit})=>unit.label.value===label.base);
+ if(bases.length!==1||annexes.some(({unit})=>unit.label.value.startsWith(label.base)&&/^[a-z]$/u.test(unit.label.value.slice(label.base.length))))return null;
+ const base=bases[0],peers=annexes.filter(a=>a.itemIndex===base.itemIndex).sort((a,b)=>a.unit.extent.start-b.unit.extent.start),next=peers[peers.indexOf(base)+1];
+ if(!next||base.unit.extent.end!==next.unit.extent.start||base.unit.pathConflict||!completeBoundary(base.proposal,base.unit)||new Set(peers.map(a=>a.unit.label.value)).size!==peers.length)return null;
+ const rows=[base.proposal.paragraphs[base.unit.extent.start],base.proposal.paragraphs[next.unit.extent.start]];
+ if(rows.some(row=>row.properties?.styleId!=='Annexetitre'||!row.complete||row.source?.complete!==true)||base.proposal.gaps.some(gap=>!Number.isInteger(gap.paragraph)||gap.paragraph>=base.unit.extent.start&&gap.paragraph<base.unit.extent.end)||!nativeInlineRowsComplete(nativeProposalInputs?.[base.itemIndex],base.proposal.sourceHash,rows))return null;
+ return {...base,insertBefore:next.unit.extent.start,anchor:base.unit,basis:'numbered-annex-before-next-heading'};
+}
+
 // Amendments call a proposal's sole bare ANNEX 'Annex I'. Keep that alias
 // local to a new sibling insertion; it never renumbers the published source.
 function bareAnnexInsertion(items,target,language) {
@@ -964,7 +979,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
-    const insertion=bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible);
+    const insertion=numberedAnnexInsertion(items,target,language,nativeProposalInputs)??bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible);
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
