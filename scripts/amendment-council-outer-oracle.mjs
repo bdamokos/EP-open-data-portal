@@ -5,6 +5,7 @@ const compact=s=>literal(s).replace(/\s/gu,'');
 const unknown=()=>({status:'unverified',reason:'oracle-council-pdf-outer-start-unproved'});
 const failed=()=>({status:'failed',reason:'oracle-council-pdf-outer-start-mismatch'});
 export function inspectCouncilOuterInsertion({geometry,structure,placement,wording,items}) {
+ if(items?.length!==1||items[0]?.kind!=='act'||placement.itemIndex!==0)return unknown();
  const outer=wording.targetPath?.proposal,refs=wording.targetPath?.underlying;
  if(wording.language!=='es'||wording.targetPath?.language!=='es'||outer?.length!==1||refs?.length!==1||wording.originalText?.trim()||placement.operation!=='insert')return unknown();
  if(literal(String(wording.targetLabel??'').split('\n')[0])!==literal(outer[0].raw))return unknown();
