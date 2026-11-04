@@ -178,14 +178,20 @@ export function buildInterventionSequence(activities,{parentId,expectedIds=[],re
   const complete=hasExpected&&records.length===expected.size;
   const known=row=>Number.isSafeInteger(row.intervention.numbering)||Boolean(reportPosition(row.activity));
   const ordered=records.every(known)&&new Set(numbers).size===numbers.length;
-  // A numbering gap is a missing row unless placed records fill it. A placed
-  // record between consecutive numbers takes no slot and breaks nothing.
+  // A placed record between consecutive numbers takes no slot and breaks nothing.
+  // A numbering gap is a missing row unless the placed records' own published
+  // PRE/SUIV references chain exactly across it. Position alone proves nothing.
   const follows=[];
-  {let last=null,between=0;
+  {let last=null,between=[];
+    const chains=(from,rows,to)=>rows.every((row,index)=>{
+      const links=row.activity.website?.neighbours;
+      return links&&links.previous===(index?rows[index-1].id:from.id)&&links.next===(index<rows.length-1?rows[index+1].id:to.id);
+    });
     for(const row of records) {
       const number=row.intervention.numbering;
-      if(!Number.isSafeInteger(number)){follows.push(known(row));between++;continue;}
-      follows.push(last===null||number-last-1<=between);last=number;between=0;
+      if(!Number.isSafeInteger(number)){follows.push(known(row));between.push(row);continue;}
+      const gap=last?number-last.intervention.numbering-1:0;
+      follows.push(gap===0||gap<=between.length&&chains(last,between,row));last=row;between=[];
     }
   }
   // Catch-the-eye is commonly a section, not an individual speech flag. Require both published boundaries.

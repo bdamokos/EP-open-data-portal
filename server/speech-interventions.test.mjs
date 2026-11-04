@@ -157,9 +157,31 @@ test('retained records join a debate without losing its verified exchanges',asyn
   const gapped=fixture.activities.filter(row=>row!==byNumber(211));
   const broken=buildInterventionSequence(gapped,{parentId,expectedIds:gapped.map(row=>row.id)});
   assert(!broken.exchanges.some(exchange=>exchange.ids.includes(byNumber(213).activity_id)));
-  // The same gap filled by a placed chair remark does not break it.
-  const filled={...chair,activity:{...chair.activity,recorded_in_a_realization_of:[{number:numberOf(byNumber(211))}]}};
-  assert.equal(buildInterventionSequence(gapped,{parentId,expectedIds:gapped.map(row=>row.id),retained:[filled]}).sequence.ordered,true);
+  // Exact published PRE/SUIV references across the gap do establish continuity.
+  const filled={...chair,activity:{...chair.activity,recorded_in_a_realization_of:[{number:numberOf(byNumber(211))}],website:{neighbours:{previous:byNumber(210).activity_id,next:byNumber(212).activity_id}}}};
+  const bridged=buildInterventionSequence(gapped,{parentId,expectedIds:gapped.map(row=>row.id),retained:[filled]});
+  assert.equal(bridged.sequence.ordered,true);
+  assert.deepEqual(bridged.records.findIndex(row=>row.id===importId)-bridged.records.findIndex(row=>row.id===byNumber(210).activity_id),1);
+});
+
+test('an unrelated import does not bridge a missing record',()=>{
+  const numberOf=row=>row.recorded_in_a_realization_of.find(doc=>doc&&typeof doc==='object').number;
+  assert.equal(numberOf(byNumber(212)),'2-0236-0000');
+  const withoutIt=fixture.activities.filter(row=>row!==byNumber(212));
+  const importId='MTG-PL-2026-10-06-OTH-900002',chair=(website)=>({activity:{id:'eli/dl/event/'+importId,activity_id:importId,activity_date:'2026-10-06',acquisition:'website-xml',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',recorded_in_a_realization_of:[{number:'2-0235-5000'}],...(website?{website}:{})},intervention:{type:'chair',numbering:null,parentIds:[parentId],speaker:{id:'1'},onBehalfOf:[]}});
+  const expectedIds=fixture.parent.consists_of;
+  const replyOf=result=>result.records.find(row=>row.id===byNumber(213).activity_id).replyTo;
+  const missing=buildInterventionSequence(withoutIt,{parentId,expectedIds});
+  assert.equal(replyOf(missing),null);assert(missing.coverage.missingIds.includes(byNumber(212).activity_id));
+  for(const website of [undefined,{neighbours:{previous:byNumber(211).activity_id,next:byNumber(212).activity_id}},{neighbours:{previous:byNumber(210).activity_id,next:byNumber(213).activity_id}}]) {
+    const result=buildInterventionSequence(withoutIt,{parentId,expectedIds,retained:[chair(website)]});
+    assert.equal(replyOf(result),null,'position or a partial reference does not establish continuity');
+    assert(result.coverage.missingIds.includes(byNumber(212).activity_id));
+  }
+  // Two placed records must chain to each other as well as to both numbered neighbours.
+  const second={...chair({neighbours:{previous:importId,next:byNumber(213).activity_id}}),activity:{...chair().activity,id:'eli/dl/event/MTG-PL-2026-10-06-OTH-900003',activity_id:'MTG-PL-2026-10-06-OTH-900003',recorded_in_a_realization_of:[{number:'2-0235-7500'}],website:{neighbours:{previous:importId,next:byNumber(213).activity_id}}}};
+  const chained=buildInterventionSequence(withoutIt,{parentId,expectedIds,retained:[chair({neighbours:{previous:byNumber(211).activity_id,next:second.activity.activity_id}}),second]});
+  assert.equal(replyOf(chained),byNumber(211).activity_id);
 });
 
 test('a context read adds retained children and a sitting\'s filed imports, and only those',async()=>{

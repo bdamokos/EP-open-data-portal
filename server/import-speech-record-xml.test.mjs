@@ -10,7 +10,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {CorpusWorker} from './corpus-worker.mjs';
 import {auditIndex} from './data-gap-audit.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
-import {acquireBothLeases,importRecord,loadRecords,parentFromEvidence,parseSpeechXml,rollbackRecord,runImport,speechActivity} from './import-speech-record-xml.mjs';
+import {acquireBothLeases,importRecord,loadRecords,parentFromEvidence,parseSpeechXml,rehearseImport,rollbackRecord,runImport,speechActivity} from './import-speech-record-xml.mjs';
 import {observeSpeechGap,scheduleWebsiteRechecks,WEBSITE_RECHECK_MS} from './speech-source-gaps.mjs';
 
 // Synthetic records only: no captured speech text belongs in Git.
@@ -94,6 +94,7 @@ test('an import reaches every reader, marks provenance and ends this speech\'s g
   const saved=store.source(generation,'/speeches/'+id);
   assert.deepEqual([saved.work.acquisition,saved.work.website.url,saved.work.website.retrievedAt,saved.work.website.fromApi,saved.work.kind,saved.fetchedAt],['website-xml',url,retrievedAt,false,'PLENARY_DEBATE_SPEECH',retrievedAt]);
   assert.deepEqual(saved.work.inverse_consists_of,['eli/dl/event/'+parent]);
+  assert.deepEqual(saved.work.website.neighbours,{previous:`MTG-PL-${day}-OTH-9000000001`,next:`MTG-PL-${day}-OTH-9000000003`});
   const item=JSON.parse(store.db.prepare('SELECT body FROM items WHERE generation=? AND source_key=? AND mep=?').get(generation,'/speeches/'+id,'30482').body);
   assert.deepEqual([item.category,item.speechKind,item.provenance.acquisition,item.provenance.websiteSource,item.titles.fr],['plenary-contributions','PLENARY_DEBATE_SPEECH','website-xml',url,'Débat synthétique']);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps WHERE generation=?').get(generation).n,0);
@@ -127,12 +128,12 @@ test('a written statement keeps its type, marker and group',t=>{
   assert.equal(corpus.db.prepare('SELECT body FROM texts').get().body,'Primul paragraf sintetic.\nAl doilea paragraf sintetic.');
 });
 
-test('a dry run reports exact row changes and leaves every table as it was',t=>{
+test('a dry run reports exact row changes and leaves every table as it was',async t=>{
   const {store,corpus,worker,generation}=fixture(t);logged(t);
   store.enqueue(generation,'recovery:/speeches/'+id,'speeches',{recoveryId:id},103);
   const counts=()=>[store.db.prepare('SELECT COUNT(*) n FROM sources').get().n,store.db.prepare('SELECT COUNT(*) n FROM items').get().n,store.db.prepare('SELECT COUNT(*) n FROM speech_source_gaps').get().n,store.db.prepare('SELECT done FROM tasks WHERE key=?').get('recovery:/speeches/'+id).done,corpus.db.prepare('SELECT COUNT(*) n FROM texts').get().n,corpus.db.prepare('SELECT COUNT(*) n FROM speech_metadata').get().n];
   const before=counts();
-  const report=importRecord({store,corpus,worker},record(),{dryRun:true});
+  const [report]=await rehearseImport({store,corpus,worker},[record()],{waitSeconds:0});
   assert.deepEqual(counts(),before);
   const changed=report.changes.map(change=>`${change.store}.${change.table}:${change.change}`).sort();
   assert.deepEqual(changed,['corpus.documents:insert','corpus.speech_catalog:insert','corpus.speech_metadata:insert','corpus.texts:insert','index.group_voice_observations:insert','index.items:insert','index.sources:insert','index.speech_source_gaps:insert','index.tasks:update'].sort());
@@ -316,6 +317,31 @@ test('the data-gap audit lists open and held IDs',t=>{
   const audit=auditIndex(store.db,started).speechSourceGaps;
   assert.deepEqual([audit.state,audit.count,audit.missingFromApi,audit.heldFromWebsite,audit.resolved],['observed',2,1,1,0]);
   assert.deepEqual(audit.records.map(row=>[row.id,row.state,row.httpStatus]),[[`MTG-PL-${day}-OTH-5`,'detail-failed',500],[id,'held-website',null]]);
+});
+
+test('a dry run retains no lease row, no table and no record, even on an index the writer has not prepared',async t=>{
+  const {corpusDir,store,corpus,worker}=fixture(t);logged(t);
+  store.db.exec('DROP TABLE speech_source_gaps');
+  store.release();corpus.release();
+  const reader=(handle,sql)=>handle.db.prepare(sql).all().map(row=>({...row}));
+  const state=()=>[...[store,corpus].flatMap(handle=>[
+    reader(handle,"SELECT type,name FROM sqlite_master ORDER BY type,name"),reader(handle,'SELECT * FROM lease'),reader(handle,"SELECT key,value FROM meta WHERE key NOT LIKE 'availabilityHistoryPrunedAt' ORDER BY key"),reader(handle,'SELECT COUNT(*) n FROM tasks'),
+  ]),reader(store,'SELECT COUNT(*) n FROM sources'),reader(store,'SELECT COUNT(*) n FROM items'),reader(corpus,'SELECT COUNT(*) n FROM texts'),reader(corpus,'SELECT COUNT(*) n FROM speech_metadata')];
+  const before=state();
+  assert.deepEqual(before[1],[]);assert.deepEqual(before[5],[]);
+  const [report]=await rehearseImport({store,corpus,worker},[record()],{waitSeconds:0});
+  assert.equal(report.outcome,'imported');
+  assert(report.changes.some(change=>change.table==='sources'&&change.change==='insert'));
+  assert.deepEqual(state(),before);
+  assert.equal(store.db.prepare("SELECT 1 FROM sqlite_master WHERE name='speech_source_gaps'").get(),undefined);
+  assert(!store.db.isTransaction&&!corpus.db.isTransaction);
+  // A live writer lease on either store stops the rehearsal before any write.
+  assert(store.acquire());
+  const other=new CorpusStore(corpusDir,{clock:corpus.clock});t.after(()=>other.close());
+  assert(other.acquire());
+  store.release();
+  await assert.rejects(rehearseImport({store,corpus,worker},[record()],{waitSeconds:0}),/not both free/);
+  assert(!store.db.isTransaction,'the first store is released when the second is busy');
 });
 
 test('rollback removes only imported rows',t=>{

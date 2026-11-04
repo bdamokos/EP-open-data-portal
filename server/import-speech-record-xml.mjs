@@ -8,6 +8,9 @@
 // manifest.json: {files:[{file,url,status,retrievedAt,sha256}]}. Paths are relative to the manifest.
 // evidence.json: public API reads of each speech's PRE and SUIV neighbours and their debate:
 //   {speeches:{<id>:{url,fetchedAt,activity}},events:{<id>:{url,fetchedAt,consists_of}}}
+//
+// --dry-run retains nothing: no record, table, task or lease row. It briefly holds each
+// database's write lock while the real writes run, then rolls them back.
 import {createHash} from 'node:crypto';
 import {existsSync,readFileSync,realpathSync} from 'node:fs';
 import path from 'node:path';
@@ -15,13 +18,14 @@ import {parseArgs} from 'node:util';
 import {pathToFileURL} from 'node:url';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
-import {ActivityStore} from './activity-index-store.mjs';
+import {ACTIVITY_SCHEMA_GATES,ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
-import {CorpusStore} from './corpus-store.mjs';
+import {CORPUS_SCHEMA_GATES,CorpusStore} from './corpus-store.mjs';
+import {initializeAvailabilityHistory} from './availability-history.mjs';
 import {speechTexts} from './corpus-worker.mjs';
 import {languageCode} from './ep-links.mjs';
 import {groupVoiceJobKey} from './group-voices-store.mjs';
-import {WEBSITE_ACQUISITION,WEBSITE_RECHECK_MS,logSpeechGapChange,observeSpeechGap} from './speech-source-gaps.mjs';
+import {WEBSITE_ACQUISITION,WEBSITE_RECHECK_MS,logSpeechGapChange,observeSpeechGap,speechSourceGapSchema} from './speech-source-gaps.mjs';
 import {speakerIsChair} from '../src/speakerNames.mjs';
 
 const refuse=message=>{throw Object.assign(new Error(message),{code:'import_refused'});};
@@ -124,7 +128,7 @@ export function speechActivity(speech,placement,{url,retrievedAt,sha256}) {
     recorded_in_a_realization_of:[{id:'eli/dl/doc/'+identifier,type:'WorkSubdivision',is_part_of:placement.part,number:speech.index,type_subdivision:'http://publications.europa.eu/resource/authority/subdivision/OTH',identifier,notation_speechId:speech.speechId,originalLanguage:[LANGUAGE_URIS[speech.language]],'api:xmlFragment':{[speech.language]:speechFragment(speech)}}],
     inverse_consists_of:['eli/dl/event/'+placement.parent],
     acquisition:WEBSITE_ACQUISITION,
-    website:{url,retrievedAt,sha256,fromApi:false,parentEvidence:{basis:placement.basis,listedByDebate:placement.listedByDebate,sources:placement.sources}}};
+    website:{url,retrievedAt,sha256,fromApi:false,neighbours:{previous:placement.sources[0].id,next:placement.sources[1].id},parentEvidence:{basis:placement.basis,listedByDebate:placement.listedByDebate,sources:placement.sources}}};
 }
 
 const generations=store=>[...new Set([store.get('active'),store.get('working')?.generation].filter(Number.isInteger))];
@@ -195,8 +199,8 @@ function assertHeldNeighbours(store,generation,placement) {
   }
 }
 
-class DryRun extends Error {}
-export function importRecord({store,corpus,worker},{speech,placement,activity,url,retrievedAt,sha256},{dryRun=false}={}) {
+const within=(target,fn)=>target.db.isTransaction?fn():target.transaction(fn);
+export function importRecord({store,corpus,worker},{speech,placement,activity,url,retrievedAt,sha256}) {
   const id=speech.id,targets=generations(store);
   if(!targets.length)refuse('The index has no generation to write to.');
   for(const generation of targets){assertSpeakerKnown(store,generation,speech);assertHeldNeighbours(store,generation,placement);}
@@ -208,8 +212,7 @@ export function importRecord({store,corpus,worker},{speech,placement,activity,ur
   let result;
   // Each store commits atomically. The index commits first inside the corpus
   // transaction, so a crash between them leaves a state this tool can finish.
-  try {
-    corpus.transaction(()=>{
+  within(corpus,()=>{
       corpus.assertWriter();
       const {document,texts}=speechTexts(activity,url,retrievedAt);
       if(!texts.length)refuse(`${id} produced no corpus text.`);
@@ -219,7 +222,7 @@ export function importRecord({store,corpus,worker},{speech,placement,activity,ur
         corpus.putSpeechMetadata(activity,url,retrievedAt,{acquisition:WEBSITE_ACQUISITION});
       }
       clearCorpusOwners(corpus,id);
-      store.transaction(()=>{
+      within(store,()=>{
         store.assertWriter();
         for(const generation of targets) {
           if(heldIndex(generation)?.website?.sha256!==sha256)worker.saveSpeech(generation,activity,retrievedAt,false,url,false,{acquisition:WEBSITE_ACQUISITION});
@@ -228,11 +231,8 @@ export function importRecord({store,corpus,worker},{speech,placement,activity,ur
         const alreadyHeld=store.db.prepare("SELECT 1 FROM speech_source_gaps WHERE id=? AND state='held-website'").get(id);
         const gapChange=alreadyHeld?null:observeSpeechGap(store,{id,state:'held-website',nextCheck:store.clock()+WEBSITE_RECHECK_MS},{log:false});
         result={id,outcome:'imported',gapChange,changes:[...rowChanges(beforeIndex,snapshot(store.db,INDEX_TABLES,id),'index'),...rowChanges(beforeCorpus,snapshot(corpus.db,CORPUS_TABLES,id),'corpus')]};
-        // Rehearse on the real tables, triggers included, then undo every store.
-        if(dryRun)throw new DryRun();
       });
     });
-  }catch(error){if(!(error instanceof DryRun))throw error;}
   if(!result.changes.length)result.outcome='unchanged';
   return result;
 }
@@ -289,6 +289,38 @@ export async function acquireBothLeases(store,corpus,seconds,{pauseMs=5000}={}) 
     await sleep(pauseMs);
   }
 }
+// A dry run runs the real writes under each database's write lock and rolls all
+// of it back, the lease and any table the writer would prepare included. Nothing
+// is retained, and readers never see it. Writers wait for the moment it takes.
+function holdForRehearsal(target,gates,label) {
+  target.db.exec('BEGIN IMMEDIATE');
+  try {
+    const lease=target.db.prepare('SELECT owner,expires FROM lease WHERE id=1').get();
+    if(lease&&lease.owner!==target.owner&&lease.expires>target.clock()){target.db.exec('ROLLBACK');return false;}
+    if(gates.some(gate=>gate.writerGate!==false&&target.get(gate.key)!==gate.value))refuse(`The ${label} needs preparation; run node server/migrate-indexes.mjs.`);
+    target.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(target.owner,target.clock()+90_000);
+    initializeAvailabilityHistory(target);
+    return true;
+  } catch(error) {target.db.exec('ROLLBACK');throw error;}
+}
+export async function rehearseImport({store,corpus,worker},records,{waitSeconds=600,pauseMs=5000}={}) {
+  const deadline=Date.now()+waitSeconds*1000;
+  for(;;) {
+    if(holdForRehearsal(store,ACTIVITY_SCHEMA_GATES,'activity index')) {
+      let held=false;
+      try {held=holdForRehearsal(corpus,CORPUS_SCHEMA_GATES,'corpus');}
+      catch(error){store.db.exec('ROLLBACK');throw error;}
+      if(held)break;
+      store.db.exec('ROLLBACK');
+    }
+    if(Date.now()>=deadline)refuse(`The writer leases were not both free within ${waitSeconds} seconds; nothing was written.`);
+    await sleep(pauseMs);
+  }
+  try {
+    speechSourceGapSchema(store.db);
+    return records.map(record=>importRecord({store,corpus,worker},record));
+  } finally {store.db.exec('ROLLBACK');corpus.db.exec('ROLLBACK');}
+}
 export function rollbackRecipe(records,{manifest,evidence,index,corpus}) {
   return ['Rollback (removes only website-xml rows; the recovery gaps then return through normal discovery):',
     `  node server/import-speech-record-xml.mjs --rollback --manifest ${manifest} --evidence ${evidence} --index ${index} --corpus ${corpus}`,
@@ -301,13 +333,18 @@ export async function runImport({manifest,evidence,index,corpus:corpusDirectory,
   for(const file of [path.join(index,'activities-v1.sqlite'),path.join(corpusDirectory,'corpus-v1.sqlite')])if(!existsSync(file))refuse(`${file} does not exist.`);
   const store=new ActivityStore(index,{preparedOnly:true}),corpus=new CorpusStore(corpusDirectory),worker=new ActivityWorker(store,{fetchRecord:()=>refuse('The import tool makes no upstream requests.')});
   const renew=setInterval(()=>{store.renew();corpus.renew();},20_000);renew.unref();
-  const reports=[];
+  const reports=[],describe=(record,report)=>({...report,parent:record.placement.parent,basis:record.placement.basis,kind:record.speech.kind,language:record.speech.language,mepId:record.speech.mepId,sourceUrl:record.url,retrievedAt:record.retrievedAt});
   try {
-    await acquireBothLeases(store,corpus,waitSeconds);
-    for(const record of records) {
-      const report=rollback?rollbackRecord({store,corpus},record.speech.id):importRecord({store,corpus,worker},record,{dryRun});
-      reports.push({...report,parent:record.placement.parent,basis:record.placement.basis,kind:record.speech.kind,language:record.speech.language,mepId:record.speech.mepId,sourceUrl:record.url,retrievedAt:record.retrievedAt});
-      if(!dryRun&&report.gapChange)logSpeechGapChange(report.gapChange);
+    if(dryRun) {
+      const rehearsed=await rehearseImport({store,corpus,worker},records,{waitSeconds});
+      reports.push(...rehearsed.map((report,index)=>describe(records[index],report)));
+    } else {
+      await acquireBothLeases(store,corpus,waitSeconds);
+      for(const record of records) {
+        const report=rollback?rollbackRecord({store,corpus},record.speech.id):importRecord({store,corpus,worker},record);
+        reports.push(describe(record,report));
+        if(report.gapChange)logSpeechGapChange(report.gapChange);
+      }
     }
   } finally {clearInterval(renew);corpus.close();store.close();}
   log(JSON.stringify({mode:rollback?'rollback':dryRun?'dry-run':'write',records:reports},null,1));
