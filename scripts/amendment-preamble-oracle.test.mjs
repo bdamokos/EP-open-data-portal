@@ -38,3 +38,12 @@ test('a citation replacement must splice exactly the original wording', () => {
   assert.equal(check(w,at(2,0,6)).status,'failed','a partial splice');
   assert.equal(check(w,at(2,0,rows[2].length)).status,'verified');
 });
+
+test('a citation comparison must prove the complete note payload and its exact anchor',()=>{
+ const p=proposal(rows),text=rows[2],at=text.length-1;
+ p.anchors=[{paragraph:2,offset:at,note:'8',label:'2'}];p.notes=[{id:'8',text:'OJ C , , p. .',complete:true}];
+ const original=text.slice(0,at)+'2 '+text.slice(at)+'\n_________________\n2 OJ C , , p. .',w={...wording('Citation 2',original,'After consulting the Commission,'),originalFormatting:[{kind:'superscript',start:at,end:at+1}]};
+ assert.equal(check(w,replace(2),p).status,'verified');
+ for(const change of [a=>a.notes[0].text='Different source.',a=>a.anchors[0].offset--,a=>a.notes[0].complete=false]){const a=structuredClone(p);change(a);assert.notEqual(check(w,replace(2),a).status,'verified');}
+ assert.notEqual(check(w,replace(1),p).status,'verified');
+});
