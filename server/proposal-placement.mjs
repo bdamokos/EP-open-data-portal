@@ -10,6 +10,7 @@ import {amendmentOperation} from './document-context-model.mjs';
 import {latinSuffixRank} from './legal-latin-numbering.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
 import {councilDraftInstructionOwns} from './council-draft-instruction.mjs';
+import {councilOuterInstructionPrefix} from './council-outer-instruction.mjs';
 
 const normal=value=>normaliseForMatching(value,{stripNumbering:false});
 const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -332,7 +333,7 @@ function bareAnnexReplacement(items,target,{language,baseline,originalText,propo
   return {operation:'replace',status:'placed',itemIndex,span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,evidence:[{basis:'sole-bare-annex-first-ordinal',anchor:root.id},{basis:'native-annex-replacement-row',anchor:point.id}]};
 }
 
-function insertionPlacement(items,target,candidatesFor,eligible,{scope='proposal',unitsFor=item=>flat(item.proposal.units),quoted=null}={}) {
+function insertionPlacement(items,target,candidatesFor,eligible,{scope='proposal',unitsFor=item=>flat(item.proposal.units),quoted=null,outerPrefix=null}={}) {
   const closing=closingFormulaInsertion(items,target,candidatesFor);
   if(closing)return closing;
   const label=target.segments.at(-1),preceding=target.segments.slice(0,-1);
@@ -426,7 +427,8 @@ function insertionPlacement(items,target,candidatesFor,eligible,{scope='proposal
   }
   if(!completeBoundary(proposal,anchor.unit)&&!(label.suffix&&!label.negative&&quotedConflictBoundary(proposal,anchor.unit,next)))return {reason:'source_passage_incomplete'};
   if(label.negative){
-    if(!completeBoundary(proposal,parent.unit)||parent.unit.extent.start>=anchor.unit.extent.start)return {reason:'source_passage_incomplete'};
+    const prefixProved=outerPrefix?.itemIndex===parent.itemIndex&&outerPrefix.parent===parent.unit&&outerPrefix.first===anchor.unit;
+    if((!completeBoundary(proposal,parent.unit)&&!prefixProved)||parent.unit.extent.start>=anchor.unit.extent.start)return {reason:'source_passage_incomplete'};
     return {itemIndex:anchor.itemIndex,insertBefore:anchor.unit.extent.start,anchor:anchor.unit,basis:'first-sibling-start'};
   }
   const insertBefore=anchor.unit.extent.end;
@@ -926,8 +928,10 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
-  const bound=pdfArticle?councilQuotedTarget(items,target,targetPath,language):null;
+  const outerPrefix=pdfArticle?councilOuterInstructionPrefix(items,target,{language,baseline,targetPath,targetLabel,originalText,proposedText}):null;
+  const bound=pdfArticle&&!outerPrefix?councilQuotedTarget(items,target,targetPath,language):null;
   if(bound?.reason)return unresolved(bound.reason);
+  if(outerPrefix){target={...target,segments:target.segments.map((s,i)=>i===target.segments.length-1?{...s,isNew:true}:s)};evidence.push({basis:'council-new-outer-prefix',anchor:outerPrefix.parent.id});}
   if(bound){target=bound.target;evidence.push({basis:'council-quoted-owner',anchor:bound.owner.id},{basis:'published-underlying-path',label:target.raw});}
   const scopedCandidates=(proposal,address)=>{
     if(!bound)return proposalCandidates(proposal,address);
@@ -1045,7 +1049,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
-    const insertion=bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,bound?{scope:'quoted',unitsFor:item=>item.proposal===bound.proposal?bound.units:[],quoted:bound.quote}:{});
+    const insertion=bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,bound?{scope:'quoted',unitsFor:item=>item.proposal===bound.proposal?bound.units:[],quoted:bound.quote}:{outerPrefix});
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
