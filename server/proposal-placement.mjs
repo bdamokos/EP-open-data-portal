@@ -9,6 +9,7 @@ import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './propos
 import {amendmentOperation} from './document-context-model.mjs';
 import {latinSuffixRank} from './legal-latin-numbering.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
+import {councilDraftInstructionOwns} from './council-draft-instruction.mjs';
 
 const normal=value=>normaliseForMatching(value,{stripNumbering:false});
 const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -441,6 +442,7 @@ function councilQuotedTarget(items,target,targetPath,language) {
  if(quotes.length!==1||quotes[0].boundaryAmbiguous||proposal.gaps.some(g=>g.code==='unclosed-quotation'&&g.paragraph===quotes[0].extent.start))return {reason:'council_pdf_quotation_unverified'};
  const inner=parseTargetLabel(refs[0].raw,language);
  if(!inner.complete||inner.segments[0]?.kind!=='article'||inner.segments.length<2)return {reason:'council_pdf_address_unverified'};
+ if(!councilDraftInstructionOwns(owner.instruction.raw,inner,proposal.paragraphs[quotes[0].extent.start]?.text,language))return {reason:'council_pdf_outer_instruction_unverified'};
  return {target:inner,quote:quotes[0],owner,proposal,itemIndex,units:flat(quotes)};
 }
 

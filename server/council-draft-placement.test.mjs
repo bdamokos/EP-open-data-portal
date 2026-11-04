@@ -22,3 +22,7 @@ test('a missing space after a printed en dash does not merge legal selectors',()
  const target=parseTargetLabel('Článek 13 –odst. 5 a (nový)','cs');assert.equal(target.complete,true);assert.deepEqual(target.segments.map(s=>s.value),['13','5a']);
  assert.equal(parseTargetLabel('Článek 13 –neznámé 5','cs').complete,false);
 });
+for(const instruction of ['1) Článek 91 se nahrazuje tímto:','1) Článek 7 se zrušuje takto:','1) Článek 7 se nenahrazuje tímto:','1) Článek 7 se možná nahrazuje tímto:'])test(`a quotation cannot override a contradictory instruction: ${instruction}`,()=>{
+ const value=source();value.paragraphs=[...value.paragraphs];value.paragraphs[2]=instruction;
+ assert.equal(resolveProposalPlacement([{kind:'act',proposal:parseProposal(value,{language:'cs'})}],wording()).status,'unresolved');
+});
