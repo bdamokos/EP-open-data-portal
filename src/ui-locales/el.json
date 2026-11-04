@@ -2723,6 +2723,7 @@
   "topics.story.map.outside.eu": "Ομιλίες στην Ολομέλεια από την Ευρώπη και τις γειτονικές της περιοχές: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} μίλησε στην Ολομέλεια ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} — η συζήτηση με τη μεγαλύτερη συμμετοχή στον χάρτη και {questions}· {meps} μίλησαν για {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "Στην Ευρώπη και τις γειτονικές της περιοχές: {place} — η συζήτηση με τη μεγαλύτερη συμμετοχή και {questions}· {meps} μίλησαν για {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} — η συζήτηση με τη μεγαλύτερη συμμετοχή στον χάρτη και οι περισσότερες ερωτήσεις ({questions})· {meps} μίλησαν για {title} ({date}{format}){outcome}.",

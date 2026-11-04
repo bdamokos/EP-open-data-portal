@@ -409,3 +409,14 @@ test('a rare-baseline co-leader keeps the rarely-asked sense',()=>{
  x.periodWinners[q]={mostQuestionedPlaces:[{id:'UKR',count:11},{id:'MAR',count:11}],risingQuestionPlaces:[{id:'MAR',count:11,baselineMean:0.2,ratio:55}]};x.series={MAR:{[q]:{debates:2}}};
  assert.equal(lineText(buildExactTopicStories(x,s)),'Ukraine and Morocco (two debates; rarely asked about before) drew the most questions (11 each).');
 });
+
+for(const language of ['en','fr','hu'])test('outside map title in '+language+' and country fallback',()=>{
+ const roles={en:{role:'King of Spain',languageTag:'es-t-en-mtec'},fr:{role:"roi d’Espagne",languageTag:'fr'},hu:{role:'spanyol király',languageTag:'hu'}};
+ const x=base();x.periodCounts=[{period:'2026-Q1'}];x.outsideSpeakers=[{personId:'1',name:'Felipe VI',country:'ESP',date:'2026-01-21',debateId:'D',roles}];
+ for(const zoom of ['world','eu']){
+  const row=()=>buildExactTopicStories(x,{language,period:'2026-Q1',zoom,labels:{ESP:'Local country'}}).find(l=>l.id.startsWith('topics.story.map.outside'));
+  const phrase=row().values.speakers[0];assert.equal(phrase.message,'topics.story.outside.speakerRole');assert.equal(phrase.values.role.text,roles[language].role);assert.equal(phrase.values.role.labelLanguage,language);assert.equal(phrase.values.speaker.records[0].id,'D');
+ }
+ delete roles[language];const fallback=buildExactTopicStories(x,{language,period:'2026-Q1',labels:{ESP:'Local country'}}).find(l=>l.id.startsWith('topics.story.map.outside')).values.speakers[0];assert.equal(fallback.values.place,{en:'Spain',fr:'Espagne',hu:'Spanyolország'}[language]);
+ roles[language]={role:null};assert.equal(buildExactTopicStories(x,{language,period:'2026-Q1',labels:{ESP:'Local country'}}).find(l=>l.id.startsWith('topics.story.map.outside')).values.speakers[0].values.place,{en:'Spain',fr:'Espagne',hu:'Spanyolország'}[language]);
+});

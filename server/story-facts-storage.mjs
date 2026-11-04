@@ -2,6 +2,7 @@ import {gunzipSync} from 'node:zlib';
 import {SNAPSHOT_MAX_BYTES} from './sitting-snapshot-store.mjs';
 import {storyDocument,storyAgenda,storyDecision,array,tail,refs,sourceTime} from './story-facts-model.mjs';
 export function storyTables(db){db.exec(`
+ CREATE TABLE IF NOT EXISTS outside_role_jobs(speech TEXT,language TEXT,person TEXT,next_read INTEGER,attempts INTEGER DEFAULT 0,body TEXT,PRIMARY KEY(speech,language,person));
  CREATE TABLE IF NOT EXISTS story_inputs(kind TEXT,id TEXT,body TEXT,source TEXT,fetched_at TEXT,rank INTEGER,PRIMARY KEY(kind,id));
  CREATE TABLE IF NOT EXISTS story_jobs(key TEXT PRIMARY KEY,kind TEXT,id TEXT,offset INTEGER DEFAULT 0,state TEXT DEFAULT 'pending',next_read INTEGER DEFAULT 0,attempts INTEGER DEFAULT 0,signature TEXT,error TEXT);
  CREATE INDEX IF NOT EXISTS story_job_due ON story_jobs(state,next_read,key);

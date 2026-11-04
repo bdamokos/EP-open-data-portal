@@ -105,7 +105,7 @@ export function buildExactTopicStories(payload,s={}){
  const address=a=>({id:a.debateId,kind:'debate',title:a.name,date:a.date});
  if(!s.topic&&outside.length){
   if(s.place){for(const a of outside)outsideLines.push({id:'topics.story.place.outside',values:{place:name(a.country,true),speaker:ref(a.name,[address(a)],{claimId:a.personId}),date:new Intl.DateTimeFormat(s.language==='en'?'en-GB':s.language,{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(a.date+'T12:00:00Z'))},priority:1,order:7,cost:1});}
-  else if(period){const people=new Map();for(const a of outside){const key=a.personId+':'+a.country;if(!people.has(key))people.set(key,[]);people.get(key).push(a);}outsideLines.push({id:'topics.story.map.outside',values:{speakers:[...people.values()].map(as=>msg('outside.speaker',{speaker:ref(as[0].name,as.map(address),{claimId:as[0].personId}),place:name(as[0].country)}))},priority:1,order:7,cost:1});}
+  else if(period){const people=new Map();for(const a of outside){const key=a.personId+':'+a.country;if(!people.has(key))people.set(key,[]);people.get(key).push(a);}outsideLines.push({id:'topics.story.map.outside',values:{speakers:[...people.values()].map(as=>{const role=as.map(a=>a.roles?.[s.language.split('-')[0]]).find(r=>r?.role);return msg(role?'outside.speakerRole':'outside.speaker',{speaker:ref(as[0].name,as.map(address),{claimId:as[0].personId}),...(role?{role:ref(role.role,[],{labelLanguage:s.language.split('-')[0]})}:{place:name(as[0].country)})});})},priority:1,order:7,cost:1});}
  }
  // Combine only map facts, before the existing priority budget. The payload's series
  // already has the requested askers, zoom and quarter; evidence arrays are paged.

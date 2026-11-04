@@ -2723,6 +2723,7 @@
   "topics.story.map.outside.eu": "Personnalités d’Europe et de son voisinage ayant pris la parole en plénière : {speakers}.",
   "topics.story.place.outside": "{place} : {speaker} a pris la parole en plénière ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} : au cœur du débat réunissant le plus d’orateurs sur la carte et de {questions} ; {meps} ont pris la parole sur {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "En Europe et dans son voisinage, {place} : au cœur du débat réunissant le plus d’orateurs et de {questions} ; {meps} ont pris la parole sur {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} : au cœur à la fois du débat réunissant le plus d’orateurs sur la carte et du plus grand nombre de questions ({questions}) ; {meps} ont pris la parole sur {title} ({date}{format}){outcome}.",

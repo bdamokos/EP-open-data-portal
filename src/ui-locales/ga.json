@@ -2723,6 +2723,7 @@
   "topics.story.map.outside.eu": "Óráidí sa seisiún iomlánach ón Eoraip agus ó na tíortha comharsanacha: {speakers}.",
   "topics.story.place.outside": "{place}: labhair {speaker} sa seisiún iomlánach ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "Tharraing {place} an díospóireacht ba mhó cainteoirí ar an léarscáil agus {questions}: labhair {meps} ar {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "San Eoraip agus sna tíortha comharsanacha, tharraing {place} an díospóireacht ba mhó cainteoirí agus {questions}: labhair {meps} ar {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "Tharraing {place} an díospóireacht ba mhó cainteoirí ar an léarscáil agus an líon is mó ceisteanna ({questions}): labhair {meps} ar {title} ({date}{format}){outcome}.",

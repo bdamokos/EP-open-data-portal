@@ -2723,6 +2723,7 @@
   "topics.story.map.outside.eu": "Felszólalók a plenáris ülésen Európából és szomszédságából: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} felszólalt a plenáris ülésen ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} volt a térkép legtöbb felszólalót vonzó vitájának témája, és {questions} szólt róla: {meps} szólalt fel ({title}, {date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "Európában és szomszédságában {place} volt a legtöbb felszólalót vonzó vita témája, és {questions} szólt róla: {meps} szólalt fel ({title}, {date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} volt a térkép legtöbb felszólalót vonzó vitájának témája, és róla szólt a legtöbb kérdés is ({questions}): {meps} szólalt fel ({title}, {date}{format}){outcome}.",

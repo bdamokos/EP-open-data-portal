@@ -2723,6 +2723,7 @@
   "topics.story.map.outside.eu": "Intervenciones en el Pleno de personalidades de Europa y sus países vecinos: {speakers}.",
   "topics.story.place.outside": "{place}: {speaker} intervino en el Pleno ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} fue objeto del debate con más oradores del mapa y de {questions}: {meps} intervinieron sobre {title} ({date}{format}){outcome}.",
   "topics.story.integrated.busiest.eu": "En Europa y sus países vecinos, {place} fue objeto del debate con más oradores y de {questions}: {meps} intervinieron sobre {title} ({date}{format}){outcome}.",
   "topics.story.integrated.both": "{place} fue objeto tanto del debate con más oradores del mapa como del mayor número de preguntas ({questions}): {meps} intervinieron sobre {title} ({date}{format}){outcome}.",

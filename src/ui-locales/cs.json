@@ -2723,6 +2723,7 @@
   "topics.story.map.outside.eu": "Projevy v plénu z Evropy a jejího sousedství: {speakers}.",
   "topics.story.place.outside": "{place}: projev v plénu – {speaker} ({date}).",
   "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.outside.speakerRole": "{speaker} ({role})",
   "topics.story.integrated.busiest": "{place} — nejživější rozprava na mapě a {questions}: {title} ({date}{format}); řečníci: {meps}{outcome}.",
   "topics.story.integrated.busiest.eu": "V Evropě a jejím sousedství: {place} — nejživější rozprava a {questions}: {title} ({date}{format}); řečníci: {meps}{outcome}.",
   "topics.story.integrated.both": "{place} — nejživější rozprava na mapě i nejvíce otázek ({questions}): {title} ({date}{format}); řečníci: {meps}{outcome}.",
