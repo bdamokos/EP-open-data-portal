@@ -15,7 +15,7 @@ test('a terminal quoted insertion uses the existing zero-width splice renderer c
  assert.equal(value.status,'placed');assert.equal(value.operation,'insert');assert.equal(value.splice.start.paragraph,5);assert.equal(value.splice.start.offset,paragraphs[5].indexOf('“'));assert.deepEqual(value.splice.start,value.splice.end);
 });
 test('a native paragraph insertion instruction supplies an omitted repeated article heading',()=>{
- const w={...wording('Čl. 19 – odst. 3 a (nový)'),originalText:'',proposedText:'Nový odstavec.'};w.targetPath.proposal[0].raw='Čl. 1 – odst. 1 – bod 2';
+ const w={...wording('Čl. 19 – odst. 3 a (nový)'),originalText:'',proposedText:'Nový odstavec.'};w.targetLabel=w.targetPath.proposal[0].raw='Čl. 1 – odst. 1 – bod 2';
  const value=resolveProposalPlacement([{kind:'act',proposal:parseProposal(source(),{language:'cs'})}],w);assert.equal(value.status,'placed');assert.equal(value.splice.start.paragraph,8);
 });
 test('a missing space after a printed en dash does not merge legal selectors',()=>{

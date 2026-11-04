@@ -16,7 +16,7 @@ export {normaliseForMatching} from './proposal-matching.mjs';
 // source identity, content and path for this parser version; they are not official
 // legal-unit identifiers. Results are cached frozen, so consumers copy before
 // modifying them. Bump PROPOSAL_PARSER_VERSION for any change in parsing semantics.
-export const PROPOSAL_PARSER_VERSION='22';
+export const PROPOSAL_PARSER_VERSION='23';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -205,7 +205,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       (/NormalCentered/i.test(paragraphs[index].properties?.styleId??'')||content.paragraphFormats?.[index]?.align==='center'));
   function continuation(points,index) {
     if(/^[;,.]+$/u.test(paragraphs[index].text.trim()))return;
-    const indent=content.paragraphFormats?.[index]?.indent;
+    const indent=content.sourceKind==='pdf'&&language!=='cs'?undefined:content.paragraphFormats?.[index]?.indent;
     // Word's text indentation distinguishes a paragraph continuation from a
     // continuation inside its final point. Keep unformatted text conservative.
     if(Number.isFinite(indent))while(points.length){
@@ -405,6 +405,11 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     if(inheritedConflict)unit.pathConflict=true;
     for(const child of unit.children)finish(child,!!unit.pathConflict);
     unit.complete=unit.content.every(index=>paragraphs[index].complete)&&unit.children.every(child=>child.complete)&&!unit.pathConflict&&!unit.boundaryAmbiguous;
+    const proof=paragraphs[unit.extent.start]?.properties?.pdfListOwnership;
+    if(content.sourceKind==='pdf'&&language==='cs'&&unit.scope==='quoted'&&unit.kind==='paragraph'&&!unit.implicit&&proof?.basis==='native-pdf-list-lines'&&proof.start===unit.extent.start&&proof.end===unit.extent.end&&unit.content.length===1&&unit.content[0]===proof.start&&Array.isArray(proof.points)&&Array.isArray(proof.continuations)){
+      const points=unit.children.filter(c=>c.kind==='point'),continuations=unit.children.filter(c=>c.kind==='subparagraph');
+      if(unit.children.length===points.length+continuations.length&&points.length===proof.points.length&&continuations.length===proof.continuations.length&&points.every((c,i)=>c.label?.value===String.fromCharCode(97+i)&&!c.children.length&&c.extent.start===proof.points[i]&&c.extent.end===c.extent.start+1)&&continuations.every((c,i)=>!c.children.length&&c.extent.start===proof.continuations[i]&&c.extent.end===c.extent.start+1)&&paragraphs.slice(proof.start,proof.end+1).every(p=>p.complete&&p.source?.complete===true))unit.listOwnership={...proof};
+    }
     if(unit.kind==='table')unit.complete&&=unit.table.complete;
   }
   finish(root);
