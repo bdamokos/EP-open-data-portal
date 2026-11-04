@@ -519,6 +519,15 @@ function sourceTables(rows,widths={}) {
     rows:[...t.values()].map(r=>{const width=Math.max(...r.keys(),widths[tbl]??0);return {cells:Array.from({length:width},(_,i)=>({paragraphs:r.get(i+1)??[],colSpan:1}))};})}));
 }
 
+test('an article table must cover all complete cells in its addressed paragraph',()=>{
+ const rows=[['Article 20','Titrearticle','body'],['2. The following applies:','ManualNumPar1','body'],['(a)','Normal','cell',1,1,1],['Cigars','Normal','cell',1,1,2],['(b)','Normal','cell',1,2,1],['Other','Normal','cell',1,2,2],['3. Next paragraph.','ManualNumPar1','body'],['Article 21','Titrearticle','body']];
+ const projection={paragraphs:rows.map(r=>r[0]),structureStatus:'extracted',paragraphSources:rows.map((r,ordinal)=>r[2]==='cell'?{path:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`,ordinal,container:'table-cell',containerPath:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]`,segment:ordinal,complete:true}:{path:`/w:document[1]/w:body[1]/w:p[${ordinal+1}]`,ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true}),paragraphProperties:rows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(rows)};
+ const proposal=parseProposal(projection),items=[{kind:'act',proposal}],w={language:'en',targetLabel:'Article 20 – paragraph 2 – table',originalText:'(a)\tCigars\n(b)\tOther',proposedText:'Changed'};
+ const result=resolveProposalPlacement(items,w);assert.deepEqual(result.span,{start:2,end:5});assert.equal(result.originalText,w.originalText);
+ assert.notEqual(resolveProposalPlacement(items,{...w,originalText:'(a)\tCigars'}).status,'placed');
+ assert.notEqual(resolveProposalPlacement(items,{...w,targetLabel:'Article 20 – paragraph 1 – table'}).status,'placed');
+});
+
 // A-10-2026-0201 AM107/AM112: cell-exact table rows inside the addressed annex provision.
 test('annex table addresses replace a unique cell-exact run of rows',()=>{
   const rows=[['ANNEX III','Annexetitre','body'],['The following Annex VIII is added:','Normal','body'],['Iron and steel','Normal','body'],['CN code','Normal','cell',1,1,1],['Greenhouse gas','Normal','cell',1,1,2],['ex 7204 Ferrous waste','Normal','cell',1,2,1],['Carbon dioxide','Normal','cell',1,2,2],['Aluminium','Normal','body'],['CN code','Normal','cell',2,1,1],['Greenhouse gas','Normal','cell',2,1,2],['ex 7602 Aluminium waste','Normal','cell',2,2,1],['Carbon dioxide','Normal','cell',2,2,2],['’','Normal','body']];

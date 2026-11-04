@@ -755,8 +755,9 @@ function captionDecorationProfile(items,wording) {
 }
 function annexTablePlacement(items,address,originalText,language,operation,evidence,unresolved,decoration) {
   let parsed;try{parsed=parseTargetLabel(address,language);}catch{return unresolved('target_reference_unavailable');}
-  if(!parsed.complete||parsed.segments[0]?.kind!=='annex')return unresolved('target_reference_unavailable');
-  const find=segments=>items.flatMap((item,itemIndex)=>item.kind!=='annex'?[]:proposalCandidates(item.proposal,{...parsed,segments}).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  const article=parsed.segments[0]?.kind==='article';
+  if(!parsed.complete||!['annex','article'].includes(parsed.segments[0]?.kind)||article&&(parsed.segments.length!==2||parsed.segments[1].kind!=='paragraph'))return unresolved('target_reference_unavailable');
+  const find=segments=>items.flatMap((item,itemIndex)=>(article?item.kind==='annex':item.kind!=='annex')?[]:proposalCandidates(item.proposal,{...parsed,segments}).map(unit=>({itemIndex,unit,proposal:item.proposal})));
   let candidates=find(parsed.segments);
   // A published annex point address omits the annex's sole implicit paragraph.
   if(!candidates.length&&parsed.segments[1]?.kind==='point'){
@@ -801,6 +802,10 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
     for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>rows[i+offset].cells.length===line.length&&rows[i+offset].cells.every((value,index)=>value===line[index])))starts.push(i);
   }
   if(starts.length!==1)return unresolved(starts.length?'duplicate_target_label':'conflicting_target_evidence');
+  if(article){
+    const run=rows.slice(starts[0],starts[0]+lines.length),key=run[0]?.key&&tableOf(run[0].key);
+    if(!key||run.some(row=>!row.key||tableOf(row.key)!==key)||rows[starts[0]-1]?.key&&tableOf(rows[starts[0]-1].key)===key||rows[starts[0]+lines.length]?.key&&tableOf(rows[starts[0]+lines.length].key)===key)return unresolved('source_structure_unavailable');
+  }
   if(repaired){
     const run=rows.slice(starts[0],starts[0]+lines.length),before=rows.slice(0,starts[0]),heading=before.findLastIndex(row=>!row.key&&/^ANNEX [IVXLC]+$/u.test(row.cells[0]));
     const scopeRows=before.slice(heading).filter(row=>!row.key),prefix=scopeRows.slice(1).map(row=>row.cells[0]),tableKey=run[1]?.key&&tableOf(run[1].key);
@@ -811,7 +816,7 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   if(matched.some(row=>!row.complete||!row.source||row.source.complete===false))return unresolved('source_passage_incomplete');
   const first=matched[0],last=matched.at(-1);
   evidence.push({basis:repaired?'annex-table-caption-decoration':'annex-table-rows',anchor:unit.id,rows:lines.length});
-  return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:matched.map(row=>row.text).join('\n'),evidence};
+  return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:article?originalText:matched.map(row=>row.text).join('\n'),evidence};
 }
 
 function preambleCitationPlacement(items,label,operation,originalText,evidence,unresolved) {
@@ -877,6 +882,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(instruction)return instruction;
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
   if(table)return annexTablePlacement(items,table[1],originalText,language,operation,evidence,unresolved,captionDecorationProfile(items,{targetLabel,targetPath,originalText,baseline}));
+  const articleTable=language==='en'&&operation!=='insert'&&/^(Article [1-9]\d* – paragraph [1-9]\d*) – table$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0]);
+  if(articleTable&&!targetPath?.underlying?.length)return annexTablePlacement(items,articleTable[1],originalText,language,operation,evidence,unresolved,null);
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});

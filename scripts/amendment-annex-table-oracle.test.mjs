@@ -19,6 +19,15 @@ const replace=(start,end,p=annex())=>({status:'placed',operation:'replace',itemI
 const wording=(targetLabel,originalText)=>({targetLabel,originalText,proposedText:'Changed',language:'en',baseline:'commission-proposal'});
 const check=(w,placement,p=annex())=>verifyPlacement({placement,wording:w,items:[{proposal:p}]});
 
+test('an article table is verified as all cells within the unique paragraph',()=>{
+ const p=proposal([['Article 20',body(1)],['2. The following applies:',body(2)],['(a)',cellPath(1,1,1)],['Cigars',cellPath(1,1,2)],['(b)',cellPath(1,2,1)],['Other',cellPath(1,2,2)],['3. Next paragraph;',body(3)],['Article 21',body(4)]]);
+ const w=wording('Article 20 – paragraph 2 – table','(a)\tCigars\n(b)\tOther');
+ assert.equal(check(w,replace(2,5,p),p).reason,'oracle-article-table-rows');
+ assert.notEqual(check({...w,targetLabel:'Article 20 – paragraph 1 – table'},replace(2,5,p),p).status,'verified');
+ assert.notEqual(check({...w,originalText:'(a)\tCigars'},replace(2,3,p),p).status,'verified');
+ assert.notEqual(check(w,replace(3,5,p),p).status,'verified');
+});
+
 test('annex table rows verify cell for cell inside the named annex', () => {
   const original='Aluminium\nCN code\tGreenhouse gas\nex 7602 Aluminium waste\tCarbon dioxide';
   assert.deepEqual(check(wording('Annex III – paragraph 1 – table',original),replace(7,11)),{status:'verified',reason:'oracle-annex-table-rows'});

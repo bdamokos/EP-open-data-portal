@@ -405,6 +405,25 @@ function rawLogicalRows(proposal) {
   });
   return rows;
 }
+// Reconstruct a whole table from cell paths inside the literal article and
+// paragraph headings. This assertion never reads placer units or evidence.
+function verifyArticleTable({proposal,wording,placement}) {
+ const match=/^Article ([1-9]\d*) – paragraph ([1-9]\d*) – table$/u.exec(wording.targetLabel||'');
+ if(!match||wording.language!=='en'||!['replace','delete'].includes(placement.operation))return null;
+ const unknown={status:'unverified',reason:'oracle-article-table-unavailable'}, rows=rawLogicalRows(proposal);if(!rows)return unknown;
+ const articles=rows.flatMap((row,i)=>!row.key&&row.cells[0]==='Article '+match[1]?[i]:[]);if(articles.length!==1)return unknown;
+ const start=articles[0],nextArticle=rows.findIndex((row,i)=>i>start&&!row.key&&/^Article \d+[a-z]*$/u.test(row.cells[0]));
+ if(nextArticle<0)return unknown;
+ const owners=rows.flatMap((row,i)=>i>start&&i<nextArticle&&!row.key&&new RegExp('^'+match[2]+'[.)]\\s','u').test(row.cells[0])?[i]:[]);
+ if(owners.length!==1)return unknown;
+ const lines=String(wording.originalText||'').split('\n').map(line=>line.split('\t').map(rawCell)),at=owners[0]+1,run=rows.slice(at,at+lines.length);
+ if(!lines.length||run.length!==lines.length||run.some((row,i)=>!row.key||row.broken||i&&row.gapBefore||row.cells.length!==lines[i].length||row.cells.some((cell,j)=>cell!==lines[i][j])))return unknown;
+ const table=row=>row?.key?.replace(/\/w:tr\[\d+\]$/u,'');const key=table(run[0]);
+ if(run.some(row=>table(row)!==key)||table(rows[at-1])===key||table(rows[at+run.length])===key||at+run.length>nextArticle)return unknown;
+ const first=run[0].indexes[0],last=run.at(-1).indexes.at(-1),endText=proposal.paragraphs[last]?.text??'';
+ if(placement.span?.start!==first||placement.span?.end!==last||placement.splice?.start?.paragraph!==first||placement.splice.start.offset!==0||placement.splice?.end?.paragraph!==last||placement.splice.end.offset!==endText.length)return fail('oracle-article-table-boundary-mismatch');
+ return verified('oracle-article-table-rows');
+}
 function rawCaptionDecoration(wording,items,proposal){
   if(wording.baseline!=='commission-proposal'||items?.length!==2||items.filter(item=>item.kind==='act').length!==1||items.filter(item=>item.kind==='annex'&&item.proposal===proposal).length!==1||wording.targetPath?.underlying?.length)return null;
   const path=/^Annex ([IVXLC]+) – paragraph 1 – table on ([^\r\n]+)\n(Regulation \((?:EU|EC)\) \d{4}\/\d+)\nAnnex ([IVXLC]+) – table ([^\r\n]+)$/u.exec(wording.targetLabel||''),caption=/^‘\[([^\r\n\t\[\]]+)\r?\nCN code\tGreenhouse gas\r?\n/u.exec(wording.originalText||'');
@@ -616,6 +635,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   if(instruction)return instruction;
   const table=proposal?verifyAnnexTable({proposal,wording,placement,items}):null;
   if(table)return table;
+  const articleTable=proposal?verifyArticleTable({proposal,wording,placement}):null;
+  if(articleTable)return articleTable;
 
   if(proposal&&placement.operation==='insert'&&target.segments.at(-1)?.kind==='subparagraph')return rawProposalAssertion({proposal,wording,placement});
   const chapter=assertChapterTitle({proposal,wording,placement});
