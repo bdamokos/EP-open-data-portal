@@ -11,7 +11,7 @@ import {projectProcedure,projectDocument} from './activity-index-model.mjs';
 import {committeeAmendmentReference,committeeDiscoveryReferences,committeeTargetRelationship,committeeProcedureIds} from './committee-amendments.mjs';
 import {prepareCommitteeList,scheduleCommitteeDiscovery,prepareCommitteeAmendments} from './committee-amendments-worker.mjs';
 import {amendmentTask,rebuildAmendmentTarget} from './amendments-worker.mjs';
-import {amendmentById,amendmentsPage,amendmentContributors,amendmentProcedureTargets,saveAmendmentRows,nextAmendmentTask,enqueueAmendment,amendmentReadVersion,committeeAmendmentIndexVersion} from './amendments-store.mjs';
+import {amendmentById,amendmentsPage,amendmentContributors,amendmentProcedureTargets,saveAmendmentRows,nextAmendmentTask,enqueueAmendment,amendmentReadVersion,committeeAmendmentIndexVersion,amendmentGeneration} from './amendments-store.mjs';
 import {amendmentReference,amendmentQuery,currentDocxDescriptor,amendmentProposerDate} from './amendments.mjs';
 import {extractAmendments,AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {topicAmendments} from './topic-involvement.mjs';
@@ -167,6 +167,34 @@ test('contributor continuation and source mutation revision survive a prepared r
   prepareIndexes({activityDirectory:x.directory,clock:()=>Date.parse(at),log:()=>{}});
   const reopened=new ActivityStore(x.directory,{preparedOnly:true,clock:()=>Date.parse(at)});
   try {assert.equal(reopened.get('committeeAmendmentIndexVersion'),committeeAmendmentIndexVersion);assert.equal(reopened.get('amendmentReadVersion'),amendmentReadVersion);assert.equal(amendmentContributors(reopened,{procedures:['2024-0318']}).items.length,2);assert.equal(reopened.db.prepare('SELECT COUNT(*) n FROM amendment_read_flags').get().n,2);}finally{reopened.close();}
+});
+
+test('existing indexes gain the contributor identity index without replaying amendments',t=>{
+  const x=setup(t);roster(x);seed(x);
+  const plan=store=>store.db.prepare("EXPLAIN QUERY PLAN DELETE FROM amendment_contributors WHERE generation=1 AND amendment_id='x'").all().map(row=>row.detail).join(' ');
+  x.store.release();x.store.db.exec("DROP INDEX amendment_contributor_identity; DELETE FROM meta WHERE key='amendmentContributorIdentityIndexVersion';");
+  assert.doesNotMatch(plan(x.store),/amendment_contributor_identity/);
+  const revision=x.store.get('amendmentMutationRevision'),contributors=x.store.db.prepare('SELECT COUNT(*) n FROM amendment_contributors').get().n;
+  prepareIndexes({activityDirectory:x.directory,clock:()=>Date.parse(at),log:()=>{}});
+  const reopened=new ActivityStore(x.directory,{preparedOnly:true,clock:()=>Date.parse(at)});
+  try {
+    assert.match(plan(reopened),/amendment_contributor_identity/);
+    assert.equal(reopened.get('amendmentMutationRevision'),revision);
+    assert.equal(reopened.db.prepare('SELECT COUNT(*) n FROM amendment_contributors').get().n,contributors);
+  } finally {reopened.db.close();}
+});
+
+test('a partly built generation is neither adopted nor read as an amendment snapshot',t=>{
+  const x=setup(t);roster(x);seed(x);
+  const active=amendmentGeneration(x.store),partial=active+7;
+  x.store.db.prepare('INSERT INTO amendments SELECT ?,id,target,date,outcome,body FROM amendments WHERE generation=? LIMIT 1').run(partial,active);
+  x.store.db.exec('DELETE FROM amendment_targets');
+  assert.equal(amendmentGeneration(x.store),partial);
+  x.store.set('generationBegin',{generation:partial,active});
+  assert.equal(amendmentGeneration(x.store),active);
+  // An older image that ignores the marker keeps later generations visible.
+  x.store.db.prepare('INSERT INTO amendments SELECT ?,id,target,date,outcome,body FROM amendments WHERE generation=? LIMIT 1').run(partial+1,active);
+  assert.equal(amendmentGeneration(x.store),partial+1);
 });
 
 test('competing distributions, conflicting targets and exact joint source links stay explicit',t=>{

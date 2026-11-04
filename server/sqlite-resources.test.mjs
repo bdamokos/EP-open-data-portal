@@ -172,6 +172,13 @@ test('corpus completion settles when the last task exactly consumes the run budg
   assert.equal(store.get('phase'),'ready');assert.equal(store.get('backfilledAt'),new Date(instant()).toISOString());
   t.mock.method(store,'acquire',()=>assert.fail('settled idle lease'));await worker.run();
 });
+test('an activity store passes its observation settings to SQLite logging',t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'activity-observation-'));t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  const logged=[],store=new ActivityStore(directory,{initializeIndexes:true,observation:{enabled:true,threshold:0,log:(...line)=>logged.push(line.join(' '))}});
+  try {store.db.prepare('SELECT 1').get();assert.ok(logged.some(line=>line.includes('[sqlite-slow]')&&line.includes('"store":"activity"')));}
+  finally {store.db.close();}
+});
+
 test('SQLite memory limits and slow logs exclude bindings and caller time between rows',()=>{
   const logs=[];let tick=0,step=0;
   const db=observeSqlite(new DatabaseSync(':memory:'),'test',{enabled:true,threshold:250,now:()=>{const value=tick;tick+=step;return value;},log:(...parts)=>logs.push(parts)});
