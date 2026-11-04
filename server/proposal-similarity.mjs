@@ -31,7 +31,7 @@ export function similarPassage(rows,original,{threshold=SIMILARITY_THRESHOLD,mar
 }
 
 export function singleWordDifference(left,right) {
- const parts=value=>similarityNormal(value).match(/[\p{L}\p{N}]+|[^\s]/gu)||[];
+ const parts=value=>value.normalize('NFC').match(/[\p{L}\p{N}]+|[^\s]/gu)||[];
  const a=parts(left),b=parts(right),long=a.length>b.length?a:b,short=a.length>b.length?b:a;
  if(long.length>512||short.length<3||long.length!==short.length+1)return false;
  let i=0;while(i<short.length&&short[i]===long[i])i++;

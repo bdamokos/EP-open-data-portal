@@ -645,7 +645,7 @@ function similarMatch(proposal,unit,original){
 function singleWordMatch(proposal,unit,original) {
  if(unit.pathConflict||unit.scope!=='proposal'||unit.kind!=='point'||unit.path[0]?.kind!=='article'||unit.children.length||!completeBoundary(proposal,unit)||unit.extent.end!==unit.extent.start+1)return null;
  const row=proposal.paragraphs[unit.extent.start];
- const body=value=>value.replace(/^\(?\d+\)?[.)]?\s+/u,'');
+ const body=value=>value.replace(/^\(?(\d+)\)?[.)]?\s+/u,(full,number)=>number===unit.label.value?'':full);
  if(row.source?.container!=='body'||!singleWordDifference(body(row.text),body(original)))return null;
  return {span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,whole:true,singleWord:true};
 }
@@ -811,7 +811,9 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   let wordDifference=false;
   if(!starts.length&&!decoration)for(let i=0;i+lines.length<=rows.length;i++){
     const run=rows.slice(i,i+lines.length);
-    if(run.every((row,j)=>row.cells.length===lines[j].length)&&singleWordDifference(run.map(row=>row.cells.join('\t')).join('\n'),lines.map(line=>line.join('\t')).join('\n'))){starts.push(i);wordDifference=true;}
+    let differences=0;
+    const compatible=run.every((row,j)=>row.cells.length===lines[j].length&&row.cells.every((value,k)=>value===lines[j][k]||++differences===1&&singleWordDifference(value,lines[j][k])));
+    if(compatible&&differences===1){starts.push(i);wordDifference=true;}
   }
   if(starts.length!==1)return unresolved(starts.length?'duplicate_target_label':'conflicting_target_evidence');
   if(repaired){

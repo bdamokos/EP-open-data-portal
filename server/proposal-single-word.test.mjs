@@ -10,3 +10,8 @@ test('numbers and punctuation cannot be the omitted token',()=>{
  assert(singleWordDifference('ex 7602 Aluminium waste and scrap','7602 Aluminium waste and scrap'));
  for(const [a,b] of [['Aluminium 7602 waste','Aluminium waste'],['A rule applies;','A rule applies.'],['one added word here','one replacement word here']])assert.equal(singleWordDifference(a,b),false);
 });
+
+test('one-word fallback compares quote marks literally',()=>{
+ assert.equal(singleWordDifference('A “rule” applies.','A "new rule" applies.'),false);
+ assert.equal(singleWordDifference("A ‘rule’ applies.","A 'new rule' applies."),false);
+});
