@@ -48,7 +48,7 @@ export function parseGeometry(svg) {
     }else if(viewBox&&isElement(svg,at,'circle')){
       const [element,next]=openingTag(svg,at);
       const attrs=new Map([...element.matchAll(/\s(id|cx|cy|r)="([^"]*)"/g)].map(match=>[match[1],match[2]]));
-      const id=attrs.get('id'),x=Number(attrs.get('cx')),y=Number(attrs.get('cy')),r=Number(attrs.get('r'));
+      const id=attrs.get('id'),[x,y,r]=['cx','cy','r'].map(name=>/^\d{1,6}(?:\.\d{1,6})?$/.test(attrs.get(name)||'')?Number(attrs.get(name)):NaN);
       if(!/^[1-9]\d{0,3}$/.test(id||'')||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(r)||r<=0)throw new Error('Hemicycle geometry has an invalid seat.');
       if(seats.has(Number(id)))throw new Error('Hemicycle geometry repeats a seat.');
       seats.set(Number(id),{x,y,r});
@@ -88,7 +88,7 @@ export function normalizePlan(chamber,source,svg) {
   return {...plan,sourceDate,hash:createHash('sha256').update(JSON.stringify(plan)).digest('hex')};
 }
 
-// Who joined, left or moved between two plans, by exact Member identifier.
+// Who joined, left, moved or changed group between two plans, by exact Member identifier.
 export function diffPlans(previous,next) {
   const index=plan=>new Map(plan.seats.filter(seat=>seat.member).map(seat=>[seat.member,seat]));
   const before=index(previous),after=index(next);
@@ -136,9 +136,10 @@ export async function fetchHemicyclePlan(chamber,{signal,validators={},timeoutMs
     readSource(urls.geometry,validators.geometry,'image/svg+xml',signal,timeoutMs),
   ]);
   if(plan.notModified&&geometry.notModified)return {notModified:true,validators};
+  const notModifiedPair=plan.notModified||geometry.notModified;
   if(plan.notModified)plan=await readSource(urls.plan,null,'application/json',signal,timeoutMs);
   if(geometry.notModified)geometry=await readSource(urls.geometry,null,'image/svg+xml',signal,timeoutMs);
-  return {plan:normalizePlan(chamber,JSON.parse(plan.body),geometry.body),validators:{plan:plan.etag,geometry:geometry.etag}};
+  return {plan:normalizePlan(chamber,JSON.parse(plan.body),geometry.body),validators:{plan:plan.etag,geometry:geometry.etag},extraReads:Number(notModifiedPair)};
 }
 
 export function prepareHemicycle(store) {
@@ -164,17 +165,22 @@ export class HemicycleCollector {
   async step(worker) {
     const now=this.clock(),chamber=HEMICYCLE_CHAMBERS.find(item=>(this.state()[item]?.nextCheck||0)<=now);
     if(!chamber)return false;
+    // A check takes two requests, and a third when only one file changed.
+    if(worker.budget-worker.requests<3)return false;
     const held=this.state()[chamber]||{};
     if(worker.requests!==undefined)worker.requests+=2;
     try{
       const result=await this.fetchPlan(chamber,{signal:worker.controller.signal,validators:latestRevision(this.store,chamber)?held.validators:undefined});
+      if(worker.requests!==undefined)worker.requests+=result.extraReads||0;
       this.write(()=>{
         const checked={checkedAt:now,nextCheck:now+CHECK_EVERY,error:null,validators:result.validators};
         if(result.plan){
           const latest=latestRevision(this.store,chamber);
           if(latest?.hash!==result.plan.hash){
             const {hash,sourceDate,...body}=result.plan;
-            this.store.db.prepare('INSERT INTO hemicycle_revisions VALUES (?,?,?,?,?,?)').run(chamber,now,hash,sourceDate,JSON.stringify(body),latest?JSON.stringify(diffPlans(latest,result.plan)):null);
+            // A corrected name or position updates the plan but is not a change to list.
+            const diff=latest?diffPlans(latest,result.plan):null;
+            this.store.db.prepare('INSERT INTO hemicycle_revisions VALUES (?,?,?,?,?,?)').run(chamber,now,hash,sourceDate,JSON.stringify(body),diff&&Object.values(diff).some(list=>list.length)?JSON.stringify(diff):null);
           }else this.store.db.prepare('UPDATE hemicycle_revisions SET source_date=? WHERE chamber=? AND observed_at=?').run(result.plan.sourceDate,chamber,latest.observedAt);
         }
         this.record(chamber,checked);
@@ -223,6 +229,9 @@ export const clearHemicycleCache=()=>live.clear();
 
 export async function hemicycleResponse(chamber,{store=null,clock=Date.now,fetchPlan=fetchHemicyclePlan}={}) {
   if(!validChamber(chamber))throw new HttpError(404,'not_found','Choose a chamber.');
-  const plan=latestRevision(store,chamber)||await livePlan(chamber,{clock,fetchPlan});
-  return {version:HEMICYCLE_VERSION,chamber,sourcePageUrl:HEMICYCLE_PAGE,sourceDate:plan.sourceDate,width:plan.width,height:plan.height,seats:plan.seats,changes:recentChanges(store,chamber)};
+  // One snapshot, so a concurrent check cannot pair a plan with a newer plan's changes.
+  const read=()=>({stored:latestRevision(store,chamber),changes:recentChanges(store,chamber)});
+  const {stored,changes}=store?.readSnapshot?store.readSnapshot(read):read();
+  const plan=stored||await livePlan(chamber,{clock,fetchPlan});
+  return {version:HEMICYCLE_VERSION,chamber,sourcePageUrl:HEMICYCLE_PAGE,sourceDate:plan.sourceDate,width:plan.width,height:plan.height,seats:plan.seats,changes};
 }

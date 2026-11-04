@@ -37,6 +37,7 @@ test('damaged or placeholder files are rejected, not published as a smaller cham
   const started=performance.now();assert.throws(()=>parseGeometry('<svg viewBox="0 0 9 9">'+'<circle '.repeat(100000)),/malformed/);assert(performance.now()-started<200,'unterminated tags fail without rescanning');
   assert.throws(()=>parseGeometry(svg().replace('</svg>','<!-- unterminated')),/malformed/);
   assert.throws(()=>parseGeometry('<svg viewBox="0 0 9 9"/><circle data-id="1" cx="1" cy="1" r="1"/>'),/invalid seat/,'a longer attribute name is not an id');
+  assert.throws(()=>parseGeometry(svg().replace('id="1" cx="0.5"','id="1" cx=""')),/invalid seat/,'an empty position is not zero');
   assert.throws(()=>normalizePlan('str',{},svg()),/shape/);
   assert.throws(()=>normalizePlan('str',source([person(1,10)]),svg()),/Member list/);
   assert.throws(()=>normalizePlan('str',source([person(1,9999)]),svg()),/disagree/);
@@ -85,6 +86,12 @@ test('the collector records revisions only on change, checks six-hourly and retr
   next=()=>({plan:plan(moved),validators:{plan:'d',geometry:'b'}});await collector.step(worker());
   const read=await hemicycleResponse('str',{store:s.store});
   assert.equal(read.changes.length,1);assert.deepEqual(read.changes[0].moved.map(item=>[item.member,item.from,item.seat]),[[100,10,600]]);assert.equal(read.seats.find(seat=>seat.seat===600).member,100);
+
+  // A corrected name is stored but is not listed as a change.
+  await collector.step(worker());s.advance(6*3600000);
+  next=()=>({plan:plan(moved.map(seat=>seat.persId===101?{...seat,name:'Corrected'}:seat)),validators:{plan:'e',geometry:'b'}});await collector.step(worker());
+  const corrected=await hemicycleResponse('str',{store:s.store});
+  assert.equal(corrected.seats.find(seat=>seat.member===101).name,'Corrected');assert.equal(corrected.changes.length,1);
 });
 test('an aborted check leaves the source due without recording an error',async t=>{
   const s=memoryStore(t),run=worker(),collector=new HemicycleCollector(s.store,{clock:s.now,fetchPlan:async()=>{run.controller.abort();throw new Error('aborted');}});
@@ -110,6 +117,12 @@ test('without the index a plan is read live, cached and retained through a failu
   await assert.rejects(hemicycleResponse('bru',{clock,fetchPlan}),error=>error.status===503);assert.equal(reads,4,'a cold failure is held too');
   await assert.rejects(hemicycleResponse('xxx',{clock,fetchPlan}),error=>error.status===404);
 });
+test('the collector leaves a check for a run with enough request budget and counts a third read',async t=>{
+  const s=memoryStore(t);let checks=0;
+  const collector=new HemicycleCollector(s.store,{clock:s.now,fetchPlan:async()=>{checks++;return {plan:plan(),validators:{},extraReads:1};}});
+  assert.equal(await collector.step({...worker(),budget:10,requests:8}),false);assert.equal(checks,0);assert(collector.due());
+  const run={...worker(),budget:10,requests:7};assert.equal(await collector.step(run),true);assert.equal(run.requests,10);
+});
 test('source transport sends validators, refuses redirects and fetches a complete pair when one file changed',async t=>{
   const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);const calls=[];
   const respond=(url,options)=>{
@@ -121,6 +134,8 @@ test('source transport sends validators, refuses redirects and fetches a complet
   const result=await fetchHemicyclePlan('str',{validators:{plan:'old',geometry:'shape'}});
   assert.deepEqual(calls.map(call=>[call[0].split('/').pop(),call[1]]),[['en.json','old'],['str.svg','shape'],['str.svg',undefined]]);
   assert.equal(result.plan.seats.length,700);assert.deepEqual(result.validators,{plan:'new',geometry:'shape'});
+  calls.length=0;await fetchHemicyclePlan('bru');
+  assert.deepEqual(calls.map(call=>call[0].replace('https://www.europarl.europa.eu','')),['/erpl-public/hemicycle/bru/en.json','/commonFrontResources/evostrap/4.0.1/lib/widgets/hemicycle/svg/bru.svg']);
 });
 test('source reads stop at the size limit without a declared length and enforce a deadline',async t=>{
   const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);
@@ -134,9 +149,10 @@ test('a stalled body and a paused queue both release the reader at the deadline'
   // Like native fetch, the abort signal errors a body that is still being read.
   globalThis.fetch=async(url,options)=>new Response(new ReadableStream({start(controller){controller.enqueue(new Uint8Array(8));options.signal.addEventListener('abort',()=>controller.error(options.signal.reason));}}),{status:200});
   await assert.rejects(fetchHemicyclePlan('str',{timeoutMs:30}),error=>error.name==='TimeoutError');
-  globalThis.fetch=()=>assert.fail('a paused queue admits nothing');
+  let admitted=0;globalThis.fetch=async()=>{admitted++;return new Response('{}',{status:200});};
   backoffUpstream(1,{source:'website'});
   const started=performance.now();
-  await assert.rejects(fetchHemicyclePlan('str',{timeoutMs:30}));
+  await assert.rejects(fetchHemicyclePlan('str',{timeoutMs:30}),error=>error.name==='TimeoutError');
   assert(performance.now()-started<900,'the wait ends before the pause does');
+  assert.equal(admitted,0,'a paused queue admits nothing');
 });

@@ -10,7 +10,7 @@ import {reportApiVersionMismatch} from './apiVersionMismatch.mjs';
 export function dataTimeoutFor(route) {
   const path = route.split('?')[0];
   if (path === 'plenary-live') return 15_000;
-  if (path.startsWith('hemicycle/')) return 20_000;
+  if (path.startsWith('hemicycle/')) return 35_000;
   if (path.startsWith('motion-comparison/')) return 90_000;
   if (path.startsWith('speech-context/')) return 60_000;
   if (path.startsWith('profile/')) return 40_000;

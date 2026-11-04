@@ -32,7 +32,7 @@ function Change({change,language}:{change:HemicycleChange;language:string}) {
   const parts=(['joined','left','moved','regrouped'] as const).filter(kind=>change[kind].length).map(kind=>ui.t(`hemicycle.change.${kind}`,{count:String(change[kind].length)}));
   const people=[...change.joined,...change.left,...change.moved,...change.regrouped];
   return <li><details>
-    <summary>{formatDate(change.sourceDate||change.observedAt,language)}: {parts.join(', ')||ui.t('hemicycle.change.none')}</summary>
+    <summary>{formatDate(change.sourceDate||change.observedAt,language)}: {parts.join(', ')}</summary>
     {people.length>0&&<ul>{people.map(person=><li key={`${person.member}:${person.seat}:${person.from}`}>{fullName(person)}{person.from!==undefined?`: ${person.from} → ${person.seat??person.group}`:person.seat!==undefined?`: ${person.seat}`:''}</li>)}</ul>}
   </details></li>;
 }
@@ -92,7 +92,7 @@ export function Hemicycle(props:InsightProps) {
             </svg>
           </figure>
           <aside className="hemicycle-detail" aria-live="polite">
-            {!selected?<p><UiMessage id="hemicycle.selectSeat"/></p>:selected.member?<>
+            {!selected?<p><UiMessage id={member!==null?'hemicycle.noSeat':'hemicycle.selectSeat'}/></p>:selected.member?<>
               <InsightPortrait id={String(selected.member)} name={fullName(selected)} onUnavailable={ignoreMissingPortrait}/>
               <h2>{fullName(selected)}</h2>
               <p><UiMessage id="hemicycle.seat" values={{seat:String(selected.seat)}}/></p>
