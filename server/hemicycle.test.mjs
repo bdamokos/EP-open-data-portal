@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {HemicycleCollector,clearHemicycleCache,diffPlans,fetchHemicyclePlan,hemicycleResponse,normalizePlan,parseGeometry,prepareHemicycle} from './hemicycle.mjs';
 import {dispatchCollector} from './collector-dispatch.mjs';
+import {backoffUpstream} from './odp.mjs';
 
 const svg=(count=700)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">${Array.from({length:count},(_,i)=>`<circle id="${i+1}" cx="${i%30}.5" cy="${Math.floor(i/30)}.5" r="7"/>`).join('')}</svg>`;
 const person=(id,seat,groupId=7018)=>({seatId:seat,groupId,persId:id,countryCode:'de',firstName:'First'+id,name:'Name'+id});
@@ -34,10 +35,17 @@ test('damaged or placeholder files are rejected, not published as a smaller cham
   assert.throws(()=>parseGeometry('<svg viewBox="0 0 9 9">'+'<circle id="1" cx="1" cy="1" r="1"/>'.repeat(700)+'</svg>'),/repeats/);
   assert.throws(()=>parseGeometry('<svg viewBox="0 0 9 9">'+'<circle id="1" '.repeat(40)),/malformed/);
   const started=performance.now();assert.throws(()=>parseGeometry('<svg viewBox="0 0 9 9">'+'<circle '.repeat(100000)),/malformed/);assert(performance.now()-started<200,'unterminated tags fail without rescanning');
+  assert.throws(()=>parseGeometry(svg().replace('</svg>','<!-- unterminated')),/malformed/);
+  assert.throws(()=>parseGeometry('<svg viewBox="0 0 9 9"/><circle data-id="1" cx="1" cy="1" r="1"/>'),/invalid seat/,'a longer attribute name is not an id');
   assert.throws(()=>normalizePlan('str',{},svg()),/shape/);
   assert.throws(()=>normalizePlan('str',source([person(1,10)]),svg()),/Member list/);
   assert.throws(()=>normalizePlan('str',source([person(1,9999)]),svg()),/disagree/);
   assert.throws(()=>normalizePlan('str',source([person(1,10),person(1,11),...Array.from({length:400},(_,i)=>person(i+100,i+12))]),svg()),/Member list/);
+});
+test('comments, CDATA and longer element names are not seats',()=>{
+  const seats=parseGeometry(svg().replace('</svg>','<!-- <circle id="1" cx="1" cy="1" r="1"/> --><![CDATA[<circle id="9998" cx="1" cy="1" r="1"/>]]><circles id="9999" cx="1" cy="1" r="1"/></svg>')).seats;
+  assert.equal(seats.size,700);assert(!seats.has(9998));assert(!seats.has(9999));
+  assert.equal(parseGeometry(`<?xml version="1.0"?><!-- <svg viewBox="0 0 1 1"> -->${svg()}`).width,900);
 });
 test('a diff names who joined, left, moved and changed group by identifier',()=>{
   const seats=Array.from({length:400},(_,i)=>person(i+100,i+10));
@@ -120,7 +128,15 @@ test('source reads stop at the size limit without a declared length and enforce 
   globalThis.fetch=async()=>new Response(new ReadableStream({pull(controller){pulled++;controller.enqueue(new Uint8Array(256*1024));},cancel(){cancelled=true;}}),{status:200});
   await assert.rejects(fetchHemicyclePlan('str'),/size limit/);
   assert(cancelled,'the oversized body is cancelled');assert(pulled<=16,'reading stops near the limit: '+pulled);
-  let seen;globalThis.fetch=async(url,options)=>{seen=options.signal;return new Response('{}',{status:200});};
-  await fetchHemicyclePlan('str').catch(()=>{});
-  assert(seen instanceof AbortSignal,'every source read has a deadline signal');
+});
+test('a stalled body and a paused queue both release the reader at the deadline',async t=>{
+  const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);
+  // Like native fetch, the abort signal errors a body that is still being read.
+  globalThis.fetch=async(url,options)=>new Response(new ReadableStream({start(controller){controller.enqueue(new Uint8Array(8));options.signal.addEventListener('abort',()=>controller.error(options.signal.reason));}}),{status:200});
+  await assert.rejects(fetchHemicyclePlan('str',{timeoutMs:30}),error=>error.name==='TimeoutError');
+  globalThis.fetch=()=>assert.fail('a paused queue admits nothing');
+  backoffUpstream(1,{source:'website'});
+  const started=performance.now();
+  await assert.rejects(fetchHemicyclePlan('str',{timeoutMs:30}));
+  assert(performance.now()-started<900,'the wait ends before the pause does');
 });

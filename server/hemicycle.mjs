@@ -29,23 +29,34 @@ const openingTag=(svg,from)=>{
   if(end<0||end-from>MAX_ELEMENT)throw new Error('Hemicycle geometry has a malformed tag.');
   return [svg.slice(from,end),end+1];
 };
+const isElement=(svg,at,name)=>svg.startsWith(name,at+1)&&/[\s/>]/.test(svg[at+1+name.length]||'');
+const skipped=[['<!--','-->'],['<![CDATA[',']]>']];
 export function parseGeometry(svg) {
-  const root=svg.indexOf('<svg');
-  if(root<0)throw new Error('Hemicycle geometry has no viewBox.');
-  const [rootTag,start]=openingTag(svg,root);
-  const viewBox=/\bviewBox="0 0 (\d{1,6}(?:\.\d{1,6})?) (\d{1,6}(?:\.\d{1,6})?)"/.exec(rootTag);
-  if(!viewBox)throw new Error('Hemicycle geometry has no viewBox.');
+  let viewBox=null;
   const seats=new Map();
-  for(let at=svg.indexOf('<circle',start);at>=0;){
-    const [element,next]=openingTag(svg,at);
-    const attrs=new Map([...element.matchAll(/\b(id|cx|cy|r)="([^"]*)"/g)].map(match=>[match[1],match[2]]));
-    const id=attrs.get('id'),x=Number(attrs.get('cx')),y=Number(attrs.get('cy')),r=Number(attrs.get('r'));
-    if(!/^[1-9]\d{0,3}$/.test(id||'')||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(r)||r<=0)throw new Error('Hemicycle geometry has an invalid seat.');
-    if(seats.has(Number(id)))throw new Error('Hemicycle geometry repeats a seat.');
-    seats.set(Number(id),{x,y,r});
-    if(seats.size>MAX_SEATS)throw new Error('Hemicycle geometry has an unexpected seat count.');
-    at=svg.indexOf('<circle',next);
+  for(let at=svg.indexOf('<');at>=0;at=svg.indexOf('<',at)){
+    const section=skipped.find(([open])=>svg.startsWith(open,at));
+    if(section){
+      const end=svg.indexOf(section[1],at+section[0].length);
+      if(end<0)throw new Error('Hemicycle geometry has a malformed tag.');
+      at=end+section[1].length;
+    }else if(!viewBox&&isElement(svg,at,'svg')){
+      const [tag,next]=openingTag(svg,at);
+      viewBox=/\sviewBox="0 0 (\d{1,6}(?:\.\d{1,6})?) (\d{1,6}(?:\.\d{1,6})?)"/.exec(tag);
+      if(!viewBox)throw new Error('Hemicycle geometry has no viewBox.');
+      at=next;
+    }else if(viewBox&&isElement(svg,at,'circle')){
+      const [element,next]=openingTag(svg,at);
+      const attrs=new Map([...element.matchAll(/\s(id|cx|cy|r)="([^"]*)"/g)].map(match=>[match[1],match[2]]));
+      const id=attrs.get('id'),x=Number(attrs.get('cx')),y=Number(attrs.get('cy')),r=Number(attrs.get('r'));
+      if(!/^[1-9]\d{0,3}$/.test(id||'')||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(r)||r<=0)throw new Error('Hemicycle geometry has an invalid seat.');
+      if(seats.has(Number(id)))throw new Error('Hemicycle geometry repeats a seat.');
+      seats.set(Number(id),{x,y,r});
+      if(seats.size>MAX_SEATS)throw new Error('Hemicycle geometry has an unexpected seat count.');
+      at=next;
+    }else at+=1;
   }
+  if(!viewBox)throw new Error('Hemicycle geometry has no viewBox.');
   if(seats.size<MIN_SEATS)throw new Error('Hemicycle geometry has an unexpected seat count.');
   return {width:Number(viewBox[1]),height:Number(viewBox[2]),seats};
 }
@@ -104,28 +115,29 @@ async function boundedText(response) {
     }
   }finally{await reader.cancel().catch(()=>{});}
 }
-async function readSource(url,validator,accept,signal) {
+// The deadline starts before the shared queue: a paused queue, a slow response and an
+// unfinished body must all release the source writer, which renews its lease while it waits.
+async function readSource(url,validator,accept,signal,timeoutMs) {
+  const deadline=AbortSignal.any([...(signal?[signal]:[]),AbortSignal.timeout(timeoutMs)]);
   return boundedUpstream(async admitted=>{
-    // The timeout covers the body too: an unfinished response must not hold the source writer.
-    const deadline=AbortSignal.any([...(admitted?[admitted]:[]),AbortSignal.timeout(SOURCE_TIMEOUT)]);
-    const response=await fetch(url,{redirect:'error',signal:deadline,headers:{Accept:accept,'User-Agent':browserCompatibleUserAgent('hemicycle'),...(validator?{'If-None-Match':validator}:{})}});
+    const response=await fetch(url,{redirect:'error',signal:AbortSignal.any([admitted||deadline,deadline]),headers:{Accept:accept,'User-Agent':browserCompatibleUserAgent('hemicycle'),...(validator?{'If-None-Match':validator}:{})}});
     const busy=upstreamResponseError(response,{source:'website'});if(busy){await response.body?.cancel();throw busy;}
     if(response.status===304){await response.body?.cancel();return {notModified:true,etag:validator};}
     if(response.status!==200){await response.body?.cancel();throw new Error('Hemicycle source returned '+response.status);}
     return {body:await boundedText(response),etag:response.headers.get('etag')};
-  },{source:'website',priority:'background',signal});
+  },{source:'website',priority:'background',signal:deadline});
 }
 
 // The two files change independently. A plan always comes from one complete pair.
-export async function fetchHemicyclePlan(chamber,{signal,validators={}}={}) {
+export async function fetchHemicyclePlan(chamber,{signal,validators={},timeoutMs=SOURCE_TIMEOUT}={}) {
   const urls=sourceUrls(chamber);
   let [plan,geometry]=await Promise.all([
-    readSource(urls.plan,validators.plan,'application/json',signal),
-    readSource(urls.geometry,validators.geometry,'image/svg+xml',signal),
+    readSource(urls.plan,validators.plan,'application/json',signal,timeoutMs),
+    readSource(urls.geometry,validators.geometry,'image/svg+xml',signal,timeoutMs),
   ]);
   if(plan.notModified&&geometry.notModified)return {notModified:true,validators};
-  if(plan.notModified)plan=await readSource(urls.plan,null,'application/json',signal);
-  if(geometry.notModified)geometry=await readSource(urls.geometry,null,'image/svg+xml',signal);
+  if(plan.notModified)plan=await readSource(urls.plan,null,'application/json',signal,timeoutMs);
+  if(geometry.notModified)geometry=await readSource(urls.geometry,null,'image/svg+xml',signal,timeoutMs);
   return {plan:normalizePlan(chamber,JSON.parse(plan.body),geometry.body),validators:{plan:plan.etag,geometry:geometry.etag}};
 }
 
