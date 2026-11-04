@@ -9,6 +9,11 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
  const buffer=nativeQuoted?.proposalBuffer;if(!Buffer.isBuffer(buffer))return unknown('oracle-council-pdf-native-unavailable');
  const key=createHash('sha256').update(buffer).digest('hex');let raw=cached.get(key);
  if(raw===undefined){const result=spawnSync('pdftotext',['-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024});raw=result.status===0?result.stdout:null;cached.set(key,raw);if(cached.size>4)cached.delete(cached.keys().next().value);}
+ return assertCouncilDraftNativeText(raw,{placement,wording,items});
+}
+// Separate entry point for coordinate regression tests; the runtime oracle supplies
+// only independently extracted native text.
+export function assertCouncilDraftNativeText(raw,{placement,wording,items}) {
  if(!raw)return unknown('oracle-council-pdf-text-unavailable');
  const target=/^(?:Recital|Bod odůvodnění|Betragtning|Considerando)\s+(\d+)\s*([a-z]?)\s*(?:\([^)]*\))?$/iu.exec(wording.targetLabel??'');
  if(!target)return unknown('oracle-council-pdf-address-unavailable');
@@ -25,6 +30,16 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
   return {status:'verified',reason:'native-council-pdf-recital-boundaries'};
  }
  if(target[2]||!['replace','delete'].includes(placement.operation))return unknown('oracle-council-pdf-operation-unavailable');
+ const span=placement.span,splice=placement.splice;
+ const fail=()=>({status:'failed',reason:'oracle-council-pdf-splice-mismatch'});
+ if(!span||!splice||![span.start,span.end,splice.start?.paragraph,splice.end?.paragraph,splice.start?.offset,splice.end?.offset].every(Number.isSafeInteger))return fail();
+ if(span.start<0||span.end<span.start||span.end>=proposal.paragraphs.length||splice.start.paragraph!==span.start||splice.end.paragraph!==span.end)return fail();
+ const endText=proposal.paragraphs[span.end].text;
+ // This bounded oracle proves whole-recital replacements only. Even a shifted
+ // punctuation or whitespace boundary must fail rather than disappear in fold().
+ if(splice.start.offset!==0||splice.end.offset!==endText.length)return fail();
+ const rendered=proposal.paragraphs.slice(span.start,span.end+1).map((p,j)=>p.text.slice(j===0?splice.start.offset:0,j===span.end-span.start?splice.end.offset:p.text.length)).join(' ');
+ if(fold(rendered)!==fold(wording.originalText))return fail();
  const original=fold(wording.originalText),actual=fold(proposal.paragraphs.slice(placement.span?.start,placement.span?.end+1).map(p=>p.text).join(' '));
  if(!original||fold(raw).split(original).length!==2||!fold(unit).includes(original))return unknown('oracle-council-pdf-original-unverified');
  if(actual!==original)return {status:'failed',reason:'oracle-council-pdf-span-mismatch'};

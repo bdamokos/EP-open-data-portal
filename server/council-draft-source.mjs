@@ -16,7 +16,7 @@ export async function councilDraftSource(documents,identity){
  const value=await documents.sources.schedule(async()=>{
   const response=await documents.fetchSource(identity.url,{headers:{Accept:'application/pdf','User-Agent':userAgent('Council draft context')},redirect:'manual',signal});
   const limited=upstreamResponseError(response,{source:new URL(identity.url).origin});
-  if(limited){await response.body?.cancel();throw limited;}
+  if(limited){documents.sources.queues?.get(new URL(identity.url).origin)?.backoff(limited.retryAfter);await response.body?.cancel();throw limited;}
   if(response.status!==200||response.headers.get('content-type')?.split(';')[0]!=='application/pdf'){await response.body?.cancel();throw Error('council-draft-pdf-unavailable');}
   const buffer=await limitedCellarBody(response,8*1024*1024),projection=await extractCouncilDraftPdf(buffer,{...identity,sourceUrl:identity.url,signal}),sha256=createHash('sha256').update(buffer).digest('hex');
   const source={url:identity.url,resolvedSourceUrl:identity.url,language:identity.language,format:'PDF',accept:'application/pdf',contentType:'application/pdf',sha256,bytes:buffer.length,fetchedAt:new Date(documents.clock?.()??Date.now()).toISOString(),stale:false};
