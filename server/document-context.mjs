@@ -31,13 +31,15 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=99;
+export const DOCUMENT_CONTEXT_VERSION=100;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
-const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-(?:[1-9]|10)-\d{4}-\d{4,6}$/.test(id)||committeeDraftId(id)||committeeListId(id));
+// A plenary amendment list is readable as a document only for the provisional agreement it publishes.
+const plenaryListId=id=>/^A-10-\d{4}-\d{4,6}-AM-\d{1,5}-\d{1,5}$/.test(id);
+const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-(?:[1-9]|10)-\d{4}-\d{4,6}$/.test(id)||plenaryListId(id)||committeeDraftId(id)||committeeListId(id));
 const ref=value=>canonicalEPReference(value);
 const refs=value=>array(value).map(ref).filter(Boolean);
 const canonicalType=value=>String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
-const expectedType=id=>'def/ep-document-types/'+(committeeListId(id)?'AMENDMENT_LIST':committeeDraftId(id)?id.includes('-PR-')?'REPORT_PARLIAMENTARY_COMMITTEE_DRAFT':'OPINION_PARLIAMENTARY_COMMITTEE_DRAFT':id.startsWith('TA-')?'TEXT_ADOPTED':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':id.startsWith('B-')?'RESOLUTION_MOTION':'REPORT_PLENARY');
+const expectedType=id=>'def/ep-document-types/'+(committeeListId(id)||plenaryListId(id)?'AMENDMENT_LIST':committeeDraftId(id)?id.includes('-PR-')?'REPORT_PARLIAMENTARY_COMMITTEE_DRAFT':'OPINION_PARLIAMENTARY_COMMITTEE_DRAFT':id.startsWith('TA-')?'TEXT_ADOPTED':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':id.startsWith('B-')?'RESOLUTION_MOTION':'REPORT_PLENARY');
 const knownDocumentRelationships=(node,field)=>node[field]!=null&&array(node[field]).every(value=>ref(value)?.startsWith('eli/dl/doc/'));
 const procedureIds=work=>[...new Set(array(work.inverse_created_a_realization_of).flatMap(value=>{const id=String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');return /^eli\/dl\/proc\/\d{4}-\d{4}[A-Z]?$/.test(id)?[tail(id)]:[];}))];
 const workId=node=>node?.identifier||tail(node?.id);
@@ -74,7 +76,7 @@ export function documentContextQuery(id,params) {
   const wordingLanguage=params.get('wording-lang');
   if(wordingLanguage!==null&&(!amendmentId||!listId||wordingLanguage!=='unknown'&&!/^[a-z]{2}$/.test(wordingLanguage)))throw new HttpError(400,'invalid_query','wording-lang requires an exact amendment, list and source language.');
   if(adopted!==null&&adopted!=='1')throw new HttpError(400,'invalid_query','adopted must be 1.');
-  if(adopted!==null&&(committeeRoot||amendmentId||listId||id.startsWith('TA-')))throw new HttpError(400,'invalid_query','Find adopted texts from the original report or motion.');
+  if(adopted!==null&&(committeeRoot||amendmentId||listId||id.startsWith('TA-')||plenaryListId(id)))throw new HttpError(400,'invalid_query','Find adopted texts from the original report or motion.');
   const finalText=params.get('final-text');
   if(finalText!==null&&(finalText!=='1'||!amendmentId||!listId||wordingLanguage===null||adopted!==null))throw new HttpError(400,'invalid_query','A final-text comparison requires an exact amendment, list and wording language.');
   if(params.has('body')&&(params.get('body')!=='0'||!amendmentId||adopted!==null))throw new HttpError(400,'invalid_query','body=0 requires an exact amendment.');
@@ -151,7 +153,7 @@ export class DocumentContext {
       const source=saved?.source||{url:record.url||ODP_BASE+endpoint,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null,contentHash:createHash('sha256').update(serialized).digest('hex')};
       sources.push(source);const result={work:nodes[0],record,source};records.set(endpoint,result);return result;
     };
-    const endpoint=committeeDocumentEndpoint(query.id)||(query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
+    const endpoint=committeeDocumentEndpoint(query.id)||(plenaryListId(query.id)?'/documents/':query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
     let {work,record,source:rootSource}=await read(endpoint,query.id);
     if(canonicalType(work.work_type)!==expectedType(query.id)||(committeeDraftId(query.id)||committeeListId(query.id))&&!validCommitteeWork(work))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
     const related={status:'not-requested',items:[],gaps:[]};
@@ -184,7 +186,7 @@ export class DocumentContext {
     }
     let document=null;
     if(!query.adopted&&query.includeBody!==false) {
-      let selectedText=await this.readText(work,query.language);
+      let selectedText=await this.readText(work,query.language,plenaryListId(query.id)?{enqueue:false}:undefined);
       if(retained?.root&&['error','unavailable'].includes(selectedText?.status))try {
         const fresh=await read(endpoint,query.id,{live:true});
         if(canonicalType(fresh.work.work_type)!==expectedType(query.id)||(committeeDraftId(query.id)||committeeListId(query.id))&&!validCommitteeWork(fresh.work))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
