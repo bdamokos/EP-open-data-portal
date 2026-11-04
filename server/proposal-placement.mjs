@@ -13,6 +13,7 @@ import {amendmentOperation} from './document-context-model.mjs';
 import {latinSuffixRank} from './legal-latin-numbering.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
 import {councilDraftInstructionOwns} from './council-draft-instruction.mjs';
+import {councilOuterInstructionPrefix} from './council-outer-instruction.mjs';
 
 const normal=value=>normaliseForMatching(value,{stripNumbering:false});
 const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -165,6 +166,15 @@ function subparagraphMatch(items,target,original,candidatesFor) {
   if(last?.kind!=='subparagraph'||last.isNew||last.suffix||!last.number||target.segments.length<2)return null;
   const parents=candidatesFor(target.segments.slice(0,-1));
   if(!parents.length)return null;
+  // A native list proof preserves repeated printed labels. Only a globally
+  // unique original inside a proved, directly owned continuation selects one.
+  const proved=parents.flatMap(parent=>{
+    const {unit,proposal}=parent,proof=unit.listOwnership,index=proof?.continuations[last.number-2];
+    if(proposal.sourceKind!=='pdf'||proposal.language!=='cs'||!Number.isSafeInteger(index)||!uniqueDocumentWording(proposal,original))return [];
+    const match=matchUnit(proposal,unit,original);
+    return match.span?.start===index&&match.span.end===index?[{...parent,match}]:[];
+  });
+  if(proved.length===1)return proved[0];
   if(parents.length>1||parents[0].unit.pathConflict)return {reason:'multiple_published_targets'};
   const {itemIndex,proposal}=parents[0];let unit=parents[0].unit;
   if(unit.kind==='article') {
@@ -352,7 +362,9 @@ function bareAnnexReplacement(items,target,{language,baseline,originalText,propo
   return {operation:'replace',status:'placed',itemIndex,span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,evidence:[{basis:'sole-bare-annex-first-ordinal',anchor:root.id},{basis:'native-annex-replacement-row',anchor:point.id}]};
 }
 
-function insertionPlacement(items,target,candidatesFor,eligible,proposedText,{scope='proposal',unitsFor=item=>flat(item.proposal.units),quoted=null}={}) {
+function insertionPlacement(items,target,candidatesFor,eligible,proposedText,{scope='proposal',unitsFor=item=>flat(item.proposal.units),quoted=null,outerPrefix=null,listOwnership=null}={}) {
+  const listMember=unit=>listOwnership?.points.includes(unit),conflict=unit=>unit.pathConflict&&unit!==listOwnership?.parent&&!listMember(unit);
+  const boundary=(proposal,unit)=>completeBoundary(proposal,unit)||listMember(unit)&&!unit.children.length&&unit.extent.end===unit.extent.start+1&&proposal.paragraphs[unit.extent.start]?.complete&&proposal.paragraphs[unit.extent.start]?.source?.complete===true;
   const closing=closingFormulaInsertion(items,target,candidatesFor);
   if(closing)return closing;
   const label=target.segments.at(-1),preceding=target.segments.slice(0,-1);
@@ -364,7 +376,7 @@ function insertionPlacement(items,target,candidatesFor,eligible,proposedText,{sc
   const parents=preceding.length?candidatesFor(preceding):null;
   if(parents&&parents.length!==1)return {reason:'parent_target_not_found'};
   const parent=parents?.[0];
-  if(parent?.unit.pathConflict)return {reason:'multiple_published_targets'};
+  if(parent&&conflict(parent.unit))return {reason:'multiple_published_targets'};
   // Subparagraphs are anonymous continuations. Count the numbered lead
   // (including its points) once, then each directly owned continuation.
   if(label.kind==='subparagraph'&&label.suffix==='a'&&parent?.unit.kind==='paragraph'&&!parent.unit.implicit&&!parent.unit.instruction) {
@@ -420,14 +432,14 @@ function insertionPlacement(items,target,candidatesFor,eligible,proposedText,{sc
     anchors=anchors.filter(({unit})=>suffixRank(unit.label.suffix,label.suffix)===highest);
   }
   if(!anchors.length)return {reason:'relative_target_not_found'};
-  if(anchors.length!==1||anchors[0].unit.pathConflict)return {reason:'multiple_published_targets'};
+  if(anchors.length!==1||conflict(anchors[0].unit))return {reason:'multiple_published_targets'};
   const anchor=anchors[0],proposal=items[anchor.itemIndex].proposal;
   const ordered=siblings.filter(s=>s.itemIndex===anchor.itemIndex&&parentKey(s.unit)===parentKey(anchor.unit)).map(s=>s.unit).sort((a,b)=>a.extent.start-b.extent.start);
   const positive=label.negative?{...label,value:label.value.slice(1),number:label.number}:label;
   const order=siblingOrder(ordered,positive);
   const orderComplete=order&&ordered.every((unit,i)=>{
     const previous=ordered[i-1],current=order(unit.label),before=previous&&order(previous.label);
-    return !unit.pathConflict&&current.rank>=0&&(!previous||previous.extent.end<=unit.extent.start&&(before.number<current.number||before.number===current.number&&before.rank<current.rank));
+    return !conflict(unit)&&current.rank>=0&&(!previous||previous.extent.end<=unit.extent.start&&(before.number<current.number||before.number===current.number&&before.rank<current.rank));
   });
   if(!orderComplete){
     // Unrelated recast damage later in the preamble does not erase a unique,
@@ -447,7 +459,7 @@ function insertionPlacement(items,target,candidatesFor,eligible,proposedText,{sc
     return {reason:'source_structure_unavailable'};
   }
   const next=ordered[ordered.indexOf(anchor.unit)+1];
-  if(quoted&&(!completeBoundary(proposal,anchor.unit)||anchor.unit.pathConflict))return {reason:'source_passage_incomplete'};
+  if(quoted&&(!boundary(proposal,anchor.unit)||conflict(anchor.unit)))return {reason:'source_passage_incomplete'};
   // A new paragraph after a quotation's final closing delimiter would fall
   // outside the replacement. This renderer needs a proved interior boundary.
   if(quoted&&!next&&(!parent||anchor.unit.extent.end>=parent.unit.extent.end)){
@@ -460,9 +472,10 @@ function insertionPlacement(items,target,candidatesFor,eligible,proposedText,{sc
     if(anchor.unit.extent.end!==quoted.extent.end||!tail)return {reason:'quoted_terminal_boundary_unverified'};
     return {itemIndex:anchor.itemIndex,insertBefore:index+1,anchor:anchor.unit,basis:'quoted-terminal-splice',splice:{start:{paragraph:index,offset:tail.index},end:{paragraph:index,offset:tail.index}}};
   }
-  if(!completeBoundary(proposal,anchor.unit)&&!(label.suffix&&!label.negative&&quotedConflictBoundary(proposal,anchor.unit,next)))return {reason:'source_passage_incomplete'};
+  if(!boundary(proposal,anchor.unit)&&!(label.suffix&&!label.negative&&quotedConflictBoundary(proposal,anchor.unit,next)))return {reason:'source_passage_incomplete'};
   if(label.negative){
-    if(!completeBoundary(proposal,parent.unit)||parent.unit.extent.start>=anchor.unit.extent.start)return {reason:'source_passage_incomplete'};
+    const prefixProved=outerPrefix?.itemIndex===parent.itemIndex&&outerPrefix.parent===parent.unit&&outerPrefix.first===anchor.unit;
+    if((!completeBoundary(proposal,parent.unit)&&!prefixProved)||parent.unit.extent.start>=anchor.unit.extent.start)return {reason:'source_passage_incomplete'};
     return {itemIndex:anchor.itemIndex,insertBefore:anchor.unit.extent.start,anchor:anchor.unit,basis:'first-sibling-start'};
   }
   const insertBefore=anchor.unit.extent.end;
@@ -473,9 +486,10 @@ function insertionPlacement(items,target,candidatesFor,eligible,proposedText,{sc
 // Bind an inner address to one native quotation under the exact outer point.
 // Only candidate selection changes; matching and insertion use the existing
 // resolver below. No source or amendment identifier participates in this rule.
-function councilQuotedTarget(items,target,targetPath,language) {
+function councilQuotedTarget(items,target,targetPath,language,targetLabel) {
  const refs=targetPath?.underlying;
  if(refs?.length!==1||targetPath?.language!==language||target.segments.length!==3||target.segments[0].kind!=='article'||target.segments[1].kind!=='paragraph'||target.segments[1].value!=='1'||target.segments[2].kind!=='point')return {reason:'council_pdf_address_unverified'};
+ if(targetLabel!==undefined&&String(targetLabel).split('\n')[0].replace(/\s+/gu,' ').trim()!==target.raw.replace(/\s+/gu,' ').trim())return {reason:'conflicting_target_evidence'};
  const candidates=items.flatMap((item,itemIndex)=>item.proposal?.sourceKind==='pdf'?proposalCandidates(item.proposal,target).map(unit=>({unit,proposal:item.proposal,itemIndex})):[]);
  if(candidates.length!==1)return {reason:'council_pdf_outer_owner_unverified'};
  const {unit:owner,proposal,itemIndex}=candidates[0],all=flat(proposal.units);
@@ -1079,13 +1093,16 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     }
     if(found.length===1)return found[0];
   }
-  const bound=pdfArticle?councilQuotedTarget(items,target,targetPath,language):null;
+  const outerPrefix=pdfArticle?councilOuterInstructionPrefix(items,target,{language,baseline,targetPath,targetLabel,originalText,proposedText}):null;
+  const bound=pdfArticle&&!outerPrefix?councilQuotedTarget(items,target,targetPath,language,targetLabel):null;
   if(bound?.reason)return unresolved(bound.reason);
+  if(outerPrefix){target={...target,segments:target.segments.map((s,i)=>i===target.segments.length-1?{...s,isNew:true}:s)};evidence.push({basis:'council-new-outer-prefix',anchor:outerPrefix.parent.id});}
   if(bound){target=bound.target;evidence.push({basis:'council-quoted-owner',anchor:bound.owner.id},{basis:'published-underlying-path',label:target.raw});}
+  let nativeList=null;
   const scopedCandidates=(proposal,address)=>{
     if(!bound)return proposalCandidates(proposal,address);
     if(proposal!==bound.proposal)return [];
-    const found=bound.units.filter(u=>u.kind===address.at(-1)?.kind&&u.label&&sameAddress(u.underlyingPath,address));
+    const found=bound.units.filter(u=>u.kind===address.at(-1)?.kind&&u.label&&sameAddress(u.underlyingPath,address)&&(!nativeList||address.length<nativeList.parent.underlyingPath.length||u===nativeList.parent||flat(nativeList.parent.children).includes(u)));
     if(!found.length&&address.length===1&&address[0].kind==='article'&&bound.quote.underlyingPath?.[0]?.kind==='article'&&sameAddress(bound.quote.underlyingPath.slice(0,1),address))return [{...bound.quote,kind:'article',label:address[0],underlyingPath:address,implicit:true}];
     return found;
   };
@@ -1116,14 +1133,18 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   let subparagraphBounds=null;
   const subparagraph=target.segments.findIndex((segment,index)=>segment.kind==='subparagraph'&&index<target.segments.length-1);
   if(subparagraph>=0){
-    const label=target.segments[subparagraph],parents=items.flatMap((item,itemIndex)=>
+    const label=target.segments[subparagraph];let parents=items.flatMap((item,itemIndex)=>
       item.kind==='annex'&&!target.segments.some(segment=>segment.kind==='annex')?[]:
         scopedCandidates(item.proposal,target.segments.slice(0,subparagraph)).map(unit=>({unit,itemIndex,proposal:item.proposal})));
     if(!label.number||label.suffix||label.isNew)return unresolved('source_structure_unavailable');
+    if(bound&&language==='cs'&&subparagraph===2&&target.segments.length===4&&label.number===1&&operation==='insert'&&target.segments.at(-1)?.kind==='point'){
+      const last=target.segments.at(-1),anchors=parents.flatMap(p=>p.unit.children.filter(c=>c.kind==='point'&&labelBase(c.label)===labelBase(last)).map(anchor=>({parent:p,anchor}))),selected=anchors.length===1?anchors[0]:null;
+      if(selected?.parent.unit.listOwnership&&last.isNew&&last.suffix==='a'&&/^[a-z]a$/u.test(last.value)&&new RegExp('^'+escape(last.value)+'\\)\\s+\\S','u').test(proposedText.trim())&&!originalText.trim()){parents=[selected.parent];nativeList={parent:selected.parent.unit,points:selected.parent.unit.children.filter(c=>c.kind==='point')};}
+    }
     if(parents.length===1){
       const {unit,itemIndex,proposal}=parents[0],points=unit.children.filter(child=>child.kind==='point');
       const boundary=unit.children.find(child=>child.kind==='subparagraph')?.extent.start??unit.extent.end;
-      if(label.number===1&&!unit.pathConflict&&['paragraph','point'].includes(unit.kind)&&unit.content.length
+      if(label.number===1&&(!unit.pathConflict||nativeList?.parent===unit)&&['paragraph','point'].includes(unit.kind)&&unit.content.length
         &&/:\s*$/u.test(proposal.paragraphs[unit.content.at(-1)].text)&&points.length
         &&points.every(point=>point.extent.start<boundary&&point.extent.end<=boundary)
         &&unit.children.every(child=>child.extent.start>=boundary||child.kind==='point')){
@@ -1198,7 +1219,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
-    let insertion=(originalText===''&&baseline==='commission-proposal'?newParentChildInsertion(items,target,candidatesFor,eligible):null)??numberedAnnexInsertion(items,target,language,nativeProposalInputs)??bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,proposedText,bound?{scope:'quoted',unitsFor:item=>item.proposal===bound.proposal?bound.units:[],quoted:bound.quote}:{});
+    let insertion=(originalText===''&&baseline==='commission-proposal'?newParentChildInsertion(items,target,candidatesFor,eligible):null)??numberedAnnexInsertion(items,target,language,nativeProposalInputs)??bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,proposedText,bound?{scope:'quoted',unitsFor:item=>item.proposal===bound.proposal?bound.units:[],quoted:bound.quote,listOwnership:nativeList}:{outerPrefix});
     if(insertion.reason==='source_passage_incomplete')insertion=outerArticleHeadingGap(items,target,{language,originalText,proposedText})??insertion;
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');

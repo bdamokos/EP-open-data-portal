@@ -1,5 +1,6 @@
 import {repeatedPageDecoration} from './council-draft-decoration.mjs';
 import {ownCouncilPageContent} from './council-draft-page-ownership.mjs';
+import {councilPdfLines,councilPdfListOwnership} from './council-draft-list-ownership.mjs';
 import {createHash} from 'node:crypto';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 
@@ -72,7 +73,7 @@ async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,source
     else if(item.str?.trim()){
      textBytes+=Buffer.byteLength(item.str);requireProof(textBytes<=COUNCIL_DRAFT_PDF_LIMITS.textBytes,'council-pdf-text-limit');
      const mark=stack.findLast(mark=>mark.id),artifact=stack.some(mark=>mark.tag==='Artifact');
-     if(mark){const mcid=Number(mark.id.match(/_mc(\d+)$/u)?.[1]);requireProof(Number.isSafeInteger(mcid),'council-pdf-mcid');const key=n+':'+mcid;const entries=content.get(key)??[],style=text.styles[item.fontName];entries.push({...item,ascent:style?.ascent,descent:style?.descent});content.set(key,entries);}
+     if(mark){const mcid=Number(mark.id.match(/_mc(\d+)$/u)?.[1]);requireProof(Number.isSafeInteger(mcid),'council-pdf-mcid');const key=n+':'+mcid;const entries=content.get(key)??[],style=text.styles[item.fontName];entries.push({...item,page:n,ascent:style?.ascent,descent:style?.descent});content.set(key,entries);}
      else if(!artifact)untagged.push(item.str);
     }
    }
@@ -132,7 +133,7 @@ async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,source
  }
  for(const note of notes)if(owners.get(note.label)?.length!==1)ownershipGaps.push({code:'council-pdf-note-owner-unproved',label:note.label,owners:owners.get(note.label)?.length??0});
  const paintGaps=pageProofs.flatMap(p=>p.paint.length?[{code:'council-pdf-visible-paint-unproved',page:p.page,operations:p.paint.length}]:[]);
- const paragraphs=[],paragraphSources=[],paragraphProperties=[],anchors=[],links=[];
+ const paragraphs=[],paragraphSources=[],paragraphProperties=[],anchors=[],links=[],paragraphLines=[];
  for(const record of bodyRecords){
   const originalItems=entries(record),bound=[...owners.entries()].filter(([label,owners])=>owners.length===1&&owners[0].record===record).map(([label,owners])=>({note:noteLabels.get(label),item:owners[0].item}));
   const items=originalItems.filter(i=>!bound.some(b=>b.item===i)),value=text(items);if(!value)continue;
@@ -142,9 +143,12 @@ async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,source
   for(const boundNote of bound){const before=originalItems.slice(0,originalItems.indexOf(boundNote.item)).filter(i=>!bound.some(b=>b.item===i));anchors.push({note:boundNote.note.id,label:boundNote.note.label,paragraph:paragraphs.length,offset:text(before).length});}
   const first=items.find(i=>i.str.trim()),firstLine=first&&clean(items.filter(i=>Math.abs(i.transform[5]-first.transform[5])<1).map(i=>i.str).join(' '));
   const articleHeading=/^[„“‘«»"]?(?:Article|Článek|Artikel|Artículo)\s+\d+[a-z]?$/u.test(firstLine??'');
+  paragraphLines.push(councilPdfLines(items));
   paragraphs.push(value);paragraphSources.push({part:'pdf',path:record.ref,role:record.role,pages:pageNumbers,mcids:record.content,complete});paragraphProperties.push({notesComplete:ownershipGaps.length===0,annotationsComplete:complete,...(articleHeading?{styleId:'Titrearticle',headingBasis:'native-first-line'}:{})});
  }
- return {sourceKind:'pdf',structureStatus:'extracted',sourceUrl,sourceHash:createHash('sha256').update(buffer).digest('hex'),paragraphs,paragraphSources,paragraphProperties,notes,anchors,links,proof:{paragraphIdentity:'native-structure-object-reference',noteBlocks:noteBlocks.map(r=>r.ref),notes,ownershipGaps,decoration,pageProofs},extractionGaps:[...ownershipGaps,...paintGaps]};
+ const paragraphFormats=paragraphs.map(()=>({})),listOwnership=councilPdfListOwnership(paragraphs.map((text,i)=>({text,source:paragraphSources[i],complete:paragraphSources[i].complete&&paragraphProperties[i].notesComplete&&paragraphProperties[i].annotationsComplete,lines:paragraphLines[i],attached:anchors.some(a=>a.paragraph===i)||links.some(l=>l.paragraph===i)})));
+ for(const proof of listOwnership){paragraphProperties[proof.start].pdfListOwnership=proof;for(const i of proof.points)paragraphFormats[i].indent=proof.pointIndent;for(const i of proof.continuations)paragraphFormats[i].indent=proof.bodyIndent;}
+ return {sourceKind:'pdf',structureStatus:'extracted',sourceUrl,sourceHash:createHash('sha256').update(buffer).digest('hex'),paragraphs,paragraphSources,paragraphProperties,paragraphFormats,notes,anchors,links,proof:{paragraphIdentity:'native-structure-object-reference',noteBlocks:noteBlocks.map(r=>r.ref),notes,ownershipGaps,decoration,pageProofs,listOwnership},extractionGaps:[...ownershipGaps,...paintGaps]};
 }
 
 let active=false;
