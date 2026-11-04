@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "En Europe et dans son voisinage, {places} : en tête des lieux mentionnés dans les questions ({questions} chacun), soit pour chacun un bond, contre {average} auparavant.",
   "proposalcontexttext.colliding.new.point": "Ce numéro existe déjà. Placé après le point de base.",
   "proposalcontexttext.new.unnumbered.table": "Nouveau tableau non numéroté placé à la fin de l’annexe.",
-  "proposalcontexttext.new.point.order": "Le nouveau point {point} suit le point {base}."
+  "proposalcontexttext.new.point.order": "Le nouveau point {point} suit le point {base}.",
+  "proposalcontexttext.unique.entry.labels": "Position déterminée par l’entrée unique. Les libellés divergent."
 }

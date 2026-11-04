@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "V Európe a jej susedstve: {places} — najviac otázok (po {questions}), v každom prípade skok, predtým {average}.",
   "proposalcontexttext.colliding.new.point": "Toto číslo už existuje. Umiestnené za základný bod.",
   "proposalcontexttext.new.unnumbered.table": "Nová nečíslovaná tabuľka je umiestnená na konci prílohy.",
-  "proposalcontexttext.new.point.order": "Nový bod {point} nasleduje za bodom {base}."
+  "proposalcontexttext.new.point.order": "Nový bod {point} nasleduje za bodom {base}.",
+  "proposalcontexttext.unique.entry.labels": "Umiestnené podľa jediného zhodného záznamu. Označenia sa líšia."
 }

@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "W Europie i jej sąsiedztwie: {places} — najwięcej pytań (po {questions}), w każdym przypadku skok w porównaniu ze {average}.",
   "proposalcontexttext.colliding.new.point": "Ten numer już istnieje. Umieszczono po punkcie podstawowym.",
   "proposalcontexttext.new.unnumbered.table": "Nowa tabela bez numeru umieszczona na końcu załącznika.",
-  "proposalcontexttext.new.point.order": "Nowy punkt {point} następuje po punkcie {base}."
+  "proposalcontexttext.new.point.order": "Nowy punkt {point} następuje po punkcie {base}.",
+  "proposalcontexttext.unique.entry.labels": "Umieszczono według jedynego pasującego wpisu. Etykiety są rozbieżne."
 }

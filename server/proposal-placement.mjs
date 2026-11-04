@@ -1,3 +1,4 @@
+import {uniqueAnnexEntryPlacement} from './proposal-unique-entry.mjs';
 import {unnumberedTableInsertion} from './proposal-unnumbered-table.mjs';
 import {rejectionWordingScope} from './amendment-rejection.mjs';
 import {nativeInlineRowsComplete} from './proposal-inline-guard.mjs';
@@ -917,6 +918,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(paths&&paths.length!==1)return unresolved('target_reference_unavailable');
   // A structured underlying-act target without a proposal address is not an outer location.
   if(!paths&&targetPath?.underlying?.length)return unresolved('target_reference_unavailable');
+  const uniqueEntry=uniqueAnnexEntryPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline},nativeProposalInputs);
+  if(uniqueEntry)return uniqueEntry;
   const instruction=wholeAnnexInstructionPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences,operation},unresolved,nativeProposalInputs);
   if(instruction)return instruction;
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());

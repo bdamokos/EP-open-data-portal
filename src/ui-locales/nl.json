@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "In Europa en de buurlanden waren {places} het onderwerp van de meeste vragen (elk {questions}), telkens een sprong tegenover {average} voorheen.",
   "proposalcontexttext.colliding.new.point": "Dit nummer bestaat al. Ingevoegd na het basispunt.",
   "proposalcontexttext.new.unnumbered.table": "Nieuwe ongenummerde tabel aan het einde van de bijlage ingevoegd.",
-  "proposalcontexttext.new.point.order": "Het nieuwe punt {point} volgt op punt {base}."
+  "proposalcontexttext.new.point.order": "Het nieuwe punt {point} volgt op punt {base}.",
+  "proposalcontexttext.unique.entry.labels": "Geplaatst op basis van de unieke vermelding. De opschriften verschillen."
 }

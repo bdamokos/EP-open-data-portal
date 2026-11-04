@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "В Европа и съседните ѝ страни {places} бяха местата с най-много въпроси (по {questions}), във всеки случай рязък ръст спрямо {average} преди това.",
   "proposalcontexttext.colliding.new.point": "Този номер съвпада със съществуваща точка. Поставено след основната точка.",
   "proposalcontexttext.new.unnumbered.table": "Нова неномерирана таблица, поставена в края на приложението.",
-  "proposalcontexttext.new.point.order": "Нова точка {point} следва точка {base}."
+  "proposalcontexttext.new.point.order": "Нова точка {point} следва точка {base}.",
+  "proposalcontexttext.unique.entry.labels": "Позицията е определена по единственото съвпадение. Обозначенията се различават."
 }

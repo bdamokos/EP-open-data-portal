@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "I Europa og nabolandene fik {places} flest spørgsmål ({questions} hver), i alle tilfælde en kraftig stigning fra {average}.",
   "proposalcontexttext.colliding.new.point": "Dette nummer bruges allerede af et punkt. Placeret efter grundpunktet.",
   "proposalcontexttext.new.unnumbered.table": "Ny unummereret tabel placeret sidst i bilaget.",
-  "proposalcontexttext.new.point.order": "Nyt punkt {point} følger efter punkt {base}."
+  "proposalcontexttext.new.point.order": "Nyt punkt {point} følger efter punkt {base}.",
+  "proposalcontexttext.unique.entry.labels": "Placeret efter den entydige post. Betegnelserne er forskellige."
 }

@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "San Eoraip agus sna tíortha comharsanacha, tharraing {places} an líon is mó ceisteanna ({questions} an ceann), ardú géar i ngach cás, ó {average}.",
   "proposalcontexttext.colliding.new.point": "Tá an uimhir seo in úsáid cheana. Curtha i ndiaidh an bhunphointe.",
   "proposalcontexttext.new.unnumbered.table": "Tábla nua gan uimhir curtha ag deireadh na hiarscríbhinne.",
-  "proposalcontexttext.new.point.order": "Tagann pointe nua {point} i ndiaidh phointe {base}."
+  "proposalcontexttext.new.point.order": "Tagann pointe nua {point} i ndiaidh phointe {base}.",
+  "proposalcontexttext.unique.entry.labels": "Suite de réir na hiontrála uathúla. Ní hionann na lipéid."
 }

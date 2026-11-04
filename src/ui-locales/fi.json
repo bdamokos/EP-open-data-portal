@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "Euroopassa ja sen lähialueilla {places} olivat kysymyksissä yleisimmin mainitut paikat ({questions} kukin), ja määrä nousi jyrkästi kaikissa, aiemmin {average}.",
   "proposalcontexttext.colliding.new.point": "Tämä numero on jo käytössä. Sijoitettu peruskohdan jälkeen.",
   "proposalcontexttext.new.unnumbered.table": "Uusi numeroimaton taulukko on sijoitettu liitteen loppuun.",
-  "proposalcontexttext.new.point.order": "Uusi kohta {point} seuraa kohtaa {base}."
+  "proposalcontexttext.new.point.order": "Uusi kohta {point} seuraa kohtaa {base}.",
+  "proposalcontexttext.unique.entry.labels": "Sijoitettu yksikäsitteisen merkinnän perusteella. Otsakkeet poikkeavat toisistaan."
 }

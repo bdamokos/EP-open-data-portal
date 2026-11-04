@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "Fl-Ewropa u fil-viċinat tagħha, l-aktar postijiet imsemmija fil-mistoqsijiet ({questions} kull wieħed) kienu {places}, u kollha kellhom żieda qawwija, minn {average}.",
   "proposalcontexttext.colliding.new.point": "Dan in-numru diġà jeżisti. Imqiegħed wara l-punt bażi.",
   "proposalcontexttext.new.unnumbered.table": "Tabella ġdida bla numru mqiegħda fl-aħħar tal-anness.",
-  "proposalcontexttext.new.point.order": "Il-punt il-ġdid {point} jiġi wara l-punt {base}."
+  "proposalcontexttext.new.point.order": "Il-punt il-ġdid {point} jiġi wara l-punt {base}.",
+  "proposalcontexttext.unique.entry.labels": "Imqiegħed skont l-entrata unika. It-tikketti ma jaqblux."
 }

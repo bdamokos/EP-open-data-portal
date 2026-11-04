@@ -2832,5 +2832,6 @@
   "topics.story.integrated.lead.tiedEachJumped.eu": "V Evropi in njenem sosedstvu: {places} — največ vprašanj (po {questions}), v vsakem primeru skok, prej {average}.",
   "proposalcontexttext.colliding.new.point": "Ta številka že obstaja. Vstavljeno za osnovno točko.",
   "proposalcontexttext.new.unnumbered.table": "Nova neoštevilčena tabela je vstavljena na koncu priloge.",
-  "proposalcontexttext.new.point.order": "Nova točka {point} sledi točki {base}."
+  "proposalcontexttext.new.point.order": "Nova točka {point} sledi točki {base}.",
+  "proposalcontexttext.unique.entry.labels": "Umeščeno po edinem ujemajočem se vnosu. Oznake se razlikujejo."
 }
