@@ -9,8 +9,9 @@ const unknown=()=>({status:'unverified',reason:'oracle-council-pdf-note-proof-un
 const fail=()=>({status:'failed',reason:'oracle-council-pdf-note-proof-mismatch'});
 export function councilNoteStructure(buffer) {
  if(!Buffer.isBuffer(buffer)||buffer.length>8*1024*1024)return null;
- const directory=mkdtempSync(path.join(tmpdir(),'ep-council-native-'));
+ let directory;
  try{
+  directory=mkdtempSync(path.join(tmpdir(),'ep-council-native-'));
   const file=path.join(directory,'source.pdf');writeFileSync(file,buffer);
   const result=spawnSync('qpdf',['--json',file],{encoding:'utf8',timeout:25000,maxBuffer:32*1024*1024});
   if(result.status!==0)return null;
@@ -31,7 +32,7 @@ export function councilNoteStructure(buffer) {
    return content;
   }
   walk(tree['/K']);return paragraphs;
- }catch{return null;}finally{rmSync(directory,{recursive:true,force:true});}
+ }catch{return null;}finally{if(directory)rmSync(directory,{recursive:true,force:true});}
 }
 const decode=s=>s.replace(/&#(x[0-9a-f]+|\d+);/giu,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):Number(n))).replace(/&lt;/gu,'<').replace(/&gt;/gu,'>').replace(/&quot;/gu,'"').replace(/&apos;/gu,"'").replace(/&amp;/gu,'&');
 export function councilNoteGeometry(bbox) {
@@ -60,7 +61,8 @@ export function councilNoteGeometry(bbox) {
    }
    words.push(...body);
   }
-  if(new Set(notes.map(n=>n.label)).size!==notes.length||notes.some(n=>!n.text||words.filter(w=>w.reference===n.label).length!==1))return null;
+  const references=new Map();for(const word of words)if(word.reference)references.set(word.reference,(references.get(word.reference)??0)+1);
+  if(new Set(notes.map(n=>n.label)).size!==notes.length||notes.some(n=>!n.text||references.get(n.label)!==1))return null;
   return {words,notes};
  }catch{return null;}
 }
@@ -107,6 +109,6 @@ export function inspectCouncilPdfNoteScope({bbox,structure,placement,wording,ite
  const nativePrefix=unit.slice(0,unit.indexOf(refs[0])).filter(w=>!w.reference).map(w=>w.text).join(' ');
  if(row.text.slice(0,anchors[0].offset).trimEnd().length!==anchors[0].offset||key(row.text.slice(0,anchors[0].offset))!==key(nativePrefix)||key(old.prefix)!==key(nativePrefix)||key(note[0].text)!==key(printed[0].text)||!sameCitation(printed[0].text,old.note))return fail();
  const noteScope={kind:'pdf-footnotes',originalBodyEnd:old.end,proposedBodyEnd:next.end,sourceNotes:[{id:note[0].id,label:old.label}],proposedLabels:[next.label],unreferencedLabels:[]};
- if(placement.noteScope&&JSON.stringify(placement.noteScope)!==JSON.stringify(noteScope))return fail();
+ if(placement.noteScope&&(Object.keys(placement.noteScope).length!==Object.keys(noteScope).length||Object.entries(noteScope).some(([name,value])=>JSON.stringify(placement.noteScope[name])!==JSON.stringify(value))))return fail();
  return {status:'verified',reason:'native-council-pdf-body-and-owned-note',noteScope,bodyWording:{...wording,originalText:old.clean,originalFormatting:[],proposedText:next.body,proposedFormatting:(wording.proposedFormatting??[]).filter(m=>m.end<=next.end)}};
 }
