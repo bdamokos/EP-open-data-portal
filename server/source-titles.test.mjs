@@ -63,7 +63,7 @@ test('common title formatting is plain text, including attributes, nesting and l
   // Retained E-10-2024-002503 (el), E-10-2025-000488 (fr) and E-10-2025-000548 (de).
   assert.equal(sourceTitle('CO<sup><sub>2</sub></sup>'),'CO₂');
   assert.equal(sourceTitle('10<sup>e</sup> PC and NO<sub>x</sub>'),'10e PC and NOx');
-  for(const literal of ['capacity < 5 MW and > 2 MW','<custom>word</custom>','<iframe src=x>word</iframe>','<b title="unfinished>word','&amp;lt;i&amp;gt;word&amp;lt;/i&amp;gt;']){
+  for(const literal of ['capacity < 5 MW and > 2 MW','<custom>word</custom>','<custom data-label="<b>">word</custom>','<custom data-label="<sub>2</sub>">word</custom>','<iframe src=x>word</iframe>','<b title="unfinished>word','&amp;lt;i&amp;gt;word&amp;lt;/i&amp;gt;']){
     assert.equal(sourceTitle(literal),literal.replaceAll('&amp;','&'));
   }
 });
