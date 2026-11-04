@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {assertCouncilDraftArticleText,councilPrintedText} from './amendment-council-article-oracle.mjs';
 import {councilNativeSuperscripts} from './amendment-council-superscript-oracle.mjs';
 import {councilNoteStructure,councilNoteGeometry,inspectCouncilPdfNoteScope} from './amendment-council-note-oracle.mjs';
+import {inspectCouncilOuterInsertion} from './amendment-council-outer-oracle.mjs';
 const cached=new Map();
 const fold=s=>String(s??'').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 const unknown=reason=>({status:'unverified',reason});
@@ -25,6 +26,11 @@ export function assertCouncilDraftPlacement({placement,wording,items,nativeQuote
   native.structure??=councilNoteStructure(buffer);
   const proof=inspectCouncilPdfNoteScope({bbox:native.bbox,structure:native.structure,placement,wording,items});if(proof.status!=='verified')return proof;
   const body=assertCouncilDraftNativeText(native.raw,{placement,wording:proof.bodyWording,items});return body.status==='verified'?{status:'verified',reason:proof.reason}:body;
+ }
+ if(placement.operation==='insert'&&/\bpunto\s+-1\s*$/u.test(String(wording.targetLabel??'').split('\n')[0])){
+  if(items?.[placement.itemIndex]?.proposal?.nativeSourceHash!==key)return {status:'failed',reason:'oracle-council-pdf-outer-source-hash-mismatch'};
+  native.structure??=councilNoteStructure(buffer);
+  return inspectCouncilOuterInsertion({geometry:councilNoteGeometry(native.bbox),structure:native.structure,placement,wording,items});
  }
  return assertCouncilDraftNativeText(native.raw,{placement,wording,items,nativeBodyWords:placement.originalDifference==='one-word'||/\d\s*[a-z]\s*$/iu.test(wording.targetLabel??'')?councilNoteGeometry(native.bbox)?.words:undefined});
 }
