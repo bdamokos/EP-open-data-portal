@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Zastępuje cały tekst.",
+  "amendment.agreement_text": "Tekst porozumienia",
   "documentcontext.final_placement_check": "Sprawdź ostateczne umiejscowienie w {adoptedText}.",
   "documentcontext.adopted_text": "przyjętym tekście",
   "amendment.alternative_motion": "Alternatywny projekt rezolucji",

@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Înlocuiește întregul text.",
+  "amendment.agreement_text": "Textul acordului",
   "documentcontext.final_placement_check": "Verificați poziția finală în {adoptedText}.",
   "documentcontext.adopted_text": "textul adoptat",
   "amendment.alternative_motion": "Propunere alternativă",

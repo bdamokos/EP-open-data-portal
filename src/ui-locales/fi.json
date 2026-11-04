@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Korvaa koko tekstin.",
+  "amendment.agreement_text": "Sopimusteksti",
   "documentcontext.final_placement_check": "Tarkista lopullinen sijainti {adoptedText}.",
   "documentcontext.adopted_text": "hyväksytystä tekstistä",
   "amendment.alternative_motion": "Vaihtoehtoinen päätöslauselmaesitys",

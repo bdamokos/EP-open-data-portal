@@ -1,4 +1,6 @@
 {
+  "amendment.replaces_whole_text": "Aizstāj visu tekstu.",
+  "amendment.agreement_text": "Vienošanās teksts",
   "documentcontext.final_placement_check": "Pārbaudiet galīgo vietu {adoptedText}.",
   "documentcontext.adopted_text": "pieņemtajā tekstā",
   "amendment.alternative_motion": "Alternatīvs priekšlikums",

@@ -12,7 +12,7 @@ import {documentContextPlacement} from '../server/document-context-placement.mjs
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
 import {classifyRow,classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility,instructionFrameWording} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
-import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport} from './amendment-benchmark.mjs';
+import {harnessIdentity,options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport} from './amendment-benchmark.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 beforeEach(registerSubprocesses);
@@ -585,4 +585,31 @@ test('verified whole-document operations earn credit and retain distinct reasons
   assert.equal(metrics(rows).eligible,2);
   assert.equal(metrics(rows).counts.correct,2);
   assert.equal(metrics(rows).votes.correct,metrics(rows).votes.total);
+});
+
+test('provisional placement uses exact source identity despite unavailable comparison columns',async()=>{
+ const {provisionalFixture}=await import('../server/test-support/provisionalFixture.mjs');
+ const fixture=provisionalFixture(),url=fixture.source.url;
+ const input={id:fixture.id,number:3,targetDocumentId:fixture.documentId,listId:fixture.listId,wordingSource:{url},language:'en',decisions:fixture.decisions.map(d=>({...d,date:'2026-10-22',sittingId:'MTG-PL-2026-10-22'}))};
+ const cache={apiBase,get:async()=>({ok:true,body:fixture.buffer,url,fetchedAt:fixture.source.fetchedAt,sha256:digest(fixture.buffer)}),json:async url=>({input:{ok:true,url},value:{documentId:fixture.documentId,document:{selectedText:source([])}}})};
+ const sample={mode:'documents',asOf:'2026-10-26'};
+ const [result]=await evaluateReport([input],sample,cache);
+ assert.equal(result.stages.S2.status,'blocked');assert.equal(result.outcome,'correct');assert.equal(result.reason,'whole-document-provisional-agreement');assert.equal(result.stages.S5.scope,'whole-document');
+ const [missing]=await evaluateReport([input],sample,{...cache,get:async()=>({ok:false,status:404,url})});assert.notEqual(missing.outcome,'correct');
+ const [oldRuntime]=await evaluateReport([input],sample,cache,{runtime:{}});assert.notEqual(oldRuntime.outcome,'correct','an older runtime must not use the current placement helper');
+});
+
+test('harness identity records the provisional oracle and detects its mutation with another runtime root',async()=>{
+ const root=fileURLToPath(new URL('../',import.meta.url));
+ const original=await harnessIdentity(root);
+ const file='scripts/amendment-provisional-oracle.mjs';
+ assert.equal(original.files[file],digest(await readFile(path.join(root,file))));
+ const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-harness-fingerprint-'));
+ try {
+  for(const name of Object.keys(original.files)){await mkdir(path.dirname(path.join(directory,name)),{recursive:true});await writeFile(path.join(directory,name),await readFile(path.join(root,name)));}
+  const before=await harnessIdentity(directory);
+  await writeFile(path.join(directory,file),(await readFile(path.join(directory,file),'utf8'))+'\n// changed oracle\n');
+  const after=await harnessIdentity(directory);
+  assert.notEqual(before.files[file],after.files[file]);
+ }finally{await rm(directory,{recursive:true,force:true});}
 });
