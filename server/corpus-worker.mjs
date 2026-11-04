@@ -208,6 +208,7 @@ export class CorpusWorker {
     this.store.set('speechLanguages',this.languages);
     const index=this.store.indexState();
     if(index.generation==null){this.store.set('discoveryCheckedAt',now);return;}
+    this.handOffResolvedSpeeches();
     if(index.published)await discoverDeclaredSpeeches(this,index.generation);
     const discovered=this.store.get('discoveredAt'), sameIndex=this.store.get('discoveredGeneration')===index.generation && this.store.get('discoveredPublished')===index.published;
     if(discovered && sameIndex && this.store.get('documentLanguages')===this.languages && now-Date.parse(discovered)<DISCOVER_EVERY){this.store.set('discoveryCheckedAt',now);return;}
@@ -215,6 +216,16 @@ export class CorpusWorker {
     this.store.set('discoveredAt',new Date(now).toISOString());this.store.set('documentLanguages',this.languages);
     this.store.set('discoveredGeneration',index.generation);this.store.set('discoveredPublished',index.published);
     this.store.set('discoveryCheckedAt',now);
+  }
+  // The index finds real records for imported speeches. It only reports them in
+  // its own table; this writer replaces the text. A read after the report ends it.
+  handOffResolvedSpeeches() {
+    if(!this.store.attachIndex()||!this.store.db.prepare("SELECT 1 FROM idx.sqlite_master WHERE type='table' AND name='speech_source_gaps'").get())return;
+    for(const {id,last_seen:resolvedAt} of this.store.db.prepare("SELECT id,last_seen FROM idx.speech_source_gaps WHERE state='resolved'").all()) {
+      if(!this.store.websiteSpeechHeld(id))continue;
+      const task=this.store.task('speech:'+id);
+      if(!task||task.done&&(task.done_at||0)<Date.parse(resolvedAt))this.queueSpeechEdition(id);
+    }
   }
   queueSpeechEdition(id) {
     const key='speech:'+id,body={id,editionRecheck:true};
@@ -249,7 +260,7 @@ export class CorpusWorker {
         if(editions) {
           const seen=new Set(body.seen||[]),prefix='MTG-PL-'+body.start.slice(0,7);
           for(const {source_id:id} of this.store.db.prepare('SELECT source_id FROM speech_metadata WHERE source_id>=? AND source_id<?').all(prefix,prefix+'~'))
-            if(!seen.has(id))this.queueSpeechEdition(id);
+            if(!seen.has(id)&&!this.store.websiteSpeechHeld(id))this.queueSpeechEdition(id);
         }
         this.store.finishTask({...task,body:{...body,availabilityCheck}});return;
       }
@@ -260,6 +271,8 @@ export class CorpusWorker {
         if(!SPEECH_ID.test(id))throw new Error('EP speech identifier was invalid.');
         // A search reference without its graph node becomes a durable detail fetch.
         if(!node?.activity_id){
+          // An imported text already answers this hit. A later list node replaces it.
+          if(this.store.websiteSpeechHeld(id))continue;
           if(editions){this.queueSpeechEdition(id);continue;}
           const kind=metadataOnly?'speech-metadata-detail':'speech',key=kind+':'+id;
           if(!this.store.enqueue(key,kind,{id},PRIORITY.speech))this.store.reopen(key,{id},PRIORITY.speech);

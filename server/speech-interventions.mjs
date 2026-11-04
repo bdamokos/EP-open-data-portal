@@ -53,7 +53,8 @@ export function interventionMetadata(activity) {
   const docs=array(activity.recorded_in_a_realization_of).filter(d=>d&&typeof d==='object');
   const fragments=Object.assign({},...docs.map(d=>d['api:xmlFragment']||{}));
   // Classification uses one supplied English fragment, including Parliament's translations.
-  const xml=fragments.en;
+  // A website-imported record can have only its original-language fragment.
+  const xml=fragments.en??(activity.acquisition==='website-xml'?Object.values(fragments)[0]:undefined);
   let root=null;
   if(typeof xml==='string'&&xml.length<=2*1024*1024&&!/<!DOCTYPE|<!ENTITY/i.test(xml)&&XMLValidator.validate(xml)===true) {
     try {root=parser.parse(xml);}catch{ /* Retain missing metadata as such. */ }
@@ -132,12 +133,35 @@ const transcriptAliases=activity=>{
   return alias===activity.activity_id?[]:[alias];
 };
 
+// The verbatim report position ("3-0563-0000") of a record's own document.
+const reportPosition=activity=>{
+  const parts=String(array(activity.recorded_in_a_realization_of).find(doc=>doc&&typeof doc==='object')?.number||'').match(/^(\d+)-(\d+)-(\d+)$/);
+  return parts?parts.slice(1).map(Number):null;
+};
+const comparePositions=(a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2];
+// API numbering orders the records it covers. A record outside that numbering
+// keeps its report position among them; one with neither goes last, order unknown.
+function placeRecords(rows) {
+  const numbered=rows.filter(row=>Number.isSafeInteger(row.intervention.numbering)).sort((a,b)=>a.intervention.numbering-b.intervention.numbering||a.id.localeCompare(b.id));
+  const others=rows.filter(row=>!Number.isSafeInteger(row.intervention.numbering)).map(row=>({row,position:reportPosition(row.activity)}));
+  for(const {row,position} of others.filter(entry=>entry.position).sort((a,b)=>comparePositions(a.position,b.position))) {
+    const at=numbered.findIndex(other=>{const own=reportPosition(other.activity);return own&&comparePositions(own,position)>0;});
+    numbered.splice(at<0?numbered.length:at,0,row);
+  }
+  return [...numbered,...others.filter(entry=>!entry.position).map(entry=>entry.row).sort((a,b)=>a.id.localeCompare(b.id))];
+}
+
 // Exact debate membership and document numbering establish the sequence. Never bridge a missing row.
-export function buildInterventionSequence(activities,{parentId,expectedIds=[]}={}) {
+// `retained` holds saved {activity,intervention} records the source list did not serve.
+export function buildInterventionSequence(activities,{parentId,expectedIds=[],retained=[]}={}) {
   const expected=new Set(array(expectedIds).map(speechId).filter(Boolean));
   const hasExpected=expected.size>0;
-  const candidates=[...new Map(activities.filter(a=>expected.has(a.activity_id)).map(a=>[a.activity_id,a])).values()]
-    .map(activity=>({activity,id:activity.activity_id,intervention:interventionMetadata(activity),exchangeId:null,replyTo:null}));
+  const listed=activities.filter(a=>expected.has(a.activity_id));
+  const supplied=retained.filter(({activity})=>!activities.some(a=>a.activity_id===activity.activity_id));
+  // An import filed under this debate belongs to it even when its child list omits the speech.
+  for(const {activity,intervention} of supplied)if(activity.acquisition==='website-xml'&&intervention.parentIds?.includes(parentId))expected.add(activity.activity_id);
+  const candidates=[...[...new Map(listed.map(a=>[a.activity_id,a])).values()].map(activity=>({activity,id:activity.activity_id,intervention:interventionMetadata(activity),exchangeId:null,replyTo:null})),
+    ...supplied.filter(({activity})=>expected.has(activity.activity_id)).map(({activity,intervention})=>({activity,id:activity.activity_id,intervention,exchangeId:null,replyTo:null}))];
   // Event consists_of can repeat the same contradictory links as the speeches.
   // Only a fetched row with complete transcript evidence can leave the
   // expected set; unavailable rows and unrelated parent mismatches stay gaps.
@@ -148,9 +172,28 @@ export function buildInterventionSequence(activities,{parentId,expectedIds=[]}={
   // never served as an activity, so count the row once; other unserved IDs stay gaps.
   const served=new Set(activities.map(a=>a.activity_id));
   for(const {activity} of candidates)for(const alias of transcriptAliases(activity))if(!served.has(alias))expected.delete(alias);
-  const records=candidates.filter(row=>row.intervention.parentIds.includes(parentId));
-  records.sort((a,b)=>(a.intervention.numbering??Infinity)-(b.intervention.numbering??Infinity)||a.id.localeCompare(b.id));
-  const numbers=records.map(r=>r.intervention.numbering),complete=hasExpected&&records.length===expected.size&&numbers.every(Number.isSafeInteger)&&new Set(numbers).size===numbers.length;
+  const records=placeRecords(candidates.filter(row=>row.intervention.parentIds.includes(parentId)));
+  const numbers=records.map(r=>r.intervention.numbering).filter(Number.isSafeInteger),unnumberedIds=records.filter(r=>!Number.isSafeInteger(r.intervention.numbering)).map(r=>r.id);
+  // Availability says every record is here. Order says where each one stands.
+  const complete=hasExpected&&records.length===expected.size;
+  const known=row=>Number.isSafeInteger(row.intervention.numbering)||Boolean(reportPosition(row.activity));
+  const ordered=records.every(known)&&new Set(numbers).size===numbers.length;
+  // A placed record between consecutive numbers takes no slot and breaks nothing.
+  // A numbering gap is a missing row unless the placed records' own published
+  // PRE/SUIV references chain exactly across it. Position alone proves nothing.
+  const follows=[];
+  {let last=null,between=[];
+    const chains=(from,rows,to)=>rows.every((row,index)=>{
+      const links=row.activity.website?.neighbours;
+      return links&&links.previous===(index?rows[index-1].id:from.id)&&links.next===(index<rows.length-1?rows[index+1].id:to.id);
+    });
+    for(const row of records) {
+      const number=row.intervention.numbering;
+      if(!Number.isSafeInteger(number)){follows.push(known(row));between.push(row);continue;}
+      const gap=last?number-last.intervention.numbering-1:0;
+      follows.push(gap===0||gap<=between.length&&chains(last,between,row));last=row;between=[];
+    }
+  }
   // Catch-the-eye is commonly a section, not an individual speech flag. Require both published boundaries.
   let opening=null;
   for(let i=0;i<records.length;i++) {
@@ -158,17 +201,15 @@ export function buildInterventionSequence(activities,{parentId,expectedIds=[]}={
     if(meta.catchMarker==='start')opening=i;
     else if(meta.catchMarker==='end'&&opening!==null) {
       const section=records.slice(opening,i+1);
-      if(section.every((r,index)=>Number.isSafeInteger(r.intervention.numbering)&&(!index||r.intervention.numbering===section[index-1].intervention.numbering+1)))for(let j=opening+1;j<i;j++)if(records[j].intervention.type==='speech')records[j].intervention={...records[j].intervention,type:'catch-the-eye',evidence:'between exact catch-the-eye section markers'};
+      if(section.every((r,index)=>known(r)&&(!index||follows[opening+index])))for(let j=opening+1;j<i;j++)if(records[j].intervention.type==='speech')records[j].intervention={...records[j].intervention,type:'catch-the-eye',evidence:'between exact catch-the-eye section markers'};
       opening=null;
     }
   }
   const exchanges=[];
-  if(numbers.every(Number.isSafeInteger)&&new Set(numbers).size===numbers.length) {
+  if(ordered) {
     let original=null,question=null,exchange=null;
-    let previous=null;
-    for(const record of records) {
-      if(previous!==null&&record.intervention.numbering!==previous+1){original=null;question=null;exchange=null;}
-      previous=record.intervention.numbering;
+    for(const [index,record] of records.entries()) {
+      if(!follows[index]){original=null;question=null;exchange=null;}
       const {type,speaker}=record.intervention;
       if(type==='chair')continue;
       if(type==='speech'||type==='catch-the-eye'){original=record;question=null;exchange=null;continue;}
@@ -185,5 +226,5 @@ export function buildInterventionSequence(activities,{parentId,expectedIds=[]}={
       original=null;question=null;exchange=null;
     }
   }
-  return {records,exchanges,coverage:{complete,expected:expected.size,available:records.length,missingIds:[...expected].filter(id=>!records.some(r=>r.id===id)),reassignedIds}};
+  return {records,exchanges,coverage:{complete,expected:expected.size,available:records.length,missingIds:[...expected].filter(id=>!records.some(r=>r.id===id)),reassignedIds},sequence:{ordered,unnumberedIds}};
 }
