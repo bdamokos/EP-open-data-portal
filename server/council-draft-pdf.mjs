@@ -1,3 +1,4 @@
+import {repeatedPageDecoration} from './council-draft-decoration.mjs';
 import {createHash} from 'node:crypto';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {PDFDocument,PDFDict,PDFArray,PDFName,PDFNumber,PDFRef} from 'pdf-lib';
@@ -8,6 +9,8 @@ const requireProof=(ok,reason)=>{if(!ok)throw Object.assign(new Error(reason),{c
 const name=value=>value instanceof PDFName?value.asString():null;
 const list=value=>value instanceof PDFArray?value.asArray():value==null?[]:[value];
 const clean=value=>value.replace(/\s+/gu,' ').trim();
+const multiply=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+const plain=v=>ArrayBuffer.isView(v)?Array.from(v,plain):Array.isArray(v)?v.map(plain):v;
 
 // Persistent structure object references, not page-local PDF.js tree positions,
 // own every paragraph. Never infer cross-page joins from visual proximity.
@@ -60,19 +63,26 @@ async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,source
    }
    // A page with any non-text paint is unproved until its geometry has been
    // classified. An Artifact tag alone does not prove that a graphic is harmless.
-   const marked=[],paint=[];
+   const marked=[],paint=[],matrices=[];let matrix=[1,0,0,1,0,0];
    for(let i=0;i<ops.fnArray.length;i++){
     const op=ops.fnArray[i],args=ops.argsArray[i];
     if(op===OPS.beginMarkedContent||op===OPS.beginMarkedContentProps)marked.push(args);
     else if(op===OPS.endMarkedContent)marked.pop();
+    else if(op===OPS.save)matrices.push(matrix.slice());
+    else if(op===OPS.restore)matrix=matrices.pop()??[];
+    else if(op===OPS.transform)matrix=multiply(matrix,args);
+    else if(op===OPS.paintFormXObjectBegin){matrices.push(matrix.slice());if(args[0])matrix=multiply(matrix,args[0]);}
+    else if(op===OPS.paintFormXObjectEnd)matrix=matrices.pop()??[];
     else if([OPS.paintImageXObject,OPS.paintInlineImageXObject,OPS.paintImageMaskXObject,OPS.shadingFill].includes(op)||op===OPS.constructPath&&args[0]!==OPS.endPath)
-     paint.push({operation:Object.keys(OPS).find(k=>OPS[k]===op),index:i,marked:structuredClone(marked)});
+     paint.push({operation:Object.keys(OPS).find(k=>OPS[k]===op),index:i,args:plain(args),matrix:matrix.slice(),marked:structuredClone(marked)});
    }
 
    const annotations=await page.getAnnotations({intent:'display'});
    pageProofs.push({page:n,untagged,paint,annotations:annotations.map(a=>({subtype:a.subtype,annotationType:a.annotationType,rect:a.rect}))});page.cleanup();
   }
  }finally{await task.destroy();}
+ const decoration=repeatedPageDecoration(pageProofs);
+ for(const page of pageProofs){page.decorationHash=decoration.hash;page.paint=decoration.pages.find(p=>p.page===page.page).remaining;}
  function entries(block){return block.content.flatMap(c=>Number.isInteger(c.mcid)?content.get(c.page+':'+c.mcid)??[]:[]);}
  function text(items){let output='',last;for(const item of items){const space=last&&(Math.abs(last.transform[5]-item.transform[5])>1||item.transform[4]-last.transform[4]-last.width>1)?' ':'';output+=space+item.str;last=item;}return clean(output);}
  const full=records.filter(r=>r.role==='/P').map(r=>text(entries(r))).join('\n');
@@ -108,7 +118,7 @@ async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,source
   for(const boundNote of bound){const before=originalItems.slice(0,originalItems.indexOf(boundNote.item)).filter(i=>!bound.some(b=>b.item===i));anchors.push({note:boundNote.note.id,label:boundNote.note.label,paragraph:paragraphs.length,offset:text(before).length});}
   paragraphs.push(value);paragraphSources.push({part:'pdf',path:record.ref,pages:pageNumbers,mcids:record.content,complete});paragraphProperties.push({notesComplete:ownershipGaps.length===0,annotationsComplete:complete});
  }
- return {sourceKind:'pdf',structureStatus:'extracted',sourceUrl,sourceHash:createHash('sha256').update(buffer).digest('hex'),paragraphs,paragraphSources,paragraphProperties,notes,anchors,proof:{paragraphIdentity:'native-structure-object-reference',noteBlocks:noteBlocks.map(r=>r.ref),notes,ownershipGaps,pageProofs},extractionGaps:[...ownershipGaps,...paintGaps]};
+ return {sourceKind:'pdf',structureStatus:'extracted',sourceUrl,sourceHash:createHash('sha256').update(buffer).digest('hex'),paragraphs,paragraphSources,paragraphProperties,notes,anchors,proof:{paragraphIdentity:'native-structure-object-reference',noteBlocks:noteBlocks.map(r=>r.ref),notes,ownershipGaps,decoration,pageProofs},extractionGaps:[...ownershipGaps,...paintGaps]};
 }
 
 let active=false;

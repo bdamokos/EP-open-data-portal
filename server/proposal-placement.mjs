@@ -858,6 +858,7 @@ function negativeArticlePlacement(items,proposedText,language,evidence,unresolve
 export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline,documentReferences}={}, {nativeProposalInputs}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
+  if(items?.some(item=>item.proposal?.sourceKind==='pdf')&&!/^(?:Recital|Bod odůvodnění|Betragtning|Considerando)\s+\d+/iu.test(targetLabel??''))return unresolved('council_pdf_address_unverified');
   const mixedScope=amendmentMixedLanguageScope({originalText,proposedText,language});
   if(mixedScope)return {operation:null,status:'unresolved',reason:'language_scope_mixed',evidence:[{basis:'published-language-scope',...mixedScope}]};
   const scope=amendmentLanguageScope({originalText,proposedText,language});
