@@ -1,6 +1,7 @@
 import {repeatedPageDecoration} from './council-draft-decoration.mjs';
 import {ownCouncilPageContent} from './council-draft-page-ownership.mjs';
 import {councilPdfLines,councilPdfListOwnership} from './council-draft-list-ownership.mjs';
+import {councilPdfNumberFrame,councilPdfArticleFrame} from './council-draft-number-geometry.mjs';
 import {createHash} from 'node:crypto';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 
@@ -148,6 +149,11 @@ async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,source
  }
  const paragraphFormats=paragraphs.map(()=>({})),listOwnership=councilPdfListOwnership(paragraphs.map((text,i)=>({text,source:paragraphSources[i],complete:paragraphSources[i].complete&&paragraphProperties[i].notesComplete&&paragraphProperties[i].annotationsComplete,lines:paragraphLines[i],attached:anchors.some(a=>a.paragraph===i)||links.some(l=>l.paragraph===i)})));
  for(const proof of listOwnership){paragraphProperties[proof.start].pdfListOwnership=proof;for(const i of proof.points)paragraphFormats[i].indent=proof.pointIndent;for(const i of proof.continuations)paragraphFormats[i].indent=proof.bodyIndent;}
+ for(const [i,value] of paragraphs.entries())if(paragraphSources[i].complete&&paragraphProperties[i].notesComplete&&paragraphProperties[i].annotationsComplete&&!anchors.some(a=>a.paragraph===i)&&!links.some(l=>l.paragraph===i)){
+  const numeric=councilPdfNumberFrame(paragraphLines[i],value),heading=councilPdfArticleFrame(paragraphLines[i]);
+  if(numeric)paragraphProperties[i].pdfNumberFrame=numeric;
+  if(heading)paragraphProperties[i].pdfArticleFrame=heading;
+ }
  return {sourceKind:'pdf',structureStatus:'extracted',sourceUrl,sourceHash:createHash('sha256').update(buffer).digest('hex'),paragraphs,paragraphSources,paragraphProperties,paragraphFormats,notes,anchors,links,proof:{paragraphIdentity:'native-structure-object-reference',noteBlocks:noteBlocks.map(r=>r.ref),notes,ownershipGaps,decoration,pageProofs,listOwnership},extractionGaps:[...ownershipGaps,...paintGaps]};
 }
 

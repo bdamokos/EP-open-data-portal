@@ -8,8 +8,9 @@ export function councilPdfLines(items) {
   const t=item.transform;
   if(!Array.isArray(t)||t.length!==6||!t.every(Number.isFinite)||Math.abs(t[1])>.000001||Math.abs(t[2])>.000001||t[0]<=0||t[3]<=0||!Number.isSafeInteger(item.page))return null;
   const last=lines.at(-1);
-  if(last&&last.page===item.page&&Math.abs(last.y-t[5])<=.5)last.items.push({text:item.str.trim(),x:t[4]});
-  else {if(last&&(last.page!==item.page||t[5]>=last.y))return null;lines.push({page:item.page,y:t[5],items:[{text:item.str.trim(),x:t[4]}]});}
+  const positioned={text:item.str.trim(),x:t[4],right:Number.isFinite(item.width)?t[4]+item.width:undefined};
+  if(last&&last.page===item.page&&Math.abs(last.y-t[5])<=.5)last.items.push(positioned);
+  else {if(last&&(last.page!==item.page||t[5]>=last.y))return null;lines.push({page:item.page,y:t[5],items:[positioned]});}
  }
  return lines.length?lines:null;
 }

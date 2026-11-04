@@ -11,6 +11,7 @@ import {latinSuffixRank} from './legal-latin-numbering.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
 import {councilDraftInstructionOwns} from './council-draft-instruction.mjs';
 import {councilOuterInstructionPrefix} from './council-outer-instruction.mjs';
+import {councilTerminalParagraphOrder} from './council-terminal-paragraph.mjs';
 
 const normal=value=>normaliseForMatching(value,{stripNumbering:false});
 const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -342,7 +343,7 @@ function bareAnnexReplacement(items,target,{language,baseline,originalText,propo
   return {operation:'replace',status:'placed',itemIndex,span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,evidence:[{basis:'sole-bare-annex-first-ordinal',anchor:root.id},{basis:'native-annex-replacement-row',anchor:point.id}]};
 }
 
-function insertionPlacement(items,target,candidatesFor,eligible,{scope='proposal',unitsFor=item=>flat(item.proposal.units),quoted=null,outerPrefix=null,listOwnership=null}={}) {
+function insertionPlacement(items,target,candidatesFor,eligible,{scope='proposal',unitsFor=item=>flat(item.proposal.units),quoted=null,outerPrefix=null,listOwnership=null,terminalOrder=null}={}) {
   const listMember=unit=>listOwnership?.points.includes(unit),conflict=unit=>unit.pathConflict&&unit!==listOwnership?.parent&&!listMember(unit);
   const boundary=(proposal,unit)=>completeBoundary(proposal,unit)||listMember(unit)&&!unit.children.length&&unit.extent.end===unit.extent.start+1&&proposal.paragraphs[unit.extent.start]?.complete&&proposal.paragraphs[unit.extent.start]?.source?.complete===true;
   const closing=closingFormulaInsertion(items,target,candidatesFor);
@@ -418,8 +419,10 @@ function insertionPlacement(items,target,candidatesFor,eligible,{scope='proposal
   const positive=label.negative?{...label,value:label.value.slice(1),number:label.number}:label;
   const order=siblingOrder(ordered,positive);
   if(!order)return {reason:'source_structure_unavailable'};
+  const terminal=terminalOrder?.parent===parent?.unit&&terminalOrder?.anchor===anchor.unit&&terminalOrder?.itemIndex===anchor.itemIndex&&ordered.length===terminalOrder.siblings.length&&ordered.every((u,i)=>u===terminalOrder.siblings[i]);
   for(let i=0;i<ordered.length;i++){
     const unit=ordered[i],previous=ordered[i-1],current=order(unit.label),before=previous&&order(previous.label);
+    if(terminal){if(previous&&previous.extent.end>unit.extent.start)return {reason:'source_structure_unavailable'};continue;}
     if(conflict(unit)||current.rank<0||previous&&(previous.extent.end>unit.extent.start||before.number>current.number||before.number===current.number&&before.rank>=current.rank))return {reason:'source_structure_unavailable'};
   }
   const next=ordered[ordered.indexOf(anchor.unit)+1];
@@ -1066,9 +1069,11 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
-    const insertion=bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,bound?{scope:'quoted',unitsFor:item=>item.proposal===bound.proposal?bound.units:[],quoted:bound.quote,listOwnership:nativeList}:{outerPrefix});
+    const terminalOrder=bound?councilTerminalParagraphOrder(bound,items,target,{language,baseline,originalText,proposedText}):null;
+    const insertion=bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,bound?{scope:'quoted',unitsFor:item=>item.proposal===bound.proposal?bound.units:[],quoted:bound.quote,listOwnership:nativeList,terminalOrder}:{outerPrefix});
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
+    if(terminalOrder)evidence.push({basis:'native-terminal-paragraph-order',anchor:terminalOrder.anchor.id});
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
     return {operation,status:'placed',itemIndex:insertion.itemIndex,insertAfter:insertion.insertBefore-1,insertBefore:insertion.insertBefore,...(insertion.splice?{splice:insertion.splice}:{}),evidence};
   }
