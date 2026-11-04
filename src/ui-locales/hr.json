@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.new.point.order": "Nova točka {point} slijedi iza točke {base}.",
   "documentcontext.final_placement_check": "Provjerite konačno mjesto u {adoptedText}.",
   "documentcontext.adopted_text": "usvojenom tekstu",
   "amendment.alternative_motion": "Alternativni prijedlog",

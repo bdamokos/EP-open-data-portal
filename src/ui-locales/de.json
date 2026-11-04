@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.new.point.order": "Die neue Nummer {point} folgt auf Nummer {base}.",
   "documentcontext.final_placement_check": "Prüfen Sie die endgültige Platzierung im {adoptedText}.",
   "documentcontext.adopted_text": "angenommenen Text",
   "amendment.alternative_motion": "Alternativer Entschließungsantrag",

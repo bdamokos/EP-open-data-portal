@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.new.point.order": "Uus punkt {point} järgneb punktile {base}.",
   "documentcontext.final_placement_check": "Kontrollige lõplikku asukohta {adoptedText}.",
   "documentcontext.adopted_text": "vastuvõetud tekstis",
   "amendment.alternative_motion": "Alternatiivne ettepanek",

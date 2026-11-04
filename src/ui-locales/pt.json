@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.new.point.order": "O novo ponto {point} segue o ponto {base}.",
   "documentcontext.final_placement_check": "Verifique a posição final no {adoptedText}.",
   "documentcontext.adopted_text": "texto aprovado",
   "amendment.alternative_motion": "Proposta alternativa",

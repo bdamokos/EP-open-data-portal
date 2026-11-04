@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.new.point.order": "Nyt punkt {point} følger efter punkt {base}.",
   "documentcontext.final_placement_check": "Kontrollér den endelige placering i {adoptedText}.",
   "documentcontext.adopted_text": "den vedtagne tekst",
   "amendment.alternative_motion": "Alternativt forslag",
