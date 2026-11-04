@@ -1,0 +1,1 @@
+export function proposalInsertionNote(wording: {baseline?: string | null;language?: string | null;targetLabel?: string | null;targetPath?: {proposal?: {raw: string}[]} | null} | null | undefined, placement: {status: string;outerOperation?: string | null} | null | undefined): {point: string;base: string} | null;

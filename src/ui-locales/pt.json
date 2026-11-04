@@ -2829,5 +2829,6 @@
   "topics.story.integrated.lead.tiedEachJumped": "{places}: os locais mais referidos nas perguntas ({questions} cada um), em cada caso um salto face a {average}.",
   "topics.story.integrated.lead.tiedEachJumped.eu": "Na Europa e nos países vizinhos, {places}: os locais mais referidos nas perguntas ({questions} cada um), em cada caso um salto face a {average}.",
   "proposalcontexttext.colliding.new.point": "Este número já existe. Inserido após o ponto de base.",
-  "proposalcontexttext.new.unnumbered.table": "Nova tabela sem número inserida no final do anexo."
+  "proposalcontexttext.new.unnumbered.table": "Nova tabela sem número inserida no final do anexo.",
+  "proposalcontexttext.new.point.order": "O novo ponto {point} segue o ponto {base}."
 }

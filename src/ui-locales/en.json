@@ -2904,5 +2904,6 @@
   "topics.story.integrated.questionPlaceDebatesRare": "{place} ({debates}; rarely asked about before{home})",
   "topics.story.integrated.debateCountPeers": "{count}, as did {peers}",
   "proposalcontexttext.colliding.new.point": "This number collides with an existing point. Placed after the base point.",
-  "proposalcontexttext.new.unnumbered.table": "New unnumbered table placed at the end of the annex."
+  "proposalcontexttext.new.unnumbered.table": "New unnumbered table placed at the end of the annex.",
+  "proposalcontexttext.new.point.order": "New point {point} follows point {base}."
 }
