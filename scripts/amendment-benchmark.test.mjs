@@ -12,7 +12,7 @@ import {documentContextPlacement} from '../server/document-context-placement.mjs
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
 import {classifyRow,classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility,instructionFrameWording} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
-import {harnessIdentity,options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport} from './amendment-benchmark.mjs';
+import {harnessIdentity,options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport,withListDocumentDate} from './amendment-benchmark.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 beforeEach(registerSubprocesses);
@@ -612,4 +612,14 @@ test('harness identity records the provisional oracle and detects its mutation w
   const after=await harnessIdentity(directory);
   assert.notEqual(before.files[file],after.files[file]);
  }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+
+test('list date replay metadata is bound to the exact selected list and language',()=>{
+ const wording={listId:'A-10-2026-0160-AM-001-003',language:'en',documentDate:null};
+ const record={listId:wording.listId,language:'en',listDocumentDate:'2026-06-10'};
+ assert.deepEqual(withListDocumentDate(wording,record),{...wording,listDocumentDate:'2026-06-10'});
+ assert.equal(withListDocumentDate(wording,{...record,listId:'A-10-2026-0160-AM-004-005'}),wording);
+ assert.equal(withListDocumentDate(wording,{...record,language:'fr'}),wording);
+ assert.equal(withListDocumentDate(wording,{}),wording);assert.equal(wording.documentDate,null);
 });

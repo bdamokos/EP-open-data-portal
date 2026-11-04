@@ -20,12 +20,12 @@ export function actCelex(raw) {
   if(!year||year>2099||number<1)return null;
   return `3${year}${kind}${String(number).padStart(4,'0')}`;
 }
-export function existingLawReference({targetPath,documentReferences=[],documentDate,date,language}={}) {
+export function existingLawReference({targetPath,documentReferences=[],documentDate,date,listDocumentDate,language}={}) {
   const inner=targetPath?.underlying;
   if(inner?.length!==1||!inner[0].document||!inner[0].raw)return unresolved('existing-law-target-unavailable');
   const baseCelex=actCelex(inner[0].document);
   if(!baseCelex)return unresolved('existing-law-identity-unavailable');
-  const amendmentDate=documentDate||date;
+  const amendmentDate=documentDate||date||listDocumentDate;
   if(!lawDate(amendmentDate))return unresolved('existing-law-date-unavailable');
   const cited=unique(documentReferences.flatMap(r=>[...r.raw.matchAll(/\b0(?:19|20)\d{2}[RLD]\d{4}-\d{8}\b/g)].map(m=>m[0])));
   if(cited.length>1||cited.some(id=>'3'+id.slice(1,10)!==baseCelex))return unresolved('existing-law-version-conflict');

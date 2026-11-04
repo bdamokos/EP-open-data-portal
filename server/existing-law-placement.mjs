@@ -5,13 +5,14 @@ import {amendmentOperation} from './document-context-model.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 
 const exactKey=text=>normaliseForMatching(text,{stripNumbering:false,stripTerminators:false}).replace(/\s+/gu,' ').trim().replace(/[.;’”'"]+$/u,'').trim();
-const prefixless=(text,unit)=>unit.label?.prefix&&text.startsWith(unit.label.prefix)?text.slice(unit.label.prefix.length):text;
+const prefixless=(text,unit)=>{
+ if(unit.label?.prefix&&text.startsWith(unit.label.prefix))return text.slice(unit.label.prefix.length);
+ if(unit.kind==='point'&&/^[a-z0-9]+$/u.test(unit.label?.value||''))return text.replace(new RegExp('^\\(?'+unit.label.value+'\\)\\s+','u'),'');
+ return text;
+};
 
 export function existingLawReplacement(text,language) {
   if(typeof text!=='string')return null;
-  // ETS AM13 separates two closing quotes with a semicolon. Neither the
-  // normative ending nor the wrapper boundary can be established from it.
-  if(/[’”"'][;.]+\s*[’”"']\s*[;.]*\s*$/u.test(text))return null;
   // Keep the published wrapper and its replacement as exact separate slices.
   // Polish committee lists sometimes omit the opening quotation mark.
   const instruction=language==='en'?/[^\n]*(?:is|are) replaced by the following:\s*\n/u:language==='pl'?/[^\n]*otrzymuje brzmienie:\s*\n/u:null;
@@ -19,8 +20,14 @@ export function existingLawReplacement(text,language) {
   if(!match)return null;
   let start=match.index+match[0].length,end=text.length;
   while(/\s/u.test(text[start]||'')&&start<end)start++;
+  const opening=text[start];
+  // A straight opening quote can have the published mixed closing pair ’;".
+  // Keep that entire pair in the wrapper, preserving the normative full stop.
+  const mixed=/’;\s*"\s*$/u.exec(text.slice(start));
+  if(/[’”"'][;.]+\s*[’”"']\s*[;.]*\s*$/u.test(text)&&!(opening==='"'&&mixed))return null;
+  const mixedStart=mixed?start+mixed.index:null;
   if(/[‘“"„]/u.test(text[start]||''))start++;
-  const tail=/[’”"]\s*(?:["’”])?\s*[;.]*\s*$/u.exec(text.slice(start));
+  const tail=opening==='"'&&mixed?{index:mixedStart-start}:/[’”"]\s*(?:["’”])?\s*[;.]*\s*$/u.exec(text.slice(start));
   if(tail)end=start+tail.index;
   while(end>start&&/\s/u.test(text[end-1]))end--;
   if(start>=end)return null;
@@ -50,7 +57,7 @@ export function resolveExistingLawPlacement(items,chosen,baseline) {
   // per-line terminators; only an enclosing boundary and typography may differ.
   if(result.status!=='placed'&&target.segments.at(-1)?.kind!=='subparagraph'&&unit.complete&&exactKey(source)===exactKey(chosen.originalText))result={operation:'replace',status:'placed',itemIndex,span:{start:unit.extent.start,end:unit.extent.end-1},splice:{start:{paragraph:unit.extent.start,offset:0},end:{paragraph:unit.extent.end-1,offset:proposal.paragraphs[unit.extent.end-1].text.length}},originalText:source,evidence:[{basis:'existing-law-exact-original',anchor:unit.id}]};
   if(result.status!=='placed')return result;
-  if(exactKey(result.originalText)!==exactKey(chosen.originalText)&&exactKey(prefixless(result.originalText,unit))!==exactKey(chosen.originalText))return unresolved('existing-law-wording-conflict');
+  if(exactKey(result.originalText)!==exactKey(chosen.originalText)&&exactKey(prefixless(result.originalText,unit))!==exactKey(prefixless(chosen.originalText,unit)))return unresolved('existing-law-wording-conflict');
   // AM55 quotes only the end of Article 8 while instructing replacement of the
   // whole article. A partial quotation cannot define that replacement's extent.
   if(target.segments.length===1&&/\bArticle\s+\d+\w*\s+is replaced/u.test(replacement.instruction)) {

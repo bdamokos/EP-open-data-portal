@@ -67,13 +67,17 @@ test('a partial Article 8 quotation cannot implement the published whole-article
   const r=resolveExistingLawPlacement([{kind:'act',index:1,proposal:p}],{...chosen(cbam,'Article 8'),originalText,proposedText:'(6a) Article 8 is replaced by the following:\n"Replacement."'},baseline(cbam));
   assert.equal(r.reason,'existing-law-instruction-scope-conflict');
 });
-test('published ETS AM13 remains readable but its mixed replacement ending is not applied',()=>{
+test('published ETS AM13 mixed closing pair stays outside the exact replacement slice',()=>{
   const f=fixtures[3],amendment=f.amendment,p=projection(f),published=amendment.proposed;
   assert.equal(amendment.id,'A-10-2026-0276-AM-13');
   assert(published.endsWith('Article.’;"'));
-  assert.equal(existingLawReplacement(published,f.language),null);
+  const replacement=existingLawReplacement(published,f.language);assert(replacement);
+  assert(replacement.text.endsWith('Article.'));assert.equal(replacement.closing,'’;"');
+  assert.equal(replacement.instruction+replacement.text+replacement.closing,published);
+  assert.equal(published.slice(replacement.start,replacement.end),replacement.text);
+  assert.equal(existingLawReplacement(published.replace('’;"','”;"'),f.language),null);
   const r=resolveExistingLawPlacement([{kind:'act',index:1,proposal:p}],{...chosen(f,amendment.target),originalText:amendment.original,proposedText:published},baseline(f));
-  assert.equal(r.status,'unresolved');assert.equal(r.reason,'existing-law-operation-unavailable');
+  assert.equal(r.status,'placed');assert.equal(r.operation,'replace');assert.equal(r.proposedText,replacement.text);
   assert.equal(amendment.proposed,published);
 });
 test('INSPIRE point/article discrepancy stays unresolved, and Polish replacement offsets are exact',()=>{
@@ -86,4 +90,30 @@ test('public acquisition reuses Cellar negotiation, cache and exact discovered i
   const read=createExistingLawBaseline({documents:new CellarDocuments({sources,directory:null})}),options=chosen(cbam,'Article 5 – paragraph 1');
   const r=await read(options);assert.equal(r.status,'available',JSON.stringify(r.gaps));assert.equal(r.items[0].itemId,cbam.item.itemId);assert.equal(r.celex,cbam.celex);assert.equal(r.selectionBasis,'latest-consolidation-at-amendment-date');
   await read(options);assert.equal(calls,3);
+});
+
+
+test('mixed replacement wrapper offsets remain exact after leading whitespace',()=>{
+ const text='paragraph 1 is replaced by the following:\n  "Legal text.’;"';
+ const r=existingLawReplacement(text,'en');assert.equal(r.text,'Legal text.');
+ assert.equal(text.slice(r.start,r.end),r.text);assert.equal(r.instruction+r.text+r.closing,text);
+ assert.equal(existingLawReplacement(text.replace('  "','  ‘'),'en'),null);
+});
+
+
+test('a date-free amendment uses its exact list record date for historical law selection',()=>{
+ const options={...chosen(cbam,'Article 5 – paragraph 1'),documentDate:null,date:null,listDocumentDate:'2026-09-09'};
+ assert.equal(existingLawReference(options).amendmentDate,'2026-09-09');
+ assert.equal(existingLawReference({...options,listDocumentDate:null}).status,'unresolved');
+ assert.equal(existingLawReference({...options,documentDate:'2026-02-30'}).status,'unresolved');
+ assert.equal(existingLawReference({...options,listDocumentDate:'2026-02-30'}).status,'unresolved');
+});
+
+
+test('published point prefixes a) and (a) identify the same exact existing-law wording',()=>{
+ const p=projection(cbam),target='Article 27 – paragraph 2 – point a',u=proposalCandidates(p,parseTargetLabel(target,'en'))[0];
+ const original=p.paragraphs.slice(u.extent.start,u.extent.end).map(p=>p.text).join('\n').replace(/^\(a\)/u,'a)');
+ const w={...chosen(cbam,target),originalText:original,proposedText:'point (a) is replaced by the following:\n"Replacement text."'};
+ assert.equal(resolveExistingLawPlacement([{kind:'act',proposal:p}],w,baseline(cbam)).status,'placed');
+ assert.equal(resolveExistingLawPlacement([{kind:'act',proposal:p}],{...w,originalText:original.replace(/^a\)/u,'b)')},baseline(cbam)).status,'unresolved');
 });

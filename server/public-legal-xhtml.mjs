@@ -8,7 +8,7 @@ import {proposalNumber,proposalLanguage} from './proposal-labels.mjs';
 // outside legal wording; unsupported grids, notes and objects make only their
 // affected passages incomplete.
 
-export const PUBLIC_LEGAL_XHTML_VERSION='7';
+export const PUBLIC_LEGAL_XHTML_VERSION='8';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const uniqueLinks=links=>[...new Set(links.map(link=>link.url))];
 const clean=value=>value.replace(/\s+/gu,' ').trim();
@@ -120,7 +120,7 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
   function listRows(node) {
     if(has(node,'grid-list')) {
       const left=node.children.find(n=>has(n,'grid-list-column-1')),body=node.children.find(n=>has(n,'grid-list-column-2')),lead=left&&clean(text(left));
-      return body&&/^\(?[\p{L}\d]+\)$/u.test(lead)?{lead,body}:null;
+      return body&&/^[-–—]$/u.test(lead)?{lead,body,indent:true}:body&&/^\(?[\p{L}\d]+\)$/u.test(lead)?{lead,body}:null;
     }
     if(node.name!=='table')return null;
     const rows=node.children.flatMap(n=>n.name==='tbody'?n.children:n.name==='tr'?[n]:[]).filter(n=>n.name==='tr');
@@ -181,6 +181,14 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
     }
     const row=listRows(node);
     if(row) {
+      // Consolidations print dash indents as grid rows whose body is a div,
+      // rather than a paragraph. Retain each ordinal child and its exact text.
+      if(row.indent) {
+        const owner=unit(parent,'indent',String(parent.children.filter(child=>child.kind==='indent').length+1),{label:{prefix:row.lead+' '}});
+        let first=true;
+        for(const child of row.body.children)if(child.name==='p'||child.name==='div'&&has(child,'list')&&!child.children.some(node=>['p','div','table'].includes(node.name))){paragraph(owner,child,first?row.lead+' ':'');first=false;}else walk(child,owner);
+        return;
+      }
       if(parent.kind==='recital'){parent.label.prefix=row.lead+' ';let first=true;for(const child of row.body.children){if(first&&child.name==='p'){paragraph(parent,child,row.lead+' ');first=false;}else walk(child,parent);}return;}
       const quoted=/^[‘“]/u.test(row.lead),value=row.lead.replace(/^[‘“]?\(?|[.)]$/gu,'');
       let ownerParent=parent;
