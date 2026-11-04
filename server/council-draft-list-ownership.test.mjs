@@ -58,3 +58,6 @@ test('a contradictory published outer line cannot borrow targetPath evidence',()
 test('a repeated original cannot disambiguate the two printed parent labels',()=>{
  const c=content();c.paragraphs[13]='Direct continuation.';const p=parseProposal(c,{language:'cs'}),w=wording('Čl. 13 – odst. 2 – pododstavec 2','Direct continuation.','Changed.');assert.notEqual(resolveProposalPlacement([{kind:'act',proposal:p}],w).status,'placed');
 });
+test('a duplicate inner article cannot inherit the local paragraph-list proof',()=>{
+ const c=content();c.paragraphs.splice(14,0,'Článek 13','1. Repeated article.');c.paragraphSources.splice(14,0,...[90,91].map(mcid=>({path:'extra'+mcid,role:'/P',complete:true,pages:[1],mcids:[{page:1,mcid}]})));c.paragraphProperties.splice(14,0,{styleId:'Titrearticle',headingBasis:'native-first-line'},{});c.paragraphFormats.splice(14,0,{},{});const p=parseProposal(c,{language:'cs'}),w=wording('Čl. 13 – odst. 2 – pododstavec 2','Direct continuation.','Changed.');assert.notEqual(resolveProposalPlacement([{kind:'act',proposal:p}],w).status,'placed');
+});
