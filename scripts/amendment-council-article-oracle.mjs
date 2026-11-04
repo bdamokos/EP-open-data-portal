@@ -83,6 +83,10 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
  const proposal=items?.[placement.itemIndex]?.proposal;if(!proposal)return unknown('projection-unavailable');
  if(placement.operation==='insert'){
   const last=scope.inner.at(-1);if(!last.suffix||!['paragraph','point'].includes(last.kind))return unknown('article-insertion-address-unproved');
+  if(!/\([^)]*\)\s*$/u.test(wording.targetPath.underlying[0].raw)){
+   const printed=/^(\d+)\s*(bis|[a-z])\.\s+/iu.exec(wording.proposedText?.trim()??'');
+   if(wording.originalText?.trim()||!printed||(printed[1]+printed[2]).toLowerCase()!==last.value)return unknown('article-new-label-unproved');
+  }
   const parents=scope.units;
   if(!parents?.length)return unknown('article-insertion-parent-unproved');
   const siblings=parents.flatMap(p=>children(p.text,last.kind)),anchors=siblings.filter(s=>s.value===last.base);if(anchors.length!==1)return unknown('article-insertion-anchor-unproved');
