@@ -46,6 +46,9 @@ function children(text,kind) {
 export function councilArticleNativeScope(raw,wording) {
  const g=grammar[wording.language];if(!g)return null;
  const outer=label(wording.targetPath?.proposal?.[0]?.raw??String(wording.targetLabel??'').split('\n')[0],g);
+ // Spanish uses párrafo for the proposal's unnumbered article lead and for
+ // subparagraphs. The full outer article/lead/point frame disambiguates it.
+ if(wording.language==='es'&&outer?.length===3&&outer[0].kind==='article'&&outer[1].kind==='subparagraph'&&outer[2].kind==='point')outer[1]={...outer[1],kind:'paragraph'};
  const refs=wording.targetPath?.underlying;
  if(!outer||outer.length!==3||outer[0].kind!=='article'||outer[1].kind!=='paragraph'||outer[1].value!=='1'||outer[2].kind!=='point'||!/^\d+$/u.test(outer[2].value)||refs?.length!==1)return null;
  const inner=label(refs[0].raw,g);if(!inner||inner[0].kind!=='article'||inner.length<2)return null;
@@ -90,6 +93,7 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
   const parents=scope.units;
   if(!parents?.length)return unknown('article-insertion-parent-unproved');
   const siblings=parents.flatMap(p=>children(p.text,last.kind)),anchors=siblings.filter(s=>s.value===last.base);if(anchors.length!==1)return unknown('article-insertion-anchor-unproved');
+  if(new Set(siblings.map(s=>s.value)).size!==siblings.length)return unknown('article-insertion-numbering-unproved');
   const index=siblings.indexOf(anchors[0]),next=siblings[index+1];
   const after=proposal.paragraphs[placement.insertAfter]?.text,before=proposal.paragraphs[placement.insertBefore]?.text;
   if(!Number.isSafeInteger(placement.insertAfter)||placement.insertBefore!==placement.insertAfter+1||!after)return failed();
