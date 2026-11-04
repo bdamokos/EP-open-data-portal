@@ -873,6 +873,26 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(paths&&paths.length!==1)return unresolved('target_reference_unavailable');
   // A structured underlying-act target without a proposal address is not an outer location.
   if(!paths&&targetPath?.underlying?.length)return unresolved('target_reference_unavailable');
+  // This title is a contiguous three-row act heading after the procedure
+  // reference, not one of the separately numbered chapters or articles.
+  if(language==='en'&&baseline==='commission-proposal'&&operation==='replace'&&targetLabel==='Title 1'&&!targetPath?.underlying?.length) {
+    const candidates=[];
+    for(const [itemIndex,item] of items.entries()) {
+      if(item.kind==='annex'||item.proposal?.sourceKind!=='docx')continue;
+      const paragraphs=item.proposal.paragraphs;
+      for(let i=1;i+3<paragraphs.length;i++) {
+        const group=paragraphs.slice(i-1,i+4),styles=group.slice(1,4).map(row=>row.properties?.styleId);
+        if(styles.join('|')!=='Statut|Typedudocument|Titreobjet'||!/^\d{4}\/\d+ \(CNS\)$/u.test(group[0].text.trim())
+          ||group[1].text.trim()!=='Proposal for a'||group[2].text.trim()!=='COUNCIL DIRECTIVE'||group[4].text.trim()!=='THE COUNCIL OF THE EUROPEAN UNION,')continue;
+        if(group.some((row,n)=>!row.complete||row.source?.complete!==true||row.source.container!=='body'||n&&(row.source.ordinal!==group[n-1].source.ordinal+1||row.source.segment!==group[n-1].source.segment||row.source.containerPath!==group[n-1].source.containerPath)))continue;
+        if(normal(group.slice(1,4).map(row=>row.text).join('\n'))!==normal(originalText))continue;
+        candidates.push({itemIndex,start:group[1],end:group[3]});
+      }
+    }
+    if(candidates.length!==1)return unresolved('target_not_found');
+    const {itemIndex,start,end}=candidates[0];evidence.push({basis:'published-proposal-title'});
+    return {operation,status:'placed',itemIndex,span:{start:start.index,end:end.index},splice:{start:{paragraph:start.index,offset:0},end:{paragraph:end.index,offset:end.text.length}},originalText,evidence};
+  }
   const instruction=wholeAnnexInstructionPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences,operation},unresolved,nativeProposalInputs);
   if(instruction)return instruction;
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());

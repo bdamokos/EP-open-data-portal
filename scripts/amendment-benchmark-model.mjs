@@ -28,7 +28,7 @@ import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-ben
 import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
-import {assertRecastReading} from './amendment-recast-oracle.mjs';
+import {assertRecastReading,assertNativeProposalTitle} from './amendment-recast-oracle.mjs';
 import {assertRecitalCategoryRepair} from './amendment-recital-category-oracle.mjs';
 
 
@@ -598,6 +598,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
+  if(items?.length&&wording.targetLabel==='Title 1')return assertNativeProposalTitle({proposal:items[placement.itemIndex]?.proposal,wording,placement,nativeQuoted});
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;

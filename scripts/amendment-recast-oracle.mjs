@@ -107,3 +107,34 @@ export function assertRecastReading({proposal,placement,nativeQuoted}) {
   }
   return {status:'verified',reason:'oracle-recast-reading'};
 }
+
+// The native title, its procedure reference and the institution opening bind
+// the otherwise ambiguous published address "Title 1" to three body rows.
+export function assertNativeProposalTitle({proposal,wording,placement,nativeQuoted}) {
+ const unknown={status:'unverified',reason:'oracle-proposal-title-unavailable'};
+ if(wording?.language!=='en'||wording.baseline!=='commission-proposal'||wording.targetLabel!=='Title 1'||placement?.operation!=='replace')return unknown;
+ const source=nativeSource(nativeQuoted?.proposalBuffer);if(!source)return unknown;
+ const lines=String(wording.originalText||'').split('\n');if(lines.length!==3||lines[0]!=='Proposal for a'||lines[1]!=='COUNCIL DIRECTIVE')return unknown;
+ const direct=[...source.native].filter(([path])=>/^\/w:document\[1\]\/w:body\[1\]\/w:p\[\d+\]$/u.test(path));
+ const candidates=[];
+ for(let i=1;i+3<direct.length;i++) {
+  const group=direct.slice(i-1,i+4),read=group.map(([,node])=>squash(readingOf(node,source.ids)));
+  const all=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,body])=>name===key?[node]:Array.isArray(body)?all(body,key):[]));
+  if(group.some(([,node])=>['w:drawing','w:pict','w:object','m:oMath','w:fldSimple','w:footnoteReference','w:endnoteReference','w:vanish','w:webHidden'].some(name=>all(node,name).length)))continue;
+  const instruction=group.flatMap(([,node])=>all(node,'w:instrText')).map(node=>(node['w:instrText']||[]).map(part=>part['#text']??'').join('')).join('');
+  const fields=group.flatMap(([,node])=>all(node,'w:fldChar')).map(node=>node[':@']?.['@_w:fldCharType']);
+  if(fields.length%3||!/^(?:\s*QUOTE\s*"[ðï]"\s*)*$/u.test(instruction)||(instruction.match(/QUOTE/gu)||[]).length!==fields.length/3||fields.join('|')!==Array(fields.length/3).fill('begin|separate|end').join('|'))continue;
+  if(!/^\d{4}\/\d+ \(CNS\)$/u.test(read[0])||read[1]!==lines[0]||read[2]!==lines[1]||read[3]!==squash(lines[2])||read[4]!=='THE COUNCIL OF THE EUROPEAN UNION,')continue;
+  const styles=group.slice(1,4).map(([,node])=>value(entries(node,'w:pPr')[0]?.['w:pPr'],'w:pStyle'));
+  if(styles.join('|')!=='Statut|Typedudocument|Titreobjet')continue;
+  candidates.push(group);
+ }
+ if(candidates.length!==1)return unknown;
+ const group=candidates[0],paths=group.map(([path])=>path),projected=paths.map(path=>proposal.paragraphs.filter(p=>p.source?.path===path));
+ if(projected.some(rows=>rows.length!==1))return unknown;
+ const rows=projected.map(matches=>matches[0]);
+ if(rows.some((row,i)=>!row.complete||!row.source?.complete||row.source.container!=='body'||i&&(row.source.ordinal!==rows[i-1].source.ordinal+1||row.source.segment!==rows[i-1].source.segment||row.source.containerPath!==rows[i-1].source.containerPath)))return unknown;
+ const start=rows[1].index,end=rows[3].index,splice=placement.splice;
+ if(placement.span?.start!==start||placement.span?.end!==end||splice?.start?.paragraph!==start||splice.start.offset!==0||splice?.end?.paragraph!==end||splice.end.offset!==rows[3].text.length)return {status:'failed',reason:'oracle-proposal-title-boundary-mismatch'};
+ return {status:'verified',reason:'oracle-native-proposal-title'};
+}

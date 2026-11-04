@@ -11,6 +11,16 @@ const item=projection=>({kind:'act',index:1,proposal:parseProposal(projection)})
 const resolve=(projection,targetLabel,originalText='',proposedText='New provision.')=>resolveProposalPlacement([item(projection)],{targetLabel,originalText,proposedText,language:'en'});
 const cbamItems=['act','annex'].map(kind=>({kind,index:1,proposal:parseProposal(fixture(`52025PC0087-${kind}-excerpt.json`),{item:kind})}));
 
+test('proposal title one needs the consecutive identified heading and exact wording',()=>{
+ const paragraphs=['2025/580 (CNS)','Proposal for a','COUNCIL DIRECTIVE','on a subject (recast)','THE COUNCIL OF THE EUROPEAN UNION,'];
+ const styles=['Rfrenceinterinstitutionnelle','Statut','Typedudocument','Titreobjet','Institutionquiagit'];
+ const proposal={...structuredClone(parseProposal(source(paragraphs,styles))),sourceKind:'docx'};
+ const wording={language:'en',baseline:'commission-proposal',targetLabel:'Title 1',originalText:paragraphs.slice(1,4).join('\n'),proposedText:'Changed title'};
+ const place=()=>resolveProposalPlacement([{kind:'act',proposal}],wording);
+ assert.deepEqual(place().span,{start:1,end:3});
+ proposal.paragraphs[2].source.complete=false;assert.notEqual(place().status,'placed');
+});
+
 test('CBAM recorded amendments 4–8 place only the changed source extent',()=>{
   const amendments=fixture('proposal-placement-cbam.json').amendments;
   assert.deepEqual(amendments.map(amendment=>amendment.number),[4,5,6,7,8]);
