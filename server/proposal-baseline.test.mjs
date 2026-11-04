@@ -193,6 +193,17 @@ test('proposalBaseline returns exact buffers and metadata gaps without substitut
   assert.throws(()=>load({celex:'../../x'}));assert.throws(()=>load({celex,language:'xx'}));
 });
 
+test('identity-only proposal lookup resolves the exact work without reading or retaining any document',async()=>{
+  const downloads=[];
+  const fetchSource=async url=>{if(url.includes('/sparql'))return Response.json(JSON.parse(readFileSync(new URL('./fixtures/proposal-52025PC0087-candidates.json',import.meta.url),'utf8')));if(url.includes('/celex/'))return new Response(xml,{headers:{'content-type':'application/rdf+xml'}});downloads.push(url);return content();};
+  const load=createProposalBaseline({documents:new CellarDocuments(sourceOptions(fetchSource)),request:async()=>({payload:{data:[report]},url:'https://data.europarl.europa.eu/api/v2/plenary-documents/A-10-2025-0085',fetchedAt:Date.now()})});
+  const identity=await load({reportId:'A-10-2025-0085',language:'en',identityOnly:true});
+  assert.equal(identity.status,'identified');assert.equal(identity.celex,celex);assert.deepEqual(identity.items,[]);assert.deepEqual(downloads,[]);
+  assert.equal((await load({reportId:'A-10-2025-0085',celex:'52021PC0206',language:'en',identityOnly:true})).status,'unresolved');
+  assert.equal((await load({celex,documentReferences:[{field:'DocRef',raw:'COM(2021)206'}],identityOnly:true})).status,'unresolved');
+  assert.equal((await load({reportId:'A-10-2025-0085',language:'en'})).status,'available');assert(downloads.length>0);
+});
+
 test('candidate discovery refuses competing works, corrigenda, missing versions and capped results',()=>{
   const data=JSON.parse(readFileSync(new URL('./fixtures/proposal-52025PC0087-candidates.json',import.meta.url),'utf8')),row=data.results.bindings[0];
   assert.equal(resolveProposalCandidates(data,{celex}).status,'resolved');

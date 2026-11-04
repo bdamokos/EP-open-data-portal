@@ -1,6 +1,9 @@
 {
   "amendment.replaces_whole_text": "Αντικαθιστά ολόκληρο το κείμενο.",
   "amendment.agreement_text": "Κείμενο της συμφωνίας",
+  "amendment.final_act": "Τελική πράξη: {act}",
+  "amendment.provisional_marks": "Έντονα πλάγια γράμματα: νέο ή τροποποιημένο κείμενο. ▌: διαγραφή.",
+  "amendment.provisional_unmarked": "Ορισμένες αλλαγές δεν επισημαίνονται.",
   "documentcontext.final_placement_check": "Ελέγξτε την τελική θέση στο {adoptedText}.",
   "documentcontext.adopted_text": "εγκριθέν κείμενο",
   "amendment.alternative_motion": "Εναλλακτική πρόταση",

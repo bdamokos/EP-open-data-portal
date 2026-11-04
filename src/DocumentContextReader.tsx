@@ -25,6 +25,7 @@ import {amendmentLanguageScope} from './amendmentLanguageScope.mjs';
 import {FindInText} from './TextSearch';
 import {ProposalContextText,proposalPlacementReasons, proposalPlacementReasonsUi} from './ProposalContextText';
 import {DocumentParagraphs,usableFormatting,type FormatMark} from './DocumentFormatting';
+import {ProvisionalAgreementLinks,type ProvisionalAgreementResponse} from './ProvisionalAgreement';
 import './DocumentContextReader.css';
 
 export type DocumentContextReaderProps={
@@ -44,7 +45,7 @@ const titleOf=(document:Pick<PublicationDocument,'titles'>,language:string, ui: 
   const title=selectLanguageText(document.titles,language,ui.t("batch6.documentcontextreader.document.text.37"), ui.messageLocale("batch6.documentcontextreader.document.text.37"));
   return {...title,text:displayVoteTitle(title.text)};
 };
-const documentKind=(id:string, ui: import('./uiI18n.mjs').UiFormatter = defaultUi)=>id.startsWith('TA-') ? ui.t("batch6.documentcontextreader.adopted.text.40") : (id.includes('-PR-') ? ui.t("legislation.draft_report.b4f899") : (id.includes('-PA-') ? ui.t("legislation.draft_opinion.ed1618") : (id.includes('-AM-') ? ui.t("legislation.committee_amendments.bf18f4") : (id.startsWith('RC-') ? ui.t("batch6.documentcontextreader.joint.motion.40") : (id.startsWith('B-') ? ui.t("batch6.documentcontextreader.motion.40") : ui.t("batch6.documentcontextreader.report.40"))))));
+const documentKind=(id:string, ui: import('./uiI18n.mjs').UiFormatter = defaultUi)=>id.startsWith('TA-') ? ui.t("batch6.documentcontextreader.adopted.text.40") : (id.includes('-PR-') ? ui.t("legislation.draft_report.b4f899") : (id.includes('-PA-') ? ui.t("legislation.draft_opinion.ed1618") : (/^A-\d+-\d{4}-\d{4,6}-AM-/.test(id) ? ui.t("legislation.provisional_agreement.74dd3c") : id.includes('-AM-') ? ui.t("legislation.committee_amendments.bf18f4") : (id.startsWith('RC-') ? ui.t("batch6.documentcontextreader.joint.motion.40") : (id.startsWith('B-') ? ui.t("batch6.documentcontextreader.motion.40") : ui.t("batch6.documentcontextreader.report.40"))))));
 const documentRoute=(id:string,language:string,request?:DocumentContextRequest)=>{
   const query=new URLSearchParams({lang:language});
   if(request?.amendmentId)query.set('amendment',request.amendmentId);
@@ -139,6 +140,9 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const rejection=Boolean(wording&&placement?.status==='document-operation'&&['reject','alternative-motion'].includes(placement.operation??'')&&data?.amendment?.id===amendmentRequest?.amendmentId&&evidence?.amendmentId===amendmentRequest?.amendmentId&&evidence?.listId===wording.listId&&evidence?.wordingLanguage===wording.language);
   const provisionalSource=placement?.evidence?.find(item=>item.basis==='exact-provisional-agreement'&&item.reference===amendmentRequest?.amendmentId);
   const provisional=Boolean(data?.amendment?.id===amendmentRequest?.amendmentId&&placement?.status==='document-operation'&&placement.operation==='replace'&&placement.scope==='whole-document'&&selectedVariant?.source?.url===provisionalSource?.sourceUrl&&safeHref(provisionalSource?.sourceUrl));
+  const agreementRoute=provisional&&amendmentRequest?.listId&&typeof amendmentRequest.wordingLanguage==='string'?'provisional-agreement/'+encodeURIComponent(id)+'?'+new URLSearchParams({lang:language,amendment:amendmentRequest.amendmentId!,list:amendmentRequest.listId,'wording-lang':amendmentRequest.wordingLanguage}):null;
+  const agreementState=useData<ProvisionalAgreementResponse>(agreementRoute);
+  const agreement=agreementState.data?.status==='verified'&&agreementState.data.documentId===id&&agreementState.data.amendmentId===amendmentRequest?.amendmentId&&agreementState.data.listId===amendmentRequest?.listId&&agreementState.data.requestedLanguage===language&&agreementState.data.text&&agreementState.data.agreement?.url===provisionalSource?.sourceUrl?agreementState.data:null;
   const placementReason=rejection&&placement?.operation==='alternative-motion'?ui.t("amendment.alternative_motion"):placement?.status==='document-operation'&&!rejection ? ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67") : ((placement?.reason==='different_text_languages') && (wording?.language===null)) ? ui.t("batch6.documentcontextreader.the.amendment.wording.language.is.unknown.131") : (((placement?.reason==='different_text_languages') && (!text?.textLanguage)) ? ui.t("batch6.documentcontextreader.the.document.text.language.is.unknown.132") : (placementReasonsUi(ui)[placement?.reason||'']||ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67")));
   const extracted=publicationBody(allParagraphs,id,text?.textLanguage);
   const exactBody=extracted.exact&&Number.isInteger(extracted.start)&&extracted.start>=0&&extracted.paragraphs.length===allParagraphs.length-extracted.start&&extracted.paragraphs.every((paragraph,index)=>paragraph===allParagraphs[extracted.start+index]);
@@ -174,6 +178,13 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     <p className="document-context-notice"><UiMessage id="documentcontext.council.quotation"/></p>
     {amendmentBlock(false)}
     {showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="proposalcontexttext.parliament.report"/></a></p>}
+  </div>;
+  // The agreement's own text, with Parliament's marks, replaces the report's text.
+  if(provisional&&(agreement||agreementState.loading&&!agreementState.data))return <div className="document-context-document">
+    {agreement?<>
+      <ProvisionalAgreementLinks data={agreement}/>
+      <DocumentBody key={agreement.text!.documentId+':'+language} id={agreement.text!.documentId} language={language} interfaceLanguage={interfaceLanguage} showOriginalLink={showOriginalLink} onLanguageChange={onLanguageChange}/>
+    </>:<p role="status"><UiMessage id="batch5.amendments.tsx.188.20"/></p>}
   </div>;
   if(!provisional&&['commission-proposal','council-position','existing-act'].includes(data?.baseline?.kind||'')&&data?.proposal?.items.length)return <div className="document-context-document">
     {document&&<header className="document-context-heading"><div><p className="document-context-kind"><UiMessage id="batch6.documentcontextreader.report.amendment.163"/></p><h3 lang={title?.language}>{title?.text}</h3></div></header>}

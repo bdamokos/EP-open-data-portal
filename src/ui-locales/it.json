@@ -1,6 +1,9 @@
 {
   "amendment.replaces_whole_text": "Sostituisce l’intero testo.",
   "amendment.agreement_text": "Testo dell’accordo",
+  "amendment.final_act": "Atto finale: {act}",
+  "amendment.provisional_marks": "Grassetto corsivo: nuovo o modificato. ▌: soppresso.",
+  "amendment.provisional_unmarked": "Alcune modifiche non sono contrassegnate.",
   "documentcontext.final_placement_check": "Verificare la collocazione definitiva nel {adoptedText}.",
   "documentcontext.adopted_text": "testo approvato",
   "amendment.alternative_motion": "Proposta alternativa",

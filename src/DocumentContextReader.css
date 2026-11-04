@@ -52,3 +52,5 @@
 .proposal-table td{border:1px solid var(--context-border);padding:.5rem;vertical-align:top;min-width:5rem}
 .proposal-table td p{margin:.35rem 0}
 .document-context-provision-label{margin:0 0 6px;color:var(--ink-muted);font-size:14px}
+.provisional-agreement .document-context-notice{margin:.5rem 0}
+.provisional-links{display:flex;flex-wrap:wrap;gap:.25rem 1.25rem;list-style:none;margin:.5rem 0;padding:0;font-size:.9rem;line-height:1.5}

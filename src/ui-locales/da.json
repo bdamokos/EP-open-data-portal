@@ -1,6 +1,9 @@
 {
   "amendment.replaces_whole_text": "Erstatter hele teksten.",
   "amendment.agreement_text": "Aftalens tekst",
+  "amendment.final_act": "Endelig retsakt: {act}",
+  "amendment.provisional_marks": "Fed kursiv: nyt eller ændret. ▌: udeladt.",
+  "amendment.provisional_unmarked": "Nogle ændringer er ikke markeret.",
   "documentcontext.final_placement_check": "Kontrollér den endelige placering i {adoptedText}.",
   "documentcontext.adopted_text": "den vedtagne tekst",
   "amendment.alternative_motion": "Alternativt forslag",
