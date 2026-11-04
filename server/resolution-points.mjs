@@ -138,7 +138,8 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
 // complete point extent must already identify it. This leaves the top-level
 // paragraph/recital matcher and the strict point matcher unchanged.
 export function resolutionPointNearPlacement(text,rows,structure,options,operation){
- if(options.language!=='en'||options.baseline!=='motion-resolution'||!['replace','delete'].includes(operation)||/\n_{5,}\s*\n/u.test(options.originalText||'')||(options.originalFormatting||[]).some(m=>m.kind==='superscript'))return null;
+ const decision=options.baseline==='unknown'&&options.resolutionDocument===true&&options.documentReferences?.some(ref=>ref.field==='DocAmend'&&ref.raw==='Proposal for a decision')&&options.baselineSource?.headings?.length>0&&options.baselineSource.headings.every(heading=>heading.left?.raw==='Proposal for a decision'&&heading.right?.raw==='Amendment');
+ if(options.language!=='en'||!(options.baseline==='motion-resolution'||decision)||!['replace','delete'].includes(operation)||/\n_{5,}\s*\n/u.test(options.originalText||'')||(options.originalFormatting||[]).some(m=>m.kind==='superscript'))return null;
  let target;try{target=parseTargetLabel(options.targetLabel,'en');}catch{return null;}
  const path=target.segments;if(!target.complete||path.length!==2||path[0].kind!=='paragraph'||path.slice(1).some(p=>p.kind!=='point'||p.isNew))return null;
  const old=pointLabel((options.originalText||'').trim()),proposed=pointLabel((options.proposedText||'').trim());
