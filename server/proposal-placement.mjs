@@ -917,6 +917,16 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(paths&&paths.length!==1)return unresolved('target_reference_unavailable');
   // A structured underlying-act target without a proposal address is not an outer location.
   if(!paths&&targetPath?.underlying?.length)return unresolved('target_reference_unavailable');
+  // An empty original column and a printed Na insertion instruction establish
+  // a new outer point even when its published heading still names base N.
+  const printedBase=language==='en'&&baseline==='commission-proposal'&&operation==='insert'&&originalText===''&&/^Article [1-9]\d* – paragraph 1 – point ([1-9]\d*)$/u.exec(paths?.[0]?.raw??String(targetLabel??'').split('\n')[0]);
+  const printedNew=/^\(([1-9]\d*)a\) in Article [1-9]\d*, the following paragraph is inserted:\n\S/u.exec(proposedText);
+  if(printedBase&&printedNew&&printedBase[1]===printedNew[1]){
+    const raw=(paths?.[0]?.raw??targetLabel.split('\n')[0])+' a (new)';
+    const placed=resolveProposalPlacement(items,{originalText,proposedText,targetLabel:raw,targetPath:{proposal:[{raw}]},language,originalFormatting,baseline,documentReferences},{nativeProposalInputs});
+    if(placed.status!=='placed')return placed;
+    return {...placed,evidence:[...evidence,{basis:'proposal-target-path',label:paths?.[0]?.raw??targetLabel.split('\n')[0]},{basis:'printed-new-point-label',label:printedBase[1],reference:printedBase[1]+'a'},...placed.evidence.filter(e=>e.basis!=='proposal-target-path')]};
+  }
   const instruction=wholeAnnexInstructionPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,baseline,documentReferences,operation},unresolved,nativeProposalInputs);
   if(instruction)return instruction;
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
