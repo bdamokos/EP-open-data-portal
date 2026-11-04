@@ -703,3 +703,12 @@ test('a complete adjacent recital pair survives unrelated later recast numbering
  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,3);assert(placed.evidence.some(e=>e.basis==='native-adjacent-recital-boundary'));
  for(const mutate of [p=>p.sourceKind='text',p=>p.paragraphs[3]='(4) Other recital.',p=>p.paragraphs[5]='(1) Duplicate anchor.',p=>p.paragraphSources[3].ordinal++,p=>p.paragraphSources[2].complete=false]){const p=make();mutate(p);assert.equal(resolve(p,'Recital 1 a (new)','','(1a) New recital.').status,'unresolved',String(mutate));}
 });
+
+test('new quoted subparagraph suffixes use their parent paragraph ordinal',()=>{
+ const f=fixture('proposal-quoted-ordinal.json'),wrap=x=>`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${x}</w:body></w:document>`,buffer=fixtureZip({'word/document.xml':wrap(f.bodyXml)}),proposal=parseProposal(buffer,{language:'en'}),items=[{kind:'act',proposal}];
+ for(const suffix of ['a','b']){
+  const wording={language:'en',baseline:'commission-proposal',originalText:'',proposedText:'Additional free allocation shall be provided.',targetLabel:'Article 1 – paragraph 1 – point 1',targetPath:{language:'en',underlying:[{document:'Directive 2003/87/EC',raw:'Article 10 a – paragraph 2 a – subparagraph 2 '+suffix+' (new)'}]}},placement=resolveProposalPlacement(items,wording),next=proposal.paragraphs.find(row=>row.text.startsWith('2b.')).index;
+  assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,next);assert.equal(placement.insertAfter,next-1);assert.equal(verifyPlacement({items,wording,placement,nativeQuoted:{proposalBuffer:buffer}}).status,'verified');
+  for(const modify of [w=>w.targetPath.underlying[0].document='Directive 2000/1/EC',w=>w.targetPath.underlying[0].raw=w.targetPath.underlying[0].raw.replace('subparagraph 2','subparagraph 3')]){const changed=structuredClone(wording);modify(changed);assert.equal(resolveProposalPlacement(items,changed).status,'unresolved');}
+ }
+});
