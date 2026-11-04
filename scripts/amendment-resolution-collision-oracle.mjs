@@ -19,7 +19,7 @@ export function assertResolutionCollision({text,wording,placement}) {
  if(stop>=0)rows=rows.slice(0,stop);
  const points=[];
  for(const row of rows){
-  if(row.kind!=='paragraph'||row.hidden||row.unsafe)return unknown();
+  if(row.kind!=='paragraph')break;
   const match=/^\(?([\p{Ll}]{1,2})\)\s/u.exec(row.text.trim());
   if(!match)break; // A heading/continuation cannot establish this serial run.
   points.push({row,label:spelling(match[1],wording.language)});
@@ -28,7 +28,7 @@ export function assertResolutionCollision({text,wording,placement}) {
  if(collision<alphabet.length||points.filter(p=>p.label===wanted).length!==1)return unknown();
  for(let i=0;i<=collision;i++){
   const expected=i<alphabet.length?alphabet[i]:alphabet[Math.floor((i-alphabet.length)/alphabet.length)]+alphabet[(i-alphabet.length)%alphabet.length];
-  if(points[i].label!==expected)return unknown();
+  if(points[i].label!==expected||points[i].row.hidden||points[i].row.unsafe)return unknown();
  }
  const base=points[alphabet.indexOf(wanted[0])],next=points[alphabet.indexOf(wanted[0])+1];
  if(!base||!next||next.label.length!==1)return unknown();
