@@ -220,6 +220,9 @@ export function assertMixedRecital({text,wording,placement}) {
  if(!match||!new RegExp('^'+match[1]+match[2]+'[.)]\\s+whereas\\b','u').test(wording.proposedText||''))return unknown;
  const raw=rawResolutionUnits(text,'en'), units=raw.units.filter(u=>u.kind==='recital'),first=raw.units.find(u=>u.kind==='paragraph');
  const aliases={'Μ':'M','Ν':'N'}, normal=s=>aliases[s]||s;
+ // An incomplete native row can hide a competing recital, including one
+ // spelled with the other script. It cannot support a complete sequence.
+ if((raw.incomplete||[]).some(unit=>unit.kind==='recital'))return unknown;
  if(raw.reason||!first||first.label!=='1'||!units.length||units.some((u,i)=>normal(u.label)!==String.fromCharCode(65+i)||!u.complete||u.end>=first.start||i>0&&units[i-1].end+1!==u.start))return unknown;
  const pos=units.findIndex(u=>normal(u.label)===match[1]);
  if(pos<1||pos>=units.length-1||units[pos].label===match[1]||units[pos].end+1!==units[pos+1].start)return unknown;
