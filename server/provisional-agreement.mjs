@@ -23,11 +23,14 @@ export function provisionalAgreementQuery(id,params) {
 }
 
 const source=(url,record)=>({url:record.url||url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null});
+// The list is bound through the verified agreement source and the exact selected variant,
+// not through comparison-target evidence, which is absent when comparison wording is unavailable.
 const reportPlacement=(context,query)=>{
   const placement=context?.placement,evidence=placement?.evidence?.find(item=>item.basis==='exact-provisional-agreement'&&item.reference===query.amendmentId);
+  const variants=array(context?.amendment?.variants).filter(item=>item.listId===query.listId&&item.language===query.wordingLanguage);
   return placement?.status==='document-operation'&&placement.operation==='replace'&&placement.scope==='whole-document'&&placement.reason==='provisional_agreement'&&evidence
-    &&context.documentId===query.id&&context.amendment?.id===query.amendmentId&&context.target?.evidence?.listId===query.listId&&evidence.language===query.wordingLanguage
-    &&/^https:\/\/data\.europarl\.europa\.eu\/distribution\/reds_iPlRp_Amd\/[^/?#]+\/[^/?#]+\.docx$/u.test(evidence.sourceUrl||'')?evidence:null;
+    &&context.documentId===query.id&&context.amendment?.id===query.amendmentId&&evidence.language===query.wordingLanguage&&variants.length===1&&variants[0].source?.url===evidence.sourceUrl
+    &&evidence.sourceUrl===`https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/${query.listId}/${query.listId}_${query.wordingLanguage}.docx`?evidence:null;
 };
 
 // Links around a verified provisional agreement. Every one is bound by an

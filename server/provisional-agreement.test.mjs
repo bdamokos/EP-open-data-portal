@@ -16,7 +16,7 @@ function harness({paragraphs=stub,placement,decisions,items,relatedStatus='avail
   const context={query:async query=>{
     calls.context.push(query.adopted?'adopted':'amendment');
     if(query.adopted)return {documentId:report,related:{status:relatedStatus,items:items??[adoptedItem(ta)],gaps:[]},sources:[{url:'https://data.europarl.europa.eu/api/v2/procedures/2024-0017',fetchedAt:'2026-11-04T08:00:00.000Z'}]};
-    return {documentId:report,placement:operation,amendment:{id:amendmentId,variants:[{listId,language:'en',documentReferences:variantReferences}]},target:{evidence:{listId}}};
+    return {documentId:report,placement:operation,amendment:{id:amendmentId,variants:[{listId,language:'en',source:{url},documentReferences:variantReferences}]},target:{evidence:null}};
   }};
   const taRecord={id:'eli/dl/doc/'+ta,identifier:ta,work_type:'def/ep-document-types/TEXT_ADOPTED',document_date:'2026-05-19',adopts:['eli/dl/doc/'+report],parliamentary_term:['org/ep-10']};
   const request=async endpoint=>{calls.request.push(endpoint);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.UTC(2026,10,4),payload:{data:[taRecord]}};};
@@ -99,7 +99,8 @@ test('anything but the verified exact provisional placement reveals no links',as
   const wrong=[null,{status:'unresolved'},{status:'document-operation',operation:'reject',scope:'whole-document',reason:'rejects_proposal',evidence:[]},
     {status:'document-operation',operation:'replace',scope:'whole-document',reason:'provisional_agreement',evidence:[{basis:'exact-provisional-agreement',reference:amendmentId+'0',sourceUrl:url,language:'en'}]},
     {status:'document-operation',operation:'replace',scope:'whole-document',reason:'provisional_agreement',evidence:[{basis:'exact-provisional-agreement',reference:amendmentId,sourceUrl:url,language:'fr'}]},
-    {status:'document-operation',operation:'replace',scope:'whole-document',reason:'provisional_agreement',evidence:[{basis:'exact-provisional-agreement',reference:amendmentId,sourceUrl:'https://example.test/x.docx',language:'en'}]}];
+    {status:'document-operation',operation:'replace',scope:'whole-document',reason:'provisional_agreement',evidence:[{basis:'exact-provisional-agreement',reference:amendmentId,sourceUrl:'https://example.test/x.docx',language:'en'}]},
+    {status:'document-operation',operation:'replace',scope:'whole-document',reason:'provisional_agreement',evidence:[{basis:'exact-provisional-agreement',reference:amendmentId,sourceUrl:url.replace(listId+'/'+listId,report+'-AM-300-300/'+report+'-AM-300-300'),language:'en'}]}];
   for(const placement of wrong) {
     const {view,calls}=harness({placement});
     const result=await ask(view);

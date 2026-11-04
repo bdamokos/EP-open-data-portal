@@ -779,3 +779,16 @@ test('provisional agreement can locate a source whose comparison columns are wit
  const wrongSource=service({request:async()=>record(node),findAmendment:()=>indexed,download:async()=>({buffer:provisionalFixture({report:'A10-0002/2026'}).buffer})});
  assert.notEqual((await wrongSource.query(selected,{store:{}})).placement?.scope,'whole-document');
 });
+
+test('the provisional agreement view binds its list through the verified source when comparison wording is unavailable',async()=>{
+ const {provisionalFixture}=await import('./test-support/provisionalFixture.mjs'),{ProvisionalAgreement,provisionalAgreementQuery}=await import('./provisional-agreement.mjs');
+ const input=provisionalFixture(),node={...work,id:'eli/dl/doc/'+input.documentId,identifier:input.documentId};
+ const indexed={id:input.id,targetDocumentId:input.documentId,listId:input.listId,language:'en',textIntegrity:'incomplete',wordingSource:input.source,decisions:input.decisions,gaps:[]};
+ const reader=service({request:async()=>record(node),findAmendment:()=>indexed,download:async()=>({buffer:input.buffer})});
+ const view=new ProvisionalAgreement({context:reader,findAmendment:()=>indexed,request:async()=>record(node),readText:async()=>({status:'unavailable'}),readProposal:async()=>({status:'unresolved'})});
+ const params=new URLSearchParams({lang:'en',amendment:input.id,list:input.listId,'wording-lang':'en'});
+ const result=await view.query(provisionalAgreementQuery(input.documentId,params),{store:{}});
+ assert.equal(result.status,'verified');assert.equal(result.agreement.url,input.source.url);assert.deepEqual(result.text,{documentId:input.listId,kind:'agreement'});
+ const other=await view.query(provisionalAgreementQuery(input.documentId,new URLSearchParams({lang:'en',amendment:input.id,list:input.documentId+'-AM-004-004','wording-lang':'en'})),{store:{}});
+ assert.equal(other.status,'unavailable');assert.equal(other.text,null);
+});
