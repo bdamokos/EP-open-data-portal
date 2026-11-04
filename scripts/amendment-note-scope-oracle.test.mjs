@@ -19,7 +19,7 @@ test('unmatched, duplicate or fabricated notes and ambiguous separators are with
  for(const change of [f=>f.wording.proposedText=f.wording.proposedText.replace('1 First citation.','1 Changed.'),f=>f.wording.proposedText+='\n3 Fabricated.',f=>f.wording.proposedText+='\n2 Duplicate.',f=>f.wording.proposedText+='\n_____\nMore.',f=>f.wording.proposedFormatting=[]]){const f=fixture();change(f);assert.notEqual(inspectNativeNoteScope(f).status,'verified');}
 });
 test('native hidden notes and unsupported numbering cannot certify a projected comparison',()=>{
- for(const options of [{notes:[['7','<w:drawing/>'],noteDefinitions[1]]},{notes:noteDefinitions,footnotePr:'<w:sectPr><w:footnotePr><w:numRestart w:val="eachSect"/></w:footnotePr></w:sectPr>'},{notes:noteDefinitions,styles:'<w:docDefaults><w:rPrDefault><w:rPr><w:vanish/></w:rPr></w:rPrDefault></w:docDefaults>'}]){const f=fixture();f.nativeQuoted.proposalBuffer=noteWord(noteBody,options);assert.notEqual(inspectNativeNoteScope(f).status,'verified');}
+ for(const options of [{notes:[['7','<w:drawing/>'],noteDefinitions[1]]},{notes:noteDefinitions,footnotePr:'<w:sectPr><w:footnotePr><w:numRestart w:val="eachPage"/></w:footnotePr></w:sectPr>'},{notes:noteDefinitions,styles:'<w:docDefaults><w:rPrDefault><w:rPr><w:vanish/></w:rPr></w:rPrDefault></w:docDefaults>'}]){const f=fixture();f.nativeQuoted.proposalBuffer=noteWord(noteBody,options);assert.notEqual(inspectNativeNoteScope(f).status,'verified');}
 });
 test('public verifier does not fall back past a failed note coordinate or metadata assertion',()=>{
  const f=fixture(),proof=inspectNativeNoteScope(f);f.placement.noteScope={...proof.noteScope,proposedBodyEnd:1};assert.equal(verifyPlacement({...f,items:[{proposal:f.proposal}]}).status,'failed');f.placement.noteScope=proof.noteScope;f.placement.splice.end.paragraph=2;assert.equal(verifyPlacement({...f,items:[{proposal:f.proposal}]}).status,'failed');
@@ -41,4 +41,11 @@ test('original-only detached notes independently verify deletion and note-free r
 test('proposed editorial instructions and empty trailing rules keep their column boundaries',()=>{
  const f=fixture();f.placement={operation:'insert'};f.wording.originalText='';f.wording.originalFormatting=[];f.wording.proposedText='New1a+ text.\n_____\n1a Citation.\n+ OJ: Please complete the reference.';f.wording.proposedFormatting=[{kind:'superscript',start:3,end:6}];assert.equal(inspectNativeNoteScope(f).status,'verified');
  const g=fixture();g.wording.proposedText='Changed.\n_____';g.wording.proposedFormatting=[];assert.equal(inspectNativeNoteScope(g).status,'verified');
+});
+test('native section numbering restarts before the next section, leaving repeated printed labels distinct',async()=>{
+ const {nativeNoteRows}=await import('./amendment-native-note-oracle.mjs');
+ const p=(id,section='')=>`<w:p>${section}<w:r><w:t>Body</w:t><w:footnoteReference w:id="${id}"/></w:r></w:p>`;
+ const end='<w:sectPr><w:footnotePr><w:numRestart w:val="eachSect"/></w:footnotePr></w:sectPr>';
+ const rows=nativeNoteRows(noteWord(p('7',`<w:pPr>${end}</w:pPr>`)+p('9')+end,{notes:noteDefinitions}));
+ assert.deepEqual(rows.flatMap(row=>row.refs.map(ref=>ref.label)),['1','1']);
 });
