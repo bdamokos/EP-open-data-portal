@@ -16,7 +16,7 @@ export {normaliseForMatching} from './proposal-matching.mjs';
 // source identity, content and path for this parser version; they are not official
 // legal-unit identifiers. Results are cached frozen, so consumers copy before
 // modifying them. Bump PROPOSAL_PARSER_VERSION for any change in parsing semantics.
-export const PROPOSAL_PARSER_VERSION='21';
+export const PROPOSAL_PARSER_VERSION='22';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -351,7 +351,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       continue;
     }
     const number=leadingNumber(trim,language,style,p.properties?.numbering,points,p.properties?.recastLabelPrefix);
-    if((/Considrant/i.test(style)||area.kind!=='body'&&/^\(?\d+\)/u.test(trim))&&number?.kind==='point') {
+    if((/Considrant/i.test(style)||area.kind!=='body'&&/^\(?\d+\)/u.test(trim)||area.kind==='preamble'&&/^\(\d+\s*[a-z]\)/u.test(trim))&&number?.kind==='point') {
       if(area.kind!=='preamble')region('preamble',i,false);
       last=make(area,'recital',i,{segment:{...number,kind:'recital'}});retain(last,i);continue;
     }
