@@ -322,7 +322,7 @@ function bareAnnexReplacement(items,target,{language,baseline,originalText,propo
   return {operation:'replace',status:'placed',itemIndex,span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,evidence:[{basis:'sole-bare-annex-first-ordinal',anchor:root.id},{basis:'native-annex-replacement-row',anchor:point.id}]};
 }
 
-function insertionPlacement(items,target,candidatesFor,eligible) {
+function insertionPlacement(items,target,candidatesFor,eligible,proposedText) {
   const closing=closingFormulaInsertion(items,target,candidatesFor);
   if(closing)return closing;
   const label=target.segments.at(-1),preceding=target.segments.slice(0,-1);
@@ -395,10 +395,26 @@ function insertionPlacement(items,target,candidatesFor,eligible) {
   const ordered=siblings.filter(s=>s.itemIndex===anchor.itemIndex&&parentKey(s.unit)===parentKey(anchor.unit)).map(s=>s.unit).sort((a,b)=>a.extent.start-b.extent.start);
   const positive=label.negative?{...label,value:label.value.slice(1),number:label.number}:label;
   const order=siblingOrder(ordered,positive);
-  if(!order)return {reason:'source_structure_unavailable'};
-  for(let i=0;i<ordered.length;i++){
-    const unit=ordered[i],previous=ordered[i-1],current=order(unit.label),before=previous&&order(previous.label);
-    if(unit.pathConflict||current.rank<0||previous&&(previous.extent.end>unit.extent.start||before.number>current.number||before.number===current.number&&before.rank>=current.rank))return {reason:'source_structure_unavailable'};
+  const orderComplete=order&&ordered.every((unit,i)=>{
+    const previous=ordered[i-1],current=order(unit.label),before=previous&&order(previous.label);
+    return !unit.pathConflict&&current.rank>=0&&(!previous||previous.extent.end<=unit.extent.start&&(before.number<current.number||before.number===current.number&&before.rank<current.rank));
+  });
+  if(!orderComplete){
+    // Unrelated recast damage later in the preamble does not erase a unique,
+    // complete pair of physically adjacent, consecutively numbered recitals.
+    const next=ordered[ordered.indexOf(anchor.unit)+1],unit=anchor.unit;
+    const own=ordered.filter(peer=>peer.label.number===label.number);
+    if(target.language==='en'&&label.kind==='recital'&&!preceding.length&&/^[a-z]$/u.test(label.suffix)&&!label.negative&&own.length===1
+      &&new RegExp('^\\('+label.number+label.suffix+'\\)\\s+','u').test(proposedText??'')
+      &&proposal.sourceKind==='docx'&&!unit.label.suffix&&next?.kind==='recital'&&!next.label.suffix&&next.label.number===label.number+1
+      &&!unit.pathConflict&&!next.pathConflict&&completeBoundary(proposal,unit)&&completeBoundary(proposal,next)
+      &&unit.content.length===1&&!unit.children.length&&next.content.length===1&&!next.children.length&&unit.extent.end===next.extent.start){
+      const left=proposal.paragraphs[unit.content[0]],right=proposal.paragraphs[next.content[0]];
+      if(left?.complete&&right?.complete&&left.source?.container==='body'&&right.source?.container==='body'&&left.source.containerPath===right.source.containerPath
+        &&left.source.segment===right.source.segment&&right.source.ordinal===left.source.ordinal+1)
+        return {itemIndex:anchor.itemIndex,insertBefore:unit.extent.end,anchor:unit,basis:'native-adjacent-recital-boundary'};
+    }
+    return {reason:'source_structure_unavailable'};
   }
   const next=ordered[ordered.indexOf(anchor.unit)+1];
   if(!completeBoundary(proposal,anchor.unit)&&!(label.suffix&&!label.negative&&quotedConflictBoundary(proposal,anchor.unit,next)))return {reason:'source_passage_incomplete'};
@@ -964,7 +980,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
-    const insertion=bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible);
+    const insertion=bareAnnexInsertion(items,target,language)??insertionPlacement(items,target,candidatesFor,eligible,proposedText);
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
