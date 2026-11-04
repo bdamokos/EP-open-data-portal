@@ -40,6 +40,7 @@ test('omitted grid columns keep later cells under their own columns',async t=>{
   const text=await render(t,{paragraphs:['A','B','C'],formatStatus:'extracted',paragraphFormats:[{},{},{}],tables:[{rows:[[{start:0,end:1},{start:1,end:2}],[{start:2,end:2,gap:true},{start:2,end:3}]],bordered:true}]});
   const rows=[...text.querySelectorAll('table tr')].map(row=>[...row.cells].map(cell=>[cell.textContent,cell.className]));
   assert.deepEqual(rows,[[['A',''],['B','']],[['','doc-table-gap'],['C','']]]);
+  assert.ok(text.querySelector('table').parentElement.matches('.doc-table-scroll'),'wide tables scroll sideways inside the page');
 });
 
  test('generic insight report readers suppress only the identified masthead logo',async t=>{

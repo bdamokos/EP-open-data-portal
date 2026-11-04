@@ -349,8 +349,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
     if(!moveToResults.current)return;
     moveToResults.current=false;
     resultsHeading.current?.focus({preventScroll:true});
-    const body=resultsHeading.current?.closest(".explorer-profile-body");
-    if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else resultsHeading.current?.scrollIntoView({block:"start"});
+    resultsHeading.current?.scrollIntoView({block:"start"});
   },[category,categoriesOpen,offset]);
   const choose=(value:string)=>{moveToResults.current=true;setCategoriesOpen(false);onCategory(value);onOffset(0);onOpen(null);};
   const coverage=category ? page?.categoryCoverage[category] : null;
@@ -401,10 +400,8 @@ function speechSummary(item: JoinedActivity): Speech {
   return {id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null};
 }
 function revealSpeech(target: HTMLElement) {
-  const panel=target.closest<HTMLElement>('.explorer-profile-body');
-  const scroller=(panel && /^(auto|scroll)$/.test(getComputedStyle(panel).overflowY)) ? panel : target.closest<HTMLElement>('.explorer');
+  const scroller=target.closest<HTMLElement>('.explorer');
   if(!scroller)return;
-  // scrollIntoView also scrolls the hidden-overflow desktop shell, lifting its footer.
   const margin=Number.parseFloat(getComputedStyle(target).scrollMarginTop)||0;
   const top=scroller.scrollTop+target.getBoundingClientRect().top-scroller.getBoundingClientRect().top-scroller.clientTop-margin;
   scroller.scrollTo({top});
@@ -453,9 +450,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const changePage=(next:number)=>{
     const heading=resultsHeading.current;
     heading?.focus({preventScroll:true});
-    const body=heading?.closest('.explorer-profile-body');
-    // Reuse the activity list's local results-reveal convention.
-    if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else heading?.scrollIntoView({block:'start'});
+    heading?.scrollIntoView({block:'start'});
     setOffset(next);onOpen(null);
   };
   useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}if(speechSearchActive)return;const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){revealSpeech(target);target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data,enrichedSpeeches,category,categoryOffset,speechSearchActive,speechSearchReset]);
@@ -538,7 +533,7 @@ export default function App() {
   // The member wall stays mounted (hidden) behind member pages and Following,
   // so returning keeps its portraits; restore where the reader left it.
   const wallVisible=!view&&!member;
-  const wallScroll=useRef({page:0,portraits:0});
+  const wallScroll=useRef(0);
   // Where the whole page scrolls, the count row sticks; once the filters scroll away it offers them instead of a reset.
   const wallFilters=useRef<HTMLDivElement>(null),[filtersPassed,setFiltersPassed]=useState(false);
   useEffect(()=>{
@@ -566,9 +561,8 @@ export default function App() {
   useLayoutEffect(()=>{
     const returned=wallVisible&&!wallShown.current;wallShown.current=wallVisible;
     if(!returned)return;
-    const page=document.querySelector<HTMLElement>(".explorer"),portraits=page?.querySelector<HTMLElement>(".explorer-portraits");
-    if(portraits)portraits.scrollTop=wallScroll.current.portraits;
-    if(page)page.scrollTop=wallScroll.current.page;
+    const page=document.querySelector<HTMLElement>(".explorer");
+    if(page)page.scrollTop=wallScroll.current;
   },[wallVisible]);
   const scrolledView = useRef({member,tab,view});
   useEffect(() => {
@@ -766,7 +760,7 @@ export default function App() {
     votes.remember();motions.remember();memberStep.current=true;
     directoryState.retry();setOrganization(id);setOrganizationName(name);setCommittee('');setCountry('');setGroup('');setSearch('');setRole('both');
     setMember(null);setSpeechLink(null);setActivityLink(null);setActivityCategory('');setActivityOffset(0);
-    wallScroll.current={page:0,portraits:0};pendingDestination.current={view:null,member:null};
+    wallScroll.current=0;pendingDestination.current={view:null,member:null};
   };
   const leaveMember=()=>{
     votes.remember();
@@ -793,7 +787,7 @@ export default function App() {
     const title={hemicycle:ui.t('hemicycle.title'),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),legislation:plenaryModeTitlesUi(ui)[plenaryMode],outside:ui.t("outsidevoices.outside_voices.a027e6"),geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions")}[view];
     return <InsightFrame {...props} view={view} onLanguageChange={changeLanguage}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='geopolitics') ? <Topics {...props}/> : (view==='hemicycle') ? <Hemicycle {...props}/> : (view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
   }
-  return <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
+  return <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={(view==='saved') ? 'saved' : 'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>
         {(view === 'saved') ? <Suspense fallback={<ViewLoading language={lang} title={ui.t("batch4.dossiercontrols.tsx.64.2")} embedded/>}><ViewContent onReady={focusDestination} render={()=><Saved members={directory?.members} language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/>}/></Suspense> : (member ? <section className="explorer-profile">
             <button
@@ -988,7 +982,7 @@ export default function App() {
                       ui.t("app.loadingMemberships", {loaded: String(directory.index.loaded), total: String(directory.index.total)})}
                     {directory.index.error && null}
                   </div>}
-                <div className="explorer-portraits" data-portrait-scroll-root onScroll={event=>{if(wallVisible)wallScroll.current.portraits=event.currentTarget.scrollTop;}}>
+                <div className="explorer-portraits">
                     {filtered.map((m, index) => <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
                         <Portrait
                           member={{
