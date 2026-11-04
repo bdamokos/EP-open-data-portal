@@ -1,6 +1,6 @@
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
-import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
+import {assertFirstAnnex,assertSequentialAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
@@ -607,6 +607,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const proposal = items?.[placement.itemIndex]?.proposal;
   const tableEnd=assertUnnumberedTable({proposal,wording,placement,nativeQuoted,voteReferences});
   if(tableEnd.status!=='unverified')return tableEnd;
+  const sequence=assertSequentialAnnex({proposal,items,wording,placement,nativeQuoted});if(sequence)return sequence;
   const firstAnnex=assertFirstAnnex({proposal,items,wording,placement,nativeQuoted});
   if(firstAnnex)return firstAnnex;
   if(proposal) {
