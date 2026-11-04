@@ -1,3 +1,4 @@
+import {assertNewParentBoundary} from './amendment-benchmark-proposal-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
@@ -601,6 +602,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
+  const newParent=assertNewParentBoundary({proposal,wording,placement});if(newParent.status!=='unverified')return newParent;
   const firstAnnex=assertFirstAnnex({proposal,items,wording,placement,nativeQuoted});
   if(firstAnnex)return firstAnnex;
   if(proposal) {
