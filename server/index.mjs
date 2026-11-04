@@ -18,7 +18,7 @@ import {prepareStartupIndexes} from './migrate-indexes.mjs';
 let eventLoopDelay;
 import {pathToFileURL} from 'node:url';
 import {apiPrefixes,config,booleanFromEnvironment} from './config.mjs';
-import {assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
+import {allowCrossOriginRead,assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
 import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {API_VERSION} from './api-version.mjs';
@@ -137,7 +137,7 @@ let diagnosticWindow=0,diagnosticCount=0;
 const apiEndpoints=new Set(['hemicycle','voting-lists','upcoming-votes','ballot-comparisons','client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','provisional-agreement','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
- assertSameOrigin(request);
+ if(!allowCrossOriginRead(request,response))assertSameOrigin(request);
  if(url.pathname===apiPrefix+'/client-errors') {
    requireMethod(request,['POST']);
    if(Date.now()-diagnosticWindow>60_000){diagnosticWindow=Date.now();diagnosticCount=0;}

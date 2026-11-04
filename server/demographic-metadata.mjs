@@ -1,4 +1,5 @@
 import {ODP_BASE} from './odp.mjs';
+import {sourceGender} from './gender.mjs';
 
 const fields=['bday','hasGender','api:country-of-representation'];
 const iso=value=>typeof value==='number'?new Date(value).toISOString():value;
@@ -43,7 +44,7 @@ export function demographicMetadata(id,observations=[],attempt=null,rosterAttemp
     const relevant=observations.filter(o=>field!=='api:country-of-representation'||o.kind==='roster');
     const sources=relevant.map(o=>({url:o.url,retrievedAt:o.retrievedAt,language:o.language,field,values:o.fields[field]||[]}));
     const supplied=[...new Set(sources.flatMap(s=>s.values))];
-    const valid=value=>field==='bday'?validDay(value):field==='hasGender'?typeof value==='string'&&/\/(?:FEMALE|MALE)$/.test(value):typeof value==='string'&&/^[A-Z]{2}$/.test(value);
+    const valid=value=>field==='bday'?validDay(value):field==='hasGender'?sourceGender(value)!==null:typeof value==='string'&&/^[A-Z]{2}$/.test(value);
     const profileObserved=relevant.some(o=>o.kind==='profile'),isAcquired=field==='api:country-of-representation'?relevant.length>0:profileObserved;
     const fieldAttempt=field==='api:country-of-representation'?rosterAttempt:attempt;
     const status=supplied.length>1?'conflict':supplied.length&&!valid(supplied[0])?'invalid':supplied.length?'available':isAcquired?'source_omission':fieldAttempt?.status==='fetch_failed'?'fetch_failed':'missing_acquisition';

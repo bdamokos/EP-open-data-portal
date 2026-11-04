@@ -182,3 +182,23 @@ test('a completed source refresh replaces saved names without clearing loaded me
     assert(out.after.index.complete);assert.equal(out.after.members[0].memberships[0].role,'MEMBER');
   }finally{await rm(f.directory,{recursive:true,force:true});}
 });
+
+test('cached raw sources reclassify other and missing genders consistently in profiles and directory overlays',async t=>{
+ const f=await fixture(t,0);
+ for(const hasGender of ['authority/NKN','authority/OP',undefined]){
+  for(const record of f.records){
+   const pathname=new URL(record.url).pathname;
+   if(pathname.endsWith('/meps/show-current'))record.payload.data[0].hasGender='authority/MALE';
+   if(pathname.endsWith('/meps/257043'))record.payload.data[0].hasGender=hasGender;
+   await writeFile(path.join(f.directory,createHash('sha256').update(record.url).digest('hex')+'.json'),JSON.stringify(record));
+  }
+  const out=await run(t,f.directory,`
+   globalThis.fetch=()=>{throw Error('Cached sources must suffice');};
+   const {odpDirectory,odpProfile}=await import(${moduleUrl});
+   const before=await odpDirectory();const profile=await odpProfile('257043');
+   const after=await observe(()=>odpDirectory(),state=>state.index.complete,'gender projection');
+   console.log(JSON.stringify({before:before.members[0].gender,profile:profile.gender,after:after.members[0].gender}));process.exit(0);
+  `);
+  assert.equal(out.before,'m');assert.equal(out.profile,hasGender?'other':null);assert.equal(out.after,out.profile);
+ }
+});

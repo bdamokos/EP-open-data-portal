@@ -2298,6 +2298,7 @@
   "membervotes.summary.recorded.emptyPage": "Recorded positions shown: 0 · Total after filters: {total} · Recorded positions in the selected period: {recordedCount}",
   "membervotes.summary.recorded.emptyPage.partial": "Recorded positions shown: 0 · Total after filters: {total} · Recorded positions in the selected period: {recordedCount} · Partial coverage",
   "insightshared.genderFemale": "Female",
+  "insightshared.genderOther": "Other / unspecified",
   "insightshared.genderMale": "Male",
   "coverage.contributionLimit": "Contribution limit reached. Narrow the period.",
   "coverage.contributionsEmpty": "No contributions in this selection.",

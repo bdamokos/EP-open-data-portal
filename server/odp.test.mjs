@@ -204,3 +204,10 @@ test('speech timestamp ties retain hits order or graph order when hits are absen
   assert.deepEqual(orderedSpeeches({data}).map(row=>row.id),['z','a']);
   assert.deepEqual(orderedSpeeches({data,searchResults:{hits:[{id:'a'},{id:'z'}]}}).map(row=>row.id),['a','z']);
 });
+
+ test('member summaries classify only explicit male and female codes and distinguish other from missing', () => {
+  const base = 'http://publications.europa.eu/resource/authority/human-sex/';
+  for (const [hasGender, expected] of [[base+'MALE','m'],[base+'FEMALE','f'],[base+'NKN','other'],[[base+'OP'],'other'],[undefined,null],[null,null],['',null],[[],null],['malformed',null],[[base+'MALE',base+'FEMALE'],null]]) {
+    assert.equal(memberSummary({identifier:'42',hasGender}).gender, expected, JSON.stringify(hasGender));
+  }
+});

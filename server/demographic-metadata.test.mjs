@@ -113,3 +113,20 @@ test('new roster reads do not hide the retrieval date of older birthday and gend
  assert.deepEqual(demographicStats(['1'],members,metadata,'2026-10-26').metadataSourceDates,{from:profileAt,to:at});
  assert.equal(metadata.get('1').demographicProvenance.bday.sources.find(source=>source.values.length).retrievedAt,profileAt);
 });
+
+test('retained explicit other gender codes remain available with exact provenance while omission remains unavailable', async t=>{
+ const {store,generation,members}=fixture(t);
+ for(const [id,hasGender] of [['1','authority/NKN'],['2','authority/OP'],['3',undefined]])
+  retainDemographicRecord(store,generation,id,record(id,{hasGender}));
+ const metadata=await savedMetadata({store,members});
+ for(const [id,code] of [['1','NKN'],['2','OP']]){
+  assert.equal(metadata.get(id).hasGender,'authority/'+code);
+  const evidence=metadata.get(id).demographicProvenance.hasGender;
+  assert.equal(evidence.status,'available');assert.equal(evidence.sources[0].url,url(id));
+  assert.equal(evidence.sources[0].values[0],'authority/'+code);
+ }
+ assert.equal(metadata.get('3').hasGender,undefined);
+ assert.equal(metadata.get('3').demographicProvenance.hasGender.status,'source_omission');
+ const stats=demographicStats(['1','2','3'],members,metadata,at.slice(0,10));
+ assert.deepEqual(stats.dimensions.gender,[{label:'Other',count:2},{label:'Unknown',count:1}]);
+});

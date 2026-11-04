@@ -66,6 +66,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 ### Members and rosters
 
 - Profile `countryCode` and `groupCode` come only from `/meps/show-current`, joined by exact `identifier`. The per-MEP record has country authority URIs and group organisation IDs instead, and citizenship is not the country of representation.
+- Gender uses explicit `hasGender` authority values: MALE and FEMALE map to male and female; other supplied codes map to Other / unspecified without inferring an identity. In the [EU Human sex vocabulary](https://op.europa.eu/en/web/eu-vocabularies/at-dataset/-/resource/dataset/human-sex), NKN means not known and NST means not stated; neither establishes a non-binary identity. Missing values stay unavailable. Retained source values and retrieval provenance are preserved.
 - The EP `sortLabel` can run surname and first initial together without a separator, so it is kept as metadata and not used for sorting.
 - `hasEmail` in the source is three-valued: omitted means unknown, an explicit empty value means none.
 - Corporate bodies (`/corporate-bodies/{id}`) supply multilingual names, classification, dates and `isVersionOf`, which links temporal versions of the same committee across reconstitutions. Matching names or abbreviations never establish continuity.
