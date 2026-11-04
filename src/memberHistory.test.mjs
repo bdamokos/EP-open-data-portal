@@ -144,6 +144,19 @@ test('opening and leaving an MEP from the member wall are Back/Forward steps',as
   assert.equal(new URLSearchParams(location.search).get('organization'),null);
  });
 
+ test('a link to a listed committee selects that committee in the filter',async t=>{
+  const h=await harness(t,'organization=6567&organization-name=Committee+on+Budgets');
+  const query=new URLSearchParams(location.search);
+  assert.equal(query.get('committee'),'6567');
+  for(const key of ['organization','organization-name'])assert.equal(query.get(key),null,key);
+  assert.equal(h.container.querySelector('.explorer-organization-filter'),null);
+  assert.equal(h.container.querySelector('.explorer-filters select').value,'6567');
+  assert.equal(h.container.querySelector('.explorer-results strong').textContent,'4');
+  const role=h.container.querySelectorAll('.explorer-filters select')[1];
+  await act(async()=>{role.value='substitute';role.dispatchEvent(new window.Event('change',{bubbles:true}));});
+  assert.deepEqual([...h.container.querySelectorAll('[data-member-id]')].map(n=>Number(n.dataset.memberId)),[2]);
+ });
+
  test('uncertain observations never make a loaded organisation filter count definitive',async t=>{
   const sourceDirectory={...directory,members:members.map(m=>({...m,organizationMemberships:m.id===4?[{id:'6831',current:true}]:[{id:'6831',current:null}],organizationMembershipsComplete:m.id===4}))};
   const h=await harness(t,'organization=6831',sourceDirectory);

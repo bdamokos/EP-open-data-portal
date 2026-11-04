@@ -624,9 +624,13 @@ export default function App() {
       if (body) setCommittee(body.id);
       else if (directory.index.complete) setCommittee("");
     }
+    // A link to a listed committee is the committee filter, so the control, role and count agree.
+    if (organization && (!committee || committee === organization) && directory.committees.some(b => b.id === organization)) {
+      setCommittee(organization);setOrganization("");setOrganizationName("");
+    }
     if (country && !directory.members.some(m => matchesCountry(country,m.countryCode))) setCountry("");
     if (group && !directory.members.some(m => m.groupCode === group)) setGroup("");
-  }, [directory, committee, country, group]);
+  }, [directory, committee, organization, country, group]);
   useEffect(() => {
     const u = new URL(location.href);
     const ownParams=explorerParams(u.searchParams,view,member);
