@@ -208,3 +208,14 @@ test('native Council Article 6 Roman children cannot be flattened into sibling i
     assert.equal(result.reason,'oracle-raw-xhtml-point-nesting-unavailable');
   }
 });
+
+
+test('nested XHTML Roman points cannot verify a replacement at the outer point address',()=>{
+  const excerpt=JSON.parse(readFileSync(new URL('./fixtures/amendment-xhtml-nested-oracle.json',import.meta.url)));
+  const proposal={sourceKind:'xhtml',paragraphs:excerpt.paragraphs,units:[]};
+  const row=proposal.paragraphs.find(row=>row.index===150);
+  const wording={...amendment('Article 6 – paragraph 3 – point i',row.text),baseline:'council-position'};
+  const placement={...replace(150),itemIndex:0,splice:{start:{paragraph:150,offset:0},end:{paragraph:150,offset:row.text.length}}};
+  assert.equal(rawProposalAssertion({proposal,wording,placement}).status,'unverified');
+  assert.equal(verifyPlacement({items:[{proposal}],wording,placement}).status,'unverified');
+});

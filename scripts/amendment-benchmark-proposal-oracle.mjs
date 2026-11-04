@@ -115,9 +115,9 @@ export function rawProposalAssertion({proposal,wording,placement}) {
   const article=publishedContainer(proposal,target[0],wording.language);
   if(!article)return unknown('oracle-raw-article-unavailable');
   // XHTML tables can nest Roman points inside a lettered point. Raw text
-  // labels alone do not establish those levels. Withhold insertions when
+  // labels alone do not establish those levels. Withhold point addresses and insertions when
   // their native DOM paths have different depths, or no usable paths.
-  if(proposal.sourceKind==='xhtml'&&placement.operation==='insert') {
+  if(proposal.sourceKind==='xhtml'&&(placement.operation==='insert'||target.some(segment=>segment.kind==='point'))) {
     const points=article.rows.filter(row=>row.index>=article.start&&row.index<article.end&&point(row,wording.language));
     const depths=points.map(row=>/^\/\d+(?:\/\d+)*$/u.test(row.source?.path||'')?row.source.path.split('/').length:null);
     if(depths.includes(null)||new Set(depths).size>1)return unknown('oracle-raw-xhtml-point-nesting-unavailable');
