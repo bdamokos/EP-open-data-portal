@@ -112,6 +112,9 @@ export function rawProposalAssertion({proposal,wording,placement}) {
   const paths=wording.baseline==='present-text'?wording.targetPath?.underlying:wording.targetPath?.proposal;
   const target=address(paths?.length===1?paths[0].raw:wording.targetLabel||'',wording.language);
   if(!target)return unknown('oracle-raw-proposal-grammar-unavailable');
+  return rawProposalTargetAssertion({proposal,wording,placement},target);
+}
+function rawProposalTargetAssertion({proposal,wording,placement},target) {
   const article=publishedContainer(proposal,target[0],wording.language);
   if(!article)return unknown('oracle-raw-article-unavailable');
   // XHTML tables can nest Roman points inside a lettered point. Raw text
@@ -218,4 +221,35 @@ export function assertImplicitParagraphLabel({proposal,wording,placement}) {
  if(compact(original[1])!==compact(row.text))return unavailable();
  if(placement.status!=='placed'||placement.span?.start!==row.index||placement.span?.end!==row.index||placement.splice?.start.paragraph!==row.index||placement.splice.start.offset!==0||placement.splice?.end.paragraph!==row.index||placement.splice.end.offset!==row.text.length)return failed('oracle-implicit-paragraph-boundary-mismatch');
  return verified('oracle-implicit-paragraph-label',[article.heading.index,row.index,next.index]);
+}
+
+// D2: a new child shares the boundary of its absent suffixed parent. The
+// oracle checks the two printed numeric siblings, never another amendment's
+// projected text or the placer's units/evidence.
+export function assertNewParentBoundary({proposal,wording,placement}) {
+  const decline=()=>unknown('oracle-new-parent-unavailable');
+  if(!proposal||wording.baseline!=='commission-proposal'||wording.originalText!==''||placement.operation!=='insert')return decline();
+  const path=address(wording.targetLabel||'',wording.language),parent=path?.at(-2),child=path?.at(-1);
+  if(!parent||!child?.isNew||parent.suffix!=='a'||!/^\d+a$/u.test(parent.value)||!['article','point'].includes(parent.kind)||!['paragraph','point'].includes(child.kind))return decline();
+  const n=Number(parent.base),base={...parent,value:String(n),base:String(n),suffix:'',isNew:false};
+  let before,start;
+  if(path.length===2&&parent.kind==='article') {
+    const headings=proposal.paragraphs.filter(row=>/^(?:Titrearticle|ArticleTitle)$/iu.test(row.properties?.styleId||'')).map(row=>({row,ref:oracleAddress(row.text.trim().split('\n')[0],wording.language)})).filter(x=>x.ref?.length===1&&x.ref[0].kind==='article');
+    if(headings.some(x=>x.ref[0].value===parent.value))return decline();
+    const old=headings.filter(x=>x.ref[0].value===String(n)),next=headings.filter(x=>x.ref[0].value===String(n+1));
+    if(old.length!==1||next.length!==1)return decline();
+    const container=publishedContainer(proposal,base,wording.language);
+    if(!container||container.end!==next[0].row.index)return decline();
+    before=next[0].row.index;start=old[0].row.index;
+  } else if(path.length>2&&parent.kind==='point') {
+    const container=publishedContainer(proposal,path[0],wording.language);if(!container)return decline();
+    const prior=container.nodes.filter(x=>x.kind==='point'&&x.value===String(n)),next=container.nodes.filter(x=>x.kind==='point'&&x.value===String(n+1));
+    if(prior.length!==1||next.length!==1||prior[0].parent!==next[0].parent||prior[0].end!==next[0].start||container.nodes.some(x=>x.kind==='point'&&x.value===parent.value))return decline();
+    const result=rawProposalTargetAssertion({proposal,wording,placement},[...path.slice(0,-2),{...parent,isNew:true}]);
+    if(result.status!=='verified')return result;
+    before=next[0].start;start=prior[0].start;
+  } else return decline();
+  const rows=proposal.paragraphs.filter(row=>row.index>=start&&row.index<=before);
+  if(rows.length!==before-start+1||rows.some((row,i)=>!body(row)||i&&(row.source.containerPath!==rows[i-1].source.containerPath||row.source.segment!==rows[i-1].source.segment||row.source.ordinal!==rows[i-1].source.ordinal+1)))return decline();
+  return placement.status==='placed'&&placement.insertBefore===before&&placement.insertAfter===before-1?verified('oracle-new-parent-numeric-boundary',[start,before]):failed('oracle-new-parent-boundary-mismatch');
 }

@@ -2,6 +2,7 @@ import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumber
 import {assertResolutionCollision} from './amendment-resolution-collision-oracle.mjs';
 import {assertLocalRecitalBoundary} from './amendment-local-recital-oracle.mjs';
 import {assertPlaceholderDeletion} from './amendment-placeholder-oracle.mjs';
+import {assertNewParentBoundary} from './amendment-benchmark-proposal-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
@@ -617,6 +618,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const proposal = items?.[placement.itemIndex]?.proposal;
   const tableEnd=assertUnnumberedTable({proposal,wording,placement,nativeQuoted,voteReferences});
   if(tableEnd.status!=='unverified')return tableEnd;
+  const newParent=assertNewParentBoundary({proposal,wording,placement});if(newParent.status!=='unverified')return newParent;
   const firstAnnex=assertFirstAnnex({proposal,items,wording,placement,nativeQuoted});
   if(firstAnnex)return firstAnnex;
   if(proposal) {
