@@ -46,7 +46,8 @@ if [[ "$*" == *"--method"* ]]; then exit 0; fi
 if [[ "$2" == "repos/owner/repo/pulls/1" ]]; then
   printf '%s\\n' "$FIXTURE_PR"
 else
-  printf '%s\\n' "$FIXTURE_ID"
+  for filter in "$@"; do :; done
+  printf '%s\\n' "$FIXTURE_COMMENTS" | jq -r "$filter"
 fi
 `,{mode:0o755});
   for(const [hasFindings,id,current,method] of [
@@ -55,10 +56,18 @@ fi
     ['true','8','open stale',undefined],['false','8','closed abc',undefined],
   ]) {
     writeFileSync(calls,'');
-    execFileSync('bash',['-e','-o','pipefail','-c',source],{env:{...process.env,PATH:`${directory}:${process.env.PATH}`,GH_CALLS:calls,FIXTURE_PR:current,FIXTURE_ID:id,REPO:'owner/repo',PR:'1',EXPECTED_HEAD:'abc',REPORT:reportMarker,RUNNER_TEMP:directory,HAS_FINDINGS:hasFindings}});
+    const comments=[
+      {id:7,user:{login:'human'},body:reportMarker},
+      ...(id?[{id:Number(id),user:{login:'github-actions[bot]'},body:reportMarker+'\nfindings'}]:[]),
+      {id:9,user:{login:'github-actions[bot]'},body:'An unrelated bot comment'},
+    ];
+    execFileSync('bash',['-e','-o','pipefail','-c',source],{env:{...process.env,PATH:`${directory}:${process.env.PATH}`,GH_CALLS:calls,FIXTURE_PR:current,FIXTURE_COMMENTS:JSON.stringify(comments),REPO:'owner/repo',PR:'1',EXPECTED_HEAD:'abc',REPORT:reportMarker,RUNNER_TEMP:directory,HAS_FINDINGS:hasFindings}});
     const writes=readFileSync(calls,'utf8').split('\n').filter(line=>line.includes('--method'));
     assert.equal(writes.length,method?1:0);
-    if(method)assert(writes[0].includes(`--method ${method} `));
+    if(method) {
+      assert(writes[0].includes(`--method ${method} `));
+      assert(writes[0].includes(method==='POST'?'repos/owner/repo/issues/1/comments':`repos/owner/repo/issues/comments/${id}`));
+    }
   }
 });
 
