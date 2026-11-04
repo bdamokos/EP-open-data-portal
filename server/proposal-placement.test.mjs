@@ -630,3 +630,12 @@ test('annex caption decoration repair requires both native annex frames and exac
   const walk=units=>units.flatMap(u=>[u,...walk(u.children)]);walk(exact.units).find(u=>u.table).table.rows[0].cells[0].colSpan=2;assert.equal(run(w,exact).status,'unresolved','an exact caption match cannot bypass malformed geometry');
 
 });
+
+test('a matrix comparison can replace exact table rows inside its named annex point',()=>{
+ const rows=[['ANNEX I','Annexetitre','body'],['The annex is amended:','Normal','body'],['(1) Earlier instruction.','Point0','body'],['(2) The table is replaced:','Point0','body'],['CN code','Normal','cell',1,1,1],['Greenhouse gas','Normal','cell',1,1,2],['7314 Metal products','Normal','cell',1,2,1],['Carbon dioxide','Normal','cell',1,2,2],['ANNEX II','Annexetitre','body']];
+ const projection={paragraphs:rows.map(r=>r[0]),structureStatus:'extracted',paragraphSources:rows.map((r,ordinal)=>({path:r[2]==='cell'?`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`:`/w:document[1]/w:body[1]/w:p[${ordinal+1}]`,ordinal,segment:ordinal,container:r[2]==='cell'?'table-cell':'body',complete:true})),paragraphProperties:rows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(rows)};
+ const items=[{kind:'annex',proposal:parseProposal(projection,{item:'annex'})}],w={baseline:'commission-proposal',language:'en',targetLabel:'Annex I – point 2',originalText:'CN code\tGreenhouse gas\n7314 Metal products\tCarbon dioxide',proposedText:'CN code\tGreenhouse gas\n7314 Changed metal products\tCarbon dioxide'};
+ const placed=resolveProposalPlacement(items,w);assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:4,end:7});
+ assert.equal(resolveProposalPlacement(items,{...w,targetLabel:'Annex I – point 1'}).status,'unresolved');
+ assert.equal(resolveProposalPlacement(items,{...w,originalText:w.originalText.replace('7314','7315')}).status,'unresolved');
+});
