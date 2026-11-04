@@ -1,13 +1,9 @@
 import {repeatedPageDecoration} from './council-draft-decoration.mjs';
 import {createHash} from 'node:crypto';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
-import {PDFDocument,PDFDict,PDFArray,PDFName,PDFNumber,PDFRef} from 'pdf-lib';
-import {getDocument,OPS} from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 export const COUNCIL_DRAFT_PDF_LIMITS=Object.freeze({bytes:8*1024*1024,pages:100,nodes:100000,items:250000,textBytes:2*1024*1024});
 const requireProof=(ok,reason)=>{if(!ok)throw Object.assign(new Error(reason),{code:reason});};
-const name=value=>value instanceof PDFName?value.asString():null;
-const list=value=>value instanceof PDFArray?value.asArray():value==null?[]:[value];
 const clean=value=>value.replace(/\s+/gu,' ').trim();
 const multiply=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 const plain=v=>ArrayBuffer.isView(v)?Array.from(v,plain):Array.isArray(v)?v.map(plain):v;
@@ -17,6 +13,10 @@ const plain=v=>ArrayBuffer.isView(v)?Array.from(v,plain):Array.isArray(v)?v.map(
 async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,sourceUrl,signal}={}) {
  requireProof(Buffer.isBuffer(buffer)&&buffer.length<=COUNCIL_DRAFT_PDF_LIMITS.bytes&&buffer.subarray(0,5).toString()==='%PDF-','council-pdf-byte-limit');
  signal?.throwIfAborted();
+ const {PDFDocument,PDFDict,PDFArray,PDFName,PDFNumber,PDFRef}=await import('pdf-lib');
+ const {getDocument,OPS}=await import('pdfjs-dist/legacy/build/pdf.mjs');
+ const name=value=>value instanceof PDFName?value.asString():null;
+ const list=value=>value instanceof PDFArray?value.asArray():value==null?[]:[value];
  const raw=await PDFDocument.load(buffer,{updateMetadata:false});
  requireProof(!raw.isEncrypted,'council-pdf-encrypted');
  const pages=raw.getPages();requireProof(pages.length<=COUNCIL_DRAFT_PDF_LIMITS.pages,'council-pdf-page-limit');
