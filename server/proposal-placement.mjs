@@ -905,6 +905,10 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(instruction)return instruction;
   const table=language==='en'&&operation!=='insert'&&/^(Annex .+?)\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
   if(table)return annexTablePlacement(items,table[1],originalText,language,operation,evidence,unresolved,captionDecorationProfile(items,{targetLabel,targetPath,originalText,baseline}));
+  // A matrix comparison already publishes its cells; its owning annex point
+  // is enough to scope an exact table match, without an extra table suffix.
+  const matrix=language==='en'&&baseline==='commission-proposal'&&operation==='replace'&&originalText.includes('\t')&&originalText.includes('\n')&&/^Annex [IVXLC]+ – point [1-9]\d*$/u.exec(String(paths?.[0]?.raw??targetLabel??'').split('\n')[0].trim());
+  if(matrix)return annexTablePlacement(items,matrix[0],originalText,language,operation,evidence,unresolved);
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});

@@ -372,7 +372,7 @@ export function numberingGap(text,units,base){
 // or one table row whose cells join with tabs) and require the amendment's
 // original lines to match one unique contiguous run cell for cell, inside the
 // annex its label names. Never consult placer units or evidence.
-const tableAddress=raw=>/^Annex ([IVXLC]+)\b.*\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(raw??'').split('\n')[0].trim());
+const tableAddress=(raw,original='')=>{const label=String(raw??'').split('\n')[0].trim();return /^Annex ([IVXLC]+)\b.*\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(label)||(original.includes('\t')&&original.includes('\n')?/^Annex ([IVXLC]+) – point [1-9]\d*$/u.exec(label):null);};
 const rawCell=value=>String(value).normalize('NFC').replace(/\s+/gu,' ').trim();
 function rawLogicalRows(proposal) {
   const rows=[];let current=null;
@@ -420,7 +420,7 @@ function rawCaptionDecoration(wording,items,proposal){
   return {inner:path[4],outer:path[1]};
 }
 function verifyAnnexTable({proposal,wording,placement,items}) {
-  const address=tableAddress(wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel);
+  const address=tableAddress(wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel,wording.baseline==='commission-proposal'?wording.originalText:'');
   if(!address||wording.language!=='en'||!['replace','delete'].includes(placement.operation))return null;
   const rows=rawLogicalRows(proposal);
   if(!rows)return {status:'unverified',reason:'oracle-table-structure-unavailable'};
