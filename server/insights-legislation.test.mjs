@@ -271,7 +271,7 @@ function actualEventHarness(t,change={},options={}) {
   throw Error('Unexpected fixture source: '+ep);
  }});
  const query=(topic=event.activity_id)=>service.query({language:'en',sitting,topic},catalogue);
- return {query,calls,event,scheduled,vote};
+ return {query,calls,event,scheduled,vote,store,generation};
 }
 test('actual joint debates merge all exact executed contexts and retain their own speakers',async t=>{
  const h=actualEventHarness(t),r=await h.query();
@@ -309,4 +309,16 @@ test('a voting-time parent with several exact scheduled vote targets is unavaila
 });
 for(const status of [404,429,503])test('exact-ID upstream '+status+' keeps the domain status or source failure',async t=>{
  const h=actualEventHarness(t,{}, {upstreamStatus:status});await assert.rejects(h.query(),e=>{assert.equal(e.status,status===404?404:502);assert.equal(e.code,status===404?'topic_not_found':'odp_unavailable');assert.equal(e.source.httpStatus,status);return true;});
+});
+
+test('formal addresses without a scheduled agenda item retain exact title and child speeches',async t=>{
+ const h=actualEventHarness(t,{had_activity_type:'def/ep-activities/PLENARY_ACTIVITY',executed:undefined,activity_label:{en:'Formal sitting – address by a head of state'}});
+ const r=await h.query();assert.equal(r.detail.id,h.event.activity_id);assert.equal(r.detail.title,'Formal sitting – address by a head of state');assert.equal(r.detail.speeches.length,1);assert.deepEqual(r.detail.scheduledAgendaIds,[]);assert.deepEqual(r.detail.documentIds,[]);assert.deepEqual(r.detail.procedureIds,[]);
+});
+
+test('formal address includes held outside speech headers without roster or name matching',async t=>{
+ const h=actualEventHarness(t,{had_activity_type:'def/ep-activities/PLENARY_ACTIVITY',executed:undefined});
+ const id='MTG-PL-2026-10-07-OTH-123456';h.event.consists_of.push('eli/dl/event/'+id);
+ h.store.db.prepare('INSERT INTO outside_contributions VALUES (?,?,?,?,?)').run(h.generation,id,'999999','2026-10-07',JSON.stringify({id,personId:'999999',date:'2026-10-07',header:{name:'Visiting head of state'},titles:{en:'Address'},source:{url:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:'2026-10-14T09:30:00Z'}}));
+ const r=await h.query(),speech=r.detail.speeches.find(s=>s.sourceId===id);assert(speech);assert.equal(speech.people[0].name,'Visiting head of state');assert.equal(speech.people[0].currentMep,false);assert(!h.calls.some(([ep])=>ep==='/meps/999999'));
 });
