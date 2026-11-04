@@ -30,7 +30,7 @@ import {assertBareAnnexIndent} from './amendment-annex-indent-oracle.mjs';
 import {assertWholeAnnexInstruction} from './amendment-whole-instruction-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
-import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
+import {assertNewQuotedOrdinal,assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
 import {assertFootnoteComparison,assertResolutionFootnotes} from './amendment-footnote-oracle.mjs';
 import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-grammar.mjs';
@@ -740,6 +740,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   if(quoted.status!=='unverified')return quoted;
   const sibling=assertQuotedSibling({proposal,wording,placement,nativeQuoted});
   if(sibling.status!=='unverified')return sibling;
+  const ordinalSubparagraph=assertNewQuotedOrdinal({proposal,wording,placement,nativeQuoted});if(ordinalSubparagraph)return ordinalSubparagraph;
   const subparagraph=assertQuotedSubparagraph({proposal,wording,placement,nativeQuoted});
   if(subparagraph.status!=='unverified')return subparagraph;
   const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});

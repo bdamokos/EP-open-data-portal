@@ -79,3 +79,39 @@ export function assertQuotedSubparagraph({proposal,wording,placement,nativeQuote
  return placement.insertBefore===before&&placement.insertAfter===before-1
   ?{status:'verified',reason:'oracle-native-quoted-subparagraph'}:{status:'failed',reason:'oracle-native-quoted-subparagraph-mismatch',expectedBefore:before};
 }
+
+// New anonymous subparagraph Na is an ordinal within its quoted paragraph;
+// a sibling paragraph bearing the same digits is outside that address.
+export function assertNewQuotedOrdinal({proposal,wording,placement,nativeQuoted}){
+ const unknown=()=>null;
+ const refs=wording.targetPath?.underlying??[],outer=/^Article (\d+) – paragraph 1 – point (\d+)$/u.exec(wording.targetLabel?.split('\n')[0]??'');
+ const inner=refs.length===1&&/^Article (\d+)\s*([a-z]*) – paragraph (\d+)\s*([a-z]*) – subparagraph (\d+)\s*([a-z]+) \(new\)$/u.exec(refs[0].raw??'');
+ if(wording.language!=='en'||wording.originalText!==''||placement.operation!=='insert'||!inner||!outer||!refs[0].document||!wording.proposedText?.trim()||/^\d+[a-z]*[.)]\s/u.test(wording.proposedText.trim()))return unknown();
+ let body;try{body=quotedWordBody(nativeQuoted?.proposalBuffer);}catch{return unknown();}
+ const heading=body.filter(row=>row.kind==='paragraph'&&row.text.trim()==='Article '+outer[1]);if(heading.length!==1)return unknown();
+ let rows=body.slice(body.indexOf(heading[0])+1),end=rows.findIndex(row=>row.kind==='paragraph'&&/^Article \d+$/u.test(row.text.trim()));if(end>=0)rows=rows.slice(0,end);
+ const instructions=rows.filter(row=>row.kind==='paragraph'&&new RegExp('^\\('+outer[2]+'\\)\\s+in Article '+inner[1]+inner[2]+', the following paragraphs (.+) are inserted after paragraph \\d+:$','u').test(row.text.trim()));
+ if(instructions.length!==1||instructions[0].hidden||instructions[0].unsafe)return unknown();
+ const act=rows.slice(0,rows.indexOf(instructions[0])).filter(row=>row.kind==='paragraph'&&/^(?:Directive|Regulation|Decision) .+ is amended as follows:$/u.test(row.text.trim())).at(-1);
+ if(!act||act.hidden||act.unsafe||act.text.trim()!==refs[0].document+' is amended as follows:')return unknown();
+ const parent=inner[3]+inner[4],names=/the following paragraphs (.+) are inserted/u.exec(instructions[0].text)?.[1].split(/,\s*| and /u);
+ if(!names?.includes(parent))return unknown();
+ rows=rows.slice(rows.indexOf(instructions[0])+1);
+ const ownerEnd=rows.findIndex(row=>row.kind==='paragraph'&&/^\(\d+\)\s/u.test(row.text.trim()));if(ownerEnd>=0)rows=rows.slice(0,ownerEnd);
+ const empty=row=>row.kind==='paragraph'&&!row.hidden&&!row.unsafe&&!row.numbered&&!row.text.trim()&&row.nodes.every(node=>Object.keys(node).every(key=>key===':@'||key==='w:pPr'));
+ while(rows.length&&empty(rows[0]))rows=rows.slice(1);
+ if(!rows.length||rows[0].kind!=='paragraph'||!rows[0].text.trim().startsWith('‘'))return unknown();
+ const closes=rows.flatMap((row,i)=>row.kind==='paragraph'&&/’[;.]?\s*$/u.test(row.text)?[i]:[]);
+ if(closes.length!==1||rows.slice(closes[0]+1).some(row=>!empty(row)))return unknown();
+ rows=rows.slice(0,closes[0]+1);
+ if(rows.some(row=>row.kind!=='paragraph'||row.hidden||row.unsafe||row.numbered)||rows.slice(1).some(row=>row.text.trim().startsWith('‘')))return unknown();
+ const printed=rows.flatMap(row=>/^[‘]?(\d+[a-z]*)[.]\s/u.exec(row.text.trim())?.[1]??[]);
+ if(printed.join('|')!==names.join('|'))return unknown();
+ const starts=rows.flatMap((row,i)=>row.kind==='paragraph'&&new RegExp('^[‘]?'+parent+'[.]\\s','u').test(row.text.trim())?[i]:[]);if(starts.length!==1)return unknown();
+ const from=starts[0],until=rows.findIndex((row,i)=>i>from&&row.kind==='paragraph'&&/^\d+[a-z]*[.]\s/u.test(row.text.trim()));if(until<0)return unknown();
+ const block=rows.slice(from,until),ordinal=Number(inner[5]);if(ordinal<1||ordinal>block.length||block.some(row=>row.kind!=='paragraph'||row.hidden||row.unsafe||row.numbered||!row.text.trim()))return unknown();
+ const selected=block[ordinal-1],next=rows[rows.indexOf(selected)+1];
+ const map=row=>proposal.paragraphs.filter(p=>p.source?.path===row.path&&p.text===row.text.trim()&&p.complete&&p.source.complete&&p.source.container==='body');
+ const a=map(selected),b=map(next);if(a.length!==1||b.length!==1||b[0].index!==a[0].index+1)return unknown();
+ return placement.insertAfter===a[0].index&&placement.insertBefore===b[0].index?{status:'verified',reason:'oracle-native-quoted-ordinal'}:{status:'failed',reason:'oracle-quoted-ordinal-mismatch'};
+}

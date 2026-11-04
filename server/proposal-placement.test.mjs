@@ -725,3 +725,12 @@ test('new outer articles use the next native heading when an inner quote is inco
  for(const change of [x=>x.replace('Article 2','Article 3'),x=>x.replace('Article 2','Article 1a'),x=>x.replace('HAS ADOPTED THIS DIRECTIVE:','An instruction:')])assert.equal(place(make(change)).status,'unresolved');
  assert.equal(resolveProposalPlacement([{kind:'act',proposal:f.proposal}],{...wording,proposedText:'A differently numbered article.'}).status,'unresolved');
 });
+
+test('new quoted subparagraph suffixes use their parent paragraph ordinal',()=>{
+ const f=fixture('proposal-quoted-ordinal.json'),wrap=x=>`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${x}</w:body></w:document>`,buffer=fixtureZip({'word/document.xml':wrap(f.bodyXml)}),proposal=parseProposal(buffer,{language:'en'}),items=[{kind:'act',proposal}];
+ for(const suffix of ['a','b']){
+  const wording={language:'en',baseline:'commission-proposal',originalText:'',proposedText:'Additional free allocation shall be provided.',targetLabel:'Article 1 – paragraph 1 – point 1',targetPath:{language:'en',proposal:[{raw:'Article 1 – paragraph 1 – point 1'}],underlying:[{document:'Directive 2003/87/EC',raw:'Article 10 a – paragraph 2 a – subparagraph 2 '+suffix+' (new)'}]}},placement=resolveProposalPlacement(items,wording),next=proposal.paragraphs.find(row=>row.text.startsWith('2b.')).index;
+  assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,next);assert.equal(placement.insertAfter,next-1);assert.equal(verifyPlacement({items,wording,placement,nativeQuoted:{proposalBuffer:buffer}}).status,'verified');
+  for(const modify of [w=>w.targetPath.underlying[0].document='Directive 2000/1/EC',w=>w.targetPath.underlying[0].raw=w.targetPath.underlying[0].raw.replace('subparagraph 2','subparagraph 3')]){const changed=structuredClone(wording);modify(changed);assert.equal(resolveProposalPlacement(items,changed).status,'unresolved');}
+ }
+});
