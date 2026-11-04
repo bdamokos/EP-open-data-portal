@@ -1,4 +1,5 @@
 import {amendmentProvisional,provisionalDecision} from './amendment-provisional.mjs';
+import {distributionCandidate,requireDistributionIdentity,nativeDistributionText} from './ep-distribution-route.mjs';
 import {adoptedPlacementText,placementAdoptedListing} from './amendment-placement-check.mjs';
 import {hasCouncilQuotation,reportCouncilQuotation} from './report-council-quotation.mjs';
 import {isDeepStrictEqual} from 'node:util';
@@ -11,7 +12,7 @@ import {odp,ODP_BASE,odpLanguage,boundedUpstream} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {documentSummary} from './activities.mjs';
 import {array,tail,documentFiles} from './activity-index-model.mjs';
-import {documentText,downloadDocxBuffer,allowedDownload} from './document-text.mjs';
+import {documentText,docxParts,downloadDocxBuffer,allowedDownload} from './document-text.mjs';
 import {extractAmendments,AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {amendmentReference,amendmentTextLosses,canonicalEPReference,sameDocxDescriptor} from './amendments.mjs';
 import * as amendmentStore from './amendments-store.mjs';
@@ -122,6 +123,7 @@ export class DocumentContext {
     if(!job) {
       job=sharedRequest(async signal=>{
         const downloaded=await this.download(file.url),{buffer,resolvedSourceUrl}=downloaded;signal.throwIfAborted();
+        if(file.identityRequired)requireDistributionIdentity([nativeDistributionText(docxParts(buffer).get('word/document.xml'))],listId);
         const source={url:file.url,resolvedSourceUrl,fetchedAt:downloaded.fetchedAt??new Date(this.clock()).toISOString(),language:file.language,contentHash:createHash('sha256').update(buffer).digest('hex'),retrievedByteSize:buffer.byteLength,sourceVersion:distributionVersion(list,file.url),stale:false,refreshInProgress:false,refreshError:null,...(downloaded.requests?{requests:downloaded.requests}:{}),...(downloaded.freshnessAssessed===false?{freshnessAssessed:false}:{})};
         const declarations=declaredDocxFiles(list).filter(d=>d.language===file.language&&distributionUrl(d.url)===file.url);
         const declaration=declarations.length===1?{documentId:listId,...declarations[0]}:null;
@@ -381,16 +383,17 @@ export class DocumentContext {
       if(typeof candidate==='string'||!Object.hasOwn(candidate,'is_realized_by')||query.matchingTextLanguages&&!declaredDocxFiles(candidate).some(file=>query.matchingTextLanguages.includes(file.language)))try {const result=await read('/documents/'+listId,listId);list=result.work;metadataSource=result.source;}catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;base.gaps.push('amendment-list-unavailable');continue;}
       if(workId(list)!==listId||canonicalType(list.work_type)!=='def/ep-document-types/AMENDMENT_LIST'||!committeeListId(query.id)&&!refs(list.foresees_change_of).includes('eli/dl/doc/'+query.id)){base.gaps.push('amendment-list-target-unverified');continue;}
       const wordingSelected=Object.hasOwn(query,'wordingLanguage')||Boolean(query.matchingTextLanguages);
-      const files=wordingSelected?declaredDocxFiles(list):documentFiles(list).filter(file=>file.format==='DOCX'&&file.language&&allowedDownload(file.url));
+      const candidateFile=distributionCandidate(list,query.wordingLanguage||query.language);
+      const files=candidateFile?[candidateFile]:wordingSelected?declaredDocxFiles(list):documentFiles(list).filter(file=>file.format==='DOCX'&&file.language&&allowedDownload(file.url));
       const languages=[...new Set(files.map(file=>file.language))],language=query.matchingTextLanguages?amendmentLanguagePreference(languages.filter(language=>query.matchingTextLanguages.includes(language)),query.wordingLanguage||query.language,array(work.originalLanguage).map(languageCode))[0]:wordingSelected?query.wordingLanguage:languages.includes(query.language)?query.language:languages.includes('en')?'en':languages[0];
       const selected=files.filter(file=>file.language===language);
       // Preserve declared alternatives without downloading unrequested wording.
       // Every same-language file competes, including one we cannot parse.
-      const alternatives=wordingSelected?files.map(file=>({listId,language:file.language,justification:null,targetLabel:null,targetLabelLanguage:null,wordingStatus:'unavailable',originalText:null,proposedText:null,authors:[],source:{...(file.url!==null?{url:file.url}:{}),language:file.language,sourceVersion:file.sourceVersion},metadataSource,gaps:[file.language===language?'amendment-wording-unavailable':'wording-not-requested']})):[];
+      const alternatives=wordingSelected&&!candidateFile?files.map(file=>({listId,language:file.language,justification:null,targetLabel:null,targetLabelLanguage:null,wordingStatus:'unavailable',originalText:null,proposedText:null,authors:[],source:{...(file.url!==null?{url:file.url}:{}),language:file.language,sourceVersion:file.sourceVersion},metadataSource,gaps:[file.language===language?'amendment-wording-unavailable':'wording-not-requested']})):[];
       base.variants.push(...alternatives);
       if(selected.length!==1){base.gaps.push('amendment-file-unavailable-or-ambiguous');continue;}
       let file=selected[0];
-      if(wordingSelected) {
+      if(wordingSelected&&!file.identityRequired) {
         let url=null;try{if(file.url!==null)url=new URL(file.url,'https://data.europarl.europa.eu/').href;}catch{/* Keep malformed declarations unavailable. */}
         file=documentFiles(list).find(candidate=>candidate.format==='DOCX'&&candidate.language===language&&candidate.url===url&&allowedDownload(candidate.url));
         if(!file){base.gaps.push('amendment-file-unavailable-or-ambiguous');continue;}
@@ -403,7 +406,7 @@ export class DocumentContext {
         const row=rows[0],losses=amendmentTextLosses(extraction,row);
         if(losses.length||typeof row.originalText!=='string'||typeof row.proposedText!=='string'){base.gaps.push('amendment-wording-incomplete');continue;}
         const variant={listId,language,justification:amendmentJustification({...row,language,metadataSource:source})?.text??null,documentDate:row.documentDate,listDocumentDate:list.document_date??null,dateBasis:row.dateBasis,baseline:row.baseline ?? 'unknown',baselineSource:row.baselineSource??null,documentReferences:row.documentReferences??[],targetPath:row.targetPath??null,targetLabel:row.targetLabel,targetLabelLanguage:language,targetLabelSource:source,fieldSources:{wording:source,targetLabel:source,justification:source},wordingStatus:'available',originalText:row.originalText,proposedText:row.proposedText,originalFormatting:row.originalFormatting || [],proposedFormatting:row.proposedFormatting || [],authors:row.authors.map(name=>({name,personId:null,status:'published-name'})),source:{...source,notesComplete:!array(row.gaps).some(gap=>gap?.code==='notes-unavailable')},parserVersion:AMENDMENT_EXTRACTION_VERSION,gaps:array(row.gaps)};
-        if(wordingSelected)Object.assign(alternatives[files.indexOf(selected[0])],variant);else base.variants.push(variant);
+        if(wordingSelected&&!candidateFile)Object.assign(alternatives[files.indexOf(selected[0])],variant);else base.variants.push(variant);
       }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;base.gaps.push('amendment-source-unavailable');}
     }
     if(base.gaps.includes('conflicting-list-metadata'))base.variants=[];

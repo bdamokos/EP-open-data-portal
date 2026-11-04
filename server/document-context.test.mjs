@@ -779,3 +779,12 @@ test('provisional agreement can locate a source whose comparison columns are wit
  const wrongSource=service({request:async()=>record(node),findAmendment:()=>indexed,download:async()=>({buffer:provisionalFixture({report:'A10-0002/2026'}).buffer})});
  assert.notEqual((await wrongSource.query(selected,{store:{}})).placement?.scope,'whole-document');
 });
+
+test('failed undeclared distribution probes do not invent published language variants',async()=>{
+ const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:['eli/dl/doc/'+id],is_realized_by:[]};
+ for(const language of ['en','cs']){
+  let downloads=0;const reader=service({request:async()=>record({...work,inverse_foresees_change_of:[list]}),download:async()=>{downloads++;throw Object.assign(Error('Not found'),{status:404});}});
+  const result=await reader.query(query({amendmentId,listId,wordingLanguage:language,language}));
+  assert.equal(downloads,1);assert.equal(result.amendment.status,'unavailable');assert.deepEqual(result.amendment.variants,[]);assert.equal(result.amendment.basis,null);assert(result.amendment.gaps.includes('amendment-source-unavailable'));
+ }
+});

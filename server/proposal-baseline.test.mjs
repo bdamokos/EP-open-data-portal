@@ -364,3 +364,9 @@ test('shared request owner expiry propagates instead of returning stale content'
   await new Promise(resolve=>setImmediate(resolve));t.mock.timers.tick(45_001);await rejected;
   assert.equal(docs.failures.size,0);
 });
+
+ test('amended Commission proposal types retain exact COM identity guards',()=>{
+ const amended=xml.replace('/PROP_REG','/AMEND_PROP_REG');
+ assert.equal(resolveProposalTree(amended,{celex,language:'en'}).status,'resolved');
+ assert(resolveProposalTree(amended.replaceAll('COM_2025_0087_FIN','COM_2025_0088_FIN'),{celex,language:'en'}).gaps.includes('com-reference-unverified'));
+ });
