@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Kogu tabelit puudutav muudatusettepanek.",
   "documentcontext.citation_before_existing": "Paigutatud olemasoleva viite ette.",
   "documentcontext.after_paragraph_lead": "Paigutatud lõike sissejuhatava teksti järele.",
-  "documentcontext.single_word_difference": "Algne sõnastus erineb ühe sõna võrra."
   "documentcontext.final_placement_check": "Kontrollige lõplikku asukohta {adoptedText}.",
   "documentcontext.adopted_text": "vastuvõetud tekstis",
   "amendment.alternative_motion": "Alternatiivne ettepanek",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "See number on juba olemas. Paigutatud põhipunkti järele.",
   "proposalcontexttext.new.unnumbered.table": "Uus nummerdamata tabel on paigutatud lisa lõppu.",
   "proposalcontexttext.new.point.order": "Uus punkt {point} järgneb punktile {base}.",
+  "topics.partialLegend": "Viirutus: osaline kvartal.",
+  "topics.policyAreaSource": "Poliitikavaldkondade nimetused: {source}.",
   "documentcontext.single_word_difference": "Algne sõnastus erineb ühe sõna võrra.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Algses viites puudub identifikaator",
   "proposalcontexttext.printed.point.label": "Uus punkt {point}. Tähistus viitab punktile {base}.",

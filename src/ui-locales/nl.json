@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Amendement op de hele tabel.",
   "documentcontext.citation_before_existing": "Geplaatst vóór de bestaande verwijzing.",
   "documentcontext.after_paragraph_lead": "Geplaatst na de inleidende tekst van de paragraaf.",
-  "documentcontext.single_word_difference": "De oorspronkelijke tekst verschilt één woord."
   "documentcontext.final_placement_check": "Controleer de definitieve plaatsing in {adoptedText}.",
   "documentcontext.adopted_text": "de aangenomen tekst",
   "amendment.alternative_motion": "Alternatieve ontwerpresolutie",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Dit nummer bestaat al. Ingevoegd na het basispunt.",
   "proposalcontexttext.new.unnumbered.table": "Nieuwe ongenummerde tabel aan het einde van de bijlage ingevoegd.",
   "proposalcontexttext.new.point.order": "Het nieuwe punt {point} volgt op punt {base}.",
+  "topics.partialLegend": "Gearceerd: onvolledig kwartaal.",
+  "topics.policyAreaSource": "Namen van beleidsterreinen: {source}.",
   "documentcontext.single_word_difference": "De oorspronkelijke tekst verschilt één woord.",
   "proposalcontexttext.original.citation.omits.an.identifier": "In de oorspronkelijke verwijzing ontbreekt een identificatiecode",
   "proposalcontexttext.printed.point.label": "Nieuw punt {point}. Het opschrift noemt punt {base}.",

@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Pozmeňujúci návrh k celej tabuľke.",
   "documentcontext.citation_before_existing": "Vložené pred existujúcu citáciu.",
   "documentcontext.after_paragraph_lead": "Vložené za úvodný text odseku.",
-  "documentcontext.single_word_difference": "Pôvodné znenie sa líši o jedno slovo."
   "documentcontext.final_placement_check": "Konečné umiestnenie overte v {adoptedText}.",
   "documentcontext.adopted_text": "prijatom texte",
   "amendment.alternative_motion": "Alternatívny návrh",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Toto číslo už existuje. Umiestnené za základný bod.",
   "proposalcontexttext.new.unnumbered.table": "Nová nečíslovaná tabuľka je umiestnená na konci prílohy.",
   "proposalcontexttext.new.point.order": "Nový bod {point} nasleduje za bodom {base}.",
+  "topics.partialLegend": "Šrafovanie: neúplný štvrťrok.",
+  "topics.policyAreaSource": "Názvy oblastí politiky: {source}.",
   "documentcontext.single_word_difference": "Pôvodné znenie sa líši o jedno slovo.",
   "proposalcontexttext.original.citation.omits.an.identifier": "V pôvodnej citácii chýba identifikátor",
   "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uvedený bod {base}.",

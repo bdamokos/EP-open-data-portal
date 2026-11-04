@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Poprawka dotycząca całej tabeli.",
   "documentcontext.citation_before_existing": "Umieszczono przed istniejącym przywołaniem.",
   "documentcontext.after_paragraph_lead": "Umieszczono po tekście wprowadzającym ustępu.",
-  "documentcontext.single_word_difference": "Pierwotne brzmienie różni się o jedno słowo."
   "documentcontext.final_placement_check": "Sprawdź ostateczne umiejscowienie w {adoptedText}.",
   "documentcontext.adopted_text": "przyjętym tekście",
   "amendment.alternative_motion": "Alternatywny projekt rezolucji",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Ten numer już istnieje. Umieszczono po punkcie podstawowym.",
   "proposalcontexttext.new.unnumbered.table": "Nowa tabela bez numeru umieszczona na końcu załącznika.",
   "proposalcontexttext.new.point.order": "Nowy punkt {point} następuje po punkcie {base}.",
+  "topics.partialLegend": "Kreskowanie: niepełny kwartał.",
+  "topics.policyAreaSource": "Nazwy obszarów polityki: {source}.",
   "documentcontext.single_word_difference": "Pierwotne brzmienie różni się o jedno słowo.",
   "proposalcontexttext.original.citation.omits.an.identifier": "W pierwotnym odesłaniu pominięto identyfikator",
   "proposalcontexttext.printed.point.label": "Nowy punkt {point}. Etykieta wskazuje punkt {base}.",

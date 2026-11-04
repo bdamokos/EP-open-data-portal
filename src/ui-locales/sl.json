@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Predlog spremembe celotne tabele.",
   "documentcontext.citation_before_existing": "Uvrščeno pred obstoječe sklicevanje.",
   "documentcontext.after_paragraph_lead": "Uvrščeno za uvodnim besedilom odstavka.",
-  "documentcontext.single_word_difference": "Izvirno besedilo se razlikuje za eno besedo."
   "documentcontext.final_placement_check": "Končno mesto preverite v {adoptedText}.",
   "documentcontext.adopted_text": "sprejetem besedilu",
   "amendment.alternative_motion": "Alternativni predlog",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Ta številka že obstaja. Vstavljeno za osnovno točko.",
   "proposalcontexttext.new.unnumbered.table": "Nova neoštevilčena tabela je vstavljena na koncu priloge.",
   "proposalcontexttext.new.point.order": "Nova točka {point} sledi točki {base}.",
+  "topics.partialLegend": "Šrafirano: nepopolno četrtletje.",
+  "topics.policyAreaSource": "Imena področij politike: {source}.",
   "documentcontext.single_word_difference": "Izvirno besedilo se razlikuje za eno besedo.",
   "proposalcontexttext.original.citation.omits.an.identifier": "V izvirnem sklicu manjka identifikator",
   "proposalcontexttext.printed.point.label": "Nova točka {point}. Oznaka navaja točko {base}.",

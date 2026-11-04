@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Leasú ar an tábla iomlán.",
   "documentcontext.citation_before_existing": "Curtha roimh an tagairt atá ann cheana.",
   "documentcontext.after_paragraph_lead": "Curtha i ndiaidh théacs tosaigh na míre.",
-  "documentcontext.single_word_difference": "Tá difríocht aon fhocail sa bhuntéacs."
   "documentcontext.final_placement_check": "Seiceáil an suíomh deiridh sa {adoptedText}.",
   "documentcontext.adopted_text": "téacs a glacadh",
   "amendment.alternative_motion": "Tairiscint mhalartach",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Tá an uimhir seo in úsáid cheana. Curtha i ndiaidh an bhunphointe.",
   "proposalcontexttext.new.unnumbered.table": "Tábla nua gan uimhir curtha ag deireadh na hiarscríbhinne.",
   "proposalcontexttext.new.point.order": "Tagann pointe nua {point} i ndiaidh phointe {base}.",
+  "topics.partialLegend": "Scáthlíniú: ráithe pháirteach.",
+  "topics.policyAreaSource": "Ainmneacha réimsí beartais: {source}.",
   "documentcontext.single_word_difference": "Tá difríocht aon fhocail sa bhuntéacs.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Tá aitheantóir ar iarraidh sa tagairt bhunaidh",
   "proposalcontexttext.printed.point.label": "Pointe nua {point}. Léiríonn an lipéad pointe {base}.",

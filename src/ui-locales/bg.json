@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Изменение на ниво таблица.",
   "documentcontext.citation_before_existing": "Поставено преди съществуващото позоваване.",
   "documentcontext.after_paragraph_lead": "Поставено след уводния текст на параграфа.",
-  "documentcontext.single_word_difference": "Оригиналният текст се различава с една дума."
   "documentcontext.final_placement_check": "Проверете окончателното място в {adoptedText}.",
   "documentcontext.adopted_text": "приетия текст",
   "amendment.alternative_motion": "Алтернативно предложение",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Този номер съвпада със съществуваща точка. Поставено след основната точка.",
   "proposalcontexttext.new.unnumbered.table": "Нова неномерирана таблица, поставена в края на приложението.",
   "proposalcontexttext.new.point.order": "Нова точка {point} следва точка {base}.",
+  "topics.partialLegend": "Щриховка: непълно тримесечие.",
+  "topics.policyAreaSource": "Наименования на областите на политиката: {source}.",
   "documentcontext.single_word_difference": "Оригиналният текст се различава с една дума.",
   "proposalcontexttext.original.citation.omits.an.identifier": "В първоначалното позоваване е пропуснат идентификатор",
   "proposalcontexttext.printed.point.label": "Нова точка {point}. В обозначението е посочена точка {base}.",

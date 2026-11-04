@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Amandman na cijelu tablicu.",
   "documentcontext.citation_before_existing": "Smješteno prije postojećeg pozivanja.",
   "documentcontext.after_paragraph_lead": "Smješteno nakon uvodnog teksta stavka.",
-  "documentcontext.single_word_difference": "Izvorni tekst razlikuje se u jednoj riječi."
   "documentcontext.final_placement_check": "Provjerite konačno mjesto u {adoptedText}.",
   "documentcontext.adopted_text": "usvojenom tekstu",
   "amendment.alternative_motion": "Alternativni prijedlog",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Ovaj broj već postoji. Umetnuto nakon osnovne točke.",
   "proposalcontexttext.new.unnumbered.table": "Nova nenumerirana tablica smještena na kraju priloga.",
   "proposalcontexttext.new.point.order": "Nova točka {point} slijedi iza točke {base}.",
+  "topics.partialLegend": "Šrafirano: nepotpuno tromjesečje.",
+  "topics.policyAreaSource": "Nazivi područja politike: {source}.",
   "documentcontext.single_word_difference": "Izvorni tekst razlikuje se u jednoj riječi.",
   "proposalcontexttext.original.citation.omits.an.identifier": "U izvornom navodu nedostaje identifikator",
   "proposalcontexttext.printed.point.label": "Nova točka {point}. Oznaka navodi točku {base}.",

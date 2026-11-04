@@ -924,7 +924,7 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   if(matched.some(row=>!row.complete||!row.source||row.source.complete===false))return unresolved('source_passage_incomplete');
   const first=matched[0],last=matched.at(-1);
   evidence.push({basis:wordDifference?'single-word-original-difference':repaired?'annex-table-caption-decoration':'annex-table-rows',anchor:unit.id,rows:lines.length});
-  return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:matched.map(row=>row.text).join('\n'),evidence};
+  return {operation,status:'placed',itemIndex,span:{start:first.index,end:last.index},splice:{start:{paragraph:first.index,offset:0},end:{paragraph:last.index,offset:last.text.length}},originalText:article?originalText:matched.map(row=>row.text).join('\n'),evidence};
 }
 
 function preambleCitationPlacement(items,label,operation,originalText,evidence,unresolved) {
@@ -1013,6 +1013,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     if(candidates.length!==1)return unresolved('target_not_found');
     const {itemIndex,start,end}=candidates[0];evidence.push({basis:'published-proposal-title'});
     return {operation,status:'placed',itemIndex,span:{start:start.index,end:end.index},splice:{start:{paragraph:start.index,offset:0},end:{paragraph:end.index,offset:end.text.length}},originalText,evidence};
+  }
   // An empty original column and a printed Na insertion instruction establish
   // a new outer point even when its published heading still names base N.
   const printedBase=language==='en'&&baseline==='commission-proposal'&&operation==='insert'&&originalText===''&&/^Article [1-9]\d* – paragraph 1 – point ([1-9]\d*)$/u.exec(paths?.[0]?.raw??String(targetLabel??'').split('\n')[0]);
@@ -1059,6 +1060,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       found.push({operation,status:'placed',itemIndex,span:{start:row.index,end:row.index},splice:{start:{paragraph:row.index,offset:0},end:{paragraph:row.index,offset:row.text.length}},originalText:row.text,evidence:[...evidence,{basis:'ordinal-unnumbered-paragraph'}]});
     }
     if(found.length===1)return found[0];
+  }
   const bound=pdfArticle?councilQuotedTarget(items,target,targetPath,language):null;
   if(bound?.reason)return unresolved(bound.reason);
   if(bound){target=bound.target;evidence.push({basis:'council-quoted-owner',anchor:bound.owner.id},{basis:'published-underlying-path',label:target.raw});}

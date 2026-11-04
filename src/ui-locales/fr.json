@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Amendement portant sur le tableau entier.",
   "documentcontext.citation_before_existing": "Placé avant le visa existant.",
   "documentcontext.after_paragraph_lead": "Placé après le texte introductif du paragraphe.",
-  "documentcontext.single_word_difference": "Le texte original diffère d’un mot."
   "documentcontext.final_placement_check": "Vérifiez l’emplacement final dans {adoptedText}.",
   "documentcontext.adopted_text": "le texte adopté",
   "amendment.alternative_motion": "Proposition alternative",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Ce numéro existe déjà. Placé après le point de base.",
   "proposalcontexttext.new.unnumbered.table": "Nouveau tableau non numéroté placé à la fin de l’annexe.",
   "proposalcontexttext.new.point.order": "Le nouveau point {point} suit le point {base}.",
+  "topics.partialLegend": "Hachures : trimestre partiel.",
+  "topics.policyAreaSource": "Noms des domaines d’action : {source}.",
   "documentcontext.single_word_difference": "Le texte original diffère d’un mot.",
   "proposalcontexttext.original.citation.omits.an.identifier": "La référence d’origine omet un identifiant",
   "proposalcontexttext.printed.point.label": "Nouveau point {point}. Le libellé indique le point {base}.",

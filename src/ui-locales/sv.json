@@ -9,7 +9,7 @@
   "documentcontext.table_level_amendment": "Ändringsförslag för hela tabellen.",
   "documentcontext.citation_before_existing": "Placerat före den befintliga hänvisningen.",
   "documentcontext.after_paragraph_lead": "Placerat efter punktens inledande text.",
-  "documentcontext.single_word_difference": "Den ursprungliga lydelsen skiljer sig med ett ord."
+  "documentcontext.single_word_difference": "Den ursprungliga lydelsen skiljer sig med ett ord.",
   "documentcontext.final_placement_check": "Kontrollera den slutliga placeringen i {adoptedText}.",
   "documentcontext.adopted_text": "den antagna texten",
   "amendment.alternative_motion": "Alternativt resolutionsförslag",

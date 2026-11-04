@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "A teljes táblázatra vonatkozó módosítás.",
   "documentcontext.citation_before_existing": "A meglévő hivatkozás elé helyezve.",
   "documentcontext.after_paragraph_lead": "A bekezdés bevezető szövege után helyezve.",
-  "documentcontext.single_word_difference": "Az eredeti szöveg egy szóval eltér."
   "documentcontext.final_placement_check": "Ellenőrizze a végleges helyet {adoptedText}.",
   "documentcontext.adopted_text": "az elfogadott szövegben",
   "amendment.alternative_motion": "Alternatív indítvány",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Ez a szám már szerepel egy pontnál. Az alappont után elhelyezve.",
   "proposalcontexttext.new.unnumbered.table": "Az új, számozatlan táblázat a melléklet végére kerül.",
   "proposalcontexttext.new.point.order": "Az új {point} pont a(z) {base} pontot követi.",
+  "topics.partialLegend": "Sraffozás: részleges negyedév.",
+  "topics.policyAreaSource": "A szakpolitikai területek nevei: {source}.",
   "documentcontext.single_word_difference": "Az eredeti szöveg egy szóval eltér.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Az eredeti hivatkozásból hiányzik egy azonosító",
   "proposalcontexttext.printed.point.label": "Új {point}. pont. A címkén ez áll: {base}. pont.",

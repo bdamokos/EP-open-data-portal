@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Koko taulukkoa koskeva tarkistus.",
   "documentcontext.citation_before_existing": "Sijoitettu ennen nykyistä viittausta.",
   "documentcontext.after_paragraph_lead": "Sijoitettu kohdan johdantotekstin jälkeen.",
-  "documentcontext.single_word_difference": "Alkuperäinen sanamuoto eroaa yhdellä sanalla."
   "documentcontext.final_placement_check": "Tarkista lopullinen sijainti {adoptedText}.",
   "documentcontext.adopted_text": "hyväksytystä tekstistä",
   "amendment.alternative_motion": "Vaihtoehtoinen päätöslauselmaesitys",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Tämä numero on jo käytössä. Sijoitettu peruskohdan jälkeen.",
   "proposalcontexttext.new.unnumbered.table": "Uusi numeroimaton taulukko on sijoitettu liitteen loppuun.",
   "proposalcontexttext.new.point.order": "Uusi kohta {point} seuraa kohtaa {base}.",
+  "topics.partialLegend": "Viivoitus: osittainen vuosineljännes.",
+  "topics.policyAreaSource": "Politiikan alojen nimet: {source}.",
   "documentcontext.single_word_difference": "Alkuperäinen sanamuoto eroaa yhdellä sanalla.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Alkuperäisestä viitteestä puuttuu tunniste",
   "proposalcontexttext.printed.point.label": "Uusi kohta {point}. Otsakkeessa mainitaan kohta {base}.",

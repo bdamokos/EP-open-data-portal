@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Τροπολογία σε επίπεδο πίνακα.",
   "documentcontext.citation_before_existing": "Τοποθετείται πριν από την υπάρχουσα αναφορά.",
   "documentcontext.after_paragraph_lead": "Τοποθετείται μετά το εισαγωγικό κείμενο της παραγράφου.",
-  "documentcontext.single_word_difference": "Το αρχικό κείμενο διαφέρει κατά μία λέξη."
   "documentcontext.final_placement_check": "Ελέγξτε την τελική θέση στο {adoptedText}.",
   "documentcontext.adopted_text": "εγκριθέν κείμενο",
   "amendment.alternative_motion": "Εναλλακτική πρόταση",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Ο αριθμός αυτός υπάρχει ήδη. Τοποθετείται μετά το βασικό σημείο.",
   "proposalcontexttext.new.unnumbered.table": "Νέος μη αριθμημένος πίνακας στο τέλος του παραρτήματος.",
   "proposalcontexttext.new.point.order": "Το νέο σημείο {point} ακολουθεί το σημείο {base}.",
+  "topics.partialLegend": "Διαγράμμιση: μερικό τρίμηνο.",
+  "topics.policyAreaSource": "Ονομασίες τομέων πολιτικής: {source}.",
   "documentcontext.single_word_difference": "Το αρχικό κείμενο διαφέρει κατά μία λέξη.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Από την αρχική παραπομπή λείπει αναγνωριστικό",
   "proposalcontexttext.printed.point.label": "Νέο σημείο {point}. Η ένδειξη αναφέρει το σημείο {base}.",

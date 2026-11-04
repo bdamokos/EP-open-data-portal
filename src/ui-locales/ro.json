@@ -9,7 +9,6 @@
   "documentcontext.table_level_amendment": "Amendament la întregul tabel.",
   "documentcontext.citation_before_existing": "Plasat înaintea trimiterii existente.",
   "documentcontext.after_paragraph_lead": "Plasat după textul introductiv al alineatului.",
-  "documentcontext.single_word_difference": "Textul original diferă cu un cuvânt."
   "documentcontext.final_placement_check": "Verificați poziția finală în {adoptedText}.",
   "documentcontext.adopted_text": "textul adoptat",
   "amendment.alternative_motion": "Propunere alternativă",
@@ -2839,6 +2838,8 @@
   "proposalcontexttext.colliding.new.point": "Acest număr există deja. Inserat după punctul de bază.",
   "proposalcontexttext.new.unnumbered.table": "Tabel nou nenumerotat inserat la sfârșitul anexei.",
   "proposalcontexttext.new.point.order": "Noul punct {point} urmează după punctul {base}.",
+  "topics.partialLegend": "Hașuri: trimestru parțial.",
+  "topics.policyAreaSource": "Denumirile domeniilor de politică: {source}.",
   "documentcontext.single_word_difference": "Textul original diferă cu un cuvânt.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Citarea originală omite un identificator",
   "proposalcontexttext.printed.point.label": "Punct nou {point}. Eticheta indică punctul {base}.",
