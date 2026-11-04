@@ -652,6 +652,23 @@ function printedInnerPath(targetLabel,targetPath,language) {
   return {...targetPath,language,underlying:[{document:lines[1],raw:lines[2]}]};
 }
 const SUBPARAGRAPH_ORDINALS=['first','second','third','fourth','fifth','sixth'];
+function quotedOrdinalSubparagraphInsertion(selected,targetPath,proposedText,language) {
+ const refs=targetPath?.underlying??[];if(language!=='en'||targetPath?.language!==language||refs.length!==1||!refs[0].document)return null;
+ const inner=parseTargetLabel(refs[0].raw,language),label=inner.segments.at(-1);
+ if(!inner.complete||inner.segments.length!==3||inner.segments[0].kind!=='article'||inner.segments[1].kind!=='paragraph'||label?.kind!=='subparagraph'||!label.isNew||!label.suffix||label.negative||!proposedText?.trim()||/^\d+[a-z]*[.)]\s/u.test(proposedText.trim())||instructionOperation(proposedText,language))return null;
+ const {proposal,unit:owner,itemIndex}=selected;if(owner.scope!=='proposal'||!owner.instruction||!completeBoundary(proposal,owner))return null;
+ const named=new RegExp('^\\(\\d+\\)\\s+in Article '+escape(inner.segments[0].value)+', the following paragraphs (.+) are inserted after paragraph \\d+:$','u').exec(owner.instruction.raw.trim());
+ if(!named||!named[1].split(/,\s*| and /u).includes(inner.segments[1].value))return null;
+ const intro=proposal.paragraphs.filter(row=>row.index<owner.extent.start&&/^(?:Directive|Regulation|Decision) .+ is amended as follows:$/u.test(row.text.trim())).at(-1);if(!intro||intro.text.trim()!==refs[0].document+' is amended as follows:')return null;
+ const quotes=owner.children.filter(unit=>unit.kind==='quotation'),parents=flat(quotes).filter(unit=>unit.kind==='paragraph'&&unit.scope==='quoted'&&sameAddress(unit.underlyingPath,inner.segments.slice(0,-1)));
+ if(parents.length!==1)return null;const parent=parents[0];
+ if(parent.pathConflict||!completeBoundary(proposal,parent)||parent.content.length!==1||parent.children.some(child=>child.kind!=='subparagraph'||child.children.length||child.content.length!==1))return null;
+ const parts=[{start:parent.content[0],end:parent.content[0]+1},...parent.children.map(child=>child.extent)].sort((a,b)=>a.start-b.start),part=parts[label.number-1];
+ if(!part||parts.some((p,i)=>p.end!==p.start+1||i&&parts[i-1].end!==p.start))return null;
+ const rows=proposal.paragraphs.slice(parent.extent.start,part.end+1);
+ if(rows.some((row,i)=>!row.complete||row.source?.complete!==true||row.source.container!=='body'||row.objects.length||(proposal.anchors??[]).some(a=>a.paragraph===row.index)||i&&(row.source.containerPath!==rows[i-1].source.containerPath||row.source.segment!==rows[i-1].source.segment||row.source.ordinal!==rows[i-1].source.ordinal+1)))return null;
+ return {itemIndex,insertBefore:part.end,evidence:[{basis:'quoted-ordinal-subparagraph',owner:owner.id,anchor:parent.id,label:label.value}]};
+}
 function quotedSubparagraphInsertion(selected,targetPath,proposedText,language) {
   const {unit:owner,proposal,itemIndex}=selected;
   const reference=targetPath?.underlying;
@@ -1197,7 +1214,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,...(wordDifference?{originalDifference:'one-word'}:{}),evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?(quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],printedInnerPath(targetLabel,targetPath,language),proposedText,language)):null;
+    const quoted=candidates.length===1?(quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedOrdinalSubparagraphInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],printedInnerPath(targetLabel,targetPath,language),proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);
