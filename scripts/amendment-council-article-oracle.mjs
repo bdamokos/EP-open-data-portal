@@ -109,9 +109,7 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
  const first=proposal.paragraphs[s.start].text,last=proposal.paragraphs[s.end].text;
  if(p.start.offset<0||p.start.offset>first.length||p.end.offset<0||p.end.offset>last.length||s.start===s.end&&p.end.offset<=p.start.offset)return failed();
  const rendered=proposal.paragraphs.slice(s.start,s.end+1).map((v,i)=>v.text.slice(i?0:p.start.offset,i===s.end-s.start?p.end.offset:v.text.length)).join(' '),original=literal(wording.originalText);
- const lastAddress=scope.inner.at(-1),parentAddress=scope.inner.at(-2);
- const labelledLead=lastAddress.kind==='subparagraph'&&lastAddress.value==='1'&&parentAddress?.kind==='paragraph'?parentAddress.value+'. '+original:null;
- if(!original||![original,labelledLead].includes(literal(rendered)))return failed();
+ if(!original||literal(rendered)!==original)return failed();
  const matches=scope.units.filter(u=>literal(u.text).split(original).length===2);if(matches.length!==1)return unknown('article-original-unproved');
  return {status:'verified',reason:'native-council-pdf-article-original-and-address'};
 }
