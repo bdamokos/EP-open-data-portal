@@ -1,3 +1,4 @@
+import {pruneAmendmentGenerations} from './generation-prune.mjs';
 import {upcomingScopeContext,upcomingAgenda,upcomingSource,scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
 import {fastReadsReady} from './fast-read-projections.mjs';
 import {languagePreference} from './language-order.mjs';
@@ -80,6 +81,13 @@ const splitUnverifiedSql=body=>`(EXISTS(SELECT 1 FROM json_each(${body},'$.decis
 const memberMatchesSql=body=>`(COALESCE(json_extract(${body},'$.conflicted'),0)=0 AND ${supportedProposerDateSql(body)} AND EXISTS(SELECT 1 FROM json_each(${body},'$.authors') AS author WHERE json_extract(author.value,'$.status')='resolved' AND CAST(json_extract(author.value,'$.personId') AS TEXT) IN (?,?)))`;
 
 export const committeeAmendmentIndexVersion=1;
+// Added after version 1 shipped. Without it, each deleted or updated amendment
+// scans the generation's contributors. Separate from the version above, whose
+// upgrade replays every retained amendment.
+export const amendmentContributorIdentityIndexVersion=1;
+export function prepareAmendmentContributorIdentityIndex(db) {
+  db.exec('CREATE INDEX IF NOT EXISTS amendment_contributor_identity ON amendment_contributors(generation,amendment_id,person_id)');
+}
 // These projections are populated under the ordinary writer lease. Reads seek
 // by exact dossier/person/date and never fan out through amendment bodies.
 export function prepareCommitteeAmendmentIndexes(db) {
@@ -189,7 +197,12 @@ export function amendmentReadIndexes(db) {
 }
 
 function extensionGeneration(db) {
-  return db.prepare('SELECT MAX(generation) AS generation FROM (SELECT MAX(generation) generation FROM amendments UNION ALL SELECT MAX(generation) FROM amendment_targets UNION ALL SELECT MAX(generation) FROM amendment_jobs)').get()?.generation || 0;
+  // A newer image can leave a generation partly built. Never adopt or read it, so
+  // that rolling back to this image stays safe.
+  const building=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='generationBegin'").get()?.value??'null')?.generation??-1;
+  // Two ranges keep each MAX an index seek. A generation number is never reused.
+  const newest=['amendments','amendment_targets','amendment_jobs'].flatMap(table=>[`SELECT MAX(generation) generation FROM ${table} WHERE generation>?1`,`SELECT MAX(generation) FROM ${table} WHERE generation<?1`]).join(' UNION ALL ');
+  return db.prepare(`SELECT MAX(generation) AS generation FROM (${newest})`).get(building)?.generation || 0;
 }
 export function amendmentsCopy(db,generation,active) {
   // Legacy workers advance core generations without knowing these additive
@@ -207,11 +220,11 @@ export function amendmentsCopy(db,generation,active) {
     db.prepare('INSERT OR IGNORE INTO amendment_jobs SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM amendment_jobs WHERE generation=? AND done=0').run(generation,source);
   }
   db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run('amendmentSnapshotGeneration',JSON.stringify(generation));
-  if(source!==generation)for(const table of ['amendments','amendment_targets','amendment_jobs','amendment_member_dependencies','amendment_member_pending','amendment_author_targets','amendment_member_current','amendment_dependency_bootstrap'])db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,source || generation);
+  if(source!==generation)pruneAmendmentGenerations(db,generation,source || generation);
 }
 
 export function amendmentsPrune(db,generation,old) {
-  for(const table of ['amendments','amendment_targets','amendment_jobs','amendment_member_dependencies','amendment_member_pending','amendment_author_targets','amendment_member_current','amendment_dependency_bootstrap'])db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,old || generation);
+  pruneAmendmentGenerations(db,generation,old || generation);
 }
 export function recordSplitResults(store,result) {
   store.assertWriter();

@@ -1355,9 +1355,10 @@ test('an amendment after a table appears outside its final cell',async t=>{
   const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
   const table=h.container.querySelector('table');assert(table);
   assert.equal(table.querySelector('[data-amendment-block]'),null);
-  assert.equal(table.nextElementSibling.dataset.amendmentBlock,'true');
-  assert.equal(table.nextElementSibling.dataset.contextTarget,'true');
-  assert.match(table.nextElementSibling.nextElementSibling.textContent,/Following provision/);
+  const scroll=table.parentElement;assert(scroll.matches('.doc-table-scroll'));
+  assert.equal(scroll.nextElementSibling.dataset.amendmentBlock,'true');
+  assert.equal(scroll.nextElementSibling.dataset.contextTarget,'true');
+  assert.match(scroll.nextElementSibling.nextElementSibling.textContent,/Following provision/);
 });
 async function tableReader(t,original,proposed,placementOverride) {
   const {parseProposal}=await import('../server/proposal-structure.mjs'),{resolveProposalPlacement}=await import('../server/proposal-placement.mjs');

@@ -15,7 +15,8 @@ async function run() {
     const {directory,owner,operation,generation}=workerData;
     if(!existsSync(path.join(directory,'activities-v1.sqlite')))throw new Error('Prepared activity database is unavailable.');
     if(!['begin','publish','topics','stories'].includes(operation)||operation!=='begin'&&(!Number.isSafeInteger(generation)||generation<1))throw new Error('Invalid activity generation operation.');
-    store=new ActivityStore(directory,{preparedOnly:true});
+    // Worker statements are otherwise unobserved; these transactions are long, so log only the outliers.
+    store=new ActivityStore(directory,{preparedOnly:true,observation:{enabled:true,threshold:30_000}});
     // No acquisition or collector starts here. The caller remains the sole
     // logical owner; begin/publish check it after obtaining BEGIN IMMEDIATE.
     store.owner=owner;

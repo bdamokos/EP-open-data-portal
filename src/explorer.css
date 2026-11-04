@@ -1,6 +1,6 @@
 /* Responsive explorer layout. */
 .explorer {
-  position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden;
+  position: fixed; inset: 0; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain;
   color: var(--ink); background: var(--bg); font-size: 18px; line-height: 1.45;
   -webkit-user-select: text; user-select: text;
   --explorer-gutter: clamp(16px, 2.5vw, 40px);
@@ -16,7 +16,7 @@
 .explorer h3 { font-size: 21px; line-height: 1.3; }
 .explorer small { font-size: 14px; line-height: 1.4; }
 .explorer p { margin: 12px 0; }
-.explorer-wall { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 24px var(--explorer-gutter); }
+.explorer-wall { display: flex; flex-direction: column; flex: none; padding: 24px var(--explorer-gutter); }
 .explorer-wall h1 { flex-shrink: 0; }
 .explorer-wall[hidden] { display: none; }
 .explorer-filters { display: grid; grid-template-columns: minmax(220px,1.2fr) minmax(450px,2fr) minmax(180px,1fr); align-items: end; gap: 16px; flex-shrink: 0; }
@@ -30,7 +30,7 @@
 .explorer-results span { flex: 1; font-size: 20px; }
 .explorer-results small { display: block; font-size: 13px; margin-top: 3px; }
 .explorer-results button { font-size: 15px; }
-.explorer-portraits { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 20px; overflow: auto; min-height: 0; padding: 4px 8px 16px 0; align-content: start; }
+.explorer-portraits { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 20px; padding: 4px 8px 16px 0; align-content: start; }
 .explorer-portrait-item { position: relative; min-width: 0; container-type: inline-size; }
 /* Follow without opening the profile; a sibling of the portrait button, so it never nests buttons. */
 .explorer-portrait-follow { position: absolute; top: 6px; right: 6px; z-index: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: calc(100% - 12px); }
@@ -50,7 +50,7 @@
 .explorer-index p { margin: 6px 0; }
 .explorer-footer { display: flex; align-items: center; gap: 20px; flex-shrink: 0; padding: 10px var(--explorer-gutter); color: var(--ink-muted); background: var(--surface); border-top: 1px solid var(--line); font-size: 13px; }
 .explorer-footer a { font-size: 13px; }
-.explorer-profile { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 20px var(--explorer-gutter); }
+.explorer-profile { display: flex; flex-direction: column; flex: none; padding: 20px var(--explorer-gutter); }
 .explorer-back { align-self: start; margin-bottom: 16px; }
 .explorer-profile-header { display: flex; align-items: center; gap: 24px; margin-bottom: 20px; }
 .explorer-profile-header .portrait { width: 104px; height: 132px; flex-shrink: 0; }
@@ -58,7 +58,7 @@
 .explorer-profile-header p { margin: 4px 0; font-size: 16px; }
 .explorer-tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-shrink: 0; border-bottom: 1px solid var(--line); }
 .explorer .explorer-tabs button { flex: 1; min-width: 0; }
-.explorer-profile-body { flex: 1; min-width: 0; min-height: 0; padding: 8px 4px 24px; overflow: auto; color: var(--ink); background: transparent; user-select: text; }
+.explorer-profile-body { flex: 1; min-width: 0; padding: 8px 4px 24px; color: var(--ink); background: transparent; user-select: text; }
 .explorer-section-title { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .explorer-section-title h2 { margin: 0; }
 .explorer-section-title > span { font-size: 14px; }
@@ -148,7 +148,7 @@
 .explorer-video-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
 .explorer .explorer-video-heading button { background:transparent; color:inherit; border:1px solid var(--line-strong); font-size:14px; min-height:44px; }
 @media (min-width:1100px) {
-  .explorer-profile { display: grid; grid-template-columns: 250px minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); column-gap: 32px; row-gap: 16px; }
+  .explorer-profile { display: grid; grid-template-columns: 250px minmax(0,1fr); grid-template-rows: auto auto; column-gap: 32px; row-gap: 16px; }
   .explorer-back { grid-column: 1; grid-row: 1; justify-self: start; margin: 0; }
   .explorer-profile-header { grid-column: 1; grid-row: 2; align-self: start; display: block; margin: 0; }
   .explorer-profile-header .portrait { width: 180px; height: 230px; margin-bottom: 24px; }
@@ -175,7 +175,7 @@
   .explorer-results span { font-size: 16px; }
   .explorer-portraits { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
   .explorer .portrait__label { font-size: 15px; padding: 6px 2px 0; }
-  .explorer-profile { display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto minmax(0,1fr); gap: 12px 8px; padding: 14px 12px; }
+  .explorer-profile { display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto auto; gap: 12px 8px; padding: 14px 12px; }
   .explorer-back { grid-column: 2; grid-row: 1; align-self: start; margin: 0; font-size: 14px; padding: 8px 10px; }
   .explorer-profile-header { grid-column: 1; grid-row: 1; min-width: 0; }
   .explorer-profile-body { grid-column: 1/-1; grid-row: 3; }
@@ -218,7 +218,7 @@
 .explorer-save-button>span:first-child {font-size:24px;line-height:1;}
 .explorer-save-button.is-saved {color:var(--accent-strong);background:var(--accent-soft);border-color:var(--accent);}
 .explorer-saved-count {display:inline-block;white-space:nowrap;padding:2px 6px;margin-left:8px;background:var(--accent);color:var(--accent-ink);border-radius:10px;font-size:13px;}
-.explorer-saved-view {overflow-y:auto;padding:24px clamp(16px,4vw,60px) 50px;flex:1;min-height:0;background:var(--bg);color:var(--ink);}
+.explorer-saved-view {padding:24px clamp(16px,4vw,60px) 50px;flex:none;background:var(--bg);color:var(--ink);}
 .explorer-saved-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
 .explorer-saved-heading>.portrait {width:4rem;height:5rem;flex:0 0 4rem;}
 .explorer-saved-member-heading {flex:1;min-width:min(100%,8rem);overflow-wrap:anywhere;}
@@ -251,29 +251,22 @@
 
 .explorer-profile-body a { overflow-wrap:anywhere; }
 
-/* Small, short or touch screens: one page scroll so headers and filters move out of the reading
-   area. Nested panes under the fixed header left tablets in landscape a thin scrolling strip. */
-@media (max-width:767px), (max-height:900px), (hover:none) {
-  .explorer { overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; }
-  /* The retained vote panes restore their own journey positions. After returning
-     from detail, native page anchoring can move a disclosure on expansion;
-     excluding an inner pane does not exclude anchors in its outer layout. */
-  .explorer:has(.member-votes) { overflow-anchor: none; }
-  /* The pane grows to its content here, and containing overscroll on a scroll container
-     with nothing to scroll stops the wheel from reaching the page. */
-  .explorer .member-votes-pane { overscroll-behavior: auto; }
-  .explorer-wall, .explorer-profile, .explorer-saved-view { flex: none; min-height: auto; overflow: visible; }
-  .explorer-portraits, .explorer-profile-body { overflow: visible; min-height: auto; }
-  .explorer-profile { grid-template-rows: auto auto auto; }
-  .explorer-tabs { position: sticky; top: 0; z-index: 2; margin-inline: -12px; padding: 8px 12px; background: var(--bg); }
-  /* The count row stays as a slim bar once the filters scroll away. */
-  .explorer-results { position: sticky; top: 0; z-index: 2; margin-inline: calc(-1 * var(--explorer-gutter)); padding: 8px var(--explorer-gutter); background: var(--bg); }
-  .explorer-results.is-stuck { border-bottom: 1px solid var(--line); }
-  .explorer:has(> .explorer-wall:not([hidden])) { scroll-padding-top: calc(var(--explorer-results-height, 68px) + 8px); }
-  .explorer-portraits :focus { scroll-margin-top: calc(var(--explorer-results-height, 68px) + 8px); }
-  .explorer-profile-body [id], .explorer-activity-results-title { scroll-margin-top: calc(var(--explorer-tabs-height, 60px) + 12px); }
-  .explorer-footer { margin-top: auto; }
-}
+/* The whole page scrolls as one, so a pointer anywhere moves it and zoomed views keep their reach.
+   Headers and filters scroll out of the reading area; the tabs and count row stay. */
+/* The retained vote panes restore their own journey positions. After returning
+   from detail, native page anchoring can move a disclosure on expansion;
+   excluding an inner pane does not exclude anchors in its outer layout. */
+.explorer:has(.member-votes) { overflow-anchor: none; }
+.explorer-tabs { position: sticky; top: 0; z-index: 2; margin-inline: -12px; padding: 8px 12px; background: var(--bg); }
+/* The count row stays as a slim bar once the filters scroll away. */
+.explorer-results { position: sticky; top: 0; z-index: 2; margin-inline: calc(-1 * var(--explorer-gutter)); padding: 8px var(--explorer-gutter); background: var(--bg); }
+.explorer-results.is-stuck { border-bottom: 1px solid var(--line); }
+.explorer:has(> .explorer-wall:not([hidden])) { scroll-padding-top: calc(var(--explorer-results-height, 68px) + 8px); }
+.explorer-portraits :focus { scroll-margin-top: calc(var(--explorer-results-height, 68px) + 8px); }
+.explorer-profile-body [id], .explorer-activity-results-title { scroll-margin-top: calc(var(--explorer-tabs-height, 60px) + 12px); }
+.explorer-footer { margin-top: auto; }
+/* Short windows skip this: a sticky panel taller than the window would cut off its own controls. */
+@media (min-width:1100px) and (min-height:700px) { .explorer-profile-header { position: sticky; top: 16px; } }
 
 .explorer-saved-entry {margin:14px 0;min-width:0;}
 .explorer-saved-disclosure,.explorer-membership-link {display:block;padding:10px;border:1px solid var(--line);border-radius:var(--radius-sm);overflow-wrap:anywhere;}

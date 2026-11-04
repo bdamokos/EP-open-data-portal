@@ -129,18 +129,18 @@ test('member destination and Back keep the wall, its portraits and scroll positi
   assert.equal(h.container.querySelector('.explorer-filters input').value,'Mika');
 });
 
-test('browser Back restores the portrait grid offset without remounting the wall',async t=>{
-  const h=await harness(t),grid=h.container.querySelector('.explorer-portraits'),original=h.container.querySelector('[data-member-id="257043"] button');
-  grid.scrollTop=900;await act(async()=>grid.dispatchEvent(new h.window.Event('scroll')));
+test('browser Back restores the wall page offset without remounting the wall',async t=>{
+  const h=await harness(t),grid=h.container.querySelector('.explorer-portraits'),main=h.container.querySelector('main.explorer'),original=h.container.querySelector('[data-member-id="257043"] button');
+  main.scrollTop=900;await act(async()=>main.dispatchEvent(new h.window.Event('scroll')));
   await h.click(original);
   assert.equal(h.container.querySelector('.explorer-wall').hidden,true);
-  grid.scrollTop=0;
+  main.scrollTop=0;
   const popped=new Promise(resolve=>h.window.addEventListener('popstate',resolve,{once:true}));
   await act(async()=>{history.go(-1);await popped;});await viewReady(h.container);
   assert.equal(new URLSearchParams(location.search).get('member'),null);
   assert.equal(h.container.querySelector('.explorer-wall').hidden,false);
   assert.equal(h.container.querySelector('.explorer-portraits'),grid,'the same grid returns');
-  assert.equal(grid.scrollTop,900);
+  assert.equal(main.scrollTop,900);
   assert.equal(original.isConnected,true);
 });
 
@@ -202,12 +202,11 @@ test('Following Back restores its semantic header trigger even after the header 
 test('speech pagination keeps a stable local destination through pending, error and retry without completion focus steals',async t=>{
   const h=await harness(t,'?member=257043&module=speeches',true);
   await h.finish(page());
-  const heading=h.container.querySelector('.explorer-profile-body h2'),body=h.container.querySelector('.explorer-profile-body'),reveals=[];
-  Object.defineProperties(body,{scrollHeight:{value:1000,configurable:true},clientHeight:{value:100,configurable:true}});
-  body.scrollTo=options=>reveals.push(options);
+  const heading=h.container.querySelector('.explorer-profile-body h2'),reveals=[];
+  heading.scrollIntoView=options=>reveals.push(options);
   await h.click(h.button('Older'));
   assert.equal(document.activeElement,heading);
-  assert.deepEqual(reveals,[{top:0}],'pagination reuses the activity list local reveal rather than leaving its target offscreen');
+  assert.deepEqual(reveals,[{block:'start'}],'pagination reveals the heading rather than leaving its target offscreen');
   assert.equal(h.button('Older'),undefined,'clicked page control is removed during request');
   await h.finish({error:{message:'Page unavailable.'}},503);
   assert.equal(document.activeElement,heading);
@@ -230,24 +229,20 @@ test('delayed exact-speech handoff respects a subsequent focus choice and initia
   });
 });
 
-test('revealing a speech scrolls only its reading container and respects the sticky-tab margin',async t=>{
-  for(const mobile of [false,true])await t.test(mobile?'page scrolling':'panel scrolling',async t=>{
-    const h=await harness(t,'?member=257043&module=speeches&speech='+speechId,true);
-    const shell=h.container.querySelector('.explorer'),panel=h.container.querySelector('.explorer-profile-body');
-    const shellScroll=[],panelScroll=[],computed=globalThis.getComputedStyle;
-    shell.scrollTop=40;panel.scrollTop=35;
-    shell.scrollTo=options=>shellScroll.push(options);panel.scrollTo=options=>panelScroll.push(options);
-    Object.defineProperty(shell,'clientTop',{value:1,configurable:true});
-    Object.defineProperty(panel,'clientTop',{value:2,configurable:true});
-    t.mock.method(globalThis,'getComputedStyle',element=>element===panel?{overflowY:mobile?'visible':'auto'}:element.id==='speech-'+speechId?{scrollMarginTop:mobile?'84px':'0px'}:computed(element));
-    t.mock.method(h.window.HTMLElement.prototype,'getBoundingClientRect',function(){return {top:this===shell?0:this===panel?200:600};});
-    t.mock.method(h.window.HTMLElement.prototype,'scrollIntoView',()=>assert.fail('Speech reveal must not scroll its ancestors'));
-    await h.finish(page());
-    assert.deepEqual(panelScroll,mobile?[]:[{top:433}]);
-    assert.deepEqual(shellScroll,mobile?[{top:555}]:[]);
-    assert.equal(shell.scrollTop,40,'revealing a speech cannot implicitly move the shell');
-    assert.equal(document.activeElement,h.container.querySelector('.explorer-speech-toggle'));
-  });
+test('revealing a speech scrolls only the page and respects the sticky-tab margin',async t=>{
+  const h=await harness(t,'?member=257043&module=speeches&speech='+speechId,true);
+  const shell=h.container.querySelector('.explorer');
+  const shellScroll=[],computed=globalThis.getComputedStyle;
+  shell.scrollTop=40;
+  shell.scrollTo=options=>shellScroll.push(options);
+  Object.defineProperty(shell,'clientTop',{value:1,configurable:true});
+  t.mock.method(globalThis,'getComputedStyle',element=>element.id==='speech-'+speechId?{scrollMarginTop:'84px'}:computed(element));
+  t.mock.method(h.window.HTMLElement.prototype,'getBoundingClientRect',function(){return {top:this===shell?0:600};});
+  t.mock.method(h.window.HTMLElement.prototype,'scrollIntoView',()=>assert.fail('Speech reveal must not scroll its ancestors'));
+  await h.finish(page());
+  assert.deepEqual(shellScroll,[{top:555}]);
+  assert.equal(shell.scrollTop,40,'revealing a speech cannot implicitly move the page');
+  assert.equal(document.activeElement,h.container.querySelector('.explorer-speech-toggle'));
 });
 
 
