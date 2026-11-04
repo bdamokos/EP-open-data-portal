@@ -67,7 +67,7 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   const nle=chosen.baseline==='commission-proposal'&&baseline?.evidence?.some(e=>e.kind==='native-procedure'&&e.status==='verified'&&/\(NLE\)$/u.test(e.procedure));
   const pdfCouncil=council&&baseline?.evidence?.some(e=>e.kind==='report-council-draft')&&items?.length===1&&items[0].proposal?.sourceKind==='pdf';
   const detachedNotes=proposalKind&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text));
-  if(detachedNotes&&!items?.length)return unresolved('proposal_note_scope_unavailable');
+  if(detachedNotes&&(!items?.length||council&&items.some(item=>item.proposal?.sourceKind==='pdf')&&!pdfCouncil))return unresolved('proposal_note_scope_unavailable');
   if(proposalKind&&nle&&baseline.evidence.some(e=>e.kind==='native-nle-annex-part'&&e.ordinal===null&&e.legalPlacement===false)&&/\bAnnex\b/iu.test(chosen.targetLabel||''))return unresolved('proposal_annex_ordinal_unverified');
   let selected=chosen;
   if(proposalKind&&nle&&chosen.language==='en'&&/^Annex I(?= [–-])/u.test(chosen.targetLabel||'')) {
