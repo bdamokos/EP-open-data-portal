@@ -13,9 +13,9 @@ const number=value=>{
 };
 const point=(row,language)=>{
   const match=/^\s*\(([a-z]+|\d+)\)\s/u.exec(row.text),style=/^Point(\d+)(?:letter|number)?$/iu.exec(row.properties?.styleId||'');
-  return match&&style?{value:match[1],level:Number(style[1])}:oracleInstruction(row.text,language);
+  return match&&(style||row.source?.part==='xhtml')?{value:match[1],level:style?Number(style[1]):0}:oracleInstruction(row.text,language);
 };
-const paragraph=row=>/^(?:Manual)?NumPar1$/iu.test(row.properties?.styleId||'')?/^\s*(\d+[a-z]*)[.)]\s/u.exec(row.text)?.[1]:null;
+const paragraph=row=>/^(?:Manual)?NumPar1$/iu.test(row.properties?.styleId||'')||row.source?.part==='xhtml'?/^\s*(\d+[a-z]*)[.)]\s/u.exec(row.text)?.[1]:null;
 const body=row=>row.source?.container==='body'&&row.source?.complete===true&&row.complete!==false;
 
 function address(raw,language) {
@@ -29,10 +29,10 @@ function publishedContainer(proposal,root,language) {
   const pointOf=row=>{if(!amendingList)return point(row,language);const instruction=oracleInstruction(row.text,language);return instruction?.level===0&&!numberedInstructions.has(row.index)?null:instruction;};
   const rows=proposal.paragraphs;
   const rootOf=row=>{const first=row.text.trim().split('\n')[0];const parsed=language==='fr'&&/^Article\s+premier$/iu.test(first)?[{kind:'article',value:'1'}]:oracleAddress(first,language);return parsed?.length===1?parsed[0]:null;};
-  const headings=rows.filter(row=>body(row)&&/^(?:Titrearticle|ArticleTitle|Annexetitre)$/iu.test(row.properties?.styleId||'')&&rootOf(row)?.kind===kind&&rootOf(row).value===value);
+  const headings=rows.filter(row=>body(row)&&(/^(?:Titrearticle|ArticleTitle|Annexetitre)$/iu.test(row.properties?.styleId||'')||proposal.sourceKind==='xhtml'&&/^Article\s+\d+[a-z]*$/u.test(row.text.trim()))&&rootOf(row)?.kind===kind&&rootOf(row).value===value);
   if(headings.length!==1)return null;
   const heading=headings[0],following=rows.filter(row=>row.index>heading.index);
-  const boundary=following.find(row=>row.properties?.styleId===heading.properties?.styleId&&['article','annex'].includes(rootOf(row)?.kind)||/^(?:CHAPTER|SECTION|Done at|For the European Parliament)\b/u.test(row.text.trim()))||(kind==='annex'&&proposal.sourceKind==='docx'?{index:rows.at(-1).index+1}:null);
+  const boundary=following.find(row=>(proposal.sourceKind==='xhtml'||row.properties?.styleId===heading.properties?.styleId)&&['article','annex'].includes(rootOf(row)?.kind)||/^(?:CHAPTER|SECTION|Done at|For the European Parliament)\b/u.test(row.text.trim()))||(kind==='annex'&&proposal.sourceKind==='docx'?{index:rows.at(-1).index+1}:null);
   if(!boundary)return null;
   const content=following.filter(row=>row.index<boundary.index);
   if(!content.length)return null;
@@ -103,16 +103,25 @@ function subparagraphs(scope,article) {
   // row after it starts the next published subparagraph. Point descendants
   // belong to the preceding lead, never create extra subparagraph ordinals.
   const rows=article.rows.filter(row=>row.index>=scope.start&&row.index<scope.end);
-  const starts=rows.filter((row,i)=>i===0||!point(row,article.language)&&/^(?:Text1|Normal)$/iu.test(row.properties?.styleId||''));
+  const starts=rows.filter((row,i)=>i===0||!point(row,article.language)&&(/^(?:Text1|Normal)$/iu.test(row.properties?.styleId||'')||row.source?.part==='xhtml'));
   return starts.map((row,i)=>({start:row.index,end:starts[i+1]?.index??scope.end}));
 }
 
 export function rawProposalAssertion({proposal,wording,placement}) {
   if(!oracleWords(wording.language))return unknown('oracle-raw-proposal-language-unavailable');
-  const target=address(wording.targetLabel||'',wording.language);
+  const paths=wording.baseline==='present-text'?wording.targetPath?.underlying:wording.targetPath?.proposal;
+  const target=address(paths?.length===1?paths[0].raw:wording.targetLabel||'',wording.language);
   if(!target)return unknown('oracle-raw-proposal-grammar-unavailable');
   const article=publishedContainer(proposal,target[0],wording.language);
   if(!article)return unknown('oracle-raw-article-unavailable');
+  // XHTML tables can nest Roman points inside a lettered point. Raw text
+  // labels alone do not establish those levels. Withhold point addresses and insertions when
+  // their native DOM paths have different depths, or no usable paths.
+  if(proposal.sourceKind==='xhtml'&&(placement.operation==='insert'||target.some(segment=>segment.kind==='point'))) {
+    const points=article.rows.filter(row=>row.index>=article.start&&row.index<article.end&&point(row,wording.language));
+    const depths=points.map(row=>/^\/\d+(?:\/\d+)*$/u.test(row.source?.path||'')?row.source.path.split('/').length:null);
+    if(depths.includes(null)||new Set(depths).size>1)return unknown('oracle-raw-xhtml-point-nesting-unavailable');
+  }
   let scope={start:article.start,end:article.end},parent=null,sub=null;
   const tail=target.slice(1),last=tail.at(-1);
   if(last?.kind==='title') {
