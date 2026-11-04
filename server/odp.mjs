@@ -654,15 +654,15 @@ const tail = (value) =>
 export function memberships(person, day) {
   return (Array.isArray(person.hasMembership)?person.hasMembership:[])
     .filter((m) =>
-      String(m?.membershipClassification || "").includes(
+      reference(m?.membershipClassification).includes(
         "/COMMITTEE_PARLIAMENTARY_",
       ),
     )
     .map((m) => ({
       membershipId: m.id || null,
-      id: tail(m.organization),
-      role: tail(m.role),
-      classification: tail(m.membershipClassification),
+      id: tail(reference(m.organization)),
+      role: tail(reference(m.role)),
+      classification: tail(reference(m.membershipClassification)),
       start: m.memberDuring?.startDate || null,
       end: m.memberDuring?.endDate || null,
       current: validDuring(m.memberDuring, day),
