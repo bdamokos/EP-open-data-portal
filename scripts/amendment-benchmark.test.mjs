@@ -12,7 +12,7 @@ import {documentContextPlacement} from '../server/document-context-placement.mjs
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
 import {classifyRow,classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility,instructionFrameWording} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
-import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport} from './amendment-benchmark.mjs';
+import {harnessIdentity,options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport} from './amendment-benchmark.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 beforeEach(registerSubprocesses);
@@ -597,4 +597,19 @@ test('provisional placement uses exact source identity despite unavailable compa
  assert.equal(result.stages.S2.status,'blocked');assert.equal(result.outcome,'correct');assert.equal(result.reason,'whole-document-provisional-agreement');assert.equal(result.stages.S5.scope,'whole-document');
  const [missing]=await evaluateReport([input],sample,{...cache,get:async()=>({ok:false,status:404,url})});assert.notEqual(missing.outcome,'correct');
  const [oldRuntime]=await evaluateReport([input],sample,cache,{runtime:{}});assert.notEqual(oldRuntime.outcome,'correct','an older runtime must not use the current placement helper');
+});
+
+test('harness identity records the provisional oracle and detects its mutation with another runtime root',async()=>{
+ const root=fileURLToPath(new URL('../',import.meta.url));
+ const original=await harnessIdentity(root);
+ const file='scripts/amendment-provisional-oracle.mjs';
+ assert.equal(original.files[file],digest(await readFile(path.join(root,file))));
+ const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-harness-fingerprint-'));
+ try {
+  for(const name of Object.keys(original.files)){await mkdir(path.dirname(path.join(directory,name)),{recursive:true});await writeFile(path.join(directory,name),await readFile(path.join(root,name)));}
+  const before=await harnessIdentity(directory);
+  await writeFile(path.join(directory,file),(await readFile(path.join(directory,file),'utf8'))+'\n// changed oracle\n');
+  const after=await harnessIdentity(directory);
+  assert.notEqual(before.files[file],after.files[file]);
+ }finally{await rm(directory,{recursive:true,force:true});}
 });
