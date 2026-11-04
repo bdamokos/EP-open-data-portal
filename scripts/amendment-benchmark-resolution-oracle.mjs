@@ -142,7 +142,7 @@ export function rawResolutionUnits(text,language,{includeTables=false}={}) {
   const number=i=>/^\s*([1-9]\d{0,5})\s*[a-zα-ωа-я]{0,3}[.)]\s+/u.exec(paragraphs[i]??'')?.[1];
   const italicTitle=i=>{
     const value=paragraphs[i].trim(),after=number(i+1);
-    if(!value||value.length>=180||!/^\p{Lu}/u.test(value)||/[.;!?:]$/u.test(value)||!wholeBold(paragraphs[i],text.paragraphFormats?.[i],'italic'))return false;
+    if(!value||value.length>=180||!/^\p{Lu}/u.test(value)||/[.;!?:]$/u.test(value)||!(wholeBold(paragraphs[i],text.paragraphFormats?.[i],'italic')||['bold','italic'].every(kind=>{const marks=(text.paragraphFormats?.[i]?.marks||[]).filter(m=>m.kind===kind);return marks.some(m=>m.start===0&&m.end>=value.length/3)&&marks.some(m=>m.end===value.length&&m.start<=value.length*2/3);})))return false;
     // Only native XML may certify omitted blank rows between title and number.
     if(!after||!adjacent(sources[i],sources[i+1])||/:\s*$/u.test(paragraphs[i-1]??''))return false;
     let before=null;
@@ -281,4 +281,16 @@ export function assertSwedishRecommendation({text,wording,placement}) {
  const index=projected[0];if(text.paragraphSources[index].complete!==true||normal(text.paragraphs[index])!==normal(group[2].text)||normal(wording.originalText)!==normal(group[2].text))return unknown;
  if(placement.span?.start!==index||placement.span?.end!==index)return {status:'failed',reason:'oracle-recommendation-boundary-mismatch'};
  return {status:'verified',reason:'oracle-native-recommendation-point'};
+}
+
+// An exact printed paragraph lead can be replaced without replacing its points.
+export function assertResolutionLead({text,wording,placement}) {
+ const target=/^Paragraph ([1-9]\d*)$/u.exec(wording.targetLabel||'');
+ if(wording.language!=='en'||!target||placement.operation!=='replace')return {status:'unverified',reason:'oracle-lead-unavailable'};
+ const raw=rawResolutionUnits(text,'en'),units=raw.units.filter(u=>u.kind==='paragraph'&&u.label===target[1]);
+ if(raw.reason||units.length!==1)return {status:'unverified',reason:'oracle-lead-unavailable'};
+ const unit=units[0],next=text.paragraphs[unit.start+1],source=text.paragraphSources;
+ const compact=v=>v.normalize('NFC').replace(/\s+/gu,' ').trim();
+ if(!unit.complete||!/:$/u.test(text.paragraphs[unit.start])||!/^\(a\)\s/u.test(next||'')||!contiguous(source[unit.start],source[unit.start+1])||compact(wording.originalText)!==compact(text.paragraphs[unit.start]))return {status:'unverified',reason:'oracle-lead-unavailable'};
+ return placement.span?.start===unit.start&&placement.span?.end===unit.start?{status:'verified',reason:'oracle-exact-paragraph-lead'}:{status:'failed',reason:'oracle-lead-boundary-mismatch'};
 }

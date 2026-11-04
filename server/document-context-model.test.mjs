@@ -1095,3 +1095,21 @@ test('a suffixed insertion after a provision merged into its predecessor row goe
   assert.equal(placement(twoMissing,{targetLabel:'Recital L a (new)',originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution'}).reason,'relative_target_not_found');
   assert.equal(placement(paragraphs,{targetLabel:'Paragraph 72 a (new)',originalText:'',proposedText:'72a.\tRecalls;',baseline:'motion-resolution',referenceText:'After § 73'}).reason,'conflicting_target_evidence');
 });
+
+test('split bold italic title between consecutive numbers closes insertion scope',()=>{
+ const heading='Partnering – Towards an integrated approach to fragility';
+ const text=document(['The European Parliament,','18. Calls for action;',heading,'19. Underlines the next measure;'],{paragraphFormats:[{},{},{marks:['bold','italic'].flatMap(kind=>[{kind,start:0,end:24},{kind,start:34,end:heading.length}])},{}]});
+ const opts={language:'en',originalText:'',proposedText:'18a. New measure;',targetLabel:'Paragraph 18 a (new)',resolutionDocument:true};
+ assert.equal(resolveAmendmentPlacement(text,opts).insertBefore,2);
+ text.paragraphFormats[2].marks=[];
+ assert(!resolveAmendmentPlacement(text,opts).evidence.some(e=>e.basis==='exact-paragraph-lead'));
+});
+
+test('exact paragraph lead replacement preserves its directly owned points',()=>{
+ const text=document(['The European Parliament,','3. Calls for the following recommendations:','(a) First recommendation;','(b) Second recommendation;','4. Closing instruction;']);
+ const opts={language:'en',originalText:text.paragraphs[1],proposedText:'3. Calls for revised recommendations:',targetLabel:'Paragraph 3',resolutionDocument:true};
+ assert.deepEqual(resolveAmendmentPlacement(text,opts).span,{start:1,end:1});
+ assert.equal(resolveAmendmentPlacement(text,{...opts,originalText:'3. Unrelated instructions:'}).status,'unresolved');
+ text.paragraphSources[2].complete=false;
+ assert(!resolveAmendmentPlacement(text,opts).evidence.some(e=>e.basis==='exact-paragraph-lead'));
+});
