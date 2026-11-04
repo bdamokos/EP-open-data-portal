@@ -6,6 +6,16 @@ import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
 import {nativeBlankPairs,rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
 import {verifyPlacement} from './amendment-benchmark-model.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/resolution-blank-boundaries.json',import.meta.url)));
+test('a bounded source editorial reference is not recital wording',()=>{
+ const paragraphs=['The European Parliament,','AG. whereas original;','(Ex AM 49 (Or. EN) of FdR example.docx)','AH. whereas next;','1. Operative;'];
+ const text={paragraphs,paragraphFormats:paragraphs.map(()=>({})),paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
+ const raw=rawResolutionUnits(text,'en'),ag=raw.units.find(u=>u.label==='AG');
+ assert.deepEqual({start:ag.start,end:ag.end,complete:ag.complete},{start:1,end:1,complete:true});
+ for(const altered of ['(Ex AM 49 (Or. EN) of FdR example.pdf)','(Some legal continuation)']) {
+  const modified={...text,paragraphs:paragraphs.map((v,i)=>i===2?altered:v)};
+  assert.notEqual(rawResolutionUnits(modified,'en').units.find(u=>u.label==='AG').end,1);
+ }
+});
 const wrap=body=>'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'</w:body></w:document>';
 function zip(document,extra={}) {
   const locals=[],centrals=[],entries=Object.entries({'word/document.xml':document,...extra});let offset=0;

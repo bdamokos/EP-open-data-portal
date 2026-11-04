@@ -17,6 +17,14 @@ const found = (paragraphs, basis = 'quoted-original', quoteMatches = true, relat
   status: 'found', paragraphs, basis, relation, quoteMatches, reason: null,
 });
 
+test('a source editorial reference between recitals stays outside the replaced passage',()=>{
+ const paragraphs=['The European Parliament,','AG. whereas original;','(Ex AM 49 (Or. EN) of FdR example.docx)','AH. whereas next;','1. Operative;'];
+ const text=document(paragraphs,{textLanguage:'en'}),options={language:'en',baseline:'motion-resolution',targetLabel:'Recital AG',originalText:'AG. whereas original;',proposedText:'AG. whereas changed;'};
+ const result=resolveAmendmentPlacement(text,options);assert.equal(result.status,'placed');assert.deepEqual(result.span,{start:1,end:1});
+ const changed=document(paragraphs.map((v,i)=>i===2?'(Some legal continuation)':v),{textLanguage:'en'});
+ assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+});
+
 test('published translated resolution labels preserve native numbering and script',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-labels.json',import.meta.url)));
   for(const example of fixture.examples) {

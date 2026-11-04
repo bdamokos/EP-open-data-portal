@@ -356,6 +356,17 @@ function motionStructure(text, language) {
       units.push({kind: 'heading', label: value, parent: null, start: index, end: index, level: 0});
       continue;
     }
+    // A standalone source editorial reference between consecutive recitals
+    // is retained in the document but is not part of either recital's text.
+    const beforeRecital=/^([A-Z]{1,3})[.)]\s+/u.exec(rows[index-1]?.normal||'')?.[1];
+    const afterRecital=/^([A-Z]{1,3})[.)]\s+/u.exec(rows[index+1]?.normal||'')?.[1];
+    const recitalOrdinal=s=>s?[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+    if(language==='en'&&/^\(Ex AM [1-9]\d* \(Or\. [A-Z]{2}\) of FdR [^\r\n]+\.docx\)$/u.test(value)
+      &&beforeRecital&&afterRecital&&recitalOrdinal(afterRecital)===recitalOrdinal(beforeRecital)+1
+      &&rows[index+1]?.complete&&consecutive(rows[index-1],row)&&consecutive(row,rows[index+1])) {
+      close(index-1);certainHeadings.add(index);
+      units.push({kind:'heading',label:value,parent:null,start:index,end:index,level:0});continue;
+    }
     const heading = formats[index]?.heading;
     const recordedHeading = Number.isInteger(heading) && heading >= 1 && heading <= 6;
     let kind, label, level = 1;
