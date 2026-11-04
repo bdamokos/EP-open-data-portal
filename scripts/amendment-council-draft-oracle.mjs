@@ -2,6 +2,7 @@ import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {assertCouncilDraftArticleText} from './amendment-council-article-oracle.mjs';
 import {councilNativeSuperscripts} from './amendment-council-superscript-oracle.mjs';
+import {councilNoteStructure,inspectCouncilPdfNoteScope} from './amendment-council-note-oracle.mjs';
 const cached=new Map();
 const fold=s=>String(s??'').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 const unknown=reason=>({status:'unverified',reason});
@@ -9,9 +10,23 @@ const unknown=reason=>({status:'unverified',reason});
 export function assertCouncilDraftPlacement({placement,wording,items,nativeQuoted}) {
  if(placement?.status!=='placed')return {status:'not-applicable',reason:'not-placed'};
  const buffer=nativeQuoted?.proposalBuffer;if(!Buffer.isBuffer(buffer))return unknown('oracle-council-pdf-native-unavailable');
- const key=createHash('sha256').update(buffer).digest('hex');let raw=cached.get(key);
- if(raw===undefined){const result=spawnSync('pdftotext',['-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024});raw=result.status===0?result.stdout:null;if(raw){const bbox=spawnSync('pdftotext',['-bbox-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024});if(bbox.status===0)raw=councilNativeSuperscripts(raw,bbox.stdout);}cached.set(key,raw);if(cached.size>4)cached.delete(cached.keys().next().value);}
- return assertCouncilDraftNativeText(raw,{placement,wording,items});
+ const key=createHash('sha256').update(buffer).digest('hex'),detached=/\n_{3,}[ \t]*\n/u.test(wording.originalText??'');
+ if(detached&&items?.[placement.itemIndex]?.proposal?.nativeSourceHash!==key)return {status:'failed',reason:'oracle-council-pdf-note-source-hash-mismatch'};
+ let native=cached.get(key);
+ if(native===undefined){
+  const text=spawnSync('pdftotext',['-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024});
+  const bbox=text.status===0?spawnSync('pdftotext',['-bbox-layout','-','-'],{input:buffer,encoding:'utf8',timeout:25000,maxBuffer:4*1024*1024}):null;
+  native={raw:text.status===0?text.stdout:null,bbox:bbox?.status===0?bbox.stdout:null};
+  if(native.raw&&native.bbox)native.raw=councilNativeSuperscripts(native.raw,native.bbox);
+  cached.set(key,native);if(cached.size>4)cached.delete(cached.keys().next().value);
+ }
+ if(detached){
+  if(placement.noteScope?.kind!=='pdf-footnotes')return {status:'failed',reason:'oracle-council-pdf-note-scope-missing'};
+  native.structure??=councilNoteStructure(buffer);
+  const proof=inspectCouncilPdfNoteScope({bbox:native.bbox,structure:native.structure,placement,wording,items});if(proof.status!=='verified')return proof;
+  const body=assertCouncilDraftNativeText(native.raw,{placement,wording:proof.bodyWording,items});return body.status==='verified'?{status:'verified',reason:proof.reason}:body;
+ }
+ return assertCouncilDraftNativeText(native.raw,{placement,wording,items});
 }
 // Separate entry point for coordinate regression tests; the runtime oracle supplies
 // only independently extracted native text.

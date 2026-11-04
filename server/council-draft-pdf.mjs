@@ -108,7 +108,7 @@ async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,source
  for(const record of records.filter(r=>r.role==='/P'&&r.parents.some(p=>p.role==='/Note'))){
   const value=text(entries(record)),match=/^(\d{1,3})\s+(.+)$/u.exec(value);
   if(!match){ownershipGaps.push({code:'council-pdf-note-label-unproved',ref:record.ref});continue;}
-  const label=match[1],note={id:'pdf-note:'+record.ref,label,text:match[2],links:[],complete:true,source:{part:'pdf',path:record.ref},objects:[]};
+  const label=match[1],note={id:'pdf-note:'+record.ref,label,text:match[2],links:[],complete:true,source:{part:'pdf',path:record.ref,pages:[...new Set(record.content.map(c=>c.page))]},objects:[]};
   if(noteLabels.has(label))ownershipGaps.push({code:'council-pdf-note-label-ambiguous',label});
   noteLabels.set(label,note);notes.push(note);
  }
@@ -120,6 +120,7 @@ async function extractCouncilDraftPdfNative(buffer,{number,year,procedure,source
  const owners=new Map(),bodyRecords=paragraphRecords.filter(r=>!r.parents.some(p=>p.role==='/Note'));
  const covered=new Map();for(const record of paragraphRecords.filter(r=>r.role==='/P'||!r.parents.some(p=>p.role==='/Note')))for(const c of record.content.filter(c=>Number.isInteger(c.mcid))){const key=c.page+':'+c.mcid;covered.set(key,(covered.get(key)??0)+1);}
  for(const page of pageProofs)page.unownedMarkedText=[...content].filter(([key])=>key.startsWith(page.page+':')&&covered.get(key)!==1).map(([key,items])=>({mcid:Number(key.split(':')[1]),text:text(items)}));
+ for(const note of notes)note.complete=note.complete&&note.source.pages.length>0&&note.source.pages.every(n=>{const p=pageProofs[n-1];return p&&!p.untagged.length&&!p.unownedMarkedText.length&&!p.paint.length&&!p.annotations.length;});
  for(const record of bodyRecords){
   const items=entries(record),heights=items.filter(i=>i.str.trim()&&i.height>0).map(i=>i.height).sort((a,b)=>a-b),median=heights[Math.floor(heights.length/2)];
   for(let i=1;i<items.length;i++){
