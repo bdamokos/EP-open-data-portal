@@ -31,8 +31,20 @@ test('new outer numbered Annex Ia follows Annex I before Annex II, preserving in
  assert.equal(verifyPlacement({items,wording,placement,nativeQuoted:{proposalBuffers:[native]}}).status,'verified');
  assert.equal(resolveProposalPlacement(items,wording).status,'unresolved');
  proposal.paragraphs[1].complete=false;
- assert.equal(resolveProposalPlacement(items,wording,{nativeProposalInputs:[native]}).status,'unresolved');
+ assert.equal(resolveProposalPlacement(items,wording,{nativeProposalInputs:[native]}).status,'placed');
  proposal.paragraphs[1].complete=true;
- assert.equal(resolveProposalPlacement(items,{...wording,targetLabel:'Annex III a (new)'},{nativeProposalInputs:[native]}).status,'unresolved');
+ assert.equal(resolveProposalPlacement(items,{...wording,targetLabel:'Annex III a (new)'},{nativeProposalInputs:[native]}).status,'placed');
  assert.equal(resolveProposalPlacement([items[0],items[0]],wording,{nativeProposalInputs:[native,native]}).status,'unresolved');
+});
+
+test('native annex boundaries ignore a formula in the predecessor but reject undisclosed source blocks',()=>{
+ const head=n=>'<w:p><w:pPr><w:pStyle w:val="Annexetitre"/></w:pPr><w:r><w:t>ANNEX '+n+'</w:t></w:r></w:p>';
+ const body=middle=>zip('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><w:body>'+head('I')+middle+head('II')+'<w:p><w:r><w:t>Complete final annex.</w:t></w:r></w:p></w:body></w:document>');
+ const w={language:'en',baseline:'commission-proposal',originalText:'',proposedText:'New annex wording.',targetLabel:'Annex I a (new)'};
+ const run=bytes=>{const proposal=parseProposal(bytes,{language:'en',item:'annex'}),items=[{kind:'annex',proposal}],placement=resolveProposalPlacement(items,w,{nativeProposalInputs:[bytes]});return {placement,verification:placement.status==='placed'?verifyPlacement({items,wording:w,placement,nativeQuoted:{proposalBuffers:[bytes]}}):null};};
+ const formula=run(body('<w:p><m:oMath><m:r><m:t>x</m:t></m:r></m:oMath></w:p>'));
+ assert.equal(formula.placement.status,'placed');assert.equal(formula.verification.status,'verified');
+ assert.equal(run(body('<w:altChunk/>')).placement.status,'unresolved');
+ const hidden=run(body('<w:p><w:pPr><w:pStyle w:val="Annexetitre"/></w:pPr><w:r><w:rPr><w:vanish/></w:rPr><w:t>ANNEX Ia</w:t></w:r></w:p>'));
+ assert.equal(hidden.placement.status,'unresolved');
 });
