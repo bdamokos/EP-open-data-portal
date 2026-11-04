@@ -1,5 +1,6 @@
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
 import {assertResolutionCollision} from './amendment-resolution-collision-oracle.mjs';
+import {assertLocalRecitalBoundary} from './amendment-local-recital-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
@@ -640,6 +641,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   if(articleNotes.status!=='unverified'||proposal&&placement.operation==='delete'&&wording.language==='en'&&/^Article \d+[a-z]*$/u.test(wording.targetLabel||'')&&/\n_{5,}\s*\n/u.test(wording.originalText||''))return articleNotes;
   const implicitLabel=assertImplicitParagraphLabel({proposal,wording,placement});
   if(implicitLabel.status!=='unverified')return implicitLabel;
+  const localRecital=assertLocalRecitalBoundary({proposal,wording,placement,nativeQuoted});
+  if(localRecital.status!=='unverified')return localRecital;
   const initialRecital=assertNativeFirstRecital({proposal,wording,placement,nativeQuoted});
   if(initialRecital.status!=='unverified')return initialRecital;
   const guideline=assertGuidelineAnnex({proposal,wording,placement,nativeQuoted});

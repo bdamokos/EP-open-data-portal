@@ -655,3 +655,10 @@ test('ordinal paragraphs in a wholly unnumbered DOCX article require exact whole
  projection.paragraphSources[2].complete=false;
  assert.equal(resolveProposalPlacement([item(projection)],opts).status,'unresolved');
 });
+
+test('a complete adjacent recital pair survives unrelated later recast numbering damage',()=>{
+ const make=()=>({...source(['2025/0001 (COD)','Whereas:','(1) First recital.','(2) Second recital.','(11) Old label.','(11) New label.','HAVE ADOPTED THIS DIRECTIVE:','Article 1']),sourceKind:'docx'});
+ const content=make(),placed=resolve(content,'Recital 1 a (new)','','(1a) New recital.');
+ assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,3);assert(placed.evidence.some(e=>e.basis==='native-adjacent-recital-boundary'));
+ for(const mutate of [p=>p.sourceKind='text',p=>p.paragraphs[3]='(4) Other recital.',p=>p.paragraphs[5]='(1) Duplicate anchor.',p=>p.paragraphSources[3].ordinal++,p=>p.paragraphSources[2].complete=false]){const p=make();mutate(p);assert.equal(resolve(p,'Recital 1 a (new)','','(1a) New recital.').status,'unresolved',String(mutate));}
+});
