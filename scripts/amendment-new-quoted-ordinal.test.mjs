@@ -8,3 +8,7 @@ test('wrong quoted parent, act, ordinal and visible native gaps cannot prove a b
 });
 
 test('native ordinal proof never reads placer evidence or parsed units',()=>{const f=fixture();Object.defineProperty(f.placement,'evidence',{get(){throw Error('placer evidence forbidden');}});Object.defineProperty(f.proposal,'units',{get(){throw Error('parsed units forbidden');}});assert.equal(assertNewQuotedOrdinal(f).status,'verified');});
+
+test('a native ordinal belongs to its complete named instruction quotation',()=>{
+ for(const change of [x=>x.replace('paragraph.’','paragraph.'),x=>x.replace('‘2a.','(2) Another instruction follows:</w:t></w:r></w:p><w:p><w:r><w:t>‘2a.'),x=>x.replace('‘2a.','2a.')])assert.notEqual(assertNewQuotedOrdinal(fixture(change))?.status,'verified');
+});

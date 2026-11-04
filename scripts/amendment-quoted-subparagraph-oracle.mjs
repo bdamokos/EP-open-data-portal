@@ -97,6 +97,16 @@ export function assertNewQuotedOrdinal({proposal,wording,placement,nativeQuoted}
  const parent=inner[3]+inner[4],names=/the following paragraphs (.+) are inserted/u.exec(instructions[0].text)?.[1].split(/,\s*| and /u);
  if(!names?.includes(parent))return unknown();
  rows=rows.slice(rows.indexOf(instructions[0])+1);
+ const ownerEnd=rows.findIndex(row=>row.kind==='paragraph'&&/^\(\d+\)\s/u.test(row.text.trim()));if(ownerEnd>=0)rows=rows.slice(0,ownerEnd);
+ const empty=row=>row.kind==='paragraph'&&!row.hidden&&!row.unsafe&&!row.numbered&&!row.text.trim()&&row.nodes.every(node=>Object.keys(node).every(key=>key===':@'||key==='w:pPr'));
+ while(rows.length&&empty(rows[0]))rows=rows.slice(1);
+ if(!rows.length||rows[0].kind!=='paragraph'||!rows[0].text.trim().startsWith('‘'))return unknown();
+ const closes=rows.flatMap((row,i)=>row.kind==='paragraph'&&/’[;.]?\s*$/u.test(row.text)?[i]:[]);
+ if(closes.length!==1||rows.slice(closes[0]+1).some(row=>!empty(row)))return unknown();
+ rows=rows.slice(0,closes[0]+1);
+ if(rows.some(row=>row.kind!=='paragraph'||row.hidden||row.unsafe||row.numbered)||rows.slice(1).some(row=>row.text.trim().startsWith('‘')))return unknown();
+ const printed=rows.flatMap(row=>/^[‘]?(\d+[a-z]*)[.]\s/u.exec(row.text.trim())?.[1]??[]);
+ if(printed.join('|')!==names.join('|'))return unknown();
  const starts=rows.flatMap((row,i)=>row.kind==='paragraph'&&new RegExp('^[‘]?'+parent+'[.]\\s','u').test(row.text.trim())?[i]:[]);if(starts.length!==1)return unknown();
  const from=starts[0],until=rows.findIndex((row,i)=>i>from&&row.kind==='paragraph'&&/^\d+[a-z]*[.]\s/u.test(row.text.trim()));if(until<0)return unknown();
  const block=rows.slice(from,until),ordinal=Number(inner[5]);if(ordinal<1||ordinal>block.length||block.some(row=>row.kind!=='paragraph'||row.hidden||row.unsafe||row.numbered||!row.text.trim()))return unknown();
