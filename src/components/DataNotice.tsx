@@ -27,6 +27,7 @@ export function DataNotice({className=''}:{className?:string}) {
         <p><UiMessage id="components.datanotice.tsx.parliament.open.data.european.union.source.european.parliament.fr" values={{openDataLink: <a href={links.openData}><UiMessage id="components.datanotice.tsx.open.data.portal"/></a>, licenceLink: <a href={links.ccBy}><UiMessage id="components.datanotice.tsx.cc.by.4.0"/></a>}}/></p>
         <p><UiMessage id="components.datanotice.tsx.portraits.procedure.summaries.documents.and.recordings.come.from." values={{legalNoticeLink: <a href={links.legalNotice}><UiMessage id="components.datanotice.tsx.legal.notice"/></a>, reusePolicyLink: <a href={links.commissionReuse}><UiMessage id="components.datanotice.tsx.reuse.policy"/></a>}}/></p>
         <p><UiMessage id="components.datanotice.tsx.independent.site.counts.and.groupings.are.its.own.and.may.be.inco"/></p>
+        {!['en','fr'].includes(ui.language)&&<p><UiMessage id="topics.explorerTranslation"/></p>}
       </div>
     </details>
     {!dismissed&&<button type="button" className="data-notice__dismiss" aria-label={ui.t("components.datanotice.tsx.hide.site.notice")} title={ui.t("components.datanotice.tsx.hide.site.notice")} onClick={dismiss}>×</button>}

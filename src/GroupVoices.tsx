@@ -1,4 +1,3 @@
-import {PolicyAreaSourcesPage,PolicyAreaLabelUsage} from './PolicyAreaSources';
 import {useDossierReaderState,navigateDossier} from './dossierJourney';
 import {topicsHref,agendaTitle,withBoundaryTies} from './topicPresentation.mjs';
 import {TopicFinder} from './TopicFinder';
@@ -101,7 +100,6 @@ export function GroupVoices({language='en',...props}:InsightProps){
   const jump=()=>{heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start',behavior:'smooth'});};
   const monthLabel=(value:string)=>new Intl.DateTimeFormat(language,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'-15T12:00:00Z'));
   const months=[...new Set([...(data?.months||[]),...(/^\d{4}-\d{2}$/.test(s.period) ? ([s.period]) : ([]))])].sort().reverse();
-  const shownPolicyLabels=data&&data.ready!==false?[...(s.tab==='subjects'?shownTopics.map(t=>policyLabels[t.id]||{key:t.id,label:t.label}):list.visible.flatMap(p=>subjectEntries(p).map(([id])=>policyLabels[id]||{key:id,label:labels[id]}))),...(s.subject?[policyLabels[s.subject]||{key:s.subject,label:labels[s.subject]}]:[])]:[];
   // Day counts cover all topics, so strips are hidden while a topic filter is
   // active. Person rows share one scale; the group total has its own, except
   // for a selected person, whose overview and row show the same counts.
@@ -110,7 +108,7 @@ export function GroupVoices({language='en',...props}:InsightProps){
   const overviewDays=sumActivity(scope),overviewMax=showActivity?(s.person?rowMax:Math.max(1,...activityCounts(overviewDays,buckets))):1;
   const stripLabel=ui.t(buckets.unit==='day'?'groupvoices.contributions_by_sitting_day.77a719':'groupvoices.contributions_by_month.0ca3ec');
   const togglePersonTopics=(id:string)=>setOpenTopics(open=>open.includes(id)?open.filter(value=>value!==id):[...open,id]);
-  return <InsightShell {...props} language={language} title={ui.t("groupvoices.group_voices.f21b8b")} view="groups"><PolicyAreaSourcesPage><PolicyAreaLabelUsage labels={shownPolicyLabels}/><div className="gv" ref={root} lang={ui.language}>
+  return <InsightShell {...props} language={language} title={ui.t("groupvoices.group_voices.f21b8b")} view="groups"><div className="gv" ref={root} lang={ui.language}>
     <p className="gv-intro"><UiMessage id="groupvoices.who_takes_the_floor_on_behalf_of_a_political_group.377e92"/></p>
     <div className="gv-controls">
       <label><UiMessage id="groupvoices.political_group.c2db1f"/><select value={s.group} onChange={e=>change({group:e.target.value})}>{Object.entries(groupsUi(ui)).map(([id,label])=><option value={id} key={id}>{label}</option>)}</select></label>
@@ -152,5 +150,5 @@ export function GroupVoices({language='en',...props}:InsightProps){
       </section>}
     </>}
     <section className="gv-contributions" aria-busy={page.loading}><div className="gv-section-heading"><h2 ref={heading} tabIndex={-1}><UiMessage id="insightshared.contributions"/> {page.data&&<small>· <Count count={page.data.total} data={page.data} language={language}/></small>}</h2>{s.subject&&<span lang={policyLabels[s.subject]?.labelLanguage||undefined}>{labels[s.subject]}</span>}</div><InsightStatus loading={page.loading} error={page.error} retry={page.retry}/>{page.data&&<><TopicBatch language={language} ids={page.data.contributions.map(c=>c.id)}>{page.data.contributions.map(c=><ContributionCard key={c.id+':'+c.personId} contribution={c} person={people.find(p=>p.id===c.personId)} language={language} selected={s.person===c.personId} onPerson={()=>choosePerson(c.personId,'contribution',c.id)}/>)}</TopicBatch>{!page.data.contributions.length&&groupCount(page.data,page.data.total).observedCount===0&&<p className="gv-empty"><UiMessage id="coverage.contributionsEmpty"/></p>}<div className="gv-pagination">{s.offset>0&&<button onClick={()=>{change({offset:Math.max(0,s.offset-20)});jump();}}><UiMessage id="groupvoices.previous.471492"/></button>}{page.data.nextOffset!==null&&<button onClick={()=>{change({offset:page.data!.nextOffset!});jump();}}><UiMessage id="groupvoices.next.2f04eb"/></button>}</div></>}</section>
-  </div></PolicyAreaSourcesPage></InsightShell>;
+  </div></InsightShell>;
 }

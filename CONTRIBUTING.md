@@ -46,6 +46,7 @@ Write for readers: plain, brief and free of disclaimers, hedges and robotic phra
 
 - The site notice (`src/components/DataNotice.tsx`) says once that the site is independent, its counts may be incomplete and readers should check the original. Don’t repeat it inline.
 - Link only to human-readable public pages (`sourcePageUrl` and `SourceLink` in `src/SourceLink.tsx`). Never show API, JSON-LD, SPARQL or concept URLs, request URLs, retrieval timestamps or record IDs as evidence. Without a public page, show no link and no note.
+- Keep in-page disclaimers and source links to a minimum. General sourcing and translation notes belong in the site notice. Show a source link in the page only when it replaces something we couldn't parse and that public page holds the exact information, or when the information is useful and we deliberately don't parse it.
 - Use “Partial” only for a concrete missing record, failed read or bounded omission in the displayed selection, and name it briefly. A recent date or an unrelated archive gap is not a gap. Keep unknown values distinct from zero.
 - Don’t explain methods or say what the app doesn’t infer. Add one line only where it changes how a number reads, such as “Shared questions count once per country”.
 - Keep pipeline terms out of public views: generations, parsers, source variants, load states, what an API returned.

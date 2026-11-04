@@ -86,7 +86,7 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 ### Speeches and debates
 
 - Speech headers are in `recorded_in_a_realization_of[].api:xmlFragment.<lang>` under `oralStatements/*/from/process`; request them with `include-output=xml_fragment`. Without `include-output` the API returns metadata only. Fragments marked `mtec` are machine translations, and translations arrive later, so recent months are re-checked.
-- The metadata listing does not reliably expose correction editions or translation manifests; only a full fragment read shows them.
+- The metadata listing does not reliably expose correction editions or translation manifests; only a full fragment read shows them. Some individually published speeches are missing from API records and whole-sitting reports even though typed speech searches name them; their API detail routes return HTTP 500 with a nested dataset 404. These remain source gaps, but dated speech-record gaps do not hide retained outside-speaker addresses in a checked quarter.
 - Blue-card questions, answers and reactions share the type `PLENARY_DEBATE_SPEECH`. Classify them from the header label, never the speech body; a `question` element alone does not identify a blue card. English fragments sometimes keep German labels (`Frage`, `Antwort`, `Reaktion`, `blaue Karte`), and machine translation produces labels such as `Blue Carton Response` (French) and `Blue Card issue` (Estonian). A translated Dutch `Blue Card Response` collapses answer and reaction: there, `speech` means reaction.
 - Debate order comes from joining `inverse_consists_of` to the parent’s `consists_of`, sorted by `numbering`. There is no reply-to field, so exchanges are derived.
 - A speech can have contradictory `inverse_consists_of` agenda links. They are narrowed only when the speech documents’ `is_part_of` evidence names one parent by term, date and full CRE item number.
@@ -141,7 +141,7 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 - Procedure progress reads the printed status and the Key events table. OEIL events have no identifiers, so they’re keyed by procedure, date and label.
 - Policy areas (topics) come only from OEIL procedure pages.
 - Policy-area names: `server/oeil-subjects.json` holds the official English and French labels and hierarchy (450 codes), taken from the subject filter of the [English](https://oeil.europarl.europa.eu/oeil/en/search) and [French](https://oeil.europarl.europa.eu/oeil/fr/search) search pages, with its retrieval date. The list grows each year: budget and discharge subjects get annual codes with irregular suffixes, so their translations use templates that substitute only a year stated in the official label.
-- The explorer's own translations for other languages live in `server/oeil-subject-translations.json`, each marked `explorer-translation`; they never override English or French. Missing names follow the shared text-language preference order. Pages show a collapsed Sources note only while a policy-area name is displayed, and mention the explorer translation only when one is shown.
+- The explorer's own translations for other languages live in `server/oeil-subject-translations.json`, each marked `explorer-translation`; they never override English or French. Missing names follow the shared text-language preference order. The site notice says these translations are the explorer's own.
 
 ### Press releases
 
