@@ -30,6 +30,15 @@ export function booleanFromEnvironment(name, fallback = false) {
   throw new Error(`${name} must be a boolean`);
 }
 
+export function readOriginFromEnvironment(name) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return null;
+  let origin;
+  try { origin = new URL(raw).origin; } catch { origin = null; }
+  if (origin !== raw || !/^https?:/.test(raw)) throw new Error(`${name} must be a single origin such as https://example.org`);
+  return raw;
+}
+
 export function absolutePathFromEnvironment(name, fallback) {
   const value = process.env[name] || fallback;
   if (value === undefined) return undefined;
@@ -44,6 +53,7 @@ export const config=Object.freeze({
  host:process.env.HOST||'127.0.0.1',
  port:integerFromEnvironment('PORT',8790,1,65535),
  trustProxy:booleanFromEnvironment('TRUST_PROXY',false),
+ apiReadOrigin:readOriginFromEnvironment('API_READ_ORIGIN'),
  distDirectory:absolutePathFromEnvironment('EXPLORER_DIST_DIR',path.join(projectRoot,'dist')),
  serveStatic:booleanFromEnvironment('EXPLORER_SERVE_STATIC',true),
  jsonResponseLimitBytes:integerFromEnvironment('JSON_RESPONSE_LIMIT_BYTES',5*1024*1024,64*1024,25*1024*1024),

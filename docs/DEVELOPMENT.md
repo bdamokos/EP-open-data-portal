@@ -57,6 +57,8 @@ The server sends separate `Cache-Control` and `CDN-Cache-Control` headers. A gat
 - require the `v` parameter on API GETs. The frontend sends `v=<API_VERSION>` (portraits use `PORTRAIT_VERSION`). Without `v` responses are CDN `no-store`; a different version returns HTTP 409 `api_version_mismatch`, and the app shows a reload notice;
 - admit `POST /api/client-errors` without caching it.
 
+The API rejects requests from other sites. `API_READ_ORIGIN` names one exact origin that may read it with GET and HEAD, for a separately hosted client such as the media station; writes stay same-origin.
+
 Fingerprinted assets are immutable for a year. HTML and source maps revalidate. Site routing, access control, host configuration and credentials belong outside this repository.
 
 ## Container and deployment

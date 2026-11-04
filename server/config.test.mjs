@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import {booleanFromEnvironment,integerFromEnvironment,absolutePathFromEnvironment} from './config.mjs';
+import {booleanFromEnvironment,integerFromEnvironment,absolutePathFromEnvironment,readOriginFromEnvironment} from './config.mjs';
 import {activityIndex,startActivityIndex} from './activity-index-worker.mjs';
 import {corpus,startCorpus} from './corpus-worker.mjs';
 import {activityDocument} from './activities.mjs';
@@ -14,6 +14,14 @@ function environment(t,names) {
   t.after(()=>{for(const [name,value] of Object.entries(saved))value===undefined?delete process.env[name]:process.env[name]=value;});
   for(const name of names)delete process.env[name];
 }
+
+test('the read origin is a single exact origin or nothing',t=>{
+  const name='EXPLORER_TEST_ORIGIN';environment(t,[name]);
+  assert.equal(readOriginFromEnvironment(name),null);
+  process.env[name]='';assert.equal(readOriginFromEnvironment(name),null);
+  process.env[name]='https://kiosk.example';assert.equal(readOriginFromEnvironment(name),'https://kiosk.example');
+  for(const value of ['*','https://kiosk.example/','https://a.example,https://b.example','kiosk.example','ftp://kiosk.example']){process.env[name]=value;assert.throws(()=>readOriginFromEnvironment(name),/single origin/);}
+});
 
 test('environment parsers read each call and reject invalid booleans, integer bounds and paths',t=>{
   const name='EXPLORER_TEST_SETTING';environment(t,[name]);
