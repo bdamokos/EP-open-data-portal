@@ -1,17 +1,19 @@
+import {nativeRecastNoteReading} from './amendment-recast-oracle.mjs';
 import {nativeNoteRows} from './amendment-native-note-oracle.mjs';
 // Independent note assertion: no production split/normalizer/placer imports.
 const compact=text=>text.normalize('NFC').replace(/\s/gu,'');
 function column(text,formatting=[]) {
  if(typeof text!=='string')return null;
- const cuts=[...text.matchAll(/\n_{3,}[ \t]*\n/gu)];
+ const cuts=[...text.matchAll(/\n_{3,}[ \t]*(?:\n|$)/gu)];
  if(!cuts.length)return {body:text,bodyEnd:text.length,notes:[],markers:[],detached:false};
  if(cuts.length!==1)return null;
  const cut=cuts[0],body=text.slice(0,cut.index),payload=text.slice(cut.index+cut[0].length);
+ if(!payload.trim())return {body,bodyEnd:cut.index,notes:[],markers:[],detached:true};
  const markers=formatting.filter(f=>f.kind==='superscript'&&f.start<body.length).sort((a,b)=>a.start-b.start);
  let previous=0;const labels=[];
  for(const mark of markers){
   if(!Number.isSafeInteger(mark.start)||!Number.isSafeInteger(mark.end)||mark.start<previous||mark.end<=mark.start||mark.end>body.length)return null;
-  const label=/^(\d+[a-z]{0,3})\.?$/u.exec(body.slice(mark.start,mark.end))?.[1];
+  const label=/^(\d+[a-z]{0,3})(?:\.|\+)?$/u.exec(body.slice(mark.start,mark.end))?.[1];
   if(!label||labels.includes(label))return null;labels.push(label);previous=mark.end;
  }
  if(!labels.length)return null;
@@ -20,7 +22,7 @@ function column(text,formatting=[]) {
   if(!line.trim())continue;
   const header=/^\s*(\d+[a-z]{0,3})\.?\s+(.+)$/u.exec(line);
   if(header){if(notes.some(note=>note.label===header[1]))return null;notes.push({label:header[1],text:header[2]});}
-  else {if(!notes.length||/^\s*\+\s*OJ:/iu.test(line))return null;notes.at(-1).text+='\n'+line;}
+  else {if(!notes.length)return null;notes.at(-1).text+='\n'+line;}
  }
  if(labels.some(label=>!notes.some(note=>note.label===label))||notes.filter(note=>labels.includes(note.label)).map(note=>note.label).join('|')!==labels.join('|'))return null;
  return {body,bodyEnd:cut.index,notes,markers,detached:true};
@@ -31,7 +33,7 @@ export function inspectNativeNoteScope({proposal,wording,placement,nativeQuoted}
  if(wording.language!=='en'||proposal?.sourceKind!=='docx')return unknown();
  let native;try{native=nativeNoteRows(nativeQuoted?.proposalBuffer);}catch{return unknown();}
  const old=column(wording.originalText,wording.originalFormatting),next=column(wording.proposedText,wording.proposedFormatting);
- if(!old||!next||!next.detached||old.notes.length!==old.markers.length)return unknown();
+ if(!old||!next||!(next.detached||old.detached)||old.notes.length!==old.markers.length)return unknown();
  let sourceNotes=[],sourceText='';
  if(placement.operation==='insert'){if(old.body.trim()||old.notes.length)return fail();}
  else {
@@ -40,7 +42,14 @@ export function inspectNativeNoteScope({proposal,wording,placement,nativeQuoted}
   const rows=proposal.paragraphs.filter(row=>row.index>=span.start&&row.index<=span.end);
   if(!rows.length||rows[0].index!==span.start||rows.at(-1).index!==span.end||splice.end.offset!==rows.at(-1).text.length||rows.some(row=>!row.complete||row.source?.complete!==true))return fail();
   sourceText=rows.map(row=>row.text).join('\n');
-  const raw=rows.map(row=>native.find(n=>n.path===row.source.path));
+  const raw=rows.map(row=>{
+   const n=native.find(n=>n.path===row.source.path),reading=nativeRecastNoteReading(nativeQuoted.proposalBuffer,row.source.path);
+   if(!reading||!n)return n;
+   const label=row.properties?.numberingLabel,prefix=label&&row.text.startsWith(label+'\t')?label+'\t':'';
+   if(compact(prefix+reading.text)!==compact(row.text)||reading.refs.some(r=>!n.refs.some(a=>a.id===r.id)))return n;
+   const shift=prefix?prefix.length:reading.text.trimStart().length-reading.text.length;
+   return {...n,safe:true,text:prefix+(prefix?reading.text.trimEnd():reading.text.trim()),refs:reading.refs.map(r=>({...n.refs.find(a=>a.id===r.id),offset:r.offset+shift}))};
+  });
   if(raw.some((n,i)=>!n?.safe||compact(n.text)!==compact(rows[i].text)))return fail();
   const anchors=raw.flatMap((n,i)=>n.refs.map(ref=>({...ref,paragraph:rows[i].index})));
   const projected=(proposal.anchors||[]).filter(a=>a.paragraph>=span.start&&a.paragraph<=span.end);
@@ -60,7 +69,7 @@ export function inspectNativeNoteScope({proposal,wording,placement,nativeQuoted}
    sourceNotes.push({id:note.id,label:old.notes[i].label});
   }
  }
- const referenced=next.markers.map(mark=>next.body.slice(mark.start,mark.end).replace(/\.$/u,''));
+ const referenced=next.markers.map(mark=>next.body.slice(mark.start,mark.end).replace(/[.+]$/u,''));
  const unreferencedLabels=next.notes.filter(note=>!referenced.includes(note.label)).map(note=>note.label);
  for(const label of unreferencedLabels){const previous=old.notes.find(note=>note.label===label),retained=next.notes.find(note=>note.label===label);if(!previous||compact(previous.text)!==compact(retained.text)||!sourceNotes.some(note=>note.label===label))return fail();}
  const noteScope={kind:'word-footnotes',originalBodyEnd:old.bodyEnd,proposedBodyEnd:next.bodyEnd,sourceNotes,proposedLabels:next.notes.map(note=>note.label),unreferencedLabels};

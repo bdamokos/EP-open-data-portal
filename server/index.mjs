@@ -36,6 +36,7 @@ import {memberAttendance,memberAttendanceQuery} from './member-attendance.mjs';
 import {memberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
 import {documentPages} from './document-pages.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
+import {provisionalAgreement,provisionalAgreementQuery} from './provisional-agreement.mjs';
 import amendmentFinalText from './amendment-final-text.mjs';
 import {commissionFollowups,commissionFollowupsQuery} from './commission-followups.mjs';
 import {sourceRecord} from './source-record.mjs';
@@ -133,7 +134,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 
 // Browser transport for this app. The gateway admits the same finite route set.
 let diagnosticWindow=0,diagnosticCount=0;
-const apiEndpoints=new Set(['hemicycle','voting-lists','upcoming-votes','ballot-comparisons','client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['hemicycle','voting-lists','upcoming-votes','ballot-comparisons','client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','provisional-agreement','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -248,6 +249,9 @@ async function handleApi(request,response,url,apiPrefix){
     else if(segments[0]==='document-context'&&segments.length===2) {
       const query=documentContextQuery(segments[1],url.searchParams);
       result=await (query.finalText?amendmentFinalText:documentContext).query(query,{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
+    }
+    else if(segments[0]==='provisional-agreement'&&segments.length===2) {
+      result=await provisionalAgreement.query(provisionalAgreementQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
     }
     else if (segments[0] === 'amendments' && (segments.length===1 || segments.length===2&&segments[1]==='failures')) {
       const failures=segments.length===2,query=amendmentQuery(url.searchParams,{failures});

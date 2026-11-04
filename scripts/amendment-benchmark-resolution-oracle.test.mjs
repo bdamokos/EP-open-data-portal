@@ -3,9 +3,47 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {deflateRawSync} from 'node:zlib';
 import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
-import {nativeBlankPairs,rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
-import {verifyPlacement} from './amendment-benchmark-model.mjs';
+import {nativeBlankPairs,rawResolutionUnits,assertTerminalIndent,assertSwedishRecommendation} from './amendment-benchmark-resolution-oracle.mjs';
+import {verifyPlacement,parseBenchmarkTarget} from './amendment-benchmark-model.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/resolution-blank-boundaries.json',import.meta.url)));
+test('a fully emphasized numbered section title does not duplicate a recital',()=>{
+ const paragraphs=['The European Parliament,','V. whereas a recital;','W. whereas another;','42. Previous;','V. Rule of law','43. Next;'];
+ const text={paragraphs,paragraphFormats:paragraphs.map((v,i)=>i===4?{marks:[{kind:'bold',start:0,end:v.length},{kind:'italic',start:0,end:v.length}]}:{}),paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
+ const units=rawResolutionUnits(text,'en').units;
+ assert.deepEqual(units.filter(u=>u.kind==='recital'&&u.label==='V').map(u=>u.start),[1]);
+});
+
+test('a bounded source editorial reference is not recital wording',()=>{
+ const paragraphs=['The European Parliament,','AG. whereas original;','(Ex AM 49 (Or. EN) of FdR example.docx)','AH. whereas next;','1. Operative;'];
+ const text={paragraphs,paragraphFormats:paragraphs.map(()=>({})),paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
+ const raw=rawResolutionUnits(text,'en'),ag=raw.units.find(u=>u.label==='AG');
+ assert.deepEqual({start:ag.start,end:ag.end,complete:ag.complete},{start:1,end:1,complete:true});
+ for(const altered of ['(Ex AM 49 (Or. EN) of FdR example.pdf)','(Some legal continuation)','(Ex AM 49 (Or. EN) of FdR example.docx) (whereas safeguards apply in annex.docx)','(Ex AM49 (Or. EN) of FdR example.docx) (whereas safeguards apply)','(Ex  AM 49 (Or. EN) of FdR example.docx) (whereas safeguards apply)','(Ex AM 49 (Or. EN) of FdR example\n.docx)','(Ex AM 49 (Or. EN) of FdR example.docx)\n']) {
+  const modified={...text,paragraphs:paragraphs.map((v,i)=>i===2?altered:v)};
+  assert.notEqual(rawResolutionUnits(modified,'en').units.find(u=>u.label==='AG').end,1);
+  const wording={language:'en',baseline:'motion-resolution',targetLabel:'Recital AG',originalText:'AG. whereas original;',proposedText:'AG. whereas changed;'};
+  assert.notEqual(verifyPlacement({text:modified,wording,placement:{status:'placed',operation:'replace',span:{start:1,end:1}}}).status,'verified');
+ }
+});
+
+test('raw terminal indent proof requires the complete dash list and next paragraph',()=>{
+ const paragraphs=['The European Parliament,','122. Observes:','– first;','– second;','– third;','123. Next;'];
+ const text={paragraphs,paragraphFormats:paragraphs.map((_,i)=>({indent:i>=2&&i<=4?4.72:2.36,hanging:2.36})),paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
+ const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 122 – indent 3 a (new)',originalText:'',proposedText:'– New item;'},placement={operation:'insert',insertAfter:4,insertBefore:5};
+ assert.equal(assertTerminalIndent({text,wording,placement}).status,'verified');
+ assert.equal(parseBenchmarkTarget(wording).complete,true);
+ assert.equal(verifyPlacement({text,wording,placement:{...placement,status:'placed'}}).status,'verified');
+ for(const index of [2,3,4]){const modified={...text,paragraphSources:text.paragraphSources.map((v,i)=>i===index?{...v,complete:false}:v)};assert.equal(assertTerminalIndent({text:modified,wording,placement}).status,'unverified');}
+ assert.notEqual(assertTerminalIndent({text,wording,placement:{...placement,insertAfter:3}}).status,'verified');
+ const multiline={...text,paragraphs:paragraphs.map((v,i)=>i===2?'– first;\n– extra;':v)};
+ const nested={...text,paragraphFormats:text.paragraphFormats.map((v,i)=>i===3?{...v,indent:7}:v)};
+ const duplicate={...text,paragraphs:[...paragraphs,'122. damaged duplicate;'],paragraphFormats:[...text.paragraphFormats,{}],paragraphSources:[...text.paragraphSources,{path:'p6',container:'body',containerPath:'body',ordinal:6,segment:0,complete:false}]};
+ for(const modified of [multiline,nested,duplicate]) {
+  assert.notEqual(assertTerminalIndent({text:modified,wording,placement}).status,'verified');
+  assert.notEqual(verifyPlacement({text:modified,wording,placement:{...placement,status:'placed'}}).status,'verified');
+ }
+
+});
 const wrap=body=>'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'</w:body></w:document>';
 function zip(document,extra={}) {
   const locals=[],centrals=[],entries=Object.entries({'word/document.xml':document,...extra});let offset=0;
@@ -22,6 +60,15 @@ function input(xml) {
  const nativeBuffer=zip(wrap(xml)),body=quotedWordBody(nativeBuffer),visible=body.filter(row=>row.kind==='paragraph'&&row.text.trim());
  return {nativeBuffer,paragraphs:visible.map(row=>row.text.trim()),paragraphFormats:visible.map(()=>({})),paragraphSources:visible.map((row,i)=>({path:row.path,container:'body',containerPath:'/w:document[1]/w:body[1]',ordinal:body.indexOf(row),segment:i,complete:true}))};
 }
+test('native recommendation proof requires the identified annex and point boundaries',()=>{
+ const p=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';
+ const text=input(p('BILAGA TILL RESOLUTIONSFÖRSLAGET')+p('Rekommendation 5')+p('Ämne')+p('1. Original;')+p('2. Nästa;')+p('Rekommendation 6')+p('MOTIVERING'));
+ text.paragraphSources.forEach(source=>source.segment=0);
+ const wording={language:'sv',baseline:'motion-resolution',targetLabel:'Bilaga I – rekommendation 5 – punkt 1',originalText:'1. Original;',proposedText:'1. Ändrad;'},placement={status:'placed',operation:'replace',span:{start:3,end:3}};
+ assert.equal(assertSwedishRecommendation({text,wording,placement}).status,'verified');
+ assert.equal(verifyPlacement({text,wording,placement}).status,'verified');
+ for(const change of [x=>x.wording.originalText='1. Different;',x=>x.placement.span={start:4,end:4},x=>x.text.paragraphSources[3].complete=false]) {const modified={text:{...text,paragraphSources:text.paragraphSources.map(s=>({...s}))},wording:{...wording},placement:{...placement}};change(modified);assert.notEqual(assertSwedishRecommendation(modified).status,'verified');}
+});
 test('native corpus blank pairs are independent of production continuity claims',()=>{
  for(const row of fixture){const text=input(row.paragraphXml.join(''));for(const source of text.paragraphSources)Object.defineProperty(source,'previousParagraph',{get(){throw Error('placer proof forbidden');}});assert.equal(nativeBlankPairs(text).size>0,!['A-10-2026-0042','A-10-2026-0081'].includes(row.documentId),row.documentId+':'+row.label);}
 });

@@ -1,9 +1,10 @@
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {docxParts} from './document-text.mjs';
 
-export function provisionalDecision(decisions,amendmentId) {
-  return Array.isArray(decisions)&&decisions.some(decision=>decision.id&&decision.source?.url&&decision.source?.fetchedAt&&decision.amendmentIds?.includes(amendmentId)&&/^Provisional agreement$/iu.test(decision.reference?.trim()||''));
+export function provisionalDecisions(decisions,amendmentId) {
+  return Array.isArray(decisions)?decisions.filter(decision=>decision.id&&decision.source?.url&&decision.source?.fetchedAt&&decision.amendmentIds?.includes(amendmentId)&&/^Provisional agreement$/iu.test(decision.reference?.trim()||'')):[];
 }
+export const provisionalDecision=(decisions,amendmentId)=>provisionalDecisions(decisions,amendmentId).length>0;
 // This outcome locates an entire published agreement; it does not extract or
 // compare the agreement's legal text. Readers open the original source.
 export function amendmentProvisional({amendmentId,documentId,listId,decisions,buffer,source}={}) {

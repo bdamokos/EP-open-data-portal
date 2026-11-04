@@ -7,7 +7,7 @@ import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTarget
 import { numberingLabels } from './docx-numbering.mjs';
 import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='24';
+export const AMENDMENT_EXTRACTION_VERSION='25';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -348,7 +348,7 @@ function documentDate(raw) {
   return dates.size===1?[...dates][0]:null;
 }
 const numberIn=(raw,paragraphStyle,language)=>{
-  const match=raw.match(/<NumAm>\s*([1-9]\d*)\s*<\/NumAm>/)||raw.match(/^\s*Amendment\s*([1-9]\d*)\b/iu)||(/^AmNumberTabs\d*$/i.test(paragraphStyle||'')&&raw.match(/^[^\d<>]+?\s*([1-9]\d*)\s*$/u));
+  const match=raw.match(/<NumAm>\s*([1-9]\d*)(?:\/rev)?\s*<\/NumAm>/)||raw.match(/^\s*Amendment\s*([1-9]\d*)\b/iu)||(/^AmNumberTabs\d*$/i.test(paragraphStyle||'')&&raw.match(/^[^\d<>]+?\s*([1-9]\d*)\s*$/u));
   const localized=language==='hr'&&raw.match(/^\s*Amandman\s*([1-9]\d*)\s*$/iu);
   const number=Number((match||localized)?.[1]);return Number.isSafeInteger(number)?number:null;
 };
@@ -384,7 +384,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const end=blocks.findIndex((block,index)=>index>=start&&block.kind==='paragraph'&&/<\/RepeatBlock-Amend>/.test(block.raw));
     const cover=blocks.slice(0,start).filter(block=>block.kind==='paragraph').map(block=>block.raw).join('\n');
     const coverIds=field(cover,'NoDocSe').map(value=>value.replace(/\u2011/gu,'-').match(/^A(\d+)-(\d+)\/(\d{4})$/)).filter(Boolean).map(([,term,number,year])=>'A-'+term+'-'+year+'-'+number.padStart(4,'0'));
-    const main=blocks.slice(start,end+1),numbers=main.filter(block=>block.kind==='paragraph').flatMap(block=>[...block.raw.matchAll(/<NumAm>\s*([1-9]\d*)\s*<\/NumAm>/g)].map(match=>Number(match[1])));
+    const main=blocks.slice(start,end+1),numbers=main.filter(block=>block.kind==='paragraph').flatMap(block=>[...block.raw.matchAll(/<NumAm>\s*([1-9]\d*)(?:\/rev)?\s*<\/NumAm>/g)].map(match=>Number(match[1])));
     if(reportId!==targetDocumentId||range?.[1]!==reportId||coverIds.length!==1||coverIds[0]!==reportId||start<0||end<start||numbers.length!==Number(range[3])-Number(range[2])+1||numbers.some((number,index)=>number!==Number(range[2])+index)) {
       gap('report-amendment-identity',null,'The report cover and main amendment block do not establish the exact published list range.');return {amendments:[],gaps,reportId};
     }
@@ -423,7 +423,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const raw=group.filter(b=>b.kind==='paragraph').map(b=>b.raw).join('\n');
     const number=groupNumber(group,language);
     if(!number){gap('number-unavailable',null,'An amendment block has no supported individual amendment number.');continue;}
-    const numbers=new Set([...raw.matchAll(/<NumAm>\s*([1-9]\d*)\s*<\/NumAm>/g)].map(match=>Number(match[1])));
+    const numbers=new Set([...raw.matchAll(/<NumAm>\s*([1-9]\d*)(?:\/rev)?\s*<\/NumAm>/g)].map(match=>Number(match[1])));
     if(numbers.size>1){gap('number-conflict',number,'The amendment block contains conflicting individual amendment numbers; its content is withheld.');continue;}
     for(const unsupported of group.filter(block=>block.kind==='unsupported'))gap(unsupported.code,number,unsupported.message);
     for(const block of group.filter(block=>block.kind==='paragraph'))for(const code of block.losses||[])if(CONTENT_LOSSES[code])gap(code,number,CONTENT_LOSSES[code]);
@@ -515,7 +515,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     // Alternative motions have a single body outside the comparison tables.
     // Read only the bounded native template body; metadata and justification
     // stay outside it, and ordinary table-less amendments remain unavailable.
-    if(!hasTable&&language==='en'&&alternativeMotionHeading(documentReferences,targetDocumentId)) {
+    if(!hasTable&&alternativeMotionHeading(documentReferences,targetDocumentId,language)) {
       const titles=group.flatMap((block,i)=>block.kind==='paragraph'&&/<Article>/.test(block.raw)?[i]:[]);
       const tails=group.flatMap((block,i)=>block.kind==='paragraph'&&/<Original>/.test(block.raw)?[i]:[]);
       if(titles.length===1&&tails.length===1&&tails[0]>titles[0]+1) {

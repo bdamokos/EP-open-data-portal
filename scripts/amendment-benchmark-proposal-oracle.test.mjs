@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -177,4 +178,53 @@ test('a printed paragraph-one prefix may identify a sole implicit paragraph with
  const a=make();Object.defineProperty(a.proposal,'units',{get(){throw Error('tree forbidden');}});assert.equal(assertImplicitParagraphLabel(a).status,'verified');assert.equal(verifyPlacement({...a,items:[{proposal:a.proposal}]}).status,'verified');
  for(const mutate of [a=>a.placement.splice.start.offset++,a=>a.placement.span.end++]){const a=make();mutate(a);assert.equal(assertImplicitParagraphLabel(a).status,'failed');}
  for(const mutate of [a=>a.proposal.anchors=[{paragraph:2,note:'1',offset:5}],a=>a.proposal.paragraphs[2].objects=[{complete:true}],a=>a.wording.originalText='1. Another body.',a=>a.wording.language='fr',a=>a.wording.baseline='present-text',a=>a.wording.targetLabel='Article 1 – paragraph 2',a=>a.proposal.paragraphs[2].source.complete=false,a=>a.proposal.paragraphs[3].source.ordinal++,a=>a.proposal.paragraphs[2].properties.numberingLabel='1.',a=>a.proposal.paragraphs[2].properties.styleId='ManualNumPar1',a=>a.wording.proposedText='2. Changed paragraph.']){const a=make();mutate(a);assert.equal(assertImplicitParagraphLabel(a).status,'unverified');}
+});
+
+test('XHTML native rows verify article titles and subparagraph addresses without producer units',()=>{
+  const xhtml=rows=>{const p=proposal(rows.map(text=>[text,'Normal']));p.sourceKind='xhtml';for(const row of p.paragraphs){row.properties=null;row.source.part='xhtml';row.source.path='/1/2/'+(row.index+1)+'/1';}return p;};
+  const p=xhtml(['Article 9','Database of decisions','1. The Commission shall establish a database.','The database shall contain:','(a) the name;','(b) the designation;','(c) the techniques;','(d) the traits;','(e) an identification number.','The database shall be public.','2. Changes shall be notified.','Article 10','Labelling of material','1. Material shall bear a label.','Article 11','Next title','1. Next paragraph.']);
+  const target='Article 9 – paragraph 1 – subparagraph 2 – point d a (new)';
+  assert.equal(check(p,target,insert(8)).status,'verified');
+  assert.equal(check(p,target,insert(7)).status,'failed');
+  assert.equal(check(p,'Article 9 – paragraph 1 – subparagraph 1 – point d a (new)',insert(8)).status,'unverified');
+  assert.equal(check(p,'Article 10 – title',replace(12)).status,'verified');
+  assert.equal(check(p,'Article 10 – title',replace(13)).status,'failed');
+  assert.equal(check(p,'Article 9 – paragraph 1 – subparagraph 3',replace(9)).status,'verified');
+  const wording={...amendment('Article 1 – paragraph 1 – point -1 (new)'),baseline:'present-text',targetPath:{underlying:[{raw:'Article 9 – paragraph 1 – subparagraph 3'}]}};
+  assert.equal(rawProposalAssertion({proposal:p,wording,placement:replace(9)}).status,'verified');
+  assert.equal(rawProposalAssertion({proposal:p,wording,placement:replace(3)}).status,'failed');
+  p.paragraphs[9].source.complete=false;
+  assert.equal(rawProposalAssertion({proposal:p,wording,placement:replace(9)}).status,'unverified');
+});
+
+
+test('native Council Article 6 Roman children cannot be flattened into sibling insertion boundaries',()=>{
+  const excerpt=JSON.parse(readFileSync(new URL('./fixtures/amendment-xhtml-nested-oracle.json',import.meta.url)));
+  const proposal={sourceKind:'xhtml',paragraphs:excerpt.paragraphs};
+  const wording=amendment('Article 6 – paragraph 3 – point d a (new)');
+  for(const before of [150,151,152]) {
+    const result=rawProposalAssertion({proposal,wording,placement:insert(before)});
+    assert.equal(result.status,'unverified');
+    assert.equal(result.reason,'oracle-raw-xhtml-point-nesting-unavailable');
+  }
+});
+
+
+test('nested XHTML Roman points cannot verify a replacement at the outer point address',()=>{
+  const excerpt=JSON.parse(readFileSync(new URL('./fixtures/amendment-xhtml-nested-oracle.json',import.meta.url)));
+  const proposal={sourceKind:'xhtml',paragraphs:excerpt.paragraphs,units:[]};
+  const row=proposal.paragraphs.find(row=>row.index===150);
+  const wording={...amendment('Article 6 – paragraph 3 – point i',row.text),baseline:'council-position'};
+  const placement={...replace(150),itemIndex:0,splice:{start:{paragraph:150,offset:0},end:{paragraph:150,offset:row.text.length}}};
+  assert.equal(rawProposalAssertion({proposal,wording,placement}).status,'unverified');
+  assert.equal(verifyPlacement({items:[{proposal}],wording,placement}).status,'unverified');
+});
+
+test('native consolidated Article 32 point a includes its four tobacco indents',()=>{
+ // 02020L0262-20220426, ENG DOC_2, Article 32(3)(a): literal native grid text.
+ const texts=['Article 32','Acquisition by private individuals','3. These guide levels may not be lower than:','(a) for tobacco products:','— cigarettes: 800 items,','— cigarillos (cigars weighing not more than 3 g each): 400 items,','— cigars: 200 items,','— smoking tobacco: 1,0 kg;','(b) for alcoholic beverages:','Article 33'];
+ const p=proposal(texts.map(text=>[text,'Normal']));p.sourceKind='xhtml';for(const row of p.paragraphs){row.source.part='xhtml';row.source.path='/1/2/'+(row.index+1)+'/1';row.properties=null;}
+ const w={...amendment('Article 1 – paragraph 1 – point 1 a (new)'),baseline:'present-text',targetPath:{underlying:[{raw:'Article 32 – paragraph 3 – point a'}]}};
+ assert.equal(rawProposalAssertion({proposal:p,wording:w,placement:{status:'placed',operation:'replace',span:{start:3,end:7}}}).status,'verified');
+ assert.equal(rawProposalAssertion({proposal:p,wording:w,placement:replace(8)}).status,'failed');
 });

@@ -164,6 +164,13 @@ export async function placeWithInstructionFrame({place,eligible,matching,languag
   return {placement:matching?placement:{status:'unresolved',reason:'placement-not-evaluated'},frame:null};
 }
 
+// Preserve the native amendment date. The exact public list record supplies
+// only its separate fallback date, as it does in the runtime context.
+export function withListDocumentDate(wording,variant) {
+ return wording&&wording.listId===variant?.listId&&wording.language===variant?.language&&variant.listDocumentDate
+  ?{...wording,listDocumentDate:variant.listDocumentDate}:wording;
+}
+
 export async function evaluateReport(rows,sample,cache,{runtime,replay,selection,adoptedCalibration}={}) {
   const selected=rows.filter(row=>decisionsInSample(row,sample).length),extractions=new Map(),results=[];
   const contexts=await acquireReport(rows,sample,cache,undefined,selection);
@@ -205,7 +212,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
       if(!input.ok)stages.S2={...blocked(input.acquisitionUnavailable?'acquisition-unavailable':[404,410].includes(input.status)?'source-document-unavailable':'input-'+(input.error||'unavailable')),...(input.acquisitionUnavailableReason?{acquisitionUnavailableReason:input.acquisitionUnavailableReason}:{})};
       else if(error)stages.S2=blocked('docx-parser-error');
       else {
-        wording=extraction.amendments.find(a=>a.number===row.number);
+        wording=withListDocumentDate(extraction.amendments.find(a=>a.number===row.number),variant);
         gaps=wording?(runtime?.amendmentTextLosses||amendmentTextLosses)(extraction,wording):extraction.gaps;
         if(!wording)stages.S2=blocked('docx-amendment-not-extracted');
         else if(gaps.length||typeof wording.originalText!=='string'||typeof wording.proposedText!=='string')stages.S2=blocked('wording-'+(gaps[0]?.code||'unavailable'));
@@ -232,7 +239,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
         // Bind every eligible or unresolved native NLE selection. Ordinary
         // projections retain their accepted sharing and source-read sequence.
         const selectedProposal=commission&&(replay.proposalRequiresSelection?.(proposalOptions,work)??true)?{listId:variant.listId,number:row.number,wordingSource:{url:fetched.url,sha256:fetched.sha256},originalText:wording.originalText,proposedText:wording.proposedText}:null;
-        const key=JSON.stringify([language,wording.baseline,structured?[wording.documentReferences,existing?wording.targetPath:null,existing?wording.documentDate:null]:[],...(selectedProposal?[[selectedProposal.listId,selectedProposal.number,selectedProposal.wordingSource]]:[])]);
+        const key=JSON.stringify([language,wording.baseline,structured?[wording.documentReferences,existing?wording.targetPath:null,existing?(wording.documentDate||wording.date||wording.listDocumentDate):null]:[],...(selectedProposal?[[selectedProposal.listId,selectedProposal.number,selectedProposal.wordingSource]]:[])]);
         if(!projected.has(key)) {
           projected.set(key,await observeFrozenInputs(cache,async()=>{
             if(commission)return replay.proposal(proposalOptions,selectedProposal??undefined);
@@ -332,7 +339,7 @@ async function checkoutIdentity(root,runtime) {
 }
 
 export async function harnessIdentity(root) {
-  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-compound-header-oracle.mjs','scripts/amendment-whole-instruction-oracle.mjs','scripts/amendment-native-table-oracle.mjs','scripts/amendment-recital-category-oracle.mjs','scripts/amendment-resolution-point-similarity-oracle.mjs','scripts/amendment-numbering-drift-oracle.mjs','scripts/amendment-annex-replacement-oracle.mjs','scripts/amendment-quoted-section-oracle.mjs','scripts/amendment-annex-indent-oracle.mjs','scripts/amendment-note-scope-oracle.mjs','scripts/amendment-native-note-oracle.mjs','scripts/amendment-guideline-oracle.mjs','scripts/amendment-adopted-calibration.mjs','scripts/amendment-adopted-snapshot.mjs','scripts/amendment-benchmark-selection.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-footnote-oracle.mjs','scripts/amendment-elision-oracle.mjs','scripts/amendment-quoted-sibling-oracle.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-table-oracle.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','scripts/amendment-benchmark-quoted-oracle.mjs','scripts/amendment-benchmark-letter-point-oracle.mjs','scripts/amendment-benchmark-citation-bindings.mjs','scripts/amendment-benchmark-citation-calibration.mjs','package-lock.json','scripts/amendment-alternative-oracle.mjs','scripts/amendment-provisional-oracle.mjs','scripts/amendment-rejection-oracle.mjs','scripts/fixtures/amendment-rejection-oracle.json','scripts/amendment-benchmark-retained.mjs','scripts/amendment-benchmark-projections.mjs','scripts/amendment-benchmark-hybrid.mjs','scripts/amendment-first-annex-oracle.mjs','scripts/amendment-native-grid-oracle.mjs'];
+  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-local-recital-oracle.mjs','scripts/amendment-compound-header-oracle.mjs','scripts/amendment-whole-instruction-oracle.mjs','scripts/amendment-native-table-oracle.mjs','scripts/amendment-recital-category-oracle.mjs','scripts/amendment-resolution-point-similarity-oracle.mjs','scripts/amendment-numbering-drift-oracle.mjs','scripts/amendment-annex-replacement-oracle.mjs','scripts/amendment-quoted-section-oracle.mjs','scripts/amendment-annex-indent-oracle.mjs','scripts/amendment-note-scope-oracle.mjs','scripts/amendment-native-note-oracle.mjs','scripts/amendment-guideline-oracle.mjs','scripts/amendment-adopted-calibration.mjs','scripts/amendment-adopted-snapshot.mjs','scripts/amendment-benchmark-selection.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-footnote-oracle.mjs','scripts/amendment-elision-oracle.mjs','scripts/amendment-quoted-sibling-oracle.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-table-oracle.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','scripts/amendment-benchmark-quoted-oracle.mjs','scripts/amendment-benchmark-letter-point-oracle.mjs','scripts/amendment-benchmark-citation-bindings.mjs','scripts/amendment-benchmark-citation-calibration.mjs','package-lock.json','scripts/amendment-alternative-oracle.mjs','scripts/amendment-provisional-oracle.mjs','scripts/amendment-rejection-oracle.mjs','scripts/fixtures/amendment-rejection-sentences.json','scripts/fixtures/amendment-rejection-oracle.json','scripts/amendment-benchmark-retained.mjs','scripts/amendment-benchmark-projections.mjs','scripts/amendment-benchmark-hybrid.mjs','scripts/amendment-first-annex-oracle.mjs','scripts/amendment-native-grid-oracle.mjs'];
   return {files:Object.fromEntries(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
 }
 

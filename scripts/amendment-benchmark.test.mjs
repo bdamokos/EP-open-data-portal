@@ -12,7 +12,7 @@ import {documentContextPlacement} from '../server/document-context-placement.mjs
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
 import {classifyRow,classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility,instructionFrameWording} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
-import {harnessIdentity,options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport} from './amendment-benchmark.mjs';
+import {harnessIdentity,options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport,withListDocumentDate} from './amendment-benchmark.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 beforeEach(registerSubprocesses);
@@ -599,17 +599,29 @@ test('provisional placement uses exact source identity despite unavailable compa
  const [oldRuntime]=await evaluateReport([input],sample,cache,{runtime:{}});assert.notEqual(oldRuntime.outcome,'correct','an older runtime must not use the current placement helper');
 });
 
-test('harness identity records the provisional oracle and detects its mutation with another runtime root',async()=>{
+test('harness identity records oracle modules and rejection vocabulary and detects their mutation',async()=>{
  const root=fileURLToPath(new URL('../',import.meta.url));
  const original=await harnessIdentity(root);
- const file='scripts/amendment-provisional-oracle.mjs';
- assert.equal(original.files[file],digest(await readFile(path.join(root,file))));
+ const protectedFiles=['scripts/amendment-provisional-oracle.mjs','scripts/fixtures/amendment-rejection-sentences.json'];
+ for(const file of protectedFiles)assert.equal(original.files[file],digest(await readFile(path.join(root,file))));
  const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-harness-fingerprint-'));
  try {
   for(const name of Object.keys(original.files)){await mkdir(path.dirname(path.join(directory,name)),{recursive:true});await writeFile(path.join(directory,name),await readFile(path.join(root,name)));}
   const before=await harnessIdentity(directory);
-  await writeFile(path.join(directory,file),(await readFile(path.join(directory,file),'utf8'))+'\n// changed oracle\n');
-  const after=await harnessIdentity(directory);
-  assert.notEqual(before.files[file],after.files[file]);
+  for(const file of protectedFiles) {
+   await writeFile(path.join(directory,file),(await readFile(path.join(directory,file),'utf8'))+'\n');
+   const after=await harnessIdentity(directory);
+   assert.notEqual(before.files[file],after.files[file]);
+  }
  }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+
+test('list date replay metadata is bound to the exact selected list and language',()=>{
+ const wording={listId:'A-10-2026-0160-AM-001-003',language:'en',documentDate:null};
+ const record={listId:wording.listId,language:'en',listDocumentDate:'2026-06-10'};
+ assert.deepEqual(withListDocumentDate(wording,record),{...wording,listDocumentDate:'2026-06-10'});
+ assert.equal(withListDocumentDate(wording,{...record,listId:'A-10-2026-0160-AM-004-005'}),wording);
+ assert.equal(withListDocumentDate(wording,{...record,language:'fr'}),wording);
+ assert.equal(withListDocumentDate(wording,{}),wording);assert.equal(wording.documentDate,null);
 });

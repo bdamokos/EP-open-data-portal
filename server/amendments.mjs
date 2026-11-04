@@ -1,3 +1,4 @@
+import {distributionCandidate} from './ep-distribution-route.mjs';
 import {legacyAmendmentDocument,agendaNamesDocument} from './upcoming-amendments.mjs';
 import {committeeListId,committeeDraftId,committeeCode} from './committee-amendments.mjs';
 import { array, tail, procedureIds, documentFiles } from './activity-index-model.mjs';
@@ -57,7 +58,11 @@ export function distributionEvidenceFor(work,source) {
 export function currentDocxDescriptor(list) {
   const own=list?.distributionEvidence;
   const evidence=own?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION&&own.state!=='available'&&list?.reportWording?.reportId&&list.reportWording.reportId===list.targetDocumentId?list.reportWording.distributionEvidence:own;
-  if(evidence?.version!==AMENDMENT_DISTRIBUTION_PROOF_VERSION||evidence.state!=='available')return null;
+  if(evidence?.version!==AMENDMENT_DISTRIBUTION_PROOF_VERSION)return null;
+  if(evidence.state!=='available'){
+    const candidate=distributionCandidate(list);
+    return candidate&&(!list.extraction||list.extraction.sourceUrl===candidate.url)?candidate:null;
+  }
   const descriptors=array(evidence.descriptors).map(normalizedDocxDescriptor).filter(Boolean);
   if(list?.scope==='committee') {
     const language=descriptors.some(file=>file.language==='en')?'en':descriptors[0]?.language;

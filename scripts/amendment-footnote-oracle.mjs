@@ -43,7 +43,7 @@ export function assertFootnoteComparison(proposal,wording,placement) {
 // each superscript's position and its payload with the source text's own notes.
 // A custom mark can print its label twice in the amendment payload.
 export function assertResolutionFootnotes(text,wording,placement) {
-  const cut=/\n_{5,}\s*\n/u.exec(wording.originalText??'');
+  const cut=/\n_{5,}\s*\n/u.exec(wording.originalText??'')||/\n(?=[1-9]\d*\.\s+)/u.exec(wording.originalText??'');
   if(!cut||!placement.span||!Array.isArray(text?.paragraphs))return null;
   const {start,end}=placement.span,rows=text.paragraphs.slice(start,end+1);
   if(/\n_{5,}\s*\n/u.test(rows.join('\n')))return null;
@@ -64,7 +64,7 @@ export function assertResolutionFootnotes(text,wording,placement) {
   if(anchors.length!==marks.length)return fail();
   for(let i=0;i<marks.length;i++){
     const a=anchors[i],note=text.notes?.find(n=>n.id===a.note),digits=body.slice(marks[i].start,marks[i].end);
-    const line=/^\s*(\d+)\s+([\s\S]+)$/u.exec(payload[i]);
+    const line=/^\s*(\d+)\.?\s+([\s\S]+)$/u.exec(payload[i]);
     const prefix=text.paragraphs.slice(start,a.paragraph).join('\n')+'\n'+text.paragraphs[a.paragraph].slice(0,a.offset);
     const repeated=line&&line[2].startsWith(line[1])&&/^\s/u.test(line[2].slice(line[1].length))?line[2].slice(line[1].length):null;
     if(!line||line[1]!==digits||typeof note?.text!=='string'||!note.text.trim()

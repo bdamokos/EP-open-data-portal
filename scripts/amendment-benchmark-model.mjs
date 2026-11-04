@@ -1,10 +1,12 @@
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
+import {assertResolutionCollision} from './amendment-resolution-collision-oracle.mjs';
+import {assertLocalRecitalBoundary} from './amendment-local-recital-oracle.mjs';
 import {assertClosingFormula} from './amendment-closing-formula-oracle.mjs';
 import {assertFirstAnnex,assertSequentialAnnex} from './amendment-first-annex-oracle.mjs';
 import {assertCompoundHeader} from './amendment-compound-header-oracle.mjs';
 import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 
-import {assertBareAnnexInsertion} from './amendment-annex-oracle.mjs';
+import {assertBareAnnexInsertion,assertNumberedAnnexInsertion} from './amendment-annex-oracle.mjs';
 import {assertResolutionNumberingDrift} from './amendment-numbering-drift-oracle.mjs';
 import {assertResolutionPointSimilarity} from './amendment-resolution-point-similarity-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
@@ -26,7 +28,7 @@ import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-gramma
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-benchmark-proposal-oracle.mjs';
-import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
+import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,assertMixedRecital,assertTerminalIndent,assertSwedishRecommendation,assertResolutionLead} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 import {assertRecastReading} from './amendment-recast-oracle.mjs';
@@ -371,7 +373,7 @@ export function numberingGap(text,units,base){
 // or one table row whose cells join with tabs) and require the amendment's
 // original lines to match one unique contiguous run cell for cell, inside the
 // annex its label names. Never consult placer units or evidence.
-const tableAddress=raw=>/^Annex ([IVXLC]+)\b.*\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(raw??'').split('\n')[0].trim());
+const tableAddress=(raw,original='')=>{const label=String(raw??'').split('\n')[0].trim();return /^Annex ([IVXLC]+)\b.*\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(label)||(original.includes('\t')&&original.includes('\n')?/^Annex ([IVXLC]+) – point [1-9]\d*$/u.exec(label):null);};
 const rawCell=value=>String(value).normalize('NFC').replace(/\s+/gu,' ').trim();
 function rawLogicalRows(proposal) {
   const rows=[];let current=null;
@@ -419,7 +421,7 @@ function rawCaptionDecoration(wording,items,proposal){
   return {inner:path[4],outer:path[1]};
 }
 function verifyAnnexTable({proposal,wording,placement,items}) {
-  const address=tableAddress(wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel);
+  const address=tableAddress(wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel,wording.baseline==='commission-proposal'?wording.originalText:'');
   if(!address||wording.language!=='en'||!['replace','delete'].includes(placement.operation))return null;
   const rows=rawLogicalRows(proposal);
   if(!rows)return {status:'unverified',reason:'oracle-table-structure-unavailable'};
@@ -461,6 +463,8 @@ function verifyAnnexTable({proposal,wording,placement,items}) {
 }
 
 function verifyResolutionInsertion(text,wording,target,placement) {
+  const mixed=assertMixedRecital({text,wording,placement});
+  if(mixed.status!=='unverified')return mixed;
   const label=target.segments.at(-1);
   if(label.kind==='recital'&&label.isNew&&target.segments.length===1) {
     const raw=rawResolutionUnits(text,wording.language),recitals=raw.units.filter(unit=>unit.kind==='recital');
@@ -602,6 +606,11 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
+  const collision=assertResolutionCollision({text,wording,placement});
+  if(collision.status!=='unverified')return collision;
+  const numberedAnnex=assertNumberedAnnexInsertion(items,wording,placement,nativeQuoted);
+  if(numberedAnnex)return numberedAnnex;
+  if(!items?.length&&wording.language==='sv'&&/^Bilaga I – rekommendation [1-9]\d* – punkt 1$/u.test(wording.targetLabel||''))return assertSwedishRecommendation({text,wording,placement});
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;
@@ -633,6 +642,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   if(articleNotes.status!=='unverified'||proposal&&placement.operation==='delete'&&wording.language==='en'&&/^Article \d+[a-z]*$/u.test(wording.targetLabel||'')&&/\n_{5,}\s*\n/u.test(wording.originalText||''))return articleNotes;
   const implicitLabel=assertImplicitParagraphLabel({proposal,wording,placement});
   if(implicitLabel.status!=='unverified')return implicitLabel;
+  const localRecital=assertLocalRecitalBoundary({proposal,wording,placement,nativeQuoted});
+  if(localRecital.status!=='unverified')return localRecital;
   const initialRecital=assertNativeFirstRecital({proposal,wording,placement,nativeQuoted});
   if(initialRecital.status!=='unverified')return initialRecital;
   const guideline=assertGuidelineAnnex({proposal,wording,placement,nativeQuoted});
@@ -643,6 +654,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   if(annexReplacement.status!=='unverified')return annexReplacement;
   const annexIndent=assertBareAnnexIndent({items,proposal,wording,placement,nativeQuoted});
   if(annexIndent.status!=='unverified')return annexIndent;
+  if(!proposal){const lead=assertResolutionLead({text,wording,placement});if(lead.status!=='unverified')return lead;}
   if(!proposal){const pointNear=assertResolutionPointSimilarity({text,wording,placement});if(pointNear.status!=='unverified')return pointNear;}
   if(!proposal) {
     const category=assertRecitalCategoryRepair({text,wording,placement});
@@ -659,6 +671,17 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});
   if(letterPoint.status!=='unverified')return letterPoint;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
+    if(!proposal&&Number.isInteger(placement.span?.end)) {
+      const following=text?.paragraphs?.[placement.span.end+1];
+      if(typeof following==='string'&&/^\s*\(Ex AM\b/u.test(following)
+        &&(/[\r\n]/u.test(following)||!/^\s*\(Ex AM [1-9]\d* \(Or\. [A-Z]{2}\) of FdR [^()\r\n]+\.docx\)\s*$/u.test(following)))return {status:'unverified',reason:'oracle-editorial-boundary-unavailable'};
+      // A parenthetical row after a recital may be substantive continuation,
+      // regardless of whether it resembles a malformed editorial reference.
+      if(typeof following==='string'&&/^\s*\(/u.test(following)&&target.segments.at(-1)?.kind==='recital') {
+        const raw=rawResolutionUnits(text,wording.language),matches=raw.units.filter(unit=>unit.kind==='recital'&&unit.start===placement.span.start);
+        if(raw.reason||matches.length!==1||matches[0].end!==placement.span.end)return {status:'unverified',reason:'oracle-editorial-boundary-unavailable'};
+      }
+    }
     const drift=!proposal&&assertResolutionNumberingDrift({text,wording,placement,voteReferences});
     if(drift)return drift;
     let source, labels = [];
@@ -697,6 +720,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
     return locationOracle({proposal,text,target,wording,placement,labels});
   }
   if (placement.operation !== 'insert' || !target.complete || !target.segments.length) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  if(!proposal&&target.segments.at(-1)?.kind==='indent')return assertTerminalIndent({text,wording,placement});
   if (!proposal) return verifyResolutionInsertion(text,wording,target,placement);
   // COM(2025)531 puts an instruction's semicolon in a separate Word row
   // after its closing quotation. Even an otherwise unsupported point address

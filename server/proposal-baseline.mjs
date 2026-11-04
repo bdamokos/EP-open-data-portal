@@ -1,3 +1,4 @@
+import {identicalProposalEditions} from './proposal-edition-text.mjs';
 import {nativeGuidelineAnnex} from './proposal-guideline-annex.mjs';
 import {backfillSelectionMatches} from './base-source-backfill-context.mjs';
 import path from 'node:path';
@@ -20,7 +21,7 @@ function matchesNativeDeclaration(work,native,language) {
 }
 
 export function createProposalBaseline({documents=new CellarDocuments(),request=odp}={}) {
-  return function proposalBaseline({reportId,celex,language='en',documentReferences=[],nativeReferencePair}={}) {
+  return function proposalBaseline({reportId,celex,language='en',documentReferences=[],nativeReferencePair,identityOnly=false}={}) {
     odpLanguage(language);
     if(reportId!=null&&!committeeDraftId(reportId)&&!/^A-\d{1,2}-\d{4}-\d{4}$/.test(reportId))throw new HttpError(400,'invalid_report','Choose an exact A-report identifier.');
     if(celex!=null)proposalCelex(celex);
@@ -63,21 +64,26 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
         if(consultation&&language!=='en')return unavailable('language-unavailable',['native-procedure-language-unavailable']);
         if(nle&&!reportId)return unavailable('unresolved',['nle-report-reference-unavailable']);
         if(nle&&language!=='en')return unavailable('language-unavailable',['native-procedure-language-unavailable']);
-        const candidates=await documents.candidates(sourceCelex),candidate=resolveProposalCandidates(candidates.data,{celex:sourceCelex});
+        const candidates=await documents.candidates(sourceCelex);let candidate=resolveProposalCandidates(candidates.data,{celex:sourceCelex});
         evidence.push({kind:'candidate-source',url:candidates.url,fetchedAt:candidates.fetchedAt,stale:Boolean(candidates.viewCache?.stale),refreshError:candidates.viewCache?.refreshError||null},...candidate.evidence);
+        let equivalent=null;
+        if(candidate.gaps.includes('ambiguous-com-candidates'))equivalent=await identicalProposalEditions(documents,candidates.data,{celex:sourceCelex,language,procedure});
+        if(equivalent){candidate={...candidate,status:'resolved',workId:equivalent.identity.workId,gaps:[]};evidence.push(equivalent.evidence);}
         if(candidate.status!=='resolved')return unavailable(candidate.status,candidate.gaps);
         metadataStale ||= Boolean(candidates.viewCache?.stale);
-        const metadata=nativeDecision?await documents.metadataByWork(candidate.workId,{celex:sourceCelex}):await documents.metadata(sourceCelex),identity=resolveProposalTree(metadata.xml,{celex:sourceCelex,language,procedure});
+        const metadata=equivalent?.metadata??(nativeDecision?await documents.metadataByWork(candidate.workId,{celex:sourceCelex}):await documents.metadata(sourceCelex)),identity=resolveProposalTree(metadata.xml,{celex:sourceCelex,language,procedure});
         evidence.push({kind:'cellar-source',url:metadata.url,resolvedSourceUrl:metadata.resolvedSourceUrl,fetchedAt:metadata.fetchedAt,stale:Boolean(metadata.viewCache?.stale),refreshError:metadata.viewCache?.refreshError||null},...identity.evidence);
         if(identity.status!=='resolved')return unavailable(identity.status,identity.gaps,{workId:identity.workId});
         if(identity.workId!==candidate.workId)return unavailable('unresolved',['proposal-work-conflict']);
-        if(consultation&&identity.evidence.find(e=>e.kind==='cellar-identity')?.types?.[0]!=='http://publications.europa.eu/resource/authority/resource-type/PROP_DIR')return unavailable('unresolved',['native-procedure-type-unavailable'],{workId:identity.workId});
+        if(consultation&&!/^http:\/\/publications\.europa\.eu\/resource\/authority\/resource-type\/(?:AMEND_)?PROP_DIR$/.test(identity.evidence.find(e=>e.kind==='cellar-identity')?.types?.[0]||''))return unavailable('unresolved',['native-procedure-type-unavailable'],{workId:identity.workId});
         if(nle&&identity.evidence.find(e=>e.kind==='cellar-identity')?.types?.[0]!=='http://publications.europa.eu/resource/authority/resource-type/PROP_DEC')return unavailable('unresolved',['native-procedure-type-unavailable'],{workId:identity.workId});
         if(!backfillSelectionMatches(identity))return unavailable('unresolved',['retained-selection-conflict'],{workId:identity.workId});
+        // Identity without any proposal text: used to link the proposal, never to read it.
+        if(identityOnly)return procedure?.endsWith('(COD)')&&!nativeDecision?{status:'identified',celex:sourceCelex,workId:identity.workId,language,items:[],gaps:[],evidence}:unavailable('unresolved',['identity-only-procedure'],{workId:identity.workId});
         const items=[],gaps=[];let bytes=0;
         for(const item of identity.items) {
           try {
-            const content=await documents.docx({celex:sourceCelex,language:item.languageUri,...item});
+            const content=equivalent?.items.find(part=>part.itemId===item.itemId)??await documents.docx({celex:sourceCelex,language:item.languageUri,...item});
             docxParts(content.buffer);bytes+=content.buffer.length;
             if(bytes>CELLAR_LIMITS.bundleBytes){gaps.push({code:'bundle-too-large',itemId:item.itemId});break;}
             items.push({...item,source:content.source,buffer:content.buffer});
@@ -105,7 +111,7 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
         if(isLocalRequestFailure(error))throw error;
         return unavailable('unavailable',[{code:error.code||'proposal-source-unavailable'}]);
       }
-    },45_000).then(result=>retainBaseSelection('proposal',{reportId,celex,language,documentReferences,nativeReferencePair},result,{directory:documents.directory&&path.dirname(documents.directory)})));
+    },45_000).then(result=>identityOnly?result:retainBaseSelection('proposal',{reportId,celex,language,documentReferences,nativeReferencePair},result,{directory:documents.directory&&path.dirname(documents.directory)})));
   };
 }
 /** Internal, lazy source function. Buffers go directly to the existing DOCX pipeline. */

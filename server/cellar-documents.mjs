@@ -180,12 +180,13 @@ export class CellarDocuments {
       return {url,resolvedSourceUrl:result.url,fetchedAt:new Date(this.clock()).toISOString(),xml};
     },{freshMs:backfillContext()?Infinity:CELLAR_LIMITS.metadataFreshMs,validate:record=>{if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw failure('cellar_metadata','Invalid saved proposal metadata.');validateTree(record.xml,celex);}})));
   }
-  async metadataByWork(workId,{celex}={}) {
+  async metadataByWork(workId,{celex,editionCelex=celex}={}) {
     proposalCelex(celex);
+    if(editionCelex!==celex&&!(editionCelex.startsWith(celex)&&/^\(\d{2}\)$/.test(editionCelex.slice(celex.length))))throw failure('cellar_metadata','Invalid proposal edition identifier.');
     if(!CELLAR_WORK_PATTERN.test(workId))throw failure('cellar_work','Invalid proposal work identifier.');
     const url=cellarTransportUrl(workId+'/rdf/tree/full',{redirect:true});
-    const validate=xml=>{if(!cellarGraph(xml).values(workId,'resource_legal_id_celex').includes(celex))throw failure('cellar_metadata','The metadata tree does not identify the requested work.');};
-    return this.retainMetadata(await waitForRequest(this.sources.cache.get(['proposal-work-tree-v1',workId,celex],async()=>{
+    const validate=xml=>{if(!cellarGraph(xml).values(workId,'resource_legal_id_celex').includes(editionCelex))throw failure('cellar_metadata','The metadata tree does not identify the requested work.');};
+    return this.retainMetadata(await waitForRequest(this.sources.cache.get(['proposal-work-tree-v1',workId,editionCelex],async()=>{
       const result=await this.request(url,{accept:CELLAR_RDF_ACCEPT});
       if(result.status!==200)throw failure('cellar_metadata','The proposal metadata is unavailable.');
       const xml=result.buffer.toString('utf8');validate(xml);

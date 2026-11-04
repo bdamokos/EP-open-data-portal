@@ -1,4 +1,5 @@
 import {amendmentProvisional,provisionalDecision} from './amendment-provisional.mjs';
+import {distributionCandidate,requireDistributionIdentity,nativeDistributionText} from './ep-distribution-route.mjs';
 import {adoptedPlacementText,placementAdoptedListing} from './amendment-placement-check.mjs';
 import {hasCouncilQuotation,reportCouncilQuotation} from './report-council-quotation.mjs';
 import {isDeepStrictEqual} from 'node:util';
@@ -11,7 +12,7 @@ import {odp,ODP_BASE,odpLanguage,boundedUpstream} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {documentSummary} from './activities.mjs';
 import {array,tail,documentFiles} from './activity-index-model.mjs';
-import {documentText,downloadDocxBuffer,allowedDownload} from './document-text.mjs';
+import {documentText,docxParts,downloadDocxBuffer,allowedDownload} from './document-text.mjs';
 import {extractAmendments,AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {amendmentReference,amendmentTextLosses,canonicalEPReference,sameDocxDescriptor} from './amendments.mjs';
 import * as amendmentStore from './amendments-store.mjs';
@@ -31,13 +32,15 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=99;
+export const DOCUMENT_CONTEXT_VERSION=100;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
-const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-(?:[1-9]|10)-\d{4}-\d{4,6}$/.test(id)||committeeDraftId(id)||committeeListId(id));
+// A plenary amendment list is readable as a document only for the provisional agreement it publishes.
+const plenaryListId=id=>/^A-10-\d{4}-\d{4,6}-AM-\d{1,5}-\d{1,5}$/.test(id);
+const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-(?:[1-9]|10)-\d{4}-\d{4,6}$/.test(id)||plenaryListId(id)||committeeDraftId(id)||committeeListId(id));
 const ref=value=>canonicalEPReference(value);
 const refs=value=>array(value).map(ref).filter(Boolean);
 const canonicalType=value=>String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
-const expectedType=id=>'def/ep-document-types/'+(committeeListId(id)?'AMENDMENT_LIST':committeeDraftId(id)?id.includes('-PR-')?'REPORT_PARLIAMENTARY_COMMITTEE_DRAFT':'OPINION_PARLIAMENTARY_COMMITTEE_DRAFT':id.startsWith('TA-')?'TEXT_ADOPTED':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':id.startsWith('B-')?'RESOLUTION_MOTION':'REPORT_PLENARY');
+const expectedType=id=>'def/ep-document-types/'+(committeeListId(id)||plenaryListId(id)?'AMENDMENT_LIST':committeeDraftId(id)?id.includes('-PR-')?'REPORT_PARLIAMENTARY_COMMITTEE_DRAFT':'OPINION_PARLIAMENTARY_COMMITTEE_DRAFT':id.startsWith('TA-')?'TEXT_ADOPTED':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':id.startsWith('B-')?'RESOLUTION_MOTION':'REPORT_PLENARY');
 const knownDocumentRelationships=(node,field)=>node[field]!=null&&array(node[field]).every(value=>ref(value)?.startsWith('eli/dl/doc/'));
 const procedureIds=work=>[...new Set(array(work.inverse_created_a_realization_of).flatMap(value=>{const id=String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');return /^eli\/dl\/proc\/\d{4}-\d{4}[A-Z]?$/.test(id)?[tail(id)]:[];}))];
 const workId=node=>node?.identifier||tail(node?.id);
@@ -74,7 +77,7 @@ export function documentContextQuery(id,params) {
   const wordingLanguage=params.get('wording-lang');
   if(wordingLanguage!==null&&(!amendmentId||!listId||wordingLanguage!=='unknown'&&!/^[a-z]{2}$/.test(wordingLanguage)))throw new HttpError(400,'invalid_query','wording-lang requires an exact amendment, list and source language.');
   if(adopted!==null&&adopted!=='1')throw new HttpError(400,'invalid_query','adopted must be 1.');
-  if(adopted!==null&&(committeeRoot||amendmentId||listId||id.startsWith('TA-')))throw new HttpError(400,'invalid_query','Find adopted texts from the original report or motion.');
+  if(adopted!==null&&(committeeRoot||amendmentId||listId||id.startsWith('TA-')||plenaryListId(id)))throw new HttpError(400,'invalid_query','Find adopted texts from the original report or motion.');
   const finalText=params.get('final-text');
   if(finalText!==null&&(finalText!=='1'||!amendmentId||!listId||wordingLanguage===null||adopted!==null))throw new HttpError(400,'invalid_query','A final-text comparison requires an exact amendment, list and wording language.');
   if(params.has('body')&&(params.get('body')!=='0'||!amendmentId||adopted!==null))throw new HttpError(400,'invalid_query','body=0 requires an exact amendment.');
@@ -122,6 +125,7 @@ export class DocumentContext {
     if(!job) {
       job=sharedRequest(async signal=>{
         const downloaded=await this.download(file.url),{buffer,resolvedSourceUrl}=downloaded;signal.throwIfAborted();
+        if(file.identityRequired)requireDistributionIdentity([nativeDistributionText(docxParts(buffer).get('word/document.xml'))],listId);
         const source={url:file.url,resolvedSourceUrl,fetchedAt:downloaded.fetchedAt??new Date(this.clock()).toISOString(),language:file.language,contentHash:createHash('sha256').update(buffer).digest('hex'),retrievedByteSize:buffer.byteLength,sourceVersion:distributionVersion(list,file.url),stale:false,refreshInProgress:false,refreshError:null,...(downloaded.requests?{requests:downloaded.requests}:{}),...(downloaded.freshnessAssessed===false?{freshnessAssessed:false}:{})};
         const declarations=declaredDocxFiles(list).filter(d=>d.language===file.language&&distributionUrl(d.url)===file.url);
         const declaration=declarations.length===1?{documentId:listId,...declarations[0]}:null;
@@ -151,7 +155,7 @@ export class DocumentContext {
       const source=saved?.source||{url:record.url||ODP_BASE+endpoint,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null,contentHash:createHash('sha256').update(serialized).digest('hex')};
       sources.push(source);const result={work:nodes[0],record,source};records.set(endpoint,result);return result;
     };
-    const endpoint=committeeDocumentEndpoint(query.id)||(query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
+    const endpoint=committeeDocumentEndpoint(query.id)||(plenaryListId(query.id)?'/documents/':query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
     let {work,record,source:rootSource}=await read(endpoint,query.id);
     if(canonicalType(work.work_type)!==expectedType(query.id)||(committeeDraftId(query.id)||committeeListId(query.id))&&!validCommitteeWork(work))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
     const related={status:'not-requested',items:[],gaps:[]};
@@ -184,7 +188,7 @@ export class DocumentContext {
     }
     let document=null;
     if(!query.adopted&&query.includeBody!==false) {
-      let selectedText=await this.readText(work,query.language);
+      let selectedText=await this.readText(work,query.language,plenaryListId(query.id)?{enqueue:false}:undefined);
       if(retained?.root&&['error','unavailable'].includes(selectedText?.status))try {
         const fresh=await read(endpoint,query.id,{live:true});
         if(canonicalType(fresh.work.work_type)!==expectedType(query.id)||(committeeDraftId(query.id)||committeeListId(query.id))&&!validCommitteeWork(fresh.work))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
@@ -381,16 +385,17 @@ export class DocumentContext {
       if(typeof candidate==='string'||!Object.hasOwn(candidate,'is_realized_by')||query.matchingTextLanguages&&!declaredDocxFiles(candidate).some(file=>query.matchingTextLanguages.includes(file.language)))try {const result=await read('/documents/'+listId,listId);list=result.work;metadataSource=result.source;}catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;base.gaps.push('amendment-list-unavailable');continue;}
       if(workId(list)!==listId||canonicalType(list.work_type)!=='def/ep-document-types/AMENDMENT_LIST'||!committeeListId(query.id)&&!refs(list.foresees_change_of).includes('eli/dl/doc/'+query.id)){base.gaps.push('amendment-list-target-unverified');continue;}
       const wordingSelected=Object.hasOwn(query,'wordingLanguage')||Boolean(query.matchingTextLanguages);
-      const files=wordingSelected?declaredDocxFiles(list):documentFiles(list).filter(file=>file.format==='DOCX'&&file.language&&allowedDownload(file.url));
+      const candidateFile=distributionCandidate(list,query.wordingLanguage||query.language);
+      const files=candidateFile?[candidateFile]:wordingSelected?declaredDocxFiles(list):documentFiles(list).filter(file=>file.format==='DOCX'&&file.language&&allowedDownload(file.url));
       const languages=[...new Set(files.map(file=>file.language))],language=query.matchingTextLanguages?amendmentLanguagePreference(languages.filter(language=>query.matchingTextLanguages.includes(language)),query.wordingLanguage||query.language,array(work.originalLanguage).map(languageCode))[0]:wordingSelected?query.wordingLanguage:languages.includes(query.language)?query.language:languages.includes('en')?'en':languages[0];
       const selected=files.filter(file=>file.language===language);
       // Preserve declared alternatives without downloading unrequested wording.
       // Every same-language file competes, including one we cannot parse.
-      const alternatives=wordingSelected?files.map(file=>({listId,language:file.language,justification:null,targetLabel:null,targetLabelLanguage:null,wordingStatus:'unavailable',originalText:null,proposedText:null,authors:[],source:{...(file.url!==null?{url:file.url}:{}),language:file.language,sourceVersion:file.sourceVersion},metadataSource,gaps:[file.language===language?'amendment-wording-unavailable':'wording-not-requested']})):[];
+      const alternatives=wordingSelected&&!candidateFile?files.map(file=>({listId,language:file.language,justification:null,targetLabel:null,targetLabelLanguage:null,wordingStatus:'unavailable',originalText:null,proposedText:null,authors:[],source:{...(file.url!==null?{url:file.url}:{}),language:file.language,sourceVersion:file.sourceVersion},metadataSource,gaps:[file.language===language?'amendment-wording-unavailable':'wording-not-requested']})):[];
       base.variants.push(...alternatives);
       if(selected.length!==1){base.gaps.push('amendment-file-unavailable-or-ambiguous');continue;}
       let file=selected[0];
-      if(wordingSelected) {
+      if(wordingSelected&&!file.identityRequired) {
         let url=null;try{if(file.url!==null)url=new URL(file.url,'https://data.europarl.europa.eu/').href;}catch{/* Keep malformed declarations unavailable. */}
         file=documentFiles(list).find(candidate=>candidate.format==='DOCX'&&candidate.language===language&&candidate.url===url&&allowedDownload(candidate.url));
         if(!file){base.gaps.push('amendment-file-unavailable-or-ambiguous');continue;}
@@ -403,7 +408,7 @@ export class DocumentContext {
         const row=rows[0],losses=amendmentTextLosses(extraction,row);
         if(losses.length||typeof row.originalText!=='string'||typeof row.proposedText!=='string'){base.gaps.push('amendment-wording-incomplete');continue;}
         const variant={listId,language,justification:amendmentJustification({...row,language,metadataSource:source})?.text??null,documentDate:row.documentDate,listDocumentDate:list.document_date??null,dateBasis:row.dateBasis,baseline:row.baseline ?? 'unknown',baselineSource:row.baselineSource??null,documentReferences:row.documentReferences??[],targetPath:row.targetPath??null,targetLabel:row.targetLabel,targetLabelLanguage:language,targetLabelSource:source,fieldSources:{wording:source,targetLabel:source,justification:source},wordingStatus:'available',originalText:row.originalText,proposedText:row.proposedText,originalFormatting:row.originalFormatting || [],proposedFormatting:row.proposedFormatting || [],authors:row.authors.map(name=>({name,personId:null,status:'published-name'})),source:{...source,notesComplete:!array(row.gaps).some(gap=>gap?.code==='notes-unavailable')},parserVersion:AMENDMENT_EXTRACTION_VERSION,gaps:array(row.gaps)};
-        if(wordingSelected)Object.assign(alternatives[files.indexOf(selected[0])],variant);else base.variants.push(variant);
+        if(wordingSelected&&!candidateFile)Object.assign(alternatives[files.indexOf(selected[0])],variant);else base.variants.push(variant);
       }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;base.gaps.push('amendment-source-unavailable');}
     }
     if(base.gaps.includes('conflicting-list-metadata'))base.variants=[];

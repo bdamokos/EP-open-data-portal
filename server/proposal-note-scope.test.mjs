@@ -10,8 +10,8 @@ test('NLE note comparisons place the body and preserve separately bound payload 
 test('changed source notes, moved markers and fabricated orphan notes stay withheld',()=>{
  for(const change of [x=>x.chosen.originalText=x.chosen.originalText.replace('First citation.','Changed.'),x=>x.chosen.originalFormatting[0].start--,x=>x.chosen.proposedText+='\n3 New orphan.',x=>x.items[0].proposal.notes[0].complete=false,x=>x.chosen.proposedFormatting=[]]){const input={...setup(),chosen:chosen()};change(input);assert.equal(documentContextPlacement(input).reason,'proposal_note_scope_unavailable');}
 });
-test('unsupported CNS note comparisons retain their guard and an unrelated body cannot place',()=>{
- const input={...setup(),chosen:chosen()};input.baseline.evidence[0].procedure='2028/0045(CNS)';input.chosen.documentReferences=[{field:'DocRef',raw:'2028/0045 (CNS)'}];assert.equal(documentContextPlacement(input).reason,'proposal_note_scope_unavailable');
+test('CNS uses native note proof and an unrelated body cannot place',()=>{
+ const input={...setup(),chosen:chosen()};input.baseline.evidence[0].procedure='2028/0045(CNS)';input.chosen.documentReferences=[{field:'DocRef',raw:'2028/0045 (CNS)'}];assert.equal(documentContextPlacement(input).status,'placed');
  input.baseline.evidence[0].procedure='2028/0045(NLE)';input.chosen.originalText=input.chosen.originalText.replace('Alpha','Gamma');assert.equal(documentContextPlacement(input).status,'unresolved');
 });
 test('proposed-only notes before recital one use a complete Whereas block, independent of cover completeness',()=>{
@@ -19,4 +19,12 @@ test('proposed-only notes before recital one use a complete Whereas block, indep
  const input={...setup(),chosen:{...chosen(),targetLabel:'Recital -1 (new)',originalText:'',originalFormatting:[],proposedText:'(-1)\tNew1a.\n_____\n1a New citation.',proposedFormatting:[{kind:'superscript',start:8,end:10}]},items:[{kind:'act',proposal:parseProposal(bytes)}]};
  const a=documentContextPlacement(input);assert.equal(a.status,'placed');assert.equal(a.insertBefore,1);assert.deepEqual(a.noteScope.proposedLabels,['1a']);
  input.items[0].proposal=structuredClone(input.items[0].proposal);input.items[0].proposal.paragraphs[2].complete=false;assert.equal(documentContextPlacement(input).status,'unresolved');
+});
+
+test('original-only notes support deletions across proposal procedures',()=>{
+ for(const procedure of ['CNS','COD','NLE']){const input={...setup(),chosen:chosen()};input.baseline.evidence[0].procedure=`2028/0045(${procedure})`;input.chosen.documentReferences=[{field:'DocRef',raw:`2028/0045(${procedure})`}];input.chosen.proposedText='deleted';input.chosen.proposedFormatting=[];const a=documentContextPlacement(input);assert.equal(a.status,'placed');assert.equal(a.operation,'delete');if(procedure==='COD')assert.equal(a.noteScope,undefined);else assert.deepEqual(a.noteScope.proposedLabels,[]);input.chosen.originalText=input.chosen.originalText.replace('First citation.','Wrong citation.');assert.equal(documentContextPlacement(input).status,'unresolved');}
+});
+test('proposed instructions with a plus marker stay in the note comparison',()=>{
+ const input={...setup(),chosen:chosen()};input.chosen.proposedText='(1) Changed1a+.\n_____\n1a New citation.\n+ OJ: Please complete the reference.';input.chosen.proposedFormatting=[{kind:'superscript',start:11,end:14}];assert.equal(documentContextPlacement(input).status,'placed');
+ input.chosen.proposedText='(1) Changed.\n_____';input.chosen.proposedFormatting=[];assert.equal(documentContextPlacement(input).status,'placed');
 });
