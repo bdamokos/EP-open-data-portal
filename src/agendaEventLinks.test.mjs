@@ -41,9 +41,18 @@ for(const [status,terminal] of [[404,true],[503,false],[503,true]])test('agenda 
   return base;
  });
  const panel=node.querySelector('.insight-topic-detail');assert.equal(panel.querySelector('button'),null);
- if(status===404){assert.equal(panel.querySelector('h2').textContent,'Agenda item unavailable');assert.equal(panel.querySelector('[role=alert]'),null);assert.equal(attempts,1);assert.equal(installRetryClock(t).timers.size,0);return;}
+ if(status===404){assert.equal(panel.querySelector('h2 a').textContent,'Open original document ↗');assert.match(panel.querySelector('h2 a').href,/CRE-10-2026-10-07-ITM-\d{3}_EN.html$/);assert.equal(panel.querySelector('[role=alert]'),null);assert.equal(attempts,1);assert.equal(installRetryClock(t).timers.size,0);return;}
  assert.equal(panel.querySelector('h2').textContent,'Loading…');assert.equal(panel.querySelector('[role=alert]'),null);
- if(terminal){await exhaustAutomaticRetries(t);assert.equal(attempts,7);assert.equal(panel.querySelector('h2').textContent,'Agenda item unavailable');assert.match(panel.querySelector('[role=alert]').textContent,/Could not load this item/);assert.equal(panel.querySelector('[role=alert] button'),null);assert.equal(installRetryClock(t).timers.size,0);}
+ if(terminal){await exhaustAutomaticRetries(t);assert.equal(attempts,7);assert.equal(panel.querySelector('h2 a').textContent,'Open original document ↗');assert.match(panel.querySelector('h2 a').href,/CRE-10-2026-10-07-ITM-\d{3}_EN.html$/);assert.equal(panel.querySelector('[role=alert]'),null);assert.equal(installRetryClock(t).timers.size,0);}
  failed=false;const before=attempts;if(terminal)await act(async()=>window.dispatchEvent(new window.Event('online')));else await automaticRecovery(t);
  assert.equal(attempts,before+1);assert.equal(panel.querySelector('h2').textContent,'Recovered exact debate');assert.equal(panel.querySelector('[role=alert]'),null);assert.equal(panel.dataset.agendaTopic,id);
+});
+
+for(const index of [0,1,2])test('exact speech focus selects guest '+index+' with MEP rows present',async t=>{
+ const id=sitting+'-PVCRE-ITM-'+(65+index),ids=[sitting+'-OTH-100',sitting+'-OTH-200',sitting+'-OTH-300',sitting+'-OTH-400'],names=['President','Felipe VI','Marcelo Rebelo de Sousa','President'];
+ const node=await harness(t,'Legislation','?view=legislation&agenda-period=sitting:'+sitting+'&agenda-topic='+id+(index?'&agenda-speech='+ids[index]:''),u=>{
+  if(!u.pathname.endsWith('/insights/legislation'))return {ready:false};
+  return {sitting:{id:sitting,date,phase:'past'},sittings:[{id:sitting,date,phase:'past'}],topics,coverage:{agendaError:null},detail:u.searchParams.has('topic')?{...topics[0],id,kind:'PLENARY_ACTIVITY',title:'Formal sitting',phase:'past',procedures:[],committeeWork:[],roles:[],speeches:ids.map((sourceId,i)=>({sourceId,date,title:'Speech',kind:'PLENARY_DEBATE_SPEECH',start:null,people:[{id:String(i),name:names[i],currentMep:i===0||i===3}]})),people:[],stats:{denominator:0,dimensions:{country:[],group:[],gender:[],age:[]}},votes:[],selectedVote:null,voteCoverage:{truncated:false},coverage:{gaps:[],roleRowsTruncated:false,speechAssociations:{sources:[],truncated:false}}}:null};
+ });
+ assert.match(node.querySelector('.insight-speech-position').textContent,new RegExp('Speech '+(index+1)+' of 4'));assert(node.querySelector('.insight-speech-position').textContent.includes(names[index]));assert(node.querySelector('.insight-eyebrow').textContent.includes('Special event'));
 });

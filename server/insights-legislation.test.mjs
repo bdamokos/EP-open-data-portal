@@ -265,7 +265,7 @@ function actualEventHarness(t,change={},options={}) {
   calls.push([ep,params]);if(ep.endsWith('/foreseen-activities')){if(!options.paged)return agenda;return {...agenda,url:agenda.url+'?offset='+params.offset,fetchedAt:agenda.fetchedAt+params.offset*1000,payload:{data:params.offset?[scheduled[1]]:[agenda.payload.data[0],scheduled[0],vote,...Array.from({length:47},(_,i)=>({id:'unused-'+i}))]}};}
   if(ep==='/events/'+event.activity_id&&options.upstreamStatus)throw Object.assign(new Error('Fixture source error'),{status:502,code:'odp_unavailable',upstreamStatus:options.upstreamStatus,source:{url:'https://data.europarl.europa.eu/api/v2'+ep,httpStatus:options.upstreamStatus}});
   if(ep==='/events/'+event.activity_id)return {url:'https://data.europarl.europa.eu/api/v2'+ep,fetchedAt:fixture.speechParent.fetchedAt,payload:{data:[event]}};
-  if(ep.startsWith('/procedures/')){const id=ep.split('/').at(-1);return {url:'https://data.europarl.europa.eu/api/v2'+ep,fetchedAt:fixture.procedure.fetchedAt,payload:{data:[{id:'eli/dl/proc/'+id,consists_of:[]}]}};}
+  if(ep.startsWith('/procedures/')){const id=ep.split('/').at(-1);return {url:'https://data.europarl.europa.eu/api/v2'+ep,fetchedAt:fixture.procedure.fetchedAt,payload:{data:[{id:'eli/dl/proc/'+id,consists_of:options.procedureEvents?[event]:[]}]}};}
   if(ep.endsWith('/vote-results'))return {...fixture.results,payload:{data:[]}};
   if(ep.endsWith('/decisions'))return {...fixture.decisions,payload:{data:[]}};
   throw Error('Unexpected fixture source: '+ep);
@@ -318,7 +318,34 @@ test('formal addresses without a scheduled agenda item retain exact title and ch
 
 test('formal address includes held outside speech headers without roster or name matching',async t=>{
  const h=actualEventHarness(t,{had_activity_type:'def/ep-activities/PLENARY_ACTIVITY',executed:undefined});
- const id='MTG-PL-2026-10-07-OTH-123456';h.event.consists_of.push('eli/dl/event/'+id);
+ const id='MTG-PL-2026-10-07-OTH-123456';h.event.consists_of=[...h.event.consists_of,'eli/dl/event/'+id];
  h.store.db.prepare('INSERT INTO outside_contributions VALUES (?,?,?,?,?)').run(h.generation,id,'999999','2026-10-07',JSON.stringify({id,personId:'999999',date:'2026-10-07',header:{name:'Visiting head of state'},titles:{en:'Address'},source:{url:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:'2026-10-14T09:30:00Z'}}));
  const r=await h.query(),speech=r.detail.speeches.find(s=>s.sourceId===id);assert(speech);assert.equal(speech.people[0].name,'Visiting head of state');assert.equal(speech.people[0].currentMep,false);assert(!h.calls.some(([ep])=>ep==='/meps/999999'));
+});
+
+function heldGuest(h,id,personId,name,start,date='2026-10-07'){
+ h.event.consists_of=[...h.event.consists_of,'eli/dl/event/'+id];
+ h.store.db.prepare('INSERT INTO outside_contributions VALUES (?,?,?,?,?)').run(h.generation,id,personId,date,JSON.stringify({id,personId,date,start,header:{name},titles:{en:'Address'},source:{url:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:'2026-10-14T09:30:00Z'}}));
+}
+for(const type of ['PLENARY_DEBATE','PLENARY_ACTIVITY'])test(type+' keeps two guest speeches ordered with MEPs and outside participation counts',async t=>{
+ const h=actualEventHarness(t,{had_activity_type:'def/ep-activities/'+type,executed:undefined});
+ const before=await h.query();const first=before.detail.speeches[0].sourceId;
+ h.store.db.prepare("UPDATE items SET body=json_set(body,'$.start','2026-10-07T12:10:00+02:00') WHERE generation=?").run(h.generation);
+ const closing={...fixture.speech.payload.data[0],activity_id:'MTG-PL-2026-10-07-OTH-999999',activity_start_date:'2026-10-07T12:46:00+02:00'};
+ h.store.putSource(h.generation,'/speeches/'+closing.activity_id,'speech',{id:closing.activity_id},'2026-10-14T09:30:00Z',speechRows(closing,'2026-10-14T09:30:00Z'));h.event.consists_of=[...h.event.consists_of,'eli/dl/event/'+closing.activity_id];
+ const baseline=await h.query();
+ const second='MTG-PL-2026-10-07-OTH-222222',third='MTG-PL-2026-10-07-OTH-333333';
+ heldGuest(h,third,'999998','Second guest','2026-10-07T12:32:00+02:00');heldGuest(h,second,'999997','First guest','2026-10-07T12:20:00+02:00');
+ const r=await h.query();assert.deepEqual(r.detail.speeches.map(s=>s.sourceId),[first,second,third,closing.activity_id]);assert.deepEqual(r.detail.stats,baseline.detail.stats);assert.deepEqual(r.detail.people,baseline.detail.people);assert.equal(r.detail.kind,type);assert(!r.topics.some(t=>t.kind==='PLENARY_ACTIVITY'));assert(!h.calls.some(([ep])=>ep.startsWith('/meps/')));
+});
+test('procedural activity without held speeches keeps the previous not-found response',async t=>{
+ const h=actualEventHarness(t,{had_activity_type:'def/ep-activities/PLENARY_ACTIVITY',executed:undefined,consists_of:[]});await assert.rejects(h.query(),e=>e.status===404);
+});
+test('guests match an earlier associated debate date rather than the scheduled topic date',async t=>{
+ const h=actualEventHarness(t,{id:'eli/dl/event/MTG-PL-2026-10-06-PVCRE-ITM-5',activity_id:'MTG-PL-2026-10-06-PVCRE-ITM-5',activity_date:'2026-10-06'},{procedureEvents:true});
+ const id='MTG-PL-2026-10-06-OTH-222222',wrong='MTG-PL-2026-10-07-OTH-333333';heldGuest(h,id,'999997','Earlier guest','2026-10-06T12:20:00+02:00','2026-10-06');heldGuest(h,wrong,'999998','Wrong date','2026-10-07T12:20:00+02:00');
+ const r=await h.query(h.scheduled[0].activity_id);assert(r.detail.speeches.some(s=>s.sourceId===id));assert(!r.detail.speeches.some(s=>s.sourceId===wrong));assert(r.detail.speeches.some(s=>s.sourceId===fixture.speech.payload.data[0].activity_id));
+});
+test('procedure-backed candidates remain debate-only even with held guest speeches',async t=>{
+ const h=actualEventHarness(t,{had_activity_type:'def/ep-activities/PLENARY_ACTIVITY'},{procedureEvents:true});heldGuest(h,'MTG-PL-2026-10-07-OTH-222222','999997','Guest','2026-10-07T12:20:00+02:00');const r=await h.query(h.scheduled[0].activity_id);assert.equal(r.detail.speeches.length,0);
 });
