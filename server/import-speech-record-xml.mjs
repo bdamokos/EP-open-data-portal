@@ -241,12 +241,13 @@ export function rollbackRecord({store,corpus},id) {
   const targets=generations(store),beforeIndex=snapshot(store.db,INDEX_TABLES,id),beforeCorpus=snapshot(corpus.db,CORPUS_TABLES,id);
   corpus.transaction(()=>{
     corpus.assertWriter();
-    if(corpus.websiteSpeechHeld(id)) {
-      corpus.db.prepare("DELETE FROM texts WHERE document_id IN (SELECT id FROM documents WHERE source_id=?) AND json_extract(source_edition,'$.acquisition')='website-xml'").run(id);
+    // Text and metadata refresh separately, so each row answers for itself.
+    corpus.db.prepare("DELETE FROM texts WHERE document_id IN (SELECT id FROM documents WHERE source_id=?) AND json_extract(source_edition,'$.acquisition')='website-xml'").run(id);
+    if(corpus.speechMetadata(id)?.activity.acquisition===WEBSITE_ACQUISITION) {
       corpus.db.prepare('DELETE FROM speech_metadata WHERE source_id=?').run(id);
       corpus.db.prepare('DELETE FROM speech_catalog WHERE source_id=?').run(id);
-      corpus.db.prepare('DELETE FROM documents WHERE source_id=? AND NOT EXISTS(SELECT 1 FROM texts WHERE document_id=documents.id)').run(id);
     }
+    corpus.db.prepare('DELETE FROM documents WHERE source_id=? AND NOT EXISTS(SELECT 1 FROM texts WHERE document_id=documents.id) AND NOT EXISTS(SELECT 1 FROM speech_metadata WHERE source_id=documents.source_id)').run(id);
     store.transaction(()=>{
       store.assertWriter();
       for(const generation of targets) {
@@ -275,12 +276,17 @@ export function loadRecords(manifestFile,evidence,{today}={}) {
   if(new Set(records.map(record=>record.speech.id)).size!==records.length)refuse('The manifest holds more than one file for a speech.');
   return records;
 }
-async function waitForLease(acquire,seconds,label) {
+// Holding one lease while waiting for the other would starve that store's
+// writer, so an attempt either gets both or leaves neither held.
+export async function acquireBothLeases(store,corpus,seconds,{pauseMs=5000}={}) {
   const deadline=Date.now()+seconds*1000;
   for(;;) {
-    if(acquire())return;
-    if(Date.now()>=deadline)refuse(`The ${label} writer lease stayed busy for ${seconds} seconds; nothing was written.`);
-    await sleep(2000);
+    if(store.acquire()) {
+      if(corpus.acquire())return;
+      store.release();
+    }
+    if(Date.now()>=deadline)refuse(`The writer leases were not both free within ${seconds} seconds; nothing was written.`);
+    await sleep(pauseMs);
   }
 }
 export function rollbackRecipe(records,{manifest,evidence,index,corpus}) {
@@ -297,8 +303,7 @@ export async function runImport({manifest,evidence,index,corpus:corpusDirectory,
   const renew=setInterval(()=>{store.renew();corpus.renew();},20_000);renew.unref();
   const reports=[];
   try {
-    await waitForLease(()=>store.acquire(),waitSeconds,'activity-index');
-    await waitForLease(()=>corpus.acquire(),waitSeconds,'corpus');
+    await acquireBothLeases(store,corpus,waitSeconds);
     for(const record of records) {
       const report=rollback?rollbackRecord({store,corpus},record.speech.id):importRecord({store,corpus,worker},record,{dryRun});
       reports.push({...report,parent:record.placement.parent,basis:record.placement.basis,kind:record.speech.kind,language:record.speech.language,mepId:record.speech.mepId,sourceUrl:record.url,retrievedAt:record.retrievedAt});

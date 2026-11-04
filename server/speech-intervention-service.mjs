@@ -4,21 +4,22 @@ import {odp,speechSummary,speakerIdentities} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {interventionMetadata,buildInterventionSequence,speechId,speechPeople} from './speech-interventions.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
-import {retainedSpeechMetadata,retainedSpeechPage} from './corpus-speeches.mjs';
+import {retainedSpeechData,retainedSpeechMetadata,retainedSpeechPage} from './corpus-speeches.mjs';
 
 const source=record=>({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale)});
 const validId=id=>/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id||'');
-export const SPEECH_STATISTICS_VERSION=1;
+// Covers the statistics and speech-context responses.
+export const SPEECH_STATISTICS_VERSION=2;
 export const INTERVENTION_LIMITS=Object.freeze({memberPage:50,memberPages:20,sittingPage:500,sittingPages:4,selections:8,cacheMs:30*60_000});
 
 export class SpeechInterventions {
-  constructor({request=odp,clock=Date.now,identities=request===odp?speakerIdentities:null,readSpeechMetadata=request===odp?retainedSpeechMetadata:null,readCorpusPage=request===odp?retainedSpeechPage:null}={}) {Object.assign(this,{request,clock,identities,readSpeechMetadata,readCorpusPage});this.sittings=new Map();this.members=new Map();}
+  constructor({request=odp,clock=Date.now,identities=request===odp?speakerIdentities:null,readSpeechMetadata=request===odp?retainedSpeechMetadata:null,readCorpusPage=request===odp?retainedSpeechPage:null,readSpeechData=request===odp?retainedSpeechData:null}={}) {Object.assign(this,{readSpeechData,request,clock,identities,readSpeechMetadata,readCorpusPage});this.sittings=new Map();this.members=new Map();}
   async sitting(day) {
     let state=this.sittings.get(day);
     if(state&&this.clock()-state.at<INTERVENTION_LIMITS.cacheMs)return waitForRequest(state.promise);
     state={at:this.clock(),promise:null};
     state.promise=sharedRequest(async()=>{
-      const rows=new Map(),sources=[],issues=new Set();let total=null,ended=false;
+      const rows=new Map(),sources=[],issues=new Set();let total=null,ended=false,listed=0;
       for(let page=0;page<INTERVENTION_LIMITS.sittingPages;page++) {
         const record=await this.request('/speeches',{'sitting-date':day,'include-output':'xml_fragment',language:'en','sort-by':'numbering:asc',limit:INTERVENTION_LIMITS.sittingPage,offset:page*INTERVENTION_LIMITS.sittingPage},{staleWhileRevalidate:true});
         requestSignal()?.throwIfAborted();
@@ -33,12 +34,25 @@ export class SpeechInterventions {
           rows.set(activity.activity_id,activity);
         }
         if(hitIds&&[...hitIds].some(id=>!rows.has(id)))issues.add('missing-hit');
-        if((record.payload.data?.length||0)<INTERVENTION_LIMITS.sittingPage||total!==null&&(page+1)*INTERVENTION_LIMITS.sittingPage>=total){ended=true;break;}
+        // Pages count search hits. A page's records can fall short of its hits when
+        // Parliament omits one, which says nothing about later pages.
+        const count=Array.isArray(hits)?hits.length:record.payload.data?.length||0;listed+=count;
+        if(count<INTERVENTION_LIMITS.sittingPage||total!==null&&listed>=total){ended=true;break;}
       }
       return {rows:[...rows.values()],sources,coverage:{complete:ended&&issues.size===0&&rows.size===total,available:rows.size,total,issues:[...issues]}};
     }).catch(error=>{if(this.sittings.get(day)===state)this.sittings.delete(day);throw error;});
     this.sittings.set(day,state);while(this.sittings.size>INTERVENTION_LIMITS.selections)this.sittings.delete(this.sittings.keys().next().value);
     return waitForRequest(state.promise);
+  }
+  // Saved records for exact children the source list did not serve, and for this
+  // sitting's imports. Without a corpus the debate keeps reporting those as missing.
+  async retainedChildren(day,parent,rows) {
+    if(!this.readSpeechData)return [];
+    const served=new Set(rows.map(row=>row.activity_id));
+    const missing=[...new Set((Array.isArray(parent.consists_of)?parent.consists_of:[]).map(speechId).filter(child=>child&&!served.has(child)))].slice(0,100);
+    const saved=await this.readSpeechData({sourceIds:missing,metadataOnly:true,websiteSitting:day});
+    return (saved?.records||[]).filter(row=>row.metadata?.summary?.intervention&&row.metadata.activity?.activity_id===row.id&&row.metadata.activity.activity_date===day&&!served.has(row.id))
+      .map(row=>({activity:row.metadata.activity,intervention:row.metadata.summary.intervention,source:{url:row.metadata.sourceUrl,fetchedAt:row.metadata.fetchedAt,stale:false}}));
   }
   async context(id) {
     const retained=await this.readSpeechMetadata?.(id);requestSignal()?.throwIfAborted();
@@ -53,8 +67,10 @@ export class SpeechInterventions {
         const [event,sitting]=await Promise.all([this.request('/events/'+parentId,{}, {staleWhileRevalidate:true}),this.sitting(activity.activity_date)]);
         const parent=event.payload.data.find(a=>a.activity_id===parentId);
         if(!parent)throw new Error('The debate record is unavailable.');
-        const sequence=buildInterventionSequence(sitting.rows,{parentId,expectedIds:parent.consists_of||[]});
-        debates.push({id:parentId,titles:parent.activity_label||{},...sequence,records:sequence.records.map(({activity,...row})=>({...speechSummary(activity),...row})),sources:[source(event),...sitting.sources],sittingCoverage:sitting.coverage});
+        const retainedRecords=await this.retainedChildren(activity.activity_date,parent,sitting.rows);requestSignal()?.throwIfAborted();
+        const sequence=buildInterventionSequence(sitting.rows,{parentId,expectedIds:parent.consists_of||[],retained:retainedRecords});
+        const used=new Set(sequence.records.map(row=>row.id));
+        debates.push({id:parentId,titles:parent.activity_label||{},...sequence,records:sequence.records.map(({activity,...row})=>({...speechSummary(activity),...row})),sources:[source(event),...sitting.sources,...retainedRecords.filter(row=>used.has(row.activity.activity_id)).map(row=>row.source)],sittingCoverage:sitting.coverage});
       }catch(error){debates.push({id:parentId,titles:{},records:[],exchanges:[],coverage:{complete:false,expected:null,available:0,missingIds:[]},error:String(error.message),...(Number.isFinite(error.retryAt)?{retryAt:error.retryAt}:{})});}
     }
     if(this.identities) {

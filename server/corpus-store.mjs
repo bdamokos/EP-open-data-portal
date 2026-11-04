@@ -561,8 +561,14 @@ export class CorpusStore {
   }
   weekCloud(params){return this.snapshot(()=>readWeekCloud(this,params));}
   speechData(params){return this.snapshot(()=>this.speechDataSnapshot(params));}
-  speechDataSnapshot({sourceIds,language=null,metadataOnly=false}) {
+  speechDataSnapshot({sourceIds,language=null,metadataOnly=false,websiteSitting=null}) {
     if(!Array.isArray(sourceIds)||sourceIds.length>100||sourceIds.some(id=>!/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id)))throw new Error('Invalid retained speech selection.');
+    // An imported speech can be missing from its debate's own child list, so a sitting also names its imports.
+    if(websiteSitting!==null) {
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(websiteSitting))throw new Error('Invalid retained speech selection.');
+      const prefix='MTG-PL-'+websiteSitting+'-';
+      sourceIds=[...sourceIds,...this.db.prepare("SELECT source_id FROM speech_metadata WHERE source_id>=? AND source_id<? AND source_url GLOB 'https://www.europarl.europa.eu/doceo/*'").all(prefix,prefix+'~').map(row=>row.source_id)];
+    }
     let bytes=0;const records=[],roleBudget={remaining:8};
     for(const id of new Set(sourceIds)) {
       let metadata=null,metadataUnavailable=false;

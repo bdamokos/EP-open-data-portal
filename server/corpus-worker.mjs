@@ -210,6 +210,7 @@ export class CorpusWorker {
     this.store.set('speechLanguages',this.languages);
     const index=this.store.indexState();
     if(index.generation==null){this.store.set('discoveryCheckedAt',now);return;}
+    this.handOffResolvedSpeeches();
     if(index.published)await discoverDeclaredSpeeches(this,index.generation);
     const discovered=this.store.get('discoveredAt'), sameIndex=this.store.get('discoveredGeneration')===index.generation && this.store.get('discoveredPublished')===index.published;
     if(discovered && sameIndex && this.store.get('documentLanguages')===this.languages && now-Date.parse(discovered)<DISCOVER_EVERY){this.store.set('discoveryCheckedAt',now);return;}
@@ -217,6 +218,16 @@ export class CorpusWorker {
     this.store.set('discoveredAt',new Date(now).toISOString());this.store.set('documentLanguages',this.languages);
     this.store.set('discoveredGeneration',index.generation);this.store.set('discoveredPublished',index.published);
     this.store.set('discoveryCheckedAt',now);
+  }
+  // The index finds real records for imported speeches. It only reports them in
+  // its own table; this writer replaces the text. A read after the report ends it.
+  handOffResolvedSpeeches() {
+    if(!this.store.attachIndex()||!this.store.db.prepare("SELECT 1 FROM idx.sqlite_master WHERE type='table' AND name='speech_source_gaps'").get())return;
+    for(const {id,last_seen:resolvedAt} of this.store.db.prepare("SELECT id,last_seen FROM idx.speech_source_gaps WHERE state='resolved'").all()) {
+      if(!this.store.websiteSpeechHeld(id))continue;
+      const task=this.store.task('speech:'+id);
+      if(!task||task.done&&(task.done_at||0)<Date.parse(resolvedAt))this.queueSpeechEdition(id);
+    }
   }
   queueSpeechEdition(id) {
     const key='speech:'+id,body={id,editionRecheck:true};

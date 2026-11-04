@@ -108,6 +108,77 @@ test('shared sitting and member jobs survive their first reader disconnecting',a
   assert.equal(calls,2,'each shared service job must use one source request');
 });
 
+test('a sitting page short of bodies is not the last page: pages follow hits and totals',async()=>{
+  const row=number=>{const a=clone(byNumber(173));a.activity_id='MTG-PL-2026-10-06-OTH-'+number;a.id='eli/dl/event/'+a.activity_id;return a;};
+  const all=Array.from({length:563},(_,i)=>row(100000+i)),absent=new Set([3,40,499,520].map(i=>all[i].id)),offsets=[];
+  const service=new SpeechInterventions({request:async(endpoint,params)=>{
+    offsets.push(params.offset);
+    const page=all.slice(params.offset,params.offset+params.limit);
+    return {...response(page.filter(a=>!absent.has(a.id))),payload:{data:page.filter(a=>!absent.has(a.id)),searchResults:{hits:page.map(a=>({id:a.id}))},meta:{total:all.length}}};
+  }});
+  const sitting=await service.sitting('2026-10-06');
+  assert.deepEqual(offsets,[0,500]);
+  assert.equal(sitting.rows.length,559);
+  assert.equal(sitting.coverage.available,559);assert.equal(sitting.coverage.total,563);
+  assert.equal(sitting.coverage.complete,false);assert(sitting.coverage.issues.includes('missing-hit'));
+  // A short page of hits still ends the walk.
+  const small=new SpeechInterventions({request:async()=>response(all.slice(0,3))});
+  assert.equal((await small.sitting('2026-10-06')).rows.length,3);
+});
+
+test('retained records join a debate without losing its verified exchanges',async()=>{
+  const numberOf=row=>row.recorded_in_a_realization_of.find(doc=>doc&&typeof doc==='object').number;
+  const baseline=sequence(fixture.activities);
+  assert(baseline.exchanges.length>0);
+  const expectedExchanges=JSON.stringify(baseline.exchanges);
+  // An imported chair remark inside the numbered exchange 209-213: the API sequence has no slot for it.
+  const [day,major,minor]=numberOf(byNumber(210)).split('-');
+  const importId='MTG-PL-2026-10-06-OTH-900001';
+  const chair={activity:{id:'eli/dl/event/'+importId,activity_id:importId,activity_date:'2026-10-06',acquisition:'website-xml',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',recorded_in_a_realization_of:[{number:`${day}-${major}-${String(Number(minor)+5000).padStart(4,'0')}`}]},intervention:{type:'chair',numbering:null,parentIds:[parentId],speaker:{id:'1'},onBehalfOf:[]}};
+  const placed=buildInterventionSequence(fixture.activities,{parentId,expectedIds:[...fixture.parent.consists_of,chair.activity.id],retained:[chair]});
+  assert.equal(JSON.stringify(placed.exchanges),expectedExchanges);
+  assert.equal(placed.coverage.complete,baseline.coverage.complete);
+  assert.equal(placed.coverage.available,baseline.coverage.available+1);
+  assert.deepEqual(placed.sequence,{ordered:true,unnumberedIds:[importId]});
+  const ids=placed.records.map(row=>row.id),at=ids.indexOf(importId);
+  assert.equal(ids[at-1],byNumber(210).activity_id);assert.equal(ids[at+1],byNumber(211).activity_id);
+  // An import filed here but absent from the child list still belongs to this debate.
+  const unlisted=buildInterventionSequence(fixture.activities,{parentId,expectedIds:fixture.parent.consists_of,retained:[chair]});
+  assert.equal(unlisted.coverage.available,baseline.coverage.available+1);assert.equal(unlisted.coverage.expected,baseline.coverage.expected+1);
+  // A saved record of another debate stays out.
+  const foreign={...chair,intervention:{...chair.intervention,parentIds:['MTG-PL-2026-10-06-PVCRE-ITM-99']}};
+  assert.equal(buildInterventionSequence(fixture.activities,{parentId,expectedIds:fixture.parent.consists_of,retained:[foreign]}).coverage.available,baseline.coverage.available);
+  // A record with neither number nor position: the order really is unknown.
+  const unknown={...chair,activity:{...chair.activity,recorded_in_a_realization_of:[{}]}};
+  const unordered=buildInterventionSequence(fixture.activities,{parentId,expectedIds:fixture.parent.consists_of,retained:[unknown]});
+  assert.equal(unordered.sequence.ordered,false);assert.deepEqual(unordered.exchanges,[]);
+  assert.equal(unordered.records.at(-1).id,importId);
+  // A numbering gap no placed record fills still breaks the link at that gap.
+  const gapped=fixture.activities.filter(row=>row!==byNumber(211));
+  const broken=buildInterventionSequence(gapped,{parentId,expectedIds:gapped.map(row=>row.id)});
+  assert(!broken.exchanges.some(exchange=>exchange.ids.includes(byNumber(213).activity_id)));
+  // The same gap filled by a placed chair remark does not break it.
+  const filled={...chair,activity:{...chair.activity,recorded_in_a_realization_of:[{number:numberOf(byNumber(211))}]}};
+  assert.equal(buildInterventionSequence(gapped,{parentId,expectedIds:gapped.map(row=>row.id),retained:[filled]}).sequence.ordered,true);
+});
+
+test('a context read adds retained children and a sitting\'s filed imports, and only those',async()=>{
+  const importId='MTG-PL-2026-10-06-OTH-900001',reads=[];
+  const metadata={sourceUrl:'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-10-06-INT-900001_FR.xml',fetchedAt:'2026-11-04T08:00:00.000Z',activity:{id:'eli/dl/event/'+importId,activity_id:importId,activity_date:'2026-10-06',acquisition:'website-xml',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',activity_label:{},recorded_in_a_realization_of:[{number:'9-9999-0000'}]},summary:{intervention:{type:'chair',numbering:null,parentIds:[parentId],speaker:null,onBehalfOf:[]}}};
+  const service=new SpeechInterventions({
+    request:async endpoint=>{if(endpoint.startsWith('/speeches/'))return response([byNumber(173)]);if(endpoint.startsWith('/events/'))return response([fixture.parent]);return response(fixture.activities);},
+    readSpeechData:async params=>{reads.push(params);return {records:[{id:importId,metadata}],truncated:false};},
+  });
+  const context=await service.context(byNumber(173).activity_id),debate=context.debates[0];
+  assert.deepEqual([reads[0].metadataOnly,reads[0].websiteSitting],[true,'2026-10-06']);
+  assert(debate.records.some(row=>row.id===importId&&row.intervention.type==='chair'));
+  assert(debate.sources.some(row=>row.url===metadata.sourceUrl));
+  assert.deepEqual(debate.sequence.unnumberedIds,[importId]);
+  // Without a corpus nothing changes.
+  const plain=await new SpeechInterventions({request:async endpoint=>{if(endpoint.startsWith('/speeches/'))return response([byNumber(173)]);if(endpoint.startsWith('/events/'))return response([fixture.parent]);return response(fixture.activities);},readSpeechData:null}).context(byNumber(173).activity_id);
+  assert(!plain.debates[0].records.some(row=>row.id===importId));
+});
+
 test('partial debate failure retains cooldown and retries the failed sitting on the next context read',async()=>{
   let attempts=0;const retryAt=Date.now()+60000;
   const service=new SpeechInterventions({request:async endpoint=>{

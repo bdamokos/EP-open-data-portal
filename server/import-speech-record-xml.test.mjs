@@ -10,7 +10,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {CorpusWorker} from './corpus-worker.mjs';
 import {auditIndex} from './data-gap-audit.mjs';
 import {interventionMetadata} from './speech-interventions.mjs';
-import {importRecord,loadRecords,parentFromEvidence,parseSpeechXml,rollbackRecord,runImport,speechActivity} from './import-speech-record-xml.mjs';
+import {acquireBothLeases,importRecord,loadRecords,parentFromEvidence,parseSpeechXml,rollbackRecord,runImport,speechActivity} from './import-speech-record-xml.mjs';
 import {observeSpeechGap,scheduleWebsiteRechecks,WEBSITE_RECHECK_MS} from './speech-source-gaps.mjs';
 
 // Synthetic records only: no captured speech text belongs in Git.
@@ -334,6 +334,73 @@ test('rollback removes only imported rows',t=>{
   assert.equal(store.source(generation,'/speeches/'+id).work.kind,'PLENARY_DEBATE_SPEECH');
 });
 
+test('rollback keeps newer API metadata while removing the imported text',t=>{
+  const {store,corpus,worker,generation}=fixture(t);logged(t);
+  importRecord({store,corpus,worker},record());
+  // A metadata-only API refresh arrives while the website text is still the only text.
+  const later='2026-12-04T10:00:00.000Z',apiUrl='https://data.europarl.europa.eu/api/v2/speeches/'+id;
+  corpus.putSpeechMetadata(apiActivity,apiUrl,later);
+  assert.equal(corpus.websiteSpeechHeld(id),true);
+  const report=rollbackRecord({store,corpus},id);
+  assert.equal(corpus.websiteSpeechHeld(id),false);
+  assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM texts').get().n,0);
+  const metadata=corpus.speechMetadata(id);
+  assert.deepEqual([metadata.activity.acquisition,metadata.sourceUrl,metadata.fetchedAt],[undefined,apiUrl,later]);
+  assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM speech_catalog WHERE source_id=?').get(id).n,1);
+  assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM documents WHERE source_id=?').get(id).n,1);
+  assert(!report.changes.some(change=>['speech_metadata','speech_catalog','documents'].includes(change.table)));
+  assert.equal(store.source(generation,'/speeches/'+id),undefined);
+});
+
+test('a real record found by the monthly re-read replaces the corpus text through the corpus writer',async t=>{
+  const {store,corpus,worker,generation,now}=fixture(t);logged(t);
+  corpus.indexFile=store.filename;
+  corpus.enqueue('speech:'+id,'speech',{id},70);
+  importRecord({store,corpus,worker},record());
+  assert.equal(corpus.task('speech:'+id).done,1,'the import ends the failing read, which must not block the later handoff');
+  const api={...apiActivity,recorded_in_a_realization_of:[{...apiActivity.recorded_in_a_realization_of[0],'api:xmlFragment':{fr:'<oralStatements><speech xml:lang="fr"><from xml:lang="fr"><person refersTo="epdata:person/30482">Le Président</person>.</from><blockContainer><p>Texte API.</p></blockContainer></speech></oralStatements>'}}]};
+  let reads=0;
+  const corpusWorker=new CorpusWorker(corpus,{clock:corpus.clock,runUpstream:operation=>operation(new AbortController().signal),fetchRecord:async endpoint=>{reads++;assert.equal(endpoint,'/speeches/'+id);return {payload:{data:[api]},fetchedAt:new Date(now.value).toISOString()};}});
+  // Still held: nothing is handed over and nothing is read.
+  corpusWorker.handOffResolvedSpeeches();
+  assert.equal(corpus.task('speech:'+id).done,1);
+  store.release();corpus.release();now.value+=WEBSITE_RECHECK_MS+1;assert(store.acquire());assert(corpus.acquire());
+  assert.equal(scheduleWebsiteRechecks(store,generation),1);
+  worker.fetchRecord=async()=>({payload:{data:[api]},fetchedAt:new Date(now.value).toISOString(),url:'https://data.europarl.europa.eu/api/v2/speeches/'+id});
+  await worker.task(store.nextTask(generation));
+  assert.equal(store.db.prepare('SELECT state FROM speech_source_gaps WHERE id=?').get(id).state,'resolved');
+  assert.equal(corpus.websiteSpeechHeld(id),true,'the index writer never writes the corpus');
+  now.value+=1000;
+  await corpusWorker.discover();
+  const task=corpus.task('speech:'+id);
+  assert.equal(task.done,0);
+  await corpusWorker.task(task);
+  assert.equal(reads,1);
+  assert.equal(corpus.websiteSpeechHeld(id),false);
+  assert.deepEqual(corpus.db.prepare('SELECT source_key,body,source_url FROM texts').all().map(row=>({...row})),[{source_key:'fr',body:'Texte API.',source_url:'https://data.europarl.europa.eu/api/v2/speeches/'+id+'?include-output=xml_fragment&format=application%2Fld%2Bjson'}]);
+  assert.equal(corpus.speechMetadata(id).activity.acquisition,undefined);
+  assert.equal(corpus.db.prepare("SELECT COUNT(*) n FROM texts_fts WHERE texts_fts MATCH 'synthetique'").get().n,0);
+  // The report is consumed: the record is no longer held, so no further read follows.
+  corpusWorker.handOffResolvedSpeeches();
+  assert.equal(corpus.task('speech:'+id).done,1);
+});
+
+test('waiting for the corpus lease leaves the index writer free',async t=>{
+  const {indexDir,corpusDir,store,corpus}=fixture(t);logged(t);
+  store.release();corpus.release();
+  const importer=new ActivityStore(indexDir,{preparedOnly:true,clock:store.clock}),corpusImporter=new CorpusStore(corpusDir,{clock:corpus.clock});
+  t.after(()=>{importer.close();corpusImporter.close();});
+  assert(corpus.acquire());
+  const waiting=acquireBothLeases(importer,corpusImporter,30,{pauseMs:5});
+  await new Promise(resolve=>setTimeout(resolve,40));
+  assert(store.acquire(),'the index writer takes its lease during the wait');
+  store.release();
+  corpus.release();
+  await waiting;
+  assert.equal(store.acquire(),false,'both leases are held once the wait ends');
+  assert.equal(corpus.acquire(),false);
+});
+
 test('the command takes both writer leases, rehearses and then writes',async t=>{
   const {root,indexDir,corpusDir,store,corpus,generation}=fixture(t);logged(t);
   store.close();corpus.close();
@@ -351,6 +418,6 @@ test('the command takes both writer leases, rehearses and then writes',async t=>
   assert.equal((await runImport(options))[0].outcome,'unchanged');
   assert.match(output.at(-1),/--rollback/);
   assert(reopened.acquire());
-  await assert.rejects(runImport(options),/writer lease stayed busy/);
+  await assert.rejects(runImport(options),/not both free/);
   reopened.release();
 });
