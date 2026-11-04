@@ -106,7 +106,8 @@ test('public Czech committee headings and Danish columns retain actual language,
         assert.equal(actual.dateBasis,'amendment-list-document');assert.equal(actual.onBehalfOf,null);
         assert(result.gaps.some(g=>g.code==='authors-unavailable'&&g.number===actual.number));
         assert.doesNotMatch(JSON.stringify(actual.authors),/Lena Düpont/);
-        assert.equal(actual.targetLabel,actual.number===1?'Bod odůvodnění 2':'Čl. 1 – odst. 1 – bod 10');
+        assert.equal(actual.targetLabel.split('\n')[0],actual.number===1?'Bod odůvodnění 2':'Čl. 1 – odst. 1 – bod 10');
+        if(actual.number!==1){assert.equal(actual.targetPath.underlying[0].document,'Směrnice (EU) 2015/637');assert.equal(actual.targetPath.underlying[0].raw,'Čl. 19 – odst. 3 a (nový)');}
       } else {
         assert.equal(actual.dateBasis,'individual-amendment-document');assert.equal(actual.committeeProposer,null);
         assert.deepEqual(actual.authors,['Marina Kaljurand','Ana Catarina Mendes','Birgit Sippel']);

@@ -228,7 +228,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
       // Live projections are a recorded comparison. Evaluated inputs come only
       // from the sealed upstream bytes through the measured checkout.
       const commission=wording.baseline==='commission-proposal';
-      const council=wording.baseline==='council-position',existing=wording.baseline==='present-text',structured=commission||council||existing;
+      const council=wording.baseline==='council-position'||hasCouncilQuotation(wording),existing=wording.baseline==='present-text',structured=commission||council||existing;
       const pair=contexts.get(originalVariant?.language||'en');
       const {input,value}=translated&&!structured?languageVariantContext(translated,pair.plain,runtime):pair[commission?'proposal':'plain'];
       cache.noteFrozenInputs?.([input]);

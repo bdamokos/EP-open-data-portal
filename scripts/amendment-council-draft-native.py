@@ -45,7 +45,7 @@ def native(spec):
             return [{'object': node.get('/Obj'), 'page': pages.get(page)}]
         role = roles.get(node.get('/S'), node.get('/S'))
         children = walk(node.get('/K', []), page, ancestors + ((ref, role),))
-        if role in ['/P', '/Note', '/Figure', '/Table']:
+        if role in ['/P', '/LBody', '/Note', '/Figure', '/Table']:
             blocks.append({'ref': ref, 'role': role, 'ancestors': ancestors, 'content': children})
         return children
     walk(root['/K'])

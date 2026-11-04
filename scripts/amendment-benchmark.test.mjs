@@ -231,6 +231,17 @@ function docx(xml) {
   return Buffer.concat([local,name,body,central,name,end]);
 }
 const paragraph=value=>'<w:p><w:r><w:t>'+value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</w:t></w:r></w:p>';
+test('unknown-category Council headings select the same baseline acquisition as the endpoint',async()=>{
+ const document='A-10-2026-0001',url='https://data.europarl.europa.eu/distribution/test/council.docx',id=document+'-AM-1';
+ const cell=value=>'<w:tc>'+paragraph(value)+'</w:tc>',row=(a,b)=>'<w:tr>'+cell(a)+cell(b)+'</w:tr>';
+ const body=docx('<w:document xmlns:w="urn:word"><w:body>'+paragraph('<Amend><NumAm>1</NumAm>')+paragraph('<Article>Recital 1</Article>')+'<w:tbl>'+row('Text proposed by the Council','Amendment')+row('Original recital.','Changed recital.')+'</w:tbl>'+paragraph('</Amend>')+'</w:body></w:document>');
+ const input={id,number:1,targetDocumentId:document,listId:document+'-AM-001-001',wordingSource:{url},baseline:'unknown',language:'en',decisions:[{id:'vote-1',date:'2026-10-22',sittingId:'MTG-PL-2026-10-22',amendmentIds:[id],source:{url:'https://data.europarl.europa.eu/api/v2/example',fetchedAt:'2026-10-23T00:00:00Z'}}]};
+ const cache={apiBase,get:async()=>({ok:true,body,url,sha256:digest(body),fetchedAt:'2026-10-23T00:00:00Z'}),json:async url=>({input:{ok:true,url},value:{documentId:document}})};
+ let councilReads=0;
+ const replay={observeFiles(){},request:async()=>({payload:{data:[{}]}}),council:async()=>{councilReads++;return {baseline:{status:'unavailable',language:'en',gaps:['native-source-unavailable']},items:[]};},text:async()=>{throw Error('Council heading must not use the resolution replay');}};
+ const [result]=await evaluateReport([input],{mode:'documents',asOf:'2026-10-26'},cache,{replay});
+ assert.equal(councilReads,1);assert.equal(result.stages.S4.reason,'council_position_unavailable');
+});
 test('report evaluation re-extracts cached DOCX despite null live wording and ignores live placement',async()=>{
   const document='B-10-2026-0001',id=document+'-AM-1',url='https://data.europarl.europa.eu/distribution/test/test_en.docx';
   const cell=value=>'<w:tc>'+paragraph(value)+'</w:tc>',tr=(a,b)=>'<w:tr>'+cell(a)+cell(b)+'</w:tr>';
