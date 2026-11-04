@@ -63,8 +63,8 @@ export function DocumentParagraphs({texts,start,formatting,exactOffsets,headingL
   for(let index=start;index<end;) {
     const found=tables.get(index);
     if(!found){nodes.push(paragraph(index));index++;continue;}
-    const tableNode=<table key={'table-'+index} className={'doc-table'+(found.table.bordered ? ' doc-table-bordered' : '')}><tbody>{found.table.rows.map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,cellIndex)=>
-      <td key={cellIndex} colSpan={cell.colSpan} rowSpan={cell.rowSpan} className={cell.gap ? 'doc-table-gap' : undefined}>{Array.from({length:cell.end-cell.start},(_,offset)=>paragraph(cell.start+offset))}</td>)}</tr>)}</tbody></table>;
+    const tableNode=<div key={'table-'+index} className="doc-table-scroll"><table className={'doc-table'+(found.table.bordered ? ' doc-table-bordered' : '')}><tbody>{found.table.rows.map((row,rowIndex)=><tr key={rowIndex}>{row.map((cell,cellIndex)=>
+      <td key={cellIndex} colSpan={cell.colSpan} rowSpan={cell.rowSpan} className={cell.gap ? 'doc-table-gap' : undefined}>{Array.from({length:cell.end-cell.start},(_,offset)=>paragraph(cell.start+offset))}</td>)}</tr>)}</tbody></table></div>;
     nodes.push(renderTable?renderTable(found.end-1,tableNode):tableNode);
     index=found.end;
   }

@@ -300,9 +300,10 @@ test('the page is the only scroller for the member views', async () => {
   const votes = await readFile(new URL('./MemberVotes.css', import.meta.url), 'utf8');
   assert.match(explorer, /\.explorer \{[^}]*overflow-y: auto;/);
   assert.doesNotMatch(explorer, /max-height: ?900px/);
-  for (const [css, selector] of [[explorer, 'explorer-portraits'], [explorer, 'explorer-profile-body'], [votes, 'member-votes'], [votes, 'member-votes-pane']]) {
-    const rule = css.match(new RegExp(`(?:^|[}\\s])\\.${selector} ?\\{([^}]*)\\}`))?.[1];
-    assert.ok(rule !== undefined, selector);
-    assert.doesNotMatch(rule, /overflow(-y)?: ?(auto|scroll)|overscroll-behavior/, selector);
+  for (const [css, selector] of [[explorer, 'explorer-portraits'], [explorer, 'explorer-profile-body'], [explorer, 'explorer-saved-view'], [votes, 'member-votes'], [votes, 'member-votes-pane']]) {
+    // Every rule whose selector ends at this class, including later overrides and media rules.
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selectors]) => selectors.split(',').some(item => item.trim().endsWith(`.${selector}`)));
+    assert.ok(rules.length, selector);
+    for (const [, , body] of rules) assert.doesNotMatch(body, /overflow(-y)?: ?(auto|scroll)|overscroll-behavior|max-height/, selector);
   }
 });
