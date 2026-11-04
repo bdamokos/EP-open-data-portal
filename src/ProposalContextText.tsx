@@ -165,7 +165,7 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
   const fileLimit=(baseline.gaps||[]).some(gap=>gap&&typeof gap==='object'&&(gap as {code?:unknown}).code==='bundle-too-large');
   const placement=data.placement,noteComparison=wording&&placement?.noteScope?proposalNoteComparison(wording,placement.noteScope):null,placed=placement?.status==='placed'&&!!wording&&placement.itemIndex!==undefined&&!!items[placement.itemIndex]&&baseline.language===wording.language&&(!placement.noteScope||!!noteComparison);
   const rejection=Boolean(wording&&placement?.status==='document-operation'&&placement.operation==='reject'&&data.amendment?.id===amendmentId&&data.target?.evidence?.amendmentId===amendmentId&&data.target?.evidence?.listId===wording.listId&&data.target?.evidence?.wordingLanguage===wording.language&&baseline.language===wording.language);
-  const formulaGap=wording?.gaps.some(gap=>gap&&typeof gap==='object'&&(gap as {code?:unknown}).code==='formula-not-shown');
+  const formulaGap=wording?.gaps?.some(gap=>gap&&typeof gap==='object'&&(gap as {code?:unknown}).code==='formula-not-shown');
   const formulaSource=safeHref(wording?.source?.url??wording?.baselineSource?.sourceUrl);
   const effective=placed ? placement : null;
   const number=amendmentId?.match(/-AM-(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'');
