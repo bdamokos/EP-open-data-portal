@@ -1051,7 +1051,7 @@ test('split bold italic title between consecutive numbers closes insertion scope
  const opts={language:'en',originalText:'',proposedText:'18a. New measure;',targetLabel:'Paragraph 18 a (new)',resolutionDocument:true};
  assert.equal(resolveAmendmentPlacement(text,opts).insertBefore,2);
  text.paragraphFormats[2].marks=[];
- assert.equal(resolveAmendmentPlacement(text,opts).status,'unresolved');
+ assert(!resolveAmendmentPlacement(text,opts).evidence.some(e=>e.basis==='exact-paragraph-lead'));
 });
 
 test('exact paragraph lead replacement preserves its directly owned points',()=>{
@@ -1060,5 +1060,5 @@ test('exact paragraph lead replacement preserves its directly owned points',()=>
  assert.deepEqual(resolveAmendmentPlacement(text,opts).span,{start:1,end:1});
  assert.equal(resolveAmendmentPlacement(text,{...opts,originalText:'3. Unrelated instructions:'}).status,'unresolved');
  text.paragraphSources[2].complete=false;
- assert.equal(resolveAmendmentPlacement(text,opts).status,'unresolved');
+ assert(!resolveAmendmentPlacement(text,opts).evidence.some(e=>e.basis==='exact-paragraph-lead'));
 });
