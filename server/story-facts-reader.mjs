@@ -67,10 +67,12 @@ export const STORY_FACTS_VIEW_VERSION=2;
  * complete date-desc/id-desc keyset traversal (adopted lists sort by outcome
  * date), pinned to generation, projection publication and qualification selectors; language/mode may change;
  * stale/cross-selection cursors return 409. Topic member groups use topics/detail.
- * outsideSpeakers is the complete, date-ordered address evidence for map/place,
- * with exact person/item IDs, country, role source and eligibility basis. A quarter
- * with incomplete outside coverage contributes no addresses; older projections
- * without that input return an empty array. These rows never change counters.
+ * outsideSpeakers is the date-ordered retained address evidence for map/place,
+ * with exact person/item IDs, country, role source and eligibility basis. Checked
+ * quarters can contribute addresses despite dated exact speech-record gaps;
+ * unchecked, pending, truncated and Wikidata-unavailable coverage stays withheld.
+ * Coverage retains its gaps; older projections without this input return an empty
+ * array. These rows never change counters.
  * No list is silently truncated; unknown outcomes remain null, never 'none'.
  */
 const allowed=['scope','key','period','mode','askers','zoom','lang','list','cursor'];

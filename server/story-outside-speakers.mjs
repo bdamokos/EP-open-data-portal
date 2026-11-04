@@ -42,6 +42,8 @@ export async function projectOutsideSpeakers(store,generation,sourceGeneration){
  put.run(generation,'outsideCoverage','outside','',JSON.stringify(coverage));
 }
 
+const speechRecordGapKey=/^(?:recovery:)?\/speeches\/MTG-PL-(\d{4}-\d{2}-\d{2})-OTH-\d+$/;
+const datedSpeechRecordGap=gap=>gap.reason==='source-gap'&&validDay(gap.start)&&gap.start===gap.end&&speechRecordGapKey.exec(gap.sourceId||'')?.[1]===gap.start;
 const quarterWindow=period=>{const [year,n]=period.split('-Q').map(Number);return {start:new Date(Date.UTC(year,(n-1)*3,1)).toISOString().slice(0,10),end:new Date(Date.UTC(year,n*3,0)).toISOString().slice(0,10)};};
 export function outsideSpeakerCoverage(store,generation){const row=store.db.prepare("SELECT body FROM story_facts WHERE generation=? AND kind='outsideCoverage' AND id='outside'").get(generation);return row?JSON.parse(row.body):null;}
 export function readOutsideSpeakers(store,generation,q,key,coverage=outsideSpeakerCoverage(store,generation)){
@@ -51,7 +53,7 @@ export function readOutsideSpeakers(store,generation,q,key,coverage=outsideSpeak
  if(coverage.wikidataPolicyVersion!==4)return [];
  // A missing exact speech is not evidence against the addresses we hold.
  // Filter only this read's gate; published coverage keeps every source gap.
- const availability=coverage.availability&&{...coverage.availability,gaps:coverage.availability.gaps.filter(gap=>!(gap.reason==='source-gap'&&validDay(gap.start)&&gap.start===gap.end&&new RegExp('(?:^|[:/])MTG-PL-'+gap.start+'-OTH-\\d+$').test(gap.sourceId||'')))};
+ const availability=coverage.availability&&{...coverage.availability,gaps:coverage.availability.gaps.filter(gap=>!datedSpeechRecordGap(gap))};
  const quarterComplete=period=>{
   if(!complete.has(period))complete.set(period,coverage.initialized!==false&&!coverage.pending&&!coverage.truncated&&!coverage.wikidataUnavailablePeriods?.includes(period)&&(coverage.complete||periodAvailability(quarterWindow(period),availability,0,{today:coverage.window.end}).state==='observed'));
   return complete.get(period);

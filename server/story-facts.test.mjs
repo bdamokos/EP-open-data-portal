@@ -677,6 +677,30 @@ test('outside addresses and coverage are copied into the published generation',a
  for(const extra of [{initialized:false},{pending:1},{truncated:true},{wikidataUnavailablePeriods:['2026-Q2']},{availability:{...datedCoverage.availability,checkedIntervals:[]}},{availability:{...datedCoverage.availability,limited:true}},{availability:{...datedCoverage.availability,gaps:[{start:'2026-04-10',end:'2026-04-10',reason:'source-gap',sourceId:'outside:roster:2026-04-10'}]}},{availability:{...datedCoverage.availability,gaps:[{reason:'source-gap'}]}}]){
   replaceCoverage({...datedCoverage,...extra});assert.deepEqual(storyFacts(store,q2).outsideSpeakers,[],JSON.stringify(extra));
  }
+ const gap=datedCoverage.availability.gaps[0];
+ for(const sourceId of ['recovery:/speeches/MTG-PL-2026-04-10-OTH-123','/speeches/MTG-PL-2026-04-10-OTH-123']){
+  replaceCoverage({...datedCoverage,europe:['ESP'],availability:{...datedCoverage.availability,gaps:[{...gap,sourceId}]}});
+  assert.deepEqual(storyFacts(store,q2).outsideSpeakers.map(a=>a.country),['ESP','PRT'],sourceId+' preserves world addresses');
+  const place=query('place');place.set('period','2026-Q2');
+  assert.deepEqual(storyFacts(store,place).outsideSpeakers.map(a=>a.country),['ESP'],sourceId+' preserves place addresses');
+  const eu=new URLSearchParams(q2);eu.set('zoom','eu');
+  assert.deepEqual(storyFacts(store,eu).outsideSpeakers.map(a=>a.country),['ESP'],sourceId+' respects the published Europe set');
+ }
+ const blockingGaps=[
+  ['exact speech on a date range',{...gap,end:'2026-04-11'}],
+  ['speech date differs from gap',{...gap,sourceId:'/speeches/MTG-PL-2026-04-11-OTH-123'}],
+  ['invalid calendar day',{...gap,start:'2026-04-31',end:'2026-04-31',sourceId:'/speeches/MTG-PL-2026-04-31-OTH-123'}],
+  ['different gap reason',{...gap,reason:'missing-day'}],
+  ['one-day catalogue gap',{...gap,sourceId:'catalog:/speeches:2026-04-10:2026-04-10'}],
+  ['whole-month catalogue gap',{...gap,start:'2026-04-01',end:'2026-04-30',sourceId:'catalog:/speeches:2026-04-01:2026-04-30'}],
+  ['date-only unresolved gap',{start:gap.start,end:gap.end,reason:'source-gap'}],
+  ...['english','detail','agenda-membership'].map(kind=>['outside '+kind+' failure',{...gap,sourceId:'outside:gap:outside:'+kind+':MTG-PL-2026-04-10-OTH-123'}]),
+  ['outside agenda failure',{...gap,sourceId:'outside:agenda:MTG-PL-2026-04-10-OTH-123'}],
+ ];
+ for(const [label,blocking] of blockingGaps){
+  replaceCoverage({...datedCoverage,availability:{...datedCoverage.availability,gaps:[blocking]}});
+  assert.deepEqual(storyFacts(store,q2).outsideSpeakers,[],label+' still withholds addresses');
+ }
  replaceCoverage(datedCoverage);
  replaceCoverage({complete:true,wikidataPolicyVersion:3});assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'older projection is separately suppressed');
 
