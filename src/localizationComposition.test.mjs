@@ -90,7 +90,7 @@ test('independent demographic counts and Lithuanian whole containment message re
  assert.equal(genderName('Female',ui),'Women');assert.equal(genderName('Male',ui),'Men');assert.equal(genderName('Other',ui),'Other supplied');assert.equal(genderName('Unknown',ui),'Not supplied');assert.equal(genderName('SOURCE_UNKNOWN',ui),'SOURCE_UNKNOWN');
  const stats={dimensions:{country:[],group:[],gender:[{label:'Other',count:1},{label:'Unknown',count:2}],age:[]},denominator:99,uniqueCurrentMeps:21,peopleOutsideCurrentRoster:2,referenceDate:'2026-10-01'};
  const before=JSON.stringify(stats);const result=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'ro'},h(InsightDemographics,{stats,outsideRosterLabel:'Raw caller label'})));
- assert(result.includes('Other supplied: 1, Not supplied: 2'));assert(result.includes('gender-other'));assert(result.includes('Current: 21 · Raw caller label: 2'));assert.equal(JSON.stringify(stats),before);
+ assert(result.includes('Other supplied: 1, Not supplied: 2'));assert(result.includes('gender-other'));assert(result.includes('lang="en">Other supplied</span>'));assert(result.includes('Current: 21 · Raw caller label: 2'));assert.equal(JSON.stringify(stats),before);
  const {createAppUiI18n}=await load('/src/uiCatalogues.mjs');const {default:lt}=await load('/src/ui-locales/lt.json');
  const lithuanian=createAppUiI18n({lt}).forLocale('lt');
  for(const id of ['speechcloud.in_count_speech.b044c6','speechcloud.in_count_speeches.a25a1a'])for(const count of [0,1,2,9,10,11,19,20,21,22,100])assert.equal(lithuanian.t(id,{count}),`Kalbų, kuriose yra šis terminas, skaičius: ${count}`);
