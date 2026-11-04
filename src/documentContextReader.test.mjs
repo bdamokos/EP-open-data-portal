@@ -1516,3 +1516,14 @@ test('resolution boundary note follows the paragraph lead before its heading',as
   await h.render({request:overlayRequest,language:'en'});
   const block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/Placed after the paragraph lead\./);assert.match(block.previousElementSibling.textContent,/Paragraph lead/);assert.match(block.nextElementSibling.textContent,/Topic heading/);
 });
+
+test('new-paragraph formula gap remains labelled with its native source link',async t=>{
+  const value=proposalContextResponse(report,amendment,list),variant=value.amendment.variants[0];
+  variant.gaps=[{code:'formula-not-shown'}];variant.source={url:source};
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]'),notice=block.querySelector('.document-context-notice');
+  assert.match(notice.textContent,/Formula not shown\./);
+  assert.equal(notice.querySelector('a').href,source);
+  assert(block.textContent.includes(variant.originalText.slice(0,30)));
+});

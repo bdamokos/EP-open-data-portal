@@ -244,6 +244,26 @@ function documentBlocks(parts,warnings,language) {
   const nativeBindings=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w']===undefined||node[':@']['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main')&&Object.values(node).every(value=>!Array.isArray(value)||nativeBindings(value)));
   const nativeHeader=language==='en'&&!/<!DOCTYPE|<!ENTITY/u.test(documentXml)&&XMLValidator.validate(documentXml)===true&&child(documentTree,'w:document')?.[':@']?.['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main'&&nativeBindings(documentTree)&&(!stylesXml||!/<!DOCTYPE|<!ENTITY/u.test(stylesXml)&&XMLValidator.validate(stylesXml)===true&&nativeBindings(parser().parse(stylesXml)));
   const compoundVisible=nativeHeader?compoundStyleSafety(stylesXml):null;
+  const mathURI='http://schemas.openxmlformats.org/officeDocument/2006/math';
+  const mathBindings=nodes=>nodes.every(node=>Object.entries(node[':@']||{}).every(([key,value])=>key==='@_xmlns:m'?value===mathURI:!key.startsWith('@_xmlns')||value!==mathURI)&&Object.values(node).every(value=>!Array.isArray(value)||mathBindings(value)));
+  const formulaNative=Boolean(nativeHeader&&child(documentTree,'w:document')?.[':@']?.['@_xmlns:m']===mathURI&&mathBindings(documentTree));
+  const formulaParagraph=nodes=>{
+    let count=0;
+    const math=nodes=>nodes.every(node=>Object.entries(node).every(([key,value])=>key===':@'||key==='#text'&&typeof value==='string'||Array.isArray(value)&&(key.startsWith('m:')?math(value):key==='w:rPr'?math(value):['w:rFonts','w:b','w:bCs','w:i','w:iCs','w:sz','w:szCs','w:lang','w:color'].includes(key)&&!value.length)));
+    const plain=nodes=>nodes.every(node=>Object.entries(node).every(([key,value])=>{
+      if(key===':@')return true;
+      if(key==='m:oMathPara'||key==='m:oMath'){
+        const total=key==='m:oMath'?1:(JSON.stringify(value).match(/"m:oMath":/gu)||[]).length;
+        count++;return total===1&&math(value);
+      }
+      if(['w:pPr','w:rPr'].includes(key))return !/"w:(?:numPr|vanish|webHidden|ins|del|moveFrom|moveTo|rPrChange|pPrChange)"/u.test(JSON.stringify(value));
+      if(key==='w:r'||key==='w:hyperlink')return plain(value);
+      if(key==='w:t')return value.every(part=>Object.keys(part).length===1&&typeof part['#text']==='string');
+      if(['w:br','w:cr'].includes(key))return !value.length&&[undefined,'textWrapping'].includes(node[':@']?.['@_w:type']);
+      return ['w:tab','w:noBreakHyphen','w:softHyphen','w:lastRenderedPageBreak','w:bookmarkStart','w:bookmarkEnd','w:proofErr'].includes(key)&&!value.length;
+    }));
+    return {formulaCount:count,formulaSafe:false,...(formulaNative&&compoundVisible(nodes)&&plain(nodes)?{formulaCount:count,formulaSafe:true}:{})};
+  };
   if(language==='hr')style.formatting=styleFormatting(children(parser().parse(parts.get('word/styles.xml')||''),'w:styles'));
   const label=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),warnings);
   let count=0,size=0;
@@ -265,11 +285,12 @@ function documentBlocks(parts,warnings,language) {
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
     const structure=JSON.stringify(nodes);
     const captionSafe=Boolean(compoundVisible?.(nodes)&&raw===text&&!/"w:(?:del|moveFrom|numPr|footnoteReference|endnoteReference|fldSimple|instrText)"/u.test(structure));
-    return {raw,text,formatting,bold,captionSafe,...(compoundVisible?{compound:compoundHeader(nodes,raw,text,compoundVisible),compoundBlank:compoundHeader(nodes,raw,text,compoundVisible,true)===true}:{}),paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
+    return {raw,text,formatting,bold,captionSafe,...formulaParagraph(nodes),...(compoundVisible?{compound:compoundHeader(nodes,raw,text,compoundVisible),compoundBlank:compoundHeader(nodes,raw,text,compoundVisible,true)===true}:{}),paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
   };
   const blocks=[];
   const summary=content=>({
     ...joinWording(content.filter(part=>part.text)),raw:content.map(part=>part.raw).join('\n'),
+    formulaCount:content.reduce((count,part)=>count+(part.formulaCount||0),0),formulaSafe:content.every(part=>part.kind==='paragraph'&&part.formulaSafe),
     hasNotes:content.some(part=>part.hasNotes),losses:[...new Set(content.flatMap(part=>part.losses))],
     symbolLoss:content.some(part=>part.symbolLoss),unsupportedBody:content.some(part=>part.unsupportedBody),captionSafe:content.every(part=>part.kind==='paragraph'&&part.captionSafe),
   });
@@ -472,6 +493,11 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const stacked=captionPrefix||first&&sectionHeading(first.cells,first.table,language)?.side==='original';
     if(captionPrefix)documentReferences.push({field:'ComparisonCaption',raw:tableCaption,sourceRaw:visible[0].cells[0].raw,scope:'amendment',basis:'caption-before-original-heading'});
     let pendingCaption=captionPrefix;
+    const formulaTarget=/^Article [1-9]\d* – paragraph ([1-9]\d*) ?([a-z]) \(new\)$/u.exec(targetLabel??'');
+    const formulaRows=tables[0]?.rows.filter(cells=>cells.some(cell=>cell.text||cell.formulaCount))??[];
+    let formulaSource=false;try{const url=new URL(sourceUrl);formulaSource=url.protocol==='https:'&&!url.username&&!url.password;}catch{}
+    const formulaRecovery=Boolean(formulaSource&&language==='en'&&formulaTarget&&tables.length===1&&!tables[0].unsupported&&!tables[0].revised&&!tables[0].gridUnsupported&&direct(tables[0].gridNodes,'w:tblGrid').length===1&&direct(children(tables[0].gridNodes,'w:tblGrid'),'w:gridCol').length===2&&documentReferences.filter(ref=>ref.field==='DocAmend'&&/^Proposal for a (?:regulation|directive|decision)$/u.test(ref.raw)).length===1&&!documentReferences.some(ref=>/^(?:Article|DocAmend)[2-4]$/u.test(ref.field))&&tables[0].rows.every(cells=>cells.every(cell=>cell.formulaSafe))&&formulaRows.length>1&&formulaRows.every(cells=>cells.length===2)&&formulaRows[0][0].text==='Text proposed by the Commission'&&formulaRows[0][1].text==='Amendment'&&formulaRows[0].every(cell=>!cell.formulaCount)&&formulaRows.slice(1).every(cells=>!cells[0].text&&!cells[0].formulaCount)&&formulaRows.slice(1).reduce((count,cells)=>count+cells[1].formulaCount,0)===1&&formulaRows[1][1].text.startsWith(formulaTarget[1]+formulaTarget[2]+'.\t'));
+    if(formulaRecovery)gap('formula-not-shown',number,'Formula not shown.');
     const sections=[];let section=null;
     for(const table of tables) {
       hasTable=true;
@@ -484,7 +510,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       for(const {table:rowTable,cells} of comparisonRows) {
         if(cells.some(c=>c.nested)){gap('nested-table',number,'A nested comparison table is unsupported.');continue;}
         if(cells.some(c=>c.symbolLoss))gap('symbol-text-loss',number,'A visible font-encoded symbol cannot be decoded reliably; comparison wording is withheld.');
-        for(const code of Object.keys(CONTENT_LOSSES))if(cells.some(cell=>cell.losses.includes(code)))gap(code,number,CONTENT_LOSSES[code]);
+        for(const code of Object.keys(CONTENT_LOSSES))if(!(formulaRecovery&&code==='non-text-content')&&cells.some(cell=>cell.losses.includes(code)))gap(code,number,CONTENT_LOSSES[code]);
         if(cells.every(c=>!c.text))continue;
         if(stacked) {
           if(pendingCaption){before.push(joinWording(cells,'\t'));pendingCaption=false;continue;}
