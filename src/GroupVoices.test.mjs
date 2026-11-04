@@ -177,11 +177,11 @@ for(const state of ['unavailable','partial','available'])test('topic availabilit
  if(state!=='available'){await h.restore('/?view=groups&gv-group=PPE&gv-tab=subjects&gv-subject=oeil%3A1.10');await viewReady(h.container);assert.equal(h.container.querySelector('.gv-summary strong').textContent,'Unavailable');assert.equal(h.container.querySelector('.gv-subject-title button:last-child').textContent,'Unavailable');}
 });
 
-test('Group voices policy labels retain their language and share one conditional Sources disclosure',async t=>{
+test('Group voices policy labels retain their language and show no Sources note',async t=>{
  const people=[{id:'42',name:'Speaker',total:1,subjects:{'oeil:9.99':1}}],subjects=[{id:'oeil:9.99',label:'Étiquette française',labelLanguage:'fr',labelSource:'explorer-translation'}];
  const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=subjects',{response:{people,subjects,contributions:[],total:1,topicAvailability:{state:'available',unresolvedContributions:0}}});
  assert.equal(h.container.querySelector('.gv-subject-title button').getAttribute('lang'),'fr');
- const box=h.container.querySelector('.policy-area-sources');assert(box);assert.equal(box.open,false);assert.match(box.textContent,/Legislative Observatory/);assert.match(box.textContent,/translated by the explorer/);assert.equal(h.container.querySelectorAll('.policy-area-sources').length,1);
+  assert(!h.container.querySelector('.policy-area-sources'));
 });
 
 test('activity strips share one scale across rows',async t=>{

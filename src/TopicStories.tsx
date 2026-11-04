@@ -1,6 +1,5 @@
 import {defaultUi} from './uiDefault.mjs';
 import {storyLinkClick,focusStoryLink} from './storyLinkNavigation';
-import {usePolicyAreaLabels} from './PolicyAreaSources';
 import {buildExactTopicStories,storyFactsRoute,storyRecord} from './exactTopicStories.mjs';
 import {useInsightData} from './InsightData';
 import {useEffect,useRef,useState,type ReactNode,type MouseEvent,type Ref} from 'react';
@@ -94,7 +93,6 @@ export function TopicStoryRecords({selection}:{selection:StorySelection}){
  for(const item of overview.data?.items||[])labels.set(item.id||item.key.replace(/^place:/,''),item);
  if(data.data?.topic)labels.set(data.data.topic.key,data.data.topic);
  if(names.data?.concept)labels.set(scope,names.data.concept);
- usePolicyAreaLabels([names.data?.concept,data.data?.topic,...(overview.data?.items||[])]);
  const name=(p:string)=>labels.get(p)?.label||'',named=(p:string)=><span lang={labels.get(p)?.labelLanguage||undefined}>{name(p)}</span>;
  const labelsReady=needed.every(p=>Boolean(name(p)&&name(p)!==p));
  const labelsUnavailable=!labelsReady&&Boolean(names.error||overview.error||names.data?.ready===false||overview.data?.ready===false||single&&names.data?.ready||needsOverview&&overview.data?.ready);
