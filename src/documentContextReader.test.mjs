@@ -1406,3 +1406,15 @@ test('placed NLE comparison keeps detached notes outside the provision body with
  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
  const block=h.container.querySelector('[data-amendment-block]'),notes=block.querySelector('[data-amendment-notes]');assert(notes);assert.equal(notes.querySelector('h5').textContent,'Notes · 2');const body=block.querySelector('.wording-diff');assert(!body.textContent.includes('citation'));assert.equal(wordingText(body,'proposed'),'(1)\tChanged2.');assert.equal(body.querySelectorAll('sup').length,3);assert(notes.textContent.includes('1 First citation.'));assert(notes.textContent.includes('2 Second citation.'));assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,1);
 });
+
+
+test('PDF source spacing uses published columns without false whitespace edits',async t=>{
+ const data=proposalContextResponse(report,amendment,list,4);
+ data.proposal.items[0].proposal={...data.proposal.items[0].proposal,sourceKind:'pdf',anchors:[],links:[]};
+ const variant=data.amendment.variants[0];variant.originalText='(8)\u00a0Original\u00a0sentence.';variant.proposedText='(8)\u00a0Changed\u00a0sentence.';variant.originalFormatting=[];variant.proposedFormatting=[];
+ data.placement={...data.placement,status:'placed',operation:'replace',itemIndex:0,originalText:'(8) Original sentence.'};
+ const h=await harness(t,()=>data);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+ const block=h.container.querySelector('[data-amendment-block]');assert(block);
+ assert(![...block.querySelectorAll('ins,del')].some(node=>node.textContent.trim()===''));
+ assert(block.textContent.includes('Original'));assert(block.textContent.includes('Changed'));
+});
