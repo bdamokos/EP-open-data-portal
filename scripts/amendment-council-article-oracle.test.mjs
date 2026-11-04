@@ -72,3 +72,56 @@ test('duplicated or reordered native frames cannot certify unchanged body text',
  const w=fixture();[w.items[0].proposal.paragraphs[3],w.items[0].proposal.paragraphs[4]]=[w.items[0].proposal.paragraphs[4],w.items[0].proposal.paragraphs[3]];
  assert.equal(assertCouncilDraftArticleText(raw,w).status,'failed');
 });
+
+const repeatedRaw=`Article 1
+Directive (EU) 2020/123 is amended as follows:
+
+1) Articles 7 and 8 are replaced by the following:
+
+‘Article 7
+First provision
+
+1. First paragraph.
+
+d) Repeated native sentence.
+
+e) Next native sentence.
+
+2. Second paragraph.
+
+d) Repeated native sentence.
+
+e) Next native sentence.
+
+Article 8
+Second provision
+
+1. First paragraph.
+
+d) Repeated native sentence.
+
+e) Next native sentence.’
+
+2) Article 9 is replaced by the following:
+
+‘Article 9
+Other provision
+
+1. Last native paragraph.’`;
+function repeatedFixture(article,paragraph=1){
+ const paragraphs=repeatedRaw.split(/\n\s*\n/u).map(text=>({text:text.replace(/\s+/gu,' ').trim()}));
+ const indexes=paragraphs.flatMap((p,i)=>p.text==='d) Repeated native sentence.'?[i]:[]),at=article===8?indexes[2]:indexes[paragraph-1];
+ return {wording:{language:'en',targetPath:{proposal:[{raw:'Article 1 – paragraph 1 – point 1'}],underlying:[{document:'Directive (EU) 2020/123',raw:`Article ${article} – paragraph ${paragraph} – point d`}]},originalText:'d) Repeated native sentence.'},items:[{proposal:{paragraphs}}],placement:{status:'placed',operation:'replace',itemIndex:0,span:{start:at,end:at},splice:{start:{paragraph:at,offset:0},end:{paragraph:at,offset:'d) Repeated native sentence.'.length}}},indexes};
+}
+for(const [article,paragraph] of [[8,1],[7,2]])test(`repeated wording binds the native inner article ${article} paragraph ${paragraph} occurrence`,()=>{
+ const {indexes,...f}=repeatedFixture(article,paragraph);assert.equal(assertCouncilDraftArticleText(repeatedRaw,f).status,'verified');
+ f.placement.span={start:indexes[0],end:indexes[0]};f.placement.splice.start.paragraph=indexes[0];f.placement.splice.end.paragraph=indexes[0];
+ assert.equal(assertCouncilDraftArticleText(repeatedRaw,f).status,'failed');
+});
+test('repeated insertion predecessors bind their addressed native parent',()=>{
+ const {indexes,...f}=repeatedFixture(7,2);f.wording.originalText='';f.wording.targetPath.underlying[0].raw='Article 7 – paragraph 2 – point d a (new)';
+ f.placement={status:'placed',operation:'insert',itemIndex:0,insertAfter:indexes[1],insertBefore:indexes[1]+1};
+ assert.equal(assertCouncilDraftArticleText(repeatedRaw,f).status,'verified');
+ f.placement.insertAfter=indexes[0];f.placement.insertBefore=indexes[0]+1;
+ assert.equal(assertCouncilDraftArticleText(repeatedRaw,f).status,'failed');
+});

@@ -33,14 +33,22 @@ function printed(raw) {
   }return lines.join('\n');
  }).join('\n\n');
 }
-function chunks(text) {return text.split(/\n\s*\n/u).map(text=>text.replace(/\s+/gu,' ').trim()).filter(Boolean);}
+function blocksWithOffsets(text) {
+ const cuts=[...text.matchAll(/\n\s*\n/gu)],blocks=[];let start=0;
+ for(const cut of [...cuts,{index:text.length,0:''}]){
+  const raw=text.slice(start,cut.index),value=literal(raw);
+  if(value)blocks.push({text:value,offset:coordinates(text.slice(0,start)).length});
+  start=cut.index+cut[0].length;
+ }return blocks;
+}
+function chunks(text) {return blocksWithOffsets(text).map(block=>block.text);}
 const starts=(text,kind)=>kind==='paragraph'?/^[„“‘«»"]?(\d+\s*(?:bis|[a-z])?)\.\s+/iu.exec(text):/^\(?([a-z]+)\)\s+/iu.exec(text);
 function children(text,kind) {
- const blocks=chunks(text),units=[];
+ const blocks=blocksWithOffsets(text),units=[];
  for(let i=0;i<blocks.length;i++){
-  const m=starts(blocks[i],kind);if(!m)continue;
-  let end=i+1;while(end<blocks.length&&!starts(blocks[end],kind))end++;
-  units.push({value:m[1].replace(/\s/gu,'').toLowerCase(),text:blocks.slice(i,end).join('\n\n'),blocks:blocks.slice(i,end)});
+  const m=starts(blocks[i].text,kind);if(!m)continue;
+  let end=i+1;while(end<blocks.length&&!starts(blocks[end].text,kind))end++;
+  units.push({value:m[1].replace(/\s/gu,'').toLowerCase(),text:blocks.slice(i,end).map(block=>block.text).join('\n\n'),blocks:blocks.slice(i,end).map(block=>block.text),offset:blocks[i].offset});
  }return units;
 }
 // Closed native instruction grammar: the quoted heading cannot contradict the
@@ -63,12 +71,24 @@ function ownsArticle(point,inner,language) {
 }
 // Bind paragraph coordinates to an ordered native prefix from the named outer
 // article through this whole point. A matching slice elsewhere is insufficient.
+const coordinates=text=>String(text??'').normalize('NFC').replace(/\s/gu,'');
+function uniqueOffset(text,part) {
+ const index=text.indexOf(part);return part&&index>=0&&text.lastIndexOf(part)===index?index:null;
+}
 function projectedOwner(proposal,scope) {
- const rows=proposal.paragraphs.map(p=>literal(p.text)),joined=rows.join(' '),frame=literal(scope.frame),point=literal(scope.point);
- const start=joined.indexOf(frame);if(!frame||start<0||joined.lastIndexOf(frame)!==start)return null;
- const end=start+frame.length,begin=end-point.length;let offset=0;const owned=[];
- for(const [index,row] of rows.entries()){if(offset>=begin&&offset+row.length<=end)owned.push(index);offset+=row.length+1;}
- return new Set(owned);
+ const rows=proposal.paragraphs.map(p=>coordinates(p.text)),joined=rows.join(''),frame=coordinates(scope.frame),point=coordinates(scope.point),section=coordinates(scope.section);
+ const frameStart=uniqueOffset(joined,frame),sectionOffset=uniqueOffset(point,section);
+ if(frameStart===null||sectionOffset===null)return null;
+ const end=frameStart+frame.length,begin=end-point.length;let offset=0;const owned=[],starts=[];
+ for(const [index,row] of rows.entries()){starts.push(offset);if(offset>=begin&&offset+row.length<=end)owned.push(index);offset+=row.length;}
+ return {rows:new Set(owned),starts,section,start:begin+sectionOffset};
+}
+// The section contains the independently selected inner article. Locate the
+// addressed child within that section, then compare actual character positions;
+// equality of repeated wording elsewhere in the outer point is not ownership.
+function nativeUnitRange(owner,unit) {
+ const value=coordinates(unit.text),at=unit.offset;
+ return !Number.isSafeInteger(at)||at<0||owner.section.slice(at,at+value.length)!==value?null:{start:owner.start+at,end:owner.start+at+value.length};
 }
 export function councilArticleNativeScope(raw,wording) {
  const g=grammar[wording.language];if(!g)return null;
@@ -98,12 +118,12 @@ export function councilArticleNativeScope(raw,wording) {
  else if(inherited&&inherited[1]===inner[0].value&&inner[1]?.kind==='paragraph'&&inherited[2]===inner[1].base){const start=point.search(/^[ \t]*[„“‘«»"]\d+\.\s/mu);if(start<0)return null;section=point.slice(start);}
  else return null;
  if(!/[„“‘«»"][ \t]*(?:Článek|Article|Artículo|Artikel|KAPITOLA|CHAPTER|CAPÍTULO|KAPITEL|\d+\.)/iu.test(point))return null;
- let units=[{text:section,blocks:chunks(section)}];
+ let units=[{text:section,blocks:chunks(section),offset:0}];
  for(const segment of inner.slice(1)){
   if(segment.suffix)break; // For insertions the final new label selects siblings below.
-  if(segment.kind==='paragraph'||segment.kind==='point')units=units.flatMap(u=>children(u.text,segment.kind)).filter(u=>u.value===segment.value);
+  if(segment.kind==='paragraph'||segment.kind==='point')units=units.flatMap(u=>children(u.text,segment.kind).map(child=>({...child,offset:u.offset+child.offset}))).filter(u=>u.value===segment.value);
   else if(segment.kind==='subparagraph')units=units.flatMap(u=>{
-   const direct=u.blocks.filter(b=>!starts(b,'point'));return direct[Number(segment.value)-1]?[{text:direct[Number(segment.value)-1],blocks:[direct[Number(segment.value)-1]]}]:[];
+   const direct=blocksWithOffsets(u.text).filter(b=>!starts(b.text,'point')),block=direct[Number(segment.value)-1];return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset}]:[];
   });else return null;
  }
  return {section,followingSection,units,inner,outer,point,frame:source.slice(begin.index,begin.index+begin[0].length+end)};
@@ -120,12 +140,13 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
   }
   const parents=scope.units;
   if(!parents?.length)return unknown('article-insertion-parent-unproved');
-  const siblings=parents.flatMap(p=>children(p.text,last.kind)),anchors=siblings.filter(s=>s.value===last.base);if(anchors.length!==1)return unknown('article-insertion-anchor-unproved');
+  const siblings=parents.flatMap(p=>children(p.text,last.kind).map(child=>({...child,offset:p.offset+child.offset}))),anchors=siblings.filter(s=>s.value===last.base);if(anchors.length!==1)return unknown('article-insertion-anchor-unproved');
   if(new Set(siblings.map(s=>s.value)).size!==siblings.length)return unknown('article-insertion-numbering-unproved');
   const index=siblings.indexOf(anchors[0]),next=siblings[index+1];
   const after=proposal.paragraphs[placement.insertAfter]?.text,before=proposal.paragraphs[placement.insertBefore]?.text;
-  if(!Number.isSafeInteger(placement.insertAfter)||placement.insertBefore!==placement.insertAfter+1||!after||!owner.has(placement.insertAfter))return failed();
-  if(!literal(anchors[0].text).endsWith(literal(after)))return failed();
+  if(!Number.isSafeInteger(placement.insertAfter)||placement.insertBefore!==placement.insertAfter+1||!after||!owner.rows.has(placement.insertAfter))return failed();
+  const native=nativeUnitRange(owner,anchors[0]);
+  if(!native||owner.starts[placement.insertAfter]+coordinates(after).length!==native.end||!literal(anchors[0].text).endsWith(literal(after)))return failed();
   if(placement.splice){
    const s=placement.splice,tail=/[“’»«"][.;]?\s*$/u.exec(after);
    if(next||!tail||!/[“’»«"][.;]?\s*$/u.test(anchors[0].text)||s.start?.paragraph!==placement.insertAfter||s.end?.paragraph!==placement.insertAfter||s.start?.offset!==tail.index||s.end?.offset!==tail.index)return failed();
@@ -138,11 +159,15 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items}) {
  if(!['replace','delete'].includes(placement.operation))return unknown('article-operation-unproved');
  const s=placement.span,p=placement.splice;
  if(!s||!p||![s.start,s.end,p.start?.paragraph,p.end?.paragraph,p.start?.offset,p.end?.offset].every(Number.isSafeInteger)||s.start<0||s.end<s.start||s.end>=proposal.paragraphs.length||p.start.paragraph!==s.start||p.end.paragraph!==s.end)return failed();
- if(Array.from({length:s.end-s.start+1},(_,i)=>s.start+i).some(i=>!owner.has(i)))return failed();
+ if(Array.from({length:s.end-s.start+1},(_,i)=>s.start+i).some(i=>!owner.rows.has(i)))return failed();
  const first=proposal.paragraphs[s.start].text,last=proposal.paragraphs[s.end].text;
  if(p.start.offset<0||p.start.offset>first.length||p.end.offset<0||p.end.offset>last.length||s.start===s.end&&p.end.offset<=p.start.offset)return failed();
  const rendered=proposal.paragraphs.slice(s.start,s.end+1).map((v,i)=>v.text.slice(i?0:p.start.offset,i===s.end-s.start?p.end.offset:v.text.length)).join(' '),original=literal(wording.originalText);
  if(!original||literal(rendered)!==original)return failed();
  const matches=scope.units.filter(u=>literal(u.text).split(original).length===2);if(matches.length!==1)return unknown('article-original-unproved');
+ const native=nativeUnitRange(owner,matches[0]),inside=uniqueOffset(coordinates(matches[0].text),coordinates(original));
+ if(!native||inside===null)return unknown('article-original-coordinates-unproved');
+ const expected=native.start+inside,actualStart=owner.starts[s.start]+coordinates(first.slice(0,p.start.offset)).length,actualEnd=owner.starts[s.end]+coordinates(last.slice(0,p.end.offset)).length;
+ if(actualStart!==expected||actualEnd!==expected+coordinates(original).length)return failed();
  return {status:'verified',reason:'native-council-pdf-article-original-and-address'};
 }
