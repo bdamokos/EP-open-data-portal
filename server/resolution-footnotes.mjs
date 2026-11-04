@@ -4,7 +4,7 @@
 const compact = value => value.normalize('NFC').replace(/\s/gu, '');
 
 export function resolutionFootnoteMatch(text, start, end, original, formatting) {
-  const divider = /\n_{5,}\s*\n/u.exec(original ?? '');
+  const divider = /\n_{5,}\s*\n/u.exec(original ?? '') || /\n(?=\s*[1-9]\d*\.\s+\S)/u.exec(original ?? '');
   if (!divider || text?.notesStatus !== 'extracted') return false;
   const rows = text.paragraphs.slice(start, end + 1);
   if (!rows.length || /\n_{5,}\s*\n/u.test(rows.join('\n'))) return false;
@@ -25,7 +25,7 @@ export function resolutionFootnoteMatch(text, start, end, original, formatting) 
   if (anchors.length !== marks.length) return false;
   return anchors.every((anchor, i) => {
     const note = text.notes?.find(candidate => candidate.id === anchor.note), label = body.slice(marks[i].start, marks[i].end);
-    const line = /^\s*(\d+)\s+([\s\S]+)$/u.exec(lines[i]);
+    const line = /^\s*(\d+)\.?\s+([\s\S]+)$/u.exec(lines[i]);
     if (!line || line[1] !== label || typeof note?.text !== 'string' || !note.text.trim()) return false;
     // A custom note mark repeats its label inside the amendment's payload.
     const payload = [line[2], new RegExp(`^${label}\\s+([\\s\\S]+)$`, 'u').exec(line[2])?.[1]].filter(Boolean);
