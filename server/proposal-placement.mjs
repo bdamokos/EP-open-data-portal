@@ -582,6 +582,23 @@ function quotedInteriorInsertion(selected,targetPath,proposedText,language) {
 
 // A suffixed sibling may follow a whole provision supplied by an instruction.
 // Partial-subparagraph replacements never establish the whole sibling's end.
+function finnishQuotedSiblingInsertion(selected,targetPath,proposedText,language) {
+ if(language!=='fi'||targetPath?.underlying?.length!==1)return null;
+ const ref=targetPath.underlying[0];if(ref.document&&ref.document!==ref.raw)return null;const inner=parseTargetLabel(ref.raw,language),label=inner.segments.at(-1),printed=/^(\d+)\s*a[.]\s/u.exec(proposedText??'');
+ if(!inner.complete||inner.segments.length!==2||inner.segments[0].kind!=='article'||label?.kind!=='paragraph'||label.suffix!=='a'||!printed||Number(printed[1])!==label.number)return null;
+ const {proposal,unit:owner,itemIndex}=selected,normal=value=>value.replace(/\s+/gu,' ').trim();
+ if(owner.scope!=='proposal'||owner.kind!=='point'||!/^\([a-z]\) korvataan \d+ kohta seuraavasti:$/u.test(normal(owner.instruction?.raw??''))||!completeBoundary(proposal,owner))return null;
+ if(normal(owner.instruction.raw)!=='('+owner.label.value+') korvataan '+label.number+' kohta seuraavasti:')return null;
+ let chain=[];const find=(units,parents=[])=>{for(const unit of units){if(unit===owner){chain=[...parents,unit];return true;}if(find(unit.children,[...parents,unit]))return true;}return false;};find(proposal.units);
+ const named=chain.filter(unit=>/^\(\d+\) Muutetaan \d+ artikla seuraavasti:$/u.test(normal(unit.instruction?.raw??''))).at(-1);
+ if(!named||!new RegExp('^\\(\\d+\\) Muutetaan '+escape(inner.segments[0].value)+' artikla seuraavasti:$','u').test(normal(named.instruction.raw)))return null;
+ const quotes=owner.children.filter(unit=>unit.kind==='quotation');if(quotes.length!==1)return null;
+ const quote=quotes[0],paragraphs=quote.children.filter(unit=>unit.kind==='paragraph'),parent=paragraphs[0];
+ if(paragraphs.length!==1||parent.children.length||parent.label?.value!==String(label.number)||!sameAddress(parent.underlyingPath,[inner.segments[0],{kind:'paragraph',value:String(label.number)}])||!completeBoundary(proposal,quote)||parent.extent.start!==quote.extent.start||parent.extent.end!==quote.extent.end||quote.extent.end!==owner.extent.end||parent.extent.end!==parent.extent.start+1)return null;
+ const row=proposal.paragraphs[parent.extent.start],next=proposal.paragraphs[parent.extent.end],nextLetter=String.fromCharCode(owner.label.value.charCodeAt(0)+1);
+ if(!row.complete||!next?.complete||row.source?.complete!==true||next.source?.complete!==true||row.source.container!=='body'||next.source.container!=='body'||row.objects.length||(proposal.anchors??[]).some(a=>a.paragraph===row.index)||row.source.containerPath!==next.source.containerPath||row.source.segment!==next.source.segment||row.source.ordinal+1!==next.source.ordinal||!new RegExp('^”'+label.number+'[.]\\s[\\s\\S]+”$','u').test(row.text.trim())||!next.text.startsWith('('+nextLetter+')'))return null;
+ return {itemIndex,insertBefore:parent.extent.end,evidence:[{basis:'finnish-printed-quoted-sibling',owner:owner.id,anchor:parent.id,label:label.value}]};
+}
 function quotedSiblingInsertion(selected,targetPath,proposedText,language) {
   if(language!=='en')return null;
   const {proposal,unit:owner,itemIndex}=selected;
@@ -1173,7 +1190,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,...(wordDifference?{originalDifference:'one-word'}:{}),evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?(quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],printedInnerPath(targetLabel,targetPath,language),proposedText,language)):null;
+    const quoted=candidates.length===1?(quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??finnishQuotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],printedInnerPath(targetLabel,targetPath,language),proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);

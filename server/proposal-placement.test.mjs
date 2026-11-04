@@ -703,3 +703,11 @@ test('a complete adjacent recital pair survives unrelated later recast numbering
  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,3);assert(placed.evidence.some(e=>e.basis==='native-adjacent-recital-boundary'));
  for(const mutate of [p=>p.sourceKind='text',p=>p.paragraphs[3]='(4) Other recital.',p=>p.paragraphs[5]='(1) Duplicate anchor.',p=>p.paragraphSources[3].ordinal++,p=>p.paragraphSources[2].complete=false]){const p=make();mutate(p);assert.equal(resolve(p,'Recital 1 a (new)','','(1a) New recital.').status,'unresolved',String(mutate));}
 });
+
+test('Finnish empty-original printed siblings remain within the exact quoted replacement',()=>{
+ const f=fixture('proposal-finnish-sibling.json'),wrap=x=>`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${x}</w:body></w:document>`,buffer=fixtureZip({'word/document.xml':wrap(f.bodyXml)}),proposal=parseProposal(buffer,{language:'fi'}),items=[{kind:'act',proposal}],inner='20 artikla – 1 a kohta';
+ const wording={language:'fi',baseline:'commission-proposal',originalText:'',proposedText:'1 a. Liikenteenharjoittajat voivat täyttää velvoitteensa.',targetLabel:'4 artikla – 1 kohta – 2 alakohta – a alakohta',targetPath:{language:'fi',proposal:[{raw:'4 artikla – 1 kohta – 2 alakohta – a alakohta'}],underlying:[{document:inner,raw:inner}]}};
+ const placement=resolveProposalPlacement(items,wording),next=proposal.paragraphs.find(row=>row.text.startsWith('(b)')&&row.text.includes('korvataan 4')).index;
+ assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,next);assert.equal(placement.insertAfter,next-1);assert.equal(verifyPlacement({items,wording,placement,nativeQuoted:{proposalBuffer:buffer}}).status,'verified');
+ for(const mutate of [a=>a.targetPath.underlying[0].raw='21 artikla – 1 a kohta',a=>a.targetPath.underlying[0].document='Regulation (EU) 999/999',a=>a.proposedText='2 a. Uusi kohta.']){const w=structuredClone(wording);mutate(w);assert.equal(resolveProposalPlacement(items,w).status,'unresolved');}
+});
