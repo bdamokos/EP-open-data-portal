@@ -25,7 +25,7 @@ import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-gramma
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-benchmark-proposal-oracle.mjs';
-import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
+import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,assertSwedishRecommendation} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 import {assertRecastReading} from './amendment-recast-oracle.mjs';
@@ -598,6 +598,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
+  if(!items?.length&&wording.language==='sv'&&/^Bilaga I – rekommendation [1-9]\d* – punkt 1$/u.test(wording.targetLabel||''))return assertSwedishRecommendation({text,wording,placement});
   const annex=assertBareAnnexInsertion(items,wording,placement,nativeQuoted);
   if(annex)return annex;
   const proposal = items?.[placement.itemIndex]?.proposal;

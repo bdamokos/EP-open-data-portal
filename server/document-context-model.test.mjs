@@ -17,6 +17,13 @@ const found = (paragraphs, basis = 'quoted-original', quoteMatches = true, relat
   status: 'found', paragraphs, basis, relation, quoteMatches, reason: null,
 });
 
+test('Swedish recommendation point is resolved only within the identified annex section',()=>{
+ const paragraphs=['BILAGA TILL RESOLUTIONSFÖRSLAGET','Rekommendation 5','Ämne','1. Original;','2. Nästa;','Rekommendation 6','MOTIVERING'];
+ const options={language:'sv',baseline:'motion-resolution',targetLabel:'Bilaga I – rekommendation 5 – punkt 1',originalText:'1. Original;',proposedText:'1. Ändrad;'};
+ const text=document(paragraphs,{textLanguage:'sv'});assert.deepEqual(resolveAmendmentPlacement(text,options).span,{start:3,end:3});
+ for(const changed of [document(paragraphs.map((v,i)=>i===4?'3. Nästa;':v),{textLanguage:'sv'}),document(paragraphs,{textLanguage:'sv',sources:{3:{complete:false}}})])assert.notEqual(resolveAmendmentPlacement(changed,options).status,'placed');
+});
+
 test('published translated resolution labels preserve native numbering and script',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-labels.json',import.meta.url)));
   for(const example of fixture.examples) {
