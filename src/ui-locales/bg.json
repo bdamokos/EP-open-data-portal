@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Приложения · част {index}",
   "proposalcontexttext.council.position.part.index": "Позиция на Съвета · част {index}",
   "proposalcontexttext.existing.act.part.index": "Съществуващ акт · част {index}",
-  "hemicycle.unavailable": "Схемата на местата не е налична."
+  "hemicycle.unavailable": "Схемата на местата не е налична.",
+  "MotionComparison.sourceDocx": "Източник DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Официален текст на изменението ↗"
 }

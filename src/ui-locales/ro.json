@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Anexe · partea {index}",
   "proposalcontexttext.council.position.part.index": "Poziția Consiliului · partea {index}",
   "proposalcontexttext.existing.act.part.index": "Act existent · partea {index}",
-  "hemicycle.unavailable": "Planul sălii nu este disponibil."
+  "hemicycle.unavailable": "Planul sălii nu este disponibil.",
+  "MotionComparison.sourceDocx": "DOCX sursă · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Formularea oficială a amendamentului ↗"
 }

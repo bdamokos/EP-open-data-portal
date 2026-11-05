@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Liitteet · osa {index}",
   "proposalcontexttext.council.position.part.index": "Neuvoston kanta · osa {index}",
   "proposalcontexttext.existing.act.part.index": "Voimassa oleva säädös · osa {index}",
-  "hemicycle.unavailable": "Istumajärjestystä ei ole saatavilla."
+  "hemicycle.unavailable": "Istumajärjestystä ei ole saatavilla.",
+  "MotionComparison.sourceDocx": "Lähde-DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Tarkistuksen virallinen sanamuoto ↗"
 }

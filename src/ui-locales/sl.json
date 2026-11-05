@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Priloge · del {index}",
   "proposalcontexttext.council.position.part.index": "Stališče Sveta · del {index}",
   "proposalcontexttext.existing.act.part.index": "Obstoječi akt · del {index}",
-  "hemicycle.unavailable": "Razpored sedežev ni na voljo."
+  "hemicycle.unavailable": "Razpored sedežev ni na voljo.",
+  "MotionComparison.sourceDocx": "Izvorni DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Uradno besedilo predloga spremembe ↗"
 }

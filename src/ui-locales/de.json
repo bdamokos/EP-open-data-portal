@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Anhänge · Teil {index}",
   "proposalcontexttext.council.position.part.index": "Standpunkt des Rates · Teil {index}",
   "proposalcontexttext.existing.act.part.index": "Bestehender Rechtsakt · Teil {index}",
-  "hemicycle.unavailable": "Sitzplan nicht verfügbar."
+  "hemicycle.unavailable": "Sitzplan nicht verfügbar.",
+  "MotionComparison.sourceDocx": "Quell-DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Offizieller Wortlaut des Änderungsantrags ↗"
 }

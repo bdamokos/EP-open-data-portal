@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Anexos · parte {index}",
   "proposalcontexttext.council.position.part.index": "Posição do Conselho · parte {index}",
   "proposalcontexttext.existing.act.part.index": "Ato existente · parte {index}",
-  "hemicycle.unavailable": "Plano do hemiciclo indisponível."
+  "hemicycle.unavailable": "Plano do hemiciclo indisponível.",
+  "MotionComparison.sourceDocx": "DOCX de origem · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Redação oficial da alteração ↗"
 }

@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Załączniki · część {index}",
   "proposalcontexttext.council.position.part.index": "Stanowisko Rady · część {index}",
   "proposalcontexttext.existing.act.part.index": "Istniejący akt prawny · część {index}",
-  "hemicycle.unavailable": "Plan miejsc niedostępny."
+  "hemicycle.unavailable": "Plan miejsc niedostępny.",
+  "MotionComparison.sourceDocx": "Źródłowy DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Oficjalne brzmienie poprawki ↗"
 }

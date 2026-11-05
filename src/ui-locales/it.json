@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Allegati · parte {index}",
   "proposalcontexttext.council.position.part.index": "Posizione del Consiglio · parte {index}",
   "proposalcontexttext.existing.act.part.index": "Atto vigente · parte {index}",
-  "hemicycle.unavailable": "Piano dell’emiciclo non disponibile."
+  "hemicycle.unavailable": "Piano dell’emiciclo non disponibile.",
+  "MotionComparison.sourceDocx": "DOCX originale · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Testo ufficiale dell’emendamento ↗"
 }

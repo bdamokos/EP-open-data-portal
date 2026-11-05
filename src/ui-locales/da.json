@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Bilag · del {index}",
   "proposalcontexttext.council.position.part.index": "Rådets holdning · del {index}",
   "proposalcontexttext.existing.act.part.index": "Gældende retsakt · del {index}",
-  "hemicycle.unavailable": "Siddeplanen er ikke tilgængelig."
+  "hemicycle.unavailable": "Siddeplanen er ikke tilgængelig.",
+  "MotionComparison.sourceDocx": "Kilde-DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Officiel ordlyd af ændringsforslaget ↗"
 }

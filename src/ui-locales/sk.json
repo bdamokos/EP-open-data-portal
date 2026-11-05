@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Prílohy · časť {index}",
   "proposalcontexttext.council.position.part.index": "Pozícia Rady · časť {index}",
   "proposalcontexttext.existing.act.part.index": "Existujúci právny akt · časť {index}",
-  "hemicycle.unavailable": "Zasadací poriadok nie je k dispozícii."
+  "hemicycle.unavailable": "Zasadací poriadok nie je k dispozícii.",
+  "MotionComparison.sourceDocx": "Zdrojový DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Úradné znenie pozmeňujúceho návrhu ↗"
 }

@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Lisad · osa {index}",
   "proposalcontexttext.council.position.part.index": "Nõukogu seisukoht · osa {index}",
   "proposalcontexttext.existing.act.part.index": "Olemasolev õigusakt · osa {index}",
-  "hemicycle.unavailable": "Istumiskord pole saadaval."
+  "hemicycle.unavailable": "Istumiskord pole saadaval.",
+  "MotionComparison.sourceDocx": "Algne DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Muudatusettepaneku ametlik sõnastus ↗"
 }

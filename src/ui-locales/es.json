@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Anexos · parte {index}",
   "proposalcontexttext.council.position.part.index": "Posición del Consejo · parte {index}",
   "proposalcontexttext.existing.act.part.index": "Acto vigente · parte {index}",
-  "hemicycle.unavailable": "Plano del hemiciclo no disponible."
+  "hemicycle.unavailable": "Plano del hemiciclo no disponible.",
+  "MotionComparison.sourceDocx": "DOCX de origen · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Texto oficial de la enmienda ↗"
 }

@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Annexes · partie {index}",
   "proposalcontexttext.council.position.part.index": "Position du Conseil · partie {index}",
   "proposalcontexttext.existing.act.part.index": "Acte existant · partie {index}",
-  "hemicycle.unavailable": "Plan de l’hémicycle indisponible."
+  "hemicycle.unavailable": "Plan de l’hémicycle indisponible.",
+  "MotionComparison.sourceDocx": "DOCX source · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Formulation officielle de l’amendement ↗"
 }

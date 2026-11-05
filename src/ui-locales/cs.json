@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Přílohy · část {index}",
   "proposalcontexttext.council.position.part.index": "Postoj Rady · část {index}",
   "proposalcontexttext.existing.act.part.index": "Stávající právní akt · část {index}",
-  "hemicycle.unavailable": "Zasedací pořádek není k dispozici."
+  "hemicycle.unavailable": "Zasedací pořádek není k dispozici.",
+  "MotionComparison.sourceDocx": "Zdrojový DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Úřední znění pozměňovacího návrhu ↗"
 }

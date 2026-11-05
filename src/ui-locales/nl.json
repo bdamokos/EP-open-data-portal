@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Bijlagen · deel {index}",
   "proposalcontexttext.council.position.part.index": "Standpunt van de Raad · deel {index}",
   "proposalcontexttext.existing.act.part.index": "Bestaande rechtshandeling · deel {index}",
-  "hemicycle.unavailable": "Zaalindeling niet beschikbaar."
+  "hemicycle.unavailable": "Zaalindeling niet beschikbaar.",
+  "MotionComparison.sourceDocx": "Bron-DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Officiële amendementtekst ↗"
 }

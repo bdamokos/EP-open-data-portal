@@ -2352,5 +2352,7 @@
   "proposalcontexttext.annexes.part.index": "Mellékletek · {index}. rész",
   "proposalcontexttext.council.position.part.index": "A Tanács álláspontja · {index}. rész",
   "proposalcontexttext.existing.act.part.index": "Meglévő jogi aktus · {index}. rész",
-  "hemicycle.unavailable": "Az ülésrend nem érhető el."
+  "hemicycle.unavailable": "Az ülésrend nem érhető el.",
+  "MotionComparison.sourceDocx": "Forrás DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "A módosítás hivatalos szövege ↗"
 }
