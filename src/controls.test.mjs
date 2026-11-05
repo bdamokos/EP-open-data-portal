@@ -62,6 +62,35 @@ test('Follow and Save names include their visible state and identify compact con
   }
 });
 
+test('hemicycle follows the selected MEP through the shared saved store',async t=>{
+  const seats=[
+    {seat:1,x:10,y:10,r:5,member:257043,firstName:'Mika',name:'Aaltola',group:'PPE',country:'FI'},
+    {seat:2,x:30,y:10,r:5,member:28229,firstName:'Manfred',name:'Weber',group:'PPE',country:'DE'},
+    {seat:3,x:50,y:10,r:5,institution:'council'},
+  ];
+  const h=await harness(t,'?view=hemicycle&hc-member=257043&hc-q=1',url=>url.pathname.includes('/hemicycle/')?{chamber:'str',sourcePageUrl:'https://www.europarl.europa.eu/',sourceDate:null,width:100,height:100,seats,changes:null}:fixture(url));
+  const {Hemicycle}=await h.load('/src/Hemicycle.tsx');
+  const {savedStore}=await h.load('/src/SavedControls.tsx');
+  await h.render(createElement(Hemicycle,{onBack:()=>{}}));
+  const follow=()=>h.container.querySelector('.hemicycle-detail button[aria-pressed]');
+  assert.equal(follow().getAttribute('aria-label'),'Follow MEP · Mika Aaltola');
+  await h.click(follow());
+  assert.equal(follow().getAttribute('aria-pressed'),'true');
+  assert.deepEqual(savedStore.snapshot().items.map(({kind,id,title})=>({kind,id,title})),[{kind:'mep',id:'257043',title:'Mika Aaltola'}]);
+  assert(h.window.localStorage.getItem('ep.following.v2').includes('257043'));
+  // A change made in another view must update this panel immediately.
+  await act(async()=>savedStore.toggle({kind:'mep',id:'257043',title:'Mika Aaltola'}));
+  assert.equal(follow().getAttribute('aria-pressed'),'false');
+  const navigate=async query=>act(async()=>{h.window.history.pushState({},'',query);h.window.dispatchEvent(new h.window.PopStateEvent('popstate'));});
+  await navigate('?view=hemicycle&hc-member=28229');
+  assert.equal(follow().getAttribute('aria-label'),'Follow MEP · Manfred Weber');
+  await h.click(follow());
+  assert.equal(savedStore.snapshot().items[0].id,'28229');
+  await navigate('?view=hemicycle&hc-q=3');
+  await h.click(h.container.querySelector('.hemicycle-results button'));
+  assert.equal(follow(),null,'institution seats have no follow control');
+});
+
 test('MEP speech loads before hidden debate preload, then opening the sequence warms nearby transcripts',async t=>{
   const id='MTG-PL-2026-03-25-OTH-2017069380111',other=id+'2',requests=[];
   let finishSpeech,finishContext;

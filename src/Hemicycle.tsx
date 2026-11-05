@@ -10,6 +10,7 @@ import {countryName} from './interfaceLabels.mjs';
 import {groupColor,groupLabel} from './groupLabels';
 import {InsightPortrait} from './InsightPortrait';
 import {SourceLink} from './SourceLink';
+import {SaveButton} from './SavedControls';
 import {groupCounts,nearestSeat,seatMatches,type HemicycleSeat} from './hemicycleModel.mjs';
 import './Hemicycle.css';
 
@@ -97,6 +98,7 @@ export function Hemicycle(props:InsightProps) {
               <h2>{fullName(selected)}</h2>
               <p><UiMessage id="hemicycle.seat" values={{seat:String(selected.seat)}}/></p>
               <p>{groupLabel(selected.group||'',ui)}{selected.country?` · ${countryName(language,selected.country,ui)}`:''}</p>
+              <SaveButton item={{kind:'mep',id:String(selected.member),title:fullName(selected)}} language={language}/>
               <button type="button" onClick={()=>props.onMember?.(selected.member!)}><UiMessage id="hemicycle.openMember"/></button>
             </>:<>
               <h2><UiMessage id="hemicycle.seat" values={{seat:String(selected.seat)}}/></h2>
