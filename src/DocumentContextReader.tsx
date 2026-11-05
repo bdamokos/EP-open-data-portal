@@ -2,6 +2,7 @@ import {publicationRetry} from './publicationRetry';
 import {RecordTopics} from './RecordTopics';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
+import {PlacementNote} from './PlacementNote';
 import {DocumentObjectText} from './DocumentObjectText';
 import {type DocumentImageReference} from './DocumentImage';
 import {DocumentPages} from './DocumentPages';
@@ -159,12 +160,10 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   }) : undefined;
   const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace ? 'true' : undefined} tabIndex={inPlace ? (-1) : undefined} aria-labelledby={amendmentHeading}>
     <h4 id={amendmentHeading} lang={ui.language}>{number ? <UiMessage id="membervotes.tsx.amendment.number" values={{number: number}}/> : <UiMessage id="motionamendments.amendment.664ccf"/>}</h4>
-    {inPlace&&placement?.evidence?.some(e=>e.basis==='colliding-new-point')&&<p className="document-context-instruction"><UiMessage id="proposalcontexttext.colliding.new.point"/></p>}
-    {inPlace&&placement?.evidence?.some(e=>e.basis==='decision-point-original-difference')&&<p className="document-context-instruction"><UiMessage id="documentcontext.original_wording_differs"/></p>}
-    {inPlace&&placement?.evidence?.some(e=>e.basis==='citation-number-collision')&&<p lang={ui.language}><UiMessage id="documentcontext.citation_before_existing"/></p>}
-    {inPlace&&placement?.evidence?.some(e=>e.basis==='first-numeric-point-in-lettered-list')&&<p lang={ui.language}><UiMessage id="documentcontext.after_paragraph_lead"/></p>}
+    {inPlace&&placement?.evidence?.some(e=>e.basis==='colliding-new-point'||e.basis==='citation-number-collision')&&<PlacementNote id="documentcontext.note.number_exists"/>}
+    {inPlace&&placement?.evidence?.some(e=>e.basis==='decision-point-original-difference')&&<PlacementNote id="documentcontext.note.original_differs"/>}
+    {inPlace&&placement?.finalPlacementCheck&&<PlacementNote id="documentcontext.final_placement_check" values={{adoptedText:/^https:\/\/www\.europarl\.europa\.eu\/doceo\/document\/TA-10-\d{4}-\d{4,6}_[A-Z]{2}\.html$/u.test(placement.finalPlacementCheck.adoptedTextUrl||'')?<a href={placement.finalPlacementCheck.adoptedTextUrl!} target="_blank" rel="noreferrer">{ui.t('documentcontext.adopted_text')}</a>:ui.t('documentcontext.adopted_text')}}/>}
     {wording&&(rejection&&placement?.operation==='alternative-motion'?<p className="wording-diff__passage" lang={wording.language||''}><FormattedWording text={wording.proposedText||''} start={0} formatting={wording.proposedFormatting||[]}/></p>:<WordingDiff originalFormatting={wording.originalFormatting} proposedFormatting={wording.proposedFormatting} original={(placement?.operation==='insert') ? '' : wording.originalText} proposed={(placement?.operation==='delete') ? '' : wording.proposedText} language={wording.language} emptySemantics={rejection ? "not-supplied" : "insertion-deletion"} highlightChanges={!rejection} presentation="context" renderOriginal={inPlace ? renderOriginal : undefined}/>)}
-    {inPlace&&placement?.finalPlacementCheck&&<p lang={ui.messageLocale('documentcontext.final_placement_check')}><UiMessage id="documentcontext.final_placement_check" values={{adoptedText:/^https:\/\/www\.europarl\.europa\.eu\/doceo\/document\/TA-10-\d{4}-\d{4,6}_[A-Z]{2}\.html$/u.test(placement.finalPlacementCheck.adoptedTextUrl||'')?<a href={placement.finalPlacementCheck.adoptedTextUrl!} target="_blank" rel="noreferrer">{ui.t('documentcontext.adopted_text')}</a>:ui.t('documentcontext.adopted_text')}}/></p>}
     <AmendmentJustification record={wording}/>
   </section>;
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
