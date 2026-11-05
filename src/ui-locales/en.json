@@ -2394,5 +2394,8 @@
   "voteCountries.sort": "Sort by {column}",
   "voteCountries.cell": "{country}, {group}: {count} {position}",
   "voteCountries.country_row": "{country}: {for} for, {against} against, {abstaining} abstaining",
-  "voteCountries.group_row": "{group}: {for} for, {against} against, {abstaining} abstaining"
+  "voteCountries.group_row": "{group}: {for} for, {against} against, {abstaining} abstaining",
+  "voteResult.outcome.LAPSED": "Lapsed",
+  "voteResult.method.VOTE_HAND": "Show of hands",
+  "voteResult.method.VOTE_ELECTRONIC": "Electronic vote"
 }

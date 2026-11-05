@@ -49,3 +49,8 @@
 .vote-country-table thead button{padding:0 .25rem}
 .vote-country-table th:first-child{position:sticky;left:0;background:var(--bg)}
 .vote-country-table td button{min-width:2.5rem;padding:0 .25rem}
+.vote-result-method{display:inline;margin-left:.6rem;font-size:.85rem;font-weight:400;color:var(--ink-muted)}
+.vote-picker{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem .75rem;margin:.25rem 0 .5rem}
+.vote-picker .vote-nav{margin:0}
+.vote-picker .insight-vote-select{flex:1 1 14rem;min-width:0;margin:0}
+@media (max-width:639px){.insight-agenda-view[data-topic-selected=true] .insight-agenda-select{display:none}}
