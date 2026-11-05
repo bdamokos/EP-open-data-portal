@@ -2356,5 +2356,11 @@
   "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uvedený bod {base}.",
   "documentcontext.note.report_paragraph": "Odsek {report} v správe; tu vytlačený ako {source}.",
   "documentcontext.note.label_instruction_differ": "Označenie a pokyn sa líšia.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Vyhľadávaniu nezodpovedá žiadny z dostupných bodov programu."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Vyhľadávaniu nezodpovedá žiadny z dostupných bodov programu.",
+  "proposalcontexttext.proposal": "Návrh",
+  "proposalcontexttext.proposal.part.index": "Návrh · časť {index}",
+  "proposalcontexttext.annexes": "Prílohy",
+  "proposalcontexttext.annexes.part.index": "Prílohy · časť {index}",
+  "proposalcontexttext.council.position.part.index": "Pozícia Rady · časť {index}",
+  "proposalcontexttext.existing.act.part.index": "Existujúci právny akt · časť {index}"
 }

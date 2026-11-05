@@ -2356,5 +2356,11 @@
   "proposalcontexttext.printed.point.label": "Nova točka {point}. Oznaka navodi točku {base}.",
   "documentcontext.note.report_paragraph": "Stavak {report} u izvješću; ovdje otisnut kao {source}.",
   "documentcontext.note.label_instruction_differ": "Oznaka i uputa se razlikuju.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Nijedna dostupna točka dnevnog reda ne odgovara pretraživanju."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Nijedna dostupna točka dnevnog reda ne odgovara pretraživanju.",
+  "proposalcontexttext.proposal": "Prijedlog",
+  "proposalcontexttext.proposal.part.index": "Prijedlog · dio {index}",
+  "proposalcontexttext.annexes": "Prilozi",
+  "proposalcontexttext.annexes.part.index": "Prilozi · dio {index}",
+  "proposalcontexttext.council.position.part.index": "Stajalište Vijeća · dio {index}",
+  "proposalcontexttext.existing.act.part.index": "Postojeći akt · dio {index}"
 }

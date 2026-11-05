@@ -2356,5 +2356,11 @@
   "proposalcontexttext.printed.point.label": "Naujas {point} punktas. Žymoje nurodytas {base} punktas.",
   "documentcontext.note.report_paragraph": "{report} dalis pranešime; čia išspausdinta kaip {source}.",
   "documentcontext.note.label_instruction_differ": "Žyma ir nurodymas skiriasi.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Nė vienas pasiekiamas darbotvarkės punktas neatitinka paieškos."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Nė vienas pasiekiamas darbotvarkės punktas neatitinka paieškos.",
+  "proposalcontexttext.proposal": "Pasiūlymas",
+  "proposalcontexttext.proposal.part.index": "Pasiūlymas · dalis {index}",
+  "proposalcontexttext.annexes": "Priedai",
+  "proposalcontexttext.annexes.part.index": "Priedai · dalis {index}",
+  "proposalcontexttext.council.position.part.index": "Tarybos pozicija · dalis {index}",
+  "proposalcontexttext.existing.act.part.index": "Esamas teisės aktas · dalis {index}"
 }

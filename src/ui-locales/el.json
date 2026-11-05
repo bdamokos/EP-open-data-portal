@@ -2356,5 +2356,11 @@
   "proposalcontexttext.printed.point.label": "Νέο σημείο {point}. Η ένδειξη αναφέρει το σημείο {base}.",
   "documentcontext.note.report_paragraph": "Παράγραφος {report} στην έκθεση· τυπωμένη εδώ ως {source}.",
   "documentcontext.note.label_instruction_differ": "Η ένδειξη και η οδηγία διαφέρουν.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Κανένα διαθέσιμο θέμα ημερήσιας διάταξης δεν αντιστοιχεί στην αναζήτηση."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Κανένα διαθέσιμο θέμα ημερήσιας διάταξης δεν αντιστοιχεί στην αναζήτηση.",
+  "proposalcontexttext.proposal": "Πρόταση",
+  "proposalcontexttext.proposal.part.index": "Πρόταση · μέρος {index}",
+  "proposalcontexttext.annexes": "Παραρτήματα",
+  "proposalcontexttext.annexes.part.index": "Παραρτήματα · μέρος {index}",
+  "proposalcontexttext.council.position.part.index": "Θέση Συμβουλίου · μέρος {index}",
+  "proposalcontexttext.existing.act.part.index": "Υφιστάμενη πράξη · μέρος {index}"
 }

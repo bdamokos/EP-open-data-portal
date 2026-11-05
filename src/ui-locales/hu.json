@@ -2356,5 +2356,11 @@
   "proposalcontexttext.printed.point.label": "Új {point}. pont. A címkén ez áll: {base}. pont.",
   "documentcontext.note.report_paragraph": "A jelentés {report}. bekezdése; itt {source}. számmal szerepel.",
   "documentcontext.note.label_instruction_differ": "A megjelölés és az utasítás eltér.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Egyetlen elérhető napirendi pont sem felel meg a keresésnek."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Egyetlen elérhető napirendi pont sem felel meg a keresésnek.",
+  "proposalcontexttext.proposal": "Javaslat",
+  "proposalcontexttext.proposal.part.index": "Javaslat · {index}. rész",
+  "proposalcontexttext.annexes": "Mellékletek",
+  "proposalcontexttext.annexes.part.index": "Mellékletek · {index}. rész",
+  "proposalcontexttext.council.position.part.index": "A Tanács álláspontja · {index}. rész",
+  "proposalcontexttext.existing.act.part.index": "Meglévő jogi aktus · {index}. rész"
 }

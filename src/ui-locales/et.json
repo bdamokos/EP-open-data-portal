@@ -2356,5 +2356,11 @@
   "proposalcontexttext.printed.point.label": "Uus punkt {point}. Tähistus viitab punktile {base}.",
   "documentcontext.note.report_paragraph": "Raporti lõige {report}; siin trükitud numbriga {source}.",
   "documentcontext.note.label_instruction_differ": "Tähistus ja juhis erinevad.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Ükski saadaolev päevakorrapunkt ei vasta otsingule."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Ükski saadaolev päevakorrapunkt ei vasta otsingule.",
+  "proposalcontexttext.proposal": "Ettepanek",
+  "proposalcontexttext.proposal.part.index": "Ettepanek · osa {index}",
+  "proposalcontexttext.annexes": "Lisad",
+  "proposalcontexttext.annexes.part.index": "Lisad · osa {index}",
+  "proposalcontexttext.council.position.part.index": "Nõukogu seisukoht · osa {index}",
+  "proposalcontexttext.existing.act.part.index": "Olemasolev õigusakt · osa {index}"
 }

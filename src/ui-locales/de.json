@@ -2356,5 +2356,11 @@
   "proposalcontexttext.printed.point.label": "Neue Nummer {point}. Die Überschrift nennt Nummer {base}.",
   "documentcontext.note.report_paragraph": "Absatz {report} im Bericht; hier abgedruckt als {source}.",
   "documentcontext.note.label_instruction_differ": "Bezeichnung und Anweisung weichen voneinander ab.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Keiner der verfügbaren Tagesordnungspunkte entspricht dieser Suche."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Keiner der verfügbaren Tagesordnungspunkte entspricht dieser Suche.",
+  "proposalcontexttext.proposal": "Vorschlag",
+  "proposalcontexttext.proposal.part.index": "Vorschlag · Teil {index}",
+  "proposalcontexttext.annexes": "Anhänge",
+  "proposalcontexttext.annexes.part.index": "Anhänge · Teil {index}",
+  "proposalcontexttext.council.position.part.index": "Standpunkt des Rates · Teil {index}",
+  "proposalcontexttext.existing.act.part.index": "Bestehender Rechtsakt · Teil {index}"
 }
