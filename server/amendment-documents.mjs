@@ -436,7 +436,14 @@ function recoverSplitNotes(cell,native) {
   const formatting=cell.formatting.map(mark=>({...mark}));let delta=0;
   for(const a of inserts){const at=a.offset+delta;for(const mark of formatting){if(mark.start>=at)mark.start+=a.label.length;if(mark.end>at)mark.end+=a.label.length;}delta+=a.label.length;}
   shift=0;for(const a of points){formatting.push({kind:'superscript',start:a.offset+shift,end:a.offset+shift+a.label.length});shift+=a.label.length;}
-  return {...cell,text:text+'\n_____\n'+payload.join('\n'),formatting,hasNotes:false};
+  const merged=[];
+  for(const mark of formatting.sort((a,b)=>a.start-b.start||a.end-b.end)){
+    const previous=merged.at(-1);
+    if(previous&&mark.start<previous.end&&mark.kind!==previous.kind)return null;
+    if(previous&&mark.kind===previous.kind&&mark.start<=previous.end)previous.end=Math.max(previous.end,mark.end);
+    else merged.push(mark);
+  }
+  return {...cell,text:text+'\n_____\n'+payload.join('\n'),formatting:merged,hasNotes:false};
 }
 export function extractAmendments(buffer,{listId,targetDocumentId,language=null,sourceUrl=null,fetchedAt=null,reportId=null,scope='plenary',sourceKind=null}={}) {
   if(scope==='committee'&&!(sourceKind==='amendment-list'&&committeeListId(listId)||['draft-report','draft-opinion'].includes(sourceKind)&&committeeDraftId(listId)))throw new Error('Invalid typed committee amendment source.');

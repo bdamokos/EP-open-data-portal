@@ -864,7 +864,7 @@ test('tagged revised amendment numbers preserve their integer identity',()=>{
 test('split comparison keeps both native note columns and custom marks',async()=>{
  const {assertSplitComparisonNotes}=await import('../scripts/amendment-native-note-oracle.mjs');
  const old='<w:p><w:r><w:t>1. Old body</w:t><w:footnoteReference w:id="7"/></w:r></w:p>';
- const next='<w:p><w:r><w:t>1. New body</w:t><w:footnoteReference w:id="9" w:customMarkFollows="1"/><w:t>4</w:t></w:r></w:p>';
+ const next='<w:p><w:r><w:t>1. New body</w:t></w:r><w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:footnoteReference w:id="9" w:customMarkFollows="1"/><w:t>4</w:t></w:r></w:p>';
  const header=table(),grid='<w:tbl>'+row(cell(old),cell(next))+'</w:tbl>';
  const xml=body(metadata()+header+p('')+grid+p('</Amend>')).replace('urn:word','http://schemas.openxmlformats.org/wordprocessingml/2006/main');
  const notes='<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:footnote w:id="7">'+p('Old citation.')+'</w:footnote><w:footnote w:id="9">'+p('4 New citation.')+'</w:footnote></w:footnotes>';
@@ -880,6 +880,8 @@ test('split comparison keeps both native note columns and custom marks',async()=
  assert(!wording.gaps.some(g=>g.code==='notes-unavailable'));
  assert.equal(wording.originalText,'1. Old body1\n_____\n1 Old citation.');
  assert.equal(wording.proposedText,'1. New body4\n_____\n4 New citation.');
+ const {validAmendmentFormatting,amendmentTextLosses}=await import('./amendments.mjs');
+ assert(validAmendmentFormatting(wording));assert.deepEqual(amendmentTextLosses(null,wording),[]);
  assert.equal(assertSplitComparisonNotes({wording,nativeQuoted:{amendmentBuffer:bytes,number:1}}).status,'verified');
  for(const side of ['originalText','proposedText']){const damaged={...wording,[side]:wording[side]+' lost note'};assert.equal(assertSplitComparisonNotes({wording:damaged,nativeQuoted:{amendmentBuffer:bytes,number:1}}).status,'failed');}
  for(const changed of [notes.replace('Old citation.',''),notes.replace('w:id="7"','w:id="77"'),notes.replace('</w:footnotes>','<w:footnote w:id="7">'+p('Conflicting citation.')+'</w:footnote></w:footnotes>')]){
