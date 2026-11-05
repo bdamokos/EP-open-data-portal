@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import {topicVotes} from './insights-legislation-model.mjs';
+import {rollCallDecisions} from './insights-participation.mjs';
 
 // Fixture provenance: decision fields below are trimmed copies of nodes in the
 // EP Open Data record https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-22/decisions
@@ -41,4 +42,9 @@ test('published tallies stay, unpublished ones stay null and never become zero',
 test('the decisions request carries no vote-method filter',()=>{
   const source=readFileSync(new URL('./insights-legislation.mjs',import.meta.url),'utf8');
   assert.doesNotMatch(source,/\/decisions',\{[^}]*vote-method/);
+});
+test('participation keeps the roll calls with voter lists that the upstream roll-call filter returned, from the shared unfiltered read',()=>{
+  // Observed on the 2026-10-22 record: the filter returned 76 of 94 roll-call decisions; the 18 absent had no had_voter_* field.
+  const all={...decisions,payload:{data:[...decisions.payload.data,decision('199388','VOTE_ELECTRONIC_ROLLCALL','ADOPTED',{had_voter_favor:[],had_voter_against:[],had_voter_abstention:[]}),decision('199389','VOTE_ELECTRONIC_ROLLCALL','REJECTED')]}};
+  assert.deepEqual(rollCallDecisions(all).payload.data.map(v=>v.activity_id.slice(-6)),['199512','199388']);
 });

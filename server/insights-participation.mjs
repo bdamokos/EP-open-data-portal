@@ -40,6 +40,13 @@ async function participationEvent(legislation,id,readEvent,now) {
   // Old disk events are saved observations. Only a provably newer publication replaces transient evidence.
   return disk&&(!memory||Number.isFinite(disk.fetchedAt)&&Number.isFinite(memory.fetchedAt)&&disk.fetchedAt>memory.fetchedAt)?disk:memory||disk;
 }
+// The legislation view reads every decision method once and shares that request. Participation
+// keeps what the upstream roll-call filter returned: roll-call decisions that publish voter lists
+// (on 2026-10-22 the filter returned exactly those; roll-call decisions with no voter field were absent).
+const voterFields=['had_voter_favor','had_voter_against','had_voter_abstention'];
+export function rollCallDecisions(decisions) {
+  return {...decisions,payload:{...decisions.payload,data:decisions.payload.data.filter(vote=>tail(vote.decision_method)==='VOTE_ELECTRONIC_ROLLCALL'&&voterFields.some(field=>Object.hasOwn(vote,field)))}};
+}
 export function participationRows(topics,results,decisions,speechRows,members,groupOn=()=>'unavailable',includePerson=()=>true) {
   const rows=topics.map(topic=>({...topic,speakerIds:speechRows.has(topic.id)?new Set(speechRows.get(topic.id).filter(row=>row.speechKind==='PLENARY_DEBATE_SPEECH'&&members.has(String(row.mepId))).map(row=>String(row.mepId))):null,voterIds:null,amendmentVotes:null,amendmentIds:new Set(),rollCalls:0,speakerContributions:[...new Map((speechRows.get(topic.id)||[]).filter(r=>r.speechKind==='PLENARY_DEBATE_SPEECH').map(r=>[[r.sourceId,r.mepId,r.date].join('|'),r])).values()].map(r=>({id:String(r.mepId),date:r.date})),voterContributions:[]}));
   const byId=new Map(rows.map(row=>[row.uri,row])),parents=new Map();
@@ -72,7 +79,7 @@ export async function participation(legislation,store,query,{clock=Date.now,read
     let base;try{base=await legislation.query({language:query.language,sitting:sitting.activity_id,topic:null,vote:null},catalogue,{status,groupOn});}catch{gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});continue;}sources.push(...(base.coverage?.sources||[]));const speechRows=new Map();let results=null,decisions=null;
     if(base.coverage?.agendaError){gaps.push({sitting:sitting.activity_id,kind:'agenda-unavailable'});if(!base.topics.length)continue;}
     if(sitting.activity_date<=today) {
-      try{results=await recordSource('/meetings/'+sitting.activity_id+'/vote-results',{limit:50,offset:0});decisions=await recordSource('/meetings/'+sitting.activity_id+'/decisions',{'vote-method':'ROLL_CALL_EV',limit:1,offset:0});if(decisions.payload.data.length>250){decisions={...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,250)}};gaps.push({sitting:sitting.activity_id,kind:'roll-call-limit'});}if(results.payload.data.length>=50)gaps.push({sitting:sitting.activity_id,kind:'vote-result-page-limit'});}catch{gaps.push({sitting:sitting.activity_id,kind:'votes-unavailable'});}
+      try{results=await recordSource('/meetings/'+sitting.activity_id+'/vote-results',{limit:50,offset:0});decisions=rollCallDecisions(await recordSource('/meetings/'+sitting.activity_id+'/decisions',{limit:1,offset:0}));if(decisions.payload.data.length>250){decisions={...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,250)}};gaps.push({sitting:sitting.activity_id,kind:'roll-call-limit'});}if(results.payload.data.length>=50)gaps.push({sitting:sitting.activity_id,kind:'vote-result-page-limit'});}catch{gaps.push({sitting:sitting.activity_id,kind:'votes-unavailable'});}
       const parents=refs(sitting.consists_of).filter(uri=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(uri)).slice(0,50);
       for(const uri of parents) {
         const id=tail(uri),record=await participationEvent(legislation,id,readEvent,clock());
