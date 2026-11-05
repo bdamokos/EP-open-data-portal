@@ -87,3 +87,4 @@
 .home-search .explorer-search-input > label { flex: 1 1 auto; min-width: 0; }
 .home-pick > * { margin: 0; }
 .home-pick { gap: .3rem; }
+.home-search .explorer-search-input { max-width: none; flex: 1 1 auto; }
