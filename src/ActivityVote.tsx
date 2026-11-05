@@ -18,7 +18,7 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
   const ui = useUiI18n();
   const match=(typeof decisionId==='string') ? decisionId.match(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?(?:eli\/dl\/event\/)?(MTG-PL-\d{4}-\d{2}-\d{2})-DEC-(\d+)$/) : null;
   const id=match ? (match[1]+'-DEC-'+match[2]) : null;
-  const state={sittingId:match?.[1]??null,decisionId:id,positions:'all' as const,alignment:'all' as const,offset:0};
+  const state={sittingId:match?.[1]??null,decisionId:id,positions:'all' as const,alignment:'all' as const,offset:0,recordScope:'all' as const,recordOffset:0};
   let route:string|null=null;
   try {if(id&&memberId)route=memberVotesRoute(memberId,state,language);}catch {/* Invalid identities never start a read. */}
   const [refresh,setRefresh]=useState(false);

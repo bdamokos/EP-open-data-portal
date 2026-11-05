@@ -134,10 +134,12 @@ export function projectMemberSitting(snapshot,memberId,language='en') {
   return {items,subjects,omittedWhileChairing};
 }
 
-export function memberVoteAlignment(vote) {
-  if(vote.ballotStatus!=='conducted'||vote.actualPosition?.status!=='recorded'||!['ADOPTED','REJECTED'].includes(vote.outcome))return 'unclassified';
+export function memberVoteAlignment(vote,line) {
+  if(vote.ballotStatus!=='conducted'||vote.actualPosition?.status!=='recorded')return 'unclassified';
+  const chosen=line===undefined?(vote.outcome==='ADOPTED'?'for':vote.outcome==='REJECTED'?'against':null):(line==='ADOPTED'?'for':line==='REJECTED'?'against':line);
+  if(!['for','against','abstaining'].includes(chosen))return 'unclassified';
   const position=vote.actualPosition.position;
   if(position==='abstaining')return 'abstained';
   if(!['for','against'].includes(position))return 'unclassified';
-  return (position==='for')===(vote.outcome==='ADOPTED')?'with':'against';
+  return position===chosen?'with':'against';
 }

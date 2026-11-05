@@ -15,7 +15,7 @@ const MEMBER=42,WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25';
 const DECISION=SITTING+'-DEC-99',SNAPSHOT='a'.repeat(64);
 const DOCUMENT='B-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7-2';
 const LIST='B-10-2026-0001-AM-001-050',ADOPTED='TA-10-2026-0007';
-const defaults=()=>({week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
+const defaults=()=>({week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null,recordScope:'all',recordOffset:0});
 const queryFor=fields=>new URLSearchParams({member:String(MEMBER),...fields});
 const read=fields=>readMemberVotesJourney(queryFor(fields),MEMBER);
 const saved=journey=>{
@@ -28,6 +28,28 @@ test('an untouched journey has independent defaults and serializes its explicit 
   assert.equal(memberVotesJourneyParams(first).toString(),'mv-positions=all');
   first.state.expandedSubjectIds.push('exact-subject');
   assert.deepEqual(second.state,defaults(),'defaults must not share mutable arrays');
+});
+
+/**
+ * Voting-record filters stay in the member journey, not in the votes request.
+ */
+test('voting-record scope and offset round-trip through their own browser fields',()=>{
+  const journey=read({'mv-record-scope':'final','mv-record-offset':'10'});
+  assert.equal(journey.invalid,false);
+  assert.equal(journey.state.recordScope,'final');
+  assert.equal(journey.state.recordOffset,10);
+  const query=saved(journey);
+  assert.equal(query.get('mv-record-scope'),'final');
+  assert.equal(query.get('mv-record-offset'),'10');
+  const untouched=saved(read({}));
+  assert.equal(untouched.has('mv-record-scope'),false,'default scope is not written');
+  assert.equal(untouched.has('mv-record-offset'),false,'first page is not written');
+  for(const value of ['other','','FINAL','all '])assert.equal(read({'mv-record-scope':value}).invalid,true,value);
+  for(const value of ['-1','1.5','10001','00','1e2',' 1'])assert.equal(read({'mv-record-offset':value}).invalid,true,value);
+  assert.equal(memberVotesHistoryMode(journey.state,{...journey.state,recordScope:'all'}),'push');
+  assert.equal(memberVotesHistoryMode(journey.state,{...journey.state,recordOffset:15}),'push');
+  assert.notEqual(memberVotesScrollKey(journey),memberVotesScrollKey({...journey,state:{...journey.state,recordOffset:0}}));
+  assert.notEqual(memberVotesScrollKey(journey),memberVotesScrollKey({...journey,state:{...journey.state,recordScope:'all'}}));
 });
 
 for(const [label,period] of [
@@ -114,7 +136,7 @@ test('duplicate browser fields are invalid even when values agree',()=>{
 });
 
 test('only explicitly owned browser keys are recognized, including prototype-shaped inputs',()=>{
-  for(const suffix of ['week','sitting','positions','offset','decision','snapshot','expanded','document','amendment','list','wording-lang','view','adopted','invalid'])assert.equal(isMemberVotesParam('mv-'+suffix),true,suffix);
+  for(const suffix of ['week','sitting','positions','offset','decision','snapshot','expanded','document','amendment','list','wording-lang','view','adopted','record-scope','record-offset','invalid'])assert.equal(isMemberVotesParam('mv-'+suffix),true,suffix);
   for(const key of ['mv-__proto__','mv-constructor','mv-toString','mv-hasOwnProperty','mv-prototype','mv-unknown','mv-','week','mv-week-extra']){
     assert.equal(isMemberVotesParam(key),false,key);
     if(key.startsWith('mv-'))assert.equal(read({[key]:'anything'}).invalid,true,key+' cannot inherit a field mapping');

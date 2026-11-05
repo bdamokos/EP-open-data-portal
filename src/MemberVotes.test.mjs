@@ -157,7 +157,7 @@ test('decoded source reference text renders literally in vote cards and detail h
 
 test('default request includes all decisions and canonical period/snapshot replace navigation',async t=>{
   const h=await mount(t);
-  assert.deepEqual(h.module.defaultMemberVotesState,{week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
+  assert.deepEqual(h.module.defaultMemberVotesState,{week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null,recordScope:'all',recordOffset:0});
   const initial=new URL(h.calls[0],'http://localhost');
   assert.equal(initial.pathname,'/api/member-votes/'+MEMBER);
   assert.equal(initial.searchParams.get('week'),'latest');assert.equal(initial.searchParams.get('positions'),'all');

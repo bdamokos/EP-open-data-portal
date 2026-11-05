@@ -1,0 +1,45 @@
+.member-vote-record{--mvr-muted:var(--ink-muted);--mvr-line:var(--line);color:var(--ink);background:var(--surface);border:1px solid var(--mvr-line);padding:20px;margin:0 0 18px;min-width:0;font-size:13px;line-height:1.55}
+.member-vote-record *{box-sizing:border-box}
+.member-vote-record h2{font-size:22px;line-height:1.25;letter-spacing:-.02em;margin:0 0 4px}
+.member-vote-record h3{font-size:13px;line-height:1.4;margin:0 0 9px}
+.member-vote-record p{margin:0 0 10px}
+.member-vote-record button{font:inherit;font-size:var(--control-font-size);line-height:var(--control-line-height);min-height:var(--control-height);padding:7px 12px;color:var(--accent-strong);background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius-sm);cursor:pointer;text-align:left}
+.member-vote-record button:hover{background:var(--surface-2)}
+.member-vote-record button:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.member-vote-record-header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.member-vote-record-filter{display:flex;gap:4px;flex-wrap:wrap}
+.member-vote-record-filter button{font-size:11px;padding:6px 11px}
+.member-vote-record-filter button[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong)}
+.member-vote-record-muted,.member-vote-record-status{color:var(--mvr-muted);font-size:11px}
+.member-vote-record-coverage{color:var(--mvr-muted);font-size:11px;margin:7px 0 14px}
+.member-vote-record-ballots{display:flex;flex-wrap:wrap;gap:8px 26px;margin:0 0 16px;padding:12px 0;border-top:1px solid var(--mvr-line);border-bottom:1px solid var(--mvr-line)}
+.member-vote-record-ballots>div{min-width:96px}
+.member-vote-record-ballots dt,.member-vote-record-figures dt{color:var(--mvr-muted);font-size:10px;letter-spacing:.03em;text-transform:uppercase}
+.member-vote-record-ballots dd,.member-vote-record-figures dd{font-size:21px;font-weight:bold;line-height:1.25;margin:2px 0 0}
+.member-vote-record-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:16px;margin:0 0 10px}
+.member-vote-record-figures small{display:block;color:var(--mvr-muted);font-size:10px;margin-top:4px}
+.member-vote-record-note{background:var(--surface-2);border-left:3px solid var(--line-strong);padding:8px 10px;margin:0!important;font-size:12px}
+.member-vote-record-comparison{font-size:12px;margin:0 0 16px!important}
+.member-vote-record-trend{margin:18px 0 20px;border-top:1px solid var(--mvr-line);padding-top:14px}
+.member-vote-record-trend svg{display:block;width:100%;max-width:520px;height:auto;margin:6px 0}
+.member-vote-record-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 3}
+.member-vote-record-line{fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.member-vote-record-dot{fill:var(--accent);stroke:var(--surface);stroke-width:1.5}
+.member-vote-record-empty{color:var(--mvr-muted);font-size:12px}
+.member-vote-record-departures{border-top:1px solid var(--mvr-line);padding-top:14px}
+.member-vote-record-departures ol{list-style:none;margin:0 0 8px;padding:0}
+.member-vote-record-departures li{border-bottom:1px solid var(--mvr-line)}
+.member-vote-record-departures li:last-child{border-bottom:0}
+.member-vote-record-departures li button{border:0;background:none;width:100%;padding:9px 0;color:var(--accent-strong);text-decoration:underline;text-underline-offset:3px}
+.member-vote-record-departure-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.member-vote-record-summary{margin:0 0 16px}
+.member-vote-record-summary button{width:100%;background:var(--surface);border:1px solid var(--line);color:var(--ink);font-size:12px;padding:9px 12px}
+.member-vote-record-summary button:hover{border-color:var(--line-strong)}
+.member-vote-record .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(max-width:600px){
+ .member-vote-record{padding:15px}
+ .member-vote-record h2{font-size:20px}
+ .member-vote-record-figures{grid-template-columns:1fr 1fr;gap:13px}
+ .member-vote-record-ballots{gap:8px 18px}
+ .member-vote-record-ballots dd,.member-vote-record-figures dd{font-size:19px}
+}

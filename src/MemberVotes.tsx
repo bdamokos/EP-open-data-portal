@@ -27,6 +27,7 @@ export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:st
 export type MemberVotesState={
   week:string;sittingId:string|null;positions:'recorded'|'all';alignment:'all'|'with'|'against'|'abstained';offset:number;
   decisionId:string|null;snapshotId:string|null;expandedSubjectIds:string[];context:MemberVotesContext|null;
+  recordScope:'all'|'final';recordOffset:number;
 };
 export type MemberVotesContextRequest=MemberVotesContext&{onBack:()=>void;backLabel:string;summary:ReactNode};
 export type MemberVotesProps={
@@ -34,7 +35,7 @@ export type MemberVotesProps={
   onStateChange:(next:MemberVotesState,options?:{replace?:boolean})=>void;
   renderContext:(request:MemberVotesContextRequest)=>ReactNode;
 };
-export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null};
+export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null,recordScope:'all',recordOffset:0};
 
 type WordingVariant={
   listId:string;language:string|null;targetLabel:string|null;targetLabelLanguage?:string|null;
