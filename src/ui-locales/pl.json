@@ -2289,5 +2289,7 @@
   "proposalcontexttext.existing.act.part.index": "Istniejący akt prawny · część {index}",
   "hemicycle.unavailable": "Plan miejsc niedostępny.",
   "MotionComparison.sourceDocx": "Źródłowy DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Oficjalne brzmienie poprawki ↗"
+  "motionamendments.official_amendment_wording.05a440": "Oficjalne brzmienie poprawki ↗",
+  "amendments.document.fc29c3": "Dokument ↗",
+  "amendments.document_language.aedd07": "Dokument · {language} ↗"
 }

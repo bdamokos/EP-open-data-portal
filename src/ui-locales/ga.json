@@ -2289,5 +2289,7 @@
   "proposalcontexttext.existing.act.part.index": "Gníomh atá ann cheana · cuid {index}",
   "hemicycle.unavailable": "Níl an plean suíochán ar fáil.",
   "MotionComparison.sourceDocx": "Bunfhoinse DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Foclaíocht oifigiúil an leasaithe ↗"
+  "motionamendments.official_amendment_wording.05a440": "Foclaíocht oifigiúil an leasaithe ↗",
+  "amendments.document.fc29c3": "Doiciméad ↗",
+  "amendments.document_language.aedd07": "Doiciméad · {language} ↗"
 }

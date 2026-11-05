@@ -2289,5 +2289,7 @@
   "proposalcontexttext.existing.act.part.index": "Gældende retsakt · del {index}",
   "hemicycle.unavailable": "Siddeplanen er ikke tilgængelig.",
   "MotionComparison.sourceDocx": "Kilde-DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Officiel ordlyd af ændringsforslaget ↗"
+  "motionamendments.official_amendment_wording.05a440": "Officiel ordlyd af ændringsforslaget ↗",
+  "amendments.document.fc29c3": "Dokument ↗",
+  "amendments.document_language.aedd07": "Dokument · {language} ↗"
 }

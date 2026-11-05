@@ -2289,5 +2289,7 @@
   "proposalcontexttext.existing.act.part.index": "Acte existant · partie {index}",
   "hemicycle.unavailable": "Plan de l’hémicycle indisponible.",
   "MotionComparison.sourceDocx": "DOCX source · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Formulation officielle de l’amendement ↗"
+  "motionamendments.official_amendment_wording.05a440": "Formulation officielle de l’amendement ↗",
+  "amendments.document.fc29c3": "Document ↗",
+  "amendments.document_language.aedd07": "Document · {language} ↗"
 }

@@ -2289,5 +2289,7 @@
   "proposalcontexttext.existing.act.part.index": "Acto vigente · parte {index}",
   "hemicycle.unavailable": "Plano del hemiciclo no disponible.",
   "MotionComparison.sourceDocx": "DOCX de origen · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Texto oficial de la enmienda ↗"
+  "motionamendments.official_amendment_wording.05a440": "Texto oficial de la enmienda ↗",
+  "amendments.document.fc29c3": "Documento ↗",
+  "amendments.document_language.aedd07": "Documento · {language} ↗"
 }
