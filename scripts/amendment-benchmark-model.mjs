@@ -37,7 +37,7 @@ import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-gramma
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {quotedWordBody,rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-benchmark-proposal-oracle.mjs';
-import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,assertMixedRecital,assertTerminalIndent,assertSwedishRecommendation,assertResolutionLead} from './amendment-benchmark-resolution-oracle.mjs';
+import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,assertMixedRecital,assertTerminalIndent,assertSwedishRecommendation,assertResolutionLead,assertCoalescedInsertion} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 import {assertRecastReading,assertNativeProposalTitle} from './amendment-recast-oracle.mjs';
@@ -522,6 +522,7 @@ function verifyAnnexTable({proposal,wording,placement,items}) {
 }
 
 function verifyResolutionInsertion(text,wording,target,placement) {
+  const coalesced=assertCoalescedInsertion({text,wording,placement});if(coalesced)return coalesced;
   const mixed=assertMixedRecital({text,wording,placement});
   if(mixed.status!=='unverified')return mixed;
   const boundary=assertResolutionBoundaryInsertion({text,wording,placement});if(boundary)return boundary;

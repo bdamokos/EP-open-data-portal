@@ -7,7 +7,7 @@ import {type DocumentImageReference} from './DocumentImage';
 import {DocumentPages} from './DocumentPages';
 import {selectLanguageText} from './language.mjs';
 import {TextLanguagePicker,TextLanguageFallback} from './TextLanguagePicker';
-import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
+import {cloneElement,isValidElement,Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
 import {useData} from './data';
 import {CommissionFollowups} from './CommissionFollowups';
 import type {DocumentContextRequest,DocumentContextResponse} from './DocumentContextTypes';
@@ -134,7 +134,9 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     heading?.scrollIntoView({block:'start'});heading?.focus({preventScroll:true});
   },[reportHeading]);
   const validIndex=(index:unknown):index is number=>Number.isInteger(index)&&Number(index)>=0&&Number(index)<allParagraphs.length;
-  const placed=Boolean(placement?.status==='placed'&&amendmentMatches&&wording&&((placement.operation==='insert') ? (validIndex(placement.insertAfter)&&placement.insertBefore===placement.insertAfter+1) : (placement.span&&validIndex(placement.span.start)&&validIndex(placement.span.end)&&placement.span.end>=placement.span.start)));
+  const insertionSplice=placement?.operation==='insert'?placement.splice:undefined;
+  const inlineOffset=insertionSplice&&validIndex(placement?.insertAfter)&&insertionSplice.start.paragraph===placement.insertAfter&&insertionSplice.end.paragraph===placement.insertAfter&&Number.isInteger(insertionSplice.start.offset)&&insertionSplice.end.offset===insertionSplice.start.offset&&insertionSplice.start.offset>0&&insertionSplice.start.offset<allParagraphs[placement.insertAfter].length?insertionSplice.start.offset:null;
+  const placed=Boolean(placement?.status==='placed'&&amendmentMatches&&wording&&((placement.operation==='insert') ? (validIndex(placement.insertAfter)&&placement.insertBefore===placement.insertAfter+1&&(!insertionSplice||inlineOffset!==null)) : (placement.span&&validIndex(placement.span.start)&&validIndex(placement.span.end)&&placement.span.end>=placement.span.start)));
   const afterTable=Boolean(placed&&placement?.operation==='insert'&&usableFormatting(text,allParagraphs.length).tables.some(table=>table.rows.flat().at(-1)?.end===placement.insertBefore));
   const number=amendmentNumber(amendmentRequest?.amendmentId),amendmentHeading='amendment-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
   const rejection=Boolean(wording&&placement?.status==='document-operation'&&['reject','alternative-motion'].includes(placement.operation??'')&&data?.amendment?.id===amendmentRequest?.amendmentId&&evidence?.amendmentId===amendmentRequest?.amendmentId&&evidence?.listId===wording.listId&&evidence?.wordingLanguage===wording.language);
@@ -216,6 +218,15 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
             renderTable={(last,table)=>afterTable&&last===placement?.insertAfter?<Fragment key={'table-'+last}>{table}{amendmentBlock(true)}</Fragment>:table}
             renderParagraph={(sourceIndex,paragraph)=>{
               if(placed&&placement?.span&&sourceIndex>=placement.span.start&&sourceIndex<=placement.span.end)return (sourceIndex===placement.span.start) ? amendmentBlock(true) : null;
+              if(placed&&inlineOffset!==null&&sourceIndex===placement?.insertAfter&&isValidElement(paragraph)) {
+                const value=allParagraphs[sourceIndex],format=usableFormatting(text,allParagraphs.length).formats[sourceIndex],marks=format?.marks||[];
+                const part=(from:number,to:number)=>{
+                  const tab=value.indexOf('\t',from),label=format?.hanging&&tab>=from&&tab-from<=16?tab+1:null;
+                  const render=(a:number,b:number)=><DocumentObjectText assets={text?.imageAssets} text={value} paragraph={sourceIndex} from={a} to={b} final={b===value.length} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>;
+                  return cloneElement(paragraph,{key:sourceIndex+':'+from},label?<><span className="doc-label">{render(from,label)}</span>{render(label,to)}</>:render(from,to));
+                };
+                return <Fragment key={sourceIndex}>{part(0,inlineOffset)}{amendmentBlock(true)}{part(inlineOffset,value.length)}</Fragment>;
+              }
               return ((!afterTable&&placed && (placement?.operation==='insert')) && (sourceIndex===placement.insertAfter)) ? <Fragment key={sourceIndex}>{paragraph}{amendmentBlock(true)}</Fragment> : paragraph;
             }}
             renderText={(sourceIndex,paragraph,from,to,final,marks)=><DocumentObjectText assets={text?.imageAssets} text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes assets={text?.imageAssets} notes={notes} prefix={notePrefix}/></div>
