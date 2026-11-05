@@ -28,3 +28,13 @@ test('independent native numbering proof rejects changed columns, stamps and bou
  assert.equal(verifyPlacement({...a,wording:{...a.wording,proposedText:'Other text.'},placement}).status,'failed');
  for(const change of [a=>a.voteReferences=[],a=>a.voteReferences=['§ 8'],a=>a.text.paragraphs[2]+='.',a=>a.nativeQuoted.number=12]){const a=input();change(a);assert.notEqual(verifyPlacement({...a,placement}).status,'verified');}
 });
+
+
+test('the endpoint wrapper checks every complete vote-reference string',()=>{
+ const a=input(),{number,...variant}=a.wording;
+ for(const reference of ['§ 9\n§ 8','§ 9\r\n§ 8','§ 9\nunknown']){
+  const placement=documentContextPlacement({chosen:{...variant,targetLabelLanguage:'en'},amendmentNumber:11,text:a.text,referenceTexts:[reference],resolutionDocument:true});
+  assert.equal(placement.status,'unresolved',JSON.stringify(reference));
+  assert.equal(placement.reason,'conflicting_target_evidence');
+ }
+});

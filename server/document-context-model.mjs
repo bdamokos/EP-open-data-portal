@@ -590,8 +590,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
   }
   if(options.documentReferences?.some(reference=>reference.basis==='published-heading-number-candidate')){
     const votes=options.numberingReferenceTexts??(referenceText?[referenceText]:[]),markers=options.documentReferences.filter(reference=>reference.basis==='published-heading-number-candidate');
-    const parsedVotes=votes.map(value=>placementReference(resolutionReference(value,'en'),'en'));
-    if(options.language!=='en'||options.baseline!=='motion-resolution'||operation!=='replace'||markers.length!==1||markers[0].field!=='HeadingNumber'||markers[0].raw!==String(options.number)||!ref||ref.kind!=='paragraph'||ref.isNew||ref.suffix||ref.parents.length||!parsedVotes.length||parsedVotes.some(v=>!v||v.kind!=='paragraph'||v.label!==ref.label||v.isNew||v.suffix||v.parents.length))return unresolved('conflicting_target_evidence');
+    const voteLabels=votes.map(value=>typeof value==='string'?/^(?:§|Paragraph)\s*([1-9]\d*)$/u.exec(whitespace(value))?.[1]:null);
+    if(options.language!=='en'||options.baseline!=='motion-resolution'||operation!=='replace'||markers.length!==1||markers[0].field!=='HeadingNumber'||markers[0].raw!==String(options.number)||!ref||ref.kind!=='paragraph'||ref.isNew||ref.suffix||ref.parents.length||!voteLabels.length||voteLabels.some(label=>label!==ref.label))return unresolved('conflicting_target_evidence');
     const matches=units.filter(unit=>unit.kind==='paragraph'&&unit.label===ref.label),exact=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim();
     if(matches.length!==1||structure.invalid.has(matches[0].start)||structure.uncertain.has(matches[0].start)||structure.extentUncertain.has(matches[0].start)||structure.incompleteLabels.has(ref.label)||rows.slice(matches[0].start,matches[0].end+1).some((row,i)=>!row.complete||i&&!consecutive(rows[matches[0].start+i-1],row))||exact(text.paragraphs.slice(matches[0].start,matches[0].end+1).join('\n'))!==exact(options.originalText))return unresolved('conflicting_target_evidence');
     evidence.push({basis:'heading-vote-and-exact-original',number:options.number,reference:ref.label});
