@@ -32,7 +32,7 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=110;
+export const DOCUMENT_CONTEXT_VERSION=111;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 // A plenary amendment list is readable as a document only for the provisional agreement it publishes.
 const plenaryListId=id=>/^A-10-\d{4}-\d{4,6}-AM-\d{1,5}-\d{1,5}$/.test(id);
@@ -301,6 +301,10 @@ export class DocumentContext {
       }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;}
     }
     if(proposal&&document)document={...document,selectedText:undefined};
+    // Only an adopted amendment has a final placement to check.
+    if(placement?.finalPlacementCheck&&!array(indexed?.decisions).some(decision=>decision.outcome==='ADOPTED'&&array(decision.amendmentIds).some(id=>id===query.amendmentId||id===indexed.id))) {
+      const {finalPlacementCheck,...rest}=placement;placement=rest;
+    }
     if(placement?.finalPlacementCheck) {
       const dates=[...new Set(referenceDecisions.map(decision=>decision.date))];
       if(dates.length===1&&/^\d{4}-\d{2}-\d{2}$/u.test(dates[0]||''))try {
