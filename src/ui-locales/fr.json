@@ -2838,6 +2838,6 @@
   "topics.policyAreaSource": "Noms des domaines d’action : {source}.",
   "documentcontext.note.original_differs": "Le libellé original diffère de ce texte.",
   "proposalcontexttext.printed.point.label": "Nouveau point {point}. Le libellé indique le point {base}.",
-  "documentcontext.note.report_paragraph": "Paragraphe {report} du rapport ; imprimé ici comme {source}.",
+  "documentcontext.note.report_paragraph": "Paragraphe {report} du rapport ; imprimé ici sous le numéro {source}.",
   "documentcontext.note.label_instruction_differ": "Le libellé et l’instruction diffèrent."
 }

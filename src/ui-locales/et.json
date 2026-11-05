@@ -2838,6 +2838,6 @@
   "topics.policyAreaSource": "Poliitikavaldkondade nimetused: {source}.",
   "documentcontext.note.original_differs": "Algne sõnastus erineb sellest tekstist.",
   "proposalcontexttext.printed.point.label": "Uus punkt {point}. Tähistus viitab punktile {base}.",
-  "documentcontext.note.report_paragraph": "Raporti lõige {report}; siin trükitud kui {source}.",
+  "documentcontext.note.report_paragraph": "Raporti lõige {report}; siin trükitud numbriga {source}.",
   "documentcontext.note.label_instruction_differ": "Tähistus ja juhis erinevad."
 }

@@ -1646,7 +1646,7 @@ test('every difference from the original wording shows the same single note',asy
 test('numbering notes state both numbers and sit above the wording in the interface language',async t=>{
  const french=createAppUiI18n({fr:JSON.parse(readFileSync(new URL('./ui-locales/fr.json',import.meta.url)))});
  const cases=[
-  [{basis:'sequential-paragraph-number',reference:'27',label:'28'},'Paragraph 27 in the report; printed here as 28.','Paragraphe 27 du rapport ; imprimé ici comme 28.'],
+  [{basis:'sequential-paragraph-number',reference:'27',label:'28'},'Paragraph 27 in the report; printed here as 28.','Paragraphe 27 du rapport ; imprimé ici sous le numéro 28.'],
   [{basis:'printed-new-point-label',reference:'6a',label:'6'},'New point 6a. The label reads point 6.','Nouveau point 6a. Le libellé indique le point 6.'],
   [{basis:'sequential-new-annex',reference:'39',label:'Annex 1 - Indicators'},'Follows Amendment 39.','Suit l’amendement 39.'],
   [{basis:'negative-nested-instruction'},'Label and instruction differ.','Le libellé et l’instruction diffèrent.'],

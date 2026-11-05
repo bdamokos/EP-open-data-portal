@@ -1,6 +1,6 @@
 {
   "proposalcontexttext.formula.not.shown": "A képlet nem jelenik meg.",
-  "documentcontext.note.follows_amendment": "Követi: {number}. módosítás.",
+  "documentcontext.note.follows_amendment": "{number}. módosítás után következik.",
   "amendment.replaces_whole_text": "A teljes szöveg helyébe lép.",
   "amendment.agreement_text": "A megállapodás szövege",
   "amendment.final_act": "Végleges jogi aktus: {act}",
@@ -2838,6 +2838,6 @@
   "topics.policyAreaSource": "A szakpolitikai területek nevei: {source}.",
   "documentcontext.note.original_differs": "Az eredeti megfogalmazás eltér ettől a szövegtől.",
   "proposalcontexttext.printed.point.label": "Új {point}. pont. A címkén ez áll: {base}. pont.",
-  "documentcontext.note.report_paragraph": "A jelentésben: {report}. bekezdés; itt nyomtatva: {source}.",
+  "documentcontext.note.report_paragraph": "A jelentés {report}. bekezdése; itt {source}. számmal szerepel.",
   "documentcontext.note.label_instruction_differ": "A megjelölés és az utasítás eltér."
 }
