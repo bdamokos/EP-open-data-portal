@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.label.names.only.point": "Le libellé indique uniquement le point.",
   "proposalcontexttext.formula.not.shown": "Formule non affichée.",
   "proposalcontexttext.preceding.new.annex": "Suit l’amendement {number}, dans l’ordre des amendements.",
   "amendment.replaces_whole_text": "Remplace tout le texte.",

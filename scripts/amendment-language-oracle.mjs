@@ -1,3 +1,4 @@
+import {assertPointArticleParagraph} from './amendment-point-article-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
 import {languageQuotedSibling} from './amendment-language-quoted-oracle.mjs';
@@ -105,6 +106,7 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
   if(placement.status!=='placed')return {status:'not-applicable',reason:'not-placed'};
   if(!expected?.operation)return unknown(expected?.gap||'raw-operation-unavailable');
   if(placement.operation!==expected.operation)return failed('raw-operation-mismatch',{expectedOperation:expected.operation,actualOperation:placement.operation});
+  const pointOnly=assertPointArticleParagraph({proposal:items?.[placement.itemIndex]?.proposal,wording:expected,placement,nativeQuoted});if(pointOnly)return pointOnly;
   const targetKind=rawTargetKind(expected.targetLabel,expected.language);
   const proposal=items?.[placement.itemIndex]?.proposal;
   const raw=proposal?rawItems?.[placement.itemIndex]:rawText;

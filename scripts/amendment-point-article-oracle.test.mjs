@@ -1,0 +1,21 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {fixtureZip} from './fixtures/bare-annex-indent-native.mjs';
+import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
+import {assertPointArticleParagraph} from './amendment-point-article-oracle.mjs';
+export const rows=['1 artikla','Muutokset','(6) Lisätään 16 ba, 16 bb ja 16 bc artikla seuraavasti:','”16 ba artikla','Otsikko','1. One.','2. Two.','3. Three.','4. Four.','5. Five.','6. Six.','16 bb artikla','Otsikko','1. One.','2. Two.','16 bc artikla','Otsikko','Other text.”','(7) Next.','2 artikla'];
+export function input(change=r=>r){const texts=change([...rows]);const proposalBuffer=fixtureZip({'word/document.xml':'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+texts.map(s=>'<w:p><w:r><w:t>'+s+'</w:t></w:r></w:p>').join('')+'</w:body></w:document>'});const paragraphs=quotedWordBody(proposalBuffer).map((r,index)=>({index,text:r.text,source:{path:r.path}}));return {proposal:{paragraphs},wording:{language:'fi',originalText:'',proposedText:'5 a. New paragraph.',targetLabel:'1 artikla – 1 kohta – 6 alakohta\n1 artikla – 1 kohta – 6 alakohta — 1 artikla – 1 kohta – 6 alakohta'},placement:{status:'placed',operation:'insert',insertAfter:9,insertBefore:10},nativeQuoted:{proposalBuffer}};}
+test('native point-only paragraph proof checks all articles and exact boundary',()=>{assert.equal(assertPointArticleParagraph(input()).status,'verified');const a=input();a.placement.insertBefore=11;assert.equal(assertPointArticleParagraph(a).status,'failed');});
+test('ambiguous, absent, explicit other address and incomplete native frames stay unverified',()=>{
+ for(const mutate of [r=>r.map(s=>s==='6. Six.'?'7. Seven.':s),r=>r.map(s=>s==='16 bb artikla'?'16 bd artikla':s),r=>r.map(s=>s==='Other text.”'?'Other text.':s),r=>r.filter(s=>s!=='(7) Next.'),r=>[...r.slice(0,15),'3. Three.','4. Four.','5. Five.','6. Six.',...r.slice(15)]])assert.equal(assertPointArticleParagraph(input(mutate)),null);
+ for(const change of [a=>a.wording.originalText='Original',a=>a.wording.proposedText='7a. New',a=>a.wording.targetLabel+='\nArticle 99',a=>a.proposal.paragraphs[10].text='Different']){const a=input();change(a);assert.equal(assertPointArticleParagraph(a),null);}
+});
+
+import {parseProposal} from '../server/proposal-structure.mjs';
+import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
+function place(arg){const proposal=parseProposal(arg.nativeQuoted.proposalBuffer,{language:'fi',item:'act'});return resolveProposalPlacement([{kind:'act',proposal}],{...arg.wording,baseline:'commission-proposal'});}
+test('producer inserts only under the unique article with the printed predecessor',()=>{
+ const arg=input(),result=place(arg);assert.equal(result.status,'placed');assert.equal(result.insertBefore,10);assert.equal(assertPointArticleParagraph({...arg,placement:result}).status,'verified');
+ for(const change of [r=>r.map(s=>s==='6. Six.'?'7. Seven.':s),r=>r.map(s=>s==='Other text.”'?'Other text.':s),r=>[...r.slice(0,15),'3. Three.','4. Four.','5. Five.','6. Six.',...r.slice(15)]])assert.notEqual(place(input(change)).status,'placed');
+ const old=input();old.wording.originalText='Old paragraph';assert.notEqual(place(old).status,'placed');
+ const explicit=input();explicit.wording.targetLabel+='\n16 bb artikla';assert.notEqual(place(explicit).status,'placed');
+});
