@@ -1,3 +1,4 @@
+import {displayableAmendmentVersion,MINIMUM_AMENDMENT_DISPLAY_VERSION} from './amendment-display-version.mjs';
 import {pruneAmendmentGenerations} from './generation-prune.mjs';
 import {upcomingScopeContext,upcomingAgenda,upcomingSource,scheduledVotes,withScheduledVotes} from './upcoming-amendments.mjs';
 import {fastReadsReady} from './fast-read-projections.mjs';
@@ -38,7 +39,7 @@ function checkedProposer(record) {
 function checkedAmendmentRead(record) {
   record=checkedAggregateAttribution(record);
   const row=checkedAmendmentBindings({...checkedProposer(record),...checkedLabel(record)});
-  if((record.listId || record.textParserVersion!=null || typeof record.originalText==='string' || typeof record.proposedText==='string')&&record.textParserVersion!==AMENDMENT_EXTRACTION_VERSION) {
+  if((record.listId || record.textParserVersion!=null || typeof record.originalText==='string' || typeof record.proposedText==='string')&&!displayableAmendmentVersion(record.textParserVersion)) {
     row.baseline='unknown';row.baselineSource=null;row.documentReferences=[];row.targetPath=null;
     row.originalText=null;row.proposedText=null;row.originalFormatting=[];row.proposedFormatting=[];row.textIntegrity='incomplete';row.wordingRetained=false;
     row.gaps=[...new Set([...row.gaps,wordingUpgradeGap])];
@@ -47,10 +48,14 @@ function checkedAmendmentRead(record) {
     row.originalText=null;row.proposedText=null;row.originalFormatting=[];row.proposedFormatting=[];row.textIntegrity='incomplete';row.wordingRetained=false;
     row.gaps=[...new Set([...row.gaps,'Vertical formatting cannot be tied to exact wording offsets; its wording is withheld.'])];
   }
+  if(row.textIntegrity==='incomplete') {
+    row.originalText=null;row.proposedText=null;row.originalFormatting=[];row.proposedFormatting=[];row.wordingRetained=false;
+  }
+  if(displayableAmendmentVersion(record.textParserVersion)&&typeof row.originalText==='string'&&typeof row.proposedText==='string')row.gaps=row.gaps.filter(gap=>gap!==wordingUpgradeGap);
   if(record.listId || typeof record.originalText==='string' || typeof record.proposedText==='string') {
     row.sourceFreshness=record.sourceFreshness?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION?record.sourceFreshness:{...(record.sourceFreshness || {descriptor:null,sourceDescriptor:null}),version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,status:'unverified',distributionState:'unknown'};
     if(row.sourceFreshness.status!=='fresh') {
-      row.wordingRetained=row.textParserVersion===AMENDMENT_EXTRACTION_VERSION&&row.textIntegrity!=='incomplete'&&typeof row.originalText==='string'&&typeof row.proposedText==='string';
+      row.wordingRetained=displayableAmendmentVersion(row.textParserVersion)&&row.textIntegrity!=='incomplete'&&typeof row.originalText==='string'&&typeof row.proposedText==='string';
       row.gaps=[...new Set([...row.gaps,sourceFreshnessGap])];
     }
   }
@@ -75,7 +80,7 @@ function supportedProposerDateSql(body) {
   const bases=PROPOSER_DATE_BASES.map(basis=>"'"+basis+"'").join(',');
   return `(COALESCE(${value('proposerDateConflict')},0)=0 AND COALESCE((${valid(date)} AND (${value('proposerDateBasis')} IN (${bases}) OR (${valid(document)} AND ${date}=${document}) OR (${valid(list)} AND ${date}=${list}))) OR (${date} IS NULL AND COALESCE(${value('proposerRetained')},0)=0 AND (${valid(document)} OR ${valid(list)})),0))`;
 }
-const incompatibleWordingSql=body=>`((json_extract(${body},'$.listId') IS NOT NULL OR json_extract(${body},'$.textParserVersion') IS NOT NULL OR json_type(${body},'$.originalText')='text' OR json_type(${body},'$.proposedText')='text') AND COALESCE(json_extract(${body},'$.textParserVersion'),'')<>?)`;
+const incompatibleWordingSql=body=>`((json_extract(${body},'$.listId') IS NOT NULL OR json_extract(${body},'$.textParserVersion') IS NOT NULL OR json_type(${body},'$.originalText')='text' OR json_type(${body},'$.proposedText')='text') AND NOT COALESCE((typeof(json_extract(${body},'$.textParserVersion'))='text' AND CAST(json_extract(${body},'$.textParserVersion') AS TEXT)=CAST(CAST(json_extract(${body},'$.textParserVersion') AS INTEGER) AS TEXT) AND CAST(json_extract(${body},'$.textParserVersion') AS INTEGER) BETWEEN ${MINIMUM_AMENDMENT_DISPLAY_VERSION} AND CAST(? AS INTEGER)),0))`;
 const unverifiedSourceSql=body=>`((json_extract(${body},'$.listId') IS NOT NULL OR json_type(${body},'$.originalText')='text' OR json_type(${body},'$.proposedText')='text') AND (COALESCE(json_extract(${body},'$.sourceFreshness.version'),0)<>${AMENDMENT_DISTRIBUTION_PROOF_VERSION} OR COALESCE(json_extract(${body},'$.sourceFreshness.status'),'unverified')<>'fresh'))`;
 const splitUnverifiedSql=body=>`(EXISTS(SELECT 1 FROM json_each(${body},'$.decisions') AS vote WHERE json_extract(vote.value,'$.partId') IS NOT NULL OR json_extract(vote.value,'$.partNumber') IS NOT NULL OR json_extract(vote.value,'$.componentBinding') IS NOT NULL OR json_array_length(json_extract(vote.value,'$.componentReferences'))>0) AND (COALESCE(json_extract(${body},'$.outcomeProofVersion'),0)<>${AMENDMENT_OUTCOME_PROOF_VERSION} OR COALESCE(json_extract(${body},'$.splitCoverageComplete'),0)<>1 OR COALESCE(json_array_length(json_extract(${body},'$.splitCoverage')),0)=0 OR EXISTS(SELECT 1 FROM json_each(${body},'$.splitCoverage') AS proof WHERE COALESCE(json_extract(proof.value,'$.complete'),0)<>1) OR EXISTS(SELECT 1 FROM json_each(${body},'$.decisions') AS vote WHERE json_extract(vote.value,'$.componentBinding') IN ('unresolved-collective','unverified'))))`;
 const memberMatchesSql=body=>`(COALESCE(json_extract(${body},'$.conflicted'),0)=0 AND ${supportedProposerDateSql(body)} AND EXISTS(SELECT 1 FROM json_each(${body},'$.authors') AS author WHERE json_extract(author.value,'$.status')='resolved' AND CAST(json_extract(author.value,'$.personId') AS TEXT) IN (?,?)))`;
@@ -268,7 +273,7 @@ export function recordSplitResults(store,result) {
     store.db.prepare('INSERT OR REPLACE INTO amendment_split_failures VALUES (?,?,?,?)').run(requestKey,registryPartKey,language,JSON.stringify(body));
   }
 }
-export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[],freshSplitParts=[],invalidatedTextListIds=[],textParserVersion=null,currentListIds=null,listRelationshipsKnown=null}={}) {
+export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[],freshSplitParts=[],invalidatedTextListIds=[],textParserVersion=null,textParserVersions=null,currentListIds=null,listRelationshipsKnown=null}={}) {
   store.transaction(()=>{
     store.assertWriter();
     const prior=store.db.prepare('SELECT id,date,outcome FROM amendments WHERE generation=? AND target=?').all(generation,target.id);
@@ -277,7 +282,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
     const observed=new Set(observedDecisionIds);
     const invalidatedLists=new Set(invalidatedTextListIds),currentLists=currentListIds===null?null:new Set(currentListIds);
     const freshParts=new Map(freshSplitParts.map(part=>[part.id,part]));
-    const invalidBaseline=row=>invalidatedLists.has(row.listId)&&row.textParserVersion!==textParserVersion;
+    const invalidBaseline=row=>invalidatedLists.has(row.listId)&&row.textParserVersion!==(textParserVersions?.[row.listId] ?? textParserVersion);
     const extraGaps=new Set();
     let retained=false;
     // Copying a generation preserves accepted components. A missing list,
@@ -349,7 +354,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
       }
       row.sources=[...new Map([...(row.sources || []),...row.splitParts.map(part=>part.source),...(row.decisions || []).map(decision=>decision.source)].filter(source=>source?.url).map(source=>[source.url+':'+(source.language || '')+':'+source.fetchedAt,source])).values()];
       const textLosses=amendmentTextLosses(null,row);
-      const oldParser=(row.listId || row.textParserVersion!=null || typeof row.originalText==='string' || typeof row.proposedText==='string')&&row.textParserVersion!==AMENDMENT_EXTRACTION_VERSION;
+      const oldParser=(row.listId || row.textParserVersion!=null || typeof row.originalText==='string' || typeof row.proposedText==='string')&&!displayableAmendmentVersion(row.textParserVersion);
       if(invalidBaseline(row)||oldParser||textLosses.length) {
         row.originalText=null;row.proposedText=null;row.originalFormatting=[];row.proposedFormatting=[];row.textIntegrity='incomplete';row.wordingRetained=false;
         row.gaps.push(...textLosses.map(gap=>gap.message || gap.code));
@@ -358,7 +363,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
         extraGaps.add('Some amendment wording is withheld because its complete extraction could not be verified.');
       }
       if(row.variants?.length)row.variants=row.variants.map(variant=>{
-        const losses=amendmentTextLosses(null,{...variant,number:row.number}),incompatible=invalidBaseline(variant)||variant.textParserVersion!==AMENDMENT_EXTRACTION_VERSION;
+        const losses=amendmentTextLosses(null,{...variant,number:row.number}),incompatible=invalidBaseline(variant)||!displayableAmendmentVersion(variant.textParserVersion);
         if(!incompatible&&!losses.length)return variant;
         row.gaps.push('Some retained amendment variants have unverified wording, which is withheld.');
         extraGaps.add('Some amendment variant wording is withheld because its complete extraction could not be verified.');
