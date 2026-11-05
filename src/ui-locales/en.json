@@ -2397,5 +2397,6 @@
   "votegroups.countries.group_row": "{group}: {for} for, {against} against, {abstaining} abstaining",
   "votegroups.result.outcome.LAPSED": "Lapsed",
   "votegroups.result.method.VOTE_HAND": "Show of hands",
-  "votegroups.result.method.VOTE_ELECTRONIC": "Electronic vote"
+  "votegroups.result.method.VOTE_ELECTRONIC": "Electronic vote",
+  "votegroups.texts.other": "Other texts ({count})"
 }

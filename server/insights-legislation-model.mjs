@@ -65,6 +65,7 @@ export function namedVote(vote,record,members,metadata,referenceDate,groupOn=()=
   const intendedCorrections=Object.fromEntries(Object.entries(intendedFields).map(([position,field])=>[position,memberPeople(array(vote[field]).map(personId).filter(Boolean),members,metadata).map(person=>({...datedPerson(person,vote.activity_date,groupOn),contributionGroup:contributionGroup(person.id,vote.activity_date,groupOn)}))]));
   const malformedVoterReferences=Object.values(fields).reduce((count,field)=>count+array(vote[field]).filter(v=>!personId(v)).length,0);
   return {id:vote.activity_id||tail(vote.id),date:vote.activity_date||null,start:vote.activity_start_date||null,titles:vote.activity_label||{},subjects:vote.referenceText||{},scope:voteScope(vote,derived),outcome:tail(vote.decision_outcome),method:tail(vote.decision_method),
+    decidedDocumentIds:[...new Set(['decided_on_a_realization_of','decided_on_a_part_of_a_realization_of'].flatMap(key=>refs(vote[key]).map(documentId).filter(Boolean)))],
     parentIds:refs(vote.inverse_consists_of),recordedDocumentIds:refs(vote.recorded_in_a_realization_of).map(documentId).filter(Boolean),
     aggregateTotals:totals,namedCounts:hasNamedData?Object.fromEntries(Object.entries(groups).map(([key,people])=>[key,people.length])):null,namedVotersAvailable:hasNamedData,groups:hasNamedData?groups:null,
     uniqueNamedVoters:hasNamedData?positions.size:null,currentRosterWithoutNamedRecord:hasNamedData?[...members.keys()].filter(id=>!positions.has(id)).length:null,conflictingVoterIds:conflicts,malformedVoterReferences,
