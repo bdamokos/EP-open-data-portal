@@ -1,3 +1,4 @@
+import {assertNegativeInstruction} from './amendment-negative-instruction-oracle.mjs';
 import {assertPrintedInsertion} from './amendment-printed-insertion-oracle.mjs';
 import {assertUniqueEntry} from './amendment-unique-entry-oracle.mjs';
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
@@ -646,6 +647,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const scope=verifyLanguageScope(placement,expectedLanguageScope(wording));
   if(scope)return scope;
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
+  const negativeInstruction=assertNegativeInstruction({items,wording,placement,nativeQuoted});if(negativeInstruction)return negativeInstruction;
   const printedInsertion=assertPrintedInsertion({items,wording,placement,nativeQuoted});
   if(printedInsertion)return printedInsertion;
   const uniqueEntry=assertUniqueEntry({items,wording,placement,nativeQuoted});
