@@ -216,6 +216,8 @@ export function assertCouncilSequentialText(raw,{placement,wording,items}) {
  const native=nativeUnitRange(owner,unit);if(!native)return failed();
  if(placement.operation==='insert'){
   if(para.suffix!=='a'||scope.inner.length!==2||wording.originalText?.trim()||!new RegExp('^'+para.base+'a\\.\\s+\\S','u').test(wording.proposedText?.trim()??''))return failed();
+  const anchor=literal(unit.text).replace(/^\d+\.\s+/u,'');
+  if(!anchor||scope.peers.filter(p=>literal(p.text).replace(/^\d+\.\s+/u,'').includes(anchor)).length!==1)return failed();
   const row=proposal.paragraphs[placement.insertAfter],next=scope.peers[index+1];
   if(!row||placement.insertBefore!==placement.insertAfter+1)return failed();
   let expected=native.end;

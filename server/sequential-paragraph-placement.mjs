@@ -12,12 +12,15 @@ export function sequentialParagraphPlacement(proposal,parent,target,{originalTex
  }
  const numbers=peers.map(u=>u.label?.number);
  if(peers.length<3||peers.length>64||numbers[0]!==1||new Set(numbers).size===numbers.length||peers.some((u,i)=>u.kind!=='paragraph'||u.label.suffix||String(numbers[i])!==u.label.value||!Number.isSafeInteger(numbers[i])||numbers[i]<1||i&&(numbers[i]<numbers[i-1]||numbers[i]>numbers[i-1]+1||peers[i-1].extent.end!==u.extent.start)))return null;
+ if(peers.some(u=>!proposal.paragraphs[u.extent.start]?.complete||proposal.paragraphs[u.extent.start]?.source?.complete!==true))return null;
  const selected=peers[label.number-1];if(!selected||selected.label.number===label.number)return null;
  const rows=proposal.paragraphs.slice(selected.extent.start,selected.extent.end);
  if(!rows.length||rows.some(r=>!r.complete||r.source?.complete!==true||r.objects?.length||r.properties?.notesComplete===false||(proposal.anchors??[]).some(a=>a.paragraph===r.index)||(proposal.links??[]).some(a=>a.paragraph===r.index)))return null;
  const evidence=[{basis:'sequential-paragraph-number',reference:String(label.number),label:selected.label.value}];
  if(operation==='insert'){
   if(sub||label.suffix!=='a'||originalText.trim()||!new RegExp('^'+label.value+'\\.\\s+\\S','u').test(proposedText.trim()))return null;
+  const anchor=strip(rows.map(r=>r.text).join(' '));
+  if(!anchor||proposal.paragraphs.map(r=>strip(r.text)).join(' ').split(anchor).length!==2)return null;
   const row=rows.at(-1),next=peers[label.number];
   if(next)return {status:'placed',operation,itemIndex,insertAfter:row.index,insertBefore:row.index+1,evidence};
   if(!quoted)return null;
