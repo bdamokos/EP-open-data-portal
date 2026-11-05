@@ -1546,3 +1546,11 @@ test('PDF source spacing uses published columns without false whitespace edits',
  assert(![...block.querySelectorAll('ins,del')].some(node=>node.textContent.trim()===''));
  assert(block.textContent.includes('Original'));assert(block.textContent.includes('Changed'));
 });
+
+test('uniquely addressed decision wording differences show their short source note in place',async t=>{
+ const value=overlayResponse({operation:'replace',span:{start:2,end:2}});
+ value.placement.evidence=[{basis:'decision-point-original-difference',anchor:2}];
+ const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+ const block=h.container.querySelector('[data-amendment-block="true"][data-context-target="true"]');
+ assert(block);assert.match(block.textContent,/Original wording differs from the proposal\./);
+});
