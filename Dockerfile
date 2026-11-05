@@ -1,4 +1,4 @@
-ARG NODE_IMAGE=node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe
+ARG NODE_IMAGE=node:26.13.0-bookworm-slim@sha256:26f1bff99274226f43ac0409abebde017f06d22079d8b1d5d011711f9e7dfa4a
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
