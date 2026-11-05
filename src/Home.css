@@ -89,3 +89,10 @@
 .home-pick { gap: .3rem; }
 .home-search .explorer-search-input { max-width: none; flex: 1 1 auto; }
 .home .home-agenda-more, .home .home-section-lead { margin-block: .2rem .4rem; }
+
+/* Phones read in one order: headline, new for you, agenda, results, talk, voices, entries. */
+@media (max-width: 999px) {
+  .home-main, .home-rail { display: contents; }
+  .home-headline { order: 1; } .home-following { order: 2; } .home-agenda { order: 3; } .home-votes { order: 4; }
+  .home-topics { order: 5; } .home-outside { order: 6; } .home-entries { order: 7; }
+}
