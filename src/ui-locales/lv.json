@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "Sākotnējais formulējums atšķiras no šī teksta.",
   "proposalcontexttext.printed.point.label": "Jauns {point}. punkts. Norādē minēts {base}. punkts.",
   "documentcontext.note.report_paragraph": "Ziņojuma {report}. punkts; šeit iespiests kā {source}.",
-  "documentcontext.note.label_instruction_differ": "Apzīmējums un norādījums atšķiras."
+  "documentcontext.note.label_instruction_differ": "Apzīmējums un norādījums atšķiras.",
+  "proposalcontexttext.proposal": "Priekšlikums",
+  "proposalcontexttext.proposal.part.index": "Priekšlikums · daļa {index}",
+  "proposalcontexttext.annexes": "Pielikumi",
+  "proposalcontexttext.annexes.part.index": "Pielikumi · daļa {index}",
+  "proposalcontexttext.council.position.part.index": "Padomes nostāja · daļa {index}",
+  "proposalcontexttext.existing.act.part.index": "Esošais tiesību akts · daļa {index}"
 }

@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "Il-kliem oriġinali huwa differenti minn dan it-test.",
   "proposalcontexttext.printed.point.label": "Punt ġdid {point}. It-tikketta tindika l-punt {base}.",
   "documentcontext.note.report_paragraph": "Paragrafu {report} fir-rapport; stampat hawnhekk bħala {source}.",
-  "documentcontext.note.label_instruction_differ": "It-tikketta u l-istruzzjoni huma differenti."
+  "documentcontext.note.label_instruction_differ": "It-tikketta u l-istruzzjoni huma differenti.",
+  "proposalcontexttext.proposal": "Proposta",
+  "proposalcontexttext.proposal.part.index": "Proposta · parti {index}",
+  "proposalcontexttext.annexes": "Annessi",
+  "proposalcontexttext.annexes.part.index": "Annessi · parti {index}",
+  "proposalcontexttext.council.position.part.index": "Pożizzjoni tal-Kunsill · parti {index}",
+  "proposalcontexttext.existing.act.part.index": "Att eżistenti · parti {index}"
 }

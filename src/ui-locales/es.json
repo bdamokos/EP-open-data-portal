@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "La redacción original difiere de este texto.",
   "proposalcontexttext.printed.point.label": "Nuevo punto {point}. La etiqueta indica el punto {base}.",
   "documentcontext.note.report_paragraph": "Apartado {report} del informe; impreso aquí como {source}.",
-  "documentcontext.note.label_instruction_differ": "La indicación y la instrucción difieren."
+  "documentcontext.note.label_instruction_differ": "La indicación y la instrucción difieren.",
+  "proposalcontexttext.proposal": "Propuesta",
+  "proposalcontexttext.proposal.part.index": "Propuesta · parte {index}",
+  "proposalcontexttext.annexes": "Anexos",
+  "proposalcontexttext.annexes.part.index": "Anexos · parte {index}",
+  "proposalcontexttext.council.position.part.index": "Posición del Consejo · parte {index}",
+  "proposalcontexttext.existing.act.part.index": "Acto vigente · parte {index}"
 }

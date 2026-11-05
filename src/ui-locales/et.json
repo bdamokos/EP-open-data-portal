@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "Algne sõnastus erineb sellest tekstist.",
   "proposalcontexttext.printed.point.label": "Uus punkt {point}. Tähistus viitab punktile {base}.",
   "documentcontext.note.report_paragraph": "Raporti lõige {report}; siin trükitud numbriga {source}.",
-  "documentcontext.note.label_instruction_differ": "Tähistus ja juhis erinevad."
+  "documentcontext.note.label_instruction_differ": "Tähistus ja juhis erinevad.",
+  "proposalcontexttext.proposal": "Ettepanek",
+  "proposalcontexttext.proposal.part.index": "Ettepanek · osa {index}",
+  "proposalcontexttext.annexes": "Lisad",
+  "proposalcontexttext.annexes.part.index": "Lisad · osa {index}",
+  "proposalcontexttext.council.position.part.index": "Nõukogu seisukoht · osa {index}",
+  "proposalcontexttext.existing.act.part.index": "Olemasolev õigusakt · osa {index}"
 }

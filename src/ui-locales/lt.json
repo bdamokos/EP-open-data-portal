@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "Pradinė formuluotė skiriasi nuo šio teksto.",
   "proposalcontexttext.printed.point.label": "Naujas {point} punktas. Žymoje nurodytas {base} punktas.",
   "documentcontext.note.report_paragraph": "{report} dalis pranešime; čia išspausdinta kaip {source}.",
-  "documentcontext.note.label_instruction_differ": "Žyma ir nurodymas skiriasi."
+  "documentcontext.note.label_instruction_differ": "Žyma ir nurodymas skiriasi.",
+  "proposalcontexttext.proposal": "Pasiūlymas",
+  "proposalcontexttext.proposal.part.index": "Pasiūlymas · dalis {index}",
+  "proposalcontexttext.annexes": "Priedai",
+  "proposalcontexttext.annexes.part.index": "Priedai · dalis {index}",
+  "proposalcontexttext.council.position.part.index": "Tarybos pozicija · dalis {index}",
+  "proposalcontexttext.existing.act.part.index": "Esamas teisės aktas · dalis {index}"
 }

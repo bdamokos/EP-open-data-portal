@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "Pôvodné znenie sa líši od tohto textu.",
   "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uvedený bod {base}.",
   "documentcontext.note.report_paragraph": "Odsek {report} v správe; tu vytlačený ako {source}.",
-  "documentcontext.note.label_instruction_differ": "Označenie a pokyn sa líšia."
+  "documentcontext.note.label_instruction_differ": "Označenie a pokyn sa líšia.",
+  "proposalcontexttext.proposal": "Návrh",
+  "proposalcontexttext.proposal.part.index": "Návrh · časť {index}",
+  "proposalcontexttext.annexes": "Prílohy",
+  "proposalcontexttext.annexes.part.index": "Prílohy · časť {index}",
+  "proposalcontexttext.council.position.part.index": "Pozícia Rady · časť {index}",
+  "proposalcontexttext.existing.act.part.index": "Existujúci právny akt · časť {index}"
 }

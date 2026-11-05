@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "Първоначалната формулировка се различава от този текст.",
   "proposalcontexttext.printed.point.label": "Нова точка {point}. В обозначението е посочена точка {base}.",
   "documentcontext.note.report_paragraph": "Параграф {report} в доклада; тук е отпечатан като {source}.",
-  "documentcontext.note.label_instruction_differ": "Обозначението и указанието се различават."
+  "documentcontext.note.label_instruction_differ": "Обозначението и указанието се различават.",
+  "proposalcontexttext.proposal": "Предложение",
+  "proposalcontexttext.proposal.part.index": "Предложение · част {index}",
+  "proposalcontexttext.annexes": "Приложения",
+  "proposalcontexttext.annexes.part.index": "Приложения · част {index}",
+  "proposalcontexttext.council.position.part.index": "Позиция на Съвета · част {index}",
+  "proposalcontexttext.existing.act.part.index": "Съществуващ акт · част {index}"
 }

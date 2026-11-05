@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "Der ursprüngliche Wortlaut weicht von diesem Text ab.",
   "proposalcontexttext.printed.point.label": "Neue Nummer {point}. Die Überschrift nennt Nummer {base}.",
   "documentcontext.note.report_paragraph": "Absatz {report} im Bericht; hier abgedruckt als {source}.",
-  "documentcontext.note.label_instruction_differ": "Bezeichnung und Anweisung weichen voneinander ab."
+  "documentcontext.note.label_instruction_differ": "Bezeichnung und Anweisung weichen voneinander ab.",
+  "proposalcontexttext.proposal": "Vorschlag",
+  "proposalcontexttext.proposal.part.index": "Vorschlag · Teil {index}",
+  "proposalcontexttext.annexes": "Anhänge",
+  "proposalcontexttext.annexes.part.index": "Anhänge · Teil {index}",
+  "proposalcontexttext.council.position.part.index": "Standpunkt des Rates · Teil {index}",
+  "proposalcontexttext.existing.act.part.index": "Bestehender Rechtsakt · Teil {index}"
 }

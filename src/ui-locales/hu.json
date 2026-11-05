@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "Az eredeti megfogalmazás eltér ettől a szövegtől.",
   "proposalcontexttext.printed.point.label": "Új {point}. pont. A címkén ez áll: {base}. pont.",
   "documentcontext.note.report_paragraph": "A jelentés {report}. bekezdése; itt {source}. számmal szerepel.",
-  "documentcontext.note.label_instruction_differ": "A megjelölés és az utasítás eltér."
+  "documentcontext.note.label_instruction_differ": "A megjelölés és az utasítás eltér.",
+  "proposalcontexttext.proposal": "Javaslat",
+  "proposalcontexttext.proposal.part.index": "Javaslat · {index}. rész",
+  "proposalcontexttext.annexes": "Mellékletek",
+  "proposalcontexttext.annexes.part.index": "Mellékletek · {index}. rész",
+  "proposalcontexttext.council.position.part.index": "A Tanács álláspontja · {index}. rész",
+  "proposalcontexttext.existing.act.part.index": "Meglévő jogi aktus · {index}. rész"
 }

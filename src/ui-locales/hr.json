@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "Izvorna formulacija razlikuje se od ovog teksta.",
   "proposalcontexttext.printed.point.label": "Nova točka {point}. Oznaka navodi točku {base}.",
   "documentcontext.note.report_paragraph": "Stavak {report} u izvješću; ovdje otisnut kao {source}.",
-  "documentcontext.note.label_instruction_differ": "Oznaka i uputa se razlikuju."
+  "documentcontext.note.label_instruction_differ": "Oznaka i uputa se razlikuju.",
+  "proposalcontexttext.proposal": "Prijedlog",
+  "proposalcontexttext.proposal.part.index": "Prijedlog · dio {index}",
+  "proposalcontexttext.annexes": "Prilozi",
+  "proposalcontexttext.annexes.part.index": "Prilozi · dio {index}",
+  "proposalcontexttext.council.position.part.index": "Stajalište Vijeća · dio {index}",
+  "proposalcontexttext.existing.act.part.index": "Postojeći akt · dio {index}"
 }

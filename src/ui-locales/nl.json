@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "De oorspronkelijke formulering wijkt af van deze tekst.",
   "proposalcontexttext.printed.point.label": "Nieuw punt {point}. Het opschrift noemt punt {base}.",
   "documentcontext.note.report_paragraph": "Lid {report} in het verslag; hier gedrukt als {source}.",
-  "documentcontext.note.label_instruction_differ": "De aanduiding en de instructie verschillen."
+  "documentcontext.note.label_instruction_differ": "De aanduiding en de instructie verschillen.",
+  "proposalcontexttext.proposal": "Voorstel",
+  "proposalcontexttext.proposal.part.index": "Voorstel · deel {index}",
+  "proposalcontexttext.annexes": "Bijlagen",
+  "proposalcontexttext.annexes.part.index": "Bijlagen · deel {index}",
+  "proposalcontexttext.council.position.part.index": "Standpunt van de Raad · deel {index}",
+  "proposalcontexttext.existing.act.part.index": "Bestaande rechtshandeling · deel {index}"
 }

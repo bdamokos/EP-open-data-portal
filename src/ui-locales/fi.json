@@ -2419,5 +2419,11 @@
   "documentcontext.note.original_differs": "Alkuperäinen sanamuoto eroaa tästä tekstistä.",
   "proposalcontexttext.printed.point.label": "Uusi kohta {point}. Otsakkeessa mainitaan kohta {base}.",
   "documentcontext.note.report_paragraph": "Mietinnön kohta {report}; tässä painettu muodossa {source}.",
-  "documentcontext.note.label_instruction_differ": "Merkintä ja ohje eroavat toisistaan."
+  "documentcontext.note.label_instruction_differ": "Merkintä ja ohje eroavat toisistaan.",
+  "proposalcontexttext.proposal": "Ehdotus",
+  "proposalcontexttext.proposal.part.index": "Ehdotus · osa {index}",
+  "proposalcontexttext.annexes": "Liitteet",
+  "proposalcontexttext.annexes.part.index": "Liitteet · osa {index}",
+  "proposalcontexttext.council.position.part.index": "Neuvoston kanta · osa {index}",
+  "proposalcontexttext.existing.act.part.index": "Voimassa oleva säädös · osa {index}"
 }
