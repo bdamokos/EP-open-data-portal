@@ -45,3 +45,7 @@
 @media (max-width:639px){.vote-result-outcome{font-size:1.2rem}}
 @media (max-width:639px){.insight-compact-hide{display:none}}
 .vote-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.vote-country-table th,.vote-country-table td{white-space:nowrap}
+.vote-country-table thead button{padding:0 .25rem}
+.vote-country-table th:first-child{position:sticky;left:0;background:var(--bg)}
+.vote-country-table td button{min-width:2.5rem;padding:0 .25rem}
