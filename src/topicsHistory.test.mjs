@@ -65,7 +65,7 @@ test('coverage counts read plus unavailable and clears when collected',async t=>
  let read=4;t.mock.method(globalThis,'fetch',async()=>Response.json({ready:true,items:[],periods:[],partial:{},coverage:{read,unavailable:1,referenced:9}}));
  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);installRetryClock(t);root=createRoot(node);
  const wait=async predicate=>{for(let i=0;i<60&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
- await act(async()=>root.render(createElement(Topics,{language:'en'})));await wait(()=>node.textContent.includes('Policy areas collected for 5 of 9 dossiers'));read=8;await act(async()=>root.render(createElement(Topics,{language:'fr'})));await wait(()=>node.querySelector('.topic-heat')&&!node.textContent.includes('Policy areas collected'));
+ await act(async()=>root.render(createElement(Topics,{language:'en'})));await wait(()=>node.textContent.includes('Policy areas: 5 of 9 dossiers'));read=8;await act(async()=>root.render(createElement(Topics,{language:'fr'})));await wait(()=>node.querySelector('.topic-heat')&&!node.textContent.includes('Policy areas:'));
 });
 
 test('filter changes keep the page and chart on screen while records load',async t=>{

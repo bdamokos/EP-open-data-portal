@@ -94,7 +94,7 @@ test('exact original to joint choice clears AM/list/page/context/language/TA wit
 
 test('detail gesture pins exact wording language and list; Back retains it and text headers omit it',async t=>{
   const h=await harness(t,{wordingLanguage:'fr'});
-  await h.click(/^Amendments/);await h.click('All available amendments · 45');await h.click('Next');await h.click(/^Amendment 33/);await h.change('.motion-amendments__version select',original+'-AM-013-050');
+  await h.click(/^Amendments/);await h.click('All amendments · 45');await h.click('Next');await h.click(/^Amendment 33/);await h.change('.motion-amendments__version select',original+'-AM-013-050');
   assert.equal(h.requests.filter(url=>url.pathname.includes('document-context')).length,0);
   await h.click('Read in context');assert.equal(h.changes.at(-1).reason,'context');
   let context=h.requests.filter(url=>url.pathname.includes('document-context')).at(-1);
@@ -151,7 +151,7 @@ test('pending source marker remains visible for parent restoration; unknown TA n
   const h=await harness(t,{url:share(state).href,delayContext:true});assert(h.container.querySelector('[data-context-pending="true"]'));assert.equal(h.pending.length,1);
   await h.finish();assert.equal(h.container.querySelector('[data-context-pending="true"]'),null);assert.match(h.container.textContent,/Public complete document body/);
   const unknown='TA-10-2026-9999',adopted={...state,amendments:{...state.amendments,contextView:'adopted'},selectedTA:unknown};
-  await h.restore(share(adopted).href);await h.finish();assert.equal(h.state().selectedTA,unknown);assert.match(h.container.textContent,/This adopted text is unavailable/);assert(h.requests.every(url=>!url.pathname.endsWith(unknown)&&!url.pathname.endsWith(ta)));
+  await h.restore(share(adopted).href);await h.finish();assert.equal(h.state().selectedTA,unknown);assert.match(h.container.textContent,/Adopted text unavailable/);assert(h.requests.every(url=>!url.pathname.endsWith(unknown)&&!url.pathname.endsWith(ta)));
 });
 
 test('member/activity prop changes consume no other owner state and require no URL listeners',async t=>{

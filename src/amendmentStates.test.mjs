@@ -19,10 +19,11 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   });
   const base={targetDocumentId:'A-10-2026-0254',language:'fr',outcome:'unavailable',documentDate:'2026-10-16',dateBasis:'individual-amendment-document'};
   const items=[
-    {...base,id:'withheld',number:1,textIntegrity:'incomplete',originalText:null,proposedText:null,listRelationship:'unverified',recordRetained:true},
+    {...base,id:'withheld',number:1,textIntegrity:'incomplete',originalText:null,proposedText:null,listRelationship:'unverified',recordRetained:true,sources:[{url:'https://www.europarl.europa.eu/doceo/document/A-10-2026-0254-AM-001-010_FR.html',language:'fr'}]},
     {...base,id:'unsafe-baseline',number:2,textIntegrity:'incomplete',originalText:'Unverified old original must be withheld',proposedText:'Unverified old proposal must be withheld'},
-    {...base,id:'absent-list',number:3,textIntegrity:'complete',originalText:'',proposedText:'Proposition conservée',wordingRetained:true,listRelationship:'absent-current-relationship'},
-    {...base,id:'missing',number:4,textIntegrity:'unavailable',originalText:null,proposedText:null,listRelationship:'current'},
+    {...base,id:'absent-list',number:3,textIntegrity:'complete',originalText:'',proposedText:'Proposition conservée',wordingRetained:true,listRelationship:'absent-current-relationship',sources:[{url:'https://www.europarl.europa.eu/doceo/document/A-10-2026-0254-AM-031-040_FR.html',language:'fr'}]},
+    {...base,id:'missing',number:4,textIntegrity:'unavailable',originalText:null,proposedText:null,listRelationship:'current',sources:[{url:'https://www.europarl.europa.eu/doceo/document/A-10-2026-0254-AM-011-020_FR.html',language:'fr'}]},
+    {...base,id:'decision-only',number:6,textIntegrity:undefined,originalText:null,proposedText:null,listRelationship:'current',sources:[{url:'https://www.europarl.europa.eu/doceo/document/A-10-2026-0254-AM-021-030_FR.html',language:'fr'}]},
     {...base,id:'variants',number:5,conflicted:true,variants:[
       {...base,listId:'variant-withheld',textIntegrity:'incomplete',originalText:null,proposedText:null,listRelationship:'unverified'},
       {...base,listId:'variant-absent',textIntegrity:'complete',originalText:'Original conservé',proposedText:'',wordingRetained:true,listRelationship:'absent-current-relationship',recordRetained:true},
@@ -40,10 +41,12 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   const withheld=card('withheld');
   assert.equal(withheld.querySelector('.wording-diff,ins,del'),null);
   assert.equal(withheld.querySelector('.explorer-amendment-evidence-state').textContent,'Wording unavailable.');
+  assert(withheld.querySelector('a[href*="A-10-2026-0254-AM-001-010"]'),'withheld wording keeps its official source link');
   assert.deepEqual([...withheld.querySelectorAll('.explorer-amendment-texts section>p')].map(node=>node.textContent),['Unavailable.','Unavailable.']);
   assert.doesNotMatch(withheld.textContent,/No original text \(insertion\)|Text deleted/);
   assert.doesNotMatch(card('unsafe-baseline').textContent,/Unverified old original must be withheld|Unverified old proposal must be withheld/);
   const absent=card('absent-list');
+  assert.equal(absent.querySelector('a[href*="A-10-2026-0254-AM-031-040"]'),null,'readable wording shows no source link');
   assert.equal(absent.querySelector('.wording-diff__note').textContent,'New text');
   assert.equal(absent.querySelector('.wording-diff__toggle button[aria-pressed="true"]').textContent,'Side by side');
   const insertion=absent.querySelector('.wording-diff__passage>ins');assert(insertion);
@@ -55,6 +58,8 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   assert.equal(absent.querySelector('.wording-diff__columns section:nth-child(2)>p').lang,'fr');
   assert.doesNotMatch(absent.textContent,/record is retained from an earlier indexed source/,'a retained wording flag does not invent whole-record retention');
   const missing=card('missing');
+  assert(card('decision-only').querySelector('a[href*="A-10-2026-0254-AM-021-030"]'),'a decision-only row keeps its official source link');
+  assert(missing.querySelector('a[href*="A-10-2026-0254-AM-011-020"]'),'unavailable wording keeps its official source link');
   assert.match(missing.querySelector('.explorer-amendment-texts section>p').textContent,/^Unavailable\.$/);
   assert.equal(missing.querySelector('.wording-diff,ins,del'),null,'unavailable original wording does not imply an insertion');
   assert.doesNotMatch(missing.textContent,/New text|No original text \(insertion\)/);

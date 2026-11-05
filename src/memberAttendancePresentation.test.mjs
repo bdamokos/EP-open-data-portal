@@ -49,7 +49,7 @@ test('week attendance groups each status once and compresses only consecutive da
 
 test('a not-listed member with no supplied excused list does not acquire a negative excused observation',()=>{
   assert.equal(memberAttendanceDetail({...day(),memberStatus:'not-listed',excusedSupplied:false}), 'Not listed as present.');
-  assert.equal(memberAttendanceDetail({...day(),memberStatus:'not-listed',excusedSupplied:true}), "Not listed in this sitting's attendance register.");
+  assert.equal(memberAttendanceDetail({...day(),memberStatus:'not-listed',excusedSupplied:true}), "Not listed in this sitting’s attendance register.");
 });
 
 test('indexed motion fallbacks can omit unknown methods using the same recognised label map',()=>{

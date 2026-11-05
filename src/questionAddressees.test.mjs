@@ -63,6 +63,6 @@ test('question addressee controls reset paging, preserve combined scopes and fil
   assert.equal(requests.findLast(r=>r.body).body.addressee,'org/CS','mounted text search follows recipient changes');
   await act(async()=>{history.replaceState(null,'','/?view=questions&q-addressee=unavailable&q-fts-closed=1');window.dispatchEvent(new window.PopStateEvent('popstate'));});
   assert.equal(container.querySelector('[data-question-addressee]').value,'unavailable');assert.equal(container.querySelectorAll('.insight-question-list>article').length,1);
-  await act(async()=>[...container.querySelectorAll('button')].find(b=>b.textContent==='Clear all filters').click());
+  await act(async()=>[...container.querySelectorAll('button')].find(b=>b.textContent==='Clear filters').click());
   query=new URL(location.href).searchParams;assert.equal(query.has('q-addressee'),false);assert.equal(container.querySelectorAll('.insight-question-list>article').length,5);
 });

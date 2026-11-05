@@ -85,7 +85,7 @@ test('press catch-up is independent of OEIL failures, latest-five previews and o
 });
 test('failed storage preserves a follow toggle and exposes failed acknowledgments for retry',()=>{
   const h=setup();let fail=true;const storage={getItem:h.storage.getItem,setItem(key,value){if(fail)throw Error('blocked');h.storage.setItem(key,value);}},store=createDossiersStore(storage);
-  assert.throws(()=>store.toggle({id}),/Couldn't save/);assert.equal(store.snapshot().items.length,1);assert(store.snapshot().storageError);
+  assert.throws(()=>store.toggle({id}),/Could not save/);assert.equal(store.snapshot().items.length,1);assert(store.snapshot().storageError);
   fail=false;assert(store.retryStorage());assert(!store.snapshot().storageError);
 });
 

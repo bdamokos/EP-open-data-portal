@@ -196,7 +196,7 @@ for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+'
 test('choosing the verified joint text resets amendment/version/page and does not inherit original authorship',async t=>{
  const h=await harness(t);
  await h.click(h.container.querySelector('.motion-amendments__disclosure'));
- await h.click(button(h.container,/^All available amendments/));
+ await h.click(button(h.container,/^All amendments/));
  await h.click([...h.container.querySelectorAll('.motion-amendments__row-button')].find(node=>node.textContent.includes('Amendment 7')));
  const selected=new URLSearchParams(location.search);selected.set('ma-list',LIST);await h.restore(selected.toString());
  await h.click(h.container.querySelector('.motion-amendments__pages button:last-child'));

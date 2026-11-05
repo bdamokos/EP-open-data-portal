@@ -34,11 +34,6 @@
     "one": "Show {count} person",
     "other": "Show all {count} people"
   },
-  "groupvoices.showing_count_matches_refine_the_name_search_to_find_others.1fbbb2": {
-    "plural": "count",
-    "one": "Showing {count} match. Refine the name search to find others.",
-    "other": "Showing {count} matches. Refine the name search to find others."
-  },
   "groupvoices.total_contributions_shown_below.9817c4": {
     "plural": "total",
     "one": "{total} contribution shown below ↓",
@@ -96,43 +91,23 @@
   },
   "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
     "plural": "procedures",
-    "one": "EuroVoc topics · {mapped} of {procedures} dossier",
-    "other": "EuroVoc topics · {mapped} of {procedures} dossiers"
-  },
-  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_archive_incomplete.a15b2d": {
-    "plural": "procedures",
-    "one": "EuroVoc topics · {mapped} of {procedures} dossier · archive incomplete",
-    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · archive incomplete"
-  },
-  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_archive_incomplete_first_600_matching_do.cdcddb": {
-    "plural": "procedures",
-    "one": "EuroVoc topics · {mapped} of {procedures} dossier · archive incomplete · first 600 matching dossiers",
-    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · archive incomplete · first 600 matching dossiers"
+    "one": "Topics · {mapped} of {procedures} dossier",
+    "other": "Topics · {mapped} of {procedures} dossiers"
   },
   "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
     "plural": "procedures",
-    "one": "EuroVoc topics · {mapped} of {procedures} dossier · first 600 matching dossiers",
-    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · first 600 matching dossiers"
+    "one": "Topics · {mapped} of {procedures} dossier · first 600 matching dossiers",
+    "other": "Topics · {mapped} of {procedures} dossiers · first 600 matching dossiers"
   },
   "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
     "plural": "procedures",
-    "one": "EuroVoc topics · {mapped} of {procedures} dossier · loading more topics…",
-    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · loading more topics…"
-  },
-  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_archive_incomplete.75cd7e": {
-    "plural": "procedures",
-    "one": "EuroVoc topics · {mapped} of {procedures} dossier · loading more topics… · archive incomplete",
-    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · loading more topics… · archive incomplete"
-  },
-  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_archive_incomplete_f.1ff152": {
-    "plural": "procedures",
-    "one": "EuroVoc topics · {mapped} of {procedures} dossier · loading more topics… · archive incomplete · first 600 matching dossiers",
-    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · loading more topics… · archive incomplete · first 600 matching dossiers"
+    "one": "Topics · {mapped} of {procedures} dossier · loading more topics…",
+    "other": "Topics · {mapped} of {procedures} dossiers · loading more topics…"
   },
   "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
     "plural": "procedures",
-    "one": "EuroVoc topics · {mapped} of {procedures} dossier · loading more topics… · first 600 matching dossiers",
-    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · loading more topics… · first 600 matching dossiers"
+    "one": "Topics · {mapped} of {procedures} dossier · loading more topics… · first 600 matching dossiers",
+    "other": "Topics · {mapped} of {procedures} dossiers · loading more topics… · first 600 matching dossiers"
   },
   "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
     "plural": "count",
@@ -214,11 +189,6 @@
     "one": "recorded oral contribution",
     "other": "recorded oral contributions"
   },
-  "ui.subjectUnit": {
-    "plural": "count",
-    "one": "subject",
-    "other": "subjects"
-  },
   "ui.speakerUnit": {
     "plural": "count",
     "one": "speaker",
@@ -233,16 +203,6 @@
     "plural": "count",
     "one": "{date}: {count} agenda item",
     "other": "{date}: {count} agenda items"
-  },
-  "amendmentmodel.mjs.text.count.expected.occurrences": {
-    "plural": "count",
-    "one": "{text} · {count} expected occurrence",
-    "other": "{text} · {count} expected occurrences"
-  },
-  "amendmentmodel.mjs.text.occurrences.numbers": {
-    "plural": "count",
-    "one": "{text} · occurrence {numbers}",
-    "other": "{text} · occurrences {numbers}"
   },
   "ui.speechStat.total": {
     "plural": "count",

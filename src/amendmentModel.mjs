@@ -89,34 +89,3 @@ export function amendmentDecisionPart(parts,decision) {
 export function publicAmendmentSource(value) {
   try {const url=new URL(typeof value==='string'?value:value?.url);return ['https:','http:'].includes(url.protocol)?url.href:null;}catch{return null;}
 }
-const quoted=value=>typeof value==='string'&&value?`“${value}”`:'';
-// Summarise supported, explicitly typed plans; never manufacture a text selection.
-export function amendmentPlanSummary(plan, ui = defaultUi) {
-  if(!plan||typeof plan!=='object')return [];
-  const describe=(node,depth=0)=>{
-    if(!node||typeof node!=='object'||depth>8)return null;
-    let text;
-    if(node.type==='all')text=ui.t("amendmentmodel.mjs.the.whole.amendment.text");
-    else if(node.type==='text'&&quoted(node.quote))text=ui.t("amendmentmodel.mjs.the.text.quote",{quote:node.quote});
-    else if(node.type==='delete_operation'&&quoted(node.quote))text=ui.t("amendmentmodel.mjs.the.amendment.s.deletion.of.quote.an.edit.operation",{quote:node.quote});
-    else if(node.type==='character'&&quoted(node.character)&&quoted(node.within)&&Number.isInteger(node.characterOccurrence))text=ui.t("amendmentmodel.mjs.occurrence.number.of.character.within.text",{number:node.characterOccurrence,character:node.character,text:node.within});
-    else if(node.type==='difference'){
-      const base=describe(node.base,depth+1),except=describe(node.except,depth+1);
-      if(!base||!except)return null;
-      text=(node.except?.type==='union')?ui.t("batch2.amendmentmodel.mjs.base.excluding.exception", {base: String(base), exception: String(except)}):(ui.t("amendmentmodel.mjs.base.excluding.exception", {base: String(base), exception: String(except)}));
-    }
-    else if(node.type==='union'){
-      if(!Array.isArray(node.items)||!node.items.length)return null;
-      const items=node.items.map(item=>describe(item,depth+1));
-      if(items.some(item=>!item))return null;
-      text=items.reduce((items,item)=>ui.t("amendmentmodel.mjs.items.together.with.item",{items,item}));
-    }
-    else return null;
-    if(Array.isArray(node.occurrences)&&node.occurrences.length)text=ui.t("amendmentmodel.mjs.text.occurrences.numbers",{text,numbers:node.occurrences.join(", ")},{count:node.occurrences.length});
-    else if(Number.isInteger(node.expectedCount))text=ui.t("amendmentmodel.mjs.text.count.expected.occurrences",{text,count:node.expectedCount});
-    if(node.scope){const scope=describe(node.scope,depth+1);if(!scope)return null;text=ui.t("amendmentmodel.mjs.text.within.scope",{text,scope});}
-    return text;
-  };
-  const description=describe(plan, undefined);
-  return description?[description]:[];
-}

@@ -22,7 +22,7 @@ test('suggestion actions preserve focus; failed follows announce an alert; stora
  const button=name=>container.querySelector(`[aria-label="${name}"]`);
  assert(button('Follow Member 2'));const toggle=savedStore.toggle;
  savedStore.toggle=()=>{throw Error('The MEP selection is too large.');};
- await act(async()=>button('Follow Member 2').click());assert.match(container.querySelector('[role="alert"]').textContent,/selection is too large/);assert(button('Follow Member 2'));
+ await act(async()=>button('Follow Member 2').click());assert.match(container.querySelector('[role="alert"]').textContent,/Unavailable\./);assert(button('Follow Member 2'));
  savedStore.toggle=toggle;
  await act(async()=>button('Follow Member 2').click());assert.equal(document.activeElement,button('Follow Member 3'));assert(savedStore.snapshot().items.some(i=>i.id==='2'));
  await act(async()=>button('Dismiss suggestion for Member 3').click());assert.equal(document.activeElement,container.querySelector('h2'));assert.equal(coverageStore.suggestions().length,0);

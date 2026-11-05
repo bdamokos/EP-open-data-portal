@@ -36,7 +36,7 @@ test('automatic episodes pause hidden timers, resume online, cap attempts, retai
  await act(async()=>t.mock.timers.tick(10000));assert.equal(calls,2);
  Object.defineProperty(document,'visibilityState',{value:'visible',configurable:true});await act(async()=>document.dispatchEvent(new win.Event('visibilitychange')));assert.equal(calls,3);
  for(const delay of [15000,45000,120000,300000,300000])await act(async()=>t.mock.timers.tick(delay));
- assert.equal(calls,8);assert.equal(state.retrying,false);assert.equal(state.error,'Busy');assert.equal(state.data.value,'kept');
+ assert.equal(calls,8);assert.equal(state.retrying,false);assert.equal(state.error,'Unavailable.');assert.equal(state.data.value,'kept');
  await act(async()=>t.mock.timers.tick(900000));assert.equal(calls,8);
  fail=false;await act(async()=>window.dispatchEvent(new win.Event('online')));assert.equal(calls,9);assert.equal(state.error,null);
  fail=true;await act(async()=>state.retry());const before=calls;
@@ -57,7 +57,7 @@ test('joined readers batch jittered retries into six shared requests and settle 
  await act(async()=>root.render(h('section',null,h(Reader,{id:0}),h(Reader,{id:1}))));assert.equal(calls,1);
  for(const delay of [5300,16000,48000,127000,300000,300000])await act(async()=>t.mock.timers.tick(delay));
  assert.equal(calls,7,'one initial read plus six automatic requests for the shared route');
- assert(states.every(state=>state.error==='Busy'&&!state.retrying));
+ assert(states.every(state=>state.error==='Unavailable.'&&!state.retrying));
  await act(async()=>t.mock.timers.tick(900000));assert.equal(calls,7);
 });
 

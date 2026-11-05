@@ -29,7 +29,7 @@ export function InsightQuestionReader({id,member,language,heading: headingProp,i
 const heading = headingProp ?? ui.t("textsearch.question");
 
   const [selected,setSelected]=useDossierReaderState('question-language:'+id+':'+language,language),readerText=useRef<HTMLDivElement>(null);
-  const state=useData<PublicationDocument>(`document/${encodeURIComponent(id)}?${member ? ('member='+member+'&') : ''}lang=${selected}`,publicationRetry),text=(state.data?.selectedDocumentId===id) ? state.data.selectedText : null;
+  const state=useData<PublicationDocument>(`document/${encodeURIComponent(id)}?${member ? ('member='+member+'&') : ''}lang=${selected}`,{...publicationRetry,unavailable:'error.text'}),text=(state.data?.selectedDocumentId===id) ? state.data.selectedText : null;
   const questionDocument=/^[EPHO]-\d+-\d{4}-\d+(?:-ASW)?$/.test(id);
   const pickerText=useRetainedText(id,text);
   const body=publicationBody(text?.paragraphs||[],id,text?.textLanguage),notePrefix='notes'+useId().replace(/[^A-Za-z0-9_-]/g,'');

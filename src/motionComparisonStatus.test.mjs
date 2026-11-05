@@ -52,7 +52,7 @@ test('comparison announces one narrow settled result; full wording, provenance a
   const passages=[...h.container.querySelectorAll('.explorer-diff-passage p')];assert.equal(passages.length,4);
   assert.match(passages.map(node=>node.textContent).join(' '),/Full .*original.*revised.* public passage/);
   for(const node of [...passages,...h.container.querySelectorAll('.explorer-diff-controls,.explorer-diff-documents,.explorer-diff-sources,.explorer-diff-checkbox')])assert.equal(liveAncestor(node),null);
-  assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,2);assert.equal(h.container.querySelector('.explorer-diff-sources'),null);
+  assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,0);assert.equal(h.container.querySelector('.explorer-diff-sources'),null);
   assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');
   await act(async()=>h.container.querySelector('input[type="checkbox"]').click());await settle();
   assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,1);assert.equal(messages.length,1,'filtering unchanged passages must not repeat completion');
@@ -78,12 +78,12 @@ test('errors and unavailable results stay concise, retry repeats deliberate outc
   const h=await harness(t);await h.render();const messages=record(h,t);
   await h.respond(0,{error:'Temporary source failure with full diagnostic text'},503);await settle();
   for(let i=0;i<6;i++){assert.equal(h.container.querySelector('.explorer-diff-error'),null);assert.equal(h.status().textContent,'');await automaticRecovery(t);await h.respond(i+1,{error:'Temporary source failure with full diagnostic text'},503);}
-  await settle();assert.match(h.container.querySelector('.explorer-diff-error').textContent,/Temporary source failure with full diagnostic text/);assert.equal(h.container.querySelector('[role="alert"]'),null);
+  await settle();assert.match(h.container.querySelector('.explorer-diff-error').textContent,/Comparison unavailable/);assert.equal(h.container.querySelector('[role="alert"]'),null);
   assert.equal(h.status().textContent,'Original to joint comparison could not be loaded.');assert.equal(messages.length,1);assert.equal(h.container.querySelector('.explorer-diff-error button'),null);
   await act(async()=>window.dispatchEvent(new window.Event('online')));assert.equal(h.status().textContent,'');await h.respond(7,{error:'Temporary source failure with full diagnostic text'},503);await settle();assert.equal(messages.length,2,'a later foreground attempt announces its terminal failure once');
   const unavailable={status:'unavailable',reason:'No published adopted text explicitly links to this joint motion.',summary:null,rows:[],textLanguage:null};
   await act(async()=>window.dispatchEvent(new window.Event('online')));await h.respond(8,unavailable);await settle();
-  assert.equal(h.status().textContent,'Original to joint comparison unavailable.');assert.match(h.container.textContent,/No published adopted text explicitly links/);assert.equal(h.container.querySelector('.explorer-diff-row'),null);assert.equal(h.container.querySelector('.explorer-diff-notice button'),null);assert.equal(installRetryClock(t).timers.size,0);
+  assert.equal(h.status().textContent,'Original to joint comparison unavailable.');assert.match(h.container.textContent,/Comparison unavailable/);assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,2,'an unavailable comparison keeps both source files');assert.equal(h.container.querySelector('.explorer-diff-row'),null);assert.equal(h.container.querySelector('.explorer-diff-notice button'),null);assert.equal(installRetryClock(t).timers.size,0);
   await h.render({language:'fr'});assert.equal(h.requests[9].url.searchParams.get('lang'),'fr');await h.respond(9,{textLanguage:'en'});await settle();
   assert.match(h.status().textContent,/available.*Text language: EN/);assert.match(h.container.querySelector('.text-language-note').textContent,/français unavailable.*showing anglais/);assert(h.container.querySelector('.text-language-line select'),'a fallback offers the other editions');assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');
 });
@@ -107,8 +107,8 @@ test('saved sources and cached refresh failures retain wording and provenance wi
   await h.respond(1,{error:'Refresh unavailable'},503);await settle();
   for(let i=0;i<6;i++){assert.equal(h.status().textContent,'');await automaticRecovery(t);await h.respond(i+2,{error:'Refresh unavailable'},503);}
   await settle();
-  assert.equal(h.status().textContent,'Original to joint comparison refresh failed. Showing saved comparison.');assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2);assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,2);
-  assert.match(h.container.querySelector('.explorer-diff-error').textContent,/Refresh unavailable/);assert.equal(liveAncestor(h.container.querySelector('.explorer-diff-passage p')),null);
+  assert.match(h.status().textContent,/comparison available/);assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2);assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,0);
+  assert.match(h.container.querySelector('.explorer-diff-error').textContent,/Comparison unavailable/);assert.equal(liveAncestor(h.container.querySelector('.explorer-diff-passage p')),null);
   await act(async()=>window.dispatchEvent(new window.Event('online')));assert.equal(h.status().textContent,'');assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2);
   await h.respond(8);await settle();assert.match(h.status().textContent,/comparison available/);assert.doesNotMatch(h.status().textContent,/refresh failed|Showing saved/);
 });

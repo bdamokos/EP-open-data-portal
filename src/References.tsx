@@ -137,7 +137,7 @@ function ReferenceCard({reference,text,textLanguage,language,onQuestion,footnote
     <p lang={ui.language} className="legal-reference-kind">{[kind,status].filter(Boolean).join(' · ')}</p>
     {reference.kind!=='procedure'&&<p className="legal-reference-title" lang={reference.title ? (reference.titleLanguage??'') : textLanguage}>{reference.title||text}</p>}
     <p lang={ui.language} className="legal-reference-meta">{metadata.map((item,index)=><Fragment key={index}>{index ? ' · ' : ''}<span lang={item.language}>{item.text}</span></Fragment>)}</p>
-    {reference.stale&&<p lang={ui.language} className="legal-reference-meta">{reference.source?.fetchedAt ? <UiMessage id="batch6.references.saved.description.from.date.a.newer.check.of.the.official.source..129" values={{date: <span lang={language}>{displayDate(reference.source.fetchedAt,language)}</span>}}/> : <UiMessage id="batch6.references.saved.description.a.newer.check.of.the.official.source.is.pending.129"/>}</p>}
+    
     <div lang={ui.language} className="legal-reference-actions">
       {reference.kind==='question'&&reference.id&&onQuestion&&<button type="button" onClick={()=>onQuestion(reference.id!)}>{reference.answerIds?.length ? <UiMessage id="batch6.references.read.question.and.answer.131"/> : <UiMessage id="textsearch.read_question"/>}</button>}
       {procedure&&reference.kind!=='procedure'&&<button type="button" aria-expanded={summaryOpen} onClick={()=>setSummaryOpen(value=>!value)}>{summaryOpen ? <UiMessage id="batch6.references.hide.dossier.summary.132"/> : <UiMessage id="dossierCard.event.5"/>}</button>}
@@ -153,7 +153,7 @@ const shortLabel=(reference:ResolvedReference|undefined,key:string)=>{const titl
 function DossierSummary({reference,language,showTitle}:{reference:string;language:string;showTitle:boolean}) {
   const ui = useUiI18n();
   const [expanded,setExpanded]=useState(false);
-  const {data,loading,error,retry}=useData<Summary>('reference-summary?'+new URLSearchParams({reference,lang:language}));
+  const {data,loading,error,retry}=useData<Summary>('reference-summary?'+new URLSearchParams({reference,lang:language}),{unavailable:'error.summary'});
   if(loading&&!data)return <p lang={ui.language} className="legal-reference-summary" role="status"><UiMessage id="batch6.references.loading.dossier.summary.145"/></p>;
   if(!data)return <p lang={ui.language} className="legal-reference-summary">{error ? <><UiMessage id="batch6.references.the.legislative.observatory.summary.is.temporarily.unavailable.146"/> </> : null}</p>;
   const blocks=data.summary?.blocks||[],shown=expanded ? blocks : blocks.slice(0,2);
@@ -162,7 +162,7 @@ function DossierSummary({reference,language,showTitle}:{reference:string;languag
     {data.summary ? <>
       <p className="legal-reference-meta"><span lang={summaryStage(data.summary.stage,language, ui).language}>{summaryStage(data.summary.stage,language, ui).text}</span> · <span lang={language}>{displayDate(data.summary.date,language)}</span>{(data.language!==language) ? <> · <span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(data.language)||data.language}</span></> : ''}{data.summary.method ? (' · '+data.summary.method) : ''}</p>
       <div lang={data.language??''}>{shown.map((block,index)=>(block.kind==='heading') ? <h4 key={index}>{block.text}</h4> : <p key={index}>{block.text}</p>)}</div>
-      <div className="legal-reference-actions">{blocks.length>2&&<button type="button" aria-expanded={expanded} onClick={()=>setExpanded(value=>!value)}>{expanded ? <UiMessage id="procedurecontext.show_less.4c852b"/> : <UiMessage id="procedurecontext.continue_reading.4f4840"/>}</button>}<a className="legal-reference-secondary" href={data.summary.source.url} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.35.74"/></a></div>
+      <div className="legal-reference-actions">{blocks.length>2&&<button type="button" aria-expanded={expanded} onClick={()=>setExpanded(value=>!value)}>{expanded ? <UiMessage id="procedurecontext.show_less.4c852b"/> : <UiMessage id="procedurecontext.continue_reading.4f4840"/>}</button>}</div>
     </> : <p className="legal-reference-meta"><UiMessage id="batch6.references.the.legislative.observatory.publishes.no.summary.for.reference.154" values={{reference: String(reference ?? '')}}/></p>}
   </section>;
 }

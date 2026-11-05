@@ -125,8 +125,8 @@ test('all reachable messages have translated values in each supported language',
       // grammatical branches; other languages use the common reviewed messages.
       if(id.startsWith('MotionComparison.contextStage.')&&language!=='ro')continue;
       if((id.startsWith('membervotesummary.fullPosition.')||id.startsWith('membervotes.summary.recorded.'))&&!['ro','lt'].includes(language))continue;
-      // New Topics, vote-group, ballot, hemicycle and other-gender messages use the documented per-message English fallback.
-      if((id.startsWith('topics.')||id.startsWith('votegroups.')||id.startsWith('yourVote.')||id.startsWith('hemicycle.')||id==='insightshared.genderOther')&&!Object.hasOwn(catalogue,id))continue;
+      // New Topics and vote-group messages use the documented per-message English fallback.
+      if((id.startsWith('topics.')||id.startsWith('votegroups.'))&&!Object.hasOwn(catalogue,id))continue;
       assert.equal(typeof catalogue[id],'string',language+': '+id);
       assert(catalogue[id].trim(),language+': '+id);
     }
@@ -156,4 +156,8 @@ test('other-gender wording falls back individually while adjacent gender labels 
  for(const id of ['insightshared.genderFemale','insightshared.genderMale','insightshared.not_provided']){
   assert.equal(ui.t(id),catalogue[id]);assert.equal(ui.messageLocale(id),'de');
  }
+});
+
+test('proposal item headings keep every message ID that ProposalContextText composes',()=>{
+  for(const kind of ['proposal','annexes','council.position','existing.act'])for(const part of ['','.part.index'])assert(Object.hasOwn(english,'proposalcontexttext.'+kind+part),'proposalcontexttext.'+kind+part);
 });

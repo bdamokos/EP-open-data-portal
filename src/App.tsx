@@ -167,7 +167,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
       {state.loading && !body && <p role="status" lang={ui.language}><UiMessage id="app.loading_transcript"/></p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
       {body && <>
-          {body===state.data&&state.data?.textCache?.stale && <small lang={ui.language}>{state.data.textCache.refreshInProgress ? <UiMessage id="app.savedTranscriptRefreshing"/> : (state.data.textCache.refreshError ? <UiMessage id="app.savedTranscriptRefreshFailed"/> : <UiMessage id="app.savedTranscript"/>)}</small>}
+          
           {text.error ? <p lang={ui.language}><UiMessage id="app.transcript_could_not_be_read"/></p> : (text.paragraphs.length ? <div
               className="explorer-transcript"
               ref={transcriptText}
@@ -202,7 +202,7 @@ function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member
 function PublicationText({ sourceId, member, lang, heading, headingDate, shownDate, includeAnswers = false,question, showDownloads = true }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; shownDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string};showDownloads?:boolean }) {
   const ui = useUiI18n();
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang,sourceId]);
-  const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`,publicationRetry);
+  const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`,{...publicationRetry,unavailable:'error.text'});
   const text=(state.data?.selectedDocumentId===sourceId) ? state.data.selectedText : null;
   const questionDocument=/^[EPHO]-\d+-\d{4}-\d+(?:-ASW)?$/.test(sourceId);
   const pickerText=useRetainedText(sourceId,text);
@@ -229,7 +229,7 @@ function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionCh
   const hasText=item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer';
   const motion=/^(?:B|RC)-10-\d{4}-\d{4,6}$/.test(item.sourceId);
   const [documentOpen,setDocumentOpen]=useDossierReaderState('activity-document:'+item.sourceId,false);
-  const document=useData<PublicationDocument>((((item.recordKind!=='speech') && (!hasText)) && (!motion||documentOpen)) ? (`document/${item.sourceId}?member=${member}&lang=${lang}`) : null,publicationRetry);
+  const document=useData<PublicationDocument>((((item.recordKind!=='speech') && (!hasText)) && (!motion||documentOpen)) ? (`document/${item.sourceId}?member=${member}&lang=${lang}`) : null,{...publicationRetry,unavailable:'error.text'});
   const roles: Record<string,string> = {AUTHOR:ui.t("insightshared.author"),QUESTION_AUTHOR:ui.t("app.author_of_the_question"),RAPPORTEUR:ui.t("insightshared.rapporteur"),RAPPORTEUR_SHADOW:ui.t("insightshared.shadow_rapporteur"),RAPPORTEUR_OPINION:ui.t("insightshared.opinion_rapporteur"),RAPPORTEUR_SHADOW_OPINION:ui.t("insightshared.shadow_opinion_rapporteur"),SPEAKER:ui.t("app.plenary_contribution")};
   const stage=(item.provenance.stage==='RDG1') ? interfaceTerm('first-reading',lang) : ((item.provenance.stage==='RDG2') ? interfaceTerm('second-reading',lang) : ({text:item.provenance.stage,language:''}));
   if (item.recordKind === "speech") return <><ActivityDossierLinks procedureIds={item.procedureIds} person={member} language={lang}/><Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} /></>;
@@ -263,8 +263,8 @@ function LinkedActivityFallback({ sourceId, member, lang, complete, showDownload
   const ui = useUiI18n();
   const [check, setCheck] = useState(false);
   const speech=Boolean(sourceId?.startsWith("MTG-PL-"));
-  const document=useData<PublicationDocument>(((check && sourceId) && (!speech)) ? (`document/${sourceId}?member=${member}&lang=${lang}`) : null,publicationRetry);
-  const contribution=useData<SpeechDetail>(((check && sourceId) && speech) ? (`speech/${sourceId}?lang=${lang}`) : null);
+  const document=useData<PublicationDocument>(((check && sourceId) && (!speech)) ? (`document/${sourceId}?member=${member}&lang=${lang}`) : null,{...publicationRetry,unavailable:'error.text'});
+  const contribution=useData<SpeechDetail>(((check && sourceId) && speech) ? (`speech/${sourceId}?lang=${lang}`) : null,{unavailable:'error.speech'});
   const answer=document.data?.answers.find(item=>item.id===sourceId);
   const matched=answer || ((document.data?.id===sourceId) ? document.data : null);
   const authored=document.data?.roles.includes("AUTHOR");
@@ -292,7 +292,7 @@ function LinkedActivityFallback({ sourceId, member, lang, complete, showDownload
 }
 export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpenProfile}:{member:number|string;sourceId:string;lang:string;profileHref:string;onOpenProfile:()=>void}) {
   const ui = useUiI18n();
-  const state=useData<JoinedActivityPage>(`latest-activities/${member}?lang=${lang}&limit=1&source-id=${encodeURIComponent(sourceId)}`);
+  const state=useData<JoinedActivityPage>(`latest-activities/${member}?lang=${lang}&limit=1&source-id=${encodeURIComponent(sourceId)}`,{unavailable:'error.activity'});
   const selected=state.data?.selectedItems.find(item=>item.sourceId===sourceId);
   const showDownloads=!/^[EPHO]-10-\d{4}-\d{6}(?:-ASW)?$/.test(sourceId);
   const scope=JSON.stringify([member,sourceId,lang]);
@@ -323,11 +323,11 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
   const open=initialActivity;
   const sourceId=activitySourceId(open);
   const c=interfaceCopy(lang);
-  const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}${category ? (`&category=${encodeURIComponent(category)}`) : ""}`);
+  const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}${category ? (`&category=${encodeURIComponent(category)}`) : ""}`,{unavailable:'error.activity'});
   if(state.data)lastPage.current={member:id,data:state.data};
   const page=state.data || ((lastPage.current?.member===id) ? lastPage.current.data : null);
   const visibleSelection = state.data?.items.some(item => item.sourceId === sourceId);
-  const pinned=useData<JoinedActivityPage>(((sourceId && state.data) && (!visibleSelection)) ? (`latest-activities/${id}?lang=${lang}&limit=10&source-id=${encodeURIComponent(sourceId)}`) : null);
+  const pinned=useData<JoinedActivityPage>(((sourceId && state.data) && (!visibleSelection)) ? (`latest-activities/${id}?lang=${lang}&limit=10&source-id=${encodeURIComponent(sourceId)}`) : null,{unavailable:'error.activity'});
   const selectedItems = pinned.data?.selectedItems || [];
   const items=state.data ? ([...selectedItems.filter(selected=>!state.data!.items.some(item=>item.id===selected.id)),...state.data.items]) : ([]);
   const isOpen=(item:JoinedActivity)=>open===`${item.category}:${item.sourceId}` || sourceId===item.sourceId && !open?.includes(":");
@@ -375,8 +375,8 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
     {state.loading && !state.data && <p role="status"><UiMessage id="insightshared.loading"/></p>}
     {state.error && <ErrorView message={state.error} retry={state.retry} />}
     {page && <>
-      {coverage?.status === "source-not-verified" && <div className="explorer-notice"><strong><UiMessage id="grouplabels.ts.unavailable"/></strong><p>{coverage.reason}</p></div>}
-      {coverage?.status === "incomplete-joins" && <p className="explorer-notice">{coverage.reason} </p>}
+      {coverage?.status === "source-not-verified" && <p className="explorer-notice"><UiMessage id="error.activity"/></p>}
+      {coverage?.status === "incomplete-joins" && <p className="explorer-notice"><UiMessage id="availabilitynote.partial"/></p>}
       {!state.loading && state.data && !state.data.items.length && coverage?.status !== "source-not-verified" && <p><UiMessage id="app.no_activities_in_this_selection"/></p>}
       {open && pinned.loading && !items.some(isOpen) && <p role="status"><UiMessage id="insightshared.loading"/></p>}
       {open && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
@@ -409,7 +409,7 @@ function revealSpeech(target: HTMLElement) {
 function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;initialSpeech:string|null;onOpen:(id:string|null)=>void }) {
   const ui = useUiI18n();
   const c=interfaceCopy(lang);
-  const calendar=useData<VotePeriodsResponse>('vote-periods');
+  const calendar=useData<VotePeriodsResponse>('vote-periods',{unavailable:'error.records'});
   const sittingLocations=new Map(validateVotePeriods(calendar.data) ? calendar.data.weeks.flatMap(week=>week.sittings.map(sitting=>[sitting.sittingId,sitting.location] as const)) : []);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
@@ -442,8 +442,8 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     document.addEventListener('focusin',cancel);
     return()=>{document.removeEventListener('focusin',cancel);speechOrigin.current=null;};
   },[id,initialSpeech]);
-  const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`);
-  const pinned=useData<JoinedActivityPage>(((initialSpeech && state.data) && (!state.data.items.some(item=>item.sourceId===initialSpeech))) ? (`latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}`) : null);
+  const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`,{unavailable:'error.contributions'});
+  const pinned=useData<JoinedActivityPage>(((initialSpeech && state.data) && (!state.data.items.some(item=>item.sourceId===initialSpeech))) ? (`latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}`) : null,{unavailable:'error.contributions'});
   useEffect(()=>{setOffset(0);setSpeechLanguage(null);},[id,lang]);
   useEffect(()=>{setEnrichedSpeeches([]);},[id]);
   const items=state.data ? [...(pinned.data?.selectedItems || []).filter(item=>!state.data!.items.some(row=>row.id===item.id)),...state.data.items].filter(item=>item.recordKind==='speech') : ([]);
@@ -974,11 +974,11 @@ export default function App() {
                 </div>
                 {directory.sync?.error && <div className="explorer-index" role="status" lang={ui.language}><UiMessage id="app.feedUnavailable" values={{lastSuccess: <span lang={directory.sync.lastSuccess ? "" : ui.language}>{directory.sync.lastSuccess || ui.t("app.not_yet_completed")}</span>}}/></div>}
                 {directory.committeeDetails && (!directory.committeeDetails.complete || directory.committeeDetails.error) && <div className="explorer-index" role="status" lang={ui.language}>
-                    {directory.committeeDetails.error || ui.t("app.loading_committee_names")}
+                    {directory.committeeDetails.error ? ui.t("committeememberships.tsx.committee.information.is.unavailable") : ui.t("app.loading_committee_names")}
                     {directory.committeeDetails.error && null}
                   </div>}
                 {!directory.index.complete && <div className="explorer-index" role="status" lang={ui.language}>
-                    {directory.index.error ||
+                    {directory.index.error ? ui.t("ProfileMemberships.membership_information_is_unavailable") :
                       ui.t("app.loadingMemberships", {loaded: String(directory.index.loaded), total: String(directory.index.total)})}
                     {directory.index.error && null}
                   </div>}

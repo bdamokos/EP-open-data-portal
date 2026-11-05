@@ -41,7 +41,7 @@ function Attribution({hit}:{hit:Hit}) {
 function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity:{sourceId:string;sourceKey:string};query:string;expectedHash?:string;sourceUrl?:string;language:string}) {
   const ui = useUiI18n();
   const params=new URLSearchParams({'source-id':identity.sourceId,'source-key':identity.sourceKey});if(query.trim())params.set('q',query);
-  const {data,error,loading,retry}=useData<StoredText>('corpus/text?'+params),body=useRef<HTMLDivElement>(null);
+  const {data,error,loading,retry}=useData<StoredText>('corpus/text?'+params,{unavailable:'error.text'}),body=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(!data)return;const frame=window.requestAnimationFrame(()=>body.current?.querySelector('mark')?.scrollIntoView({block:'nearest'}));return()=>window.cancelAnimationFrame(frame);},[data]);
   return <section className="explorer-search-reader" lang={ui.language} aria-label={ui.t("textsearch.matching_text")}>
     {loading&&!data&&<p role="status"><UiMessage id="textsearch.opening"/></p>}
@@ -118,14 +118,14 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
     const timer=window.setTimeout(()=>controller.abort(),8000);
     fetch(API_ROOT+'/corpus/search',{method:'POST',credentials:'omit',headers:{Accept:'application/json','Content-Type':'application/json'},body:request,signal:controller.signal}).then(async response=>{
       const data=await response.json().catch(()=>null);
-      if(!response.ok){const code=data?.error?.code;let message=data?.error?.message||ui.t("textsearch.text_search_is_temporarily_unavailable");
+      if(!response.ok){const code=data?.error?.code;let message=ui.t("textsearch.text_search_is_temporarily_unavailable");
         if(response.status===404||response.status===403||code==='corpus_disabled')message=ui.t("textsearch.text_search_is_not_available_yet");
         else if(code==='corpus_busy')message=ui.t("textsearch.search_is_busy_please_retry_in_a_moment");
         else if(code==='corpus_query_timeout')message=ui.t("textsearch.this_search_took_too_long_narrow_the_period_or_text_language");
         throw Object.assign(new Error(message),{status:response.status,retryAt:responseRetryAt(response,data)});}
       if(!data||!Array.isArray(data.results))throw new Error(ui.t("textsearch.search_failed_try_again"));
       failure.current=null;if(current)setState({key:request,data,loading:false,error:null});
-    }).catch(error=>{if(current){failure.current=controller.signal.aborted?new DOMException('Timeout','TimeoutError'):error;reportUiError(controller.signal.aborted?new Error():error,{request:API_ROOT+'/corpus/search',...(controller.signal.aborted?{code:'textsearch.this_search_took_too_long_please_retry'}:{})});setState(old=>({...old,loading:false,error:controller.signal.aborted ? ui.t("textsearch.this_search_took_too_long_please_retry") : error.message}));}}).finally(()=>clearTimeout(timer));
+    }).catch(error=>{if(current){failure.current=controller.signal.aborted?new DOMException('Timeout','TimeoutError'):error;reportUiError(controller.signal.aborted?new Error():error,{request:API_ROOT+'/corpus/search',...(controller.signal.aborted?{code:'textsearch.this_search_took_too_long_narrow_the_period_or_text_language'}:{})});setState(old=>({...old,loading:false,error:controller.signal.aborted ? ui.t("textsearch.this_search_took_too_long_narrow_the_period_or_text_language") : error.message}));}}).finally(()=>clearTimeout(timer));
     return()=>{current=false;controller.abort();clearTimeout(timer);};
   },[request,activeRequest,attempt]);
   const data=(((((showText && (!disabledReason)) && (!scopeChanging)) && (!pendingDraft)) && (!inline||query)) && (state.key===request)) ? state.data : null,loading=activeRequest&&(state.key!==request||state.loading)||pendingDraft&&Boolean(draft.trim()),error=((((showText && (!disabledReason)) && (!pendingDraft)) && (!inline||query)) && (state.key===request)) ? state.error : null;

@@ -40,23 +40,8 @@
     "count": "count"
   },
   {
-    "one": "batch2.membervotes.tsx.count.decision.partial.coverage",
-    "other": "batch2.membervotes.tsx.count.decisions.partial.coverage",
-    "count": "count"
-  },
-  {
     "one": "batch2.membervotes.tsx.count.decision.recordedcount.with.a.recorded.position",
     "other": "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position",
-    "count": "count"
-  },
-  {
-    "one": "batch2.membervotes.tsx.count.decision.recordedcount.with.a.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage",
-    "count": "count"
-  },
-  {
-    "one": "batch2.membervotes.tsx.count.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.count.recorded.positions.partial.coverage",
     "count": "count"
   },
   {
@@ -65,18 +50,8 @@
     "count": "count"
   },
   {
-    "one": "batch2.membervotes.tsx.count.recorded.position.recordedcount.with.a.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage",
-    "count": "count"
-  },
-  {
     "one": "batch2.membervotes.tsx.start.end.of.total.decision",
     "other": "batch2.membervotes.tsx.start.end.of.total.decisions",
-    "count": "total"
-  },
-  {
-    "one": "batch2.membervotes.tsx.start.end.of.total.decision.partial.coverage",
-    "other": "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage",
     "count": "total"
   },
   {
@@ -85,28 +60,13 @@
     "count": "total"
   },
   {
-    "one": "batch2.membervotes.tsx.start.end.of.total.decision.recordedcount.with.a.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage",
-    "count": "total"
-  },
-  {
     "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position",
     "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions",
     "count": "total"
   },
   {
-    "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage",
-    "count": "total"
-  },
-  {
     "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position.recordedcount.with.a.recorded.position",
     "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position",
-    "count": "total"
-  },
-  {
-    "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position.recordedcount.with.a.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage",
     "count": "total"
   },
   {
@@ -295,16 +255,6 @@
     "count": "count"
   },
   {
-    "one": "textsearch.count_matching_question_coverage",
-    "other": "textsearch.count_matching_questions_coverage",
-    "count": "count"
-  },
-  {
-    "one": "textsearch.count_matching_document_coverage",
-    "other": "textsearch.count_matching_documents_coverage",
-    "count": "count"
-  },
-  {
     "one": "voteperiodnavigation.daterange_count_sitting_day.9bc1da",
     "other": "voteperiodnavigation.daterange_count_sitting_days.e5506d",
     "count": "count"
@@ -312,11 +262,6 @@
   {
     "one": "ui.speakerCount.one",
     "other": "groupvoices.count_speakers.47ae64",
-    "count": "count"
-  },
-  {
-    "one": "amendments.sources_count_gap.c1fee3",
-    "other": "amendments.sources_count_gaps.2b2613",
     "count": "count"
   },
   {
@@ -333,11 +278,6 @@
     "one": "amendments.total_amendment_partial_coverage.c832c4",
     "other": "amendments.total_amendments_partial_coverage.9ca533",
     "count": "total"
-  },
-  {
-    "one": "Participation.availableAgendaOne",
-    "other": "Participation.availableAgendaMany",
-    "count": "count"
   },
   {
     "one": "Participation.agendaOne",
@@ -402,11 +342,6 @@
   {
     "one": "topics.story.tally.abstentionsOne",
     "other": "topics.story.tally.abstentions",
-    "count": "count"
-  },
-  {
-    "one": "topics.mapDocument",
-    "other": "topics.mapDocuments",
     "count": "count"
   },
   {

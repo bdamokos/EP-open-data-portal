@@ -40,7 +40,7 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
   const playable=Boolean(speech&&!written&&speech.start&&speech.end);
   const current = (((playable && request) && (request.speechId === speech?.id)) && (request.lang === lang)) ? request : null;
   const audio = current?.original ? 'or' : lang;
-  const media = useData<SpeechMedia>(current ? (`speech-media/${encodeURIComponent(current.speechId)}?lang=${lang}${current.original ? '&audio=or' : ''}`) : null);
+  const media = useData<SpeechMedia>(current ? (`speech-media/${encodeURIComponent(current.speechId)}?lang=${lang}${current.original ? '&audio=or' : ''}`) : null,{unavailable:'error.video'});
   useEffect(()=>{setRequest(null);},[speech?.id,lang,playable]);
   const embed = speech ? speechEmbedUrl(media.data, speech.id, lang, audio) : null;
   const returnFocus=()=>{
@@ -62,10 +62,10 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
       {media.loading && !media.data && <p role="status"><UiMessage id="batch5.speechplayer.tsx.69.84"/></p>}
     {media.error && <div className="explorer-notice" role="alert"><p>{media.error}</p></div>}
     {media.data && <>
-      {(!media.data.available) ? <div className="explorer-notice" role="alert"><strong>{(media.data.status === 'audio-unavailable') ? ui.t("speechplayer.activename_audio_unavailable.545cd9", {activeName: String(activeName)}) : (['audio-unverified','audio-selection-unverified'].includes(media.data.status) ? ui.t("speechplayer.activename_audio_unavailable.545cd9", {activeName: String(activeName)}) : ui.t("speechplayer.video_unavailable.d0baed"))}</strong>{media.data.reason&&<p>{media.data.reason}</p>}{!current.original&&media.data.status?.startsWith('audio-')&&<button onClick={()=>{closeButton.current?.focus({preventScroll:true});start(true);}}><UiMessage id="batch5.speechplayer.tsx.72.86"/></button>}</div> : ((!embed) ? <p role="alert"><UiMessage id="batch5.speechplayer.tsx.73.87"/></p> : <>
+      {(!media.data.available) ? <div className="explorer-notice" role="alert"><strong>{(media.data.status === 'audio-unavailable') ? ui.t("speechplayer.activename_audio_unavailable.545cd9", {activeName: String(activeName)}) : (['audio-unverified','audio-selection-unverified'].includes(media.data.status) ? ui.t("speechplayer.activename_audio_unavailable.545cd9", {activeName: String(activeName)}) : ui.t("speechplayer.video_unavailable.d0baed"))}</strong>{!current.original&&media.data.status?.startsWith('audio-')&&<button onClick={()=>{closeButton.current?.focus({preventScroll:true});start(true);}}><UiMessage id="batch5.speechplayer.tsx.72.86"/></button>}</div> : ((!embed) ? <p role="alert"><UiMessage id="batch5.speechplayer.tsx.73.87"/></p> : <>
           <ParliamentFrame key={speechFrameKey(current.speechId,lang,audio,media.data.audioMapping)} src={embed} speechId={current.speechId} lang={lang} audio={audio} original={current.original} mapping={media.data.audioMapping!} returnFocus={returnFocus} />
         </>)}
-      {media.data.recording && <p className="explorer-source-link"><a href={media.data.recording.websiteUrl} target="_blank" rel="noreferrer"><UiMessage id="batch5.speechplayer.tsx.77.88"/></a>{media.data.recording.stale && <small>  <UiMessage id="speechplayer.cached_recording_metadata.2a07a8"/></small>}</p>}
+      {media.data.recording && <p className="explorer-source-link"><a href={media.data.recording.websiteUrl} target="_blank" rel="noreferrer"><UiMessage id="batch5.speechplayer.tsx.77.88"/></a></p>}
     </>}
     </>}
   </section>;

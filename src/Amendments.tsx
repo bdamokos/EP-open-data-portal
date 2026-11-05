@@ -8,11 +8,12 @@ import {Fragment,lazy,Suspense,useEffect,useId,useMemo,useRef,useState,type Reac
 import {selectLanguageText} from './language.mjs';
 import {compareMembers} from './memberOrder.mjs';
 import {useData} from './data';
+import {sourcePageUrl} from './SourceLink';
 import {useExplorerParam} from './explorerUrl';
 import {InsightShell,insightMemberHref} from './InsightShared';
 import type {InsightProps} from './InsightTypes';
 import type {Amendment,AmendmentDecision,AmendmentPage,AmendmentSource,AmendmentSplit,AmendmentVariant} from './AmendmentTypes';
-import {validCommitteeCode,amendmentContextSelection,amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentOutcomeLabel,amendmentPlanSummary,amendmentRoute,publicAmendmentSource} from './amendmentModel.mjs';
+import {validCommitteeCode,amendmentContextSelection,amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentOutcomeLabel,amendmentRoute,publicAmendmentSource} from './amendmentModel.mjs';
 import type {Directory} from './explorerTypes';
 import './Amendments.css';
 // coverage.pending is the amendment index's explicit fill progress.
@@ -22,7 +23,6 @@ import {WordingDiff} from './components/WordingDiff';
 import {AmendmentJustification} from './components/AmendmentJustification';
 import {AmendmentNamedVotes} from './AmendmentNamedVotes';
 import {voteMethodLabel} from './voteMethod.mjs';
-import {sourcePageUrl} from './SourceLink';
 import FinalTextCheck from './FinalTextCheck';
 
 const DocumentContextReader=lazy(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
@@ -58,7 +58,6 @@ function Outcome({value}:{value?:string|null}) {
 }
 function Decision({item,decision,language,compact=false,reader=false}:{item:Amendment;decision:AmendmentDecision;language:string;compact?:boolean;reader?:boolean}) {
   const ui = useUiI18n();
-  const source=(decision.provenance==='unavailable') ? null : sourcePageUrl(publicAmendmentSource(decision.source));
   const totals=decision.totals,positions=[['for',ui.t("membervotespresentation.for")],['against',ui.t("membervotespresentation.against")],['abstaining',ui.t("membervotespresentation.abstained")]] as const;
   const hasTotals=totals&&positions.some(([key])=>typeof totals[key]==='number');
   const complete=totals&&positions.every(([key])=>typeof totals[key]==='number'),total=complete ? positions.reduce((sum,[key])=>sum+totals![key]!,0) : null;
@@ -67,9 +66,9 @@ function Decision({item,decision,language,compact=false,reader=false}:{item:Amen
     {(!compact||unbound||item.scope==='committee')&&<div className="explorer-amendment-decision-heading"><strong>{item.scope==='committee' ? ui.t((decision.stage||decision.scope)==='plenary'?'amendments.plenary_decision_amendmentdecisionscope.c358cd':'amendments.committee_decision_amendmentdecisionscope.2d7cc3',{scope:decision.componentBinding==='unverified'?ui.t('amendments.unverified_split_decision.8fdd97'):decision.componentBinding==='unresolved-collective'?ui.t('amendmentmodel.mjs.collective.decision'):amendmentDecisionScope(item,decision,ui)}) : (decision.componentBinding==='unverified' ? ui.t('amendments.unverified_split_decision.8fdd97') : decision.componentBinding==='unresolved-collective'?ui.t('amendmentmodel.mjs.collective.decision'):amendmentDecisionScope(item,decision,ui))}</strong><Outcome value={decision.outcome}/></div>}
     {hasTotals&&<>{complete&&total!>0&&<div className="amendment-vote-strip" aria-hidden="true">{positions.map(([key,label])=><span key={key} data-position={{for:'For',against:'Against',abstaining:'Abstained'}[key]} style={{flexGrow:totals![key]!}}/>)}</div>}<dl className="explorer-amendment-totals">{positions.map(([key,label])=><div key={key} data-position={{for:'For',against:'Against',abstaining:'Abstained'}[key]}><dt>{label}</dt><dd>{(totals?.[key]!=null) ? <span lang={language}>{totals[key]!.toLocaleString(language)}</span> : ui.t("grouplabels.ts.unavailable")}</dd></div>)}</dl></>}
     {(total!=null||voteMethodLabel(decision.method, ui))&&<p className="explorer-amendment-meta">{[(total!=null) ? ui.t("amendments.count_votes.ef5396", {count: String(total.toLocaleString(language))}, {count: total}) : '',voteMethodLabel(decision.method, ui)].filter(Boolean).join(' · ')}</p>}
-    {(reader && (item.scope!=='committee')) ? (decision.date&&<p className="explorer-amendment-meta">{decision.sittingId?.startsWith('MTG-PL-') ? <UiMessage id="amendments.plenary_date.e709f6" values={{date:<LocalizedDate value={decision.date} language={language}/>}}/> : <LocalizedDate value={decision.date} language={language}/>}</p>) : <><>{(item.scope!=='committee'&&<AmendmentNamedVotes item={item} decision={decision} language={language}/>)} {<details className="explorer-amendment-decision-record"><summary><UiMessage id="batch5.amendments.tsx.64.1"/></summary><p>{decision.date&&<><UiMessage id="amendments.decision_date_date.cf3b23" values={{date: <LocalizedDate value={decision.date} language={language}/>}}/></>}</p>{source&&<a href={source} target="_blank" rel="noreferrer"><UiMessage id="batch5.amendments.tsx.64.2"/></a>}
-      {(decision.collective||unbound||(decision.amendmentIds?.length||0)>1)&&Boolean(decision.amendmentIds?.length)&&<><p><UiMessage id="batch5.amendments.tsx.65.3"/></p><ul className="explorer-amendment-collective-references">{decision.amendmentIds!.map(reference=><li key={reference} lang="">{reference}</li>)}</ul></>}
-      {decision.componentReferences?.length ? <><p><UiMessage id="batch5.amendments.tsx.66.4"/></p><ul>{decision.componentReferences.map(reference=><li key={reference} lang="">{reference}</li>)}</ul></> : null}
+    {(reader && (item.scope!=='committee')) ? (decision.date&&<p className="explorer-amendment-meta">{decision.sittingId?.startsWith('MTG-PL-') ? <UiMessage id="amendments.plenary_date.e709f6" values={{date:<LocalizedDate value={decision.date} language={language}/>}}/> : <LocalizedDate value={decision.date} language={language}/>}</p>) : <><>{(item.scope!=='committee'&&<AmendmentNamedVotes item={item} decision={decision} language={language}/>)} {<details className="explorer-amendment-decision-record"><summary><UiMessage id="batch5.amendments.tsx.64.1"/></summary><p>{decision.date&&<><UiMessage id="amendments.decision_date_date.cf3b23" values={{date: <LocalizedDate value={decision.date} language={language}/>}}/></>}</p>
+      
+      
     </details>}</></>}
   </li>;
 }
@@ -82,26 +81,6 @@ function SplitDescription({description,language,sourceDescriptions,rawDescriptio
       {sourceLanguage&&sourceLanguage!=='und'&&<p className="explorer-amendment-meta"><span lang="">{sourceLanguage.toUpperCase()}</span></p>}
       <pre lang={sourceLanguage}>{text}</pre>
     </div>)}</></div>;
-}
-function PlanLine({text,plan,language}:{text:string;plan?:Record<string,unknown>|null;language?:string|null}) {
-  const literals=new Set<string>();
-  const collect=(node:unknown,depth=0)=>{
-    if(!node||typeof node!=='object'||depth>8)return;
-    for(const [key,value] of Object.entries(node)){
-      if(['quote','character','within'].includes(key)&&typeof value==='string')literals.add('“'+value+'”');
-      else if(typeof value==='object')collect(value,depth+1);
-    }
-  };
-  collect(plan);
-  if(!literals.size)return <>{text}</>;
-  const pattern=[...literals].sort((a,b)=>b.length-a.length).map(value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
-  const parts:ReactNode[]=[];let offset=0;
-  for(const match of text.matchAll(new RegExp(pattern,'gu'))){
-    if(match.index>offset)parts.push(text.slice(offset,match.index));
-    parts.push(<span key={match.index} lang={language??''}>{match[0]}</span>);offset=match.index+match[0].length;
-  }
-  if(offset<text.length)parts.push(text.slice(offset));
-  return <>{parts}</>;
 }
 function GroupLabel({group,by}:{group:ReturnType<typeof amendmentGroups>[number];by:string}) {
   const ui = useUiI18n();
@@ -118,8 +97,8 @@ function GroupLabel({group,by}:{group:ReturnType<typeof amendmentGroups>[number]
 function SplitPart({part,item,language,reader=false,availableDecisions=item.decisions||[]}:{part:AmendmentSplit;item:Amendment;language:string;reader?:boolean;availableDecisions?:AmendmentDecision[]}) {
   const ui = useUiI18n();
   const decisions=availableDecisions.filter(decision=>amendmentDecisionPart(item.splitParts||[],decision)?.id===part.id);
-  const plan=amendmentPlanSummary(part.plan, ui),failed=Boolean(part.failure)||['failed','unparsed','unresolved','unsupported','failure','error'].includes(part.status||'');
-  return <li className="explorer-amendment-part" lang={ui.language}><h5>{(part.number!=null) ? ui.t("membervotes.tsx.part.number", {number: String(part.number)}) : (part.id||ui.t("amendmentmodel.mjs.unidentified.split.component"))}</h5><SplitDescription description={part.description} language={part.language} rawDescription={part.rawDescription} sourceDescriptions={part.sourceDescriptions} code={(typeof part.failure==='object') ? part.failure?.code : null}/>{!failed&&plan.length>0&&<details className="explorer-amendment-selection"><summary><UiMessage id="batch5.amendments.tsx.116.5"/></summary><ul>{plan.map((line,index)=><li key={index}><PlanLine text={line} plan={part.plan} language={part.language}/></li>)}</ul></details>}{decisions.length ? <ul className="explorer-amendment-decisions">{decisions.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language} reader={reader}/>)}</ul> : ((reader && (item.decisions||[]).some(decision=>amendmentDecisionPart(item.splitParts||[],decision)?.id===part.id)) ? null : <p className="explorer-amendment-secondary"><UiMessage id="batch5.amendments.tsx.116.6"/></p>)}</li>;
+  const failed=Boolean(part.failure)||['failed','unparsed','unresolved','unsupported','failure','error'].includes(part.status||'');
+  return <li className="explorer-amendment-part" lang={ui.language}><h5>{(part.number!=null) ? ui.t("membervotes.tsx.part.number", {number: String(part.number)}) : (part.id||ui.t("amendmentmodel.mjs.unidentified.split.component"))}</h5><SplitDescription description={part.description} language={part.language} rawDescription={part.rawDescription} sourceDescriptions={part.sourceDescriptions} code={(typeof part.failure==='object') ? part.failure?.code : null}/>{decisions.length ? <ul className="explorer-amendment-decisions">{decisions.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language} reader={reader}/>)}</ul> : ((reader && (item.decisions||[]).some(decision=>amendmentDecisionPart(item.splitParts||[],decision)?.id===part.id)) ? null : <p className="explorer-amendment-secondary"><UiMessage id="batch5.amendments.tsx.116.6"/></p>)}</li>;
 }
 function AmendmentWording({item,reader=false}:{item:AmendmentVariant;reader?:boolean}) {
   const ui = useUiI18n();
@@ -136,6 +115,8 @@ function AmendmentEvidenceState({item}:{item:AmendmentVariant}) {
   if(item.textIntegrity!=='incomplete')return null;
   return <p className="explorer-amendment-secondary explorer-amendment-evidence-state" lang={ui.language}><UiMessage id="batch5.amendments.tsx.123.8"/></p>;
 }
+/** Wording that cannot be shown: withheld, unavailable, or no wording columns at all (decision-only rows). */
+const wordingHidden=(row:{textIntegrity?:string|null;originalText?:string|null;proposedText?:string|null})=>row.textIntegrity==='incomplete'||row.textIntegrity==='unavailable'||(row.originalText==null&&row.proposedText==null);
 function AmendmentSources({sources,language}:{sources:AmendmentSource[];language:string}) {
   const ui = useUiI18n();
   const available=sources.map(source=>({source,url:sourcePageUrl(publicAmendmentSource(source),{language:source.language||language})})).filter(entry=>entry.url);
@@ -153,14 +134,13 @@ function AmendmentAuthors({item,language,onMember,memberId}:{item:Amendment;lang
   }
   return <div className="explorer-amendment-authors"><UiMessage id="amendments.tabled_by_authors.b76b76" values={{authors:<>{authors.map((author,index)=>{
     const linked=Boolean(author.personId&&/^[1-9]\d*$/.test(String(author.personId)));
-    const note=({missing_date:ui.t("amendments.document_date_unavailable.60d90d"),missing_mandate:ui.t("amendments.mandate_evidence_unavailable.683af1"),inactive:ui.t("amendments.no_active_mandate_match.77b42f"),ambiguous:ui.t("amendments.multiple_possible_meps.dff53a")} as Record<string,string>)[author.status||'']||ui.t("amendments.mep_link_unresolved.061368");
     return <span key={String(author.personId||author.name)+':'+index}>{(index>0) ? ', ' : ''}{linked ? <a href={insightMemberHref(String(author.personId),language)} onClick={onMember ? (event=>{
       if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button!==0)return;
       event.preventDefault();onMember(Number(author.personId));
-    }) : undefined}><span lang="" title={author.name}><PersonName id={author.personId} label={author.displayName||author.name}/></span></a> : <><span lang="">{author.name}</span>{item.scope!=='committee'&&<small> ({note})</small>}</>}<RecordMemberAffiliation id={author.personId} language={language}/></span>;
+    }) : undefined}><span lang="" title={author.name}><PersonName id={author.personId} label={author.displayName||author.name}/></span></a> : <><span lang="">{author.name}</span></>}<RecordMemberAffiliation id={author.personId} language={language}/></span>;
   })}</>}}/>{item.committeeProposer&&<p><UiMessage id="amendments.committee_proposer_committeeproposer.3c4d9e" values={{proposer: <span lang={item.proposerSource?.language??''}>{item.committeeProposer}</span>}}/></p>}{onBehalfOf&&<p>{(!/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(onBehalfOf) ? <UiMessage id="batch4.speechinterventions.tsx.on.behalf.of.group" values={{group:<span lang="">{onBehalfOf}</span>}}/> : <span lang="">{onBehalfOf}</span>)}</p>}</div>;
 }
-function SourceVariants({item,language,reader=false}:{item:Amendment;language:string;reader?:boolean}) {
+function SourceVariants({item,language}:{item:Amendment;language:string}) {
   const ui = useUiI18n();
   if(!item.conflicted&&!item.variants?.length)return null;
   return <div className={item.conflicted ? 'explorer-amendment-conflict' : 'explorer-amendment-source-variants'}><>{(item.conflicted&&<p><strong><UiMessage id="amendments.conflicting_source_versions.d50beb"/></strong> <UiMessage id="amendments.wording_and_proposers_unavailable.59e721"/></p>)} {(item.variants?.length ? <details className="explorer-amendment-variants"><summary><UiMessage id="amendments.source_versions_count.f53666" values={{count: item.variants.length}}/></summary>{item.variants.map((variant,index)=><section className="explorer-amendment-variant" key={(variant.listId||'variant')+index}>
@@ -171,7 +151,7 @@ function SourceVariants({item,language,reader=false}:{item:Amendment;language:st
       {variant.authors?.length ? <p><UiMessage id="amendments.tabled_by_authors.b76b76" values={{authors: variant.authors.map((author,index)=><Fragment key={index}>{index ? ', ' : ''}<span lang="">{author.name}</span></Fragment>)}}/></p> : null}
       {variant.committeeProposer&&<p><UiMessage id="amendments.committee_committeeproposer.2bd2d3" values={{proposer: <span lang={variant.proposerSource?.language??''}>{variant.committeeProposer}</span>}}/></p>}
       {onBehalfLabel(variant.onBehalfOf)&&<p><UiMessage id="batch4.speechinterventions.tsx.on.behalf.of.group" values={{group: <span lang="">{onBehalfLabel(variant.onBehalfOf)}</span>}}/></p>}
-      <AmendmentWording item={variant}/>{!reader&&<AmendmentSources sources={variant.sources||[]} language={language}/>}
+      <AmendmentWording item={variant}/>{wordingHidden(variant)&&<AmendmentSources sources={variant.sources||[]} language={language}/>}
     </section>)}</details> : null)}</></div>;
 }
 export function AmendmentCard({item,language,onMember,showOutcome=true,memberId,reader=false,readerDecisions,children}:{item:Amendment;language:string;onMember?:InsightProps['onMember'];showOutcome?:boolean;memberId?:string;reader?:boolean;readerDecisions?:AmendmentDecision[];children?:ReactNode}) {
@@ -184,16 +164,16 @@ export function AmendmentCard({item,language,onMember,showOutcome=true,memberId,
     {committee&&<p className="explorer-amendment-stage">{(item.contributionKind==='draft-report') ? ui.t("legislation.draft_report.b4f899") : ((item.contributionKind==='draft-opinion') ? ui.t("legislation.draft_opinion.ed1618") : ui.t("amendments.committee_amendment.f106ba"))}{item.committees?.map(c=><Fragment key={c.code}> · <span lang="" title={c.name||undefined}>{c.code}</span></Fragment>)}{item.contributionKind==='tabled-amendment'&&item.committeeDocumentKind&&<> · {(item.committeeDocumentKind==='draft-report') ? ui.t("legislation.draft_report.b4f899") : ui.t("legislation.draft_opinion.ed1618")}</>}</p>}
     <header><span className="explorer-amendment-number" aria-hidden="true">{item.number??'?'}</span><div><h4><span className="visually-hidden"><UiMessage id="amendments.amendment_number.2d4119" values={{number: item.number}}/></span><span className="explorer-amendment-target" lang={item.targetLabel ? targetLabelLanguage(item) : ui.messageLocale("amendmentmodel.mjs.target.provision.unavailable")}>{item.targetLabel||ui.t("amendmentmodel.mjs.target.provision.unavailable")}</span></h4></div>{showOutcome&&(!committee||decisions.length>0)&&<Outcome value={item.outcome}/>}</header>
     {committee&&<p className="explorer-amendment-meta">{joinMeta([documentDateLabel(item,language, undefined, ui),(item.proposerDate && (item.proposerDateBasis==='tabling')) ? <><UiMessage id="dossieractivity.tabled_date" values={{date: <LocalizedDate value={item.proposerDate} language={language}/>}}/></> : null])}</p>}
-    {(!reader||item.conflicted)&&<SourceVariants item={item} language={language} reader={reader}/>}
+    {(!reader||item.conflicted)&&<SourceVariants item={item} language={language}/>}
     <AmendmentAuthors item={item} language={language} onMember={onMember} memberId={memberId}/>
     {reader&&<>{children}{!item.conflicted&&<section className="dossier-amendment-wording"><AmendmentWording item={item} reader/></section>}</>}
     {(decisions.length>0||splitParts.length>0) ? <div className="explorer-amendment-voting">{splitParts.length>0&&<ol className="explorer-amendment-parts">{splitParts.map((part,index)=><SplitPart key={part.id||JSON.stringify([part.componentIndex??index,part.rawDescription??part.description??null])} part={part} item={item} language={language} reader={reader} availableDecisions={decisions}/>)}</ol>}{whole.length>0&&<ul className="explorer-amendment-decisions">{whole.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language} compact={!reader&&decisions.length===1&&!splitParts.length} reader={reader}/>)}</ul>}</div> : (((!reader) && (!committee)) ? <p className="explorer-amendment-secondary"><UiMessage id="amendments.outcome_unavailable.9323fe"/></p> : null)}
     {!reader&&!item.conflicted&&<details className="explorer-amendment-wording"><summary><UiMessage id="batch5.amendments.tsx.187.19"/></summary><AmendmentWording item={item}/></details>}
     {selection&&(!reader||committee)&&<details className="explorer-amendment-context" open={contextOpen} onToggle={event=>setContextOpen(event.currentTarget.open)}><summary ref={contextSummary}><UiMessage id="membervotes.tsx.read.in.context"/></summary>{contextOpen&&<Suspense fallback={<p role="status"><UiMessage id="batch5.amendments.tsx.188.20"/></p>}><DocumentContextReader language={language} request={{...selection,onBack:()=>{setContextOpen(false);contextSummary.current?.focus({preventScroll:true});}}}/></Suspense>}</details>}
     {committee&&selection?.amendmentId&&selection.listId&&<FinalTextCheck documentId={selection.documentId} amendmentId={selection.amendmentId} listId={selection.listId} wordingLanguage={selection.wordingLanguage??null} language={language}/>}
-    {(!reader||committee)&&<details className="explorer-amendment-evidence"><summary>{!committee&&item.gaps?.length?<UiMessage id="amendments.sources_count_gaps.2b2613" values={{count:item.gaps.length}}/>:<UiMessage id="amendments.sources.2eb56b"/>}</summary><AmendmentEvidenceState item={item}/>{item.title&&<p className="explorer-amendment-title" lang={(title.text===item.title) ? title.language : ''}>{title.text}</p>}{!committee&&<p className="explorer-amendment-reference">{item.id}</p>}<p className="explorer-amendment-meta">{joinMeta([documentDateLabel(item,language, undefined, ui),metadataLanguage(item) ? metadataLanguage(item).toUpperCase() : null])}</p>
+    {(!reader||committee)&&<details className="explorer-amendment-evidence"><summary><UiMessage id="amendments.sources.2eb56b"/></summary><AmendmentEvidenceState item={item}/>{item.title&&<p className="explorer-amendment-title" lang={(title.text===item.title) ? title.language : ''}>{title.text}</p>}{!committee&&<p className="explorer-amendment-reference">{item.id}</p>}<p className="explorer-amendment-meta">{joinMeta([documentDateLabel(item,language, undefined, ui),metadataLanguage(item) ? metadataLanguage(item).toUpperCase() : null])}</p>
       {item.officialIds?.length ? <p className="explorer-amendment-reference"><UiMessage id="amendments.official_references_references.3f6cd6" values={{references: item.officialIds.join(', ')}}/></p> : null}
-      <AmendmentSources sources={item.sources||[]} language={language}/>
+      {wordingHidden(item)&&<AmendmentSources sources={item.sources||[]} language={language}/>}
       {((item.scope!=='committee') && item.procedureIds?.length) ? <p><UiMessage id="amendments.procedures_references.54e0fa" values={{references: item.procedureIds.map((reference,index)=><Fragment key={reference}>{index ? ', ' : ''}<span lang="">{reference}</span></Fragment>)}}/></p> : null}
       {item.topics?.length ? <ul>{item.topics.map(topic=><li key={topic.id}><>{<span lang={topic.language??''}>{topic.label}</span>} {<small>· {(topic.basis==='dossier') ? ui.t("amendments.dossier_subject.d03afd") : ui.t("amendments.target_provision.5a9506")}</small>}</></li>)}</ul> : null}
     </details>}
@@ -208,7 +188,7 @@ const heading = headingProp ?? ui.t("amendments.amendment_trail.83497e");
   const committee=controlledCommittee??localCommittee;
   const [localOutcome,setLocalOutcome]=useState(''),[localOffset,setLocalOffset]=useState(0),[groupBy,setGroupBy]=useState('dossier');
   const outcome=controlledOutcome??localOutcome,offset=controlledOffset??localOffset,limit=20,headingId=useId(),headingRef=useRef<HTMLHeadingElement>(null);
-  const state=useData<AmendmentPage>(amendmentRoute({scope,list,committee,document,procedure,member,outcome,offset,limit,language}),amendmentRetry);
+  const state=useData<AmendmentPage>(amendmentRoute({scope,list,committee,document,procedure,member,outcome,offset,limit,language}),{...amendmentRetry,unavailable:'error.amendments'});
   const committees=[...new Set([...(committee ? ([committee]) : ([])),...(state.data?.items||[]).flatMap(item=>item.committees?.map(c=>c.code)||[])])].filter(validCommitteeCode).sort();
   const groups=useMemo(()=>amendmentGroups(state.data?.items||[],groupBy, ui),[state.data,groupBy]);
   useEffect(()=>{if(controlledOffset===undefined)setLocalOffset(0);},[scope,list,committee,document,procedure,member,language,controlledOffset]);

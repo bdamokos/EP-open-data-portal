@@ -69,7 +69,7 @@ function FollowCard({item,directoryMember,language,onMember,renderActivity,now,r
     </div>
     {item.availability==='outside-roster'&&membership.members[item.id]?.status!=='former'&&<p><UiMessage id="Saved.no_longer_on_the_current_roster"/></p>}
     {item.kind==='question'&&<p>{item.current?.answerIds?.length ? ui.t("Saved.answer_available") : ((item.availability==='available') ? ui.t("Saved.no_answer_yet") : ui.t("Saved.answer_availability_has_not_been_checked"))}</p>}
-    {item.legacy&&<p><UiMessage id="Saved.update_check_pending"/> </p>}
+    
     {!item.indexComplete&&<small><UiMessage id="Saved.some_updates_could_not_be_checked"/></small>}
     <div className="explorer-saved-actions">{(item.kind==='mep'||item.memberId)&&<button onClick={()=>{if(item.kind==='question')store.openQuestion(key);onMember(member,(item.kind==='question') ? item.id : undefined);}}>{(item.kind==='mep') ? ui.t("interface.profile") : (item.current?.answerIds?.length ? ui.t("parliamentsearchresults.read_question_and_answers.d9f136") : ui.t("textsearch.read_question"))}</button>}
     {item.kind==='question'&&item.availability==='not-saved'&&<p><UiMessage id="Saved.details_not_available_yet"/></p>}

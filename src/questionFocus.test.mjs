@@ -206,7 +206,7 @@ test('subject chip clears topic and paging in one history step, focuses results,
 test('clear all subject and combined filters focuses the fully reset results in one history step',async t=>{
   const response=subject=>({...questions(),selection:{subject,subjectLabel:subject?'United States':null}});
   const h=await harness(t,url=>response(url.searchParams.get('subject')),{query:'?view=questions&q-country=IT&q-addressee=org%2FCS&q-subject=USA&q-word=water&q-range=2026-10-01_2026-10-11&q-offset=25'});
-  const oldLength=history.length;await h.click('Clear all filters');
+  const oldLength=history.length;await h.click('Clear filters');
   const request=h.calls.at(-1),query=new URL(location.href).searchParams;
   for(const key of ['subject','addressee','country','word','cluster','from','to'])assert.equal(request.searchParams.has(key),false);
   for(const key of ['q-subject','q-addressee','q-country','q-word','q-topic','q-range','q-offset'])assert.equal(query.has(key),false);

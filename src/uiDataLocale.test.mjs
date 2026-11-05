@@ -5,7 +5,7 @@ import {Window} from 'happy-dom';
 import {createAppUiI18n} from './uiCatalogues.mjs';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
-test('shared reads retain owned error identity and re-render by locale without translating API text or refetching',async t=>{
+test('shared reads retain owned error identity and re-render by locale and never show API text or refetch',async t=>{
   const window=new Window({url:'http://localhost/'});
   let calls=0,external=false,root,load;
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true,
@@ -21,17 +21,17 @@ test('shared reads retain owned error identity and re-render by locale without t
   const {useData}=await load('/src/data.ts');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  const i18n=createAppUiI18n({fr:{'batch6.client.the.data.service.is.unavailable.status.64':'Indisponible ({status}).','batch6.client.the.request.took.too.long.try.again.43':'Délai dépassé.'}});
+  const i18n=createAppUiI18n({fr:{'batch5.amendments.tsx.126.14':'Indisponible.','batch6.client.the.request.took.too.long.try.again.43':'Délai dépassé.'}});
   function ErrorLine({route}){const data=useData(route);return h('p',null,data.error);}
   const child=(language,route)=>h(UiI18nProvider,{i18n,language},h(ErrorLine,{route}));
   const render=(languages,route)=>act(async()=>root.render(h('div',null,...languages.map(language=>child(language,route)))));
   await render(['en','fr'],'ui-owned-error-fixture');
-  assert.deepEqual([...container.querySelectorAll('p')].map(node=>node.textContent),['The data service is unavailable (400).','Indisponible (400).']);
+  assert.deepEqual([...container.querySelectorAll('p')].map(node=>node.textContent),['Unavailable.','Indisponible.']);
   assert.equal(calls,1);
   await render(['fr','en'],'ui-owned-error-fixture');
-  assert.deepEqual([...container.querySelectorAll('p')].map(node=>node.textContent),['Indisponible (400).','The data service is unavailable (400).']);
+  assert.deepEqual([...container.querySelectorAll('p')].map(node=>node.textContent),['Indisponible.','Unavailable.']);
   assert.equal(calls,1,'changing UI language does not restart a shared source read');
   external=true;await render(['fr','en'],'ui-external-error-fixture');
-  assert.deepEqual([...container.querySelectorAll('p')].map(node=>node.textContent),Array(2).fill('The request took too long. Try again.'));
+  assert.deepEqual([...container.querySelectorAll('p')].map(node=>node.textContent),['Indisponible.','Unavailable.']);
   assert.equal(calls,2);
 });

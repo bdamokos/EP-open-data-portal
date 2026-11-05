@@ -5,7 +5,6 @@ import {UI_LANGUAGES,normalizeUiLocale} from './uiI18n.mjs';
 import contracts from './ui-counted-source.json' with {type:'json'};
 import neutral from './ui-counted-neutral.json' with {type:'json'};
 import english from './ui-locales/en.json' with {type:'json'};
-import {amendmentPlanSummary} from './amendmentModel.mjs';
 import cardinalCases from './test-support/cldr48-cardinal-cases.json' with {type:'json'};
 
 async function nativeCatalogues(){
@@ -58,8 +57,6 @@ test('new families preserve unknown units, lower-bound display and quoted occurr
   assert.equal(ui.t('app.mepCountUnit',{}, {count:0}),'MEPs');
   assert.equal(ui.t('app.mepCountUnit',{}, {count:1}),'MEP');
   assert.equal(ui.t('outsidevoices.date_availabilityvalue_agenda_items.84907a',{date:'2026-10',count:'1+'},{count:1}),'2026-10: 1+ agenda item');
-  assert.deepEqual(amendmentPlanSummary({type:'text',quote:'exact {source}',expectedCount:1},ui),['The text “exact {source}” · 1 expected occurrence']);
-  assert.deepEqual(amendmentPlanSummary({type:'text',quote:'exact',occurrences:[21]},ui),['The text “exact” · occurrence 21']);
 });
 
 test('Topics count fragments retain reviewed noun phrases and neutral singular wording',async()=>{

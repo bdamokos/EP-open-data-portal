@@ -35,7 +35,7 @@ test('retained corpus refresh reports its own error and retry hint while preserv
   await h.finish('speech-transcript',failure,503);
   for(let i=0;i<6;i++){assert.equal(h.state().refreshError,null);assert.equal(h.state().refreshing,true);await automaticRecovery(t);await h.finish('speech-transcript',failure,503);}
   assert.equal(h.state().transcript.xml,xml);assert.equal(h.state().error,null);assert.equal(h.state().loading,false);assert.equal(h.state().refreshing,false);
-  assert.equal(h.state().refreshError,'Refresh unavailable');assert.equal(h.state().refreshRetryAt,20000);
+  assert.equal(h.state().refreshError,'Speech unavailable.');assert.equal(h.state().refreshRetryAt,20000);
   await act(async()=>window.dispatchEvent(new window.Event('online')));assert.equal(h.state().refreshError,null);assert.equal(h.state().refreshing,true);
   await h.finish('speech-transcript',retained);assert.equal(h.state().refreshError,null);assert.equal(h.state().refreshRetryAt,undefined);assert.equal(h.state().refreshing,false);
 });
@@ -57,5 +57,5 @@ test('detail body survives corpus recheck and failed refresh without treating a 
 test('an access failure clears the retained detail snapshot instead of restoring denied text',async t=>{
   const h=await harness(t);await h.finish('speech-transcript',unavailable);await h.finish('speech',detail);
   await h.retry();await h.finish('speech-transcript',unavailable);await h.finish('speech',{error:{message:'Unavailable'}},403);
-  assert.equal(h.state().transcript,null);assert.equal(h.state().data,null);assert.equal(h.state().error,'Unavailable');assert.equal(h.state().refreshError,null);
+  assert.equal(h.state().transcript,null);assert.equal(h.state().data,null);assert.equal(h.state().error,'Speech unavailable.');assert.equal(h.state().refreshError,null);
 });

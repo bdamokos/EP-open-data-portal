@@ -17,7 +17,7 @@ test('only exact amendment and component sets corroborate the indexed decision',
  data.decision.componentIds=[part.replace(/2$/,'1')];assert.equal(amendmentVoteBinding(item,split,data),false);
 });
 test('authors use exact person IDs and distinguish unavailable, unrecorded and conflicting',async()=>{
- const f=voteFixture(),data=await f.read();assert.equal(authorVotePosition('197591',data),'For');assert.equal(authorVotePosition('999',data),'No recorded vote');assert.equal(authorVotePosition(null,data),'MEP unresolved');assert.equal(authorVotePosition('0197591',data),'MEP unresolved');
+ const f=voteFixture(),data=await f.read();assert.equal(authorVotePosition('197591',data),'For');assert.equal(authorVotePosition('999',data),'No recorded vote');assert.equal(authorVotePosition(null,data),'Name unavailable');assert.equal(authorVotePosition('0197591',data),'Name unavailable');
  f.raw.had_voter_against.push('person/197591');const partial=await f.read();assert.equal(authorVotePosition('197591',partial),'Conflicting record');assert.equal(authorVotePosition('999',partial),'Unavailable');
 });
 

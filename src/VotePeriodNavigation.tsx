@@ -14,7 +14,7 @@ function weekLabel(week:{week:string;sittings:{date:string}[]},language:string,u
 }
 export function VotePeriodNavigation({state,resolvedWeek,language,sittingCoverage=[],onPeriod}:{state:MemberVotesState;resolvedWeek?:string|null;language:string;sittingCoverage?:MemberVoteSittingCoverage[];onPeriod:(week:string,sittingId?:string|null)=>void}){
   const ui = useUiI18n();
-  const id=useId(),request=useData<VotePeriodsResponse>('vote-periods'),[error,setError]=useState('');
+  const id=useId(),request=useData<VotePeriodsResponse>('vote-periods',{unavailable:'error.records'}),[error,setError]=useState('');
   const calendar=validateVotePeriods(request.data) ? request.data : null,weeks=calendar?.weeks||[];
   const week=votePeriodWeek(state,resolvedWeek,weeks),days=weeks.find(item=>item.week===week)?.sittings||[],neighbours=voteWeekNeighbours(weeks,week);
   const unavailable=Boolean(request.error||!request.loading&&(!calendar||calendar.coverage.status==='unavailable'));

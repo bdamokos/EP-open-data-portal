@@ -70,7 +70,6 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
   assert.equal(effectiveLanguage(card('explicit-unknown').querySelector('.explorer-amendment-title')),'fr');
   assert.equal(effectiveLanguage(card('known-fr').querySelector('.explorer-amendment-target')),'hu');
   assert.equal(effectiveLanguage(card('known-fr').querySelector('.explorer-amendment-authors a span')),'');
-  assert.equal(effectiveLanguage(card('known-fr').querySelector('.explorer-amendment-authors small')),'en');
   const proposer=[...card('known-fr').querySelectorAll('.explorer-amendment-authors p span')];
   assert.deepEqual(proposer.map(effectiveLanguage),['fr','']);
   for(const row of container.querySelectorAll('.explorer-amendment-card'))for(const label of row.querySelectorAll('.wording-diff h5,.explorer-amendment-texts h5,.explorer-amendment-wording summary,.explorer-amendment-evidence summary'))assert.equal(effectiveLanguage(label),'en');
@@ -82,8 +81,6 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
   assert.equal(effectiveLanguage(wording(card('mixed'),0)),'mul');assert.equal(effectiveLanguage(wording(card('undetermined'),0)),'und');
   const parts=card('known-fr').querySelectorAll('.explorer-amendment-part');
   assert.equal(effectiveLanguage(parts[0].querySelector('blockquote')),'fr');assert.equal(effectiveLanguage(parts[1].querySelector('blockquote')),'');
-  for(const part of parts){assert.equal(effectiveLanguage(part.querySelector('.explorer-amendment-selection summary')),'en');assert.equal(effectiveLanguage(part.querySelector('.explorer-amendment-selection li')),'en');}
-  assert.equal(effectiveLanguage(parts[0].querySelector('.explorer-amendment-selection li span')),'fr');assert.equal(effectiveLanguage(parts[1].querySelector('.explorer-amendment-selection li span')),'');
   const variants=card('variants').querySelectorAll('.explorer-amendment-variant');
   assert.equal(effectiveLanguage(wording(variants[0],0)),'fr');assert.equal(effectiveLanguage(variants[0].querySelector('p[lang="hu"]')),'hu');
   assert.equal(effectiveLanguage(wording(variants[1],0)),'');

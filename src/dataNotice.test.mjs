@@ -26,6 +26,7 @@ test('the site notice states independence and can be hidden to a compact toggle 
   const details=container.querySelector('.data-notice details');
   await act(async()=>summary().click());
   assert.equal(details.open,true,'the terms open before dismissal');
+  assert.match(container.querySelector('.data-notice__body').textContent,/Maps: Natural Earth\. Seating plan: European Parliament\./);
   const dismiss=container.querySelector('.data-notice__dismiss');
   assert.equal(dismiss.getAttribute('aria-label'),'Hide site notice');
   await act(async()=>dismiss.click());

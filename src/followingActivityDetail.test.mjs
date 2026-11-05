@@ -94,7 +94,7 @@ test('inline documents retain co-author and download details',async t=>{
 
 test('an unmatched title or ordinary page item never replaces the exact selected source; profile links preserve modified clicks',async t=>{
   const h=await harness(t,{selected:[activity('different-id')],items:[activity(questionId)]});
-  assert.match(h.container.textContent,/Not loaded yet\./);
+  assert.match(h.container.textContent,/Linked item unavailable./);
   assert.doesNotMatch(h.container.textContent,/Exact question body/);
   const link=[...h.container.querySelectorAll('a')].find(node=>node.textContent==='Open in profile');assert(link);
   assert.equal(new URL(link.href).searchParams.get('activity'),questionId);

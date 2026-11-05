@@ -176,16 +176,16 @@ test('timeline legends follow the displayed markers through filters and empty re
   const law=speaker('44','Legislative guest',[speech('2026-09-07','01',[lawId])],{[lawId]:{legislative:true}});
   const {container,change,navigate}=await harness(t,[debate,special,law]);
   const legend=()=>[...container.querySelectorAll('.ov-legend>span')].map(n=>n.textContent);
-  assert.deepEqual(legend(),['■ Contributions','◇ Special event','L Legislative file']);
+  assert.deepEqual(legend(),['■ Contributions','◇ Special event','L Dossier']);
   await change('Event','special');
   assert.deepEqual(legend(),['◇ Special event']);
   assert.equal(container.querySelectorAll('.ov-mark').length,1);
   await change('Event','debate');
-  assert.deepEqual(legend(),['■ Contributions','L Legislative file']);
+  assert.deepEqual(legend(),['■ Contributions','L Dossier']);
   await navigate('?view=outside&ov-q=Debate');
   assert.deepEqual(legend(),['■ Contributions']);
   await navigate('?view=outside&ov-q=Legislative');
-  assert.deepEqual(legend(),['L Legislative file']);
+  assert.deepEqual(legend(),['L Dossier']);
   await navigate('?view=outside&ov-q=Missing');
   assert.equal(container.querySelector('.ov-legend'),null);
   assert.equal(container.querySelectorAll('.ov-mark').length,0);
@@ -310,13 +310,13 @@ test('timeline names and visible legislative cues follow all classifications, fi
   const mark=name=>{const node=row(name)?.querySelector('.ov-mark');assert(node,'Missing marker for '+name);return node;};
   assert.equal(mark('Ordinary guest').getAttribute('aria-label'),'Ordinary guest, 15 Jan 2025: Agenda items: 1');
   assert.equal(mark('Special guest').getAttribute('aria-label'),'Special guest, 15 Jan 2025: Agenda items: 1, special event');
-  assert.equal(mark('Legislative guest').getAttribute('aria-label'),'Legislative guest, 15 Jan 2025: Agenda items: 1, legislative file');
-  assert.equal(mark('Combined guest').getAttribute('aria-label'),'Combined guest, 15 Jan 2025: Agenda items: 2, special event, legislative file');
+  assert.equal(mark('Legislative guest').getAttribute('aria-label'),'Legislative guest, 15 Jan 2025: Agenda items: 1, dossier');
+  assert.equal(mark('Combined guest').getAttribute('aria-label'),'Combined guest, 15 Jan 2025: Agenda items: 2, special event, dossier');
   for(const name of ['Legislative guest','Combined guest'])assert.match(mark(name).textContent,/L/,'legislative status must have a visible non-color cue');
   for(const name of ['Ordinary guest','Special guest'])assert.doesNotMatch(mark(name).textContent,/L/);
-  assert.match(container.querySelector('.ov-legend .ov-legislative').textContent,/L.*Legislative file/);
+  assert.match(container.querySelector('.ov-legend .ov-legislative').textContent,/L.*Dossier/);
   const cluster=mark('Clustered guest');
-  assert.equal(cluster.getAttribute('aria-label'),'Clustered guest, Sitting days: 2: Agenda items: 2, special event, legislative file');
+  assert.equal(cluster.getAttribute('aria-label'),'Clustered guest, Sitting days: 2: Agenda items: 2, special event, dossier');
   assert.equal(cluster.querySelector('.ov-mark-symbol').textContent,'L');
   assert.equal(cluster.querySelector('.ov-mark-count').textContent,'2');
   assert.equal(cluster.querySelector('.ov-mark-symbol .ov-mark-count'),null,'a cluster count must not replace the special-event symbol');
@@ -331,7 +331,7 @@ test('timeline names and visible legislative cues follow all classifications, fi
   assert.doesNotMatch(mark('Combined guest').textContent,/L/,'classification must be recomputed after the law item is filtered out');
   await change('Event','debate');
   assert.equal(row('Special guest'),undefined);
-  assert.equal(mark('Combined guest').getAttribute('aria-label'),'Combined guest, 15 Jan 2025: Agenda items: 1, legislative file');
+  assert.equal(mark('Combined guest').getAttribute('aria-label'),'Combined guest, 15 Jan 2025: Agenda items: 1, dossier');
   assert.match(mark('Combined guest').textContent,/L/);
   assert.equal(mark('Combined guest').classList.contains('ov-special'),false);
 });
@@ -431,7 +431,7 @@ test('a consumed direct-speech opening does not reopen a closed reader after a l
 
 test('an incomplete speaker directory qualifies its empty selection in visible and live copy',async t=>{
  const h=await harness(t,[]);await act(async()=>{});
- assert.match(h.container.querySelector('.ov-empty').textContent,/No matching speakers loaded/);
+ assert.match(h.container.querySelector('.ov-empty').textContent,/No matches · partial/);
  assert.doesNotMatch(h.container.textContent,/No speakers match\./);
 });
 

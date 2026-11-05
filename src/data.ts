@@ -16,9 +16,9 @@ const client = createDataClient((route,signal,options)=>api(route==='directory'&
 export function expireActivityReads() { client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route)); }
 export function useSpeechData(id:string,language:string) {
   const route=encodeURIComponent(id)+'?lang='+language;
-  const saved=useData<StoredSpeechTranscript>('speech-transcript/'+route,{automatic:false});
+  const saved=useData<StoredSpeechTranscript>('speech-transcript/'+route,{automatic:false,unavailable:'error.speech'});
   const retained=saved.data?.available&&saved.data.xml&&saved.data.id===id&&saved.data.metadata?.id===id?saved.data.metadata:null;
-  const detail=useData<SpeechDetail>(!saved.fetching&&!retained?'speech/'+route:null,{automatic:false});
+  const detail=useData<SpeechDetail>(!saved.fetching&&!retained?'speech/'+route:null,{automatic:false,unavailable:'error.speech'});
   const previousDetail=useRef<{route:string;data:SpeechDetail}|null>(null);
   const denied=[saved.status,detail.status].some(status=>status===401||status===403);
   useEffect(()=>{
@@ -40,7 +40,7 @@ export function useSpeechData(id:string,language:string) {
     refreshing:fetching||retrying,refreshError:transcript?.xml&&!retrying?body.error:null,refreshRetryAt:transcript?.xml?body.retryAt:undefined};
 }
 export function prefetchData(routes: string[]) { return client.prefetch(routes); }
-export function useData<T>(route: string | null, {retryWhile,retryAtFor,automatic=true}: {retryWhile?:(data:T)=>boolean;retryAtFor?:(data:T)=>number;automatic?:boolean} = {}) {
+export function useData<T>(route: string | null, {retryWhile,retryAtFor,automatic=true,unavailable='error.unavailable'}: {retryWhile?:(data:T)=>boolean;retryAtFor?:(data:T)=>number;automatic?:boolean;unavailable?:string} = {}) {
   const ui=useUiI18n();
   const [state, setState] = useState<{
     route: string | null;
@@ -73,5 +73,5 @@ export function useData<T>(route: string | null, {retryWhile,retryAtFor,automati
   const current = state.route === route ? state : {route,data:route ? client.peek<T>(route) : null,error:null,loading:Boolean(route)};
   // Expose a retry before effects run, so dependent hooks do not briefly start
   // a fallback while this prerequisite is about to refresh.
-  return { ...current, attempt:retry, fetching:current.loading,failure:current.error, loading:current.loading||retrying&&!current.data, retrying, error:retrying||current.error===null?null:uiErrorText(current.error,ui), ...(previousRequest.current.retry !== retry ? {error:null,failure:null,status:undefined,retryAt:undefined,fetching:Boolean(route),loading:Boolean(route)} : {}), retry: refresh };
+  return { ...current, attempt:retry, fetching:current.loading,failure:current.error, loading:current.loading||retrying&&!current.data, retrying, error:retrying||current.error===null?null:uiErrorText(current.error,ui,unavailable), ...(previousRequest.current.retry !== retry ? {error:null,failure:null,status:undefined,retryAt:undefined,fetching:Boolean(route),loading:Boolean(route)} : {}), retry: refresh };
 }

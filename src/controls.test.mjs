@@ -53,7 +53,7 @@ test('Follow and Save names include their visible state and identify compact con
     await h.render(createElement(SaveButton,{item,compact}));
     const button=h.container.querySelector('button');
     for(const [index,saved] of [false,true,false].entries()) {
-      const label=kind==='mep'?(saved?'Following':'Follow'):(saved?'Saved':'Save');
+      const label=saved?'Following':'Follow';
       assert.equal(button.getAttribute('aria-pressed'),String(saved));
       assert.equal(button.getAttribute('aria-label'),`${label} ${kind==='mep'?'MEP':'question'} · ${item.title}`);
       if(!compact)assert(button.textContent.includes(label));
@@ -158,7 +158,7 @@ test('sequence preloads are bounded, skip procedural rows, stop on close and fol
   await h.tick(150);assert.equal(reads.length,13,'the batch stops at its bound');
   assert.equal(reads.length,13);assert(reads.slice(1).every(url=>url.searchParams.get('lang')==='fr'));
   assert(reads.every(url=>!url.pathname.endsWith(prefix+'5')&&!url.pathname.endsWith(prefix+'6')));
-  assert(h.container.textContent.includes('Debate records available: 25 of 26'),'preloading preserves incomplete coverage');
+  assert(h.container.textContent.includes('Debate records: 25 of 26'),'preloading preserves incomplete coverage');
 });
 
 test('rapid speech navigation shares the speculative queue and cancels obsolete debate preloads',async t=>{

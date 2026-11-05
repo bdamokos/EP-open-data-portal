@@ -189,7 +189,7 @@ for(const language of ['en','hu','fr']) {
     assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
     assert.equal(effectiveLanguage(detail.querySelector('h3')),language);
     assert.equal(effectiveLanguage(detail.querySelector('.text-language-line')),language);assert(detail.querySelector('.text-language-line').textContent.includes(c.machine));
-    assert.equal(effectiveLanguage(exactText(detail,'small',c.saved)),language);
+    assert(![...detail.querySelectorAll('small')].some(node=>node.textContent===c.saved),'a saved-transcript note is not shown');
     assert.equal(detail.querySelector('.explorer-source-link a'),null);
     assert.equal(effectiveLanguage(detail.querySelector('button.explorer-search-icon')),language);assert.equal(detail.querySelector('button.explorer-search-icon').getAttribute('aria-label'),c.find);
     await h.click(rows[1].querySelector('button'));
@@ -231,7 +231,7 @@ for(const language of ['en','hu','fr']) {
 
         assert(!body.textContent.includes(fixture.paragraphs[0]),'the existing recognised-header split stays intact');
         const save=rows[index].querySelector('.explorer-save-button');
-        const label={en:'Save question',hu:'Kérdés mentése',fr:'Enregistrer la question'}[language];
+        const label={en:'Follow question',hu:'Kérdés követése',fr:'Suivre la question'}[language];
         assert.equal(save.getAttribute('aria-label'),label+' · Titre de la question');assert.equal(save.getAttribute('aria-labelledby'),null);assert.equal(effectiveLanguage(save),language==='fr'?'fr':'','the French title remains separate from a differing UI language');
         assert.equal(save.querySelector('span[lang]').textContent,label);assert.equal(effectiveLanguage(save.querySelector('span[lang]')),language);
         const answer=reader.querySelector('#document-'+answerId),answerHeading=c.answer.replace('{date}',date('2026-10-02',language));

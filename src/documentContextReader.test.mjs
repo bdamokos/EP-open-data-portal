@@ -25,6 +25,14 @@ const response=(id,doc=sourceDocument(id),extra={})=>({version:4,documentId:id,r
 const target={status:'found',paragraphs:[2],basis:'published-reference',relation:'at',quoteMatches:false,reason:null};
 const amendmentSource={id:amendment,status:'available',basis:'index',variants:[{listId:list}],gaps:[]};
 const wordingVariant=(language,extra={})=>({listId:list,language,wordingStatus:'available',originalText:'Original wording.',proposedText:'Proposed wording.',...extra});
+test('a document whose text cannot be shown keeps its original-document link',async t=>{
+  for(const status of ['unavailable','error'])await t.test(status,async t=>{
+    const h=await harness(t,()=>response(report,sourceDocument(report,[],{status,reason:'source-unavailable'})));
+    await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
+    assert.equal(h.container.querySelectorAll('.document-context-source a').length,1);
+  });
+});
+
 const pinnedEvidence=(wordingLanguage,extra={})=>({amendmentId:amendment,listId:list,wordingLanguage,wordingSource:null,referenceDecisions:[],...extra});
 const choice=(id,to=original)=>({id,titles:{en:'***I Exact adopted resolution '+id.slice(-4)},date:'2026-10-08',kind:'TEXT_ADOPTED',roles:[],files:[],answers:[],relationship:{from:id,field:'adopts',to},source:{}});
 
@@ -36,7 +44,7 @@ test('embedded dossier readers can omit original-document links while preserving
   assert.match(h.container.textContent,/Exact target passage/);
   assert.equal(h.container.querySelector('.document-context-source a'),null);
   await h.render({request,language:'en'});
-  assert(h.container.querySelector('.document-context-source a'),'other readers keep their existing source link');
+  assert.equal(h.container.querySelector('.document-context-source a'),null,'readers show no original-document link beside the text');
   current=proposalContextResponse(report,amendment,list);
   await h.render({request:{...request,amendmentId:amendment,listId:list,wordingLanguage:'en'},language:'en',showOriginalLink:false});
   assert(h.container.querySelector('[data-proposal-item]'));
@@ -80,8 +88,8 @@ for(const [textLanguage,status,hasBody] of [['en','available',true],['fr','avail
   assert.equal(h.container.querySelectorAll('[data-amendment-block]').length,mismatch?0:1);
   assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,0);
   if(hasBody)assert(h.container.textContent.includes(paragraphs[0]));
-  if(mismatch)assert(h.container.textContent.includes('The document and amendment wording are in different languages.'));
-  else assert(!h.container.textContent.includes('The document and amendment wording are in different languages.'));
+  if(mismatch)assert(h.container.textContent.includes('Text and amendment are in different languages.'));
+  else assert(!h.container.textContent.includes('Text and amendment are in different languages.'));
 });
 
 test('mixed note and changed footnote wording stays separate from the intact document',async t=>{
@@ -91,7 +99,7 @@ test('mixed note and changed footnote wording stays separate from the intact doc
     target:{...target,status:'unavailable',paragraphs:[],evidence:pinnedEvidence('sk')},placement:{status:'unresolved',operation:null,reason:'language_scope_mixed',evidence:[]}});
   const h=await harness(t,()=>value);
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'sk',view:'document',onBack:()=>{}},language:'en'});
-  assert(h.container.textContent.includes('This comparison is shown separately from the document.'));
+  assert(h.container.textContent.includes('Shown separately from the document.'));
   assert(h.container.textContent.includes('Original document body.'));
   assert(!h.container.textContent.includes('No change in this language version.'));
   assert.equal(h.container.querySelector('ins, del'),null);assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,0);
@@ -140,7 +148,7 @@ test('context preserves exact source indices, inline text, note offsets and targ
   assert.equal(chosen.childNodes[2].nodeName,'SUP','the note remains immediately after the unresolved object in source offsets');
   assert.equal(h.container.querySelector('h3').textContent,'Official source title');
   assert.equal(h.container.querySelector('[data-source-paragraph="0"]').textContent,'***II Source heading.','only the display title loses procedure markers');
-  assert(h.container.textContent.includes('The published text differs from the amendment’s quotation.'));
+  assert(h.container.textContent.includes('Original wording differs from this text.'));
   assert(h.container.textContent.includes('Exact source note.'));
   await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Go to passage'));
   assert.equal(h.scrolls.at(-1).element,chosen);assert.equal(h.window.document.activeElement,chosen);
@@ -150,12 +158,12 @@ test('context preserves exact source indices, inline text, note offsets and targ
 test('missing target leaves the full official document readable with plain copy',async t=>{
   const h=await harness(t,()=>response(report,sourceDocument(report,['Context stays visible.','Exact <angle> text.']),{target:{...target,status:'unavailable',paragraphs:[],reason:'source-boundary-not-matched'}}));
   await h.render({request:{documentId:report,amendmentId:amendment,view:'document',onBack:()=>{}},language:'en'});
-  assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
+  assert(h.container.textContent.includes('Not shown in the text.'));
   assert(h.container.textContent.includes('Exact <angle> text.'));
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert(!h.container.textContent.includes('source-boundary-not-matched'));
   assert(!h.container.textContent.includes('target could not be matched'));
-  assert.equal(h.container.querySelectorAll('.document-context-source a').length,1);
+  assert.equal(h.container.querySelectorAll('.document-context-source a').length,0);
 });
 
 test('fallback language is visible and choosing a language changes only the exact requested source',async t=>{
@@ -193,7 +201,7 @@ test('a pinned wording language opens its matching body and stays pinned when th
   assert(h.requests.includes(`document-context/${report}?lang=fr&amendment=${amendment}&list=${list}&wording-lang=hu`));
   assert.equal(h.container.querySelector('.document-context-text').lang,'fr');
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0,'a different body language cannot use the Hungarian quotation');
-  assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
+  assert(h.container.textContent.includes('Not shown in the text.'));
   await h.render({request:{...request,wordingLanguage:'en'},language:'en'});
   assert.equal(h.container.querySelector('.document-context-text').lang,'en','changing the wording pin starts a new reading session');
   assert(h.requests.includes(`document-context/${report}?lang=en&amendment=${amendment}&list=${list}&wording-lang=en`));
@@ -218,7 +226,7 @@ for(const [name,echo] of [['missing',undefined],['different','en'],['unknown',nu
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'hu',view:'document',onBack:()=>{}},language:'en'});
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert.equal(h.container.querySelector('.document-context-text'),null);
-  assert(h.container.textContent.includes('Document unavailable here.'));
+  assert(h.container.textContent.includes('Document unavailable.'));
 });
 
 for(const [name,evidence] of [
@@ -274,7 +282,7 @@ test('an uncached document body stays pending until a terminal unavailable respo
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'},false);
   assert.equal(h.container.querySelector('.document-context-document').getAttribute('data-context-pending'),'true');
   await act(async()=>finish());await h.settle();
-  assert(h.container.textContent.includes('Document text unavailable here.'));
+  assert(h.container.textContent.includes('Document text unavailable.'));
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
 });
 
@@ -284,7 +292,7 @@ for(const [name,data] of [
 ])test(`a mismatched ${name} is never displayed when the other identity matches`,async t=>{
   const h=await harness(t,()=>data);
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
-  assert(!h.container.textContent.includes('Wrong document.'));assert(h.container.textContent.includes('Document unavailable here.'));
+  assert(!h.container.textContent.includes('Wrong document.'));assert(h.container.textContent.includes('Document unavailable.'));
 });
 
 test('adopted texts require an exact choice and load their own body without an amendment anchor',async t=>{
@@ -332,17 +340,17 @@ test('a selected adopted text stays pending through its relationship lookup and 
 test('controlled adopted selection preserves unavailable identity and never substitutes another text',async t=>{
   const h=await harness(t,(_route,params)=>params.has('adopted')?response(original,null,{related:{status:'available',items:[choice(adopted)],gaps:[]}}):assert.fail('An unverified selected document must not be fetched'));
   const changes=[];await h.render({request:{documentId:original,view:'adopted',onBack:()=>{}},language:'en',selectedDocumentId:otherAdopted,onSelectedDocumentIdChange:id=>changes.push(id)});
-  assert(h.container.textContent.includes('This adopted text is unavailable here.'));
+  assert(h.container.textContent.includes('Adopted text unavailable.'));
   assert.deepEqual(h.requests,[`document-context/${original}?lang=en&adopted=1`]);
   await h.click(h.container.querySelector('.document-context-choices-back'));assert.deepEqual(changes,[null]);
-  assert(h.container.textContent.includes('This adopted text is unavailable here.'),'the controlled owner must restore the requested choices state');
+  assert(h.container.textContent.includes('Adopted text unavailable.'),'the controlled owner must restore the requested choices state');
 });
 
 test('a local reader failure has an explicit retry and does not claim a parliamentary absence',async t=>{
   let calls=0;const h=await harness(t,()=>++calls===1?Response.json({error:{message:'This data request took too long.'}},{status:503}):response(report,sourceDocument(report,['Readable after retry.'])));
   await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
   assert.equal(h.container.querySelector('[role=alert] button'),null);
-  assert(!h.container.textContent.includes('Document unavailable here.'));
+  assert(!h.container.textContent.includes('Document unavailable.'));
   assert.equal(h.container.querySelector('[data-context-pending]')?.dataset.contextPending,'true');
   await automaticRecovery(t);
   assert(h.container.textContent.includes('Readable after retry.'));assert.equal(calls,2);
@@ -357,7 +365,7 @@ test('an extraction failure returned with HTTP 200 offers retry and never claims
   const alert=h.container.querySelector('[role="alert"]');
   assert.equal(alert?.querySelector('button')??null,null);
   assert(!h.container.textContent.includes('Showing saved text.'));
-  assert(!h.container.textContent.includes('Document text unavailable here.'));
+  assert(!h.container.textContent.includes('Document text unavailable.'));
   assert(!h.container.textContent.includes('official-document-download-failed'));
   assert.equal(h.container.querySelector('.document-context-text'),null);
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
@@ -379,7 +387,7 @@ test('a background extraction failure keeps the readable saved body and qualifie
   assert(h.container.textContent.includes('Saved source note.'));
   assert.equal(h.container.querySelector('[role=alert] button'),null);
   assert(!h.container.textContent.includes('Document text could not be loaded.'));
-  assert(!h.container.textContent.includes('Document text unavailable here.'));
+  assert(!h.container.textContent.includes('Document text unavailable.'));
   assert(!h.container.textContent.includes('official-document-download-failed'));
   assert(h.container.querySelector('button[aria-label="Find in document"]'));
   assert.equal(h.container.querySelector('[data-context-pending]'),null);
@@ -424,15 +432,15 @@ for(const [name,selected] of [
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'en'});
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert(h.container.textContent.includes('Exact target passage.'));
-  assert(h.container.textContent.includes('The passage this amendment changes could not be found.'));
+  assert(h.container.textContent.includes('Not shown in the text.'));
 });
 
 test('a failed adopted lookup recovers automatically without claiming that the selected text is unavailable',async t=>{
   let failed=true;
   const h=await harness(t,(route,params)=>failed?Response.json({error:{message:'This data request took too long.'}},{status:503}):params.has('adopted')?response(original,null,{related:{status:'available',items:[choice(adopted)],gaps:[]}}):response(adopted,sourceDocument(adopted,['Recovered exact adopted wording.'])));
   await h.render({request:{documentId:original,view:'adopted',onBack:()=>{}},language:'en',selectedDocumentId:adopted});
-  assert(h.container.textContent.includes('Loading linked texts…'));assert(!h.container.textContent.includes('This adopted text is unavailable here.'));assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);assert.equal(h.container.querySelector('.document-context-reader').getAttribute('data-context-pending'),'true');
-  await exhaustAutomaticRetries(t);assert.equal(h.requests.length,7);assert(h.container.textContent.includes('Linked texts could not be loaded.'));assert(!h.container.textContent.includes('This adopted text is unavailable here.'));assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);assert.equal(h.container.querySelector('[data-context-pending]'),null);
+  assert(h.container.textContent.includes('Loading linked texts…'));assert(!h.container.textContent.includes('Adopted text unavailable.'));assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);assert.equal(h.container.querySelector('.document-context-reader').getAttribute('data-context-pending'),'true');
+  await exhaustAutomaticRetries(t);assert.equal(h.requests.length,7);assert(h.container.textContent.includes('Linked texts could not be loaded.'));assert(!h.container.textContent.includes('Adopted text unavailable.'));assert.equal(h.container.querySelectorAll('.document-context-notice button').length,0);assert.equal(h.container.querySelector('[data-context-pending]'),null);
   failed=false;await act(async()=>window.dispatchEvent(new window.Event('online')));await h.settle();assert.match(h.container.textContent,/Recovered exact adopted wording/);assert(!h.container.textContent.includes('Linked texts could not be loaded.'));assert(h.requests.some(route=>route.startsWith('document-context/'+adopted+'?')));
 
 });
@@ -506,7 +514,7 @@ test('replacement and deletion substitute the entire span with WordingDiff in so
 });
 test('unresolved placement shows wording above the full unchanged baseline without a false location',async t=>{
   const h=await harness(t,()=>overlayResponse({operation:'replace',status:'unresolved',reason:'baseline_unavailable'}));await h.render({request:overlayRequest,language:'en'});
-  assert.equal(h.container.querySelector('[role="status"]').textContent,'The text this amendment changes is not included in this document.');
+  assert.equal(h.container.querySelector('[role="status"]').textContent,'Text being changed unavailable.');
   const reader=h.container.querySelector('.document-context-text');assert(reader.firstElementChild.querySelector('.wording-diff'));
   assert.equal(reader.querySelectorAll('[data-source-paragraph]').length,4);assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
   assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
@@ -514,7 +522,7 @@ test('unresolved placement shows wording above the full unchanged baseline witho
 
 test('conflicting baselines show a short reason and preserve the full source without a placed diff',async t=>{
   const h=await harness(t,()=>overlayResponse({operation:'replace',status:'unresolved',reason:'conflicting_baselines'}));await h.render({request:overlayRequest,language:'en'});
-  assert.match(h.container.textContent,/Conflicting comparison texts\./);
+  assert.match(h.container.textContent,/Text being changed unavailable./);
   const reader=h.container.querySelector('.document-context-text');assert(reader.firstElementChild.querySelector('.wording-diff'));
   assert.equal(reader.querySelectorAll('[data-source-paragraph]').length,4);assert.equal(reader.querySelectorAll('[data-context-target]').length,0);
   assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
@@ -564,19 +572,19 @@ test('committee body extraction retains an amendment placed before its body star
 });
 
 for(const [reason,copy] of Object.entries({
-  resolution_extent_uncertain:'The boundaries of this passage could not be determined.',
-  resolution_end_unavailable:'The end of the resolution could not be determined.',
-  insertion_reference_unavailable:'The insertion location is not specified clearly enough.',
-  relative_target_not_found:'The preceding provision could not be found.',
-  multiple_published_targets:'The published location matches more than one passage.',
-  multiple_quoted_targets:'The quoted wording appears more than once.',
-  target_not_found:'The passage this amendment changes could not be found.',
-  source_passage_incomplete:'The source passage is incomplete.',
-  source_structure_unavailable:'The document structure is unavailable.',
-  proposal_note_scope_unavailable:'The footnotes in this amendment could not be placed.',
-  matching_budget:'The amendment’s location could not be determined.',
-  amendment_wording_unavailable:'The amendment wording is unavailable.',
-  unknown_reason:'The amendment’s location could not be determined.',
+  resolution_extent_uncertain:'Not shown in the text.',
+  resolution_end_unavailable:'Not shown in the text.',
+  insertion_reference_unavailable:'Not shown in the text.',
+  relative_target_not_found:'Not shown in the text.',
+  multiple_published_targets:'Not shown in the text.',
+  multiple_quoted_targets:'Not shown in the text.',
+  target_not_found:'Not shown in the text.',
+  source_passage_incomplete:'Not shown in the text.',
+  source_structure_unavailable:'Not shown in the text.',
+  proposal_note_scope_unavailable:'Not shown in the text.',
+  matching_budget:'Not shown in the text.',
+  amendment_wording_unavailable:'Wording unavailable.',
+  unknown_reason:'Not shown in the text.',
 }))test(`unresolved ${reason} explains the gap without implying a location`,async t=>{
   const data=overlayResponse({status:'unresolved',reason});
   if(reason==='amendment_wording_unavailable')data.amendment.variants[0].wordingStatus='unavailable';
@@ -643,7 +651,7 @@ test('Commission proposal replaces the report body for recorded CBAM amendments 
     assert(h.container.textContent.includes('Legal text © European Union'));
     const link=h.container.querySelector('.proposal-context-summary a');assert(link.href.includes('CELEX:52025PC0087'));
     assert.equal(link.textContent,'Commission proposal · COM(2025)0087 ↗');
-    assert.equal(h.container.querySelectorAll('.proposal-context-summary a').length,2);
+    assert.equal(h.container.querySelectorAll('.proposal-context-summary a').length,1);
     const block=h.container.querySelector('[data-amendment-block]');
     assert.equal(block.getAttribute('aria-label'),'Amendment '+selected);
     assert.equal(block.querySelector('h4').textContent,'Amendment '+selected);
@@ -724,7 +732,7 @@ test('proposal deletion includes instruction 21(a) and its quotation while keepi
 test('proposal unresolved math retains the diff at the top and renders unchanged equations safely',async t=>{
   const value=proposalContextResponse(report,amendment,list,8);value.placement={...value.placement,status:'unresolved',reason:'math_comparison_unavailable'};
   const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
-  assert.equal(h.container.querySelector('[role="status"]').textContent,'The equations could not be compared.');
+  assert.equal(h.container.querySelector('[role="status"]').textContent,'Not shown in the text.');
   assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,undefined);
   assert(h.container.querySelector('math'));assert.equal(h.container.querySelector('.proposal-context-text').firstElementChild.dataset.amendmentBlock,'true');
 });
@@ -734,7 +742,7 @@ test('a compound proposal note stays separate with its complete wording and scop
   variant.originalText='';variant.proposedText='(2a) Published provision1a.\n___________\n1a Published footnote.\n+ OJ: Retain the source instruction.';
   value.placement={status:'unresolved',operation:'insert',reason:'proposal_note_scope_unavailable',evidence:[]};
   const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
-  assert.equal(h.container.querySelector('[role="status"]').textContent,'The footnotes in this amendment could not be placed.');
+  assert.equal(h.container.querySelector('[role="status"]').textContent,'Not shown in the text.');
   assert.equal(wordingText(h.container,'proposed'),variant.proposedText);
   assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,0);
   assert.equal(h.container.querySelector('.proposal-context-text').firstElementChild.dataset.amendmentBlock,'true');
@@ -873,7 +881,7 @@ test('follow-up fallback reuses the reader language wording',async t=>{
 });
 for(const reason of ['absent-files','rejected-files'])test('verified reply without '+reason+' keeps a readable row',async t=>{
   const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:[followupItem('SP-one',[])],gaps:[{id:'SP-one',reason:'file-unavailable'}]}));await h.render({request:directAdopted,language:'en'});
-  const row=h.container.querySelector('.commission-followup');assert(row.textContent.includes('File unavailable here.'));assert.equal(row.querySelector('a'),null);assert.equal(h.container.querySelector('.commission-followups [role="status"]'),null);
+  const row=h.container.querySelector('.commission-followup');assert(row.textContent.includes('File unavailable.'));assert.equal(row.querySelector('a'),null);assert.equal(h.container.querySelector('.commission-followups [role="status"]'),null);
 });
 test('a failed linked reply keeps earlier usable replies without a retry control',async t=>{
   const h=await harness(t,()=>response(adopted),()=>({status:'partial',items:[followupItem()],gaps:[{id:'SP-two',reason:'lookup-failed'}]}));await h.render({request:directAdopted,language:'en'});
@@ -928,8 +936,8 @@ for(const [name,status,stale,refreshError] of [
   const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
   assert.equal(notices.includes('Some proposal content is unavailable.'),false,'a stale observation does not mean missing text');
   assert.doesNotMatch(notices.join(' '),/Partial text|Document files not loaded/);
-  assert.equal(notices.includes('Couldn’t update the proposal. Showing saved text.'),!!refreshError);
-  assert.equal(notices.includes('Showing saved proposal text.'),stale&&!refreshError);
+  assert.equal(notices.includes('Couldn’t update the proposal. Showing saved text.'),false);
+  assert.equal(notices.includes('Showing saved proposal text.'),false);
   assert(!h.container.textContent.includes('authoritative'));assert(!h.container.textContent.includes('consolidated'));
   assert(h.container.querySelector('[data-amendment-block] del'));
   assert.equal(h.container.querySelector('.document-context-document>.document-context-source:last-child').textContent,'Legal text © European Union.');
@@ -947,8 +955,7 @@ test('proposal content gaps name missing files without counting saved-text fresh
   ];
   const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
   const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
-  assert(notices.includes('Document files not loaded: 2.'));
-  assert(notices.includes('Document file limit reached.'));
+  assert(notices.includes('Some content unavailable.'));
   assert(h.container.querySelector('[data-amendment-block] del'),'readable text remains usable');
 });
 
@@ -958,8 +965,7 @@ test('an unresolved native annex ordinal is distinct from a missing source file'
   const original=structuredClone(value.baseline.gaps);
   const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
   const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
-  assert(notices.includes('Document files not loaded: 1.'));
-  assert(!notices.includes('Document files not loaded: 2.'));
+  assert(notices.includes('Some content unavailable.'));
   assert.equal(value.baseline.status,'partial');assert.deepEqual(value.baseline.gaps,original,'native source and legal-placement gaps remain literal');
   assert(h.container.querySelector('[data-amendment-block] del'));
 });
@@ -987,8 +993,7 @@ for(const [name,mutate] of [
       const node=h.container.querySelector(`[data-proposal-item="${item.kind}-${item.index}"] [data-source-paragraph="${paragraph.index}"]`);assert(node);if(!paragraph.objects.length)assert.equal(node.textContent,paragraph.text);
     }
     if(invalid){
-      assert.equal(h.container.querySelector('[role="status"]').textContent,'The amendment’s location could not be confirmed.');
-      assert(!h.container.textContent.includes('The published location and original wording do not agree.'));
+      assert.equal(h.container.querySelector('[role="status"]').textContent,'Not shown in the text.');
       assert.equal(h.container.querySelector('[data-amendment-block]').hasAttribute('tabindex'),false);
       assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
     }
@@ -1014,7 +1019,7 @@ for(const reason of ['conflicting_target_evidence','math_comparison_unavailable'
   delete value.target.evidence;
   const h=await harness(t,()=>value);
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
-  const copy={conflicting_target_evidence:'The published location and original wording do not agree.',math_comparison_unavailable:'The equations could not be compared.',source_passage_incomplete:'The source passage is incomplete.'};
+  const copy={conflicting_target_evidence:'Not shown in the text.',math_comparison_unavailable:'Not shown in the text.',source_passage_incomplete:'Not shown in the text.'};
   assert.equal(h.container.querySelector('[role="status"]').textContent,copy[reason]);
   assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,0);
   assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'));
@@ -1029,7 +1034,7 @@ test('an unknown selected wording language withholds otherwise valid Commission 
     assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,wordingLanguage?1:0);
     assert.equal([...h.container.querySelectorAll('button')].some(button=>button.textContent==='Go to amendment'),!!wordingLanguage);
     if(!wordingLanguage){
-      assert.equal(h.container.querySelector('[role="status"]').textContent,'The amendment’s location could not be confirmed.');
+      assert.equal(h.container.querySelector('[role="status"]').textContent,'Not shown in the text.');
       for(const item of value.proposal.items)for(const paragraph of item.proposal.paragraphs)assert(h.container.querySelector(`[data-proposal-item="${item.kind}-${item.index}"] [data-source-paragraph="${paragraph.index}"]`));
     }
   });
@@ -1052,7 +1057,7 @@ test('an exact adopted masthead omits its logo notice while body notes and links
   assert(!reader.textContent.includes('TEXTS ADOPTED'));assert(!reader.textContent.includes('P10_TA'));
   assert(reader.querySelector('[data-source-paragraph="8"] sup'));
   assert.equal(reader.querySelector('[data-source-paragraph="9"] a').textContent,'Calls');
-  assert(h.container.querySelector('.document-context-source a'));
+  assert.equal(h.container.querySelector('.document-context-source a'),null);
 });
 test('adopted readers retain missing-content notices for body, note, structure and non-logo cover gaps',async t=>{
   for(const variant of ['body-drawing','note-object','numbering-warning','missing-note','unknown-structure','invalid-position','missing-object','incomplete-body','incomplete-cover','cover-target'])await t.test(variant,async t=>{
@@ -1069,7 +1074,7 @@ test('adopted readers retain missing-content notices for body, note, structure a
     if(variant==='cover-target')targetExtra={amendment:amendmentSource,target:{...target,paragraphs:[2]}};
     const h=await harness(t,()=>response(id,sourceDocument(id,paragraphs,extra),targetExtra));
     await h.render({request:{documentId:id,view:'document',...(variant==='cover-target'?{amendmentId:amendment}:{})},language:'en'});
-    assert(h.container.textContent.includes('Some content is only available in the original document.'),variant);
+    assert(h.container.textContent.includes('Some content unavailable.'),variant);
     if(variant==='body-drawing'||variant==='cover-target')assert(h.container.textContent.includes('Image in original'));
   });
 });
@@ -1088,7 +1093,7 @@ test('unavailable wording opens the exact main-report amendment and keeps the co
   assert.equal(h.scrolls.at(-1).element,selected);assert.equal(h.window.document.activeElement,selected);
   assert(h.container.textContent.includes('Cover page.'));assert(h.container.textContent.includes('Another opinion comparison.'));
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0,'A source heading is not a verified overlay placement.');
-  assert(!h.container.textContent.includes('The amendment wording is unavailable.'));
+  assert(!h.container.textContent.includes('Wording unavailable.'));
   await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Go to amendment'));
   assert.equal(h.scrolls.at(-1).element,selected);
 });
@@ -1123,14 +1128,14 @@ for(const variant of ['wrong-list','wrong-document','opinion-only','duplicate','
   if(variant==='other-language')doc.selectedText.textLanguage='fr';
   const h=await harness(t,()=>fallbackResponse(doc));await h.render({request,language:'en'});
   assert.equal(h.container.querySelectorAll('[data-report-amendment]').length,0);assert.equal(h.scrolls.length,0);
-  assert(h.container.textContent.includes('The amendment wording is unavailable.'));
+  assert(h.container.textContent.includes('Wording unavailable.'));
 });
 
 test('title-case opinion headings cannot provide the main report amendment sequence',async t=>{
   const doc=reportFallbackText(['Cover page.','DRAFT EUROPEAN PARLIAMENT LEGISLATIVE RESOLUTION','No main comparison.','Opinion of the Committee on Development','Amendment 1','Opinion wording.','Amendment 2','More opinion wording.','PROCEDURE']);
   const h=await harness(t,()=>fallbackResponse(doc));await h.render({request:fallbackRequest,language:'en'});
   assert.equal(h.container.querySelectorAll('[data-report-amendment]').length,0);assert.equal(h.scrolls.length,0);
-  assert(h.container.textContent.includes('The amendment wording is unavailable.'));
+  assert(h.container.textContent.includes('Wording unavailable.'));
 });
 
 
@@ -1261,7 +1266,7 @@ test('report logo suppression retains real image, note and extraction gaps and r
     if(variant==='non-drawing')extra.documentObjects[0].kind='math';
     if(variant==='caption')paragraphs[0]+=' Figure caption';
     const h=await harness(t,()=>response(id,sourceDocument(id,paragraphs,extra)));await h.render({request:{documentId:id,view:'document'},language:'en'});
-    assert(h.container.textContent.includes('Some content is only available'));
+    assert(h.container.textContent.includes('Some content unavailable.'));
     assert.equal(h.container.querySelectorAll('.document-context-object').length,variant==='note-image'||variant==='warning'?0:1);
   });
 });

@@ -85,7 +85,7 @@ export function MemberVoteWording({documentId,amendmentId,language,openContext,s
   const ui = useUiI18n();
   const [selectedVersion,setSelectedVersion]=useState<string|null>(null);
   const query=new URLSearchParams({amendment:amendmentId,lang:language,body:'0'});
-  const response=useData<WordingResponse>('document-context/'+encodeURIComponent(documentId)+'?'+query);
+  const response=useData<WordingResponse>('document-context/'+encodeURIComponent(documentId)+'?'+query,{unavailable:'error.wording'});
   const data=(((response.data?.documentId===documentId) && (response.data.requestedLanguage===language)) && (response.data.amendment?.id===amendmentId)) ? response.data : null;
   const variants=Array.isArray(data?.amendment?.variants) ? data.amendment.variants.filter(variant=>variant&&typeof variant.listId==='string'&&variant.listId.trim()&&['available','unavailable'].includes(variant.wordingStatus)) : ([]);
   const options=variants.map((variant,index)=>({variant,key:JSON.stringify(variant),value:(variants.filter(other=>other.listId===variant.listId).length===1) ? variant.listId : ('version:'+index)}));
@@ -111,7 +111,7 @@ export function MemberVoteWording({documentId,amendmentId,language,openContext,s
         {typeof selected.targetLabel==='string'&&selected.targetLabel&&<><p className="member-votes-target-label" lang={targetLanguage||''}>{selected.targetLabel}</p></>}
         {(readable&&textLanguage||authors.length>0)&&<p className="member-votes-muted">{readable&&textLanguage&&ui.t("membervotes.tsx.text.language.language", {language: String(languageLabel(textLanguage,ui.locale))})}{authors.length>0&&<>{(readable && textLanguage) ? ' · ' : ''}<UiMessage id="membervotes.tsx.proposed.by.authors" values={{authors:<>{authors.map((author,index)=><span key={index}>{index ? ', ' : ''}<PersonName id={author.personId} label={author.name}/><RecordMemberAffiliation id={author.personId} language={language}/></span>)}</>}}/></>}</p>}
         {readable ? <div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff originalFormatting={selected.originalFormatting} proposedFormatting={selected.proposedFormatting} key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:ui.t("membervotes.tsx.original.wording"),proposed:ui.t("membervotes.tsx.proposed.wording"),emptyOriginal:'',emptyProposed:''}}/></div> : <p><UiMessage id="membervotes.tsx.amendment.wording.unavailable.here"/></p>}
-        {readable&&selected.wordingRetained&&<p className="member-votes-muted"><UiMessage id="membervotes.tsx.showing.saved.wording"/></p>}
+        
         <AmendmentJustification record={selected}/>
         <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,view:'document'})}><UiMessage id="membervotes.tsx.read.in.context"/></button>
       </>}
@@ -172,7 +172,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const requestedWeek=chooseLatest ? search.week : state.week;
   const requestedState={...state,week:requestedWeek};
   const route=useMemo(()=>{try{return memberVotesRoute(memberId,{...state,week:requestedWeek},language);}catch{return null;}},[memberId,requestedWeek,state.sittingId,state.positions,state.alignment,state.offset,state.decisionId,state.snapshotId,language]);
-  const request=useData<MemberVotesResponse>(route) as ReturnType<typeof useData<MemberVotesResponse>>&{status?:number};
+  const request=useData<MemberVotesResponse>(route,{unavailable:'error.records'}) as ReturnType<typeof useData<MemberVotesResponse>>&{status?:number};
   const valid=Boolean(request.data&&validateMemberVotesResponse(request.data,{memberId,state:requestedState}));
   const scope=JSON.stringify([memberId,language,requestedWeek,state.sittingId,state.positions,state.alignment,state.offset,state.snapshotId]);
   const retained=useRef<{scope:string;data:MemberVotesResponse}|null>(null);

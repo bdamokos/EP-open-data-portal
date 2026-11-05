@@ -63,7 +63,7 @@ export function ProfileMemberships({profile,lang,roleName,date,retry,onOrganizat
           return <section key={key}><h3>{title}</h3>{groupItems.length ? <ol>{groupItems.map(row)}</ol> : <p>{history.observationComplete ? <UiMessage id="ProfileMemberships.none_listed"/> : <UiMessage id="ProfileMemberships.membership_information_is_incomplete"/>}</p>}</section>;
         })}
         {(!history?.observationComplete||namesMissing)&&<p className="explorer-membership-gap">
-          {(history?.observationAvailable && (!history.observationComplete)) ? ui.t("ProfileMemberships.some_memberships_unavailable") : ''}
+          {(history?.observationAvailable && (!history.observationComplete)) ? ui.t("ProfileMemberships.some_memberships_unavailable")+' ' : ''}
           {namesMissing ? ui.t("ProfileMemberships.some_organisation_names_unavailable") : ''}
 
         </p>}

@@ -182,7 +182,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {document&&<header className="document-context-heading"><h3 lang={title?.language}>{title?.text}</h3></header>}
     <p className="document-context-notice"><UiMessage id="documentcontext.council.quotation"/></p>
     {amendmentBlock(false)}
-    {showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="proposalcontexttext.parliament.report"/></a></p>}
+
   </div>;
   // The agreement's own text, with Parliament's marks, replaces the report's text.
   if(provisional&&(agreement||agreementState.loading&&!agreementState.data))return <div className="document-context-document">
@@ -200,7 +200,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id, ui)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools">{hasText&&<FindInText key={id+':'+language} target={reader} label={ui.t("batch6.documentcontextreader.find.in.document.168")}/>}</div></header>}
     {provisional&&<p className="document-context-notice" role="status"><UiMessage id="amendment.replaces_whole_text"/> <a href={safeHref(provisionalSource?.sourceUrl)!} target="_blank" rel="noreferrer"><UiMessage id="amendment.agreement_text"/></a></p>}
     {state.loading&&!data&&<p role="status"><UiMessage id="batch5.amendments.tsx.188.20"/></p>}
-    {loadError&&!state.retrying&&<p className="document-context-notice" role="alert">{hasText ? ui.t("batch6.documentcontextreader.couldn.t.update.the.document.showing.saved.text.170") : (extractionError ? ui.t("batch6.documentcontextreader.document.text.could.not.be.loaded.170") : ui.t("batch6.documentcontextreader.document.could.not.be.loaded.170"))} </p>}
+    {loadError&&!state.retrying&&!hasText&&<p className="document-context-notice" role="alert">{extractionError ? ui.t("batch6.documentcontextreader.document.text.could.not.be.loaded.170") : ui.t("batch6.documentcontextreader.document.could.not.be.loaded.170")} </p>}
     {!state.loading&&!loadError&&!document&&<p><UiMessage id="batch6.documentcontextreader.document.unavailable.here.171"/></p>}
     {(!wording||hasText&&(!placement||scopeLanguageMismatch))&&<AmendmentJustification record={selectedVariant}/>}
     {rejection&&!hasText&&<p className="document-context-notice" role="status">{placementReason}</p>}
@@ -208,7 +208,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {document&&<>
       <TextLanguagePicker available={availableLanguages} requested={interfaceLanguage} value={actual} onChange={onLanguageChange} note={<TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/>}/>
       {id.startsWith('TA-')&&<CommissionFollowups id={id} language={language} interfaceLanguage={interfaceLanguage}/>}
-      {hasText&&!loadError&&(text?.stale||text?.refreshError)&&<p className="document-context-notice">{text?.refreshError ? <UiMessage id="batch6.documentcontextreader.couldn.t.update.the.document.showing.saved.text.170"/> : <UiMessage id="batch6.documentcontextreader.showing.saved.text.177"/>}</p>}
+      
       {hasText ? <>
         {!provisional&&amendmentRequest?.amendmentId&&((reportHeading!==null) ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : (placement ? ((placement.status==='not-applicable') ? null : (placed ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : <p className="document-context-notice" role="status">{placementReason}</p>)) : (found ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.passage.179"/></button>{target?.quoteMatches===false&&<p><UiMessage id="batch6.documentcontextreader.the.published.text.differs.from.the.amendment.s.quotation.179"/></p>}</div> : <p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.the.passage.this.amendment.changes.could.not.be.found.64"/></p>)))}
         {incomplete&&<p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.some.content.is.only.available.in.the.original.document.180"/></p>}
@@ -232,7 +232,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
             renderText={(sourceIndex,paragraph,from,to,final,marks)=><DocumentObjectText assets={text?.imageAssets} text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes assets={text?.imageAssets} notes={notes} prefix={notePrefix}/></div>
         </ReferenceScope>
       </> : (!state.loading&&!loadError&&<p><UiMessage id="batch6.documentcontextreader.document.text.unavailable.here.190"/></p>)}
-      <DocumentPages documentId={id} language={actual||language}/>{showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="batch6.documentcontextreader.open.original.document.191"/></a></p>}
+      <DocumentPages documentId={id} language={actual||language}/>{showOriginalLink&&sourceUrl&&!hasText&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="batch6.documentcontextreader.open.original.document.191"/></a></p>}
     </>}
   </div>;
 }
