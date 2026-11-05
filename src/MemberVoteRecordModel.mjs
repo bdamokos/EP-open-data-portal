@@ -34,7 +34,7 @@ export function validateMemberVoteRecordResponse(data,{memberId}={}) {
   const departures=data.departures;
   if(!object(departures)||!['all','final'].includes(departures.scope)||!integer(departures.offset)||
     !integer(departures.limit)||departures.limit>50||!integer(departures.total)||!Array.isArray(departures.items)||
-    departures.items.length>departures.limit||departures.offset+departures.items.length>departures.total)return false;
+    departures.items.length>departures.limit||departures.items.length>0&&departures.offset+departures.items.length>departures.total)return false;
   if(departures.nextOffset!==null&&(!integer(departures.nextOffset)||departures.nextOffset!==departures.offset+departures.items.length))return false;
   if(!departures.items.every(item=>object(item)&&/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(item.decisionId||'')&&
     sitting(item.sittingId)&&date(item.date)&&['all','final'].includes(item.scope)&&typeof item.wholeText==='boolean'&&

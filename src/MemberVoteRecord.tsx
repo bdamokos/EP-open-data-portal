@@ -87,7 +87,7 @@ function Departures({data,memberId,onOffset,onOpenDecision}:{data:MemberVoteReco
       }}>{item.text||ui.t('membervoterecord.departures.untitled')}</a>
       <small>{dateLabel(item.date,ui.locale)} · <UiMessage id="membervoterecord.departures.line" values={{position:positionLabel(item.position,ui),line:positionLabel(item.line,ui)}}/></small>
     </li>)}</ol>}
-    {Boolean(departures.total)&&<p className="member-vote-record-muted"><UiMessage id="membervoterecord.departures.range" values={{start:departures.offset+1,end:departures.offset+departures.items.length,total:departures.total}}/></p>}
+    {departures.items.length>0&&<p className="member-vote-record-muted"><UiMessage id="membervoterecord.departures.range" values={{start:departures.offset+1,end:departures.offset+departures.items.length,total:departures.total}}/></p>}
     <div className="member-vote-record-departure-actions">
       {departures.offset>0&&<button type="button" onClick={()=>onOffset(0)}><UiMessage id="membervoterecord.departures.first"/></button>}
       {departures.nextOffset!==null&&<button type="button" onClick={()=>onOffset(departures.nextOffset??0)}><UiMessage id="membervoterecord.departures.more"/></button>}

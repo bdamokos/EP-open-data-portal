@@ -91,3 +91,8 @@ test('shares round to one decimal without inventing a value for a gap',()=>{
   assert.equal(recordShare(0.12356),12.4);assert.equal(recordShare(1),100);assert.equal(recordShare(0),0);
   assert.equal(recordShare(null),null);assert.equal(recordShare(undefined),null);assert.equal(recordShare(NaN),null);
 });
+
+test('a pasted offset past the last departure is a valid empty page',()=>{
+  const data=response({departures:{...response().departures,offset:10,items:[],total:1,nextOffset:null}});
+  assert.equal(validateMemberVoteRecordResponse(data,{memberId:MEMBER}),true);
+});
