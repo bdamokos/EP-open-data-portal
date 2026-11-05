@@ -43,8 +43,8 @@ function Name({person,language}:{person:GroupVoicePerson;language:string}){
 function ActivityStrip({days,buckets,max,language,className=''}:{days:Record<string,number>|undefined;buckets:ActivityBuckets;max:number;language:string;className?:string}){
   const ui = useUiI18n();
   const counts=activityCounts(days,buckets),label=(key:string)=>bucketLabel(key,buckets.unit,language);
-  const described=buckets.keys.map((key,i)=>[key,counts[i]] as const).filter(([,n])=>n>0).map(([key,n])=>ui.t('groupvoices.date_count.692412',{date:label(key),count:n.toLocaleString(language)})).join(', ');
-  return <span className={'gv-strip '+className} role="img" aria-label={ui.t(buckets.unit==='day'?'groupvoices.contributions_by_sitting_day.77a719':'groupvoices.contributions_by_month.0ca3ec')+': '+(described||'0')}>{buckets.keys.map((key,i)=><i key={key} data-level={activityLevel(counts[i],max)} title={ui.t('groupvoices.date_count.692412',{date:label(key),count:counts[i].toLocaleString(language)})}/>)}</span>;
+  const described=buckets.keys.map((key,i)=>[key,counts[i]] as const).filter(([,n])=>n>0).map(([key,n])=>ui.t('Participation.trendValue',{date:label(key),count:n.toLocaleString(language)})).join(', ');
+  return <span className={'gv-strip '+className} role="img" aria-label={ui.t(buckets.unit==='day'?'groupvoices.contributions_by_sitting_day.77a719':'groupvoices.contributions_by_month.0ca3ec')+': '+(described||'0')}>{buckets.keys.map((key,i)=><i key={key} data-level={activityLevel(counts[i],max)} title={ui.t('Participation.trendValue',{date:label(key),count:counts[i].toLocaleString(language)})}/>)}</span>;
 }
 function StripAxis({buckets,language}:{buckets:ActivityBuckets;language:string}){
   const first=buckets.keys[0],last=buckets.keys.at(-1);

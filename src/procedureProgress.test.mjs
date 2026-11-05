@@ -73,7 +73,7 @@ test('progress is independent, preserves exact selection and lazy readable docum
   assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,2,'reopening stale details bypasses the saved browser response');
   assert.match(details.textContent,/Commission proposal/,'saved links stay visible during the retry');
   await act(async()=>answerDocuments(Response.json({...documentData,source:{...source,stale:true,refreshError:'Source unavailable'}})));
-  assert.match(details.textContent,/Couldn’t check for updates\./);
+  assert.match(details.textContent,/Could not check for updates\./);
   await act(async()=>{details.open=false;details.dispatchEvent(new window.Event('toggle'));});
   await act(async()=>{details.open=true;details.dispatchEvent(new window.Event('toggle'));});
   assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,3,'reopening saved details makes a new bounded read');

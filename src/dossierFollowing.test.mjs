@@ -85,7 +85,7 @@ test('a failed dossier source check offers a retry that recovers before the auto
   await act(async()=>{window.dispatchEvent(new window.Event('focus'));document.dispatchEvent(new window.Event('visibilitychange'));});await h.flush();assert.equal(progressReads(),before,'foreground events cannot turn a failed read into a six-hour no-op success');
   h.fail(false);await automaticRecovery(t);
   assert.equal(progressReads(),before+1,'retry forces the source read inside the automatic interval');
-  assert.doesNotMatch(h.container.textContent,/Some sources couldn't be checked|Retry/);
+  assert.doesNotMatch(h.container.textContent,/Some sources could not be checked|Retry/);
 });
 
 for(const targeted of [false,true])test('adding a dossier cannot settle another failed source '+targeted,async t=>{

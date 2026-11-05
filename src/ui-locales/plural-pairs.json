@@ -40,23 +40,8 @@
     "count": "count"
   },
   {
-    "one": "batch2.membervotes.tsx.count.decision.partial.coverage",
-    "other": "batch2.membervotes.tsx.count.decisions.partial.coverage",
-    "count": "count"
-  },
-  {
     "one": "batch2.membervotes.tsx.count.decision.recordedcount.with.a.recorded.position",
     "other": "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position",
-    "count": "count"
-  },
-  {
-    "one": "batch2.membervotes.tsx.count.decision.recordedcount.with.a.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage",
-    "count": "count"
-  },
-  {
-    "one": "batch2.membervotes.tsx.count.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.count.recorded.positions.partial.coverage",
     "count": "count"
   },
   {
@@ -65,18 +50,8 @@
     "count": "count"
   },
   {
-    "one": "batch2.membervotes.tsx.count.recorded.position.recordedcount.with.a.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage",
-    "count": "count"
-  },
-  {
     "one": "batch2.membervotes.tsx.start.end.of.total.decision",
     "other": "batch2.membervotes.tsx.start.end.of.total.decisions",
-    "count": "total"
-  },
-  {
-    "one": "batch2.membervotes.tsx.start.end.of.total.decision.partial.coverage",
-    "other": "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage",
     "count": "total"
   },
   {
@@ -85,28 +60,13 @@
     "count": "total"
   },
   {
-    "one": "batch2.membervotes.tsx.start.end.of.total.decision.recordedcount.with.a.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage",
-    "count": "total"
-  },
-  {
     "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position",
     "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions",
     "count": "total"
   },
   {
-    "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage",
-    "count": "total"
-  },
-  {
     "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position.recordedcount.with.a.recorded.position",
     "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position",
-    "count": "total"
-  },
-  {
-    "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position.recordedcount.with.a.recorded.position.partial.coverage",
-    "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage",
     "count": "total"
   },
   {
@@ -292,16 +252,6 @@
   {
     "one": "topictrends.count_topic_with_metric_in_this_selection_showing_shown.c3b231",
     "other": "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c",
-    "count": "count"
-  },
-  {
-    "one": "textsearch.count_matching_question_coverage",
-    "other": "textsearch.count_matching_questions_coverage",
-    "count": "count"
-  },
-  {
-    "one": "textsearch.count_matching_document_coverage",
-    "other": "textsearch.count_matching_documents_coverage",
     "count": "count"
   },
   {

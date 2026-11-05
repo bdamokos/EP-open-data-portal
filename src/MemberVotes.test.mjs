@@ -990,7 +990,7 @@ test('attendance starts only after valid votes settle and failures leave votes a
   const route=new URL(attendanceCalls[0],'http://localhost');assert.equal(route.searchParams.get('sittings'),SITTING);assert.equal(route.searchParams.has('snapshot'),false);
   assert.match(visiblePane(h.container).textContent,/Synthetic subject/);assert.equal(button(h.container,'Next page').disabled,false);
   await act(async()=>releaseAttendance());
-  assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/Attendance couldn’t be loaded|Loading attendance register/);
+  assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/Attendance could not be loaded|Loading attendance register/);
   assert.equal(button(h.container,'Retry attendance'),undefined);
   assert.equal(h.container.querySelector('[role="alert"]'),null);assert.equal(button(h.container,'Next page').disabled,false);
   await h.click('Next page');assert.equal(h.state.offset,1);assert.equal(h.state.snapshotId,SNAPSHOT);
@@ -1088,7 +1088,7 @@ for(const detail of [false])for(const failure of ['http','network','invalid'])te
    return failure==='http'?Response.json({error:{code:'not_found'}},{status:404}):Response.json({version:0});
  }});
  const attendance=()=>h.container.querySelector(detail?'.member-votes-attendance':'.member-votes-attendance-line');
- assert.match(attendance().textContent,/Attendance couldn’t be loaded|Loading attendance register/);
+ assert.match(attendance().textContent,/Attendance could not be loaded|Loading attendance register/);
  assert.doesNotMatch(attendance().textContent,/unavailable|not yet published/);
  if(failure!=='network'){assert.equal(attempts,1);assert.equal(button(h.container,'Retry attendance'),undefined);return;}
  await automaticRecovery(t);

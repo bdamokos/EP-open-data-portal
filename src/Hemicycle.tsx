@@ -72,15 +72,15 @@ export function Hemicycle(props:InsightProps) {
         <div className="insight-chart-switch" role="group" aria-label={ui.t('hemicycle.chamber')}>
           {chambers.map(item=><button key={item} type="button" aria-pressed={chamber===item} onClick={()=>{setChamber(item);setPicked(null);}}><UiMessage id={`hemicycle.chamber.${item}`}/></button>)}
         </div>
-        {plan?.sourceDate&&<p><UiMessage id="hemicycle.planDate" values={{date:formatDate(plan.sourceDate,language)}}/> · <SourceLink url={plan.sourcePageUrl} language={language}><UiMessage id="hemicycle.source"/></SourceLink></p>}
+        {plan?.sourceDate&&<p><UiMessage id="hemicycle.planDate" values={{date:formatDate(plan.sourceDate,language)}}/> · <SourceLink url={plan.sourcePageUrl} language={language}><UiMessage id="dossieractivity.source"/></SourceLink></p>}
       </div>
       <div className="hemicycle-filters">
         <label><UiMessage id="hemicycle.searchLabel"/><input type="search" value={query} onChange={event=>setQuery(event.target.value)}/></label>
         <CountryFilter country={country} onChange={setCountry} language={language}/>
       </div>
       {!plan?<InsightStatus loading={state.loading} error={state.error?ui.t('hemicycle.unavailable'):null} retry={state.retry} loadingMessage={ui.t('hemicycle.loading')}/>:<>
-        <div className="hemicycle-groups" role="group" aria-label={ui.t('hemicycle.groups')}>
-          <button type="button" aria-pressed={!group} onClick={()=>setGroup(null)}><UiMessage id="hemicycle.allGroups"/></button>
+        <div className="hemicycle-groups" role="group" aria-label={ui.t('insightshared.political_groups')}>
+          <button type="button" aria-pressed={!group} onClick={()=>setGroup(null)}><UiMessage id="dossieractivity.all"/></button>
           {counts.map(({group:code,count})=><button key={code} type="button" aria-pressed={group===code} onClick={()=>setGroup(group===code?null:code)}>
             <span className="hemicycle-swatch" style={{background:groupColor(code)}} aria-hidden="true"/>{groupLabel(code,ui)} <span className="hemicycle-count">{count}</span>
           </button>)}

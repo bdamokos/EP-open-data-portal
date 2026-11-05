@@ -49,7 +49,7 @@ test('fixture votes and attendance render identical list and detail markup from 
         state:{...defaultMemberVotesState,week:null,sittingId:SNAPSHOT_SITTING,snapshotId:data.votes.snapshotId,decisionId},onStateChange:()=>{},renderContext:()=>null})));
       if(!decisionId)assert.match(container.textContent,/Listed as present|listed present/);
       assert.match(container.textContent,/Test member voted For/);
-      assert.doesNotMatch(container.textContent,/couldn.t be loaded/);
+      assert.doesNotMatch(container.textContent,/could(n.t| not) be loaded/);
       assert(voteReads>before);
       // React allocates new opaque control IDs for each mounted root.
       const ids=new Map();
