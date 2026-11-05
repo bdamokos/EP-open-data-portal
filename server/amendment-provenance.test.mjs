@@ -188,19 +188,20 @@ test('a retained target label and its derived topic stay aligned after a store m
 
 
 test('displayable historical wording survives reads and rebuilds while reparsing remains queued',t=>{
-  for(const version of ['10','20','25','9']) {
+  for(const version of ['10','20','25','9','28','010','25a',25,null,'','1e1',' 10']) {
+    const allowed=['10','20','25'].includes(version);
     const {store,worker,generation,metadata,at}=fixture(t),work=metadata(list1,'en');
     const source={url:url(list1,'en'),fetchedAt:at(),language:'en'};
     const amendment={number:1,date,authors:[],baseline:'commission-proposal',targetLabel:'Article 1',originalText:'Original',proposedText:'Proposal',language:'en',gaps:[]};
-    store.putSource(generation,'amendment:list:'+list1,'amendment-list',{...work,extraction:{amendments:[amendment],gaps:[],parserVersion:version,sourceDescriptor:currentDocxDescriptor(work),language:'en',sourceUrl:source.url,fetchedAt:at()}},at());
+    store.putSource(generation,'amendment:list:'+list1,'amendment-list',{...work,extraction:{amendments:[amendment],gaps:[],parserVersion:version,previousParserVersion:'19',sourceDescriptor:currentDocxDescriptor(work),language:'en',sourceUrl:source.url,fetchedAt:at()}},at());
     rebuildAmendmentTarget(worker,generation,target);
     const [row]=amendmentsPage(store,{document:target}).items;
-    assert.equal(row.originalText,version==='9'?null:'Original');
-    assert.equal(row.proposedText,version==='9'?null:'Proposal');
+    assert.equal(row.originalText,!allowed?null:'Original');
+    assert.equal(row.proposedText,!allowed?null:'Proposal');
     assert.equal(row.textParserVersion,version);
-    if(version!=='9'){assert.equal(row.wordingRetained,false);assert.equal(row.sourceFreshness.status,'fresh');}
-    assert.equal(row.gaps.some(gap=>gap.includes('until the current document parser')),version==='9');
-    assert.equal(store.db.prepare('SELECT wording FROM amendment_read_flags WHERE generation=? AND id=?').get(generation,row.id).wording,version==='9'?1:0);
+    if(allowed){assert.equal(row.wordingRetained,false);assert.equal(row.sourceFreshness.status,'fresh');}
+    assert.equal(row.gaps.some(gap=>gap.includes('until the current document parser')),!allowed);
+    assert.equal(store.db.prepare('SELECT wording FROM amendment_read_flags WHERE generation=? AND id=?').get(generation,row.id).wording,!allowed?1:0);
     prepareAmendmentParserUpgrade(worker,generation);
     assert(store.db.prepare("SELECT 1 FROM amendment_jobs WHERE generation=? AND kind='amendment-parser-upgrade' AND done=0").get(generation));
     assert.equal(store.source(generation,'amendment:list:'+list1).work.extraction.parserVersion,version);
@@ -216,4 +217,41 @@ test('mixed parser variants are checked independently and incomplete integrity s
   assert.deepEqual(read.variants.map(v=>v.originalText),['Original',null,null]);
   assert.equal(read.originalText,null);
   assert.equal(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,row.id).body,raw);
+});
+
+
+test('a refused parser upgrade cannot relabel historical wording as current',async t=>{
+  const {store,worker,generation,metadata,refresh,at}=fixture(t),work=metadata(list1,'en');
+  store.putSource(generation,'amendment:list:'+list1,'amendment-list',{...work,extraction:{parserVersion:'20',previousParserVersion:'19',language:'en',sourceUrl:url(list1,'en'),fetchedAt:at(),sourceDescriptor:currentDocxDescriptor(work),gaps:[],amendments:[{number:1,date,authors:[],targetLabel:'Article 1',originalText:'Old parser fragment A',proposedText:'Old parser fragment B',language:'en',gaps:[]}]}},at());
+  rebuildAmendmentTarget(worker,generation,target);
+  assert.equal(amendmentsPage(store,{document:target}).items[0].originalText,'Old parser fragment A');
+  await refresh(list1,{gridLoss:true});
+  const [row]=amendmentsPage(store,{document:target}).items;
+  assert.equal(row.originalText,null);assert.equal(row.proposedText,null);
+  assert.equal(row.textIntegrity,'incomplete');assert.equal(row.wordingRetained,false);
+  assert.equal(row.textParserVersion,AMENDMENT_EXTRACTION_VERSION);
+  assert(!row.gaps.some(gap=>gap.includes('Vertical formatting')));
+});
+
+test('withheld reads preserve their actual reason without inventing vertical formatting loss',t=>{
+  const {store,generation}=fixture(t),upgrade='Amendment wording is unverified until the current document parser refreshes its source.';
+  for(const [version,gap] of [[AMENDMENT_EXTRACTION_VERSION,'A comparison grid is incomplete.'],['25',upgrade]]) {
+    const row={id:target+'-AM-1',targetDocumentId:target,listId:list1,number:1,textParserVersion:version,textIntegrity:'incomplete',originalText:null,proposedText:null,originalFormatting:[],proposedFormatting:[],authors:[],decisions:[],gaps:[gap]};
+    store.db.prepare('INSERT OR REPLACE INTO amendments VALUES (?,?,?,?,?,?)').run(generation,row.id,target,date,'unavailable',JSON.stringify(row));
+    const [read]=amendmentsPage(store,{document:target}).items;
+    assert.equal(read.originalText,null);assert(read.gaps.includes(gap));assert(!read.gaps.some(g=>g.includes('Vertical formatting')));
+  }
+});
+
+test('rebuilding mixed historical variants uses each list extraction version',t=>{
+  const {store,worker,generation,metadata,at}=fixture(t);
+  for(const [id,version,language] of [[list1,'20','en'],[list2,'25','fr']]) {
+    const work=metadata(id,language);
+    const amendment={number:1,date,authors:[],baseline:'commission-proposal',targetLabel:'Article 1',originalText:'Original '+version,proposedText:'Proposal '+version,language,gaps:[]};
+    store.putSource(generation,'amendment:list:'+id,'amendment-list',{...work,extraction:{amendments:[amendment],gaps:[],parserVersion:version,previousParserVersion:String(Number(version)-1),sourceDescriptor:currentDocxDescriptor(work),language,sourceUrl:url(id,language),fetchedAt:at()}},at());
+  }
+  rebuildAmendmentTarget(worker,generation,target);
+  const [row]=amendmentsPage(store,{document:target}).items;
+  assert.equal(row.originalText,null);assert.equal(row.conflicted,true);
+  assert.deepEqual(row.variants.map(v=>[v.textParserVersion,v.originalText]).sort(),[['20','Original 20'],['25','Original 25']]);
 });

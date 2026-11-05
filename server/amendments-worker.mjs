@@ -222,7 +222,7 @@ function mergeExtractionRefresh(old,extraction,source,fallbackDate) {
       row.gaps.push({code:'target-retained',number:row.number,message:'Previously accepted target location is retained because the fresh source has no target location.'});
     }
     const damaged=amendmentTextLosses(extraction,amendment).length||typeof amendment.originalText!=='string'||typeof amendment.proposedText!=='string';
-    if(damaged&&verifiedWording(old,accepted)) {
+    if(damaged&&compatible&&verifiedWording(old,accepted)) {
       row.originalText=accepted.originalText;row.proposedText=accepted.proposedText;
       row.originalFormatting=accepted.originalFormatting || [];row.proposedFormatting=accepted.proposedFormatting || [];
       row.wordingSource=accepted.wordingSource || oldSource;row.wordingRetained=true;
@@ -716,6 +716,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   if(linked.unavailable)gaps.push('Some linked amendment-list records have no usable exact EP document reference.');
   for(const listId of linked.unresolved)gaps.push('Linked amendment list '+listId+' is awaiting exact document-detail verification.');
   if(!lists.length)gaps.push('No published amendment list is indexed for this target.');
+  const textParserVersions=Object.fromEntries(lists.map(({work:list})=>[idOf(list),list.extraction?.parserVersion]));
   const invalidatedTextListIds=lists.filter(({work:list})=>list.extraction?.previousParserVersion&&list.extraction.previousParserVersion!==AMENDMENT_EXTRACTION_VERSION).map(({work})=>idOf(work));
   for(const {work:list,current} of lists) {
     const listNameContexts=new Map();
@@ -833,7 +834,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   }
   if([...rows.values()].some(row=>row.gaps.some(gap=>gap!=='Split descriptions are parsed as selection plans; exact wording spans have not been validated.')))gaps.push('Some amendment records have incomplete text, authorship, identity or outcome evidence.');
   const uniqueGaps=[...new Set(gaps)];
-  saveAmendmentRows(store,generation,target,[...rows.values()],{complete:!uniqueGaps.length&&rows.size>0,gaps:uniqueGaps,lastUpdated:new Date(worker.clock()).toISOString(),parserVersion:SPLIT_PARSER_VERSION},{observedDecisionIds:[...observed],freshSplitParts:[...freshSplitParts.values()],invalidatedTextListIds,textParserVersion:AMENDMENT_EXTRACTION_VERSION,currentListIds,listRelationshipsKnown:relationshipsKnown});
+  saveAmendmentRows(store,generation,target,[...rows.values()],{complete:!uniqueGaps.length&&rows.size>0,gaps:uniqueGaps,lastUpdated:new Date(worker.clock()).toISOString(),parserVersion:SPLIT_PARSER_VERSION},{observedDecisionIds:[...observed],freshSplitParts:[...freshSplitParts.values()],invalidatedTextListIds,textParserVersion:AMENDMENT_EXTRACTION_VERSION,textParserVersions,currentListIds,listRelationshipsKnown:relationshipsKnown});
 }
 async function downloadVotingXml(url,{signal}={}) {
   signal?.throwIfAborted();

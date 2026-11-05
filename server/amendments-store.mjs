@@ -44,11 +44,14 @@ function checkedAmendmentRead(record) {
     row.originalText=null;row.proposedText=null;row.originalFormatting=[];row.proposedFormatting=[];row.textIntegrity='incomplete';row.wordingRetained=false;
     row.gaps=[...new Set([...row.gaps,wordingUpgradeGap])];
   }
-  if(displayableAmendmentVersion(record.textParserVersion))row.gaps=row.gaps.filter(gap=>gap!==wordingUpgradeGap);
-  if(row.textIntegrity==='incomplete'||!validAmendmentFormatting(row)) {
+  if(!validAmendmentFormatting(row)) {
     row.originalText=null;row.proposedText=null;row.originalFormatting=[];row.proposedFormatting=[];row.textIntegrity='incomplete';row.wordingRetained=false;
     row.gaps=[...new Set([...row.gaps,'Vertical formatting cannot be tied to exact wording offsets; its wording is withheld.'])];
   }
+  if(row.textIntegrity==='incomplete') {
+    row.originalText=null;row.proposedText=null;row.originalFormatting=[];row.proposedFormatting=[];row.wordingRetained=false;
+  }
+  if(displayableAmendmentVersion(record.textParserVersion)&&typeof row.originalText==='string'&&typeof row.proposedText==='string')row.gaps=row.gaps.filter(gap=>gap!==wordingUpgradeGap);
   if(record.listId || typeof record.originalText==='string' || typeof record.proposedText==='string') {
     row.sourceFreshness=record.sourceFreshness?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION?record.sourceFreshness:{...(record.sourceFreshness || {descriptor:null,sourceDescriptor:null}),version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,status:'unverified',distributionState:'unknown'};
     if(row.sourceFreshness.status!=='fresh') {
@@ -270,7 +273,7 @@ export function recordSplitResults(store,result) {
     store.db.prepare('INSERT OR REPLACE INTO amendment_split_failures VALUES (?,?,?,?)').run(requestKey,registryPartKey,language,JSON.stringify(body));
   }
 }
-export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[],freshSplitParts=[],invalidatedTextListIds=[],textParserVersion=null,currentListIds=null,listRelationshipsKnown=null}={}) {
+export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[],freshSplitParts=[],invalidatedTextListIds=[],textParserVersion=null,textParserVersions=null,currentListIds=null,listRelationshipsKnown=null}={}) {
   store.transaction(()=>{
     store.assertWriter();
     const prior=store.db.prepare('SELECT id,date,outcome FROM amendments WHERE generation=? AND target=?').all(generation,target.id);
@@ -279,7 +282,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
     const observed=new Set(observedDecisionIds);
     const invalidatedLists=new Set(invalidatedTextListIds),currentLists=currentListIds===null?null:new Set(currentListIds);
     const freshParts=new Map(freshSplitParts.map(part=>[part.id,part]));
-    const invalidBaseline=row=>invalidatedLists.has(row.listId)&&row.textParserVersion!==textParserVersion;
+    const invalidBaseline=row=>invalidatedLists.has(row.listId)&&row.textParserVersion!==(textParserVersions?.[row.listId] ?? textParserVersion);
     const extraGaps=new Set();
     let retained=false;
     // Copying a generation preserves accepted components. A missing list,
