@@ -37,7 +37,7 @@ test('player controls, unavailable states and parent-frame text stay English und
     await h.click(actions[0]);
     assert.equal(h.calls.length,1);assert.equal(h.calls[0].searchParams.get('lang'),locale);
     assert.equal(effective(h.container.querySelector('.explorer-notice strong')),'en');
-    assert.equal(h.container.querySelector('.explorer-notice p').textContent,'Requested fixture audio is unavailable.');
+    assert.equal(h.container.querySelector('.explorer-notice p'),null,'a server reason is not shown');
     assert.equal(h.container.querySelector('iframe'),null,'unavailable audio does not open a player');
     const mapping={schemaVersion:1,channels:[{slot:0,language:'or',providerCode:'qaa'}],source:{recordingId:'isolated-frame'}};
     await h.render(createElement(ParliamentFrame,{src:'http://localhost/isolated-frame',speechId:speech.id,lang:locale,audio:'or',original:true,mapping}));

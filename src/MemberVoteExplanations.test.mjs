@@ -46,7 +46,7 @@ test('a final vote loads metadata first, then reads the explanation and video in
   assert.match(view.container.textContent,/English unavailable · showing French/);assert.match(view.container.textContent,/Machine translation/);
   assert.equal(view.calls.some(call=>call.url.includes('speech-media/')),false);
   await view.click('Video');assert(view.calls.some(call=>call.url.includes('speech-media/')));
-  assert.match(view.container.textContent,/Recording unavailable/);
+  assert.match(view.container.textContent,/Video unavailable/);assert.doesNotMatch(view.container.textContent,/Recording unavailable/);
   await view.click('Close oral explanation');assert.equal(view.container.querySelector('[aria-label="Speech video"]'),null);
 });
 
