@@ -1,0 +1,20 @@
+.vote-seats{margin-top:1.25rem}
+.vote-seats-chart{margin:0}
+.vote-seats-chart svg{display:block;width:100%;height:auto;touch-action:manipulation}
+.vote-seats-chart circle[role=button]{cursor:pointer;outline:none}
+.vote-seats-chart circle[role=button]:focus-visible{stroke:var(--focus);stroke-width:3px;paint-order:stroke}
+.vote-seats-chart circle[data-dimmed=true]{opacity:.18}
+.vote-seat-selected{fill:none;stroke:var(--ink);pointer-events:none}
+.vote-seat-info{min-height:3em;margin-top:.5rem;color:var(--ink);font-size:.95rem}
+.vote-seat-unseated{margin-top:.75rem}
+.vote-seat-dots-row{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.25rem 0}
+.vote-seat-dots-label{min-width:7rem;font-size:.9rem}
+.vote-seat-dots-label.vote-for,.vote-seat-dots i.vote-for{color:var(--vote-for);background:none}
+.vote-seat-dots{display:flex;flex-wrap:wrap;gap:3px}
+.vote-seat-dots i{display:block;width:8px;height:8px;border-radius:50%}
+.vote-seat-dots i.vote-for{background:var(--vote-for)}
+.vote-seat-dots i.vote-against{background:var(--vote-against)}
+.vote-seat-dots i.vote-abstaining{background:var(--vote-abstain)}
+.vote-seat-dots-label.vote-against{color:var(--vote-against)}
+.vote-seat-dots-label.vote-abstaining{color:var(--vote-abstain)}
+.vote-seats-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}

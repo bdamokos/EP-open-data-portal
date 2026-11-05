@@ -17,7 +17,7 @@ import {summaryStage,compoundLanguage} from './terms.mjs';
 export type OfficialTopic={id:string;label:string;language:string};
 type Context={reference:string;title:string;language:string;summaries:{id:string;stage:string;date:string|null}[];summary:null|{id:string;stage:string;date:string;blocks:{kind:string;text:string}[];method:string|null;source:{url:string}};subjects:{code:string;label:string}[];topics:OfficialTopic[];source:{url:string}};
 
-export function ProcedureContext({reference,language='en',onTopic,showTitle=false,showIdentity=true,initialSummary='',children,fallbackTitle}:{reference:string;language?:string;onTopic?:(topic:OfficialTopic)=>void;showTitle?:boolean;showIdentity?:boolean;initialSummary?:string;children?:ReactNode;fallbackTitle?:{title:string;titleLanguage:string|null}|null}) {
+export function ProcedureContext({reference,language='en',onTopic,showTitle=false,showIdentity=true,showFollow=true,initialSummary='',children,fallbackTitle}:{reference:string;language?:string;onTopic?:(topic:OfficialTopic)=>void;showTitle?:boolean;showIdentity?:boolean;showFollow?:boolean;initialSummary?:string;children?:ReactNode;fallbackTitle?:{title:string;titleLanguage:string|null}|null}) {
   const ui = useUiI18n();
   const [summary,setSummary]=useState(initialSummary),[expanded,setExpanded]=useState(false),summaryText=useRef<HTMLDivElement>(null);
   useEffect(()=>{setSummary(initialSummary);setExpanded(false);},[reference,initialSummary]);
@@ -26,7 +26,7 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
   const title=data ? ({title:data.title,titleLanguage:data.language}) : fallbackTitle;
   const identity=showIdentity&&<div className="insight-dossier-title">
     {showTitle&&title&&<h2 lang={title.titleLanguage??''}>{title.title}</h2>}
-    <div className="dossier-identity-row"><p lang="">{reference}</p>{(!showTitle||!loading)&&<FollowDossierButton reference={reference} title={title?.title} titleLanguage={title?.titleLanguage}/>}</div>
+    <div className="dossier-identity-row"><p lang="">{reference}</p>{showFollow&&(!showTitle||!loading)&&<FollowDossierButton reference={reference} title={title?.title} titleLanguage={title?.titleLanguage}/>}</div>
   </div>;
   const press=<PressMentions key={'press:'+reference+':'+language} reference={reference} language={language} limit={showTitle ? 5 : 3}/>;
   const amendmentLink=<AmendmentTrailLink procedure={reference} language={language}><UiMessage id="batch5.procedurecontext.tsx.27.68"/></AmendmentTrailLink>;
