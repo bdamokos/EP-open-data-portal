@@ -131,3 +131,14 @@ test('procedure reference needs exactly one year-number id', () => {
 test('home country list has 27 distinct codes', () => {
   assert.equal(new Set(HOME_COUNTRIES).size, 27);
 });
+
+test('every existing deep link stays outside Home and the directory view keeps the wall filters', async () => {
+  const {publicExplorerView,memberWallView} = await import('./publicFeatures.ts').catch(() => import('./publicFeatures.mjs'));
+  for (const view of ['legislation','questions','geopolitics','outside','groups','hemicycle','saved','meps']) {
+    assert.equal(publicExplorerView(view), view);
+    assert.equal(isHomeQuery(query('view=' + view)), false);
+  }
+  assert.equal(memberWallView('meps'), true);
+  assert.equal(memberWallView(null), true);
+  assert.equal(memberWallView('legislation'), false);
+});

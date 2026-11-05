@@ -2396,5 +2396,7 @@
   "home.entry.questions": "Questions: what members ask the Commission and Council.",
   "home.entry.geopolitics": "Geopolitics: the places and topics behind the questions.",
   "home.entry.hemicycle": "Hemicycle: every seat, and how it voted.",
-  "home.entry.title": "Explore"
+  "home.entry.title": "Explore",
+  "home.votes.divergent": "{count} members voted against their group's majority.",
+  "home.votes.divergentOne": "{count} member voted against their group's majority."
 }

@@ -137,12 +137,13 @@ function HomeVotes({language,today,week}:{language:string;today:string;week:stri
 
 type HomePickData={rule:string;vote:VoteSummary;totals:{for:number;against:number;abstaining:number}};
 function HomePick({pick,topicId,language}:{pick:HomePickData;topicId:string;language:string}) {
+  const ui=useUiI18n();
   const vote=pick.vote,totals=pick.totals,inVoting=totals.for+totals.against+totals.abstaining;
   return <article className="home-pick">
     <h3><UiMessage id={'home.votes.pick.'+pick.rule}/></h3>
     <p className="home-pick-meta"><time lang='' dateTime={vote.date}>{humanDate(vote.date,language)}</time></p>
     {topicId&&vote.title&&<p className="home-pick-link"><a href={recordHref(topicId)+'&agenda-vote='+encodeURIComponent(vote.id)} onClick={dossierLinkClick}><span lang="">{vote.title}</span></a></p>}
-    {pick.rule==='divergent'&&typeof vote.groupDeviations==='number'&&vote.groupDeviations>0&&<p className="home-pick-note"><UiMessage id="home.votes.divergent" counts={{count:vote.groupDeviations}} values={{count:vote.groupDeviations}}/></p>}
+    {pick.rule==='divergent'&&typeof vote.groupDeviations==='number'&&vote.groupDeviations>0&&<p className="home-pick-note">{ui.t(vote.groupDeviations===1?'home.votes.divergentOne':'home.votes.divergent',{count:vote.groupDeviations})}</p>}
     {(inVoting>0)&&<div className="home-vote-bar" aria-hidden="true">
       <span className="home-vote-bar-for" style={{width:`${totals.for/inVoting*100}%`}}/>
       <span className="home-vote-bar-against" style={{width:`${totals.against/inVoting*100}%`}}/>

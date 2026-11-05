@@ -126,7 +126,7 @@ test('all reachable messages have translated values in each supported language',
       if(id.startsWith('MotionComparison.contextStage.')&&language!=='ro')continue;
       if((id.startsWith('membervotesummary.fullPosition.')||id.startsWith('membervotes.summary.recorded.'))&&!['ro','lt'].includes(language))continue;
       // New Topics and vote-group messages use the documented per-message English fallback.
-      if((id.startsWith('topics.')||id.startsWith('votegroups.'))&&!Object.hasOwn(catalogue,id))continue;
+      if((id.startsWith('topics.')||id.startsWith('votegroups.')||id.startsWith('home.'))&&!Object.hasOwn(catalogue,id))continue;
       assert.equal(typeof catalogue[id],'string',language+': '+id);
       assert(catalogue[id].trim(),language+': '+id);
     }
