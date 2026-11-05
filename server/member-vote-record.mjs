@@ -61,14 +61,14 @@ export class MemberVoteRecordReader {
       const group=typeof current==='object'
         ?current.code==='NI'?{code:'NI',status:'non-attached'}:{code:current.code,status:'attached'}
         :{code:null,status:'unavailable'};
-      const rows=db.prepare(`SELECT m.body AS body,s.sitting_id AS sittingId,s.date AS date,s.decisions AS decisions
+      const rows=db.prepare(`SELECT m.body AS body,s.sitting_id AS sittingId,s.date AS date
         FROM member_vote_record_members m JOIN member_vote_record_sittings s ON s.sitting_id=m.sitting_id
         WHERE m.member_id=? AND s.snapshot_version=? ORDER BY s.date DESC,s.sitting_id DESC`).all(id,MEMBER_VOTE_SNAPSHOT_VERSION);
       const alignment={all:emptyAlignment(),wholeText:emptyAlignment()};
       const ballots={recorded:0,named:0,chaired:0};
       const bySitting=[],departures=[],withRow=new Set();
       for(const row of rows) {
-        const body=JSON.parse(row.body),decisions=JSON.parse(row.decisions);
+        const body=JSON.parse(row.body);
         withRow.add(row.sittingId);
         for(const key of ['with','against','abstained','notComparable']) {
           alignment.all[key]+=body.alignment?.[key]||0;
@@ -77,10 +77,8 @@ export class MemberVoteRecordReader {
         ballots.recorded+=body.ballots?.recorded||0;ballots.chaired+=body.ballots?.chaired||0;
         bySitting.push({sittingId:row.sittingId,date:row.date,...Object.fromEntries(['withGroup','comparable','finalWithGroup','finalComparable'].map(key=>[key,body.bySitting?.[key]??null]))});
         for(const departure of body.departures||[]) {
-          const decision=decisions[departure.decisionId]||{};
-          const title=pickTitle(decision.titles,decision.referenceTexts,query.language);
           departures.push({decisionId:departure.decisionId,sittingId:row.sittingId,date:departure.date,scope:departure.wholeText?'final':'all',wholeText:Boolean(departure.wholeText),
-            position:departure.position??null,line:departure.line??null,...title});
+            position:departure.position??null,line:departure.line??null});
         }
       }
       // Named votes only count while the person held a mandate; a sitting whose
@@ -124,7 +122,13 @@ export class MemberVoteRecordReader {
       }
       const sorted=departures.sort((a,b)=>(b.wholeText?1:0)-(a.wholeText?1:0)||b.date.localeCompare(a.date)||b.decisionId.localeCompare(a.decisionId))
         .filter(item=>query.scope==='all'||item.wholeText);
-      const items=sorted.slice(query.offset,query.offset+query.limit),nextOffset=query.offset+items.length<sorted.length?query.offset+items.length:null;
+      // Wording is large, so only the sittings on the requested page are read.
+      const wording=new Map();
+      const items=sorted.slice(query.offset,query.offset+query.limit).map(item=>{
+        if(!wording.has(item.sittingId))wording.set(item.sittingId,JSON.parse(db.prepare('SELECT decisions FROM member_vote_record_sittings WHERE sitting_id=?').get(item.sittingId)?.decisions||'{}'));
+        const decision=wording.get(item.sittingId)[item.decisionId]||{};
+        return {...item,...pickTitle(decision.titles,decision.referenceTexts,query.language)};
+      }),nextOffset=query.offset+items.length<sorted.length?query.offset+items.length:null;
       return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period,coverage,group,
         alignment:group.status==='attached'?alignment:null,ballots,bySitting,departures:{scope:query.scope,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},
         comparison,attribution:'European Parliament Open Data API v2, CC BY 4.0'};

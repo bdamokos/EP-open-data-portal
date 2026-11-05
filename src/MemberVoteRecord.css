@@ -14,7 +14,9 @@
 .member-vote-record-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:16px;margin:0 0 10px}
 .member-vote-record-figures small{display:block;color:var(--mvr-muted);font-size:10px;margin-top:4px}
 .member-vote-record-trend{margin:18px 0 20px;border-top:1px solid var(--mvr-line);padding-top:14px}
-.member-vote-record-trend svg{display:block;width:100%;max-width:520px;height:auto;margin:6px 0}
+.member-vote-record-plot{position:relative;max-width:640px;margin:6px 0 2px}
+.member-vote-record-plot svg{display:block;width:100%;height:auto}
+.member-vote-record-tick{position:absolute;left:0;transform:translateY(-50%);color:var(--mvr-muted);font-size:10px;line-height:1}
 .member-vote-record-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 3}
 .member-vote-record-line{fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .member-vote-record-dot{fill:var(--accent);stroke:var(--surface);stroke-width:1.5}
@@ -36,7 +38,7 @@
 
 .member-vote-record-figures{margin:14px 0 0}
 .member-vote-record-figures>div{min-width:0;overflow-wrap:anywhere}
-.member-vote-record-axis{display:flex;justify-content:space-between;color:var(--mvr-muted);font-size:10px;max-width:520px}
+.member-vote-record-axis{display:flex;justify-content:space-between;color:var(--mvr-muted);font-size:10px;max-width:640px;padding:0 3% 0 10.6%}
 .member-vote-record-departures li{padding:8px 0}
 .member-vote-record-departures li a{color:var(--accent-strong);text-underline-offset:3px}
 .member-vote-record-departures li small{display:block;color:var(--mvr-muted);font-size:11px;margin-top:2px}

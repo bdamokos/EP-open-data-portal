@@ -39,10 +39,10 @@ const positionLabel=(position:string|null,ui:ReturnType<typeof useUiI18n>)=>posi
 function Trend({data,scope}:{data:MemberVoteRecordResponse;scope:'all'|'final'}) {
   const ui=useUiI18n();
   const trend=useMemo(()=>recordTrend(data,scope),[data,scope]);
-  const width=320,height=96,paddingX=10,paddingY=10;
+  const width=320,height=96,paddingX=34,paddingY=10,right=10;
   const points=trend.map((day,index)=>({
     ...day,
-    x:trend.length===1?width/2:paddingX+index*(width-paddingX*2)/(trend.length-1),
+    x:trend.length===1?(paddingX+width-right)/2:paddingX+index*(width-paddingX-right)/(trend.length-1),
     y:day.share===null?null:paddingY+(1-day.share)*(height-paddingY*2),
   }));
   if(!points.some(point=>point.y!==null))return null;
@@ -56,11 +56,16 @@ function Trend({data,scope}:{data:MemberVoteRecordResponse;scope:'all'|'final'})
   if(run.length)runs.push(run);
   return <figure className="member-vote-record-trend">
     <figcaption><UiMessage id="membervoterecord.trend.heading"/></figcaption>
+    <div className="member-vote-record-plot">
+    <span className="member-vote-record-tick" style={{top:paddingY/height*100+'%'}} aria-hidden="true">100%</span>
+    <span className="member-vote-record-tick" style={{top:'50%'}} aria-hidden="true">50%</span>
+    <span className="member-vote-record-tick" style={{top:(height-paddingY)/height*100+'%'}} aria-hidden="true">0%</span>
     <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
-      {[paddingY,height/2,height-paddingY].map(y=><line key={y} x1={paddingX} x2={width-paddingX} y1={y} y2={y} className="member-vote-record-grid"/>)}
+      {[paddingY,height/2,height-paddingY].map(y=><line key={y} x1={paddingX} x2={width-right} y1={y} y2={y} className="member-vote-record-grid"/>)}
       {runs.filter(item=>item.length>1).map((item,index)=><path key={index} d={trendPath(item)} className="member-vote-record-line"/>)}
       {points.map(point=>point.y===null?null:<circle key={point.sittingId} cx={point.x} cy={point.y} r={3} className="member-vote-record-dot"/>)}
     </svg>
+    </div>
     <div className="member-vote-record-axis"><span>{dateLabel(trend[0].date,ui.locale)}</span><span>{dateLabel(trend[trend.length-1].date,ui.locale)}</span></div>
     <p className="visually-hidden"><UiMessage id="membervoterecord.trend.alternative"/></p>
     <ul className="visually-hidden">{points.map(point=><li key={point.sittingId}>{point.share===null
@@ -104,7 +109,8 @@ export function MemberVoteRecord({memberId,language,scope,offset,onScopeChange,o
     </p>
   </section>;
   const figures=recordAlignment(data,scope);
-  const groupKnown=data.group.status==='attached'&&figures!==null;
+  // With no comparable vote at all there is nothing to say about the group line.
+  const groupKnown=data.group.status==='attached'&&recordAlignment(data,'all')!==null&&(recordAlignment(data,'all')?.comparable??0)>0&&figures!==null;
   const medians=recordComparison(data,scope);
   const {ballots}=data;
   return <section className="member-vote-record" lang={ui.language} aria-labelledby="member-vote-record-heading">
@@ -133,7 +139,7 @@ export function MemberVoteRecord({memberId,language,scope,offset,onScopeChange,o
         <dd>{ballots.named===null?num(ui,ballots.recorded):<UiMessage id="membervoterecord.recorded.value" values={{recorded:num(ui,ballots.recorded),named:num(ui,ballots.named)}}/>}</dd>
         {ballots.named!==null&&<small><UiMessage id="membervoterecord.recorded.detail"/></small>}
         {ballots.chaired>0&&<small><UiMessage id="membervoterecord.chaired" values={{count:num(ui,ballots.chaired)}}/></small>}
-        {!groupKnown&&<small>{data.group.status==='non-attached'?<UiMessage id="membervoterecord.nonAttached"/>:<UiMessage id="membervoterecord.groupUnavailable"/>}</small>}</div>
+        {data.group.status!=='attached'&&<small>{data.group.status==='non-attached'?<UiMessage id="membervoterecord.nonAttached"/>:<UiMessage id="membervoterecord.groupUnavailable"/>}</small>}</div>
     </dl>
     {groupKnown&&<>
       <Trend data={data} scope={scope}/>

@@ -148,3 +148,11 @@ test('the profile strip keeps non-attached and chaired counts to one line',async
   await view.renderSummary();
   assert.match(view.container.textContent,/Voting record: 5 recorded votes · chaired 1/);
 });
+
+test('a chairing member with no comparable vote shows recorded and chaired counts only',async t=>{
+  const view=await mount(t,{data:response({alignment:{all:counts(0,0,0,0),wholeText:counts(0,0,0,0)},comparison:null,ballots:{recorded:14,named:612,chaired:598}})});
+  assert.match(view.container.textContent,/Recorded votes14 of 612named votes heldChaired: 598/);
+  assert.equal(view.container.textContent.includes('With their group'),false);
+  assert.equal(view.container.textContent.includes('Group unavailable'),false);
+  assert.equal(view.container.querySelector('.member-vote-record-departures'),null);
+});
