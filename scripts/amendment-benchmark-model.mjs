@@ -1,4 +1,5 @@
 import {assertSequentialParagraph} from './amendment-sequential-paragraph-oracle.mjs';
+import {assertSplitComparisonNotes} from './amendment-native-note-oracle.mjs';
 import {assertPrintedInsertion} from './amendment-printed-insertion-oracle.mjs';
 import {assertUniqueEntry} from './amendment-unique-entry-oracle.mjs';
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
@@ -631,6 +632,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const splitNotes=assertSplitComparisonNotes(input);if(splitNotes&&splitNotes.status!=='verified')return splitNotes;
   const captioned=assertCaptionedComparison(input);if(captioned&&captioned.status!=='verified')return captioned;
   const formula=assertFormulaGap(input);if(formula&&formula.status!=='verified')return formula;
   if(input.items?.[input.placement?.itemIndex]?.proposal?.sourceKind==='pdf')return assertCouncilDraftPlacement(input);
