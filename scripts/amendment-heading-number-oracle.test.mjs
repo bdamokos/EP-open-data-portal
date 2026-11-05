@@ -38,3 +38,21 @@ test('the endpoint wrapper checks every complete vote-reference string',()=>{
   assert.equal(placement.reason,'conflicting_target_evidence');
  }
 });
+
+test('replay recovers a missing binding only from one declared range with a native heading candidate',async()=>{
+ const {recoverHeadingVariant}=await import('./amendment-benchmark.mjs');
+ const a=input(),targetDocumentId='B-10-2026-0333',listId=targetDocumentId+'-AM-007-011',url='https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/'+listId+'/'+listId+'_en.docx';
+ const row={id:targetDocumentId+'-AM-11',targetDocumentId,number:11,listId:null,language:null,wordingSource:null};
+ const variant={listId,language:'en',wordingSource:{url}},sibling={id:targetDocumentId+'-AM-7',targetDocumentId,number:7,...variant};
+ const read=async()=>({input:{ok:true},extraction:a.extraction});
+ assert.deepEqual(await recoverHeadingVariant([sibling,row],row,read,'https://example.test'),variant);
+ assert.equal(await recoverHeadingVariant([sibling,row],row,async()=>({input:{ok:true},extraction:{amendments:[]}}),'https://example.test'),null,'older extractor cannot acquire a new binding');
+ assert.equal(await recoverHeadingVariant([sibling,row],{...row,listId,wordingSource:{url}},()=>assert.fail('bound rows are unchanged'),'https://example.test'),null);
+ for(const changed of [{...sibling,targetDocumentId:'B-10-2026-0334'},{...sibling,listId:targetDocumentId+'-AM-007-010'},{...sibling,language:'fr'}])assert.equal(await recoverHeadingVariant([changed,row],row,read,'https://example.test'),null);
+ assert.equal(await recoverHeadingVariant([sibling,row],{...row,listId:targetDocumentId+'-AM-012-012'},read,'https://example.test'),null,'a partial list identity cannot be substituted');
+ assert.equal(await recoverHeadingVariant([sibling,row],{...row,language:'fr'},read,'https://example.test'),null,'a recorded language cannot be substituted');
+ const duplicate={...sibling,wordingSource:{url:url.replace('_en.docx','_en_rev.docx')}};
+ assert.equal(await recoverHeadingVariant([sibling,duplicate,row],row,read,'https://example.test'),null,'competing declared sources stay withheld');
+});
+
+test('the harness fingerprints the native heading-number oracle',async()=>{const {harnessIdentity}=await import('./amendment-benchmark.mjs');const root=new URL('../',import.meta.url).pathname;assert.match((await harnessIdentity(root)).files['scripts/amendment-heading-number-oracle.mjs'],/^[a-f0-9]{64}$/u);});
