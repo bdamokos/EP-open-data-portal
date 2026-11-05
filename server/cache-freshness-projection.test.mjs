@@ -95,7 +95,8 @@ test('fresh legislation and participation snapshots with acquired demographics r
     assert.equal(response.coverage.indexComplete,false);
     assert.match(policy(view,response).cdnCacheControl,/max-age=21600/);
   }
-  assert.equal(calls.length,new Set(calls).size+2,'Projection does not add upstream requests');
+  // Legislation reads every decision method; participation reads roll calls only, so the sitting decisions are requested twice instead of once.
+  assert.equal(calls.length,new Set(calls).size+3,'Projection does not add upstream requests');
 });
 
 for(const [name,endpoint] of [['procedure',procedureEndpoint],['document',documentEndpoint]])test('retained '+name+' keeps source freshness and recovers without redundant requests',async()=>{
