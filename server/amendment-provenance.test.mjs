@@ -8,10 +8,10 @@ import {deflateRawSync} from 'node:zlib';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {projectDocument,documentFiles,AMENDMENT_LINKS_VERSION} from './activity-index-model.mjs';
-import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION,AMENDMENT_DISTRIBUTION_PROOF_VERSION,distributionEvidenceFor} from './amendments.mjs';
+import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION,AMENDMENT_DISTRIBUTION_PROOF_VERSION,distributionEvidenceFor,currentDocxDescriptor} from './amendments.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {amendmentsPage,enqueueAmendment,saveAmendmentRows} from './amendments-store.mjs';
-import {failAmendmentTask,rebuildAmendmentTarget} from './amendments-worker.mjs';
+import {failAmendmentTask,rebuildAmendmentTarget,prepareAmendmentParserUpgrade} from './amendments-worker.mjs';
 import {motionSourceKey} from './motion-outcomes.mjs';
 
 const target='A-10-2026-0254',sitting='MTG-PL-2026-10-07',date='2026-10-02';
@@ -184,4 +184,36 @@ test('a retained target label and its derived topic stay aligned after a store m
   const raw=JSON.stringify({...stored,topics:[dossier,{id:'target:obsolete',label:'Obsolete label',basis:'target',language:'fr'}]});
   store.db.prepare('UPDATE amendments SET body=? WHERE generation=? AND id=?').run(raw,generation,row.id);
   const served=amendmentsPage(store,{document:target}).items[0];assert.equal(served.targetLabel,'Article 1');assert.deepEqual(served.topics,[dossier,topic]);assert.equal(selected(),raw);
+});
+
+
+test('displayable historical wording survives reads and rebuilds while reparsing remains queued',t=>{
+  for(const version of ['10','20','25','9']) {
+    const {store,worker,generation,metadata,at}=fixture(t),work=metadata(list1,'en');
+    const source={url:url(list1,'en'),fetchedAt:at(),language:'en'};
+    const amendment={number:1,date,authors:[],baseline:'commission-proposal',targetLabel:'Article 1',originalText:'Original',proposedText:'Proposal',language:'en',gaps:[]};
+    store.putSource(generation,'amendment:list:'+list1,'amendment-list',{...work,extraction:{amendments:[amendment],gaps:[],parserVersion:version,sourceDescriptor:currentDocxDescriptor(work),language:'en',sourceUrl:source.url,fetchedAt:at()}},at());
+    rebuildAmendmentTarget(worker,generation,target);
+    const [row]=amendmentsPage(store,{document:target}).items;
+    assert.equal(row.originalText,version==='9'?null:'Original');
+    assert.equal(row.proposedText,version==='9'?null:'Proposal');
+    assert.equal(row.textParserVersion,version);
+    if(version!=='9'){assert.equal(row.wordingRetained,false);assert.equal(row.sourceFreshness.status,'fresh');}
+    assert.equal(row.gaps.some(gap=>gap.includes('until the current document parser')),version==='9');
+    assert.equal(store.db.prepare('SELECT wording FROM amendment_read_flags WHERE generation=? AND id=?').get(generation,row.id).wording,version==='9'?1:0);
+    prepareAmendmentParserUpgrade(worker,generation);
+    assert(store.db.prepare("SELECT 1 FROM amendment_jobs WHERE generation=? AND kind='amendment-parser-upgrade' AND done=0").get(generation));
+    assert.equal(store.source(generation,'amendment:list:'+list1).work.extraction.parserVersion,version);
+  }
+});
+
+test('mixed parser variants are checked independently and incomplete integrity stays withheld',t=>{
+  const {store,generation}=fixture(t);
+  const variant=(version,extra={})=>({listId:list1,language:'en',textParserVersion:version,textIntegrity:'complete',baseline:'commission-proposal',originalText:'Original',proposedText:'Proposal',sourceFreshness:{version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,status:'fresh'},authors:[],gaps:[],...extra});
+  const row={id:target+'-AM-1',targetDocumentId:target,number:1,conflicted:true,authors:[],decisions:[],gaps:[],variants:[variant('25'),variant('9'),variant('20',{textIntegrity:'incomplete'})]};
+  const raw=JSON.stringify(row);store.db.prepare('INSERT INTO amendments VALUES (?,?,?,?,?,?)').run(generation,row.id,target,date,'unavailable',raw);
+  const [read]=amendmentsPage(store,{document:target}).items;
+  assert.deepEqual(read.variants.map(v=>v.originalText),['Original',null,null]);
+  assert.equal(read.originalText,null);
+  assert.equal(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,row.id).body,raw);
 });

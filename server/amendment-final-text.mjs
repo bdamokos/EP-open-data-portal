@@ -1,3 +1,4 @@
+import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {createHash} from 'node:crypto';
 import {documentContext} from './document-context.mjs';
 import {odp,ODP_BASE} from './odp.mjs';
@@ -12,11 +13,13 @@ import {createFinalActReader,finalActCorrespondence} from './final-act-identity.
 import {amendmentById} from './amendments-store.mjs';
 import {amendmentRowOutcome} from './amendments.mjs';
 
-export const AMENDMENT_FINAL_TEXT_VERSION=3;
+export const AMENDMENT_FINAL_TEXT_VERSION=4;
 export const FINAL_TEXT_LIMITS=Object.freeze({deadlineMs:28_000,concurrency:2,metadataReads:16,metadataBytes:4*1024*1024,contextBytes:6*1024*1024,bodyBytes:2*1024*1024,candidates:8,units:6000,passageCharacters:64*1024});
 const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 const unique=values=>[...new Set(values)];
 const sha=value=>createHash('sha256').update(value).digest('hex');
+// Indexed variants carry textParserVersion; directly read native lists carry parserVersion.
+const outdatedWordingParser=variant=>variant.textParserVersion!=null?variant.textParserVersion!==AMENDMENT_EXTRACTION_VERSION:/^\d+$/.test(variant.parserVersion||'')&&variant.parserVersion!==AMENDMENT_EXTRACTION_VERSION;
 const hashPattern=/^[a-f0-9]{64}$/;
 const ep=value=>String(value?.id??value??'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//u,'');
 const docId=value=>ep(value).match(/^eli\/dl\/doc\/([A-Z0-9-]+)$/u)?.[1]??null;
@@ -83,7 +86,7 @@ function anchorMapping(original,proposed,baseline,candidates,signal) {
  * service below supplies dossier identity and a separately grounded baseline. */
 export function compareFinalWording({variant,baseline,destination,signal,limits={}}) {
   const cap={...FINAL_TEXT_LIMITS,...limits};signal?.throwIfAborted();
-  if(variant.wordingRetained||variant.recordRetained)return unavailable('selected-wording-source-unverified');
+  if(outdatedWordingParser(variant)||variant.wordingRetained||variant.recordRetained)return unavailable('selected-wording-source-unverified');
   if(variant.source?.notesComplete===false||(variant.gaps||[]).some(gap=>gap?.code==='notes-unavailable'||gap==='notes-unavailable'))return unavailable('amendment-notes-unverified');
   if(amendmentLanguageScope(variant)||amendmentMixedLanguageScope(variant))return unavailable('language-scope-unavailable');
   const operation=amendmentOperation(variant);
@@ -150,7 +153,7 @@ export class AmendmentFinalText {
       if(context.documentId!==query.id||variants.length!==1||variants[0].wordingStatus!=='available')return stop('selected-wording-unavailable');
       const variant=variants[0];
       if(variant.source?.notesComplete===false)return stop('amendment-notes-unverified');
-      if(variant.wordingRetained||variant.recordRetained||!hashPattern.test(variant.source?.contentHash||variant.source?.sha256||'')||variant.source.contentHashConflict||variant.source.stale||variant.source.refreshError||variant.sourceFreshness&&variant.sourceFreshness.status!=='fresh')return stop('selected-wording-source-unverified');
+      if(outdatedWordingParser(variant)||variant.wordingRetained||variant.recordRetained||!hashPattern.test(variant.source?.contentHash||variant.source?.sha256||'')||variant.source.contentHashConflict||variant.source.stale||variant.source.refreshError||variant.sourceFreshness&&variant.sourceFreshness.status!=='fresh')return stop('selected-wording-source-unverified');
       selection.source=variant.source;selection.parserVersion=variant.textParserVersion||variant.parserVersion||null;
       selection.targetPath=variant.targetPath??null;selection.baseline=variant.baseline??null;
       const identity=/^committee:([A-Z0-9-]+):([1-9]\d*)$/u.exec(query.amendmentId);
