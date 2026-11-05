@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Fråga {id}",
   "coverage.documentReference": "Dokument {id}",
   "coverage.document.readFailed": "{record}: ej tillgängligt",
+  "coverage.question.readFailed": "{record}: ej tillgänglig",
   "coverage.periodFrom": "från {date}",
   "coverage.periodThrough": "till och med {date}",
   "coverage.speakerList": "Otillgängliga talare · {period}",
@@ -2356,5 +2357,11 @@
   "proposalcontexttext.printed.point.label": "Ny punkt {point}. Beteckningen anger punkt {base}.",
   "documentcontext.note.report_paragraph": "Punkt {report} i betänkandet; tryckt här som {source}.",
   "documentcontext.note.label_instruction_differ": "Beteckningen och instruktionen skiljer sig åt.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Ingen av de tillgängliga dagordningspunkterna matchar sökningen."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Ingen av de tillgängliga dagordningspunkterna matchar sökningen.",
+  "proposalcontexttext.proposal": "Förslag",
+  "proposalcontexttext.proposal.part.index": "Förslag · del {index}",
+  "proposalcontexttext.annexes": "Bilagor",
+  "proposalcontexttext.annexes.part.index": "Bilagor · del {index}",
+  "proposalcontexttext.council.position.part.index": "Rådets ståndpunkt · del {index}",
+  "proposalcontexttext.existing.act.part.index": "Befintlig rättsakt · del {index}"
 }

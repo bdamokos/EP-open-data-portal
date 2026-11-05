@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Otázka {id}",
   "coverage.documentReference": "Dokument {id}",
   "coverage.document.readFailed": "{record}: není k dispozici",
+  "coverage.question.readFailed": "{record}: není k dispozici",
   "coverage.periodFrom": "od {date}",
   "coverage.periodThrough": "do {date}",
   "coverage.speakerList": "Nedostupní řečníci · {period}",
@@ -2356,5 +2357,11 @@
   "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uveden bod {base}.",
   "documentcontext.note.report_paragraph": "Odstavec {report} ve zprávě; zde vytištěn jako {source}.",
   "documentcontext.note.label_instruction_differ": "Označení a pokyn se liší.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Hledání neodpovídá žádný z dostupných bodů pořadu jednání."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Hledání neodpovídá žádný z dostupných bodů pořadu jednání.",
+  "proposalcontexttext.proposal": "Návrh",
+  "proposalcontexttext.proposal.part.index": "Návrh · část {index}",
+  "proposalcontexttext.annexes": "Přílohy",
+  "proposalcontexttext.annexes.part.index": "Přílohy · část {index}",
+  "proposalcontexttext.council.position.part.index": "Postoj Rady · část {index}",
+  "proposalcontexttext.existing.act.part.index": "Stávající právní akt · část {index}"
 }

@@ -1859,7 +1859,8 @@
   "coverage.speechReadsDates": "Utilgængelige taler: {count} · {dates}",
   "coverage.questionReference": "Spørgsmål {id}",
   "coverage.documentReference": "Dokument {id}",
-  "coverage.document.readFailed": "{record}: ikke tilgængelig",
+  "coverage.document.readFailed": "{record}: ikke tilgængeligt",
+  "coverage.question.readFailed": "{record}: ikke tilgængeligt",
   "coverage.periodFrom": "fra {date}",
   "coverage.periodThrough": "til og med {date}",
   "coverage.speakerList": "Utilgængelige talere · {period}",
@@ -2356,5 +2357,11 @@
   "proposalcontexttext.printed.point.label": "Nyt punkt {point}. Betegnelsen angiver punkt {base}.",
   "documentcontext.note.report_paragraph": "Afsnit {report} i betænkningen; trykt her som {source}.",
   "documentcontext.note.label_instruction_differ": "Betegnelsen og instruktionen er forskellige.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Ingen af de tilgængelige dagsordenspunkter matcher søgningen."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Ingen af de tilgængelige dagsordenspunkter matcher søgningen.",
+  "proposalcontexttext.proposal": "Forslag",
+  "proposalcontexttext.proposal.part.index": "Forslag · del {index}",
+  "proposalcontexttext.annexes": "Bilag",
+  "proposalcontexttext.annexes.part.index": "Bilag · del {index}",
+  "proposalcontexttext.council.position.part.index": "Rådets holdning · del {index}",
+  "proposalcontexttext.existing.act.part.index": "Gældende retsakt · del {index}"
 }

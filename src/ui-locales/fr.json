@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Question {id}",
   "coverage.documentReference": "Document {id}",
   "coverage.document.readFailed": "{record} : indisponible",
+  "coverage.question.readFailed": "{record} : indisponible",
   "coverage.periodFrom": "à partir du {date}",
   "coverage.periodThrough": "jusqu’au {date}",
   "coverage.speakerList": "Orateurs indisponibles · {period}",
@@ -2356,5 +2357,11 @@
   "proposalcontexttext.printed.point.label": "Nouveau point {point}. Le libellé indique le point {base}.",
   "documentcontext.note.report_paragraph": "Paragraphe {report} du rapport ; imprimé ici sous le numéro {source}.",
   "documentcontext.note.label_instruction_differ": "Le libellé et l’instruction diffèrent.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Aucun des points à l’ordre du jour disponibles ne correspond à cette recherche."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Aucun des points à l’ordre du jour disponibles ne correspond à cette recherche.",
+  "proposalcontexttext.proposal": "Proposition",
+  "proposalcontexttext.proposal.part.index": "Proposition · partie {index}",
+  "proposalcontexttext.annexes": "Annexes",
+  "proposalcontexttext.annexes.part.index": "Annexes · partie {index}",
+  "proposalcontexttext.council.position.part.index": "Position du Conseil · partie {index}",
+  "proposalcontexttext.existing.act.part.index": "Acte existant · partie {index}"
 }

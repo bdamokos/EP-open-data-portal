@@ -431,7 +431,7 @@ test('a consumed direct-speech opening does not reopen a closed reader after a l
 
 test('an incomplete speaker directory qualifies its empty selection in visible and live copy',async t=>{
  const h=await harness(t,[]);await act(async()=>{});
- assert.match(h.container.querySelector('.ov-empty').textContent,/No matching speakers loaded/);
+ assert.match(h.container.querySelector('.ov-empty').textContent,/No matches · partial/);
  assert.doesNotMatch(h.container.textContent,/No speakers match\./);
 });
 

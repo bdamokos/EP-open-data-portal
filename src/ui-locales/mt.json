@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Mistoqsija {id}",
   "coverage.documentReference": "Dokument {id}",
   "coverage.document.readFailed": "{record}: mhux disponibbli",
+  "coverage.question.readFailed": "{record}: mhux disponibbli",
   "coverage.periodFrom": "minn {date}",
   "coverage.periodThrough": "sa {date}",
   "coverage.speakerList": "Kelliema mhux disponibbli · {period}",
@@ -2356,5 +2357,11 @@
   "proposalcontexttext.printed.point.label": "Punt ġdid {point}. It-tikketta tindika l-punt {base}.",
   "documentcontext.note.report_paragraph": "Paragrafu {report} fir-rapport; stampat hawnhekk bħala {source}.",
   "documentcontext.note.label_instruction_differ": "It-tikketta u l-istruzzjoni huma differenti.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Ebda punt tal-aġenda disponibbli ma jaqbel ma’ din it-tfittxija."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Ebda punt tal-aġenda disponibbli ma jaqbel ma’ din it-tfittxija.",
+  "proposalcontexttext.proposal": "Proposta",
+  "proposalcontexttext.proposal.part.index": "Proposta · parti {index}",
+  "proposalcontexttext.annexes": "Annessi",
+  "proposalcontexttext.annexes.part.index": "Annessi · parti {index}",
+  "proposalcontexttext.council.position.part.index": "Pożizzjoni tal-Kunsill · parti {index}",
+  "proposalcontexttext.existing.act.part.index": "Att eżistenti · parti {index}"
 }
