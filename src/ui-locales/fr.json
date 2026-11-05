@@ -2840,6 +2840,7 @@
   "proposalcontexttext.new.point.order": "Le nouveau point {point} suit le point {base}.",
   "topics.partialLegend": "Hachures : trimestre partiel.",
   "topics.policyAreaSource": "Noms des domaines d’action : {source}.",
+  "documentcontext.original_wording_differs": "Le libellé original diffère de la proposition.",
   "documentcontext.single_word_difference": "Le texte original diffère d’un mot.",
   "proposalcontexttext.original.citation.omits.an.identifier": "La référence d’origine omet un identifiant",
   "proposalcontexttext.printed.point.label": "Nouveau point {point}. Le libellé indique le point {base}.",

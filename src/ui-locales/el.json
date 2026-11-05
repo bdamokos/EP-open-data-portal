@@ -2840,6 +2840,7 @@
   "proposalcontexttext.new.point.order": "Το νέο σημείο {point} ακολουθεί το σημείο {base}.",
   "topics.partialLegend": "Διαγράμμιση: μερικό τρίμηνο.",
   "topics.policyAreaSource": "Ονομασίες τομέων πολιτικής: {source}.",
+  "documentcontext.original_wording_differs": "Η αρχική διατύπωση διαφέρει από την πρόταση.",
   "documentcontext.single_word_difference": "Το αρχικό κείμενο διαφέρει κατά μία λέξη.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Από την αρχική παραπομπή λείπει αναγνωριστικό",
   "proposalcontexttext.printed.point.label": "Νέο σημείο {point}. Η ένδειξη αναφέρει το σημείο {base}.",

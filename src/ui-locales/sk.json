@@ -2840,6 +2840,7 @@
   "proposalcontexttext.new.point.order": "Nový bod {point} nasleduje za bodom {base}.",
   "topics.partialLegend": "Šrafovanie: neúplný štvrťrok.",
   "topics.policyAreaSource": "Názvy oblastí politiky: {source}.",
+  "documentcontext.original_wording_differs": "Pôvodné znenie sa líši od návrhu.",
   "documentcontext.single_word_difference": "Pôvodné znenie sa líši o jedno slovo.",
   "proposalcontexttext.original.citation.omits.an.identifier": "V pôvodnej citácii chýba identifikátor",
   "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uvedený bod {base}.",

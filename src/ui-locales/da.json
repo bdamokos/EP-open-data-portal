@@ -2839,6 +2839,7 @@
   "proposalcontexttext.colliding.new.point": "Dette nummer bruges allerede af et punkt. Placeret efter grundpunktet.",
   "proposalcontexttext.new.unnumbered.table": "Ny unummereret tabel placeret sidst i bilaget.",
   "proposalcontexttext.new.point.order": "Nyt punkt {point} følger efter punkt {base}.",
+  "documentcontext.original_wording_differs": "Den oprindelige ordlyd afviger fra forslaget.",
   "documentcontext.single_word_difference": "Den oprindelige ordlyd afviger med ét ord.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Den oprindelige henvisning mangler en identifikator",
   "proposalcontexttext.printed.point.label": "Nyt punkt {point}. Betegnelsen angiver punkt {base}.",

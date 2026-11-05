@@ -2840,6 +2840,7 @@
   "proposalcontexttext.new.point.order": "Tagann pointe nua {point} i ndiaidh phointe {base}.",
   "topics.partialLegend": "Scáthlíniú: ráithe pháirteach.",
   "topics.policyAreaSource": "Ainmneacha réimsí beartais: {source}.",
+  "documentcontext.original_wording_differs": "Tá an fhoclaíocht bhunaidh éagsúil leis an togra.",
   "documentcontext.single_word_difference": "Tá difríocht aon fhocail sa bhuntéacs.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Tá aitheantóir ar iarraidh sa tagairt bhunaidh",
   "proposalcontexttext.printed.point.label": "Pointe nua {point}. Léiríonn an lipéad pointe {base}.",

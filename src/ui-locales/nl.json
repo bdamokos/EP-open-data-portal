@@ -2840,6 +2840,7 @@
   "proposalcontexttext.new.point.order": "Het nieuwe punt {point} volgt op punt {base}.",
   "topics.partialLegend": "Gearceerd: onvolledig kwartaal.",
   "topics.policyAreaSource": "Namen van beleidsterreinen: {source}.",
+  "documentcontext.original_wording_differs": "De oorspronkelijke formulering wijkt af van het voorstel.",
   "documentcontext.single_word_difference": "De oorspronkelijke tekst verschilt één woord.",
   "proposalcontexttext.original.citation.omits.an.identifier": "In de oorspronkelijke verwijzing ontbreekt een identificatiecode",
   "proposalcontexttext.printed.point.label": "Nieuw punt {point}. Het opschrift noemt punt {base}.",

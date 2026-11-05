@@ -2840,6 +2840,7 @@
   "proposalcontexttext.new.point.order": "Uus punkt {point} järgneb punktile {base}.",
   "topics.partialLegend": "Viirutus: osaline kvartal.",
   "topics.policyAreaSource": "Poliitikavaldkondade nimetused: {source}.",
+  "documentcontext.original_wording_differs": "Algne sõnastus erineb ettepanekust.",
   "documentcontext.single_word_difference": "Algne sõnastus erineb ühe sõna võrra.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Algses viites puudub identifikaator",
   "proposalcontexttext.printed.point.label": "Uus punkt {point}. Tähistus viitab punktile {base}.",
