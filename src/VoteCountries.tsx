@@ -48,6 +48,9 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
   const heading=<h4><UiMessage id="votegroups.countries.heading"/></h4>;
   const totalsText=(counts:Record<VotePosition,number>)=><span className="vote-country-totals">{votePositionKeys.map((p,i)=><span key={p} className={'vote-'+p}>{i?' · ':''}{counts[p]}</span>)}</span>;
   const label=(code:string)=>countryName(code,language);
+  // Header abbreviations only where the full name will not fit an equal-width column; the full name stays in the accessible label.
+  const shortIds:Record<string,string>={'Verts/ALE':'votegroups.countries.short.greens',TheLeft:'votegroups.countries.short.left',NI:'votegroups.countries.short.ni'};
+  const shortGroup=(code:string)=>{const full=groupLabel(code,ui);return full.length<=7||!shortIds[code]?full:ui.t(shortIds[code]);};
   if(narrow)return <section className="vote-countries" lang={ui.language}>{heading}
     <ul className="vote-country-list">{ordered.map(row=>{
       const expanded=open===row.country;
@@ -57,7 +60,6 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
           <VoteBar totals={row.counts} thin/>
         </button>
         {expanded&&<ul className="vote-country-groups">
-          <li><button type="button" aria-pressed={country===row.country&&!group} onClick={()=>choose(row.country,null)}><span><UiMessage id="votegroups.countries.total"/></span>{totalsText(row.counts)}</button></li>
           {[...row.groups].map(([code,counts])=><li key={code}><button type="button" aria-pressed={country===row.country&&group===code} aria-label={ui.t('votegroups.countries.group_row',{group:groupLabel(code,ui),for:String(counts.for),against:String(counts.against),abstaining:String(counts.abstaining)})} onClick={()=>choose(row.country,code)}><span lang={groupLabelLanguage(code,ui)}>{groupLabel(code,ui)}</span>{totalsText(counts)}</button></li>)}
         </ul>}
       </li>;
@@ -65,11 +67,11 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
   </section>;
   const sorted=(kind:'country'|'group',key?:string)=>sort.kind===kind&&(sort.kind==='country'||sort.key===key)?(sort.dir==='asc'?'ascending':'descending'):'none';
   return <section className="vote-countries" lang={ui.language}>{heading}
-    <div style={{overflowX:'auto'}}><table className="vote-country-table">
+    <table className="vote-country-table"><colgroup><col className="vote-col-country"/><col className="vote-col-total"/>{groups.map(code=><col key={code}/>)}</colgroup>
       <thead><tr>
         <th scope="col" aria-sort={sorted('country')}><button type="button" onClick={()=>sortBy('country')}><UiMessage id="votegroups.countries.country"/></button></th>
         <th scope="col"><UiMessage id="votegroups.countries.total"/></th>
-        {groups.map(code=><th scope="col" key={code} aria-sort={sorted('group',code)}><button type="button" lang={groupLabelLanguage(code,ui)} aria-label={ui.t('votegroups.countries.sort',{column:groupLabel(code,ui)})} onClick={()=>sortBy('group',code)}>{groupLabel(code,ui)}</button></th>)}
+        {groups.map(code=><th scope="col" key={code} aria-sort={sorted('group',code)}><button type="button" lang={groupLabelLanguage(code,ui)} aria-label={ui.t('votegroups.countries.sort',{column:groupLabel(code,ui)})} title={groupLabel(code,ui)} onClick={()=>sortBy('group',code)}>{shortGroup(code)}</button></th>)}
       </tr></thead>
       <tbody>{ordered.map(row=><tr key={row.country}>
         <th scope="row"><button type="button" className="insight-text-button" aria-pressed={country===row.country&&!group} onClick={()=>choose(row.country,null)} lang={language}>{label(row.country)}</button></th>
@@ -81,6 +83,6 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
           return <td key={code}><button type="button" className={'vote-'+(cell.position||'tied')} aria-pressed={country===row.country&&group===code} aria-label={ui.t('votegroups.countries.cell',{country:label(row.country),group:groupLabel(code,ui),count:String(cell.count),position:text})} title={text} onClick={()=>choose(row.country,code,cell.position||cell.tied![0])}>{cell.count}</button></td>;
         })}
       </tr>)}</tbody>
-    </table></div>
+    </table>
   </section>;
 }
