@@ -9,3 +9,13 @@ test('ambiguous, absent, explicit other address and incomplete native frames sta
  for(const mutate of [r=>r.map(s=>s==='6. Six.'?'7. Seven.':s),r=>r.map(s=>s==='16 bb artikla'?'16 bd artikla':s),r=>r.map(s=>s==='Other text.”'?'Other text.':s),r=>r.filter(s=>s!=='(7) Next.'),r=>[...r.slice(0,15),'3. Three.','4. Four.','5. Five.','6. Six.',...r.slice(15)]])assert.equal(assertPointArticleParagraph(input(mutate)),null);
  for(const change of [a=>a.wording.originalText='Original',a=>a.wording.proposedText='7a. New',a=>a.wording.targetLabel+='\nArticle 99',a=>a.proposal.paragraphs[10].text='Different']){const a=input();change(a);assert.equal(assertPointArticleParagraph(a),null);}
 });
+
+import {parseProposal} from '../server/proposal-structure.mjs';
+import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
+function place(arg){const proposal=parseProposal(arg.nativeQuoted.proposalBuffer,{language:'fi',item:'act'});return resolveProposalPlacement([{kind:'act',proposal}],{...arg.wording,baseline:'commission-proposal'});}
+test('producer inserts only under the unique article with the printed predecessor',()=>{
+ const arg=input(),result=place(arg);assert.equal(result.status,'placed');assert.equal(result.insertBefore,10);assert.equal(assertPointArticleParagraph({...arg,placement:result}).status,'verified');
+ for(const change of [r=>r.map(s=>s==='6. Six.'?'7. Seven.':s),r=>r.map(s=>s==='Other text.”'?'Other text.':s),r=>[...r.slice(0,15),'3. Three.','4. Four.','5. Five.','6. Six.',...r.slice(15)]])assert.notEqual(place(input(change)).status,'placed');
+ const old=input();old.wording.originalText='Old paragraph';assert.notEqual(place(old).status,'placed');
+ const explicit=input();explicit.wording.targetLabel+='\n16 bb artikla';assert.notEqual(place(explicit).status,'placed');
+});

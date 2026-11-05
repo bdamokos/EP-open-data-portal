@@ -1,4 +1,5 @@
 {
+  "proposalcontexttext.label.names.only.point": "Die Bezeichnung nennt nur die Nummer.",
   "proposalcontexttext.formula.not.shown": "Formel nicht angezeigt.",
   "proposalcontexttext.preceding.new.annex": "Folgt Änderungsantrag {number} in der Reihenfolge der Änderungsanträge.",
   "amendment.replaces_whole_text": "Ersetzt den gesamten Text.",

@@ -1601,3 +1601,13 @@ test('a proposal-frame insertion explains the label difference and unchecked pre
  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
  assert.match(h.container.querySelector('[data-amendment-block="true"]').textContent,/Label and instruction differ\. Present text not checked\./);
 });
+
+test('point-only insertion explains its omitted article with one short line',async t=>{
+ const value=proposalContextResponse(report,amendment,list,7);
+ value.placement.evidence.push({basis:'point-only-article-paragraph'});
+ const h=await harness(t,()=>value);
+ await h.render({request:{documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}},language:'en'});
+ const block=h.container.querySelector('[data-context-target="true"]');
+ assert(block.textContent.includes('The label names only the point.'));
+ assert.equal([...block.querySelectorAll('p')].filter(p=>p.textContent==='The label names only the point.').length,1);
+});

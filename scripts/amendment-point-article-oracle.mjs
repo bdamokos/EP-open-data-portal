@@ -1,5 +1,5 @@
 import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
-const norm=s=>s.replace(/\s+/gu,' ').trim();
+const norm=s=>(s??'').replace(/\s+/gu,' ').trim();
 // Independent native XML proof. No parsed units, paths or placer evidence.
 export function assertPointArticleParagraph({proposal,wording,placement,nativeQuoted}) {
  const unknown=()=>null;
@@ -18,7 +18,7 @@ export function assertPointArticleParagraph({proposal,wording,placement,nativeQu
  const match=(wording.language==='fi'?/^\(\d+\) Lisätään (.+) artikla seuraavasti:$/u:/^\(\d+\) the following Articles (.+) are inserted:$/u).exec(instruction);
  if(!match)return unknown();
  const names=match[1].split(/,\s*| and | ja /u).map(s=>s.replace(/\s/gu,''));if(names.length<2||new Set(names).size!==names.length||names.some(s=>!/^\d+[a-z]*$/u.test(s)))return unknown();
- if(block.some(r=>r.kind!=='paragraph'||r.unsafe||r.hidden||r.numbered))return unknown();
+ if([heads[0],...block,scope[end]].some(r=>r.kind!=='paragraph'||r.unsafe||r.hidden||r.numbered))return unknown();
  const title=r=>(wording.language==='fi'?/^[”]?(\d+\s*[a-z]*) artikla$/u:/^[‘]?(?:Article) (\d+[a-z]*)$/u).exec(norm(r.text));
  const articles=block.flatMap((r,i)=>{const m=title(r);return m?[{i,name:m[1].replace(/\s/gu,'')}]:[];});
  if(articles.map(a=>a.name).join('|')!==names.join('|')||articles[0].i!==1||!(wording.language==='fi'?/^”/u:/^‘/u).test(block[1].text)||!(wording.language==='fi'?/”[;.]?$/u:/’[;.]?$/u).test(norm(block.at(-1).text)))return unknown();

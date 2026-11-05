@@ -1,3 +1,4 @@
+import {pointArticleParagraphInsertion} from './proposal-point-article.mjs';
 import {sequentialParagraphPlacement} from './sequential-paragraph-placement.mjs';
 import {uniqueAnnexEntryPlacement} from './proposal-unique-entry.mjs';
 import {unnumberedTableInsertion} from './proposal-unnumbered-table.mjs';
@@ -1256,7 +1257,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,...(wordDifference?{originalDifference:'one-word'}:{}),evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?(quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??finnishQuotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedOrdinalSubparagraphInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],printedInnerPath(targetLabel,targetPath,language),proposedText,language)):null;
+    const quoted=candidates.length===1?(pointArticleParagraphInsertion(candidates[0],{targetLabel,originalText,proposedText,language,baseline})??quotedSectionPointInsertion(candidates[0],{targetLabel,targetPath,originalText,proposedText,language,baseline},nativeProposalInputs?.[candidates[0].itemIndex])??twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??finnishQuotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedOrdinalSubparagraphInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],printedInnerPath(targetLabel,targetPath,language),proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);
