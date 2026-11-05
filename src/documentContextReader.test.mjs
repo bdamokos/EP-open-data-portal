@@ -1578,3 +1578,11 @@ test('intraparagraph insertion preserves source text, styles, links and both nat
  const unplaced=h.container.querySelector('[data-amendment-block]');assert.notEqual(unplaced.dataset.contextTarget,'true');
  assert.equal(h.container.querySelectorAll('[data-source-paragraph="1"]').length,1);assert.equal(plain(h.container.querySelector('[data-source-paragraph="1"]')),value);
 });
+
+test('uniquely addressed decision wording differences show their short source note in place',async t=>{
+ const value=overlayResponse({operation:'replace',span:{start:2,end:2}});
+ value.placement.evidence=[{basis:'decision-point-original-difference',anchor:2}];
+ const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+ const block=h.container.querySelector('[data-amendment-block="true"][data-context-target="true"]');
+ assert(block);assert.match(block.textContent,/Original wording differs from the proposal\./);
+});

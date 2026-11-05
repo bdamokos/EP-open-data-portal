@@ -2840,6 +2840,7 @@
   "proposalcontexttext.new.point.order": "Nova točka {point} slijedi iza točke {base}.",
   "topics.partialLegend": "Šrafirano: nepotpuno tromjesečje.",
   "topics.policyAreaSource": "Nazivi područja politike: {source}.",
+  "documentcontext.original_wording_differs": "Izvorni tekst razlikuje se od prijedloga.",
   "documentcontext.single_word_difference": "Izvorni tekst razlikuje se u jednoj riječi.",
   "proposalcontexttext.original.citation.omits.an.identifier": "U izvornom navodu nedostaje identifikator",
   "proposalcontexttext.printed.point.label": "Nova točka {point}. Oznaka navodi točku {base}.",

@@ -2840,6 +2840,7 @@
   "proposalcontexttext.new.point.order": "Nowy punkt {point} następuje po punkcie {base}.",
   "topics.partialLegend": "Kreskowanie: niepełny kwartał.",
   "topics.policyAreaSource": "Nazwy obszarów polityki: {source}.",
+  "documentcontext.original_wording_differs": "Pierwotne brzmienie różni się od wniosku.",
   "documentcontext.single_word_difference": "Pierwotne brzmienie różni się o jedno słowo.",
   "proposalcontexttext.original.citation.omits.an.identifier": "W pierwotnym odesłaniu pominięto identyfikator",
   "proposalcontexttext.printed.point.label": "Nowy punkt {point}. Etykieta wskazuje punkt {base}.",

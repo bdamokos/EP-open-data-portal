@@ -2839,6 +2839,7 @@
   "proposalcontexttext.colliding.new.point": "Detta nummer används redan. Infogat efter grundpunkten.",
   "proposalcontexttext.new.unnumbered.table": "Ny onumrerad tabell infogad sist i bilagan.",
   "proposalcontexttext.new.point.order": "Den nya punkten {point} följer efter punkt {base}.",
+  "documentcontext.original_wording_differs": "Den ursprungliga ordalydelsen skiljer sig från förslaget.",
   "documentcontext.single_word_difference": "Den ursprungliga lydelsen skiljer sig med ett ord.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Den ursprungliga hänvisningen saknar en identifierare",
   "proposalcontexttext.printed.point.label": "Ny punkt {point}. Beteckningen anger punkt {base}.",

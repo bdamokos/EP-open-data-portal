@@ -2840,6 +2840,7 @@
   "proposalcontexttext.new.point.order": "Naujas {point} punktas eina po {base} punkto.",
   "topics.partialLegend": "Brūkšniavimas: nepilnas ketvirtis.",
   "topics.policyAreaSource": "Politikos sričių pavadinimai: {source}.",
+  "documentcontext.original_wording_differs": "Pradinė formuluotė skiriasi nuo pasiūlymo.",
   "documentcontext.single_word_difference": "Pradinis tekstas skiriasi vienu žodžiu.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Pradinėje nuorodoje trūksta identifikatoriaus",
   "proposalcontexttext.printed.point.label": "Naujas {point} punktas. Žymoje nurodytas {base} punktas.",

@@ -2840,6 +2840,7 @@
   "proposalcontexttext.new.point.order": "Uusi kohta {point} seuraa kohtaa {base}.",
   "topics.partialLegend": "Viivoitus: osittainen vuosineljännes.",
   "topics.policyAreaSource": "Politiikan alojen nimet: {source}.",
+  "documentcontext.original_wording_differs": "Alkuperäinen sanamuoto eroaa ehdotuksesta.",
   "documentcontext.single_word_difference": "Alkuperäinen sanamuoto eroaa yhdellä sanalla.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Alkuperäisestä viitteestä puuttuu tunniste",
   "proposalcontexttext.printed.point.label": "Uusi kohta {point}. Otsakkeessa mainitaan kohta {base}.",
