@@ -173,7 +173,7 @@ test('named vote headings prefer language first, then the subject within that la
     const title=h.container.querySelector('.insight-vote-detail h3');
     assert.equal(title.textContent,fixture.text);
     assert.equal(effectiveLanguage(title),fixture.lang);
-    assert.equal(effectiveLanguage(h.container.querySelector('.insight-vote-totals h3')),'en');
+    assert.equal(effectiveLanguage(h.container.querySelector('.vote-result-totals span')),'en');
     const scope=h.container.querySelector('.insight-vote-detail .insight-record-meta span');
     assert.equal(scope.textContent,'Végleges szöveg');assert.equal(effectiveLanguage(scope),'hu');
     assert.equal(h.container.querySelector('.insight-topic-detail h2').textContent,'Source français');

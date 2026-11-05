@@ -40,10 +40,10 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
   const dotted=unseatedDotTotals(voters,seats);
   const groupCodes=useMemo(()=>[...new Set(rows.map(row=>row.group).filter((code):code is string=>Boolean(code)))],[rows]);
   const groupCounts=(code:string)=>votePositionKeys.map(position=>rows.filter(row=>row.group===code&&row.position===position).length);
-  const positionLabel=(seat:HemicycleSeat,ballot:{position:VotePosition}|undefined)=>ballot?positions[ballot.position]:ui.t('voteSeats.noRecord');
+  const positionLabel=(seat:HemicycleSeat,ballot:{position:VotePosition}|undefined)=>ballot?positions[ballot.position]:ui.t('votegroups.seats.noRecord');
   const label=(seat:HemicycleSeat,ballot:{position:VotePosition}|undefined)=>{
     const differs=ballot&&differIds.has(ballots.bySeat.get(seat.seat)!.id);
-    return [fullName(seat),groupLabel(seat.group||'',ui),countryName(seat.country||'',language),positionLabel(seat,ballot),differs?ui.t('voteSeats.differs'):null].filter(Boolean).join(' · ');
+    return [fullName(seat),groupLabel(seat.group||'',ui),countryName(seat.country||'',language),positionLabel(seat,ballot),differs?ui.t('votegroups.seats.differs'):null].filter(Boolean).join(' · ');
   };
   // Hover re-renders this component; seat labels only change with the data.
   const labels=useMemo(()=>new Map(seats.map(seat=>[seat.seat,label(seat,ballots.bySeat.get(seat.seat))])),[seats,ballots,differIds,ui,language]);
@@ -84,28 +84,28 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
           }),[seats,ballots,view,differIds,active,labels]);
   return <section className="vote-seats" lang={ui.language} aria-labelledby={headingId}>
     <div className="insight-section-heading">
-      <h4 id={headingId}><UiMessage id="voteSeats.heading"/></h4>
-      <div className="insight-chart-switch" role="group" aria-label={ui.t('voteSeats.view')}>
-        <button type="button" aria-pressed={view==='all'} onClick={()=>setView('all')}><UiMessage id="voteSeats.view.all"/></button>
-        <button type="button" aria-pressed={view==='differ'} onClick={()=>setView('differ')}>{ui.t('voteSeats.view.differ',{count:String(differIds.size)})}</button>
+      <h4 id={headingId}><UiMessage id="votegroups.seats.heading"/></h4>
+      <div className="insight-chart-switch" role="group" aria-label={ui.t('votegroups.seats.view')}>
+        <button type="button" aria-pressed={view==='all'} onClick={()=>setView('all')}><UiMessage id="votegroups.seats.view.all"/></button>
+        <button type="button" aria-pressed={view==='differ'} onClick={()=>setView('differ')}>{ui.t('votegroups.seats.view.differ',{count:String(differIds.size)})}</button>
       </div>
     </div>
-    {!plan?<p className="insight-secondary" role={state.error?'alert':'status'}>{state.error?<UiMessage id="voteSeats.unavailable"/>:<UiMessage id="insightshared.loading"/>}</p>:<>
+    {!plan?<p className="insight-secondary" role={state.error?'alert':'status'}>{state.error?<UiMessage id="votegroups.seats.unavailable"/>:<UiMessage id="insightshared.loading"/>}</p>:<>
       <figure className="vote-seats-chart">
-        <svg viewBox={`0 0 ${plan.width} ${plan.height}`} role="group" aria-label={ui.t('voteSeats.chart')} onClick={clickChart}>
+        <svg viewBox={`0 0 ${plan.width} ${plan.height}`} role="group" aria-label={ui.t('votegroups.seats.chart')} onClick={clickChart}>
           {circles}
           {selected&&<circle className="vote-seat-selected" cx={selected.x} cy={selected.y} r={selected.r*1.9} style={{strokeWidth:Math.max(1.5,selected.r*.4)}}/>}
         </svg>
-        <figcaption className="vote-seat-info" aria-live="polite">{selected?<>{fullName(selected)} · <span lang={groupLabelLanguage(selected.group||'',ui)}>{groupLabel(selected.group||'',ui)}</span> · {countryName(selected.country||'',language)} · {positionLabel(selected,selectedBallot||undefined)}{selectedBallot&&differIds.has(selectedBallot.id)&&<> · <UiMessage id="voteSeats.differs"/></>}{selectedBallot&&<button type="button" className="insight-text-button" onClick={()=>openMember(selected)}><UiMessage id="hemicycle.openMember"/></button>}</>:<UiMessage id="voteSeats.pick"/>}</figcaption>
+        <figcaption className="vote-seat-info" aria-live="polite">{selected?<>{fullName(selected)} · <span lang={groupLabelLanguage(selected.group||'',ui)}>{groupLabel(selected.group||'',ui)}</span> · {countryName(selected.country||'',language)} · {positionLabel(selected,selectedBallot||undefined)}{selectedBallot&&differIds.has(selectedBallot.id)&&<> · <UiMessage id="votegroups.seats.differs"/></>}{selectedBallot&&<button type="button" className="insight-text-button" onClick={()=>openMember(selected)}><UiMessage id="hemicycle.openMember"/></button>}</>:<UiMessage id="votegroups.seats.pick"/>}</figcaption>
       </figure>
-      <p className="insight-chart-caption"><UiMessage id="voteSeats.caption"/></p>
-      {(dotted.for||dotted.against||dotted.abstaining)>0&&<div className="vote-seat-unseated"><p className="insight-chart-caption"><UiMessage id="voteSeats.unseated"/></p>{votePositionKeys.filter(position=>dotted[position]).map(position=><div key={position} className="vote-seat-dots-row"><span className={'vote-seat-dots-label vote-'+position}>{positions[position]} <strong>{dotted[position]}</strong></span><span className="vote-seat-dots" aria-hidden="true">{Array.from({length:dotted[position]},(_,index)=><i key={index} className={'vote-'+position}/>)}</span></div>)}</div>}
+      <p className="insight-chart-caption"><UiMessage id="votegroups.seats.caption"/></p>
+      {(dotted.for||dotted.against||dotted.abstaining)>0&&<div className="vote-seat-unseated"><p className="insight-chart-caption"><UiMessage id="votegroups.seats.unseated"/></p>{votePositionKeys.filter(position=>dotted[position]).map(position=><div key={position} className="vote-seat-dots-row"><span className={'vote-seat-dots-label vote-'+position}>{positions[position]} <strong>{dotted[position]}</strong></span><span className="vote-seat-dots" aria-hidden="true">{Array.from({length:dotted[position]},(_,index)=><i key={index} className={'vote-'+position}/>)}</span></div>)}</div>}
     </>}
     <table className="vote-seats-sr">
-      <caption><UiMessage id="voteSeats.table"/></caption>
+      <caption><UiMessage id="votegroups.seats.table"/></caption>
       <thead><tr><th scope="col"><UiMessage id="groupvoices.political_group.c2db1f"/></th>{votePositionKeys.map(position=><th key={position} scope="col">{positions[position]}</th>)}</tr></thead>
       <tbody>{groupCodes.map(code=><tr key={code}><th scope="row" lang={groupLabelLanguage(code,ui)}>{groupLabel(code,ui)}</th>{groupCounts(code).map((count,index)=><td key={index}>{count}</td>)}</tr>)}</tbody>
-      <tfoot><tr><th scope="row"><UiMessage id="voteSeats.table.total"/></th>{votePositionKeys.map(position=><td key={position}>{rows.filter(row=>row.position===position).length}</td>)}</tr></tfoot>
+      <tfoot><tr><th scope="row"><UiMessage id="votegroups.seats.table.total"/></th>{votePositionKeys.map(position=><td key={position}>{rows.filter(row=>row.position===position).length}</td>)}</tr></tfoot>
     </table>
   </section>;
 }

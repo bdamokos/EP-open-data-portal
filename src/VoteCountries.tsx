@@ -45,20 +45,20 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
     const dir=same?(sort.dir==='asc'?'desc':'asc'):(kind==='country'?'asc':'desc');
     setRawSort(encodeMatrixSort(kind==='country'?{kind,dir}:{kind,key:key!,dir}));
   };
-  const heading=<h4><UiMessage id="voteCountries.heading"/></h4>;
+  const heading=<h4><UiMessage id="votegroups.countries.heading"/></h4>;
   const totalsText=(counts:Record<VotePosition,number>)=><span className="vote-country-totals">{votePositionKeys.map((p,i)=><span key={p} className={'vote-'+p}>{i?' · ':''}{counts[p]}</span>)}</span>;
   const label=(code:string)=>countryName(code,language);
   if(narrow)return <section className="vote-countries" lang={ui.language}>{heading}
     <ul className="vote-country-list">{ordered.map(row=>{
       const expanded=open===row.country;
       return <li key={row.country}>
-        <button type="button" className="vote-country-row" aria-expanded={expanded} onClick={()=>setOpen(expanded?null:row.country)} aria-label={ui.t('voteCountries.country_row',{country:label(row.country),for:String(row.counts.for),against:String(row.counts.against),abstaining:String(row.counts.abstaining)})}>
+        <button type="button" className="vote-country-row" aria-expanded={expanded} onClick={()=>setOpen(expanded?null:row.country)} aria-label={ui.t('votegroups.countries.country_row',{country:label(row.country),for:String(row.counts.for),against:String(row.counts.against),abstaining:String(row.counts.abstaining)})}>
           <span className="vote-country-row-head"><span lang={language}>{label(row.country)}</span>{totalsText(row.counts)}</span>
           <VoteBar totals={row.counts} thin/>
         </button>
         {expanded&&<ul className="vote-country-groups">
-          <li><button type="button" aria-pressed={country===row.country&&!group} onClick={()=>choose(row.country,null)}><span><UiMessage id="voteCountries.total"/></span>{totalsText(row.counts)}</button></li>
-          {[...row.groups].map(([code,counts])=><li key={code}><button type="button" aria-pressed={country===row.country&&group===code} aria-label={ui.t('voteCountries.group_row',{group:groupLabel(code,ui),for:String(counts.for),against:String(counts.against),abstaining:String(counts.abstaining)})} onClick={()=>choose(row.country,code)}><span lang={groupLabelLanguage(code,ui)}>{groupLabel(code,ui)}</span>{totalsText(counts)}</button></li>)}
+          <li><button type="button" aria-pressed={country===row.country&&!group} onClick={()=>choose(row.country,null)}><span><UiMessage id="votegroups.countries.total"/></span>{totalsText(row.counts)}</button></li>
+          {[...row.groups].map(([code,counts])=><li key={code}><button type="button" aria-pressed={country===row.country&&group===code} aria-label={ui.t('votegroups.countries.group_row',{group:groupLabel(code,ui),for:String(counts.for),against:String(counts.against),abstaining:String(counts.abstaining)})} onClick={()=>choose(row.country,code)}><span lang={groupLabelLanguage(code,ui)}>{groupLabel(code,ui)}</span>{totalsText(counts)}</button></li>)}
         </ul>}
       </li>;
     })}</ul>
@@ -67,18 +67,18 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
   return <section className="vote-countries" lang={ui.language}>{heading}
     <div style={{overflowX:'auto'}}><table className="vote-country-table">
       <thead><tr>
-        <th scope="col" aria-sort={sorted('country')}><button type="button" onClick={()=>sortBy('country')}><UiMessage id="voteCountries.country"/></button></th>
-        <th scope="col"><UiMessage id="voteCountries.total"/></th>
-        {groups.map(code=><th scope="col" key={code} aria-sort={sorted('group',code)}><button type="button" lang={groupLabelLanguage(code,ui)} aria-label={ui.t('voteCountries.sort',{column:groupLabel(code,ui)})} onClick={()=>sortBy('group',code)}>{groupLabel(code,ui)}</button></th>)}
+        <th scope="col" aria-sort={sorted('country')}><button type="button" onClick={()=>sortBy('country')}><UiMessage id="votegroups.countries.country"/></button></th>
+        <th scope="col"><UiMessage id="votegroups.countries.total"/></th>
+        {groups.map(code=><th scope="col" key={code} aria-sort={sorted('group',code)}><button type="button" lang={groupLabelLanguage(code,ui)} aria-label={ui.t('votegroups.countries.sort',{column:groupLabel(code,ui)})} onClick={()=>sortBy('group',code)}>{groupLabel(code,ui)}</button></th>)}
       </tr></thead>
       <tbody>{ordered.map(row=><tr key={row.country}>
         <th scope="row"><button type="button" className="insight-text-button" aria-pressed={country===row.country&&!group} onClick={()=>choose(row.country,null)} lang={language}>{label(row.country)}</button></th>
         <td>{totalsText(row.counts)}</td>
         {groups.map(code=>{
           const cell=row.cells.get(code);
-          if(!cell)return <td key={code} className="vote-none" aria-label={ui.t('voteCountries.none')}>–</td>;
+          if(!cell)return <td key={code} className="vote-none" aria-label={ui.t('votegroups.countries.none')}>–</td>;
           const text=cell.position?positions[cell.position]:cell.tied!.map(p=>positions[p]).join(' / ');
-          return <td key={code}><button type="button" className={'vote-'+(cell.position||'tied')} aria-pressed={country===row.country&&group===code} aria-label={ui.t('voteCountries.cell',{country:label(row.country),group:groupLabel(code,ui),count:String(cell.count),position:text})} title={text} onClick={()=>choose(row.country,code,cell.position||cell.tied![0])}>{cell.count}</button></td>;
+          return <td key={code}><button type="button" className={'vote-'+(cell.position||'tied')} aria-pressed={country===row.country&&group===code} aria-label={ui.t('votegroups.countries.cell',{country:label(row.country),group:groupLabel(code,ui),count:String(cell.count),position:text})} title={text} onClick={()=>choose(row.country,code,cell.position||cell.tied![0])}>{cell.count}</button></td>;
         })}
       </tr>)}</tbody>
     </table></div>

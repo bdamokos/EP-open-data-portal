@@ -21,11 +21,11 @@ export function VoteResult({outcome,method,aggregate,scoped,groups,rows}:{outcom
   const known=votePositionKeys.every(position=>typeof aggregate[position]==='number');
   const barTotals=(scoped||(known?aggregate:null)) as Record<VotePosition,number>|null;
   return <section className="vote-result" lang={ui.language}>
-    <p className="vote-result-outcome" data-outcome={outcome}>{outcomeIds.has(outcome)?<UiMessage id={'voteResult.outcome.'+outcome}/>:outcome.toLowerCase()}{method&&methodIds.has(method)&&<small className="vote-result-method"><UiMessage id={'voteResult.method.'+method}/></small>}</p>
+    <p className="vote-result-outcome" data-outcome={outcome}>{outcomeIds.has(outcome)?<UiMessage id={'votegroups.result.outcome.'+outcome}/>:outcome.toLowerCase()}{method&&methodIds.has(method)&&<small className="vote-result-method"><UiMessage id={'votegroups.result.method.'+method}/></small>}</p>
     <div className="vote-result-totals">{votePositionKeys.map(position=><div key={position} className={'vote-'+position}>
       <span>{positions[position]}</span>
-      <strong>{scoped?scoped[position]:(aggregate[position]??ui.t('voteResult.unknown'))}</strong>
-      {scoped&&<small><UiMessage id="voteResult.ofParliament" values={{count:aggregate[position]??ui.t('voteResult.unknown')}}/></small>}
+      <strong>{scoped?scoped[position]:(aggregate[position]??ui.t('votegroups.result.unknown'))}</strong>
+      {scoped&&<small><UiMessage id="votegroups.result.ofParliament" values={{count:aggregate[position]??ui.t('votegroups.result.unknown')}}/></small>}
     </div>)}</div>
     {barTotals&&<VoteBar totals={barTotals}/>}
     <VoteGroupSummary groups={groups} rows={rows}/>
