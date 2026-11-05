@@ -115,6 +115,8 @@ function AmendmentEvidenceState({item}:{item:AmendmentVariant}) {
   if(item.textIntegrity!=='incomplete')return null;
   return <p className="explorer-amendment-secondary explorer-amendment-evidence-state" lang={ui.language}><UiMessage id="batch5.amendments.tsx.123.8"/></p>;
 }
+/** Wording that cannot be shown: withheld, unavailable, or no wording columns at all (decision-only rows). */
+const wordingHidden=(row:{textIntegrity?:string|null;originalText?:string|null;proposedText?:string|null})=>row.textIntegrity==='incomplete'||row.textIntegrity==='unavailable'||(row.originalText==null&&row.proposedText==null);
 function AmendmentSources({sources,language}:{sources:AmendmentSource[];language:string}) {
   const ui = useUiI18n();
   const available=sources.map(source=>({source,url:sourcePageUrl(publicAmendmentSource(source),{language:source.language||language})})).filter(entry=>entry.url);
@@ -150,7 +152,7 @@ function SourceVariants({item,language}:{item:Amendment;language:string}) {
       {variant.authors?.length ? <p><UiMessage id="amendments.tabled_by_authors.b76b76" values={{authors: variant.authors.map((author,index)=><Fragment key={index}>{index ? ', ' : ''}<span lang="">{author.name}</span></Fragment>)}}/></p> : null}
       {variant.committeeProposer&&<p><UiMessage id="amendments.committee_committeeproposer.2bd2d3" values={{proposer: <span lang={variant.proposerSource?.language??''}>{variant.committeeProposer}</span>}}/></p>}
       {onBehalfLabel(variant.onBehalfOf)&&<p><UiMessage id="batch4.speechinterventions.tsx.on.behalf.of.group" values={{group: <span lang="">{onBehalfLabel(variant.onBehalfOf)}</span>}}/></p>}
-      <AmendmentWording item={variant}/>{(variant.textIntegrity==='incomplete'||variant.textIntegrity==='unavailable')&&<AmendmentSources sources={variant.sources||[]} language={language}/>}
+      <AmendmentWording item={variant}/>{wordingHidden(variant)&&<AmendmentSources sources={variant.sources||[]} language={language}/>}
     </section>)}</details> : null)}</></div>;
 }
 export function AmendmentCard({item,language,onMember,showOutcome=true,memberId,reader=false,readerDecisions,children}:{item:Amendment;language:string;onMember?:InsightProps['onMember'];showOutcome?:boolean;memberId?:string;reader?:boolean;readerDecisions?:AmendmentDecision[];children?:ReactNode}) {
@@ -172,7 +174,7 @@ export function AmendmentCard({item,language,onMember,showOutcome=true,memberId,
     {committee&&selection?.amendmentId&&selection.listId&&<FinalTextCheck documentId={selection.documentId} amendmentId={selection.amendmentId} listId={selection.listId} wordingLanguage={selection.wordingLanguage??null} language={language}/>}
     {(!reader||committee)&&<details className="explorer-amendment-evidence"><summary>{!committee&&item.gaps?.length?<UiMessage id="amendments.sources_count_gaps.2b2613" values={{count:item.gaps.length}}/>:<UiMessage id="amendments.sources.2eb56b"/>}</summary><AmendmentEvidenceState item={item}/>{item.title&&<p className="explorer-amendment-title" lang={(title.text===item.title) ? title.language : ''}>{title.text}</p>}{!committee&&<p className="explorer-amendment-reference">{item.id}</p>}<p className="explorer-amendment-meta">{joinMeta([documentDateLabel(item,language, undefined, ui),metadataLanguage(item) ? metadataLanguage(item).toUpperCase() : null])}</p>
       {item.officialIds?.length ? <p className="explorer-amendment-reference"><UiMessage id="amendments.official_references_references.3f6cd6" values={{references: item.officialIds.join(', ')}}/></p> : null}
-      {(item.textIntegrity==='incomplete'||item.textIntegrity==='unavailable')&&<AmendmentSources sources={item.sources||[]} language={language}/>}
+      {wordingHidden(item)&&<AmendmentSources sources={item.sources||[]} language={language}/>}
       {((item.scope!=='committee') && item.procedureIds?.length) ? <p><UiMessage id="amendments.procedures_references.54e0fa" values={{references: item.procedureIds.map((reference,index)=><Fragment key={reference}>{index ? ', ' : ''}<span lang="">{reference}</span></Fragment>)}}/></p> : null}
       {item.topics?.length ? <ul>{item.topics.map(topic=><li key={topic.id}><>{<span lang={topic.language??''}>{topic.label}</span>} {<small>· {(topic.basis==='dossier') ? ui.t("amendments.dossier_subject.d03afd") : ui.t("amendments.target_provision.5a9506")}</small>}</></li>)}</ul> : null}
     </details>}

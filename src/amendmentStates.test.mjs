@@ -23,6 +23,7 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
     {...base,id:'unsafe-baseline',number:2,textIntegrity:'incomplete',originalText:'Unverified old original must be withheld',proposedText:'Unverified old proposal must be withheld'},
     {...base,id:'absent-list',number:3,textIntegrity:'complete',originalText:'',proposedText:'Proposition conservée',wordingRetained:true,listRelationship:'absent-current-relationship'},
     {...base,id:'missing',number:4,textIntegrity:'unavailable',originalText:null,proposedText:null,listRelationship:'current',sources:[{url:'https://www.europarl.europa.eu/doceo/document/A-10-2026-0254-AM-011-020_FR.html',language:'fr'}]},
+    {...base,id:'decision-only',number:6,textIntegrity:undefined,originalText:null,proposedText:null,listRelationship:'current',sources:[{url:'https://www.europarl.europa.eu/doceo/document/A-10-2026-0254-AM-021-030_FR.html',language:'fr'}]},
     {...base,id:'variants',number:5,conflicted:true,variants:[
       {...base,listId:'variant-withheld',textIntegrity:'incomplete',originalText:null,proposedText:null,listRelationship:'unverified'},
       {...base,listId:'variant-absent',textIntegrity:'complete',originalText:'Original conservé',proposedText:'',wordingRetained:true,listRelationship:'absent-current-relationship',recordRetained:true},
@@ -56,6 +57,7 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   assert.equal(absent.querySelector('.wording-diff__columns section:nth-child(2)>p').lang,'fr');
   assert.doesNotMatch(absent.textContent,/record is retained from an earlier indexed source/,'a retained wording flag does not invent whole-record retention');
   const missing=card('missing');
+  assert(card('decision-only').querySelector('a[href*="A-10-2026-0254-AM-021-030"]'),'a decision-only row keeps its official source link');
   assert(missing.querySelector('a[href*="A-10-2026-0254-AM-011-020"]'),'unavailable wording keeps its official source link');
   assert.match(missing.querySelector('.explorer-amendment-texts section>p').textContent,/^Unavailable\.$/);
   assert.equal(missing.querySelector('.wording-diff,ins,del'),null,'unavailable original wording does not imply an insertion');
