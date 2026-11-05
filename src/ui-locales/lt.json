@@ -1784,7 +1784,7 @@
   "coverage.agendaSearchLimit": "Paieška pasiekė 100 darbotvarkės įrašų ribą vienam posėdžiui. Paveikti posėdžiai: {count}.",
   "coverage.sittingSearchLimit": "Paieška neišsami.",
   "coverage.agendaUnreadable": "Neišsami darbotvarkė.",
-  "coverage.searchEmptyLoaded": "Atitikmenų nėra · dalinė",
+  "coverage.searchEmptyLoaded": "Atitikmenų nėra · daliniai duomenys",
   "coverage.questionOverflow": "Nepasiekiami klausimai: bent {count}.",
   "coverage.sourceOverflow": "Nepasiekiami įrašai: bent {count}.",
   "coverage.questionReads": "Nepasiekiami klausimai: {count} · {period}",
