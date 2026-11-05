@@ -8,7 +8,7 @@ import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTarget
 import { numberingLabels } from './docx-numbering.mjs';
 import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='26';
+export const AMENDMENT_EXTRACTION_VERSION='27';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -492,10 +492,15 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
   const byNumber=new Map();
   for(const group of groups) {
     const raw=group.filter(b=>b.kind==='paragraph').map(b=>b.raw).join('\n');
-    const number=groupNumber(group,language);
+    let number=groupNumber(group,language),numberCandidate=null;
     if(!number){gap('number-unavailable',null,'An amendment block has no supported individual amendment number.');continue;}
     const numbers=new Set([...raw.matchAll(/<NumAm>\s*([1-9]\d*)(?:\/rev)?\s*<\/NumAm>/g)].map(match=>Number(match[1])));
-    if(numbers.size>1){gap('number-conflict',number,'The amendment block contains conflicting individual amendment numbers; its content is withheld.');continue;}
+    if(numbers.size>1){
+      const headings=group.filter(block=>block.kind==='paragraph').flatMap(block=>{const m=/^Amendment\s*<NumAm>([1-9]\d*)<\/NumAm>$/u.exec(block.raw.trim());return m?[Number(m[1])]:[];});
+      const stamped=field(raw,'NumAm').map(Number).filter(value=>value!==headings[0]);
+      if(scope!=='committee'&&language==='en'&&numbers.size===2&&headings.length===1&&stamped.length===1&&field(raw,'ANo').length===1){numberCandidate={heading:headings[0],stamp:stamped[0]};number=headings[0];}
+      else {gap('number-conflict',number,'The amendment block contains conflicting individual amendment numbers; its content is withheld.');continue;}
+    }
     for(const unsupported of group.filter(block=>block.kind==='unsupported'))gap(unsupported.code,number,unsupported.message);
     for(const block of group.filter(block=>block.kind==='paragraph'))for(const code of block.losses||[])if(CONTENT_LOSSES[code])gap(code,number,CONTENT_LOSSES[code]);
     const authors=[...new Set(field(raw,'Members').flatMap(names=>names.split(/[,;\n]+/).map(clean).filter(Boolean)))];
@@ -664,6 +669,11 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const targetPath={...amendmentTargetPath(documentReferences),language,sourceUrl,fetchedAt};
     if(baselineSource.conflicted)gap('baseline-conflict',number,'Comparison tables name different baseline categories.');
     const original=trimWording(joinWording(before)),proposed=trimWording(joinWording(after));
+    if(numberCandidate){
+      const paragraph=/^Paragraph ([1-9]\d*)$/u.exec(targetLabel??'');
+      if(baseline!=='motion-resolution'||baselineSource.conflicted||!paragraph||!new RegExp('^'+paragraph[1]+'\\.\\s','u').test(original.text)||!new RegExp('^'+paragraph[1]+'\\.\\s','u').test(proposed.text)){gap('number-conflict',number,'The conflicting amendment number has no supported comparison heading.');continue;}
+      documentReferences.push({field:'HeadingNumber',raw:String(numberCandidate.heading),sourceRaw:String(numberCandidate.heading),scope:'amendment',basis:'published-heading-number-candidate'},{field:'StampNumber',raw:String(numberCandidate.stamp),sourceRaw:String(numberCandidate.stamp),scope:'amendment',basis:'conflicting-stamp-number'});
+    }
     const record={...(scope==='committee'?{numberPublished:field(raw,'NumAm')[0]||String(number),proposerDateConflict:Boolean(field(raw,'Date').length&&!ownDate||!ownDate&&field(coverRaw,'Date').length&&!coverDate)}:{}),baselineSource,documentReferences,targetPath,number,listId:listId??null,targetDocumentId:targetDocumentId??null,date,documentDate:date,dateBasis,authors,committeeProposer:committee,onBehalfOf,baseline,targetLabel,originalText:comparableRows?original.text:null,proposedText:comparableRows?proposed.text:null,originalFormatting:comparableRows?canonicalFormatting(original.formatting):[],proposedFormatting:comparableRows?canonicalFormatting(proposed.formatting):[],justification,language,sources:[{url:sourceUrl,fetchedAt,date,dateBasis,language,format:'DOCX'}]};
     if(!authors.length)gap('authors-unavailable',number,'No explicit amendment proposer names were found in this document block.');
     if(!date)gap('date-unavailable',number,'The amendment document does not supply a supported document date.');

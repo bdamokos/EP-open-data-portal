@@ -2,6 +2,7 @@ import {assertSequentialParagraph} from './amendment-sequential-paragraph-oracle
 import {assertSplitComparisonNotes} from './amendment-native-note-oracle.mjs';
 import {assertHorizontalInstruction} from './amendment-horizontal-instruction-oracle.mjs';
 import {assertNegativeInstruction} from './amendment-negative-instruction-oracle.mjs';
+import {assertHeadingNumber} from './amendment-heading-number-oracle.mjs';
 import {assertPrintedInsertion} from './amendment-printed-insertion-oracle.mjs';
 import {assertUniqueEntry} from './amendment-unique-entry-oracle.mjs';
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
@@ -638,6 +639,7 @@ export function verifyPlacement(input) {
   const splitNotes=assertSplitComparisonNotes(input);if(splitNotes&&splitNotes.status!=='verified')return splitNotes;
   const horizontal=assertHorizontalInstruction(input);if(horizontal&&horizontal.status!=='verified')return horizontal;
   if(horizontal?.status==='verified')input={...input,wording:{...input.wording,originalText:input.wording.originalText.replace(/^(\d+) cikk\n/u,'$1. cikk\n')}};
+  const headingNumber=assertHeadingNumber(input);if(headingNumber)return headingNumber;
   const captioned=assertCaptionedComparison(input);if(captioned&&captioned.status!=='verified')return captioned;
   const formula=assertFormulaGap(input);if(formula&&formula.status!=='verified')return formula;
   if(input.items?.[input.placement?.itemIndex]?.proposal?.sourceKind==='pdf')return assertCouncilDraftPlacement(input);

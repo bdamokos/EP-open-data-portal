@@ -52,6 +52,7 @@ export function documentContextPlacement({chosen,text,items,baseline,proposalIte
   if(hasCouncilQuotation(chosen)&&baseline?.evidence?.some(e=>e.kind==='report-council-draft')&&items?.some(i=>i.proposal?.sourceKind==='pdf'))chosen={...chosen,baseline:'council-position',baselineSource:{...chosen.baselineSource,category:'council-position'}};
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
+  if(chosen.documentReferences?.some(ref=>ref.basis==='published-heading-number-candidate'))chosen={...chosen,number:chosen.number??amendmentNumber};
   const alternative=amendmentAlternative(chosen);
   if(alternative)return alternative;
   const rejection=amendmentRejection(chosen);
