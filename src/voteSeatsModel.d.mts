@@ -3,7 +3,7 @@ export type SeatBallots={bySeat:Map<number,{id:string;position:'for'|'against'|'
 export function seatBallots(voters:SeatBallotVoter[],seats:import('./hemicycleModel.mjs').HemicycleSeat[]):SeatBallots;
 export function positionTotals(voters:SeatBallotVoter[]):Record<'for'|'against'|'abstaining',number>;
 export function unseatedDotTotals(voters:SeatBallotVoter[],seats:import('./hemicycleModel.mjs').HemicycleSeat[]):Record<'for'|'against'|'abstaining',number>;
-export function differingVoterIds(rows:import('./voteGroupMetrics.mjs').VoteMetricRow&{id?:string}):Set<string>;
+export function differingVoterIds(rows:(import('./voteGroupMetrics.mjs').VoteMetricRow&{id?:string})[]):Set<string>;
 export type CountryCell={position:'for'|'against'|'abstaining'|null;count:number;tied:import('./voteGroupMetrics.mjs').Position[]|null};
 export type CountryBreakdownRow={country:string;counts:Record<'for'|'against'|'abstaining',number>;cells:Map<string,CountryCell>};
 export function countryGroupBreakdown(rows:(import('./voteGroupMetrics.mjs').VoteMetricRow&{id?:string})[]):CountryBreakdownRow[];
