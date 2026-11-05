@@ -12,7 +12,7 @@ import {useExplorerParam} from './explorerUrl';
 import {InsightShell,insightMemberHref} from './InsightShared';
 import type {InsightProps} from './InsightTypes';
 import type {Amendment,AmendmentDecision,AmendmentPage,AmendmentSource,AmendmentSplit,AmendmentVariant} from './AmendmentTypes';
-import {validCommitteeCode,amendmentContextSelection,amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentOutcomeLabel,amendmentPlanSummary,amendmentRoute,publicAmendmentSource} from './amendmentModel.mjs';
+import {validCommitteeCode,amendmentContextSelection,amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentOutcomeLabel,amendmentRoute,publicAmendmentSource} from './amendmentModel.mjs';
 import type {Directory} from './explorerTypes';
 import './Amendments.css';
 // coverage.pending is the amendment index's explicit fill progress.
@@ -83,26 +83,6 @@ function SplitDescription({description,language,sourceDescriptions,rawDescriptio
       <pre lang={sourceLanguage}>{text}</pre>
     </div>)}</></div>;
 }
-function PlanLine({text,plan,language}:{text:string;plan?:Record<string,unknown>|null;language?:string|null}) {
-  const literals=new Set<string>();
-  const collect=(node:unknown,depth=0)=>{
-    if(!node||typeof node!=='object'||depth>8)return;
-    for(const [key,value] of Object.entries(node)){
-      if(['quote','character','within'].includes(key)&&typeof value==='string')literals.add('“'+value+'”');
-      else if(typeof value==='object')collect(value,depth+1);
-    }
-  };
-  collect(plan);
-  if(!literals.size)return <>{text}</>;
-  const pattern=[...literals].sort((a,b)=>b.length-a.length).map(value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
-  const parts:ReactNode[]=[];let offset=0;
-  for(const match of text.matchAll(new RegExp(pattern,'gu'))){
-    if(match.index>offset)parts.push(text.slice(offset,match.index));
-    parts.push(<span key={match.index} lang={language??''}>{match[0]}</span>);offset=match.index+match[0].length;
-  }
-  if(offset<text.length)parts.push(text.slice(offset));
-  return <>{parts}</>;
-}
 function GroupLabel({group,by}:{group:ReturnType<typeof amendmentGroups>[number];by:string}) {
   const ui = useUiI18n();
   const item=group.items[0];
@@ -118,8 +98,8 @@ function GroupLabel({group,by}:{group:ReturnType<typeof amendmentGroups>[number]
 function SplitPart({part,item,language,reader=false,availableDecisions=item.decisions||[]}:{part:AmendmentSplit;item:Amendment;language:string;reader?:boolean;availableDecisions?:AmendmentDecision[]}) {
   const ui = useUiI18n();
   const decisions=availableDecisions.filter(decision=>amendmentDecisionPart(item.splitParts||[],decision)?.id===part.id);
-  const plan=amendmentPlanSummary(part.plan, ui),failed=Boolean(part.failure)||['failed','unparsed','unresolved','unsupported','failure','error'].includes(part.status||'');
-  return <li className="explorer-amendment-part" lang={ui.language}><h5>{(part.number!=null) ? ui.t("membervotes.tsx.part.number", {number: String(part.number)}) : (part.id||ui.t("amendmentmodel.mjs.unidentified.split.component"))}</h5><SplitDescription description={part.description} language={part.language} rawDescription={part.rawDescription} sourceDescriptions={part.sourceDescriptions} code={(typeof part.failure==='object') ? part.failure?.code : null}/>{!failed&&plan.length>0&&<details className="explorer-amendment-selection"><summary><UiMessage id="batch5.amendments.tsx.116.5"/></summary><ul>{plan.map((line,index)=><li key={index}><PlanLine text={line} plan={part.plan} language={part.language}/></li>)}</ul></details>}{decisions.length ? <ul className="explorer-amendment-decisions">{decisions.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language} reader={reader}/>)}</ul> : ((reader && (item.decisions||[]).some(decision=>amendmentDecisionPart(item.splitParts||[],decision)?.id===part.id)) ? null : <p className="explorer-amendment-secondary"><UiMessage id="batch5.amendments.tsx.116.6"/></p>)}</li>;
+  const failed=Boolean(part.failure)||['failed','unparsed','unresolved','unsupported','failure','error'].includes(part.status||'');
+  return <li className="explorer-amendment-part" lang={ui.language}><h5>{(part.number!=null) ? ui.t("membervotes.tsx.part.number", {number: String(part.number)}) : (part.id||ui.t("amendmentmodel.mjs.unidentified.split.component"))}</h5><SplitDescription description={part.description} language={part.language} rawDescription={part.rawDescription} sourceDescriptions={part.sourceDescriptions} code={(typeof part.failure==='object') ? part.failure?.code : null}/>{decisions.length ? <ul className="explorer-amendment-decisions">{decisions.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language} reader={reader}/>)}</ul> : ((reader && (item.decisions||[]).some(decision=>amendmentDecisionPart(item.splitParts||[],decision)?.id===part.id)) ? null : <p className="explorer-amendment-secondary"><UiMessage id="batch5.amendments.tsx.116.6"/></p>)}</li>;
 }
 function AmendmentWording({item,reader=false}:{item:AmendmentVariant;reader?:boolean}) {
   const ui = useUiI18n();

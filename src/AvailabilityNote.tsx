@@ -13,7 +13,7 @@ function GapNotice({notice,language}:{notice:CoverageNotice;language:string}) {
   const dateNode=(day:string)=><span lang={language}>{date(day,language)}</span>;
   if(notice.kind==='speech-records')return <UiMessage id={notice.dates.length?'coverage.speechReadsDates':'coverage.speechReads'} values={{count:notice.count,dates:<span lang={language}>{notice.dates.map(day=>date(day,language)).join(', ')}</span>}}/>;
   if('sourceUrl' in notice){
-    const state=notice.retained===true?'updateFailed':notice.retained===false?'unloaded':'readFailed';
+    const state=notice.retained===false?'unloaded':'readFailed';
     return <UiMessage id={`coverage.${notice.kind}.${state}`} values={{record:<SourceLink url={notice.sourceUrl} language={language} contentLanguage={ui.language}><UiMessage id={notice.kind==='question'?'coverage.questionReference':'coverage.documentReference'} values={{id:<span lang="">{notice.id}</span>}}/> ↗</SourceLink>}}/>;
   }
   const period=notice.start&&notice.end?<>{dateNode(notice.start)}{notice.start!==notice.end?<> – {dateNode(notice.end)}</>:null}</>:<UiMessage id={notice.start?'coverage.periodFrom':'coverage.periodThrough'} values={{date:dateNode((notice.start||notice.end)!)}}/>;
@@ -24,7 +24,7 @@ function GapNotice({notice,language}:{notice:CoverageNotice;language:string}) {
 export function AvailabilityNote({sources,label='record',kind,language='en',start,end,showGaps=true,sourceIds,archive=false}:{sources?:SourceAvailability|SourceAvailability[]|null;label?:string;kind?:AvailabilityKind;language?:string;start?:string|null;end?:string|null;partial?:boolean;showGaps?:boolean;sourceIds?:string[];archive?:boolean}) {
   const ui=useUiI18n();
   if(!sources)return null;
-  const latest=availabilitySummary(sources).latestObservedDate,notices=showGaps?coverageNotices(sources,{start,end,onlyRelevant:!archive,sourceIds}):[];
+  const latest=availabilitySummary(sources).latestObservedDate,notices=showGaps?coverageNotices(sources,{start,end,onlyRelevant:!archive,sourceIds}).filter(notice=>!('sourceUrl' in notice&&notice.retained===true)):[];
   if(!latest&&!notices.length)return null;
   const knownKinds:Record<string,AvailabilityKind>={record:'record',event:'event',question:'question',speech:'speech','speech record':'speech.record',text:'text',vote:'vote'};
   const messageKind=kind||knownKinds[label]||'record';

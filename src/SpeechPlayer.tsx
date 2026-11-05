@@ -65,7 +65,7 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
       {(!media.data.available) ? <div className="explorer-notice" role="alert"><strong>{(media.data.status === 'audio-unavailable') ? ui.t("speechplayer.activename_audio_unavailable.545cd9", {activeName: String(activeName)}) : (['audio-unverified','audio-selection-unverified'].includes(media.data.status) ? ui.t("speechplayer.activename_audio_unavailable.545cd9", {activeName: String(activeName)}) : ui.t("speechplayer.video_unavailable.d0baed"))}</strong>{media.data.reason&&<p>{media.data.reason}</p>}{!current.original&&media.data.status?.startsWith('audio-')&&<button onClick={()=>{closeButton.current?.focus({preventScroll:true});start(true);}}><UiMessage id="batch5.speechplayer.tsx.72.86"/></button>}</div> : ((!embed) ? <p role="alert"><UiMessage id="batch5.speechplayer.tsx.73.87"/></p> : <>
           <ParliamentFrame key={speechFrameKey(current.speechId,lang,audio,media.data.audioMapping)} src={embed} speechId={current.speechId} lang={lang} audio={audio} original={current.original} mapping={media.data.audioMapping!} returnFocus={returnFocus} />
         </>)}
-      {media.data.recording && <p className="explorer-source-link"><a href={media.data.recording.websiteUrl} target="_blank" rel="noreferrer"><UiMessage id="batch5.speechplayer.tsx.77.88"/></a>{media.data.recording.stale && <small>  <UiMessage id="speechplayer.cached_recording_metadata.2a07a8"/></small>}</p>}
+      {media.data.recording && <p className="explorer-source-link"><a href={media.data.recording.websiteUrl} target="_blank" rel="noreferrer"><UiMessage id="batch5.speechplayer.tsx.77.88"/></a></p>}
     </>}
     </>}
   </section>;

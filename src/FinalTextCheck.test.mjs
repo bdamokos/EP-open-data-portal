@@ -37,7 +37,7 @@ test('closed disclosure does not fetch; opening requests the exact list, amendme
   await h.toggle();assert.equal(h.requests.length,1);const url=h.requests[0].url;
   assert.equal(decodeURIComponent(url.pathname),'/api/document-context/AGRI-PR-773115');
   for(const [key,value]of Object.entries({amendment:selection.amendmentId,list:selection.listId,'wording-lang':'en',lang:'en','final-text':'1',scope:'committee'}))assert.equal(url.searchParams.get(key),value);
-  assert(h.container.textContent.includes('Same wording'));assert(h.container.textContent.includes('Final EU act'));assert(h.container.textContent.includes('11 Mar 2026'));assert(h.container.textContent.includes('Article 9(4)'));
+  assert(h.container.textContent.includes('Same wording'));assert(h.container.textContent.includes('Final act'));assert(h.container.textContent.includes('11 Mar 2026'));assert(h.container.textContent.includes('Article 9(4)'));
   assert(h.container.textContent.includes('Compare wording'));assert(h.container.querySelector('.wording-diff'));assert(h.container.textContent.includes('Read text'));
   for(const link of h.container.querySelectorAll('a'))assert(!/publications\.europa\.eu\/resource|data\.europarl\.europa\.eu\/api/u.test(link.href));
   assert(!h.container.textContent.includes(destination.id));assert(!h.container.textContent.includes('2026-10-30'));
@@ -86,7 +86,7 @@ test('a verified final-act comparison stays clear when the Parliament publicatio
   const parliament={...destination,kind:'parliament-adopted-text',id:'TA-10-2026-0048'};
   const h=await harness(t,()=>response(selection,{stages:[{destination:parliament,wording:{...wording,status:'unavailable',mapping:null,passages:null}},{destination,wording}]}));
   await h.render(selection);await h.toggle();
-  assert(h.container.textContent.includes('Final EU act'));assert(h.container.textContent.includes('Same wording'));
+  assert(h.container.textContent.includes('Final act'));assert(h.container.textContent.includes('Same wording'));
   assert(!h.container.textContent.includes('Parliament’s adopted text'));assert(!h.container.textContent.includes('Unavailable'));
 });
 

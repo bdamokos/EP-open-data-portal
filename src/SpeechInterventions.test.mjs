@@ -114,7 +114,7 @@ test('procedural notes explain later contributions without speech controls, whil
   await act(async()=>root.render(createElement(SpeechContextPanel,{key:unconfirmed.id,id:unconfirmed.id,language:'en'})));
   await act(async()=>container.querySelector('button').click());
   const unknownChair=container.querySelectorAll('.intervention-sequence>li')[1];
-  assert.equal(unknownChair.textContent,'Chair change · identity unconfirmed');
+  assert.equal(unknownChair.textContent,'Chair change');
   assert(!container.textContent.includes('ESTEBAN'));assert(!container.textContent.includes('PRESIDELS'));
   assert.equal(unknownChair.querySelector('button,a'),null);
   assert.equal(calls.length,3);
@@ -192,7 +192,7 @@ test('missing debate records remain visible without the sequence sources disclos
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');installRetryClock(t);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id:row.id,language:'en'})));
   await act(async()=>container.querySelector('button').click());
-  assert.match(container.textContent,/Debate records available: 1 of 2\. Links stop at missing contributions\./);
+  assert.match(container.textContent,/Debate records: 1 of 2\./);
   assert.equal(container.querySelector('details,a[href="https://example.org/sequence-source"]'),null);
   assert(!container.textContent.includes('Sequence sources'));
 });
@@ -224,7 +224,7 @@ test('resolved adjacent-chapter records do not show as missing, while unfetched 
     await act(async()=>container.querySelector('button').click());
     assert.equal(container.querySelectorAll('.intervention-sequence>li').length,index===0?2:1);
     if(index===0)assert(!container.textContent.includes('records available'));
-    else assert.match(container.textContent,/Debate records available: 1 of 2\. Links stop at missing contributions\./);
+    else assert.match(container.textContent,/Debate records: 1 of 2\./);
   }
   assert.equal(calls,2);
 });

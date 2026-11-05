@@ -99,5 +99,5 @@ export function PlenaryLiveBanner({language='en'}:{language?:string}) {
 export function ScheduledNow({id}:{id:string}) {
   const ui = useUiI18n();
   const {data,fresh}=usePlenaryLive();
-  return ((fresh && (data?.agenda.state==='presumed')) && (data.agenda.items[0]?.id===id)) ? <span className="plenary-scheduled-now" title={ui.t("plenarylive.tsx.per.the.published.timetable")}><UiMessage id="plenarylive.tsx.scheduled.now"/></span> : null;
+  return ((fresh && (data?.agenda.state==='presumed')) && (data.agenda.items[0]?.id===id)) ? <span className="plenary-scheduled-now"><UiMessage id="plenarylive.tsx.scheduled.now"/></span> : null;
 }

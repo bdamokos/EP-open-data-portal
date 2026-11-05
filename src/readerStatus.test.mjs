@@ -101,7 +101,7 @@ test('reader request errors announce the current failure without moving focus or
     await h.finish(route,null,true);
     for(let i=0;i<6;i++){await automaticRecovery(t);await h.finish(route,null,true);}
     await h.wait();
-    assert.equal(h.status().textContent,kind==='question'?'Answer: Text temporarily unavailable.':'Speech temporarily unavailable.');
+    assert.equal(h.status().textContent,kind==='question'?'Answer: Text unavailable.':'Speech unavailable.');
     assert.equal(h.container.querySelectorAll('[role="status"],[role="alert"]').length,1,'the visible error does not create a second live announcement');
     assert.equal(document.activeElement,h.trigger);
   });
@@ -142,7 +142,7 @@ test('unavailable text stays explicit with source access, and failed document re
     const route=`document/${questionId}?lang=en`;await h.finish(route,null,true);
     for(let i=0;i<6;i++){await automaticRecovery(t);await h.finish(route,null,true);}
     await h.wait();
-    assert.equal(h.status().textContent,'Question: Text temporarily unavailable.');
+    assert.equal(h.status().textContent,'Question: Text unavailable.');
     assert.equal(h.container.querySelector('.insight-reader-text').textContent,body,'a refresh error does not discard cached text');
     assert(h.container.querySelector('.insight-reader-source a'));
     assert.equal(document.activeElement,h.trigger);
@@ -154,7 +154,7 @@ test('a mismatched response identifier is announced as unavailable instead of re
     const h=await harness(t);
     await h.render(h.reader(kind));
     await h.finish(kind==='question'?`document/${questionId}?lang=en`:`speech/${speechId}?lang=en`,kind==='question'?question('E-10-2026-003032'):speech('MTG-PL-2026-03-25-OTH-2017069380112'));await h.wait();
-    assert.equal(h.status().textContent,kind==='question'?'Question: Text temporarily unavailable.':'Speech temporarily unavailable.');
+    assert.equal(h.status().textContent,kind==='question'?'Question: Text unavailable.':'Speech unavailable.');
     assert.equal(h.container.querySelector('.insight-reader-text'),null);
     assert(!h.container.textContent.includes(body));
     assert.equal(document.activeElement,h.trigger);
@@ -273,7 +273,7 @@ test('terminal read failures appear only after the automatic cap or immediately 
  for(const status of [503,404])await t.test(String(status),async t=>{
   const h=await harness(t),route=`document/${questionId}?lang=en`;await h.render(h.reader('question'));
   const fail=()=>h.finish(route,Response.json({error:{message:'Unavailable'}},{status}));await fail();
-  if(status===503){for(let i=0;i<6;i++){assert(!h.container.textContent.includes('Text temporarily unavailable.'));await automaticRecovery(t);await fail();}}
-  await h.wait();assert(h.container.textContent.includes('Text temporarily unavailable.'));assert.equal(h.requests.length,status===503?7:1);noRetry(h);assert.equal(h.clock.timers.size,0);
+  if(status===503){for(let i=0;i<6;i++){assert(!h.container.textContent.includes('Text unavailable.'));await automaticRecovery(t);await fail();}}
+  await h.wait();assert(h.container.textContent.includes('Text unavailable.'));assert.equal(h.requests.length,status===503?7:1);noRetry(h);assert.equal(h.clock.timers.size,0);
  });
 });

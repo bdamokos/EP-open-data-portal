@@ -23,19 +23,19 @@ test('coverage names concrete gaps without inferring missing records from dates 
   await render(sourceAvailability({sourceKey:'questions',family:'questions',gaps:[{sourceId:'/parliamentary-questions/E-10-2026-001715'}]}));
   assert.equal(container.textContent,'','an undated archive failure cannot be assigned to the selected period');
   await render(sourceAvailability({sourceKey:'questions',family:'questions',gaps:[{sourceId:'/parliamentary-questions/E-10-2026-001715'}]}),{sourceIds:['E-10-2026-001715']});
-  assert.match(container.textContent,/Question E-10-2026-001715.*last read failed/);
+  assert.match(container.textContent,/Question E-10-2026-001715.*unavailable/);
   assert.equal(container.querySelector('a').href,'https://www.europarl.europa.eu/doceo/document/E-10-2026-001715_EN.html');
   assert.doesNotMatch(container.innerHTML,/data\.europarl|api\/v2/);
-  for(const [retained,expected] of [[true,'could not be updated'],[false,'not loaded']]) {
+  for(const [retained,expected] of [[true,null],[false,'unavailable']]) {
     await render(sourceAvailability({sourceKey:'questions',family:'questions',gaps:[{sourceId:'/parliamentary-questions/E-10-2026-001715',retained}]}),{sourceIds:['E-10-2026-001715']});
-    assert.match(container.textContent,new RegExp(expected));
+    if(expected)assert.match(container.textContent,new RegExp(expected));else assert.equal(container.textContent,'','a retained copy carries no record note');
   }
   await render(sourceAvailability({sourceKey:'speeches',family:'speeches',start:'2024-07-16',end:'2026-10-24',gaps:[
     {start:'2026-03-11',end:'2026-03-11',sourceId:'speech:MTG-PL-2026-03-11-OTH-123'},
     {start:'2026-03-11',end:'2026-03-11',sourceId:'speech-metadata-detail:MTG-PL-2026-03-11-OTH-123'},
     {start:'2023-11-21',end:'2023-11-21',sourceId:'outside:gap:outside:roster:2023-11-21'},
   ]}));
-  assert.match(container.textContent,/Speech archive failed reads: 1.*Mar 11, 2026/);
+  assert.match(container.textContent,/Speeches unavailable: 1.*Mar 11, 2026/);
   assert.doesNotMatch(container.textContent,/2023|MTG-PL|2 speech/);
   assert.equal(container.querySelector('a'),null,'URI-only speech identities cannot invent human document links');
   await render(sourceAvailability({sourceKey:'questions',family:'questions',gaps:[{start:'2026-10-27',sourceId:'feed:/parliamentary-questions'}]}));
@@ -43,7 +43,7 @@ test('coverage names concrete gaps without inferring missing records from dates 
   await render(sourceAvailability({sourceKey:'speech-text',observedRecords:0}));
   assert.equal(container.textContent,'','the containing view owns its empty or unavailable state');
   const overflow=sourceAvailability({sourceKey:'questions',family:'questions',gaps:[{reason:'gap-list-limit',minimumCount:501}]});
-  await render(overflow,{archive:true});assert.match(container.textContent,/Failed question reads: at least 501/);
+  await render(overflow,{archive:true});assert.match(container.textContent,/Questions unavailable: at least 501/);
   await render(overflow);assert.equal(container.textContent,'','an unscoped aggregate cannot qualify every selected page');
   await render(sourceAvailability({sourceKey:'speech',family:'speeches',latestObservedDate:'2026-10-16',gaps:[{start:'2024-10-07',end:'2024-10-07',sourceId:'speech:MTG-PL-2024-10-07-OTH-123'}]}),{start:'2026-10-01'});
   assert.equal(container.textContent,'Latest text: Oct 16, 2026');
@@ -62,7 +62,7 @@ test('coverage messages use the selected formatter and keep exact source identif
   const i18n=createAppUiI18n({fr:{
     'coverage.questionOverflow':'Lectures de questions échouées : au moins {count}.',
     'coverage.questionReference':'Question officielle {id}',
-    'coverage.question.unloaded':'{record} non chargée',
+    'coverage.document.readFailed':'{record} non chargée',
   }});
   const html=renderToStaticMarkup(createElement(UiI18nProvider,{i18n,language:'fr'},createElement(AvailabilityNote,{
     archive:true,language:'fr',sources:sourceAvailability({sourceKey:'questions',family:'questions',gaps:[
@@ -75,7 +75,7 @@ test('coverage messages use the selected formatter and keep exact source identif
   assert(html.includes('non chargée'));
   assert(html.includes('<span lang="fr">Question officielle <span lang="">'+id+'</span>'));
   const documentId='A-10-2026-0042';
-  const documentUi=createAppUiI18n({fr:{'coverage.documentReference':'Document officiel {id}','coverage.document.unloaded':'{record} non chargé'}});
+  const documentUi=createAppUiI18n({fr:{'coverage.documentReference':'Document officiel {id}','coverage.document.readFailed':'{record} non chargé'}});
   const documentHtml=renderToStaticMarkup(createElement(UiI18nProvider,{i18n:documentUi,language:'fr'},createElement(AvailabilityNote,{archive:true,language:'fr',sources:sourceAvailability({sourceKey:'documents',family:'documents',gaps:[{sourceId:'/plenary-documents/'+documentId,retained:false}]})})));
   assert(documentHtml.includes('<span lang="fr">Document officiel <span lang="">'+documentId+'</span>'));
   assert(documentHtml.includes('document/'+documentId+'_FR.html'));

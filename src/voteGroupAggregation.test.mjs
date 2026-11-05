@@ -24,7 +24,7 @@ test('vote matrix and group drill-down consume dated server buckets, including c
   assert.match(matrix().textContent,/S&D/);assert.doesNotMatch(matrix().textContent,/Renew|Unknown/);assert.match(matrix().textContent,/Unavailable/);
   assert.match(matrix().textContent,/With majority/);assert.match(container.querySelector('.vote-group-summary').textContent,/Every group’s majority voted for/);
   assert.equal(matrix().querySelector(".vote-group-scope"),null);
-  assert.match(matrix().querySelector(".insight-vote-matrix-head").textContent,/Abstaining/);
+  assert.match(matrix().querySelector(".insight-vote-matrix-head").textContent,/Abstentions/);
   const oldGroup=[...matrix().querySelectorAll('button')].find(button=>button.getAttribute('aria-label')==='S&D, for: 1 MEP');assert(oldGroup);
   await act(async()=>oldGroup.click());
   assert.match(container.querySelector('.insight-voter-list').textContent,/Pina Picierno/);assert.doesNotMatch(container.querySelector('.insight-voter-list').textContent,/Other author|Unknown history|Renew/);

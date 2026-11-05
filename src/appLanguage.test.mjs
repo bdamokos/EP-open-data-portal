@@ -189,7 +189,7 @@ for(const language of ['en','hu','fr']) {
     assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
     assert.equal(effectiveLanguage(detail.querySelector('h3')),language);
     assert.equal(effectiveLanguage(detail.querySelector('.text-language-line')),language);assert(detail.querySelector('.text-language-line').textContent.includes(c.machine));
-    assert.equal(effectiveLanguage(exactText(detail,'small',c.saved)),language);
+    assert(![...detail.querySelectorAll('small')].some(node=>node.textContent===c.saved),'a saved-transcript note is not shown');
     assert.equal(detail.querySelector('.explorer-source-link a'),null);
     assert.equal(effectiveLanguage(detail.querySelector('button.explorer-search-icon')),language);assert.equal(detail.querySelector('button.explorer-search-icon').getAttribute('aria-label'),c.find);
     await h.click(rows[1].querySelector('button'));

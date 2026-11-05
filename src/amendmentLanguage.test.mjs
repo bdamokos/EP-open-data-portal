@@ -82,8 +82,6 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
   assert.equal(effectiveLanguage(wording(card('mixed'),0)),'mul');assert.equal(effectiveLanguage(wording(card('undetermined'),0)),'und');
   const parts=card('known-fr').querySelectorAll('.explorer-amendment-part');
   assert.equal(effectiveLanguage(parts[0].querySelector('blockquote')),'fr');assert.equal(effectiveLanguage(parts[1].querySelector('blockquote')),'');
-  for(const part of parts){assert.equal(effectiveLanguage(part.querySelector('.explorer-amendment-selection summary')),'en');assert.equal(effectiveLanguage(part.querySelector('.explorer-amendment-selection li')),'en');}
-  assert.equal(effectiveLanguage(parts[0].querySelector('.explorer-amendment-selection li span')),'fr');assert.equal(effectiveLanguage(parts[1].querySelector('.explorer-amendment-selection li span')),'');
   const variants=card('variants').querySelectorAll('.explorer-amendment-variant');
   assert.equal(effectiveLanguage(wording(variants[0],0)),'fr');assert.equal(effectiveLanguage(variants[0].querySelector('p[lang="hu"]')),'hu');
   assert.equal(effectiveLanguage(wording(variants[1],0)),'');

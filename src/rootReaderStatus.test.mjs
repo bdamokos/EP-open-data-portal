@@ -101,7 +101,7 @@ test('inline full-text results replace the list, combine with exact chair record
   assert.equal(h.searches.at(-1).member,member.id);assert.deepEqual(h.searches.at(-1).kinds,['speech']);
   await h.click(h.container.querySelector('a[aria-label^="Chairing contributions:"]'));
   assert.deepEqual(h.searches.at(-1).sourceIds,[speechId]);
-  assert.match(h.container.querySelector('#speech-filter-results-'+member.id).textContent,/Chairing contributions · 1 loaded/);
+  assert.match(h.container.querySelector('#speech-filter-results-'+member.id).textContent,/Chairing contributions · 1+/);
   await h.click(h.container.querySelector('button[aria-label="Clear speech search"]'));
   assert.equal(new URLSearchParams(location.search).has('mep-speech-fts-search'),false);
   assert.equal(h.container.querySelector('.explorer-search-result,.explorer-search-count'),null);
@@ -168,7 +168,7 @@ test('a statistics restart clamps a filtered page when fewer matching records re
   await h.click(older());await h.click(older());
   assert.equal(h.container.querySelector('article.explorer-speech').id,'speech-'+records[20].id);
   await act(async()=>finish({...result(records.slice(0,5)),restarted:true}));
-  assert.match(h.container.querySelector('#speech-filter-results-'+member.id).textContent,/5 loaded/);
+  assert.match(h.container.querySelector('#speech-filter-results-'+member.id).textContent,/5\+/);
   assert.equal(h.container.querySelectorAll('article.explorer-speech').length,5);
   assert.equal(h.container.querySelector('article.explorer-speech').id,'speech-'+records[0].id);
   assert.equal(older(),undefined);
@@ -185,7 +185,7 @@ test('summary links filter all loaded records, paginate, preserve the reader cat
   await h.click(link('Written statements'));
   assert.equal(new URLSearchParams(location.search).get('mep-speech-category'),'written');
   assert.equal(ids().length,10);assert.equal(ids()[0],'speech-'+records[7].id);
-  assert.match(h.container.querySelector('#speech-filter-results-'+member.id).textContent,/Written statements · 15 loaded/);
+  assert.match(h.container.querySelector('#speech-filter-results-'+member.id).textContent,/Written statements · 15+/);
   assert.equal(document.activeElement.id,'speech-filter-results-'+member.id);
   await h.click([...h.container.querySelectorAll('button')].find(node=>node.textContent==='Older'));
   assert.equal(ids().length,5);assert.equal(ids()[0],'speech-'+records[17].id);
@@ -236,7 +236,7 @@ test('selected written question keeps full text without repeated source download
   const refreshed=h.container.querySelector('.explorer-document-text');assertOrdinaryText(refreshed);
   await h.finish(`document/${questionId}?member=${member.id}&lang=en`,{error:{message:'Document fixture temporarily unavailable.'}},503);await h.wait();
   for(let i=0;i<6;i++){await automaticRecovery(t);await h.finish(`document/${questionId}?member=${member.id}&lang=en`,{error:{message:'Document fixture temporarily unavailable.'}},503);}
-  await h.wait();assert.equal(status(refreshed).textContent,'Question: Text temporarily unavailable.');assertOrdinaryText(refreshed);assertNoDownloads(refreshed);
+  await h.wait();assert.equal(status(refreshed).textContent,'Question: Text unavailable.');assertOrdinaryText(refreshed);assertNoDownloads(refreshed);
   assert.equal(refreshed.querySelectorAll('[role="status"],[role="alert"]').length,1,'the reader error has one narrow announcement');
   const language=refreshed.querySelector('select[aria-label="Text language"]');
   await act(async()=>{language.value='fr';language.dispatchEvent(new h.window.Event('change',{bubbles:true}));});

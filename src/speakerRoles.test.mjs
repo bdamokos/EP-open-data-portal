@@ -10,7 +10,7 @@ const person={id:'220921',name:'Jessika Roswall',role:bg.text,roleLanguage:'bg',
 const detail={speeches:[{sourceId:'s1',date:'2026-10-19',start:'2026-10-19T10:00:00Z',people:[{id:'220921'}]}]};
 test('server defaults stay English while UI callers supply translated fallback labels',()=>{
   const ui=createAppUiI18n({hu}).forLocale('hu');
-  assert.deepEqual(contributorOffice(null,'hu'),{text:'Role translation unavailable',language:'en'});
+  assert.deepEqual(contributorOffice(null,'hu'),{text:'Role unavailable',language:'en'});
   assert.deepEqual(contributorOffice(null,'hu',ui),{text:ui.t('batch5.speakerroles.mjs.9.117'),language:'hu'});
   assert.deepEqual(GROUP_VOICE_GROUPSUi(),GROUP_VOICE_GROUPS);
   assert.deepEqual(GROUP_VOICE_SUBJECTSUi(),GROUP_VOICE_SUBJECTS);
@@ -20,8 +20,8 @@ test('server defaults stay English while UI callers supply translated fallback l
 test('contributor uses supplied current-language labels, then English, never first-fragment Bulgarian',()=>{
   assert.deepEqual(contributorOffice(person,'en'),en);assert.deepEqual(contributorOffice(person,'fr'),fr);assert.deepEqual(contributorOffice(person,'bg'),bg);
   assert.deepEqual(contributorOffice(person,'hu'),en);
-  assert.deepEqual(contributorOffice({...person,roleLabels:{bg}},'en'),{text:'Role translation unavailable',language:'en'});
-  assert.deepEqual(contributorOffice({...person,roleLabels:{en:{...en,language:'bg'}}},'en'),{text:'Role translation unavailable',language:'en'});
+  assert.deepEqual(contributorOffice({...person,roleLabels:{bg}},'en'),{text:'Role unavailable',language:'en'});
+  assert.deepEqual(contributorOffice({...person,roleLabels:{en:{...en,language:'bg'}}},'en'),{text:'Role unavailable',language:'en'});
 });
 test('callbacks preserve multilingual role/source/reuse evidence and remain idempotent',()=>{
   const reuse={speechId:'older',compared:[{language:'bg',current:bg.text,previous:bg.text}]},source={speechId:'s1',url:'https://data.europarl.europa.eu/api/v2/speeches/s1',fetchedAt:'2026-10-22T10:00:00Z'};
@@ -36,10 +36,10 @@ test('latest current-item evidence controls the office regardless of callback ar
   const d={speeches:[...detail.speeches,{sourceId:'s2',date:'2026-10-20',start:null,people:[{id:'220921'}]}]},old={id:'s1',people:[person]},changed={id:'s2',people:[{...person,roleLabels:{bg:{text:'Друга роля',language:'bg'}}}]};
   for(const records of [[old,changed],[changed,old]]) {
     const headers=mergeSpeechSpeakers({},records);
-    assert.equal(legislationOffice(d,headers,'220921','en').text,'Role translation unavailable');
+    assert.equal(legislationOffice(d,headers,'220921','en').text,'Role unavailable');
     assert.equal(legislationOffice(detail,headers,'220921','en').text,en.text,'another item does not change this item');
   }
-  assert.equal(legislationOffice(d,mergeSpeechSpeakers({},[old]),'220921','en').text,'Role translation unavailable','do not borrow from the earlier speech while latest is unread');
+  assert.equal(legislationOffice(d,mergeSpeechSpeakers({},[old]),'220921','en').text,'Role unavailable','do not borrow from the earlier speech while latest is unread');
 });
 
 test('a newer header snapshot clears superseded labels and a late old response cannot restore them',()=>{
@@ -47,7 +47,7 @@ test('a newer header snapshot clears superseded labels and a late old response c
   const old={id:'s1',people:[{...person,roleSource:source('2026-10-21T10:00:00Z')}]};
   const latest={id:'s1',people:[{...person,role:'Друга роля',roleLabels:{bg:{text:'Друга роля',language:'bg'}},roleSource:source('2026-10-22T10:00:00Z')}]};
   const updated=mergeSpeechSpeakers(mergeSpeechSpeakers({},[old]),[latest]);
-  assert.equal(legislationOffice(detail,updated,'220921','en').text,'Role translation unavailable');
+  assert.equal(legislationOffice(detail,updated,'220921','en').text,'Role unavailable');
   assert.strictEqual(mergeSpeechSpeakers(updated,[old]),updated);
   const unversioned={id:'s1',people:[{...person}]};
   assert.strictEqual(mergeSpeechSpeakers(updated,[unversioned]),updated,'an unprovenanced callback cannot inherit a newer source and restore old labels');
@@ -58,7 +58,7 @@ test('a history revision clears obsolete reuse despite equal current-speech fetc
   const old={id:'s1',people:[{...person,roleSource:{...source,evidenceRevision:10}}]};
   const latest={id:'s1',people:[{...person,roleLabels:{bg},roleSource:{...source,evidenceRevision:11}}]};
   const updated=mergeSpeechSpeakers(mergeSpeechSpeakers({},[old]),[latest]);
-  assert.equal(legislationOffice(detail,updated,'220921','en').text,'Role translation unavailable');
+  assert.equal(legislationOffice(detail,updated,'220921','en').text,'Role unavailable');
   assert.strictEqual(mergeSpeechSpeakers(updated,[old]),updated);
   assert.strictEqual(mergeSpeechSpeakers(updated,[{id:'s1',people:[{...person,roleSource:source}]}]),updated);
 });
@@ -68,7 +68,7 @@ test('incomplete history clears prior reuse and rejects its same-revision delaye
   const old={id:'s1',people:[{...person,roleSource:{...source,historyComplete:true}}]};
   const pending={id:'s1',people:[{...person,roleLabels:{bg},roleSource:{...source,historyComplete:false}}]};
   const updated=mergeSpeechSpeakers(mergeSpeechSpeakers({},[old]),[pending]);
-  assert.equal(legislationOffice(detail,updated,'220921','en').text,'Role translation unavailable');
+  assert.equal(legislationOffice(detail,updated,'220921','en').text,'Role unavailable');
   assert.strictEqual(mergeSpeechSpeakers(updated,[old]),updated);
   const finished={id:'s1',people:[{...person,roleSource:{...source,evidenceRevision:11,historyComplete:true}}]};
   assert.equal(legislationOffice(detail,mergeSpeechSpeakers(updated,[finished]),'220921','en').text,en.text);

@@ -22,7 +22,7 @@ test('ballot groups subjects, formats rows and reveals only the first 12 groups'
  const h=await harness(t),rows=[row(131,['Recital 3'],{authors:['S&D']}),row(89,['Recital 3'],{amendments:[{number:89},{number:105},{number:108}],authors:['ECR','PfE','MEPs'],vote:{rollCall:true},partText:'Short wording [ROLL-CALL VOTE]'}),row(83,['§ 13'],{amendments:[{number:83,cp:1,deleting:true}],authors:['committee'],status:'withdrawn'}),...Array.from({length:12},(_,i)=>row(i+200,['Article '+i]))];
  await h.render(h.BallotCard,{ballot:ballot(rows),language:'en'});
  assert.equal([...h.node.querySelectorAll('.your-votes-group h4')].filter(n=>n.textContent==='Recital 3').length,1);
- assert(h.node.textContent.includes('AM 131 · S&D'));assert(h.node.textContent.includes('AM 89 = 105 = 108 · ECR, PfE, Members'));assert(h.node.textContent.includes('Part 1 of AM 83 · Committee'));assert(!h.node.textContent.includes('[ROLL-CALL VOTE]'));assert(h.node.textContent.includes('Roll call'));assert(h.node.textContent.includes('Deletes text'));
+ assert(h.node.textContent.includes('AM 131 · S&D'));assert(h.node.textContent.includes('AM 89 = 105 = 108 · ECR, PfE, MEPs'));assert(h.node.textContent.includes('Part 1 of AM 83 · Committee'));assert(!h.node.textContent.includes('[ROLL-CALL VOTE]'));assert(h.node.textContent.includes('Roll call'));assert(h.node.textContent.includes('Deletes text'));
  assert.equal(h.node.querySelectorAll('.your-votes-group').length,12);assert(!h.node.textContent.includes('Show wording'));
  await act(async()=>[...h.node.querySelectorAll('button')].find(b=>b.textContent==='Show all 15 votes').click());assert.equal(h.node.querySelectorAll('.your-votes-group').length,14);
 });

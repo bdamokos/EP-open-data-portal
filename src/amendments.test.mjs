@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentFailureKey,amendmentFailureLabel,amendmentGroups,amendmentHref,amendmentOutcomeLabel,amendmentPlanSummary,amendmentProcedure,amendmentRoute,publicAmendmentSource,supportedAmendmentTarget} from './amendmentModel.mjs';
+import {amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentFailureKey,amendmentFailureLabel,amendmentGroups,amendmentHref,amendmentOutcomeLabel,amendmentProcedure,amendmentRoute,publicAmendmentSource,supportedAmendmentTarget} from './amendmentModel.mjs';
 
 test('amendment trail targets match the supported current-term plenary report and motion contract',()=>{
   for(const id of ['A-10-2026-0254','B-10-2026-0424','RC-10-2026-0441','A-10-2026-12345','B-10-2026-123456'])assert.equal(supportedAmendmentTarget(id),true,id);
@@ -85,16 +85,6 @@ test('failure registry keys remain distinct and stable without presenting local 
   const unknownRequest={requestId:null,partId:null,registryPartKey:'__request__',recordKind:'request',language:'en'};
   assert.notEqual(amendmentFailureKey({...unknownRequest,registryRequestKey:'local-request-one'}),amendmentFailureKey({...unknownRequest,registryRequestKey:'local-request-two'}),'unidentified requests can share a component key without sharing their local request identity');
   assert.equal(amendmentFailureLabel({...unknownRequest,registryRequestKey:'local-request-one'}),'Split request failure','a local request registry key is not an official ID');
-});
-test('split selection summaries preserve exclusions, occurrences and deletion edit semantics',()=>{
-  const plan={type:'difference',base:{type:'all'},except:{type:'union',items:[{type:'text',quote:'carbon leakage',occurrences:[2]},{type:'delete_operation',quote:'existing safeguard'}]},grounding:'not_attempted'};
-  const [summary]=amendmentPlanSummary(plan);
-  assert.match(summary,/excluding \(The text “carbon leakage” · occurrence 2/);
-  assert.match(summary,/deletion of “existing safeguard” \(an edit operation\)/);
-  assert.doesNotMatch(summary,/adopted|rejected|final text/i);
-  assert.match(amendmentPlanSummary({type:'character',character:'E',characterOccurrence:2,within:'EEAS',expectedCount:1})[0],/Occurrence 2 of “E” within “EEAS” · 1 expected occurrence/);
-  assert.deepEqual(amendmentPlanSummary({type:'unknown',quote:'do not guess this'}),[]);
-  assert.deepEqual(amendmentPlanSummary({type:'difference',base:{type:'all'},except:{type:'unknown'}}),[]);
 });
 test('external evidence links permit public web sources and reject executable links',()=>{
   assert.equal(publicAmendmentSource({url:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-08/decisions'}),'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-08/decisions');

@@ -137,10 +137,10 @@ test('participation distinguishes unavailable agendas, verified empty agendas an
   const row={id:'exact-saved-agenda-id',title:'Available agenda title',date:sitting.date,sittingId:sitting.id,upcoming:false,speakers:2,voters:null,amendmentVotes:null,rollCalls:0};
   const agendaGap={kind:'agenda-unavailable',sitting:'MTG-PL-2026-10-08'};
   const cases=[
-    {name:'no agenda rows retrieved',topics:[],gaps:[agendaGap],search:'',status:/Agenda data is unavailable for this selection\./,visible:'Agenda data is unavailable for this selection.'},
+    {name:'no agenda rows retrieved',topics:[],gaps:[agendaGap],search:'',status:/Agenda unavailable./,visible:'Agenda unavailable.'},
     {name:'verified empty agenda',topics:[],gaps:[],search:'',status:/No agenda items match this selection\./,visible:'No agenda items available in this view.'},
-    {name:'unmatched title over partial saved agendas',topics:[row],gaps:[agendaGap],search:'absent',status:/None of the available agenda items match this search\. Some agendas are unavailable\./,visible:'None of the available agenda items match this search. Some agendas are unavailable.'},
-    {name:'unavailable speaking data over known agendas',topics:[{...row,speakers:null}],gaps:[],search:'',status:/MEPs speaking: unavailable for this period\./,visible:'MEPs speaking: unavailable for this period. Choose another sitting or open an agenda item below.'},
+    {name:'unmatched title over partial saved agendas',topics:[row],gaps:[agendaGap],search:'absent',status:/None of the available agenda items match this search. Some agendas are unavailable\./,visible:'None of the available agenda items match this search. Some agendas are unavailable.'},
+    {name:'unavailable speaking data over known agendas',topics:[{...row,speakers:null}],gaps:[],search:'',status:/MEPs speaking: unavailable for this period\./,visible:'MEPs speaking: unavailable for this period.'},
   ];
   for(const fixture of cases)await t.test(fixture.name,async t=>{
     const h=await harness(t,'/src/Participation.tsx','Participation','?hot-period=week%3A2026-10-05'+(fixture.search?'&hot-search='+fixture.search:''),()=>({window:{start:'2026-10-05',end:'2026-10-11'},series:[{date:sitting.date,speakers:null,voters:null,amendmentVotes:null}],topics:fixture.topics,coverage:{topicsWithSpeechLinks:fixture.topics.length,topics:fixture.topics.length,gaps:fixture.gaps}}),{language:'fr',sittings:[sitting],onTopic(){}});
@@ -165,10 +165,10 @@ test('topic status waits for every page, distinguishes shown topics and never tr
   await act(async()=>first.resolve(trends([trend(1)],{nextPage:1})));await h.tick();
   assert.equal(h.status().textContent,'','an intermediate page is not settled');
   await act(async()=>last.resolve(trends(Array.from({length:15},(_,i)=>trend(i+1)))));await h.tick();
-  assert.match(h.status().textContent,/15 topics.*Showing 12/);assert.match(h.status().textContent,/Dossiers not loaded: 10/);assert.match(h.status().textContent,/first 600 matching dossiers/);
+  assert.match(h.status().textContent,/15 topics.*Showing 12/);assert.match(h.status().textContent,/Dossiers unavailable: 10/);assert.match(h.status().textContent,/first 600 matching dossiers/);
   await h.click('More topics');await h.tick();assert.match(h.status().textContent,/15 topics.*Showing 15/);assert.equal(h.calls.length,2);
   await h.navigate('?trend-days=180');await h.tick();
-  assert.equal(h.status().textContent,'Topic catalogue temporarily unavailable.');assert.doesNotMatch(h.status().textContent,/No topics|0 topics/);
+  assert.equal(h.status().textContent,'Topics unavailable.');assert.doesNotMatch(h.status().textContent,/No topics|0 topics/);
   assert(!h.container.textContent.includes('No mapped debates'),'a source failure must not show a contradictory empty-result claim');
   sourceError=false;await automaticRecovery(t);await h.tick();
   assert.match(h.status().textContent,/1 topic.*Showing 1/,'explicit retry recovery announces the settled replacement');
@@ -177,7 +177,7 @@ test('topic status waits for every page, distinguishes shown topics and never tr
 test('an empty topic list over incomplete coverage stays scoped',async t=>{
   const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',()=>trends([]));
   await h.tick();
-  assert.match(h.status().textContent,/No matching topics in the loaded records\./);
+  assert.match(h.status().textContent,/No matches · partial/);
   assert.doesNotMatch(h.container.textContent,/No topics with|No debates in this selection/,'incomplete coverage cannot establish an empty result');
 });
 
@@ -185,8 +185,8 @@ for(const [name,coverage] of [['unmapped dossiers',{unmapped:1}],['pending mappi
   const complete={procedures:1,mapped:0,unmapped:0,pending:0,sourceError:false,truncated:false,indexComplete:true,...coverage};
   const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90&trend-topic='+encodeURIComponent('http://eurovoc.europa.eu/404'),()=>trends([],{coverage:complete}));
   await h.tick();
-  assert.match(h.status().textContent,/No matching topics in the loaded records\./);
-  assert.match(h.container.textContent,/No matching events in the loaded records\./);
+  assert.match(h.status().textContent,/No matches · partial/);
+  assert.match(h.container.textContent,/No matches · partial/);
   assert.doesNotMatch(h.container.textContent,/No topics with|No debates in this selection|No events for this topic/,'unmapped or pending dossiers cannot establish an empty result');
 });
 
@@ -211,9 +211,9 @@ for(const metric of ['debates','votes','committee'])test('empty '+metric+' topic
     await h.tick();
     const label={debates:'debates',votes:'votes',committee:'committee events'}[metric];
     if(limited){
-      assert.match(h.status().textContent,/No matching topics in the loaded records\./);
-      assert.match(h.container.querySelector('.insight-trend-picker').textContent,/No matching topics in the loaded records\./);
-      assert.match(h.container.textContent,/No matching events in the loaded records\./);
+      assert.match(h.status().textContent,/No matches · partial/);
+      assert.match(h.container.querySelector('.insight-trend-picker').textContent,/No matches · partial/);
+      assert.match(h.container.textContent,/No matches · partial/);
       assert.doesNotMatch(h.container.textContent,/No topics with|No events for this topic/);
     }else{
       assert.equal(h.status().textContent,'No topics with '+label+' in this selection.');

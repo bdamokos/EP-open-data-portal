@@ -546,7 +546,7 @@ test('unknown coverage adds no generic disclosure while known missing contributi
   await h.render(createElement(h.module.DossierActivity,{reference}));
   const note=h.container.querySelector('[aria-label="Speeches coverage"] .dossier-coverage');
   assert.equal(note.tagName,'UL');
-  assert.match(note.textContent,/2 debate contributions from Sep 15, 2026 not loaded/);
+  assert.match(note.textContent,/2 debate contributions from Sep 15, 2026 unavailable/);
   assert.doesNotMatch(h.container.textContent,/availability|Partial coverage|Records unavailable|Some targets have not been checked|Some linked contributions are not saved/);
   assert.equal(note.querySelector('a'),null,'without an observed public speech page, do not invent a link');
   assert(!note.textContent.includes('Named member'),'unknown child attribution does not identify missing speeches by this member');

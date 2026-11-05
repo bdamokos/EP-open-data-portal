@@ -335,8 +335,8 @@ test('failed member resolution uses scheduled recovery without a parallel focus 
  await automaticRecovery(t);assert.equal(count(),first+1);h.fail('');await automaticRecovery(t);await settle();assert.equal(count(),first+2);assert.match(cards(h)[0].textContent,/Late speech/);
 });
 test('marksReady false retains uncertainty; conflicts and failed migration/question tasks retry independently',async t=>{
- const q={kind:'question',id:'E-10-2026-003031',title:'Question'},h=await harness(t,[member({baseline}),q]);h.setStatus({marksReady:false});await h.render();await h.check();assert.equal(h.item().seen,null);assert.match(h.container.textContent,/Update checks are not available yet/);assert.doesNotMatch(cards(h)[0].textContent,/No new updates/);
- h.setStatus({marksReady:true});h.conflict();h.fail('following-member');await h.check();assert(h.item().legacy);assert.match(h.container.textContent,/Update check pending/);assert.equal(h.requests.filter(x=>x.route==='saved').length,2);
+ const q={kind:'question',id:'E-10-2026-003031',title:'Question'},h=await harness(t,[member({baseline}),q]);h.setStatus({marksReady:false});await h.render();await h.check();assert.equal(h.item().seen,null);assert.match(h.container.textContent,/Update checks unavailable/);assert.doesNotMatch(cards(h)[0].textContent,/No new updates/);
+ h.setStatus({marksReady:true});h.conflict();h.fail('following-member');await h.check();assert(h.item().legacy);assert.doesNotMatch(h.container.textContent,/Update check pending/);assert.equal(h.requests.filter(x=>x.route==='saved').length,2);
  h.fail('');h.setDetail([['old',0,5],['late',0,5]]);await automaticRecovery(t);assert(!h.item().legacy);assert.equal(h.item().entries[0].id,'late');assert.equal(h.requests.filter(x=>x.route==='saved').length,2);await h.background(false,'fr');assert.equal(h.requests.filter(x=>x.route==='saved').length,3);
 });
 test('background storage errors retain entries and failed follow changes revert with alerts',async t=>{
@@ -355,7 +355,7 @@ test('question answers update when MEP marks are unready and remain independent 
  h.setStatus({marksReady:false});await h.render();await h.check();
  const snapshot=()=>h.controls.savedStore.snapshot();
  assert.equal(snapshot().checkState,'unavailable');assert.equal(snapshot().questionCheckState,'available');assert.equal(snapshot().items[1].availability,'available');
- assert.match(h.container.textContent,/Update checks are not available yet for MEPs/);assert.match(h.container.textContent,/Answer available/);assert.equal(snapshot().items[1].entries[0].id,'new-answer');
+ assert.match(h.container.textContent,/Update checks unavailable/);assert.match(h.container.textContent,/Answer available/);assert.equal(snapshot().items[1].entries[0].id,'new-answer');
  assert.equal(h.requests.filter(x=>x.route==='saved').length,1);assert(!h.requests.some(x=>x.route==='following-manifest'));
  h.setStatus({marksReady:true});h.fail('following-manifest');await h.check();
  assert.equal(snapshot().checkState,'error');assert.equal(snapshot().questionCheckState,'available');assert.equal(h.requests.filter(x=>x.route==='saved').length,2);

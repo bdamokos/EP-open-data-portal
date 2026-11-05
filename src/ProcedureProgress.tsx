@@ -62,7 +62,7 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
     <header><h3 id={headingId}>{title}</h3>
       {available&&data?.status&&<span className="procedure-progress-stage" lang={data.status.language}>{data.status.label}</span>}
       {!available&&<span className="procedure-progress-muted" role="status">{state.loading ? <UiMessage id="batch6.procedureprogress.checking.62"/> : <UiMessage id="grouplabels.ts.unavailable"/>}</span>}
-      {available&&(state.loading||savedFailure||freshness.stale)&&<span className="procedure-progress-muted" role="status">{state.loading ? ui.t("batch6.procedureprogress.checking.62") : (savedFailure ? ui.t("batch6.procedureprogress.update.unavailable.63") : ui.t("batch6.procedureprogress.saved.progress.63"))}</span>}
+      {available&&(state.loading||savedFailure)&&<span className="procedure-progress-muted" role="status">{state.loading ? ui.t("batch6.procedureprogress.checking.62") : ui.t("batch6.procedureprogress.update.unavailable.63")}</span>}
       {!available&&!state.loading&&null}
     </header>
     {data&&<>

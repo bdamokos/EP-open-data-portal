@@ -100,7 +100,7 @@ test('a finished local backfill keeps the search scoped to available texts',asyn
   }});
   await view.render();
   assert.match(view.find('.explorer-search-count').textContent,/^Matching documents: 0$/);
-  assert.match(view.container.textContent,/No matches in available text\./,'a complete local backfill is not an authoritative empty result');
+  assert.match(view.container.textContent,/No matches\./,'a complete local backfill is not an authoritative empty result');
 });
 
 test('global search surfaces MEPs, exact plenary links and question titles and filters each source',async t=>{
@@ -195,7 +195,7 @@ test('text search stays collapsed without requests, opens with focus, and posts 
   await view.render({...scope,sourceIds:[]});
   assert.deepEqual(view.searches().at(-1).body.sourceIds,[],'empty exact scope must never become an unrestricted search');
   assert.equal(view.container.querySelectorAll('.explorer-search-result').length,0);
-  assert.match(view.container.textContent,/No matches in available text\. Try another phrase/);
+  assert.match(view.container.textContent,/No matches\./);
 });
 
 test('the reader opens the selected exact language fragment, escapes source markup and stays closed after closing',async t=>{
@@ -258,7 +258,7 @@ test('answer card dates follow document dates for document search and question d
   assert.equal(view.searches().at(-1).body.from,'2026-06-01');
   assert.equal(view.searches().at(-1).body.to,'2026-06-30');
   assert.equal(headingDate(),formatted('2026-06-01'),'a June answer must show its June publication date at the top of its document card');
-  assert.match(view.find('.explorer-search-match > .explorer-search-meta').textContent,/Match in institutional answer/);
+  assert.match(view.find('.explorer-search-match > .explorer-search-meta').textContent,/Match in answer/);
   await view.render({kinds:['answer'],group:'question',dateBasis:'question',from:'2026-05-01',to:'2026-05-31'});
   assert.equal(view.searches().at(-1).body.group,'question');
   assert.equal(view.searches().at(-1).body.dateBasis,'question');

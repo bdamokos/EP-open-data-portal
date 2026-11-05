@@ -285,11 +285,6 @@
     "count": "total"
   },
   {
-    "one": "Participation.availableAgendaOne",
-    "other": "Participation.availableAgendaMany",
-    "count": "count"
-  },
-  {
     "one": "Participation.agendaOne",
     "other": "Participation.agendaMany",
     "count": "count"
@@ -352,11 +347,6 @@
   {
     "one": "topics.story.tally.abstentionsOne",
     "other": "topics.story.tally.abstentions",
-    "count": "count"
-  },
-  {
-    "one": "topics.mapDocument",
-    "other": "topics.mapDocuments",
     "count": "count"
   },
   {

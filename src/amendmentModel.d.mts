@@ -17,4 +17,3 @@ export function amendmentDecisionScope(item:Amendment,decision:AmendmentDecision
 export function amendmentDecisionKey(decision:AmendmentDecision):string;
 export function amendmentDecisionPart(parts:AmendmentSplit[],decision:AmendmentDecision):AmendmentSplit|null;
 export function publicAmendmentSource(value:unknown):string|null;
-export function amendmentPlanSummary(plan:unknown, ui?: import('./uiI18n.mjs').UiFormatter):string[];

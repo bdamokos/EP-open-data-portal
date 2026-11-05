@@ -58,13 +58,13 @@ test('a transport failure keeps the indexed outcome and voting method readable',
 
 test('partial tallies preserve known counts and keep unknown values separate from zero',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse();value.selected.item.totals={for:445,against:0,abstaining:null};return Response.json(value);});await h.render();
-  assert.match(h.container.textContent,/For 445Against 0Abstaining —/);assert.doesNotMatch(h.container.textContent,/Tallies unavailable/);
+  assert.match(h.container.textContent,/For 445Against 0Abstentions —/);assert.doesNotMatch(h.container.textContent,/Tallies unavailable/);
 });
 
 test('an exact but incomplete response retains a known outcome, method and counts',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse({outcome:null,method:null,ballotStatus:'unknown',position:{status:'unavailable',position:null}});value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});
   await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_HAND',totals:{for:445,against:0,abstaining:null}}});
-  assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/For 445Against 0Abstaining —/);assert.doesNotMatch(h.container.textContent,/Outcome unavailable/);
+  assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/For 445Against 0Abstentions —/);assert.doesNotMatch(h.container.textContent,/Outcome unavailable/);
 });
 test('unavailable observation never claims that a completed search found no records',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse();value.coverage.status='unavailable';value.alignmentCounts=null;value.items=[];value.pagination={offset:0,limit:50,returned:0,observedTotal:0,recordedTotal:null,filteredTotal:0,nextOffset:null};value.selected={status:'unavailable',item:null};return Response.json(value);});await h.render();
@@ -90,7 +90,7 @@ test('known show-of-hands method cannot override an unavailable position when ba
 
 test('published counts remain visible when named-ballot collection is unknown',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse({ballotStatus:'unknown',position:{status:'unavailable',position:null}});value.selected.item.totals={for:445,against:0,abstaining:null};return Response.json(value);});await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:445,against:0,abstaining:null}}});
-  assert.match(h.container.textContent,/For 445Against 0Abstaining —/);assert.doesNotMatch(h.container.textContent,/Tallies unavailable/);assert.equal(h.container.querySelector('.member-votes-bar'),null);
+  assert.match(h.container.textContent,/For 445Against 0Abstentions —/);assert.doesNotMatch(h.container.textContent,/Tallies unavailable/);assert.equal(h.container.querySelector('.member-votes-bar'),null);
 });
 test('retained lapsed outcomes retain their not-conducted semantics',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse({outcome:null,method:null,ballotStatus:'unknown',position:{status:'unavailable',position:null}});value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});await h.render({indexed:{outcome:'LAPSED',method:'VOTE_HAND'}});

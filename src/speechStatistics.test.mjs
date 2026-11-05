@@ -87,7 +87,7 @@ test('automatically counts every page including written and unreadable contribut
   assert.equal(ui.stat('Total contributions'),'69');
   assert.equal(ui.stat('On behalf of a group'),'0');
   assert.equal(ui.stat('Blue cards raised'),'—');
-  assert.match(ui.container.textContent,/1 contribution could not be classified/,'unreadable headers remain visible after the final page');
+  assert.match(ui.container.textContent,/Unclassified: 1/,'unreadable headers remain visible after the final page');
   assert.equal(ui.container.querySelector('[role="status"]'),null);
   assert.equal(ui.container.querySelector('.intervention-stats-grid').getAttribute('aria-busy'),'false');
   assert(!ui.container.textContent.includes('contributions counted'));
@@ -190,7 +190,7 @@ test('saved collection date replaces the blanket partial label without hiding re
   data.coverage={...data.coverage,complete:false,issues:['retained-corpus'],latestDataDate:'2026-10-08'};
   const ui=await statistics(t,async()=>Response.json(data));
   await ui.render({member:257070});
-  assert.match(ui.container.textContent,/Latest speech record: Oct 8, 2026/);
+  assert.match(ui.container.textContent,/Latest speech: Oct 8, 2026/);
   assert(!ui.container.textContent.includes('Partial coverage'));
   assert(!ui.container.textContent.includes('Later dates unavailable'));
   assert(!ui.container.textContent.includes('could not be classified'));

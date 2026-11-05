@@ -169,7 +169,7 @@ test('nested-reader error and late completion after close do not reclaim focus',
   await h.open();await h.click(h.findButton('Read question'));
   const destination=h.container.querySelector('.legal-reference-question');retained.focus();
   await h.finish(first,[],{error:true});assert.equal(document.activeElement,retained);
-  assert(destination.textContent.includes('Text temporarily unavailable.'));assert.equal(destination.isConnected,true);
+  assert(destination.textContent.includes('Text unavailable.'));assert.equal(destination.isConnected,true);
   await h.click(destination.querySelector(':scope > button'));assert.equal(document.activeElement,citation);
   await h.open();await h.click(h.findButton('Read question'));
   const reopened=h.container.querySelector('.legal-reference-question');

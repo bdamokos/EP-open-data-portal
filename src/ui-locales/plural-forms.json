@@ -37,8 +37,8 @@
       "other": "{count} решения · {recordedCount} със записана позиция"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} записана позиция · {recordedCount} със записана позиция",
-      "other": "{count} записани позиции · {recordedCount} със записана позиция"
+      "one": "{count} записана позиция · {recordedCount} за периода",
+      "other": "{count} записани позиции · {recordedCount} за периода"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} от {total} решение",
@@ -53,8 +53,8 @@
       "other": "{start}–{end} от {total} записани позиции"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} от {total} записана позиция · {recordedCount} със записана позиция",
-      "other": "{start}–{end} от {total} записани позиции · {recordedCount} със записана позиция"
+      "one": "{start}–{end} от {total} записана позиция · {recordedCount} за периода",
+      "other": "{start}–{end} от {total} записани позиции · {recordedCount} за периода"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} решение",
@@ -129,8 +129,8 @@
       "other": "{count} други дейности"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} участие в разискванията от {date} не е заредено.",
-      "other": "{count} участия в разискванията от {date} не са заредени."
+      "one": "Недостъпни участия в разискването от {date}: {count}.",
+      "other": "Недостъпни участия в разискването от {date}: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Преглед на {count} въпрос",
@@ -197,8 +197,8 @@
       "other": "в {count} изказвания"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} участие не можа да се класифицира.",
-      "other": "{count} участия не можаха да се класифицират."
+      "one": "Некласифицирани: {count}",
+      "other": "Некласифицирани: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} тема с {metric} в този подбор. Брой показани теми: {shown}.",
@@ -228,10 +228,6 @@
       "one": "{total} изменение · частично покритие",
       "other": "{total} изменения · частично покритие"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} налична точка от дневния ред в този подбор.",
-      "other": "{count} налични точки от дневния ред в този подбор."
-    },
     "Participation.agendaMany": {
       "one": "{count} точка от дневния ред в този подбор.",
       "other": "{count} точки от дневния ред в този подбор."
@@ -241,8 +237,8 @@
       "other": "{count} въпроса съответстват на тези филтри."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} събитие в този подбор · непълни данни",
-      "other": "{count} събития в този подбор · непълни данни"
+      "one": "{count} събитие в този подбор · частични данни",
+      "other": "{count} събития в този подбор · частични данни"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} събитие в този подбор",
@@ -303,20 +299,20 @@
       "other": "Брой нечетими текстове: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "one": "Теми по EuroVoc · {mapped} от {procedures} досие",
-      "other": "Теми по EuroVoc · {mapped} от {procedures} досиета"
+      "one": "Теми по · {mapped} от {procedures} досие",
+      "other": "Теми по · {mapped} от {procedures} досиета"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "one": "Теми по EuroVoc · {mapped} от {procedures} досие · първите 600 съответстващи досиета",
-      "other": "Теми по EuroVoc · {mapped} от {procedures} досиета · първите 600 съответстващи досиета"
+      "one": "Теми по · {mapped} от {procedures} досие · първите 600 съответстващи досиета",
+      "other": "Теми по · {mapped} от {procedures} досиета · първите 600 съответстващи досиета"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "one": "Теми по EuroVoc · {mapped} от {procedures} досие · зареждане на още теми…",
-      "other": "Теми по EuroVoc · {mapped} от {procedures} досиета · зареждане на още теми…"
+      "one": "Теми по · {mapped} от {procedures} досие · зареждане на още теми…",
+      "other": "Теми по · {mapped} от {procedures} досиета · зареждане на още теми…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "one": "Теми по EuroVoc · {mapped} от {procedures} досие · зареждане на още теми… · първите 600 съответстващи досиета",
-      "other": "Теми по EuroVoc · {mapped} от {procedures} досиета · зареждане на още теми… · първите 600 съответстващи досиета"
+      "one": "Теми по · {mapped} от {procedures} досие · зареждане на още теми… · първите 600 съответстващи досиета",
+      "other": "Теми по · {mapped} от {procedures} досиета · зареждане на още теми… · първите 600 съответстващи досиета"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Брой въпроси за анализирания период: {count} · по дни · Изберете тема или дума по-горе, за да видите дела ѝ сред въпросите."
@@ -356,12 +352,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: Брой точки от дневния ред: {count}"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · Брой очаквани срещания: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · срещания {numbers}"
     },
     "app.mepCountUnit": {
       "one": "член на ЕП",
@@ -442,10 +432,6 @@
     "topics.story.count.meps": {
       "one": "{count} евродепутат",
       "other": "{count} евродепутати"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} документ",
-      "other": "{count} документа"
     },
     "topics.speechesCount": {
       "one": "{count} изказване",
@@ -580,10 +566,10 @@
       "other": "Počet rozhodnutí: {count} · se zaznamenaným postojem: {recordedCount}"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} zaznamenaný postoj · se zaznamenaným postojem: {recordedCount}",
-      "few": "Počet zaznamenaných postojů: {count} · se zaznamenaným postojem: {recordedCount}",
-      "many": "Počet zaznamenaných postojů: {count} · se zaznamenaným postojem: {recordedCount}",
-      "other": "Počet zaznamenaných postojů: {count} · se zaznamenaným postojem: {recordedCount}"
+      "one": "{count} zaznamenaný postoj · {recordedCount} v tomto období",
+      "few": "Počet zaznamenaných postojů: {count} · {recordedCount} v tomto období",
+      "many": "Počet zaznamenaných postojů: {count} · {recordedCount} v tomto období",
+      "other": "Počet zaznamenaných postojů: {count} · {recordedCount} v tomto období"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} z {total} rozhodnutí",
@@ -604,10 +590,10 @@
       "other": "{start}–{end} z celkového počtu zaznamenaných postojů {total}"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} z {total} zaznamenaného postoje · se zaznamenaným postojem: {recordedCount}",
-      "few": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · se zaznamenaným postojem: {recordedCount}",
-      "many": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · se zaznamenaným postojem: {recordedCount}",
-      "other": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · se zaznamenaným postojem: {recordedCount}"
+      "one": "{start}–{end} z {total} zaznamenaného postoje · {recordedCount} v tomto období",
+      "few": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · {recordedCount} v tomto období",
+      "many": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · {recordedCount} v tomto období",
+      "other": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · {recordedCount} v tomto období"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} rozhodnutí",
@@ -718,10 +704,10 @@
       "other": "Počet ostatních činností: {count}"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} příspěvek v rozpravě z {date} nebyl načten.",
-      "few": "Počet nenačtených příspěvků v rozpravě z {date}: {count}.",
-      "many": "Počet nenačtených příspěvků v rozpravě z {date}: {count}.",
-      "other": "Počet nenačtených příspěvků v rozpravě z {date}: {count}."
+      "one": "Nedostupné příspěvky v rozpravě z {date}: {count}.",
+      "few": "Nedostupné příspěvky v rozpravě z {date}: {count}.",
+      "many": "Nedostupné příspěvky v rozpravě z {date}: {count}.",
+      "other": "Nedostupné příspěvky v rozpravě z {date}: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Zobrazit {count} otázku",
@@ -820,10 +806,10 @@
       "other": "v projevech v počtu {count}"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} příspěvek se nepodařilo zařadit.",
-      "few": "Počet nezařazených příspěvků: {count}.",
-      "many": "Počet nezařazených příspěvků: {count}.",
-      "other": "Počet nezařazených příspěvků: {count}."
+      "one": "Nezařazeno: {count}",
+      "few": "Nezařazeno: {count}",
+      "many": "Nezařazeno: {count}",
+      "other": "Nezařazeno: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} téma s ukazatelem {metric} v tomto výběru. Zobrazeno: {shown}.",
@@ -867,12 +853,6 @@
       "many": "Počet pozměňovacích návrhů: {total} · částečné pokrytí",
       "other": "Počet pozměňovacích návrhů: {total} · částečné pokrytí"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} dostupný bod pořadu jednání v tomto výběru.",
-      "few": "Počet dostupných bodů pořadu jednání v tomto výběru: {count}.",
-      "many": "Počet dostupných bodů pořadu jednání v tomto výběru: {count}.",
-      "other": "Počet dostupných bodů pořadu jednání v tomto výběru: {count}."
-    },
     "Participation.agendaMany": {
       "one": "{count} bod pořadu jednání v tomto výběru.",
       "few": "Počet bodů pořadu jednání v tomto výběru: {count}.",
@@ -886,10 +866,10 @@
       "other": "Počet otázek odpovídajících filtrům: {count}."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} událost v tomto výběru · neúplné údaje",
-      "few": "Počet událostí v tomto výběru: {count} · neúplné údaje",
-      "many": "Počet událostí v tomto výběru: {count} · neúplné údaje",
-      "other": "Počet událostí v tomto výběru: {count} · neúplné údaje"
+      "one": "{count} událost v tomto výběru · částečné údaje",
+      "few": "Počet událostí v tomto výběru: {count} · částečné údaje",
+      "many": "Počet událostí v tomto výběru: {count} · částečné údaje",
+      "other": "Počet událostí v tomto výběru: {count} · částečné údaje"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} událost v tomto výběru",
@@ -952,28 +932,28 @@
       "other": "Nečitelných textů: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "one": "Témata EuroVoc · {mapped} z {procedures} spisu",
-      "other": "Témata EuroVoc · {mapped} z {procedures} spisů",
-      "few": "Témata EuroVoc · {mapped} z {procedures} spisů",
-      "many": "Témata EuroVoc · {mapped} z {procedures} spisu"
+      "one": "Témata · {mapped} z {procedures} spisu",
+      "other": "Témata · {mapped} z {procedures} spisů",
+      "few": "Témata · {mapped} z {procedures} spisů",
+      "many": "Témata · {mapped} z {procedures} spisu"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "one": "Témata EuroVoc · {mapped} z {procedures} spisu · prvních 600 odpovídajících spisů",
-      "other": "Témata EuroVoc · {mapped} z {procedures} spisů · prvních 600 odpovídajících spisů",
-      "few": "Témata EuroVoc · {mapped} z {procedures} spisů · prvních 600 odpovídajících spisů",
-      "many": "Témata EuroVoc · {mapped} z {procedures} spisu · prvních 600 odpovídajících spisů"
+      "one": "Témata · {mapped} z {procedures} spisu · prvních 600 odpovídajících spisů",
+      "other": "Témata · {mapped} z {procedures} spisů · prvních 600 odpovídajících spisů",
+      "few": "Témata · {mapped} z {procedures} spisů · prvních 600 odpovídajících spisů",
+      "many": "Témata · {mapped} z {procedures} spisu · prvních 600 odpovídajících spisů"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "one": "Témata EuroVoc · {mapped} z {procedures} spisu · načítání dalších témat…",
-      "other": "Témata EuroVoc · {mapped} z {procedures} spisů · načítání dalších témat…",
-      "few": "Témata EuroVoc · {mapped} z {procedures} spisů · načítání dalších témat…",
-      "many": "Témata EuroVoc · {mapped} z {procedures} spisu · načítání dalších témat…"
+      "one": "Témata · {mapped} z {procedures} spisu · načítání dalších témat…",
+      "other": "Témata · {mapped} z {procedures} spisů · načítání dalších témat…",
+      "few": "Témata · {mapped} z {procedures} spisů · načítání dalších témat…",
+      "many": "Témata · {mapped} z {procedures} spisu · načítání dalších témat…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "one": "Témata EuroVoc · {mapped} z {procedures} spisu · načítání dalších témat… · prvních 600 odpovídajících spisů",
-      "other": "Témata EuroVoc · {mapped} z {procedures} spisů · načítání dalších témat… · prvních 600 odpovídajících spisů",
-      "few": "Témata EuroVoc · {mapped} z {procedures} spisů · načítání dalších témat… · prvních 600 odpovídajících spisů",
-      "many": "Témata EuroVoc · {mapped} z {procedures} spisu · načítání dalších témat… · prvních 600 odpovídajících spisů"
+      "one": "Témata · {mapped} z {procedures} spisu · načítání dalších témat… · prvních 600 odpovídajících spisů",
+      "other": "Témata · {mapped} z {procedures} spisů · načítání dalších témat… · prvních 600 odpovídajících spisů",
+      "few": "Témata · {mapped} z {procedures} spisů · načítání dalších témat… · prvních 600 odpovídajících spisů",
+      "many": "Témata · {mapped} z {procedures} spisu · načítání dalších témat… · prvních 600 odpovídajících spisů"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Počet otázek v analyzovaném období: {count} · po dnech · Vyberte výše téma nebo slovo a zobrazte jeho podíl na otázkách."
@@ -1013,12 +993,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: počet bodů pořadu jednání: {count}"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · očekávané výskyty: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · výskyty {numbers}"
     },
     "app.mepCountUnit": {
       "one": "poslanec EP",
@@ -1139,12 +1113,6 @@
       "few": "{count} europoslanci",
       "many": "{count} europoslance",
       "other": "{count} europoslanců"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokument",
-      "few": "{count} dokumenty",
-      "many": "{count} dokumentu",
-      "other": "{count} dokumentů"
     },
     "topics.speechesCount": {
       "one": "{count} vystoupení",
@@ -1299,8 +1267,8 @@
       "other": "{count} afgørelser · {recordedCount} med registreret stemmeafgivelse"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} registreret stemmeafgivelse · {recordedCount} med registreret stemmeafgivelse",
-      "other": "{count} registrerede stemmeafgivelser · {recordedCount} med registreret stemmeafgivelse"
+      "one": "{count} registreret stemmeafgivelse · {recordedCount} i denne periode",
+      "other": "{count} registrerede stemmeafgivelser · {recordedCount} i denne periode"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} af {total} afgørelse",
@@ -1315,8 +1283,8 @@
       "other": "{start}–{end} af {total} registrerede stemmeafgivelser"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} af {total} registreret stemmeafgivelse · {recordedCount} med registreret stemmeafgivelse",
-      "other": "{start}–{end} af {total} registrerede stemmeafgivelser · {recordedCount} med registreret stemmeafgivelse"
+      "one": "{start}–{end} af {total} registreret stemmeafgivelse · {recordedCount} i denne periode",
+      "other": "{start}–{end} af {total} registrerede stemmeafgivelser · {recordedCount} i denne periode"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} afgørelse",
@@ -1391,8 +1359,8 @@
       "other": "{count} andre aktiviteter"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} debatbidrag fra {date} er ikke indlæst.",
-      "other": "{count} debatbidrag fra {date} er ikke indlæst."
+      "one": "Utilgængelige debatbidrag fra {date}: {count}.",
+      "other": "Utilgængelige debatbidrag fra {date}: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Se {count} spørgsmål",
@@ -1459,8 +1427,8 @@
       "other": "i {count} taler"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} bidrag kunne ikke klassificeres.",
-      "other": "{count} bidrag kunne ikke klassificeres."
+      "one": "Uklassificerede: {count}",
+      "other": "Uklassificerede: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} emne med {metric} i dette udsnit. Viser {shown}.",
@@ -1490,10 +1458,6 @@
       "one": "{total} ændringsforslag · delvis dækning",
       "other": "{total} ændringsforslag · delvis dækning"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} tilgængeligt dagsordenspunkt i dette udsnit.",
-      "other": "{count} tilgængelige dagsordenspunkter i dette udsnit."
-    },
     "Participation.agendaMany": {
       "one": "{count} dagsordenspunkt i dette udsnit.",
       "other": "{count} dagsordenspunkter i dette udsnit."
@@ -1503,8 +1467,8 @@
       "other": "{count} spørgsmål matcher disse filtre."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} begivenhed i dette udsnit · ufuldstændigt",
-      "other": "{count} begivenheder i dette udsnit · ufuldstændigt"
+      "one": "{count} begivenhed i dette udsnit · delvis",
+      "other": "{count} begivenheder i dette udsnit · delvis"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} begivenhed i dette udsnit",
@@ -1551,24 +1515,24 @@
       "other": "{count} udaterede spørgsmål er ikke medregnet"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "one": "EuroVoc-emner · {mapped} af {procedures} sag · første 600 matchende sager",
-      "other": "EuroVoc-emner · {mapped} af {procedures} sager · første 600 matchende sager"
+      "one": "Emner · {mapped} af {procedures} sag · første 600 matchende sager",
+      "other": "Emner · {mapped} af {procedures} sager · første 600 matchende sager"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "one": "EuroVoc-emner · {mapped} af {procedures} sag · indlæser flere emner… · første 600 matchende sager",
-      "other": "EuroVoc-emner · {mapped} af {procedures} sager · indlæser flere emner… · første 600 matchende sager"
+      "one": "Emner · {mapped} af {procedures} sag · indlæser flere emner… · første 600 matchende sager",
+      "other": "Emner · {mapped} af {procedures} sager · indlæser flere emner… · første 600 matchende sager"
     },
     "speechcloud.unreadabletext_texts_unreadable.20c3fb": {
       "one": "{unreadableText} tekst kan ikke læses.",
       "other": "{unreadableText} tekster kan ikke læses."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "one": "EuroVoc-emner · {mapped} af {procedures} sag",
-      "other": "EuroVoc-emner · {mapped} af {procedures} sager"
+      "one": "Emner · {mapped} af {procedures} sag",
+      "other": "Emner · {mapped} af {procedures} sager"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "one": "EuroVoc-emner · {mapped} af {procedures} sag · indlæser flere emner…",
-      "other": "EuroVoc-emner · {mapped} af {procedures} sager · indlæser flere emner…"
+      "one": "Emner · {mapped} af {procedures} sag · indlæser flere emner…",
+      "other": "Emner · {mapped} af {procedures} sager · indlæser flere emner…"
     },
     "dossierCard.updateCount": {
       "one": "{count} sagsopdatering. Åbn sag",
@@ -1702,14 +1666,6 @@
       "one": "{date}: {count} dagsordenspunkt",
       "other": "{date}: {count} dagsordenspunkter"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} forventet forekomst",
-      "other": "{text} · {count} forventede forekomster"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · forekomst {numbers}",
-      "other": "{text} · forekomster {numbers}"
-    },
     "topics.story.count.questions": {
       "one": "{count} spørgsmål",
       "other": "{count} spørgsmål"
@@ -1737,10 +1693,6 @@
     "topics.story.count.meps": {
       "one": "{count} medlem af Europa-Parlamentet",
       "other": "{count} medlemmer af Europa-Parlamentet"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokument",
-      "other": "{count} dokumenter"
     },
     "topics.speechesCount": {
       "one": "{count} indlæg",
@@ -1857,8 +1809,8 @@
       "other": "{count} Entscheidungen · {recordedCount} mit erfasster Position"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} erfasste Position · {recordedCount} mit erfasster Position",
-      "other": "{count} erfasste Positionen · {recordedCount} mit erfasster Position"
+      "one": "{count} erfasste Position · {recordedCount} in diesem Zeitraum",
+      "other": "{count} erfasste Positionen · {recordedCount} in diesem Zeitraum"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} von {total} Entscheidung",
@@ -1873,8 +1825,8 @@
       "other": "{start}–{end} von {total} erfassten Positionen"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} von {total} erfasster Position · {recordedCount} mit erfasster Position",
-      "other": "{start}–{end} von {total} erfassten Positionen · {recordedCount} mit erfasster Position"
+      "one": "{start}–{end} von {total} erfasster Position · {recordedCount} in diesem Zeitraum",
+      "other": "{start}–{end} von {total} erfassten Positionen · {recordedCount} in diesem Zeitraum"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} Entscheidung",
@@ -1949,8 +1901,8 @@
       "other": "{count} weitere Aktivitäten"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} Debattenbeitrag vom {date} nicht geladen.",
-      "other": "{count} Debattenbeiträge vom {date} nicht geladen."
+      "one": "Debattenbeiträge vom {date} nicht verfügbar: {count}.",
+      "other": "Debattenbeiträge vom {date} nicht verfügbar: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "{count} Anfrage ansehen",
@@ -2017,8 +1969,8 @@
       "other": "in {count} Reden"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} Beitrag konnte nicht eingeordnet werden.",
-      "other": "{count} Beiträge konnten nicht eingeordnet werden."
+      "one": "Nicht eingeordnet: {count}",
+      "other": "Nicht eingeordnet: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} Thema zur Aktivität „{metric}“ in dieser Auswahl. {shown} angezeigt.",
@@ -2048,10 +2000,6 @@
       "one": "{total} Änderungsantrag · teilweise erfasst",
       "other": "{total} Änderungsanträge · teilweise erfasst"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} verfügbarer Tagesordnungspunkt in dieser Auswahl.",
-      "other": "{count} verfügbare Tagesordnungspunkte in dieser Auswahl."
-    },
     "Participation.agendaMany": {
       "one": "{count} Tagesordnungspunkt in dieser Auswahl.",
       "other": "{count} Tagesordnungspunkte in dieser Auswahl."
@@ -2061,8 +2009,8 @@
       "other": "{count} Anfragen entsprechen diesen Filtern."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} Ereignis in dieser Auswahl · unvollständig",
-      "other": "{count} Ereignisse in dieser Auswahl · unvollständig"
+      "one": "{count} Ereignis in dieser Auswahl · teilweise erfasst",
+      "other": "{count} Ereignisse in dieser Auswahl · teilweise erfasst"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} Ereignis in dieser Auswahl",
@@ -2161,24 +2109,24 @@
       "other": "{count} Beispiele angezeigt"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "one": "EuroVoc-Themen · {mapped} von {procedures} Dossier · erste 600 passende Dossiers",
-      "other": "EuroVoc-Themen · {mapped} von {procedures} Dossiers · erste 600 passende Dossiers"
+      "one": "Themen · {mapped} von {procedures} Dossier · erste 600 passende Dossiers",
+      "other": "Themen · {mapped} von {procedures} Dossiers · erste 600 passende Dossiers"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "one": "EuroVoc-Themen · {mapped} von {procedures} Dossier · weitere Themen werden geladen… · erste 600 passende Dossiers",
-      "other": "EuroVoc-Themen · {mapped} von {procedures} Dossiers · weitere Themen werden geladen… · erste 600 passende Dossiers"
+      "one": "Themen · {mapped} von {procedures} Dossier · weitere Themen werden geladen… · erste 600 passende Dossiers",
+      "other": "Themen · {mapped} von {procedures} Dossiers · weitere Themen werden geladen… · erste 600 passende Dossiers"
     },
     "speechcloud.unreadabletext_texts_unreadable.20c3fb": {
       "one": "{unreadableText} Text nicht lesbar.",
       "other": "{unreadableText} Texte nicht lesbar."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "one": "EuroVoc-Themen · {mapped} von {procedures} Dossier",
-      "other": "EuroVoc-Themen · {mapped} von {procedures} Dossiers"
+      "one": "Themen · {mapped} von {procedures} Dossier",
+      "other": "Themen · {mapped} von {procedures} Dossiers"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "one": "EuroVoc-Themen · {mapped} von {procedures} Dossier · weitere Themen werden geladen…",
-      "other": "EuroVoc-Themen · {mapped} von {procedures} Dossiers · weitere Themen werden geladen…"
+      "one": "Themen · {mapped} von {procedures} Dossier · weitere Themen werden geladen…",
+      "other": "Themen · {mapped} von {procedures} Dossiers · weitere Themen werden geladen…"
     },
     "dossierCard.updateCount": {
       "one": "{count} Dossieraktualisierung. Dossier öffnen",
@@ -2260,14 +2208,6 @@
       "one": "{date}: {count} Tagesordnungspunkt",
       "other": "{date}: {count} Tagesordnungspunkte"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} erwartetes Vorkommen",
-      "other": "{text} · {count} erwartete Vorkommen"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · Vorkommen {numbers}",
-      "other": "{text} · Vorkommen {numbers}"
-    },
     "topics.story.count.questions": {
       "one": "{count} Anfrage",
       "other": "{count} Anfragen"
@@ -2295,10 +2235,6 @@
     "topics.story.count.meps": {
       "one": "{count} Mitglied des Europäischen Parlaments",
       "other": "{count} Abgeordnete"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} Dokument",
-      "other": "{count} Dokumente"
     },
     "topics.speechesCount": {
       "one": "{count} Redebeitrag",
@@ -2415,8 +2351,8 @@
       "other": "{count} αποφάσεις · {recordedCount} με καταγεγραμμένη θέση"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} καταγεγραμμένη θέση · {recordedCount} με καταγεγραμμένη θέση",
-      "other": "{count} καταγεγραμμένες θέσεις · {recordedCount} με καταγεγραμμένη θέση"
+      "one": "{count} καταγεγραμμένη θέση · {recordedCount} στην περίοδο αυτή",
+      "other": "{count} καταγεγραμμένες θέσεις · {recordedCount} στην περίοδο αυτή"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} από {total} απόφαση",
@@ -2431,8 +2367,8 @@
       "other": "{start}–{end} από {total} καταγεγραμμένες θέσεις"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} από {total} καταγεγραμμένη θέση · {recordedCount} με καταγεγραμμένη θέση",
-      "other": "{start}–{end} από {total} καταγεγραμμένες θέσεις · {recordedCount} με καταγεγραμμένη θέση"
+      "one": "{start}–{end} από {total} καταγεγραμμένη θέση · {recordedCount} στην περίοδο αυτή",
+      "other": "{start}–{end} από {total} καταγεγραμμένες θέσεις · {recordedCount} στην περίοδο αυτή"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} απόφαση",
@@ -2507,8 +2443,8 @@
       "other": "{count} άλλες δραστηριότητες"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} παρέμβαση συζήτησης από {date} δεν φορτώθηκε.",
-      "other": "{count} παρεμβάσεις συζήτησης από {date} δεν φορτώθηκαν."
+      "one": "Μη διαθέσιμες παρεμβάσεις στη συζήτηση της {date}: {count}.",
+      "other": "Μη διαθέσιμες παρεμβάσεις στη συζήτηση της {date}: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Προβολή {count} ερώτησης",
@@ -2575,8 +2511,8 @@
       "other": "σε {count} ομιλίες"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} παρέμβαση δεν ήταν δυνατό να ταξινομηθεί.",
-      "other": "{count} παρεμβάσεις δεν ήταν δυνατό να ταξινομηθούν."
+      "one": "Αταξινόμητα: {count}",
+      "other": "Αταξινόμητα: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} θέμα με {metric} σε αυτή την επιλογή. Εμφανίζεται {shown}.",
@@ -2606,10 +2542,6 @@
       "one": "{total} τροπολογία · μερική κάλυψη",
       "other": "{total} τροπολογίες · μερική κάλυψη"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} διαθέσιμο θέμα ημερήσιας διάταξης σε αυτή την επιλογή.",
-      "other": "{count} διαθέσιμα θέματα ημερήσιας διάταξης σε αυτή την επιλογή."
-    },
     "Participation.agendaMany": {
       "one": "{count} θέμα ημερήσιας διάταξης σε αυτή την επιλογή.",
       "other": "{count} θέματα ημερήσιας διάταξης σε αυτή την επιλογή."
@@ -2619,8 +2551,8 @@
       "other": "{count} ερωτήσεις αντιστοιχούν στα φίλτρα."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} συμβάν σε αυτή την επιλογή · ελλιπή στοιχεία",
-      "other": "{count} συμβάντα σε αυτή την επιλογή · ελλιπή στοιχεία"
+      "one": "{count} συμβάν σε αυτή την επιλογή · μερικά στοιχεία",
+      "other": "{count} συμβάντα σε αυτή την επιλογή · μερικά στοιχεία"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} συμβάν σε αυτή την επιλογή",
@@ -2685,16 +2617,16 @@
       "other": "Μη αναγνώσιμα κείμενα: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Θέματα EuroVoc · Φάκελοι: {mapped} από {procedures}"
+      "other": "Θέματα · Φάκελοι: {mapped} από {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Θέματα EuroVoc · Φάκελοι: {mapped} από {procedures} · πρώτοι 600 αντίστοιχοι φάκελοι"
+      "other": "Θέματα · Φάκελοι: {mapped} από {procedures} · πρώτοι 600 αντίστοιχοι φάκελοι"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Θέματα EuroVoc · Φάκελοι: {mapped} από {procedures} · φόρτωση περισσότερων θεμάτων…"
+      "other": "Θέματα · Φάκελοι: {mapped} από {procedures} · φόρτωση περισσότερων θεμάτων…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Θέματα EuroVoc · Φάκελοι: {mapped} από {procedures} · φόρτωση περισσότερων θεμάτων… · πρώτοι 600 αντίστοιχοι φάκελοι"
+      "other": "Θέματα · Φάκελοι: {mapped} από {procedures} · φόρτωση περισσότερων θεμάτων… · πρώτοι 600 αντίστοιχοι φάκελοι"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Ερωτήσεις στην περίοδο ανάλυσης: {count} · Ανά ημέρα · Επιλέξτε θέμα ή λέξη παραπάνω για να δείτε το ποσοστό των ερωτήσεων που αφορά."
@@ -2759,14 +2691,6 @@
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date} · Σημεία ημερήσιας διάταξης: {count}"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} αναμενόμενη εμφάνιση",
-      "other": "{text} · {count} αναμενόμενες εμφανίσεις"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · εμφάνιση {numbers}",
-      "other": "{text} · εμφανίσεις {numbers}"
-    },
     "ui.speechStat.total": {
       "one": "Συνολική παρέμβαση",
       "other": "Συνολικές παρεμβάσεις"
@@ -2821,10 +2745,6 @@
     "topics.story.count.meps": {
       "one": "{count} ευρωβουλευτής",
       "other": "{count} ευρωβουλευτές"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} έγγραφο",
-      "other": "{count} έγγραφα"
     },
     "topics.speechesCount": {
       "one": "{count} ομιλία",
@@ -2950,9 +2870,9 @@
       "other": "{count} decisiones · {recordedCount} con una posición registrada"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} posición registrada · {recordedCount} con una posición registrada",
-      "many": "{count} posiciones registradas · {recordedCount} con una posición registrada",
-      "other": "{count} posiciones registradas · {recordedCount} con una posición registrada"
+      "one": "{count} posición registrada · {recordedCount} en este período",
+      "many": "{count} posiciones registradas · {recordedCount} en este período",
+      "other": "{count} posiciones registradas · {recordedCount} en este período"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} de {total} decisión",
@@ -2970,9 +2890,9 @@
       "other": "{start}–{end} de {total} posiciones registradas"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} de {total} posición registrada · {recordedCount} con una posición registrada",
-      "many": "{start}–{end} de {total} posiciones registradas · {recordedCount} con una posición registrada",
-      "other": "{start}–{end} de {total} posiciones registradas · {recordedCount} con una posición registrada"
+      "one": "{start}–{end} de {total} posición registrada · {recordedCount} en este período",
+      "many": "{start}–{end} de {total} posiciones registradas · {recordedCount} en este período",
+      "other": "{start}–{end} de {total} posiciones registradas · {recordedCount} en este período"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} decisión",
@@ -3065,9 +2985,9 @@
       "other": "{count} otras actividades"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} intervención del debate del {date} sin cargar.",
-      "many": "{count} intervenciones del debate del {date} sin cargar.",
-      "other": "{count} intervenciones del debate del {date} sin cargar."
+      "one": "Intervenciones del debate del {date} no disponibles: {count}.",
+      "many": "Intervenciones del debate del {date} no disponibles: {count}.",
+      "other": "Intervenciones del debate del {date} no disponibles: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Ver {count} pregunta",
@@ -3150,9 +3070,9 @@
       "other": "en {count} discursos"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "No se pudo clasificar {count} intervención.",
-      "many": "No se pudieron clasificar {count} intervenciones.",
-      "other": "No se pudieron clasificar {count} intervenciones."
+      "one": "Sin clasificar: {count}",
+      "many": "Sin clasificar: {count}",
+      "other": "Sin clasificar: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} tema con {metric} en esta selección. Se muestra {shown}.",
@@ -3189,11 +3109,6 @@
       "many": "{total} enmiendas · cobertura parcial",
       "other": "{total} enmiendas · cobertura parcial"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} punto del orden del día disponible en esta selección.",
-      "many": "{count} puntos del orden del día disponibles en esta selección.",
-      "other": "{count} puntos del orden del día disponibles en esta selección."
-    },
     "Participation.agendaMany": {
       "one": "{count} punto del orden del día en esta selección.",
       "many": "{count} puntos del orden del día en esta selección.",
@@ -3205,9 +3120,9 @@
       "other": "{count} preguntas coinciden con estos filtros."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} evento en esta selección · datos incompletos",
-      "many": "{count} eventos en esta selección · datos incompletos",
-      "other": "{count} eventos en esta selección · datos incompletos"
+      "one": "{count} evento en esta selección · parcial",
+      "many": "{count} eventos en esta selección · parcial",
+      "other": "{count} eventos en esta selección · parcial"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} evento en esta selección",
@@ -3273,16 +3188,16 @@
       "other": "Textos ilegibles: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Temas de EuroVoc · Expedientes: {mapped} de {procedures}"
+      "other": "Temas de · Expedientes: {mapped} de {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Temas de EuroVoc · Expedientes: {mapped} de {procedures} · primeros 600 expedientes coincidentes"
+      "other": "Temas de · Expedientes: {mapped} de {procedures} · primeros 600 expedientes coincidentes"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Temas de EuroVoc · Expedientes: {mapped} de {procedures} · cargando más temas…"
+      "other": "Temas de · Expedientes: {mapped} de {procedures} · cargando más temas…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Temas de EuroVoc · Expedientes: {mapped} de {procedures} · cargando más temas… · primeros 600 expedientes coincidentes"
+      "other": "Temas de · Expedientes: {mapped} de {procedures} · cargando más temas… · primeros 600 expedientes coincidentes"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Preguntas en el período analizado: {count} · Por día · Elija un tema o una palabra arriba para ver su proporción de preguntas."
@@ -3353,15 +3268,6 @@
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date} · Puntos del orden del día: {count}"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} aparición prevista",
-      "other": "{text} · {count} apariciones previstas",
-      "many": "{text} · {count} apariciones previstas"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · aparición {numbers}",
-      "other": "{text} · apariciones {numbers}"
-    },
     "ui.speechStat.total": {
       "one": "Intervención total",
       "other": "Intervenciones totales",
@@ -3429,11 +3335,6 @@
       "one": "{count} eurodiputado",
       "other": "{count} eurodiputados",
       "many": "{count} de eurodiputados"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} documento",
-      "other": "{count} documentos",
-      "many": "{count} de documentos"
     },
     "topics.speechesCount": {
       "one": "{count} intervención",
@@ -3569,8 +3470,8 @@
       "other": "{count} otsust · {recordedCount} registreeritud seisukohaga"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} registreeritud seisukoht · {recordedCount} registreeritud seisukohaga",
-      "other": "{count} registreeritud seisukohta · {recordedCount} registreeritud seisukohaga"
+      "one": "{count} registreeritud seisukoht · {recordedCount} sellel perioodil",
+      "other": "{count} registreeritud seisukohta · {recordedCount} sellel perioodil"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} / {total} otsus",
@@ -3585,8 +3486,8 @@
       "other": "{start}–{end} / {total} registreeritud seisukohta"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} / {total} registreeritud seisukoht · {recordedCount} registreeritud seisukohaga",
-      "other": "{start}–{end} / {total} registreeritud seisukohta · {recordedCount} registreeritud seisukohaga"
+      "one": "{start}–{end} / {total} registreeritud seisukoht · {recordedCount} sellel perioodil",
+      "other": "{start}–{end} / {total} registreeritud seisukohta · {recordedCount} sellel perioodil"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} otsus",
@@ -3661,8 +3562,8 @@
       "other": "{count} muud tegevust"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} arutelu kaastöö kuupäevast {date} on laadimata.",
-      "other": "{count} arutelu kaastööd kuupäevast {date} on laadimata."
+      "one": "Kättesaamatud arutelu kaastööd kuupäevast {date}: {count}.",
+      "other": "Kättesaamatud arutelu kaastööd kuupäevast {date}: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Vaata {count} küsimust",
@@ -3729,8 +3630,8 @@
       "other": "{count} sõnavõtus"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} kaastööd ei saanud liigitada.",
-      "other": "{count} kaastööd ei saanud liigitada."
+      "one": "Liigitamata: {count}",
+      "other": "Liigitamata: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "Valikus {count} teema näitajaga {metric}. Kuvatud {shown}.",
@@ -3760,10 +3661,6 @@
       "one": "{total} muudatusettepanek · osaline katvus",
       "other": "{total} muudatusettepanekut · osaline katvus"
     },
-    "Participation.availableAgendaMany": {
-      "one": "Valikus on saadaval {count} päevakorrapunkt.",
-      "other": "Valikus on saadaval {count} päevakorrapunkti."
-    },
     "Participation.agendaMany": {
       "one": "Valikus on {count} päevakorrapunkt.",
       "other": "Valikus on {count} päevakorrapunkti."
@@ -3773,8 +3670,8 @@
       "other": "Filtritele vastab {count} küsimust."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "Valikus {count} sündmus · puudulik",
-      "other": "Valikus {count} sündmust · puudulik"
+      "one": "Valikus {count} sündmus · osaline",
+      "other": "Valikus {count} sündmust · osaline"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "Valikus {count} sündmus",
@@ -3838,16 +3735,16 @@
       "other": "Loetamatud tekstid: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "EuroVoci teemad · Toimikud: {mapped} / {procedures}"
+      "other": "I teemad · Toimikud: {mapped} / {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "EuroVoci teemad · Toimikud: {mapped} / {procedures} · esimesed 600 vastavat toimikut"
+      "other": "I teemad · Toimikud: {mapped} / {procedures} · esimesed 600 vastavat toimikut"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "EuroVoci teemad · Toimikud: {mapped} / {procedures} · lisateemade laadimine…"
+      "other": "I teemad · Toimikud: {mapped} / {procedures} · lisateemade laadimine…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "EuroVoci teemad · Toimikud: {mapped} / {procedures} · lisateemade laadimine… · esimesed 600 vastavat toimikut"
+      "other": "I teemad · Toimikud: {mapped} / {procedures} · lisateemade laadimine… · esimesed 600 vastavat toimikut"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Küsimused: {count} analüüsiperioodil · päevade kaupa · Vali ülal teema või sõna, et näha selle osakaalu küsimustes."
@@ -3888,12 +3785,6 @@
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "one": "{date}: {count} päevakorrapunkt",
       "other": "{date}: {count} päevakorrapunkti"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · Eeldatavad esinemiskorrad: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · Esinemiskorrad: {numbers}"
     },
     "app.mepCountUnit": {
       "one": "parlamendiliige",
@@ -3974,10 +3865,6 @@
     "topics.story.count.meps": {
       "one": "{count} Euroopa Parlamendi liige",
       "other": "{count} Euroopa Parlamendi liiget"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokument",
-      "other": "{count} dokumenti"
     },
     "topics.speechesCount": {
       "one": "{count} sõnavõtt",
@@ -4094,8 +3981,8 @@
       "other": "{count} päätöstä · kirjattuja kantoja: {recordedCount}"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} kirjattu kanta · kirjattuja kantoja: {recordedCount}",
-      "other": "{count} kirjattua kantaa · kirjattuja kantoja: {recordedCount}"
+      "one": "{count} kirjattu kanta · {recordedCount} tällä ajanjaksolla",
+      "other": "{count} kirjattua kantaa · {recordedCount} tällä ajanjaksolla"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} / {total} päätöksestä",
@@ -4110,8 +3997,8 @@
       "other": "{start}–{end} / {total} kirjatusta kannasta"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} / {total} kirjatusta kannasta · kirjattuja kantoja: {recordedCount}",
-      "other": "{start}–{end} / {total} kirjatusta kannasta · kirjattuja kantoja: {recordedCount}"
+      "one": "{start}–{end} / {total} kirjatusta kannasta · {recordedCount} tällä ajanjaksolla",
+      "other": "{start}–{end} / {total} kirjatusta kannasta · {recordedCount} tällä ajanjaksolla"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} päätös",
@@ -4186,8 +4073,8 @@
       "other": "{count} muuta toimintaa"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} keskustelupuheenvuoro päivältä {date} lataamatta.",
-      "other": "{count} keskustelupuheenvuoroa päivältä {date} lataamatta."
+      "one": "Keskustelun puheenvuoroja ei saatavilla ({date}): {count}.",
+      "other": "Keskustelun puheenvuoroja ei saatavilla ({date}): {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Näytä {count} kysymys",
@@ -4254,8 +4141,8 @@
       "other": "{count} puheessa"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} puheenvuoroa ei voitu luokitella.",
-      "other": "{count} puheenvuoroa ei voitu luokitella."
+      "one": "Luokittelemattomat: {count}",
+      "other": "Luokittelemattomat: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "Aiheita, joilla on valittua toimintaa tässä valinnassa: {count} · mittari: {metric}. Näytetään {shown}.",
@@ -4285,10 +4172,6 @@
       "one": "{total} tarkistus · osittainen kattavuus",
       "other": "{total} tarkistusta · osittainen kattavuus"
     },
-    "Participation.availableAgendaMany": {
-      "one": "Tässä valinnassa on {count} saatavilla oleva esityslistan kohta.",
-      "other": "Tässä valinnassa on {count} saatavilla olevaa esityslistan kohtaa."
-    },
     "Participation.agendaMany": {
       "one": "Tässä valinnassa on {count} esityslistan kohta.",
       "other": "Tässä valinnassa on {count} esityslistan kohtaa."
@@ -4298,8 +4181,8 @@
       "other": "{count} kysymystä vastaa näitä suodattimia."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} tapahtuma tässä valinnassa · puutteellinen",
-      "other": "{count} tapahtumaa tässä valinnassa · puutteellinen"
+      "one": "{count} tapahtuma tässä valinnassa · osittainen",
+      "other": "{count} tapahtumaa tässä valinnassa · osittainen"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} tapahtuma tässä valinnassa",
@@ -4378,20 +4261,20 @@
       "other": "Osuutta ei ole saatavilla. {count} kysymystä, yhteensä {total}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "one": "EuroVoc-aiheet · {mapped}/{procedures} asia · ensimmäiset 600 vastaavaa asiaa",
-      "other": "EuroVoc-aiheet · {mapped}/{procedures} asiaa · ensimmäiset 600 vastaavaa asiaa"
+      "one": "Aiheet · {mapped}/{procedures} asia · ensimmäiset 600 vastaavaa asiaa",
+      "other": "Aiheet · {mapped}/{procedures} asiaa · ensimmäiset 600 vastaavaa asiaa"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "one": "EuroVoc-aiheet · {mapped}/{procedures} asia · ladataan lisää aiheita… · ensimmäiset 600 vastaavaa asiaa",
-      "other": "EuroVoc-aiheet · {mapped}/{procedures} asiaa · ladataan lisää aiheita… · ensimmäiset 600 vastaavaa asiaa"
+      "one": "Aiheet · {mapped}/{procedures} asia · ladataan lisää aiheita… · ensimmäiset 600 vastaavaa asiaa",
+      "other": "Aiheet · {mapped}/{procedures} asiaa · ladataan lisää aiheita… · ensimmäiset 600 vastaavaa asiaa"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "one": "EuroVoc-aiheet · {mapped}/{procedures} asia",
-      "other": "EuroVoc-aiheet · {mapped}/{procedures} asiaa"
+      "one": "Aiheet · {mapped}/{procedures} asia",
+      "other": "Aiheet · {mapped}/{procedures} asiaa"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "one": "EuroVoc-aiheet · {mapped}/{procedures} asia · ladataan lisää aiheita…",
-      "other": "EuroVoc-aiheet · {mapped}/{procedures} asiaa · ladataan lisää aiheita…"
+      "one": "Aiheet · {mapped}/{procedures} asia · ladataan lisää aiheita…",
+      "other": "Aiheet · {mapped}/{procedures} asiaa · ladataan lisää aiheita…"
     },
     "dossierCard.updateCount": {
       "one": "{count} asian päivitys. Avaa asia",
@@ -4497,14 +4380,6 @@
       "one": "{date}: {count} esityslistan kohta",
       "other": "{date}: {count} esityslistan kohtaa"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} odotettu esiintymä",
-      "other": "{text} · {count} odotettua esiintymää"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · esiintymä {numbers}",
-      "other": "{text} · esiintymät {numbers}"
-    },
     "topics.story.count.questions": {
       "one": "{count} kysymys",
       "other": "{count} kysymystä"
@@ -4532,10 +4407,6 @@
     "topics.story.count.meps": {
       "one": "{count} meppi",
       "other": "{count} meppiä"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} asiakirja",
-      "other": "{count} asiakirjaa"
     },
     "topics.speechesCount": {
       "one": "{count} puheenvuoro",
@@ -4666,9 +4537,9 @@
       "other": "{count} décisions · {recordedCount} avec une position enregistrée"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} position enregistrée · {recordedCount} avec une position enregistrée",
-      "many": "{count} positions enregistrées · {recordedCount} avec une position enregistrée",
-      "other": "{count} positions enregistrées · {recordedCount} avec une position enregistrée"
+      "one": "{count} position enregistrée · {recordedCount} sur cette période",
+      "many": "{count} positions enregistrées · {recordedCount} sur cette période",
+      "other": "{count} positions enregistrées · {recordedCount} sur cette période"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} sur {total} décision",
@@ -4686,9 +4557,9 @@
       "other": "{start}–{end} sur {total} positions enregistrées"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} sur {total} position enregistrée · {recordedCount} avec une position enregistrée",
-      "many": "{start}–{end} sur {total} positions enregistrées · {recordedCount} avec une position enregistrée",
-      "other": "{start}–{end} sur {total} positions enregistrées · {recordedCount} avec une position enregistrée"
+      "one": "{start}–{end} sur {total} position enregistrée · {recordedCount} sur cette période",
+      "many": "{start}–{end} sur {total} positions enregistrées · {recordedCount} sur cette période",
+      "other": "{start}–{end} sur {total} positions enregistrées · {recordedCount} sur cette période"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} décision",
@@ -4781,9 +4652,9 @@
       "other": "{count} autres activités"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} contribution au débat du {date} non chargée.",
-      "many": "{count} contributions au débat du {date} non chargées.",
-      "other": "{count} contributions au débat du {date} non chargées."
+      "one": "Contributions au débat du {date} indisponibles : {count}.",
+      "many": "Contributions au débat du {date} indisponibles : {count}.",
+      "other": "Contributions au débat du {date} indisponibles : {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Voir {count} question",
@@ -4866,9 +4737,9 @@
       "other": "dans {count} discours"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} contribution n’a pas pu être classée.",
-      "many": "{count} contributions n’ont pas pu être classées.",
-      "other": "{count} contributions n’ont pas pu être classées."
+      "one": "Non classées : {count}",
+      "many": "Non classées : {count}",
+      "other": "Non classées : {count}"
     },
     "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
       "one": "{dateRange} · {count} jour de séance",
@@ -4900,11 +4771,6 @@
       "many": "{total} amendements · couverture partielle",
       "other": "{total} amendements · couverture partielle"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} point à l’ordre du jour disponible dans cette sélection.",
-      "many": "{count} points à l’ordre du jour disponibles dans cette sélection.",
-      "other": "{count} points à l’ordre du jour disponibles dans cette sélection."
-    },
     "Participation.agendaMany": {
       "one": "{count} point à l’ordre du jour dans cette sélection.",
       "many": "{count} points à l’ordre du jour dans cette sélection.",
@@ -4916,9 +4782,9 @@
       "other": "{count} questions correspondent à ces filtres."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} événement dans cette sélection · données incomplètes",
-      "many": "{count} événements dans cette sélection · données incomplètes",
-      "other": "{count} événements dans cette sélection · données incomplètes"
+      "one": "{count} événement dans cette sélection · données partielles",
+      "many": "{count} événements dans cette sélection · données partielles",
+      "other": "{count} événements dans cette sélection · données partielles"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} événement dans cette sélection",
@@ -4984,16 +4850,16 @@
       "other": "Textes illisibles : {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Thèmes EuroVoc · Dossiers : {mapped} sur {procedures}"
+      "other": "Thèmes · Dossiers : {mapped} sur {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Thèmes EuroVoc · Dossiers : {mapped} sur {procedures} · 600 premiers dossiers correspondants"
+      "other": "Thèmes · Dossiers : {mapped} sur {procedures} · 600 premiers dossiers correspondants"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Thèmes EuroVoc · Dossiers : {mapped} sur {procedures} · chargement d’autres thèmes…"
+      "other": "Thèmes · Dossiers : {mapped} sur {procedures} · chargement d’autres thèmes…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Thèmes EuroVoc · Dossiers : {mapped} sur {procedures} · chargement d’autres thèmes… · 600 premiers dossiers correspondants"
+      "other": "Thèmes · Dossiers : {mapped} sur {procedures} · chargement d’autres thèmes… · 600 premiers dossiers correspondants"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Questions sur la période d’analyse : {count} · Par jour · Choisissez un thème ou un mot ci-dessus pour voir sa part des questions."
@@ -5064,15 +4930,6 @@
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date} · Points à l’ordre du jour : {count}"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} occurrence attendue",
-      "other": "{text} · {count} occurrences attendues",
-      "many": "{text} · {count} occurrences attendues"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · occurrence {numbers}",
-      "other": "{text} · occurrences {numbers}"
-    },
     "ui.speechStat.total": {
       "one": "Contribution totale",
       "other": "Contributions totales",
@@ -5140,11 +4997,6 @@
       "one": "{count} député",
       "other": "{count} députés",
       "many": "{count} de députés"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} document",
-      "other": "{count} documents",
-      "many": "{count} de documents"
     },
     "topics.speechesCount": {
       "one": "{count} intervention",
@@ -5307,11 +5159,11 @@
       "many": "Líon cinntí: {count} · {recordedCount} le seasamh taifeadta"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta",
-      "other": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta",
-      "two": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta",
-      "few": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta",
-      "many": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta"
+      "one": "Líon seasamh taifeadta: {count} · {recordedCount} sa tréimhse seo",
+      "other": "Líon seasamh taifeadta: {count} · {recordedCount} sa tréimhse seo",
+      "two": "Líon seasamh taifeadta: {count} · {recordedCount} sa tréimhse seo",
+      "few": "Líon seasamh taifeadta: {count} · {recordedCount} sa tréimhse seo",
+      "many": "Líon seasamh taifeadta: {count} · {recordedCount} sa tréimhse seo"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "Cinntí: {start}–{end} as {total}",
@@ -5335,11 +5187,11 @@
       "many": "Seasaimh taifeadta: {start}–{end} as {total}"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta",
-      "other": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta",
-      "two": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta",
-      "few": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta",
-      "many": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta"
+      "one": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} sa tréimhse seo",
+      "other": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} sa tréimhse seo",
+      "two": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} sa tréimhse seo",
+      "few": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} sa tréimhse seo",
+      "many": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} sa tréimhse seo"
     },
     "membervotes.tsx.count.decisions": {
       "one": "Líon cinntí: {count}",
@@ -5461,11 +5313,11 @@
       "many": "Líon gníomhaíochtaí eile: {count}"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "Líon rannchuidithe díospóireachta ó {date} nár lódáladh: {count}.",
-      "other": "Líon rannchuidithe díospóireachta ó {date} nár lódáladh: {count}.",
-      "two": "Líon rannchuidithe díospóireachta ó {date} nár lódáladh: {count}.",
-      "few": "Líon rannchuidithe díospóireachta ó {date} nár lódáladh: {count}.",
-      "many": "Líon rannchuidithe díospóireachta ó {date} nár lódáladh: {count}."
+      "one": "Rannchuidithe díospóireachta ón {date} gan fáil: {count}.",
+      "other": "Rannchuidithe díospóireachta ón {date} gan fáil: {count}.",
+      "two": "Rannchuidithe díospóireachta ón {date} gan fáil: {count}.",
+      "few": "Rannchuidithe díospóireachta ón {date} gan fáil: {count}.",
+      "many": "Rannchuidithe díospóireachta ón {date} gan fáil: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Féach ceisteanna ({count})",
@@ -5580,11 +5432,11 @@
       "many": "i líon óráidí: {count}"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "Líon rannchuidithe nárbh fhéidir a aicmiú: {count}.",
-      "other": "Líon rannchuidithe nárbh fhéidir a aicmiú: {count}.",
-      "two": "Líon rannchuidithe nárbh fhéidir a aicmiú: {count}.",
-      "few": "Líon rannchuidithe nárbh fhéidir a aicmiú: {count}.",
-      "many": "Líon rannchuidithe nárbh fhéidir a aicmiú: {count}."
+      "one": "Gan aicmiú: {count}",
+      "other": "Gan aicmiú: {count}",
+      "two": "Gan aicmiú: {count}",
+      "few": "Gan aicmiú: {count}",
+      "many": "Gan aicmiú: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "Líon topaicí le {metric} sa rogha seo: {count}. {shown} ar taispeáint.",
@@ -5635,13 +5487,6 @@
       "few": "Líon leasuithe: {total} · clúdach páirteach",
       "many": "Líon leasuithe: {total} · clúdach páirteach"
     },
-    "Participation.availableAgendaMany": {
-      "one": "Líon míreanna ar an gclár oibre atá ar fáil sa rogha seo: {count}.",
-      "other": "Líon míreanna ar an gclár oibre atá ar fáil sa rogha seo: {count}.",
-      "two": "Líon míreanna ar an gclár oibre atá ar fáil sa rogha seo: {count}.",
-      "few": "Líon míreanna ar an gclár oibre atá ar fáil sa rogha seo: {count}.",
-      "many": "Líon míreanna ar an gclár oibre atá ar fáil sa rogha seo: {count}."
-    },
     "Participation.agendaMany": {
       "one": "Líon míreanna ar an gclár oibre sa rogha seo: {count}.",
       "other": "Líon míreanna ar an gclár oibre sa rogha seo: {count}.",
@@ -5657,11 +5502,11 @@
       "many": "Líon ceisteanna a oireann do na scagairí seo: {count}."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "Líon imeachtaí sa rogha seo: {count} · neamhiomlán",
-      "other": "Líon imeachtaí sa rogha seo: {count} · neamhiomlán",
-      "two": "Líon imeachtaí sa rogha seo: {count} · neamhiomlán",
-      "few": "Líon imeachtaí sa rogha seo: {count} · neamhiomlán",
-      "many": "Líon imeachtaí sa rogha seo: {count} · neamhiomlán"
+      "one": "Líon imeachtaí sa rogha seo: {count} · páirteach",
+      "other": "Líon imeachtaí sa rogha seo: {count} · páirteach",
+      "two": "Líon imeachtaí sa rogha seo: {count} · páirteach",
+      "few": "Líon imeachtaí sa rogha seo: {count} · páirteach",
+      "many": "Líon imeachtaí sa rogha seo: {count} · páirteach"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "Líon imeachtaí sa rogha seo: {count}",
@@ -5729,16 +5574,16 @@
       "other": "Líon téacsanna doléite: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Topaicí EuroVoc · sainchomhaid: {mapped} as {procedures}"
+      "other": "Topaicí · sainchomhaid: {mapped} as {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Topaicí EuroVoc · sainchomhaid: {mapped} as {procedures} · an chéad 600 sainchomhad meaitseála"
+      "other": "Topaicí · sainchomhaid: {mapped} as {procedures} · an chéad 600 sainchomhad meaitseála"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Topaicí EuroVoc · sainchomhaid: {mapped} as {procedures} · tuilleadh topaicí á lódáil…"
+      "other": "Topaicí · sainchomhaid: {mapped} as {procedures} · tuilleadh topaicí á lódáil…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Topaicí EuroVoc · sainchomhaid: {mapped} as {procedures} · tuilleadh topaicí á lódáil… · an chéad 600 sainchomhad meaitseála"
+      "other": "Topaicí · sainchomhaid: {mapped} as {procedures} · tuilleadh topaicí á lódáil… · an chéad 600 sainchomhad meaitseála"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Líon ceisteanna sa tréimhse anailíse: {count} · in aghaidh an lae · Roghnaigh ábhar nó focal thuas chun a sciar de na ceisteanna a fheiceáil."
@@ -5778,12 +5623,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: líon míreanna ar an gclár oibre: {count}"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · líon tarluithe ionchais: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · tarluithe: {numbers}"
     },
     "app.mepCountUnit": {
       "one": "FPE",
@@ -5924,13 +5763,6 @@
       "two": "{count} Fheisire",
       "few": "{count} Fheisire",
       "many": "{count} bhFeisire"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} doiciméad",
-      "other": "{count} de dhoiciméid",
-      "two": "{count} dhoiciméad",
-      "few": "{count} dhoiciméad",
-      "many": "{count} ndoiciméad"
     },
     "topics.speechesCount": {
       "one": "{count} óráid",
@@ -6113,9 +5945,9 @@
       "other": "Broj odluka: {count} · sa zabilježenim stajalištem: {recordedCount}"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "Broj zabilježenih stajališta: {count} · sa zabilježenim stajalištem: {recordedCount}",
-      "few": "Broj zabilježenih stajališta: {count} · sa zabilježenim stajalištem: {recordedCount}",
-      "other": "Broj zabilježenih stajališta: {count} · sa zabilježenim stajalištem: {recordedCount}"
+      "one": "Broj zabilježenih stajališta: {count} · {recordedCount} u ovom razdoblju",
+      "few": "Broj zabilježenih stajališta: {count} · {recordedCount} u ovom razdoblju",
+      "other": "Broj zabilježenih stajališta: {count} · {recordedCount} u ovom razdoblju"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "Odluke: {start}–{end} od {total}",
@@ -6133,9 +5965,9 @@
       "other": "Zabilježena stajališta: {start}–{end} od {total}"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "Zabilježena stajališta: {start}–{end} od {total} · sa zabilježenim stajalištem: {recordedCount}",
-      "few": "Zabilježena stajališta: {start}–{end} od {total} · sa zabilježenim stajalištem: {recordedCount}",
-      "other": "Zabilježena stajališta: {start}–{end} od {total} · sa zabilježenim stajalištem: {recordedCount}"
+      "one": "Zabilježena stajališta: {start}–{end} od {total} · {recordedCount} u ovom razdoblju",
+      "few": "Zabilježena stajališta: {start}–{end} od {total} · {recordedCount} u ovom razdoblju",
+      "other": "Zabilježena stajališta: {start}–{end} od {total} · {recordedCount} u ovom razdoblju"
     },
     "membervotes.tsx.count.decisions": {
       "one": "Broj odluka: {count}",
@@ -6228,9 +6060,9 @@
       "other": "Broj drugih aktivnosti: {count}"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "Broj neučitanih doprinosa raspravi od {date}: {count}.",
-      "few": "Broj neučitanih doprinosa raspravi od {date}: {count}.",
-      "other": "Broj neučitanih doprinosa raspravi od {date}: {count}."
+      "one": "Nedostupni doprinosi raspravi od {date}: {count}.",
+      "few": "Nedostupni doprinosi raspravi od {date}: {count}.",
+      "other": "Nedostupni doprinosi raspravi od {date}: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Prikaži pitanja ({count})",
@@ -6298,9 +6130,9 @@
       "other": "u ovoliko govora: {count}"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "Broj doprinosa koje nije moguće razvrstati: {count}.",
-      "few": "Broj doprinosa koje nije moguće razvrstati: {count}.",
-      "other": "Broj doprinosa koje nije moguće razvrstati: {count}."
+      "one": "Nerazvrstano: {count}",
+      "few": "Nerazvrstano: {count}",
+      "other": "Nerazvrstano: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "Broj tema s mjerom {metric} u ovom odabiru: {count}. Prikazano: {shown}.",
@@ -6337,11 +6169,6 @@
       "few": "Broj amandmana: {total} · djelomična pokrivenost",
       "other": "Broj amandmana: {total} · djelomična pokrivenost"
     },
-    "Participation.availableAgendaMany": {
-      "one": "Broj dostupnih točaka dnevnog reda u ovom odabiru: {count}.",
-      "few": "Broj dostupnih točaka dnevnog reda u ovom odabiru: {count}.",
-      "other": "Broj dostupnih točaka dnevnog reda u ovom odabiru: {count}."
-    },
     "Participation.agendaMany": {
       "one": "Broj točaka dnevnog reda u ovom odabiru: {count}.",
       "few": "Broj točaka dnevnog reda u ovom odabiru: {count}.",
@@ -6353,9 +6180,9 @@
       "other": "Broj pitanja koja odgovaraju ovim filtrima: {count}."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "Broj događaja u ovom odabiru: {count} · nepotpuno",
-      "few": "Broj događaja u ovom odabiru: {count} · nepotpuno",
-      "other": "Broj događaja u ovom odabiru: {count} · nepotpuno"
+      "one": "Broj događaja u ovom odabiru: {count} · djelomično",
+      "few": "Broj događaja u ovom odabiru: {count} · djelomično",
+      "other": "Broj događaja u ovom odabiru: {count} · djelomično"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "Broj događaja u ovom odabiru: {count}",
@@ -6432,16 +6259,16 @@
       "other": "Broj nečitljivih tekstova: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Teme EuroVoca · {mapped} od {procedures} predmeta"
+      "other": "Teme a · {mapped} od {procedures} predmeta"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Teme EuroVoca · {mapped} od {procedures} predmeta · prvih 600 podudarnih predmeta"
+      "other": "Teme a · {mapped} od {procedures} predmeta · prvih 600 podudarnih predmeta"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Teme EuroVoca · {mapped} od {procedures} predmeta · učitavanje još tema…"
+      "other": "Teme a · {mapped} od {procedures} predmeta · učitavanje još tema…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Teme EuroVoca · {mapped} od {procedures} predmeta · učitavanje još tema… · prvih 600 podudarnih predmeta"
+      "other": "Teme a · {mapped} od {procedures} predmeta · učitavanje još tema… · prvih 600 podudarnih predmeta"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Broj pitanja u razdoblju analize: {count} · po danu · Odaberite temu ili riječ iznad za prikaz njezina udjela u pitanjima."
@@ -6481,12 +6308,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: broj točaka dnevnog reda: {count}"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · očekivani broj pojavljivanja: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · pojavljivanja {numbers}"
     },
     "app.mepCountUnit": {
       "one": "zastupnik u EP-u",
@@ -6587,11 +6408,6 @@
       "one": "{count} zastupnik u Europskom parlamentu",
       "few": "{count} zastupnika u Europskom parlamentu",
       "other": "{count} zastupnika u Europskom parlamentu"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokument",
-      "few": "{count} dokumenta",
-      "other": "{count} dokumenata"
     },
     "topics.speechesCount": {
       "one": "{count} govor",
@@ -6727,8 +6543,8 @@
       "other": "{count} döntés · {recordedCount} rögzített szavazattal"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} rögzített szavazat · {recordedCount} rögzített szavazattal",
-      "other": "{count} rögzített szavazat · {recordedCount} rögzített szavazattal"
+      "one": "{count} rögzített szavazat · {recordedCount} ebben az időszakban",
+      "other": "{count} rögzített szavazat · {recordedCount} ebben az időszakban"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} / {total} döntés",
@@ -6743,8 +6559,8 @@
       "other": "{start}–{end} / {total} rögzített szavazat"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} / {total} rögzített szavazat · {recordedCount} rögzített szavazattal",
-      "other": "{start}–{end} / {total} rögzített szavazat · {recordedCount} rögzített szavazattal"
+      "one": "{start}–{end} / {total} rögzített szavazat · {recordedCount} ebben az időszakban",
+      "other": "{start}–{end} / {total} rögzített szavazat · {recordedCount} ebben az időszakban"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} döntés",
@@ -6819,8 +6635,8 @@
       "other": "{count} egyéb tevékenység"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} vitafelszólalás nincs betöltve erről a napról: {date}.",
-      "other": "{count} vitafelszólalás nincs betöltve erről a napról: {date}."
+      "one": "Nem elérhető vitafelszólalások ({date}): {count}.",
+      "other": "Nem elérhető vitafelszólalások ({date}): {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "{count} kérdés megtekintése",
@@ -6887,8 +6703,8 @@
       "other": "{count} beszédben"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} felszólalás nem sorolható be.",
-      "other": "{count} felszólalás nem sorolható be."
+      "one": "Besorolatlan: {count}",
+      "other": "Besorolatlan: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} téma a kijelölésben ezzel a mutatóval: {metric}. Megjelenítve: {shown}.",
@@ -6918,10 +6734,6 @@
       "one": "{total} módosítás · részleges lefedettség",
       "other": "{total} módosítás · részleges lefedettség"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} elérhető napirendi pont a kijelölésben.",
-      "other": "{count} elérhető napirendi pont a kijelölésben."
-    },
     "Participation.agendaMany": {
       "one": "{count} napirendi pont a kijelölésben.",
       "other": "{count} napirendi pont a kijelölésben."
@@ -6931,8 +6743,8 @@
       "other": "{count} kérdés felel meg a szűrőknek."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} esemény a kijelölésben · hiányos adatok",
-      "other": "{count} esemény a kijelölésben · hiányos adatok"
+      "one": "{count} esemény a kijelölésben · részleges adatok",
+      "other": "{count} esemény a kijelölésben · részleges adatok"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} esemény a kijelölésben",
@@ -6993,16 +6805,16 @@
       "other": "{unreadableText} szöveg nem olvasható."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "EuroVoc-témák · Dossziék: {mapped} / {procedures}"
+      "other": "Témák · Dossziék: {mapped} / {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "EuroVoc-témák · Dossziék: {mapped} / {procedures} · az első 600 megfelelő dosszié"
+      "other": "Témák · Dossziék: {mapped} / {procedures} · az első 600 megfelelő dosszié"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "EuroVoc-témák · Dossziék: {mapped} / {procedures} · további témák betöltése…"
+      "other": "Témák · Dossziék: {mapped} / {procedures} · további témák betöltése…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "EuroVoc-témák · Dossziék: {mapped} / {procedures} · további témák betöltése… · az első 600 megfelelő dosszié"
+      "other": "Témák · Dossziék: {mapped} / {procedures} · további témák betöltése… · az első 600 megfelelő dosszié"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "{count} kérdés az elemzett időszakban · naponta · Válasszon fent témát vagy szót a kérdéseken belüli arány megtekintéséhez."
@@ -7042,12 +6854,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: {count} napirendi pont"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · {count} várt előfordulás"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · előfordulások: {numbers}"
     },
     "app.mepCountUnit": {
       "one": "EP-képviselő",
@@ -7128,10 +6934,6 @@
     "topics.story.count.meps": {
       "one": "{count} EP-képviselő",
       "other": "{count} EP-képviselő"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokumentum",
-      "other": "{count} dokumentum"
     },
     "topics.speechesCount": {
       "one": "{count} felszólalás",
@@ -7257,9 +7059,9 @@
       "other": "{count} decisioni · {recordedCount} con posizione registrata"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} posizione registrata · {recordedCount} con posizione registrata",
-      "many": "{count} posizioni registrate · {recordedCount} con posizione registrata",
-      "other": "{count} posizioni registrate · {recordedCount} con posizione registrata"
+      "one": "{count} posizione registrata · {recordedCount} in questo periodo",
+      "many": "{count} posizioni registrate · {recordedCount} in questo periodo",
+      "other": "{count} posizioni registrate · {recordedCount} in questo periodo"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} di {total} decisione",
@@ -7277,9 +7079,9 @@
       "other": "{start}–{end} di {total} posizioni registrate"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} di {total} posizione registrata · {recordedCount} con posizione registrata",
-      "many": "{start}–{end} di {total} posizioni registrate · {recordedCount} con posizione registrata",
-      "other": "{start}–{end} di {total} posizioni registrate · {recordedCount} con posizione registrata"
+      "one": "{start}–{end} di {total} posizione registrata · {recordedCount} in questo periodo",
+      "many": "{start}–{end} di {total} posizioni registrate · {recordedCount} in questo periodo",
+      "other": "{start}–{end} di {total} posizioni registrate · {recordedCount} in questo periodo"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} decisione",
@@ -7367,9 +7169,9 @@
       "other": "{count} altre attività"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} contributo al dibattito del {date} non caricato.",
-      "many": "{count} contributi al dibattito del {date} non caricati.",
-      "other": "{count} contributi al dibattito del {date} non caricati."
+      "one": "Contributi al dibattito del {date} non disponibili: {count}.",
+      "many": "Contributi al dibattito del {date} non disponibili: {count}.",
+      "other": "Contributi al dibattito del {date} non disponibili: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Vedi {count} interrogazione",
@@ -7452,9 +7254,9 @@
       "other": "in {count} interventi"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "Impossibile classificare {count} contributo.",
-      "many": "Impossibile classificare {count} contributi.",
-      "other": "Impossibile classificare {count} contributi."
+      "one": "Non classificati: {count}",
+      "many": "Non classificati: {count}",
+      "other": "Non classificati: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} tema con {metric} in questa selezione. Ne è mostrato {shown}.",
@@ -7491,11 +7293,6 @@
       "many": "{total} emendamenti · copertura parziale",
       "other": "{total} emendamenti · copertura parziale"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} punto all’ordine del giorno disponibile in questa selezione.",
-      "many": "{count} punti all’ordine del giorno disponibili in questa selezione.",
-      "other": "{count} punti all’ordine del giorno disponibili in questa selezione."
-    },
     "Participation.agendaMany": {
       "one": "{count} punto all’ordine del giorno in questa selezione.",
       "many": "{count} punti all’ordine del giorno in questa selezione.",
@@ -7507,9 +7304,9 @@
       "other": "{count} interrogazioni corrispondono ai filtri."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} evento in questa selezione · incompleta",
-      "many": "{count} eventi in questa selezione · incompleta",
-      "other": "{count} eventi in questa selezione · incompleta"
+      "one": "{count} evento in questa selezione · parziale",
+      "many": "{count} eventi in questa selezione · parziale",
+      "other": "{count} eventi in questa selezione · parziale"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} evento in questa selezione",
@@ -7580,16 +7377,16 @@
       "other": "Testi illeggibili: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Temi EuroVoc · Fascicoli: {mapped} su {procedures}"
+      "other": "Temi · Fascicoli: {mapped} su {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Temi EuroVoc · Fascicoli: {mapped} su {procedures} · primi 600 fascicoli corrispondenti"
+      "other": "Temi · Fascicoli: {mapped} su {procedures} · primi 600 fascicoli corrispondenti"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Temi EuroVoc · Fascicoli: {mapped} su {procedures} · caricamento di altri temi…"
+      "other": "Temi · Fascicoli: {mapped} su {procedures} · caricamento di altri temi…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Temi EuroVoc · Fascicoli: {mapped} su {procedures} · caricamento di altri temi… · primi 600 fascicoli corrispondenti"
+      "other": "Temi · Fascicoli: {mapped} su {procedures} · caricamento di altri temi… · primi 600 fascicoli corrispondenti"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Interrogazioni nel periodo di analisi: {count} · Per giorno · Scegli un tema o una parola qui sopra per vederne la quota di interrogazioni."
@@ -7660,15 +7457,6 @@
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date} · Punti all’ordine del giorno: {count}"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} occorrenza prevista",
-      "other": "{text} · {count} occorrenze previste",
-      "many": "{text} · {count} occorrenze previste"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · occorrenza {numbers}",
-      "other": "{text} · occorrenze {numbers}"
-    },
     "ui.speechStat.total": {
       "one": "Contributo totale",
       "other": "Contributi totali",
@@ -7736,11 +7524,6 @@
       "one": "{count} deputato",
       "other": "{count} deputati",
       "many": "{count} di deputati"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} documento",
-      "other": "{count} documenti",
-      "many": "{count} di documenti"
     },
     "topics.speechesCount": {
       "one": "{count} intervento",
@@ -7894,10 +7677,10 @@
       "many": "Sprendimų skaičius: {count} · su užregistruota pozicija: {recordedCount}"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} užregistruota pozicija · {recordedCount} su užregistruota pozicija",
-      "other": "{count} užregistruotų pozicijų · {recordedCount} su užregistruota pozicija",
-      "few": "{count} užregistruotos pozicijos · su užregistruota pozicija: {recordedCount}",
-      "many": "Užregistruotų pozicijų skaičius: {count} · su užregistruota pozicija: {recordedCount}"
+      "one": "{count} užregistruota pozicija · {recordedCount} per šį laikotarpį",
+      "other": "{count} užregistruotų pozicijų · {recordedCount} per šį laikotarpį",
+      "few": "{count} užregistruotos pozicijos · {recordedCount} per šį laikotarpį",
+      "many": "Užregistruotų pozicijų skaičius: {count} · {recordedCount} per šį laikotarpį"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} iš {total} sprendimo",
@@ -7918,10 +7701,10 @@
       "many": "Užregistruotos pozicijos: {start}–{end} iš {total}"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} iš {total} užregistruotos pozicijos · {recordedCount} su užregistruota pozicija",
-      "other": "{start}–{end} iš {total} užregistruotų pozicijų · {recordedCount} su užregistruota pozicija",
-      "few": "{start}–{end} iš {total} užregistruotų pozicijų · su užregistruota pozicija: {recordedCount}",
-      "many": "Užregistruotos pozicijos: {start}–{end} iš {total} · su užregistruota pozicija: {recordedCount}"
+      "one": "{start}–{end} iš {total} užregistruotos pozicijos · {recordedCount} per šį laikotarpį",
+      "other": "{start}–{end} iš {total} užregistruotų pozicijų · {recordedCount} per šį laikotarpį",
+      "few": "{start}–{end} iš {total} užregistruotų pozicijų · {recordedCount} per šį laikotarpį",
+      "many": "Užregistruotos pozicijos: {start}–{end} iš {total} · {recordedCount} per šį laikotarpį"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} sprendimas",
@@ -8032,10 +7815,10 @@
       "many": "Kitos veiklos atvejų skaičius: {count}"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "Neįkeltas {count} diskusijos pasisakymas iš {date}.",
-      "other": "Neįkelta {count} diskusijos pasisakymų iš {date}.",
-      "few": "Neįkelti {count} diskusijos pasisakymai iš {date}.",
-      "many": "Neįkeltų diskusijos pasisakymų iš {date} skaičius: {count}."
+      "one": "Nepasiekiami diskusijos pasisakymai ({date}): {count}.",
+      "other": "Nepasiekiami diskusijos pasisakymai ({date}): {count}.",
+      "few": "Nepasiekiami diskusijos pasisakymai ({date}): {count}.",
+      "many": "Nepasiekiami diskusijos pasisakymai ({date}): {count}."
     },
     "amendments.name_proposed_this_with_count_other_meps.6c177a": {
       "one": "Pasiūlė {name} kartu su {count} kitu EP nariu.",
@@ -8169,12 +7952,6 @@
       "few": "{total} pakeitimai · dalinė aprėptis",
       "many": "Pakeitimų skaičius: {total} · dalinė aprėptis"
     },
-    "Participation.availableAgendaMany": {
-      "one": "Šiame pasirinkime pasiekiamas {count} darbotvarkės punktas.",
-      "other": "Šiame pasirinkime pasiekiama {count} darbotvarkės punktų.",
-      "few": "Šiame pasirinkime pasiekiami {count} darbotvarkės punktai.",
-      "many": "Šiame pasirinkime pasiekiamų darbotvarkės punktų skaičius: {count}."
-    },
     "Participation.agendaMany": {
       "one": "Šiame pasirinkime – {count} darbotvarkės punktas.",
       "other": "Šiame pasirinkime – {count} darbotvarkės punktų.",
@@ -8188,10 +7965,10 @@
       "many": "Šiuos filtrus atitinkančių klausimų skaičius: {count}."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "Šiame pasirinkime – {count} įvykis · neišsamu",
-      "other": "Šiame pasirinkime – {count} įvykių · neišsamu",
-      "few": "Šiame pasirinkime – {count} įvykiai · neišsamu",
-      "many": "Įvykių šiame pasirinkime skaičius: {count} · neišsamu"
+      "one": "Šiame pasirinkime – {count} įvykis · dalinė",
+      "other": "Šiame pasirinkime – {count} įvykių · dalinė",
+      "few": "Šiame pasirinkime – {count} įvykiai · dalinė",
+      "many": "Įvykių šiame pasirinkime skaičius: {count} · dalinė"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "Šiame pasirinkime – {count} įvykis",
@@ -8204,8 +7981,8 @@
       "other": "Peržiūrėti klausimus ({count})"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "Nepavyko priskirti kategorijos {count} pasisakymui.",
-      "other": "Nepavyko suklasifikuoti pasisakymų: {count}."
+      "one": "Neklasifikuota: {count}",
+      "other": "Neklasifikuota: {count}"
     },
     "batch6.analysisperiod.days.days.5": {
       "one": "{days} diena",
@@ -8265,16 +8042,16 @@
       "other": "Neįskaitomi tekstai: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "„EuroVoc“ temos · Bylos: {mapped} iš {procedures}"
+      "other": "„“ temos · Bylos: {mapped} iš {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "„EuroVoc“ temos · Bylos: {mapped} iš {procedures} · pirmosios 600 atitinkančių bylų"
+      "other": "„“ temos · Bylos: {mapped} iš {procedures} · pirmosios 600 atitinkančių bylų"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "„EuroVoc“ temos · Bylos: {mapped} iš {procedures} · įkeliama daugiau temų…"
+      "other": "„“ temos · Bylos: {mapped} iš {procedures} · įkeliama daugiau temų…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "„EuroVoc“ temos · Bylos: {mapped} iš {procedures} · įkeliama daugiau temų… · pirmosios 600 atitinkančių bylų"
+      "other": "„“ temos · Bylos: {mapped} iš {procedures} · įkeliama daugiau temų… · pirmosios 600 atitinkančių bylų"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Klausimai: {count} analizuojamu laikotarpiu · dienomis · Viršuje pasirinkite temą ar žodį, kad matytumėte jų dalį tarp klausimų."
@@ -8314,12 +8091,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: darbotvarkės punktai: {count}"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · Numatytos pasikartojimo vietos: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · pasikartojimai: {numbers}"
     },
     "app.mepCountUnit": {
       "one": "EP narys",
@@ -8440,12 +8211,6 @@
       "other": "{count} EP narių",
       "few": "{count} EP nariai",
       "many": "{count} EP nario"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokumentas",
-      "other": "{count} dokumentų",
-      "few": "{count} dokumentai",
-      "many": "{count} dokumento"
     },
     "topics.speechesCount": {
       "one": "{count} kalba",
@@ -8609,9 +8374,9 @@
       "zero": "{count} lēmumu · ar reģistrētu nostāju: {recordedCount}"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} reģistrēta nostāja · {recordedCount} ar reģistrētu nostāju",
-      "other": "{count} reģistrētas nostājas · {recordedCount} ar reģistrētu nostāju",
-      "zero": "{count} reģistrētu nostāju · ar reģistrētu nostāju: {recordedCount}"
+      "one": "{count} reģistrēta nostāja · {recordedCount} šajā periodā",
+      "other": "{count} reģistrētas nostājas · {recordedCount} šajā periodā",
+      "zero": "{count} reģistrētu nostāju · {recordedCount} šajā periodā"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} no {total} lēmuma",
@@ -8629,9 +8394,9 @@
       "zero": "Reģistrētās nostājas: {start}–{end} no {total}"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} no {total} reģistrētas nostājas · {recordedCount} ar reģistrētu nostāju",
-      "other": "{start}–{end} no {total} reģistrētām nostājām · {recordedCount} ar reģistrētu nostāju",
-      "zero": "Reģistrētās nostājas: {start}–{end} no {total} · ar reģistrētu nostāju: {recordedCount}"
+      "one": "{start}–{end} no {total} reģistrētas nostājas · {recordedCount} šajā periodā",
+      "other": "{start}–{end} no {total} reģistrētām nostājām · {recordedCount} šajā periodā",
+      "zero": "Reģistrētās nostājas: {start}–{end} no {total} · {recordedCount} šajā periodā"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} lēmums",
@@ -8722,9 +8487,9 @@
       "zero": "{count} citu darbību"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "Nav ielādēta {count} uzstāšanās debatēs no {date}.",
-      "other": "Nav ielādētas {count} uzstāšanās debatēs no {date}.",
-      "zero": "Neielādēto uzstāšanos debatēs no {date} skaits: {count}."
+      "one": "Nepieejamas uzstāšanās debatēs {date}: {count}.",
+      "other": "Nepieejamas uzstāšanās debatēs {date}: {count}.",
+      "zero": "Nepieejamas uzstāšanās debatēs {date}: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Skatīt {count} jautājumu",
@@ -8807,9 +8572,9 @@
       "zero": "Runu skaits ar šo terminu: {count}"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "Neizdevās klasificēt {count} uzstāšanos.",
-      "other": "Neizdevās klasificēt {count} uzstāšanās reizes.",
-      "zero": "Neklasificēto uzstāšanās reižu skaits: {count}."
+      "one": "Neklasificēti: {count}",
+      "other": "Neklasificēti: {count}",
+      "zero": "Neklasificēti: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "Šajā atlasē ir {count} temats ar rādītāju {metric}. Rāda {shown}.",
@@ -8846,20 +8611,15 @@
       "other": "{total} grozījumi · daļējs tvērums",
       "zero": "{total} grozījumu · daļējs tvērums"
     },
-    "Participation.availableAgendaMany": {
-      "one": "Šajā atlasē pieejams {count} darba kārtības punkts.",
-      "other": "Šajā atlasē pieejami {count} darba kārtības punkti.",
-      "zero": "Šajā atlasē pieejamo darba kārtības punktu skaits: {count}."
-    },
     "batch4.questiontopics.tsx.count.questions.match.these.filters": {
       "one": "Šiem filtriem atbilst {count} jautājums.",
       "other": "Šiem filtriem atbilst {count} jautājumi.",
       "zero": "Šiem filtriem atbilst {count} jautājumu."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "Šajā atlasē {count} notikums · nepilnīgi",
-      "other": "Šajā atlasē {count} notikumi · nepilnīgi",
-      "zero": "Šajā atlasē {count} notikumu · nepilnīgi"
+      "one": "Šajā atlasē {count} notikums · daļēji",
+      "other": "Šajā atlasē {count} notikumi · daļēji",
+      "zero": "Šajā atlasē {count} notikumu · daļēji"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "Šajā atlasē {count} notikums",
@@ -8927,16 +8687,16 @@
       "other": "Nelasāmie teksti: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "EuroVoc temati · Lietas: {mapped} no {procedures}"
+      "other": "Temati · Lietas: {mapped} no {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "EuroVoc temati · Lietas: {mapped} no {procedures} · pirmās 600 atbilstošās lietas"
+      "other": "Temati · Lietas: {mapped} no {procedures} · pirmās 600 atbilstošās lietas"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "EuroVoc temati · Lietas: {mapped} no {procedures} · ielādē vēl tematus…"
+      "other": "Temati · Lietas: {mapped} no {procedures} · ielādē vēl tematus…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "EuroVoc temati · Lietas: {mapped} no {procedures} · ielādē vēl tematus… · pirmās 600 atbilstošās lietas"
+      "other": "Temati · Lietas: {mapped} no {procedures} · ielādē vēl tematus… · pirmās 600 atbilstošās lietas"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Jautājumi: {count} analīzes periodā · pa dienām · Augšā izvēlieties tematu vai vārdu, lai redzētu tā daļu jautājumos."
@@ -8976,12 +8736,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: darba kārtības punkti: {count}"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · Paredzētās parādīšanās reizes: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · parādīšanās reizes: {numbers}"
     },
     "app.mepCountUnit": {
       "zero": "EP deputātu",
@@ -9082,11 +8836,6 @@
       "one": "{count} EP deputāts",
       "other": "{count} EP deputāti",
       "zero": "{count} EP deputātu"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokuments",
-      "other": "{count} dokumenti",
-      "zero": "{count} dokumentu"
     },
     "topics.speechesCount": {
       "one": "{count} runa",
@@ -9249,11 +8998,11 @@
       "many": "Għadd ta’ deċiżjonijiet: {count} · b’pożizzjoni rreġistrata: {recordedCount}"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount}",
-      "other": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount}",
-      "two": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount}",
-      "few": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount}",
-      "many": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount}"
+      "one": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · {recordedCount} f’dan il-perjodu",
+      "other": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · {recordedCount} f’dan il-perjodu",
+      "two": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · {recordedCount} f’dan il-perjodu",
+      "few": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · {recordedCount} f’dan il-perjodu",
+      "many": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · {recordedCount} f’dan il-perjodu"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "Deċiżjonijiet: {start}–{end} minn {total}",
@@ -9277,11 +9026,11 @@
       "many": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total}"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}",
-      "other": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}",
-      "two": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}",
-      "few": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}",
-      "many": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}"
+      "one": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · {recordedCount} f’dan il-perjodu",
+      "other": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · {recordedCount} f’dan il-perjodu",
+      "two": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · {recordedCount} f’dan il-perjodu",
+      "few": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · {recordedCount} f’dan il-perjodu",
+      "many": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · {recordedCount} f’dan il-perjodu"
     },
     "membervotes.tsx.count.decisions": {
       "one": "Għadd ta’ deċiżjonijiet: {count}",
@@ -9403,11 +9152,11 @@
       "many": "Għadd ta’ attivitajiet oħra: {count}"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "Għadd ta’ kontribuzzjonijiet tad-dibattitu minn {date} mhux mgħobbija: {count}.",
-      "other": "Għadd ta’ kontribuzzjonijiet tad-dibattitu minn {date} mhux mgħobbija: {count}.",
-      "two": "Għadd ta’ kontribuzzjonijiet tad-dibattitu minn {date} mhux mgħobbija: {count}.",
-      "few": "Għadd ta’ kontribuzzjonijiet tad-dibattitu minn {date} mhux mgħobbija: {count}.",
-      "many": "Għadd ta’ kontribuzzjonijiet tad-dibattitu minn {date} mhux mgħobbija: {count}."
+      "one": "Kontribuzzjonijiet tad-dibattitu minn {date} mhux disponibbli: {count}.",
+      "other": "Kontribuzzjonijiet tad-dibattitu minn {date} mhux disponibbli: {count}.",
+      "two": "Kontribuzzjonijiet tad-dibattitu minn {date} mhux disponibbli: {count}.",
+      "few": "Kontribuzzjonijiet tad-dibattitu minn {date} mhux disponibbli: {count}.",
+      "many": "Kontribuzzjonijiet tad-dibattitu minn {date} mhux disponibbli: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Ara l-mistoqsijiet ({count})",
@@ -9522,11 +9271,11 @@
       "many": "f’dan l-għadd ta’ diskorsi: {count}"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "Għadd ta’ kontribuzzjonijiet li ma setgħux jiġu kklassifikati: {count}.",
-      "other": "Għadd ta’ kontribuzzjonijiet li ma setgħux jiġu kklassifikati: {count}.",
-      "two": "Għadd ta’ kontribuzzjonijiet li ma setgħux jiġu kklassifikati: {count}.",
-      "few": "Għadd ta’ kontribuzzjonijiet li ma setgħux jiġu kklassifikati: {count}.",
-      "many": "Għadd ta’ kontribuzzjonijiet li ma setgħux jiġu kklassifikati: {count}."
+      "one": "Mhux ikklassifikati: {count}",
+      "other": "Mhux ikklassifikati: {count}",
+      "two": "Mhux ikklassifikati: {count}",
+      "few": "Mhux ikklassifikati: {count}",
+      "many": "Mhux ikklassifikati: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "Għadd ta’ suġġetti b’{metric} f’din l-għażla: {count}. Qed jintwerew {shown}.",
@@ -9577,13 +9326,6 @@
       "few": "Għadd ta’ emendi: {total} · kopertura parzjali",
       "many": "Għadd ta’ emendi: {total} · kopertura parzjali"
     },
-    "Participation.availableAgendaMany": {
-      "one": "Għadd ta’ punti tal-aġenda disponibbli f’din l-għażla: {count}.",
-      "other": "Għadd ta’ punti tal-aġenda disponibbli f’din l-għażla: {count}.",
-      "two": "Għadd ta’ punti tal-aġenda disponibbli f’din l-għażla: {count}.",
-      "few": "Għadd ta’ punti tal-aġenda disponibbli f’din l-għażla: {count}.",
-      "many": "Għadd ta’ punti tal-aġenda disponibbli f’din l-għażla: {count}."
-    },
     "Participation.agendaMany": {
       "one": "Għadd ta’ punti tal-aġenda f’din l-għażla: {count}.",
       "other": "Għadd ta’ punti tal-aġenda f’din l-għażla: {count}.",
@@ -9599,11 +9341,11 @@
       "many": "Għadd ta’ mistoqsijiet li jaqblu ma’ dawn il-filtri: {count}."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "Għadd ta’ avvenimenti f’din l-għażla: {count} · mhux komplut",
-      "other": "Għadd ta’ avvenimenti f’din l-għażla: {count} · mhux komplut",
-      "two": "Għadd ta’ avvenimenti f’din l-għażla: {count} · mhux komplut",
-      "few": "Għadd ta’ avvenimenti f’din l-għażla: {count} · mhux komplut",
-      "many": "Għadd ta’ avvenimenti f’din l-għażla: {count} · mhux komplut"
+      "one": "Għadd ta’ avvenimenti f’din l-għażla: {count} · parzjali",
+      "other": "Għadd ta’ avvenimenti f’din l-għażla: {count} · parzjali",
+      "two": "Għadd ta’ avvenimenti f’din l-għażla: {count} · parzjali",
+      "few": "Għadd ta’ avvenimenti f’din l-għażla: {count} · parzjali",
+      "many": "Għadd ta’ avvenimenti f’din l-għażla: {count} · parzjali"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "Għadd ta’ avvenimenti f’din l-għażla: {count}",
@@ -9671,16 +9413,16 @@
       "other": "Għadd ta’ testi li ma jinqrawx: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Suġġetti EuroVoc · fajls: {mapped} minn {procedures}"
+      "other": "Suġġetti · fajls: {mapped} minn {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Suġġetti EuroVoc · fajls: {mapped} minn {procedures} · l-ewwel 600 dossier korrispondenti"
+      "other": "Suġġetti · fajls: {mapped} minn {procedures} · l-ewwel 600 dossier korrispondenti"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Suġġetti EuroVoc · fajls: {mapped} minn {procedures} · qed jitgħabbew aktar suġġetti…"
+      "other": "Suġġetti · fajls: {mapped} minn {procedures} · qed jitgħabbew aktar suġġetti…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Suġġetti EuroVoc · fajls: {mapped} minn {procedures} · qed jitgħabbew aktar suġġetti… · l-ewwel 600 dossier korrispondenti"
+      "other": "Suġġetti · fajls: {mapped} minn {procedures} · qed jitgħabbew aktar suġġetti… · l-ewwel 600 dossier korrispondenti"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Għadd ta’ mistoqsijiet fil-perjodu tal-analiżi: {count} · kuljum · Agħżel suġġett jew kelma hawn fuq biex tara s-sehem tagħhom mill-mistoqsijiet."
@@ -9720,12 +9462,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: għadd ta’ punti tal-aġenda: {count}"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · għadd ta’ okkorrenzi mistennija: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · okkorrenzi: {numbers}"
     },
     "app.mepCountUnit": {
       "one": "MPE",
@@ -9866,13 +9602,6 @@
       "two": "{count} Membri tal-PE",
       "few": "{count} Membri tal-PE",
       "many": "{count}-il Membru tal-PE"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokument",
-      "other": "{count} dokument",
-      "two": "{count} dokumenti",
-      "few": "{count} dokumenti",
-      "many": "{count}-il dokument"
     },
     "topics.speechesCount": {
       "one": "{count} diskors",
@@ -10046,8 +9775,8 @@
       "other": "{count} besluiten · {recordedCount} met een geregistreerd standpunt"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} geregistreerd standpunt · {recordedCount} met een geregistreerd standpunt",
-      "other": "{count} geregistreerde standpunten · {recordedCount} met een geregistreerd standpunt"
+      "one": "{count} geregistreerd standpunt · {recordedCount} in deze periode",
+      "other": "{count} geregistreerde standpunten · {recordedCount} in deze periode"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} van {total} besluit",
@@ -10062,8 +9791,8 @@
       "other": "{start}–{end} van {total} geregistreerde standpunten"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} van {total} geregistreerd standpunt · {recordedCount} met een geregistreerd standpunt",
-      "other": "{start}–{end} van {total} geregistreerde standpunten · {recordedCount} met een geregistreerd standpunt"
+      "one": "{start}–{end} van {total} geregistreerd standpunt · {recordedCount} in deze periode",
+      "other": "{start}–{end} van {total} geregistreerde standpunten · {recordedCount} in deze periode"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} besluit",
@@ -10138,8 +9867,8 @@
       "other": "{count} andere activiteiten"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} debatbijdrage van {date} niet geladen.",
-      "other": "{count} debatbijdragen van {date} niet geladen."
+      "one": "Debatbijdragen van {date} niet beschikbaar: {count}.",
+      "other": "Debatbijdragen van {date} niet beschikbaar: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "{count} vraag bekijken",
@@ -10206,8 +9935,8 @@
       "other": "in {count} toespraken"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} bijdrage kon niet worden ingedeeld.",
-      "other": "{count} bijdragen konden niet worden ingedeeld."
+      "one": "Niet ingedeeld: {count}",
+      "other": "Niet ingedeeld: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} onderwerp met {metric} in deze selectie. {shown} getoond.",
@@ -10237,10 +9966,6 @@
       "one": "{total} amendement · gedeeltelijke dekking",
       "other": "{total} amendementen · gedeeltelijke dekking"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} beschikbaar agendapunt in deze selectie.",
-      "other": "{count} beschikbare agendapunten in deze selectie."
-    },
     "Participation.agendaMany": {
       "one": "{count} agendapunt in deze selectie.",
       "other": "{count} agendapunten in deze selectie."
@@ -10250,8 +9975,8 @@
       "other": "{count} vragen voldoen aan deze filters."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} gebeurtenis in deze selectie · onvolledig",
-      "other": "{count} gebeurtenissen in deze selectie · onvolledig"
+      "one": "{count} gebeurtenis in deze selectie · gedeeltelijk",
+      "other": "{count} gebeurtenissen in deze selectie · gedeeltelijk"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} gebeurtenis in deze selectie",
@@ -10346,24 +10071,24 @@
       "other": "{count} voorbeelden worden getoond"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "one": "EuroVoc-onderwerpen · {mapped} van {procedures} dossier · eerste 600 overeenkomende dossiers",
-      "other": "EuroVoc-onderwerpen · {mapped} van {procedures} dossiers · eerste 600 overeenkomende dossiers"
+      "one": "Onderwerpen · {mapped} van {procedures} dossier · eerste 600 overeenkomende dossiers",
+      "other": "Onderwerpen · {mapped} van {procedures} dossiers · eerste 600 overeenkomende dossiers"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "one": "EuroVoc-onderwerpen · {mapped} van {procedures} dossier · meer onderwerpen laden… · eerste 600 overeenkomende dossiers",
-      "other": "EuroVoc-onderwerpen · {mapped} van {procedures} dossiers · meer onderwerpen laden… · eerste 600 overeenkomende dossiers"
+      "one": "Onderwerpen · {mapped} van {procedures} dossier · meer onderwerpen laden… · eerste 600 overeenkomende dossiers",
+      "other": "Onderwerpen · {mapped} van {procedures} dossiers · meer onderwerpen laden… · eerste 600 overeenkomende dossiers"
     },
     "speechcloud.unreadabletext_texts_unreadable.20c3fb": {
       "one": "{unreadableText} tekst onleesbaar.",
       "other": "{unreadableText} teksten onleesbaar."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "one": "EuroVoc-onderwerpen · {mapped} van {procedures} dossier",
-      "other": "EuroVoc-onderwerpen · {mapped} van {procedures} dossiers"
+      "one": "Onderwerpen · {mapped} van {procedures} dossier",
+      "other": "Onderwerpen · {mapped} van {procedures} dossiers"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "one": "EuroVoc-onderwerpen · {mapped} van {procedures} dossier · meer onderwerpen laden…",
-      "other": "EuroVoc-onderwerpen · {mapped} van {procedures} dossiers · meer onderwerpen laden…"
+      "one": "Onderwerpen · {mapped} van {procedures} dossier · meer onderwerpen laden…",
+      "other": "Onderwerpen · {mapped} van {procedures} dossiers · meer onderwerpen laden…"
     },
     "dossierCard.updateCount": {
       "one": "{count} dossierupdate. Dossier openen",
@@ -10449,14 +10174,6 @@
       "one": "{date}: {count} agendapunt",
       "other": "{date}: {count} agendapunten"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} verwacht voorkomen",
-      "other": "{text} · {count} verwachte voorkomens"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · voorkomen {numbers}",
-      "other": "{text} · voorkomens {numbers}"
-    },
     "topics.story.count.questions": {
       "one": "{count} vraag",
       "other": "{count} vragen"
@@ -10484,10 +10201,6 @@
     "topics.story.count.meps": {
       "one": "{count} Europarlementariër",
       "other": "{count} Europarlementariërs"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} document",
-      "other": "{count} documenten"
     },
     "topics.speechesCount": {
       "one": "{count} bijdrage",
@@ -10622,10 +10335,10 @@
       "other": "Liczba decyzji: {count} · z zapisanym stanowiskiem: {recordedCount}"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "Liczba zapisanych stanowisk: {count} · z zapisanym stanowiskiem: {recordedCount}",
-      "few": "Liczba zapisanych stanowisk: {count} · z zapisanym stanowiskiem: {recordedCount}",
-      "many": "Liczba zapisanych stanowisk: {count} · z zapisanym stanowiskiem: {recordedCount}",
-      "other": "Liczba zapisanych stanowisk: {count} · z zapisanym stanowiskiem: {recordedCount}"
+      "one": "Liczba zapisanych stanowisk: {count} · {recordedCount} w tym okresie",
+      "few": "Liczba zapisanych stanowisk: {count} · {recordedCount} w tym okresie",
+      "many": "Liczba zapisanych stanowisk: {count} · {recordedCount} w tym okresie",
+      "other": "Liczba zapisanych stanowisk: {count} · {recordedCount} w tym okresie"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} z {total} decyzji",
@@ -10646,10 +10359,10 @@
       "other": "{start}–{end} z {total} zapisanych stanowisk"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} z {total} zapisanego stanowiska · z zapisanym stanowiskiem: {recordedCount}",
-      "few": "{start}–{end} z {total} zapisanych stanowisk · z zapisanym stanowiskiem: {recordedCount}",
-      "many": "{start}–{end} z {total} zapisanych stanowisk · z zapisanym stanowiskiem: {recordedCount}",
-      "other": "{start}–{end} z {total} zapisanych stanowisk · z zapisanym stanowiskiem: {recordedCount}"
+      "one": "{start}–{end} z {total} zapisanego stanowiska · {recordedCount} w tym okresie",
+      "few": "{start}–{end} z {total} zapisanych stanowisk · {recordedCount} w tym okresie",
+      "many": "{start}–{end} z {total} zapisanych stanowisk · {recordedCount} w tym okresie",
+      "other": "{start}–{end} z {total} zapisanych stanowisk · {recordedCount} w tym okresie"
     },
     "membervotes.tsx.count.decisions": {
       "one": "Liczba decyzji: {count}",
@@ -10760,10 +10473,10 @@
       "other": "Liczba innych aktywności: {count}"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "Niewczytane wystąpienia w debacie z {date}: {count}.",
-      "few": "Niewczytane wystąpienia w debacie z {date}: {count}.",
-      "many": "Niewczytane wystąpienia w debacie z {date}: {count}.",
-      "other": "Niewczytane wystąpienia w debacie z {date}: {count}."
+      "one": "Niedostępne wystąpienia w debacie z {date}: {count}.",
+      "few": "Niedostępne wystąpienia w debacie z {date}: {count}.",
+      "many": "Niedostępne wystąpienia w debacie z {date}: {count}.",
+      "other": "Niedostępne wystąpienia w debacie z {date}: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Zobacz pytania ({count})",
@@ -10862,10 +10575,10 @@
       "other": "Wystąpienia z terminem: {count}"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "Wystąpienia bez ustalonej klasyfikacji: {count}.",
-      "few": "Wystąpienia bez ustalonej klasyfikacji: {count}.",
-      "many": "Wystąpienia bez ustalonej klasyfikacji: {count}.",
-      "other": "Wystąpienia bez ustalonej klasyfikacji: {count}."
+      "one": "Bez klasyfikacji: {count}",
+      "few": "Bez klasyfikacji: {count}",
+      "many": "Bez klasyfikacji: {count}",
+      "other": "Bez klasyfikacji: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "Tematy z miarą {metric} w tym wyborze: {count}. Wyświetlono: {shown}.",
@@ -10909,12 +10622,6 @@
       "many": "Liczba poprawek: {total} · niepełne pokrycie",
       "other": "Liczba poprawek: {total} · niepełne pokrycie"
     },
-    "Participation.availableAgendaMany": {
-      "one": "Dostępne punkty porządku obrad w tym wyborze: {count}.",
-      "few": "Dostępne punkty porządku obrad w tym wyborze: {count}.",
-      "many": "Dostępne punkty porządku obrad w tym wyborze: {count}.",
-      "other": "Dostępne punkty porządku obrad w tym wyborze: {count}."
-    },
     "Participation.agendaMany": {
       "one": "Liczba punktów porządku obrad w tym wyborze: {count}.",
       "few": "Liczba punktów porządku obrad w tym wyborze: {count}.",
@@ -10928,10 +10635,10 @@
       "other": "Pytania pasujące do filtrów: {count}."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "Liczba wydarzeń w tym wyborze: {count} · dane niepełne",
-      "few": "Liczba wydarzeń w tym wyborze: {count} · dane niepełne",
-      "many": "Liczba wydarzeń w tym wyborze: {count} · dane niepełne",
-      "other": "Liczba wydarzeń w tym wyborze: {count} · dane niepełne"
+      "one": "Liczba wydarzeń w tym wyborze: {count} · dane częściowe",
+      "few": "Liczba wydarzeń w tym wyborze: {count} · dane częściowe",
+      "many": "Liczba wydarzeń w tym wyborze: {count} · dane częściowe",
+      "other": "Liczba wydarzeń w tym wyborze: {count} · dane częściowe"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "Liczba wydarzeń w tym wyborze: {count}",
@@ -10994,16 +10701,16 @@
       "other": "Nieczytelne teksty: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Tematy EuroVoc · dossier: {mapped} z {procedures}"
+      "other": "Tematy · dossier: {mapped} z {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Tematy EuroVoc · dossier: {mapped} z {procedures} · pierwsze 600 pasujących dossier"
+      "other": "Tematy · dossier: {mapped} z {procedures} · pierwsze 600 pasujących dossier"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Tematy EuroVoc · dossier: {mapped} z {procedures} · wczytywanie kolejnych tematów…"
+      "other": "Tematy · dossier: {mapped} z {procedures} · wczytywanie kolejnych tematów…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Tematy EuroVoc · dossier: {mapped} z {procedures} · wczytywanie kolejnych tematów… · pierwsze 600 pasujących dossier"
+      "other": "Tematy · dossier: {mapped} z {procedures} · wczytywanie kolejnych tematów… · pierwsze 600 pasujących dossier"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Liczba pytań w okresie analizy: {count} · na dzień · Wybierz powyżej temat lub słowo, aby zobaczyć jego udział w pytaniach."
@@ -11043,12 +10750,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: liczba punktów porządku obrad: {count}"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · oczekiwana liczba wystąpień: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · wystąpienia {numbers}"
     },
     "app.mepCountUnit": {
       "one": "poseł do PE",
@@ -11169,12 +10870,6 @@
       "few": "{count} posłów do PE",
       "many": "{count} posłów do PE",
       "other": "{count} posła do PE"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokument",
-      "few": "{count} dokumenty",
-      "many": "{count} dokumentów",
-      "other": "{count} dokumentu"
     },
     "topics.speechesCount": {
       "one": "{count} wystąpienie",
@@ -11338,9 +11033,9 @@
       "other": "{count} decisões · {recordedCount} com posição registada"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} posição registada · {recordedCount} com posição registada",
-      "many": "{count} posições registadas · {recordedCount} com posição registada",
-      "other": "{count} posições registadas · {recordedCount} com posição registada"
+      "one": "{count} posição registada · {recordedCount} neste período",
+      "many": "{count} posições registadas · {recordedCount} neste período",
+      "other": "{count} posições registadas · {recordedCount} neste período"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} de {total} decisão",
@@ -11358,9 +11053,9 @@
       "other": "{start}–{end} de {total} posições registadas"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} de {total} posição registada · {recordedCount} com posição registada",
-      "many": "{start}–{end} de {total} posições registadas · {recordedCount} com posição registada",
-      "other": "{start}–{end} de {total} posições registadas · {recordedCount} com posição registada"
+      "one": "{start}–{end} de {total} posição registada · {recordedCount} neste período",
+      "many": "{start}–{end} de {total} posições registadas · {recordedCount} neste período",
+      "other": "{start}–{end} de {total} posições registadas · {recordedCount} neste período"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} decisão",
@@ -11453,9 +11148,9 @@
       "other": "{count} outras atividades"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} intervenção no debate de {date} não carregada.",
-      "many": "{count} intervenções no debate de {date} não carregadas.",
-      "other": "{count} intervenções no debate de {date} não carregadas."
+      "one": "Intervenções do debate de {date} indisponíveis: {count}.",
+      "many": "Intervenções do debate de {date} indisponíveis: {count}.",
+      "other": "Intervenções do debate de {date} indisponíveis: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Ver {count} pergunta",
@@ -11538,9 +11233,9 @@
       "other": "em {count} discursos"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "Não foi possível classificar {count} intervenção.",
-      "many": "Não foi possível classificar {count} intervenções.",
-      "other": "Não foi possível classificar {count} intervenções."
+      "one": "Sem classificação: {count}",
+      "many": "Sem classificação: {count}",
+      "other": "Sem classificação: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} tema com {metric} nesta seleção. A mostrar {shown}.",
@@ -11577,11 +11272,6 @@
       "many": "{total} alterações · cobertura parcial",
       "other": "{total} alterações · cobertura parcial"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} ponto da ordem do dia disponível nesta seleção.",
-      "many": "{count} pontos da ordem do dia disponíveis nesta seleção.",
-      "other": "{count} pontos da ordem do dia disponíveis nesta seleção."
-    },
     "Participation.agendaMany": {
       "one": "{count} ponto da ordem do dia nesta seleção.",
       "many": "{count} pontos da ordem do dia nesta seleção.",
@@ -11593,9 +11283,9 @@
       "other": "{count} perguntas correspondem a estes filtros."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} evento nesta seleção · cobertura incompleta",
-      "many": "{count} eventos nesta seleção · cobertura incompleta",
-      "other": "{count} eventos nesta seleção · cobertura incompleta"
+      "one": "{count} evento nesta seleção · parcial",
+      "many": "{count} eventos nesta seleção · parcial",
+      "other": "{count} eventos nesta seleção · parcial"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} evento nesta seleção",
@@ -11661,16 +11351,16 @@
       "other": "Textos ilegíveis: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Temas EuroVoc · Dossiês: {mapped} de {procedures}"
+      "other": "Temas · Dossiês: {mapped} de {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Temas EuroVoc · Dossiês: {mapped} de {procedures} · primeiros 600 dossiês correspondentes"
+      "other": "Temas · Dossiês: {mapped} de {procedures} · primeiros 600 dossiês correspondentes"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Temas EuroVoc · Dossiês: {mapped} de {procedures} · a carregar mais temas…"
+      "other": "Temas · Dossiês: {mapped} de {procedures} · a carregar mais temas…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Temas EuroVoc · Dossiês: {mapped} de {procedures} · a carregar mais temas… · primeiros 600 dossiês correspondentes"
+      "other": "Temas · Dossiês: {mapped} de {procedures} · a carregar mais temas… · primeiros 600 dossiês correspondentes"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Perguntas no período de análise: {count} · Por dia · Escolha um tema ou palavra acima para ver a sua proporção nas perguntas."
@@ -11741,15 +11431,6 @@
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date} · Pontos da ordem do dia: {count}"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} ocorrência esperada",
-      "other": "{text} · {count} ocorrências esperadas",
-      "many": "{text} · {count} ocorrências esperadas"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · ocorrência {numbers}",
-      "other": "{text} · ocorrências {numbers}"
-    },
     "ui.speechStat.total": {
       "one": "Intervenção total",
       "other": "Intervenções totais",
@@ -11817,11 +11498,6 @@
       "one": "{count} deputado",
       "other": "{count} deputados",
       "many": "{count} de deputados"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} documento",
-      "other": "{count} documentos",
-      "many": "{count} de documentos"
     },
     "topics.speechesCount": {
       "one": "{count} intervenção",
@@ -11966,9 +11642,9 @@
       "other": "{count} de decizii · {recordedCount} cu poziție înregistrată"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} poziție înregistrată · {recordedCount} cu poziție înregistrată",
-      "few": "{count} poziții înregistrate · {recordedCount} cu poziție înregistrată",
-      "other": "{count} de poziții înregistrate · {recordedCount} cu poziție înregistrată"
+      "one": "{count} poziție înregistrată · {recordedCount} în această perioadă",
+      "few": "{count} poziții înregistrate · {recordedCount} în această perioadă",
+      "other": "{count} de poziții înregistrate · {recordedCount} în această perioadă"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} din {total} decizie",
@@ -11986,9 +11662,9 @@
       "other": "{start}–{end} din {total} de poziții înregistrate"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} din {total} poziție înregistrată · {recordedCount} cu poziție înregistrată",
-      "few": "{start}–{end} din {total} poziții înregistrate · {recordedCount} cu poziție înregistrată",
-      "other": "{start}–{end} din {total} de poziții înregistrate · {recordedCount} cu poziție înregistrată"
+      "one": "{start}–{end} din {total} poziție înregistrată · {recordedCount} în această perioadă",
+      "few": "{start}–{end} din {total} poziții înregistrate · {recordedCount} în această perioadă",
+      "other": "{start}–{end} din {total} de poziții înregistrate · {recordedCount} în această perioadă"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} decizie",
@@ -12081,9 +11757,9 @@
       "other": "{count} de alte activități"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} intervenție în dezbaterea din {date} neîncărcată.",
-      "few": "{count} intervenții în dezbaterea din {date} neîncărcate.",
-      "other": "{count} de intervenții în dezbaterea din {date} neîncărcate."
+      "one": "Intervenții din dezbaterea din {date} indisponibile: {count}.",
+      "few": "Intervenții din dezbaterea din {date} indisponibile: {count}.",
+      "other": "Intervenții din dezbaterea din {date} indisponibile: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Vedeți {count} întrebare",
@@ -12166,9 +11842,9 @@
       "other": "în {count} de discursuri"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} intervenție nu a putut fi clasificată.",
-      "few": "{count} intervenții nu au putut fi clasificate.",
-      "other": "{count} de intervenții nu au putut fi clasificate."
+      "one": "Neclasificate: {count}",
+      "few": "Neclasificate: {count}",
+      "other": "Neclasificate: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} temă cu {metric} în această selecție. Se afișează {shown}.",
@@ -12205,11 +11881,6 @@
       "few": "{total} amendamente · acoperire parțială",
       "other": "{total} de amendamente · acoperire parțială"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} punct disponibil pe ordinea de zi în această selecție.",
-      "few": "{count} puncte disponibile pe ordinea de zi în această selecție.",
-      "other": "{count} de puncte disponibile pe ordinea de zi în această selecție."
-    },
     "Participation.agendaMany": {
       "one": "{count} punct pe ordinea de zi în această selecție.",
       "few": "{count} puncte pe ordinea de zi în această selecție.",
@@ -12221,9 +11892,9 @@
       "other": "{count} de întrebări corespund acestor filtre."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} eveniment în această selecție · incompletă",
-      "few": "{count} evenimente în această selecție · incompletă",
-      "other": "{count} de evenimente în această selecție · incompletă"
+      "one": "{count} eveniment în această selecție · parțial",
+      "few": "{count} evenimente în această selecție · parțial",
+      "other": "{count} de evenimente în această selecție · parțial"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} eveniment în această selecție",
@@ -12289,16 +11960,16 @@
       "other": "Texte ilizibile: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Teme EuroVoc · Dosare: {mapped} din {procedures}"
+      "other": "Teme · Dosare: {mapped} din {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Teme EuroVoc · Dosare: {mapped} din {procedures} · primele 600 de dosare corespunzătoare"
+      "other": "Teme · Dosare: {mapped} din {procedures} · primele 600 de dosare corespunzătoare"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Teme EuroVoc · Dosare: {mapped} din {procedures} · se încarcă mai multe teme…"
+      "other": "Teme · Dosare: {mapped} din {procedures} · se încarcă mai multe teme…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Teme EuroVoc · Dosare: {mapped} din {procedures} · se încarcă mai multe teme… · primele 600 de dosare corespunzătoare"
+      "other": "Teme · Dosare: {mapped} din {procedures} · se încarcă mai multe teme… · primele 600 de dosare corespunzătoare"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Întrebări în perioada de analiză: {count} · Pe zi · Alegeți o temă sau un cuvânt de mai sus pentru a vedea ponderea în întrebări."
@@ -12369,15 +12040,6 @@
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date} · Puncte pe ordinea de zi: {count}"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} apariție așteptată",
-      "few": "{text} · {count} apariții așteptate",
-      "other": "{text} · {count} de apariții așteptate"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · apariție {numbers}",
-      "other": "{text} · apariții {numbers}"
-    },
     "ui.speechStat.total": {
       "one": "Intervenție totală",
       "few": "Intervenții totale",
@@ -12445,11 +12107,6 @@
       "one": "{count} eurodeputat",
       "other": "{count} de eurodeputați",
       "few": "{count} eurodeputați"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} document",
-      "other": "{count} de documente",
-      "few": "{count} documente"
     },
     "topics.speechesCount": {
       "one": "{count} intervenție",
@@ -12603,10 +12260,10 @@
       "other": "Počet rozhodnutí: {count} · so zaznamenaným postojom: {recordedCount}"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} zaznamenaný postoj · so zaznamenaným postojom: {recordedCount}",
-      "few": "Počet zaznamenaných postojov: {count} · so zaznamenaným postojom: {recordedCount}",
-      "many": "Počet zaznamenaných postojov: {count} · so zaznamenaným postojom: {recordedCount}",
-      "other": "Počet zaznamenaných postojov: {count} · so zaznamenaným postojom: {recordedCount}"
+      "one": "{count} zaznamenaný postoj · {recordedCount} v tomto období",
+      "few": "Počet zaznamenaných postojov: {count} · {recordedCount} v tomto období",
+      "many": "Počet zaznamenaných postojov: {count} · {recordedCount} v tomto období",
+      "other": "Počet zaznamenaných postojov: {count} · {recordedCount} v tomto období"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} z {total} rozhodnutia",
@@ -12627,10 +12284,10 @@
       "other": "{start}–{end} z celkového počtu zaznamenaných postojov {total}"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} z {total} zaznamenaného postoja · so zaznamenaným postojom: {recordedCount}",
-      "few": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · so zaznamenaným postojom: {recordedCount}",
-      "many": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · so zaznamenaným postojom: {recordedCount}",
-      "other": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · so zaznamenaným postojom: {recordedCount}"
+      "one": "{start}–{end} z {total} zaznamenaného postoja · {recordedCount} v tomto období",
+      "few": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · {recordedCount} v tomto období",
+      "many": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · {recordedCount} v tomto období",
+      "other": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · {recordedCount} v tomto období"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} rozhodnutie",
@@ -12741,10 +12398,10 @@
       "other": "Počet ostatných činností: {count}"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} príspevok v rozprave z {date} nebol načítaný.",
-      "few": "Počet nenačítaných príspevkov v rozprave z {date}: {count}.",
-      "many": "Počet nenačítaných príspevkov v rozprave z {date}: {count}.",
-      "other": "Počet nenačítaných príspevkov v rozprave z {date}: {count}."
+      "one": "Nedostupné príspevky v rozprave z {date}: {count}.",
+      "few": "Nedostupné príspevky v rozprave z {date}: {count}.",
+      "many": "Nedostupné príspevky v rozprave z {date}: {count}.",
+      "other": "Nedostupné príspevky v rozprave z {date}: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Zobraziť {count} otázku",
@@ -12843,10 +12500,10 @@
       "other": "v prejavoch v počte {count}"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} príspevok sa nepodarilo zaradiť.",
-      "few": "Počet nezaradených príspevkov: {count}.",
-      "many": "Počet nezaradených príspevkov: {count}.",
-      "other": "Počet nezaradených príspevkov: {count}."
+      "one": "Nezaradené: {count}",
+      "few": "Nezaradené: {count}",
+      "many": "Nezaradené: {count}",
+      "other": "Nezaradené: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} téma s ukazovateľom {metric} v tomto výbere. Zobrazené: {shown}.",
@@ -12890,12 +12547,6 @@
       "many": "Počet pozmeňujúcich návrhov: {total} · čiastočné pokrytie",
       "other": "Počet pozmeňujúcich návrhov: {total} · čiastočné pokrytie"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} dostupný bod programu v tomto výbere.",
-      "few": "Počet dostupných bodov programu v tomto výbere: {count}.",
-      "many": "Počet dostupných bodov programu v tomto výbere: {count}.",
-      "other": "Počet dostupných bodov programu v tomto výbere: {count}."
-    },
     "Participation.agendaMany": {
       "one": "{count} bod programu v tomto výbere.",
       "few": "Počet bodov programu v tomto výbere: {count}.",
@@ -12909,10 +12560,10 @@
       "other": "Počet otázok zodpovedajúcich filtrom: {count}."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} udalosť v tomto výbere · neúplné údaje",
-      "few": "Počet udalostí v tomto výbere: {count} · neúplné údaje",
-      "many": "Počet udalostí v tomto výbere: {count} · neúplné údaje",
-      "other": "Počet udalostí v tomto výbere: {count} · neúplné údaje"
+      "one": "{count} udalosť v tomto výbere · čiastočné údaje",
+      "few": "Počet udalostí v tomto výbere: {count} · čiastočné údaje",
+      "many": "Počet udalostí v tomto výbere: {count} · čiastočné údaje",
+      "other": "Počet udalostí v tomto výbere: {count} · čiastočné údaje"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} udalosť v tomto výbere",
@@ -12975,28 +12626,28 @@
       "other": "Nečitateľné texty: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "one": "Témy EuroVoc · {mapped} z {procedures} spisu",
-      "other": "Témy EuroVoc · {mapped} z {procedures} spisov",
-      "few": "Témy EuroVoc · {mapped} z {procedures} spisov",
-      "many": "Témy EuroVoc · {mapped} z {procedures} spisu"
+      "one": "Témy · {mapped} z {procedures} spisu",
+      "other": "Témy · {mapped} z {procedures} spisov",
+      "few": "Témy · {mapped} z {procedures} spisov",
+      "many": "Témy · {mapped} z {procedures} spisu"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "one": "Témy EuroVoc · {mapped} z {procedures} spisu · prvých 600 zodpovedajúcich spisov",
-      "other": "Témy EuroVoc · {mapped} z {procedures} spisov · prvých 600 zodpovedajúcich spisov",
-      "few": "Témy EuroVoc · {mapped} z {procedures} spisov · prvých 600 zodpovedajúcich spisov",
-      "many": "Témy EuroVoc · {mapped} z {procedures} spisu · prvých 600 zodpovedajúcich spisov"
+      "one": "Témy · {mapped} z {procedures} spisu · prvých 600 zodpovedajúcich spisov",
+      "other": "Témy · {mapped} z {procedures} spisov · prvých 600 zodpovedajúcich spisov",
+      "few": "Témy · {mapped} z {procedures} spisov · prvých 600 zodpovedajúcich spisov",
+      "many": "Témy · {mapped} z {procedures} spisu · prvých 600 zodpovedajúcich spisov"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "one": "Témy EuroVoc · {mapped} z {procedures} spisu · načítavajú sa ďalšie témy…",
-      "other": "Témy EuroVoc · {mapped} z {procedures} spisov · načítavajú sa ďalšie témy…",
-      "few": "Témy EuroVoc · {mapped} z {procedures} spisov · načítavajú sa ďalšie témy…",
-      "many": "Témy EuroVoc · {mapped} z {procedures} spisu · načítavajú sa ďalšie témy…"
+      "one": "Témy · {mapped} z {procedures} spisu · načítavajú sa ďalšie témy…",
+      "other": "Témy · {mapped} z {procedures} spisov · načítavajú sa ďalšie témy…",
+      "few": "Témy · {mapped} z {procedures} spisov · načítavajú sa ďalšie témy…",
+      "many": "Témy · {mapped} z {procedures} spisu · načítavajú sa ďalšie témy…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "one": "Témy EuroVoc · {mapped} z {procedures} spisu · načítavajú sa ďalšie témy… · prvých 600 zodpovedajúcich spisov",
-      "other": "Témy EuroVoc · {mapped} z {procedures} spisov · načítavajú sa ďalšie témy… · prvých 600 zodpovedajúcich spisov",
-      "few": "Témy EuroVoc · {mapped} z {procedures} spisov · načítavajú sa ďalšie témy… · prvých 600 zodpovedajúcich spisov",
-      "many": "Témy EuroVoc · {mapped} z {procedures} spisu · načítavajú sa ďalšie témy… · prvých 600 zodpovedajúcich spisov"
+      "one": "Témy · {mapped} z {procedures} spisu · načítavajú sa ďalšie témy… · prvých 600 zodpovedajúcich spisov",
+      "other": "Témy · {mapped} z {procedures} spisov · načítavajú sa ďalšie témy… · prvých 600 zodpovedajúcich spisov",
+      "few": "Témy · {mapped} z {procedures} spisov · načítavajú sa ďalšie témy… · prvých 600 zodpovedajúcich spisov",
+      "many": "Témy · {mapped} z {procedures} spisu · načítavajú sa ďalšie témy… · prvých 600 zodpovedajúcich spisov"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Počet otázok v analyzovanom období: {count} · po dňoch · Vyberte vyššie tému alebo slovo a zobrazte jeho podiel na otázkach."
@@ -13036,12 +12687,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: počet bodov programu: {count}"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · očakávané výskyty: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · výskyty {numbers}"
     },
     "app.mepCountUnit": {
       "one": "poslanec EP",
@@ -13162,12 +12807,6 @@
       "few": "{count} europoslanci",
       "many": "{count} europoslanca",
       "other": "{count} europoslancov"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokument",
-      "few": "{count} dokumenty",
-      "many": "{count} dokumentu",
-      "other": "{count} dokumentov"
     },
     "topics.speechesCount": {
       "one": "{count} vystúpenie",
@@ -13340,10 +12979,10 @@
       "other": "Število sklepov: {count} · z zabeleženim stališčem: {recordedCount}"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} zabeleženo stališče · z zabeleženim stališčem: {recordedCount}",
-      "two": "Število zabeleženih stališč: {count} · z zabeleženim stališčem: {recordedCount}",
-      "few": "Število zabeleženih stališč: {count} · z zabeleženim stališčem: {recordedCount}",
-      "other": "Število zabeleženih stališč: {count} · z zabeleženim stališčem: {recordedCount}"
+      "one": "{count} zabeleženo stališče · {recordedCount} v tem obdobju",
+      "two": "Število zabeleženih stališč: {count} · {recordedCount} v tem obdobju",
+      "few": "Število zabeleženih stališč: {count} · {recordedCount} v tem obdobju",
+      "other": "Število zabeleženih stališč: {count} · {recordedCount} v tem obdobju"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} od {total} sklepa",
@@ -13364,10 +13003,10 @@
       "other": "{start}–{end} od skupnega števila zabeleženih stališč {total}"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} od {total} zabeleženega stališča · z zabeleženim stališčem: {recordedCount}",
-      "two": "{start}–{end} od skupnega števila zabeleženih stališč {total} · z zabeleženim stališčem: {recordedCount}",
-      "few": "{start}–{end} od skupnega števila zabeleženih stališč {total} · z zabeleženim stališčem: {recordedCount}",
-      "other": "{start}–{end} od skupnega števila zabeleženih stališč {total} · z zabeleženim stališčem: {recordedCount}"
+      "one": "{start}–{end} od {total} zabeleženega stališča · {recordedCount} v tem obdobju",
+      "two": "{start}–{end} od skupnega števila zabeleženih stališč {total} · {recordedCount} v tem obdobju",
+      "few": "{start}–{end} od skupnega števila zabeleženih stališč {total} · {recordedCount} v tem obdobju",
+      "other": "{start}–{end} od skupnega števila zabeleženih stališč {total} · {recordedCount} v tem obdobju"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} sklep",
@@ -13478,10 +13117,10 @@
       "other": "Število drugih dejavnosti: {count}"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} prispevek v razpravi z dne {date} ni naložen.",
-      "two": "Število nenaloženih prispevkov v razpravi z dne {date}: {count}.",
-      "few": "Število nenaloženih prispevkov v razpravi z dne {date}: {count}.",
-      "other": "Število nenaloženih prispevkov v razpravi z dne {date}: {count}."
+      "one": "Nedostopni prispevki v razpravi z {date}: {count}.",
+      "two": "Nedostopni prispevki v razpravi z {date}: {count}.",
+      "few": "Nedostopni prispevki v razpravi z {date}: {count}.",
+      "other": "Nedostopni prispevki v razpravi z {date}: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Poglej {count} vprašanje",
@@ -13580,10 +13219,10 @@
       "other": "v govorih, število: {count}"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} prispevka ni bilo mogoče razvrstiti.",
-      "two": "Število nerazvrščenih prispevkov: {count}.",
-      "few": "Število nerazvrščenih prispevkov: {count}.",
-      "other": "Število nerazvrščenih prispevkov: {count}."
+      "one": "Nerazvrščeno: {count}",
+      "two": "Nerazvrščeno: {count}",
+      "few": "Nerazvrščeno: {count}",
+      "other": "Nerazvrščeno: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} tema z merilom {metric} v tem izboru. Prikazano: {shown}.",
@@ -13627,12 +13266,6 @@
       "few": "Število predlogov sprememb: {total} · delna pokritost",
       "other": "Število predlogov sprememb: {total} · delna pokritost"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} razpoložljiva točka dnevnega reda v tem izboru.",
-      "two": "Število razpoložljivih točk dnevnega reda v tem izboru: {count}.",
-      "few": "Število razpoložljivih točk dnevnega reda v tem izboru: {count}.",
-      "other": "Število razpoložljivih točk dnevnega reda v tem izboru: {count}."
-    },
     "Participation.agendaMany": {
       "one": "{count} točka dnevnega reda v tem izboru.",
       "two": "Število točk dnevnega reda v tem izboru: {count}.",
@@ -13646,10 +13279,10 @@
       "other": "Število vprašanj, ki ustrezajo filtrom: {count}."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} dogodek v tem izboru · nepopolno",
-      "two": "Število dogodkov v tem izboru: {count} · nepopolno",
-      "few": "Število dogodkov v tem izboru: {count} · nepopolno",
-      "other": "Število dogodkov v tem izboru: {count} · nepopolno"
+      "one": "{count} dogodek v tem izboru · delno",
+      "two": "Število dogodkov v tem izboru: {count} · delno",
+      "few": "Število dogodkov v tem izboru: {count} · delno",
+      "other": "Število dogodkov v tem izboru: {count} · delno"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} dogodek v tem izboru",
@@ -13712,28 +13345,28 @@
       "other": "Število neberljivih besedil: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "one": "Teme EuroVoc · {mapped} od {procedures} dosjeja",
-      "other": "Teme EuroVoc · {mapped} od {procedures} dosjejev",
-      "two": "Teme EuroVoc · {mapped} od {procedures} dosjejev",
-      "few": "Teme EuroVoc · {mapped} od {procedures} dosjejev"
+      "one": "Teme · {mapped} od {procedures} dosjeja",
+      "other": "Teme · {mapped} od {procedures} dosjejev",
+      "two": "Teme · {mapped} od {procedures} dosjejev",
+      "few": "Teme · {mapped} od {procedures} dosjejev"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "one": "Teme EuroVoc · {mapped} od {procedures} dosjeja · prvih 600 ustreznih dosjejev",
-      "other": "Teme EuroVoc · {mapped} od {procedures} dosjejev · prvih 600 ustreznih dosjejev",
-      "two": "Teme EuroVoc · {mapped} od {procedures} dosjejev · prvih 600 ustreznih dosjejev",
-      "few": "Teme EuroVoc · {mapped} od {procedures} dosjejev · prvih 600 ustreznih dosjejev"
+      "one": "Teme · {mapped} od {procedures} dosjeja · prvih 600 ustreznih dosjejev",
+      "other": "Teme · {mapped} od {procedures} dosjejev · prvih 600 ustreznih dosjejev",
+      "two": "Teme · {mapped} od {procedures} dosjejev · prvih 600 ustreznih dosjejev",
+      "few": "Teme · {mapped} od {procedures} dosjejev · prvih 600 ustreznih dosjejev"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "one": "Teme EuroVoc · {mapped} od {procedures} dosjeja · nalaganje dodatnih tem…",
-      "other": "Teme EuroVoc · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem…",
-      "two": "Teme EuroVoc · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem…",
-      "few": "Teme EuroVoc · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem…"
+      "one": "Teme · {mapped} od {procedures} dosjeja · nalaganje dodatnih tem…",
+      "other": "Teme · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem…",
+      "two": "Teme · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem…",
+      "few": "Teme · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "one": "Teme EuroVoc · {mapped} od {procedures} dosjeja · nalaganje dodatnih tem… · prvih 600 ustreznih dosjejev",
-      "other": "Teme EuroVoc · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem… · prvih 600 ustreznih dosjejev",
-      "two": "Teme EuroVoc · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem… · prvih 600 ustreznih dosjejev",
-      "few": "Teme EuroVoc · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem… · prvih 600 ustreznih dosjejev"
+      "one": "Teme · {mapped} od {procedures} dosjeja · nalaganje dodatnih tem… · prvih 600 ustreznih dosjejev",
+      "other": "Teme · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem… · prvih 600 ustreznih dosjejev",
+      "two": "Teme · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem… · prvih 600 ustreznih dosjejev",
+      "few": "Teme · {mapped} od {procedures} dosjejev · nalaganje dodatnih tem… · prvih 600 ustreznih dosjejev"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Število vprašanj v analiziranem obdobju: {count} · po dnevih · Zgoraj izberite temo ali besedo za prikaz njenega deleža vprašanj."
@@ -13773,12 +13406,6 @@
     },
     "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
       "other": "{date}: število točk dnevnega reda: {count}"
-    },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "other": "{text} · število pričakovanih pojavitev: {count}"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "other": "{text} · pojavitve {numbers}"
     },
     "app.mepCountUnit": {
       "one": "poslanec EP",
@@ -13899,12 +13526,6 @@
       "two": "{count} poslanca Evropskega parlamenta",
       "few": "{count} poslanci Evropskega parlamenta",
       "other": "{count} poslancev Evropskega parlamenta"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokument",
-      "two": "{count} dokumenta",
-      "few": "{count} dokumenti",
-      "other": "{count} dokumentov"
     },
     "topics.speechesCount": {
       "one": "{count} govor",
@@ -14059,8 +13680,8 @@
       "other": "{count} beslut · {recordedCount} med registrerad röst"
     },
     "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{count} registrerad röst · {recordedCount} med registrerad röst",
-      "other": "{count} registrerade röster · {recordedCount} med registrerad röst"
+      "one": "{count} registrerad röst · {recordedCount} under perioden",
+      "other": "{count} registrerade röster · {recordedCount} under perioden"
     },
     "batch2.membervotes.tsx.start.end.of.total.decisions": {
       "one": "{start}–{end} av {total} beslut",
@@ -14075,8 +13696,8 @@
       "other": "{start}–{end} av {total} registrerade röster"
     },
     "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
-      "one": "{start}–{end} av {total} registrerad röst · {recordedCount} med registrerad röst",
-      "other": "{start}–{end} av {total} registrerade röster · {recordedCount} med registrerad röst"
+      "one": "{start}–{end} av {total} registrerad röst · {recordedCount} under perioden",
+      "other": "{start}–{end} av {total} registrerade röster · {recordedCount} under perioden"
     },
     "membervotes.tsx.count.decisions": {
       "one": "{count} beslut",
@@ -14151,8 +13772,8 @@
       "other": "{count} andra aktiviteter"
     },
     "dossieractivity.count_debate_contributions_from_date_not_loaded": {
-      "one": "{count} debattbidrag från {date} är inte inläst.",
-      "other": "{count} debattbidrag från {date} är inte inlästa."
+      "one": "Debattbidrag från {date} otillgängliga: {count}.",
+      "other": "Debattbidrag från {date} otillgängliga: {count}."
     },
     "batch4.questiontopics.tsx.view.count.questions": {
       "one": "Se {count} fråga",
@@ -14219,8 +13840,8 @@
       "other": "i {count} tal"
     },
     "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
-      "one": "{count} bidrag kunde inte klassificeras.",
-      "other": "{count} bidrag kunde inte klassificeras."
+      "one": "Oklassificerade: {count}",
+      "other": "Oklassificerade: {count}"
     },
     "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
       "one": "{count} ämne med {metric} i detta urval. Visar {shown}.",
@@ -14250,10 +13871,6 @@
       "one": "{total} ändringsförslag · partiell täckning",
       "other": "{total} ändringsförslag · partiell täckning"
     },
-    "Participation.availableAgendaMany": {
-      "one": "{count} tillgänglig dagordningspunkt i detta urval.",
-      "other": "{count} tillgängliga dagordningspunkter i detta urval."
-    },
     "Participation.agendaMany": {
       "one": "{count} dagordningspunkt i detta urval.",
       "other": "{count} dagordningspunkter i detta urval."
@@ -14263,8 +13880,8 @@
       "other": "{count} frågor matchar dessa filter."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "{count} händelse i detta urval · ofullständigt",
-      "other": "{count} händelser i detta urval · ofullständigt"
+      "one": "{count} händelse i detta urval · partiellt",
+      "other": "{count} händelser i detta urval · partiellt"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "{count} händelse i detta urval",
@@ -14347,24 +13964,24 @@
       "other": "{count} röster"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "one": "EuroVoc-ämnen · {mapped} av {procedures} ärende · första 600 matchande ärenden",
-      "other": "EuroVoc-ämnen · {mapped} av {procedures} ärenden · första 600 matchande ärenden"
+      "one": "Ämnen · {mapped} av {procedures} ärende · första 600 matchande ärenden",
+      "other": "Ämnen · {mapped} av {procedures} ärenden · första 600 matchande ärenden"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "one": "EuroVoc-ämnen · {mapped} av {procedures} ärende · läser in fler ämnen… · första 600 matchande ärenden",
-      "other": "EuroVoc-ämnen · {mapped} av {procedures} ärenden · läser in fler ämnen… · första 600 matchande ärenden"
+      "one": "Ämnen · {mapped} av {procedures} ärende · läser in fler ämnen… · första 600 matchande ärenden",
+      "other": "Ämnen · {mapped} av {procedures} ärenden · läser in fler ämnen… · första 600 matchande ärenden"
     },
     "speechcloud.unreadabletext_texts_unreadable.20c3fb": {
       "one": "{unreadableText} text är oläsbar.",
       "other": "{unreadableText} texter är oläsbara."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "one": "EuroVoc-ämnen · {mapped} av {procedures} ärende",
-      "other": "EuroVoc-ämnen · {mapped} av {procedures} ärenden"
+      "one": "Ämnen · {mapped} av {procedures} ärende",
+      "other": "Ämnen · {mapped} av {procedures} ärenden"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "one": "EuroVoc-ämnen · {mapped} av {procedures} ärende · läser in fler ämnen…",
-      "other": "EuroVoc-ämnen · {mapped} av {procedures} ärenden · läser in fler ämnen…"
+      "one": "Ämnen · {mapped} av {procedures} ärende · läser in fler ämnen…",
+      "other": "Ämnen · {mapped} av {procedures} ärenden · läser in fler ämnen…"
     },
     "dossierCard.updateCount": {
       "one": "{count} ärendeuppdatering. Öppna ärende",
@@ -14462,14 +14079,6 @@
       "one": "{date}: {count} dagordningspunkt",
       "other": "{date}: {count} dagordningspunkter"
     },
-    "amendmentmodel.mjs.text.count.expected.occurrences": {
-      "one": "{text} · {count} förväntad förekomst",
-      "other": "{text} · {count} förväntade förekomster"
-    },
-    "amendmentmodel.mjs.text.occurrences.numbers": {
-      "one": "{text} · förekomst {numbers}",
-      "other": "{text} · förekomster {numbers}"
-    },
     "topics.story.count.questions": {
       "one": "{count} fråga",
       "other": "{count} frågor"
@@ -14497,10 +14106,6 @@
     "topics.story.count.meps": {
       "one": "{count} Europaparlamentsledamot",
       "other": "{count} Europaparlamentsledamöter"
-    },
-    "topics.mapDocuments": {
-      "one": "{count} dokument",
-      "other": "{count} dokument"
     },
     "topics.speechesCount": {
       "one": "{count} anförande",

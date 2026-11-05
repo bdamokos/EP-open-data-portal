@@ -67,7 +67,6 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   assert.match(parts[0].querySelector('.explorer-amendment-totals').textContent,/For0/);
   assert.match(parts[1].textContent,/Outcome unavailable for this part/);
   assert.equal(parts[1].querySelectorAll('.explorer-amendment-decision').length,0);
-  assert.match(parts[0].querySelector('.explorer-amendment-selection').textContent,/excluding The text “carbon leakage”/);
   assert.match(parts[2].textContent,/English split description unavailable/);
   assert.equal(parts[2].querySelector('.explorer-amendment-source-description pre').lang,'fr');
   assert.equal(parts[2].querySelector('.explorer-amendment-source-description pre').textContent,frenchDescription);

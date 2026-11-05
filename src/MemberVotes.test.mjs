@@ -278,7 +278,7 @@ test('actual FOR, later intention to abstain and official raw counts are display
   const detail=visiblePane(h.container);
   assert.equal(detail.querySelector('.member-votes-position strong').textContent,'For');
   assert.match(detail.querySelector('.member-votes-intention').textContent,/Declared intention: Abstain.*result unchanged/);
-  assert.equal(detail.querySelector('.member-votes-bar').getAttribute('aria-label'),'For 412, Against 183, Abstaining 0');
+  assert.equal(detail.querySelector('.member-votes-bar').getAttribute('aria-label'),'For 412, Against 183, Abstentions 0');
   assert.deepEqual([...detail.querySelectorAll('.member-votes-counts b')].map(item=>item.textContent),['412','183','0']);
   assert(!/success|\d%/.test(detail.textContent));
 });
@@ -432,7 +432,7 @@ test('saved wording and proposer qualifications apply only to the explicitly sel
   const h=await mountWording(t,{variants}),selector='select[aria-label="Amendment published version"]';
   assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('Showing saved wording.'));
   await h.select(selector,variants[0].listId);
-  assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Showing saved wording\./);
+  assert.doesNotMatch(wordingViewText(h.container.querySelector('.member-votes-wording')),/Showing saved wording\./);
   assert.doesNotMatch(wordingViewText(h.container.querySelector('.member-votes-wording')),/earlier source version/);
   assert.doesNotMatch(wordingViewText(h.container.querySelector('.member-votes-wording')),/earlier source record/);
   assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Exact retained proposer/);
@@ -780,7 +780,7 @@ test('outcome alignment retains the snapshot, resets pagination, marks rows and 
   assert.equal(button(h.container,'Against the outcome (1)').getAttribute('aria-pressed'),'true');
   assert.match(h.container.querySelector('.member-votes-alignment').textContent,/Counts in this week$/);
   await act(async()=>h.container.querySelector('[data-vote-group]').click());
-  const row=h.container.querySelector('[data-vote-id]');assert.match(row.textContent,/Against outcome/);
+  const row=h.container.querySelector('[data-vote-id]');assert.match(row.textContent,/Against the outcome/);
   await act(async()=>row.click());assert.equal(h.state.decisionId,against.id);
   await h.click('← Back to votes');assert.equal(h.state.alignment,'against');assert.equal(document.activeElement.dataset.voteId,against.id);
   assert(h.calls.some(url=>new URL(url,'http://localhost').searchParams.get('alignment')==='against'));

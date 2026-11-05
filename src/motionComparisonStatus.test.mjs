@@ -107,7 +107,7 @@ test('saved sources and cached refresh failures retain wording and provenance wi
   await h.respond(1,{error:'Refresh unavailable'},503);await settle();
   for(let i=0;i<6;i++){assert.equal(h.status().textContent,'');await automaticRecovery(t);await h.respond(i+2,{error:'Refresh unavailable'},503);}
   await settle();
-  assert.equal(h.status().textContent,'Original to joint comparison refresh failed. Showing saved comparison.');assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2);assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,2);
+  assert.match(h.status().textContent,/comparison available/);assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2);assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,2);
   assert.match(h.container.querySelector('.explorer-diff-error').textContent,/Refresh unavailable/);assert.equal(liveAncestor(h.container.querySelector('.explorer-diff-passage p')),null);
   await act(async()=>window.dispatchEvent(new window.Event('online')));assert.equal(h.status().textContent,'');assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2);
   await h.respond(8);await settle();assert.match(h.status().textContent,/comparison available/);assert.doesNotMatch(h.status().textContent,/refresh failed|Showing saved/);

@@ -74,9 +74,9 @@ test('pending requests cancel queued success, and a repeated explicit reader fai
   const render=props=>h.render(createElement(Status,{scope:'reader',delay:10,...props}));
   await render({message:'Text loaded.'});await render({message:null,pending:true});await h.tick(30);
   const status=h.container.querySelector('[role="status"]');assert.equal(status.textContent,'');
-  await render({message:'Text temporarily unavailable.'});await h.tick(30);assert.equal(status.textContent,'Text temporarily unavailable.');
+  await render({message:'Text unavailable.'});await h.tick(30);assert.equal(status.textContent,'Text unavailable.');
   await render({message:null,pending:true});assert.equal(status.textContent,'');
-  await render({message:'Text temporarily unavailable.'});await h.tick(30);assert.equal(status.textContent,'Text temporarily unavailable.');
+  await render({message:'Text unavailable.'});await h.tick(30);assert.equal(status.textContent,'Text unavailable.');
   await render({scope:'next-reader',message:'Obsolete reader'});await h.unmount();await h.tick(30);assert.equal(h.container.textContent,'');
 });
 
@@ -95,7 +95,7 @@ test('member count labels partial committee coverage, and polling never reannoun
   const {default:App}=await h.load('/src/App.tsx');await h.render(createElement(App));
   const status=h.container.querySelector('[role="status"][aria-atomic="true"]');assert(status);assert.equal(status.textContent,'');
   await act(async()=>resolve(directory));await wait(380);
-  assert.equal(status.textContent,'No matches in the loaded memberships yet. Committee memberships are incomplete.','incomplete membership data must not announce a false zero');assert.equal(h.container.querySelector('.explorer-results strong').textContent,'—');
+  assert.equal(status.textContent,'No matches yet. Committee memberships are incomplete.','incomplete membership data must not announce a false zero');assert.equal(h.container.querySelector('.explorer-results strong').textContent,'—');
   response={...directory,index:{...directory.index,complete:true,loaded:2},members:directory.members.map(m=>({...m,memberships:[{id:'ENVI',current:true,role:'MEMBER'}]}))};
   await act(async()=>poll.at(-1)());await wait(380);assert.equal(status.textContent,'','background completion must not reannounce the same filter');
   const country=h.container.querySelector('select[aria-label="Country"]')||[...h.container.querySelectorAll('select')].find(n=>[...n.options].some(o=>o.value==='FI'));assert(country);country.focus();

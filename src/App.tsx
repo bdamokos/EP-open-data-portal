@@ -167,7 +167,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
       {state.loading && !body && <p role="status" lang={ui.language}><UiMessage id="app.loading_transcript"/></p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
       {body && <>
-          {body===state.data&&state.data?.textCache?.stale && <small lang={ui.language}>{state.data.textCache.refreshInProgress ? <UiMessage id="app.savedTranscriptRefreshing"/> : (state.data.textCache.refreshError ? <UiMessage id="app.savedTranscriptRefreshFailed"/> : <UiMessage id="app.savedTranscript"/>)}</small>}
+          
           {text.error ? <p lang={ui.language}><UiMessage id="app.transcript_could_not_be_read"/></p> : (text.paragraphs.length ? <div
               className="explorer-transcript"
               ref={transcriptText}
