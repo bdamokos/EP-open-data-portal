@@ -13,7 +13,7 @@ test('profile service line distinguishes continuous service, returning members, 
   const text=render(returned);assert.match(text,/MEP since.*2024-12-05/);assert.match(text,/Previous service:.*2019-07-02.*2024-07-15/);assert.doesNotMatch(text,/2030/);
   const former=render({day:'2026-10-23',currentSince:null,periods:[{start:'2009-07-14',end:'2014-06-30'},{start:'2019-07-02',end:'2024-07-15'}],error:null});
   assert.match(former,/Parliamentary service/);assert.match(former,/2009-07-14.*2014-06-30.*2019-07-02.*2024-07-15/);assert.doesNotMatch(former,/dates unavailable|MEP since/);
-  assert.equal(render(undefined),'');assert.match(render({...continuous,currentSince:null,error:'Some dates are unavailable.'}),/Some dates are unavailable/);
+  assert.equal(render(undefined),'');assert.match(render({...continuous,currentSince:null,error:'SERVER_WRITTEN_ERROR_MARKER'}),/Unavailable\./);assert.doesNotMatch(render({...continuous,currentSince:null,error:'SERVER_WRITTEN_ERROR_MARKER'}),/SERVER_WRITTEN_ERROR_MARKER/);
   for(const status of ['not-current','unavailable',null]) {
     const text=render({...continuous,currentSince:'2019-07-02',periods:[{start:'2019-07-02',end:null}]},status);
     assert.match(text,/Parliamentary service/);assert.match(text,/From <span lang="hu">2019-07-02/);assert.doesNotMatch(text,/not supplied/);assert.doesNotMatch(text,/MEP since|Present/);
