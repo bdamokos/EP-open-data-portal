@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Priloge",
   "proposalcontexttext.annexes.part.index": "Priloge · del {index}",
   "proposalcontexttext.council.position.part.index": "Stališče Sveta · del {index}",
-  "proposalcontexttext.existing.act.part.index": "Obstoječi akt · del {index}"
+  "proposalcontexttext.existing.act.part.index": "Obstoječi akt · del {index}",
+  "hemicycle.unavailable": "Razpored sedežev ni na voljo."
 }

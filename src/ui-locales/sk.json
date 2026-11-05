@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Prílohy",
   "proposalcontexttext.annexes.part.index": "Prílohy · časť {index}",
   "proposalcontexttext.council.position.part.index": "Pozícia Rady · časť {index}",
-  "proposalcontexttext.existing.act.part.index": "Existujúci právny akt · časť {index}"
+  "proposalcontexttext.existing.act.part.index": "Existujúci právny akt · časť {index}",
+  "hemicycle.unavailable": "Zasadací poriadok nie je k dispozícii."
 }

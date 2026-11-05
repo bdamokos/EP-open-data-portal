@@ -463,5 +463,6 @@
   "error.amendments": "amendments.amendments_unavailable.f6c5b9",
   "error.seating": "hemicycle.unavailable",
   "error.comparison": "MotionComparison.comparison_unavailable",
-  "error.activity": "Participation.activity_unavailable"
+  "error.activity": "Participation.activity_unavailable",
+  "error.contributions": "app.contributions_unavailable"
 }

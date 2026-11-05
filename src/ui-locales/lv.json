@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Pielikumi",
   "proposalcontexttext.annexes.part.index": "Pielikumi · daļa {index}",
   "proposalcontexttext.council.position.part.index": "Padomes nostāja · daļa {index}",
-  "proposalcontexttext.existing.act.part.index": "Esošais tiesību akts · daļa {index}"
+  "proposalcontexttext.existing.act.part.index": "Esošais tiesību akts · daļa {index}",
+  "hemicycle.unavailable": "Sēdvietu plāns nav pieejams."
 }

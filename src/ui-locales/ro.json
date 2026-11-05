@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Anexe",
   "proposalcontexttext.annexes.part.index": "Anexe · partea {index}",
   "proposalcontexttext.council.position.part.index": "Poziția Consiliului · partea {index}",
-  "proposalcontexttext.existing.act.part.index": "Act existent · partea {index}"
+  "proposalcontexttext.existing.act.part.index": "Act existent · partea {index}",
+  "hemicycle.unavailable": "Planul sălii nu este disponibil."
 }

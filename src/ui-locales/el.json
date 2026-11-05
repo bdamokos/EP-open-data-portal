@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Παραρτήματα",
   "proposalcontexttext.annexes.part.index": "Παραρτήματα · μέρος {index}",
   "proposalcontexttext.council.position.part.index": "Θέση Συμβουλίου · μέρος {index}",
-  "proposalcontexttext.existing.act.part.index": "Υφιστάμενη πράξη · μέρος {index}"
+  "proposalcontexttext.existing.act.part.index": "Υφιστάμενη πράξη · μέρος {index}",
+  "hemicycle.unavailable": "Η διάταξη εδράνων δεν είναι διαθέσιμη."
 }

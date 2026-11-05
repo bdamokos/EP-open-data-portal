@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Anexos",
   "proposalcontexttext.annexes.part.index": "Anexos · parte {index}",
   "proposalcontexttext.council.position.part.index": "Posição do Conselho · parte {index}",
-  "proposalcontexttext.existing.act.part.index": "Ato existente · parte {index}"
+  "proposalcontexttext.existing.act.part.index": "Ato existente · parte {index}",
+  "hemicycle.unavailable": "Plano do hemiciclo indisponível."
 }

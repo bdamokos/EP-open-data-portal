@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Anexos",
   "proposalcontexttext.annexes.part.index": "Anexos · parte {index}",
   "proposalcontexttext.council.position.part.index": "Posición del Consejo · parte {index}",
-  "proposalcontexttext.existing.act.part.index": "Acto vigente · parte {index}"
+  "proposalcontexttext.existing.act.part.index": "Acto vigente · parte {index}",
+  "hemicycle.unavailable": "Plano del hemiciclo no disponible."
 }

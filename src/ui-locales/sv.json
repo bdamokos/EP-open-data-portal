@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Bilagor",
   "proposalcontexttext.annexes.part.index": "Bilagor · del {index}",
   "proposalcontexttext.council.position.part.index": "Rådets ståndpunkt · del {index}",
-  "proposalcontexttext.existing.act.part.index": "Befintlig rättsakt · del {index}"
+  "proposalcontexttext.existing.act.part.index": "Befintlig rättsakt · del {index}",
+  "hemicycle.unavailable": "Placeringsplanen är inte tillgänglig."
 }

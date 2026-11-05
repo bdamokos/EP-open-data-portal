@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Lisad",
   "proposalcontexttext.annexes.part.index": "Lisad · osa {index}",
   "proposalcontexttext.council.position.part.index": "Nõukogu seisukoht · osa {index}",
-  "proposalcontexttext.existing.act.part.index": "Olemasolev õigusakt · osa {index}"
+  "proposalcontexttext.existing.act.part.index": "Olemasolev õigusakt · osa {index}",
+  "hemicycle.unavailable": "Istumiskord pole saadaval."
 }

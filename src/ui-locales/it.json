@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Allegati",
   "proposalcontexttext.annexes.part.index": "Allegati · parte {index}",
   "proposalcontexttext.council.position.part.index": "Posizione del Consiglio · parte {index}",
-  "proposalcontexttext.existing.act.part.index": "Atto vigente · parte {index}"
+  "proposalcontexttext.existing.act.part.index": "Atto vigente · parte {index}",
+  "hemicycle.unavailable": "Piano dell’emiciclo non disponibile."
 }

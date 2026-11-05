@@ -36,6 +36,6 @@ export function CommitteeMemberships({profile,committees,lang,roleName,date,retr
         </ol>
       </section>;
     })}
-    {history?.error&&<p className="explorer-membership-gap" lang={ui.language}>{history.error} </p>}
+    {history?.error&&<p className="explorer-membership-gap" lang={ui.language}><UiMessage id="committeememberships.tsx.committee.information.is.unavailable"/></p>}
   </>;
 }

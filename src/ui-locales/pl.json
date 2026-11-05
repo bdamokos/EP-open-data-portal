@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Załączniki",
   "proposalcontexttext.annexes.part.index": "Załączniki · część {index}",
   "proposalcontexttext.council.position.part.index": "Stanowisko Rady · część {index}",
-  "proposalcontexttext.existing.act.part.index": "Istniejący akt prawny · część {index}"
+  "proposalcontexttext.existing.act.part.index": "Istniejący akt prawny · część {index}",
+  "hemicycle.unavailable": "Plan miejsc niedostępny."
 }

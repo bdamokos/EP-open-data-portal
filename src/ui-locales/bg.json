@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Приложения",
   "proposalcontexttext.annexes.part.index": "Приложения · част {index}",
   "proposalcontexttext.council.position.part.index": "Позиция на Съвета · част {index}",
-  "proposalcontexttext.existing.act.part.index": "Съществуващ акт · част {index}"
+  "proposalcontexttext.existing.act.part.index": "Съществуващ акт · част {index}",
+  "hemicycle.unavailable": "Схемата на местата не е налична."
 }

@@ -292,7 +292,7 @@ function LinkedActivityFallback({ sourceId, member, lang, complete, showDownload
 }
 export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpenProfile}:{member:number|string;sourceId:string;lang:string;profileHref:string;onOpenProfile:()=>void}) {
   const ui = useUiI18n();
-  const state=useData<JoinedActivityPage>(`latest-activities/${member}?lang=${lang}&limit=1&source-id=${encodeURIComponent(sourceId)}`);
+  const state=useData<JoinedActivityPage>(`latest-activities/${member}?lang=${lang}&limit=1&source-id=${encodeURIComponent(sourceId)}`,{unavailable:'error.activity'});
   const selected=state.data?.selectedItems.find(item=>item.sourceId===sourceId);
   const showDownloads=!/^[EPHO]-10-\d{4}-\d{6}(?:-ASW)?$/.test(sourceId);
   const scope=JSON.stringify([member,sourceId,lang]);
@@ -323,11 +323,11 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
   const open=initialActivity;
   const sourceId=activitySourceId(open);
   const c=interfaceCopy(lang);
-  const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}${category ? (`&category=${encodeURIComponent(category)}`) : ""}`);
+  const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}${category ? (`&category=${encodeURIComponent(category)}`) : ""}`,{unavailable:'error.activity'});
   if(state.data)lastPage.current={member:id,data:state.data};
   const page=state.data || ((lastPage.current?.member===id) ? lastPage.current.data : null);
   const visibleSelection = state.data?.items.some(item => item.sourceId === sourceId);
-  const pinned=useData<JoinedActivityPage>(((sourceId && state.data) && (!visibleSelection)) ? (`latest-activities/${id}?lang=${lang}&limit=10&source-id=${encodeURIComponent(sourceId)}`) : null);
+  const pinned=useData<JoinedActivityPage>(((sourceId && state.data) && (!visibleSelection)) ? (`latest-activities/${id}?lang=${lang}&limit=10&source-id=${encodeURIComponent(sourceId)}`) : null,{unavailable:'error.activity'});
   const selectedItems = pinned.data?.selectedItems || [];
   const items=state.data ? ([...selectedItems.filter(selected=>!state.data!.items.some(item=>item.id===selected.id)),...state.data.items]) : ([]);
   const isOpen=(item:JoinedActivity)=>open===`${item.category}:${item.sourceId}` || sourceId===item.sourceId && !open?.includes(":");
@@ -442,8 +442,8 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     document.addEventListener('focusin',cancel);
     return()=>{document.removeEventListener('focusin',cancel);speechOrigin.current=null;};
   },[id,initialSpeech]);
-  const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`);
-  const pinned=useData<JoinedActivityPage>(((initialSpeech && state.data) && (!state.data.items.some(item=>item.sourceId===initialSpeech))) ? (`latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}`) : null);
+  const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`,{unavailable:'error.contributions'});
+  const pinned=useData<JoinedActivityPage>(((initialSpeech && state.data) && (!state.data.items.some(item=>item.sourceId===initialSpeech))) ? (`latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}`) : null,{unavailable:'error.contributions'});
   useEffect(()=>{setOffset(0);setSpeechLanguage(null);},[id,lang]);
   useEffect(()=>{setEnrichedSpeeches([]);},[id]);
   const items=state.data ? [...(pinned.data?.selectedItems || []).filter(item=>!state.data!.items.some(row=>row.id===item.id)),...state.data.items].filter(item=>item.recordKind==='speech') : ([]);
@@ -974,11 +974,11 @@ export default function App() {
                 </div>
                 {directory.sync?.error && <div className="explorer-index" role="status" lang={ui.language}><UiMessage id="app.feedUnavailable" values={{lastSuccess: <span lang={directory.sync.lastSuccess ? "" : ui.language}>{directory.sync.lastSuccess || ui.t("app.not_yet_completed")}</span>}}/></div>}
                 {directory.committeeDetails && (!directory.committeeDetails.complete || directory.committeeDetails.error) && <div className="explorer-index" role="status" lang={ui.language}>
-                    {directory.committeeDetails.error || ui.t("app.loading_committee_names")}
+                    {directory.committeeDetails.error ? ui.t("committeememberships.tsx.committee.information.is.unavailable") : ui.t("app.loading_committee_names")}
                     {directory.committeeDetails.error && null}
                   </div>}
                 {!directory.index.complete && <div className="explorer-index" role="status" lang={ui.language}>
-                    {directory.index.error ||
+                    {directory.index.error ? ui.t("ProfileMemberships.membership_information_is_unavailable") :
                       ui.t("app.loadingMemberships", {loaded: String(directory.index.loaded), total: String(directory.index.total)})}
                     {directory.index.error && null}
                   </div>}

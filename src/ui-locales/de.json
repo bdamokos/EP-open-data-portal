@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Anhänge",
   "proposalcontexttext.annexes.part.index": "Anhänge · Teil {index}",
   "proposalcontexttext.council.position.part.index": "Standpunkt des Rates · Teil {index}",
-  "proposalcontexttext.existing.act.part.index": "Bestehender Rechtsakt · Teil {index}"
+  "proposalcontexttext.existing.act.part.index": "Bestehender Rechtsakt · Teil {index}",
+  "hemicycle.unavailable": "Sitzplan nicht verfügbar."
 }

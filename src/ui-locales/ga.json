@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Iarscríbhinní",
   "proposalcontexttext.annexes.part.index": "Iarscríbhinní · cuid {index}",
   "proposalcontexttext.council.position.part.index": "Seasamh na Comhairle · cuid {index}",
-  "proposalcontexttext.existing.act.part.index": "Gníomh atá ann cheana · cuid {index}"
+  "proposalcontexttext.existing.act.part.index": "Gníomh atá ann cheana · cuid {index}",
+  "hemicycle.unavailable": "Níl an plean suíochán ar fáil."
 }

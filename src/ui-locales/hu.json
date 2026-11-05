@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Mellékletek",
   "proposalcontexttext.annexes.part.index": "Mellékletek · {index}. rész",
   "proposalcontexttext.council.position.part.index": "A Tanács álláspontja · {index}. rész",
-  "proposalcontexttext.existing.act.part.index": "Meglévő jogi aktus · {index}. rész"
+  "proposalcontexttext.existing.act.part.index": "Meglévő jogi aktus · {index}. rész",
+  "hemicycle.unavailable": "Az ülésrend nem érhető el."
 }

@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Liitteet",
   "proposalcontexttext.annexes.part.index": "Liitteet · osa {index}",
   "proposalcontexttext.council.position.part.index": "Neuvoston kanta · osa {index}",
-  "proposalcontexttext.existing.act.part.index": "Voimassa oleva säädös · osa {index}"
+  "proposalcontexttext.existing.act.part.index": "Voimassa oleva säädös · osa {index}",
+  "hemicycle.unavailable": "Istumajärjestystä ei ole saatavilla."
 }

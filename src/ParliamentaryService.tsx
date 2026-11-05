@@ -10,6 +10,6 @@ export function ParliamentaryService({profile,lang,date}:{profile:MemberProfile;
   return <div className="explorer-parliamentary-service" lang={ui.language}>
     {currentSince ? <p><strong><UiMessage id="batch6.parliamentaryservice.mep.since.date.9" values={{date: <span lang={lang}>{date(currentSince,lang)}</span>}}/></strong></p> : ((service.periods.length>0) ? <p><strong><UiMessage id="batch6.parliamentaryservice.parliamentary.service.9"/></strong></p> : null)}
     {earlier.length>0&&<p className="explorer-service-previous">{currentSince ? <UiMessage id="batch6.parliamentaryservice.previous.service.periods.10" values={{periods:<>{earlier.map((period,i)=><span key={i}>{(i>0) ? '; ' : ''}{Period({start:period.start,end:period.end,ongoing:false,lang,date})}</span>)}</>}}/> : <>{earlier.map((period,i)=><span key={i}>{(i>0) ? '; ' : ''}{Period({start:period.start,end:period.end,ongoing:false,lang,date})}</span>)}</>}</p>}
-    {service.error&&<p className="explorer-service-previous">{service.error}</p>}
+    {service.error&&<p className="explorer-service-previous"><UiMessage id="error.unavailable"/></p>}
   </div>;
 }

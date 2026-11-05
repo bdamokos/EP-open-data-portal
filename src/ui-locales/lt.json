@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Priedai",
   "proposalcontexttext.annexes.part.index": "Priedai · dalis {index}",
   "proposalcontexttext.council.position.part.index": "Tarybos pozicija · dalis {index}",
-  "proposalcontexttext.existing.act.part.index": "Esamas teisės aktas · dalis {index}"
+  "proposalcontexttext.existing.act.part.index": "Esamas teisės aktas · dalis {index}",
+  "hemicycle.unavailable": "Sėdimų vietų planas nepasiekiamas."
 }

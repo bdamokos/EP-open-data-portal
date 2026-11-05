@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Bijlagen",
   "proposalcontexttext.annexes.part.index": "Bijlagen · deel {index}",
   "proposalcontexttext.council.position.part.index": "Standpunt van de Raad · deel {index}",
-  "proposalcontexttext.existing.act.part.index": "Bestaande rechtshandeling · deel {index}"
+  "proposalcontexttext.existing.act.part.index": "Bestaande rechtshandeling · deel {index}",
+  "hemicycle.unavailable": "Zaalindeling niet beschikbaar."
 }

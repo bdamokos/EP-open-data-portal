@@ -2363,5 +2363,6 @@
   "proposalcontexttext.annexes": "Bilag",
   "proposalcontexttext.annexes.part.index": "Bilag · del {index}",
   "proposalcontexttext.council.position.part.index": "Rådets holdning · del {index}",
-  "proposalcontexttext.existing.act.part.index": "Gældende retsakt · del {index}"
+  "proposalcontexttext.existing.act.part.index": "Gældende retsakt · del {index}",
+  "hemicycle.unavailable": "Siddeplanen er ikke tilgængelig."
 }

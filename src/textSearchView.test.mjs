@@ -242,6 +242,15 @@ test('a same-query busy response and retry keep the previous matching results vi
   assert.equal(view.find('.explorer-search-result h4'),title);
 });
 
+test('a rejected search shows the catalogue line, never the server message',async t=>{
+  const view=await setup(t,{query:'fixture-fts-search=energy&fixture-fts-text-lang=en',respond:call=>{
+    if(call.url.pathname.endsWith('/corpus/search'))return Response.json({error:{code:'invalid_period',message:'SERVER_WRITTEN_ERROR_MARKER'}},{status:400});
+  }});
+  await view.render();
+  const alert=view.container.querySelector('[role="alert"]');assert(alert);
+  assert.match(alert.textContent,/Text search unavailable\./);assert.doesNotMatch(view.container.textContent,/SERVER_WRITTEN_ERROR_MARKER/);
+});
+
 test('answer card dates follow document dates for document search and question dates for grouped questions',async t=>{
   const question='E-10-2026-000001',answer=question+'-ASW';
   const answerHit={...english,sourceId:answer,kind:'answer',parentId:question,date:'2026-06-01'};
