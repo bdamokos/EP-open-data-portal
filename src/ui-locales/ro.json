@@ -2845,5 +2845,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "Citarea originală omite un identificator",
   "proposalcontexttext.printed.point.label": "Punct nou {point}. Eticheta indică punctul {base}.",
   "proposalcontexttext.unique.entry.labels": "Poziționat pe baza intrării unice. Etichetele diferă.",
-  "proposalcontexttext.sequential.paragraph": "Alineatul {report} din raport; alineatul {source} din sursă."
+  "proposalcontexttext.sequential.paragraph": "Alineatul {report} din raport; alineatul {source} din sursă.",
+  "proposalcontexttext.label_instruction_difference": "Indicația și instrucțiunea diferă. Textul în vigoare nu a fost verificat."
 }

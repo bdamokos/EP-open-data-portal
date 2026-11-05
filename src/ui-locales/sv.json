@@ -2844,5 +2844,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "Den ursprungliga hänvisningen saknar en identifierare",
   "proposalcontexttext.printed.point.label": "Ny punkt {point}. Beteckningen anger punkt {base}.",
   "proposalcontexttext.unique.entry.labels": "Placerad utifrån den unika posten. Beteckningarna skiljer sig åt.",
-  "proposalcontexttext.sequential.paragraph": "Punkt {report} i betänkandet; punkt {source} i källan."
+  "proposalcontexttext.sequential.paragraph": "Punkt {report} i betänkandet; punkt {source} i källan.",
+  "proposalcontexttext.label_instruction_difference": "Beteckningen och instruktionen skiljer sig åt. Den gällande texten har inte kontrollerats."
 }

@@ -2845,5 +2845,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "Tá aitheantóir ar iarraidh sa tagairt bhunaidh",
   "proposalcontexttext.printed.point.label": "Pointe nua {point}. Léiríonn an lipéad pointe {base}.",
   "proposalcontexttext.unique.entry.labels": "Suite de réir na hiontrála uathúla. Ní hionann na lipéid.",
-  "proposalcontexttext.sequential.paragraph": "Mír {report} sa tuarascáil; mír {source} san fhoinse."
+  "proposalcontexttext.sequential.paragraph": "Mír {report} sa tuarascáil; mír {source} san fhoinse.",
+  "proposalcontexttext.label_instruction_difference": "Tá an lipéad agus an treoir éagsúil. Níor seiceáladh an téacs atá i bhfeidhm."
 }

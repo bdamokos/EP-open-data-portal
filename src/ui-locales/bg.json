@@ -2845,5 +2845,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "В първоначалното позоваване е пропуснат идентификатор",
   "proposalcontexttext.printed.point.label": "Нова точка {point}. В обозначението е посочена точка {base}.",
   "proposalcontexttext.unique.entry.labels": "Позицията е определена по единственото съвпадение. Обозначенията се различават.",
-  "proposalcontexttext.sequential.paragraph": "Параграф {report} в доклада; параграф {source} в източника."
+  "proposalcontexttext.sequential.paragraph": "Параграф {report} в доклада; параграф {source} в източника.",
+  "proposalcontexttext.label_instruction_difference": "Обозначението и указанието се различават. Действащият текст не е проверен."
 }

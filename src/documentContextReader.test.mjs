@@ -1595,3 +1595,9 @@ test('a full-width amendment instruction remains visible beside a placed deletio
  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
  const block=h.container.querySelector('[data-amendment-block="true"]');assert(block);assert(block.textContent.includes(note));
 });
+
+test('a proposal-frame insertion explains the label difference and unchecked present text',async t=>{
+ const value=proposalContextResponse(report,amendment,list);value.placement.evidence.push({basis:'negative-nested-instruction'});
+ const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+ assert.match(h.container.querySelector('[data-amendment-block="true"]').textContent,/Label and instruction differ\. Present text not checked\./);
+});

@@ -22,9 +22,17 @@ export function proposalInstructionTarget(chosen) {
   const label=target.segments.at(-1);
   if(!target.complete||target.segments[0]?.kind!=='article'||!label||!['point','article'].includes(label.kind)||!(label.isNew||label.negative))return null;
   // Outer-level instructions only: a new article, or a new point directly
-  // under the amending paragraph. Nested points stay withheld.
+  // under the amending paragraph, or a new negative first child.
   const [article,paragraph]=target.segments;
-  if(!(target.segments.length===1&&label.kind==='article'||target.segments.length===3&&article.kind==='article'&&paragraph.kind==='paragraph'&&label.kind==='point'))return null;
+  let nestedNegative=target.segments.length===4&&['cs','en'].includes(chosen.language)&&paragraph.kind==='paragraph'&&paragraph.value==='1'&&target.segments[2].kind==='point'&&!target.segments[2].isNew&&label.kind==='point'&&label.value==='-a'&&label.isNew;
+  if(nestedNegative){
+    const inner=chosen.targetPath?.underlying;
+    let address;try{address=inner?.length===1?parseTargetLabel(inner[0].raw,chosen.language):null;}catch{}
+    const stated=address?.segments.find(segment=>segment.kind==='paragraph')?.value;
+    const instruction=(chosen.language==='cs'?/^(?:\(-a\)|-a\))\s+odstavec (\d+) se nahrazuje/u:/^(?:\(-a\)|-a\))\s+paragraph (\d+) is replaced/u).exec(chosen.proposedText.trim());
+    nestedNegative=Boolean(stated&&instruction&&instruction[1]!==stated);
+  }
+  if(!(target.segments.length===1&&label.kind==='article'||target.segments.length===3&&article.kind==='article'&&paragraph.kind==='paragraph'&&label.kind==='point'||nestedNegative))return null;
   const printed=label.kind==='article'?new RegExp(`^(?:Article|Artykuł)\\s+${label.value.replace(/^(\d+)([a-z]+)$/u,'$1\\s*$2')}(?![ \\t]*[\\p{L}\\p{N}])`,'u')
     :new RegExp(`^\\(?${label.value.replace(/^(-?\d+)([a-z]+)$/u,'$1\\s*$2')}\\)`,'u');
   return printed.test(chosen.proposedText.trim())?{raw,label}:null;
@@ -34,7 +42,7 @@ function proposalInstructionPlacement(items,chosen) {
   if(!target||!items?.length)return null;
   const placement=resolveProposalPlacement(items,{...chosen,originalText:'',originalFormatting:undefined,targetLabel:target.raw,targetPath:{...chosen.targetPath,proposal:[{raw:target.raw}],underlying:[]}});
   if(placement.status!=='placed'||placement.operation!=='insert')return null;
-  return {...placement,frame:'commission-proposal',evidence:[{basis:'proposal-instruction-frame',label:target.raw},...placement.evidence]};
+  return {...placement,frame:'commission-proposal',evidence:[{basis:'proposal-instruction-frame',label:target.raw},...(target.label.value==='-a'&&parseTargetLabel(target.raw,chosen.language).segments.length===4?[{basis:'negative-nested-instruction',label:target.raw}]:[]),...placement.evidence]};
 }
 
 /** Pure final placement selection shared by the endpoint and offline consumers.

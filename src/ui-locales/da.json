@@ -2844,5 +2844,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "Den oprindelige henvisning mangler en identifikator",
   "proposalcontexttext.printed.point.label": "Nyt punkt {point}. Betegnelsen angiver punkt {base}.",
   "proposalcontexttext.unique.entry.labels": "Placeret efter den entydige post. Betegnelserne er forskellige.",
-  "proposalcontexttext.sequential.paragraph": "Afsnit {report} i betænkningen; afsnit {source} i kilden."
+  "proposalcontexttext.sequential.paragraph": "Afsnit {report} i betænkningen; afsnit {source} i kilden.",
+  "proposalcontexttext.label_instruction_difference": "Betegnelsen og instruktionen er forskellige. Den gældende tekst er ikke kontrolleret."
 }

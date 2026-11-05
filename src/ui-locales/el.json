@@ -2845,5 +2845,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "Από την αρχική παραπομπή λείπει αναγνωριστικό",
   "proposalcontexttext.printed.point.label": "Νέο σημείο {point}. Η ένδειξη αναφέρει το σημείο {base}.",
   "proposalcontexttext.unique.entry.labels": "Τοποθετήθηκε βάσει της μοναδικής εγγραφής. Οι ενδείξεις διαφέρουν.",
-  "proposalcontexttext.sequential.paragraph": "Παράγραφος {report} στην έκθεση· παράγραφος {source} στην πηγή."
+  "proposalcontexttext.sequential.paragraph": "Παράγραφος {report} στην έκθεση· παράγραφος {source} στην πηγή.",
+  "proposalcontexttext.label_instruction_difference": "Η ένδειξη και η οδηγία διαφέρουν. Το ισχύον κείμενο δεν έχει ελεγχθεί."
 }

@@ -2844,5 +2844,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "Sākotnējā atsaucē trūkst identifikatora",
   "proposalcontexttext.printed.point.label": "Jauns {point}. punkts. Norādē minēts {base}. punkts.",
   "proposalcontexttext.unique.entry.labels": "Novietots pēc vienīgā atbilstošā ieraksta. Norādes atšķiras.",
-  "proposalcontexttext.sequential.paragraph": "Ziņojuma {report}. punkts; avota {source}. punkts."
+  "proposalcontexttext.sequential.paragraph": "Ziņojuma {report}. punkts; avota {source}. punkts.",
+  "proposalcontexttext.label_instruction_difference": "Apzīmējums un norādījums atšķiras. Spēkā esošais teksts nav pārbaudīts."
 }

@@ -2844,5 +2844,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "V původní citaci chybí identifikátor",
   "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uveden bod {base}.",
   "proposalcontexttext.unique.entry.labels": "Umístěno podle jediného shodného záznamu. Označení se liší.",
-  "proposalcontexttext.sequential.paragraph": "Odstavec {report} ve zprávě; odstavec {source} ve zdroji."
+  "proposalcontexttext.sequential.paragraph": "Odstavec {report} ve zprávě; odstavec {source} ve zdroji.",
+  "proposalcontexttext.label_instruction_difference": "Označení a pokyn se liší. Platné znění nebylo ověřeno."
 }

@@ -2845,5 +2845,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "U izvornom navodu nedostaje identifikator",
   "proposalcontexttext.printed.point.label": "Nova točka {point}. Oznaka navodi točku {base}.",
   "proposalcontexttext.unique.entry.labels": "Smješteno prema jedinstvenom unosu. Oznake se razlikuju.",
-  "proposalcontexttext.sequential.paragraph": "Stavak {report} u izvješću; stavak {source} u izvoru."
+  "proposalcontexttext.sequential.paragraph": "Stavak {report} u izvješću; stavak {source} u izvoru.",
+  "proposalcontexttext.label_instruction_difference": "Oznaka i uputa se razlikuju. Važeći tekst nije provjeren."
 }

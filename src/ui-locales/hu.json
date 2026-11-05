@@ -2845,5 +2845,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "Az eredeti hivatkozásból hiányzik egy azonosító",
   "proposalcontexttext.printed.point.label": "Új {point}. pont. A címkén ez áll: {base}. pont.",
   "proposalcontexttext.unique.entry.labels": "Az egyetlen egyező bejegyzés alapján elhelyezve. A címkék eltérnek.",
-  "proposalcontexttext.sequential.paragraph": "A jelentésben: {report}. bekezdés; a forrásban: {source}. bekezdés."
+  "proposalcontexttext.sequential.paragraph": "A jelentésben: {report}. bekezdés; a forrásban: {source}. bekezdés.",
+  "proposalcontexttext.label_instruction_difference": "A megjelölés és az utasítás eltér. A hatályos szöveget nem ellenőriztük."
 }

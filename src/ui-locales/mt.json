@@ -2845,5 +2845,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "Iċ-ċitazzjoni oriġinali tħalli barra identifikatur",
   "proposalcontexttext.printed.point.label": "Punt ġdid {point}. It-tikketta tindika l-punt {base}.",
   "proposalcontexttext.unique.entry.labels": "Imqiegħed skont l-entrata unika. It-tikketti ma jaqblux.",
-  "proposalcontexttext.sequential.paragraph": "Paragrafu {report} fir-rapport; paragrafu {source} fis-sors."
+  "proposalcontexttext.sequential.paragraph": "Paragrafu {report} fir-rapport; paragrafu {source} fis-sors.",
+  "proposalcontexttext.label_instruction_difference": "It-tikketta u l-istruzzjoni huma differenti. It-test fis-seħħ ma ġiex iċċekkjat."
 }

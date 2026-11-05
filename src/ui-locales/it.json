@@ -2845,5 +2845,6 @@
   "proposalcontexttext.original.citation.omits.an.identifier": "Nella citazione originale manca un identificativo",
   "proposalcontexttext.printed.point.label": "Nuovo punto {point}. L’etichetta indica il punto {base}.",
   "proposalcontexttext.unique.entry.labels": "Posizionato in base alla voce unica. Le etichette non coincidono.",
-  "proposalcontexttext.sequential.paragraph": "Paragrafo {report} della relazione; paragrafo {source} della fonte."
+  "proposalcontexttext.sequential.paragraph": "Paragrafo {report} della relazione; paragrafo {source} della fonte.",
+  "proposalcontexttext.label_instruction_difference": "L’indicazione e l’istruzione differiscono. Il testo vigente non è stato verificato."
 }
