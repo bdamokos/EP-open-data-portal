@@ -182,7 +182,7 @@ test('proposal controls and missing amendment targets use UI language around Fre
  const data={documentId:'A-10-2026-0042',baseline:{kind:'proposal',language:'fr',celex:null,items:[{source}],gaps:[],attribution:'Exact source attribution'},proposal:{items:[{kind:'act',index:1,proposal}]},placement:{status:'unresolved',reason:'target_not_found'}};
  const before=JSON.stringify(data),i18n=createAppUiI18n({hu}),window=new Window();t.after(()=>window.happyDOM.close());
  const html=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'hu'},h('div',{lang:'hu'},h(ProposalContextText,{data,wording:null,language:'hu'}))));window.document.body.innerHTML=html;
- for(const selector of ['.proposal-item-heading','.proposal-context-text .document-context-notice','.proposal-context-text .document-context-source'])assert.equal(window.document.querySelector(selector).closest('[lang]').getAttribute('lang'),'hu');
+ for(const selector of ['.proposal-item-heading','.proposal-context-text .document-context-notice'])assert.equal(window.document.querySelector(selector).closest('[lang]').getAttribute('lang'),'hu');
  const text=[...window.document.querySelectorAll('.proposal-context-text p')].find(node=>node.textContent==='Texte français exact.');assert(text);assert.equal(text.closest('[lang]').getAttribute('lang'),'fr');assert.equal(JSON.stringify(data),before);
  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event};
  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));

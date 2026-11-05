@@ -180,7 +180,7 @@ test('procedure title, summary, subjects and each EuroVoc label restore source l
     const actual=languages[(index+1)%languages.length],h=await harness(t,route=>route==='insights/procedure-context'?procedureData(actual):undefined),chosen=[];
     await h.render(el(h.ProcedureContext,{reference:'2026/0001(COD)',language,showTitle:true,onTopic:topic=>chosen.push(topic.id)}),language);
     for(const selector of ['h2','.insight-official-summary','.insight-subject-classification li'])assert.equal(effectiveLanguage(h.container.querySelector(selector)),actual,selector);
-    for(const selector of ['h3','.insight-subject-classification h4','.insight-summary-footer button','.insight-summary-footer a'])assert.equal(effectiveLanguage(h.container.querySelector(selector)),'en',selector);
+    for(const selector of ['h3','.insight-subject-classification h4','.insight-summary-footer button'])assert.equal(effectiveLanguage(h.container.querySelector(selector)),'en',selector);
     assert.equal(effectiveLanguage(h.container.querySelector('time')),language);
     assert.equal(effectiveLanguage(h.container.querySelector('.insight-summary-footer small span')),language);
     const topics=[...h.container.querySelectorAll('.insight-official-topics button')];assert.deepEqual(topics.map(effectiveLanguage),['fr','hu','mul','']);
@@ -249,7 +249,7 @@ test('reference popup UI restores English while titles, citation fallbacks, doss
     assert.equal(effectiveLanguage(card.querySelector('button[aria-label="Close"]')),'en');
     await h.click([...card.querySelectorAll('button')].find(button=>button.textContent==='Dossier summary'));
     assert.equal(effectiveLanguage(card.querySelector('.legal-reference-summary > div[lang]')),'fr');
-    assert.equal(effectiveLanguage(card.querySelector('.legal-reference-summary .legal-reference-actions a')),'en');
+    assert.equal(card.querySelector('.legal-reference-summary .legal-reference-actions a'),null,'a shown summary needs no source link');
     await h.click(card.querySelector('button[aria-label="Close"]'));assert.equal(document.activeElement,trigger,'close still returns to the exact original citation');
     assert.equal(effectiveLanguage(trigger),'hu');
     await h.click(trigger);await h.click([...h.container.querySelectorAll('.legal-reference-actions button')].find(button=>button.textContent==='Read question'));

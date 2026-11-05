@@ -52,7 +52,7 @@ test('comparison announces one narrow settled result; full wording, provenance a
   const passages=[...h.container.querySelectorAll('.explorer-diff-passage p')];assert.equal(passages.length,4);
   assert.match(passages.map(node=>node.textContent).join(' '),/Full .*original.*revised.* public passage/);
   for(const node of [...passages,...h.container.querySelectorAll('.explorer-diff-controls,.explorer-diff-documents,.explorer-diff-sources,.explorer-diff-checkbox')])assert.equal(liveAncestor(node),null);
-  assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,2);assert.equal(h.container.querySelector('.explorer-diff-sources'),null);
+  assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,0);assert.equal(h.container.querySelector('.explorer-diff-sources'),null);
   assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');
   await act(async()=>h.container.querySelector('input[type="checkbox"]').click());await settle();
   assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,1);assert.equal(messages.length,1,'filtering unchanged passages must not repeat completion');
@@ -107,7 +107,7 @@ test('saved sources and cached refresh failures retain wording and provenance wi
   await h.respond(1,{error:'Refresh unavailable'},503);await settle();
   for(let i=0;i<6;i++){assert.equal(h.status().textContent,'');await automaticRecovery(t);await h.respond(i+2,{error:'Refresh unavailable'},503);}
   await settle();
-  assert.match(h.status().textContent,/comparison available/);assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2);assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,2);
+  assert.match(h.status().textContent,/comparison available/);assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2);assert.equal(h.container.querySelectorAll('a[href$=".docx"]').length,0);
   assert.match(h.container.querySelector('.explorer-diff-error').textContent,/Comparison unavailable/);assert.equal(liveAncestor(h.container.querySelector('.explorer-diff-passage p')),null);
   await act(async()=>window.dispatchEvent(new window.Event('online')));assert.equal(h.status().textContent,'');assert.equal(h.container.querySelectorAll('.explorer-diff-row').length,2);
   await h.respond(8);await settle();assert.match(h.status().textContent,/comparison available/);assert.doesNotMatch(h.status().textContent,/refresh failed|Showing saved/);

@@ -9,7 +9,6 @@ import {matchesCountry} from './countries.mjs';
 import {countryName} from './interfaceLabels.mjs';
 import {groupColor,groupLabel} from './groupLabels';
 import {InsightPortrait} from './InsightPortrait';
-import {SourceLink} from './SourceLink';
 import {SaveButton} from './SavedControls';
 import {groupCounts,nearestSeat,seatMatches,type HemicycleSeat} from './hemicycleModel.mjs';
 import './Hemicycle.css';
@@ -72,7 +71,7 @@ export function Hemicycle(props:InsightProps) {
         <div className="insight-chart-switch" role="group" aria-label={ui.t('hemicycle.chamber')}>
           {chambers.map(item=><button key={item} type="button" aria-pressed={chamber===item} onClick={()=>{setChamber(item);setPicked(null);}}><UiMessage id={`hemicycle.chamber.${item}`}/></button>)}
         </div>
-        {plan?.sourceDate&&<p><UiMessage id="hemicycle.planDate" values={{date:formatDate(plan.sourceDate,language)}}/> · <SourceLink url={plan.sourcePageUrl} language={language}><UiMessage id="dossieractivity.source"/></SourceLink></p>}
+        {plan?.sourceDate&&<p><UiMessage id="hemicycle.planDate" values={{date:formatDate(plan.sourceDate,language)}}/></p>}
       </div>
       <div className="hemicycle-filters">
         <label><UiMessage id="hemicycle.searchLabel"/><input type="search" value={query} onChange={event=>setQuery(event.target.value)}/></label>

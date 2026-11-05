@@ -9,7 +9,7 @@ import {ActivityVote,type ActivityVoteSnapshot} from './ActivityVote';
 import {useCallback,useEffect,useId,useRef,useState,type ReactNode,type RefObject} from 'react';
 import {api} from './data';
 import {Status} from './Status';
-import {amendmentDecisionKey,amendmentDecisionPart,publicAmendmentSource} from './amendmentModel.mjs';
+import {amendmentDecisionKey,amendmentDecisionPart} from './amendmentModel.mjs';
 import type {MotionAmendment,MotionAmendmentDecision,MotionAmendmentVariant,MotionAmendmentsPage,MotionAmendmentsScope} from './MotionAmendmentsTypes';
 import './MotionAmendments.css';
 import {FormattedWording} from './components/WordingFormatting';
@@ -146,17 +146,6 @@ function chosenRecord(item:MotionAmendment,listId:string|null) {
   if(listId){const matches=records.filter(record=>record.listId===listId);return (matches.length===1) ? matches[0] : null;}
   return ((!item.conflicted) && (records.length===1)) ? records[0] : null;
 }
-function wordingSource(record:MotionAmendment|MotionAmendmentVariant) {
-  const candidates=[record.wordingSource,record.fieldSources?.proposedText,record.fieldSources?.originalText,
-    ...(record.sources||[]).filter(source=>/\.(docx|pdf)(?:[?#]|$)/i.test(source.url))];
-  for(const candidate of candidates){
-    const url=publicAmendmentSource(candidate);
-    if(!url)continue;
-    const parsed=new URL(url);
-    if(!parsed.username&&!parsed.password&&(parsed.hostname==='europarl.europa.eu'||parsed.hostname.endsWith('.europarl.europa.eu')))return url;
-  }
-  return null;
-}
 function Wording({record,kind}:{record:MotionAmendment|MotionAmendmentVariant;kind:'original'|'proposed'}) {
   const ui = useUiI18n();
   const status=record.wording?.[(kind==='original') ? 'originalStatus' : 'proposedStatus'];
@@ -214,7 +203,6 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
   const ui = useUiI18n();
   const records=wordingRecords(item),record=chosenRecord(item,listId),needsChoice=item.conflicted||records.length>1;
   const selectable=records.filter(candidate=>candidate.listId&&records.filter(record=>record.listId===candidate.listId).length===1);
-  const url=record ? wordingSource(record) : null;
   const unavailableVersion=Boolean(listId&&!record);
   return <article className="motion-amendments__detail" aria-label={title(item, ui)}>
     <h4>{title(item, ui)}</h4>
@@ -236,7 +224,7 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
       
       {((((((record.wording?.originalStatus==='available') && (record.wording.proposedStatus==='available')) && (typeof record.originalText==='string')) && (record.originalText!=='')) && (typeof record.proposedText==='string')) && (record.proposedText!=='')) ? <WordingDiff originalFormatting={record.originalFormatting} proposedFormatting={record.proposedFormatting} key={JSON.stringify(record)} original={record.originalText} proposed={record.proposedText} language={sourceLanguage(record.wording.language)} emptySemantics="not-supplied" labels={{original:ui.t("motionamendments.original_wording_quoted_in_the_amendment.997354"),proposed:ui.t("membervotes.tsx.proposed.wording")}}/> : <div className="motion-amendments__wording-grid"><Wording record={record} kind="original"/><Wording record={record} kind="proposed"/></div>}
       <AmendmentJustification record={record}/>
-      {url&&<p className="motion-amendments__source"><a href={url} target="_blank" rel="noreferrer"><UiMessage id="motionamendments.official_amendment_wording.05a440"/></a></p>}
+      
     </>}
     <div className="motion-amendments__detail-actions"><button type="button" ref={contextButton} onClick={onContext} disabled={!record?.listId}><UiMessage id="membervotes.tsx.read.in.context"/></button></div>
     <section className="motion-amendments__decisions" aria-label={ui.t("motionamendments.amendment_decisions.be5d39")}>

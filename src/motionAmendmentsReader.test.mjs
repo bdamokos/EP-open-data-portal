@@ -99,7 +99,7 @@ test('the closed reader is lazy, opens the member page in batches of 20, and sel
   assert.match(wordingViewText(detail),/No original wording supplied\./);
   assert.doesNotMatch(wordingViewText(detail),/Original wording is unavailable/);
   assert.equal(detail.querySelector('public-text'),null,'source wording must be escaped');
-  assert.equal(detail.querySelector('.motion-amendments__source a').href,source.url);
+  assert.equal(detail.querySelector('.motion-amendments__source'),null);
   await h.click(/^Amendment 14/);
   detail=h.container.querySelector('.motion-amendments__detail');
   assert.match(wordingViewText(detail),/Original wording is unavailable\./);

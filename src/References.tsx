@@ -162,7 +162,7 @@ function DossierSummary({reference,language,showTitle}:{reference:string;languag
     {data.summary ? <>
       <p className="legal-reference-meta"><span lang={summaryStage(data.summary.stage,language, ui).language}>{summaryStage(data.summary.stage,language, ui).text}</span> · <span lang={language}>{displayDate(data.summary.date,language)}</span>{(data.language!==language) ? <> · <span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(data.language)||data.language}</span></> : ''}{data.summary.method ? (' · '+data.summary.method) : ''}</p>
       <div lang={data.language??''}>{shown.map((block,index)=>(block.kind==='heading') ? <h4 key={index}>{block.text}</h4> : <p key={index}>{block.text}</p>)}</div>
-      <div className="legal-reference-actions">{blocks.length>2&&<button type="button" aria-expanded={expanded} onClick={()=>setExpanded(value=>!value)}>{expanded ? <UiMessage id="procedurecontext.show_less.4c852b"/> : <UiMessage id="procedurecontext.continue_reading.4f4840"/>}</button>}<a className="legal-reference-secondary" href={data.summary.source.url} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.35.74"/></a></div>
+      <div className="legal-reference-actions">{blocks.length>2&&<button type="button" aria-expanded={expanded} onClick={()=>setExpanded(value=>!value)}>{expanded ? <UiMessage id="procedurecontext.show_less.4c852b"/> : <UiMessage id="procedurecontext.continue_reading.4f4840"/>}</button>}</div>
     </> : <p className="legal-reference-meta"><UiMessage id="batch6.references.the.legislative.observatory.publishes.no.summary.for.reference.154" values={{reference: String(reference ?? '')}}/></p>}
   </section>;
 }

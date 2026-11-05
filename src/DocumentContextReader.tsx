@@ -182,7 +182,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {document&&<header className="document-context-heading"><h3 lang={title?.language}>{title?.text}</h3></header>}
     <p className="document-context-notice"><UiMessage id="documentcontext.council.quotation"/></p>
     {amendmentBlock(false)}
-    {showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="proposalcontexttext.parliament.report"/></a></p>}
+    
   </div>;
   // The agreement's own text, with Parliament's marks, replaces the report's text.
   if(provisional&&(agreement||agreementState.loading&&!agreementState.data))return <div className="document-context-document">
@@ -232,7 +232,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
             renderText={(sourceIndex,paragraph,from,to,final,marks)=><DocumentObjectText assets={text?.imageAssets} text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes assets={text?.imageAssets} notes={notes} prefix={notePrefix}/></div>
         </ReferenceScope>
       </> : (!state.loading&&!loadError&&<p><UiMessage id="batch6.documentcontextreader.document.text.unavailable.here.190"/></p>)}
-      <DocumentPages documentId={id} language={actual||language}/>{showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="batch6.documentcontextreader.open.original.document.191"/></a></p>}
+      <DocumentPages documentId={id} language={actual||language}/>
     </>}
   </div>;
 }

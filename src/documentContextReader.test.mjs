@@ -36,7 +36,7 @@ test('embedded dossier readers can omit original-document links while preserving
   assert.match(h.container.textContent,/Exact target passage/);
   assert.equal(h.container.querySelector('.document-context-source a'),null);
   await h.render({request,language:'en'});
-  assert(h.container.querySelector('.document-context-source a'),'other readers keep their existing source link');
+  assert.equal(h.container.querySelector('.document-context-source a'),null,'readers show no original-document link beside the text');
   current=proposalContextResponse(report,amendment,list);
   await h.render({request:{...request,amendmentId:amendment,listId:list,wordingLanguage:'en'},language:'en',showOriginalLink:false});
   assert(h.container.querySelector('[data-proposal-item]'));
@@ -155,7 +155,7 @@ test('missing target leaves the full official document readable with plain copy'
   assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
   assert(!h.container.textContent.includes('source-boundary-not-matched'));
   assert(!h.container.textContent.includes('target could not be matched'));
-  assert.equal(h.container.querySelectorAll('.document-context-source a').length,1);
+  assert.equal(h.container.querySelectorAll('.document-context-source a').length,0);
 });
 
 test('fallback language is visible and choosing a language changes only the exact requested source',async t=>{
@@ -643,7 +643,7 @@ test('Commission proposal replaces the report body for recorded CBAM amendments 
     assert(h.container.textContent.includes('Legal text © European Union'));
     const link=h.container.querySelector('.proposal-context-summary a');assert(link.href.includes('CELEX:52025PC0087'));
     assert.equal(link.textContent,'Commission proposal · COM(2025)0087 ↗');
-    assert.equal(h.container.querySelectorAll('.proposal-context-summary a').length,2);
+    assert.equal(h.container.querySelectorAll('.proposal-context-summary a').length,1);
     const block=h.container.querySelector('[data-amendment-block]');
     assert.equal(block.getAttribute('aria-label'),'Amendment '+selected);
     assert.equal(block.querySelector('h4').textContent,'Amendment '+selected);
@@ -1052,7 +1052,7 @@ test('an exact adopted masthead omits its logo notice while body notes and links
   assert(!reader.textContent.includes('TEXTS ADOPTED'));assert(!reader.textContent.includes('P10_TA'));
   assert(reader.querySelector('[data-source-paragraph="8"] sup'));
   assert.equal(reader.querySelector('[data-source-paragraph="9"] a').textContent,'Calls');
-  assert(h.container.querySelector('.document-context-source a'));
+  assert.equal(h.container.querySelector('.document-context-source a'),null);
 });
 test('adopted readers retain missing-content notices for body, note, structure and non-logo cover gaps',async t=>{
   for(const variant of ['body-drawing','note-object','numbering-warning','missing-note','unknown-structure','invalid-position','missing-object','incomplete-body','incomplete-cover','cover-target'])await t.test(variant,async t=>{

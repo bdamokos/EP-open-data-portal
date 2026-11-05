@@ -30,8 +30,8 @@ test('timeline titles, milestones and missing metadata stay attached to exact do
   const first=cards[0].querySelector('button');assert.equal(first.title,title);assert.equal(first.querySelector('[lang]').lang,'fr');
   assert.deepEqual(cards.map(card=>card.querySelector('.insight-trend-dossier-status').textContent.split(' · ')[0]),['Published in Official Journal','Final act signed','Parliament position adopted','No milestone recorded','Status unavailable']);
   assert.equal(cards[4].querySelector('.insight-trend-dossier-title').textContent,'Title unavailable');
-  assert.equal(cards[0].querySelector('a').href,'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2025%2F0000%28COD%29');
-  assert.doesNotMatch(cards[0].querySelector('.insight-trend-dossier-source').textContent,/Retrieved/);assert.equal(cards[4].querySelector('.insight-trend-dossier-source').textContent,'Dossier ↗');assert.equal(calls.length,1,'rows do not fetch individual dossier pages');
+  assert.equal(cards[0].querySelector('a'),null,'a dossier row carries no source link');
+  assert.equal(cards[0].querySelector('.insight-trend-dossier-source'),null);assert.equal(calls.length,1,'rows do not fetch individual dossier pages');
   await act(async()=>first.click());assert.equal(first.getAttribute('aria-expanded'),'true');
   assert.equal(new URL(window.location.href).searchParams.get('trend-dossier'),'2025/0000(COD)');
   assert.equal(calls[1].searchParams.get('reference'),'2025/0000(COD)');

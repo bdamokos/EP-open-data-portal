@@ -111,7 +111,7 @@ test('committee cards retain list identities, public sources, empty edits and se
   assert.match(cards[0].textContent,/Committee amendment · AGRI · Draft report/);assert.match(cards[0].textContent,/Document date/);assert.match(cards[1].textContent,/CJ61 · Draft opinion/);assert.match(cards[1].textContent,/Committee decision · Whole amendment/);
   assert.equal(cards[1].querySelector('.explorer-amendment-context'),null);assert.equal(cards[0].querySelector('.explorer-amendment-context').open,false);
   assert.equal(cards[1].querySelectorAll('ins').length,1);assert.equal(h.calls.length,0);
-  const links=[...h.container.querySelectorAll('a')].map(a=>a.href);assert(links.includes('https://www.europarl.europa.eu/doceo/document/CJ61-AM-778402_EN.html'));assert(links.every(href=>!href.includes('data.europarl')));
+  const links=[...h.container.querySelectorAll('a')].map(a=>a.href);assert(!links.includes('https://www.europarl.europa.eu/doceo/document/CJ61-AM-778402_EN.html'));assert(links.every(href=>!href.includes('data.europarl')));
   assert(!h.container.textContent.includes(amendment.id));assert.doesNotMatch(h.container.textContent,/Made it into law|Survived|Successful amendment|Final text|fetchedAt|2026-10-30T/);
 });
 test('stage count links preserve exact person/procedure and offer a procedure chooser',async t=>{
