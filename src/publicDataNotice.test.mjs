@@ -68,7 +68,7 @@ test('the App member shell renders the public-data notice and site brand with in
   const {container,requests}=await harness(t,'?lang=en');
   assert.equal(container.querySelector('.parliament-header [aria-current="page"]')?.textContent,'MEPs');
   assert.ok(requests.includes('/api/directory'));
-  assert.match(container.textContent,/Fixture memberships unavailable/);
+  assert.match(container.textContent,/Membership information is unavailable\./);
   await assertPublicNotice(container);
 });
 

@@ -412,9 +412,8 @@
   "app.no_matches_in_the_loaded_memberships_yet": "app.no_matches_yet",
   "app.no_plenary_contributions_loaded_yet": "app.contributions_unavailable",
   "app.not_loaded_yet": "app.linked_item_unavailable",
-  "coverage.question.readFailed": "coverage.document.readFailed",
   "coverage.document.unloaded": "coverage.document.readFailed",
-  "coverage.question.unloaded": "coverage.document.readFailed",
+  "coverage.question.unloaded": "coverage.question.readFailed",
   "coverage.agendaUnloaded": "legislation.agenda_unavailable.eca2fa",
   "coverage.votesUnloaded": "membervotespresentation.voting_records_unavailable",
   "coverage.topicsUnloaded": "coverage.searchEmptyLoaded",
@@ -505,5 +504,6 @@
   "document.pages.timeout": "document.pages.unavailable",
   "document.pages.invalidSize": "document.pages.pageUnavailable",
   "batch6.documentcontextreader.the.published.text.differs.from.the.amendment.s.quotation.179": "documentcontext.note.original_differs",
-  "yourVote.lapsed": "membervotespresentation.lapsed"
+  "yourVote.lapsed": "membervotespresentation.lapsed",
+  "error.contributions": "app.contributions_unavailable"
 }

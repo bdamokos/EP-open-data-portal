@@ -1783,6 +1783,7 @@
   "coverage.questionReference": "Vraag {id}",
   "coverage.documentReference": "Document {id}",
   "coverage.document.readFailed": "{record}: niet beschikbaar",
+  "coverage.question.readFailed": "{record}: niet beschikbaar",
   "coverage.periodFrom": "vanaf {date}",
   "coverage.periodThrough": "tot en met {date}",
   "coverage.speakerList": "Sprekers niet beschikbaar · {period}",
@@ -2279,5 +2280,14 @@
   "proposalcontexttext.printed.point.label": "Nieuw punt {point}. Het opschrift noemt punt {base}.",
   "documentcontext.note.report_paragraph": "Lid {report} in het verslag; hier gedrukt als {source}.",
   "documentcontext.note.label_instruction_differ": "De aanduiding en de instructie verschillen.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Geen beschikbare agendapunten komen overeen met deze zoekopdracht."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Geen beschikbare agendapunten komen overeen met deze zoekopdracht.",
+  "proposalcontexttext.proposal": "Voorstel",
+  "proposalcontexttext.proposal.part.index": "Voorstel · deel {index}",
+  "proposalcontexttext.annexes": "Bijlagen",
+  "proposalcontexttext.annexes.part.index": "Bijlagen · deel {index}",
+  "proposalcontexttext.council.position.part.index": "Standpunt van de Raad · deel {index}",
+  "proposalcontexttext.existing.act.part.index": "Bestaande rechtshandeling · deel {index}",
+  "hemicycle.unavailable": "Zaalindeling niet beschikbaar.",
+  "MotionComparison.sourceDocx": "Bron-DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Officiële amendementtekst ↗"
 }

@@ -1783,6 +1783,7 @@
   "coverage.questionReference": "Interrogazione {id}",
   "coverage.documentReference": "Documento {id}",
   "coverage.document.readFailed": "{record}: non disponibile",
+  "coverage.question.readFailed": "{record}: non disponibile",
   "coverage.periodFrom": "dal {date}",
   "coverage.periodThrough": "fino al {date}",
   "coverage.speakerList": "Oratori non disponibili · {period}",
@@ -2279,5 +2280,14 @@
   "proposalcontexttext.printed.point.label": "Nuovo punto {point}. L’etichetta indica il punto {base}.",
   "documentcontext.note.report_paragraph": "Paragrafo {report} della relazione; stampato qui come {source}.",
   "documentcontext.note.label_instruction_differ": "L’indicazione e l’istruzione differiscono.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Nessun punto all’ordine del giorno disponibile corrisponde alla ricerca."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Nessun punto all’ordine del giorno disponibile corrisponde alla ricerca.",
+  "proposalcontexttext.proposal": "Proposta",
+  "proposalcontexttext.proposal.part.index": "Proposta · parte {index}",
+  "proposalcontexttext.annexes": "Allegati",
+  "proposalcontexttext.annexes.part.index": "Allegati · parte {index}",
+  "proposalcontexttext.council.position.part.index": "Posizione del Consiglio · parte {index}",
+  "proposalcontexttext.existing.act.part.index": "Atto vigente · parte {index}",
+  "hemicycle.unavailable": "Piano dell’emiciclo non disponibile.",
+  "MotionComparison.sourceDocx": "DOCX originale · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Testo ufficiale dell’emendamento ↗"
 }

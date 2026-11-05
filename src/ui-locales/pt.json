@@ -1783,6 +1783,7 @@
   "coverage.questionReference": "Pergunta {id}",
   "coverage.documentReference": "Documento {id}",
   "coverage.document.readFailed": "{record}: indisponível",
+  "coverage.question.readFailed": "{record}: indisponível",
   "coverage.periodFrom": "desde {date}",
   "coverage.periodThrough": "até {date}",
   "coverage.speakerList": "Oradores indisponíveis · {period}",
@@ -2279,5 +2280,14 @@
   "proposalcontexttext.printed.point.label": "Novo ponto {point}. A designação indica o ponto {base}.",
   "documentcontext.note.report_paragraph": "Número {report} do relatório; impresso aqui como {source}.",
   "documentcontext.note.label_instruction_differ": "A indicação e a instrução diferem.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Nenhum ponto da ordem do dia disponível corresponde à pesquisa."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Nenhum ponto da ordem do dia disponível corresponde à pesquisa.",
+  "proposalcontexttext.proposal": "Proposta",
+  "proposalcontexttext.proposal.part.index": "Proposta · parte {index}",
+  "proposalcontexttext.annexes": "Anexos",
+  "proposalcontexttext.annexes.part.index": "Anexos · parte {index}",
+  "proposalcontexttext.council.position.part.index": "Posição do Conselho · parte {index}",
+  "proposalcontexttext.existing.act.part.index": "Ato existente · parte {index}",
+  "hemicycle.unavailable": "Plano do hemiciclo indisponível.",
+  "MotionComparison.sourceDocx": "DOCX de origem · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Redação oficial da alteração ↗"
 }

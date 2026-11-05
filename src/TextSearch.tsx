@@ -118,7 +118,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
     const timer=window.setTimeout(()=>controller.abort(),8000);
     fetch(API_ROOT+'/corpus/search',{method:'POST',credentials:'omit',headers:{Accept:'application/json','Content-Type':'application/json'},body:request,signal:controller.signal}).then(async response=>{
       const data=await response.json().catch(()=>null);
-      if(!response.ok){const code=data?.error?.code;let message=data?.error?.message||ui.t("textsearch.text_search_is_temporarily_unavailable");
+      if(!response.ok){const code=data?.error?.code;let message=ui.t("textsearch.text_search_is_temporarily_unavailable");
         if(response.status===404||response.status===403||code==='corpus_disabled')message=ui.t("textsearch.text_search_is_not_available_yet");
         else if(code==='corpus_busy')message=ui.t("textsearch.search_is_busy_please_retry_in_a_moment");
         else if(code==='corpus_query_timeout')message=ui.t("textsearch.this_search_took_too_long_narrow_the_period_or_text_language");

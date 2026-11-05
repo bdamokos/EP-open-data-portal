@@ -25,6 +25,14 @@ const response=(id,doc=sourceDocument(id),extra={})=>({version:4,documentId:id,r
 const target={status:'found',paragraphs:[2],basis:'published-reference',relation:'at',quoteMatches:false,reason:null};
 const amendmentSource={id:amendment,status:'available',basis:'index',variants:[{listId:list}],gaps:[]};
 const wordingVariant=(language,extra={})=>({listId:list,language,wordingStatus:'available',originalText:'Original wording.',proposedText:'Proposed wording.',...extra});
+test('a document whose text cannot be shown keeps its original-document link',async t=>{
+  for(const status of ['unavailable','error'])await t.test(status,async t=>{
+    const h=await harness(t,()=>response(report,sourceDocument(report,[],{status,reason:'source-unavailable'})));
+    await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
+    assert.equal(h.container.querySelectorAll('.document-context-source a').length,1);
+  });
+});
+
 const pinnedEvidence=(wordingLanguage,extra={})=>({amendmentId:amendment,listId:list,wordingLanguage,wordingSource:null,referenceDecisions:[],...extra});
 const choice=(id,to=original)=>({id,titles:{en:'***I Exact adopted resolution '+id.slice(-4)},date:'2026-10-08',kind:'TEXT_ADOPTED',roles:[],files:[],answers:[],relationship:{from:id,field:'adopts',to},source:{}});
 

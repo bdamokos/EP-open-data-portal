@@ -1797,6 +1797,7 @@
   "coverage.questionReference": "Întrebarea {id}",
   "coverage.documentReference": "Documentul {id}",
   "coverage.document.readFailed": "{record}: indisponibil",
+  "coverage.question.readFailed": "{record}: indisponibilă",
   "coverage.periodFrom": "din {date}",
   "coverage.periodThrough": "până la {date}",
   "coverage.speakerList": "Vorbitori indisponibili · {period}",
@@ -2279,5 +2280,14 @@
   "proposalcontexttext.printed.point.label": "Punct nou {point}. Eticheta indică punctul {base}.",
   "documentcontext.note.report_paragraph": "Alineatul {report} din raport; tipărit aici ca {source}.",
   "documentcontext.note.label_instruction_differ": "Indicația și instrucțiunea diferă.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Niciun punct disponibil pe ordinea de zi nu corespunde căutării."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Niciun punct disponibil pe ordinea de zi nu corespunde căutării.",
+  "proposalcontexttext.proposal": "Propunere",
+  "proposalcontexttext.proposal.part.index": "Propunere · partea {index}",
+  "proposalcontexttext.annexes": "Anexe",
+  "proposalcontexttext.annexes.part.index": "Anexe · partea {index}",
+  "proposalcontexttext.council.position.part.index": "Poziția Consiliului · partea {index}",
+  "proposalcontexttext.existing.act.part.index": "Act existent · partea {index}",
+  "hemicycle.unavailable": "Planul sălii nu este disponibil.",
+  "MotionComparison.sourceDocx": "DOCX sursă · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Formularea oficială a amendamentului ↗"
 }

@@ -1783,6 +1783,7 @@
   "coverage.questionReference": "Ceist {id}",
   "coverage.documentReference": "Doiciméad {id}",
   "coverage.document.readFailed": "{record}: níl ar fáil",
+  "coverage.question.readFailed": "{record}: níl ar fáil",
   "coverage.periodFrom": "ó {date}",
   "coverage.periodThrough": "go dtí {date}",
   "coverage.speakerList": "Cainteoirí gan fáil · {period}",
@@ -2279,5 +2280,14 @@
   "proposalcontexttext.printed.point.label": "Pointe nua {point}. Léiríonn an lipéad pointe {base}.",
   "documentcontext.note.report_paragraph": "Mír {report} sa tuarascáil; clóite anseo mar {source}.",
   "documentcontext.note.label_instruction_differ": "Tá an lipéad agus an treoir éagsúil.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Ní oireann aon mhír atá ar fáil ar an gclár oibre don chuardach seo."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Ní oireann aon mhír atá ar fáil ar an gclár oibre don chuardach seo.",
+  "proposalcontexttext.proposal": "Togra",
+  "proposalcontexttext.proposal.part.index": "Togra · cuid {index}",
+  "proposalcontexttext.annexes": "Iarscríbhinní",
+  "proposalcontexttext.annexes.part.index": "Iarscríbhinní · cuid {index}",
+  "proposalcontexttext.council.position.part.index": "Seasamh na Comhairle · cuid {index}",
+  "proposalcontexttext.existing.act.part.index": "Gníomh atá ann cheana · cuid {index}",
+  "hemicycle.unavailable": "Níl an plean suíochán ar fáil.",
+  "MotionComparison.sourceDocx": "Bunfhoinse DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Foclaíocht oifigiúil an leasaithe ↗"
 }
