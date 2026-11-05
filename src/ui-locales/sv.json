@@ -2222,7 +2222,7 @@
   "yourVote.loading": "Läser in lydelsen…",
   "yourVote.partial": "Uppgifter om ändringsförslaget är inte tillgängliga.",
   "yourVote.replacesMotions": "Ersätter motionerna.",
-  "yourVote.fallsOnAdoption": "Faller vid antagande av: {amendments}",
+  "yourVote.fallsOnAdoption": "Vid antagande faller: {amendments}",
   "yourVote.am": "AM {number}",
   "yourVote.amPart": "Del {part} av AM {number}",
   "yourVote.rollCallTag": "Omröstning med namnupprop",

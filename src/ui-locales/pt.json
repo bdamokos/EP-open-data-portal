@@ -2212,7 +2212,7 @@
   "yourVote.error": "Votações indisponíveis.",
   "yourVote.pick": "Comparar com um deputado",
   "yourVote.noSaved": "Sem votações guardadas.",
-  "yourVote.fallsIf": "Caduca se {amendments} for aprovado",
+  "yourVote.fallsIf": "Caduca em caso de aprovação de: {amendments}",
   "yourVote.block": "Alterações: {count}",
   "yourVote.numbers": "Números das alterações",
   "yourVote.context": "Mostrar no texto",

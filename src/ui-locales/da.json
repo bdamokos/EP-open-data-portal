@@ -2222,7 +2222,7 @@
   "yourVote.loading": "Indlæser ordlyd…",
   "yourVote.partial": "Oplysninger om ændringsforslaget er ikke tilgængelige.",
   "yourVote.replacesMotions": "Erstatter forslagene.",
-  "yourVote.fallsOnAdoption": "Bortfalder ved vedtagelse af: {amendments}",
+  "yourVote.fallsOnAdoption": "Ved vedtagelse bortfalder: {amendments}",
   "yourVote.am": "AM {number}",
   "yourVote.amPart": "Del {part} af AM {number}",
   "yourVote.rollCallTag": "Afstemning ved navneopråb",

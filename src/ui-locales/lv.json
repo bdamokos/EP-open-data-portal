@@ -1008,7 +1008,7 @@
   "hemicycle.change.joined": "Pievienojušies: {count}",
   "hemicycle.change.left": "Aizgājuši: {count}",
   "hemicycle.change.moved": "Pārvietoti: {count}",
-  "hemicycle.change.regrouped": "Mainījušas grupu: {count}",
+  "hemicycle.change.regrouped": "Mainījuši grupu: {count}",
   "hemicycle.openMember": "Atvērt profilu",
   "groupvoices.group_voices.f21b8b": "Politisko grupu runātāji",
   "groupvoices.last_12_months.0245d9": "Pēdējie 12 mēneši",

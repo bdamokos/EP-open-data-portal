@@ -2232,7 +2232,7 @@
   "yourVote.due": "Skadenza għall-emendi: {date}, {time}",
   "yourVote.showAll": "Uri l-{count} votazzjonijiet kollha",
   "yourVote.showLess": "Uri inqas votazzjonijiet",
-  "yourVote.choiceCount": "Int-vvutajt f’{count} minn {total} votazzjonijiet",
+  "yourVote.choiceCount": "Int ivvutajt f’{count} minn {total} votazzjonijiet",
   "yourVote.noChoices": "Għad m’hemm l-ebda għażla",
   "yourVote.open": "Iftaħ il-lista tal-votazzjoni",
   "yourVote.unfollow": "Tkomplix issegwi l-votazzjoni",
