@@ -641,7 +641,7 @@ test('unparsed vote descriptions stay in provenance without overriding a compara
   const paragraphs=['The European Parliament,','– having regard to public sources,','19. Exact wording;','20. Next;'];
   const text={...summary,paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
   for(const references of [['Compromise amendment','Joint statement on the report'],['Compromise amendment','Paragraph 19'],['Compromise amendment','Paragraph 20'],['Paragraph 19','Paragraph 20']]) {
-    const decisions=references.map((reference,i)=>({id:'MTG-PL-2026-10-07-DEC-'+(197430+i),amendmentIds:[amendmentId],reference,source}));
+    const decisions=references.map((reference,i)=>({id:'MTG-PL-2026-10-07-DEC-'+(197430+i),amendmentIds:[amendmentId],reference,outcome:'ADOPTED',source}));
     const reader=service({readText:async()=>text,findAmendment:()=>({...indexed,baseline:'motion-resolution',targetLabel:'Paragraph 19',targetLabelLanguage:'en',originalText:paragraphs[2],decisions})});
     const result=await reader.query(query({amendmentId}),{store:{}});
     assert.equal(result.placement.status,'placed');
@@ -754,7 +754,7 @@ test('historical public reports remain readable on demand without expanding inde
 test('a vote-list disagreement links only the exact adopted text on the decision date',async()=>{
  const paragraphs=['The European Parliament,','19. Exact wording;','20. Next;'];
  const text={...summary,paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
- const decisions=[{id:'vote',date:'2026-10-07',amendmentIds:[amendmentId],reference:'Paragraph 20',source}];
+ const decisions=[{id:'vote',date:'2026-10-07',amendmentIds:[amendmentId],reference:'Paragraph 20',outcome:'ADOPTED',source}];
  const selected={...indexed,baseline:'motion-resolution',targetLabel:'Paragraph 19',targetLabelLanguage:'en',originalText:paragraphs[1],decisions};
  let listings=0;
  const reader=service({readText:async()=>text,findAmendment:()=>selected,request:async(endpoint,params)=>{
@@ -764,6 +764,22 @@ test('a vote-list disagreement links only the exact adopted text on the decision
  const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
  assert.equal(result.placement.status,'placed');assert.deepEqual(result.placement.span,{start:1,end:1});
  assert.equal(result.placement.finalPlacementCheck.adoptedTextUrl,`https://www.europarl.europa.eu/doceo/document/${ta}_EN.html`);assert.equal(listings,1);
+});
+
+test('a final placement check is offered only for an adopted amendment',async()=>{
+ const paragraphs=['The European Parliament,','19. Exact wording;','20. Next;'];
+ const text={...summary,paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
+ for(const [outcomes,offered] of [[['ADOPTED'],true],[['REJECTED'],false],[['LAPSED'],false],[['WITHDRAWN'],false],[['unavailable'],false],[[],false],[['REJECTED','ADOPTED'],true]]) {
+  const decisions=outcomes.map((outcome,i)=>({id:'vote-'+i,date:'2026-10-07',amendmentIds:[amendmentId],reference:'Paragraph 20',outcome,source}));
+  const reader=service({readText:async()=>text,findAmendment:()=>({...indexed,baseline:'motion-resolution',targetLabel:'Paragraph 19',targetLabelLanguage:'en',originalText:paragraphs[1],decisions}),request:async(endpoint)=>{
+   if(endpoint==='/adopted-texts')return {payload:{data:[{id:'eli/dl/doc/'+ta,identifier:ta,work_type:'def/ep-document-types/TEXT_ADOPTED',document_date:'2026-10-07',adopts:['eli/dl/doc/'+id]}]},fetchedAt:at};
+   return record(work);
+  }});
+  const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+  assert.equal(result.placement.status,'placed',outcomes.join());assert.deepEqual(result.placement.span,{start:1,end:1},outcomes.join());
+  assert.equal('finalPlacementCheck' in result.placement,offered,outcomes.join());
+  assert.deepEqual(result.target.evidence.referenceDecisions.map(d=>d.reference),outcomes.map(()=> 'Paragraph 20'),outcomes.join());
+ }
 });
 
 test('provisional agreement can locate a source whose comparison columns are withheld',async()=>{

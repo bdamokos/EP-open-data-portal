@@ -1,3 +1,4 @@
+import {assertPointArticleParagraph} from './amendment-point-article-oracle.mjs';
 import {assertSequentialParagraph} from './amendment-sequential-paragraph-oracle.mjs';
 import {assertSplitComparisonNotes} from './amendment-native-note-oracle.mjs';
 import {assertHorizontalInstruction} from './amendment-horizontal-instruction-oracle.mjs';
@@ -636,6 +637,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const pointOnly=assertPointArticleParagraph({...input,proposal:input.items?.[input.placement?.itemIndex]?.proposal});if(pointOnly)return pointOnly;
   const splitNotes=assertSplitComparisonNotes(input);if(splitNotes&&splitNotes.status!=='verified')return splitNotes;
   const horizontal=assertHorizontalInstruction(input);if(horizontal&&horizontal.status!=='verified')return horizontal;
   if(horizontal?.status==='verified')input={...input,wording:{...input.wording,originalText:input.wording.originalText.replace(/^(\d+) cikk\n/u,'$1. cikk\n')}};
