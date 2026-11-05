@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Ερώτηση {id}",
   "coverage.documentReference": "Έγγραφο {id}",
   "coverage.document.readFailed": "{record}: μη διαθέσιμο",
+  "coverage.question.readFailed": "{record}: μη διαθέσιμη",
   "coverage.periodFrom": "από {date}",
   "coverage.periodThrough": "έως {date}",
   "coverage.speakerList": "Μη διαθέσιμοι ομιλητές · {period}",

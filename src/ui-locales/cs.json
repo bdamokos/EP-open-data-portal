@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Otázka {id}",
   "coverage.documentReference": "Dokument {id}",
   "coverage.document.readFailed": "{record}: není k dispozici",
+  "coverage.question.readFailed": "{record}: není k dispozici",
   "coverage.periodFrom": "od {date}",
   "coverage.periodThrough": "do {date}",
   "coverage.speakerList": "Nedostupní řečníci · {period}",

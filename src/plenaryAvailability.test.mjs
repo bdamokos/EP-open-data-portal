@@ -21,7 +21,7 @@ test('waiting follows source evidence rather than the age of an empty selection'
     assert.equal(plenaryAvailability(detail('2026-10-16',{availability}),kind,today).state,'unknown');
     assert.equal(plenaryAvailability(detail('unknown'),kind,today).state,'unknown');
   }
-  assert.match(plenaryAvailability(detail('2026-10-16'),'vote',today).message,/Not every vote is a roll call/);
+  assert.match(plenaryAvailability(detail('2026-10-16'),'vote',today).message,/No roll-call results\./);
 });
 test('known source failures remain errors; linked records and previous debates retain their meaning',()=>{
   const failed=detail(today,{voteCoverage:{error:'429'},coverage:{gaps:[{source:'actual debate event',message:'timeout'}]}});

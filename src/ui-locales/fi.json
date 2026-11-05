@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Kysymys {id}",
   "coverage.documentReference": "Asiakirja {id}",
   "coverage.document.readFailed": "{record}: ei saatavilla",
+  "coverage.question.readFailed": "{record}: ei saatavilla",
   "coverage.periodFrom": "{date} alkaen",
   "coverage.periodThrough": "{date} asti",
   "coverage.speakerList": "Puhujia ei saatavilla · {period}",

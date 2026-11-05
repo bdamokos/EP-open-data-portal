@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Vraag {id}",
   "coverage.documentReference": "Document {id}",
   "coverage.document.readFailed": "{record}: niet beschikbaar",
+  "coverage.question.readFailed": "{record}: niet beschikbaar",
   "coverage.periodFrom": "vanaf {date}",
   "coverage.periodThrough": "tot en met {date}",
   "coverage.speakerList": "Sprekers niet beschikbaar · {period}",

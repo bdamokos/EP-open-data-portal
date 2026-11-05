@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Pergunta {id}",
   "coverage.documentReference": "Documento {id}",
   "coverage.document.readFailed": "{record}: indisponível",
+  "coverage.question.readFailed": "{record}: indisponível",
   "coverage.periodFrom": "desde {date}",
   "coverage.periodThrough": "até {date}",
   "coverage.speakerList": "Oradores indisponíveis · {period}",

@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Fråga {id}",
   "coverage.documentReference": "Dokument {id}",
   "coverage.document.readFailed": "{record}: ej tillgängligt",
+  "coverage.question.readFailed": "{record}: ej tillgänglig",
   "coverage.periodFrom": "från {date}",
   "coverage.periodThrough": "till och med {date}",
   "coverage.speakerList": "Otillgängliga talare · {period}",

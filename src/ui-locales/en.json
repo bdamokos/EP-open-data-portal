@@ -1905,6 +1905,7 @@
   "coverage.questionReference": "Question {id}",
   "coverage.documentReference": "Document {id}",
   "coverage.document.readFailed": "{record} unavailable",
+  "coverage.question.readFailed": "{record} unavailable",
   "coverage.periodFrom": "from {date}",
   "coverage.periodThrough": "through {date}",
   "coverage.speakerList": "Speakers unavailable · {period}",

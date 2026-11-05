@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Mistoqsija {id}",
   "coverage.documentReference": "Dokument {id}",
   "coverage.document.readFailed": "{record}: mhux disponibbli",
+  "coverage.question.readFailed": "{record}: mhux disponibbli",
   "coverage.periodFrom": "minn {date}",
   "coverage.periodThrough": "sa {date}",
   "coverage.speakerList": "Kelliema mhux disponibbli · {period}",

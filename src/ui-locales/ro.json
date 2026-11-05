@@ -1874,6 +1874,7 @@
   "coverage.questionReference": "Întrebarea {id}",
   "coverage.documentReference": "Documentul {id}",
   "coverage.document.readFailed": "{record}: indisponibil",
+  "coverage.question.readFailed": "{record}: indisponibilă",
   "coverage.periodFrom": "din {date}",
   "coverage.periodThrough": "până la {date}",
   "coverage.speakerList": "Vorbitori indisponibili · {period}",

@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "Ceist {id}",
   "coverage.documentReference": "Doiciméad {id}",
   "coverage.document.readFailed": "{record}: níl ar fáil",
+  "coverage.question.readFailed": "{record}: níl ar fáil",
   "coverage.periodFrom": "ó {date}",
   "coverage.periodThrough": "go dtí {date}",
   "coverage.speakerList": "Cainteoirí gan fáil · {period}",

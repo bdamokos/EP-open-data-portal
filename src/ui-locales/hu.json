@@ -1860,6 +1860,7 @@
   "coverage.questionReference": "{id} kérdés",
   "coverage.documentReference": "{id} dokumentum",
   "coverage.document.readFailed": "{record}: nem érhető el",
+  "coverage.question.readFailed": "{record}: nem érhető el",
   "coverage.periodFrom": "{date} dátumtól",
   "coverage.periodThrough": "{date} dátumig",
   "coverage.speakerList": "Nem elérhető felszólalók · {period}",
