@@ -1,3 +1,4 @@
+import {displayableAmendmentVersion} from './amendment-display-version.mjs';
 import {createHash} from 'node:crypto';
 import {array,tail,projectDocument} from './activity-index-model.mjs';
 import {COMMITTEE_AMENDMENTS_VERSION,validCommitteeWork,committeeListId,committeeDraftId,committeeScopeKey,committeeDocumentEndpoint,committeeDiscoveryReferences,committeeTargetRelationship,committeeDocumentKind,sourceCommittees,committeeRevisionLists,committeeProcedureIds as procedureIds} from './committee-amendments.mjs';
@@ -137,7 +138,7 @@ export function rebuildCommitteeList(worker,generation,key,{rosterMembers,schedu
   const store=worker.store,id=key.slice('committee:'.length),saved=store.source(generation,listKey(id)),list=saved?.work;
   if(!committeeListId(id)||!list||!validCommitteeWork(list)||list.scopeKey!==key)return;
   const extraction=list.extraction,rows=[],gaps=[],contexts=new Map(),profiles=store.memberProfiles(generation);
-  const freshness=listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
+  const freshness=listWordingFreshness(list,{parserVersion:displayableAmendmentVersion(extraction?.parserVersion)?extraction.parserVersion:AMENDMENT_EXTRACTION_VERSION});
   const revisionLists=committeeRevisionLists(list),countConflict=revisionLists.length>0;
   const descriptors=list.distributionEvidence?.descriptors||[],selectedLanguage=descriptors.some(file=>file.language==='en')?'en':descriptors[0]?.language;
   const sourceAmbiguous=descriptors.filter(file=>file.language===selectedLanguage).length>1;
