@@ -65,7 +65,7 @@ async function assertPublicNotice(container) {
 }
 
 test('the App member shell renders the public-data notice and site brand with incomplete directory data',async t=>{
-  const {container,requests}=await harness(t,'?lang=en');
+  const {container,requests}=await harness(t,'?lang=en&view=meps');
   assert.equal(container.querySelector('.parliament-header [aria-current="page"]')?.textContent,'MEPs');
   assert.ok(requests.includes('/api/directory'));
   assert.match(container.textContent,/Membership information is unavailable\./);

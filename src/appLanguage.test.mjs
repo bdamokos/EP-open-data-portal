@@ -69,7 +69,7 @@ function exactText(container,selector,text) {
   assert(node,'Missing '+selector+': '+text);return node;
 }
 async function harness(t,language,{items=speeches,query={},linkedDocument,speechResponse,pathname='/',city='Strasbourg',calendarResponse}={}) {
-  const window=new Window({url:'http://localhost'+pathname+'?'+new URLSearchParams({lang:language,...query})}),unexpected=[],requests=[];
+  const window=new Window({url:'http://localhost'+pathname+'?'+new URLSearchParams({lang:language,...(Object.keys(query).length?query:{view:'meps'})})}),unexpected=[],requests=[];
   class ReaderDOMParser extends window.DOMParser {
     parseFromString(...args) {
       const parsed=super.parseFromString(...args),query=parsed.getElementsByTagNameNS.bind(parsed);
