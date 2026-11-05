@@ -29,7 +29,7 @@ const decisionHref=(memberId:number,item:MemberVoteRecordDeparture)=>{
   const url=new URL(window.location.href);
   for(const key of [...url.searchParams.keys()])if(key.startsWith('mv-'))url.searchParams.delete(key);
   url.searchParams.set('member',String(memberId));url.searchParams.set('module','votes');
-  const journey={memberId:Number(memberId),state:{week:'latest',sittingId:item.sittingId,positions:'all' as const,alignment:'all' as const,offset:0,decisionId:item.decisionId,snapshotId:null,expandedSubjectIds:[],context:null,recordScope:'all' as const,recordOffset:0},adoptedId:null,invalid:false};
+  const journey={memberId:Number(memberId),state:{week:'latest',sittingId:item.sittingId,positions:'all' as const,alignment:'all' as const,offset:0,decisionId:item.decisionId,snapshotId:null,expandedSubjectIds:[],context:null},adoptedId:null,invalid:false};
   for(const [key,value] of memberVotesJourneyParams(journey))url.searchParams.set(key,value);
   return url.href;
 };

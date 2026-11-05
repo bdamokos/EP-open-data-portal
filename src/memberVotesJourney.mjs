@@ -4,7 +4,7 @@ import {memberVotesRoute} from './memberVotesPresentation.mjs';
 const fields={week:'week',sitting:'sittingId',positions:'positions',alignment:'alignment',offset:'offset',decision:'decisionId',snapshot:'snapshotId',expanded:'expandedSubjectIds',document:'documentId',amendment:'amendmentId',list:'listId','wording-lang':'wordingLanguage',view:'view',adopted:'adoptedId','record-scope':'recordScope','record-offset':'recordOffset',invalid:'invalid'};
 const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/.test(value);
 const documentId=value=>/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(value);
-const defaults=()=>({week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null,recordScope:'all',recordOffset:0});
+const defaults=()=>({week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
 
 export function isMemberVotesParam(key) {
   return key.startsWith('mv-')&&Object.hasOwn(fields,key.slice(3));

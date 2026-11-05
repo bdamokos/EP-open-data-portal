@@ -843,7 +843,7 @@ export default function App() {
                   initialSpeech={speechLink}
                   onOpen={setSpeechLink}
                 /> : ((tab==='votes') ? <>
-                  <MemberVoteRecord memberId={member} language={lang} scope={votes.journey.state.recordScope} offset={votes.journey.state.recordOffset}
+                  <MemberVoteRecord memberId={member} language={lang} scope={votes.journey.state.recordScope??'all'} offset={votes.journey.state.recordOffset??0}
                     onScopeChange={recordScope=>votes.onStateChange({...votes.journey.state,recordScope,recordOffset:0})}
                     onOffset={recordOffset=>votes.onStateChange({...votes.journey.state,recordOffset})}
                     onOpenDecision={item=>votes.onStateChange({...votes.journey.state,sittingId:item.sittingId,decisionId:item.decisionId,snapshotId:null,context:null,offset:0})}/>
