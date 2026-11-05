@@ -74,3 +74,26 @@ test('matrix sort state round-trips through a single URL value and refuses malfo
   assert.equal(decodeMatrixSort('country:sideways'),null);
   assert.equal(decodeMatrixSort('seat:1'),null);
 });
+
+import {seatBounds,groupLabelPlacements} from './voteSeatsModel.mjs';
+// A synthetic half-ring of three groups by angle, standing in for a chamber plan.
+const ring=(group,from,to,rows=3)=>{const out=[];for(let row=0;row<rows;row++)for(let i=0;i<=8;i++){const angle=(from+(to-from)*i/8)*Math.PI/180,radius=200+row*12;out.push({seat:out.length,x:300+radius*Math.cos(angle),y:300-radius*Math.sin(angle),r:4,group,member:1});}return out;};
+const plan=[...ring('A',170,125),...ring('B',115,65),...ring('C',55,10)].map((seat,index)=>({...seat,seat:index}));
+test('seat bounds hug the drawn seats',()=>{
+  const bounds=seatBounds(plan);
+  assert(bounds.width<460&&bounds.width>430);assert(bounds.height<230);assert.equal(seatBounds([]),null);
+});
+test('group labels sit outside the outer edge along each group, derived from the plan',()=>{
+  const labels=groupLabelPlacements(plan,{scale:1,widthOf:()=>30});
+  assert.deepEqual(labels.map(label=>label.group).sort(),['A','B','C']);
+  const by=Object.fromEntries(labels.map(label=>[label.group,label]));
+  assert(by.A.x<by.B.x&&by.B.x<by.C.x,'labels follow the groups left to right');
+  const cx=(seatBounds(plan).minX+seatBounds(plan).maxX)/2;
+  for(const label of labels)assert(Math.hypot(label.x-cx,300-label.y)>224,'outside the seats');
+  assert.equal(by.A.anchor,'end');assert.equal(by.C.anchor,'start');
+});
+test('labels that would overlap are skipped, and an unknown scale places none',()=>{
+  const crowded=groupLabelPlacements(plan,{scale:1,widthOf:()=>700,height:300}).map(label=>label.group);
+  assert(crowded.length<3&&!crowded.includes('B'),'the top label overlaps both side labels and is skipped');
+  assert.deepEqual(groupLabelPlacements(plan,{scale:0,widthOf:()=>30}),[]);
+});

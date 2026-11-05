@@ -2372,7 +2372,6 @@
   "votegroups.seats.noRecord": "No recorded position",
   "votegroups.seats.differs": "Differs from group",
   "votegroups.seats.chart": "Seat chart",
-  "votegroups.seats.pick": "Select a seat",
   "votegroups.seats.caption": "Hollow seats have no recorded position.",
   "votegroups.seats.unseated": "Members without a seat in the plan",
   "votegroups.seats.table": "Votes by group and position",

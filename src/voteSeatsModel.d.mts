@@ -10,3 +10,7 @@ export function countryGroupBreakdown(rows:(import('./voteGroupMetrics.mjs').Vot
 export type MatrixSort={kind:'country';dir:'asc'|'desc'}|{kind:'group';key:string;dir:'asc'|'desc'};
 export function encodeMatrixSort(sort:MatrixSort|undefined|null):string;
 export function decodeMatrixSort(raw:string):MatrixSort|null;
+export type SeatBounds={minX:number;minY:number;maxX:number;maxY:number;width:number;height:number};
+export function seatBounds(seats:import('./hemicycleModel.mjs').HemicycleSeat[]):SeatBounds|null;
+export type GroupLabel={group:string;x:number;y:number;anchor:'start'|'middle'|'end';box:{left:number;right:number;top:number;bottom:number}};
+export function groupLabelPlacements(seats:import('./hemicycleModel.mjs').HemicycleSeat[],options:{scale:number;widthOf:(group:string)=>number;height?:number;gap?:number;pad?:number}):GroupLabel[];

@@ -18,3 +18,7 @@
 .vote-seat-dots-label.vote-against{color:var(--vote-against)}
 .vote-seat-dots-label.vote-abstaining{color:var(--vote-abstain)}
 .vote-seats-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.vote-seats-chart svg{overflow:visible}
+.vote-seat-group{fill:var(--ink);font-weight:600;pointer-events:none}
+.vote-seat-info{min-height:0;margin-top:.5rem}
+@media (min-width:640px){.vote-seat-info{min-height:2.75em}}

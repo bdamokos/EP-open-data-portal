@@ -20,7 +20,7 @@ const decision=(number,method,outcome,extra={},parents=[parent])=>({id:'eli/dl/e
 const decisions={url:'https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/decisions',fetchedAt:null,payload:{data:[
   decision('199512','VOTE_ELECTRONIC_ROLLCALL','ADOPTED',{number_of_votes_favor:556,number_of_votes_abstention:10,had_voter_favor:[],had_voter_abstention:[]}),
   decision('199510','VOTE_ELECTRONIC','ADOPTED',{referenceText:{en:'After § 19'},number_of_votes_favor:334,number_of_votes_against:190,number_of_votes_abstention:31}),
-  decision('199513','VOTE_HAND','ADOPTED'),
+  decision('199513','VOTE_HAND','ADOPTED',{decided_on_a_realization_of:['eli/dl/doc/'+sitting+'-VOT-ITM-993352-SPLIT-4-2']}),
   decision('199432','VOTE_HAND','LAPSED',{referenceText:{en:'B10-0478/2026'}}),
   decision('199999','VOTE_HAND','ADOPTED',{referenceText:{en:'§ 21'}},['eli/dl/event/'+sitting+'-VOT-ITM-OTHER']),
   decision('199998','VOTE_HAND','ADOPTED',{referenceText:{en:'§ 21'}},[]),
@@ -47,4 +47,9 @@ test('participation keeps the roll calls with voter lists that the upstream roll
   // Observed on the 2026-10-22 record: the filter returned 76 of 94 roll-call decisions; the 18 absent had no had_voter_* field.
   const all={...decisions,payload:{data:[...decisions.payload.data,decision('199388','VOTE_ELECTRONIC_ROLLCALL','ADOPTED',{had_voter_favor:[],had_voter_against:[],had_voter_abstention:[]}),decision('199389','VOTE_ELECTRONIC_ROLLCALL','REJECTED')]}};
   assert.deepEqual(rollCallDecisions(all).payload.data.map(v=>v.activity_id.slice(-6)),['199512','199388']);
+});
+test('decided-on document links are exposed by exact id for the picker and the primary text',()=>{
+  const by=id=>votes.find(v=>v.id.endsWith(id));
+  assert.deepEqual(by('199513').decidedDocumentIds,[sitting+'-VOT-ITM-993352-SPLIT-4-2']);
+  assert.deepEqual(by('199510').decidedDocumentIds,[]);
 });

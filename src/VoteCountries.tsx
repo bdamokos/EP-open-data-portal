@@ -1,6 +1,7 @@
 import {useMemo,useState} from 'react';
 import {useNarrow} from './useNarrow';
 import {UiMessage,useUiI18n} from './UiI18nReact';
+import {groupShortLabel} from './groupShort';
 import {voteCountryName as countryName} from './voteCountryName';
 import {groupLabel,groupLabelLanguage} from './groupLabels';
 import {countryGroupBreakdown,encodeMatrixSort,decodeMatrixSort,type MatrixSort,type CountryBreakdownRow} from './voteSeatsModel.mjs';
@@ -48,9 +49,7 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
   const heading=<h4><UiMessage id="votegroups.countries.heading"/></h4>;
   const totalsText=(counts:Record<VotePosition,number>)=><span className="vote-country-totals">{votePositionKeys.map((p,i)=><span key={p} className={'vote-'+p}>{i?' · ':''}{counts[p]}</span>)}</span>;
   const label=(code:string)=>countryName(code,language);
-  // Header abbreviations only where the full name will not fit an equal-width column; the full name stays in the accessible label.
-  const shortIds:Record<string,string>={'Verts/ALE':'votegroups.countries.short.greens',TheLeft:'votegroups.countries.short.left',NI:'votegroups.countries.short.ni'};
-  const shortGroup=(code:string)=>{const full=groupLabel(code,ui);return full.length<=7||!shortIds[code]?full:ui.t(shortIds[code]);};
+  const shortGroup=(code:string)=>groupShortLabel(code,ui);
   if(narrow)return <section className="vote-countries" lang={ui.language}>{heading}
     <ul className="vote-country-list">{ordered.map(row=>{
       const expanded=open===row.country;

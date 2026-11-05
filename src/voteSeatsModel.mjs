@@ -88,3 +88,48 @@ export function decodeMatrixSort(raw) {
   }
   return null;
 }
+
+// Tight bounds of the drawn seats, so the chart has no empty margin of its own.
+export function seatBounds(seats) {
+  if(!seats.length)return null;
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(const seat of seats) {
+    minX=Math.min(minX,seat.x-seat.r);maxX=Math.max(maxX,seat.x+seat.r);
+    minY=Math.min(minY,seat.y-seat.r);maxY=Math.max(maxY,seat.y+seat.r);
+  }
+  return {minX,minY,maxX,maxY,width:maxX-minX,height:maxY-minY};
+}
+
+// Group labels sit just outside the outer edge of the hemicycle, along the mean
+// direction of each group's seats. Everything derives from the plan: the centre
+// is the middle of the seats' span at their lowest line. A label is skipped when
+// it would overlap one already placed (larger groups win) at the rendered scale,
+// so a small chart shows fewer labels instead of colliding ones.
+export function groupLabelPlacements(seats,{scale,widthOf,height=12,gap=4,pad=6}) {
+  const bounds=seatBounds(seats);
+  if(!bounds||!(scale>0))return [];
+  const cx=(bounds.minX+bounds.maxX)/2,cy=bounds.maxY;
+  const groups=new Map();
+  for(const seat of seats) {
+    if(!seat.group)continue;
+    const dx=seat.x-cx,dy=cy-seat.y,distance=Math.hypot(dx,dy);
+    if(!distance)continue;
+    const entry=groups.get(seat.group)||{group:seat.group,count:0,ux:0,uy:0,outer:0};
+    entry.count++;entry.ux+=dx/distance;entry.uy+=dy/distance;entry.outer=Math.max(entry.outer,distance+seat.r);
+    groups.set(seat.group,entry);
+  }
+  const placed=[];
+  for(const entry of [...groups.values()].sort((a,b)=>b.count-a.count||a.group.localeCompare(b.group))) {
+    const length=Math.hypot(entry.ux,entry.uy);
+    if(!length)continue;
+    const ux=entry.ux/length,uy=entry.uy/length,reach=entry.outer+pad/scale;
+    const x=cx+ux*reach,y=cy-uy*reach;
+    const anchor=ux>0.35?'start':ux<-0.35?'end':'middle';
+    const w=widthOf(entry.group)/scale,h=height/scale,g=gap/scale;
+    const left=anchor==='start'?x:anchor==='end'?x-w:x-w/2,top=y-h/2;
+    const box={left:left-g,right:left+w+g,top:top-g,bottom:top+h+g};
+    if(placed.some(other=>box.left<other.box.right&&box.right>other.box.left&&box.top<other.box.bottom&&box.bottom>other.box.top))continue;
+    placed.push({group:entry.group,x,y,anchor,box});
+  }
+  return placed.map(({box,...label})=>({...label,box}));
+}
