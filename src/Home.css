@@ -82,3 +82,8 @@
 .home-search .explorer-search-input input { font-size: 1.1rem; min-height: 3rem; }
 .home-search .explorer-text-search-global { max-width: none; }
 @media (min-width: 1000px) { .home-rail { padding-top: .75rem; } }
+.home-search .explorer-text-search, .home-search .explorer-text-search-global { width: 100%; max-width: none; }
+.home-search .explorer-search-input { width: 100%; box-sizing: border-box; }
+.home-search .explorer-search-input > label { flex: 1 1 auto; min-width: 0; }
+.home-pick > * { margin: 0; }
+.home-pick { gap: .3rem; }
