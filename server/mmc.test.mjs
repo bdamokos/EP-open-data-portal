@@ -44,10 +44,25 @@ test('an explicit original-audio request keeps the original channel',async()=>{
 test('missing content metadata and cross-source identity or coverage mismatch never enable a player',async()=>{
   const unavailable=await speechMedia(speech.id,'hu','hu',{...deps,content:async()=>{throw new Error('unavailable');}});
   assert.equal(unavailable.available,false);assert.equal(unavailable.embedUrl,null);assert.equal(unavailable.status,'audio-metadata-unavailable');
-  for(const patch of [{commonId:'20261008-0900-PLENARY'},{endDate:'2026-10-07T18:20:00Z'}]){
+  for(const patch of [{commonId:'20261008-0900-PLENARY'},{startDate:'2026-10-07T09:20:00Z'},{endDate:'2026-10-07T09:20:00Z'}]){
     const result=await speechMedia(speech.id,'hu','hu',{...deps,content:async()=>({...content,payload:{...content.payload,...patch}})});
     assert.equal(result.available,false);assert.equal(result.embedUrl,null);assert.equal(result.status,'audio-metadata-mismatch');
   }
+});
+test('player times that differ from a scheduled recording detail still enable a speech they cover',async()=>{
+  const scheduled=structuredClone(detail);Object.assign(scheduled.payload.resultJSON.content,{meetingStartDate:'2026-10-07T09:00:00.000+0200',meetingEndDate:'2026-10-07T20:00:00.000+0200'});
+  const result=await speechMedia(speech.id,'hu','hu',{...deps,detail:async()=>scheduled,content:async()=>({...content,payload:{...content.payload,startDate:'2026-10-07T07:04:07Z',endDate:'2026-10-07T18:16:20Z'}})});
+  assert.equal(result.available,true);assert.equal(result.status,'matched');assert.match(result.embedUrl,/start=2026-10-07T09:19:15Z&end=2026-10-07T09:20:55Z$/);
+});
+test('a speech in the overrun after a scheduled recording detail is matched by the player range',async()=>{
+  const scheduled=structuredClone(detail);Object.assign(scheduled.payload.resultJSON.content,{meetingStartDate:'2026-10-07T09:00:00.000+0200',meetingEndDate:'2026-10-07T20:00:00.000+0200'});
+  const overrun={...speech,start:'2026-10-07T20:05:00.000+02:00',end:'2026-10-07T20:06:00.000+02:00'};
+  const player=async()=>({...content,payload:{...content.payload,startDate:'2026-10-07T07:04:07Z',endDate:'2026-10-07T18:16:20Z'}});
+  const result=await speechMedia(overrun.id,'hu','hu',{...deps,speech:async()=>overrun,detail:async()=>scheduled,content:player});
+  assert.equal(result.available,true);assert.equal(result.status,'matched');assert.match(result.embedUrl,/start=2026-10-07T18:05:00Z&end=2026-10-07T18:06:00Z$/);
+  const past={...overrun,start:'2026-10-07T20:20:00.000+02:00',end:'2026-10-07T20:21:00.000+02:00'};
+  assert.equal((await speechMedia(past.id,'hu','hu',{...deps,speech:async()=>past,detail:async()=>scheduled,content:player})).status,'outside-recording');
+  assert.equal((await speechMedia(overrun.id,'hu','hu',{...deps,speech:async()=>overrun,detail:async()=>scheduled,content:async()=>{throw new Error('unavailable');}})).status,'audio-metadata-unavailable');
 });
 test('a speech before recording coverage is not clamped to recording start',()=>{
   const early={...speech,start:'2026-10-07T09:00:15+02:00',end:'2026-10-07T09:00:30+02:00'};
@@ -74,6 +89,33 @@ test('a stale nonmatching recording prevents caching a clip whose uniqueness dep
     if(stale)assert.equal(policy.cdnCacheControl,'no-store');
     else assert.match(policy.cdnCacheControl,/max-age=21600/);
   }
+});
+test('player ranges of every candidate decide uniqueness and caching',async()=>{
+  const secondId='20261007-1400-PLENARY',secondUrl=detail.url.replace(id,secondId);
+  const expanded={...catalogue,total:2,records:[...catalogue.records,{id:secondId,start:'2026-10-07 11:19',end:'2026-10-07 18:00',status:'RECORDED'}]};
+  const record=(key,start,end)=>({url:key===id?detail.url:secondUrl,fetchedAt:detail.fetchedAt,payload:{resultJSON:{content:{mediaBusinessId:key,meetingStartDate:start,meetingEndDate:end,mediaAssets:[{url:official.replace(id,key)}]}}}});
+  const player=(key,startDate,endDate,extra={})=>({...content,...extra,payload:{...content.payload,commonId:key,startDate,endDate}});
+  const run=(details,players)=>speechMedia(speech.id,'hu','hu',{...deps,catalogue:expanded,detail:async key=>details[key],content:async key=>{const value=players[key];if(value instanceof Error)throw value;return value;}});
+  const early=record(id,'2026-10-07T07:00:00Z','2026-10-07T09:00:00Z'),late=record(secondId,'2026-10-07T09:00:00Z','2026-10-07T18:00:00Z');
+  const lateDetails={[id]:early,[secondId]:late};
+  // Only the later detail covers the speech, but the earlier stream ran on past its scheduled end.
+  const hidden=await run(lateDetails,{[id]:player(id,'2026-10-07T07:00:00Z','2026-10-07T09:30:00Z'),[secondId]:player(secondId,'2026-10-07T09:00:00Z','2026-10-07T18:00:00Z')});
+  assert.equal(hidden.status,'ambiguous');assert.equal(hidden.available,false);
+  // Overlapping details are settled by the one player that holds the speech.
+  const overlapping=await run({[id]:record(id,'2026-10-07T07:00:00Z','2026-10-07T12:00:00Z'),[secondId]:late},{[id]:player(id,'2026-10-07T07:00:00Z','2026-10-07T09:00:00Z'),[secondId]:player(secondId,'2026-10-07T09:00:00Z','2026-10-07T18:00:00Z')});
+  assert.equal(overlapping.available,true);assert.equal(overlapping.recording.id,secondId);
+  // The selected clip depends on a player that excludes it, so that player's state decides caching too.
+  for(const stale of [true,false]){
+    const result=await run(lateDetails,{[id]:player(id,'2026-10-07T07:00:00Z','2026-10-07T09:00:00Z',stale?{stale:true,refreshError:'Synthetic retained player failure'}:{}),[secondId]:player(secondId,'2026-10-07T09:00:00Z','2026-10-07T18:00:00Z')});
+    assert.equal(result.available,true);assert.equal(result.recording.id,secondId);
+    assert.deepEqual(result.provenance.playerSources.map(source=>[source.recordingId,source.stale]),[[id,stale],[secondId,false]]);
+    const policy=apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/speech-media/'+speech.id),result);
+    if(stale)assert.equal(policy.cdnCacheControl,'no-store');
+    else assert.match(policy.cdnCacheControl,/max-age=21600/);
+  }
+  // A failed player could overlap the other one, so it blocks the clip but keeps the recording link.
+  const failed=await run(lateDetails,{[id]:new Error('unavailable'),[secondId]:player(secondId,'2026-10-07T09:00:00Z','2026-10-07T18:00:00Z')});
+  assert.equal(failed.status,'audio-metadata-unavailable');assert.equal(failed.available,false);assert.equal(failed.recording.id,secondId);
 });
 test('written statements, invalid timestamps and excessive durations cannot acquire a clip',async()=>{
   for(const [patch,status] of [[{kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'},'not-recorded-speech'],[{end:null},'missing-times'],[{end:'2026-10-07T13:30:00+02:00'},'invalid-duration']])
