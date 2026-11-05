@@ -1,3 +1,4 @@
+import {sequentialParagraphPlacement} from './sequential-paragraph-placement.mjs';
 import {uniqueAnnexEntryPlacement} from './proposal-unique-entry.mjs';
 import {unnumberedTableInsertion} from './proposal-unnumbered-table.mjs';
 import {tableContextPlacement} from './proposal-table-context.mjs';
@@ -1117,6 +1118,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(bound?.reason)return unresolved(bound.reason);
   if(outerPrefix){target={...target,segments:target.segments.map((s,i)=>i===target.segments.length-1?{...s,isNew:true}:s)};evidence.push({basis:'council-new-outer-prefix',anchor:outerPrefix.parent.id});}
   if(bound){target=bound.target;evidence.push({basis:'council-quoted-owner',anchor:bound.owner.id},{basis:'published-underlying-path',label:target.raw});}
+  const sequentialParents=bound?bound.units.filter(u=>u.kind==='article'&&u.underlyingPath?.length===1&&u.label?.value===target.segments[0]?.value).map(unit=>({unit,proposal:bound.proposal,itemIndex:bound.itemIndex})):items.flatMap((item,itemIndex)=>proposalCandidates(item.proposal,target.segments.slice(0,1)).map(unit=>({unit,proposal:item.proposal,itemIndex})));
+  if(sequentialParents.length===1){const p=sequentialParents[0],result=sequentialParagraphPlacement(p.proposal,p.unit,target,{originalText,proposedText,operation,itemIndex:p.itemIndex,quoted:!!bound});if(result)return {...result,evidence:[...evidence,...result.evidence]};}
   let nativeList=null;
   const scopedCandidates=(proposal,address)=>{
     if(!bound)return proposalCandidates(proposal,address);

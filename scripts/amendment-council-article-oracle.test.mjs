@@ -149,3 +149,14 @@ test('a plain paragraph continuation keeps its native ordinal',()=>{
  const text='Direct second subparagraph.',native=raw.replace('1. First native paragraph.','1. First native paragraph.\n\n'+text),v=fixture();v.items[0].proposal.paragraphs=native.split(/\n\s*\n/u).map(text=>({text:text.replace(/\s+/gu,' ').trim()}));const at=v.items[0].proposal.paragraphs.findIndex(p=>p.text===text);v.wording.originalText=text;v.wording.targetPath.underlying[0].raw='Article 7 – paragraph 1 – subparagraph 2';v.placement.span={start:at,end:at};v.placement.splice={start:{paragraph:at,offset:0},end:{paragraph:at,offset:text.length}};
  assert.equal(assertCouncilDraftArticleText(native,v).status,'verified');
 });
+
+test('independent native count resolves a repeated label and rejects moved coordinates',async()=>{
+ const {assertCouncilSequentialText}=await import('./amendment-council-article-oracle.mjs');
+ const native=raw.replace('2. Second native paragraph.’','2. Second native paragraph.\n\n2. Unique third paragraph.\n\n3. Unique fourth paragraph.\n\n4. Final fifth paragraph.’');
+ const v=fixture();v.items[0].proposal.paragraphs=native.split(/\n\s*\n/u).map((text,index)=>({index,text:text.replace(/\s+/gu,' ').trim()}));
+ v.wording.targetPath.underlying[0].raw='Article 7 – paragraph 3';v.wording.originalText='3. Unique third paragraph.';
+ v.placement.span={start:5,end:5};v.placement.splice={start:{paragraph:5,offset:0},end:{paragraph:5,offset:v.items[0].proposal.paragraphs[5].text.length}};
+ assert.equal(assertCouncilSequentialText(native,v).status,'verified');
+ v.placement.splice.end.offset--;assert.equal(assertCouncilSequentialText(native,v).status,'failed');
+ assert.equal(assertCouncilSequentialText(native.replace('3. Unique fourth','5. Unique fourth'),v),null);
+});
