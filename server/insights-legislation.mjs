@@ -20,7 +20,7 @@ import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v23-preserve-debate-participation';
+export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v24-all-linked-votes';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -234,8 +234,9 @@ export class LegislationInsights {
         try {
           const results=await recordSource('/meetings/'+sitting.activity_id+'/vote-results',{limit:50,offset:0});
           // Observed decisions endpoint returns the whole sitting regardless of limit.
-          // No false paging, no filter-output=voters (that removes named voters).
-          const decisions=await recordSource('/meetings/'+sitting.activity_id+'/decisions',{'vote-method':'ROLL_CALL_EV',limit:1,offset:0});
+          // No false paging, no filter-output=voters (that removes named voters). No vote-method filter:
+          // show-of-hands and non-roll-call electronic decisions join the item through the same exact parent link.
+          const decisions=await recordSource('/meetings/'+sitting.activity_id+'/decisions',{limit:1,offset:0});
           const truncated=decisions.payload.data.length>LEGISLATION_LIMITS.decisions;
           votes=topicVotes(topic,results,{...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,LEGISLATION_LIMITS.decisions)}},members,metadata,sitting.activity_date,groupOn);
           voteCoverage={available:true,sourceDecisionCount:decisions.payload.data.length,truncated,sourceUrl:decisions.url,fetchedAt:new Date(decisions.fetchedAt).toISOString(),error:null};
@@ -244,7 +245,7 @@ export class LegislationInsights {
       const selectedVote=query.vote?votes.find(v=>v.id===query.vote):votes[0]||null;
       if(query.vote&&!selectedVote)throw new HttpError(404,'vote_not_found','That roll-call is not joined to this agenda topic.');
       detail={...localize(topic),phase,procedures,committeeWork:[...new Map(committeeWork.map(e=>[e.id,e])).values()].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12),roles,speeches,people,amendments:{...amendments,counts:Object.fromEntries(people.map(person=>[person.id,amendments.counts[person.id]??null])),countsByStage:Object.fromEntries(people.map(person=>[person.id,amendments.countsByStage[person.id]||{committee:null,plenary:null}]))},stats:{...demographicStats(participantIds,members,metadata,sitting.activity_date),groupContributions:groupContributions([...amendments.authorIds.map(id=>({id,date:amendments.authorDates[id]})),...roles.map(r=>({id:r.id,date:r.date})),...participationRows.map(r=>({id:String(r.mepId),date:r.date}))],groupOn)},
-        votes:votes.map(v=>({id:v.id,date:v.date,title:displayTitle(v.titles,query.language,v.id),subject:displayTitle(v.subjects,query.language,null),scope:v.scope,outcome:v.outcome,namedVotersAvailable:v.namedVotersAvailable,aggregateTotals:v.aggregateTotals,uniqueNamedVoters:v.uniqueNamedVoters})),
+        votes:votes.map(v=>({id:v.id,date:v.date,title:displayTitle(v.titles,query.language,v.id),subject:displayTitle(v.subjects,query.language,null),scope:v.scope,outcome:v.outcome,method:v.method,namedVotersAvailable:v.namedVotersAvailable,aggregateTotals:v.aggregateTotals,uniqueNamedVoters:v.uniqueNamedVoters})),
         selectedVote,finalVotePatterns:finalVotePatterns(votes,members,metadata,groupOn),voteCoverage,
         coverage:{missingDocumentIds:missingDocuments,roleRowsTruncated:rows.length>=LEGISLATION_LIMITS.roleRows,speechAssociations:{status:speechSources.length?'exact-bounded-joins':phase==='upcoming'?'not-yet-held':'source-unavailable',context:phase==='upcoming'?'previous-debates':'debates',count:speechSources.length?speeches.length:null,exactChildReferences:contributionIds.size,childrenWithoutSavedContributionRows:selectedContributions.filter(id=>!speeches.some(s=>s.sourceId===id)).length,truncated:contributionsTruncated||debateCandidates.size>LEGISLATION_LIMITS.debateEvents,sources:speechSources,reason:speechSources.length?'Speakers are joined only from exact actual-debate child IDs to saved contribution rows. Document-backed debates can precede the selected sitting. Unmatched child refs include chair/non-contribution activities and unresolved records; they are not a count of missing speeches. This bounded selection is not a full corpus.':'No exact debate association was resolved within the selected source bounds. Whole-day activities/procedure-event listing timed out in verification. No title matching or inferred counterpart IDs are used.'},gaps}};
     }
