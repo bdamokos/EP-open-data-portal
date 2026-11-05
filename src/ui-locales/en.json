@@ -2398,5 +2398,6 @@
   "votegroups.result.outcome.LAPSED": "Lapsed",
   "votegroups.result.method.VOTE_HAND": "Show of hands",
   "votegroups.result.method.VOTE_ELECTRONIC": "Electronic vote",
-  "votegroups.texts.other": "Other texts ({count})"
+  "votegroups.texts.other": "Other texts ({count})",
+  "votegroups.picker.ordinal": "{number} of {count}"
 }

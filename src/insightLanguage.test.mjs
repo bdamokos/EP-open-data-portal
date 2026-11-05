@@ -166,7 +166,7 @@ test('named vote headings prefer language first, then the subject within that la
   const agendaOption=h.container.querySelector('.insight-agenda-select option[value="exact-topic"]');
   assert.equal(agendaOption.textContent,'Szavazás · Source français');assert.equal(effectiveLanguage(agendaOption),'','UI translation does not relabel a French fallback title');
   const scopeOption=h.container.querySelector('.insight-vote-select option');
-  assert.equal(scopeOption.textContent,'Végleges szöveg · Exact summary');assert.equal(effectiveLanguage(scopeOption),'','vote previews still lack source-title language metadata');
+  assert.equal(scopeOption.textContent,'Végleges szöveg · Exact summary · 1 of 7');assert.equal(effectiveLanguage(scopeOption),'','vote previews still lack source-title language metadata');
   assert.equal(effectiveLanguage(h.container.querySelector('.insight-mode-nav button')),'en');
   for(const [index,fixture] of cases.entries()) {
     if(index)await act(async()=>{const select=h.container.querySelector('.insight-vote-select select');select.value=votes[index].id;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
