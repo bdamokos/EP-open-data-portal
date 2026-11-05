@@ -219,10 +219,11 @@ export function assertCouncilSequentialText(raw,{placement,wording,items}) {
   const anchor=literal(unit.text).replace(/^\d+\.\s+/u,'');
   if(!anchor||scope.peers.filter(p=>literal(p.text).replace(/^\d+\.\s+/u,'').includes(anchor)).length!==1)return failed();
   const row=proposal.paragraphs[placement.insertAfter],next=scope.peers[index+1];
-  if(!row||placement.insertBefore!==placement.insertAfter+1)return failed();
+  if(!Number.isSafeInteger(placement.insertAfter)||!Number.isSafeInteger(placement.insertBefore)||placement.insertAfter<0||placement.insertBefore>=proposal.paragraphs.length||!row||placement.insertBefore!==placement.insertAfter+1)return failed();
   let expected=native.end;
   if(!next){const tail=/[“’»«"][.;]?\s*$/u.exec(unit.text);if(!tail)return failed();expected-=coordinates(tail[0]).length;}
   const splice=placement.splice;
+  if(splice&&(!Number.isSafeInteger(splice.start?.paragraph)||!Number.isSafeInteger(splice.end?.paragraph)||!Number.isSafeInteger(splice.start?.offset)||!Number.isSafeInteger(splice.end?.offset)||splice.start.paragraph!==row.index||splice.end.paragraph!==row.index||splice.start.offset!==splice.end.offset||splice.start.offset<0||splice.start.offset>row.text.length))return failed();
   const actual=owner.starts[row.index]+coordinates(row.text.slice(0,splice?.start?.offset??row.text.length)).length;
   if(actual!==expected||(!next&&(!splice||splice.start.paragraph!==row.index||splice.end.paragraph!==row.index||splice.start.offset!==splice.end.offset)))return failed();
   return {status:'verified',reason:'native-sequential-paragraph-insertion'};
@@ -231,6 +232,7 @@ export function assertCouncilSequentialText(raw,{placement,wording,items}) {
  const strip=s=>literal(s).replace(/^\d+\.\s+/u,''),original=strip(wording.originalText),chosen=scope.units[0];
  if(!original||strip(chosen.text)!==original||scope.peers.filter(p=>strip(p.text).includes(original)).length!==1)return failed();
  const splice=placement.splice,span=placement.span;if(!splice||!span)return failed();
+ if(![span.start,span.end,splice.start?.paragraph,splice.end?.paragraph,splice.start?.offset,splice.end?.offset].every(Number.isSafeInteger)||span.start<0||span.end<span.start||span.end>=proposal.paragraphs.length||splice.start.paragraph!==span.start||splice.end.paragraph!==span.end||splice.start.offset<0||splice.start.offset>proposal.paragraphs[span.start].text.length||splice.end.offset<0||splice.end.offset>proposal.paragraphs[span.end].text.length||span.start===span.end&&splice.end.offset<=splice.start.offset)return failed();
  const rows=proposal.paragraphs.slice(span.start,span.end+1),rendered=rows.map((p,i)=>p.text.slice(i?0:splice.start.offset,i===rows.length-1?splice.end.offset:p.text.length)).join(' ');
  if(strip(rendered)!==original)return failed();
  const selected=nativeUnitRange(owner,chosen),start=owner.starts[span.start]+coordinates(rows[0].text.slice(0,splice.start.offset)).length,end=owner.starts[span.end]+coordinates(rows.at(-1).text.slice(0,splice.end.offset)).length;

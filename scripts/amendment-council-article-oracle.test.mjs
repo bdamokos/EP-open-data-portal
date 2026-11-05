@@ -160,3 +160,15 @@ test('independent native count resolves a repeated label and rejects moved coord
  v.placement.splice.end.offset--;assert.equal(assertCouncilSequentialText(native,v).status,'failed');
  assert.equal(assertCouncilSequentialText(native.replace('3. Unique fourth','5. Unique fourth'),v),null);
 });
+
+test('sequential oracle validates every splice coordinate for replacements and insertions',async()=>{
+ const {assertCouncilSequentialText}=await import('./amendment-council-article-oracle.mjs');
+ const native=raw.replace('2. Second native paragraph.’','2. Second native paragraph.\n\n2. Unique third paragraph.\n\n3. Unique fourth paragraph.\n\n4. Final fifth paragraph.’');
+ const make=()=>{const v=fixture();v.items[0].proposal.paragraphs=native.split(/\n\s*\n/u).map((text,index)=>({index,text:text.replace(/\s+/gu,' ').trim()}));return v;};
+ const replace=()=>{const v=make();v.wording.targetPath.underlying[0].raw='Article 7 – paragraph 3';v.wording.originalText='3. Unique third paragraph.';v.placement.span={start:5,end:5};v.placement.splice={start:{paragraph:5,offset:0},end:{paragraph:5,offset:v.items[0].proposal.paragraphs[5].text.length}};return v;};
+ for(const mutate of [v=>{v.placement.splice.start.paragraph=0;v.placement.splice.end.paragraph=0;},v=>v.placement.splice.end.offset+=1,v=>v.placement.splice.start.offset=-1,v=>v.placement.span.start=.5,v=>v.placement.splice.end.offset=NaN]){const v=replace();mutate(v);assert.equal(assertCouncilSequentialText(native,v).status,'failed');}
+ const insert=()=>{const v=make();v.wording.originalText='';v.wording.proposedText='4a. New paragraph.';v.wording.targetPath.underlying[0].raw='Article 7 – paragraph 4a (new)';v.placement={status:'placed',operation:'insert',itemIndex:0,insertAfter:6,insertBefore:7};return v;};
+ assert.equal(assertCouncilSequentialText(native,insert()).status,'verified');
+ const zero=insert(),offset=zero.items[0].proposal.paragraphs[6].text.length;zero.placement.splice={start:{paragraph:6,offset},end:{paragraph:6,offset}};assert.equal(assertCouncilSequentialText(native,zero).status,'verified');
+ for(const mutate of [v=>{v.placement.splice={start:{paragraph:6,offset},end:{paragraph:7,offset:v.items[0].proposal.paragraphs[7].text.length}};},v=>v.placement.splice.end.offset--,v=>v.placement.splice.start.paragraph=0,v=>v.placement.splice.start.offset=offset+.5,v=>{v.placement.splice.start.offset=offset+1;v.placement.splice.end.offset=offset+1;}]){const v=structuredClone(zero);mutate(v);assert.equal(assertCouncilSequentialText(native,v).status,'failed');}
+});
