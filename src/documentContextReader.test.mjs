@@ -1334,7 +1334,9 @@ for(const interfaceLanguage of ['en','fr'])for(const url of [null,'https://www.e
  const block=h.container.querySelector('[data-context-target="true"]');assert(block,'matching amendment should render in place');
  const expected=interfaceLanguage==='fr'?'Vérifiez l’emplacement final dans le texte adopté.':'Check final placement in the adopted text.';
  assert.equal(block.textContent.split(expected).length-1,1);
- assert.equal([...block.querySelectorAll('p')].find(p=>p.textContent===expected)?.lang,interfaceLanguage);
+ const note=[...block.querySelectorAll('p')].find(p=>p.textContent===expected);
+ assert.equal(note?.lang,interfaceLanguage);assert.equal(note.className,'document-context-notice');
+ assert(note.compareDocumentPosition(block.querySelector('.wording-diff'))&4,'the note sits above the wording');
  assert.equal(block.querySelector('a')?.href??null,url);
 });
 test('alternative motion is readable as a document operation without inline diff',async t=>{
@@ -1510,7 +1512,7 @@ test('table-level amendments retain every source cell and show the comparison be
   const placement={operation:'replace',status:'placed',itemIndex:0,span:{start:3,end:6},evidence:[{basis:'table-level-elision',label:'Aluminium'}]};
   const {item}=await tableReader(t,'Aluminium\nCN code\tGreenhouse gas\n…\t…','Aluminium\nCN code\tGreenhouse gas\n…\t…\n7603 New row\tCarbon dioxide',placement);
   const blocks=item.querySelectorAll('[data-amendment-block]');assert.equal(blocks.length,1);
-  assert.match(blocks[0].textContent,/Table-level amendment\./);
+  assert.match(blocks[0].textContent,/Changes the table below\./);
   assert.equal(blocks[0].nextElementSibling.querySelector('table').className,'proposal-table');
   assert.deepEqual([...item.querySelectorAll('.proposal-table td')].map(cell=>cell.textContent),['CN code','Greenhouse gas','ex 7602 Aluminium waste','Carbon dioxide']);
 });
@@ -1520,16 +1522,16 @@ test('resolution boundary notes remain with the insertion and preserve the sourc
   Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','– First citation,','– Existing second citation,','1. Source paragraph;']});
   data.placement.evidence=[{basis:'citation-number-collision'}];
   const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
-  let block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/Placed before the existing citation\./);assert.match(block.previousElementSibling.textContent,/First citation/);assert.match(block.nextElementSibling.textContent,/Existing second citation/);
+  let block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/This number already exists in the text\./);assert.match(block.previousElementSibling.textContent,/First citation/);assert.match(block.nextElementSibling.textContent,/Existing second citation/);
 });
 
-test('resolution boundary note follows the paragraph lead before its heading',async t=>{
+test('a numeric point after the paragraph lead carries no note',async t=>{
   const data=overlayResponse({insertAfter:1,insertBefore:2});
   data.placement.evidence=[{basis:'first-numeric-point-in-lettered-list'}];
   const h=await harness(t,()=>data);
   Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','1. Paragraph lead:','Topic heading','a) First source point;']});
   await h.render({request:overlayRequest,language:'en'});
-  const block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/Placed after the paragraph lead\./);assert.match(block.previousElementSibling.textContent,/Paragraph lead/);assert.match(block.nextElementSibling.textContent,/Topic heading/);
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.querySelector('.document-context-notice'),null);assert.match(block.previousElementSibling.textContent,/Paragraph lead/);assert.match(block.nextElementSibling.textContent,/Topic heading/);
 });
 
 test('new-paragraph formula gap remains labelled with its native source link',async t=>{
@@ -1547,7 +1549,7 @@ test('a successive new annex names its preceding amendment in the reader',async 
   const value=proposalContextResponse(report,amendment,list);value.placement.evidence.push({basis:'sequential-new-annex',reference:'39',label:'Annex 1 - Indicators'});
   const h=await harness(t,()=>value);
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
-  assert.match(h.container.querySelector('[data-amendment-block]').textContent,/Follows Amendment 39 in amendment order\./);
+  assert.match(h.container.querySelector('[data-amendment-block]').textContent,/Follows Amendment 39\./);
 });
 
 test('PDF source spacing uses published columns without false whitespace edits',async t=>{
@@ -1584,7 +1586,7 @@ test('uniquely addressed decision wording differences show their short source no
  value.placement.evidence=[{basis:'decision-point-original-difference',anchor:2}];
  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
  const block=h.container.querySelector('[data-amendment-block="true"][data-context-target="true"]');
- assert(block);assert.match(block.textContent,/Original wording differs from the proposal\./);
+ assert(block);assert.match(block.textContent,/Original wording differs from this text\./);
 });
 
 test('a full-width amendment instruction remains visible beside a placed deletion',async t=>{
@@ -1599,5 +1601,60 @@ test('a full-width amendment instruction remains visible beside a placed deletio
 test('a proposal-frame insertion explains the label difference and unchecked present text',async t=>{
  const value=proposalContextResponse(report,amendment,list);value.placement.evidence.push({basis:'negative-nested-instruction'});
  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
- assert.match(h.container.querySelector('[data-amendment-block="true"]').textContent,/Label and instruction differ\. Present text not checked\./);
+ const text=h.container.querySelector('[data-amendment-block="true"]').textContent;assert.match(text,/Label and instruction differ\./);assert(!text.includes('Present text'));
+});
+
+const noteBlock=async(t,value,language='en',i18n)=>{
+ const h=await harness(t,()=>value,undefined,i18n);await h.render({request:overlayRequest,language});
+ return h.container.querySelector('[data-amendment-block="true"]');
+};
+const notesOf=block=>[...block.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
+const proposalWith=evidence=>{const value=proposalContextResponse(report,amendment,list);value.placement.evidence.push(...evidence);return value;};
+
+test('notes dropped from the reader leave the placement and add no text',async t=>{
+ for(const evidence of [{basis:'new-unnumbered-table-annex-end'},{basis:'unique-entry-label-disagreement'}])await t.test(evidence.basis,async t=>{
+  const block=await noteBlock(t,proposalWith([evidence]));assert(block);
+  assert.deepEqual(notesOf(block),[]);
+ });
+ await t.test('new point order',async t=>{
+  const value=proposalWith([]);
+  Object.assign(value.amendment.variants[0],{baseline:'present-text',language:'en',targetLabel:'Article 1 – paragraph 1 – point 6 a – point a (new)'});
+  value.placement.outerOperation='insert';
+  assert.deepEqual(notesOf(await noteBlock(t,value)),[]);
+ });
+});
+
+test('a number already in the text has one note on every route',async t=>{
+ await t.test('proposal',async t=>assert.deepEqual(notesOf(await noteBlock(t,proposalWith([{basis:'colliding-new-point'}]))),['This number already exists in the text.']));
+ for(const evidence of [[{basis:'colliding-new-point'}],[{basis:'citation-number-collision'}],[{basis:'colliding-new-point'},{basis:'citation-number-collision'}]])await t.test(evidence.map(e=>e.basis).join('+'),async t=>{
+  const data=overlayResponse({insertAfter:1,insertBefore:2});data.placement.evidence=evidence;
+  assert.deepEqual(notesOf(await noteBlock(t,data)),['This number already exists in the text.']);
+ });
+});
+
+test('every difference from the original wording shows the same single note',async t=>{
+ for(const change of [{originalDifference:'one-word'},{originalDifference:'omitted-citation-identifier'},{evidence:[{basis:'single-word-original-difference'}]},{originalDifference:'one-word',evidence:[{basis:'single-word-original-difference'}]}])await t.test(JSON.stringify(change),async t=>{
+  const value=proposalWith(change.evidence??[]);value.placement={...value.placement,originalDifference:change.originalDifference};
+  assert.deepEqual(notesOf(await noteBlock(t,value)),['Original wording differs from this text.']);
+ });
+ await t.test('decision point',async t=>{
+  const data=overlayResponse({operation:'replace',span:{start:2,end:2}});data.placement.evidence=[{basis:'decision-point-original-difference',anchor:2}];
+  assert.deepEqual(notesOf(await noteBlock(t,data)),['Original wording differs from this text.']);
+ });
+});
+
+test('numbering notes state both numbers and sit above the wording in the interface language',async t=>{
+ const french=createAppUiI18n({fr:JSON.parse(readFileSync(new URL('./ui-locales/fr.json',import.meta.url)))});
+ const cases=[
+  [{basis:'sequential-paragraph-number',reference:'27',label:'28'},'Paragraph 27 in the report; printed here as 28.','Paragraphe 27 du rapport ; imprimé ici comme 28.'],
+  [{basis:'printed-new-point-label',reference:'6a',label:'6'},'New point 6a. The label reads point 6.','Nouveau point 6a. Le libellé indique le point 6.'],
+  [{basis:'sequential-new-annex',reference:'39',label:'Annex 1 - Indicators'},'Follows Amendment 39.','Suit l’amendement 39.'],
+  [{basis:'negative-nested-instruction'},'Label and instruction differ.','Le libellé et l’instruction diffèrent.'],
+  [{basis:'colliding-new-point'},'This number already exists in the text.','Ce numéro existe déjà dans le texte.'],
+ ];
+ for(const [evidence,english,translated] of cases)for(const [language,expected,i18n] of [['en',english,undefined],['fr',translated,french]])await t.test(evidence.basis+' '+language,async t=>{
+  const block=await noteBlock(t,proposalWith([evidence]),language,i18n),note=block.querySelector('.document-context-notice');
+  assert.equal(note.textContent,expected);assert.equal(note.lang,language);
+  assert(note.compareDocumentPosition(block.querySelector('.wording-diff'))&4,'the note sits above the wording');
+ });
 });
