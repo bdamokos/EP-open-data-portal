@@ -1,3 +1,4 @@
+import {assertSequentialParagraph} from './amendment-sequential-paragraph-oracle.mjs';
 import {assertPrintedInsertion} from './amendment-printed-insertion-oracle.mjs';
 import {assertUniqueEntry} from './amendment-unique-entry-oracle.mjs';
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
@@ -618,7 +619,7 @@ export function verifyPlacement(input) {
   if(input.items?.[input.placement?.itemIndex]?.proposal?.sourceKind==='pdf')return assertCouncilDraftPlacement(input);
   const header=assertCompoundHeader(input);
   if(header&&header.status!=='verified')return header;
-  const result=verifyProposalPlacement(input);
+  const result=assertSequentialParagraph(input)??verifyProposalPlacement(input);
   if(result.status!=='verified')return result;
   // A recast's legal reading omits its struck deletions and markers; the
   // native Word runs must establish that reading for every touched row.
