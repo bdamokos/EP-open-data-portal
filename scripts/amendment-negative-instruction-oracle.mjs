@@ -18,8 +18,10 @@ export function assertNegativeInstruction({items,wording,placement,nativeQuoted}
   const outer=rows.filter(row=>style(row)==='Point0'),parents=outer.filter(row=>new RegExp('^\\(?'+path[2].value+'\\)\\s','u').test(row.text));if(parents.length!==1)return unknown();
   const lead=parents[0],next=rows[rows.indexOf(lead)+1],text=oracleFold(lead.text);
   const instruction=wording.language==='cs'?/^\(?\d+\) článek (\d+) se mění takto:$/u:/^\(?\d+\) Article (\d+) is amended as follows:$/u;
-  const match=instruction.exec(text),inner=wording.documentReferences?.filter(r=>r.field==='Article2').map(r=>oracleAddress(r.raw,wording.language));
+  const match=instruction.exec(text),inner=wording.documentReferences?.filter(r=>r.field==='Article2').map(r=>oracleAddress(r.raw.split(/[–—]/u).slice(0,2).join(' – ').trim(),wording.language));
   if(!match||inner?.length!==1||inner[0]?.[0]?.kind!=='article'||inner[0][0].value!==match[1]||style(next)!=='Point1'||!/^\(?a\)\s/u.test(next.text))return unknown();
+  const printed=(wording.language==='cs'?/^(?:\(-a\)|-a\))\s+odstavec (\d+) se nahrazuje/u:/^(?:\(-a\)|-a\))\s+paragraph (\d+) is replaced/u).exec(wording.proposedText.trim());
+  if(!printed||inner[0]?.[1]?.kind!=='paragraph'||inner[0][1].value===printed[1])return unknown();
   const mapped=[lead,next].map(native=>proposal.paragraphs.filter(row=>row.source?.path===native.path&&row.source.complete&&row.complete&&oracleFold(row.text)===oracleFold(native.text)));
   if(mapped.some(rows=>rows.length!==1)||mapped[1][0].index!==mapped[0][0].index+1)return unknown();
   const before=mapped[1][0].index;return placement.insertBefore===before&&placement.insertAfter===before-1?{status:'verified',reason:'oracle-native-negative-instruction-boundary'}:{status:'failed',reason:'oracle-negative-instruction-boundary-mismatch'};
