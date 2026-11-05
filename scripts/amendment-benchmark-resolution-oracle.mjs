@@ -32,6 +32,42 @@ function nativeBody(text) {
   if(nativeBodies.has(text))return nativeBodies.get(text);
   try{const body=quotedWordBody(text.nativeBuffer);nativeBodies.set(text,body);return body;}catch{return null;}
 }
+
+// The native tab and consecutive printed labels locate a boundary inside one
+// Word paragraph. Projection indices locate that same row only afterwards.
+export function assertCoalescedInsertion({text,wording,placement}) {
+  const match=wording?.language==='en'&&wording.baseline==='motion-resolution'&&wording.originalText===''
+    &&/^Paragraph ([1-9]\d{0,5}) a \(new\)$/u.exec(wording.targetLabel||'');
+  if(!match||placement?.operation!=='insert'||!placement.splice)return null;
+  const n=Number(match[1]),raw=rawResolutionUnits(text,'en'),owners=raw.units.filter(row=>row.kind==='paragraph'&&row.label===String(n));
+  const coalesced=owners.filter(row=>new RegExp(';'+(n+1)+'[.]\\t\\S','u').test(text.paragraphs[row.start]||''));
+  if(!coalesced.length)return null;
+  const unknown={status:'unverified',reason:'oracle-coalesced-boundary-unverified'};
+  if(raw.reason||owners.length!==1||coalesced.length!==1||raw.incomplete.some(row=>row.kind==='paragraph'&&[String(n),String(n+1),n+'a'].includes(row.label))
+    ||!new RegExp('^'+n+'a[.]\\s+\\S','u').test(wording.proposedText||''))return unknown;
+  const at=owners[0].start,source=text.paragraphSources[at],body=nativeBody(text),native=body?.find(row=>row.path===source?.path);
+  if(!native||native.kind!=='paragraph'||native.hidden||native.numbered||source?.complete!==true||source.container!=='body'||nativeValue(native)!==text.paragraphs[at])return unknown;
+  let visible='',unsafe=false;const references=[];
+  const visit=nodes=>{for(const node of nodes)for(const [key,children] of Object.entries(node)) {
+    if(['w:del','w:moveFrom','w:instrText','w:fldChar','w:drawing','w:pict','w:object','m:oMath','w:endnoteReference'].includes(key))unsafe=true;
+    if(key==='w:t') {if(children.some(child=>Object.keys(child).some(name=>name!=='#text')))unsafe=true;visible+=children.map(child=>child['#text']??'').join('');}
+    else if(key==='w:tab')visible+='\t';
+    else if(key==='w:footnoteReference')references.push({offset:visible.length,note:node[':@']?.['@_w:id']});
+    else if(Array.isArray(children))visit(children);
+  }};visit(native.nodes);
+  const anchors=text.noteAnchors??text.anchors??[],own=anchors.filter(anchor=>anchor.paragraph===at),trim=visible.length-visible.trimStart().length;
+  if(unsafe||visible.trim()!==nativeValue(native)||own.length!==references.length||references.some((ref,i)=>own[i]?.offset!==ref.offset-trim||String(own[i]?.note)!==String(ref.note)))return unknown;
+  const value=nativeValue(native),labels=[...value.matchAll(/(?:^|[;.!?])\s*([1-9]\d{0,5})[.]\t(?=\S)/gu)];
+  if(labels.length!==2||labels[0][1]!==String(n)||labels[1][1]!==String(n+1)||!value.startsWith(n+'.\t')||!value.endsWith(';')
+    ||raw.units.some(row=>row.kind==='paragraph'&&[String(n+1),n+'a'].includes(row.label)))return unknown;
+  const offset=value.indexOf((n+1)+'.\t',labels[1].index);
+  if(references.some(ref=>ref.offset-trim===offset))return unknown;
+  const next=raw.units.find(row=>row.kind==='paragraph'&&row.start>at);
+  if(!next||next.label!==String(n+2))return unknown;
+  if(placement.insertAfter!==at||placement.insertBefore!==at+1||placement.splice?.start?.paragraph!==at||placement.splice?.end?.paragraph!==at||placement.splice.start.offset!==offset||placement.splice.end.offset!==offset)
+    return {status:'failed',reason:'oracle-coalesced-splice-mismatch'};
+  return {status:'verified',reason:'oracle-native-coalesced-boundary'};
+}
 // Native scope and text establish the first provision before projection indices
 // are compared. A relabelled paragraph-two projection cannot supply this truth.
 export function nativeFinnishFirst(text,unit) {

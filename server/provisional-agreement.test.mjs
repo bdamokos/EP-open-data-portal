@@ -10,15 +10,15 @@ const params=(extra={})=>new URLSearchParams({lang:'en',amendment:amendmentId,li
 const stub=['Position of the European Parliament adopted at first reading',"(As an agreement was reached between Parliament and Council, Parliament's position corresponds to the final legislative act, Regulation (EU) 2026/1386.)"];
 const full=['Position of the European Parliament adopted at first reading','(1)\tThe Union welcomes foreign investments.','Article 1'];
 const adoptedItem=(id,date='2026-05-19',to=report)=>({id,date,kind:'TEXT_ADOPTED',relationship:{from:id,field:'adopts',to}});
-function harness({paragraphs=stub,placement,decisions,items,relatedStatus='available',texts=[],proposal,status='available',textLanguage='en',variantReferences=[{field:'DocRef',raw:'(COM(2024)0023 – C9-0011/2024 – 2024/0017(COD))'}]}={}) {
+function harness({paragraphs=stub,placement,decisions,items,relatedStatus='available',relatedGaps=[],recordOverrides={},texts=[],proposal,status='available',textLanguage='en',variantReferences=[{field:'DocRef',raw:'(COM(2024)0023 – C9-0011/2024 – 2024/0017(COD))'}]}={}) {
   const calls={context:[],request:[],text:[],proposal:[]};
   const operation=placement===undefined?{status:'document-operation',operation:'replace',scope:'whole-document',reason:'provisional_agreement',evidence:[{basis:'exact-provisional-agreement',reference:amendmentId,sourceUrl:url,language:'en',fetchedAt:'2026-11-04T08:00:00.000Z'}]}:placement;
   const context={query:async query=>{
     calls.context.push(query.adopted?'adopted':'amendment');
-    if(query.adopted)return {documentId:report,related:{status:relatedStatus,items:items??[adoptedItem(ta)],gaps:[]},sources:[{url:'https://data.europarl.europa.eu/api/v2/procedures/2024-0017',fetchedAt:'2026-11-04T08:00:00.000Z'}]};
+    if(query.adopted)return {documentId:report,related:{status:relatedStatus,items:items??[adoptedItem(ta)],gaps:relatedGaps},sources:[{url:'https://data.europarl.europa.eu/api/v2/procedures/2024-0017',fetchedAt:'2026-11-04T08:00:00.000Z'}]};
     return {documentId:report,placement:operation,amendment:{id:amendmentId,variants:[{listId,language:'en',source:{url},documentReferences:variantReferences}]},target:{evidence:null}};
   }};
-  const taRecord={id:'eli/dl/doc/'+ta,identifier:ta,work_type:'def/ep-document-types/TEXT_ADOPTED',document_date:'2026-05-19',adopts:['eli/dl/doc/'+report],parliamentary_term:['org/ep-10']};
+  const taRecord={id:'eli/dl/doc/'+ta,identifier:ta,work_type:'def/ep-document-types/TEXT_ADOPTED',document_date:'2026-05-19',adopts:['eli/dl/doc/'+report],parliamentary_term:['org/ep-10'],...recordOverrides};
   const request=async endpoint=>{calls.request.push(endpoint);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.UTC(2026,10,4),payload:{data:[taRecord]}};};
   const readText=async(work,language,options)=>{calls.text.push([work.identifier,language,options]);return {status,textLanguage,paragraphs};};
   const readProposal=async options=>{calls.proposal.push(options);return proposal??{status:'identified',celex:'52024PC0023',workId:'w',evidence:[{kind:'cellar-source',url:'https://publications.europa.eu/resource/celex/52024PC0023',fetchedAt:'2026-11-04T08:00:01.000Z'}]};};
@@ -80,6 +80,24 @@ test('before a vote, or when the vote date binds no single adopted text, only th
   assert.equal(earlier.adoptedText.id,ta);
   const partial=await ask(harness({relatedStatus:'partial'}).view);
   assert.equal(partial.adoptedText,null);assert.deepEqual(partial.text,{documentId:listId,kind:'agreement'});
+});
+
+test('retained adopted discovery binds only with its sole incomplete-discovery gap',async()=>{
+  const retained={relatedStatus:'partial',relatedGaps:['adopted-discovery-incomplete']};
+  for(const paragraphs of [full,stub]) {
+    const result=await ask(harness({...retained,paragraphs}).view);
+    assert.equal(result.adoptedText.id,ta);
+    assert.equal(result.text.kind,paragraphs===full?'adopted-text':'agreement');
+    assert.equal(result.finalAct?.number??null,paragraphs===stub?1386:null);
+  }
+  for(const relatedGaps of [[],['adopted-candidate-budget'],['adopted-discovery-incomplete','procedure-unavailable'],['adopted-discovery-incomplete','adopted-candidate-budget']]) {
+    const {view,calls}=harness({...retained,relatedGaps});
+    assert.equal((await ask(view)).adoptedText,null);assert.deepEqual(calls.request,[]);
+  }
+  for(const items of [[adoptedItem(ta,'2026-05-20')],[adoptedItem(ta,'2026-05-19','A-10-2025-0062')],[adoptedItem(ta),adoptedItem('TA-10-2026-0170')]])
+    assert.equal((await ask(harness({...retained,items}).view)).adoptedText,null);
+  for(const recordOverrides of [{adopts:['eli/dl/doc/A-10-2025-0062']},{document_date:'2026-05-20'}])
+    assert.equal((await ask(harness({...retained,recordOverrides}).view)).adoptedText,null);
 });
 
 test('the COM number is plain text unless the proposal identity passes',async()=>{

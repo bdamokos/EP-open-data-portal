@@ -18,7 +18,7 @@ test('document context HTTP contract is bounded, query-separated and never start
   const calls=[];
   t.mock.method(globalThis,'fetch',async value=>{
     const url=new URL(value);calls.push(url.href);const id=url.pathname.split('/').at(-1);
-    return new Response(JSON.stringify({data:[{id:'eli/dl/doc/'+id,identifier:id,document_date:'2026-10-08',work_type:'def/ep-document-types/'+(id.startsWith('TA-')?'TEXT_ADOPTED':'RESOLUTION_MOTION'),title_dcterms:{en:'Published document'},is_realized_by:[],inverse_foresees_change_of:[]}]}),{status:200,headers:{'content-type':'application/ld+json'}});
+    return new Response(JSON.stringify({data:[{id:'eli/dl/doc/'+id,identifier:id,document_date:'2026-10-08',work_type:'def/ep-document-types/'+(id.includes('-AM-')?'AMENDMENT_LIST':id.startsWith('TA-')?'TEXT_ADOPTED':'RESOLUTION_MOTION'),title_dcterms:{en:'Published document'},is_realized_by:[],inverse_foresees_change_of:[]}]}),{status:200,headers:{'content-type':'application/ld+json'}});
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));store.db.exec('PRAGMA query_only=OFF');store.close();await rm(directory,{recursive:true,force:true});delete process.env.ACTIVITY_INDEX_ENABLED;delete process.env.ACTIVITY_INDEX_DIR;});
@@ -34,6 +34,11 @@ test('document context HTTP contract is bounded, query-separated and never start
   assert.equal((await read('/api/document-context/A-11-2026-0237')).status,400);assert.equal((await read('/api/poc/document-context/B-10-2026-0424')).status,404);
   assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);assert.equal(calls.length,2);
   assert(calls.every(url=>url.startsWith('https://data.europarl.europa.eu/api/v2/')));
+  const agreement=await read('/api/document-context/A-10-2025-0061-AM-299-299?lang=en');
+  assert.equal(agreement.status,200);assert.equal(agreement.body.documentId,'A-10-2025-0061-AM-299-299');
+  assert.equal(agreement.body.document.id,'A-10-2025-0061-AM-299-299');
+  assert(calls.at(-1).includes('/documents/A-10-2025-0061-AM-299-299?'));
+
 
 
   const id='B-10-2026-0424',amendmentId=id+'-AM-13',listId=id+'-AM-001-020',fetchedAt='2026-10-18T10:00:00.000Z';
@@ -170,6 +175,6 @@ test('document context HTTP contract is bounded, query-separated and never start
     }
   });
 
-  assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);assert.equal(calls.length,2);
+  assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);assert.equal(calls.length,3);
   process.env.ACTIVITY_INDEX_ENABLED='false';assert.equal((await read(endpoint)).status,200);
 });

@@ -1458,6 +1458,20 @@ test('provisional agreement shows the whole agreement with Parliament’s marks,
   assert.equal(h.container.querySelector('ins,del'),null);
 });
 
+test('provisional agreement hides the marks legend when its document fails or has no text',async t=>{
+  for(const failure of ['http','extraction','empty'])await t.test(failure,async t=>{
+    const h=await harness(t,provisionalRoutes(agreementLinks(),id=>{
+      if(failure==='http')throw new Error('Document could not be loaded');
+      const response=agreementText(id);response.document.selectedText={...response.document.selectedText,status:failure==='extraction'?'error':'available',paragraphs:[]};return response;
+    }));
+    await h.render({request:overlayRequest,language:'en'});await h.settle();await h.settle();
+    assert.match(h.container.textContent,/Replaces the whole text/);
+    assert(h.container.querySelector('.provisional-links'));
+    assert(!h.container.textContent.includes('Bold italics:'));
+    assert(!h.container.textContent.includes('Some changes are not marked.'));
+  });
+});
+
 test('an unresolved proposal shows its COM number as plain text and no link is invented',async t=>{
   await t.test('COM number only',async t=>{
     const h=await harness(t,provisionalRoutes(agreementLinks({proposal:{reference:'COM(2024)0023',year:'2024',number:'0023',url:null},finalAct:null,adoptedText:null})));await h.render({request:overlayRequest,language:'en'});await h.settle();await h.settle();
@@ -1545,4 +1559,22 @@ test('PDF source spacing uses published columns without false whitespace edits',
  const block=h.container.querySelector('[data-amendment-block]');assert(block);
  assert(![...block.querySelectorAll('ins,del')].some(node=>node.textContent.trim()===''));
  assert(block.textContent.includes('Original'));assert(block.textContent.includes('Changed'));
+});
+
+test('intraparagraph insertion preserves source text, styles, links and both native note anchors',async t=>{
+ const value='51.\tFirst provision;52.\tSecond provision;',offset=value.indexOf('52.');
+ const data=overlayResponse({insertAfter:1,insertBefore:2});data.placement.splice={start:{paragraph:1,offset},end:{paragraph:1,offset}};
+ Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,',value,'53. Following;'],formatStatus:'extracted',paragraphFormats:[{},{indent:2,hanging:2,marks:[{kind:'bold',start:4,end:9},{kind:'italic',start:offset+4,end:value.length}]},{}],tables:[],noteAnchors:[{paragraph:1,offset:9,note:'48',label:'48'},{paragraph:1,offset:offset+10,note:'49',label:'49'}],notes:[{id:'48',label:'48',text:'First native note.',links:[]},{id:'49',label:'49',text:'Second native note.',links:[]}],documentLinks:[{paragraph:1,start:4,end:9,url:'https://example.org/first'},{paragraph:1,start:offset+4,end:offset+10,url:'https://example.org/second'}]});
+ const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+ const block=h.container.querySelector('[data-amendment-block]'),before=block.previousElementSibling,after=block.nextElementSibling;
+ const plain=node=>{const copy=node.cloneNode(true);copy.querySelectorAll('sup').forEach(x=>x.remove());return copy.textContent;};
+ assert.equal(plain(before)+plain(after),value);assert.equal(before.dataset.sourceParagraph,'1');assert.equal(after.dataset.sourceParagraph,'1');
+ assert.equal(before.querySelector('.doc-label').textContent,'51.\t');assert.equal(after.querySelector('.doc-label').textContent,'52.\t');
+ assert.equal(before.querySelector('b').textContent,'First');assert(after.querySelector('i').textContent.includes('Second'));
+ assert.equal(before.querySelector('sup').textContent,'48');assert.equal(after.querySelector('sup').textContent,'49');
+ assert.equal(before.querySelector('a[href="https://example.org/first"]').textContent,'First');assert.equal(after.querySelector('a[href="https://example.org/second"]').textContent,'Second');
+ assert.match(after.nextElementSibling.textContent,/53\. Following/);
+ data.placement.splice.end.offset++;await h.render({request:{...overlayRequest,wordingLanguage:undefined},language:'en'});
+ const unplaced=h.container.querySelector('[data-amendment-block]');assert.notEqual(unplaced.dataset.contextTarget,'true');
+ assert.equal(h.container.querySelectorAll('[data-source-paragraph="1"]').length,1);assert.equal(plain(h.container.querySelector('[data-source-paragraph="1"]')),value);
 });

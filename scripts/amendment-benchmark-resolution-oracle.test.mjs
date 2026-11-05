@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {deflateRawSync} from 'node:zlib';
 import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
-import {nativeBlankPairs,rawResolutionUnits,assertTerminalIndent,assertSwedishRecommendation} from './amendment-benchmark-resolution-oracle.mjs';
+import {nativeBlankPairs,rawResolutionUnits,assertTerminalIndent,assertSwedishRecommendation,assertCoalescedInsertion} from './amendment-benchmark-resolution-oracle.mjs';
 import {verifyPlacement,parseBenchmarkTarget} from './amendment-benchmark-model.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/resolution-blank-boundaries.json',import.meta.url)));
 test('a fully emphasized numbered section title does not duplicate a recital',()=>{
@@ -60,6 +60,32 @@ function input(xml) {
  const nativeBuffer=zip(wrap(xml)),body=quotedWordBody(nativeBuffer),visible=body.filter(row=>row.kind==='paragraph'&&row.text.trim());
  return {nativeBuffer,paragraphs:visible.map(row=>row.text.trim()),paragraphFormats:visible.map(()=>({})),paragraphSources:visible.map((row,i)=>({path:row.path,container:'body',containerPath:'/w:document[1]/w:body[1]',ordinal:body.indexOf(row),segment:i,complete:true}))};
 }
+test('native coalesced labels require a zero-width splice at the second printed number',()=>{
+ const p=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';
+ const xml=p('The European Parliament,')+'<w:p><w:r><w:t>51.</w:t><w:tab/><w:t>First provision;52.</w:t><w:tab/><w:t>Second provision;</w:t></w:r></w:p>'+p('53. Following provision;')+p('54. Last provision;');
+ const text=input(xml);text.paragraphSources.forEach(row=>row.segment=0);
+ const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 51 a (new)',originalText:'',proposedText:'51a. Inserted provision;'},offset=text.paragraphs[1].indexOf('52.');
+ const placement={status:'placed',operation:'insert',insertAfter:1,insertBefore:2,splice:{start:{paragraph:1,offset},end:{paragraph:1,offset}}};
+ Object.defineProperty(placement,'evidence',{get(){throw Error('placer evidence forbidden');}});
+ Object.defineProperty(text,'units',{get(){throw Error('placer units forbidden');}});
+ assert.equal(assertCoalescedInsertion({text,wording,placement}).status,'verified');
+ assert.equal(verifyPlacement({text,wording,placement}).status,'verified');
+ assert.equal(assertCoalescedInsertion({text,wording,placement:{...placement,splice:undefined}}),null,'legacy insertion claims retain their existing oracle');
+ for(const altered of [{...placement,splice:{start:{paragraph:1,offset:offset+1},end:{paragraph:1,offset:offset+1}}},{...placement,splice:{start:{paragraph:1,offset},end:{paragraph:1,offset:offset+1}}}])assert.equal(assertCoalescedInsertion({text,wording,placement:altered}).status,'failed');
+ for(const altered of [{...text,nativeBuffer:undefined},{...text,paragraphs:text.paragraphs.map((v,i)=>i===1?v.replace('First','Altered'):v)},{...text,paragraphSources:text.paragraphSources.map((v,i)=>i===1?{...v,complete:false}:v)},{...text,nativeBuffer:zip(wrap(xml.replace('First provision;','First</w:t><w:footnoteReference w:id="1"/><w:t> provision;')))}])assert.notEqual(assertCoalescedInsertion({text:altered,wording,placement})?.status,'verified');
+ assert.notEqual(assertCoalescedInsertion({text,wording:{...wording,proposedText:'52a. Wrong;'},placement}).status,'verified');
+ const noted=input(xml.replace('First provision;', 'First</w:t><w:footnoteReference w:id="7"/><w:t> provision;'));noted.paragraphSources.forEach(row=>row.segment=0);noted.anchors=[{paragraph:1,offset:9,note:'7'}];
+ assert.equal(assertCoalescedInsertion({text:noted,wording,placement}).status,'verified');
+ assert.notEqual(assertCoalescedInsertion({text:{...noted,anchors:[{paragraph:1,offset:10,note:'7'}]},wording,placement}).status,'verified');
+ assert.notEqual(assertCoalescedInsertion({text:{...noted,anchors:[]},wording,placement}).status,'verified','a valid native reference requires its projected anchor');
+ const malformed={...text,nativeBuffer:zip(wrap(xml.replace('First provision;','<w:footnoteReference w:id="1"/>First provision;')))};
+ assert.notEqual(assertCoalescedInsertion({text:malformed,wording,placement}).status,'verified','nested Word content inside w:t is invalid');
+ for(const label of ['51','52','51a']) {
+   const duplicate=input(xml+p(label+'. Damaged duplicate;'));duplicate.paragraphSources.forEach(row=>row.segment=0);duplicate.paragraphSources.at(-1).complete=false;
+   assert.notEqual(assertCoalescedInsertion({text:duplicate,wording,placement}).status,'verified',label);
+   assert.notEqual(verifyPlacement({text:duplicate,wording,placement}).status,'verified',label);
+ }
+});
 test('native recommendation proof requires the identified annex and point boundaries',()=>{
  const p=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';
  const text=input(p('BILAGA TILL RESOLUTIONSFÖRSLAGET')+p('Rekommendation 5')+p('Ämne')+p('1. Original;')+p('2. Nästa;')+p('Rekommendation 6')+p('MOTIVERING'));

@@ -35,9 +35,9 @@ import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
 import {assertFootnoteComparison,assertResolutionFootnotes} from './amendment-footnote-oracle.mjs';
 import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-grammar.mjs';
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
-import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
+import {quotedWordBody,rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion,assertImplicitParagraphLabel} from './amendment-benchmark-proposal-oracle.mjs';
-import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,assertMixedRecital,assertTerminalIndent,assertSwedishRecommendation,assertResolutionLead} from './amendment-benchmark-resolution-oracle.mjs';
+import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,assertMixedRecital,assertTerminalIndent,assertSwedishRecommendation,assertResolutionLead,assertCoalescedInsertion} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 import {assertRecastReading,assertNativeProposalTitle} from './amendment-recast-oracle.mjs';
@@ -254,6 +254,22 @@ function rawPreambleCitations(proposal) {
   // Every counted row must open a citation; continuations shift the ordinals.
   if(run.some(row=>!/^(?:Having regard to|After (?:transmission|consulting|consultation)|Acting in accordance with)\b/u.test(String(row.text).trim())))return null;
   return run;
+}
+export function verifyOuterArticleGap({proposal,wording,placement,nativeQuoted}) {
+ const unknown=()=>null;
+ const label=/^Article ([1-9]\d*) a \(new\)$/u.exec(wording.targetLabel?.split('\n')[0]??'');
+ if(!label||wording.language!=='en'||wording.originalText!==''||placement.operation!=='insert'||proposal?.sourceKind!=='docx')return unknown();
+ const n=Number(label[1]);if(!Number.isSafeInteger(n))return unknown();
+ let body;try{body=quotedWordBody(nativeQuoted?.proposalBuffer);}catch{return unknown();}
+ const style=row=>row.nodes?.flatMap(node=>node['w:pPr']??[]).find(node=>node['w:pStyle'])?.[':@']?.['@_w:val'];
+ const headings=body.filter(row=>row.kind==='paragraph'&&!row.hidden&&!row.unsafe&&['Titrearticle','ArticleTitle'].includes(style(row))&&/^Article [1-9]\d*[a-z]*$/u.test(row.text.trim()));
+ const old=headings.filter(row=>row.text.trim()==='Article '+n),next=headings.filter(row=>row.text.trim()==='Article '+(n+1));
+ if(old.length!==1||next.length!==1||headings.some(row=>row.text.trim()==='Article '+n+'a')||headings.indexOf(next[0])!==headings.indexOf(old[0])+1)return unknown();
+ const adoption=body.filter(row=>row.kind==='paragraph'&&!row.hidden&&!row.unsafe&&/^(?:HAS|HAVE) ADOPTED THIS (?:DIRECTIVE|REGULATION|DECISION):$/u.test(row.text.trim()));
+ if(adoption.length!==1||body.indexOf(adoption[0])>=body.indexOf(old[0]))return unknown();
+ const mapped=proposal.paragraphs.filter(row=>row.source?.path===next[0].path&&row.text.trim()===next[0].text.trim()&&row.complete&&row.source.complete&&row.source.container==='body');
+ if(mapped.length!==1)return unknown();
+ return placement.insertBefore===mapped[0].index&&placement.insertAfter===mapped[0].index-1?verified('oracle-native-outer-article-gap'):fail('oracle-outer-article-gap-mismatch');
 }
 function verifyPreambleCitation({proposal,wording,placement,target}) {
   const label=target.segments[0];
@@ -506,6 +522,7 @@ function verifyAnnexTable({proposal,wording,placement,items}) {
 }
 
 function verifyResolutionInsertion(text,wording,target,placement) {
+  const coalesced=assertCoalescedInsertion({text,wording,placement});if(coalesced)return coalesced;
   const mixed=assertMixedRecital({text,wording,placement});
   if(mixed.status!=='unverified')return mixed;
   const boundary=assertResolutionBoundaryInsertion({text,wording,placement});if(boundary)return boundary;
@@ -618,7 +635,13 @@ export function verifyPlacement(input) {
   if(input.items?.[input.placement?.itemIndex]?.proposal?.sourceKind==='pdf')return assertCouncilDraftPlacement(input);
   const header=assertCompoundHeader(input);
   if(header&&header.status!=='verified')return header;
-  const result=verifyProposalPlacement(input);
+  let result=verifyProposalPlacement(input);
+  // A native gap proof cannot preempt an existing verified address. The
+  // generic anchor ID is unavailable for this independently proved fallback.
+  if(result.status==='unverified'||result.reason==='oracle-anchor-missing') {
+    const proposal=input.items?.[input.placement?.itemIndex]?.proposal;
+    result=verifyOuterArticleGap({proposal,wording:input.wording,placement:input.placement,nativeQuoted:input.nativeQuoted})??result;
+  }
   if(result.status!=='verified')return result;
   // A recast's legal reading omits its struck deletions and markers; the
   // native Word runs must establish that reading for every touched row.

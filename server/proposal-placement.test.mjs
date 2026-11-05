@@ -731,3 +731,14 @@ test('Finnish empty-original printed siblings remain within the exact quoted rep
  assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,next);assert.equal(placement.insertAfter,next-1);assert.equal(verifyPlacement({items,wording,placement,nativeQuoted:{proposalBuffer:buffer}}).status,'verified');
  for(const mutate of [a=>a.targetPath.underlying[0].raw='21 artikla – 1 a kohta',a=>a.targetPath.underlying[0].document='Regulation (EU) 999/999',a=>a.proposedText='2 a. Uusi kohta.']){const w=structuredClone(wording);mutate(w);assert.equal(resolveProposalPlacement(items,w).status,'unresolved');}
 });
+
+test('new outer articles use the next native heading when an inner quote is incomplete',()=>{
+ const data=fixture('proposal-new-article-boundary.json'),wrap=body=>`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body></w:document>`;
+ const make=(change=x=>x)=>{const buffer=fixtureZip({'word/document.xml':wrap(change(data.bodyXml))});return {buffer,proposal:parseProposal(buffer,{language:'en'})};};
+ const wording={language:'en',baseline:'commission-proposal',originalText:'',proposedText:'Article1a\nDirective (EU) 2020/262 is amended as follows:',targetLabel:'Article 1 a (new)'};
+ const f=make(),place=f=>resolveProposalPlacement([{kind:'act',proposal:f.proposal}],wording),placement=place(f),before=f.proposal.paragraphs.find(row=>row.text==='Article 2').index;
+ assert.equal(placement.status,'placed');assert.equal(placement.insertBefore,before);assert.equal(placement.insertAfter,before-1);assert(placement.evidence.some(e=>e.basis==='outer-article-heading-gap'));
+ assert.equal(verifyPlacement({items:[{proposal:f.proposal}],wording,placement,nativeQuoted:{proposalBuffer:f.buffer}}).status,'verified');
+ for(const change of [x=>x.replace('Article 2','Article 3'),x=>x.replace('Article 2','Article 1a'),x=>x.replace('HAS ADOPTED THIS DIRECTIVE:','An instruction:')])assert.equal(place(make(change)).status,'unresolved');
+ assert.equal(resolveProposalPlacement([{kind:'act',proposal:f.proposal}],{...wording,proposedText:'A differently numbered article.'}).status,'unresolved');
+});

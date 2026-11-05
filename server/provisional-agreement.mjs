@@ -12,7 +12,7 @@ import {odp,ODP_BASE} from './odp.mjs';
 import {array} from './activity-index-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 
-export const PROVISIONAL_AGREEMENT_VERSION=1;
+export const PROVISIONAL_AGREEMENT_VERSION=2;
 
 // The same exact amendment, list and wording language the reader already opened.
 export function provisionalAgreementQuery(id,params) {
@@ -61,14 +61,18 @@ export class ProvisionalAgreement {
       if(dates.length!==1||!/^\d{4}-\d{2}-\d{2}$/u.test(dates[0]||''))return null;
       // The reader's own exact discovery: the report's procedure lists the texts adopted on it.
       const found=await this.context.query(documentContextQuery(query.id,new URLSearchParams({lang:query.language,adopted:'1'})),{store});
-      const matches=found.related?.status==='available'?array(found.related.items).filter(item=>/^TA-10-\d{4}-\d{4,6}$/u.test(item.id)&&item.relationship?.field==='adopts'&&item.relationship.from===item.id&&item.relationship.to===query.id&&item.date===dates[0]):[];
+      // Retained discovery always reports incomplete, even with an exact saved link.
+      // Accept only that gap; truncation and every other discovery failure stay closed.
+      const related=found.related,gaps=array(related?.gaps);
+      const usable=related?.status==='available'&&!gaps.length||related?.status==='partial'&&gaps.length===1&&gaps[0]==='adopted-discovery-incomplete';
+      const matches=usable?array(found.related.items).filter(item=>/^TA-10-\d{4}-\d{4,6}$/u.test(item.id)&&item.relationship?.field==='adopts'&&item.relationship.from===item.id&&item.relationship.to===query.id&&item.date===dates[0]):[];
       // Competing texts on the decision date stay unbound.
       if(matches.length!==1)return null;
       const match={identifier:matches[0].id};
       sources.push(...array(found.sources));
       const endpoint='/adopted-texts/'+match.identifier,exact=await this.request(endpoint,{},{staleWhileRevalidate:true});
       const works=array(exact.payload?.data).filter(work=>canonicalEPReference(work?.id)==='eli/dl/doc/'+match.identifier);
-      if(works.length!==1||!array(works[0].adopts).some(value=>canonicalEPReference(value)==='eli/dl/doc/'+query.id))return null;
+      if(works.length!==1||works[0].document_date!==dates[0]||!array(works[0].adopts).some(value=>canonicalEPReference(value)==='eli/dl/doc/'+query.id))return null;
       const work=validateAdoptedText(endpoint,works[0]);
       sources.push(source(ODP_BASE+endpoint,exact));
       // The statement is read from the English text, which every adopted text has;
