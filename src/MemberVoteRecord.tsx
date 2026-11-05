@@ -2,7 +2,7 @@ import {useMemo} from 'react';
 import {useData} from './data';
 import {UiMessage,useUiI18n} from './UiI18nReact';
 import type {MemberVoteRecordDeparture,MemberVoteRecordResponse} from './MemberVoteRecordTypes';
-import {MEMBER_VOTE_RECORD_LIMIT,memberVoteRecordRoute,recordAlignment,recordShare,recordSummary,recordTrend,validateMemberVoteRecordResponse} from './MemberVoteRecordModel.mjs';
+import {MEMBER_VOTE_RECORD_LIMIT,memberVoteRecordRoute,recordAlignment,recordComparison,recordShare,recordSummary,recordTrend,validateMemberVoteRecordResponse} from './MemberVoteRecordModel.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
 import './MemberVoteRecord.css';
 
@@ -12,7 +12,15 @@ const dateLabel=(value:string|null,locale:string)=>{
   return Number.isFinite(date.valueOf())?new Intl.DateTimeFormat(locale==='en'?'en-GB':locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(date):value;
 };
 const percent=(share:number|null,ui:ReturnType<typeof useUiI18n>)=>share===null?ui.t('membervoterecord.noValue'):ui.t('membervoterecord.percent',{value:recordShare(share)??0});
+const num=(ui:ReturnType<typeof useUiI18n>,value:number)=>new Intl.NumberFormat(ui.language).format(value);
 const trendPath=(points:{x:number;y:number}[])=>points.map((point,index)=>(index?'L':'M')+point.x.toFixed(2)+' '+point.y.toFixed(2)).join(' ');
+
+const votesHref=(memberId:number)=>{
+  if(typeof window==='undefined')return null;
+  const url=new URL(window.location.href);
+  url.searchParams.set('member',String(memberId));url.searchParams.set('module','votes');
+  return url.href;
+};
 
 // A departure stays a real link so it can be opened in a new tab, while a
 // plain click keeps the in-page journey state and loaded votes content.
@@ -26,15 +34,19 @@ const decisionHref=(memberId:number,item:MemberVoteRecordDeparture)=>{
   return url.href;
 };
 
-function Trend({data}:{data:MemberVoteRecordResponse}) {
+const positionLabel=(position:string|null,ui:ReturnType<typeof useUiI18n>)=>position?ui.t('votegroups.position.'+position):ui.t('membervoterecord.noValue');
+
+function Trend({data,scope}:{data:MemberVoteRecordResponse;scope:'all'|'final'}) {
   const ui=useUiI18n();
-  const trend=useMemo(()=>recordTrend(data),[data]);
-  const width=320,height=118,paddingX=18,paddingY=14;
+  const trend=useMemo(()=>recordTrend(data,scope),[data,scope]);
+  const width=320,height=96,paddingX=10,paddingY=10;
   const points=trend.map((day,index)=>({
     ...day,
     x:trend.length===1?width/2:paddingX+index*(width-paddingX*2)/(trend.length-1),
     y:day.share===null?null:paddingY+(1-day.share)*(height-paddingY*2),
   }));
+  if(!points.some(point=>point.y!==null))return null;
+  // A null sitting breaks the line instead of drawing through a zero.
   const runs:{x:number;y:number}[][]=[];
   let run:{x:number;y:number}[]=[];
   for(const point of points){
@@ -42,37 +54,33 @@ function Trend({data}:{data:MemberVoteRecordResponse}) {
     run.push({x:point.x,y:point.y});
   }
   if(run.length)runs.push(run);
-  const lines=runs.filter(item=>item.length>1);
-  if(!points.length)return <p className="member-vote-record-empty"><UiMessage id="membervoterecord.trend.empty"/></p>;
   return <figure className="member-vote-record-trend">
-    <h3><UiMessage id="membervoterecord.trend.heading"/></h3>
-    <svg viewBox={`0 0 ${width} ${height}`} role="presentation" aria-hidden="true" focusable="false">
-      <line x1={paddingX} x2={width-paddingX} y1={paddingY} y2={paddingY} className="member-vote-record-grid"/>
-      <line x1={paddingX} x2={width-paddingX} y1={height/2} y2={height/2} className="member-vote-record-grid"/>
-      <line x1={paddingX} x2={width-paddingX} y1={height-paddingY} y2={height-paddingY} className="member-vote-record-grid"/>
-      {lines.map((run,index)=><path key={index} d={trendPath(run)} className="member-vote-record-line"/>)}
-      {points.map(point=>point.y===null?null:<circle key={point.sittingId} cx={point.x} cy={point.y} r={3.5} className="member-vote-record-dot"/>)}
+    <figcaption><UiMessage id="membervoterecord.trend.heading"/></figcaption>
+    <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
+      {[paddingY,height/2,height-paddingY].map(y=><line key={y} x1={paddingX} x2={width-paddingX} y1={y} y2={y} className="member-vote-record-grid"/>)}
+      {runs.filter(item=>item.length>1).map((item,index)=><path key={index} d={trendPath(item)} className="member-vote-record-line"/>)}
+      {points.map(point=>point.y===null?null:<circle key={point.sittingId} cx={point.x} cy={point.y} r={3} className="member-vote-record-dot"/>)}
     </svg>
-    <figcaption>
-      <p className="visually-hidden"><UiMessage id="membervoterecord.trend.alternative"/></p>
-      <ul className="visually-hidden">{points.map(point=><li key={point.sittingId}>{point.share===null
-        ? <UiMessage id="membervoterecord.trend.gap" values={{date:dateLabel(point.date,ui.locale)}}/>
-        : <UiMessage id="membervoterecord.trend.point" values={{date:dateLabel(point.date,ui.locale),share:percent(point.share,ui),with:point.withGroup??0,comparable:point.comparable??0}}/>}</li>)}</ul>
-    </figcaption>
+    <div className="member-vote-record-axis"><span>{dateLabel(trend[0].date,ui.locale)}</span><span>{dateLabel(trend[trend.length-1].date,ui.locale)}</span></div>
+    <p className="visually-hidden"><UiMessage id="membervoterecord.trend.alternative"/></p>
+    <ul className="visually-hidden">{points.map(point=><li key={point.sittingId}>{point.share===null
+      ? <UiMessage id="membervoterecord.trend.gap" values={{date:dateLabel(point.date,ui.locale)}}/>
+      : <UiMessage id="membervoterecord.trend.point" values={{date:dateLabel(point.date,ui.locale),share:percent(point.share,ui),count:point.withGroup??0,comparable:point.comparable??0}}/>}</li>)}</ul>
   </figure>;
 }
 
-function Departures({data,memberId,scope,onOffset,onOpenDecision}:{data:MemberVoteRecordResponse;memberId:number;scope:'all'|'final';onOffset:(offset:number)=>void;onOpenDecision:(item:MemberVoteRecordDeparture)=>void}) {
+function Departures({data,memberId,onOffset,onOpenDecision}:{data:MemberVoteRecordResponse;memberId:number;onOffset:(offset:number)=>void;onOpenDecision:(item:MemberVoteRecordDeparture)=>void}) {
   const ui=useUiI18n();
   const departures=data.departures;
   return <section className="member-vote-record-departures">
-    <h3>{scope==='final'?<UiMessage id="membervoterecord.departures.final"/>:<UiMessage id="membervoterecord.departures.all"/>}</h3>
-    {!departures.total&&<p className="member-vote-record-empty">{scope==='final'?<UiMessage id="membervoterecord.departures.final.empty"/>:<UiMessage id="membervoterecord.departures.empty"/>}</p>}
+    <h3><UiMessage id="membervoterecord.departures.all"/></h3>
+    {!departures.total&&<p className="member-vote-record-muted"><UiMessage id="membervoterecord.departures.empty"/></p>}
     {Boolean(departures.total)&&<ol start={departures.offset+1}>{departures.items.map(item=><li key={item.decisionId+item.sittingId}>
       <a href={decisionHref(memberId,item)??undefined} onClick={event=>{
         if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
         event.preventDefault();onOpenDecision(item);
-      }}>{dateLabel(item.date,ui.locale)} · {item.text||ui.t('membervoterecord.untitled')}</a>
+      }}>{item.text||ui.t('membervoterecord.departures.untitled')}</a>
+      <small>{dateLabel(item.date,ui.locale)} · <UiMessage id="membervoterecord.departures.line" values={{position:positionLabel(item.position,ui),line:positionLabel(item.line,ui)}}/></small>
     </li>)}</ol>}
     {Boolean(departures.total)&&<p className="member-vote-record-muted"><UiMessage id="membervoterecord.departures.range" values={{start:departures.offset+1,end:departures.offset+departures.items.length,total:departures.total}}/></p>}
     <div className="member-vote-record-departure-actions">
@@ -91,54 +99,45 @@ export function MemberVoteRecord({memberId,language,scope,offset,onScopeChange,o
   const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
   const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
   if(!data)return <section className="member-vote-record" lang={ui.language} aria-label={ui.t('membervoterecord.heading')}>
-    <p className={request.error||!request.loading?'member-vote-record-status':'member-vote-record-status'} role="status">
+    <p className="member-vote-record-status" role="status">
       {request.error||!request.loading?<UiMessage id="membervoterecord.unavailable"/>:<UiMessage id="membervoterecord.loading"/>}
     </p>
   </section>;
   const figures=recordAlignment(data,scope);
-  const groupKnown=data.group.status==='attached';
-  const comparison=data.comparison;
+  const groupKnown=data.group.status==='attached'&&figures!==null;
+  const medians=recordComparison(data,scope);
+  const {ballots}=data;
   return <section className="member-vote-record" lang={ui.language} aria-labelledby="member-vote-record-heading">
     <header className="member-vote-record-header">
       <div>
         <h2 id="member-vote-record-heading"><UiMessage id="membervoterecord.heading"/></h2>
         <p className="member-vote-record-muted">{data.period.to===null
           ? <UiMessage id="membervoterecord.period.open" values={{from:dateLabel(data.period.from,ui.locale)}}/>
-          : <UiMessage id="membervoterecord.period" values={{from:dateLabel(data.period.from,ui.locale),to:dateLabel(data.period.to,ui.locale)}}/>}</p>
+          : <UiMessage id="membervoterecord.period" values={{from:dateLabel(data.period.from,ui.locale),to:dateLabel(data.period.to,ui.locale)}}/>}
+          {data.coverage.status==='partial'&&<> · <UiMessage id="membervoterecord.coverage.partial" values={{missing:data.coverage.missing}}/></>}</p>
       </div>
       <div className="member-vote-record-filter" role="group" aria-label={ui.t('membervoterecord.scope.label')}>
         <button type="button" aria-pressed={scope==='all'} onClick={()=>onScopeChange('all')}><UiMessage id="membervoterecord.scope.all"/></button>
         <button type="button" aria-pressed={scope==='final'} onClick={()=>onScopeChange('final')}><UiMessage id="membervoterecord.scope.final"/></button>
       </div>
     </header>
-    <p className="member-vote-record-coverage">{data.coverage.status==='complete'
-      ? <UiMessage id="membervoterecord.coverage.complete" values={{sittings:data.coverage.sittings}}/>
-      : data.coverage.status==='partial'
-        ? <UiMessage id="membervoterecord.coverage.partial" values={{included:data.coverage.included,sittings:data.coverage.sittings}}/>
-        : <UiMessage id="membervoterecord.coverage.unavailable"/>}</p>
-    <dl className="member-vote-record-ballots">
-      <div><dt><UiMessage id="membervoterecord.ballots.recorded"/></dt><dd>{ui.number(data.ballots.recorded)}</dd></div>
-      <div><dt><UiMessage id="membervoterecord.ballots.named"/></dt><dd>{ui.number(data.ballots.named)}</dd></div>
-      {data.ballots.chaired>0&&<div><dt><UiMessage id="membervoterecord.ballots.chaired"/></dt><dd>{ui.number(data.ballots.chaired)}</dd></div>}
-    </dl>
-    {!groupKnown?<p className="member-vote-record-note">{data.group.status==='non-attached'
-      ? <UiMessage id="membervoterecord.nonAttached"/>
-      : <UiMessage id="membervoterecord.groupUnavailable"/>}</p>:<>
-      {figures&&<>
-        <dl className="member-vote-record-figures">
-          <div><dt><UiMessage id="membervoterecord.withGroup"/></dt><dd>{percent(figures.withShare,ui)}</dd><small><UiMessage id="membervoterecord.comparable" values={{with:figures.with,comparable:figures.comparable}}/></small></div>
-          <div><dt><UiMessage id="membervoterecord.againstGroup"/></dt><dd>{percent(figures.againstShare,ui)}</dd><small><UiMessage id="membervoterecord.comparable" values={{with:figures.against,comparable:figures.comparable}}/></small></div>
-          <div><dt><UiMessage id="membervoterecord.abstained"/></dt><dd>{ui.number(figures.abstained)}</dd><small><UiMessage id="membervoterecord.ofRecorded" values={{recorded:figures.total}}/></small></div>
-          <div><dt><UiMessage id="membervoterecord.notComparable"/></dt><dd>{ui.number(figures.notComparable)}</dd><small><UiMessage id="membervoterecord.notComparableDetail"/></small></div>
-        </dl>
-        <p className="member-vote-record-muted"><UiMessage id="membervoterecord.groupLine"/></p>
+    <dl className="member-vote-record-figures">
+      {groupKnown&&<>
+        <div><dt><UiMessage id="membervoterecord.withGroup"/></dt><dd>{percent(figures.withShare,ui)}</dd>
+          <small>{figures.comparable?<UiMessage id="membervoterecord.share.detail" values={{count:figures.with,comparable:figures.comparable}}/>:null}</small>
+          {medians&&<small><UiMessage id="membervoterecord.medians" values={{group:percent(medians.group.median,ui),parliament:percent(medians.parliament.median,ui)}}/></small>}</div>
+        <div><dt><UiMessage id="membervoterecord.againstGroup"/></dt><dd>{figures.comparable?num(ui,figures.against):ui.t('membervoterecord.noValue')}</dd>
+          <small>{figures.comparable?<UiMessage id="membervoterecord.share.detail" values={{count:figures.against,comparable:figures.comparable}}/>:null}</small></div>
       </>}
-      {comparison&&<p className="member-vote-record-comparison"><UiMessage id="membervoterecord.comparison" values={{
-        group:percent(comparison.group.median,ui),groupMembers:comparison.group.members,
-        parliament:percent(comparison.parliament.median,ui),parliamentMembers:comparison.parliament.members,
-      }}/></p>}
-      <Trend data={data}/>
-      <Departures data={data} memberId={memberId} scope={scope} onOffset={onOffset} onOpenDecision={onOpenDecision}/>
+      <div><dt><UiMessage id="membervoterecord.recorded"/></dt>
+        <dd>{ballots.named===null?num(ui,ballots.recorded):<UiMessage id="membervoterecord.recorded.value" values={{recorded:num(ui,ballots.recorded),named:num(ui,ballots.named)}}/>}</dd>
+        {ballots.named!==null&&<small><UiMessage id="membervoterecord.recorded.detail"/></small>}
+        {ballots.chaired>0&&<small><UiMessage id="membervoterecord.chaired" values={{count:num(ui,ballots.chaired)}}/></small>}
+        {!groupKnown&&<small>{data.group.status==='non-attached'?<UiMessage id="membervoterecord.nonAttached"/>:<UiMessage id="membervoterecord.groupUnavailable"/>}</small>}</div>
+    </dl>
+    {groupKnown&&<>
+      <Trend data={data} scope={scope}/>
+      <Departures data={data} memberId={memberId} onOffset={onOffset} onOpenDecision={onOpenDecision}/>
     </>}
   </section>;
 }
@@ -151,9 +150,12 @@ export function MemberVoteRecordSummary({memberId,language,onOpen}:{memberId:num
   if(!data)return <p className="member-vote-record-summary member-vote-record-status" role="status">{request.error||!request.loading?<UiMessage id="membervoterecord.unavailable"/>:<UiMessage id="membervoterecord.loading"/>}</p>;
   const summary=recordSummary(data);
   const chaired=summary.chaired?ui.t('membervoterecord.summary.chaired',{count:summary.chaired}):'';
-  return <p className="member-vote-record-summary"><button type="button" onClick={onOpen}>{summary.recorded===0
+  return <p className="member-vote-record-summary"><a href={votesHref(memberId)??undefined} onClick={event=>{
+    if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+    event.preventDefault();onOpen();
+  }}>{summary.recorded===0
     ? <UiMessage id="membervoterecord.summary.empty"/>
     : summary.attached&&summary.share!==null
       ? <UiMessage id="membervoterecord.summary.attached" values={{share:percent(summary.share,ui),recorded:summary.recorded,chaired}}/>
-      : <UiMessage id="membervoterecord.summary.nonAttached" values={{recorded:summary.recorded,chaired}}/>}</button></p>;
+      : <UiMessage id="membervoterecord.summary.nonAttached" values={{recorded:summary.recorded,chaired}}/>}</a></p>;
 }

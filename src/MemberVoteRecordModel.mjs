@@ -5,6 +5,9 @@ const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)
 const date=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
 const sitting=value=>date(value?.slice(7))&&/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(value);
 const position=value=>value===null||['for','against','abstaining'].includes(value);
+const share=value=>object(value)&&typeof value.median==='number'&&Number.isFinite(value.median)&&value.median>=0&&value.median<=1&&integer(value.members)&&value.members>0;
+const medians=value=>value===null||object(value)&&share(value.group)&&share(value.parliament);
+const pair=(a,b)=>a===null&&b===null||integer(a)&&integer(b)&&a<=b;
 const alignment=value=>object(value)&&['with','against','abstained','notComparable'].every(key=>integer(value[key]));
 
 export function memberVoteRecordRoute(memberId,{language='en',scope='all',limit=MEMBER_VOTE_RECORD_LIMIT,offset=0}={}) {
@@ -24,10 +27,10 @@ export function validateMemberVoteRecordResponse(data,{memberId}={}) {
   if(!object(data.group)||!['attached','non-attached','unavailable'].includes(data.group.status)||
     data.group.code!==null&&typeof data.group.code!=='string')return false;
   if(data.alignment!==null&&(!object(data.alignment)||!alignment(data.alignment.all)||!alignment(data.alignment.wholeText)))return false;
-  if(!object(data.ballots)||!['recorded','named','chaired'].every(key=>integer(data.ballots[key])))return false;
+  if(!object(data.ballots)||!['recorded','chaired'].every(key=>integer(data.ballots[key]))||data.ballots.named!==null&&!integer(data.ballots.named))return false;
   if(!Array.isArray(data.bySitting)||data.bySitting.length>coverage.sittings)return false;
   if(!data.bySitting.every(day=>object(day)&&sitting(day.sittingId)&&day.date===day.sittingId.slice(7)&&
-    (day.withGroup===null&&day.comparable===null||integer(day.withGroup)&&integer(day.comparable)&&day.withGroup<=day.comparable)))return false;
+    pair(day.withGroup,day.comparable)&&pair(day.finalWithGroup,day.finalComparable)))return false;
   const departures=data.departures;
   if(!object(departures)||!['all','final'].includes(departures.scope)||!integer(departures.offset)||
     !integer(departures.limit)||departures.limit>50||!integer(departures.total)||!Array.isArray(departures.items)||
@@ -37,12 +40,7 @@ export function validateMemberVoteRecordResponse(data,{memberId}={}) {
     sitting(item.sittingId)&&date(item.date)&&['all','final'].includes(item.scope)&&typeof item.wholeText==='boolean'&&
     position(item.position)&&position(item.line)&&
     (item.text===null&&item.language===null||typeof item.text==='string'&&languages.has(item.language))))return false;
-  if(data.comparison!==null) {
-    const comparison=data.comparison;
-    if(!object(comparison)||!['group','parliament'].every(key=>object(comparison[key])&&
-      typeof comparison[key].median==='number'&&Number.isFinite(comparison[key].median)&&comparison[key].median>=0&&comparison[key].median<=1&&
-      integer(comparison[key].members)&&comparison[key].members>0))return false;
-  }
+  if(data.comparison!==null&&!(object(data.comparison)&&medians(data.comparison.all)&&medians(data.comparison.final)))return false;
   return typeof data.attribution==='string';
 }
 
@@ -54,9 +52,14 @@ export function recordAlignment(data,scope='all') {
   return {...counts,total,comparable,withShare:comparable?counts.with/comparable:null,againstShare:comparable?counts.against/comparable:null};
 }
 
-export function recordTrend(data) {
+export function recordTrend(data,scope='all') {
+  const [withKey,comparableKey]=scope==='final'?['finalWithGroup','finalComparable']:['withGroup','comparable'];
   return [...data.bySitting].sort((a,b)=>a.date.localeCompare(b.date)||a.sittingId.localeCompare(b.sittingId))
-    .map(day=>({...day,share:day.comparable?day.withGroup/day.comparable:null}));
+    .map(day=>({sittingId:day.sittingId,date:day.date,withGroup:day[withKey],comparable:day[comparableKey],share:day[comparableKey]?day[withKey]/day[comparableKey]:null}));
+}
+
+export function recordComparison(data,scope='all') {
+  return data.comparison?.[scope==='final'?'final':'all']??null;
 }
 
 export function recordSummary(data) {

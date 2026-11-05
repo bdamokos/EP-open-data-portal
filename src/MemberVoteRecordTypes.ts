@@ -4,6 +4,7 @@ export type MemberVoteRecordDeparture={
   position:'for'|'against'|'abstaining'|null;line:'for'|'against'|'abstaining'|null;
   text:string|null;language:string|null;
 };
+export type MemberVoteRecordMedians=null|{group:{median:number;members:number};parliament:{median:number;members:number}};
 export type MemberVoteRecordResponse={
   version:1;
   member:{id:string;uri:string};
@@ -11,12 +12,12 @@ export type MemberVoteRecordResponse={
   coverage:{sittings:number;included:number;missing:number;status:'complete'|'partial'|'unavailable'};
   group:{code:string|null;status:'attached'|'non-attached'|'unavailable'};
   alignment:null|{all:MemberVoteRecordAlignment;wholeText:MemberVoteRecordAlignment};
-  ballots:{recorded:number;named:number;chaired:number};
-  bySitting:{sittingId:string;date:string;withGroup:number|null;comparable:number|null}[];
+  ballots:{recorded:number;named:number|null;chaired:number};
+  bySitting:{sittingId:string;date:string;withGroup:number|null;comparable:number|null;finalWithGroup:number|null;finalComparable:number|null}[];
   departures:{
     scope:'all'|'final';offset:number;limit:number;total:number;
     items:MemberVoteRecordDeparture[];nextOffset:number|null;
   };
-  comparison:null|{group:{median:number;members:number};parliament:{median:number;members:number}};
+  comparison:null|{all:MemberVoteRecordMedians;final:MemberVoteRecordMedians};
   attribution:string;
 };

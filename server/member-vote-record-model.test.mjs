@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {voteFixture} from './test-support/decision-votes.mjs';
 import {createGroupOn} from './group-attribution.mjs';
+import {memberVoteAlignment} from './member-votes-model.mjs';
 import {memberVoteRecordRevision,summariseVoteSitting,pickTitle,voteGroupLines} from './member-vote-record-model.mjs';
 
 const DATE='2026-10-07',DOCUMENT='PV-10-2026-10-07-VOT-ITM-007';
@@ -166,4 +167,14 @@ test('titles prefer the requested language, then English, then any available tex
   assert.deepEqual(pickTitle({fr:'Texte'},{},'hu'),{text:'Texte',language:'fr'});
   assert.deepEqual(pickTitle({},{en:'Reference'},'hu'),{text:'Reference',language:'en'});
   assert.deepEqual(pickTitle({fr:'  '},{},'hu'),{text:null,language:null});
+});
+
+test('an abstention is with the group when the group line is to abstain, and a departure otherwise',()=>{
+  const people=groupsOf({1:'S&D',2:'S&D',3:'S&D',4:'PPE'});
+  const summary=summariseVoteSitting(sitting([{for:[3],abstaining:[1,2,4]}]).day,createGroupOn(people),{groupGeneration:'g1'});
+  const member=id=>summary.members.get(String(id));
+  assert.deepEqual(member(1).alignment,{with:1,against:0,abstained:0,notComparable:0});
+  assert.deepEqual(member(3).alignment,{with:0,against:1,abstained:0,notComparable:0});
+  assert.equal(member(3).departures[0].line,'abstaining');
+  assert.equal(memberVoteAlignment({ballotStatus:'conducted',actualPosition:{status:'recorded',position:'abstaining'}},'for'),'abstained');
 });
