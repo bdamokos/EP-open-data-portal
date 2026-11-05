@@ -1,5 +1,6 @@
 import {assertSequentialParagraph} from './amendment-sequential-paragraph-oracle.mjs';
 import {assertSplitComparisonNotes} from './amendment-native-note-oracle.mjs';
+import {assertHorizontalInstruction} from './amendment-horizontal-instruction-oracle.mjs';
 import {assertPrintedInsertion} from './amendment-printed-insertion-oracle.mjs';
 import {assertUniqueEntry} from './amendment-unique-entry-oracle.mjs';
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
@@ -633,6 +634,8 @@ function verifyResolutionInsertion(text,wording,target,placement) {
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
   const splitNotes=assertSplitComparisonNotes(input);if(splitNotes&&splitNotes.status!=='verified')return splitNotes;
+  const horizontal=assertHorizontalInstruction(input);if(horizontal&&horizontal.status!=='verified')return horizontal;
+  if(horizontal?.status==='verified')input={...input,wording:{...input.wording,originalText:input.wording.originalText.replace(/^(\d+) cikk\n/u,'$1. cikk\n')}};
   const captioned=assertCaptionedComparison(input);if(captioned&&captioned.status!=='verified')return captioned;
   const formula=assertFormulaGap(input);if(formula&&formula.status!=='verified')return formula;
   if(input.items?.[input.placement?.itemIndex]?.proposal?.sourceKind==='pdf')return assertCouncilDraftPlacement(input);

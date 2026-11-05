@@ -689,9 +689,10 @@ test('published rejection, modification and stacked-annex layouts keep explicit 
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml,doc.numberingXml?{'word/numbering.xml':doc.numberingXml}:{}),doc),amendment=result.amendments.find(row=>doc.id.endsWith('-AM-'+row.number));
     assert(amendment,doc.id);
     if(doc.language==='hu') {
-      // This real horizontal instruction spans BOTH comparison columns. Its
-      // wording has no unique side, so the whole amendment remains withheld.
-      assert.equal(amendment.originalText,null);assert(amendment.gaps.some(g=>g.code==='comparison-grid'));continue;
+      // The full-width instruction remains separate from both legal columns.
+      assert.equal(amendment.proposedText,'törölve');
+      assert.equal(amendment.documentReferences.at(-1).raw,'(Horizontális módosítás – elfogadása esetén e rendelet címét megfelelően ki kell igazítani.)');
+      assert(!amendment.gaps.some(g=>g.code==='comparison-grid'));continue;
     }
     assert.equal(typeof amendment.proposedText,'string',doc.id);
     assert(!amendment.gaps.some(g=>['comparison-header','comparison-grid'].includes(g.code)),doc.id);

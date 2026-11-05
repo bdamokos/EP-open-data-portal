@@ -1586,3 +1586,12 @@ test('uniquely addressed decision wording differences show their short source no
  const block=h.container.querySelector('[data-amendment-block="true"][data-context-target="true"]');
  assert(block);assert.match(block.textContent,/Original wording differs from the proposal\./);
 });
+
+test('a full-width amendment instruction remains visible beside a placed deletion',async t=>{
+ const value=proposalContextResponse(report,amendment,list),wording=value.amendment.variants[0];
+ const note='(Horizontális módosítás – elfogadása esetén e rendelet címét megfelelően ki kell igazítani.)';
+ wording.documentReferences=[...(wording.documentReferences||[]),{field:'ComparisonInstruction',basis:'full-width-deletion-instruction',raw:note}];
+ value.placement={...value.placement,operation:'delete'};
+ const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+ const block=h.container.querySelector('[data-amendment-block="true"]');assert(block);assert(block.textContent.includes(note));
+});
