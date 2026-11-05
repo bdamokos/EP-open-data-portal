@@ -13,12 +13,13 @@ import './VoteBreakdown.css';
 type Row=VoteMetricRow&{id?:string};
 type Props={rows:Row[];language:string;country:string|null;group:string|null;position:VotePosition|null;onChoose:(country:string|null,group:string|null,position:VotePosition)=>void};
 function sortRows(rows:CountryBreakdownRow[],sort:MatrixSort,language:string) {
+  const groupKey=sort.kind==='group'?sort.key:'';
   const name=(row:CountryBreakdownRow)=>countryName(row.country,language);
   const by=sort.kind==='country'
     ? (a:CountryBreakdownRow,b:CountryBreakdownRow)=>name(a).localeCompare(name(b),language)
     : (a:CountryBreakdownRow,b:CountryBreakdownRow)=>{
       // Countries without ballots for the group always sort last.
-      const x=a.cells.get(sort.key)?.count||0,y=b.cells.get(sort.key)?.count||0;
+      const x=a.cells.get(groupKey)?.count||0,y=b.cells.get(groupKey)?.count||0;
       if(!x||!y)return (x?0:1)-(y?0:1)||name(a).localeCompare(name(b),language);
       return (x-y)*(sort.dir==='asc'?1:-1)||name(a).localeCompare(name(b),language);
     };
@@ -40,7 +41,7 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
     onChoose(code,groupCode,best);
   };
   const sortBy=(kind:'country'|'group',key?:string)=>{
-    const same=sort.kind===kind&&(kind==='country'||sort.key===key);
+    const same=sort.kind===kind&&(sort.kind==='country'||sort.key===key);
     const dir=same?(sort.dir==='asc'?'desc':'asc'):(kind==='country'?'asc':'desc');
     setRawSort(encodeMatrixSort(kind==='country'?{kind,dir}:{kind,key:key!,dir}));
   };
@@ -62,7 +63,7 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
       </li>;
     })}</ul>
   </section>;
-  const sorted=(kind:'country'|'group',key?:string)=>sort.kind===kind&&(kind==='country'||sort.key===key)?(sort.dir==='asc'?'ascending':'descending'):'none';
+  const sorted=(kind:'country'|'group',key?:string)=>sort.kind===kind&&(sort.kind==='country'||sort.key===key)?(sort.dir==='asc'?'ascending':'descending'):'none';
   return <section className="vote-countries" lang={ui.language}>{heading}
     <div style={{overflowX:'auto'}}><table className="vote-country-table">
       <thead><tr>

@@ -64,7 +64,7 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
     if(seat)setActive(seat.seat);
   };
   const markPointer=(event:ReactPointerEvent<SVGCircleElement>)=>{pointerType.current=event.pointerType as typeof pointerType.current;};
-  const keySeat=(event:KeyboardEvent<SVGSVGElement>,seat:HemicycleSeat)=>{
+  const keySeat=(event:KeyboardEvent<SVGCircleElement>,seat:HemicycleSeat)=>{
     if(event.key==='Enter'||event.key===' '){event.preventDefault();openMember(seat);return;}
     const step={'ArrowRight':1,'ArrowDown':1,'ArrowLeft':-1,'ArrowUp':-1}[event.key];
     if(step===undefined&&event.key!=='Home'&&event.key!=='End')return;
@@ -74,7 +74,7 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
     const next=event.key==='Home'?0:event.key==='End'?seats.length-1:Math.min(seats.length-1,Math.max(0,at+step!));
     const target=seats[next];
     setActive(target.seat);
-    event.currentTarget.querySelector<SVGCircleElement>(`[data-seat="${target.seat}"]`)?.focus();
+    (event.currentTarget.ownerSVGElement||event.currentTarget).querySelector<SVGCircleElement>(`[data-seat="${target.seat}"]`)?.focus();
   };
   const circles=useMemo(()=>seats.map(seat=>{
             const ballot=ballots.bySeat.get(seat.seat);
