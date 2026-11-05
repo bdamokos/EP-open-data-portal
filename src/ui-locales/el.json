@@ -2362,5 +2362,7 @@
   "proposalcontexttext.council.position.part.index": "Θέση Συμβουλίου · μέρος {index}",
   "proposalcontexttext.existing.act.part.index": "Υφιστάμενη πράξη · μέρος {index}",
   "MotionComparison.sourceDocx": "Πηγή DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Επίσημη διατύπωση τροπολογίας ↗"
+  "motionamendments.official_amendment_wording.05a440": "Επίσημη διατύπωση τροπολογίας ↗",
+  "amendments.document.fc29c3": "Έγγραφο ↗",
+  "amendments.document_language.aedd07": "Έγγραφο · {language} ↗"
 }

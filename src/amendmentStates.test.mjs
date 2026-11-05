@@ -19,7 +19,7 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   });
   const base={targetDocumentId:'A-10-2026-0254',language:'fr',outcome:'unavailable',documentDate:'2026-10-16',dateBasis:'individual-amendment-document'};
   const items=[
-    {...base,id:'withheld',number:1,textIntegrity:'incomplete',originalText:null,proposedText:null,listRelationship:'unverified',recordRetained:true},
+    {...base,id:'withheld',number:1,textIntegrity:'incomplete',originalText:null,proposedText:null,listRelationship:'unverified',recordRetained:true,sources:[{url:'https://www.europarl.europa.eu/doceo/document/A-10-2026-0254-AM-001-010_FR.html',language:'fr'}]},
     {...base,id:'unsafe-baseline',number:2,textIntegrity:'incomplete',originalText:'Unverified old original must be withheld',proposedText:'Unverified old proposal must be withheld'},
     {...base,id:'absent-list',number:3,textIntegrity:'complete',originalText:'',proposedText:'Proposition conservée',wordingRetained:true,listRelationship:'absent-current-relationship'},
     {...base,id:'missing',number:4,textIntegrity:'unavailable',originalText:null,proposedText:null,listRelationship:'current'},
@@ -40,6 +40,7 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   const withheld=card('withheld');
   assert.equal(withheld.querySelector('.wording-diff,ins,del'),null);
   assert.equal(withheld.querySelector('.explorer-amendment-evidence-state').textContent,'Wording unavailable.');
+  assert(withheld.querySelector('a[href*="A-10-2026-0254-AM-001-010"]'),'withheld wording keeps its official source link');
   assert.deepEqual([...withheld.querySelectorAll('.explorer-amendment-texts section>p')].map(node=>node.textContent),['Unavailable.','Unavailable.']);
   assert.doesNotMatch(withheld.textContent,/No original text \(insertion\)|Text deleted/);
   assert.doesNotMatch(card('unsafe-baseline').textContent,/Unverified old original must be withheld|Unverified old proposal must be withheld/);

@@ -2362,5 +2362,7 @@
   "proposalcontexttext.existing.act.part.index": "Existing act · part {index}",
   "proposalcontexttext.proposal": "Proposal",
   "proposalcontexttext.proposal.part.index": "Proposal · part {index}",
-  "coverage.question.readFailed": "{record} unavailable"
+  "coverage.question.readFailed": "{record} unavailable",
+  "amendments.document.fc29c3": "Document ↗",
+  "amendments.document_language.aedd07": "Document · {language} ↗"
 }

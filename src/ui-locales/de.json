@@ -2362,5 +2362,7 @@
   "proposalcontexttext.council.position.part.index": "Standpunkt des Rates · Teil {index}",
   "proposalcontexttext.existing.act.part.index": "Bestehender Rechtsakt · Teil {index}",
   "MotionComparison.sourceDocx": "Quell-DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Offizieller Wortlaut des Änderungsantrags ↗"
+  "motionamendments.official_amendment_wording.05a440": "Offizieller Wortlaut des Änderungsantrags ↗",
+  "amendments.document.fc29c3": "Dokument ↗",
+  "amendments.document_language.aedd07": "Dokument · {language} ↗"
 }

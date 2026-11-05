@@ -2362,5 +2362,7 @@
   "proposalcontexttext.council.position.part.index": "Poziția Consiliului · partea {index}",
   "proposalcontexttext.existing.act.part.index": "Act existent · partea {index}",
   "MotionComparison.sourceDocx": "DOCX sursă · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Formularea oficială a amendamentului ↗"
+  "motionamendments.official_amendment_wording.05a440": "Formularea oficială a amendamentului ↗",
+  "amendments.document.fc29c3": "Document ↗",
+  "amendments.document_language.aedd07": "Document · {language} ↗"
 }

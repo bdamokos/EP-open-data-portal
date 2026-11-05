@@ -2362,5 +2362,7 @@
   "proposalcontexttext.council.position.part.index": "Pozícia Rady · časť {index}",
   "proposalcontexttext.existing.act.part.index": "Existujúci právny akt · časť {index}",
   "MotionComparison.sourceDocx": "Zdrojový DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Úradné znenie pozmeňujúceho návrhu ↗"
+  "motionamendments.official_amendment_wording.05a440": "Úradné znenie pozmeňujúceho návrhu ↗",
+  "amendments.document.fc29c3": "Dokument ↗",
+  "amendments.document_language.aedd07": "Dokument · {language} ↗"
 }

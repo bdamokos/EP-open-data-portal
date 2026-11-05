@@ -2362,5 +2362,7 @@
   "proposalcontexttext.council.position.part.index": "Standpunt van de Raad · deel {index}",
   "proposalcontexttext.existing.act.part.index": "Bestaande rechtshandeling · deel {index}",
   "MotionComparison.sourceDocx": "Bron-DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Officiële amendementtekst ↗"
+  "motionamendments.official_amendment_wording.05a440": "Officiële amendementtekst ↗",
+  "amendments.document.fc29c3": "Document ↗",
+  "amendments.document_language.aedd07": "Document · {language} ↗"
 }

@@ -2362,5 +2362,7 @@
   "proposalcontexttext.council.position.part.index": "Padomes nostāja · daļa {index}",
   "proposalcontexttext.existing.act.part.index": "Esošais tiesību akts · daļa {index}",
   "MotionComparison.sourceDocx": "Avota DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Oficiālais grozījuma formulējums ↗"
+  "motionamendments.official_amendment_wording.05a440": "Oficiālais grozījuma formulējums ↗",
+  "amendments.document.fc29c3": "Dokuments ↗",
+  "amendments.document_language.aedd07": "Dokuments · {language} ↗"
 }

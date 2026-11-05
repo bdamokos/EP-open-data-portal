@@ -2362,5 +2362,7 @@
   "proposalcontexttext.council.position.part.index": "Pożizzjoni tal-Kunsill · parti {index}",
   "proposalcontexttext.existing.act.part.index": "Att eżistenti · parti {index}",
   "MotionComparison.sourceDocx": "DOCX tas-sors · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Kliem uffiċjali tal-emenda ↗"
+  "motionamendments.official_amendment_wording.05a440": "Kliem uffiċjali tal-emenda ↗",
+  "amendments.document.fc29c3": "Dokument ↗",
+  "amendments.document_language.aedd07": "Dokument · {language} ↗"
 }

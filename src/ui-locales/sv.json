@@ -2362,5 +2362,7 @@
   "proposalcontexttext.council.position.part.index": "Rådets ståndpunkt · del {index}",
   "proposalcontexttext.existing.act.part.index": "Befintlig rättsakt · del {index}",
   "MotionComparison.sourceDocx": "Käll-DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Officiell lydelse av ändringsförslaget ↗"
+  "motionamendments.official_amendment_wording.05a440": "Officiell lydelse av ändringsförslaget ↗",
+  "amendments.document.fc29c3": "Dokument ↗",
+  "amendments.document_language.aedd07": "Dokument · {language} ↗"
 }

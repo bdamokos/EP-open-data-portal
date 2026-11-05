@@ -2362,5 +2362,7 @@
   "proposalcontexttext.council.position.part.index": "Posição do Conselho · parte {index}",
   "proposalcontexttext.existing.act.part.index": "Ato existente · parte {index}",
   "MotionComparison.sourceDocx": "DOCX de origem · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Redação oficial da alteração ↗"
+  "motionamendments.official_amendment_wording.05a440": "Redação oficial da alteração ↗",
+  "amendments.document.fc29c3": "Documento ↗",
+  "amendments.document_language.aedd07": "Documento · {language} ↗"
 }

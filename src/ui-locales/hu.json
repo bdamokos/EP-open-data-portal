@@ -2362,5 +2362,7 @@
   "proposalcontexttext.council.position.part.index": "A Tanács álláspontja · {index}. rész",
   "proposalcontexttext.existing.act.part.index": "Meglévő jogi aktus · {index}. rész",
   "MotionComparison.sourceDocx": "Forrás DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "A módosítás hivatalos szövege ↗"
+  "motionamendments.official_amendment_wording.05a440": "A módosítás hivatalos szövege ↗",
+  "amendments.document.fc29c3": "Dokumentum ↗",
+  "amendments.document_language.aedd07": "Dokumentum · {language} ↗"
 }
