@@ -2222,7 +2222,7 @@
   "yourVote.loading": "Foclaíocht á luchtú…",
   "yourVote.partial": "Níl sonraí an leasaithe ar fáil.",
   "yourVote.replacesMotions": "Tagann sé in ionad na dtairiscintí.",
-  "yourVote.fallsOnAdoption": "Titeann sé má ghlactar: {amendments}",
+  "yourVote.fallsOnAdoption": "Ar lár má ghlactar é: {amendments}",
   "yourVote.am": "AM {number}",
   "yourVote.amPart": "Cuid {part} de AM {number}",
   "yourVote.rollCallTag": "Vótáil le glaoch rolla",

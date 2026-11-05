@@ -2212,7 +2212,7 @@
   "yourVote.error": "Balsojumi nav pieejami.",
   "yourVote.pick": "Salīdzināt ar deputātu",
   "yourVote.noSaved": "Saglabātu balsojumu nav.",
-  "yourVote.fallsIf": "Zaudē spēku, ja tiek pieņemts {amendments}",
+  "yourVote.fallsIf": "Zaudē spēku, ja pieņem: {amendments}",
   "yourVote.block": "Grozījumi: {count}",
   "yourVote.numbers": "Grozījumu numuri",
   "yourVote.context": "Rādīt tekstā",

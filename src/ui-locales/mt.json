@@ -2212,7 +2212,7 @@
   "yourVote.error": "Il-votazzjonijiet mhumiex disponibbli.",
   "yourVote.pick": "Qabbel ma’ Membru tal-PE",
   "yourVote.noSaved": "L-ebda votazzjoni ssejvjata.",
-  "yourVote.fallsIf": "Jaqa’ jekk jiġi adottat {amendments}",
+  "yourVote.fallsIf": "Jaqa’ f’każ ta’ adozzjoni ta’: {amendments}",
   "yourVote.block": "Emendi: {count}",
   "yourVote.numbers": "In-numri tal-emendi",
   "yourVote.context": "Uri fit-test",

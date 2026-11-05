@@ -2212,7 +2212,7 @@
   "yourVote.error": "Οι ψηφοφορίες δεν είναι διαθέσιμες.",
   "yourVote.pick": "Σύγκριση με ευρωβουλευτή",
   "yourVote.noSaved": "Δεν υπάρχουν αποθηκευμένες ψηφοφορίες.",
-  "yourVote.fallsIf": "Αποκλείεται αν εγκριθεί το {amendments}",
+  "yourVote.fallsIf": "Αποκλείεται σε περίπτωση έγκρισης: {amendments}",
   "yourVote.block": "Τροπολογίες: {count}",
   "yourVote.numbers": "Αριθμοί τροπολογιών",
   "yourVote.context": "Εμφάνιση στο κείμενο",
