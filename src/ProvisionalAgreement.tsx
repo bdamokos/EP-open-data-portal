@@ -16,7 +16,7 @@ const link=(href:string|null,label:ReactNode)=>href?<a href={href} target="_blan
 
 // The agreement's links and the legend for Parliament's own marks. Each link
 // appears only when the server bound it by an exact identifier.
-export function ProvisionalAgreementLinks({data}:{data:ProvisionalAgreementResponse}) {
+export function ProvisionalAgreementLinks({data,hasText}:{data:ProvisionalAgreementResponse;hasText:boolean}) {
   const agreement=external(data.agreement?.url,['data.europarl.europa.eu']),adopted=external(data.adoptedText?.url,['www.europarl.europa.eu']);
   const act=external(data.finalAct?.url,['eur-lex.europa.eu']),proposal=external(data.proposal?.url,['eur-lex.europa.eu']);
   return <div className="provisional-agreement">
@@ -27,6 +27,6 @@ export function ProvisionalAgreementLinks({data}:{data:ProvisionalAgreementRespo
       {data.proposal&&<li>{proposal?link(proposal,<UiMessage id="batch6.references.commission.proposal.25"/>):<UiMessage id="proposalcontexttext.commission.proposal.com.year.number" values={{year:data.proposal.year,number:data.proposal.number}}/>}</li>}
       {act&&data.finalAct&&<li><UiMessage id="amendment.final_act" values={{act:link(act,data.finalAct.label)}}/></li>}
     </ul>
-    <p className="document-context-notice"><UiMessage id="amendment.provisional_marks"/> <UiMessage id="amendment.provisional_unmarked"/></p>
+    {hasText&&<p className="document-context-notice"><UiMessage id="amendment.provisional_marks"/> <UiMessage id="amendment.provisional_unmarked"/></p>}
   </div>;
 }

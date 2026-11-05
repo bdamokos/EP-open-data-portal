@@ -102,7 +102,7 @@ export const placementReasonsUi = (ui: import('./uiI18n.mjs').UiFormatter = defa
 const amendmentNumber=(id:string|undefined)=>id?.match(/(?:-AM-|:)(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'')||null;
 
 
-function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest,showOriginalLink=true}:{id:string;showOriginalLink?:boolean;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest}) {
+function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest,agreementInfo,showOriginalLink=true}:{agreementInfo?:ProvisionalAgreementResponse;id:string;showOriginalLink?:boolean;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest}) {
   const ui = useUiI18n();
   const state=useData<DocumentContextResponse>(documentRoute(id,language,amendmentRequest),{retryWhile:data=>Boolean(data.document&&publicationRetry.retryWhile(data.document)),retryAtFor:data=>data.document?publicationRetry.retryAtFor(data.document):0});
   const data=responseFor(state.data,id,language,amendmentRequest),document=((data?.document?.id===id) && (!data.document.selectedDocumentId||data.document.selectedDocumentId===id)) ? data.document : null;
@@ -187,8 +187,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   // The agreement's own text, with Parliament's marks, replaces the report's text.
   if(provisional&&(agreement||agreementState.loading&&!agreementState.data))return <div className="document-context-document">
     {agreement?<>
-      <ProvisionalAgreementLinks data={agreement}/>
-      <DocumentBody key={agreement.text!.documentId+':'+language} id={agreement.text!.documentId} language={language} interfaceLanguage={interfaceLanguage} showOriginalLink={showOriginalLink} onLanguageChange={onLanguageChange}/>
+      <DocumentBody agreementInfo={agreement} key={agreement.text!.documentId+':'+language} id={agreement.text!.documentId} language={language} interfaceLanguage={interfaceLanguage} showOriginalLink={showOriginalLink} onLanguageChange={onLanguageChange}/>
     </>:<p role="status"><UiMessage id="batch5.amendments.tsx.188.20"/></p>}
   </div>;
   if(!provisional&&['commission-proposal','council-position','existing-act'].includes(data?.baseline?.kind||'')&&data?.proposal?.items.length)return <div className="document-context-document">
@@ -197,6 +196,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     <ProposalContextText data={(proposalEvidenceMatches||data.placement?.status==='unresolved') ? data : ({...data,placement:{...data.placement!,status:'unresolved',reason:'client_target_unconfirmed'}})} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage} showOriginalLink={showOriginalLink}/>
   </div>;
   return <div className="document-context-document" data-context-pending={(state.loading && (!hasText)) ? 'true' : undefined}>
+    {agreementInfo&&<ProvisionalAgreementLinks data={agreementInfo} hasText={hasText}/>}
     {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id, ui)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools">{hasText&&<FindInText key={id+':'+language} target={reader} label={ui.t("batch6.documentcontextreader.find.in.document.168")}/>}</div></header>}
     {provisional&&<p className="document-context-notice" role="status"><UiMessage id="amendment.replaces_whole_text"/> <a href={safeHref(provisionalSource?.sourceUrl)!} target="_blank" rel="noreferrer"><UiMessage id="amendment.agreement_text"/></a></p>}
     {state.loading&&!data&&<p role="status"><UiMessage id="batch5.amendments.tsx.188.20"/></p>}
