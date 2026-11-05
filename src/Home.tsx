@@ -2,6 +2,7 @@
 // section fetches its own data, so a slow or failing section never holds the
 // headline. Pure selection logic lives in homeModel.mjs.
 import {useEffect,useState} from 'react';
+import {interfaceLanguageInUrl} from './interfaceLanguage.mjs';
 import {UiMessage,useUiI18n} from './UiI18nReact';
 import {useData} from './data';
 import {useInsightData} from './InsightData';
@@ -10,7 +11,7 @@ import {humanDate} from './InsightCharts';
 import {InsightStatus} from './InsightShared';
 import {agendaTitle,lastFullQuarter,point,placeValue,risers,topicsHref} from './topicPresentation.mjs';
 import {recordHref} from './TopicsLinks';
-import {headlineState,defaultAgendaWeek,agendaRows,votePicks,unreadRows} from './homeModel.mjs';
+import {headlineState,defaultAgendaWeek,agendaRows,votePicks,unreadRows,HOME_COUNTRIES,procedureReference} from './homeModel.mjs';
 import {brusselsDate} from './plenaryAvailability.mjs';
 import {useSaved,useSavedNow} from './SavedControls';
 import {summarizeByType} from './followUpdates.mjs';
@@ -18,6 +19,8 @@ import type {VotePeriodsResponse} from './plenaryPeriods.mjs';
 import type {TopicOverview} from './TopicsTypes';
 import type {LegislationResponse,VoteSummary} from './LegislationTypes';
 import type {OutsideDirectory} from './OutsideTypes';
+import {TextSearch} from './TextSearch';
+import {countryName,compareCountries} from './interfaceLabels.mjs';
 import './Home.css';
 
 const useHomeDate=()=>{
@@ -26,8 +29,44 @@ const useHomeDate=()=>{
   return today;
 };
 
-const agendaHref=week=>week ? ('?'+new URLSearchParams({view:'legislation','pl-mode':'agenda','agenda-period':'week:'+week})) : '?view=legislation&pl-mode=agenda';
-const viewHref=view=>'?'+new URLSearchParams({view});
+const agendaHref=(week:string|null)=>week ? ('?'+new URLSearchParams({view:'legislation','pl-mode':'agenda','agenda-period':'week:'+week})) : '?view=legislation&pl-mode=agenda';
+const viewHref=(view:string)=>'?'+new URLSearchParams({view});
+
+const longDate=(value:string,language:string)=>new Intl.DateTimeFormat(language,{weekday:'long',day:'numeric',month:'long',timeZone:'Europe/Brussels'}).format(new Date(value+'T12:00:00Z'));
+
+function headlineText(ui:ReturnType<typeof useUiI18n>,headline:{case:string;city?:string|null;nextDate?:string},language:string) {
+  const city=headline.city,date=headline.nextDate?longDate(headline.nextDate,language):'';
+  switch(headline.case) {
+    case 'sitting-today': return city ? ui.t('home.headline.today_city',{city}) : ui.t('home.headline.today_plain');
+    case 'sitting-later-this-week': return city ? ui.t('home.headline.later_city',{city,date}) : ui.t('home.headline.later_plain',{date});
+    case 'next-known': return city ? ui.t('home.headline.next_city',{city,date}) : ui.t('home.headline.next_plain',{date});
+    default: return ui.t('home.headline.none');
+  }
+}
+
+const goTo=(search:string)=>{
+  const url=new URL(location.href);
+  url.search=search;url.hash='';
+  history.pushState(history.state,'',url);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+};
+
+function FindMeps({language}:{language:string}) {
+  const ui=useUiI18n();
+  return <label className="home-find" lang={ui.language}>
+    <span><UiMessage id="home.find.label"/></span>
+    <select value="" onChange={event=>{
+      const country=event.target.value;
+      if(!country)return;
+      const query=new URLSearchParams({view:'meps',country});
+      if(interfaceLanguageInUrl(language))query.set('lang',language);
+      goTo(query.toString());
+    }}>
+      <option value=""><UiMessage id="home.find.placeholder"/></option>
+      {[...HOME_COUNTRIES].sort((a,b)=>compareCountries(language,a,b,ui)).map(code=><option key={code} value={code} lang={language}>{countryName(language,code,ui)}</option>)}
+    </select>
+  </label>;
+}
 
 export function Home({language}:{language:string}) {
   const ui=useUiI18n();
@@ -40,15 +79,11 @@ export function Home({language}:{language:string}) {
   return <div className="home" lang={ui.language}>
     <div className="home-main">
       <header className="home-headline">
-        <h1 tabIndex={-1}>
-          {(calendar.error&&!calendar.data?.weeks) ? <UiMessage id="home.headline.unavailable"/> :
-            (headline.case==='sitting-today') ?
-              (headline.city ? ui.t('home.headline.today_city',{city:headline.city}) : <UiMessage id="home.headline.today_plain"/>) :
-            ((headline.case==='sitting-later-this-week'||headline.case==='next-known')&&headline.nextDate) ?
-              (headline.city ? ui.t('home.headline.next_city',{date:humanDate(headline.nextDate,language),city:headline.city}) : ui.t('home.headline.next_plain',{date:humanDate(headline.nextDate,language)})) :
-            <UiMessage id="home.headline.none"/>}
-        </h1>
-        <p className="home-headline-link"><a href={agendaHref(week)} onClick={dossierLinkClick}><UiMessage id="home.agenda.open"/></a></p>
+        <h1 tabIndex={-1}>{(calendar.error&&!calendar.data?.weeks) ? ui.t('home.headline.unavailable') : headlineText(ui,headline,language)}</h1>
+        <div className="home-search">
+          <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} language={language} className="explorer-text-search-global"/>
+          <FindMeps language={language}/>
+        </div>
       </header>
       <HomeAgenda week={week} language={language} today={today}/>
       <HomeVotes language={language} today={today} week={week}/>
@@ -57,21 +92,29 @@ export function Home({language}:{language:string}) {
       <HomeFollowing/>
       <HomeTopics language={language}/>
       <HomeOutside language={language}/>
+      <HomeEntries/>
     </aside>
   </div>;
 }
 
 function HomeAgenda({week,language,today}:{week:string|null;language:string;today:string}) {
+  const ui=useUiI18n();
   const agenda=useInsightData<LegislationResponse>(week?'insights/legislation?'+new URLSearchParams({lang:language,week}):null);
-  if(!week||(!agenda.data&&!agenda.loading&&!agenda.error))return null;
-  const rows=agendaRows(agenda.data?.topics,today,6);
+  if(!week)return <section className="home-section home-agenda"><h2><UiMessage id="home.agenda.section"/></h2><p><UiMessage id="home.agenda.empty"/></p></section>;
+  const rows=agendaRows(agenda.data?.topics,today,8);
+  const days=[...new Set(rows.map(row=>row.day))];
   return <section className="home-section home-agenda">
-    <h2><UiMessage id="home.agenda.section"/> <a className="home-section-more" href={agendaHref(week)} onClick={dossierLinkClick}><UiMessage id="home.more"/></a></h2>
+    <h2><UiMessage id="home.agenda.section"/> <a className="home-section-more" href={agendaHref(week)} onClick={dossierLinkClick}><UiMessage id="home.agenda.all"/></a></h2>
     <InsightStatus loading={agenda.loading&&!agenda.data} error={agenda.data?null:agenda.error} retry={agenda.retry}/>
-    {rows.length ? <ol className="home-agenda-list">{rows.map(row=><li key={row.topic.id}>
-      <small><time lang='' dateTime={row.day}>{humanDate(row.day,language)}</time></small>
-      <a href={recordHref(row.topic.id)} onClick={dossierLinkClick}><span lang={row.topic.titleLanguage??''}>{agendaTitle(row.topic.title)}</span></a>
-    </li>)}</ol> : (agenda.data&&!agenda.loading&&!agenda.error ? <p><UiMessage id="home.agenda.empty"/></p> : null)}
+    {days.map(day=><div key={day} className="home-agenda-day">
+      <h3><time lang='' dateTime={day}>{longDate(day,language)}</time></h3>
+      <ol className="home-agenda-list">{rows.filter(row=>row.day===day).map(row=>{const reference=procedureReference(row.topic.procedureIds);return <li key={row.topic.id}>
+        <small>{row.topic.kind==='PLENARY_VOTE'?ui.t('home.agenda.vote'):ui.t('home.agenda.debate')}</small>
+        <a href={recordHref(row.topic.id)} onClick={dossierLinkClick}><span lang={row.topic.titleLanguage??''}>{agendaTitle(row.topic.title)}</span></a>
+        {reference&&<code className="home-reference">{reference}</code>}
+      </li>;})}</ol>
+    </div>)}
+    {(!rows.length&&agenda.data&&!agenda.loading&&!agenda.error)&&<p><UiMessage id="home.agenda.empty"/></p>}
   </section>;
 }
 
@@ -113,20 +156,20 @@ function HomeFollowing() {
   const ui=useUiI18n();
   const saved=useSaved(),now=useSavedNow();
   const rows=unreadRows(saved.items,now).slice(0,5);
-  if(!saved.items.length)return null;
+  if(!rows.length)return null;
   return <section className="home-section home-following">
-    <h2><UiMessage id="home.following.section"/> <a className="home-section-more" href={viewHref('saved')} onClick={dossierLinkClick}><UiMessage id="home.more"/></a></h2>
-    {rows.length ? <ol className="home-following-list">{rows.map(row=><li key={row.entry.kind+':'+row.entry.id}>
+    <h2><UiMessage id="home.following.section"/> <a className="home-section-more" href={viewHref('saved')} onClick={dossierLinkClick}><UiMessage id="home.following.all"/></a></h2>
+    {<ol className="home-following-list">{rows.map(row=><li key={row.entry.kind+':'+row.entry.id}>
       <small>{summarizeByType([row.entry],0,ui).replace(/^1 /,'')}</small>
       <a href={followingEntryHref(row.item,row.entry)} onClick={dossierLinkClick}><span lang={row.entry.titleLanguage||''}>{row.entry.title}</span></a>
-    </li>)}</ol> : <p><UiMessage id="home.following.none"/></p>}
+    </li>)}</ol>}
   </section>;
 }
 
 // Follow updates link to where their detail lives today: a followed MEP goes
 // to that member's activity, a followed question opens its answers.
-const followingEntryHref=(item,entry)=>{
-  if(item.kind==='mep')return '?'+new URLSearchParams({member:item.id,module:'activities',activity:entry.id});
+const followingEntryHref=(item:{kind:string;id:string},entry:{id:string|number;relatedQuestionId?:string|number})=>{
+  if(item.kind==='mep')return '?'+new URLSearchParams({member:item.id,module:'activities',activity:String(entry.id)});
   if(item.kind==='question')return '?'+new URLSearchParams({view:'questions','q-read':String(entry.relatedQuestionId||entry.id)});
   return viewHref('saved');
 };
@@ -156,11 +199,19 @@ function HomeOutside({language}:{language:string}) {
   const recent=[...people].filter(person=>person.last).sort((a,b)=>b.last.localeCompare(a.last)||b.appearances-a.appearances).slice(0,4);
   if(!recent.length)return null;
   return <section className="home-section home-outside">
-    <h2><UiMessage id="outsidevoices.outside_voices.a027e6"/> <a className="home-section-more" href={viewHref('outside')} onClick={dossierLinkClick}><UiMessage id="home.more"/></a></h2>
+    <h2><UiMessage id="home.outside.section"/> <a className="home-section-more" href={viewHref('outside')} onClick={dossierLinkClick}><UiMessage id="home.more"/></a></h2>
     <p className="home-section-lead"><UiMessage id="home.outside.lead"/></p>
     <ul className="home-outside-list">{recent.map(person=><li key={person.id}>
       <a href={viewHref('outside')+'&ov-person='+encodeURIComponent(person.id)} onClick={dossierLinkClick}>{person.name}</a>
       <small>{person.role ? <span lang={person.roleLanguageTag||undefined}>{person.role} · </span> : null}<time lang='' dateTime={person.last}>{humanDate(person.last,language)}</time></small>
     </li>)}</ul>
+  </section>;
+}
+
+function HomeEntries() {
+  const ui=useUiI18n();
+  return <section className="home-section home-entries" lang={ui.language}>
+    <h2><UiMessage id="home.entry.title"/></h2>
+    <ul>{(['questions','geopolitics','hemicycle'] as const).map(view=><li key={view}><a href={viewHref(view)} onClick={dossierLinkClick}>{ui.t('home.entry.'+view)}</a></li>)}</ul>
   </section>;
 }

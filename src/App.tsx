@@ -683,7 +683,7 @@ export default function App() {
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = (profile.data?.id === member) ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(member)});
-  const pageTitle = (view==='legislation') ? null : (view==='meps') ? c.title : (homeVisible ? ui.t('home.page_title') : (view ? {hemicycle:ui.t('hemicycle.title'),geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title));
+  const pageTitle = (view==='legislation') ? null : (view==='meps') ? c.title : (homeVisible ? ui.t('home.page_title') : (view ? {hemicycle:ui.t('hemicycle.title'),geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title)));
   const pageTitleLanguage=ui.language;
   useEffect(()=>{if(pageTitle)document.title = ui.t("legislation.pagetitle_european_parliament_data_explorer.42a26b", {pageTitle: String(pageTitle)});document.querySelector('title')?.setAttribute('lang',pageTitleLanguage);},[pageTitle,pageTitleLanguage]);
   const roleName = (value: string) =>
@@ -771,7 +771,7 @@ export default function App() {
     votes.remember();
     motions.remember();
     const url=new URL(location.href);
-    url.search=new URLSearchParams([...url.searchParams].filter(([key])=>key==='lang'||key.startsWith('global-fts-')));
+    url.search=new URLSearchParams([...url.searchParams].filter(([key])=>key==='lang'||key.startsWith('global-fts-'))).toString();
     url.hash='';
     if(url.href!==location.href){history.pushState(history.state,'',url);window.dispatchEvent(new PopStateEvent('popstate'));}
   };
@@ -798,7 +798,7 @@ export default function App() {
     pendingDestination.current={view:'meps',member,opener};
   };
   return <UiI18nProvider i18n={appUiI18n} language={lang}><PersonNamesProvider members={directory?.members}><ErrorBoundary resetKey={`${view}:${member}:${tab}:${restoration}`} language={lang}
-    navigation={<ParliamentHeader view={homeVisible ? 'home' : (view||'members')} onHome={showHome} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>}
+    navigation={<ParliamentHeader view={homeVisible ? 'home' : (view==='meps' ? 'members' : (view||'members'))} onHome={showHome} search={!homeVisible} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>}
     onRetry={()=>{pendingDestination.current={view,member};}}
   ><Suspense fallback={<ViewLoading language={lang}/>}><ViewContent onReady={focusDestination} render={()=>{
   if (view === 'geopolitics' || view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups' || view === 'hemicycle') {
@@ -807,7 +807,7 @@ export default function App() {
     return <InsightFrame {...props} view={view} onLanguageChange={changeLanguage}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='geopolitics') ? <Topics {...props}/> : (view==='hemicycle') ? <Hemicycle {...props}/> : (view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
   }
   return <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current=event.currentTarget.scrollTop;}}>
-        <ParliamentHeader view={homeVisible ? 'home' : ((view==='saved') ? 'saved' : 'members')} onHome={showHome} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>
+        <ParliamentHeader view={homeVisible ? 'home' : ((view==='saved') ? 'saved' : 'members')} onHome={showHome} search={!homeVisible} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>
         {homeVisible ? <Suspense fallback={<ViewLoading language={lang} title={ui.t("home.page_title")} embedded/>}><ViewContent onReady={focusDestination} render={()=><Home language={lang}/>}/></Suspense> : null}
         {(view === 'saved') ? <Suspense fallback={<ViewLoading language={lang} title={ui.t("batch4.dossiercontrols.tsx.64.2")} embedded/>}><ViewContent onReady={focusDestination} render={()=><Saved members={directory?.members} language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/>}/></Suspense> : (member ? <section className="explorer-profile">
             <button

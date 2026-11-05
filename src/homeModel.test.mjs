@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isHomeQuery,headlineState,defaultAgendaWeek,agendaRows,votePicks,unreadRows} from './homeModel.mjs';
+import {isHomeQuery,headlineState,defaultAgendaWeek,agendaRows,votePicks,unreadRows,procedureReference,HOME_COUNTRIES} from './homeModel.mjs';
 
 const query = value => new URLSearchParams(value);
 const week = (week,sittings) => ({week,sittings:sittings.map(([date,location]) => ({sittingId:'MTG-PL-'+date,date,location:location||null}))});
@@ -119,4 +119,15 @@ test('unread rows list only fresh entries, newest first',()=>{
   assert.equal(rows[0].item.title,'Jane Doe');
   assert.deepEqual(unreadRows([],now),[]);
   assert.deepEqual(unreadRows(null,now),[]);
+});
+
+test('procedure reference needs exactly one year-number id', () => {
+  assert.equal(procedureReference(['2025-0385']), '2025/0385');
+  assert.equal(procedureReference([]), null);
+  assert.equal(procedureReference(['2025-0385', '2025-0386']), null);
+  assert.equal(procedureReference(['abc']), null);
+});
+
+test('home country list has 27 distinct codes', () => {
+  assert.equal(new Set(HOME_COUNTRIES).size, 27);
 });

@@ -104,3 +104,14 @@ export function unreadRows(items, now) {
   }
   return rows.sort((a, b) => b.entry.discoveredAt - a.entry.discoveredAt || String(b.entry.date || '').localeCompare(String(a.entry.date || '')));
 }
+
+// Member states for the "Find your MEPs" control (Greece is EL in the directory).
+export const HOME_COUNTRIES = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','EL','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
+
+// A procedure reference only when the row has exactly one id of the exact
+// published year-number shape; anything else shows none.
+export function procedureReference(ids) {
+  if (!Array.isArray(ids) || ids.length !== 1) return null;
+  const match = /^(\d{4})-(\d{4})$/.exec(ids[0]);
+  return match ? match[1] + '/' + match[2] : null;
+}

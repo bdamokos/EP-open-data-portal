@@ -48,3 +48,19 @@
 .home-vote-bar-against { background: var(--vote-against); }
 .home-vote-bar-abstain { background: var(--vote-abstain); }
 .home-pick-tally { margin: 0; font-size: .85rem; font-variant-numeric: tabular-nums; }
+
+/* Front-page feel: rules between sections, not boxed cards. */
+.home-section { background: transparent; border: 0; border-top: 2px solid var(--ink); border-radius: 0; padding: .6rem 0 0; }
+.home-section > h2 { font-family: var(--font-serif); font-size: 1.15rem; }
+.home-headline { padding-top: .75rem; }
+.home-search { display: grid; gap: .75rem; margin-top: .9rem; }
+.home-search .explorer-text-search-global { width: 100%; max-width: none; }
+.home-find { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .9rem; color: var(--ink-muted); }
+.home-find select { min-width: 12rem; }
+.home-agenda-day h3 { margin: .7rem 0 .3rem; font-size: .8rem; font-weight: 650; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-muted); }
+.home-agenda-list li { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); gap: .1rem .6rem; align-items: baseline; border-top: 1px solid var(--line); padding-top: .45rem; }
+.home-agenda-list li > .home-reference { grid-column: 2; }
+.home-reference { font-family: var(--font-mono); font-size: .8rem; color: var(--ink-muted); }
+.home-entries ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+.home-entries a { text-decoration: underline; text-underline-offset: 2px; }
+.home-topics-list li, .home-outside-list li { border-top: 1px solid var(--line); padding-top: .45rem; }

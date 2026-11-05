@@ -33,6 +33,9 @@ import type {DossierReference} from './DossierActivityTypes';
 import type {LegislationResponse,LegislationNavigationResponse,NamedVote} from './LegislationTypes';
 import type {DirectoryMember} from './explorerTypes';
 import {brusselsDate,plenaryAvailability} from './plenaryAvailability.mjs';
+import {useData} from './data';
+import {defaultAgendaWeek} from './homeModel.mjs';
+import type {VotePeriodsResponse} from './plenaryPeriods.mjs';
 const Topics=lazy(()=>import('./Topics').then(module=>({default:module.Topics})));
 function usePlenaryDate() {
   const [today,setToday]=useState(brusselsDate);
@@ -146,12 +149,17 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const [hotPeriod]=useExplorerParam('hot-period',''),[cloudPeriod]=useExplorerParam('cloud-period','');
   const selectedViewPeriod=(mode==='participation') ? hotPeriod : ((mode==='cloud') ? cloudPeriod : '');
   const params=new URLSearchParams({lang:language});
-  if(mode==='agenda'&&(agendaPeriod.startsWith('week:')||!agendaPeriod&&!sitting))params.set('week',agendaPeriod.slice(5)||'latest');
+  // With no period chosen the agenda opens on the current sitting week, else the next, else the latest.
+  const needsDefaultWeek=mode==='agenda'&&!agendaPeriod&&!sitting;
+  const calendar=useData<VotePeriodsResponse>(needsDefaultWeek?'vote-periods':null);
+  const calendarPending=needsDefaultWeek&&!calendar.data&&!calendar.error;
+  const defaultWeek=needsDefaultWeek&&calendar.data?defaultAgendaWeek(brusselsDate(),calendar.data.weeks,calendar.data.upcoming||[]):null;
+  if(mode==='agenda'&&(agendaPeriod.startsWith('week:')||!agendaPeriod&&!sitting))params.set('week',agendaPeriod.slice(5)||defaultWeek||'latest');
   else if(agendaPeriod.startsWith('sitting:')&&mode==='agenda')params.set('sitting',agendaPeriod.slice(8));
   else if(selectedViewPeriod.startsWith('sitting:'))params.set('sitting',selectedViewPeriod.slice(8));
   else if(selectedViewPeriod.startsWith('week:'))params.set('week',selectedViewPeriod.slice(5));
   else if(sitting)params.set('sitting',sitting);
-  const base=useInsightData<LegislationResponse|LegislationNavigationResponse>(['agenda','cloud','participation'].includes(mode) ? ('insights/legislation?'+params) : null,sameAgendaRoute),navigation=base.data,data=navigation?.sitting ? (navigation as LegislationResponse) : null;
+  const base=useInsightData<LegislationResponse|LegislationNavigationResponse>(['agenda','cloud','participation'].includes(mode) ? (calendarPending?null:'insights/legislation?'+params) : null,sameAgendaRoute),navigation=base.data,data=navigation?.sitting ? (navigation as LegislationResponse) : null;
   // Retain navigation only: results remain fenced to the current request by useInsightData.
   const [agendaSittings,setAgendaSittings]=useState<LegislationResponse['sittings']>([]);
   useEffect(()=>{if(navigation)setAgendaSittings(navigation.sittings);},[navigation]);
