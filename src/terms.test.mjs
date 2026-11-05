@@ -36,8 +36,8 @@ test('terms follow the requested UI locale and retain an honest English fallback
   assert.deepEqual(interfaceTerm('first-reading','hu'),{text:'Első olvasat',language:'hu'});
   assert.deepEqual(interfaceTerm('first-reading','fr'),{text:'Première lecture',language:'fr'});
   assert.deepEqual(interfaceTerm('vote','hu-HU'),{text:'Szavazás',language:'hu'});
-  assert.deepEqual(interfaceTerm('saved-question','fr'),{text:'Question enregistrée',language:'fr'});
-  assert.deepEqual(interfaceTerm('saved-question','hu'),{text:'Mentett kérdés',language:'hu'});
+  assert.deepEqual(interfaceTerm('saved-question','fr'),{text:'Question suivie',language:'fr'});
+  assert.deepEqual(interfaceTerm('saved-question','hu'),{text:'Követett kérdés',language:'hu'});
   assert.deepEqual(interfaceTerm('final-text','hu'),{text:'Végleges szöveg',language:'hu'});
   for(const language of ['mul','und','xx',''])assert.deepEqual(interfaceTerm('final-text',language),{text:'Final text',language:'en'});
   assert.throws(()=>interfaceTerm('missing','hu'),RangeError);

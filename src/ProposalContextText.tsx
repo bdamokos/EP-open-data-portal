@@ -216,9 +216,8 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
     {baseline.language!==language&&<p className="document-context-language"><TextLanguageFallback requested={language} actual={baseline.language} interfaceLanguage={language}/></p>}
     <div className="document-context-tools"><FindInText target={reader} label={existing ? ui.t("proposalcontexttext.find.in.existing.act") : (council ? ui.t("proposalcontexttext.find.in.council.position") : ui.t("proposalcontexttext.find.in.proposal"))}/></div>
     {placed ? <div className="document-context-passage"><button type="button" onClick={showAmendment}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : <p className="document-context-notice" role="status">{proposalPlacementReasonsUi(ui)[placement?.reason||'']||ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67")}</p>}
-    {missingFiles>0&&<p className="document-context-notice"><UiMessage id="coverage.filesUnloaded" values={{count:missingFiles}}/></p>}
-    {fileLimit&&<p className="document-context-notice"><UiMessage id="coverage.fileLimit"/></p>}
-    {baseline.items.some(item=>item.source.stale||item.source.refreshError)&&<p className="document-context-notice">{existing ? ui.t("proposalcontexttext.saved.text") : (baseline.items.some(item=>item.source.refreshError) ? ui.t("proposalcontexttext.couldn.t.update.the.proposal.showing.saved.text") : ui.t("proposalcontexttext.showing.saved.proposal.text"))}</p>}
+    {(missingFiles>0||fileLimit)&&<p className="document-context-notice"><UiMessage id="coverage.filesUnloaded"/></p>}
+    
     <div className="document-context-text proposal-context-text" ref={reader} lang={baseline.language}>{!placed&&amendmentBlock(false)}{items.map((item,index)=>{
       const p=item.proposal,notes=p.notes as DocumentNote[],links=p.links as DocumentLink[];
       return <section key={index} data-proposal-item={item.kind+'-'+item.index}><h4 className="proposal-item-heading" lang={ui.language}>{ui.t('proposalcontexttext.'+(item.kind==='act' ? existing?'existing.act':council?'council.position':'proposal' : 'annexes')+(item.index>1?'.part.index':''),{index:item.index})}</h4>

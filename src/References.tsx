@@ -137,7 +137,7 @@ function ReferenceCard({reference,text,textLanguage,language,onQuestion,footnote
     <p lang={ui.language} className="legal-reference-kind">{[kind,status].filter(Boolean).join(' · ')}</p>
     {reference.kind!=='procedure'&&<p className="legal-reference-title" lang={reference.title ? (reference.titleLanguage??'') : textLanguage}>{reference.title||text}</p>}
     <p lang={ui.language} className="legal-reference-meta">{metadata.map((item,index)=><Fragment key={index}>{index ? ' · ' : ''}<span lang={item.language}>{item.text}</span></Fragment>)}</p>
-    {reference.stale&&<p lang={ui.language} className="legal-reference-meta">{reference.source?.fetchedAt ? <UiMessage id="batch6.references.saved.description.from.date.a.newer.check.of.the.official.source..129" values={{date: <span lang={language}>{displayDate(reference.source.fetchedAt,language)}</span>}}/> : <UiMessage id="batch6.references.saved.description.a.newer.check.of.the.official.source.is.pending.129"/>}</p>}
+    
     <div lang={ui.language} className="legal-reference-actions">
       {reference.kind==='question'&&reference.id&&onQuestion&&<button type="button" onClick={()=>onQuestion(reference.id!)}>{reference.answerIds?.length ? <UiMessage id="batch6.references.read.question.and.answer.131"/> : <UiMessage id="textsearch.read_question"/>}</button>}
       {procedure&&reference.kind!=='procedure'&&<button type="button" aria-expanded={summaryOpen} onClick={()=>setSummaryOpen(value=>!value)}>{summaryOpen ? <UiMessage id="batch6.references.hide.dossier.summary.132"/> : <UiMessage id="dossierCard.event.5"/>}</button>}

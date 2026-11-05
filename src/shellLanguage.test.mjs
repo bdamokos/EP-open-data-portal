@@ -26,7 +26,7 @@ test('question save controls update with the UI locale without changing source t
   const item={kind:'question',id:'E-10-2026-003031',title:'Titre français',titleLanguage:'fr',memberId:'257043'};
   const h=await harness(t,{items:[item]});const {SaveButton}=await h.load('/src/SavedControls.tsx');
   const before=window.localStorage.getItem('ep.bookmarks.v1');
-  for(const [language,label] of [['hu','Mentett kérdés'],['fr','Question enregistrée'],['en','Saved question']]) {
+  for(const [language,label] of [['hu','Követett kérdés'],['fr','Question suivie'],['en','Following question']]) {
     await h.render(createElement(SaveButton,{item,language}));
     const button=h.container.querySelector('button'),visible=button.querySelector('span[lang]');
     assert.equal(visible.textContent,label);assert.equal(visible.lang,language);
@@ -37,7 +37,7 @@ test('question save controls update with the UI locale without changing source t
   await h.render(createElement(SaveButton,{item,language:'hu'}));
   await h.click(h.container.querySelector('button'));
   const button=h.container.querySelector('button');
-  assert.equal(button.getAttribute('aria-label'),'Kérdés mentése · Titre français');
+  assert.equal(button.getAttribute('aria-label'),'Kérdés követése · Titre français');
   assert.equal(button.getAttribute('aria-pressed'),'false');assert.equal(button.querySelector('span[lang]').lang,'hu');
   assert.deepEqual(JSON.parse(window.localStorage.getItem('ep.bookmarks.v1')).items,[]);
 });
@@ -68,7 +68,7 @@ for(const locale of ['en','hu','fr'])test(`English shell and Following preserve 
   assert.equal(effectiveLanguage(links[0].querySelector('small span[lang]')),locale);
   assert.equal(effectiveLanguage(links[1].querySelector('span[lang]')),'');
   const save=h.container.querySelector('.explorer-save-button');
-  const savedLabel={en:'Saved question',hu:'Mentett kérdés',fr:'Question enregistrée'}[locale];
+  const savedLabel={en:'Following question',hu:'Követett kérdés',fr:'Question suivie'}[locale];
   assert.equal(save.getAttribute('aria-label'),savedLabel+' · Titre français','the selected UI locale governs the prefix, not the source title language');
   assert.equal(save.getAttribute('lang'),locale==='fr'?'fr':'','a known matching title is homogeneous; differing languages remain explicit');
   const legacy=h.container.querySelectorAll('.explorer-save-button')[1];

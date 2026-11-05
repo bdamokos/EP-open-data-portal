@@ -253,7 +253,7 @@ test('choosing Hungarian wording in one multilingual list opens and restores its
   await h.click(h.container.querySelector('.member-votes-subject h3 button'));
   await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
   assert.equal(source.reads.length,0,'the actual service keeps its wording-only read lazy');
-  const selector=h.container.querySelector('select[aria-label="Amendment published version"]');
+  const selector=h.container.querySelector('select[aria-label="Published version"]');
   assert.equal(Boolean(selector),true);
   const option=[...selector.options].find(option=>option.textContent.includes('Hungarian'));
   assert.equal(Boolean(option),true);
@@ -293,7 +293,7 @@ test('unknown wording language and conflicting same-language versions do not acq
     const h=await harness(child,'member=1&module=votes&lang=en',{contextResponse:source.response});
     await h.click(h.container.querySelector('.member-votes-subject h3 button'));
     await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
-    const selector=h.container.querySelector('select[aria-label="Amendment published version"]');
+    const selector=h.container.querySelector('select[aria-label="Published version"]');
     const option=[...selector.options].find(option=>option.textContent.includes(kind==='unknown'?'Version 3':'Version 2 · Hungarian'));
     assert.equal(Boolean(option),true);
     await act(async()=>{selector.value=option.value;selector.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
@@ -302,7 +302,7 @@ test('unknown wording language and conflicting same-language versions do not acq
     assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
     assert.equal(Boolean(h.container.querySelector('.document-context-reader [data-context-target="true"]')),false);
     assert.equal(Boolean(h.container.querySelector('.document-context-text [data-source-paragraph]')),true,'the exact source body stays readable without an assigned passage');
-    assert.equal(h.container.querySelector('.document-context-reader .document-context-notice[role="status"]').textContent,kind==='unknown'?'The amendment wording language is unknown.':'The amendment wording is unavailable.');
+    assert.equal(h.container.querySelector('.document-context-reader .document-context-notice[role="status"]').textContent,kind==='unknown'?'Language unavailable.':'Wording unavailable.');
     const resolved=source.results.find(result=>result.document);
     assert.notEqual(resolved.target.status,'found');assert.equal(Object.hasOwn(resolved,'requestedWordingLanguage'),true);
     assert.equal(resolved.requestedWordingLanguage,kind==='unknown'?null:'hu');
@@ -426,7 +426,7 @@ test('shared reader TA choices push once and restore exact selection with browse
   await h.go(-1);assert.equal(location.href,selected);assert.equal(h.container.querySelector('.document-context-heading h3').textContent,'Source '+OTHER_ADOPTED);
   await h.go(-1);assert.equal(location.href,choices);assert.equal(params().get('mv-adopted'),null);
   await h.restore('member=1&module=votes&mv-week='+WEEK+'&mv-decision='+decision(1)+'&mv-document='+DOCUMENT+'&mv-view=adopted&mv-adopted=TA-10-2026-0999');
-  assert.equal(params().get('mv-adopted'),'TA-10-2026-0999');assert.match(h.container.textContent,/This adopted text is unavailable here/);
+  assert.equal(params().get('mv-adopted'),'TA-10-2026-0999');assert.match(h.container.textContent,/Adopted text unavailable/);
   assert.equal(h.container.querySelector('.document-context-heading'),null);
 });
 

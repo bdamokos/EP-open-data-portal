@@ -212,10 +212,6 @@
       "one": "{count} оратор",
       "other": "{count} оратори"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Източници · {count} пропуск",
-      "other": "Източници · {count} пропуска"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} изменение",
       "other": "{total} изменения"
@@ -225,8 +221,8 @@
       "other": "{total} изменения · проверка за изменения"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} изменение · частично покритие",
-      "other": "{total} изменения · частично покритие"
+      "one": "{total} изменение · частични данни",
+      "other": "{total} изменения · частични данни"
     },
     "Participation.agendaMany": {
       "one": "{count} точка от дневния ред в този подбор.",
@@ -829,12 +825,6 @@
       "many": "Počet řečníků: {count}",
       "other": "Počet řečníků: {count}"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Zdroje · {count} mezera v údajích",
-      "few": "Zdroje · mezery v údajích: {count}",
-      "many": "Zdroje · mezery v údajích: {count}",
-      "other": "Zdroje · mezery v údajích: {count}"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} pozměňovací návrh",
       "few": "Počet pozměňovacích návrhů: {total}",
@@ -848,10 +838,10 @@
       "other": "Počet pozměňovacích návrhů: {total} · kontrola pozměňovacích návrhů"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} pozměňovací návrh · částečné pokrytí",
-      "few": "Počet pozměňovacích návrhů: {total} · částečné pokrytí",
-      "many": "Počet pozměňovacích návrhů: {total} · částečné pokrytí",
-      "other": "Počet pozměňovacích návrhů: {total} · částečné pokrytí"
+      "one": "{total} pozměňovací návrh · částečné údaje",
+      "few": "Počet pozměňovacích návrhů: {total} · částečné údaje",
+      "many": "Počet pozměňovacích návrhů: {total} · částečné údaje",
+      "other": "Počet pozměňovacích návrhů: {total} · částečné údaje"
     },
     "Participation.agendaMany": {
       "one": "{count} bod pořadu jednání v tomto výběru.",
@@ -1442,10 +1432,6 @@
       "one": "{count} taler",
       "other": "{count} talere"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Kilder · {count} hul",
-      "other": "Kilder · {count} huller"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} ændringsforslag",
       "other": "{total} ændringsforslag"
@@ -1455,8 +1441,8 @@
       "other": "{total} ændringsforslag · søger efter ændringsforslag"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} ændringsforslag · delvis dækning",
-      "other": "{total} ændringsforslag · delvis dækning"
+      "one": "{total} ændringsforslag · delvis",
+      "other": "{total} ændringsforslag · delvis"
     },
     "Participation.agendaMany": {
       "one": "{count} dagsordenspunkt i dette udsnit.",
@@ -1983,10 +1969,6 @@
     "groupvoices.count_speakers.47ae64": {
       "one": "{count} sprechende Person",
       "other": "{count} sprechende Personen"
-    },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Quellen · {count} Lücke",
-      "other": "Quellen · {count} Lücken"
     },
     "amendments.total_amendments.162421": {
       "one": "{total} Änderungsantrag",
@@ -2526,10 +2508,6 @@
       "one": "{count} ομιλητής",
       "other": "{count} ομιλητές"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Πηγές · {count} κενό",
-      "other": "Πηγές · {count} κενά"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} τροπολογία",
       "other": "{total} τροπολογίες"
@@ -2539,8 +2517,8 @@
       "other": "{total} τροπολογίες · έλεγχος για τροπολογίες"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} τροπολογία · μερική κάλυψη",
-      "other": "{total} τροπολογίες · μερική κάλυψη"
+      "one": "{total} τροπολογία · μερικά στοιχεία",
+      "other": "{total} τροπολογίες · μερικά στοιχεία"
     },
     "Participation.agendaMany": {
       "one": "{count} θέμα ημερήσιας διάταξης σε αυτή την επιλογή.",
@@ -3089,11 +3067,6 @@
       "many": "{count} oradores",
       "other": "{count} oradores"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Fuentes · {count} laguna",
-      "many": "Fuentes · {count} lagunas",
-      "other": "Fuentes · {count} lagunas"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} enmienda",
       "many": "{total} enmiendas",
@@ -3105,9 +3078,9 @@
       "other": "{total} enmiendas · buscando enmiendas"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} enmienda · cobertura parcial",
-      "many": "{total} enmiendas · cobertura parcial",
-      "other": "{total} enmiendas · cobertura parcial"
+      "one": "{total} enmienda · parcial",
+      "many": "{total} enmiendas · parcial",
+      "other": "{total} enmiendas · parcial"
     },
     "Participation.agendaMany": {
       "one": "{count} punto del orden del día en esta selección.",
@@ -3645,10 +3618,6 @@
       "one": "{count} sõnavõtja",
       "other": "{count} sõnavõtjat"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Allikad · {count} lünk",
-      "other": "Allikad · {count} lünka"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} muudatusettepanek",
       "other": "{total} muudatusettepanekut"
@@ -3658,8 +3627,8 @@
       "other": "{total} muudatusettepanekut · muudatusettepanekute kontrollimine"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} muudatusettepanek · osaline katvus",
-      "other": "{total} muudatusettepanekut · osaline katvus"
+      "one": "{total} muudatusettepanek · osaline",
+      "other": "{total} muudatusettepanekut · osaline"
     },
     "Participation.agendaMany": {
       "one": "Valikus on {count} päevakorrapunkt.",
@@ -4156,10 +4125,6 @@
       "one": "{count} puhuja",
       "other": "{count} puhujaa"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Lähteet · {count} puute",
-      "other": "Lähteet · {count} puutetta"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} tarkistus",
       "other": "{total} tarkistusta"
@@ -4169,8 +4134,8 @@
       "other": "{total} tarkistusta · tarkistetaan tarkistuksia"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} tarkistus · osittainen kattavuus",
-      "other": "{total} tarkistusta · osittainen kattavuus"
+      "one": "{total} tarkistus · osittainen",
+      "other": "{total} tarkistusta · osittainen"
     },
     "Participation.agendaMany": {
       "one": "Tässä valinnassa on {count} esityslistan kohta.",
@@ -4751,11 +4716,6 @@
       "many": "{count} orateurs",
       "other": "{count} orateurs"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Sources · {count} lacune",
-      "many": "Sources · {count} lacunes",
-      "other": "Sources · {count} lacunes"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} amendement",
       "many": "{total} amendements",
@@ -4767,9 +4727,9 @@
       "other": "{total} amendements · recherche d’amendements"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} amendement · couverture partielle",
-      "many": "{total} amendements · couverture partielle",
-      "other": "{total} amendements · couverture partielle"
+      "one": "{total} amendement · données partielles",
+      "many": "{total} amendements · données partielles",
+      "other": "{total} amendements · données partielles"
     },
     "Participation.agendaMany": {
       "one": "{count} point à l’ordre du jour dans cette sélection.",
@@ -5459,13 +5419,6 @@
       "few": "Líon cainteoirí: {count}",
       "many": "Líon cainteoirí: {count}"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Foinsí · bearna: {count}",
-      "other": "Foinsí · bearnaí: {count}",
-      "two": "Foinsí · bearnaí: {count}",
-      "few": "Foinsí · bearnaí: {count}",
-      "many": "Foinsí · bearnaí: {count}"
-    },
     "amendments.total_amendments.162421": {
       "one": "Líon leasuithe: {total}",
       "other": "Líon leasuithe: {total}",
@@ -5481,11 +5434,11 @@
       "many": "Líon leasuithe: {total} · leasuithe á seiceáil"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "Líon leasuithe: {total} · clúdach páirteach",
-      "other": "Líon leasuithe: {total} · clúdach páirteach",
-      "two": "Líon leasuithe: {total} · clúdach páirteach",
-      "few": "Líon leasuithe: {total} · clúdach páirteach",
-      "many": "Líon leasuithe: {total} · clúdach páirteach"
+      "one": "Líon leasuithe: {total} · páirteach",
+      "other": "Líon leasuithe: {total} · páirteach",
+      "two": "Líon leasuithe: {total} · páirteach",
+      "few": "Líon leasuithe: {total} · páirteach",
+      "many": "Líon leasuithe: {total} · páirteach"
     },
     "Participation.agendaMany": {
       "one": "Líon míreanna ar an gclár oibre sa rogha seo: {count}.",
@@ -6149,11 +6102,6 @@
       "few": "Broj govornika: {count}",
       "other": "Broj govornika: {count}"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Izvori · broj praznina: {count}",
-      "few": "Izvori · broj praznina: {count}",
-      "other": "Izvori · broj praznina: {count}"
-    },
     "amendments.total_amendments.162421": {
       "one": "Broj amandmana: {total}",
       "few": "Broj amandmana: {total}",
@@ -6165,9 +6113,9 @@
       "other": "Broj amandmana: {total} · provjera amandmana"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "Broj amandmana: {total} · djelomična pokrivenost",
-      "few": "Broj amandmana: {total} · djelomična pokrivenost",
-      "other": "Broj amandmana: {total} · djelomična pokrivenost"
+      "one": "Broj amandmana: {total} · djelomično",
+      "few": "Broj amandmana: {total} · djelomično",
+      "other": "Broj amandmana: {total} · djelomično"
     },
     "Participation.agendaMany": {
       "one": "Broj točaka dnevnog reda u ovom odabiru: {count}.",
@@ -6718,10 +6666,6 @@
       "one": "{count} felszólaló",
       "other": "{count} felszólaló"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Források · {count} hiány",
-      "other": "Források · {count} hiány"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} módosítás",
       "other": "{total} módosítás"
@@ -6731,8 +6675,8 @@
       "other": "{total} módosítás · módosítások keresése"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} módosítás · részleges lefedettség",
-      "other": "{total} módosítás · részleges lefedettség"
+      "one": "{total} módosítás · részleges adatok",
+      "other": "{total} módosítás · részleges adatok"
     },
     "Participation.agendaMany": {
       "one": "{count} napirendi pont a kijelölésben.",
@@ -7273,11 +7217,6 @@
       "many": "{count} oratori",
       "other": "{count} oratori"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Fonti · {count} lacuna",
-      "many": "Fonti · {count} lacune",
-      "other": "Fonti · {count} lacune"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} emendamento",
       "many": "{total} emendamenti",
@@ -7289,9 +7228,9 @@
       "other": "{total} emendamenti · ricerca di emendamenti"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} emendamento · copertura parziale",
-      "many": "{total} emendamenti · copertura parziale",
-      "other": "{total} emendamenti · copertura parziale"
+      "one": "{total} emendamento · parziale",
+      "many": "{total} emendamenti · parziale",
+      "other": "{total} emendamenti · parziale"
     },
     "Participation.agendaMany": {
       "one": "{count} punto all’ordine del giorno in questa selezione.",
@@ -7928,12 +7867,6 @@
       "few": "{count} kalbėtojai",
       "many": "Kalbėtojų skaičius: {count}"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Šaltiniai · {count} spraga",
-      "other": "Šaltiniai · {count} spragų",
-      "few": "Šaltiniai · {count} spragos",
-      "many": "Šaltiniai · spragų skaičius: {count}"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} pakeitimas",
       "other": "{total} pakeitimų",
@@ -7947,10 +7880,10 @@
       "many": "Pakeitimų skaičius: {total} · tikrinami pakeitimai"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} pakeitimas · dalinė aprėptis",
-      "other": "{total} pakeitimų · dalinė aprėptis",
-      "few": "{total} pakeitimai · dalinė aprėptis",
-      "many": "Pakeitimų skaičius: {total} · dalinė aprėptis"
+      "one": "{total} pakeitimas · dalinė",
+      "other": "{total} pakeitimų · dalinė",
+      "few": "{total} pakeitimai · dalinė",
+      "many": "Pakeitimų skaičius: {total} · dalinė"
     },
     "Participation.agendaMany": {
       "one": "Šiame pasirinkime – {count} darbotvarkės punktas.",
@@ -8591,11 +8524,6 @@
       "other": "{count} runātāji",
       "zero": "{count} runātāju"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Avoti · {count} iztrūkums",
-      "other": "Avoti · {count} iztrūkumi",
-      "zero": "Avoti · {count} iztrūkumu"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} grozījums",
       "other": "{total} grozījumi",
@@ -8607,9 +8535,9 @@
       "zero": "{total} grozījumu · pārbauda grozījumus"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} grozījums · daļējs tvērums",
-      "other": "{total} grozījumi · daļējs tvērums",
-      "zero": "{total} grozījumu · daļējs tvērums"
+      "one": "{total} grozījums · daļēji",
+      "other": "{total} grozījumi · daļēji",
+      "zero": "{total} grozījumu · daļēji"
     },
     "batch4.questiontopics.tsx.count.questions.match.these.filters": {
       "one": "Šiem filtriem atbilst {count} jautājums.",
@@ -9298,13 +9226,6 @@
       "few": "Għadd ta’ kelliema: {count}",
       "many": "Għadd ta’ kelliema: {count}"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Sorsi · għadd ta’ lakuni: {count}",
-      "other": "Sorsi · għadd ta’ lakuni: {count}",
-      "two": "Sorsi · għadd ta’ lakuni: {count}",
-      "few": "Sorsi · għadd ta’ lakuni: {count}",
-      "many": "Sorsi · għadd ta’ lakuni: {count}"
-    },
     "amendments.total_amendments.162421": {
       "one": "Għadd ta’ emendi: {total}",
       "other": "Għadd ta’ emendi: {total}",
@@ -9320,11 +9241,11 @@
       "many": "Għadd ta’ emendi: {total} · qed jiġu ċċekkjati l-emendi"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "Għadd ta’ emendi: {total} · kopertura parzjali",
-      "other": "Għadd ta’ emendi: {total} · kopertura parzjali",
-      "two": "Għadd ta’ emendi: {total} · kopertura parzjali",
-      "few": "Għadd ta’ emendi: {total} · kopertura parzjali",
-      "many": "Għadd ta’ emendi: {total} · kopertura parzjali"
+      "one": "Għadd ta’ emendi: {total} · parzjali",
+      "other": "Għadd ta’ emendi: {total} · parzjali",
+      "two": "Għadd ta’ emendi: {total} · parzjali",
+      "few": "Għadd ta’ emendi: {total} · parzjali",
+      "many": "Għadd ta’ emendi: {total} · parzjali"
     },
     "Participation.agendaMany": {
       "one": "Għadd ta’ punti tal-aġenda f’din l-għażla: {count}.",
@@ -9950,10 +9871,6 @@
       "one": "{count} spreker",
       "other": "{count} sprekers"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Bronnen · {count} hiaat",
-      "other": "Bronnen · {count} hiaten"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} amendement",
       "other": "{total} amendementen"
@@ -9963,8 +9880,8 @@
       "other": "{total} amendementen · amendementen controleren"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} amendement · gedeeltelijke dekking",
-      "other": "{total} amendementen · gedeeltelijke dekking"
+      "one": "{total} amendement · gedeeltelijk",
+      "other": "{total} amendementen · gedeeltelijk"
     },
     "Participation.agendaMany": {
       "one": "{count} agendapunt in deze selectie.",
@@ -10598,12 +10515,6 @@
       "many": "Liczba mówców: {count}",
       "other": "Liczba mówców: {count}"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Źródła · liczba luk: {count}",
-      "few": "Źródła · liczba luk: {count}",
-      "many": "Źródła · liczba luk: {count}",
-      "other": "Źródła · liczba luk: {count}"
-    },
     "amendments.total_amendments.162421": {
       "one": "Liczba poprawek: {total}",
       "few": "Liczba poprawek: {total}",
@@ -10617,10 +10528,10 @@
       "other": "Liczba poprawek: {total} · sprawdzanie poprawek"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "Liczba poprawek: {total} · niepełne pokrycie",
-      "few": "Liczba poprawek: {total} · niepełne pokrycie",
-      "many": "Liczba poprawek: {total} · niepełne pokrycie",
-      "other": "Liczba poprawek: {total} · niepełne pokrycie"
+      "one": "Liczba poprawek: {total} · dane częściowe",
+      "few": "Liczba poprawek: {total} · dane częściowe",
+      "many": "Liczba poprawek: {total} · dane częściowe",
+      "other": "Liczba poprawek: {total} · dane częściowe"
     },
     "Participation.agendaMany": {
       "one": "Liczba punktów porządku obrad w tym wyborze: {count}.",
@@ -11252,11 +11163,6 @@
       "many": "{count} oradores",
       "other": "{count} oradores"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Fontes · {count} lacuna",
-      "many": "Fontes · {count} lacunas",
-      "other": "Fontes · {count} lacunas"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} alteração",
       "many": "{total} alterações",
@@ -11268,9 +11174,9 @@
       "other": "{total} alterações · a verificar alterações"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} alteração · cobertura parcial",
-      "many": "{total} alterações · cobertura parcial",
-      "other": "{total} alterações · cobertura parcial"
+      "one": "{total} alteração · parcial",
+      "many": "{total} alterações · parcial",
+      "other": "{total} alterações · parcial"
     },
     "Participation.agendaMany": {
       "one": "{count} ponto da ordem do dia nesta seleção.",
@@ -11861,11 +11767,6 @@
       "few": "{count} vorbitori",
       "other": "{count} de vorbitori"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Surse · {count} lacună",
-      "few": "Surse · {count} lacune",
-      "other": "Surse · {count} de lacune"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} amendament",
       "few": "{total} amendamente",
@@ -11877,9 +11778,9 @@
       "other": "{total} de amendamente · se verifică amendamentele"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} amendament · acoperire parțială",
-      "few": "{total} amendamente · acoperire parțială",
-      "other": "{total} de amendamente · acoperire parțială"
+      "one": "{total} amendament · parțial",
+      "few": "{total} amendamente · parțial",
+      "other": "{total} de amendamente · parțial"
     },
     "Participation.agendaMany": {
       "one": "{count} punct pe ordinea de zi în această selecție.",
@@ -12523,12 +12424,6 @@
       "many": "Počet rečníkov: {count}",
       "other": "Počet rečníkov: {count}"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Zdroje · {count} medzera v údajoch",
-      "few": "Zdroje · medzery v údajoch: {count}",
-      "many": "Zdroje · medzery v údajoch: {count}",
-      "other": "Zdroje · medzery v údajoch: {count}"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} pozmeňujúci návrh",
       "few": "Počet pozmeňujúcich návrhov: {total}",
@@ -12542,10 +12437,10 @@
       "other": "Počet pozmeňujúcich návrhov: {total} · kontrola pozmeňujúcich návrhov"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} pozmeňujúci návrh · čiastočné pokrytie",
-      "few": "Počet pozmeňujúcich návrhov: {total} · čiastočné pokrytie",
-      "many": "Počet pozmeňujúcich návrhov: {total} · čiastočné pokrytie",
-      "other": "Počet pozmeňujúcich návrhov: {total} · čiastočné pokrytie"
+      "one": "{total} pozmeňujúci návrh · čiastočné údaje",
+      "few": "Počet pozmeňujúcich návrhov: {total} · čiastočné údaje",
+      "many": "Počet pozmeňujúcich návrhov: {total} · čiastočné údaje",
+      "other": "Počet pozmeňujúcich návrhov: {total} · čiastočné údaje"
     },
     "Participation.agendaMany": {
       "one": "{count} bod programu v tomto výbere.",
@@ -13242,12 +13137,6 @@
       "few": "Število govorcev: {count}",
       "other": "Število govorcev: {count}"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Viri · {count} vrzel v podatkih",
-      "two": "Viri · število vrzeli v podatkih: {count}",
-      "few": "Viri · število vrzeli v podatkih: {count}",
-      "other": "Viri · število vrzeli v podatkih: {count}"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} predlog spremembe",
       "two": "Število predlogov sprememb: {total}",
@@ -13261,10 +13150,10 @@
       "other": "Število predlogov sprememb: {total} · preverjanje predlogov sprememb"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} predlog spremembe · delna pokritost",
-      "two": "Število predlogov sprememb: {total} · delna pokritost",
-      "few": "Število predlogov sprememb: {total} · delna pokritost",
-      "other": "Število predlogov sprememb: {total} · delna pokritost"
+      "one": "{total} predlog spremembe · delno",
+      "two": "Število predlogov sprememb: {total} · delno",
+      "few": "Število predlogov sprememb: {total} · delno",
+      "other": "Število predlogov sprememb: {total} · delno"
     },
     "Participation.agendaMany": {
       "one": "{count} točka dnevnega reda v tem izboru.",
@@ -13855,10 +13744,6 @@
       "one": "{count} talare",
       "other": "{count} talare"
     },
-    "amendments.sources_count_gaps.2b2613": {
-      "one": "Källor · {count} lucka",
-      "other": "Källor · {count} luckor"
-    },
     "amendments.total_amendments.162421": {
       "one": "{total} ändringsförslag",
       "other": "{total} ändringsförslag"
@@ -13868,8 +13753,8 @@
       "other": "{total} ändringsförslag · söker efter ändringsförslag"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} ändringsförslag · partiell täckning",
-      "other": "{total} ändringsförslag · partiell täckning"
+      "one": "{total} ändringsförslag · partiellt",
+      "other": "{total} ändringsförslag · partiellt"
     },
     "Participation.agendaMany": {
       "one": "{count} dagordningspunkt i detta urval.",

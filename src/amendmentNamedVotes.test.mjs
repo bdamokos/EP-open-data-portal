@@ -24,7 +24,7 @@ async function mount(t,handler,{integrated=false,indexedDecision=decision,member
 test('member Amendments retains indexed result and shows author positions with readable group rows',async t=>{
  const data=await voteFixture().read(),h=await mount(t,async()=>Response.json(data),{integrated:true});await h.render();assert.equal(h.calls.length,2);assert.match(h.container.textContent,/Adopted/);assert.equal(h.container.querySelector('table'),null);
  await h.open();assert.equal(h.calls.length,2);const text=h.container.textContent;
- assert.match(text,/Author One(?: S&D)? voted for/);assert.match(text,/Author Two(?: EPP)? voted against/);assert.match(text,/Unresolved Author MEP unresolved/);assert.match(text,/Unlisted Author has no recorded vote/);assert.match(text,/How groups voted/);assert.equal(h.container.querySelectorAll('.amendment-named-votes__group').length,4);
+ assert.match(text,/Author One(?: S&D)? voted for/);assert.match(text,/Author Two(?: EPP)? voted against/);assert.match(text,/Unresolved Author/);assert.match(text,/Unlisted Author has no recorded vote/);assert.match(text,/How groups voted/);assert.equal(h.container.querySelectorAll('.amendment-named-votes__group').length,4);
  assert(h.container.querySelector('.vote-group-summary'));assert.match(h.container.querySelector('.amendment-named-votes__group .vote-group-unity').textContent,/100% · 1 of 1/);
  assert.equal(h.container.querySelector('.explorer-amendment-totals dd').textContent,'2');
  const group=[...h.container.querySelectorAll('.amendment-named-votes__group')].find(group=>group.querySelector('summary').textContent.startsWith('S&D'));assert(group);assert.match(group.querySelector('summary').textContent,/For: 1Against: 0Abstentions: 0/);await act(async()=>{group.open=true;});assert(group.querySelector('a[href*="member=197591"]'));
@@ -36,13 +36,13 @@ test('non-named, unheld and unverified components do not start reads',async t=>{
  assert.equal(h.calls.length,0);
 });
 test('conflicting variants show the verified matrix without combined author attribution',async t=>{
- const h=await mount(t,async()=>Response.json(await voteFixture().read()));await h.render({item:{...item,conflicted:true}});await h.open();assert(h.container.querySelector('.amendment-named-votes__group'));assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.textContent,/Author votes withheld: sources conflict/);
+ const h=await mount(t,async()=>Response.json(await voteFixture().read()));await h.render({item:{...item,conflicted:true}});await h.open();assert(h.container.querySelector('.amendment-named-votes__group'));assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.textContent,/Author votes unavailable/);
 });
 test('missing group history retains author positions without a group table',async t=>{
  const f=voteFixture();f.store.db.prepare=()=>({get:()=>undefined});const h=await mount(t,async()=>Response.json(await f.read()));await h.render();await h.open();assert.match(h.container.textContent,/Author One(?: S&D)? voted for/);assert.equal(h.container.querySelector('.vote-group-summary'),null);assert.equal(h.container.querySelector('.vote-group-unity'),null);assert.match(h.container.textContent,/Groups unavailable for this date/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
 });
 test('partial ballots withhold group totals and avoid claiming an unlisted author had no vote',async t=>{
- const f=voteFixture();f.raw.had_voter_favor.push('invalid-person');const h=await mount(t,async()=>Response.json(await f.read()));await h.render();await h.open();assert.equal(h.container.querySelector('.vote-group-summary'),null);assert.equal(h.container.querySelector('.vote-group-unity'),null);assert.match(h.container.textContent,/Named list incomplete/);assert.match(h.container.textContent,/Unlisted Author Unavailable/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
+ const f=voteFixture();f.raw.had_voter_favor.push('invalid-person');const h=await mount(t,async()=>Response.json(await f.read()));await h.render();await h.open();assert.equal(h.container.querySelector('.vote-group-summary'),null);assert.equal(h.container.querySelector('.vote-group-unity'),null);assert.match(h.container.textContent,/Group totals unavailable/);assert.match(h.container.textContent,/Unlisted Author Unavailable/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
 });
 test('wrong decision responses and transport errors offer retry, then exact data recovers',async t=>{
  let mode='wrong';const h=await mount(t,async()=>{const data=await voteFixture().read();if(mode==='wrong')data.decisionId+='1';return mode==='error'?new Response('{}',{status:503}):Response.json(data);});await h.render();await h.open();assert.match(h.container.textContent,/Named votes unavailable/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
@@ -50,7 +50,7 @@ test('wrong decision responses and transport errors offer retry, then exact data
  mode='good';await automaticRecovery(t);assert(h.container.querySelector('.amendment-named-votes__group'));
 });
 test('mismatched exact components suppress every position',async t=>{
- const data=await voteFixture().read();data.decision.componentIds=['MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2'];const h=await mount(t,async()=>Response.json(data));await h.render({decision:{...decision,partId:'eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-1',partNumber:1,componentBinding:'single-amendment'}});await h.open();assert.match(h.container.textContent,/Vote record does not match this amendment/);assert.equal(h.container.querySelector('button'),null);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
+ const data=await voteFixture().read();data.decision.componentIds=['MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-2'];const h=await mount(t,async()=>Response.json(data));await h.render({decision:{...decision,partId:'eli/dl/doc/MTG-PL-2026-10-07-VOT-ITM-993151-SPLIT-1-1',partNumber:1,componentBinding:'single-amendment'}});await h.open();assert.match(h.container.textContent,/Named votes unavailable/);assert.equal(h.container.querySelector('button'),null);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
 });
 test('a late response for a previous decision cannot populate the next panel',async t=>{
  let resolveOld;const oldResponse=new Promise(resolve=>{resolveOld=resolve;}),nextId=decisionId.replace('197457','197458'),data=await voteFixture().read();
@@ -64,7 +64,7 @@ test('a late response for a previous decision cannot populate the next panel',as
 for(const scenario of ['ambiguous-result-binding','conflicting-result-source','component-outside-result'])test(scenario+' preserves the indexed result and withholds named joins',async t=>{
  const f=contradictoryVoteFixture(scenario),data=await f.read();
  const h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:f.indexed});await h.render();await h.open();
- assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Vote record does not match this amendment/);
+ assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Named votes unavailable/);
  assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
  assert.match(h.container.querySelector('.explorer-amendment-card').textContent,/Adopted/);
  assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For2/);
@@ -80,7 +80,7 @@ for(const scenario of [
 ])test('known component contradictions are withheld: '+JSON.stringify(scenario),async t=>{
  const f=splitBindingFixture(scenario),data=await f.read(),h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:f.indexed});await h.render();await h.open();
  assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
- assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Vote record does not match this amendment/);
+ assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Named votes unavailable/);
  assert.match(h.container.querySelector('.explorer-amendment-card').textContent,/Adopted/);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For2/);
 });
 for(const scenario of [{wording:'missing'},{wording:'unreadable',context:'missing'},{ownership:'unknown',context:'missing'}])test('missing split context stays distinct from contradictions: '+JSON.stringify(scenario),async t=>{
@@ -104,7 +104,7 @@ test('group sources show the captured membership generation and retrieval date',
 test('a missing tally does not hide a known mismatch or imply an unlisted author had no vote',async t=>{
  const f=voteFixture();f.raw.number_of_votes_favor=99;delete f.raw.number_of_votes_abstention;const data=await f.read();
  const h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:{...decision,totals:{for:99,against:1,abstaining:null}}});
- await h.render();await h.open();assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.match(h.container.textContent,/Vote record does not match this amendment/);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For99/);
+ await h.render();await h.open();assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.match(h.container.textContent,/Named votes unavailable/);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For99/);
 });
 
 for(const [position,field] of [['for','number_of_votes_favor'],['against','number_of_votes_against'],['abstaining','number_of_votes_abstention']]){
@@ -113,7 +113,7 @@ for(const [position,field] of [['for','number_of_votes_favor'],['against','numbe
   const h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:{...decision,totals:{...decision.totals,[position]:matches?decision.totals[position]:99}}});
   await h.render();await h.open();assert.match(h.container.querySelector('.explorer-amendment-card').textContent,/Adopted/);
   if(matches){assert(h.container.querySelector('.amendment-named-votes__group'));assert.match(h.container.textContent,/Unlisted Author has no recorded vote/);}
-  else{assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.textContent,/Vote record does not match this amendment/);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/99/);}
+  else{assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.textContent,/Named votes unavailable/);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/99/);}
  });
 }
 

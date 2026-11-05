@@ -218,7 +218,7 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
       {record.targetLabel&&<p className="motion-amendments__target" lang={sourceLanguage(record.targetLabelLanguage)}>{record.targetLabel}</p>}
       <Proposers record={record} language={language}/>
       {checked(record,member)&&<p className="motion-amendments__member-tag"><UiMessage id="motionamendments.selected_mep_s_proposal.4df73d"/></p>}
-      {(record.wording?.language||record.listDocumentDate)&&<p className="motion-amendments__muted">{record.wording?.language ? (record.wording.languageFallback ? <><UiMessage id="motionamendments.showing_languagelabel_requested_language.befa7c" values={{actualLanguage: <span lang="">{languageLabel(record.wording.language)}</span>, language: <span lang="">{language.toUpperCase()}</span>}}/></> : <><UiMessage id="motionamendments.wording_language_languagelabel.aa6a52" values={{actualLanguage: <span lang="">{languageLabel(record.wording.language)}</span>}}/></>) : null}
+      {(record.wording?.language||record.listDocumentDate)&&<p className="motion-amendments__muted">{record.wording?.language ? (record.wording.languageFallback ? <><UiMessage id="motionamendments.showing_languagelabel_requested_language.befa7c" values={{actualLanguage: <span lang="">{languageLabel(record.wording.language)}</span>, language: <span lang="">{language.toUpperCase()}</span>}}/></> : <><UiMessage id="membervotes.tsx.text.language.language" values={{language: <span lang="">{languageLabel(record.wording.language)}</span>}}/></>) : null}
         {record.listDocumentDate&&<>{record.wording?.language ? ' · ' : ''}<span lang={language}>{dateLabel(record.listDocumentDate,language)}</span></>}
       </p>}
       

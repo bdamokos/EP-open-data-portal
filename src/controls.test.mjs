@@ -53,7 +53,7 @@ test('Follow and Save names include their visible state and identify compact con
     await h.render(createElement(SaveButton,{item,compact}));
     const button=h.container.querySelector('button');
     for(const [index,saved] of [false,true,false].entries()) {
-      const label=kind==='mep'?(saved?'Following':'Follow'):(saved?'Saved':'Save');
+      const label=saved?'Following':'Follow';
       assert.equal(button.getAttribute('aria-pressed'),String(saved));
       assert.equal(button.getAttribute('aria-label'),`${label} ${kind==='mep'?'MEP':'question'} · ${item.title}`);
       if(!compact)assert(button.textContent.includes(label));

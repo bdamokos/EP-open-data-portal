@@ -77,14 +77,14 @@ test('failure registry keys remain distinct and stable without presenting local 
   const request={...first,registryPartKey:'__request__',recordKind:'request',componentIndex:null};
   assert.equal(new Set([first,second,request].map(amendmentFailureKey)).size,3);
   assert.deepEqual([second,first].map(amendmentFailureKey).reverse(),[first,second].map(amendmentFailureKey),'row order does not define registry identity');
-  assert.equal(amendmentFailureLabel(first),'Unidentified split component 1');
-  assert.equal(amendmentFailureLabel(second),'Unidentified split component 2');
-  assert.equal(amendmentFailureLabel(request),'Split request failure');
+  assert.equal(amendmentFailureLabel(first),'Unidentified part 1');
+  assert.equal(amendmentFailureLabel(second),'Unidentified part 2');
+  assert.equal(amendmentFailureLabel(request),'Split vote unavailable');
   assert.equal(amendmentFailureLabel({...first,partId:'eli/dl/doc/exact-part'}),'eli/dl/doc/exact-part');
   assert.notEqual(amendmentFailureKey({...first,registryPartKey:undefined}),amendmentFailureKey({...second,registryPartKey:undefined}),'legacy unidentified components can use their source position');
   const unknownRequest={requestId:null,partId:null,registryPartKey:'__request__',recordKind:'request',language:'en'};
   assert.notEqual(amendmentFailureKey({...unknownRequest,registryRequestKey:'local-request-one'}),amendmentFailureKey({...unknownRequest,registryRequestKey:'local-request-two'}),'unidentified requests can share a component key without sharing their local request identity');
-  assert.equal(amendmentFailureLabel({...unknownRequest,registryRequestKey:'local-request-one'}),'Split request failure','a local request registry key is not an official ID');
+  assert.equal(amendmentFailureLabel({...unknownRequest,registryRequestKey:'local-request-one'}),'Split vote unavailable','a local request registry key is not an official ID');
 });
 test('external evidence links permit public web sources and reject executable links',()=>{
   assert.equal(publicAmendmentSource({url:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-08/decisions'}),'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-08/decisions');

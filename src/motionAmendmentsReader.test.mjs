@@ -257,7 +257,7 @@ test('an exact off-page selection is fetched separately and does not change memb
   assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,1);
   assert.match(h.container.querySelector('.motion-amendments__outside').textContent,/outside this filter/);
   assert.match(wordingViewText(h.container.querySelector('.motion-amendments__detail')),/The exact off-page wording/);
-  assert.deepEqual([...h.container.querySelectorAll('.motion-amendments__scope button')].map(node=>node.textContent),['Checked member’s proposals · 1','All available amendments · 5']);
+  assert.deepEqual([...h.container.querySelectorAll('.motion-amendments__scope button')].map(node=>node.textContent),['Checked member’s proposals · 1','All amendments · 5']);
   assert.match(h.container.querySelector('.motion-amendments__pages').textContent,/1–1 of 1/);
   assert.equal(h.container.querySelector('.motion-amendments__version select').value,listId);
   await h.click('Read in context');
@@ -294,7 +294,7 @@ test('scope, language and target changes immediately clear old wording and rejec
   const h=await readerHarness(t,{state:{open:true}});
   await h.respond(page());await h.click(/^Amendment 13/);
   assert.match(wordingViewText(h.container),/Exact proposed/);
-  await h.click(/^All available amendments/);
+  await h.click(/^All amendments/);
   assert.equal(h.container.querySelector('.motion-amendments__detail'),null);
   await h.respond(page({scope:'all',items:[amendment(13,{proposedText:'All-scope wording'})]}));
   assert.match(wordingViewText(h.container),/All-scope wording/);
@@ -438,7 +438,7 @@ test('empty and withheld motion wording retain per-side source status without cl
     await h.click(new RegExp('^Amendment '+number));
     const detail=h.container.querySelector('.motion-amendments__detail');
     assert.equal(detail.querySelector('.wording-diff,ins,del'),null);
-    if(number===14){assert.match(detail.textContent,/This wording could not be read reliably/);assert.doesNotMatch(detail.textContent,/Withheld old|Withheld new/);}
+    if(number===14){assert.match(detail.textContent,/Wording unavailable/);assert.doesNotMatch(detail.textContent,/Withheld old|Withheld new/);}
     else assert.match(detail.textContent,/No proposed wording supplied\./);
     assert.doesNotMatch(detail.textContent,/Text deleted|No original text \(insertion\)/);
   }
@@ -452,7 +452,7 @@ test('missing English document distribution does not hide available English amen
   const passages=[...h.container.querySelectorAll('.wording-diff__passage')];
   assert.deepEqual(['original','proposed'].map(side=>wordingText(h.container,side)),[result.items[0].originalText,result.items[0].proposedText]);
   assert(passages.every(node=>node.lang==='en'));
-  assert.match(wordingViewText(h.container.querySelector('.motion-amendments__detail')),/Wording language: EN/);
+  assert.match(wordingViewText(h.container.querySelector('.motion-amendments__detail')),/Text language: EN/);
   assert.doesNotMatch(h.container.querySelector('.motion-amendments__detail').textContent,/English.*unavailable|Showing FR/);
 });
 
@@ -470,7 +470,7 @@ test('not indexed, observed empty and no member matches remain distinct, and glo
   assert.match(h.container.textContent,/No published amendment lists are recorded for this motion\./);
   assert.doesNotMatch(h.container.textContent,/Amendment information is unavailable|No matching proposals|processing|indexing|background work/i);
   await h.updateProps({language:'de'});const none=empty('no-indexed-member-matches');none.scope.requestedLanguage='de';none.totals={allIndexed:3,memberMatched:0};await h.respond(none);
-  assert.match(h.container.textContent,/No matches in available amendments/,'incomplete coverage keeps the empty result scoped');
+  assert.match(h.container.textContent,/No matching amendments./,'incomplete coverage keeps the empty result scoped');
   assert.doesNotMatch(h.container.querySelector('.motion-amendments__scope button').textContent,/· 0/);
   assert.doesNotMatch(h.container.textContent,/No published amendment lists|Amendment information is unavailable|processing|indexing|background work/i);
   assert.equal(h.requests.length,3,'backgroundPending does not start a polling loop');
@@ -489,7 +489,7 @@ test('a later exact-selection snapshot replaces its page and counts together ins
   assert.match(h.container.textContent,/Updated provision/);
   assert.match(h.container.textContent,/Newly indexed exact proposal/);
   assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,3);
-  assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/3 available/);
+  assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/Amendments · 3/);
   assert.equal(h.container.querySelector('.motion-amendments__selected'),null);
   assert.equal(h.requests.length,2);
 });
@@ -514,9 +514,9 @@ test('row switches retain the newest exact-response page, wording and counts wit
       assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,2,'a local switch must not restore the earlier page');
       assert.match(wordingViewText(h.container.querySelector('.motion-amendments__detail')),new RegExp(`Generation two amendment ${number} wording`));
       assert.doesNotMatch(wordingViewText(h.container),/Generation one obsolete wording/);
-      assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/4 available/);
+      assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/Amendments · 4/);
       assert.deepEqual([...h.container.querySelectorAll('.motion-amendments__scope button')].map(node=>node.textContent),
-        ['Checked member’s proposals · 4','All available amendments · 4']);
+        ['Checked member’s proposals · 4','All amendments · 4']);
       assert.match(h.container.querySelector('.motion-amendments__pages').textContent,/1–2 of 4/);
       assert.equal(h.container.querySelector('.motion-amendments__selected'),null);
     }
@@ -539,7 +539,7 @@ test('failed and older exact reads preserve the accepted newer page until a cohe
     assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,2);
     assert.match(h.container.textContent,/Current generation two provision/);
     assert.doesNotMatch(h.container.textContent,/Obsolete generation one/);
-    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/4 available/);
+    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/Amendments · 4/);
     assert.match(h.container.querySelector('.motion-amendments__pages').textContent,/1–2 of 4/);
   };
   assertNewerPage();
@@ -585,10 +585,10 @@ test('an earlier list refresh cannot overwrite a later exact response from the s
     assert.equal(pendingExact.url.searchParams.get('amendment'),selected.id);
     if(completionOrder==='list first')await h.respond(old,{request:pendingList});
     await h.respond({...current,selection:{requestedId:selected.id,status:'available',item:selected,inRequestedScope:true,inPage:false}},{request:pendingExact});
-    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/3 available/);
+    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/Amendments · 3/);
     if(completionOrder==='exact first')await h.respond(old,{request:pendingList});
     assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,3,'request completion order must not roll the page back');
-    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/3 available/);
+    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/Amendments · 3/);
     assert.match(h.container.textContent,/Current exact provision/);
     assert.doesNotMatch(wordingViewText(h.container),/Earlier list provision|Earlier list wording/);
     assert.match(wordingViewText(h.container.querySelector('.motion-amendments__selected')),/Current off-page selection wording/);
@@ -626,7 +626,7 @@ test('failed exact revalidation hides earlier detail and context while preservin
     if(pendingList)await h.respond(base,{request:pendingList});
     assert.equal(h.container.querySelector('.motion-amendments__detail'),null,'failed revalidation cannot expose the earlier selected record');
     assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,2);
-    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/2 available/);
+    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/Amendments · 2/);
     assert.doesNotMatch(h.container.textContent,/The selected amendment could not be loaded\./);
     await h.updateState({view:'context',contextTarget:'amendment'});
     assert.equal(h.container.querySelector('[data-test-context]'),null,'a context deep link cannot reuse failed selection evidence');
@@ -664,7 +664,7 @@ test('revisiting an older exact selection revalidates without restoring an earli
   await h.respond(snapshot(currentItems,23,amendment(32,{listId,proposedText:'Current amendment 32 wording'})));
   const assertCurrentPage=()=>{
     assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,20);
-    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/23 available/);
+    assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/Amendments · 23/);
     assert.match(h.container.querySelector('.motion-amendments__pages').textContent,/1–20 of 23/);
     assert.match(h.button(/^Amendment 13/).textContent,/Current published provision/);
     assert.match(h.button(/^Amendment 20/).textContent,/Newly displayed amendment 20 provision/);
@@ -716,7 +716,7 @@ test('accepted page and wording survive disclosure and exact-route navigation ro
       assert.match(wordingViewText(h.container.querySelector('.motion-amendments__detail')),/Accepted original-route generation two wording/);
       assert.match(h.container.textContent,/Generation two additional provision/);
       assert.doesNotMatch(wordingViewText(h.container),/Obsolete original-route generation one wording|Other .* route wording/);
-      assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/4 available/);
+      assert.match(h.container.querySelector('.motion-amendments__disclosure').textContent,/Amendments · 4/);
       assert.match(h.container.querySelector('.motion-amendments__pages').textContent,/1–2 of 4/);
     };
     const assertNoOriginalWording=()=>assert.doesNotMatch(wordingViewText(h.container),/Accepted original-route generation two wording|Obsolete original-route generation one wording/);
@@ -736,7 +736,7 @@ test('accepted page and wording survive disclosure and exact-route navigation ro
     } else if(navigation==='scope') {
       await h.click(/^Checked member’s proposals/);assertNoOriginalWording();await h.respond(otherPage({scope:'member'}));
       assert.match(wordingViewText(h.container.querySelector('.motion-amendments__detail')),/Other scope route wording/);assertNoOriginalWording();
-      await h.click(/^All available amendments/);
+      await h.click(/^All amendments/);
     } else if(navigation==='language') {
       await h.updateProps({language:'fr'});assertNoOriginalWording();await h.respond(otherPage({language:'fr'}));
       assert.match(wordingViewText(h.container.querySelector('.motion-amendments__detail')),/Other language route wording/);assertNoOriginalWording();
@@ -818,7 +818,7 @@ test('an unreadable competing version stays visible and cannot fall back to the 
   assert.equal(h.container.querySelectorAll('.motion-amendments__passage').length,0);
   const options=[...h.container.querySelectorAll('.motion-amendments__version option')];
   assert(options.some(option=>option.value===listA));assert(options.some(option=>option.value===listB));
-  assert(options.some(option=>option.disabled&&/without a unique source reference/.test(option.textContent)));
+  assert(options.some(option=>option.disabled&&/Unidentified version/.test(option.textContent)));
   await h.change('.motion-amendments__version select',listB);
   assert.match(wordingViewText(h.container),/Original wording is unavailable.*Proposed wording is unavailable/s);
   assert.doesNotMatch(wordingViewText(h.container),/Only the first version has readable wording/);

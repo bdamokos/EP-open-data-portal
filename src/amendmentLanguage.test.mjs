@@ -70,7 +70,6 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
   assert.equal(effectiveLanguage(card('explicit-unknown').querySelector('.explorer-amendment-title')),'fr');
   assert.equal(effectiveLanguage(card('known-fr').querySelector('.explorer-amendment-target')),'hu');
   assert.equal(effectiveLanguage(card('known-fr').querySelector('.explorer-amendment-authors a span')),'');
-  assert.equal(effectiveLanguage(card('known-fr').querySelector('.explorer-amendment-authors small')),'en');
   const proposer=[...card('known-fr').querySelectorAll('.explorer-amendment-authors p span')];
   assert.deepEqual(proposer.map(effectiveLanguage),['fr','']);
   for(const row of container.querySelectorAll('.explorer-amendment-card'))for(const label of row.querySelectorAll('.wording-diff h5,.explorer-amendment-texts h5,.explorer-amendment-wording summary,.explorer-amendment-evidence summary'))assert.equal(effectiveLanguage(label),'en');
