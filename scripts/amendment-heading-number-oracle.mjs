@@ -7,14 +7,15 @@ export function assertHeadingNumber({wording,text,placement,voteReferences=[],na
  const refs=wording?.documentReferences?.filter(r=>r.basis==='published-heading-number-candidate')??[];
  if(!refs.length)return null;
  const unknown=()=>({status:'unverified',reason:'oracle-heading-number-unavailable'});
+ const stampRefs=wording.documentReferences.filter(r=>r.basis==='conflicting-stamp-number');
  const target=/^Paragraph ([1-9]\d*)$/u.exec(wording.targetLabel??'');
- if(refs.length!==1||refs[0].field!=='NumberConflict'||wording.language!=='en'||wording.baseline!=='motion-resolution'||!target||!voteReferences.length||voteReferences.some(v=>/^(?:§|Paragraph)\s*([1-9]\d*)$/u.exec(clean(v))?.[1]!==target[1])||nativeQuoted?.number!==wording.number)return unknown();
+ if(refs.length!==1||refs[0].field!=='HeadingNumber'||refs[0].raw!==String(wording.number)||stampRefs.length!==1||stampRefs[0].field!=='StampNumber'||wording.language!=='en'||wording.baseline!=='motion-resolution'||!target||!voteReferences.length||voteReferences.some(v=>/^(?:§|Paragraph)\s*([1-9]\d*)$/u.exec(clean(v))?.[1]!==target[1])||nativeQuoted?.number!==wording.number)return unknown();
  try{
   const body=quotedWordBody(nativeQuoted.amendmentBuffer),starts=body.flatMap((row,i)=>row.kind==='paragraph'&&row.text.includes('<Amend>')?[i]:[]),blocks=starts.map((at,i)=>body.slice(at,starts[i+1]??body.length));
   const headings=block=>block.filter(row=>row.kind==='paragraph'&&new RegExp('^Amendment\\s*<NumAm>'+wording.number+'<\\/NumAm>$','u').test(row.text.trim()));
   const blocksWithHeading=blocks.filter(block=>headings(block).length);if(blocksWithHeading.length!==1)return unknown();const block=blocksWithHeading[0];
   const raw=block.filter(row=>row.kind==='paragraph').map(row=>row.text).join('\n'),numbers=[...raw.matchAll(/<NumAm>(\d+)<\/NumAm>/gu)].map(m=>m[1]),stamps=numbers.filter(n=>n!==String(wording.number));
-  if(headings(block).length!==1||headings(block)[0].unsafe||numbers.length!==2||stamps.length!==1||stamps[0]!==refs[0].raw||!raw.includes('<Article>'+wording.targetLabel+'</Article>'))return unknown();
+  if(headings(block).length!==1||headings(block)[0].unsafe||numbers.length!==2||stamps.length!==1||stamps[0]!==stampRefs[0].raw||!raw.includes('<Article>'+wording.targetLabel+'</Article>'))return unknown();
   const tables=block.filter(row=>row.nodes?.['w:tbl']);if(tables.length!==1||tables[0].hidden)return unknown();const table=tables[0].nodes['w:tbl'];if(!completeGrid(table))return unknown();const rows=[];
   for(const row of children(table,'w:tr')){const cells=children(row,'w:tc'),values=[];for(const cell of cells){const ps=children(cell,'w:p');if(!ps.every(safe))return unknown();values.push(ps.map(literal).filter(s=>s.trim()).join('\n').trim());}if(!values.some(Boolean))continue;if(cells.length!==2||cells.some(cell=>children(cell,'w:tcPr').flat().some(node=>Object.hasOwn(node,'w:gridSpan')&&node[':@']?.['@_w:val']!=='1')))return unknown();rows.push(values);}
   const nonempty=rows.filter(row=>row.some(Boolean));if(nonempty[0]?.[0]!=='Motion for a resolution'||nonempty[0]?.[1]!=='Amendment')return unknown();
