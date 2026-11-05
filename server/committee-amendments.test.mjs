@@ -409,3 +409,26 @@ test('list-specific dossier continuation reaches a target after the first 24 lis
   const result=await new DossierActivity(x.store,{reader}).query(dossierActivityQuery(new URLSearchParams({reference:work.label,section:'amendments',member:'100',stage:'committee','target-offset':'24'})));
   assert.equal(result.checkedTarget,'AGRI-AM-900024');assert.equal(result.items.length,1);assert.equal(result.items[0].amendment.targetDocumentId,null);assert.equal(result.pagination.next,null);
 });
+
+test('a committee parser upgrade withholds a dropped old amendment without hiding surviving wording',async t=>{
+  const x=setup(t),id='AGRI-AM-773343',saved=seed(x,id);roster(x);
+  const first={...saved.extraction.amendments[0],originalText:'Old wording 51'},second={...first,number:52,originalText:'Old wording 52'};
+  saved.extraction={...saved.extraction,parserVersion:'20',previousParserVersion:'19',amendments:[first,second]};
+  x.store.putSource(x.generation,'amendment:list:'+id,'amendment-list',saved,at);
+  rebuildAmendmentTarget(x.worker,x.generation,saved.scopeKey);
+  const get=number=>amendmentById(x.store,{document:saved.targetDocumentId,id:'committee:'+id+':'+number});
+  assert.equal(get(51).originalText,'Old wording 51');assert.equal(get(52).originalText,'Old wording 52');
+  const job=x.store.db.prepare("SELECT * FROM amendment_jobs WHERE kind='amendment-extract' AND json_extract(body,'$.listId')=?").get(id);assert(job);
+  await amendmentTask(x.worker,{...job,body:JSON.parse(job.body),amendmentJob:true});
+  const extraction=x.store.source(x.generation,'amendment:list:'+id).work.extraction;
+  assert.equal(extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);assert.equal(extraction.previousParserVersion,'20');
+  assert.deepEqual(extraction.amendments.map(a=>a.number),[51]);
+  for(const read of [()=>get(52),()=>amendmentsPage(x.store,{scope:'committee',list:id}).items.find(row=>row.number===52)]) {
+    const missing=read();assert.equal(missing.originalText,null);assert.equal(missing.proposedText,null);
+    assert.equal(missing.textIntegrity,'incomplete');assert.equal(missing.textParserVersion,'20');assert.equal(missing.wordingRetained,false);
+    assert(missing.gaps.some(gap=>gap.includes('Earlier wording has no verified baseline')));
+  }
+  assert.equal(get(51).textParserVersion,AMENDMENT_EXTRACTION_VERSION);assert.equal(get(51).textIntegrity,'complete');assert.equal(typeof get(51).originalText,'string');
+  rebuildAmendmentTarget(x.worker,x.generation,saved.scopeKey);
+  assert.equal(get(52).originalText,null);
+});
