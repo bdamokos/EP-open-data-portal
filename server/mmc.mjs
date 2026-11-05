@@ -111,12 +111,17 @@ export function clipUrl(base, language, audio, start, end) {
   return url.href + '&start=' + start + '&end=' + end;
 }
 
-export function matchRecording(speech, details) {
+const meetingRange = record => {
+  const detail = record.payload.resultJSON.content;
+  return [detail.meetingStartDate, detail.meetingEndDate];
+};
+
+export function matchRecording(speech, details, range = meetingRange) {
   const start = Date.parse(speech.start), end = Date.parse(speech.end);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return { status: 'missing-times' };
   const matches = details.filter(record => {
-    const detail = record.payload.resultJSON.content;
-    return start >= Date.parse(detail.meetingStartDate) && end <= Date.parse(detail.meetingEndDate);
+    const [from, to] = range(record);
+    return start >= Date.parse(from) && end <= Date.parse(to);
   });
   if (matches.length !== 1) return { status: matches.length ? 'ambiguous' : 'outside-recording' };
   return { status: 'matched', record: matches[0], startUtc: new Date(Math.floor(start / 1000) * 1000).toISOString().replace('.000Z', 'Z'), endUtc: new Date(Math.ceil(end / 1000) * 1000).toISOString().replace('.000Z', 'Z') };
@@ -160,7 +165,14 @@ export async function speechMedia(id, language, audio = language, dependencies =
   const recordings = results.map(result => result.value);
   // Every candidate establishes uniqueness, including recordings that do not overlap.
   base.provenance.recordingSources = recordings.map(record => ({url: record.url, fetchedAt: record.fetchedAt, stale: Boolean(record.stale), refreshInProgress: Boolean(record.refreshInProgress), refreshError: record.refreshError || null}));
-  const match = matchRecording(speech, recordings);
+  let match = matchRecording(speech, recordings);
+  // Detail times can stop at the scheduled end while the stream ran on, so a speech in that overrun is matched by the player's range.
+  if (match.status === 'outside-recording') {
+    const players = await Promise.allSettled(recordings.map(record => (dependencies.content || playerContent)(record.payload.resultJSON.content.mediaBusinessId, directory)));
+    if (players.some(result => result.status === 'rejected')) return fail('audio-metadata-unavailable');
+    const ranges = new Map(players.map(result => [result.value.payload?.commonId, [result.value.payload?.startDate, result.value.payload?.endDate]]));
+    match = matchRecording(speech, recordings, record => ranges.get(record.payload.resultJSON.content.mediaBusinessId) || []);
+  }
   if (match.status !== 'matched') return fail(match.status);
   const detail = match.record.payload.resultJSON.content, official = officialEmbed(detail, detail.mediaBusinessId);
   const additions = {
@@ -171,7 +183,8 @@ export async function speechMedia(id, language, audio = language, dependencies =
   let content;
   try { content = await (dependencies.content || playerContent)(detail.mediaBusinessId, directory); }
   catch { return fail('audio-metadata-unavailable', additions); }
-  if (content.payload?.commonId !== detail.mediaBusinessId || Date.parse(content.payload.startDate) !== Date.parse(detail.meetingStartDate) || Date.parse(content.payload.endDate) !== Date.parse(detail.meetingEndDate)) return fail('audio-metadata-mismatch', additions);
+  // Detail times can stay at the scheduled sitting while the player reports the stream it holds, so only the speech has to fit the player's range.
+  if (content.payload?.commonId !== detail.mediaBusinessId || !(Date.parse(speech.start) >= Date.parse(content.payload.startDate) && Date.parse(speech.end) <= Date.parse(content.payload.endDate))) return fail('audio-metadata-mismatch', additions);
   let mapping;
   try { mapping = playerAudioMapping(content); }
   catch { return fail('audio-metadata-unavailable', additions); }

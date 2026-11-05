@@ -44,10 +44,25 @@ test('an explicit original-audio request keeps the original channel',async()=>{
 test('missing content metadata and cross-source identity or coverage mismatch never enable a player',async()=>{
   const unavailable=await speechMedia(speech.id,'hu','hu',{...deps,content:async()=>{throw new Error('unavailable');}});
   assert.equal(unavailable.available,false);assert.equal(unavailable.embedUrl,null);assert.equal(unavailable.status,'audio-metadata-unavailable');
-  for(const patch of [{commonId:'20261008-0900-PLENARY'},{endDate:'2026-10-07T18:20:00Z'}]){
+  for(const patch of [{commonId:'20261008-0900-PLENARY'},{startDate:'2026-10-07T09:20:00Z'},{endDate:'2026-10-07T09:20:00Z'}]){
     const result=await speechMedia(speech.id,'hu','hu',{...deps,content:async()=>({...content,payload:{...content.payload,...patch}})});
     assert.equal(result.available,false);assert.equal(result.embedUrl,null);assert.equal(result.status,'audio-metadata-mismatch');
   }
+});
+test('player times that differ from a scheduled recording detail still enable a speech they cover',async()=>{
+  const scheduled=structuredClone(detail);Object.assign(scheduled.payload.resultJSON.content,{meetingStartDate:'2026-10-07T09:00:00.000+0200',meetingEndDate:'2026-10-07T20:00:00.000+0200'});
+  const result=await speechMedia(speech.id,'hu','hu',{...deps,detail:async()=>scheduled,content:async()=>({...content,payload:{...content.payload,startDate:'2026-10-07T07:04:07Z',endDate:'2026-10-07T18:16:20Z'}})});
+  assert.equal(result.available,true);assert.equal(result.status,'matched');assert.match(result.embedUrl,/start=2026-10-07T09:19:15Z&end=2026-10-07T09:20:55Z$/);
+});
+test('a speech in the overrun after a scheduled recording detail is matched by the player range',async()=>{
+  const scheduled=structuredClone(detail);Object.assign(scheduled.payload.resultJSON.content,{meetingStartDate:'2026-10-07T09:00:00.000+0200',meetingEndDate:'2026-10-07T20:00:00.000+0200'});
+  const overrun={...speech,start:'2026-10-07T20:05:00.000+02:00',end:'2026-10-07T20:06:00.000+02:00'};
+  const player=async()=>({...content,payload:{...content.payload,startDate:'2026-10-07T07:04:07Z',endDate:'2026-10-07T18:16:20Z'}});
+  const result=await speechMedia(overrun.id,'hu','hu',{...deps,speech:async()=>overrun,detail:async()=>scheduled,content:player});
+  assert.equal(result.available,true);assert.equal(result.status,'matched');assert.match(result.embedUrl,/start=2026-10-07T18:05:00Z&end=2026-10-07T18:06:00Z$/);
+  const past={...overrun,start:'2026-10-07T20:20:00.000+02:00',end:'2026-10-07T20:21:00.000+02:00'};
+  assert.equal((await speechMedia(past.id,'hu','hu',{...deps,speech:async()=>past,detail:async()=>scheduled,content:player})).status,'outside-recording');
+  assert.equal((await speechMedia(overrun.id,'hu','hu',{...deps,speech:async()=>overrun,detail:async()=>scheduled,content:async()=>{throw new Error('unavailable');}})).status,'audio-metadata-unavailable');
 });
 test('a speech before recording coverage is not clamped to recording start',()=>{
   const early={...speech,start:'2026-10-07T09:00:15+02:00',end:'2026-10-07T09:00:30+02:00'};
