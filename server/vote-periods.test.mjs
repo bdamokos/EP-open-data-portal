@@ -3,6 +3,8 @@ import {VotePeriods} from './vote-periods.mjs';
 import {runWithRequestSignal} from './request-budget.mjs';
 const NOW=Date.parse('2026-10-19T12:00:00Z');
 const meeting=(date,patch={})=>({id:'https://data.europarl.europa.eu/eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING',...patch});
+// Locations are resolved from the sitting locality reference.
+const located=(date,locality)=>meeting(date,{hasLocality:locality});
 
 test('upstream admission pressure serves a bounded last good calendar with stale partial evidence, then recovers',async()=>{
  let now=NOW,busy=false;
@@ -10,7 +12,7 @@ test('upstream admission pressure serves a bounded last good calendar with stale
  service.clock=service.reader.clock=()=>now;
  const request=service.reader.request;
  service.reader.request=(...args)=>busy?Promise.reject(Object.assign(new Error('Rate limited'),{code:'upstream_busy',status:503})):request(...args);
- const good=await service.query();assert.equal(good.version,3);
+ const good=await service.query();assert.equal(good.version,4);
  now+=60_001;busy=true;
  const saved=await service.query();assert.deepEqual(saved.weeks,good.weeks);assert.equal(saved.coverage.status,'partial');
  assert(saved.coverage.years.every(year=>year.state==='partial'&&year.error.code==='upstream_busy'&&year.sources.every(source=>source.stale&&source.refreshError==='Rate limited')));
@@ -42,9 +44,12 @@ test('a calendar fallback cannot hide cold, partial, stale, timed-out or cancell
 });
 function setup({rows={},fail={},extra={},limits={}}={}){const calls=[];const service=new VotePeriods({clock:()=>NOW,limits,request:async(endpoint,params)=>{assert.equal(endpoint,'/meetings');calls.push({...params});if(fail[params.year])throw new Error('Calendar source unavailable');return {url:'https://data.europarl.europa.eu/api/v2/meetings?'+new URLSearchParams(params),fetchedAt:NOW,payload:{data:(rows[params.year]||[]).slice(params.offset,params.offset+params.limit)},...extra};}});return {service,calls};}
 test('calendar explicitly scans every current-term year and groups only exact held sitting identities',async()=>{
- const {service,calls}=setup({rows:{2024:[meeting('2024-07-15'),meeting('2024-07-16')],2025:[meeting('2025-12-18')],2026:[meeting('2026-10-06'),meeting('2026-10-08'),meeting('2026-10-20'),meeting('2026-10-09',{had_activity_type:'OTHER'})]}});
+ const {service,calls}=setup({rows:{2024:[meeting('2024-07-15'),meeting('2024-07-16')],2025:[meeting('2025-12-18')],2026:[meeting('2026-10-06'),meeting('2026-10-08'),located('2026-10-20','http://publications.europa.eu/resource/authority/place/BEL_BRU'),meeting('2026-10-09',{had_activity_type:'OTHER'})]}});
  const data=await service.query();assert.deepEqual(calls.map(c=>c.year),[2024,2025,2026]);assert.equal(data.coverage.status,'complete');
  assert.deepEqual(data.weeks.map(w=>w.week),['2026-10-05','2025-12-15','2024-07-15']);assert.deepEqual(data.weeks[0].sittings.map(s=>s.date),['2026-10-06','2026-10-08']);
+ assert.deepEqual(data.upcoming,[{week:'2026-10-19',sittings:[{sittingId:'MTG-PL-2026-10-20',date:'2026-10-20',location:'Brussels'}]}],'future sittings are listed separately from held vote weeks, with their locality');
+ const withCity=await setup({rows:{2026:[located('2026-10-20','http://publications.europa.eu/resource/authority/place/FRA_SXB')]}}).service.query();
+ assert.deepEqual(withCity.upcoming[0].sittings,[{sittingId:'MTG-PL-2026-10-20',date:'2026-10-20',location:'Strasbourg'}],'upcoming sittings carry their city');
  assert.deepEqual(data.weeks.at(-1).sittings.map(s=>s.date),['2024-07-16']);assert.equal(data.coverage.years.length,3);assert(data.coverage.years.every(y=>y.sources[0].contentHash&&y.sources[0].fetchedAt));
  await service.query();assert.equal(calls.length,3);assert.throws(()=>service.query(new URLSearchParams('week=latest')),e=>e.status===400);
 });

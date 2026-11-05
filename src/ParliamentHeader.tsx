@@ -47,18 +47,20 @@ function useStackedDestinations(language:string,items:string) {
 
 type ExplorerView = 'legislation' | 'questions' | 'geopolitics' | 'outside' | 'amendments' | 'groups' | 'hemicycle';
 
-export function ParliamentHeader({view,onMembers,onNavigate,onSaved,onLanguageChange,language='en'}: {
-  view: 'members' | ExplorerView | 'saved';
+export function ParliamentHeader({view,onHome,onMembers,onNavigate,onSaved,onLanguageChange,language='en',search=true}: {
+  view: 'home' | 'members' | ExplorerView | 'saved';
+  onHome?: () => void;
   onMembers: () => void;
   onNavigate?: (view: ExplorerView) => void;
   onSaved?: () => void;
   onLanguageChange?: (language: string) => void;
   language?:string;
+  search?:boolean;
 }) {
   const ui = useUiI18n();
-  const [header,stacked]=useStackedDestinations(ui.language,`${Boolean(onSaved)}${Boolean(onLanguageChange)}`);
+  const [header,stacked]=useStackedDestinations(ui.language,`${Boolean(onSaved)}${Boolean(onLanguageChange)}${search}`);
   return <header ref={header} className="parliament-header" data-stacked={stacked ? "true" : undefined}>
-    <span className="parliament-brand" lang={ui.language}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></span>
+    {onHome ? <button type="button" className="parliament-brand parliament-brand-link" lang={ui.language} onClick={onHome}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></button> : <span className="parliament-brand" lang={ui.language}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></span>}
     <nav aria-label={ui.t("batch4.parliamentheader.tsx.24.1")} lang={ui.language}>
       <button aria-current={(view==='members') ? 'page' : undefined} onClick={onMembers}><UiMessage id="batch4.parliamentheader.tsx.25.1"/></button>
       {(['legislation','questions','geopolitics','amendments','outside','groups','hemicycle'] as const).filter(destination=>destination!=='amendments'||publicAmendmentsEnabled).map(destination=><button
@@ -72,7 +74,7 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,onLanguageCh
     <div className="parliament-header-tools">
       <ThemeToggle/>
       {onLanguageChange&&<InterfaceLanguageControl language={language} onChange={onLanguageChange}/>}
-      <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} language={language} className="explorer-text-search-global"/>
+      {search&&<TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} language={language} className="explorer-text-search-global"/>}
     </div>
   </header>;
 }

@@ -27,6 +27,7 @@ import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
 import {lazyView} from './lazyView';
 import {filterCountry,matchesCountry} from './countries.mjs';
 import {explorerParams,useExplorerParam} from './explorerUrl';
+import {isHomeQuery} from './homeModel.mjs';
 import {compareMembers} from './memberOrder.mjs';
 import {SpeechCloud} from './SpeechCloud';
 import {FindInText,TextSearch} from './TextSearch';
@@ -78,7 +79,7 @@ import { api, useData } from "./data";
 import {validateVotePeriods,type VotePeriodsResponse} from "./plenaryPeriods.mjs";
 import { useSpeechVideo } from "./SpeechPlayer";
 import {AmendmentTrailLink} from './AmendmentTrailLink';
-import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule} from './publicFeatures';
+import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule,memberWallView} from './publicFeatures';
 import {Status} from './Status';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAuthors.mjs';
 import {selectLanguageText} from './language.mjs';
@@ -91,6 +92,7 @@ import type {MemberMotionReaderProps} from './MemberMotionReader';
 const MemberVotes=lazyView(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
 const DocumentContextReader=lazyView(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
 const MemberMotionReader=lazyView(()=>import('./MemberMotionReader').then(module=>({default:module.MemberMotionReader})));
+const Home=lazyView(()=>import('./Home').then(module=>({default:module.Home})));
 
 const Hemicycle=lazyView(()=>import('./Hemicycle').then(module=>({default:module.Hemicycle})));
 const GroupVoices=lazyView(()=>import('./GroupVoices').then(module=>({default:module.GroupVoices})));
@@ -498,12 +500,18 @@ export default function App() {
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
   const [activityOffset,setActivityOffset]=useState(()=>queryActivityOffset(initial));
-  const [view, setView] = useState<'legislation'|'questions'|'geopolitics'|'outside'|'amendments'|'groups'|'hemicycle'|'saved'|null>(
+  const [view, setView] = useState<'legislation'|'questions'|'geopolitics'|'outside'|'amendments'|'groups'|'hemicycle'|'saved'|'meps'|null>(
     publicExplorerView(initial.get('view')),
   );
   const [tab, setTab] = useState(
     publicMemberModule(initial.get('module')),
   );
+  // Home owns the bare URL only; the explorer-query-change event covers
+  // param writes that do not change the view or member state.
+  const [queryTick,setQueryTick]=useState(0);
+  useEffect(()=>{const update=()=>setQueryTick(value=>value+1);window.addEventListener('popstate',update);window.addEventListener('explorer-query-change',update);return()=>{window.removeEventListener('popstate',update);window.removeEventListener('explorer-query-change',update);};},[]);
+  const currentQuery=useMemo(()=>new URLSearchParams(location.search),[queryTick]);
+  const homeVisible=!view&&!member&&isHomeQuery(currentQuery);
   const votes=useMemberVotesJourney(member,!view&&Boolean(member)&&tab==='votes',initial);
   const motions=useMemberMotionJourney(member,!view&&Boolean(member)&&tab==='activities',initial,{language:lang,activity:activityLink,category:activityCategory,offset:activityOffset});
   const memberOpener=useRef<number|null>(null);
@@ -532,7 +540,7 @@ export default function App() {
   }, [member, view, lang]);
   // The member wall stays mounted (hidden) behind member pages and Following,
   // so returning keeps its portraits; restore where the reader left it.
-  const wallVisible=!view&&!member;
+  const wallVisible=memberWallView(view)&&!member&&!homeVisible;
   const wallScroll=useRef(0);
   // Where the whole page scrolls, the count row sticks; once the filters scroll away it offers them instead of a reset.
   const wallFilters=useRef<HTMLDivElement>(null),[filtersPassed,setFiltersPassed]=useState(false);
@@ -628,18 +636,20 @@ export default function App() {
   }, [directory, committee, organization, country, group]);
   useEffect(() => {
     const u = new URL(location.href);
-    const ownParams=explorerParams(u.searchParams,view,member);
+    // The MEP directory keeps the member-wall URL fields under view=meps.
+    const wall=memberWallView(view);
+    const ownParams=explorerParams(u.searchParams,wall?null:view,member);
     for(const key of [...ownParams.keys()])if(key.startsWith('mv-')||key.startsWith('ma-'))ownParams.delete(key);
     if(!view&&member)for(const [key,value] of memberVotesJourneyParams(votes.journey))ownParams.set(key,value);
     u.search = new URLSearchParams({
       ...Object.fromEntries(ownParams),
       ...(interfaceLanguageInUrl(lang) ? ({lang}) : ({})),
       ...(((!view) && member) ? ({ member: String(member), module: tab }) : ({})),
-      ...((!view && organization) ? {organization,...(organizationName?{'organization-name':organizationName}:{})} : {}),
-      ...(((!view) && committee) ? ({ committee }) : ({})),
-      ...(((!view) && country) ? ({ country }) : ({})),
-      ...(((!view) && group) ? ({ group }) : ({})),
-      ...(((!view) && (role!=='both')) ? ({role}) : ({})),
+      ...(((wall) && organization) ? {organization,...(organizationName?{'organization-name':organizationName}:{})} : {}),
+      ...(((wall) && committee) ? ({ committee }) : ({})),
+      ...(((wall) && country) ? ({ country }) : ({})),
+      ...(((wall) && group) ? ({ group }) : ({})),
+      ...(((wall) && (role!=='both')) ? ({role}) : ({})),
       ...(view ? ({ view }) : ({})),
       ...((((!view) && member) && speechLink) ? ({ speech: speechLink }) : ({})),
       ...((((!view) && member) && activityLink) ? ({ activity: activityLink }) : ({})),
@@ -673,7 +683,7 @@ export default function App() {
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = (profile.data?.id === member) ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(member)});
-  const pageTitle = (view==='legislation') ? null : (view ? {hemicycle:ui.t('hemicycle.title'),geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title));
+  const pageTitle = (view==='legislation') ? null : (view==='meps') ? c.title : (homeVisible ? ui.t('home.page_title') : (view ? {hemicycle:ui.t('hemicycle.title'),geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title));
   const pageTitleLanguage=ui.language;
   useEffect(()=>{if(pageTitle)document.title = ui.t("legislation.pagetitle_european_parliament_data_explorer.42a26b", {pageTitle: String(pageTitle)});document.querySelector('title')?.setAttribute('lang',pageTitleLanguage);},[pageTitle,pageTitleLanguage]);
   const roleName = (value: string) =>
@@ -712,7 +722,7 @@ export default function App() {
       votes.restore(query,nextMember);
       motions.restore(query,nextMember);
       setView(restored);setMember(nextMember);
-      if(!restored){setCountry(filterCountry(query.get('country')));setCommittee(query.get('committee')||'');setGroup(query.get('group')||'');}
+      if(memberWallView(restored)){setCountry(filterCountry(query.get('country')));setCommittee(query.get('committee')||'');setGroup(query.get('group')||'');}
       setTab(publicMemberModule(query.get('module')));
       setSpeechLink(query.get('speech'));setActivityLink(query.get('activity'));setActivityCategory(query.get('activity-category')||'');setActivityOffset(queryActivityOffset(query));
       // A restored disabled link may resolve to the current state, so the URL
@@ -753,20 +763,29 @@ export default function App() {
   const showMembers = () => {
     votes.remember();
     motions.remember();
-    navigateView(null);setMember(null);setSpeechLink(null);setActivityLink(null);
-    pendingDestination.current={view:null,member:null};
+    navigateView('meps');setMember(null);setSpeechLink(null);setActivityLink(null);
+    pendingDestination.current={view:'meps',member:null};
+  };
+  // The site title returns to the bare URL: Home.
+  const showHome = () => {
+    votes.remember();
+    motions.remember();
+    const url=new URL(location.href);
+    url.search=new URLSearchParams([...url.searchParams].filter(([key])=>key==='lang'||key.startsWith('global-fts-')));
+    url.hash='';
+    if(url.href!==location.href){history.pushState(history.state,'',url);window.dispatchEvent(new PopStateEvent('popstate'));}
   };
   const openOrganization=(id:string,name:string)=>{
     votes.remember();motions.remember();memberStep.current=true;
     directoryState.retry();setOrganization(id);setOrganizationName(name);setCommittee('');setCountry('');setGroup('');setSearch('');setRole('both');
     setMember(null);setSpeechLink(null);setActivityLink(null);setActivityCategory('');setActivityOffset(0);
-    wallScroll.current=0;pendingDestination.current={view:null,member:null};
+    wallScroll.current=0;pendingDestination.current={view:'meps',member:null};
   };
   const leaveMember=()=>{
     votes.remember();
     motions.remember();
-    pendingDestination.current={view:null,member:null,portrait:memberOpener.current};
-    memberStep.current=true;setMember(null);setSpeechLink(null);setActivityLink(null);
+    pendingDestination.current={view:'meps',member:null,portrait:memberOpener.current};
+    memberStep.current=true;setView('meps');setMember(null);setSpeechLink(null);setActivityLink(null);
   };
   const changeLanguage=(language:string)=>{
     votes.remember();motions.remember();saveInterfaceLanguage(language);
@@ -775,8 +794,8 @@ export default function App() {
   };
   const leaveSaved=()=>{
     const opener=viewOpener.current;
-    navigateView(null);
-    pendingDestination.current={view:null,member,opener};
+    navigateView('meps');
+    pendingDestination.current={view:'meps',member,opener};
   };
   return <UiI18nProvider i18n={appUiI18n} language={lang}><PersonNamesProvider members={directory?.members}><ErrorBoundary resetKey={`${view}:${member}:${tab}:${restoration}`} language={lang}
     navigation={<ParliamentHeader view={view||'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>}

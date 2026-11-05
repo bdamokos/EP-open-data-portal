@@ -29,3 +29,12 @@ test('calendar validator rejects malformed entries before inspecting their field
  }
  for(const week of [null,undefined,4,{},[]])assert.equal(validateVotePeriods({...valid,weeks:[{week,sittings:weeks[0].sittings}]}),false);
 });
+test('version 4 requires a valid upcoming list; older versions do not carry one',()=>{
+ const coverage={status:'partial',years:[{year:2026,state:'partial',sources:[]}]};
+ const upcoming=[{week:'2026-11-09',sittings:[{sittingId:'MTG-PL-2026-11-11',date:'2026-11-11'}]}];
+ assert.equal(validateVotePeriods({version:4,weeks,upcoming,coverage}),true);
+ assert.equal(validateVotePeriods({version:4,weeks,coverage}),false,'upcoming missing');
+ assert.equal(validateVotePeriods({version:4,weeks,upcoming:[],coverage}),true,'no future sittings is a valid empty list');
+ assert.equal(validateVotePeriods({version:3,weeks,upcoming,coverage}),true,'older versions ignore the new field');
+ assert.equal(validateVotePeriods({version:4,weeks,upcoming:[{week:'2026-11-09',sittings:[]}],coverage}),false,'empty sitting lists stay invalid');
+});

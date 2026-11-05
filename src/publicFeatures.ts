@@ -2,12 +2,18 @@
 // Its components, API and indexing remain available for continued development.
 export const publicAmendmentsEnabled: boolean = false;
 
-type ExplorerView = 'legislation'|'questions'|'geopolitics'|'outside'|'amendments'|'groups'|'hemicycle'|'saved';
+type ExplorerView = 'legislation'|'questions'|'geopolitics'|'outside'|'amendments'|'groups'|'hemicycle'|'saved'|'meps';
 
 export function publicExplorerView(value: string|null): ExplorerView|null {
   if (value === 'amendments' && !publicAmendmentsEnabled) return null;
-  return ['legislation','questions','geopolitics','outside','amendments','groups','hemicycle','saved'].includes(value || '')
+  return ['legislation','questions','geopolitics','outside','amendments','groups','hemicycle','saved','meps'].includes(value || '')
     ? value as ExplorerView : null;
+}
+
+// `meps` is the directory wall: it keeps the member-wall URL fields the same
+// way the default (null) view does.
+export function memberWallView(value: string|null): boolean {
+  return !value || value === 'meps';
 }
 
 export function publicMemberModule(value: string|null): string {

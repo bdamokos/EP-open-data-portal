@@ -75,8 +75,23 @@ export function namedVote(vote,record,members,metadata,referenceDate,groupOn=()=
     evidence:{apiUrl:record.url,fetchedAt:sourceDate(record),relationship:'decision.inverse_consists_of → vote-results; vote-results.executed → agenda item; actual had_voter_favor / against / abstention → person'},
     countBasis:'Actual named roll-call positions only. Intended corrections are shown separately. Members of the current roster without a named record are not classified as absent or abstaining. Vote counts and unique people are different denominators.'};
 }
-export function topicVotes(topic,results,decisions,members,metadata,referenceDate,groupOn=()=>'unavailable') {
-  const derived=deriveVoteEvidence({results:results.payload.data,decisions:decisions.payload.data});
+const positions=['for','against','abstaining'];
+// Members of a group voting against their own group's strict majority. Groups
+// without a strict majority (NI, unavailable, tied) contribute nothing; a null
+// politicalGroups projection reports no count rather than a zero.
+export function groupDeviations(politicalGroups) {
+  if(!Array.isArray(politicalGroups))return null;
+  let total=0;
+  for(const group of politicalGroups) {
+    if(!group||!group.positions||['NI','unavailable'].includes(group.code))continue;
+    const counts=positions.map(position=>group.positions[position]?.length||0),voters=counts.reduce((sum,count)=>sum+count,0);
+    const ranked=[...counts].sort((a,b)=>b-a);
+    if(!voters||ranked[0]===ranked[1])continue;
+    total+=voters-ranked[0];
+  }
+  return total;
+}
+export function topicVotes(topic,results,decisions,members,metadata,referenceDate,groupOn=()=>'unavailable') {  const derived=deriveVoteEvidence({results:results.payload.data,decisions:decisions.payload.data});
   const parents=results.payload.data.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS'&&refs(n.executed).includes(topic.uri));
   const parentIds=new Set(parents.map(n=>canonical(n.id)));
   return decisions.payload.data.filter(n=>refs(n.inverse_consists_of).some(p=>parentIds.has(p))).map(n=>({...namedVote(n,decisions,members,metadata,referenceDate,groupOn,derived),

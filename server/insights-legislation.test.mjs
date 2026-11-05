@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {documentRows,projectDocument,speechRows} from './activity-index-model.mjs';
-import {agendaCreatorIds,agendaTopics,namedVote,topicVotes,voteScope,finalVotePatterns,topicRoles,classifyProcedure} from './insights-legislation-model.mjs';
+import {agendaCreatorIds,agendaTopics,namedVote,topicVotes,voteScope,finalVotePatterns,topicRoles,classifyProcedure,groupDeviations} from './insights-legislation-model.mjs';
 import {LegislationInsights} from './insights-legislation.mjs';
 import {insightQuery} from './insights-store.mjs';
 import {createInsights} from './insights.mjs';
@@ -119,6 +119,15 @@ test('named votes join only exact result.executed and decision parents, not simi
   assert.equal(votes.length,1);assert.equal(votes[0].id,'MTG-PL-2026-10-07-DEC-197457');assert.deepEqual(votes[0].associations[0].procedureIds,['2025-2117']);
   assert.equal(topicVotes({...t,uri:'eli/dl/event/unlinked'},fixture.results,fixture.decisions,members,metadata,'2026-10-07').length,0);
   const patterns=finalVotePatterns(votes,members,metadata);assert.equal(patterns.voteCount,1);assert.equal(patterns.uniqueNamedPeople,650);assert.equal(patterns.groups.for.length,454);
+});
+test('group deviations count only members voting against a strict group majority',()=>{
+  const group=(code,forCount,againstCount,abstainingCount=0)=>({code,positions:{for:Array.from({length:forCount}),against:Array.from({length:againstCount}),abstaining:Array.from({length:abstainingCount})}});
+  // EPP 30 for / 10 against: 10 differ; SD unanimous: none differ; NI has no majority to differ from.
+  assert.equal(groupDeviations([group('EPP',30,10),group('SD',50,0),group('NI',3,2)]),10);
+  // A tied group has no strict majority, so nobody differs from one.
+  assert.equal(groupDeviations([group('EPP',20,20)]),0);
+  assert.equal(groupDeviations([]),0);
+  assert.equal(groupDeviations(null),null,'no named voters stays unknown rather than zero');
 });
 test('aggregate-only and conflicting voter sources remain explicit; absent records are not abstention',()=>{
   const raw=fixture.decisions.payload.data[0],aggregate={...raw};delete aggregate.had_voter_favor;

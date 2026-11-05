@@ -13,18 +13,21 @@ export function votePeriodWeek(state,resolvedWeek,weeks=[]) {return state.sittin
 export function voteWeekNeighbours(weeks,week) {return {previous:weeks.find(item=>item.week<week)?.week||null,next:[...weeks].reverse().find(item=>item.week>week)?.week||null};}
 export function votePeriodTransition(state,week,sittingId=null) {return {...state,week,sittingId,snapshotId:null,offset:0,decisionId:null,context:null,expandedSubjectIds:[]};}
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
-export function validateVotePeriods(data) {
-  if(!object(data)||![2,3].includes(data.version)||!object(data.coverage)||!['complete','partial','unavailable'].includes(data.coverage.status)||!Array.isArray(data.weeks)||!Array.isArray(data.coverage.years))return false;
-  if(!data.coverage.years.every(year=>object(year)&&Number.isInteger(year.year)&&['complete','partial','unavailable'].includes(year.state)&&Array.isArray(year.sources)))return false;
-  let previous='9999';const seen=new Set();
-  return data.weeks.every(entry=>{
-    if(!object(entry))return false;
-    const {week,sittings}=entry;
-    if(typeof week!=='string'||plenaryMonday(week)!==week||week>=previous||!Array.isArray(sittings)||!sittings.length)return false;
-    previous=week;let prior='';
-    return sittings.every(sitting=>{
-      if(!object(sitting)||typeof sitting.sittingId!=='string'||typeof sitting.date!=='string'||sitting.sittingId!=='MTG-PL-'+sitting.date||plenaryMonday(sitting.date)!==week||sitting.date<prior||seen.has(sitting.sittingId))return false;
-      seen.add(sitting.sittingId);prior=sitting.date;return true;
-    });
+// Newest-first weeks of exact sitting identities; the shared `seen` set keeps
+// held and upcoming sittings distinct across both lists.
+const validWeekList=(list,seen,previous)=>Array.isArray(list)&&list.every(entry=>{
+  if(!object(entry)||typeof entry.week!=='string'||plenaryMonday(entry.week)!==entry.week||entry.week>=previous.value)return false;
+  previous.value=entry.week;let prior='';
+  return Array.isArray(entry.sittings)&&entry.sittings.length&&entry.sittings.every(sitting=>{
+    if(!object(sitting)||typeof sitting.sittingId!=='string'||typeof sitting.date!=='string'||sitting.sittingId!=='MTG-PL-'+sitting.date||plenaryMonday(sitting.date)!==entry.week||sitting.date<prior||seen.has(sitting.sittingId))return false;
+    seen.add(sitting.sittingId);prior=sitting.date;return true;
   });
+});
+// Upcoming weeks (version 4) share the held weeks' shape and ordering.
+export function validateVotePeriods(data) {
+  if(!object(data)||![2,3,4].includes(data.version)||!object(data.coverage)||!['complete','partial','unavailable'].includes(data.coverage.status)||!Array.isArray(data.weeks)||!Array.isArray(data.coverage.years))return false;
+  if(data.version>=4&&!Array.isArray(data.upcoming))return false;
+  if(!data.coverage.years.every(year=>object(year)&&Number.isInteger(year.year)&&['complete','partial','unavailable'].includes(year.state)&&Array.isArray(year.sources)))return false;
+  const seen=new Set();
+  return validWeekList(data.weeks,seen,{value:'9999'})&&(!Array.isArray(data.upcoming)||validWeekList(data.upcoming,seen,{value:'9999'}));
 }
