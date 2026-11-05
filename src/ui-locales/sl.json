@@ -172,7 +172,7 @@
   "amendmentmodel.mjs.no.topic.classification.recorded": "Tematska razvrstitev ni zabeležena",
   "amendmentmodel.mjs.split.part": "Del glasovanja po delih",
   "amendmentmodel.mjs.split.part.number": "Del glasovanja po delih {number}",
-  "amendmentmodel.mjs.split.request.failure": "Ločeno glasovanje ni na voljo",
+  "amendmentmodel.mjs.split.request.failure": "Glasovanje po delih ni na voljo",
   "amendmentmodel.mjs.target.provision": "Določba",
   "amendmentmodel.mjs.target.provision.unavailable": "Določba ni na voljo",
   "amendmentmodel.mjs.topic.unavailable": "Tema ni na voljo",

@@ -172,7 +172,7 @@
   "amendmentmodel.mjs.no.topic.classification.recorded": "Aucune classification thématique enregistrée",
   "amendmentmodel.mjs.split.part": "Partie du vote par division",
   "amendmentmodel.mjs.split.part.number": "Partie {number} du vote par division",
-  "amendmentmodel.mjs.split.request.failure": "Vote séparé indisponible",
+  "amendmentmodel.mjs.split.request.failure": "Vote par division indisponible",
   "amendmentmodel.mjs.target.provision": "Disposition",
   "amendmentmodel.mjs.target.provision.unavailable": "Disposition indisponible",
   "amendmentmodel.mjs.topic.unavailable": "Thème indisponible",

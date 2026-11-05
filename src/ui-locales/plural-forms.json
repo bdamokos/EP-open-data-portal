@@ -7880,10 +7880,10 @@
       "many": "Pakeitimų skaičius: {total} · tikrinami pakeitimai"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} pakeitimas · dalinė",
-      "other": "{total} pakeitimų · dalinė",
-      "few": "{total} pakeitimai · dalinė",
-      "many": "Pakeitimų skaičius: {total} · dalinė"
+      "one": "{total} pakeitimas · daliniai duomenys",
+      "other": "{total} pakeitimų · daliniai duomenys",
+      "few": "{total} pakeitimai · daliniai duomenys",
+      "many": "Pakeitimų skaičius: {total} · daliniai duomenys"
     },
     "Participation.agendaMany": {
       "one": "Šiame pasirinkime – {count} darbotvarkės punktas.",

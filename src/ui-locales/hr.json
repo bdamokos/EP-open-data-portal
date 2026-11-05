@@ -172,7 +172,7 @@
   "amendmentmodel.mjs.no.topic.classification.recorded": "Tematska klasifikacija nije zabilježena",
   "amendmentmodel.mjs.split.part": "Dio glasovanja po dijelovima",
   "amendmentmodel.mjs.split.part.number": "Dio {number} glasovanja po dijelovima",
-  "amendmentmodel.mjs.split.request.failure": "Odvojeno glasovanje nije dostupno",
+  "amendmentmodel.mjs.split.request.failure": "Glasovanje po dijelovima nije dostupno",
   "amendmentmodel.mjs.target.provision": "Odredba",
   "amendmentmodel.mjs.target.provision.unavailable": "Odredba nije dostupna",
   "amendmentmodel.mjs.topic.unavailable": "Tema nije dostupna",
