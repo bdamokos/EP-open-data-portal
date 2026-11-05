@@ -29,7 +29,7 @@ function GroupVotes({voters,code,language}:{voters:DecisionVoter[];code:string|n
 }
 function NamedVoteRead({item,decision,language}:{item:Amendment;decision:AmendmentDecision;language:string}) {
   const ui = useUiI18n();
-  const request=useData<DecisionVotesResponse>(decisionVotesRoute(decision.id,language));
+  const request=useData<DecisionVotesResponse>(decisionVotesRoute(decision.id,language),{unavailable:'error.namedVotes'});
   const data=(((!request.error) && (!request.loading)) && validateDecisionVotes(request.data,decision.id)) ? request.data : null;
   const bound=data?.status==='found'&&amendmentVoteBinding(item,decision,data);
   if(request.loading)return <p role="status"><UiMessage id="amendmentnamedvotes.tsx.loading.named.votes"/></p>;

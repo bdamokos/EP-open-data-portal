@@ -23,7 +23,7 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
   try {if(id&&memberId)route=memberVotesRoute(memberId,state,language);}catch {/* Invalid identities never start a read. */}
   const [refresh,setRefresh]=useState(false);
   const carried=((context && (!refresh)) && (snapshot?.route===route)) ? snapshot : null;
-  const read=useData<MemberVotesResponse>(carried ? null : route);
+  const read=useData<MemberVotesResponse>(carried ? null : route,{unavailable:'error.records'});
   const response=carried ? ({...carried,loading:false,retry:()=>setRefresh(true)}) : read;
   useEffect(()=>{
     if(route&&!response.loading)onSnapshot?.({route,data:response.data,error:response.error});

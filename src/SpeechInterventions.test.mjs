@@ -160,7 +160,7 @@ test('top-level rate errors show a countdown and enable retry after the cooldown
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   let calls=0,recovered=false;
-  t.mock.method(globalThis,'fetch',async()=>{calls++;return recovered?Response.json({speechId:'MTG-PL-2026-03-25-OTH-2017069380108',unavailable:true,debates:[]}):Response.json({error:{message:'Parliament is temporarily limiting requests.',retryAt:Date.now()+20000}},{status:503});});
+  t.mock.method(globalThis,'fetch',async()=>{calls++;return recovered?Response.json({speechId:'MTG-PL-2026-03-25-OTH-2017069380108',unavailable:true,debates:[]}):Response.json({error:{message:'Unavailable.',retryAt:Date.now()+20000}},{status:503});});
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');installRetryClock(t);root=createRoot(container);
@@ -168,10 +168,10 @@ test('top-level rate errors show a countdown and enable retry after the cooldown
   await act(async()=>container.querySelector('button').click());
   const noRetry=()=>assert.equal([...container.querySelectorAll('button')].some(button=>button.textContent.includes('Retry')),false);
   noRetry();await installRetryClock(t).advance(19000);assert.equal(calls,1,'the later server deadline blocks early retry');
-  for(let i=0;i<6;i++){assert(!container.textContent.includes('Parliament is temporarily limiting requests.'));await automaticRecovery(t);noRetry();}
-  assert.equal(calls,7);assert(container.textContent.includes('Parliament is temporarily limiting requests.'));assert.equal(installRetryClock(t).timers.size,0);
+  for(let i=0;i<6;i++){assert(!container.textContent.includes('Unavailable.'));await automaticRecovery(t);noRetry();}
+  assert.equal(calls,7);assert(container.textContent.includes('Unavailable.'));assert.equal(installRetryClock(t).timers.size,0);
   recovered=true;await act(async()=>window.dispatchEvent(new window.Event('online')));assert.equal(calls,7,'even a foreground resume honours the later Retry-After');
-  await automaticRecovery(t);assert.equal(calls,8);noRetry();assert(!container.textContent.includes('Parliament is temporarily limiting requests.'));
+  await automaticRecovery(t);assert.equal(calls,8);noRetry();assert(!container.textContent.includes('Unavailable.'));
 });
 
 test('missing debate records remain visible without the sequence sources disclosure',async t=>{

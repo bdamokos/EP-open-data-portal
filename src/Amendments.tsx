@@ -188,7 +188,7 @@ const heading = headingProp ?? ui.t("amendments.amendment_trail.83497e");
   const committee=controlledCommittee??localCommittee;
   const [localOutcome,setLocalOutcome]=useState(''),[localOffset,setLocalOffset]=useState(0),[groupBy,setGroupBy]=useState('dossier');
   const outcome=controlledOutcome??localOutcome,offset=controlledOffset??localOffset,limit=20,headingId=useId(),headingRef=useRef<HTMLHeadingElement>(null);
-  const state=useData<AmendmentPage>(amendmentRoute({scope,list,committee,document,procedure,member,outcome,offset,limit,language}),amendmentRetry);
+  const state=useData<AmendmentPage>(amendmentRoute({scope,list,committee,document,procedure,member,outcome,offset,limit,language}),{...amendmentRetry,unavailable:'error.amendments'});
   const committees=[...new Set([...(committee ? ([committee]) : ([])),...(state.data?.items||[]).flatMap(item=>item.committees?.map(c=>c.code)||[])])].filter(validCommitteeCode).sort();
   const groups=useMemo(()=>amendmentGroups(state.data?.items||[],groupBy, ui),[state.data,groupBy]);
   useEffect(()=>{if(controlledOffset===undefined)setLocalOffset(0);},[scope,list,committee,document,procedure,member,language,controlledOffset]);

@@ -46,7 +46,7 @@ export function Hemicycle(props:InsightProps) {
   const [country,setCountry]=useExplorerParam<string|null>('hc-country',null);
   const [member,setMember]=useExplorerParam<string|null>('hc-member',null);
   const [picked,setPicked]=useState<number|null>(null);
-  const state=useData<HemicyclePlan>(`hemicycle/${chamber}`);
+  const state=useData<HemicyclePlan>(`hemicycle/${chamber}`,{unavailable:'error.seating'});
   const plan=state.data?.chamber===chamber?state.data:null;
   const seats=useMemo(()=>plan?.seats||[],[plan]);
   const counts=useMemo(()=>groupCounts(seats),[seats]);

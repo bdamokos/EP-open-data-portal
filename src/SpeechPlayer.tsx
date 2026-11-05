@@ -40,7 +40,7 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
   const playable=Boolean(speech&&!written&&speech.start&&speech.end);
   const current = (((playable && request) && (request.speechId === speech?.id)) && (request.lang === lang)) ? request : null;
   const audio = current?.original ? 'or' : lang;
-  const media = useData<SpeechMedia>(current ? (`speech-media/${encodeURIComponent(current.speechId)}?lang=${lang}${current.original ? '&audio=or' : ''}`) : null);
+  const media = useData<SpeechMedia>(current ? (`speech-media/${encodeURIComponent(current.speechId)}?lang=${lang}${current.original ? '&audio=or' : ''}`) : null,{unavailable:'error.video'});
   useEffect(()=>{setRequest(null);},[speech?.id,lang,playable]);
   const embed = speech ? speechEmbedUrl(media.data, speech.id, lang, audio) : null;
   const returnFocus=()=>{

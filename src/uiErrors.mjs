@@ -8,7 +8,8 @@ export class UiMessageError extends Error {
     this.uiValues=Object.freeze({...values});
   }
 }
-export function uiErrorText(error,formatter=defaultUi) {
+/** Application errors translate by ID; server and network messages go to the error report and readers see the view's own line. */
+export function uiErrorText(error,formatter=defaultUi,unavailableId='error.unavailable') {
   reportUiError(error);
-  return error instanceof UiMessageError?formatter.t(error.uiMessageId,error.uiValues):error?.message??String(error);
+  return error instanceof UiMessageError?formatter.t(error.uiMessageId,error.uiValues):formatter.t(unavailableId);
 }

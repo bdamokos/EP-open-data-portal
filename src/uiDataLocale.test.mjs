@@ -5,7 +5,7 @@ import {Window} from 'happy-dom';
 import {createAppUiI18n} from './uiCatalogues.mjs';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
-test('shared reads retain owned error identity and re-render by locale without translating API text or refetching',async t=>{
+test('shared reads retain owned error identity and re-render by locale and never show API text or refetch',async t=>{
   const window=new Window({url:'http://localhost/'});
   let calls=0,external=false,root,load;
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true,
@@ -32,6 +32,6 @@ test('shared reads retain owned error identity and re-render by locale without t
   assert.deepEqual([...container.querySelectorAll('p')].map(node=>node.textContent),['Indisponible.','Unavailable.']);
   assert.equal(calls,1,'changing UI language does not restart a shared source read');
   external=true;await render(['fr','en'],'ui-external-error-fixture');
-  assert.deepEqual([...container.querySelectorAll('p')].map(node=>node.textContent),Array(2).fill('The request took too long. Try again.'));
+  assert.deepEqual([...container.querySelectorAll('p')].map(node=>node.textContent),['Indisponible.','Unavailable.']);
   assert.equal(calls,2);
 });

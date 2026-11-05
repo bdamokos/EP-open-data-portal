@@ -4,4 +4,4 @@ export class UiMessageError extends Error {
   readonly uiValues:UiTextValues;
   constructor(id:string,values?:UiTextValues,formatter?:UiFormatter);
 }
-export function uiErrorText(error:unknown,formatter?:UiFormatter):string;
+export function uiErrorText(error:unknown,formatter?:UiFormatter,unavailableId?:string):string;

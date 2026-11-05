@@ -43,7 +43,7 @@ test('comparison is lazy and stage/language changes never display stale wording,
   assert.equal(container.querySelector('.explorer-diff-error button'),null);
   await automaticRecovery(t);assert.equal(pending.length,1);
   await act(async()=>pending.shift().resolve(Response.json({...comparison('joint-adopted','fr'),status:'unavailable',reason:'No published adopted text explicitly links to this joint motion.',summary:null,rows:[]})));
-  assert.match(container.textContent,/No published adopted text explicitly links/);assert.equal(container.querySelector('.explorer-diff-row'),null);
+  assert.match(container.textContent,/Comparison unavailable/);assert.equal(container.querySelector('.explorer-diff-row'),null);
   await change(0,'original-joint');assert.equal(container.querySelectorAll('.explorer-diff-row').length,2,'returning to the saved stage includes unchanged passages');
 });
 

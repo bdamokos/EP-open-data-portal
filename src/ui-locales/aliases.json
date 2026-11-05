@@ -452,5 +452,17 @@
   "Saved.updated_before_the_upgrade": "Saved.question_details_changed",
   "Saved.details_not_available_yet": "legislation.details_unavailable.f578af",
   "membervotesummary.abstaining": "motionoutcome.abstentions",
-  "membervotes.tsx.against.outcome": "outcomealignmentfilter.against_the_outcome"
+  "membervotes.tsx.against.outcome": "outcomealignmentfilter.against_the_outcome",
+  "error.unavailable": "batch5.amendments.tsx.126.14",
+  "error.text": "batch5.dossiervotetext.tsx.24.50",
+  "error.speech": "insightreaders.speech.temporarily.unavailable",
+  "error.records": "membervotespresentation.voting_records_unavailable",
+  "error.namedVotes": "amendmentnamedvotes.tsx.named.votes.unavailable",
+  "error.wording": "batch5.amendments.tsx.123.8",
+  "error.video": "speechplayer.video_unavailable.d0baed",
+  "error.summary": "procedurecontext.summary_unavailable.9f4198",
+  "error.amendments": "amendments.amendments_unavailable.f6c5b9",
+  "error.seating": "hemicycle.unavailable",
+  "error.comparison": "MotionComparison.comparison_unavailable",
+  "error.activity": "Participation.activity_unavailable"
 }

@@ -41,7 +41,7 @@ function Attribution({hit}:{hit:Hit}) {
 function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity:{sourceId:string;sourceKey:string};query:string;expectedHash?:string;sourceUrl?:string;language:string}) {
   const ui = useUiI18n();
   const params=new URLSearchParams({'source-id':identity.sourceId,'source-key':identity.sourceKey});if(query.trim())params.set('q',query);
-  const {data,error,loading,retry}=useData<StoredText>('corpus/text?'+params),body=useRef<HTMLDivElement>(null);
+  const {data,error,loading,retry}=useData<StoredText>('corpus/text?'+params,{unavailable:'error.text'}),body=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(!data)return;const frame=window.requestAnimationFrame(()=>body.current?.querySelector('mark')?.scrollIntoView({block:'nearest'}));return()=>window.cancelAnimationFrame(frame);},[data]);
   return <section className="explorer-search-reader" lang={ui.language} aria-label={ui.t("textsearch.matching_text")}>
     {loading&&!data&&<p role="status"><UiMessage id="textsearch.opening"/></p>}

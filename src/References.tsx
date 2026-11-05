@@ -153,7 +153,7 @@ const shortLabel=(reference:ResolvedReference|undefined,key:string)=>{const titl
 function DossierSummary({reference,language,showTitle}:{reference:string;language:string;showTitle:boolean}) {
   const ui = useUiI18n();
   const [expanded,setExpanded]=useState(false);
-  const {data,loading,error,retry}=useData<Summary>('reference-summary?'+new URLSearchParams({reference,lang:language}));
+  const {data,loading,error,retry}=useData<Summary>('reference-summary?'+new URLSearchParams({reference,lang:language}),{unavailable:'error.summary'});
   if(loading&&!data)return <p lang={ui.language} className="legal-reference-summary" role="status"><UiMessage id="batch6.references.loading.dossier.summary.145"/></p>;
   if(!data)return <p lang={ui.language} className="legal-reference-summary">{error ? <><UiMessage id="batch6.references.the.legislative.observatory.summary.is.temporarily.unavailable.146"/> </> : null}</p>;
   const blocks=data.summary?.blocks||[],shown=expanded ? blocks : blocks.slice(0,2);
