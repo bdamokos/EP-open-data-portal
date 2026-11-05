@@ -15,7 +15,7 @@ const MEMBER=42,WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25';
 const DECISION=SITTING+'-DEC-99',SNAPSHOT='a'.repeat(64);
 const DOCUMENT='B-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7-2';
 const LIST='B-10-2026-0001-AM-001-050',ADOPTED='TA-10-2026-0007';
-const defaults=()=>({week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null,recordScope:'all',recordOffset:0});
+const defaults=()=>({week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
 const queryFor=fields=>new URLSearchParams({member:String(MEMBER),...fields});
 const read=fields=>readMemberVotesJourney(queryFor(fields),MEMBER);
 const saved=journey=>{
