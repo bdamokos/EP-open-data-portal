@@ -1848,6 +1848,7 @@
   "coverage.questionReference": "Vprašanje {id}",
   "coverage.documentReference": "Dokument {id}",
   "coverage.document.readFailed": "{record}: ni na voljo",
+  "coverage.question.readFailed": "{record}: ni na voljo",
   "coverage.periodFrom": "od {date}",
   "coverage.periodThrough": "do {date}",
   "coverage.speakerList": "Nedostopni govorci · {period}",
@@ -2344,5 +2345,12 @@
   "proposalcontexttext.printed.point.label": "Nova točka {point}. Oznaka navaja točko {base}.",
   "documentcontext.note.report_paragraph": "Odstavek {report} v poročilu; tu natisnjen kot {source}.",
   "documentcontext.note.label_instruction_differ": "Oznaka in navodilo se razlikujeta.",
-  "Participation.none_of_the_available_agenda_items_match_this_search": "Nobena razpoložljiva točka dnevnega reda ne ustreza iskanju."
+  "Participation.none_of_the_available_agenda_items_match_this_search": "Nobena razpoložljiva točka dnevnega reda ne ustreza iskanju.",
+  "proposalcontexttext.proposal": "Predlog",
+  "proposalcontexttext.proposal.part.index": "Predlog · del {index}",
+  "proposalcontexttext.annexes": "Priloge",
+  "proposalcontexttext.annexes.part.index": "Priloge · del {index}",
+  "proposalcontexttext.council.position.part.index": "Stališče Sveta · del {index}",
+  "proposalcontexttext.existing.act.part.index": "Obstoječi akt · del {index}",
+  "hemicycle.unavailable": "Razpored sedežev ni na voljo."
 }

@@ -2419,5 +2419,12 @@
   "documentcontext.note.original_differs": "Original wording differs from this text.",
   "proposalcontexttext.printed.point.label": "New point {point}. The label reads point {base}.",
   "documentcontext.note.report_paragraph": "Paragraph {report} in the report; printed here as {source}.",
-  "documentcontext.note.label_instruction_differ": "Label and instruction differ."
+  "documentcontext.note.label_instruction_differ": "Label and instruction differ.",
+  "proposalcontexttext.annexes": "Annexes",
+  "proposalcontexttext.annexes.part.index": "Annexes · part {index}",
+  "proposalcontexttext.council.position.part.index": "Council position · part {index}",
+  "proposalcontexttext.existing.act.part.index": "Existing act · part {index}",
+  "proposalcontexttext.proposal": "Proposal",
+  "proposalcontexttext.proposal.part.index": "Proposal · part {index}",
+  "coverage.question.readFailed": "{record} unavailable"
 }

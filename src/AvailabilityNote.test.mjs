@@ -62,7 +62,7 @@ test('coverage messages use the selected formatter and keep exact source identif
   const i18n=createAppUiI18n({fr:{
     'coverage.questionOverflow':'Lectures de questions échouées : au moins {count}.',
     'coverage.questionReference':'Question officielle {id}',
-    'coverage.document.readFailed':'{record} non chargée',
+    'coverage.question.readFailed':'{record} non chargée',
   }});
   const html=renderToStaticMarkup(createElement(UiI18nProvider,{i18n,language:'fr'},createElement(AvailabilityNote,{
     archive:true,language:'fr',sources:sourceAvailability({sourceKey:'questions',family:'questions',gaps:[

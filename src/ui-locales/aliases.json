@@ -421,9 +421,7 @@
   "app.no_matches_in_the_loaded_memberships_yet": "app.no_matches_yet",
   "app.no_plenary_contributions_loaded_yet": "app.contributions_unavailable",
   "app.not_loaded_yet": "app.linked_item_unavailable",
-  "coverage.question.readFailed": "coverage.document.readFailed",
   "coverage.document.unloaded": "coverage.document.readFailed",
-  "coverage.question.unloaded": "coverage.document.readFailed",
   "coverage.agendaUnloaded": "legislation.agenda_unavailable.eca2fa",
   "coverage.votesUnloaded": "membervotespresentation.voting_records_unavailable",
   "coverage.topicsUnloaded": "coverage.searchEmptyLoaded",
@@ -451,6 +449,7 @@
   "Saved.details_not_available_yet": "legislation.details_unavailable.f578af",
   "membervotesummary.abstaining": "motionoutcome.abstentions",
   "membervotes.tsx.against.outcome": "outcomealignmentfilter.against_the_outcome",
+  "coverage.question.unloaded": "coverage.question.readFailed",
   "error.unavailable": "batch5.amendments.tsx.126.14",
   "error.text": "batch5.dossiervotetext.tsx.24.50",
   "error.speech": "insightreaders.speech.temporarily.unavailable",
@@ -462,5 +461,6 @@
   "error.amendments": "amendments.amendments_unavailable.f6c5b9",
   "error.seating": "hemicycle.unavailable",
   "error.comparison": "MotionComparison.comparison_unavailable",
-  "error.activity": "Participation.activity_unavailable"
+  "error.activity": "Participation.activity_unavailable",
+  "error.contributions": "app.contributions_unavailable"
 }
