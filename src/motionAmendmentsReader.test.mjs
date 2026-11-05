@@ -104,6 +104,7 @@ test('the closed reader is lazy, opens the member page in batches of 20, and sel
   detail=h.container.querySelector('.motion-amendments__detail');
   assert.match(wordingViewText(detail),/Original wording is unavailable\./);
   assert.doesNotMatch(wordingViewText(detail),/No original wording\./);
+  assert(detail.querySelector('.motion-amendments__source a'),'missing wording keeps the official source link');
   assert.equal(h.requests.length,1);
 });
 

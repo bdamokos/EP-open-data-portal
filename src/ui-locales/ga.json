@@ -2353,5 +2353,14 @@
   "documentcontext.note.original_differs": "Tá an fhoclaíocht bhunaidh éagsúil leis an téacs seo.",
   "proposalcontexttext.printed.point.label": "Pointe nua {point}. Léiríonn an lipéad pointe {base}.",
   "documentcontext.note.report_paragraph": "Mír {report} sa tuarascáil; clóite anseo mar {source}.",
-  "documentcontext.note.label_instruction_differ": "Tá an lipéad agus an treoir éagsúil."
+  "documentcontext.note.label_instruction_differ": "Tá an lipéad agus an treoir éagsúil.",
+  "coverage.question.readFailed": "{record}: níl ar fáil",
+  "proposalcontexttext.proposal": "Togra",
+  "proposalcontexttext.proposal.part.index": "Togra · cuid {index}",
+  "proposalcontexttext.annexes": "Iarscríbhinní",
+  "proposalcontexttext.annexes.part.index": "Iarscríbhinní · cuid {index}",
+  "proposalcontexttext.council.position.part.index": "Seasamh na Comhairle · cuid {index}",
+  "proposalcontexttext.existing.act.part.index": "Gníomh atá ann cheana · cuid {index}",
+  "MotionComparison.sourceDocx": "Bunfhoinse DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Foclaíocht oifigiúil an leasaithe ↗"
 }

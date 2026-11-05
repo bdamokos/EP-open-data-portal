@@ -16,9 +16,9 @@ const client = createDataClient((route,signal,options)=>api(route==='directory'&
 export function expireActivityReads() { client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route)); }
 export function useSpeechData(id:string,language:string) {
   const route=encodeURIComponent(id)+'?lang='+language;
-  const saved=useData<StoredSpeechTranscript>('speech-transcript/'+route,{automatic:false});
+  const saved=useData<StoredSpeechTranscript>('speech-transcript/'+route,{automatic:false,unavailable:'error.speech'});
   const retained=saved.data?.available&&saved.data.xml&&saved.data.id===id&&saved.data.metadata?.id===id?saved.data.metadata:null;
-  const detail=useData<SpeechDetail>(!saved.fetching&&!retained?'speech/'+route:null,{automatic:false});
+  const detail=useData<SpeechDetail>(!saved.fetching&&!retained?'speech/'+route:null,{automatic:false,unavailable:'error.speech'});
   const previousDetail=useRef<{route:string;data:SpeechDetail}|null>(null);
   const denied=[saved.status,detail.status].some(status=>status===401||status===403);
   useEffect(()=>{

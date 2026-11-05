@@ -295,20 +295,20 @@
       "other": "Брой нечетими текстове: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "one": "Теми по · {mapped} от {procedures} досие",
-      "other": "Теми по · {mapped} от {procedures} досиета"
+      "one": "Теми · {mapped} от {procedures} досие",
+      "other": "Теми · {mapped} от {procedures} досиета"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "one": "Теми по · {mapped} от {procedures} досие · първите 600 съответстващи досиета",
-      "other": "Теми по · {mapped} от {procedures} досиета · първите 600 съответстващи досиета"
+      "one": "Теми · {mapped} от {procedures} досие · първите 600 съответстващи досиета",
+      "other": "Теми · {mapped} от {procedures} досиета · първите 600 съответстващи досиета"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "one": "Теми по · {mapped} от {procedures} досие · зареждане на още теми…",
-      "other": "Теми по · {mapped} от {procedures} досиета · зареждане на още теми…"
+      "one": "Теми · {mapped} от {procedures} досие · зареждане на още теми…",
+      "other": "Теми · {mapped} от {procedures} досиета · зареждане на още теми…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "one": "Теми по · {mapped} от {procedures} досие · зареждане на още теми… · първите 600 съответстващи досиета",
-      "other": "Теми по · {mapped} от {procedures} досиета · зареждане на още теми… · първите 600 съответстващи досиета"
+      "one": "Теми · {mapped} от {procedures} досие · зареждане на още теми… · първите 600 съответстващи досиета",
+      "other": "Теми · {mapped} от {procedures} досиета · зареждане на още теми… · първите 600 съответстващи досиета"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Брой въпроси за анализирания период: {count} · по дни · Изберете тема или дума по-горе, за да видите дела ѝ сред въпросите."
@@ -3161,16 +3161,16 @@
       "other": "Textos ilegibles: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Temas de · Expedientes: {mapped} de {procedures}"
+      "other": "Temas · Expedientes: {mapped} de {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Temas de · Expedientes: {mapped} de {procedures} · primeros 600 expedientes coincidentes"
+      "other": "Temas · Expedientes: {mapped} de {procedures} · primeros 600 expedientes coincidentes"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Temas de · Expedientes: {mapped} de {procedures} · cargando más temas…"
+      "other": "Temas · Expedientes: {mapped} de {procedures} · cargando más temas…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Temas de · Expedientes: {mapped} de {procedures} · cargando más temas… · primeros 600 expedientes coincidentes"
+      "other": "Temas · Expedientes: {mapped} de {procedures} · cargando más temas… · primeros 600 expedientes coincidentes"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Preguntas en el período analizado: {count} · Por día · Elija un tema o una palabra arriba para ver su proporción de preguntas."
@@ -3704,16 +3704,16 @@
       "other": "Loetamatud tekstid: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "I teemad · Toimikud: {mapped} / {procedures}"
+      "other": "Teemad · Toimikud: {mapped} / {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "I teemad · Toimikud: {mapped} / {procedures} · esimesed 600 vastavat toimikut"
+      "other": "Teemad · Toimikud: {mapped} / {procedures} · esimesed 600 vastavat toimikut"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "I teemad · Toimikud: {mapped} / {procedures} · lisateemade laadimine…"
+      "other": "Teemad · Toimikud: {mapped} / {procedures} · lisateemade laadimine…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "I teemad · Toimikud: {mapped} / {procedures} · lisateemade laadimine… · esimesed 600 vastavat toimikut"
+      "other": "Teemad · Toimikud: {mapped} / {procedures} · lisateemade laadimine… · esimesed 600 vastavat toimikut"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Küsimused: {count} analüüsiperioodil · päevade kaupa · Vali ülal teema või sõna, et näha selle osakaalu küsimustes."
@@ -6207,16 +6207,16 @@
       "other": "Broj nečitljivih tekstova: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "Teme a · {mapped} od {procedures} predmeta"
+      "other": "Teme · {mapped} od {procedures} predmeta"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "Teme a · {mapped} od {procedures} predmeta · prvih 600 podudarnih predmeta"
+      "other": "Teme · {mapped} od {procedures} predmeta · prvih 600 podudarnih predmeta"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "Teme a · {mapped} od {procedures} predmeta · učitavanje još tema…"
+      "other": "Teme · {mapped} od {procedures} predmeta · učitavanje još tema…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "Teme a · {mapped} od {procedures} predmeta · učitavanje još tema… · prvih 600 podudarnih predmeta"
+      "other": "Teme · {mapped} od {procedures} predmeta · učitavanje još tema… · prvih 600 podudarnih predmeta"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Broj pitanja u razdoblju analize: {count} · po danu · Odaberite temu ili riječ iznad za prikaz njezina udjela u pitanjima."
@@ -7880,10 +7880,10 @@
       "many": "Pakeitimų skaičius: {total} · tikrinami pakeitimai"
     },
     "amendments.total_amendments_partial_coverage.9ca533": {
-      "one": "{total} pakeitimas · dalinė",
-      "other": "{total} pakeitimų · dalinė",
-      "few": "{total} pakeitimai · dalinė",
-      "many": "Pakeitimų skaičius: {total} · dalinė"
+      "one": "{total} pakeitimas · daliniai duomenys",
+      "other": "{total} pakeitimų · daliniai duomenys",
+      "few": "{total} pakeitimai · daliniai duomenys",
+      "many": "Pakeitimų skaičius: {total} · daliniai duomenys"
     },
     "Participation.agendaMany": {
       "one": "Šiame pasirinkime – {count} darbotvarkės punktas.",
@@ -7898,10 +7898,10 @@
       "many": "Šiuos filtrus atitinkančių klausimų skaičius: {count}."
     },
     "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
-      "one": "Šiame pasirinkime – {count} įvykis · dalinė",
-      "other": "Šiame pasirinkime – {count} įvykių · dalinė",
-      "few": "Šiame pasirinkime – {count} įvykiai · dalinė",
-      "many": "Įvykių šiame pasirinkime skaičius: {count} · dalinė"
+      "one": "Šiame pasirinkime – {count} įvykis · daliniai duomenys",
+      "other": "Šiame pasirinkime – {count} įvykių · daliniai duomenys",
+      "few": "Šiame pasirinkime – {count} įvykiai · daliniai duomenys",
+      "many": "Įvykių šiame pasirinkime skaičius: {count} · daliniai duomenys"
     },
     "batch6.procedureprogress.count.events.in.this.selection.78": {
       "one": "Šiame pasirinkime – {count} įvykis",
@@ -7975,16 +7975,16 @@
       "other": "Neįskaitomi tekstai: {unreadableText}."
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
-      "other": "„“ temos · Bylos: {mapped} iš {procedures}"
+      "other": "Temos · Bylos: {mapped} iš {procedures}"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
-      "other": "„“ temos · Bylos: {mapped} iš {procedures} · pirmosios 600 atitinkančių bylų"
+      "other": "Temos · Bylos: {mapped} iš {procedures} · pirmosios 600 atitinkančių bylų"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
-      "other": "„“ temos · Bylos: {mapped} iš {procedures} · įkeliama daugiau temų…"
+      "other": "Temos · Bylos: {mapped} iš {procedures} · įkeliama daugiau temų…"
     },
     "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
-      "other": "„“ temos · Bylos: {mapped} iš {procedures} · įkeliama daugiau temų… · pirmosios 600 atitinkančių bylų"
+      "other": "Temos · Bylos: {mapped} iš {procedures} · įkeliama daugiau temų… · pirmosios 600 atitinkančių bylų"
     },
     "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
       "other": "Klausimai: {count} analizuojamu laikotarpiu · dienomis · Viršuje pasirinkite temą ar žodį, kad matytumėte jų dalį tarp klausimų."

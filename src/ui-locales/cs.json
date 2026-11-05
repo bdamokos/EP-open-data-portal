@@ -2353,5 +2353,14 @@
   "documentcontext.note.original_differs": "Původní znění se liší od tohoto textu.",
   "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uveden bod {base}.",
   "documentcontext.note.report_paragraph": "Odstavec {report} ve zprávě; zde vytištěn jako {source}.",
-  "documentcontext.note.label_instruction_differ": "Označení a pokyn se liší."
+  "documentcontext.note.label_instruction_differ": "Označení a pokyn se liší.",
+  "coverage.question.readFailed": "{record}: není k dispozici",
+  "proposalcontexttext.proposal": "Návrh",
+  "proposalcontexttext.proposal.part.index": "Návrh · část {index}",
+  "proposalcontexttext.annexes": "Přílohy",
+  "proposalcontexttext.annexes.part.index": "Přílohy · část {index}",
+  "proposalcontexttext.council.position.part.index": "Postoj Rady · část {index}",
+  "proposalcontexttext.existing.act.part.index": "Stávající právní akt · část {index}",
+  "MotionComparison.sourceDocx": "Zdrojový DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Úřední znění pozměňovacího návrhu ↗"
 }

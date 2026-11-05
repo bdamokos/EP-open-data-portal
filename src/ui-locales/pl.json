@@ -1821,7 +1821,7 @@
   "coverage.speechReadsDates": "Niedostępne wystąpienia: {count} · {dates}",
   "coverage.questionReference": "Pytanie {id}",
   "coverage.documentReference": "Dokument {id}",
-  "coverage.document.readFailed": "{record}: niedostępne",
+  "coverage.document.readFailed": "{record}: niedostępny",
   "coverage.periodFrom": "od {date}",
   "coverage.periodThrough": "do {date}",
   "coverage.speakerList": "Niedostępni mówcy · {period}",
@@ -2353,5 +2353,14 @@
   "documentcontext.note.original_differs": "Pierwotne brzmienie różni się od tego tekstu.",
   "proposalcontexttext.printed.point.label": "Nowy punkt {point}. Etykieta wskazuje punkt {base}.",
   "documentcontext.note.report_paragraph": "Ustęp {report} w sprawozdaniu; wydrukowany tutaj jako {source}.",
-  "documentcontext.note.label_instruction_differ": "Oznaczenie i instrukcja różnią się."
+  "documentcontext.note.label_instruction_differ": "Oznaczenie i instrukcja różnią się.",
+  "coverage.question.readFailed": "{record}: niedostępne",
+  "proposalcontexttext.proposal": "Wniosek",
+  "proposalcontexttext.proposal.part.index": "Wniosek · część {index}",
+  "proposalcontexttext.annexes": "Załączniki",
+  "proposalcontexttext.annexes.part.index": "Załączniki · część {index}",
+  "proposalcontexttext.council.position.part.index": "Stanowisko Rady · część {index}",
+  "proposalcontexttext.existing.act.part.index": "Istniejący akt prawny · część {index}",
+  "MotionComparison.sourceDocx": "Źródłowy DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Oficjalne brzmienie poprawki ↗"
 }

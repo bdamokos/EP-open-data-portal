@@ -2353,5 +2353,14 @@
   "documentcontext.note.original_differs": "Η αρχική διατύπωση διαφέρει από αυτό το κείμενο.",
   "proposalcontexttext.printed.point.label": "Νέο σημείο {point}. Η ένδειξη αναφέρει το σημείο {base}.",
   "documentcontext.note.report_paragraph": "Παράγραφος {report} στην έκθεση· τυπωμένη εδώ ως {source}.",
-  "documentcontext.note.label_instruction_differ": "Η ένδειξη και η οδηγία διαφέρουν."
+  "documentcontext.note.label_instruction_differ": "Η ένδειξη και η οδηγία διαφέρουν.",
+  "coverage.question.readFailed": "{record}: μη διαθέσιμη",
+  "proposalcontexttext.proposal": "Πρόταση",
+  "proposalcontexttext.proposal.part.index": "Πρόταση · μέρος {index}",
+  "proposalcontexttext.annexes": "Παραρτήματα",
+  "proposalcontexttext.annexes.part.index": "Παραρτήματα · μέρος {index}",
+  "proposalcontexttext.council.position.part.index": "Θέση Συμβουλίου · μέρος {index}",
+  "proposalcontexttext.existing.act.part.index": "Υφιστάμενη πράξη · μέρος {index}",
+  "MotionComparison.sourceDocx": "Πηγή DOCX · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Επίσημη διατύπωση τροπολογίας ↗"
 }

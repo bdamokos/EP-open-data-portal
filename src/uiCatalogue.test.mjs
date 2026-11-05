@@ -157,3 +157,7 @@ test('other-gender wording falls back individually while adjacent gender labels 
   assert.equal(ui.t(id),catalogue[id]);assert.equal(ui.messageLocale(id),'de');
  }
 });
+
+test('proposal item headings keep every message ID that ProposalContextText composes',()=>{
+  for(const kind of ['proposal','annexes','council.position','existing.act'])for(const part of ['','.part.index'])assert(Object.hasOwn(english,'proposalcontexttext.'+kind+part),'proposalcontexttext.'+kind+part);
+});

@@ -70,7 +70,7 @@ test('comparison errors and retries retain only the current pair catalog, and au
   assert(h.language()===select);assert(document.activeElement===select);assert.equal(h.requests.at(-1).url.searchParams.get('lang'),'fr');
   await h.finish(h.requests.at(-1),comparison('original-joint','fr',{status:'unavailable',reason:'One or both document texts are temporarily unavailable. Try again or open the source files.',summary:null,rows:[]}));
   assert(h.language()===select);assert(document.activeElement===select);assert.equal(select.value,'fr');
-  assert.deepEqual([...select.options].map(option=>option.value),['en','fr']);assert.equal(h.container.querySelector('.explorer-diff-documents a'),null);
+  assert.deepEqual([...select.options].map(option=>option.value),['en','fr']);assert.equal(h.container.querySelector('.explorer-diff-documents a').textContent,'Source DOCX · FR ↗','an unavailable comparison keeps its source files');
   assert.equal(h.container.querySelector('.explorer-diff-rows'),null);await h.wait();
   assert.equal(h.status().textContent,'Original to joint comparison unavailable.');
   assert.equal(h.container.querySelector('.explorer-diff-notice button'),null);await installRetryClock(t).advance(31000);await h.change(select,'en');await h.finish(h.requests.at(-1),comparison());await h.change(select,'fr');

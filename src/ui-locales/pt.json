@@ -2353,5 +2353,14 @@
   "documentcontext.note.original_differs": "A redação original difere deste texto.",
   "proposalcontexttext.printed.point.label": "Novo ponto {point}. A designação indica o ponto {base}.",
   "documentcontext.note.report_paragraph": "Número {report} do relatório; impresso aqui como {source}.",
-  "documentcontext.note.label_instruction_differ": "A indicação e a instrução diferem."
+  "documentcontext.note.label_instruction_differ": "A indicação e a instrução diferem.",
+  "coverage.question.readFailed": "{record}: indisponível",
+  "proposalcontexttext.proposal": "Proposta",
+  "proposalcontexttext.proposal.part.index": "Proposta · parte {index}",
+  "proposalcontexttext.annexes": "Anexos",
+  "proposalcontexttext.annexes.part.index": "Anexos · parte {index}",
+  "proposalcontexttext.council.position.part.index": "Posição do Conselho · parte {index}",
+  "proposalcontexttext.existing.act.part.index": "Ato existente · parte {index}",
+  "MotionComparison.sourceDocx": "DOCX de origem · {language} ↗",
+  "motionamendments.official_amendment_wording.05a440": "Redação oficial da alteração ↗"
 }
