@@ -21,11 +21,11 @@ function response(patch={}) {
     alignment:{all:counts(3,1,1,0),wholeText:counts(2,0,0,0)},
     ballots:{recorded:5,named:4,chaired:0},
     bySitting:[
-      {sittingId:B,date:'2026-10-07',withGroup:2,comparable:2},
-      {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2},
+      {sittingId:B,date:'2026-10-07',withGroup:2,comparable:2,finalWithGroup:2,finalComparable:2},
+      {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2,finalWithGroup:null,finalComparable:null},
     ],
     departures:{scope:'all',offset:0,limit:5,total:6,items:departures.slice(0,5),nextOffset:5},
-    comparison:{group:{median:0.625,members:2},parliament:{median:0.5,members:3}},
+    comparison:{all:{group:{median:0.625,members:2},parliament:{median:0.5,members:3}},final:{group:{median:1,members:2},parliament:{median:0.75,members:3}}},
     attribution:'European Parliament Open Data API v2, CC BY 4.0',
     ...patch,
   };
@@ -58,19 +58,19 @@ const links=container=>[...container.querySelectorAll('.member-vote-record-depar
 
 test('an active member record shows labelled figures, an accessible trend and linked departures',async t=>{
   const view=await mount(t);
-  assert.match(view.container.textContent,/Voting record/);
-  assert.match(view.container.textContent,/Current term · 16 Jul 2024 – 7 Oct 2026/);
-  assert.match(view.container.textContent,/Sittings covered: 2/);
-  assert.match(view.container.textContent,/With group75%3 of 4/);
-  assert.match(view.container.textContent,/Against group25%1 of 4/);
-  assert.match(view.container.textContent,/Abstained1of 5 recorded votes/);
-  assert.match(view.container.textContent,/Not comparable0No group line/);
-  assert.match(view.container.textContent,/Group median 62.5% \(2 members\) · Parliament median 50% \(3 members\)/);
+  const text=view.container.textContent;
+  assert.match(text,/Voting record/);
+  assert.match(text,/Current term · 16 Jul 2024 – 7 Oct 2026/);
+  assert.match(text,/With their group75%3 of 4 votesGroup median 62.5% · Parliament median 50%/);
+  assert.match(text,/Against their group11 of 4 votes/);
+  assert.match(text,/Recorded votes5 of 4named votes held/);
+  assert.equal(text.includes('Partial'),false);
   assert.equal(view.container.querySelectorAll('svg circle').length,2);
   assert.equal(view.container.querySelectorAll('svg path.member-vote-record-line').length,1);
-  assert.match(view.container.querySelectorAll('.visually-hidden')[1].textContent,/7 Oct 2026: 100% with group \(2 of 2\)/);
+  assert.match(view.container.querySelector('.member-vote-record-trend ul').textContent,/7 Oct 2026: 100% with their group \(2 of 2\)/);
   assert.equal(links(view.container).length,5,'the first page keeps five departures');
   assert.match(links(view.container)[0].getAttribute('href'),/mv-decision=MTG-PL-2026-10-07-DEC-10/);
+  assert.match(view.container.querySelector('.member-vote-record-departures small').textContent,/7 Oct 2026 · Against · group For/);
   assert.equal(new URL(links(view.container)[0].href).searchParams.get('module'),'votes');
   await act(async()=>links(view.container)[0].click());
   assert.equal(view.opened.length,1);
@@ -91,24 +91,35 @@ test('scope and departure page actions report their own values',async t=>{
 
 test('final votes use whole-text counts and label their departures separately',async t=>{
   const view=await mount(t,{scope:'final',data:response({departures:{...response().departures,scope:'final',items:departures.slice(0,1),total:1,nextOffset:null}})});
-  assert.match(view.container.textContent,/With group100%2 of 2/);
-  assert.match(view.container.textContent,/Final votes against group/);
+  assert.match(view.container.textContent,/With their group100%2 of 2 votesGroup median 100% · Parliament median 75%/);
+  assert.equal(view.container.querySelectorAll('svg circle').length,1,'final votes plot only sittings with a final comparable vote');
   assert.equal(view.container.querySelectorAll('.member-vote-record-departures a').length,1);
   assert.equal(button(view.container,'Show more'),undefined);
 });
 
 test('a non-attached member sees recorded ballots and one short label, never group figures',async t=>{
   const view=await mount(t,{data:response({group:{code:'NI',status:'non-attached'},alignment:null,comparison:null,departures:{...response().departures,total:0,items:[],nextOffset:null}})});
-  assert.match(view.container.textContent,/Recorded votes5/);
-  assert.match(view.container.textContent,/Named votes held4/);
-  assert.match(view.container.textContent,/Non-attached · no group figures/);
-  assert.equal(view.container.textContent.includes('With group'),false);
+  assert.match(view.container.textContent,/Recorded votes5 of 4named votes heldNon-attached/);
+  assert.equal(view.container.textContent.includes('With their group'),false);
+  assert.equal(view.container.textContent.includes('Against'),false);
   assert.equal(view.container.querySelector('svg'),null);
 });
 
 test('a chairing member gets a separate chaired count',async t=>{
   const view=await mount(t,{data:response({ballots:{recorded:5,named:4,chaired:2}})});
-  assert.match(view.container.textContent,/Votes chaired2/);
+  assert.match(view.container.textContent,/Chaired: 2/);
+});
+
+test('unknown named votes leave only the recorded count, and a null sitting breaks the trend line',async t=>{
+  const data=response({ballots:{recorded:5,named:null,chaired:0},bySitting:[
+    {sittingId:B,date:'2026-10-07',withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null},
+    {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2,finalWithGroup:null,finalComparable:null},
+  ]});
+  const view=await mount(t,{data});
+  assert.match(view.container.textContent,/Recorded votes5(?!.*named votes held)/);
+  assert.equal(view.container.querySelectorAll('svg circle').length,1);
+  assert.equal(view.container.querySelectorAll('svg path.member-vote-record-line').length,0);
+  assert.match(view.container.querySelector('.member-vote-record-trend ul').textContent,/7 Oct 2026: no comparable votes/);
 });
 
 test('a failed record read shows a few words and leaves the rest of the page to the Votes tab',async t=>{
@@ -120,20 +131,20 @@ test('a failed record read shows a few words and leaves the rest of the page to 
 
 test('a partial record states the missing sittings instead of zeroes',async t=>{
   const view=await mount(t,{data:response({coverage:{sittings:3,included:2,missing:1,status:'partial'}})});
-  assert.match(view.container.textContent,/Partial · 2 of 3 covered/);
+  assert.match(view.container.textContent,/Partial · missing sittings: 1/);
 });
 
 test('the profile strip summarizes the record and opens the Votes tab',async t=>{
   const view=await mount(t);
   await view.renderSummary();
   assert.equal(view.calls.at(-1).includes('limit=0'),true);
-  assert.match(view.container.textContent,/Voting record: 75% with group · 5 recorded votes/);
-  await act(async()=>view.container.querySelector('.member-vote-record-summary button').click());
+  assert.match(view.container.textContent,/Voting record: 75% with their group · 5 recorded votes/);
+  await act(async()=>view.container.querySelector('.member-vote-record-summary a').click());
   assert.deepEqual(view.scopes,['open']);
 });
 
 test('the profile strip keeps non-attached and chaired counts to one line',async t=>{
   const view=await mount(t,{data:response({group:{code:'NI',status:'non-attached'},alignment:null,comparison:null,ballots:{recorded:5,named:4,chaired:1}})});
   await view.renderSummary();
-  assert.match(view.container.textContent,/Voting record: 5 recorded votes · 1 chaired/);
+  assert.match(view.container.textContent,/Voting record: 5 recorded votes · chaired 1/);
 });
