@@ -13,7 +13,7 @@ export function assertSequentialParagraph({items,placement,wording,nativeQuoted}
  if(headings.length!==1)return null;
  const start=headings[0].index,end=rows.find(p=>p.index>start&&p.properties?.styleId==='Titrearticle'&&/^Article \d+/u.test(clean(p.text)))?.index;
  if(end===undefined)return null;
- const frame=rows.slice(start+1,end),peers=frame.filter(p=>/^(?:Manual)?NumPar1$/u.test(p.properties?.styleId??'')&&/^\d+\.\s/u.test(p.text)),numbers=peers.map(p=>Number(/^\d+/u.exec(p.text)[0]));
+ const frame=rows.slice(start+1,end),peers=frame.filter(p=>/^\d+\.\s/u.test(p.text)),numbers=peers.map(p=>Number(/^\d+/u.exec(p.text)[0]));
  if(numbers.length<3||numbers.length>64||numbers[0]!==1||new Set(numbers).size===numbers.length||numbers.some((n,i)=>i&&(n<numbers[i-1]||n>numbers[i-1]+1)))return null;
  const ordinal=Number(address[1].value),selected=peers[ordinal-1];if(!selected||numbers[ordinal-1]===ordinal)return null;
  const stop=peers[ordinal]?.index??end,source=rows.slice(selected.index,stop),original=body(wording.originalText);
