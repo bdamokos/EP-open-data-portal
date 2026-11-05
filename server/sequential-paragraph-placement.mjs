@@ -5,7 +5,12 @@ const strip=s=>literal(s).replace(/^\d+\.\s+/u,'');
 export function sequentialParagraphPlacement(proposal,parent,target,{originalText,proposedText,operation,itemIndex=0,quoted=false}={}) {
  const [article,label,sub]=target.segments;
  if(target.segments.length<2||target.segments.length>3||article.kind!=='article'||label.kind!=='paragraph'||!Number.isSafeInteger(label.number)||sub&& (sub.kind!=='subparagraph'||sub.suffix||sub.isNew))return null;
- const peers=parent.children.filter(u=>u.kind!=='title'),numbers=peers.map(u=>u.label?.number);
+ let peers=parent.children.filter(u=>u.kind!=='title');
+ if(proposal.sourceKind==='docx'){
+  const printed=proposal.paragraphs.slice(parent.extent.start+1,parent.extent.end).filter(r=>/^\d+\.\s/u.test(r.text));
+  peers=printed.map((r,i)=>{const number=Number(/^\d+/u.exec(r.text)[0]);return {kind:'paragraph',label:{number,value:String(number),suffix:''},extent:{start:r.index,end:printed[i+1]?.index??parent.extent.end}};});
+ }
+ const numbers=peers.map(u=>u.label?.number);
  if(peers.length<3||peers.length>64||numbers[0]!==1||new Set(numbers).size===numbers.length||peers.some((u,i)=>u.kind!=='paragraph'||u.label.suffix||String(numbers[i])!==u.label.value||!Number.isSafeInteger(numbers[i])||numbers[i]<1||i&&(numbers[i]<numbers[i-1]||numbers[i]>numbers[i-1]+1||peers[i-1].extent.end!==u.extent.start)))return null;
  const selected=peers[label.number-1];if(!selected||selected.label.number===label.number)return null;
  const rows=proposal.paragraphs.slice(selected.extent.start,selected.extent.end);
