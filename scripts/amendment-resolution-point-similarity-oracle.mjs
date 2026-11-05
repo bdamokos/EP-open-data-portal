@@ -1,6 +1,6 @@
 import {oracleAddress} from './amendment-oracle-grammar.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.mjs';
-import {assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
+import {oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
 const marker=/^\s*(?:\(([a-z]{1,4})\)|([a-z]{1,4})\)|([ivxlcdm]+)\.)\s+/u;
 const label=s=>{const m=marker.exec(s);return m&&(m[1]||m[2]||m[3]);};
 const same=(a,b)=>JSON.stringify(a.map(({kind,value})=>[kind,value]))===JSON.stringify(b.map(({kind,value})=>[kind,value]));
@@ -27,5 +27,17 @@ export function assertResolutionPointSimilarity({text,wording,placement}){
   let stop=start;for(let i=start+1;i<=end&&i<start+30;i++){if(label(text.paragraphs[i])||/^\s*\d+[.)]\s/u.test(text.paragraphs[i])||text.paragraphFormats?.[i]?.heading||motion.units.some(u=>u.kind==='heading'&&u.start===i))break;stop=i;}
   for(let prefixEnd=start;prefixEnd<=stop;prefixEnd++)candidates.push({start,end:prefixEnd,complete:false,text:clean(text.paragraphs.slice(start,prefixEnd+1).join('\n'),[label(text.paragraphs[start])])});
  }
- return assertResolutionSimilarity(candidates,original,placement.span)?{status:'verified',reason:'oracle-independent-point-near-match'}:unknown();
+ const boundedDecision=decision&&oracleDecisionWords(source,original)&&oracleSimilarity(source,original)>=.9&&candidates.every(c=>c.start===own.start&&c.end===own.end||oracleSimilarity(c.text,original)<.88);
+ return (assertResolutionSimilarity(candidates,original,placement.span)||boundedDecision)?{status:'verified',reason:'oracle-independent-point-near-match'}:unknown();
+}
+
+// Separate full token-distance oracle. Only alphabetic wording may differ;
+// terminal sentence punctuation is ignored for this decision-point rule.
+function oracleDecisionWords(a,b){
+ const tokens=s=>s.replace(/[.;]$/u,'').match(/[\p{L}\p{N}]+|[^\s]/gu)||[];
+ const x=tokens(a),y=tokens(b);
+ if(JSON.stringify(x.filter(t=>!/^\p{L}+$/u.test(t)))!==JSON.stringify(y.filter(t=>!/^\p{L}+$/u.test(t))))return false;
+ let d=Array.from({length:y.length+1},(_,i)=>i);
+ for(let i=1;i<=x.length;i++){const n=[i];for(let j=1;j<=y.length;j++)n[j]=Math.min(n[j-1]+1,d[j]+1,d[j-1]+(x[i-1]===y[j-1]?0:1));d=n;}
+ return d[y.length]<=5;
 }
