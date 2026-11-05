@@ -2212,7 +2212,7 @@
   "yourVote.error": "Гласуванията не са налични.",
   "yourVote.pick": "Сравнение с член на ЕП",
   "yourVote.noSaved": "Няма запазени гласувания.",
-  "yourVote.fallsIf": "Отпада, ако {amendments} бъде прието",
+  "yourVote.fallsIf": "Отпада при приемане на: {amendments}",
   "yourVote.block": "Изменения: {count}",
   "yourVote.numbers": "Номера на измененията",
   "yourVote.context": "Покажи в текста",

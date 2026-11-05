@@ -2222,7 +2222,7 @@
   "yourVote.loading": "Formulering laden…",
   "yourVote.partial": "Gegevens van het amendement niet beschikbaar.",
   "yourVote.replacesMotions": "Vervangt de moties.",
-  "yourVote.fallsOnAdoption": "Bij aanneming vervallen: {amendments}",
+  "yourVote.fallsOnAdoption": "Verval bij aanneming: {amendments}",
   "yourVote.am": "AM {number}",
   "yourVote.amPart": "Onderdeel {part} van AM {number}",
   "yourVote.rollCallTag": "Hoofdelijke stemming",

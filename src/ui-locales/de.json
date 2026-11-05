@@ -2222,7 +2222,7 @@
   "yourVote.loading": "Wortlaut wird geladen …",
   "yourVote.partial": "Angaben zum Änderungsantrag nicht verfügbar.",
   "yourVote.replacesMotions": "Ersetzt die Anträge.",
-  "yourVote.fallsOnAdoption": "Bei Annahme entfallen: {amendments}",
+  "yourVote.fallsOnAdoption": "Bei Annahme hinfällig: {amendments}",
   "yourVote.am": "AM {number}",
   "yourVote.amPart": "Teil {part} von AM {number}",
   "yourVote.rollCallTag": "Namentliche Abstimmung",
