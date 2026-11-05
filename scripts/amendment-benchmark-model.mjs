@@ -1,3 +1,4 @@
+import {assertSequentialParagraph} from './amendment-sequential-paragraph-oracle.mjs';
 import {assertPrintedInsertion} from './amendment-printed-insertion-oracle.mjs';
 import {assertUniqueEntry} from './amendment-unique-entry-oracle.mjs';
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
@@ -635,7 +636,7 @@ export function verifyPlacement(input) {
   if(input.items?.[input.placement?.itemIndex]?.proposal?.sourceKind==='pdf')return assertCouncilDraftPlacement(input);
   const header=assertCompoundHeader(input);
   if(header&&header.status!=='verified')return header;
-  let result=verifyProposalPlacement(input);
+  let result=assertSequentialParagraph(input)??verifyProposalPlacement(input);
   // A native gap proof cannot preempt an existing verified address. The
   // generic anchor ID is unavailable for this independently proved fallback.
   if(result.status==='unverified'||result.reason==='oracle-anchor-missing') {

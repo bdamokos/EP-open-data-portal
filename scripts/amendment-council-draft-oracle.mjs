@@ -1,6 +1,6 @@
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {assertCouncilDraftArticleText,councilPrintedText} from './amendment-council-article-oracle.mjs';
+import {assertCouncilDraftArticleText,assertCouncilSequentialText,councilPrintedText} from './amendment-council-article-oracle.mjs';
 import {councilNativeSuperscripts} from './amendment-council-superscript-oracle.mjs';
 import {councilNoteStructure,councilNoteGeometry,inspectCouncilPdfNoteScope} from './amendment-council-note-oracle.mjs';
 import {inspectCouncilOuterInsertion} from './amendment-council-outer-oracle.mjs';
@@ -53,7 +53,7 @@ function nativeWordDifference(left,right) {
 export function assertCouncilDraftNativeText(raw,{placement,wording,items,nativeBodyWords}) {
  if(!raw)return unknown('oracle-council-pdf-text-unavailable');
  const target=/^(?:Recital|Bod odůvodnění|Betragtning|Considerando)\s+(\d+)\s*([a-z]?)\s*(?:\([^)]*\))?$/iu.exec(wording.targetLabel??'');
- if(!target)return assertCouncilDraftArticleText(raw,{placement,wording,items,nativeBodyWords});
+ if(!target)return assertCouncilSequentialText(raw,{placement,wording,items})??assertCouncilDraftArticleText(raw,{placement,wording,items,nativeBodyWords});
  if(target[2]&&placement.operation!=='insert')raw=councilPrintedText(raw);
  const heading=/^\s*(?:Article|Článek|Artikel|Artículo)\s+1\s*$/imu.exec(raw);if(!heading)return unknown('oracle-council-pdf-recital-boundary-unavailable');
  const preamble=raw.slice(0,heading.index),labels=[...preamble.matchAll(/^\s*\((\d+)\s*([a-z]?)\)\s+/gmu)],number=Number(target[1]),suffix=placement.operation==='insert'?'':target[2].toLowerCase(),found=labels.filter(m=>Number(m[1])===number&&m[2].toLowerCase()===suffix);

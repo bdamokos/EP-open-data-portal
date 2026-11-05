@@ -2843,5 +2843,6 @@
   "documentcontext.single_word_difference": "Algne sõnastus erineb ühe sõna võrra.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Algses viites puudub identifikaator",
   "proposalcontexttext.printed.point.label": "Uus punkt {point}. Tähistus viitab punktile {base}.",
-  "proposalcontexttext.unique.entry.labels": "Paigutatud ainsa kattuva kirje järgi. Tähistused erinevad."
+  "proposalcontexttext.unique.entry.labels": "Paigutatud ainsa kattuva kirje järgi. Tähistused erinevad.",
+  "proposalcontexttext.sequential.paragraph": "Raporti lõige {report}; allika lõige {source}."
 }

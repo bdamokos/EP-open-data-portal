@@ -2842,5 +2842,6 @@
   "documentcontext.single_word_difference": "Sākotnējais teksts atšķiras par vienu vārdu.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Sākotnējā atsaucē trūkst identifikatora",
   "proposalcontexttext.printed.point.label": "Jauns {point}. punkts. Norādē minēts {base}. punkts.",
-  "proposalcontexttext.unique.entry.labels": "Novietots pēc vienīgā atbilstošā ieraksta. Norādes atšķiras."
+  "proposalcontexttext.unique.entry.labels": "Novietots pēc vienīgā atbilstošā ieraksta. Norādes atšķiras.",
+  "proposalcontexttext.sequential.paragraph": "Ziņojuma {report}. punkts; avota {source}. punkts."
 }
