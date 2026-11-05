@@ -12,7 +12,7 @@ import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 import {MMC_BASE,validateCatalogue,recordingCatalogue} from './mmc-catalogue.mjs';
 
 export {MMC_BASE,validateCatalogue};
-export const SPEECH_MEDIA_VERSION=3;
+export const SPEECH_MEDIA_VERSION=4;
 const DAY = 86400000;
 const root = () => process.env.ODP_CACHE_DIR ? path.join(process.env.ODP_CACHE_DIR, 'mmc') : null;
 const pending = new Map();
@@ -165,26 +165,28 @@ export async function speechMedia(id, language, audio = language, dependencies =
   const recordings = results.map(result => result.value);
   // Every candidate establishes uniqueness, including recordings that do not overlap.
   base.provenance.recordingSources = recordings.map(record => ({url: record.url, fetchedAt: record.fetchedAt, stale: Boolean(record.stale), refreshInProgress: Boolean(record.refreshInProgress), refreshError: record.refreshError || null}));
-  let match = matchRecording(speech, recordings);
-  // Detail times can stop at the scheduled end while the stream ran on, so a speech in that overrun is matched by the player's range.
-  if (match.status === 'outside-recording') {
-    const players = await Promise.allSettled(recordings.map(record => (dependencies.content || playerContent)(record.payload.resultJSON.content.mediaBusinessId, directory)));
-    if (players.some(result => result.status === 'rejected')) return fail('audio-metadata-unavailable');
-    const ranges = new Map(players.map(result => [result.value.payload?.commonId, [result.value.payload?.startDate, result.value.payload?.endDate]]));
-    match = matchRecording(speech, recordings, record => ranges.get(record.payload.resultJSON.content.mediaBusinessId) || []);
-  }
-  if (match.status !== 'matched') return fail(match.status);
+  // Detail times can stay at the scheduled sitting while the player reports the stream it holds, so every candidate's player decides the match and its uniqueness.
+  const players = await Promise.allSettled(recordings.map(record => (dependencies.content || playerContent)(record.payload.resultJSON.content.mediaBusinessId, directory)));
+  const playerFailed = players.some(result => result.status === 'rejected');
+  base.provenance.playerSources = players.flatMap(result => result.status === 'fulfilled' ? [{url: result.value.url, recordingId: result.value.payload?.commonId ?? null, fetchedAt: result.value.fetchedAt, stale: Boolean(result.value.stale), refreshError: result.value.refreshError || null}] : []);
+  const playerOf = record => players[recordings.indexOf(record)].value;
+  const playerMatch = playerFailed ? null : matchRecording(speech, recordings, record => {
+    const payload = playerOf(record).payload;
+    return payload?.commonId === record.payload.resultJSON.content.mediaBusinessId ? [payload.startDate, payload.endDate] : [];
+  });
+  if (playerMatch?.status === 'ambiguous') return fail('ambiguous');
+  // A detail match without a usable player still identifies the recording for its full-recording link.
+  const match = playerMatch?.status === 'matched' ? playerMatch : matchRecording(speech, recordings);
+  if (match.status !== 'matched') return fail(playerFailed ? 'audio-metadata-unavailable' : match.status);
   const detail = match.record.payload.resultJSON.content, official = officialEmbed(detail, detail.mediaBusinessId);
   const additions = {
     originalEmbedUrl: clipUrl(official, language, 'or', match.startUtc, match.endUtc),
     recording: { id: detail.mediaBusinessId, start: detail.meetingStartDate, end: detail.meetingEndDate, websiteUrl: 'https://multimedia.europarl.europa.eu/' + language + '/webstreaming/plenary-session_' + detail.mediaBusinessId, officialEmbedUrl: official, sourceUrl: match.record.url, sourceFetchedAt: match.record.fetchedAt, stale: match.record.stale || false, refreshError:match.record.refreshError || null },
     clip: { startUtc: match.startUtc, endUtc: match.endUtc, speechStart: speech.start, speechEnd: speech.end, precision: 'UTC seconds rounded outward; streaming segments may add padding, not frame exact.' },
   };
-  let content;
-  try { content = await (dependencies.content || playerContent)(detail.mediaBusinessId, directory); }
-  catch { return fail('audio-metadata-unavailable', additions); }
-  // Detail times can stay at the scheduled sitting while the player reports the stream it holds, so only the speech has to fit the player's range.
-  if (content.payload?.commonId !== detail.mediaBusinessId || !(Date.parse(speech.start) >= Date.parse(content.payload.startDate) && Date.parse(speech.end) <= Date.parse(content.payload.endDate))) return fail('audio-metadata-mismatch', additions);
+  if (playerFailed) return fail('audio-metadata-unavailable', additions);
+  if (playerMatch.status !== 'matched') return fail('audio-metadata-mismatch', additions);
+  const content = playerOf(match.record);
   let mapping;
   try { mapping = playerAudioMapping(content); }
   catch { return fail('audio-metadata-unavailable', additions); }
