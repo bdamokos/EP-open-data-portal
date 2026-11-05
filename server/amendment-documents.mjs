@@ -331,7 +331,7 @@ function documentBlocks(parts,warnings,language) {
         }
         const value=summary(content);
         unsupported ||= value.unsupportedBody;
-        return {...value,content,nativePath:nativePaths.get(cell)?.path,nativeReferences:JSON.stringify(cellNodes),grid:currentCellGrid(cellNodes),nested:content.some(part=>part.nestedUnsupported),revised:content.some(part=>part.revised)};
+        return {...value,content,nativePath:nativePaths.get(cell)?.path,nativeReferences:noteReferences(cellNodes),grid:currentCellGrid(cellNodes),nested:content.some(part=>part.nestedUnsupported),revised:content.some(part=>part.revised)};
       });
       cells.gridNodes=rowNodes;
       revised ||= cells.some(cell=>cell.revised);
@@ -398,6 +398,22 @@ function sectionRows(table) {
 }
 
 /** Extract individual amendments without flattening the original/proposed columns. */
+function noteReferences(nodes) {
+  return nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>
+    ['w:footnoteReference','w:endnoteReference'].includes(key)?[{note:(key==='w:endnoteReference'?'endnote:':'')+attribute(node,'id'),custom:['1','true','on'].includes(attribute(node,'customMarkFollows'))}]:
+    key!==':@'&&Array.isArray(value)?noteReferences(value):[]));
+}
+function completeSplitNotes(parts,native) {
+  const refs=noteReferences(parser().parse(parts.get('word/document.xml')));
+  if(refs.length!==native.anchors.length||refs.some((ref,i)=>ref.note!==native.anchors[i].note))return false;
+  for(const kind of ['footnote','endnote']){
+    const xml=parts.get('word/'+kind+'s.xml');if(!xml)continue;
+    if(/<!DOCTYPE|<!ENTITY/u.test(xml)||XMLValidator.validate(xml)!==true)return false;
+    const notes=direct(children(parser().parse(xml),'w:'+kind+'s'),'w:'+kind),ids=notes.map(node=>attribute(node,'id'));
+    if(new Set(ids).size!==ids.length)return false;
+  }
+  return true;
+}
 function recoverSplitNotes(cell,native) {
   if(cell.losses.length||cell.nested||!cell.nativePath)return null;
   const indices=native.paragraphSources.flatMap((source,i)=>source.path.startsWith(cell.nativePath+'/')?[i]:[]);
@@ -408,7 +424,8 @@ function recoverSplitNotes(cell,native) {
   let offset=0;const points=[];
   const plain=indices.map(i=>{const text=native.paragraphs[i];for(const a of refs.filter(a=>a.paragraph===i))points.push({...a,offset:offset+a.offset});offset+=text.length+1;return text;}).join('\n');
   let previous=plain;
-  const customIds=new Set([...cell.nativeReferences.matchAll(/"w:footnoteReference":\[\],":@":\{([^}]+)\}/gu)].filter(m=>/"@_w:customMarkFollows":"(?:1|true|on)"/u.test(m[1])).map(m=>/"@_w:id":"([^"\n]+)"/u.exec(m[1])?.[1]));
+  if(cell.nativeReferences.length!==refs.length||cell.nativeReferences.some((ref,i)=>ref.note!==refs[i].note))return null;
+  const customIds=new Set(cell.nativeReferences.filter(ref=>ref.custom).map(ref=>ref.note));
   for(const a of [...points].reverse())if(customIds.has(a.note))previous=previous.slice(0,a.offset)+a.label+previous.slice(a.offset);
   if(previous!==cell.text)return null;
   let text=plain;const payload=[];
@@ -554,6 +571,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       let recovered=false;
       try{
         const native=docxContent(buffer,{includeParagraphProperties:true,includeNoteObjects:true});
+        if(!completeSplitNotes(docxParts(buffer),native))throw new Error('Incomplete native notes.');
         const cells=tables[1].rows[0],copies=cells.map(cell=>recoverSplitNotes(cell,native));
         if(copies.every(Boolean)){cells.splice(0,2,...copies);recovered=true;}
       }catch{}
