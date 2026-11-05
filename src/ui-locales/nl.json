@@ -2843,5 +2843,6 @@
   "documentcontext.single_word_difference": "De oorspronkelijke tekst verschilt één woord.",
   "proposalcontexttext.original.citation.omits.an.identifier": "In de oorspronkelijke verwijzing ontbreekt een identificatiecode",
   "proposalcontexttext.printed.point.label": "Nieuw punt {point}. Het opschrift noemt punt {base}.",
-  "proposalcontexttext.unique.entry.labels": "Geplaatst op basis van de unieke vermelding. De opschriften verschillen."
+  "proposalcontexttext.unique.entry.labels": "Geplaatst op basis van de unieke vermelding. De opschriften verschillen.",
+  "proposalcontexttext.label_instruction_difference": "De aanduiding en de instructie verschillen. De geldende tekst is niet gecontroleerd."
 }

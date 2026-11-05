@@ -1546,3 +1546,9 @@ test('PDF source spacing uses published columns without false whitespace edits',
  assert(![...block.querySelectorAll('ins,del')].some(node=>node.textContent.trim()===''));
  assert(block.textContent.includes('Original'));assert(block.textContent.includes('Changed'));
 });
+
+test('a proposal-frame insertion explains the label difference and unchecked present text',async t=>{
+ const value=proposalContextResponse(report,amendment,list);value.placement.evidence.push({basis:'negative-nested-instruction'});
+ const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+ assert.match(h.container.querySelector('[data-amendment-block="true"]').textContent,/Label and instruction differ\. Present text not checked\./);
+});

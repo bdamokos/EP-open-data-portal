@@ -2843,5 +2843,6 @@
   "documentcontext.single_word_difference": "O texto original difere numa palavra.",
   "proposalcontexttext.original.citation.omits.an.identifier": "A citação original omite um identificador",
   "proposalcontexttext.printed.point.label": "Novo ponto {point}. A designação indica o ponto {base}.",
-  "proposalcontexttext.unique.entry.labels": "Posicionado pela entrada única. As designações divergem."
+  "proposalcontexttext.unique.entry.labels": "Posicionado pela entrada única. As designações divergem.",
+  "proposalcontexttext.label_instruction_difference": "A indicação e a instrução diferem. O texto em vigor não foi verificado."
 }

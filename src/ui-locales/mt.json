@@ -2843,5 +2843,6 @@
   "documentcontext.single_word_difference": "It-test oriġinali jvarja b’kelma waħda.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Iċ-ċitazzjoni oriġinali tħalli barra identifikatur",
   "proposalcontexttext.printed.point.label": "Punt ġdid {point}. It-tikketta tindika l-punt {base}.",
-  "proposalcontexttext.unique.entry.labels": "Imqiegħed skont l-entrata unika. It-tikketti ma jaqblux."
+  "proposalcontexttext.unique.entry.labels": "Imqiegħed skont l-entrata unika. It-tikketti ma jaqblux.",
+  "proposalcontexttext.label_instruction_difference": "It-tikketta u l-istruzzjoni huma differenti. It-test fis-seħħ ma ġiex iċċekkjat."
 }

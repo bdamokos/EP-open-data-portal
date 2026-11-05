@@ -2843,5 +2843,6 @@
   "documentcontext.single_word_difference": "Az eredeti szöveg egy szóval eltér.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Az eredeti hivatkozásból hiányzik egy azonosító",
   "proposalcontexttext.printed.point.label": "Új {point}. pont. A címkén ez áll: {base}. pont.",
-  "proposalcontexttext.unique.entry.labels": "Az egyetlen egyező bejegyzés alapján elhelyezve. A címkék eltérnek."
+  "proposalcontexttext.unique.entry.labels": "Az egyetlen egyező bejegyzés alapján elhelyezve. A címkék eltérnek.",
+  "proposalcontexttext.label_instruction_difference": "A megjelölés és az utasítás eltér. A hatályos szöveget nem ellenőriztük."
 }
