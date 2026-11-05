@@ -271,14 +271,14 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
       {shownSpeeches.length>0&&<section className="insight-speech-panel"><h3>{earlierSpeeches ? <UiMessage id="legislation.earlier_speeches_count_listed.d1e6bd" values={{count:<small>{shownSpeeches.length}</small>}} counts={{count:shownSpeeches.length}}/> : <>{ui.t("dossieractivity.speeches")} <small><UiMessage id="legislation.count_listed.703e33" values={{count:shownSpeeches.length}}/></small></>}</h3>
         <nav className="insight-speech-pager" aria-label={ui.t("dossieractivity.speeches")} ref={speechTop}>
           <button aria-label={ui.t("legislation.previous_speech.52d5e7")} aria-disabled={speechIndex<=0} onClick={()=>pageSpeech(-1)}><span aria-hidden="true">‹</span></button>
-          <div className="insight-speech-position"><strong aria-live="polite" aria-atomic="true"><UiMessage id="legislation.speech_speechnumber_of_count.73b64d" values={{speechNumber: (speechIndex+1), count: shownSpeeches.length}}/></strong>{currentSpeech&&<span lang="">{speechLabel(currentSpeech)}</span>}</div>
+          <div className="insight-speech-position"><strong aria-live="polite" aria-atomic="true">{speechIndex>=0&&<UiMessage id="legislation.speech_speechnumber_of_count.73b64d" values={{speechNumber: (speechIndex+1), count: shownSpeeches.length}}/>}</strong>{currentSpeech&&<span lang="">{speechLabel(currentSpeech)}</span>}</div>
           <button aria-label={ui.t("legislation.next_speech.4ed12e")} aria-disabled={speechIndex<0||speechIndex===shownSpeeches.length-1} onClick={()=>pageSpeech(1)}><span aria-hidden="true">›</span></button>
         </nav>
         <details className="insight-speech-jump" ref={speechJump}><summary ref={speechJumpSummary}><UiMessage id="legislation.jump_to_speech.193a38"/></summary><ol>{shownSpeeches.map(s=><li key={s.sourceId}><button lang="" aria-current={(s.sourceId===speech) ? 'true' : undefined} onClick={()=>{setSpeech(s.sourceId);if(speechJump.current)speechJump.current.open=false;speechJumpSummary.current?.focus({preventScroll:true});}}>{speechLabel(s)}</button></li>)}</ol></details>
         {currentSpeech&&<><InsightSpeechReader key={speech} id={currentSpeech.sourceId} language={language} onSpeakers={rememberSpeakers}/>
           <nav className="insight-speech-pager insight-speech-pager-bottom" aria-label={ui.t("legislation.speeches_bottom.166999")}>
             <button aria-label={ui.t("legislation.previous_speech.52d5e7")} aria-disabled={speechIndex<=0} onClick={()=>pageSpeech(-1,true)}><span aria-hidden="true">‹</span>  <UiMessage id="textsearch.previous"/></button>
-            <span>{speechIndex+1} / {shownSpeeches.length}</span>
+            <span>{speechIndex>=0&&<>{speechIndex+1} / {shownSpeeches.length}</>}</span>
             <button aria-label={ui.t("legislation.next_speech.4ed12e")} aria-disabled={speechIndex===shownSpeeches.length-1} onClick={()=>pageSpeech(1,true)}><UiMessage id="textsearch.next"/> <span aria-hidden="true">›</span></button>
           </nav></>}
       </section>}
