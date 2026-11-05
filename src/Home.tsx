@@ -9,14 +9,13 @@ import {useInsightData} from './InsightData';
 import {dossierLinkClick} from './dossierJourney';
 import {humanDate} from './InsightCharts';
 import {InsightStatus} from './InsightShared';
-import {agendaTitle,lastFullQuarter,point,placeValue,risers,topicsHref} from './topicPresentation.mjs';
+import {agendaTitle} from './topicPresentation.mjs';
 import {recordHref} from './TopicsLinks';
-import {headlineState,defaultAgendaWeek,agendaRows,votePicks,unreadRows,HOME_COUNTRIES,procedureReference} from './homeModel.mjs';
+import {headlineState,defaultAgendaWeek,agendaDays,votePicks,unreadRows,HOME_COUNTRIES,procedureReference} from './homeModel.mjs';
 import {brusselsDate} from './plenaryAvailability.mjs';
 import {useSaved,useSavedNow} from './SavedControls';
 import {summarizeByType} from './followUpdates.mjs';
 import type {VotePeriodsResponse} from './plenaryPeriods.mjs';
-import type {TopicOverview} from './TopicsTypes';
 import type {LegislationResponse,VoteSummary} from './LegislationTypes';
 import type {OutsideDirectory} from './OutsideTypes';
 import {TextSearch} from './TextSearch';
@@ -82,16 +81,16 @@ export function Home({language}:{language:string}) {
       <header className="home-headline">
         <h1 tabIndex={-1} aria-busy={settled?undefined:true}>{!settled ? '\u00a0' : (calendar.error&&!calendar.data?.weeks) ? ui.t('home.headline.unavailable') : headlineText(ui,headline,language)}</h1>
         <div className="home-search">
-          <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} language={language} className="explorer-text-search-global" inline/>
+          <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} placeholder={ui.t("home.search.placeholder")} language={language} className="explorer-text-search-global" inline/>
           <FindMeps language={language}/>
         </div>
       </header>
       <HomeAgenda settled={settled} week={week} language={language} today={today}/>
-      <HomeVotes language={language} today={today} week={weeks.find(held=>held.sittings.some(sitting=>sitting.date<=today))?.week||null}/>
+      <HomeVotes language={language}/>
     </div>
     <aside className="home-rail">
       <HomeFollowing/>
-      <HomeTopics language={language}/>
+      <HomeTalking language={language} week={weeks.find(held=>held.sittings.some(sitting=>sitting.date<=today))?.week||null}/>
       <HomeOutside language={language}/>
       <HomeEntries/>
     </aside>
@@ -103,53 +102,52 @@ function HomeAgenda({settled,week,language,today}:{settled:boolean;week:string|n
   const agenda=useInsightData<LegislationResponse>(week?'insights/legislation?'+new URLSearchParams({lang:language,week}):null);
   if(!settled)return null;
   if(!week)return <section className="home-section home-agenda"><h2><UiMessage id="home.agenda.section"/></h2><p><UiMessage id="home.agenda.empty"/></p></section>;
-  const rows=agendaRows(agenda.data?.topics,today,8);
-  const days=[...new Set(rows.map(row=>row.day))];
+  const days=agendaDays(agenda.data?.topics,today,4);
   return <section className="home-section home-agenda">
     <h2><UiMessage id="home.agenda.section"/> <a className="home-section-more" href={agendaHref(week)} onClick={dossierLinkClick}><UiMessage id="home.agenda.all"/></a></h2>
     <InsightStatus loading={agenda.loading&&!agenda.data} error={agenda.data?null:agenda.error} retry={agenda.retry}/>
-    {days.map(day=><div key={day} className="home-agenda-day">
+    {days.map(({day,rows,more,sittingId})=><div key={day} className="home-agenda-day">
       <h3><time lang='' dateTime={day}>{longDate(day,language)}</time></h3>
-      <ol className="home-agenda-list">{rows.filter(row=>row.day===day).map(row=>{const reference=procedureReference(row.topic.procedureIds);return <li key={row.topic.id}>
-        <small>{row.topic.kind==='PLENARY_VOTE'?ui.t('home.agenda.vote'):ui.t('home.agenda.debate')}</small>
-        <a href={recordHref(row.topic.id)} onClick={dossierLinkClick}><span lang={row.topic.titleLanguage??''}>{agendaTitle(row.topic.title)}</span></a>
+      <ol className="home-agenda-list">{rows.map(topic=>{const reference=procedureReference(topic.procedureIds),vote=topic.kind==='PLENARY_VOTE';return <li key={topic.id} className={vote?'is-vote':undefined}>
+        <small>{vote?ui.t('home.agenda.vote'):ui.t('home.agenda.debate')}</small>
+        <a href={recordHref(topic.id)} onClick={dossierLinkClick}><span lang={topic.titleLanguage??''}>{agendaTitle(topic.title)}</span></a>
         {reference&&<code className="home-reference">{reference}</code>}
       </li>;})}</ol>
+      {more>0&&<p className="home-agenda-more"><a href={sittingId?'?'+new URLSearchParams({view:'legislation','pl-mode':'agenda','agenda-period':'sitting:'+sittingId}):agendaHref(week)} onClick={dossierLinkClick}>{ui.t('home.agenda.more',{count:more})}</a></p>}
     </div>)}
-    {(!rows.length&&agenda.data&&!agenda.loading&&!agenda.error)&&<p><UiMessage id="home.agenda.empty"/></p>}
+    {(!days.length&&agenda.data&&!agenda.loading&&!agenda.error)&&<p><UiMessage id="home.agenda.empty"/></p>}
   </section>;
 }
 
-function HomeVotes({language,today,week}:{language:string;today:string;week:string|null}) {
-  // The agenda route is shared and cached; the picks then open the latest
-  // held vote record of that sitting week.
-  const base=useInsightData<LegislationResponse>(week?'insights/legislation?'+new URLSearchParams({lang:language,week}):null);
-  const voteTopic=base.data?.topics.filter(topic=>topic.kind==='PLENARY_VOTE'&&topic.date<=today).sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const detail=useInsightData<LegislationResponse>(voteTopic?'insights/legislation?'+new URLSearchParams({lang:language,sitting:voteTopic.sittingId||('MTG-PL-'+voteTopic.date),topic:voteTopic.id}):null);
-  const picks=detail.data?.detail?votePicks(detail.data.detail.votes,detail.data.detail.finalVotePatterns?.finalTextVoteIds||[]):[];
-  if(!week||!picks.length)return null;
+type LatestVote={id:string;date:string;sittingId:string;topicId:string;title:string;titleLanguage:string|null;reference:string|null;outcome:string;totals:{for:number;against:number;abstaining:number};differing:number|null};
+type LatestResults={votes:LatestVote[]};
+function HomeVotes({language}:{language:string}) {
+  const results=useData<LatestResults>('latest-results?'+new URLSearchParams({lang:language}),{unavailable:'error.unavailable'});
+  const picks=votePicks(results.data?.votes);
+  if(!picks.length)return null;
   return <section className="home-section home-votes">
     <h2><UiMessage id="home.votes.section"/></h2>
-    {picks.map(pick=><HomePick key={pick.rule+':'+pick.vote.id} pick={pick} topicId={detail.data!.detail!.id} language={language}/>)}
+    {picks.map(pick=><HomePick key={pick.rule+':'+pick.vote.id} pick={pick} language={language}/>)}
   </section>;
 }
 
-const outcomeKeys:Record<string,string>={ADOPTED:'membervotespresentation.adopted',REJECTED:'membervotespresentation.rejected',LAPSED:'membervotespresentation.lapsed',WITHDRAWN:'membervotespresentation.withdrawn'};
-type HomePickData={rule:string;vote:VoteSummary;totals:{for:number;against:number;abstaining:number}};
-function HomePick({pick,topicId,language}:{pick:HomePickData;topicId:string;language:string}) {
+const outcomeKeys:Record<string,string>={ADOPTED:'membervotespresentation.adopted',REJECTED:'membervotespresentation.rejected'};
+function HomePick({pick,language}:{pick:{rule:string;vote:LatestVote};language:string}) {
   const ui=useUiI18n();
-  const vote=pick.vote,totals=pick.totals,inVoting=totals.for+totals.against+totals.abstaining;
+  const vote=pick.vote,totals=vote.totals,sum=totals.for+totals.against+totals.abstaining;
+  const href=recordHref(vote.topicId)+'&agenda-vote='+encodeURIComponent(vote.id);
   return <article className="home-pick">
     <h3><UiMessage id={'home.votes.pick.'+pick.rule}/></h3>
-    <p className="home-pick-meta"><time lang='' dateTime={vote.date}>{humanDate(vote.date,language)}</time>{outcomeKeys[vote.outcome]?' · '+ui.t(outcomeKeys[vote.outcome]):''}</p>
-    {topicId&&vote.title&&<p className="home-pick-link"><a href={recordHref(topicId)+'&agenda-vote='+encodeURIComponent(vote.id)} onClick={dossierLinkClick}><span lang="">{vote.title}</span></a></p>}
-    {pick.rule==='divergent'&&typeof vote.groupDeviations==='number'&&vote.groupDeviations>0&&<p className="home-pick-note">{ui.t(vote.groupDeviations===1?'home.votes.divergentOne':'home.votes.divergent',{count:vote.groupDeviations})}</p>}
-    {(inVoting>0)&&<div className="home-vote-bar" aria-hidden="true">
-      <span className="home-vote-bar-for" style={{width:`${totals.for/inVoting*100}%`}}/>
-      <span className="home-vote-bar-against" style={{width:`${totals.against/inVoting*100}%`}}/>
-      <span className="home-vote-bar-abstain" style={{width:`${totals.abstaining/inVoting*100}%`}}/>
+    <p className="home-pick-title"><a href={href} onClick={dossierLinkClick}><span lang={vote.titleLanguage||''}>{vote.title}</span></a></p>
+    {vote.reference&&<p className="home-pick-ref"><code className="home-reference">{vote.reference}</code></p>}
+    <p className="home-pick-meta"><strong>{ui.t(outcomeKeys[vote.outcome])}</strong> · <time lang='' dateTime={vote.date}>{humanDate(vote.date,language)}</time></p>
+    {sum>0&&<div className="home-vote-bar" aria-hidden="true">
+      <span className="home-vote-bar-for" style={{width:`${totals.for/sum*100}%`}}/>
+      <span className="home-vote-bar-against" style={{width:`${totals.against/sum*100}%`}}/>
+      <span className="home-vote-bar-abstain" style={{width:`${totals.abstaining/sum*100}%`}}/>
     </div>}
-    {(inVoting>0)&&(vote.subject||vote.title)&&<p className="home-pick-tally"><UiMessage id="membervotesummary.for_for_against_against_abstaining_abstaining" values={{for:totals.for,against:totals.against,abstaining:totals.abstaining}}/></p>}
+    <p className="home-pick-tally"><UiMessage id="membervotesummary.for_for_against_against_abstaining_abstaining" values={{for:totals.for,against:totals.against,abstaining:totals.abstaining}}/></p>
+    {pick.rule==='split'&&vote.differing!=null&&<p className="home-pick-note">{ui.t(vote.differing===1?'home.votes.divergentOne':'home.votes.divergent',{count:vote.differing})}</p>}
   </article>;
 }
 
@@ -175,21 +173,16 @@ const followingEntryHref=(item:{kind:string;id:string},entry:{id:string|number;r
   return viewHref('saved');
 };
 
-type TopicRank={item:TopicOverview['items'][number];count:number};
-function HomeTopics({language}:{language:string}) {
-  const overview=useInsightData<TopicOverview>('topics/overview?'+new URLSearchParams({role:'topic',lang:language,askers:'all'}));
-  const data=overview.data;
-  if(!data||overview.loading&&!data.items.length)return null;
-  const last=lastFullQuarter(data),lastIndex=data.periods.indexOf(last);
-  const rising=new Set(risers(data,lastIndex,'q',true).flatMap(row=>row.item.key));
-  const ranked=(data.items as TopicRank['item'][]).map(item=>({item,count:placeValue(point(item,last),'q',true)})).filter(row=>row.count>0).sort((a,b)=>b.count-a.count||a.item.key.localeCompare(b.item.key)).slice(0,5);
-  if(!ranked.length)return null;
+type CloudTerms={words:{word:string;label:string|null;speechCount:number}[]};
+function HomeTalking({language,week}:{language:string;week:string|null}) {
+  const cloud=useInsightData<CloudTerms>(week?'insights/speech-cloud?'+new URLSearchParams({lang:language,week,page:'1'}):null);
+  const words=(cloud.data?.words||[]).slice(0,8);
+  if(!week||!words.length)return null;
+  const href='?'+new URLSearchParams({view:'legislation','pl-mode':'cloud','cloud-period':'week:'+week});
   return <section className="home-section home-topics">
-    <h2><UiMessage id="home.topics.section"/> <a className="home-section-more" href={viewHref('geopolitics')} onClick={dossierLinkClick}><UiMessage id="home.more"/></a></h2>
+    <h2><UiMessage id="home.topics.section"/> <a className="home-section-more" href={href} onClick={dossierLinkClick}><UiMessage id="home.more"/></a></h2>
     <p className="home-section-lead"><UiMessage id="home.topics.lead"/></p>
-    <ol className="home-topics-list">{ranked.map(row=><li key={row.item.key}>
-      <a href={topicsHref(row.item.key)} onClick={dossierLinkClick}><span lang={row.item.labelLanguage||undefined}>{rising.has(row.item.key)?'↑ ':''}{row.item.label}</span><strong>{row.count}</strong></a>
-    </li>)}</ol>
+    <ul className="home-terms">{words.map(term=><li key={term.word}><a href={href} onClick={dossierLinkClick}>{(term.label||term.word).replace(/-/g,' ')}</a></li>)}</ul>
   </section>;
 }
 

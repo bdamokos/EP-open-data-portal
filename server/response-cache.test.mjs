@@ -233,3 +233,7 @@ test('demographic acquisition gaps and failed refreshes reach the origin while o
   assert.equal(seconds(policy(path,payload({status:'source_omission',lastAttempt:{status:'success'}}))),21600);
  }
 });
+
+test('latest results are never cached by the CDN',()=>{
+ assert.equal(apiCachePolicy({method:'GET'},new URL('http://localhost/api/latest-results'),{votes:[{id:'x'}]}).cdnCacheControl,'no-store');
+});

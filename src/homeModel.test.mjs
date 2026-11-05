@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isHomeQuery,headlineState,defaultAgendaWeek,agendaRows,votePicks,unreadRows,procedureReference,HOME_COUNTRIES} from './homeModel.mjs';
+import {isHomeQuery,headlineState,defaultAgendaWeek,agendaDays,votePicks,unreadRows,procedureReference,HOME_COUNTRIES} from './homeModel.mjs';
 
 const query = value => new URLSearchParams(value);
 const week = (week,sittings) => ({week,sittings:sittings.map(([date,location]) => ({sittingId:'MTG-PL-'+date,date,location:location||null}))});
@@ -61,46 +61,37 @@ test('default agenda week picks the current week, then the next, then the most r
   assert.equal(defaultAgendaWeek('invalid',weeks,upcoming),null);
 });
 
-test('agenda rows group by day, skip past days, cap the count and keep agenda order',()=>{
+test('agenda days skip past days, keep agenda order and cap each day',()=>{
   const topics=[
     {id:'MTG-PL-2026-11-11-OJ-ITM-D-2',date:'2026-11-11',order:2,title:'Second'},
     {id:'MTG-PL-2026-11-11-OJ-ITM-D-1',date:'2026-11-11',order:1,title:'First'},
     {id:'MTG-PL-2026-11-10-OJ-ITM-D-1',date:'2026-11-10',order:1,title:'Held yesterday'},
-    {id:'MTG-PL-2026-11-12-OJ-ITM-D-1',date:'2026-11-12',order:1,title:'Thursday'},
-    {id:'MTG-PL-2026-11-12-OJ-ITM-D-2',date:'2026-11-12',order:2,title:'Thursday second'},
+    ...[1,2,3,4,5,6].map(n=>({id:'MTG-PL-2026-11-12-OJ-ITM-V-'+n,date:'2026-11-12',order:n,sittingId:'MTG-PL-2026-11-12',kind:'PLENARY_VOTE'})),
   ];
-  const rows=agendaRows(topics,'2026-11-11');
-  assert.deepEqual(rows.map(row=>row.topic.id),['MTG-PL-2026-11-11-OJ-ITM-D-1','MTG-PL-2026-11-11-OJ-ITM-D-2','MTG-PL-2026-11-12-OJ-ITM-D-1','MTG-PL-2026-11-12-OJ-ITM-D-2']);
-  assert.deepEqual(agendaRows(topics,'2026-11-11',2).map(row=>row.topic.title),['First','Second']);
-  assert.deepEqual(agendaRows(topics,'2026-11-13'),[],'a finished week shows no rows');
-  assert.deepEqual(agendaRows(null,'2026-11-11'),[]);
+  const days=agendaDays(topics,'2026-11-11');
+  assert.deepEqual(days.map(day=>[day.day,day.rows.length,day.more]),[['2026-11-11',2,0],['2026-11-12',4,2]]);
+  assert.deepEqual(days[0].rows.map(topic=>topic.title),['First','Second']);
+  assert.equal(days[1].sittingId,'MTG-PL-2026-11-12');
+  assert.deepEqual(agendaDays(topics,'2026-11-13'),[],'a finished week shows no rows');
+  assert.deepEqual(agendaDays(null,'2026-11-11'),[]);
 });
 
-test('vote picks follow the fixed rules and skip unpublished totals',()=>{
-  const vote=(id,forCount,against,{abstaining=0,final=false,groupDeviations,date='2026-10-22'}={})=>({id,date,namedVotersAvailable:true,aggregateTotals:{for:forCount,against,abstaining},groupDeviations,...(final?{scope:'final-text'}:{})});
-  const finals=['DEC-1','DEC-2','DEC-4','DEC-5'];
-  const votes=[
-    vote('DEC-1',300,280,{final:true,groupDeviations:12,date:'2026-10-21'}),
-    vote('DEC-2',500,100,{final:true,groupDeviations:40,date:'2026-10-22'}),
-    vote('DEC-3',340,330,{groupDeviations:0,date:'2026-10-22'}),
-    vote('DEC-4',500,20,{final:true,date:'2026-10-23'}),
-    {id:'DEC-5',date:'2026-10-22',namedVotersAvailable:false,aggregateTotals:{for:null,against:null,abstaining:null}},
-  ];
-  const picks=votePicks(votes,finals);
-  assert.deepEqual(picks.map(pick=>[pick.rule,pick.vote.id]),[['closest','DEC-1'],['divergent','DEC-2'],['recent','DEC-4']],'DEC-4 has the widest margin among finals after the closest, and is the most recent; DEC-2 wins on group deviations');
-  assert.deepEqual(picks.map(pick=>pick.totals),[{for:300,against:280,abstaining:0},{for:500,against:100,abstaining:0},{for:500,against:20,abstaining:0}]);
-  // Without deviation data that pick disappears rather than being invented.
-  const noDeviation=votePicks(votes.map(({groupDeviations,...rest})=>rest),finals);
-  assert.deepEqual(noDeviation.map(pick=>pick.rule),['closest','recent']);
-  // A tie in margin resolves to the most recent.
-  const tied=votePicks([vote('DEC-7',300,290,{final:true,date:'2026-10-20'}),vote('DEC-8',310,300,{final:true,date:'2026-10-22'})],['DEC-7','DEC-8']);
-  assert.equal(tied[0].vote.id,'DEC-8');
-  // No finals, no closest or recent pick even with plenty of roll-calls.
-  assert.deepEqual(votePicks(votes,[]).map(pick=>pick.rule),['divergent']);
-  assert.deepEqual(votePicks([],finals),[]);
-  assert.deepEqual(votePicks(null,finals),[]);
-  // Zero deviations on every vote yields no divergent pick.
-  assert.deepEqual(votePicks([vote('DEC-1',300,280,{final:true,groupDeviations:0})],['DEC-1']).map(pick=>pick.rule),['closest']);
+test('vote picks follow the fixed rules, never repeat a vote and never pad',()=>{
+  // Invented fixture rows in the /api/latest-results shape.
+  const vote=(id,forCount,against,{differing=null,date='2026-10-22'}={})=>({id,date,title:'Title '+id,topicId:'T-'+id,sittingId:'MTG-PL-'+date,outcome:'ADOPTED',totals:{for:forCount,against,abstaining:5},differing});
+  const votes=[vote('A',300,280,{differing:12,date:'2026-10-21'}),vote('B',500,100,{differing:40,date:'2026-10-22'}),vote('C',340,330,{differing:3,date:'2026-10-23'})];
+  assert.deepEqual(votePicks(votes).map(pick=>[pick.rule,pick.vote.id]),[['closest','C'],['split','B']],'closest is C, biggest split is B, and the most recent (C) is already shown');
+  const more=[...votes,vote('D',500,20,{differing:1,date:'2026-10-24'})];
+  assert.deepEqual(votePicks(more).map(pick=>[pick.rule,pick.vote.id]),[['closest','C'],['split','B'],['recent','D']]);
+  // Unknown splits are never zero: no split card without the data.
+  assert.deepEqual(votePicks(votes.map(v=>({...v,differing:null}))).map(pick=>pick.rule),['closest']);
+  assert.deepEqual(votePicks(votes.map(v=>({...v,differing:0}))).map(pick=>pick.rule),['closest']);
+  // A single vote fills a single card; ties resolve to the most recent.
+  assert.deepEqual(votePicks([votes[0]]).map(pick=>pick.rule),['closest']);
+  assert.equal(votePicks([vote('E',300,290,{date:'2026-10-20'}),vote('F',310,300,{date:'2026-10-22'})])[0].vote.id,'F');
+  // Rows without published totals are ignored.
+  assert.deepEqual(votePicks([{id:'X',date:'2026-10-22',totals:{for:null,against:3,abstaining:1}},null]),[]);
+  assert.deepEqual(votePicks(null),[]);
 });
 
 test('unread rows list only fresh entries, newest first',()=>{

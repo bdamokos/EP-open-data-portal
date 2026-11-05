@@ -60,7 +60,7 @@ export function ParliamentHeader({view,onHome,onMembers,onNavigate,onSaved,onLan
   const ui = useUiI18n();
   const [header,stacked]=useStackedDestinations(ui.language,`${Boolean(onSaved)}${Boolean(onLanguageChange)}${search}`);
   return <header ref={header} className="parliament-header" data-stacked={stacked ? "true" : undefined}>
-    {onHome ? <button type="button" className="parliament-brand parliament-brand-link" lang={ui.language} onClick={onHome}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></button> : <span className="parliament-brand" lang={ui.language}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></span>}
+    {onHome ? <a href="./" className="parliament-brand parliament-brand-link" lang={ui.language} onClick={event=>{if(event.button===0&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey){event.preventDefault();onHome();}}}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></a> : <span className="parliament-brand" lang={ui.language}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></span>}
     <nav aria-label={ui.t("batch4.parliamentheader.tsx.24.1")} lang={ui.language}>
       <button aria-current={(view==='members') ? 'page' : undefined} onClick={onMembers}><UiMessage id="batch4.parliamentheader.tsx.25.1"/></button>
       {(['legislation','questions','geopolitics','amendments','outside','groups','hemicycle'] as const).filter(destination=>destination!=='amendments'||publicAmendmentsEnabled).map(destination=><button

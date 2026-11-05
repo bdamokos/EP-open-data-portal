@@ -2383,12 +2383,11 @@
   "home.agenda.vote": "Vote",
   "home.votes.section": "Latest results",
   "home.votes.pick.closest": "Closest vote",
-  "home.votes.pick.divergent": "Most split from group",
-  "home.votes.pick.recent": "Latest final vote",
+  "home.votes.pick.recent": "Latest vote",
   "home.following.section": "New for you",
   "home.following.all": "See all",
   "home.topics.section": "What Parliament is talking about",
-  "home.topics.lead": "Most asked about last quarter",
+  "home.topics.lead": "Most used words in last week's debates",
   "home.outside.section": "Outside voices",
   "home.outside.lead": "Latest speakers from outside Parliament",
   "home.more": "Open",
@@ -2397,5 +2396,8 @@
   "home.entry.hemicycle": "Hemicycle: every seat, and how it voted.",
   "home.entry.title": "Explore",
   "home.votes.divergent": "{count} members voted against their group's majority.",
-  "home.votes.divergentOne": "{count} member voted against their group's majority."
+  "home.votes.divergentOne": "{count} member voted against their group's majority.",
+  "home.agenda.more": "{count} more",
+  "home.search.placeholder": "Search MEPs, debates, questions and speeches",
+  "home.votes.pick.split": "Biggest split from group"
 }

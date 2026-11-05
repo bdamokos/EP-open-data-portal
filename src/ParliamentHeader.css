@@ -14,8 +14,9 @@
 }
 .explorer-insights .parliament-header { margin-inline:calc(-1 * var(--insight-gutter)); }
 .parliament-brand { display:flex; align-items:center; gap:9px; font-size:17px; font-weight:700; }
-button.parliament-brand-link { padding:0; border:0; border-radius:var(--radius-sm); background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
-button.parliament-brand-link:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
+a.parliament-brand-link { color:inherit; text-decoration:none; border-radius:var(--radius-sm); }
+a.parliament-brand-link:hover { text-decoration:underline; text-underline-offset:3px; }
+a.parliament-brand-link:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
 .parliament-mark { flex:none; width:28px; height:18px; fill:var(--accent); }
 /* The destinations fill the row so the tools sit beside them, and wrap whole before the tools do. */
 .parliament-header nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:2px; flex:1 0 auto; margin-left:auto; }

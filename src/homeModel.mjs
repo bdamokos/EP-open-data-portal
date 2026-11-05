@@ -50,48 +50,38 @@ export function defaultAgendaWeek(today, weeks = [], upcoming = []) {
   return weeks[0]?.week || null;
 }
 
-// Agenda rows for the current or next sitting week, grouped by day in order.
-// A week in progress starts at today. Times are not part of the published
-// agenda response, so rows carry none.
-export function agendaRows(topics, today, limit = 8) {
-  const valid = (Array.isArray(topics) ? topics : []).filter(topic => topic && typeof topic.id === 'string' && dateShape(topic.date));
+// Agenda grouped by day, in published order, starting today for a week in
+// progress. Each day shows at most perDay rows; `more` counts the rest.
+// Times are not part of the published agenda list, so rows carry none.
+export function agendaDays(topics, today, perDay = 4) {
+  const valid = (Array.isArray(topics) ? topics : []).filter(topic => topic && typeof topic.id === 'string' && dateShape(topic.date) && topic.date >= today);
   const days = new Map();
   for (const topic of valid) {
-    if (topic.date < today) continue;
     if (!days.has(topic.date)) days.set(topic.date, []);
     days.get(topic.date).push(topic);
   }
-  const rows = [];
-  for (const date of [...days.keys()].sort()) {
-    const items = days.get(date).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
-    for (const topic of items) {
-      rows.push({ day: date, topic });
-      if (rows.length >= limit) return rows;
-    }
-  }
-  return rows;
+  return [...days.keys()].sort().map(day => {
+    const items = days.get(day).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
+    return { day, rows: items.slice(0, perDay), more: Math.max(0, items.length - perDay), sittingId: items.find(topic => topic.sittingId)?.sittingId || null };
+  });
 }
 
-const voteTotals = vote => (vote && vote.namedVotersAvailable && vote.aggregateTotals && ['for', 'against', 'abstaining'].every(position => Number.isFinite(vote.aggregateTotals[position]))) ? vote.aggregateTotals : null;
+const validVote = vote => vote && typeof vote.id === 'string' && typeof vote.date === 'string' && vote.totals && ['for', 'against', 'abstaining'].every(position => Number.isInteger(vote.totals[position]) && vote.totals[position] >= 0);
+const margin = vote => Math.abs(vote.totals.for - vote.totals.against);
+const newer = (a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id);
 
-const voteMargin = totals => Math.abs(totals.for - totals.against);
-
-// Three fixed picks from one sitting's roll-calls: the closest whole-text
-// vote, the vote with the most members differing from their group, and the
-// most recent final vote. Only votes with published named totals qualify; a
-// missing rule (no group deviation data) yields no pick.
-export function votePicks(votes, finalTextVoteIds = []) {
-  const candidates = (Array.isArray(votes) ? votes : []).map(vote => ({ vote, totals: voteTotals(vote) })).filter(row => row.totals);
-  const finals = new Set(finalTextVoteIds);
-  const finalRows = candidates.filter(row => finals.has(row.vote.id));
-  const byRecency = (a, b) => b.vote.date.localeCompare(a.vote.date) || b.vote.id.localeCompare(a.vote.id);
+// Up to three cards from /api/latest-results votes (whole-text roll calls with
+// published totals): the closest (smallest for-against margin), the biggest
+// split from group, and the most recent. A vote fills at most one card, in that
+// order; a rule whose best vote is already shown yields no card.
+export function votePicks(votes) {
+  const rows = (Array.isArray(votes) ? votes : []).filter(validVote);
   const picks = [];
-  const closest = finalRows.slice().sort((a, b) => voteMargin(a.totals) - voteMargin(b.totals) || byRecency(a, b))[0];
-  if (closest) picks.push({ rule: 'closest', vote: closest.vote, totals: closest.totals });
-  const divergent = candidates.filter(row => Number.isFinite(row.vote.groupDeviations)).sort((a, b) => b.vote.groupDeviations - a.vote.groupDeviations || byRecency(a, b))[0];
-  if (divergent && divergent.vote.groupDeviations > 0) picks.push({ rule: 'divergent', vote: divergent.vote, totals: divergent.totals });
-  const recent = finalRows.slice().sort(byRecency)[0];
-  if (recent && !picks.some(pick => pick.vote.id === recent.vote.id)) picks.push({ rule: 'recent', vote: recent.vote, totals: recent.totals });
+  const add = (rule, vote) => { if (vote && !picks.some(pick => pick.vote.id === vote.id)) picks.push({ rule, vote }); };
+  add('closest', rows.slice().sort((a, b) => margin(a) - margin(b) || newer(a, b))[0]);
+  const split = rows.filter(vote => Number.isFinite(vote.differing) && vote.differing > 0).sort((a, b) => b.differing - a.differing || newer(a, b))[0];
+  add('split', split);
+  add('recent', rows.slice().sort(newer)[0]);
   return picks;
 }
 

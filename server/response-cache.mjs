@@ -63,8 +63,6 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   if (url.pathname === '/api/directory' && (payload?.index?.complete !== true || payload?.committeeDetails?.complete === false)) return noStore;
   // Held dates change at Brussels midnight; a CDN lifetime must not hide the new day.
   if (url.pathname === '/api/vote-periods') return noStore;
-  // An empty list means snapshots are not stored yet; do not let that stick.
-  if (url.pathname === '/api/latest-results') return payload?.votes?.length ? publicPolicy(5*60) : noStore;
   if (url.pathname.includes('/speech-media/') && payload?.available === false) return noStore;
   const resource = url.pathname.split('/')[2];
   if (resource === 'speech' && !payload?.xml) return noStore;
