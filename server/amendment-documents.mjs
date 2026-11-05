@@ -7,7 +7,7 @@ import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTarget
 import { numberingLabels } from './docx-numbering.mjs';
 import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='25';
+export const AMENDMENT_EXTRACTION_VERSION='26';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -517,10 +517,14 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     let formulaSource=false;try{const url=new URL(sourceUrl);formulaSource=url.protocol==='https:'&&!url.username&&!url.password;}catch{}
     const formulaRecovery=Boolean(formulaSource&&language==='en'&&formulaTarget&&tables.length===1&&!tables[0].unsupported&&!tables[0].revised&&!tables[0].gridUnsupported&&direct(tables[0].gridNodes,'w:tblGrid').length===1&&direct(children(tables[0].gridNodes,'w:tblGrid'),'w:gridCol').length===2&&documentReferences.filter(ref=>ref.field==='DocAmend'&&/^Proposal for a (?:regulation|directive|decision)$/u.test(ref.raw)).length===1&&!documentReferences.some(ref=>/^(?:Article|DocAmend)[2-4]$/u.test(ref.field))&&tables[0].rows.every(cells=>cells.every(cell=>cell.formulaSafe))&&formulaRows.length>1&&formulaRows.every(cells=>cells.length===2)&&formulaRows[0][0].text==='Text proposed by the Commission'&&formulaRows[0][1].text==='Amendment'&&formulaRows[0].every(cell=>!cell.formulaCount)&&formulaRows.slice(1).every(cells=>!cells[0].text&&!cells[0].formulaCount)&&formulaRows.slice(1).reduce((count,cells)=>count+cells[1].formulaCount,0)===1&&formulaRows[1][1].text.startsWith(formulaTarget[1]+formulaTarget[2]+'.\t'));
     if(formulaRecovery)gap('formula-not-shown',number,'Formula not shown.');
+    const noteRows=tables.length===1?tables[0].rows.filter(cells=>cells.some(cell=>cell.text)):[];
+    const instructionCell=noteRows.at(-1)?.length===1?noteRows.at(-1)[0]:null;
+    const horizontalInstruction=language==='hu'&&/^\d+\.? cikk$/u.test(targetLabel??'')&&tables.length===1&&tables[0].legalGridSupported&&!tables[0].unsupported&&!tables[0].revised&&instructionCell?.grid.span===2&&!instructionCell.hasNotes&&!instructionCell.losses.length&&/^\(Horizontális módosítás [–—-] [^\r\n]+\)$/u.test(instructionCell.text)&&noteRows.length>2&&noteRows.slice(0,-1).every(cells=>cells.length===2&&cells.every(cell=>cell.grid.span===1))&&isAmendmentHeading(noteRows[0][1].text,language)&&noteRows[1][1].text==='törölve'&&noteRows.slice(2,-1).every(cells=>!cells[1].text);
+    if(horizontalInstruction)documentReferences.push({field:'ComparisonInstruction',raw:instructionCell.text,sourceRaw:instructionCell.raw,scope:'amendment',basis:'full-width-deletion-instruction'});
     const sections=[];let section=null;
     for(const table of tables) {
       hasTable=true;
-      const gridUnsupported=stacked?!table.legalGridSupported:table.gridUnsupported;
+      const gridUnsupported=stacked?!table.legalGridSupported:table.gridUnsupported&&!horizontalInstruction;
       if(gridUnsupported)gap('comparison-grid',number,'The comparison grid contains unsupported column counts, spans, offsets or merges; both wording columns are withheld.');
       if(table.unsupported)gap('comparison-structure',number,'The comparison contains unsupported wrapped or embedded row/cell content; its wording is withheld.');
       if(table.revised)gap('structural-revision',number,'The comparison contains tracked structural insertion, deletion, merge or move markers; revision acceptance is unresolved and its wording is withheld.');
@@ -531,6 +535,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
         if(cells.some(c=>c.symbolLoss))gap('symbol-text-loss',number,'A visible font-encoded symbol cannot be decoded reliably; comparison wording is withheld.');
         for(const code of Object.keys(CONTENT_LOSSES))if(!(formulaRecovery&&code==='non-text-content')&&cells.some(cell=>cell.losses.includes(code)))gap(code,number,CONTENT_LOSSES[code]);
         if(cells.every(c=>!c.text))continue;
+        if(horizontalInstruction&&cells.length===1&&cells[0]===instructionCell)continue;
         if(stacked) {
           if(pendingCaption){before.push(joinWording(cells,'\t'));pendingCaption=false;continue;}
           const heading=sectionHeading(cells,rowTable,language);
