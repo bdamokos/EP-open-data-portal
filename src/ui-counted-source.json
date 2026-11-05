@@ -238,5 +238,10 @@
     "plural": "count",
     "one": "Chairing contribution",
     "other": "Chairing contributions"
+  },
+  "home.votes.divergent": {
+    "plural": "count",
+    "one": "{count} member voted against their group's majority.",
+    "other": "{count} members voted against their group's majority."
   }
 }

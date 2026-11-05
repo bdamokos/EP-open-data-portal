@@ -1,0 +1,50 @@
+/* Home: the bare URL. Progressive sections in two columns at wide sizes;
+   a single column below 1000px matches the explorer's own break. */
+.home { max-width: 70rem; margin: 0 auto; padding: 0 1rem 2rem; display: grid;
+  grid-template-columns: minmax(0, 1fr); gap: 1.25rem 1.5rem; align-items: start; }
+@media (min-width: 1000px) {
+  .home { grid-template-columns: minmax(0, 3fr) minmax(220px, 1fr); }
+}
+.home-main, .home-rail { display: grid; gap: 1.25rem; align-content: start; }
+@media (max-width: 999px) { .home-rail { order: 2; } .home-main { order: 1; } }
+
+.home-headline h1 { margin: .25rem 0 0; font-family: var(--font-serif); font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.25; }
+.home-headline-link { margin: .35rem 0 0; }
+.home-headline-link a { color: var(--accent-strong); text-decoration: underline; text-underline-offset: 2px; }
+
+.home-section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: .85rem 1rem 1rem; }
+.home-section > h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; margin: 0 0 .6rem; font-size: 1rem; font-weight: 650; }
+.home-section-more { font-size: .85em; font-weight: 500; color: var(--accent-strong); }
+.home-section-lead { margin: 0 0 .6rem; color: var(--ink-muted); font-size: .9rem; }
+
+.home-agenda-list, .home-following-list, .home-topics-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+.home-agenda-list li { display: flex; gap: .6rem; align-items: baseline; }
+.home-agenda-list small { flex: 0 0 auto; color: var(--ink-muted); white-space: nowrap; }
+.home-section a { color: inherit; }
+.home-section a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.home-agenda-list a { text-decoration: underline; text-underline-offset: 2px; }
+
+.home-following-list li { display: grid; gap: .1rem; }
+.home-following-list li > a { text-decoration: underline; text-underline-offset: 2px; }
+.home-following-list small { color: var(--ink-muted); }
+
+.home-topics-list a, .home-outside-list a { display: flex; gap: .5rem; justify-content: space-between; text-decoration: underline; text-underline-offset: 2px; }
+.home-topics-list strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.home-outside-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+.home-outside-list li { display: grid; gap: .1rem; }
+.home-outside-list small { color: var(--ink-muted); }
+
+.home-votes { display: grid; gap: .9rem; }
+.home-votes > h2 { margin-bottom: 0; }
+.home-pick { border-top: 1px solid var(--line); padding-top: .7rem; margin-top: .2rem; display: grid; gap: .3rem; }
+.home-votes > .home-pick:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+.home-pick h3 { margin: 0; font-size: .9rem; font-weight: 650; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .02em; }
+.home-pick-meta, .home-pick-note { margin: 0; color: var(--ink-muted); font-size: .85rem; }
+.home-pick-link { margin: 0; }
+.home-pick-link a { text-decoration: underline; text-underline-offset: 2px; }
+.home-vote-bar { display: flex; height: .8rem; border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-3); }
+.home-vote-bar span { display: block; height: 100%; }
+.home-vote-bar-for { background: var(--vote-for); }
+.home-vote-bar-against { background: var(--vote-against); }
+.home-vote-bar-abstain { background: var(--vote-abstain); }
+.home-pick-tally { margin: 0; font-size: .85rem; font-variant-numeric: tabular-nums; }
