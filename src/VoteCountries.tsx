@@ -1,7 +1,7 @@
 import {useMemo,useState} from 'react';
 import {useNarrow} from './useNarrow';
 import {UiMessage,useUiI18n} from './UiI18nReact';
-import {countryName} from './CountryMap';
+import {voteCountryName as countryName} from './voteCountryName';
 import {groupLabel,groupLabelLanguage} from './groupLabels';
 import {countryGroupBreakdown,encodeMatrixSort,decodeMatrixSort,type MatrixSort,type CountryBreakdownRow} from './voteSeatsModel.mjs';
 import {positionsUi,votePositionKeys,type VotePosition} from './votePositions';

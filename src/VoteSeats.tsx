@@ -4,7 +4,7 @@ import {UiMessage,useUiI18n} from './UiI18nReact';
 import {useExplorerParam} from './explorerUrl';
 import {validateVotePeriods,type VotePeriodsResponse} from './plenaryPeriods.mjs';
 import {groupLabel,groupLabelLanguage} from './groupLabels';
-import {countryName} from './CountryMap';
+import {voteCountryName as countryName} from './voteCountryName';
 import {nearestSeat,type HemicycleSeat} from './hemicycleModel.mjs';
 import {seatBallots,unseatedDotTotals,differingVoterIds,type SeatBallotVoter} from './voteSeatsModel.mjs';
 import {positionsUi,votePositionKeys,type VotePosition} from './votePositions';
@@ -45,6 +45,8 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
     const differs=ballot&&differIds.has(ballots.bySeat.get(seat.seat)!.id);
     return [fullName(seat),groupLabel(seat.group||'',ui),countryName(seat.country||'',language),positionLabel(seat,ballot),differs?ui.t('voteSeats.differs'):null].filter(Boolean).join(' · ');
   };
+  // Hover re-renders this component; seat labels only change with the data.
+  const labels=useMemo(()=>new Map(seats.map(seat=>[seat.seat,label(seat,ballots.bySeat.get(seat.seat))])),[seats,ballots,differIds,ui,language]);
   const dimmed=(seat:HemicycleSeat)=>view==='differ'&&!differIds.has(ballots.bySeat.get(seat.seat)?.id||'');
   const openMember=(seat:HemicycleSeat)=>{const ballot=ballots.bySeat.get(seat.seat);if(ballot)onMember?.(Number(ballot.id));};
   const clickSeat=(event:MouseEvent<SVGCircleElement>,seat:HemicycleSeat)=>{
@@ -74,6 +76,12 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
     setActive(target.seat);
     event.currentTarget.querySelector<SVGCircleElement>(`[data-seat="${target.seat}"]`)?.focus();
   };
+  const circles=useMemo(()=>seats.map(seat=>{
+            const ballot=ballots.bySeat.get(seat.seat);
+            return <circle key={seat.seat} data-seat={seat.seat} cx={seat.x} cy={seat.y} r={seat.r} fill={ballot?positionFill[ballot.position]:'transparent'} style={ballot?undefined:{stroke:'var(--line)',strokeWidth:Math.max(1,seat.r*.18)}} data-dimmed={dimmed(seat)?'true':undefined} tabIndex={seat.seat===(active??seats[0]?.seat)?0:-1} role="button" aria-label={labels.get(seat.seat)} onPointerDown={markPointer} onClick={event=>clickSeat(event,seat)} onFocus={()=>setActive(seat.seat)} onPointerEnter={()=>setHovered(seat.seat)} onPointerLeave={()=>setHovered(null)} onKeyDown={event=>keySeat(event,seat)}>
+              <title>{labels.get(seat.seat)}</title>
+            </circle>;
+          }),[seats,ballots,view,differIds,active,labels]);
   return <section className="vote-seats" lang={ui.language} aria-labelledby={headingId}>
     <div className="insight-section-heading">
       <h4 id={headingId}><UiMessage id="voteSeats.heading"/></h4>
@@ -85,12 +93,7 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
     {!plan?<p className="insight-secondary" role={state.error?'alert':'status'}>{state.error?<UiMessage id="voteSeats.unavailable"/>:<UiMessage id="insightshared.loading"/>}</p>:<>
       <figure className="vote-seats-chart">
         <svg viewBox={`0 0 ${plan.width} ${plan.height}`} role="group" aria-label={ui.t('voteSeats.chart')} onClick={clickChart}>
-          {seats.map(seat=>{
-            const ballot=ballots.bySeat.get(seat.seat);
-            return <circle key={seat.seat} data-seat={seat.seat} cx={seat.x} cy={seat.y} r={seat.r} fill={ballot?positionFill[ballot.position]:'transparent'} style={ballot?undefined:{stroke:'var(--line)',strokeWidth:Math.max(1,seat.r*.18)}} data-dimmed={dimmed(seat)?'true':undefined} tabIndex={seat.seat===(active??seats[0]?.seat)?0:-1} role="button" aria-label={label(seat,ballot)} onPointerDown={markPointer} onClick={event=>clickSeat(event,seat)} onFocus={()=>setActive(seat.seat)} onPointerEnter={()=>setHovered(seat.seat)} onPointerLeave={()=>setHovered(null)} onKeyDown={event=>keySeat(event,seat)}>
-              <title>{label(seat,ballot)}</title>
-            </circle>;
-          })}
+          {circles}
           {selected&&<circle className="vote-seat-selected" cx={selected.x} cy={selected.y} r={selected.r*1.9} style={{strokeWidth:Math.max(1.5,selected.r*.4)}}/>}
         </svg>
         <figcaption className="vote-seat-info" aria-live="polite">{selected?<>{fullName(selected)} · <span lang={groupLabelLanguage(selected.group||'',ui)}>{groupLabel(selected.group||'',ui)}</span> · {countryName(selected.country||'',language)} · {positionLabel(selected,selectedBallot||undefined)}{selectedBallot&&differIds.has(selectedBallot.id)&&<> · <UiMessage id="voteSeats.differs"/></>}{selectedBallot&&<button type="button" className="insight-text-button" onClick={()=>openMember(selected)}><UiMessage id="hemicycle.openMember"/></button>}</>:<UiMessage id="voteSeats.pick"/>}</figcaption>
