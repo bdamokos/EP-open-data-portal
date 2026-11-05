@@ -101,7 +101,7 @@ function nativeUnitText(section,unit) {
  const result=start===undefined||finish===undefined?null:text.slice(start,finish);
  return result!==null&&coordinates(result)===coordinates(unit.text)?result:null;
 }
-export function councilArticleNativeScope(raw,wording,{nativeBodyWords}={}) {
+export function councilArticleNativeScope(raw,wording,{nativeBodyWords,sequential=false}={}) {
  const g=grammar[wording.language];if(!g)return null;
  if(wording.targetLabel!==undefined&&wording.targetPath?.proposal?.[0]?.raw!==undefined&&literal(String(wording.targetLabel).split('\n')[0])!==literal(wording.targetPath.proposal[0].raw))return null;
  const outer=label(wording.targetPath?.proposal?.[0]?.raw??String(wording.targetLabel??'').split('\n')[0],g);
@@ -133,10 +133,13 @@ export function councilArticleNativeScope(raw,wording,{nativeBodyWords}={}) {
  else if(inherited&&inherited[1]===inner[0].value&&inner[1]?.kind==='paragraph'&&inherited[2]===inner[1].base){const start=point.search(/^[ \t]*[„“‘«»"]\d+\.\s/mu);if(start<0)return null;section=point.slice(start);}
  else return null;
  if(!/[„“‘«»"][ \t]*(?:Článek|Article|Artículo|Artikel|KAPITOLA|CHAPTER|CAPÍTULO|KAPITEL|\d+\.)/iu.test(point))return null;
+ const peers=children(section,'paragraph'),numbers=peers.map(p=>Number(p.value));
+ const repeated=numbers.length>=3&&numbers.length<=64&&numbers[0]===1&&new Set(numbers).size<numbers.length&&numbers.every((n,i)=>Number.isSafeInteger(n)&&n>0&&(!i||n===numbers[i-1]||n===numbers[i-1]+1));
+ if(sequential&&!repeated)return null;
  let units=[{text:section,blocks:chunks(section),offset:0}];
  for(const segment of inner.slice(1)){
   if(segment.suffix)break; // For insertions the final new label selects siblings below.
-  if(segment.kind==='paragraph'||segment.kind==='point')units=units.flatMap(u=>children(u.text,segment.kind).map(child=>({...child,offset:u.offset+child.offset}))).filter(u=>u.value===segment.value);
+  if(segment.kind==='paragraph'||segment.kind==='point')units=units.flatMap(u=>children(u.text,segment.kind).map(child=>({...child,offset:u.offset+child.offset}))).filter((u,i)=>sequential&&segment.kind==='paragraph'?i+1===Number(segment.base):u.value===segment.value);
   else if(segment.kind==='subparagraph')units=units.flatMap(u=>{
    // A labelled child and all its continuations need subtree ownership. Flat
    // filtering cannot prove where that child ends. Check original native lines
@@ -152,7 +155,7 @@ export function councilArticleNativeScope(raw,wording,{nativeBodyWords}={}) {
    const direct=blocksWithOffsets(u.text),block=direct[Number(segment.value)-1];return block?[{text:block.text,blocks:[block.text],offset:u.offset+block.offset}]:[];
   });else return null;
  }
- return {section,followingSection,units,inner,outer,point,frame:source.slice(begin.index,begin.index+begin[0].length+end)};
+ return {section,followingSection,units,inner,outer,point,sequential:sequential&&repeated,peers,frame:source.slice(begin.index,begin.index+begin[0].length+end)};
 }
 export function assertCouncilDraftArticleText(raw,{placement,wording,items,nativeBodyWords}) {
  const scope=councilArticleNativeScope(raw,wording,{nativeBodyWords});if(!scope)return unknown('article-ownership-unproved');
@@ -197,4 +200,38 @@ export function assertCouncilDraftArticleText(raw,{placement,wording,items,nativ
  const expected=native.start+inside,actualStart=owner.starts[s.start]+coordinates(first.slice(0,p.start.offset)).length,actualEnd=owner.starts[s.end]+coordinates(last.slice(0,p.end.offset)).length;
  if(actualStart!==expected||actualEnd!==expected+coordinates(original).length)return failed();
  return {status:'verified',reason:'native-council-pdf-article-original-and-address'};
+}
+
+// Count native paragraph starts independently of parsed units. A repeated run
+// permits an ordinal address only when it starts at one and has no gaps.
+export function assertCouncilSequentialText(raw,{placement,wording,items}) {
+ const scope=councilArticleNativeScope(raw,wording,{sequential:true});
+ if(!scope)return null;
+ const para=scope.inner[1];
+ if(para?.kind!=='paragraph'||!/^\d+$/u.test(para.base)||scope.inner.length>3)return null;
+ const index=Number(para.base)-1,unit=scope.peers[index];
+ if(!unit||Number(unit.value)===index+1)return null;
+ const proposal=items?.[placement.itemIndex]?.proposal,owner=proposal&&projectedOwner(proposal,scope);
+ if(!owner)return failed();
+ const native=nativeUnitRange(owner,unit);if(!native)return failed();
+ if(placement.operation==='insert'){
+  if(para.suffix!=='a'||scope.inner.length!==2||wording.originalText?.trim()||!new RegExp('^'+para.base+'a\\.\\s+\\S','u').test(wording.proposedText?.trim()??''))return failed();
+  const row=proposal.paragraphs[placement.insertAfter],next=scope.peers[index+1];
+  if(!row||placement.insertBefore!==placement.insertAfter+1)return failed();
+  let expected=native.end;
+  if(!next){const tail=/[“’»«"][.;]?\s*$/u.exec(unit.text);if(!tail)return failed();expected-=coordinates(tail[0]).length;}
+  const splice=placement.splice;
+  const actual=owner.starts[row.index]+coordinates(row.text.slice(0,splice?.start?.offset??row.text.length)).length;
+  if(actual!==expected||(!next&&(!splice||splice.start.paragraph!==row.index||splice.end.paragraph!==row.index||splice.start.offset!==splice.end.offset)))return failed();
+  return {status:'verified',reason:'native-sequential-paragraph-insertion'};
+ }
+ if(!['replace','delete'].includes(placement.operation)||para.suffix||scope.units.length!==1)return failed();
+ const strip=s=>literal(s).replace(/^\d+\.\s+/u,''),original=strip(wording.originalText),chosen=scope.units[0];
+ if(!original||strip(chosen.text)!==original||scope.peers.filter(p=>strip(p.text).includes(original)).length!==1)return failed();
+ const splice=placement.splice,span=placement.span;if(!splice||!span)return failed();
+ const rows=proposal.paragraphs.slice(span.start,span.end+1),rendered=rows.map((p,i)=>p.text.slice(i?0:splice.start.offset,i===rows.length-1?splice.end.offset:p.text.length)).join(' ');
+ if(strip(rendered)!==original)return failed();
+ const selected=nativeUnitRange(owner,chosen),start=owner.starts[span.start]+coordinates(rows[0].text.slice(0,splice.start.offset)).length,end=owner.starts[span.end]+coordinates(rows.at(-1).text.slice(0,splice.end.offset)).length;
+ if(!selected||start!==selected.start||end!==selected.end)return failed();
+ return {status:'verified',reason:'native-sequential-paragraph-wording'};
 }
