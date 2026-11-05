@@ -64,3 +64,5 @@
 .home-entries ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
 .home-entries a { text-decoration: underline; text-underline-offset: 2px; }
 .home-topics-list li, .home-outside-list li { border-top: 1px solid var(--line); padding-top: .45rem; }
+.home .home-find { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: .6rem; text-align: left; }
+.home .home-find select { width: auto; flex: 0 1 18rem; }
