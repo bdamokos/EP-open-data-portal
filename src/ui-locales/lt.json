@@ -2354,5 +2354,7 @@
   "proposalcontexttext.existing.act.part.index": "Esamas teisės aktas · dalis {index}",
   "hemicycle.unavailable": "Sėdimų vietų planas nepasiekiamas.",
   "MotionComparison.sourceDocx": "Šaltinio DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Oficiali pakeitimo formuluotė ↗"
+  "motionamendments.official_amendment_wording.05a440": "Oficiali pakeitimo formuluotė ↗",
+  "amendments.document.fc29c3": "Dokumentas ↗",
+  "amendments.document_language.aedd07": "Dokumentas · {language} ↗"
 }

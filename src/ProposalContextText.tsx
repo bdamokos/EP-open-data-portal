@@ -226,7 +226,7 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
         <ReferenceScope texts={readerTexts(p.paragraphs.map(p=>p.text),notes,links)} notes={notes} notePrefix={prefix+'-'+index} language={language} textLanguage={baseline.language} renderQuestion={question=><InsightQuestionReader id={question} language={language} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers/>}>
           <ItemText proposal={p} itemIndex={index} placement={effective} block={amendmentBlock} prefix={prefix+'-'+index}/>
         </ReferenceScope>
-        
+
       </section>;
     })}</div>
     <p className="document-context-source">{baseline.attribution}</p>

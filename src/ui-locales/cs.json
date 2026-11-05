@@ -2354,5 +2354,7 @@
   "proposalcontexttext.existing.act.part.index": "Stávající právní akt · část {index}",
   "hemicycle.unavailable": "Zasedací pořádek není k dispozici.",
   "MotionComparison.sourceDocx": "Zdrojový DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Úřední znění pozměňovacího návrhu ↗"
+  "motionamendments.official_amendment_wording.05a440": "Úřední znění pozměňovacího návrhu ↗",
+  "amendments.document.fc29c3": "Dokument ↗",
+  "amendments.document_language.aedd07": "Dokument · {language} ↗"
 }

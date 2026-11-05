@@ -2354,5 +2354,7 @@
   "proposalcontexttext.existing.act.part.index": "Olemasolev õigusakt · osa {index}",
   "hemicycle.unavailable": "Istumiskord pole saadaval.",
   "MotionComparison.sourceDocx": "Algne DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Muudatusettepaneku ametlik sõnastus ↗"
+  "motionamendments.official_amendment_wording.05a440": "Muudatusettepaneku ametlik sõnastus ↗",
+  "amendments.document.fc29c3": "Dokument ↗",
+  "amendments.document_language.aedd07": "Dokument · {language} ↗"
 }

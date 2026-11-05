@@ -182,7 +182,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {document&&<header className="document-context-heading"><h3 lang={title?.language}>{title?.text}</h3></header>}
     <p className="document-context-notice"><UiMessage id="documentcontext.council.quotation"/></p>
     {amendmentBlock(false)}
-    
+
   </div>;
   // The agreement's own text, with Parliament's marks, replaces the report's text.
   if(provisional&&(agreement||agreementState.loading&&!agreementState.data))return <div className="document-context-document">

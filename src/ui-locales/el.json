@@ -2354,5 +2354,7 @@
   "proposalcontexttext.existing.act.part.index": "Υφιστάμενη πράξη · μέρος {index}",
   "hemicycle.unavailable": "Η διάταξη εδράνων δεν είναι διαθέσιμη.",
   "MotionComparison.sourceDocx": "Πηγή DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Επίσημη διατύπωση τροπολογίας ↗"
+  "motionamendments.official_amendment_wording.05a440": "Επίσημη διατύπωση τροπολογίας ↗",
+  "amendments.document.fc29c3": "Έγγραφο ↗",
+  "amendments.document_language.aedd07": "Έγγραφο · {language} ↗"
 }

@@ -2354,5 +2354,7 @@
   "proposalcontexttext.existing.act.part.index": "Voimassa oleva säädös · osa {index}",
   "hemicycle.unavailable": "Istumajärjestystä ei ole saatavilla.",
   "MotionComparison.sourceDocx": "Lähde-DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Tarkistuksen virallinen sanamuoto ↗"
+  "motionamendments.official_amendment_wording.05a440": "Tarkistuksen virallinen sanamuoto ↗",
+  "amendments.document.fc29c3": "Asiakirja ↗",
+  "amendments.document_language.aedd07": "Asiakirja · {language} ↗"
 }

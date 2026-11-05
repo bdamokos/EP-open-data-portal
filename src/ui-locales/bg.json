@@ -2354,5 +2354,7 @@
   "proposalcontexttext.existing.act.part.index": "Съществуващ акт · част {index}",
   "hemicycle.unavailable": "Схемата на местата не е налична.",
   "MotionComparison.sourceDocx": "Източник DOCX · {language} ↗",
-  "motionamendments.official_amendment_wording.05a440": "Официален текст на изменението ↗"
+  "motionamendments.official_amendment_wording.05a440": "Официален текст на изменението ↗",
+  "amendments.document.fc29c3": "Документ ↗",
+  "amendments.document_language.aedd07": "Документ · {language} ↗"
 }
