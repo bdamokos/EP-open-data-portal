@@ -1458,6 +1458,20 @@ test('provisional agreement shows the whole agreement with Parliament’s marks,
   assert.equal(h.container.querySelector('ins,del'),null);
 });
 
+test('provisional agreement hides the marks legend when its document fails or has no text',async t=>{
+  for(const failure of ['http','extraction','empty'])await t.test(failure,async t=>{
+    const h=await harness(t,provisionalRoutes(agreementLinks(),id=>{
+      if(failure==='http')throw new Error('Document could not be loaded');
+      const response=agreementText(id);response.document.selectedText={...response.document.selectedText,status:failure==='extraction'?'error':'available',paragraphs:[]};return response;
+    }));
+    await h.render({request:overlayRequest,language:'en'});await h.settle();await h.settle();
+    assert.match(h.container.textContent,/Replaces the whole text/);
+    assert(h.container.querySelector('.provisional-links'));
+    assert(!h.container.textContent.includes('Bold italics:'));
+    assert(!h.container.textContent.includes('Some changes are not marked.'));
+  });
+});
+
 test('an unresolved proposal shows its COM number as plain text and no link is invented',async t=>{
   await t.test('COM number only',async t=>{
     const h=await harness(t,provisionalRoutes(agreementLinks({proposal:{reference:'COM(2024)0023',year:'2024',number:'0023',url:null},finalAct:null,adoptedText:null})));await h.render({request:overlayRequest,language:'en'});await h.settle();await h.settle();
