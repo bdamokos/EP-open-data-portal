@@ -2843,5 +2843,6 @@
   "documentcontext.single_word_difference": "Le texte original diffère d’un mot.",
   "proposalcontexttext.original.citation.omits.an.identifier": "La référence d’origine omet un identifiant",
   "proposalcontexttext.printed.point.label": "Nouveau point {point}. Le libellé indique le point {base}.",
-  "proposalcontexttext.unique.entry.labels": "Position déterminée par l’entrée unique. Les libellés divergent."
+  "proposalcontexttext.unique.entry.labels": "Position déterminée par l’entrée unique. Les libellés divergent.",
+  "proposalcontexttext.sequential.paragraph": "Paragraphe {report} du rapport ; paragraphe {source} de la source."
 }

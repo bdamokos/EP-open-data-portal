@@ -1,3 +1,5 @@
+import {assertSequentialParagraph} from './amendment-sequential-paragraph-oracle.mjs';
+import {assertSplitComparisonNotes} from './amendment-native-note-oracle.mjs';
 import {assertPrintedInsertion} from './amendment-printed-insertion-oracle.mjs';
 import {assertUniqueEntry} from './amendment-unique-entry-oracle.mjs';
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
@@ -630,12 +632,13 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const splitNotes=assertSplitComparisonNotes(input);if(splitNotes&&splitNotes.status!=='verified')return splitNotes;
   const captioned=assertCaptionedComparison(input);if(captioned&&captioned.status!=='verified')return captioned;
   const formula=assertFormulaGap(input);if(formula&&formula.status!=='verified')return formula;
   if(input.items?.[input.placement?.itemIndex]?.proposal?.sourceKind==='pdf')return assertCouncilDraftPlacement(input);
   const header=assertCompoundHeader(input);
   if(header&&header.status!=='verified')return header;
-  let result=verifyProposalPlacement(input);
+  let result=assertSequentialParagraph(input)??verifyProposalPlacement(input);
   // A native gap proof cannot preempt an existing verified address. The
   // generic anchor ID is unavailable for this independently proved fallback.
   if(result.status==='unverified'||result.reason==='oracle-anchor-missing') {

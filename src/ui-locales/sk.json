@@ -2843,5 +2843,6 @@
   "documentcontext.single_word_difference": "Pôvodné znenie sa líši o jedno slovo.",
   "proposalcontexttext.original.citation.omits.an.identifier": "V pôvodnej citácii chýba identifikátor",
   "proposalcontexttext.printed.point.label": "Nový bod {point}. V označení je uvedený bod {base}.",
-  "proposalcontexttext.unique.entry.labels": "Umiestnené podľa jediného zhodného záznamu. Označenia sa líšia."
+  "proposalcontexttext.unique.entry.labels": "Umiestnené podľa jediného zhodného záznamu. Označenia sa líšia.",
+  "proposalcontexttext.sequential.paragraph": "Odsek {report} v správe; odsek {source} v zdroji."
 }

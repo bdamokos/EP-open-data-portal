@@ -2843,5 +2843,6 @@
   "documentcontext.single_word_difference": "Izvorni tekst razlikuje se u jednoj riječi.",
   "proposalcontexttext.original.citation.omits.an.identifier": "U izvornom navodu nedostaje identifikator",
   "proposalcontexttext.printed.point.label": "Nova točka {point}. Oznaka navodi točku {base}.",
-  "proposalcontexttext.unique.entry.labels": "Smješteno prema jedinstvenom unosu. Oznake se razlikuju."
+  "proposalcontexttext.unique.entry.labels": "Smješteno prema jedinstvenom unosu. Oznake se razlikuju.",
+  "proposalcontexttext.sequential.paragraph": "Stavak {report} u izvješću; stavak {source} u izvoru."
 }
