@@ -50,7 +50,7 @@ test('alignment counts voters against the largest position within their own grou
   const member=id=>summary.members.get(String(id));
   // S&D has two for, one against and one abstention: its line is "for".
   assert.deepEqual(member(1).alignment,{with:1,against:0,abstained:0,notComparable:0});
-  assert.deepEqual(member(1).bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:1,comparable:1});
+  assert.deepEqual(member(1).bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:1,comparable:1,finalWithGroup:1,finalComparable:1});
   assert.deepEqual(member(3).alignment,{with:0,against:1,abstained:0,notComparable:0});
   assert.deepEqual(member(3).departures,[{decisionId:'MTG-PL-2026-10-07-DEC-900',date:DATE,wholeText:true,position:'against',line:'for'}]);
   assert.deepEqual(member(4).alignment,{with:0,against:0,abstained:1,notComparable:0});
@@ -77,7 +77,7 @@ test('non-attached members record ballots without a group line or departure',()=
   const member=summariseVoteSitting(day.day,createGroupOn(people),{groupGeneration:'g1'}).members.get('7');
   assert.equal(member.groupCode,null);
   assert.deepEqual(member.alignment,{with:0,against:0,abstained:0,notComparable:1});
-  assert.deepEqual(member.bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null});
+  assert.deepEqual(member.bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null});
   assert.deepEqual(member.departures,[]);
   assert.equal(member.ballots.recorded,1);
 });
@@ -89,7 +89,7 @@ test('a tied group position has no line, so no voter departs from it',()=>{
   for(const id of ['1','2']) {
     const member=summary.members.get(id);
     assert.deepEqual(member.alignment,{with:0,against:0,abstained:0,notComparable:1});
-    assert.deepEqual(member.bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null});
+    assert.deepEqual(member.bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null});
     assert.deepEqual(member.departures,[]);
   }
 });
@@ -98,7 +98,7 @@ test('a chairing member gains a chaired ballot without being counted absent',()=
   const people=groupsOf({1:'S&D',2:'S&D',999:'S&D'}),day=sitting([{for:[1],against:[2]}],{chairing:999});
   const member=summariseVoteSitting(day.day,createGroupOn(people),{groupGeneration:'g1'}).members.get('999');
   assert.deepEqual(member.ballots,{recorded:0,named:1,chaired:1});
-  assert.deepEqual(member.bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null});
+  assert.deepEqual(member.bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null});
   assert.deepEqual(member.alignment,{with:0,against:0,abstained:0,notComparable:0});
 });
 
@@ -114,7 +114,7 @@ test('mid-term entry dates attach a member and a finished mandate stays distinct
   assert.equal(summary.members.get('9').bySitting.withGroup,1);
   // A recorded ballot after the mandate ended is not a zero; it has no line.
   assert.equal(summary.members.get('10').groupCode,null);
-  assert.deepEqual(summary.members.get('10').bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null});
+  assert.deepEqual(summary.members.get('10').bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null});
   assert.equal(summary.members.get('10').alignment.notComparable,1);
 });
 

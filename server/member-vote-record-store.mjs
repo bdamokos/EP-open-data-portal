@@ -18,8 +18,10 @@ export function prepareMemberVoteRecord(store) {
     member_id TEXT PRIMARY KEY, body TEXT NOT NULL);`);
 }
 
-const totalBody=value=>value&&typeof value==='object'?{withGroup:Number(value.withGroup)||0,comparable:Number(value.comparable)||0}:{withGroup:0,comparable:0};
+const totalKeys=['withGroup','comparable','finalWithGroup','finalComparable'];
+const totalBody=value=>Object.fromEntries(totalKeys.map(key=>[key,Number(value?.[key])||0]));
 const readTotal=(db,memberId)=>{const row=db.prepare('SELECT body FROM member_vote_record_totals WHERE member_id=?').get(memberId);return totalBody(row?JSON.parse(row.body):null);};
+const shift=(total,by,sign)=>Object.fromEntries(totalKeys.map(key=>[key,Math.max(0,total[key]+sign*(by?.[key]||0))]));
 
 // Rewrites one sitting atomically and adjusts member totals by the difference,
 // so a term-wide median never needs a full projection scan.
@@ -30,14 +32,13 @@ export function writeMemberVoteRecord(store,day,{groupOn=null,groupGeneration=nu
     const db=store.db,putTotal=db.prepare('INSERT INTO member_vote_record_totals(member_id,body) VALUES(?,?) ON CONFLICT(member_id) DO UPDATE SET body=excluded.body');
     for(const row of db.prepare('SELECT member_id,body FROM member_vote_record_members WHERE sitting_id=?').all(summary.sittingId)) {
       const old=JSON.parse(row.body),current=readTotal(db,row.member_id);
-      putTotal.run(row.member_id,JSON.stringify({withGroup:Math.max(0,current.withGroup-(old.bySitting?.withGroup||0)),comparable:Math.max(0,current.comparable-(old.bySitting?.comparable||0))}));
+      putTotal.run(row.member_id,JSON.stringify(shift(current,old.bySitting,-1)));
     }
     db.prepare('DELETE FROM member_vote_record_members WHERE sitting_id=?').run(summary.sittingId);
     const insert=db.prepare('INSERT INTO member_vote_record_members(member_id,sitting_id,body) VALUES(?,?,?)');
     for(const [memberId,record] of summary.members) {
       insert.run(memberId,summary.sittingId,JSON.stringify(record));
-      const current=readTotal(db,memberId);
-      putTotal.run(memberId,JSON.stringify({withGroup:current.withGroup+(record.bySitting?.withGroup||0),comparable:current.comparable+(record.bySitting?.comparable||0)}));
+      putTotal.run(memberId,JSON.stringify(shift(readTotal(db,memberId),record.bySitting,1)));
     }
     db.prepare(`INSERT INTO member_vote_record_sittings(sitting_id,revision,date,group_generation,snapshot_version,named,decisions,complete)
       VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(sitting_id) DO UPDATE SET revision=excluded.revision,date=excluded.date,

@@ -8,6 +8,8 @@ import {pickTitle} from './member-vote-record-model.mjs';
 export const MEMBER_VOTE_RECORD_VERSION=1;
 export const MEMBER_VOTE_RECORD_LIMITS=Object.freeze({departures:50,maxOffset:10000});
 const emptyAlignment=()=>({with:0,against:0,abstained:0,notComparable:0});
+// A group-history answer that places the person in office on that day.
+const serving=answer=>typeof answer==='object'||answer==='ambiguous';
 
 export function memberVoteRecordQuery(search) {
   const allowed=['lang','scope','limit','offset'];
@@ -61,18 +63,19 @@ export class MemberVoteRecordReader {
         :{code:null,status:'unavailable'};
       const rows=db.prepare(`SELECT m.body AS body,s.sitting_id AS sittingId,s.date AS date,s.decisions AS decisions
         FROM member_vote_record_members m JOIN member_vote_record_sittings s ON s.sitting_id=m.sitting_id
-        WHERE m.member_id=? ORDER BY s.date DESC,s.sitting_id DESC`).all(id);
+        WHERE m.member_id=? AND s.snapshot_version=? ORDER BY s.date DESC,s.sitting_id DESC`).all(id,MEMBER_VOTE_SNAPSHOT_VERSION);
       const alignment={all:emptyAlignment(),wholeText:emptyAlignment()};
       const ballots={recorded:0,named:0,chaired:0};
-      const bySitting=[],departures=[];
+      const bySitting=[],departures=[],withRow=new Set();
       for(const row of rows) {
         const body=JSON.parse(row.body),decisions=JSON.parse(row.decisions);
+        withRow.add(row.sittingId);
         for(const key of ['with','against','abstained','notComparable']) {
           alignment.all[key]+=body.alignment?.[key]||0;
           alignment.wholeText[key]+=body.wholeText?.[key]||0;
         }
         ballots.recorded+=body.ballots?.recorded||0;ballots.chaired+=body.ballots?.chaired||0;
-        bySitting.push(body.bySitting||{sittingId:row.sittingId,date:row.date,withGroup:null,comparable:null});
+        bySitting.push({sittingId:row.sittingId,date:row.date,...Object.fromEntries(['withGroup','comparable','finalWithGroup','finalComparable'].map(key=>[key,body.bySitting?.[key]??null]))});
         for(const departure of body.departures||[]) {
           const decision=decisions[departure.decisionId]||{};
           const title=pickTitle(decision.titles,decision.referenceTexts,query.language);
@@ -80,29 +83,44 @@ export class MemberVoteRecordReader {
             position:departure.position??null,line:departure.line??null,...title});
         }
       }
+      // Named votes only count while the person held a mandate; a sitting whose
+      // membership is unknown leaves the total unknown rather than zero.
       const termFirst='MTG-PL-'+CURRENT_TERM_START;
-      try{ballots.named=db.prepare('SELECT COALESCE(SUM(named),0) AS n FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=?').get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;}catch{ballots.named=0;}
+      const sittings=db.prepare('SELECT sitting_id AS sittingId,date,named FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=?').all(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst);
+      let unknown=0;
+      for(const sitting of sittings) {
+        if(!sitting.named)continue;
+        const answer=groupOn?groupOn(id,sitting.date):'unavailable';
+        if(withRow.has(sitting.sittingId)||serving(answer))ballots.named+=sitting.named;
+        else if(answer!=='not-serving')unknown++;
+      }
+      if(unknown)ballots.named=null;
       const expected=db.prepare("SELECT COUNT(*) AS n FROM sitting_snapshots WHERE kind='votes' AND version=? AND id>=?").get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
-      const included=db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=?').get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
+      const included=sittings.length;
       const missing=Math.max(0,expected-included);
       const coverage={sittings:expected,included,missing,status:!expected&&!included?'unavailable':missing?'partial':'complete'};
       const period={from:CURRENT_TERM_START,to:rows[0]?.date??null};
+      // Medians are published only from a complete projection, so a gap in the
+      // stored sittings never shifts them.
       let comparison=null;
-      if(group.status==='attached'&&groupOn&&ballots.recorded>0) {
-        const own=db.prepare('SELECT body FROM member_vote_record_totals WHERE member_id=?').get(id);
-        const ownTotals=own?JSON.parse(own.body):null;
-        if(ownTotals?.comparable>0) {
-          const all=[],same=[];
-          for(const row of db.prepare('SELECT member_id,body FROM member_vote_record_totals').all()) {
-            const totals=JSON.parse(row.body);
-            if(!(totals.comparable>0))continue;
-            const share=totals.withGroup/totals.comparable;all.push(share);
-            const member=groupOn(row.member_id,today);
-            if(typeof member==='object'&&member.code===group.code)same.push(share);
+      if(group.status==='attached'&&groupOn&&ballots.recorded>0&&coverage.status==='complete') {
+        const shares={all:{all:[],same:[]},final:{all:[],same:[]}};
+        for(const row of db.prepare('SELECT member_id,body FROM member_vote_record_totals').all()) {
+          const totals=JSON.parse(row.body),answer=groupOn(row.member_id,today);
+          if(!serving(answer))continue;
+          const same=typeof answer==='object'&&answer.code===group.code;
+          for(const [key,withKey,comparableKey] of [['all','withGroup','comparable'],['final','finalWithGroup','finalComparable']]) {
+            if(!(totals[comparableKey]>0))continue;
+            const share=totals[withKey]/totals[comparableKey];
+            shares[key].all.push(share);
+            if(same)shares[key].same.push(share);
           }
-          const groupMedian=median(same),parliamentMedian=median(all);
-          comparison=groupMedian===null||parliamentMedian===null?null:{group:{median:groupMedian,members:same.length},parliament:{median:parliamentMedian,members:all.length}};
         }
+        const pair=key=>{
+          const groupMedian=median(shares[key].same),parliamentMedian=median(shares[key].all);
+          return groupMedian===null||parliamentMedian===null?null:{group:{median:groupMedian,members:shares[key].same.length},parliament:{median:parliamentMedian,members:shares[key].all.length}};
+        };
+        comparison={all:pair('all'),final:pair('final')};
       }
       const sorted=departures.sort((a,b)=>(b.wholeText?1:0)-(a.wholeText?1:0)||b.date.localeCompare(a.date)||b.decisionId.localeCompare(a.decisionId))
         .filter(item=>query.scope==='all'||item.wholeText);

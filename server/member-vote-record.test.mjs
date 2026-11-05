@@ -13,12 +13,12 @@ const person=code=>({coverage:'complete',mandateCoverage:'complete',mandates:[{s
 const history={members:{'1':person('S&D'),'2':person('Renew'),'3':person('S&D')},catalogue:{sources:[],bodies:[]}};
 const titles=(text)=>({en:text});
 
-function memberRow({sittingId,date,alignment=emptyAlignment(),wholeText=emptyAlignment(),recorded=0,named=0,chaired=0,withGroup=null,comparable=null,departures=[]}) {
+function memberRow({sittingId,date,alignment=emptyAlignment(),wholeText=emptyAlignment(),recorded=0,named=0,chaired=0,withGroup=null,comparable=null,finalWithGroup=null,finalComparable=null,departures=[]}) {
   return {memberId:MEP,sittingId,date,groupCode:'S&D',alignment,wholeText,ballots:{recorded,named,chaired},departures,
-    bySitting:{sittingId,date,withGroup,comparable}};
+    bySitting:{sittingId,date,withGroup,comparable,finalWithGroup,finalComparable}};
 }
 
-function database({includeC=true,generation=3,groupSnapshot=history,totals=[{memberId:MEP,withGroup:3,comparable:4},{memberId:'2',withGroup:2,comparable:4},{memberId:'3',withGroup:1,comparable:2}]}={}) {
+function database({includeC=true,generation=3,groupSnapshot=history,totals=[{memberId:MEP,withGroup:3,comparable:4,finalWithGroup:3,finalComparable:3},{memberId:'2',withGroup:2,comparable:4,finalWithGroup:1,finalComparable:2},{memberId:'3',withGroup:1,comparable:2,finalWithGroup:0,finalComparable:1}]}={}) {
   const db=new DatabaseSync(':memory:');
   db.exec(`CREATE TABLE member_vote_record_sittings (
     sitting_id TEXT PRIMARY KEY, revision TEXT NOT NULL, date TEXT NOT NULL,
@@ -39,13 +39,13 @@ function database({includeC=true,generation=3,groupSnapshot=history,totals=[{mem
     snapshot.run('votes',VERSION,id,complete,null);
   };
   const member=row=>insertMember.run(MEP,row.sittingId,JSON.stringify(row));
-  for(const total of totals)db.prepare('INSERT INTO member_vote_record_totals VALUES (?,?)').run(total.memberId,JSON.stringify({withGroup:total.withGroup,comparable:total.comparable}));
+  for(const total of totals)db.prepare('INSERT INTO member_vote_record_totals VALUES (?,?)').run(total.memberId,JSON.stringify(total));
   if(includeC)snapshot.run('votes',VERSION,C,1,null);
   return {db,sitting,member,snapshot};
 }
 
-function fullDatabase() {
-  const {db,sitting,member}=database();
+function fullDatabase({complete=false}={}) {
+  const {db,sitting,member}=database({includeC:!complete});
   sitting(A,{named:2,decisions:{
     [decision(A,1)]:{titles:titles('First final'),referenceTexts:{},outcome:'ADOPTED',scope:'whole-text',wholeText:true,method:'VOTE_ELECTRONIC_ROLLCALL'},
     [decision(A,2)]:{titles:titles('First amendment'),referenceTexts:{},outcome:'REJECTED',scope:'amendment',wholeText:false,method:'VOTE_ELECTRONIC_ROLLCALL'},
@@ -55,9 +55,9 @@ function fullDatabase() {
     [decision(B,4)]:{titles:titles('Second amendment'),referenceTexts:{},outcome:'REJECTED',scope:'amendment',wholeText:false,method:'VOTE_ELECTRONIC_ROLLCALL'},
   }});
   member(memberRow({sittingId:A,date:'2026-09-16',alignment:{with:1,against:1,abstained:0,notComparable:0},wholeText:{with:1,against:0,abstained:0,notComparable:0},
-    recorded:2,named:2,withGroup:1,comparable:2,departures:[{decisionId:decision(A,2),date:'2026-09-16',wholeText:false,position:'against',line:'for'}]}));
+    recorded:2,named:2,withGroup:1,comparable:2,finalWithGroup:1,finalComparable:1,departures:[{decisionId:decision(A,2),date:'2026-09-16',wholeText:false,position:'against',line:'for'}]}));
   member(memberRow({sittingId:B,date:'2026-10-07',alignment:{with:2,against:0,abstained:1,notComparable:0},wholeText:{with:2,against:0,abstained:0,notComparable:0},
-    recorded:3,named:2,chaired:1,withGroup:2,comparable:2,departures:[
+    recorded:3,named:2,chaired:1,withGroup:2,comparable:2,finalWithGroup:2,finalComparable:2,departures:[
       {decisionId:decision(B,3),date:'2026-10-07',wholeText:true,position:'against',line:'for'},
       {decisionId:decision(B,4),date:'2026-10-07',wholeText:false,position:'against',line:'for'},
     ]}));
@@ -79,8 +79,8 @@ test('the reader combines stored member rows without parsing snapshots or contac
   assert.deepEqual(data.alignment.wholeText,{with:3,against:0,abstained:0,notComparable:0});
   assert.deepEqual(data.ballots,{recorded:5,named:4,chaired:1});
   assert.deepEqual(data.bySitting,[
-    {sittingId:B,date:'2026-10-07',withGroup:2,comparable:2},
-    {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2},
+    {sittingId:B,date:'2026-10-07',withGroup:2,comparable:2,finalWithGroup:2,finalComparable:2},
+    {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2,finalWithGroup:1,finalComparable:1},
   ]);
   // Whole texts sort first, then newest first within each scope.
   assert.deepEqual(data.departures.items.map(item=>item.decisionId),[decision(B,3),decision(B,4),decision(A,2)]);
@@ -88,7 +88,34 @@ test('the reader combines stored member rows without parsing snapshots or contac
   assert.equal(data.departures.items[0].text,'Second final');
   assert.equal(data.departures.total,3);
   assert.equal(data.departures.nextOffset,null);
-  assert.deepEqual(data.comparison,{group:{median:0.625,members:2},parliament:{median:0.5,members:3}});
+  assert.equal(data.comparison,null,'medians need every stored sitting');
+});
+
+test('medians come from current members with comparable votes, for each scope, once coverage is complete',()=>{
+  const db=fullDatabase({complete:true});
+  const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00:00Z')});
+  const data=reader.query(MEP,{...query(),language:'en'});
+  assert.equal(data.coverage.status,'complete');
+  assert.deepEqual(data.comparison.all,{group:{median:0.625,members:2},parliament:{median:0.5,members:3}});
+  assert.deepEqual(data.comparison.final,{group:{median:0.5,members:2},parliament:{median:0.5,members:3}});
+  // A member who left office is not a current member.
+  const left={...history,members:{...history.members,'3':{...person('S&D'),mandates:[{start:'2024-07-16',end:'2026-01-01'}],mandateCoverage:'complete',groups:[{code:'S&D',org:'org/S&D',groupId:'org/S&D',start:'2024-07-16',end:'2026-01-01'}]}}};
+  db.prepare('UPDATE group_history_snapshots SET body=?').run(JSON.stringify(left));
+  assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).comparison.all,{group:{median:0.75,members:1},parliament:{median:0.625,members:2}});
+});
+
+test('named votes count only while in office, and an unknown mandate leaves the total unknown',()=>{
+  const db=fullDatabase({complete:true});
+  const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00:00Z')});
+  // Joined after the first sitting without a ballot there: only the second sitting's votes are due.
+  db.prepare('DELETE FROM member_vote_record_members WHERE sitting_id=?').run(A);
+  const joined={...history,members:{...history.members,'1':{...person('S&D'),mandates:[{start:'2026-10-01',end:null}],groups:[{code:'S&D',org:'org/S&D',groupId:'org/S&D',start:'2026-10-01',end:null}]}}};
+  db.prepare('UPDATE group_history_snapshots SET body=?').run(JSON.stringify(joined));
+  assert.equal(reader.query(MEP,{...query(),language:'en'}).ballots.named,2);
+  db.prepare('UPDATE group_history_snapshots SET body=?').run(JSON.stringify({members:{},catalogue:{sources:[],bodies:[]}}));
+  const unknown=reader.query(MEP,{...query(),language:'en'});
+  assert.equal(unknown.ballots.named,null);
+  assert.equal(unknown.ballots.recorded,3);
 });
 
 test('scope, limit and offset select departures without changing the stored totals',()=>{

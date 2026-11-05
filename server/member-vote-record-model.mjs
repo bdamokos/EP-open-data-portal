@@ -93,8 +93,9 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
       const record=member(id),linePosition=attached?lines.get(group.code)??null:null;
       record.ballots.recorded++;
       if(attached)record.groupCode=group.code;
-      const alignment=!attached?'notComparable':memberVoteAlignment({ballotStatus:'conducted',actualPosition:{status:'recorded',position}},linePosition);
-      record.alignment[alignment==='unclassified'?'notComparable':alignment]++;
+      const classified=!attached?'unclassified':memberVoteAlignment({ballotStatus:'conducted',actualPosition:{status:'recorded',position}},linePosition);
+      const alignment=classified==='unclassified'?'notComparable':classified;
+      record.alignment[alignment]++;
       if(wholeText)record.wholeText[alignment]++;
       if(alignment==='against')record.departures.push({decisionId:item.id,date,wholeText,position,line:linePosition});
     }
@@ -105,8 +106,10 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
   for(const record of members.values()) {
     record.ballots.named=sitting.named;
     const attached=attachedGroup(resolve(record.memberId,date));
-    const comparable=record.alignment.with+record.alignment.against;
-    record.bySitting=attached&&comparable>0?{sittingId,date,withGroup:record.alignment.with,comparable}:{sittingId,date,withGroup:null,comparable:null};
+    const comparable=record.alignment.with+record.alignment.against,finalComparable=record.wholeText.with+record.wholeText.against;
+    record.bySitting={sittingId,date,
+      withGroup:attached&&comparable>0?record.alignment.with:null,comparable:attached&&comparable>0?comparable:null,
+      finalWithGroup:attached&&finalComparable>0?record.wholeText.with:null,finalComparable:attached&&finalComparable>0?finalComparable:null};
   }
   return {sittingId,date,revision:memberVoteRecordRevision(day,groupGeneration),sitting,members};
 }

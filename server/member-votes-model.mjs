@@ -139,7 +139,7 @@ export function memberVoteAlignment(vote,line) {
   const chosen=line===undefined?(vote.outcome==='ADOPTED'?'for':vote.outcome==='REJECTED'?'against':null):(line==='ADOPTED'?'for':line==='REJECTED'?'against':line);
   if(!['for','against','abstaining'].includes(chosen))return 'unclassified';
   const position=vote.actualPosition.position;
-  if(position==='abstaining')return 'abstained';
+  if(position==='abstaining')return chosen==='abstaining'?'with':'abstained';
   if(!['for','against'].includes(position))return 'unclassified';
   return position===chosen?'with':'against';
 }

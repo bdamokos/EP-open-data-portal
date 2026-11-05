@@ -23,7 +23,7 @@ test('one sitting write replaces member rows and adjusts term totals by the diff
   writeMemberVoteRecord(store,fixture.day,{groupOn,groupGeneration:'g1',snapshotVersion:7});
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_sittings').get().n,1);
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,4);
-  assert.deepEqual(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_totals WHERE member_id='197591'").get().body),{withGroup:1,comparable:1});
+  assert.deepEqual(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_totals WHERE member_id='197591'").get().body),{withGroup:1,comparable:1,finalWithGroup:0,finalComparable:0});
   assert.equal(store.db.prepare("SELECT snapshot_version AS version,group_generation AS generation,complete FROM member_vote_record_sittings").get().version,7);
   assert.equal(store.db.prepare("SELECT group_generation AS generation FROM member_vote_record_sittings").get().generation,'g1');
 
@@ -32,9 +32,9 @@ test('one sitting write replaces member rows and adjusts term totals by the diff
   writeMemberVoteRecord(store,changed,{groupOn,groupGeneration:'g1',snapshotVersion:7});
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,3,'the sitting is replaced, never duplicated');
   // S&D now abstains as a group; a single abstaining S&D ballot has no comparable vote.
-  assert.deepEqual(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_totals WHERE member_id='197591'").get().body),{withGroup:0,comparable:0});
+  assert.deepEqual(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_totals WHERE member_id='197591'").get().body),{withGroup:0,comparable:0,finalWithGroup:0,finalComparable:0});
   assert.deepEqual(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_members WHERE member_id='197591'").get().body).bySitting,
-    {sittingId:'MTG-PL-2026-10-07',date:'2026-10-07',withGroup:null,comparable:null});
+    {sittingId:'MTG-PL-2026-10-07',date:'2026-10-07',withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null});
 });
 
 test('a complete votes snapshot without a current projection becomes one bounded backfill unit',async t=>{
