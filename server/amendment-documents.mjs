@@ -2,12 +2,13 @@ import {parseTargetLabel} from './proposal-labels.mjs';
 import {alternativeMotionHeading} from './amendment-alternative.mjs';
 import {committeeListId,committeeDraftId} from './committee-amendments.mjs';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
-import { docxParts } from './document-text.mjs';
+import {sourceIndex} from './docx-source-structure.mjs';
+import { docxContent, docxParts } from './document-text.mjs';
 import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='25';
+export const AMENDMENT_EXTRACTION_VERSION='26';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -241,6 +242,7 @@ function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'
 function documentBlocks(parts,warnings,language) {
   const style=visibility(parts.get('word/styles.xml'));
   const documentXml=parts.get('word/document.xml'),documentTree=parser().parse(documentXml),stylesXml=parts.get('word/styles.xml');
+  const nativePaths=sourceIndex(documentTree);
   const nativeBindings=nodes=>nodes.every(node=>(node[':@']?.['@_xmlns:w']===undefined||node[':@']['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main')&&Object.values(node).every(value=>!Array.isArray(value)||nativeBindings(value)));
   const nativeHeader=language==='en'&&!/<!DOCTYPE|<!ENTITY/u.test(documentXml)&&XMLValidator.validate(documentXml)===true&&child(documentTree,'w:document')?.[':@']?.['@_xmlns:w']==='http://schemas.openxmlformats.org/wordprocessingml/2006/main'&&nativeBindings(documentTree)&&(!stylesXml||!/<!DOCTYPE|<!ENTITY/u.test(stylesXml)&&XMLValidator.validate(stylesXml)===true&&nativeBindings(parser().parse(stylesXml)));
   const compoundVisible=nativeHeader?compoundStyleSafety(stylesXml):null;
@@ -329,7 +331,7 @@ function documentBlocks(parts,warnings,language) {
         }
         const value=summary(content);
         unsupported ||= value.unsupportedBody;
-        return {...value,content,grid:currentCellGrid(cellNodes),nested:content.some(part=>part.nestedUnsupported),revised:content.some(part=>part.revised)};
+        return {...value,content,nativePath:nativePaths.get(cell)?.path,nativeReferences:JSON.stringify(cellNodes),grid:currentCellGrid(cellNodes),nested:content.some(part=>part.nestedUnsupported),revised:content.some(part=>part.revised)};
       });
       cells.gridNodes=rowNodes;
       revised ||= cells.some(cell=>cell.revised);
@@ -396,6 +398,29 @@ function sectionRows(table) {
 }
 
 /** Extract individual amendments without flattening the original/proposed columns. */
+function recoverSplitNotes(cell,native) {
+  if(cell.losses.length||cell.nested||!cell.nativePath)return null;
+  const indices=native.paragraphSources.flatMap((source,i)=>source.path.startsWith(cell.nativePath+'/')?[i]:[]);
+  if(indices.length!==1||indices.some(i=>native.paragraphSources[i].complete!==true||native.paragraphProperties[i].notesComplete!==true))return null;
+  const refs=native.anchors.filter(a=>indices.includes(a.paragraph));
+  if(!cell.hasNotes)return refs.length?null:cell;
+  if(!refs.length||new Set(refs.map(a=>a.label)).size!==refs.length)return null;
+  let offset=0;const points=[];
+  const plain=indices.map(i=>{const text=native.paragraphs[i];for(const a of refs.filter(a=>a.paragraph===i))points.push({...a,offset:offset+a.offset});offset+=text.length+1;return text;}).join('\n');
+  let previous=plain;
+  const customIds=new Set([...cell.nativeReferences.matchAll(/"w:footnoteReference":\[\],":@":\{([^}]+)\}/gu)].filter(m=>/"@_w:customMarkFollows":"(?:1|true|on)"/u.test(m[1])).map(m=>/"@_w:id":"([^"\n]+)"/u.exec(m[1])?.[1]));
+  for(const a of [...points].reverse())if(customIds.has(a.note))previous=previous.slice(0,a.offset)+a.label+previous.slice(a.offset);
+  if(previous!==cell.text)return null;
+  let text=plain;const payload=[];
+  for(const a of points){const n=native.notes.find(n=>n.id===a.note);if(!/^\d+$/u.test(a.label)||!n?.extractionComplete||!n.text||n.objects.length)return null;payload.push(a.label+' '+n.text);}
+  for(const a of [...points].reverse())text=text.slice(0,a.offset)+a.label+text.slice(a.offset);
+  let shift=0;const inserts=[];
+  for(const a of points){if(!customIds.has(a.note))inserts.push({offset:a.offset+shift,label:a.label});else shift+=a.label.length;}
+  const formatting=cell.formatting.map(mark=>({...mark}));let delta=0;
+  for(const a of inserts){const at=a.offset+delta;for(const mark of formatting){if(mark.start>=at)mark.start+=a.label.length;if(mark.end>at)mark.end+=a.label.length;}delta+=a.label.length;}
+  shift=0;for(const a of points){formatting.push({kind:'superscript',start:a.offset+shift,end:a.offset+shift+a.label.length});shift+=a.label.length;}
+  return {...cell,text:text+'\n_____\n'+payload.join('\n'),formatting,hasNotes:false};
+}
 export function extractAmendments(buffer,{listId,targetDocumentId,language=null,sourceUrl=null,fetchedAt=null,reportId=null,scope='plenary',sourceKind=null}={}) {
   if(scope==='committee'&&!(sourceKind==='amendment-list'&&committeeListId(listId)||['draft-report','draft-opinion'].includes(sourceKind)&&committeeDraftId(listId)))throw new Error('Invalid typed committee amendment source.');
   const warnings=new Set();let blocks=documentBlocks(docxParts(buffer),warnings,language);const groups=[],gaps=[];
@@ -517,6 +542,23 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     let formulaSource=false;try{const url=new URL(sourceUrl);formulaSource=url.protocol==='https:'&&!url.username&&!url.password;}catch{}
     const formulaRecovery=Boolean(formulaSource&&language==='en'&&formulaTarget&&tables.length===1&&!tables[0].unsupported&&!tables[0].revised&&!tables[0].gridUnsupported&&direct(tables[0].gridNodes,'w:tblGrid').length===1&&direct(children(tables[0].gridNodes,'w:tblGrid'),'w:gridCol').length===2&&documentReferences.filter(ref=>ref.field==='DocAmend'&&/^Proposal for a (?:regulation|directive|decision)$/u.test(ref.raw)).length===1&&!documentReferences.some(ref=>/^(?:Article|DocAmend)[2-4]$/u.test(ref.field))&&tables[0].rows.every(cells=>cells.every(cell=>cell.formulaSafe))&&formulaRows.length>1&&formulaRows.every(cells=>cells.length===2)&&formulaRows[0][0].text==='Text proposed by the Commission'&&formulaRows[0][1].text==='Amendment'&&formulaRows[0].every(cell=>!cell.formulaCount)&&formulaRows.slice(1).every(cells=>!cells[0].text&&!cells[0].formulaCount)&&formulaRows.slice(1).reduce((count,cells)=>count+cells[1].formulaCount,0)===1&&formulaRows[1][1].text.startsWith(formulaTarget[1]+formulaTarget[2]+'.\t'));
     if(formulaRecovery)gap('formula-not-shown',number,'Formula not shown.');
+    const headingRows=tables[0]?.rows.filter(cells=>cells.some(cell=>cell.text))??[];
+    const between=tables.length===2?group.slice(group.indexOf(tables[0])+1,group.indexOf(tables[1])):[];
+    const splitHeader=Boolean(!stacked&&language==='en'&&tables.length===2&&headingRows.length===1&&headingRows[0].length===2
+      &&comparisonHeading(headingRows[0][0].text,language).category==='motion-resolution'
+      &&isAmendmentHeading(headingRows[0][1].text,language)&&headingRows[0].every(cell=>cell.captionSafe&&!cell.hasNotes&&!cell.losses.length)
+      &&!tables[0].gridUnsupported&&!tables[0].unsupported&&!tables[0].revised
+      &&tables[1].rows.length===1&&tables[1].rows[0].length===2
+      &&between.every(block=>block.kind==='paragraph'&&block.captionSafe&&block.raw===''&&block.text===''&&!block.hasNotes&&!block.losses.length));
+    if(splitHeader){
+      let recovered=false;
+      try{
+        const native=docxContent(buffer,{includeParagraphProperties:true,includeNoteObjects:true});
+        const cells=tables[1].rows[0],copies=cells.map(cell=>recoverSplitNotes(cell,native));
+        if(copies.every(Boolean)){cells.splice(0,2,...copies);recovered=true;}
+      }catch{}
+      if(recovered)documentReferences.push({field:'ComparisonContinuation',raw:'split tables with native notes',scope:'amendment',basis:'native-split-comparison-notes'});
+    }
     const sections=[];let section=null;
     for(const table of tables) {
       hasTable=true;
@@ -524,7 +566,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       if(gridUnsupported)gap('comparison-grid',number,'The comparison grid contains unsupported column counts, spans, offsets or merges; both wording columns are withheld.');
       if(table.unsupported)gap('comparison-structure',number,'The comparison contains unsupported wrapped or embedded row/cell content; its wording is withheld.');
       if(table.revised)gap('structural-revision',number,'The comparison contains tracked structural insertion, deletion, merge or move markers; revision acceptance is unresolved and its wording is withheld.');
-      let headerConfirmed=false;
+      let headerConfirmed=splitHeader&&table===tables[1];
       const comparisonRows=stacked?sectionRows(table):table.rows.map(cells=>({table,cells}));
       for(const {table:rowTable,cells} of comparisonRows) {
         if(cells.some(c=>c.nested)){gap('nested-table',number,'A nested comparison table is unsupported.');continue;}

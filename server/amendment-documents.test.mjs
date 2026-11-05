@@ -90,7 +90,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'25');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'26');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -365,7 +365,7 @@ test('ordinary table properties and positional annotation markers do not invalid
 });
 
 test('unsupported comparison geometry withholds both columns with a numbered gap while another amendment remains intact',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'25');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'26');
   const grid=widths=>'<w:tblGrid>'+widths.map(width=>`<w:gridCol${width==null?'':` w:w="${width}"`}/>`).join('')+'</w:tblGrid>';
   const propsCell=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
   const header=row(propsCell('Motion for a resolution'),propsCell('Amendment'));
@@ -471,7 +471,7 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
 });
 
 test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'25');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'26');
   for(const marker of ['del','ins','moveFrom','moveTo']) {
     const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
     const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
@@ -857,4 +857,26 @@ test('tagged revised amendment numbers preserve their integer identity',()=>{
  const parsed=extractAmendments(native('14/rev'),options);
  assert.equal(parsed.amendments.length,1);assert.equal(parsed.amendments[0].number,14);assert.equal(parsed.amendments[0].proposedText,'10a. New paragraph.');
  for(const n of ['14/revised','14/rev2'])assert.equal(extractAmendments(native(n),options).amendments.length,0);
+});
+
+// Native split-table specimen: section-based automatic labels differ from IDs;
+// the proposed reference supplies its own printed label.
+test('split comparison keeps both native note columns and custom marks',async()=>{
+ const {assertSplitComparisonNotes}=await import('../scripts/amendment-native-note-oracle.mjs');
+ const old='<w:p><w:r><w:t>1. Old body</w:t><w:footnoteReference w:id="7"/></w:r></w:p>';
+ const next='<w:p><w:r><w:t>1. New body</w:t><w:footnoteReference w:id="9" w:customMarkFollows="1"/><w:t>4</w:t></w:r></w:p>';
+ const header=table(),grid='<w:tbl>'+row(cell(old),cell(next))+'</w:tbl>';
+ const xml=body(metadata()+header+p('')+grid+p('</Amend>')).replace('urn:word','http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+ const notes='<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:footnote w:id="7">'+p('Old citation.')+'</w:footnote><w:footnote w:id="9">'+p('4 New citation.')+'</w:footnote></w:footnotes>';
+ const bytes=archive(xml,'',{'word/footnotes.xml':notes});
+ const wording=extractAmendments(bytes,{language:'en'}).amendments[0];
+ assert(!wording.gaps.some(g=>g.code==='notes-unavailable'));
+ assert.equal(wording.originalText,'1. Old body1\n_____\n1 Old citation.');
+ assert.equal(wording.proposedText,'1. New body4\n_____\n4 New citation.');
+ assert.equal(assertSplitComparisonNotes({wording,nativeQuoted:{amendmentBuffer:bytes,number:1}}).status,'verified');
+ for(const side of ['originalText','proposedText']){const damaged={...wording,[side]:wording[side]+' lost note'};assert.equal(assertSplitComparisonNotes({wording:damaged,nativeQuoted:{amendmentBuffer:bytes,number:1}}).status,'failed');}
+ for(const changed of [notes.replace('Old citation.',''),notes.replace('w:id="7"','w:id="77"')]){
+  const broken=extractAmendments(archive(xml,'',{'word/footnotes.xml':changed}),{language:'en'}).amendments[0];
+  assert(broken.gaps.some(g=>g.code==='notes-unavailable'));
+ }
 });

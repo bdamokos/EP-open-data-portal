@@ -95,3 +95,16 @@ export function nativeSplitComparison(bytes,number) {
   return {text,notes};
  });
 }
+export function assertSplitComparisonNotes({wording,nativeQuoted}) {
+ if(!wording.documentReferences?.some(r=>r.basis==='native-split-comparison-notes'))return null;
+ try{
+  const columns=nativeSplitComparison(nativeQuoted?.amendmentBuffer,nativeQuoted?.number);
+  for(const [i,side] of ['original','proposed'].entries()){
+   const {text,notes}=columns[i];let body=text,shift=0;
+   for(const note of notes){body=body.slice(0,note.offset+shift)+note.label+body.slice(note.offset+shift);shift+=note.label.length;}
+   const expected=body+(notes.length?'\n_____\n'+notes.map(n=>n.label+' '+n.payload).join('\n'):'');
+   if(wording[side+'Text']!==expected)return {status:'failed',reason:'oracle-split-note-payload-mismatch'};
+  }
+  return {status:'verified',reason:'oracle-split-native-note-columns'};
+ }catch{return {status:'unverified',reason:'oracle-split-native-notes-unavailable'};}
+}
