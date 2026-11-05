@@ -1,5 +1,8 @@
 import {assertSequentialParagraph} from './amendment-sequential-paragraph-oracle.mjs';
 import {assertSplitComparisonNotes} from './amendment-native-note-oracle.mjs';
+import {assertHorizontalInstruction} from './amendment-horizontal-instruction-oracle.mjs';
+import {assertNegativeInstruction} from './amendment-negative-instruction-oracle.mjs';
+import {assertHeadingNumber} from './amendment-heading-number-oracle.mjs';
 import {assertPrintedInsertion} from './amendment-printed-insertion-oracle.mjs';
 import {assertUniqueEntry} from './amendment-unique-entry-oracle.mjs';
 import {unnumberedTableAddress,assertUnnumberedTable} from './amendment-unnumbered-table-oracle.mjs';
@@ -126,7 +129,8 @@ export function instructionFrameWording(wording) {
  if(segments?.[0]?.kind!=='article'||!last||!(last.isNew||last.negative)||!['point','article'].includes(last.kind))return null;
  // Outer-level instructions only: a new article, or a point directly under
  // the amending paragraph.
- if(!(segments.length===1&&last.kind==='article'||segments.length===3&&segments[1].kind==='paragraph'&&last.kind==='point'))return null;
+ const nestedNegative=segments.length===4&&segments[1].kind==='paragraph'&&segments[2].kind==='point'&&!segments[2].isNew&&last.kind==='point'&&last.value==='-a'&&last.isNew;
+ if(!(segments.length===1&&last.kind==='article'||segments.length===3&&segments[1].kind==='paragraph'&&last.kind==='point'||nestedNegative))return null;
  const number=String(last.value).replace(/^(-?\d+)([a-z]+)$/u,'$1 ?$2');
  const printed=last.kind==='article'?new RegExp('^(?:Article|Artykuł) '+number+'(?![ \\t]*[\\p{L}\\p{N}])','u'):new RegExp('^\\('+number+'\\)\\s|^'+number+'\\)\\s','u');
  if(!printed.test(wording.proposedText.trim()))return null;
@@ -633,6 +637,9 @@ function verifyResolutionInsertion(text,wording,target,placement) {
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
   const splitNotes=assertSplitComparisonNotes(input);if(splitNotes&&splitNotes.status!=='verified')return splitNotes;
+  const horizontal=assertHorizontalInstruction(input);if(horizontal&&horizontal.status!=='verified')return horizontal;
+  if(horizontal?.status==='verified')input={...input,wording:{...input.wording,originalText:input.wording.originalText.replace(/^(\d+) cikk\n/u,'$1. cikk\n')}};
+  const headingNumber=assertHeadingNumber(input);if(headingNumber)return headingNumber;
   const captioned=assertCaptionedComparison(input);if(captioned&&captioned.status!=='verified')return captioned;
   const formula=assertFormulaGap(input);if(formula&&formula.status!=='verified')return formula;
   if(input.items?.[input.placement?.itemIndex]?.proposal?.sourceKind==='pdf')return assertCouncilDraftPlacement(input);
@@ -671,6 +678,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
   const scope=verifyLanguageScope(placement,expectedLanguageScope(wording));
   if(scope)return scope;
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
+  const negativeInstruction=assertNegativeInstruction({items,wording,placement,nativeQuoted});if(negativeInstruction)return negativeInstruction;
   const printedInsertion=assertPrintedInsertion({items,wording,placement,nativeQuoted});
   if(printedInsertion)return printedInsertion;
   const uniqueEntry=assertUniqueEntry({items,wording,placement,nativeQuoted});

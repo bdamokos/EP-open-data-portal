@@ -2839,9 +2839,11 @@
   "proposalcontexttext.colliding.new.point": "Este número coincide con un punto existente. Situado después del punto base.",
   "proposalcontexttext.new.unnumbered.table": "Nueva tabla sin numerar situada al final del anexo.",
   "proposalcontexttext.new.point.order": "El nuevo punto {point} sigue al punto {base}.",
+  "documentcontext.original_wording_differs": "La redacción original difiere de la propuesta.",
   "documentcontext.single_word_difference": "El texto original difiere en una palabra.",
   "proposalcontexttext.original.citation.omits.an.identifier": "La cita original omite un identificador",
   "proposalcontexttext.printed.point.label": "Nuevo punto {point}. La etiqueta indica el punto {base}.",
   "proposalcontexttext.unique.entry.labels": "Ubicado por la entrada única. Las etiquetas no coinciden.",
-  "proposalcontexttext.sequential.paragraph": "Apartado {report} del informe; apartado {source} de la fuente."
+  "proposalcontexttext.sequential.paragraph": "Apartado {report} del informe; apartado {source} de la fuente.",
+  "proposalcontexttext.label_instruction_difference": "La indicación y la instrucción difieren. No se ha comprobado el texto vigente."
 }

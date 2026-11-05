@@ -2840,9 +2840,11 @@
   "proposalcontexttext.new.point.order": "Die neue Nummer {point} folgt auf Nummer {base}.",
   "topics.partialLegend": "Schraffiert: unvollständiges Quartal.",
   "topics.policyAreaSource": "Bezeichnungen der Politikbereiche: {source}.",
+  "documentcontext.original_wording_differs": "Der ursprüngliche Wortlaut weicht vom Vorschlag ab.",
   "documentcontext.single_word_difference": "Der ursprüngliche Wortlaut weicht um ein Wort ab.",
   "proposalcontexttext.original.citation.omits.an.identifier": "In der ursprünglichen Quellenangabe fehlt eine Kennung",
   "proposalcontexttext.printed.point.label": "Neue Nummer {point}. Die Überschrift nennt Nummer {base}.",
   "proposalcontexttext.unique.entry.labels": "Anhand des eindeutigen Eintrags platziert. Die Bezeichnungen weichen voneinander ab.",
-  "proposalcontexttext.sequential.paragraph": "Absatz {report} im Bericht; Absatz {source} in der Quelle."
+  "proposalcontexttext.sequential.paragraph": "Absatz {report} im Bericht; Absatz {source} in der Quelle.",
+  "proposalcontexttext.label_instruction_difference": "Bezeichnung und Anweisung weichen voneinander ab. Der geltende Text wurde nicht geprüft."
 }

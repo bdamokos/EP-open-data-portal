@@ -2840,9 +2840,11 @@
   "proposalcontexttext.new.point.order": "Il-punt il-ġdid {point} jiġi wara l-punt {base}.",
   "topics.partialLegend": "Linji djagonali: trimestru parzjali.",
   "topics.policyAreaSource": "Ismijiet tal-oqsma ta’ politika: {source}.",
+  "documentcontext.original_wording_differs": "Il-kliem oriġinali huwa differenti mill-proposta.",
   "documentcontext.single_word_difference": "It-test oriġinali jvarja b’kelma waħda.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Iċ-ċitazzjoni oriġinali tħalli barra identifikatur",
   "proposalcontexttext.printed.point.label": "Punt ġdid {point}. It-tikketta tindika l-punt {base}.",
   "proposalcontexttext.unique.entry.labels": "Imqiegħed skont l-entrata unika. It-tikketti ma jaqblux.",
-  "proposalcontexttext.sequential.paragraph": "Paragrafu {report} fir-rapport; paragrafu {source} fis-sors."
+  "proposalcontexttext.sequential.paragraph": "Paragrafu {report} fir-rapport; paragrafu {source} fis-sors.",
+  "proposalcontexttext.label_instruction_difference": "It-tikketta u l-istruzzjoni huma differenti. It-test fis-seħħ ma ġiex iċċekkjat."
 }

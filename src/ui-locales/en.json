@@ -2942,9 +2942,11 @@
   "proposalcontexttext.new.point.order": "New point {point} follows point {base}.",
   "topics.partialLegend": "Hatched: partial quarter.",
   "topics.policyAreaSource": "Policy-area names: {source}.",
+  "documentcontext.original_wording_differs": "Original wording differs from the proposal.",
   "documentcontext.single_word_difference": "Original wording differs by one word.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Original citation omits an identifier",
   "proposalcontexttext.printed.point.label": "New point {point}. The label reads point {base}.",
   "proposalcontexttext.unique.entry.labels": "Placed by the unique entry. The labels disagree.",
-  "proposalcontexttext.sequential.paragraph": "Report paragraph {report}; source paragraph {source}."
+  "proposalcontexttext.sequential.paragraph": "Report paragraph {report}; source paragraph {source}.",
+  "proposalcontexttext.label_instruction_difference": "Label and instruction differ. Present text not checked."
 }

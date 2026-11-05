@@ -2839,9 +2839,11 @@
   "proposalcontexttext.colliding.new.point": "Detta nummer används redan. Infogat efter grundpunkten.",
   "proposalcontexttext.new.unnumbered.table": "Ny onumrerad tabell infogad sist i bilagan.",
   "proposalcontexttext.new.point.order": "Den nya punkten {point} följer efter punkt {base}.",
+  "documentcontext.original_wording_differs": "Den ursprungliga ordalydelsen skiljer sig från förslaget.",
   "documentcontext.single_word_difference": "Den ursprungliga lydelsen skiljer sig med ett ord.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Den ursprungliga hänvisningen saknar en identifierare",
   "proposalcontexttext.printed.point.label": "Ny punkt {point}. Beteckningen anger punkt {base}.",
   "proposalcontexttext.unique.entry.labels": "Placerad utifrån den unika posten. Beteckningarna skiljer sig åt.",
-  "proposalcontexttext.sequential.paragraph": "Punkt {report} i betänkandet; punkt {source} i källan."
+  "proposalcontexttext.sequential.paragraph": "Punkt {report} i betänkandet; punkt {source} i källan.",
+  "proposalcontexttext.label_instruction_difference": "Beteckningen och instruktionen skiljer sig åt. Den gällande texten har inte kontrollerats."
 }

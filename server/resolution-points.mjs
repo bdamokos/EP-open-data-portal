@@ -148,6 +148,24 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   return {operation, status: 'placed', span: {start: unit.start, end: unit.end}, evidence};
 }
 
+// A decision point can tolerate up to five alphabetic word edits after its
+// complete, unique published path is proved. Numbers and internal punctuation
+// stay literal; the closing full stop/semicolon is presentation punctuation.
+function decisionWordDifference(left,right){
+ const tokens=value=>value.replace(/[.;]$/u,'').match(/[\p{L}\p{N}]+|[^\s]/gu)||[];
+ const a=tokens(left),b=tokens(right);
+ if(Math.abs(a.length-b.length)>5||JSON.stringify(a.filter(t=>!/^\p{L}+$/u.test(t)))!==JSON.stringify(b.filter(t=>!/^\p{L}+$/u.test(t))))return false;
+ const memo=new Map();
+ function distance(i,j,budget){
+  while(i<a.length&&j<b.length&&a[i]===b[j]){i++;j++;}
+  if(i===a.length||j===b.length)return a.length-i+b.length-j<=budget;
+  if(!budget)return false;
+  const key=i+':'+j+':'+budget;if(memo.has(key))return memo.get(key);
+  const ok=distance(i+1,j,budget-1)||distance(i,j+1,budget-1)||distance(i+1,j+1,budget-1);memo.set(key,ok);return ok;
+ }
+ return distance(0,0,5);
+}
+
 // A near match never chooses a point: the native paragraph/point chain and
 // complete point extent must already identify it. This leaves the top-level
 // paragraph/recital matcher and the strict point matcher unchanged.
@@ -177,7 +195,8 @@ export function resolutionPointNearPlacement(text,rows,structure,options,operati
  const score=value=>{let prefix=0;while(prefix<Math.min(value.length,original.length)&&value[prefix]===original[prefix])prefix++;return {similarity:characterSimilarity(value,original,.93),prefix:prefix>=80&&prefix<Math.min(value.length,original.length)?prefix/Math.min(value.length,original.length):0};};
  const own=score(source),others=candidates.filter(p=>p.start!==unit.start||p.end!==unit.end).map(p=>score(p.wording));
  const unique=own.similarity>=.95&&others.every(p=>p.similarity<=own.similarity-.02&&p.prefix<.5)||own.prefix>=.5&&others.every(p=>p.prefix<=own.prefix-.02&&p.similarity<.93);
- return unique?{operation,status:'placed',span:{start:unit.start,end:unit.end},evidence:[{basis:'published-point-path',path:path.map(({kind,value})=>({kind,value}))},{basis:'unique-similar-point-original',anchor:unit.start}]}:null;
+ const decisionDifference=!unique&&decision&&decisionWordDifference(source,original)&&characterSimilarity(source,original,.88)>=.9&&candidates.filter(p=>p.start!==unit.start||p.end!==unit.end).every(p=>characterSimilarity(p.wording,original,.86)<.88);
+ return unique||decisionDifference?{operation,status:'placed',span:{start:unit.start,end:unit.end},evidence:[{basis:'published-point-path',path:path.map(({kind,value})=>({kind,value}))},{basis:decisionDifference?'decision-point-original-difference':'unique-similar-point-original',anchor:unit.start}]}:null;
 }
 
 // Budget comparisons may compress a child into an 'including' clause. Only

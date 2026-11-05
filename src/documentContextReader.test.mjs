@@ -1578,3 +1578,26 @@ test('intraparagraph insertion preserves source text, styles, links and both nat
  const unplaced=h.container.querySelector('[data-amendment-block]');assert.notEqual(unplaced.dataset.contextTarget,'true');
  assert.equal(h.container.querySelectorAll('[data-source-paragraph="1"]').length,1);assert.equal(plain(h.container.querySelector('[data-source-paragraph="1"]')),value);
 });
+
+test('uniquely addressed decision wording differences show their short source note in place',async t=>{
+ const value=overlayResponse({operation:'replace',span:{start:2,end:2}});
+ value.placement.evidence=[{basis:'decision-point-original-difference',anchor:2}];
+ const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+ const block=h.container.querySelector('[data-amendment-block="true"][data-context-target="true"]');
+ assert(block);assert.match(block.textContent,/Original wording differs from the proposal\./);
+});
+
+test('a full-width amendment instruction remains visible beside a placed deletion',async t=>{
+ const value=proposalContextResponse(report,amendment,list),wording=value.amendment.variants[0];
+ const note='(Horizontális módosítás – elfogadása esetén e rendelet címét megfelelően ki kell igazítani.)';
+ wording.documentReferences=[...(wording.documentReferences||[]),{field:'ComparisonInstruction',basis:'full-width-deletion-instruction',raw:note}];
+ value.placement={...value.placement,operation:'delete'};
+ const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+ const block=h.container.querySelector('[data-amendment-block="true"]');assert(block);assert(block.textContent.includes(note));
+});
+
+test('a proposal-frame insertion explains the label difference and unchecked present text',async t=>{
+ const value=proposalContextResponse(report,amendment,list);value.placement.evidence.push({basis:'negative-nested-instruction'});
+ const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+ assert.match(h.container.querySelector('[data-amendment-block="true"]').textContent,/Label and instruction differ\. Present text not checked\./);
+});

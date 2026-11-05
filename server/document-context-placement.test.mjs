@@ -52,3 +52,12 @@ test('the proposal frame needs a new outer instruction printed with its own numb
   ])assert.equal(at(changes),null,JSON.stringify(changes));
   assert.equal(documentContextPlacement({chosen:{...chosen,proposedText:'(5c)\tArticle 6(1) is amended as follows:'},items:[],baseline:unavailable,proposalItems}).status,'unresolved');
 });
+
+test('a negative first child follows its instruction with the existing-law text unchecked',async()=>{
+ const {instructionFrameWording}=await import('../scripts/amendment-benchmark-model.mjs');
+ const w={...chosen,targetLabel:'Article 2 – paragraph 1 – point 2 – point -a (new)',targetPath:{language:'en',proposal:[],underlying:[{raw:'Article 15 – paragraph 2 – first subparagraph'}]},proposedText:'(-a) paragraph 1 is replaced by the following:\n"Changed text."'};
+ assert(proposalInstructionTarget(w));assert(instructionFrameWording(w));
+ for(const patch of [{proposedText:'(a) paragraph 1 is replaced:'},{proposedText:'(-a) paragraph 2 is replaced:'},{targetLabel:'Article 2 – paragraph 2 – point 2 – point -a (new)'},{targetPath:{...w.targetPath,underlying:[]}}])assert.equal(proposalInstructionTarget({...w,...patch}),null);
+ const cs={...w,language:'cs',targetLabelLanguage:'cs',targetLabel:'Čl. 2 – odst. 1 – bod 2 – písm. -a (nové)',targetPath:{language:'cs',proposal:[],underlying:[{raw:'Čl. 15 – odst. 2 – první pododstavec'}]},proposedText:'-a)\todstavec 1 se nahrazuje tímto:\n„Nové znění.“'};
+ assert(proposalInstructionTarget(cs));assert(instructionFrameWording(cs));
+});
