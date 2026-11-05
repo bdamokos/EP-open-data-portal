@@ -74,18 +74,19 @@ export function Home({language}:{language:string}) {
   // The shared vote-periods calendar drives the headline and the agenda links.
   const calendar=useData<VotePeriodsResponse>('vote-periods',{unavailable:'error.unavailable'});
   const weeks=calendar.data?.weeks||[],upcoming=calendar.data?.upcoming||[];
+  const settled=Boolean(calendar.data||calendar.error);
   const headline=headlineState(today,weeks,upcoming);
   const week=defaultAgendaWeek(today,weeks,upcoming);
   return <div className="home" lang={ui.language}>
     <div className="home-main">
       <header className="home-headline">
-        <h1 tabIndex={-1}>{(calendar.error&&!calendar.data?.weeks) ? ui.t('home.headline.unavailable') : headlineText(ui,headline,language)}</h1>
+        <h1 tabIndex={-1} aria-busy={settled?undefined:true}>{!settled ? '\u00a0' : (calendar.error&&!calendar.data?.weeks) ? ui.t('home.headline.unavailable') : headlineText(ui,headline,language)}</h1>
         <div className="home-search">
           <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} language={language} className="explorer-text-search-global" inline/>
           <FindMeps language={language}/>
         </div>
       </header>
-      <HomeAgenda week={week} language={language} today={today}/>
+      <HomeAgenda settled={settled} week={week} language={language} today={today}/>
       <HomeVotes language={language} today={today} week={weeks.find(held=>held.sittings.some(sitting=>sitting.date<=today))?.week||null}/>
     </div>
     <aside className="home-rail">
@@ -97,9 +98,10 @@ export function Home({language}:{language:string}) {
   </div>;
 }
 
-function HomeAgenda({week,language,today}:{week:string|null;language:string;today:string}) {
+function HomeAgenda({settled,week,language,today}:{settled:boolean;week:string|null;language:string;today:string}) {
   const ui=useUiI18n();
   const agenda=useInsightData<LegislationResponse>(week?'insights/legislation?'+new URLSearchParams({lang:language,week}):null);
+  if(!settled)return null;
   if(!week)return <section className="home-section home-agenda"><h2><UiMessage id="home.agenda.section"/></h2><p><UiMessage id="home.agenda.empty"/></p></section>;
   const rows=agendaRows(agenda.data?.topics,today,8);
   const days=[...new Set(rows.map(row=>row.day))];
@@ -125,11 +127,9 @@ function HomeVotes({language,today,week}:{language:string;today:string;week:stri
   const voteTopic=base.data?.topics.filter(topic=>topic.kind==='PLENARY_VOTE'&&topic.date<=today).sort((a,b)=>b.date.localeCompare(a.date))[0];
   const detail=useInsightData<LegislationResponse>(voteTopic?'insights/legislation?'+new URLSearchParams({lang:language,sitting:voteTopic.sittingId||('MTG-PL-'+voteTopic.date),topic:voteTopic.id}):null);
   const picks=detail.data?.detail?votePicks(detail.data.detail.votes,detail.data.detail.finalVotePatterns?.finalTextVoteIds||[]):[];
-  if(!week||!base.data||(detail.data&&!picks.length)||(!detail.data&&!detail.loading&&!detail.error))return null;
+  if(!week||!picks.length)return null;
   return <section className="home-section home-votes">
     <h2><UiMessage id="home.votes.section"/></h2>
-    {detail.loading&&!detail.data&&<p role="status"><UiMessage id="insightshared.loading"/></p>}
-    {(!detail.data&&detail.error)&&<InsightStatus loading={false} error={detail.error} retry={detail.retry}/>}
     {picks.map(pick=><HomePick key={pick.rule+':'+pick.vote.id} pick={pick} topicId={detail.data!.detail!.id} language={language}/>)}
   </section>;
 }
