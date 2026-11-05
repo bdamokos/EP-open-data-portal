@@ -1020,6 +1020,10 @@ function negativeArticlePlacement(items,proposedText,language,evidence,unresolve
 }
 
 export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting,baseline,documentReferences,number,listId}={}, {nativeProposalInputs}={}) {
+  // The retained full-width deletion note proves a whole-article comparison.
+  // Its printed Hungarian heading may omit the ordinal dot; keep the source
+  // wording intact and compare only that heading using its conventional form.
+  if(language==='hu'&&proposedText==='törölve'&&documentReferences?.some(ref=>ref.basis==='full-width-deletion-instruction')&&/^\d+ cikk$/u.test(targetLabel??'')&&originalText?.startsWith(targetLabel+'\n'))originalText=originalText.replace(/^(\d+) cikk\n/u,'$1. cikk\n');
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
   const pdfArticle=items?.some(item=>item.proposal?.sourceKind==='pdf')&&!/^(?:Recital|Bod odůvodnění|Betragtning|Considerando)\s+\d+/iu.test(targetLabel??'');

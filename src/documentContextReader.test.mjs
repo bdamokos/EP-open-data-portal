@@ -1546,3 +1546,12 @@ test('PDF source spacing uses published columns without false whitespace edits',
  assert(![...block.querySelectorAll('ins,del')].some(node=>node.textContent.trim()===''));
  assert(block.textContent.includes('Original'));assert(block.textContent.includes('Changed'));
 });
+
+test('a full-width amendment instruction remains visible beside a placed deletion',async t=>{
+ const value=proposalContextResponse(report,amendment,list),wording=value.amendment.variants[0];
+ const note='(Horizontális módosítás – elfogadása esetén e rendelet címét megfelelően ki kell igazítani.)';
+ wording.documentReferences=[...(wording.documentReferences||[]),{field:'ComparisonInstruction',basis:'full-width-deletion-instruction',raw:note}];
+ value.placement={...value.placement,operation:'delete'};
+ const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+ const block=h.container.querySelector('[data-amendment-block="true"]');assert(block);assert(block.textContent.includes(note));
+});
