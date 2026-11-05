@@ -2842,5 +2842,6 @@
   "documentcontext.single_word_difference": "Den oprindelige ordlyd afviger med ét ord.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Den oprindelige henvisning mangler en identifikator",
   "proposalcontexttext.printed.point.label": "Nyt punkt {point}. Betegnelsen angiver punkt {base}.",
-  "proposalcontexttext.unique.entry.labels": "Placeret efter den entydige post. Betegnelserne er forskellige."
+  "proposalcontexttext.unique.entry.labels": "Placeret efter den entydige post. Betegnelserne er forskellige.",
+  "proposalcontexttext.sequential.paragraph": "Afsnit {report} i betænkningen; afsnit {source} i kilden."
 }

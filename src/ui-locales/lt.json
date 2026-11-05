@@ -2843,5 +2843,6 @@
   "documentcontext.single_word_difference": "Pradinis tekstas skiriasi vienu žodžiu.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Pradinėje nuorodoje trūksta identifikatoriaus",
   "proposalcontexttext.printed.point.label": "Naujas {point} punktas. Žymoje nurodytas {base} punktas.",
-  "proposalcontexttext.unique.entry.labels": "Vieta nustatyta pagal vienintelį atitinkantį įrašą. Žymos nesutampa."
+  "proposalcontexttext.unique.entry.labels": "Vieta nustatyta pagal vienintelį atitinkantį įrašą. Žymos nesutampa.",
+  "proposalcontexttext.sequential.paragraph": "Pranešimo {report} dalis; šaltinio {source} dalis."
 }

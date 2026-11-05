@@ -2843,5 +2843,6 @@
   "documentcontext.single_word_difference": "Textul original diferă cu un cuvânt.",
   "proposalcontexttext.original.citation.omits.an.identifier": "Citarea originală omite un identificator",
   "proposalcontexttext.printed.point.label": "Punct nou {point}. Eticheta indică punctul {base}.",
-  "proposalcontexttext.unique.entry.labels": "Poziționat pe baza intrării unice. Etichetele diferă."
+  "proposalcontexttext.unique.entry.labels": "Poziționat pe baza intrării unice. Etichetele diferă.",
+  "proposalcontexttext.sequential.paragraph": "Alineatul {report} din raport; alineatul {source} din sursă."
 }

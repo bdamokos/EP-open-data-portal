@@ -2842,5 +2842,6 @@
   "documentcontext.single_word_difference": "El texto original difiere en una palabra.",
   "proposalcontexttext.original.citation.omits.an.identifier": "La cita original omite un identificador",
   "proposalcontexttext.printed.point.label": "Nuevo punto {point}. La etiqueta indica el punto {base}.",
-  "proposalcontexttext.unique.entry.labels": "Ubicado por la entrada única. Las etiquetas no coinciden."
+  "proposalcontexttext.unique.entry.labels": "Ubicado por la entrada única. Las etiquetas no coinciden.",
+  "proposalcontexttext.sequential.paragraph": "Apartado {report} del informe; apartado {source} de la fuente."
 }
