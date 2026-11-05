@@ -36,6 +36,15 @@ test('the missing ordinal dot is confined to the addressed article heading',asyn
  const items=[{kind:'act',proposal:parseProposal(source,{language:'hu'})}],wording=extract(xml),placement=resolveProposalPlacement(items,wording);
  assert.equal(placement.status,'placed',placement.reason);assert.equal(placement.operation,'delete');
  assert.equal(verifyPlacement({items,wording,placement,nativeQuoted:{number:17,amendmentBuffer:zip(xml),proposalBuffer:source}}).status,'verified');
+ for(const revision of ['ins','del','moveFrom','moveTo']){
+  const changed=xml.replace(p(note),p(note).replace('<w:p>','<w:p><w:pPr><w:rPr><w:'+revision+' w:id="999"/></w:rPr></w:pPr>'));
+  const extracted=extract(changed);assert.equal(extracted.originalText,null,revision);assert(extracted.gaps.some(g=>g.code==='structural-revision'),revision);
+  const input={items,wording,placement,nativeQuoted:{number:17,amendmentBuffer:zip(changed),proposalBuffer:source}};
+  assert.equal(assertHorizontalInstruction(input).status,'unverified',revision);
+  assert.equal(verifyPlacement(input).status,'unverified',revision);
+ }
+ const historical=xml.replace(p(note),p(note).replace('<w:p>','<w:p><w:pPr><w:pPrChange w:id="999"><w:pPr><w:rPr><w:ins w:id="998"/></w:rPr></w:pPr></w:pPrChange></w:pPr>'));
+ assert.equal(assertHorizontalInstruction({wording,nativeQuoted:{number:17,amendmentBuffer:zip(historical)}}).status,'verified','historical revision markers are not current paragraph-mark changes');
  assert.equal(resolveProposalPlacement(items,{...wording,documentReferences:[]}).status,'unresolved');
  assert.equal(resolveProposalPlacement(items,{...wording,originalText:wording.originalText.replace('1542','1543')}).status,'unresolved');
 });

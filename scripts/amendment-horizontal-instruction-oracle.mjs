@@ -2,6 +2,11 @@ import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
 import {safe,literal,completeGrid} from './amendment-native-table-oracle.mjs';
 const children=(nodes,key)=>nodes.flatMap(node=>node[key]?[node[key]]:[]);
 const all=(nodes,key)=>nodes.flatMap(node=>Object.entries(node).flatMap(([name,value])=>name===key?[node]:Array.isArray(value)?all(value,key):[]));
+// Inspect current paragraph/row/cell revision markers independently of the
+// producer. Historical property snapshots do not change current boundaries.
+const currentRevision=nodes=>nodes.some(node=>Object.entries(node).some(([name,value])=>
+ ['w:pPrChange','w:rPrChange','w:tblPrChange','w:tblPrExChange','w:tblGridChange','w:trPrChange','w:tcPrChange'].includes(name)?false:
+ ['w:ins','w:del','w:moveFrom','w:moveTo','w:cellIns','w:cellDel','w:cellMerge','w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd'].includes(name)||Array.isArray(value)&&currentRevision(value)));
 export function assertHorizontalInstruction({wording,nativeQuoted}){
  const refs=wording?.documentReferences?.filter(r=>r.basis==='full-width-deletion-instruction')??[];
  if(!refs.length)return null;
@@ -12,7 +17,7 @@ export function assertHorizontalInstruction({wording,nativeQuoted}){
   const starts=body.flatMap((row,i)=>heading(row)&&Number(row.text.match(/<NumAm>(\d+)<\/NumAm>/u)[1])===wording.number?[i]:[]);if(starts.length!==1)return unknown();
   const end=body.findIndex((row,i)=>i>starts[0]&&heading(row)),block=body.slice(starts[0],end<0?body.length:end),tables=block.filter(row=>row.nodes?.['w:tbl']);
   if(tables.length!==1||block.some(row=>row.unsafe)||tables[0].hidden)return unknown();
-  const table=tables[0].nodes['w:tbl'];if(!completeGrid(table)||all(table,'w:numPr').length)return unknown();
+  const table=tables[0].nodes['w:tbl'];if(currentRevision(table)||!completeGrid(table)||all(table,'w:numPr').length)return unknown();
   const rows=[];
   for(const row of children(table,'w:tr')){
    const cells=[];for(const cell of children(row,'w:tc')){
