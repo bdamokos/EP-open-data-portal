@@ -12,6 +12,7 @@ export function displayVoteTitle(title:string|null|undefined):string;
 export function memberVoteLabel(vote:MemberVoteRow|Pick<MemberVote,'scope'|'referenceTexts'>&{context:Pick<MemberVote['context'],'amendmentIds'>;parts:Pick<MemberVote['parts'][number],'number'|'requestScopeByLanguage'>[]},language?:string, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function splitVoteRequests<T extends {componentId:string;number:string|number|null;requestUri:string|null;contentByLanguage:MemberVote['parts'][number]['contentByLanguage'];contextComponents?:Omit<T,'contextComponents'>[]}>(parts?:T[]):{requestUri:string;parts:{componentId:string;number:string|number|null;contentByLanguage:T['contentByLanguage'];current:boolean}[]}[];
 export function memberVoteParentLabel(vote:MemberVoteRow,language?:string,ui?: import('./uiI18n.mjs').UiFormatter):string|null;
+export function notHeldLabel(vote:{outcome?:string|null}, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function memberVotePosition(vote:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function memberVotePositionSummary(items:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>[], ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function memberVoteOutcome(vote:Pick<MemberVote,'outcome'>, ui?: import('./uiI18n.mjs').UiFormatter):string;

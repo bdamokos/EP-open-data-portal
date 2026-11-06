@@ -13,7 +13,7 @@ import {collectVoteChairs} from './vote-chairs.mjs';
 import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
 import {sittingConfirmationDay} from './refresh-policy.mjs';
 
-export const MEMBER_VOTES_VERSION=13;
+export const MEMBER_VOTES_VERSION=14;
 // Saved sitting days stay readable across additive response changes.
 export const MEMBER_VOTE_SNAPSHOT_VERSION=11;
 export const VOTE_SNAPSHOT_VERSION=1;
@@ -259,12 +259,15 @@ export class MemberVotes extends VoteSourceReader {
     const load=async()=>{
     const projected=snapshot.days.map(day=>projectMemberSitting(day,id,query.language));
     const omitted=new Set(projected.flatMap(day=>day.omittedWhileChairing));
-    const items=projected.flatMap(day=>day.items).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id));
+    const everyItem=projected.flatMap(day=>day.items).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id));
+    // A lapsed or otherwise unheld decision is a vote the member did not cast: it stays out of every
+    // total, row and alignment count. A direct link to one still resolves through everyItem.
+    const items=everyItem.filter(item=>item.ballotStatus!=='not-conducted');
     const positions=query.positions||'all',alignment=query.alignment||'all';
     const alignmentCounts=coverage.status==='unavailable'?null:items.reduce((counts,item)=>{counts[memberVoteAlignment(item)]++;return counts;},{with:0,against:0,abstained:0,unclassified:0});
     const filtered=items.filter(item=>(positions!=='recorded'||item.actualPosition.status==='recorded')&&(alignment==='all'||item.alignment===alignment));
     const periodView=query.view==='period',offset=periodView?0:query.offset;
-    const page=periodView?filtered:filtered.slice(offset,offset+query.limit),selected=query.decision?items.find(item=>item.id===query.decision)||null:null;
+    const page=periodView?filtered:filtered.slice(offset,offset+query.limit),selected=query.decision?everyItem.find(item=>item.id===query.decision)||null:null;
     const subjects=projected.flatMap(day=>day.subjects).map(subject=>({...subject,counts:{observed:items.filter(item=>item.subjectId===subject.id).length,filtered:filtered.filter(item=>item.subjectId===subject.id).length,page:page.filter(item=>item.subjectId===subject.id).length}}));
     const requestIds=new Set(selected?.parts.map(part=>part.requestId)||[]);
     const siblings=selected?page.filter(item=>item.id!==selected.id&&item.subjectId===selected.subjectId&&item.parts.some(part=>requestIds.has(part.requestId))):[];

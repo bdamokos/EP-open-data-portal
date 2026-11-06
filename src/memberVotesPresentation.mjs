@@ -180,8 +180,12 @@ export function memberVotePositionState(vote) {
   if(status==='recorded')return ['for','against','abstaining'].includes(vote.actualPosition.position)?vote.actualPosition.position:'unavailable';
   return 'noRecordedPosition';
 }
+/** Lapsed is Parliament's term; the rare other decisions that were not put to a vote read "No vote held". */
+export function notHeldLabel(vote, ui = defaultUi) {
+  return ui.t(vote.outcome==='LAPSED'?'membervotespresentation.lapsed':'membervotespresentation.no_vote_held');
+}
 export function memberVotePosition(vote, ui = defaultUi) {
-  if(vote.ballotStatus==='not-conducted'||vote.actualPosition?.status==='not-conducted')return ui.t("activityvote.not_put_to_a_vote");
+  if(vote.ballotStatus==='not-conducted'||vote.actualPosition?.status==='not-conducted')return notHeldLabel(vote,ui);
   if(vote.actualPosition?.status==='conflicting')return ui.t("membervotespresentation.conflicting_records");
   if(vote.actualPosition?.status==='unavailable')return ui.t("activityvote.position_unavailable");
   if(vote.actualPosition?.status==='not-individually-recorded')return ui.t("membervotespresentation.not_individually_recorded");
@@ -189,18 +193,18 @@ export function memberVotePosition(vote, ui = defaultUi) {
   return ui.t("membervotespresentation.no_recorded_position");
 }
 
+/** A decision that was not put to a vote is not one the member cast, so it has no term here. */
 export function memberVotePositionSummary(items, ui = defaultUi) {
   const counts={for:0,against:0,abstaining:0};
   for(const item of items){const state=memberVotePositionState(item);if(Object.hasOwn(counts,state))counts[state]++;}
   const recorded=Object.entries(counts).filter(([,count])=>count).map(([position,count])=>ui.t('membervotespresentation.count_position',{count,position:memberVotePosition({actualPosition:{status:'recorded',position}},ui)})).join(' · ');
   const noNames=items.filter(item=>memberVotePositionState(item)==='notIndividuallyRecorded').length;
-  const notConducted=items.filter(item=>memberVotePositionState(item)==='notConducted').length;
   const noRecord=items.filter(item=>memberVotePositionState(item)==='noRecordedPosition').length;
   const unavailable=items.filter(item=>['unavailable','conflicting'].includes(memberVotePositionState(item))).length;
   // Each combination is a whole message so translators can reorder its slots.
-  const terms=[recorded?'recorded':null,noNames?'unnamed':null,notConducted?'not_conducted':null,noRecord?'no_record':null,unavailable?'unavailable':null].filter(Boolean);
+  const terms=[recorded?'recorded':null,noNames?'unnamed':null,noRecord?'no_record':null,unavailable?'unavailable':null].filter(Boolean);
   if(terms.length===1&&terms[0]==='recorded')return ui.t('membervotespresentation.positions_positions',{positions:recorded});
-  return ui.t(terms.length?'membervotespresentation.positions_'+terms.join('_'):'membervotespresentation.positions_none',{positions:recorded,noNames,notConducted,noRecord,unavailable});
+  return ui.t(terms.length?'membervotespresentation.positions_'+terms.join('_'):'membervotespresentation.positions_none',{positions:recorded,noNames,noRecord,unavailable});
 }
 export function memberVoteOutcome(vote, ui = defaultUi) {
   return {ADOPTED:ui.t("membervotespresentation.adopted"),REJECTED:ui.t("membervotespresentation.rejected"),LAPSED:ui.t("membervotespresentation.lapsed"),WITHDRAWN:ui.t("membervotespresentation.withdrawn"),CANCELLED:ui.t("membervotespresentation.cancelled")}[vote.outcome]||ui.t("membervotespresentation.outcome_unavailable");

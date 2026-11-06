@@ -270,7 +270,7 @@ test('null totals, real zero totals and lapsed decisions remain distinct without
   const rows=h.container.querySelectorAll('.member-votes-row');
   assert.equal(rows[0].querySelector('.member-votes-bar'),null);assert.deepEqual([...rows[0].querySelectorAll('.member-votes-counts b')].map(item=>item.textContent),['0','0','0']);
   assert.equal(rows[1].querySelector('.member-votes-bar,.member-votes-counts'),null);assert.match(rows[1].textContent,/Tallies unavailable/);assert.doesNotMatch(rows[1].textContent,/No tally published/);
-  assert.match(rows[2].textContent,/Not put to a vote.*Lapsed/);assert.doesNotMatch(rows[2].textContent,/Roll-call vote/);assert.equal(rows[2].querySelector('.member-votes-row-copy .member-votes-muted'),null);assert.equal(rows[2].querySelector('.member-votes-bar,.member-votes-counts'),null);
+  assert.match(rows[2].textContent,/Lapsed/);assert.doesNotMatch(rows[2].textContent,/Not put to a vote/);assert.doesNotMatch(rows[2].textContent,/Roll-call vote/);assert.equal(rows[2].querySelector('.member-votes-row-copy .member-votes-muted'),null);assert.equal(rows[2].querySelector('.member-votes-bar,.member-votes-counts'),null);
   assert.match(rows[3].textContent,/No names on record/);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
 });
 
@@ -1015,7 +1015,7 @@ for(const outcome of ['LAPSED','WITHDRAWN'])test('unheld '+outcome+' detail repl
   const item=vote(1,{outcome,ballotStatus:'not-conducted',method:'VOTE_ELECTRONIC_ROLLCALL',actualPosition:{status:'not-conducted',position:null},totals:{for:null,against:null,abstaining:null}});
   const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item]}))});
   const detail=visiblePane(h.container);
-  assert.equal(detail.querySelector('.member-votes-detail > .member-votes-muted').textContent,'Not put to a vote');
+  assert.equal(detail.querySelector('.member-votes-detail > .member-votes-muted').textContent,outcome==='LAPSED'?'Lapsed':'No vote held');
   assert.doesNotMatch(detail.textContent,/Roll-call vote/);
 });
 

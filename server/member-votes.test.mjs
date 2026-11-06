@@ -50,7 +50,7 @@ function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payloa
 test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
   const {service,calls}=setup();
   const first=await service.query(MEMBER,query('sitting='+SITTING));
-  assert.equal(first.version,13);
+  assert.equal(first.version,14);
   assert.equal(first.period.sittingId,SITTING);
   assert.equal(first.period.from,'2026-10-07');
   assert.equal(first.period.to,'2026-10-07');
@@ -727,7 +727,12 @@ test('alignment filters the pinned period before pagination while counts and sel
   });
   const {service,calls}=setup({decisions});
   const all=await service.query(MEMBER,query(`sitting=${SITTING}&limit=100`)),reads=calls.length;
-  assert.equal(all.alignment,'all');assert.deepEqual(all.alignmentCounts,{with:2,against:2,abstained:1,unclassified:2});
+  assert.equal(all.alignment,'all');assert.deepEqual(all.alignmentCounts,{with:2,against:2,abstained:1,unclassified:1});
+  // The lapsed decision is no vote of the member's: outside every count and row, still reachable by id.
+  assert.equal(all.pagination.observedTotal,6);assert.equal(all.pagination.filteredTotal,6);assert.equal(all.items.length,6);
+  assert.equal(all.items.some(item=>item.id===decisions[5].activity_id),false);
+  const lapsed=await service.query(MEMBER,query(`sitting=${SITTING}&limit=100&decision=${decisions[5].activity_id}`));
+  assert.equal(lapsed.selected.status,'found');assert.equal(lapsed.selected.item.ballotStatus,'not-conducted');assert.equal(lapsed.pagination.observedTotal,6);
   const ids=all.items.filter(item=>item.alignment==='against').map(item=>item.id);
   const suffix=`sitting=${SITTING}&alignment=against&snapshot=${all.snapshotId}&decision=${decisions[6].activity_id}`;
   const first=await service.query(MEMBER,query(suffix+'&positions=all&limit=1'));
@@ -739,7 +744,7 @@ test('alignment filters the pinned period before pagination while counts and sel
     const result=await service.query(MEMBER,query(`sitting=${SITTING}&snapshot=${all.snapshotId}&positions=${positions}&alignment=${alignment}&limit=100`));
     assert.deepEqual(result.alignmentCounts,all.alignmentCounts);assert.equal(result.snapshotId,all.snapshotId);
     if(alignment!=='all')assert(result.items.every(item=>item.alignment===alignment&&item.actualPosition.status==='recorded'));
-    assert.deepEqual(result.subjects[0].counts,{observed:7,filtered:result.items.length,page:result.items.length});
+    assert.deepEqual(result.subjects[0].counts,{observed:6,filtered:result.items.length,page:result.items.length});
   }
   assert.deepEqual(first.alignmentCounts,all.alignmentCounts);assert.equal(calls.length,reads);
 });

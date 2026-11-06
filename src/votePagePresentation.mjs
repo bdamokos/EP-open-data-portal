@@ -1,5 +1,5 @@
 import {defaultUi} from './uiDefault.mjs';
-import {memberVoteLabel,memberVoteOutcome,memberVoteTotals} from './memberVotesPresentation.mjs';
+import {memberVoteLabel,memberVoteOutcome,memberVoteTotals,notHeldLabel} from './memberVotesPresentation.mjs';
 
 const amendmentNumber=/-AM-(\d+(?:-\d+)?)$/;
 const withoutNames=new Set(['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']);
@@ -25,7 +25,7 @@ export function voteRowLabel(vote,language='en',ui=defaultUi) {
   return memberVoteLabel(vote,language,ui);
 }
 export function voteRowResult(vote,ui=defaultUi) {
-  if(vote.ballotStatus==='not-conducted')return {text:ui.t('activityvote.not_put_to_a_vote'),label:null};
+  if(vote.ballotStatus==='not-conducted')return {text:notHeldLabel(vote,ui),label:null};
   const totals=memberVoteTotals(vote);
   if(totals)return {text:totals.for+'–'+totals.against+'–'+totals.abstaining,label:voteTally(vote,ui)};
   return vote.method==='VOTE_HAND'?{text:ui.t('voteMethod.hands'),label:null}:null;
@@ -45,7 +45,7 @@ export function voteSentence(vote,{mainVoteId=null,procedureReferral=false,itemT
   }
   if(n) {
     const kind=p?'part':'amendment';
-    if(vote.ballotStatus==='not-conducted')return {id:'votepage.'+kind+'.not_voted',values:{n,p},item:false,noNames:false};
+    if(vote.ballotStatus==='not-conducted')return {id:'votepage.'+kind+(vote.outcome==='LAPSED'?'.lapsed':'.not_held'),values:{n,p},item:false,noNames:false};
     if(outcome)return {id:'votepage.'+kind+'.'+outcome+'.'+form,values:{n,p,tally},item:false,noNames};
   }
   return {id:'votepage.other.'+(tally?'tally':'plain'),values:{label:voteRowLabel(vote,language,ui),outcome:memberVoteOutcome(vote,ui),tally},item:false,noNames};

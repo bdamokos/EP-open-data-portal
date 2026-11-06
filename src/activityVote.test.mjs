@@ -94,7 +94,7 @@ test('published counts remain visible when named-ballot collection is unknown',a
 });
 test('retained lapsed outcomes retain their not-conducted semantics',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse({outcome:null,method:null,ballotStatus:'unknown',position:{status:'unavailable',position:null}});value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});await h.render({indexed:{outcome:'LAPSED',method:'VOTE_HAND'}});
-  assert.match(h.container.textContent,/Lapsed/);assert.match(h.container.textContent,/Not put to a vote/);assert.doesNotMatch(h.container.textContent,/Position unavailable|Tallies unavailable|Individual positions are not recorded/);
+  assert.match(h.container.textContent,/Lapsed/);assert.doesNotMatch(h.container.textContent,/Not put to a vote/);assert.doesNotMatch(h.container.textContent,/Position unavailable|Tallies unavailable|Individual positions are not recorded/);
 });
 
 test('a saved lapsed-motion explanation stays within its labelled saved result after a current adoption',async t=>{
@@ -111,13 +111,13 @@ for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_SECRET','VOTE_SECRET_BA
   status='unavailable';ballotStatus='unknown';await h.render({decisionId:sitting+'-DEC-198252'});
   assert.match(h.container.querySelector('.member-votes-position').textContent,/Position unavailable/);assert.doesNotMatch(h.container.textContent,/No names on record/);
   status='not-conducted';ballotStatus='not-conducted';outcome='LAPSED';await h.render({decisionId:sitting+'-DEC-198253'});
-  assert.match(h.container.querySelector('.member-votes-position').textContent,/Not put to a vote/);assert.doesNotMatch(h.container.textContent,/No names on record/);
+  assert.match(h.container.querySelector('.member-votes-position').textContent,/Lapsed/);assert.doesNotMatch(h.container.textContent,/No names on record/);
 });
 
 for(const outcome of ['LAPSED','WITHDRAWN'])test('activity labels an unheld '+outcome+' ballot without its retained roll-call method',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse({outcome,method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:'not-conducted',position:{status:'not-conducted',position:null}});value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});
   await h.render();
-  assert.match(h.container.querySelector('.activity-vote__meta').textContent,/Not put to a vote/);
+  assert.match(h.container.querySelector('.activity-vote__meta').textContent,outcome==='LAPSED'?/Lapsed/:/No vote held/);
   assert.doesNotMatch(h.container.textContent,/Roll-call vote/);
 });
 

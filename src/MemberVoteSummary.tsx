@@ -1,7 +1,7 @@
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {selectLanguageText} from './language.mjs';
 import type {MemberVote,MemberVoteComponent} from './MemberVotesTypes';
-import {memberVoteOutcome,memberVotePositionState,memberVotePosition,memberVoteTotals,splitVoteRequests} from './memberVotesPresentation.mjs';
+import {memberVoteOutcome,notHeldLabel,memberVotePositionState,memberVotePosition,memberVoteTotals,splitVoteRequests} from './memberVotesPresentation.mjs';
 import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import './MemberVotes.css';
 type ResultVote=Pick<MemberVote,'outcome'|'totals'|'ballotStatus'>;
@@ -14,7 +14,7 @@ export function Result({vote,showMissingTotals=true,showPartialTotals=false}:{vo
       {totals.total>0&&<span className="member-votes-bar" role="img" aria-label={ui.t("membervotesummary.for_for_against_against_abstaining_abstaining", {for: String(totals.for), against: String(totals.against), abstaining: String(totals.abstaining)})}>
         {(['for','against','abstaining'] as const).map(position=><span key={position} className={'member-votes-'+position} style={{width:(100*totals[position]/totals.total)+'%'}}/>)}</span>}
       <span className="member-votes-counts"><span><UiMessage id="membervotesummary.for_count" values={{count: <b>{totals.for}</b>}}/></span><span><UiMessage id="membervotesummary.against_count" values={{count: <b>{totals.against}</b>}}/></span><span><UiMessage id="membervotesummary.abstaining_count" values={{count: <b>{totals.abstaining}</b>}}/></span></span>
-    </> : (((showPartialTotals && (vote.ballotStatus!=='not-conducted')) && ['for','against','abstaining'].some(key=>typeof vote.totals?.[key as keyof typeof vote.totals]==='number')) ? <span className="member-votes-counts">{(['for','against','abstaining'] as const).map(key=><span key={key}>{{for:ui.t("membervotespresentation.for"),against:ui.t("membervotespresentation.against"),abstaining:ui.t("membervotesummary.abstaining")}[key]} <b>{vote.totals[key]??'—'}</b></span>)}</span> : (showMissingTotals ? <span className="member-votes-muted">{(vote.ballotStatus==='not-conducted') ? ui.t("activityvote.not_put_to_a_vote") : (((vote.ballotStatus==='conducted') && noPublishedTotals) ? ui.t("membervotesummary.no_tally_published") : ui.t("membervotesummary.tallies_unavailable"))}</span> : null)))}</></span>;
+    </> : (((showPartialTotals && (vote.ballotStatus!=='not-conducted')) && ['for','against','abstaining'].some(key=>typeof vote.totals?.[key as keyof typeof vote.totals]==='number')) ? <span className="member-votes-counts">{(['for','against','abstaining'] as const).map(key=><span key={key}>{{for:ui.t("membervotespresentation.for"),against:ui.t("membervotespresentation.against"),abstaining:ui.t("membervotesummary.abstaining")}[key]} <b>{vote.totals[key]??'—'}</b></span>)}</span> : (showMissingTotals ? <span className="member-votes-muted">{(vote.ballotStatus==='not-conducted') ? notHeldLabel(vote,ui) : (((vote.ballotStatus==='conducted') && noPublishedTotals) ? ui.t("membervotesummary.no_tally_published") : ui.t("membervotesummary.tallies_unavailable"))}</span> : null)))}</></span>;
 }
 
 export function Position({vote,memberName,compact=false}:{vote:PositionVote;memberName:string;compact?:boolean}) {
