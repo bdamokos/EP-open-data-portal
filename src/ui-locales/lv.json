@@ -1285,8 +1285,6 @@
   "membervotesummary.membername_voted_position": "{memberName} balsoja: {position}",
   "membervotesummary.no_tally_published": "Balsu skaits nav publicēts",
   "membervotesummary.parliament": "Parlaments",
-  "membervotesummary.published_description": "Publicētais apraksts",
-  "membervotesummary.published_description_of_part_number": "Daļas {number} publicētais apraksts",
   "membervotesummary.tallies_unavailable": "Balsu skaits nav pieejams",
   "motionJourney.reason42": "Priekšlikuma teksts nav pieejams.",
   "motionJourney.reason53": "Pieprasītais priekšlikuma teksts šai darbībai nav pieejams.",
