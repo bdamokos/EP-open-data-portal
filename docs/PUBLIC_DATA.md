@@ -155,8 +155,8 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 ### Press releases
 
 - Parliament publishes English RSS feeds for [press releases](https://www.europarl.europa.eu/rss/doc/press-releases/en.xml), [plenary](https://www.europarl.europa.eu/rss/doc/press-releases-plenary/en.xml) and [committee](https://www.europarl.europa.eu/rss/doc/press-releases-committees/en.xml). Each holds only its latest 20 items and carries no procedure or document references, so coverage starts when following starts.
-- Each announced release page is read once. Press-room listings and search are never crawled, and page links are never followed. robots.txt allows `/rss/` and `/news/`; pages marked `noindex`, `nofollow` or `none` are not used.
-- Only exact links in the page’s “Further information” list count: OEIL procedure files and summaries, and Doceo reports, motions, adopted texts and committee drafts (`A`, `B`, `RC`, `TA`, `PR`, `AD`, `AM`, `AL`, `PA`). A summary or document matches a dossier only when that dossier’s OEIL page links the same ID.
+- Each announced release page supplies its English title, trimmed Open Graph description and first two article paragraphs verbatim. Previously held, listed releases with exact links are scheduled for one additional page read to collect that text, under the existing website budget. Press-room listings and search are never crawled, and page links are never followed. robots.txt allows `/rss/` and `/news/`; pages marked `noindex`, `nofollow` or `none` are not used.
+- Only exact links in the page’s “Further information” list count: OEIL procedure files and summaries, and Doceo reports, motions, adopted texts and committee drafts (`A`, `B`, `RC`, `TA`, `PR`, `AD`, `AM`, `AL`, `PA`). A summary or document matches a dossier only when that dossier’s OEIL page links the same ID. The week lookup uses only procedure year/number and exact document IDs within Brussels calendar dates; summary-only links are excluded.
 - The committee “latest news” feed is not used: its pages are `noindex, nofollow` and have no procedure links.
 
 ### Hemicycle

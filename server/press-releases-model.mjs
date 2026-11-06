@@ -92,6 +92,31 @@ export function furtherInformation(html) {
   }
   return links;
 }
+// The article's chapo and ep-wysiwig paragraphs, in document order. No
+// surrounding navigation, bullets, or linked pages supply editorial text.
+export function pressParagraphs(html) {
+  const paragraphs=[];
+  const pattern=/<p\b[^>]*class=["'][^"']*ep-wysiwig[^"']*["'][^>]*>([\s\S]*?)<\/p>|<div\b[^>]*class=["'][^"']*\bep-a_text\b[^"']*["'][^>]*>\s*<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+  for(const match of html.matchAll(pattern)) {
+    const value=decodeHtml((match[1]??match[2]).replace(/<br\s*\/?\s*>/gi,' ').replace(/<[^>]*>/g,'')).replace(/\s+/g,' ').trim();
+    paragraphs.push(value);
+    if(paragraphs.length===2)break;
+  }
+  return paragraphs;
+}
+// Keep exact substrings, with the prototype's sentence boundary. Common
+// abbreviations must not end a sentence; a heading has no sentence to quote.
+export function pressExcerpt({lead=null,paragraphs=[]}={}) {
+  const paragraph=paragraphs[1]?.trim()||'';
+  let end=paragraph.length;
+  for(const match of paragraph.matchAll(/[.!?]\s+(?=[A-Z])/g)) {
+    if(/(?:\b(?:Mr|Dr|No|Art)|\be\.g|\bi\.e)\.$/i.test(paragraph.slice(0,match.index+1)))continue;
+    end=match.index+1;break;
+  }
+  const sentence=paragraph.slice(0,end);
+  return {lead:lead?.trim()||null,second:/[.!?][”"’')\]]*$/.test(sentence)?sentence:null};
+}
+
 export function parsePressRelease(html,id,{robotsHeader=null}={}) {
   if(typeof html!=='string'||Buffer.byteLength(html)>MAX_PAGE_BYTES||/<!ENTITY/i.test(html))throw new Error('Unreadable Parliament page.');
   const canonical=tags(html,'link').find(tag=>attribute(tag,'rel')?.toLowerCase()==='canonical');
@@ -100,6 +125,7 @@ export function parsePressRelease(html,id,{robotsHeader=null}={}) {
   const ogTitle=tags(html,'meta').find(tag=>attribute(tag,'property')==='og:title');
   const title=plain(name??heading??'')||String(attribute(ogTitle||'','content')||'').split(' | ')[0].trim()||null;
   const time=tags(html,'time').find(tag=>attribute(tag,'itemprop')==='datePublished'),local=time&&attribute(time,'datetime');
-  const links=furtherInformation(html);
-  return {id,title,publishedLocal:/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(local||'')?local:null,robots:robots(html,robotsHeader),furtherInformation:links!==null,links:links||[]};
+  const links=furtherInformation(html),policy=robots(html,robotsHeader);
+  const description=tags(html,'meta').find(tag=>attribute(tag,'property')==='og:description');
+  return {id,title,lead:policy.listed?(attribute(description||'','content')||null):null,paragraphs:policy.listed?pressParagraphs(html):[],publishedLocal:/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(local||'')?local:null,robots:policy,furtherInformation:links!==null,links:links||[]};
 }
