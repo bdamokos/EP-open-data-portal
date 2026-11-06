@@ -14,12 +14,13 @@ test('split parts read as the spec on exact part and amendment references',()=>{
  assert.equal(render(voteSentence({...base,parts:[part('2')]},page)),'Part 2 of amendment 4 was adopted: 423 for, 125 against, 32 abstaining.');
  assert.equal(render(voteSentence({...base,method:'VOTE_HAND',totals:noTally,parts:[part('1')]},page)),'Part 1 of amendment 4 was adopted by show of hands. No names on record.');
 });
-test('amendments read adopted, rejected, by show of hands, without names and not put to a vote',()=>{
+test('amendments read adopted, rejected, by show of hands, without names, lapsed and no vote held',()=>{
  const am=fields=>render(voteSentence({...base,...fields},page));
  assert.equal(am({outcome:'REJECTED',totals:{for:179,against:399,abstaining:4},context:{amendmentIds:['A-10-2026-0257-AM-174']}}),'Amendment 174 was rejected: 179 for, 399 against, 4 abstaining.');
  assert.equal(am({method:'VOTE_HAND',totals:noTally}),'Amendment 4 was adopted by show of hands. No names on record.');
  assert.equal(am({method:'VOTE_ELECTRONIC',outcome:'REJECTED',totals:{for:170,against:395,abstaining:14}}),'Amendment 4 was rejected: 170 for, 395 against, 14 abstaining. No names on record.');
- assert.equal(am({ballotStatus:'not-conducted',outcome:'LAPSED',totals:noTally}),'Amendment 4 was not put to a vote.');
+ assert.equal(am({ballotStatus:'not-conducted',outcome:'LAPSED',totals:noTally}),'Amendment 4 lapsed.');
+ assert.equal(am({ballotStatus:'not-conducted',outcome:'WITHDRAWN',totals:noTally}),'No vote held on amendment 4.');
  assert.equal(am({totals:{for:1,against:null,abstaining:2}}),'Amendment 4 was adopted.','a partial tally is not a tally');
 });
 test('the main vote names the item; referral comes only from the exact event flag',()=>{
@@ -43,10 +44,11 @@ test('anything else uses its source label; a block vote never lists every amendm
  assert.equal(render(voteSentence({...base,ballotStatus:'not-conducted',outcome:'LAPSED',method:'VOTE_HAND',totals:noTally,scope:{kind:'unclassified',basis:'unclassified'},referenceTexts:{en:'Recital 16'},context:{amendmentIds:[]}},page)),'Recital 16: Lapsed.');
  assert.equal(voteRowLabel({...base,parts:[part('2')]},'en'),'Amendment 4 · Part 2');
 });
-test('rows show a tally, show of hands, not put to a vote or nothing',()=>{
+test('rows show a tally, show of hands, lapsed, no vote held or nothing',()=>{
  assert.deepEqual(voteRowResult(base),{text:'423–125–32',label:'423 for, 125 against, 32 abstaining'});
  assert.deepEqual(voteRowResult({...base,method:'VOTE_HAND',totals:noTally}),{text:'Show of hands',label:null});
- assert.deepEqual(voteRowResult({...base,ballotStatus:'not-conducted',totals:noTally}),{text:'Not put to a vote',label:null});
+ assert.deepEqual(voteRowResult({...base,ballotStatus:'not-conducted',outcome:'LAPSED',totals:noTally}),{text:'Lapsed',label:null});
+ assert.deepEqual(voteRowResult({...base,ballotStatus:'not-conducted',outcome:'WITHDRAWN',totals:noTally}),{text:'No vote held',label:null});
  assert.equal(voteRowResult({...base,method:'VOTE_ELECTRONIC',totals:noTally}),null);
 });
 test('split requests hold every part in order and mark this vote',()=>{
