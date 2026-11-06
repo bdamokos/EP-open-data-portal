@@ -56,6 +56,18 @@ test('missing, stale and version-mismatched snapshots fall back and enqueue high
   assert.equal(h.reader.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION+1,SNAPSHOT_SITTING),null);
 });
 
+test('lastGood reads keep a complete body after a failed or overdue refresh; ordinary reads do not',async t=>{
+  const h=setup(t);
+  await drain(h);
+  const args=['votes',MEMBER_VOTE_SNAPSHOT_VERSION,SNAPSHOT_SITTING];
+  assert(h.reader.read(...args));
+  h.store.db.prepare("UPDATE sitting_snapshots SET error='Exact sitting metadata unavailable.',next_check=0 WHERE kind='votes' AND id=?").run(SNAPSHOT_SITTING);
+  assert.equal(h.reader.read(...args),null);assert.equal(h.reader.read(...args,{retained:true}),null);
+  assert(h.reader.read(...args,{lastGood:true}));
+  h.store.db.prepare("UPDATE sitting_snapshots SET complete=0 WHERE kind='votes' AND id=?").run(SNAPSHOT_SITTING);
+  assert.equal(h.reader.read(...args,{lastGood:true}),null);
+});
+
 test('correction-window refresh, post-window confirmation and monthly old-sitting checks reuse the outcome rule',async t=>{
   const h=setup(t);await drain(h);const before=h.fixture.calls.length;
   h.advance(6*60*60_000-1);assert.equal(h.collector.due(),false);

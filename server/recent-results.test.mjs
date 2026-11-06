@@ -71,9 +71,9 @@ test('future sittings and unstored recent sittings do not hide the latest stored
   assert.equal(data.week,'2026-10-05');assert.equal(data.votes.length,1);
 });
 
-test('snapshots overdue for a refresh still answer: past votes are final',async()=>{
+test('snapshots overdue or failing their refresh still answer: past votes are final',async()=>{
   const f=wholeTextFixture();
-  const snapshots={read(kind,version,id,{retained=false}={}){if(!retained)return null;return kind==='calendar'&&id==='2026'?{nodes:[sitting(f.day)]}:id===f.day.sittingId?{day:f.day,bytes:1}:null;}};
+  const snapshots={read(kind,version,id,{lastGood=false}={}){if(!lastGood)return null;return kind==='calendar'&&id==='2026'?{nodes:[sitting(f.day)]}:id===f.day.sittingId?{day:f.day,bytes:1}:null;}};
   const data=await latestResults({language:'en'},{snapshots,store:f.store,clock:()=>Date.parse('2026-10-23T10:00:00Z')});
   assert.equal(data.week,'2026-10-05');assert.equal(data.votes.length,1);
 });
