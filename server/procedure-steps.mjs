@@ -22,28 +22,34 @@ export function procedureSteps({reference,indexEvents=[],cellarEvents=[],summari
   const cutoff=day(asOf);
   const events=[
     ...indexEvents.map(event=>({event,date:day(event.activity_date),codes:[indexCode(event.had_activity_type)]})),
-    ...cellarEvents.filter(event=>event.status!=='cancelled').map(event=>({event,date:day(event.date),codes:(event.types||[]).map(type=>type.code)})),
+    ...cellarEvents.filter(event=>event.status==='recorded').map(event=>({event,date:day(event.date),codes:(event.types||[]).map(type=>type.code)})),
     ...summaries.map(event=>({event,date:day(event.date),codes:event.stage==='proposal'?['ADP_PROPLEG_byCOM']:[]})),
   ].filter(row=>row.date&&(!cutoff||row.date<=cutoff)).sort((a,b)=>a.date.localeCompare(b.date));
   const latest=events.at(-1)?.event??null;
   if(family!=='COD')return {family,steps:[],stage:'unknown',latest};
   const done=new Map();
+  const dealDate=events.find(row=>row.codes.some(code=>Object.hasOwn(mapping,code)&&mapping[code]==='deal'))?.date;
   for(const row of events)for(const code of row.codes){
     const key=Object.hasOwn(mapping,code)?mapping[code]:null;if(!key)continue;
+    // A post-deal vote completes the final step, preserving the mandate date.
+    if(key==='parliament'&&dealDate&&row.date>=dealDate){
+      if(code==='ADP_R1_POS_byEP')done.set('final',{date:row.date,partial:false});
+      continue;
+    }
     done.set(key,{date:row.date,partial:partialCodes.has(code)});
-    if(code==='ADP_R1_POS_byEP'&&done.has('deal')&&row.date>=done.get('deal').date)done.set('final',{date:row.date,partial:false});
   }
   // OEIL dates the proposal document, whereas Cellar may date its registration.
   const proposal=events.find(row=>row.event.stage==='proposal'&&row.event.documentReference);
   if(proposal)done.set('proposal',{date:proposal.date,partial:false});
-  const lastDone=Math.max(-1,...[...done.keys()].map(key=>keys.indexOf(key)));
+  const has=code=>events.some(row=>row.codes.includes(code));
   const parliamentDate=done.get('parliament')?.date;
   const forTalks=events.some(row=>row.date===parliamentDate&&row.codes.some(code=>referrals.has(code)));
-  const current=forTalks&&lastDone<5?'talks':keys[lastDone+1];
+  // Council mandates can precede Parliament's committee work. They cannot
+  // advance Parliament or start negotiations without a referral.
+  const current=done.has('journal')?null:done.has('signed')?'journal':has('APR_R1_byCONSIL')||done.has('final')?'signed':done.has('deal')?'final':forTalks?'talks':done.has('parliament')?(done.has('council')?'deal':'council'):done.has('committee')?'parliament':done.has('proposal')?'committee':'proposal';
   const steps=keys.filter(key=>!done.has('journal')||done.has(key)).map(key=>({key,state:done.has(key)?'done':key===current?'current':'open',date:done.get(key)?.date??null,partial:done.get(key)?.partial??false}));
   // Council mandates can precede Parliament's work; only approval of the act
   // changes the status to council-approved.
-  const has=code=>events.some(row=>row.codes.includes(code));
-  const stage=done.has('journal')?'journal':done.has('signed')?'signed':has('APR_R1_byCONSIL')?'council-approved':done.has('deal')?'deal':done.has('parliament')?(forTalks?'position-talks':'position'):done.has('committee')?'reported':has('COMMITTEE_TABLING_AMENDMENT')||has('COMMITTEE_TABLING_REPORT')?'drafting':has('REFERRAL')?'referred':done.has('proposal')?'proposal':'unknown';
+  const stage=done.has('journal')?'journal':done.has('signed')?'signed':has('APR_R1_byCONSIL')?'council-approved':done.has('final')?'position':done.has('deal')?'deal':done.has('parliament')?(forTalks?'position-talks':'position'):done.has('committee')?'reported':has('COMMITTEE_TABLING_AMENDMENT')||has('COMMITTEE_TABLING_REPORT')?'drafting':has('REFERRAL')?'referred':done.has('proposal')?'proposal':'unknown';
   return {family,steps,stage,latest};
 }

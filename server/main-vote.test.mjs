@@ -25,3 +25,8 @@ test('fallback requires exact subject, conducted ballot and exact trimmed Englis
   const last={...good,id:'b'};assert.equal(mainVote([good,last],subject),last);
   assert.equal(mainVote([good],null),null);
 });
+
+test('held exact budget-line decisions do not become a main vote',()=>{
+  assert(votes.budgetLines.decisions.length>=3);
+  assert.equal(mainVote(votes.budgetLines.decisions,votes.budgetLines.subject),null);
+});
