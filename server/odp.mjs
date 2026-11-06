@@ -1001,28 +1001,38 @@ function startIndex() {
       indexPromise = null;
     });
 }
-// Party labels come from retained body records only, read once; a body not yet retained leaves its members without a party.
+// National party bodies are read from retained records only, never upstream. Their bounds and labels
+// are rechecked at most every ten minutes; a body not yet retained leaves its members without a party.
+const PARTY_RECHECK_MS=10*60*1000;
 const partyLabels=new Map();
-async function nationalParties(members) {
+async function retainNationalParties() {
   const wanted=new Set();
-  for(const member of members)for(const row of member.organizationMemberships??[])
-    if(row.classification==='NATIONAL_POLITICAL_GROUP'&&row.current===true&&bodyId.test(row.id))wanted.add(row.id);
-  await Promise.all([...wanted].filter(id=>!partyLabels.has(id)).map(async id=>{
-    const record=await peekSource(sourceKey(bodyEndpoint(id)));
+  for(const profile of profileIndex.values())for(const row of profile.organizationMemberships??[])
+    if(row.classification==='NATIONAL_POLITICAL_GROUP'&&bodyId.test(row.id))wanted.add(row.id);
+  const now=Date.now();
+  await Promise.all([...wanted].filter(id=>!(partyLabels.get(id)?.checked>now-PARTY_RECHECK_MS)).map(async id=>{
+    const key=sourceKey(bodyEndpoint(id));
+    const record=await peekSource(key);
     const body=record?.payload.data.length===1?record.payload.data[0]:null;
     const label=body&&String(body.identifier)===id&&typeof body.label==='string'?body.label.trim():'';
-    if(!label)return;
-    partyLabels.set(id,{label,end:body.temporal?.endDate||null});
+    if(record)rememberOrganizationBody(key,record);
+    if(label)partyLabels.set(id,{label,checked:now});
+    else partyLabels.delete(id);
     if(partyLabels.size>MAX_CACHE_ENTRIES)partyLabels.delete(partyLabels.keys().next().value);
   }));
-  const day=today();
-  return Object.fromEntries([...wanted].filter(id=>partyLabels.has(id)&&!(partyLabels.get(id).end<day)).map(id=>[id,partyLabels.get(id).label]));
+}
+function nationalParties(members) {
+  const parties={};
+  for(const member of members)for(const row of member.organizationMemberships??[])
+    if(row.classification==='NATIONAL_POLITICAL_GROUP'&&row.current===true&&partyLabels.has(row.id))parties[row.id]=partyLabels.get(row.id).label;
+  return parties;
 }
 export async function odpDirectory({retryCommitteeDetails=false}={}) {
   const d = await directoryData();
   if (directoryDetailWork) startDirectoryDetails(directoryDetailWork,{retry:retryCommitteeDetails});
   startIndex();
   if (indexState.complete) scheduleSync();
+  await retainNationalParties();
   const members = d.members.map(m => {
     const profile=profileIndex.get(m.id);
     const organizationMemberships=profile?.organizationMemberships?.map(row=>({...row,current:organizationMembershipStatus(row,today(),knownOrganizationBodies.get(row.id))})) ?? null;
@@ -1054,7 +1064,7 @@ export async function odpDirectory({retryCommitteeDetails=false}={}) {
       refreshError: directoryError || directorySources.map(source => refreshFailures.get(source.url)?.message).find(Boolean) || null,
     },
     members,
-    parties: await nationalParties(members),
+    parties: nationalParties(members),
   };
 }
 export function speechSummary(activity) {

@@ -23,6 +23,7 @@ test('the national party needs exactly one current membership and a label',()=>{
   assert.equal(memberParty({organizationMemberships:[party('10'),party('11')]},parties),null);
   assert.equal(memberParty({organizationMemberships:[party('12')]},parties),null);
   assert.equal(memberParty({organizationMemberships:[party('10',null)]},parties),null);
+  assert.equal(memberParty({organizationMemberships:[party('10'),party('11',null)]},parties),null,'an unresolved second membership withholds the label');
   assert.equal(memberParty({organizationMemberships:null},parties),null);
   assert.equal(memberParty({organizationMemberships:[party('toString')]},parties),null);
   assert.equal(memberParty({organizationMemberships:[party('10')]},undefined),null);

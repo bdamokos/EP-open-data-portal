@@ -19,11 +19,12 @@ export function memberCommittees(member,committees) {
     .sort((a,b)=>Number(a.substitute)-Number(b.substitute)||codes.compare(a.code,b.code));
 }
 
-// The national party named by exactly one current membership with a retained label.
+// The national party named by exactly one membership that is not known to have ended, and current
+// with a retained label; an unresolved second membership withholds it.
 export function memberParty(member,parties) {
-  const ids=new Set((member.organizationMemberships??[])
-    .filter(row=>row.classification==='NATIONAL_POLITICAL_GROUP'&&row.current===true).map(row=>row.id));
-  if(ids.size!==1)return null;
+  const open=(member.organizationMemberships??[]).filter(row=>row.classification==='NATIONAL_POLITICAL_GROUP'&&row.current!==false);
+  const ids=new Set(open.map(row=>row.id));
+  if(ids.size!==1||!open.some(row=>row.current===true))return null;
   const [id]=ids;
   return parties&&Object.hasOwn(parties,id)?parties[id]:null;
 }
