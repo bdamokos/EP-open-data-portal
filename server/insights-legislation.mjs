@@ -12,6 +12,7 @@ import { odp,agendaCacheRevision } from './odp.mjs';
 import { array,tail } from './activity-index-model.mjs';
 import { canonical,demographicStats,memberPeople } from './insights-model.mjs';
 import { savedMetadata,brusselsDay } from './insights-store.mjs';
+import {heldVotes as defaultHeldVotes} from './dossier-status.mjs';
 import { agendaMainVote,agendaTopics,classifyProcedure,topicRoles,topicVotes,finalVotePatterns,refs,committeeEvent } from './insights-legislation-model.mjs';
 import {speakerNameIsSpecific} from './speech-speakers.mjs';
 import {CURRENT_TERM_START} from './analysis-period.mjs';
@@ -51,7 +52,7 @@ function reusableRecord(endpoint,work) {
   return Array.isArray(work.inverse_based_on_a_realization_of);
 }
 export class LegislationInsights {
-  constructor(store,{request=odp,clock=Date.now,loadMetadata=savedMetadata,readSpeechMetadata=request===odp?retainedSpeechMetadata:null,meetings,snapshots=request===odp?sittingSnapshots:null}={}) {this.snapshots=snapshots;this.meetings=meetings||(request===odp&&clock===Date.now?meetingsReader:new MeetingsReader({request,clock,snapshots}));this.store=store;this.request=request;this.clock=clock;this.loadMetadata=loadMetadata;this.readSpeechMetadata=readSpeechMetadata;this.cache=new Map();this.pending=new Map();this.failures=new Map();}
+  constructor(store,{request=odp,clock=Date.now,loadMetadata=savedMetadata,readSpeechMetadata=request===odp?retainedSpeechMetadata:null,meetings,snapshots=request===odp?sittingSnapshots:null,heldVotes=request===odp?defaultHeldVotes:null}={}) {this.heldVotes=heldVotes;this.snapshots=snapshots;this.meetings=meetings||(request===odp&&clock===Date.now?meetingsReader:new MeetingsReader({request,clock,snapshots}));this.store=store;this.request=request;this.clock=clock;this.loadMetadata=loadMetadata;this.readSpeechMetadata=readSpeechMetadata;this.cache=new Map();this.pending=new Map();this.failures=new Map();}
   async record(endpoint,params={}) {
     requestSignal()?.throwIfAborted();
     if(!Object.keys(params).length) {
@@ -237,12 +238,16 @@ export class LegislationInsights {
           // No false paging, no filter-output=voters (that removes named voters).
           const decisions=await recordSource('/meetings/'+sitting.activity_id+'/decisions',{'vote-method':'ROLL_CALL_EV',limit:1,offset:0});
           const truncated=decisions.payload.data.length>LEGISLATION_LIMITS.decisions;
-          const held={...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,LEGISLATION_LIMITS.decisions)}};
-          votes=topicVotes(topic,results,held,members,metadata,sitting.activity_date,groupOn);
-          mainVote=agendaMainVote(topic,results,held,procedureWorks);
+          votes=topicVotes(topic,results,{...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,LEGISLATION_LIMITS.decisions)}},members,metadata,sitting.activity_date,groupOn);
           voteCoverage={available:true,sourceDecisionCount:decisions.payload.data.length,truncated,sourceUrl:decisions.url,fetchedAt:new Date(decisions.fetchedAt).toISOString(),error:null};
         } catch(error){voteCoverage.error=error.message;gaps.push({source:'named roll-calls',message:error.message,sourceError:true});}
       }
+      // The agenda's own read holds roll calls only, and a show of hands can decide the item.
+      if(topic.kind==='PLENARY_VOTE'&&phase!=='upcoming'&&this.heldVotes)try {
+        const snapshot=await this.heldVotes.snapshot({sitting:sitting.activity_id,week:null,language:query.language,snapshot:null});
+        requestSignal()?.throwIfAborted();
+        mainVote=agendaMainVote(topic,snapshot.days.find(day=>day.sittingId===sitting.activity_id),procedureWorks);
+      }catch(error){if(isLocalRequestFailure(error))throw error;}
       const selectedVote=query.vote?votes.find(v=>v.id===query.vote):votes[0]||null;
       if(query.vote&&!selectedVote)throw new HttpError(404,'vote_not_found','That roll-call is not joined to this agenda topic.');
       detail={...localize(topic),phase,procedures,committeeWork:[...new Map(committeeWork.map(e=>[e.id,e])).values()].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12),roles,speeches,people,amendments:{...amendments,counts:Object.fromEntries(people.map(person=>[person.id,amendments.counts[person.id]??null])),countsByStage:Object.fromEntries(people.map(person=>[person.id,amendments.countsByStage[person.id]||{committee:null,plenary:null}]))},stats:{...demographicStats(participantIds,members,metadata,sitting.activity_date),groupContributions:groupContributions([...amendments.authorIds.map(id=>({id,date:amendments.authorDates[id]})),...roles.map(r=>({id:r.id,date:r.date})),...participationRows.map(r=>({id:String(r.mepId),date:r.date}))],groupOn)},

@@ -374,7 +374,8 @@ test('agenda main vote matches the vote page on labels, ballots and the exact re
  const topic={uri:'eli/dl/event/MTG-PL-2026-10-22-OJ-ITM-V-1'};
  const raw=(id,label,fields={})=>({id:'eli/dl/event/MTG-PL-2026-10-22-DEC-'+id,activity_id:'MTG-PL-2026-10-22-DEC-'+id,type:'Vote',activity_date:'2026-10-22',decision_method:'def/ep-entities/VOTE_ELECTRONIC_ROLLCALL',decision_outcome:'def/ep-statuses/ADOPTED',referenceText:{en:label},had_voter_favor:['person/1'],had_voter_against:[],had_voter_abstention:[],number_of_votes_favor:1,number_of_votes_against:0,number_of_votes_abstention:0,inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-1'],...fields});
  const result=(number,ids)=>({id:'eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-'+number,activity_id:'MTG-PL-2026-10-22-VOT-ITM-'+number,had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',executed:[topic.uri],consists_of:ids.map(id=>'eli/dl/event/MTG-PL-2026-10-22-DEC-'+id)});
- const main=(rows,procedures)=>agendaMainVote(topic,{payload:{data:[result(1,rows.filter(row=>row.inverse_consists_of[0].endsWith('-1')).map(row=>row.activity_id.split('-').at(-1))),...(rows.some(row=>row.inverse_consists_of[0].endsWith('-2'))?[result(2,rows.filter(row=>row.inverse_consists_of[0].endsWith('-2')).map(row=>row.activity_id.split('-').at(-1)))]:[])]}},{payload:{data:rows}},procedures);
+ const day=(rows,state='complete')=>({sittingId:'MTG-PL-2026-10-22',date:'2026-10-22',coverage:{state},decisions:rows,results:[1,2].filter(number=>rows.some(row=>row.inverse_consists_of[0].endsWith('-'+number))).map(number=>result(number,rows.filter(row=>row.inverse_consists_of[0].endsWith('-'+number)).map(row=>row.activity_id.split('-').at(-1))))});
+ const main=(rows,procedures)=>agendaMainVote(topic,day(rows),procedures);
  const refer=date=>[{consists_of:[{had_activity_type:'def/ep-activities/PLENARY_REFER_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS',activity_date:date}]}];
  assert.equal(main([raw(1,'Article 3')]),null);
  assert.equal(main([raw(1,'Request for referral back to committee')],refer('2026-10-22')),null);
@@ -387,5 +388,11 @@ test('agenda main vote matches the vote page on labels, ballots and the exact re
  assert.equal(main([raw(3,'Provisional&#32;agreement')]).id,'MTG-PL-2026-10-22-DEC-3','the source label is decoded as on the vote page');
  const unheld=raw(2,'Commission proposal');delete unheld.had_voter_favor;
  assert.equal(main([unheld]),null,'a ballot not shown to have been held is not the main vote');
+ const hands=raw(5,'Legislative resolution (as a whole)',{decision_method:'def/ep-entities/VOTE_HAND',decision_outcome:'def/ep-statuses/REJECTED'});
+ for(const key of ['had_voter_favor','had_voter_against','had_voter_abstention','number_of_votes_favor','number_of_votes_against','number_of_votes_abstention'])delete hands[key];
+ const decided=main([raw(2,'Commission proposal'),hands]);
+ assert.equal(decided.id,'MTG-PL-2026-10-22-DEC-5','a later show of hands decides the item');assert.equal(decided.outcome,'REJECTED');
+ assert.equal(agendaMainVote(topic,day([raw(2,'Commission proposal')],'partial')),null,'a partial sitting could hide the deciding vote');
+ assert.equal(agendaMainVote(topic,undefined),null);
  assert.equal(main([raw(2,'Commission proposal'),raw(4,'Motion for a resolution',{inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-2']})]),null,'two subjects name different main votes');
 });

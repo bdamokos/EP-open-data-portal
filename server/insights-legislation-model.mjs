@@ -85,12 +85,14 @@ export function topicVotes(topic,results,decisions,members,metadata,referenceDat
   return decisions.payload.data.filter(n=>refs(n.inverse_consists_of).some(p=>parentIds.has(p))).map(n=>({...namedVote(n,decisions,members,metadata,referenceDate,groupOn,derived),
     associations:parents.filter(p=>refs(n.inverse_consists_of).includes(canonical(p.id))).map(p=>({resultId:p.activity_id,documentIds:refs(p.based_on_a_realization_of).map(documentId).filter(Boolean),procedureIds:refs(p.inverse_consists_of).map(procedureId).filter(Boolean),agendaItemId:topic.id,resultApiUrl:results.url,resultFetchedAt:sourceDate(results)}))})).sort((a,b)=> (a.scope==='final-text'?0:1)-(b.scope==='final-text'?0:1)||a.id.localeCompare(b.id));
 }
-// The item's main vote from the same projection the vote page uses, one result
-// at a time. Two results naming different main votes leave the item without one.
-export function agendaMainVote(topic,results,decisions,procedures=[]) {
-  const snapshot={results:results.payload.data,decisions:decisions.payload.data,agenda:[],sources:{}},derived=deriveVoteEvidence(snapshot);
-  const subjects=results.payload.data.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS'&&refs(n.executed).includes(topic.uri)).map(n=>n.activity_id);
-  const rows=decisions.payload.data.filter(raw=>subjects.includes(derived.decisions.get(eventUri(raw))?.subjectId)).map(raw=>projectMemberDecision(raw,snapshot,'1','en',derived)).filter(row=>['consistent','single-direction'].includes(row.resultRelationship.binding));
+// The item's main vote from the same held sitting and projection the vote page
+// uses, one result at a time. A partial sitting could hide the deciding vote, and
+// two results naming different main votes leave the item without one.
+export function agendaMainVote(topic,day,procedures=[]) {
+  if(day?.coverage?.state!=='complete')return null;
+  const derived=deriveVoteEvidence(day);
+  const subjects=array(day.results).filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS'&&refs(n.executed).includes(topic.uri)).map(n=>n.activity_id);
+  const rows=array(day.decisions).filter(raw=>subjects.includes(derived.decisions.get(eventUri(raw))?.subjectId)).map(raw=>projectMemberDecision(raw,day,'1','en',derived)).filter(row=>['consistent','single-direction'].includes(row.resultRelationship.binding)&&!row.sourceConflicts);
   const mains=subjects.map(id=>mainVote(rows,{id,wholeTextDecisions:rows.filter(row=>row.subjectId===id&&row.scope.kind==='whole-text')})).filter(Boolean);
   if(new Set(mains.map(row=>row.id)).size!==1)return null;
   const vote=mains[0];
