@@ -26,7 +26,7 @@ function Pages({documentId,language}:{documentId:string;language:string}){
       const reader=response.body?.getReader();if(!reader)throw new UiMessageError("document.pages.unavailable");const chunks:Uint8Array[]=[];let size=0;
       while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>16*1024*1024){await reader.cancel();throw new UiMessageError("document.pages.sizeLimit");}chunks.push(value);}
       if(!active)return;const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
-      const loading=library.getDocument({data:bytes,cMapUrl:publicUrl('assets/pdfjs-6.4.299/cmaps/'),cMapPacked:true,standardFontDataUrl:publicUrl('assets/pdfjs-6.4.299/standard_fonts/'),wasmUrl:publicUrl('assets/pdfjs-6.4.299/wasm/'),maxImageSize:20_000_000,canvasMaxAreaInBytes:32*1024*1024,enableXfa:false,useSystemFonts:true,stopAtErrors:true});task=loading;
+      const loading=library.getDocument({data:bytes,cMapUrl:publicUrl('assets/pdfjs-6.5.438/cmaps/'),cMapPacked:true,standardFontDataUrl:publicUrl('assets/pdfjs-6.5.438/standard_fonts/'),wasmUrl:publicUrl('assets/pdfjs-6.5.438/wasm/'),maxImageSize:20_000_000,canvasMaxAreaInBytes:32*1024*1024,enableXfa:false,useSystemFonts:true,stopAtErrors:true});task=loading;
       const document=await loading.promise;if(!active){await loading.destroy();return;}
       if(document.numPages>500){await loading.destroy();throw new UiMessageError("document.pages.pageLimit");}window.clearTimeout(timeout);setPdf(document);
     })().catch(reason=>{window.clearTimeout(timeout);if(active){setError(reason instanceof Error?reason:new UiMessageError("document.pages.unavailable"));setBusy(false);}});
