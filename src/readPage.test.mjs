@@ -13,7 +13,7 @@ const report='A-10-2026-0257',amendment=report+'-AM-7',list=report+'-AM-001-020'
 
 async function harness(t,url,respond) {
   const window=new Window({url}),requests=[],scrolls=[];
-  const globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root;
@@ -28,13 +28,13 @@ async function harness(t,url,respond) {
     return value instanceof Response?value:Response.json(value);
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {ReadPage}=await loadModule('/src/ReadPage.tsx');
+  const {ReadPage}=await loadModule('/src/ReadPage.tsx'),journey=await loadModule('/src/dossierJourney.ts');
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const settle=async()=>{for(let i=0;i<6;i++)await act(async()=>new Promise(resolve=>setTimeout(resolve,15)));};
   await act(async()=>root.render(el(ReadPage,{language:'en'})));await settle();
   const click=async element=>{assert(element,'Missing control');await act(async()=>element.click());await settle();};
   const button=text=>[...container.querySelectorAll('button')].find(item=>(item.getAttribute('aria-label')||item.textContent.trim())===text);
-  return {window,container,requests,scrolls,settle,click,button};
+  return {window,container,requests,scrolls,settle,click,button,journey};
 }
 const placedParagraphs=h=>[...h.container.querySelectorAll('[data-proposal-item] [data-source-paragraph]')].map(node=>Number(node.dataset.sourceParagraph));
 
@@ -75,6 +75,14 @@ test('Show whole proposal adds the full text without repeating the amendment and
   const target=h.container.querySelector('[data-passage-target="true"]');
   assert(h.scrolls.some(scroll=>scroll.element===target),'the reader keeps its place at the target');
   assert.equal(h.window.document.activeElement,target);
+});
+
+test('the whole proposal stays open when the reader navigates away and returns',async t=>{
+  const source=proposalContextResponse(report,amendment,list,7);
+  const h=await harness(t,readUrl('&read-amendment='+amendment+'&read-list='+list+'&read-lang=en'),()=>source);
+  await h.click(h.button('Show whole proposal'));
+  h.journey.rememberDossierOrigin();
+  assert.equal(h.journey.dossierReaderValue('read-whole:'+amendment,false),true,'the document body saves its own state under its own name');
 });
 
 test('find in text opens the whole proposal first',async t=>{

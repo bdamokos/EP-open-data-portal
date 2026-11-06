@@ -184,7 +184,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const availableLanguages=[...new Set([...(text?.availableTextLanguages||[]),...(actual ? ([actual]) : ([]))])];
   const leadNode=lead?.({documentId:id,amendmentId:amendmentRequest?.amendmentId,document,title,variant:selectedVariant,loading:state.loading&&!data,failed:loadError&&!state.retrying&&!hasText});
   const passage=Boolean(passageFirst&&placed&&reportHeading===null);
-  const [whole,setWhole]=useDossierReaderState('read-whole:'+(amendmentRequest?.amendmentId||''),false),revealed=useRef(false);
+  const [whole,setWhole]=useDossierReaderState('read-whole-document:'+(amendmentRequest?.amendmentId||''),false),revealed=useRef(false);
   const collapsed=Boolean(passageFirst&&amendmentRequest?.amendmentId&&!whole&&reportHeading===null&&(placed||placement?.status==='unresolved'));
   const formatting=usableFormatting(text,allParagraphs.length);
   const range=collapsed ? (placed&&placement ? paragraphPassage(placement,{start:body.start,count:allParagraphs.length,tables:formatting.tables}) : {start:body.start,end:body.start}) : null;
