@@ -61,7 +61,11 @@ a.parliament-brand-link:focus-visible { outline:3px solid var(--focus); outline-
 .parliament-header .explorer-language-control select { position:absolute; inset:0; width:100%; height:100%; min-height:0; padding:0; border:0; opacity:0; cursor:pointer; font-size:16px; }
 .parliament-header .explorer-language-control select:focus-visible { outline:none; }
 
-@media(max-width:620px){
- .parliament-header nav {grid-template-columns:repeat(4,minmax(0,1fr))}
- :is(.explorer,.explorer-insights) .parliament-header nav[aria-label] > button {min-height:44px;font-size:12px;line-height:16px;padding:6px 3px}
+/* Phones: one row that scrolls sideways. The fade at the right edge hints at more; the scrollbar stays hidden. */
+@media(max-width:639px){
+ .parliament-header nav { display:flex; flex-wrap:nowrap; justify-content:flex-start; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; padding:4px 3px; margin-block:-4px 0; scroll-padding-inline:28px; }
+ .parliament-header nav::-webkit-scrollbar { display:none; }
+ .parliament-header nav button { flex:0 0 auto; padding:8px 10px; white-space:nowrap; overflow-wrap:normal; }
+ .parliament-header nav::after { content:""; position:sticky; right:0; flex:0 0 28px; margin-left:-3px; background:linear-gradient(to right,transparent,var(--bg)); pointer-events:none; }
+ :is(.explorer,.explorer-insights) .parliament-header nav[aria-label] > button {min-height:44px;font-size:13px;line-height:16px}
 }

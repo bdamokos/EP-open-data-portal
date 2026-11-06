@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isHomeQuery,headlineState,defaultAgendaWeek,agendaDays,votePicks,unreadRows,procedureReference,HOME_COUNTRIES,headlineLine,homeTerms} from './homeModel.mjs';
+import {isHomeQuery,headlineState,defaultAgendaWeek,agendaDays,votePicks,unreadRows,procedureReference,HOME_COUNTRIES,headlineLine,homeTerms,agendaView,calendarPeriods} from './homeModel.mjs';
 
 const query = value => new URLSearchParams(value);
 const week = (week,sittings) => ({week,sittings:sittings.map(([date,location]) => ({sittingId:'MTG-PL-'+date,date,location:location||null}))});
@@ -139,6 +139,8 @@ test('an older directory link with filters and no view opens the directory, so c
   for (const search of ['country=CZ', 'group=Renew', 'committee=6587', 'organization=7035', 'role=MEMBER_SUBSTITUTE', 'country=CZ&lang=hu']) assert.equal(explorerViewFromQuery(query(search)), 'meps', search);
   assert.equal(explorerViewFromQuery(query('view=questions&country=CZ')), 'questions');
   assert.equal(explorerViewFromQuery(query('member=840&country=CZ')), null);
+  // A member profile wins over a stray view, so the profile link is not rewritten.
+  assert.equal(explorerViewFromQuery(query('view=meps&member=840')), null);
   assert.equal(explorerViewFromQuery(query('')), null);
   assert.equal(explorerViewFromQuery(query('role=both')), null);
   assert.equal(explorerViewFromQuery(query('lang=hu&global-fts-search=x')), null);
@@ -163,4 +165,43 @@ test('home terms drop filler words, plural duplicates and words inside a shown p
   assert.deepEqual(homeTerms(words), ['critical raw materials', 'companies', 'market', 'china', 'packaging', 'recycling', 'poverty', 'waste']);
   assert.deepEqual(homeTerms([word('time'), word('debate'), word('china'), word('industry'), word('waste')]), [], 'fewer than four subject terms: no section');
   assert.deepEqual(homeTerms(undefined), []);
+});
+
+test('after the last sitting day, or in recess, the week shows as the last agenda', () => {
+  const topics = [
+    { id: 'a', date: '2026-11-09', order: 1, sittingId: 'S1' },
+    { id: 'b', date: '2026-11-12', order: 1, sittingId: 'S4' },
+  ];
+  // Mid-week: rows from today on, still the upcoming agenda.
+  const live = agendaView(topics, '2026-11-10', '2026-11-09');
+  assert.equal(live.past, false);
+  assert.deepEqual(live.days.map(d => d.day), ['2026-11-12']);
+  // Friday after the sitting week, and an older week chosen through recess: the whole week.
+  for (const today of ['2026-11-13', '2026-12-24']) {
+    const view = agendaView(topics, today, '2026-11-09');
+    assert.equal(view.past, true, today);
+    assert.deepEqual(view.days.map(d => d.day), ['2026-11-09', '2026-11-12']);
+  }
+  assert.deepEqual(agendaView([], '2026-11-13', '2026-11-09'), { past: false, days: [] });
+  assert.deepEqual(agendaView(undefined, '2026-11-13', null), { past: false, days: [] });
+});
+
+test('a malformed calendar payload is rejected before any date is used', () => {
+  const good = { weeks: [{ week: '2026-11-09', sittings: [{ date: '2026-11-09' }] }], upcoming: [] };
+  assert.deepEqual(calendarPeriods(good), good);
+  assert.equal(calendarPeriods(null), null);
+  assert.equal(calendarPeriods({ ...good, weeks: [{ week: 'soon', sittings: [] }] }), null);
+  assert.equal(calendarPeriods({ ...good, upcoming: [{ week: '2026-11-16', sittings: [{ date: 'x' }] }] }), null);
+  assert.equal(calendarPeriods({ weeks: 'x' }), null);
+  assert.deepEqual(calendarPeriods({ weeks: [] }), { weeks: [], upcoming: [] });
+});
+
+test('phone navigation is one sideways-scrolling row with a hidden scrollbar and an edge fade', async () => {
+  const {readFile} = await import('node:fs/promises');
+  const css = await readFile(new URL('./ParliamentHeader.css', import.meta.url), 'utf8');
+  const phone = css.slice(css.indexOf('@media(max-width:639px)'));
+  assert.match(phone, /nav \{[^}]*flex-wrap:nowrap[^}]*overflow-x:auto[^}]*scrollbar-width:none/);
+  assert.match(phone, /nav::-webkit-scrollbar \{ display:none/);
+  assert.match(phone, /nav button \{[^}]*white-space:nowrap/);
+  assert.match(phone, /nav::after \{[^}]*position:sticky[^}]*var\(--bg\)/);
 });

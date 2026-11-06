@@ -18,7 +18,7 @@ const weekMonday = day => {
   return date.toISOString().slice(0, 10);
 };
 
-const validWeeks = value => Array.isArray(value) && value.every(week => week && typeof week.week === 'string' && dateShape(week.week) && Array.isArray(week.sittings) && week.sittings.every(sitting => dateShape(sitting.date)));
+export const validWeeks = value => Array.isArray(value) && value.every(week => week && typeof week.week === 'string' && dateShape(week.week) && Array.isArray(week.sittings) && week.sittings.every(sitting => dateShape(sitting.date)));
 const allSittings = weeks => weeks.flatMap(week => week.sittings);
 
 // The plenary headline: sitting today, later this week, the next known date,
@@ -50,6 +50,14 @@ export function defaultAgendaWeek(today, weeks = [], upcoming = []) {
   return weeks[0]?.week || null;
 }
 
+// The calendar payload as Home may use it: both lists validated, or null when
+// either is malformed, so a bad date never reaches rendering.
+export function calendarPeriods(data) {
+  if (!data) return null;
+  const weeks = data.weeks, upcoming = data.upcoming ?? [];
+  return validWeeks(weeks) && validWeeks(upcoming) ? { weeks, upcoming } : null;
+}
+
 // Agenda grouped by day, in published order, starting today for a week in
 // progress. Each day shows at most perDay rows; `more` counts the rest.
 // Times are not part of the published agenda list, so rows carry none.
@@ -64,6 +72,15 @@ export function agendaDays(topics, today, perDay = 4) {
     const items = days.get(day).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
     return { day, rows: items.slice(0, perDay), more: Math.max(0, items.length - perDay), sittingId: items.find(topic => topic.sittingId)?.sittingId || null };
   });
+}
+
+// The agenda Home shows: rows from today on while the week has any left, else
+// the whole week as the last agenda (after its final sitting day, or in recess).
+export function agendaView(topics, today, week) {
+  const upcoming = agendaDays(topics, today);
+  if (upcoming.length || !dateShape(week)) return { past: false, days: upcoming };
+  const days = agendaDays(topics, week);
+  return { past: days.length > 0, days };
 }
 
 const validVote = vote => vote && typeof vote.id === 'string' && typeof vote.date === 'string' && vote.totals && ['for', 'against', 'abstaining'].every(position => Number.isInteger(vote.totals[position]) && vote.totals[position] >= 0);

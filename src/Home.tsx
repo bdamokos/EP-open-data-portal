@@ -11,7 +11,7 @@ import {humanDate} from './InsightCharts';
 import {InsightStatus} from './InsightShared';
 import {agendaTitle} from './topicPresentation.mjs';
 import {recordHref} from './TopicsLinks';
-import {headlineState,headlineLine,defaultAgendaWeek,agendaDays,votePicks,unreadRows,homeTerms,longDate,HOME_COUNTRIES,procedureReference} from './homeModel.mjs';
+import {headlineState,headlineLine,defaultAgendaWeek,agendaView,calendarPeriods,votePicks,unreadRows,homeTerms,longDate,HOME_COUNTRIES,procedureReference} from './homeModel.mjs';
 import {brusselsDate} from './plenaryAvailability.mjs';
 import {useSaved,useSavedNow} from './SavedControls';
 import {summarizeByType} from './followUpdates.mjs';
@@ -60,21 +60,25 @@ export function Home({language}:{language:string}) {
   const today=useHomeDate();
   // The shared vote-periods calendar drives the headline and the agenda links.
   const calendar=useData<VotePeriodsResponse>('vote-periods',{unavailable:'error.unavailable'});
-  const weeks=calendar.data?.weeks||[],upcoming=calendar.data?.upcoming||[];
+  const periods=calendarPeriods(calendar.data);
+  const weeks=periods?.weeks||[],upcoming=periods?.upcoming||[];
   const settled=Boolean(calendar.data||calendar.error);
+  // A failed or malformed calendar is unavailable, never an empty one.
+  const unavailable=settled&&!periods;
   const headline=headlineState(today,weeks,upcoming);
   const week=defaultAgendaWeek(today,weeks,upcoming);
-  const line=settled?headlineLine(ui,headline):null;
+  const line=settled?(unavailable?{text:ui.t('home.headline.unavailable'),locale:ui.messageLocale('home.headline.unavailable')}:headlineLine(ui,headline)):null;
   return <div className="home" lang={ui.language}>
     <div className="home-main">
       <header className="home-headline">
-        <h1 tabIndex={-1} aria-busy={settled?undefined:true} lang={line?.locale}>{!settled ? '\u00a0' : (calendar.error&&!calendar.data?.weeks) ? ui.t('home.headline.unavailable') : line?.text}</h1>
+        <p className="home-tagline" lang={ui.messageLocale('home.tagline')}><UiMessage id="home.tagline"/></p>
+        <h1 tabIndex={-1} aria-busy={settled?undefined:true} lang={line?.locale}>{line?.text??'\u00a0'}</h1>
         <div className="home-search">
           <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} placeholder={ui.t("home.search.placeholder")} language={language} className="explorer-text-search-global" inline/>
           <FindMeps language={language}/>
         </div>
       </header>
-      <HomeAgenda settled={settled} week={week} language={language} today={today}/>
+      <HomeAgenda settled={settled} unavailable={unavailable?(calendar.error||ui.t('error.unavailable')):null} week={week} language={language} today={today}/>
       <HomeVotes language={language}/>
     </div>
     <aside className="home-rail">
@@ -86,14 +90,15 @@ export function Home({language}:{language:string}) {
   </div>;
 }
 
-function HomeAgenda({settled,week,language,today}:{settled:boolean;week:string|null;language:string;today:string}) {
+function HomeAgenda({settled,unavailable,week,language,today}:{settled:boolean;unavailable:string|null;week:string|null;language:string;today:string}) {
   const ui=useUiI18n();
   const agenda=useInsightData<LegislationResponse>(week?'insights/legislation?'+new URLSearchParams({lang:language,week}):null);
   if(!settled)return null;
+  if(unavailable)return <section className="home-section home-agenda"><h2><UiMessage id="home.agenda.section"/></h2><InsightStatus loading={false} error={unavailable}/></section>;
   if(!week)return <section className="home-section home-agenda"><h2><UiMessage id="home.agenda.section"/></h2><p><UiMessage id="home.agenda.empty"/></p></section>;
-  const days=agendaDays(agenda.data?.topics,today,4);
+  const {past,days}=agendaView(agenda.data?.topics,today,week);
   return <section className="home-section home-agenda">
-    <h2><UiMessage id="home.agenda.section"/>{days.length>0&&<a className="home-section-more" href={agendaHref(week)} onClick={dossierLinkClick}><UiMessage id="home.agenda.all"/></a>}</h2>
+    <h2><UiMessage id={past?'home.agenda.past':'home.agenda.section'}/>{days.length>0&&<a className="home-section-more" href={agendaHref(week)} onClick={dossierLinkClick}><UiMessage id="home.agenda.all"/></a>}</h2>
     <InsightStatus loading={agenda.loading&&!agenda.data} error={agenda.data?null:agenda.error} retry={agenda.retry}/>
     {days.map(({day,rows,more,sittingId})=><div key={day} className="home-agenda-day">
       <h3><time lang='' dateTime={day}>{longDate(day,language)}</time></h3>

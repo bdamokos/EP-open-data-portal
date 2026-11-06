@@ -18,8 +18,10 @@ export function memberWallView(value: string|null): boolean {
 
 // An older directory link carries filters and no view; it still opens the directory.
 export function explorerViewFromQuery(query: URLSearchParams): ExplorerView|null {
+  // A member profile takes precedence over a view: the URL writes the member only when no view is set.
+  if (/^\d+$/.test(query.get('member') || '')) return null;
   const view = publicExplorerView(query.get('view'));
-  if (view || /^\d+$/.test(query.get('member') || '')) return view;
+  if (view) return view;
   return ['country','committee','group','organization'].some(key => query.has(key)) || (query.has('role') && query.get('role') !== 'both') ? 'meps' : null;
 }
 

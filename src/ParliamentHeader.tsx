@@ -1,4 +1,4 @@
-import {useLayoutEffect, useRef, useState} from 'react';
+import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {SavedNav} from './SavedControls';
 import {TextSearch} from './TextSearch';
@@ -55,6 +55,16 @@ export function goHome() {
   if(url.href!==location.href){history.pushState(history.state,'',url);window.dispatchEvent(new Event('popstate'));}
 }
 
+// Keyboard focus on a destination that is only partly visible in the sideways-scrolling phone row
+// brings it fully in, clear of the edge fade. The browser alone leaves a partly visible item as it is.
+const fadeWidth=28;
+function revealDestination(nav:HTMLElement,target:HTMLElement) {
+  if(nav.scrollWidth<=nav.clientWidth||target.parentElement!==nav)return;
+  const left=target.offsetLeft,right=left+target.offsetWidth;
+  if(left<nav.scrollLeft+fadeWidth)nav.scrollLeft=Math.max(0,left-fadeWidth);
+  else if(right>nav.scrollLeft+nav.clientWidth-fadeWidth)nav.scrollLeft=right-nav.clientWidth+fadeWidth;
+}
+
 export function ParliamentHeader({view,onHome=goHome,onMembers,onNavigate,onSaved,onLanguageChange,language='en',search=true}: {
   view: 'home' | 'members' | ExplorerView | 'saved';
   onHome?: () => void;
@@ -67,9 +77,14 @@ export function ParliamentHeader({view,onHome=goHome,onMembers,onNavigate,onSave
 }) {
   const ui = useUiI18n();
   const [header,stacked]=useStackedDestinations(ui.language,`${Boolean(onSaved)}${Boolean(onLanguageChange)}${search}`);
+  // On phones the destinations scroll sideways: bring the current one into view.
+  useEffect(()=>{
+    const nav=header.current?.querySelector('nav'),current=nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if(nav&&current&&nav.scrollWidth>nav.clientWidth)nav.scrollLeft=current.offsetLeft-(nav.clientWidth-current.offsetWidth)/2;
+  },[view,ui.language]);
   return <header ref={header} className="parliament-header" data-stacked={stacked ? "true" : undefined}>
     {onHome ? <a href="./" className="parliament-brand parliament-brand-link" lang={ui.language} onClick={event=>{if(event.button===0&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey){event.preventDefault();onHome();}}}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></a> : <span className="parliament-brand" lang={ui.language}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></span>}
-    <nav aria-label={ui.t("batch4.parliamentheader.tsx.24.1")} lang={ui.language}>
+    <nav aria-label={ui.t("batch4.parliamentheader.tsx.24.1")} lang={ui.language} onFocus={event=>revealDestination(event.currentTarget,event.target as HTMLElement)}>
       <button aria-current={(view==='members') ? 'page' : undefined} onClick={onMembers}><UiMessage id="batch4.parliamentheader.tsx.25.1"/></button>
       {(['legislation','questions','geopolitics','amendments','outside','groups','hemicycle'] as const).filter(destination=>destination!=='amendments'||publicAmendmentsEnabled).map(destination=><button
         key={destination}

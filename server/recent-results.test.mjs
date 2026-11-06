@@ -51,6 +51,12 @@ test('without group history the split is unknown, not zero',()=>{
   assert.equal(vote.differing,null);
 });
 
+test('the split is unknown when the group history places none of the voters',()=>{
+  const f=wholeTextFixture();
+  const [vote]=sittingResults(f.day,{language:'en',store:f.store,sharedHistory:{members:{},catalogue:null}});
+  assert.equal(vote.differing,null);
+});
+
 test('latest results reads only stored snapshots and answers an empty list when none are stored',async()=>{
   const f=wholeTextFixture(),node=sitting(f.day);
   const reads=[];
@@ -76,4 +82,25 @@ test('snapshots overdue or failing their refresh still answer: past votes are fi
   const snapshots={read(kind,version,id,{lastGood=false}={}){if(!lastGood)return null;return kind==='calendar'&&id==='2026'?{nodes:[sitting(f.day)]}:id===f.day.sittingId?{day:f.day,bytes:1}:null;}};
   const data=await latestResults({language:'en'},{snapshots,store:f.store,clock:()=>Date.parse('2026-10-23T10:00:00Z')});
   assert.equal(data.week,'2026-10-05');assert.equal(data.votes.length,1);
+});
+
+test('the week is returned whole, so picks compare every vote, not the newest day',async()=>{
+  const a=wholeTextFixture(),b=wholeTextFixture();
+  // A second sitting day: the same stored day with every 2026-10-07 id and date moved to 2026-10-08.
+  b.day=JSON.parse(JSON.stringify(a.day).replaceAll('2026-10-07','2026-10-08'));
+  const nodes=[a,b].map(x=>sitting(x.day));
+  const days=new Map([[a.day.sittingId,a.day],[b.day.sittingId,b.day]]);
+  const snapshots={read(kind,version,id){return kind==='calendar'&&id==='2026'?{nodes}:days.has(id)?{day:days.get(id),bytes:1}:null;}};
+  const data=await latestResults({language:'en'},{snapshots,store:null,clock:()=>Date.parse('2026-10-09T10:00:00Z')});
+  assert.equal(data.sittingIds.length,2);
+  assert(new Set(data.votes.map(vote=>vote.sittingId)).size===2);
+});
+
+test('concurrent cold reads share one scan',async()=>{
+  const f=wholeTextFixture();let reads=0;
+  const snapshots={read(kind,version,id){if(kind==='votes')reads++;return kind==='calendar'&&id==='2026'?{nodes:[sitting(f.day)]}:id===f.day.sittingId?{day:f.day,bytes:1}:null;}};
+  const options={snapshots,store:null,clock:()=>Date.parse('2026-10-09T10:00:00Z')};
+  const {latestResultsCached}=await import('./recent-results.mjs');
+  const [x,y]=await Promise.all([latestResultsCached({language:'zz'},options),latestResultsCached({language:'zz'},options)]);
+  assert.equal(x,y);assert.equal(reads,1);
 });

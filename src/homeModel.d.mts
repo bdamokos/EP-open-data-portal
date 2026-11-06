@@ -13,3 +13,5 @@ export function procedureReference(ids:string[]|undefined):string|null;
 export function longDate(value: string, locale: string): string;
 export function headlineLine(ui: {t(id: string, values?: Record<string, string>): string; messageLocale(id: string): string}, headline: {case: string; city?: string|null; nextDate?: string}): {text: string; locale: string};
 export function homeTerms(words: unknown): string[];
+export function calendarPeriods(data: {weeks?: unknown; upcoming?: unknown}|null|undefined): {weeks: VotePeriodWeek[]; upcoming: VotePeriodWeek[]}|null;
+export function agendaView(topics: AgendaTopic[]|undefined, today: string, week: string|null): {past: boolean; days: ReturnType<typeof agendaDays>};
