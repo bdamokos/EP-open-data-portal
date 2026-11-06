@@ -12,7 +12,7 @@ import {useExplorerParam} from './explorerUrl';
 import './VoteBreakdown.css';
 
 type Row=VoteMetricRow&{id?:string};
-type Props={rows:Row[];language:string;country:string|null;group:string|null;position:VotePosition|null;onChoose:(country:string|null,group:string|null,position:VotePosition)=>void};
+type Props={rows:Row[];language:string;country:string|null;group:string|null;position:VotePosition|'all'|null;onChoose:(country:string|null,group:string|null,position:VotePosition)=>void};
 const allKey='*';
 
 export function VoteCountries({rows,language,country,group,position,onChoose}:Props) {
@@ -46,7 +46,7 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
   if(narrow)return <section className="vote-countries" lang={ui.language}>{heading}
     <ul className="vote-country-list">{everyone.map(row=>{
       const key=row.country??allKey,expanded=open===key;
-      return <li key={key} className={row.country===null?'vote-country-all':undefined}>
+      return <li key={key} className={row.country===null?'vote-country-all':undefined} data-voter-anchor={'country:'+key}>
         <button type="button" className="vote-country-row" aria-expanded={expanded} onClick={()=>setOpen(expanded?null:key)} aria-label={ui.t('votegroups.countries.country_row',{country:label(row),for:String(row.counts.for),against:String(row.counts.against),abstaining:String(row.counts.abstaining)})}>
           <span className="vote-country-row-head"><span className="vote-chevron" aria-hidden="true"/><span className="vote-country-name" lang={labelLang(row)}>{label(row)}</span>{totalsText(row.counts)}</span>
           <VoteBar totals={row.counts} thin/>
@@ -54,6 +54,7 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
         {expanded&&<ul className="vote-country-groups">
           {groups.filter(code=>row.groups.has(code)).map(code=>{const counts=row.groups.get(code)!;return <li key={code}><button type="button" aria-pressed={pressed(row.country,code)} aria-label={ui.t('votegroups.countries.group_row',{group:groupLabel(code,ui),for:String(counts.for),against:String(counts.against),abstaining:String(counts.abstaining)})} onClick={()=>choose(row.country,code)}><span lang={groupLabelLanguage(code,ui)}>{groupLabel(code,ui)}</span>{totalsText(counts)}</button></li>;})}
         </ul>}
+        <div data-voter-host={'country:'+key}/>
       </li>;
     })}</ul>
   </section>;

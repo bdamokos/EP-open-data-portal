@@ -31,3 +31,12 @@
 .vote-seat-legend{display:flex;flex-wrap:wrap;gap:.25rem 1rem;list-style:none;margin:.5rem 0 0;padding:0;font-size:.85rem;color:var(--ink-muted)}
 .vote-seat-legend li{display:inline-flex;align-items:center;gap:.35rem}
 .vote-seat-legend-hollow{stroke:var(--line);stroke-width:1.5}
+
+.vote-seat-controls{display:flex;flex-wrap:wrap;gap:.5rem .75rem;justify-content:flex-end}
+.vote-arc-chart{max-width:760px;margin-inline:auto}
+.vote-arc-box{width:100%;min-height:8rem}
+.vote-arc-chart svg{display:block;width:100%;height:auto;touch-action:manipulation;overflow:visible}
+.vote-arc-chart circle[role=button]{cursor:pointer;outline:none}
+.vote-arc-chart circle[role=button]:focus-visible{stroke:var(--focus);stroke-width:3px;paint-order:stroke}
+.vote-arc-chart circle[data-dimmed=true]{opacity:.18}
+.vote-arc-name{fill:var(--ink);font-weight:600;pointer-events:none}

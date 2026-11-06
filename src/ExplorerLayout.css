@@ -184,3 +184,12 @@
 .insight-agenda-view[data-solo=true] .insight-agenda,.insight-agenda-view[data-solo=true] .insight-agenda-select { display:none; }
 .insight-agenda-view[data-solo=true] .insight-agenda-navigation { display:grid; gap:10px; margin-bottom:18px; }
 .insight-agenda-view[data-solo=true] .insight-legislation-grid { grid-template-columns:minmax(0,1fr); gap:0; }
+
+.insight-voter-dock { display:none; }
+@media (min-width:1200px) {
+  .insight-agenda-view[data-voters-open=true] { display:flex; gap:20px; align-items:flex-start; max-width:none; margin-inline:0; }
+  .insight-agenda-view[data-voters-open=true] .insight-agenda-main { flex:1 1 0; min-width:0; }
+  .insight-agenda-view[data-voters-open=true] .insight-agenda { display:none; }
+  .insight-agenda-view[data-voters-open=true] .insight-legislation-grid { grid-template-columns:minmax(0,1fr); gap:0; }
+  .insight-agenda-view[data-voters-open=true] .insight-voter-dock { display:block; flex:0 0 420px; position:sticky; top:12px; max-height:calc(100dvh - 24px); overflow:auto; }
+}

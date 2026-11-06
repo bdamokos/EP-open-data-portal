@@ -63,7 +63,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   assert.match(find('.insight-topic-detail').textContent,/Some records unavailable/,'missing documents alone retain the coverage warning');
   assert.equal(container.querySelector('.insight-data-credit'),null);
   assert.equal(container.querySelectorAll('footer .data-notice').length,1);
-  await click('Continue reading');await click('All 8 people');await click('Read '+topic.documentIds[0]);
+  await click('Read more');await click('All 8 people');await click('Read '+topic.documentIds[0]);
   const pager=find('nav[aria-label="Speeches"]'),bottom=find('nav[aria-label="Speeches, bottom"]');
   const previous=pager.querySelector('[aria-label="Previous speech"]'),next=pager.querySelector('[aria-label="Next speech"]');
   const disabled=button=>button.getAttribute('aria-disabled')==='true';

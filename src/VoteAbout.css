@@ -1,0 +1,5 @@
+.vote-about{margin:.75rem 0 1rem}
+.vote-about h3{margin:0 0 .25rem;font-size:1.05rem}
+.vote-about-text p{margin:0 0 .5rem;line-height:1.5}
+.vote-about-text h4{margin:.5rem 0 .25rem;font-size:1rem}
+.vote-about-text.is-clamped{max-height:6em;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 70%,transparent);mask-image:linear-gradient(to bottom,#000 70%,transparent)}

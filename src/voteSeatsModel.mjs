@@ -179,3 +179,81 @@ export function countryFilterPressed(selection,target) {
   if(selection.country!==target.country||selection.group!==target.group)return false;
   return target.position===undefined||selection.position===target.position;
 }
+
+// The Parliament's left-to-right group order, read from the seat plan: groups sorted by the mean direction
+// of their seats around the hemicycle's centre, leftmost first. Seats without a group are ignored.
+export function planGroupOrder(seats) {
+  const bounds=seatBounds(seats);
+  if(!bounds)return [];
+  const cx=(bounds.minX+bounds.maxX)/2,cy=bounds.maxY,groups=new Map();
+  for(const seat of seats) {
+    if(!seat.group)continue;
+    const dx=seat.x-cx,dy=cy-seat.y,distance=Math.hypot(dx,dy);
+    if(!distance)continue;
+    const entry=groups.get(seat.group)||{ux:0,uy:0};
+    entry.ux+=dx/distance;entry.uy+=dy/distance;groups.set(seat.group,entry);
+  }
+  return [...groups.entries()].map(([group,entry])=>({group,angle:Math.atan2(entry.uy,entry.ux)})).sort((a,b)=>b.angle-a.angle||a.group.localeCompare(b.group)).map(entry=>entry.group);
+}
+
+const positionRank={for:0,against:1,abstaining:2};
+const UNKNOWN_GROUP='unavailable';
+// One dot per ballot on concentric arcs: rows get dots in proportion to their length, the dots are cut into
+// wedges by group in `order` (left to right), and inside a wedge they run For, Against, Abstained so that each
+// group's split reads as solid blocks. Groups outside `order` (unknown ones last) get a wedge of their own, so
+// the dots always add up to the recorded ballots. Coordinates are px around the centre of the baseline (y up is negative).
+export function groupArcLayout(ballots,{order,radius,innerRatio=0.3}) {
+  const valid=ballots.filter(ballot=>positions.includes(ballot.position));
+  const total=valid.length;
+  if(!total||!(radius>0))return {dots:[],wedges:[],dotRadius:0,rows:0,radius};
+  const inner=radius*innerRatio,area=Math.PI/2*(radius*radius-inner*inner),spacing=Math.sqrt(area/total);
+  const rows=Math.max(1,Math.round((radius-inner)/spacing)),step=(radius-inner)/rows;
+  const radii=Array.from({length:rows},(_,i)=>inner+step*(i+0.5)),sum=radii.reduce((a,b)=>a+b,0);
+  // Largest-remainder split of the dots over the rows, by row length.
+  const exact=radii.map(r=>total*r/sum),counts=exact.map(Math.floor);
+  let rest=total-counts.reduce((a,b)=>a+b,0);
+  for(const index of exact.map((value,i)=>[value-Math.floor(value),i]).sort((a,b)=>b[0]-a[0]).map(entry=>entry[1])){if(rest<=0)break;counts[index]++;rest--;}
+  const slots=[];
+  radii.forEach((r,row)=>{for(let j=0;j<counts[row];j++){const angle=Math.PI-Math.PI*(j+0.5)/counts[row];slots.push({angle,radius:r,x:r*Math.cos(angle),y:-r*Math.sin(angle)});}});
+  slots.sort((a,b)=>b.angle-a.angle||a.radius-b.radius);
+  const byGroup=new Map();
+  for(const ballot of valid) {
+    const code=ballot.group||UNKNOWN_GROUP;
+    if(!byGroup.has(code))byGroup.set(code,[]);
+    byGroup.get(code).push(ballot);
+  }
+  const known=order.filter(code=>byGroup.has(code)),rest2=[...byGroup.keys()].filter(code=>!order.includes(code)).sort((a,b)=>(a===UNKNOWN_GROUP)-(b===UNKNOWN_GROUP)||byGroup.get(b).length-byGroup.get(a).length||a.localeCompare(b));
+  const dots=[],wedges=[];
+  let at=0;
+  for(const code of [...known,...rest2]) {
+    const members=[...byGroup.get(code)].sort((a,b)=>positionRank[a.position]-positionRank[b.position]||String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
+    const own=slots.slice(at,at+members.length);at+=members.length;
+    const counts={for:0,against:0,abstaining:0};
+    members.forEach((ballot,i)=>{counts[ballot.position]++;dots.push({index:dots.length,id:String(ballot.id),group:code,position:ballot.position,x:own[i].x,y:own[i].y,angle:own[i].angle});});
+    wedges.push({group:code,count:members.length,counts,start:own[0].angle,end:own[own.length-1].angle,angle:(own[0].angle+own[own.length-1].angle)/2,known:code!==UNKNOWN_GROUP});
+  }
+  const rowGap=step,arc=Math.min(...radii.map((r,i)=>Math.PI*r/counts[i]));
+  return {dots,wedges,dotRadius:0.42*Math.min(rowGap,arc),rows,radius,inner};
+}
+
+// Labels sit just outside their wedge. Wedges at the very ends of the baseline put theirs below it. A label that
+// would touch one already placed moves outwards until it clears. `measure(group)` gives the label's size in px.
+export function arcLabelPlacements(wedges,{radius,dotRadius,measure,gap=6,edge=0.2}) {
+  const placed=[];
+  for(const wedge of wedges) {
+    const {w,h}=measure(wedge.group),cos=Math.cos(wedge.angle),sin=Math.sin(wedge.angle);
+    const atEdge=wedge.angle<edge||wedge.angle>Math.PI-edge;
+    let reach=radius+dotRadius+gap,label;
+    for(let step=0;step<60;step++,reach+=3) {
+      let x,y,anchor;
+      if(atEdge){x=cos*(radius*0.85);y=dotRadius+gap+h/2+step*3;anchor='middle';}
+      else{x=reach*cos;y=-reach*sin;anchor=cos>0.35?'start':cos<-0.35?'end':'middle';}
+      const left=anchor==='start'?x:anchor==='end'?x-w:x-w/2;
+      const top=atEdge?y-h/2:anchor==='middle'?y-h:y-h/2;
+      label={group:wedge.group,x,top,anchor,box:{left,right:left+w,top,bottom:top+h}};
+      if(!placed.some(other=>label.box.left<other.box.right+4&&label.box.right+4>other.box.left&&label.box.top<other.box.bottom+2&&label.box.bottom+2>other.box.top))break;
+    }
+    placed.push(label);
+  }
+  return placed;
+}

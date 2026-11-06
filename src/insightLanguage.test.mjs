@@ -238,5 +238,5 @@ test('French group labels and voter controls keep UI language while literal grou
  const row=h.container.querySelector('.insight-vote-group-row');assert(row);assert.equal(effectiveLanguage(row.firstElementChild),'fr');
  for(const button of row.querySelectorAll('button'))assert.equal(effectiveLanguage(button),'fr');
  await act(async()=>row.querySelector('button').click());
- const selectedGroup=h.container.querySelector('.insight-voter-list h3 span');assert(selectedGroup);assert.equal(effectiveLanguage(selectedGroup),'fr');assert.equal(selectedGroup.textContent,ui.t('grouplabels.ts.non.attached'));
+ const selectedGroup=h.container.querySelector('.vote-voter-panel h3 span');assert(selectedGroup);assert.equal(effectiveLanguage(selectedGroup),'fr');assert.equal(selectedGroup.textContent,ui.t('grouplabels.ts.non.attached'));
 });

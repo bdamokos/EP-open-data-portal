@@ -158,3 +158,37 @@ test('a label carries its count line only where the taller box clears every seat
   for(const label of fits)for(const seat of plan)assert(!(seat.x+seat.r>label.box.left&&seat.x-seat.r<label.box.right&&seat.y+seat.r>label.box.top&&seat.y-seat.r<label.box.bottom),'the taller box clears every seat');
   assert.equal(groupLabelPlacements(plan,{scale:1,widthOf:()=>30}).every(label=>!label.withExtra),true,'no extra line unless asked for');
 });
+
+import {planGroupOrder,groupArcLayout,arcLabelPlacements} from './voteSeatsModel.mjs';
+test('the group order is read from where each group sits in the plan, leftmost first',()=>{
+  assert.deepEqual(planGroupOrder(plan),['A','B','C']);
+  assert.deepEqual(planGroupOrder([]),[]);
+});
+const ballots=(group,counts)=>Object.entries(counts).flatMap(([position,n])=>Array.from({length:n},(_,i)=>({id:group+position+i,group,position})));
+test('the group arc has one dot per ballot, wedges in plan order and For, Against, Abstained blocks inside each',()=>{
+  const all=[...ballots('B',{abstaining:3,for:5,against:2}),...ballots('A',{against:4,for:6}),...ballots('C',{for:1}),...ballots(null,{for:2,against:1}),...ballots('Z',{abstaining:2})];
+  const layout=groupArcLayout(all,{order:['A','B','C'],radius:300});
+  assert.equal(layout.dots.length,all.length,'the dots add up to the recorded ballots');
+  assert.deepEqual(layout.wedges.map(w=>w.group),['A','B','C','Z','unavailable'],'plan order, then other groups, the unknown one last');
+  assert.deepEqual(layout.wedges.map(w=>w.count),[10,10,1,2,3]);
+  const angles=layout.dots.map(dot=>dot.angle);
+  assert(angles.every((angle,i)=>i===0||angle<=angles[i-1]+1e-9),'dots run left to right');
+  for(const wedge of layout.wedges) {
+    const own=layout.dots.filter(dot=>dot.group===wedge.group),rank={for:0,against:1,abstaining:2};
+    assert(own.every((dot,i)=>i===0||rank[dot.position]>=rank[own[i-1].position]),wedge.group+' runs For, Against, Abstained');
+    assert.deepEqual(layout.dots.slice(own[0].index,own[0].index+own.length).map(dot=>dot.group),own.map(dot=>dot.group),'a wedge is contiguous');
+  }
+  for(const dot of layout.dots){const r=Math.hypot(dot.x,dot.y);assert(r>=layout.inner&&r<=layout.radius&&dot.y<=0,'inside the half ring');}
+  assert.deepEqual(new Set(layout.dots.map(dot=>dot.id)).size,all.length,'every ballot keeps its own dot');
+  assert.equal(groupArcLayout([],{order:[],radius:100}).dots.length,0);
+  assert.equal(groupArcLayout([{id:1,position:'maybe'}],{order:[],radius:100}).dots.length,0,'only recorded positions count');
+});
+test('bigger charts give bigger dots from the same ballots, and wedge labels clear each other',()=>{
+  const all=[...ballots('A',{for:60,against:10}),...ballots('B',{for:20,abstaining:20}),...ballots('C',{for:15}),...ballots('D',{against:15})];
+  const small=groupArcLayout(all,{order:['A','B','C','D'],radius:150}),large=groupArcLayout(all,{order:['A','B','C','D'],radius:300});
+  assert(large.dotRadius>small.dotRadius*1.9);
+  const labels=arcLabelPlacements(large.wedges,{radius:300,dotRadius:large.dotRadius,measure:()=>({w:90,h:32})});
+  assert.equal(labels.length,4);
+  for(let i=0;i<labels.length;i++)for(let j=i+1;j<labels.length;j++){const a=labels[i].box,b=labels[j].box;assert(!(a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top),'labels '+i+' and '+j+' do not overlap');}
+  for(const label of labels)assert(label.box.bottom<=0||label.box.top>=0,'a label never crosses the baseline');
+});

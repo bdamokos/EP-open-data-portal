@@ -1,0 +1,24 @@
+.vote-voter-panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:.75rem;display:grid;gap:.6rem}
+.vote-voter-panel header{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.vote-voter-panel h3{margin:0;font-size:1.05rem}
+.vote-voter-panel h3 small{margin-left:.5rem;font-size:.8rem;font-weight:400;color:var(--ink-muted)}
+.vote-voter-close{min-width:var(--control-height);min-height:var(--control-height);font-size:1.4rem;line-height:1}
+.vote-voter-tabs{flex-wrap:wrap}
+.vote-voter-count{color:var(--ink-muted);font-variant-numeric:tabular-nums;font-size:.85em}
+.vote-voter-search input{width:100%;min-height:var(--control-height);padding:0 .6rem;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font:inherit}
+.vote-voter-filters{display:flex;gap:.75rem;flex-wrap:wrap}
+.vote-voter-list{list-style:none;margin:0;padding:0}
+.vote-voter-row{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:.6rem;align-items:center;min-height:44px;padding:.1rem 0;border-top:1px solid var(--line)}
+.vote-voter-portrait{display:block;text-decoration:none}
+.vote-voter-portrait .insight-portrait{width:32px;height:38px}
+.vote-voter-portrait .insight-portrait img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.vote-voter-portrait .insight-portrait-fallback{font-size:12px}
+.vote-voter-main{display:grid;min-width:0}
+.vote-voter-name{text-decoration:none;font-weight:600;font-size:.92rem;line-height:1.25;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vote-voter-main small{line-height:1.2;color:var(--ink-muted);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vote-voter-dot{display:inline-block;width:.6em;height:.6em;border-radius:50%;margin-right:.3em}
+.vote-voter-position{font-size:.82rem;font-weight:600}
+.vote-voter-position.vote-for{color:var(--vote-for)}
+.vote-voter-position.vote-against{color:var(--vote-against)}
+.vote-voter-position.vote-abstaining{color:var(--vote-abstain)}
+.vote-voter-name:hover{text-decoration:underline}

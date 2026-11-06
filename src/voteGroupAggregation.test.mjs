@@ -27,9 +27,9 @@ test('vote matrix and group drill-down consume dated server buckets, including c
   assert.match(matrix().querySelector(".insight-vote-matrix-head").textContent,/Abstentions/);
   const oldGroup=[...matrix().querySelectorAll('button')].find(button=>button.getAttribute('aria-label')==='S&D, for: 1 MEP');assert(oldGroup);
   await act(async()=>oldGroup.click());
-  assert.match(container.querySelector('.insight-voter-list').textContent,/Pina Picierno/);assert.doesNotMatch(container.querySelector('.insight-voter-list').textContent,/Other author|Unknown history|Renew/);
+  assert.match(container.querySelector('.vote-voter-panel').textContent,/Pina Picierno/);assert.doesNotMatch(container.querySelector('.vote-voter-panel').textContent,/Other author|Unknown history|Renew/);
   const unavailable=[...matrix().querySelectorAll('button')].find(button=>button.getAttribute('aria-label')==='Unavailable, for: 1 MEP');assert(unavailable);
-  await act(async()=>unavailable.click());assert.match(container.querySelector('.insight-voter-list').textContent,/Unknown history/);
+  await act(async()=>unavailable.click());assert.match(container.querySelector('.vote-voter-panel').textContent,/Unknown history/);
   await act(async()=>root.render(createElement(VoteView,{vote,language:'en',country:'IT'})));
   assert.equal(matrix().querySelector(".vote-group-scope").textContent,"Whole group");
   assert.match(matrix().textContent,/100% · 1 of 1/);assert.match(container.querySelector('.vote-group-summary').textContent,/Every group’s majority voted for/);

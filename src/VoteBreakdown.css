@@ -88,3 +88,9 @@
 @media (max-width:639px){.vote-result-sentence{font-size:1rem}}
 .vote-country-table thead th:not(:first-child) button{text-align:center}
 @media (max-width:759px){.vote-country-table td button{gap:1px;font-size:.78rem}.vote-cell-more{font-size:.58rem}}
+/* With the voter panel docked the table is as narrow as on a small screen. */
+@media (min-width:1200px){
+  .insight-agenda-view[data-voters-open=true] .vote-country-table thead button{font-size:.7rem;line-height:1.1;white-space:normal}
+  .insight-agenda-view[data-voters-open=true] .vote-country-table td button{gap:1px;font-size:.78rem}
+  .insight-agenda-view[data-voters-open=true] .vote-cell-more{font-size:.58rem}
+}

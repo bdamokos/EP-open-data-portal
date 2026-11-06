@@ -6,7 +6,8 @@ import {validateVotePeriods,type VotePeriodsResponse} from './plenaryPeriods.mjs
 import {groupLabel,groupLabelLanguage} from './groupLabels';
 import {voteCountryName as countryName} from './voteCountryName';
 import {nearestSeat,type HemicycleSeat} from './hemicycleModel.mjs';
-import {seatBallots,unseatedDotTotals,differingVoterIds,seatBounds,groupLabelPlacements,type SeatBallotVoter} from './voteSeatsModel.mjs';
+import {VoteArc} from './VoteArc';
+import {planGroupOrder,seatBallots,unseatedDotTotals,differingVoterIds,seatBounds,groupLabelPlacements,type SeatBallotVoter} from './voteSeatsModel.mjs';
 import {groupShortLabel} from './groupShort';
 import {positionsUi,votePositionKeys,type VotePosition} from './votePositions';
 import {useNarrow} from './useNarrow';
@@ -15,14 +16,15 @@ import './VoteSeats.css';
 
 type HemicyclePlan={chamber:string;sourcePageUrl:string;sourceDate:string|null;width:number;height:number;seats:HemicycleSeat[]};
 type MetricRow={id?:string;group:string|null;country?:string|null;position:VotePosition|null};
-type Props={vote:NamedVote;rows:MetricRow[];sittingId:string;language:string;onMember?:(id:number,sourceId?:string)=>void};
+type Props={vote:NamedVote;rows:MetricRow[];sittingId:string;language:string;onMember?:(id:number,sourceId?:string)=>void;onList?:(group:string|null,position:VotePosition)=>void};
 const positionFill:Record<VotePosition,string>={for:'var(--vote-for)',against:'var(--vote-against)',abstaining:'var(--vote-abstain)'};
 const chamberFor=(location:string|null|undefined)=>location==='Brussels'?'bru':'str';
 const fullName=(seat:HemicycleSeat)=>`${seat.firstName||''} ${seat.name||''}`.trim();
 
-export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
+export function VoteSeats({vote,rows,sittingId,language,onMember,onList}:Props) {
   const ui=useUiI18n(),headingId=useId(),narrow=useNarrow();
   const [view,setView]=useExplorerParam<'all'|'differ'>('agenda-seat-view','all',['all','differ']);
+  const [arrangement,setArrangement]=useExplorerParam<'group'|'seats'>('agenda-seat-arrangement','group',['group','seats']);
   const [active,setActive]=useState<number|null>(null),[hovered,setHovered]=useState<number|null>(null);
   const pointerType=useRef<'mouse'|'touch'|'pen'>('mouse'),activeAtPress=useRef<number|null>(null);
   const [svgNode,setSvgNode]=useState<SVGSVGElement|null>(null),[pixelWidth,setPixelWidth]=useState(0);
@@ -44,6 +46,7 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
   const seats=useMemo(()=>plan?.seats.filter(seat=>seat.member)||[],[plan]);
   const ballots=useMemo(()=>seatBallots(voters,seats),[voters,seats]);
   const differIds=useMemo(()=>differingVoterIds(rows),[rows]);
+  const groupOrder=useMemo(()=>planGroupOrder(plan?.seats||[]),[plan]);
   const positions=positionsUi(ui);
   const selected=(hovered??active)===null?null:seats.find(seat=>seat.seat===(hovered??active))||null;
   const selectedBallot=selected?ballots.bySeat.get(selected.seat):null;
@@ -104,15 +107,22 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
               <title>{labels.get(seat.seat)}</title>
             </circle>;
           }),[seats,ballots,view,differIds,active,labels]);
-  return <section className="vote-seats" lang={ui.language} aria-labelledby={headingId}>
+  return <section className="vote-seats" lang={ui.language} aria-labelledby={headingId} data-voter-anchor="seats">
     <div className="insight-section-heading">
       <h4 id={headingId}><UiMessage id="votegroups.seats.heading"/></h4>
+      <div className="vote-seat-controls">
+      <div className="insight-chart-switch" role="group" aria-label={ui.t('votegroups.seats.arrangement')}>
+        <button type="button" aria-pressed={arrangement==='group'} onClick={()=>setArrangement('group')}><UiMessage id="votegroups.seats.arrangement.group"/></button>
+        <button type="button" aria-pressed={arrangement==='seats'} onClick={()=>setArrangement('seats')}><UiMessage id="votegroups.seats.arrangement.seats"/></button>
+      </div>
       <div className="insight-chart-switch" role="group" aria-label={ui.t('votegroups.seats.view')}>
         <button type="button" aria-pressed={view==='all'} onClick={()=>setView('all')}><UiMessage id="votegroups.seats.view.all"/></button>
         <button type="button" aria-pressed={view==='differ'} onClick={()=>setView('differ')}>{ui.t('votegroups.seats.view.differ',{count:String(differIds.size)})}</button>
       </div>
+      </div>
     </div>
     {!plan?<p className="insight-secondary" role={state.error?'alert':'status'}>{state.error?<UiMessage id="votegroups.seats.unavailable"/>:<UiMessage id="insightshared.loading"/>}</p>:<>
+      {arrangement==='group'?<VoteArc vote={vote} rows={rows} order={groupOrder} language={language} differIds={differIds} differ={view==='differ'} narrow={narrow} onMember={onMember} onList={onList}/>:<>
       <figure className="vote-seats-chart">
         <svg ref={setSvgNode} viewBox={chart.box} role="group" aria-label={ui.t('votegroups.seats.chart')} onClick={clickChart}>
           {circles}
@@ -121,9 +131,12 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
         </svg>
         <figcaption className="vote-seat-info" aria-live="polite">{selected?<>{fullName(selected)} · <span lang={groupLabelLanguage(selected.group||'',ui)}>{groupLabel(selected.group||'',ui)}</span> · {countryName(selected.country||'',language)} · {positionLabel(selected,selectedBallot||undefined)}{selectedBallot&&differIds.has(selectedBallot.id)&&<> · <UiMessage id="votegroups.seats.differs"/></>}{selectedBallot&&<button type="button" className="insight-text-button" onClick={()=>openMember(selected)}><UiMessage id="hemicycle.openMember"/></button>}</>:null}</figcaption>
       </figure>
-      <ul className="vote-seat-legend">{votePositionKeys.map(position=><li key={position}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill={positionFill[position]}/></svg>{ui.t('votegroups.position.'+position)}</li>)}<li><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle className="vote-seat-legend-hollow" cx="6" cy="6" r="5" fill="transparent"/></svg>{ui.t('votegroups.seats.noRecord')}</li></ul>
-      {(dotted.for||dotted.against||dotted.abstaining)>0&&<div className="vote-seat-unseated"><p className="insight-chart-caption"><UiMessage id="votegroups.seats.unseated"/></p>{votePositionKeys.filter(position=>dotted[position]).map(position=><div key={position} className="vote-seat-dots-row"><span className={'vote-seat-dots-label vote-'+position}>{positions[position]} <strong>{dotted[position]}</strong></span><span className="vote-seat-dots" aria-hidden="true">{Array.from({length:dotted[position]},(_,index)=><i key={index} className={'vote-'+position}/>)}</span></div>)}</div>}
+</>}
+
+      <ul className="vote-seat-legend">{votePositionKeys.map(position=><li key={position}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill={positionFill[position]}/></svg>{ui.t('votegroups.position.'+position)}</li>)}{arrangement==="seats"&&<li><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle className="vote-seat-legend-hollow" cx="6" cy="6" r="5" fill="transparent"/></svg>{ui.t('votegroups.seats.noRecord')}</li>}</ul>
+      {arrangement==='seats'&&<>{(dotted.for||dotted.against||dotted.abstaining)>0&&<div className="vote-seat-unseated"><p className="insight-chart-caption"><UiMessage id="votegroups.seats.unseated"/></p>{votePositionKeys.filter(position=>dotted[position]).map(position=><div key={position} className="vote-seat-dots-row"><span className={'vote-seat-dots-label vote-'+position}>{positions[position]} <strong>{dotted[position]}</strong></span><span className="vote-seat-dots" aria-hidden="true">{Array.from({length:dotted[position]},(_,index)=><i key={index} className={'vote-'+position}/>)}</span></div>)}</div>}</>}
     </>}
+    <div data-voter-host="seats"/>
     <table className="vote-seats-sr">
       <caption><UiMessage id="votegroups.seats.table"/></caption>
       <thead><tr><th scope="col"><UiMessage id="groupvoices.political_group.c2db1f"/></th>{votePositionKeys.map(position=><th key={position} scope="col">{positions[position]}</th>)}</tr></thead>
