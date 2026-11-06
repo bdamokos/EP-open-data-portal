@@ -46,8 +46,9 @@ export function dossierStatusLines({stage,steps=[],councilApproval=null,latest=n
     }
     case 'reported':return {sentence:{id:named?'dossierstatus.reported':'dossierstatus.reported_no_committee',values:{committees,date:stepDate('committee')}},next:slots.plenaryDate?{id:'dossierstatus.next_plenary_vote_on',values:{date:slots.plenaryDate}}:{id:'dossierstatus.next_plenary_vote'}};
     case 'position-talks':return parliament('position_talks',stepDate('parliament'),'dossierstatus.next_talks');
-    // Both institutions' positions with no referral and no deal leave no recorded next step.
-    case 'position':return parliament('position',stepDate('final')||stepDate('parliament'),steps.some(step=>step.state==='current')?'dossierstatus.next_council_reading':null);
+    // After a deal, this vote closes the deal. Both institutions' positions with
+    // no referral and no deal leave no recorded next step.
+    case 'position':return stepDate('final')?parliament('final_vote',stepDate('final'),'dossierstatus.next_signature'):parliament('position',stepDate('parliament'),steps.some(step=>step.state==='current')?'dossierstatus.next_council_reading':null);
     case 'deal':return {sentence:{id:'dossierstatus.deal',values:{date:stepDate('deal')}},next:{id:'dossierstatus.next_plenary_vote'}};
     case 'council-approved':return {sentence:{id:'dossierstatus.council_approved',values:{date:councilApproval?.date??null}},next:{id:'dossierstatus.next_signature'}};
     case 'signed':return {sentence:{id:'dossierstatus.signed',values:{date:stepDate('signed')}},next:{id:'dossierstatus.next_journal'}};
