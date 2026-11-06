@@ -3,10 +3,9 @@
 .vote-result-outcome[data-outcome=ADOPTED]{color:var(--vote-for)}
 .vote-result-outcome[data-outcome=REJECTED]{color:var(--vote-against)}
 .vote-result-totals{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.5rem 0}
-.vote-result-totals>div{padding:.4rem .5rem;border-radius:var(--radius-sm);border-left:4px solid currentColor}
-.vote-result-totals .vote-for{color:var(--vote-for);background:var(--vote-for-soft)}
-.vote-result-totals .vote-against{color:var(--vote-against);background:var(--vote-against-soft)}
-.vote-result-totals .vote-abstaining{color:var(--vote-abstain);background:var(--vote-abstain-soft)}
+.vote-result-totals .vote-for{color:var(--vote-for)}
+.vote-result-totals .vote-against{color:var(--vote-against)}
+.vote-result-totals .vote-abstaining{color:var(--vote-abstain)}
 .vote-result-totals span{display:block;font-size:.8rem;color:var(--ink)}
 .vote-result-totals strong{font-size:1.5rem;line-height:1.1;font-variant-numeric:tabular-nums}
 .vote-result-totals small{display:block;font-size:.75rem;color:var(--ink-muted)}
@@ -93,4 +92,24 @@
   .insight-agenda-view[data-voters-open=true] .vote-country-table thead button{font-size:.7rem;line-height:1.1;white-space:normal}
   .insight-agenda-view[data-voters-open=true] .vote-country-table td button{gap:1px;font-size:.78rem}
   .insight-agenda-view[data-voters-open=true] .vote-cell-more{font-size:.58rem}
+}
+/* Phones keep three tinted cards with the bar beneath them. From 640 px the sentence, the bar and its legend read as one block:
+   the same strong vote colour marks the segment, the legend square and the numeral, and nothing is tinted. */
+@media (max-width:639px){
+  .vote-result-totals>div{padding:.4rem .5rem;border-radius:var(--radius-sm);border-left:4px solid currentColor}
+  .vote-result-totals .vote-for{background:var(--vote-for-soft)}
+  .vote-result-totals .vote-against{background:var(--vote-against-soft)}
+  .vote-result-totals .vote-abstaining{background:var(--vote-abstain-soft)}
+}
+@media (min-width:640px){
+  .vote-result{display:flex;flex-direction:column}
+  .vote-result>*{order:3}
+  .vote-result>.vote-result-outcome{order:0}
+  .vote-result>.vote-bar{order:1;height:14px;margin-top:.75rem;gap:2px;background:none}
+  .vote-result>.vote-result-totals{order:2;display:flex;flex-wrap:wrap;gap:.25rem 1.75rem;margin:.6rem 0 .75rem}
+  .vote-result-totals>div{display:flex;align-items:center;gap:.4rem;padding:0;border:0;border-radius:0;font-size:1rem;line-height:1.5;white-space:nowrap}
+  .vote-result-totals>div::before{content:"";flex:none;width:.75rem;height:.75rem;border-radius:2px;background:currentColor}
+  .vote-result-totals span{font-size:inherit}
+  .vote-result-totals strong{font-size:inherit;line-height:inherit;font-weight:700}
+  .vote-result-totals small{font-size:inherit;color:var(--ink-muted)}
 }
