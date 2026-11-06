@@ -39,6 +39,14 @@ test('items open their tab, category and week',async t=>{
   assert.deepEqual(view.opened,['speeches','activities:reports-shadow','activities:written-questions','votes:2026-10-19']);
 });
 
+test('a person with written and oral questions gets one item for each kind',async t=>{
+  const both={categoryCoverage:{...activities.categoryCoverage,'oral-questions':row(2)}};
+  const view=await mount(t,{reads:{activities:()=>Response.json(both),votes:unavailable}});
+  assert.deepEqual(view.items(),['21 speeches','1 shadow report','5 written questions','2 oral questions']);
+  await view.click('oral-questions');
+  assert.deepEqual(view.opened,['activities:oral-questions']);
+});
+
 test('a failed activity read drops only its items',async t=>{
   const view=await mount(t,{reads:{activities:unavailable,votes:()=>Response.json(votes)}});
   assert.deepEqual(view.items(),['Last plenary week: 255 votes on record, 10 against the outcome']);

@@ -19,9 +19,12 @@ export function memberOverviewItems({activities,votes}) {
   const add=(item,count)=>{if(count!==null&&(count>0||item.zero))items.push({...item,count});};
   add(ACTIVITY_ITEMS[0],known(coverage,'plenary-contributions'));
   for(const item of ACTIVITY_ITEMS.slice(1))add(item,known(coverage,item.category));
-  // Written and oral questions share one count; both reads must be known.
+  // Questions open one category, so a person with both kinds gets one item each.
   const written=known(coverage,'written-questions'),oral=known(coverage,'oral-questions');
-  if(written!==null&&oral!==null&&written+oral>0)items.push({key:'questions',category:written&&oral?'':written?'written-questions':'oral-questions',target:'activities',one:'memberoverview.count_question',other:'memberoverview.count_questions',count:written+oral});
+  if(written!==null&&oral!==null&&written>0&&oral>0){
+    items.push({key:'written-questions',category:'written-questions',target:'activities',one:'followUpdates.count_written_question',other:'followUpdates.count_written_questions',count:written});
+    items.push({key:'oral-questions',category:'oral-questions',target:'activities',one:'followUpdates.count_oral_question',other:'followUpdates.count_oral_questions',count:oral});
+  } else if(written!==null&&oral!==null&&written+oral>0)items.push({key:'questions',category:written?'written-questions':'oral-questions',target:'activities',one:'memberoverview.count_question',other:'memberoverview.count_questions',count:written+oral});
   add({key:'motions',category:'motions',target:'activities',one:'followUpdates.count_motion',other:'followUpdates.count_motions'},known(coverage,'motions'));
   const recorded=votes?.coverage?.status==='complete'?votes.pagination?.recordedTotal:null,against=votes?.alignmentCounts?.against;
   if(Number.isSafeInteger(recorded)&&Number.isSafeInteger(against)&&votes.period?.week)items.push({key:'votes',target:'votes',week:votes.period.week,one:'memberoverview.last_week_one',other:'memberoverview.last_week',count:recorded,against});

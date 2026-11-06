@@ -8,7 +8,7 @@ const votes={coverage:{status:'complete'},period:{week:'2026-10-19'},alignmentCo
 
 test('items follow the page order and hide zero counts except speeches and votes',()=>{
   const items=memberOverviewItems({activities:activities(),votes});
-  assert.deepEqual(items.map(item=>[item.key,item.count]),[['speeches',21],['reports-shadow',3],['questions',5],['votes',255]]);
+  assert.deepEqual(items.map(item=>[item.key,item.count]),[['speeches',21],['reports-shadow',3],['written-questions',4],['oral-questions',1],['votes',255]]);
   assert.equal(items.at(-1).against,10);assert.equal(items.at(-1).week,'2026-10-19');
   assert.equal(memberOverviewItems({activities:activities({'plenary-contributions':row(0)}),votes})[0].count,0);
 });
@@ -18,10 +18,12 @@ test('a category that is not available is unknown, never zero',()=>{
   assert.deepEqual(items.map(item=>item.key),['votes']);
 });
 
-test('questions open the single category when only one kind exists',()=>{
+test('questions open one category: a single item when one kind exists, one item each when both do',()=>{
   const only=memberOverviewItems({activities:activities({'oral-questions':row(0)}),votes:null}).find(item=>item.key==='questions');
-  assert.equal(only.category,'written-questions');
-  assert.equal(memberOverviewItems({activities:activities(),votes:null}).find(item=>item.key==='questions').category,'');
+  assert.equal(only.category,'written-questions');assert.equal(only.count,4);
+  const both=memberOverviewItems({activities:activities(),votes:null}).filter(item=>item.key.endsWith('questions'));
+  assert.deepEqual(both.map(item=>[item.category,item.count]),[['written-questions',4],['oral-questions',1]]);
+  assert.equal(memberOverviewItems({activities:activities({'oral-questions':row(2,'backfilling')}),votes:null}).some(item=>item.key.endsWith('questions')),false);
 });
 
 test('votes need a complete read with an exact recorded and against count',()=>{
