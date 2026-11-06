@@ -6,7 +6,7 @@ import {VotePartDescriptions} from './MemberVoteSummary';
 import {exactAmendmentTargets,topLevelVoteDocuments} from './memberVotesPresentation.mjs';
 import type {MemberVote} from './MemberVotesTypes';
 
-export default function DossierVoteText({vote,language}:{vote:MemberVote;language:string}) {
+export default function DossierVoteText({vote,language,showParts=true}:{vote:Pick<MemberVote,'scope'|'title'|'titleLanguage'>&Parameters<typeof VotePartDescriptions>[0]['vote']&{context:Pick<MemberVote['context'],'documentIds'|'amendmentIds'>};language:string;showParts?:boolean}) {
   const ui = useUiI18n();
   const [context,setContext]=useState<MemberVotesContext|null>(null);
   const origin=useRef<HTMLElement|null>(null);
@@ -18,7 +18,7 @@ export default function DossierVoteText({vote,language}:{vote:MemberVote;languag
   if(!targets.length&&!vote.context.amendmentIds.length&&vote.scope.kind!=='procedural'&&!vote.parts.length&&documents.length===1)return <DocumentContextReader showBackButton={false} showOriginalLink={false} request={{documentId:documents[0],view:'document',onBack:()=>{}}} language={language}/>;
   return <div className="dossier-vote-text">
     <div hidden={Boolean(context)}>
-      <VotePartDescriptions vote={vote} language={language}/>
+      {showParts&&<VotePartDescriptions vote={vote} language={language}/>}
       {targets.map(target=><MemberVoteWording key={target.amendmentId+':'+language} {...target} language={language} openContext={openContext}/>)}
       {!targets.length&&Boolean(vote.context.amendmentIds.length)&&<p><UiMessage id="batch5.dossiervotetext.tsx.21.49"/></p>}
       {!targets.length&&vote.scope.kind==='procedural'&&<p lang={vote.titleLanguage??''}>{vote.title}</p>}

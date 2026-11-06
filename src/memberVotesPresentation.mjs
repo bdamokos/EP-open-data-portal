@@ -157,6 +157,17 @@ export function memberVoteLabel(vote,language='en', ui = defaultUi) {
   if(parts.length)label.push((parts.length===1)?ui.t("membervotespresentation.part_numbers", {numbers: String(parts.join(', '))}):(ui.t("membervotespresentation.parts_numbers", {numbers: String(parts.join(', '))})));
   return label.join(' · ')||sourceLabel(vote.referenceTexts,language)||ui.t("membervotespresentation.decision");
 }
+/** All parts of each split request a vote belongs to, in order, marking this vote's own. */
+export function splitVoteRequests(parts=[]) {
+  const requests=new Map();
+  for(const part of parts) {
+    const key=part.requestUri||part.componentId,request=requests.get(key)||new Map();
+    for(const component of [...(part.contextComponents||[]),part])request.set(component.componentId,{componentId:component.componentId,number:component.number,contentByLanguage:component.contentByLanguage,current:Boolean(request.get(component.componentId)?.current)||component===part});
+    requests.set(key,request);
+  }
+  const order=part=>/^\d+$/.test(String(part.number))?Number(part.number):Number.MAX_SAFE_INTEGER;
+  return [...requests].map(([requestUri,request])=>({requestUri,parts:[...request.values()].sort((a,b)=>order(a)-order(b))}));
+}
 export function memberVotePositionState(vote) {
   if(vote.ballotStatus==='not-conducted'||vote.actualPosition?.status==='not-conducted')return 'notConducted';
   const status=vote.actualPosition?.status;

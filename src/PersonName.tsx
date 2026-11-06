@@ -20,6 +20,7 @@ export function PersonName({id,label,fallback=''}:{id:unknown;label?:string|null
   return <span lang="" title={(label && (label!==name)) ? ui.t("personname.source_label_label", {label: String(label)}) : undefined}>{name}</span>;
 }
 
+export const useDirectoryMembers=()=>useContext(Members);
 export function useDirectoryMember(id:unknown) {
   return useContext(Members).get(/^[1-9]\d*$/.test(String(id)) ? String(id) : '');
 }

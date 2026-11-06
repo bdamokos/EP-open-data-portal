@@ -23,6 +23,7 @@ export function readExplorerParam(query,key,fallback,allowed) {
   if(['am-committee','dossier-committee'].includes(key)&&raw&&!validCommitteeCode(raw))return fallback;
   if(key==='dossier-stage'&&!['all','committee','plenary'].includes(raw))return fallback;
   if(key==='am-document'&&raw&&!supportedAmendmentTarget(raw)&&!(query.get('am-scope')==='committee'&&committeeAmendmentTarget(raw)))return fallback;
+  if(key==='pl-vote'&&raw&&!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(raw))return fallback;
   if(key==='am-member'&&raw&&!/^[1-9]\d{0,12}$/.test(raw))return fallback;
   if(key.endsWith('-fts-offset')&&(!Number.isInteger(Number(value))||Number(value)<0||Number(value)>1000))return fallback;
   if(key.endsWith('-fts-page')&&(!Number.isInteger(Number(value))||Number(value)<0||Number(value)>50))return fallback;

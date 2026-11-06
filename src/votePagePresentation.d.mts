@@ -1,0 +1,10 @@
+import type {DecisionVotesResponse,DecisionVoteSibling} from './DecisionVotesTypes';
+import type {VoteViewVote} from './VoteResult';
+type Formatter=import('./uiI18n.mjs').UiFormatter;
+type SentenceVote=Pick<DecisionVoteSibling,'id'|'outcome'|'method'|'ballotStatus'|'totals'|'scope'|'referenceTexts'|'context'|'parts'>;
+export function voteHref(id:string,language?:string):string;
+export function agendaItemHref(id:string,language?:string):string;
+export function voteRowLabel(vote:Pick<DecisionVoteSibling,'scope'|'referenceTexts'|'context'|'parts'>,language?:string,ui?:Formatter):string;
+export function voteRowResult(vote:Pick<DecisionVoteSibling,'ballotStatus'|'totals'|'method'>,ui?:Formatter):{text:string;label:string|null}|null;
+export function voteSentence(vote:SentenceVote,context?:{mainVoteId?:string|null;procedureReferral?:boolean;itemTitle?:string|null;language?:string},ui?:Formatter):{id:string;values:Record<string,string|null|undefined>;item:boolean;noNames:boolean};
+export function namedVoteFromDecision(data:DecisionVotesResponse,directory?:Map<string,{countryCode?:string|null}>):VoteViewVote;

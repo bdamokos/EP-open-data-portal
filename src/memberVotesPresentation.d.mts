@@ -9,14 +9,15 @@ export function memberVotesRoute(memberId:number|string,state?:MemberVotesReques
 export function validateMemberVotesResponse(data:unknown,request:{memberId:number|string;state?:MemberVotesRequestState}):data is MemberVotesResponse;
 export function groupMemberVotes(data:MemberVotesResponse):MemberVoteGroup[];
 export function displayVoteTitle(title:string|null|undefined):string;
-export function memberVoteLabel(vote:MemberVote,language?:string, ui?: import('./uiI18n.mjs').UiFormatter):string;
+export function memberVoteLabel(vote:Pick<MemberVote,'scope'|'referenceTexts'>&{context:Pick<MemberVote['context'],'amendmentIds'>;parts:Pick<MemberVote['parts'][number],'number'|'requestScopeByLanguage'>[]},language?:string, ui?: import('./uiI18n.mjs').UiFormatter):string;
+export function splitVoteRequests<T extends {componentId:string;number:string|number|null;requestUri:string|null;contentByLanguage:MemberVote['parts'][number]['contentByLanguage'];contextComponents?:Omit<T,'contextComponents'>[]}>(parts?:T[]):{requestUri:string;parts:{componentId:string;number:string|number|null;contentByLanguage:T['contentByLanguage'];current:boolean}[]}[];
 export function memberVoteParentLabel(vote:MemberVote,language?:string,ui?: import('./uiI18n.mjs').UiFormatter):string|null;
 export function memberVotePosition(vote:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function memberVotePositionSummary(items:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>[], ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function memberVoteOutcome(vote:Pick<MemberVote,'outcome'>, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function memberVoteTotals(vote:Pick<MemberVote,'totals'|'ballotStatus'>):MemberVoteCounts|null;
 export function votingRecordUrl(vote:MemberVote):string|null;
-export function topLevelVoteDocuments(vote:MemberVote):string[];
-export function exactAmendmentTargets(vote:MemberVote):{documentId:string;amendmentId:string}[];
+export function topLevelVoteDocuments(vote:{context:Pick<MemberVote['context'],'documentIds'>}):string[];
+export function exactAmendmentTargets(vote:{context:Pick<MemberVote['context'],'amendmentIds'>}):{documentId:string;amendmentId:string}[];
 
 export function memberVotePositionState(vote:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>):string;

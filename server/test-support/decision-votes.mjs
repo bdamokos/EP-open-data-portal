@@ -16,9 +16,10 @@ export function voteFixture() {
   const history={members:{'197591':member('S&D','7038'),'124846':member('Renew','7035'),'197481':member('PPE','7018'),'256852':member('NI','6561')},catalogue:{sources:[],bodies:[]}};
   const query=decisionVotesQuery(decisionId,new URLSearchParams({lang:'en'}),{now:Date.parse('2026-10-24')});
   let reads=0;
+  const roster=[{id:'197591'},{id:'124846'},{id:'197481'}],sources={};
   const reader={async snapshot(received){reads++;if(received.sitting!==day.sittingId)throw Error('Wrong sitting');return {id:'a'.repeat(64),days:[day],coverage:{status:'complete'}};}};
-  const store={status:()=>({servingGeneration:7}),get:()=> 'fixture-epoch',db:{prepare:()=>({get:()=>({body:JSON.stringify(history)})})}};
-  return {day,raw,history,reader,store,query,reads:()=>reads,read:()=>decisionVotes(query,{reader,store})};
+  const store={status:()=>({servingGeneration:7}),get:()=> 'fixture-epoch',db:{prepare:()=>({get:()=>({body:JSON.stringify(history)}),all:()=>[...roster]})},source:(generation,key)=>sources[key]?{work:sources[key]}:undefined};
+  return {day,raw,history,reader,store,query,sources,reads:()=>reads,read:()=>decisionVotes(query,{reader,store})};
 }
 export function contradictoryVoteFixture(scenario) {
   const f=voteFixture(),parent=f.day.results.find(node=>node.id===f.raw.inverse_consists_of[0]);
