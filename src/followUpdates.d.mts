@@ -11,5 +11,6 @@ export function nextExpiry(items:FollowItem[],now:number):number|null;
 export function compactEntries(entries:FollowEntry[],now:number,options?:{historyLimit?:number;newLimit?:number}):{entries:FollowEntry[];historyOmitted:number};
 export function summarizeByType(entries:FollowEntry[],omitted?:number, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function markEntryRead(entries:FollowEntry[],kind:FollowEntry['kind'],id:string,now:number):FollowEntry[];
+export function readTogether(opened:Pick<FollowEntry,'kind'|'id'|'relatedQuestionId'>,entry:Pick<FollowEntry,'kind'|'id'|'relatedQuestionId'>):boolean;
 export function markAllRead(entries:FollowEntry[],now:number):FollowEntry[];
 export function migrateUnread(unreadList:(Omit<FollowEntry,'kind'|'discoveredAt'|'readAt'>&{kind?:FollowEntry['kind']})[],now:number, ui?: import('./uiI18n.mjs').UiFormatter):FollowEntry[];

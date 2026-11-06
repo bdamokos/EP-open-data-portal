@@ -1,6 +1,6 @@
 import {UiMessageError} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
-import {compactEntries,isNewEntry,itemHasNew,markEntryRead,markAllRead,migrateUnread} from './followUpdates.mjs';
+import {compactEntries,isNewEntry,itemHasNew,readTogether,markAllRead,migrateUnread} from './followUpdates.mjs';
 export const LEGACY_KEY='ep.bookmarks.v1';
 export const SAVED_KEY='ep.following.v2';
 export const savedKey=item=>item.kind+':'+item.id;
@@ -19,7 +19,7 @@ export function readSaved(raw) {
   }catch{return [];}
 }
 // Questions retain revision-based detection and their exact answer-ID baseline.
-export function savedObservation(item,state) {
+export function savedObservation(item,state,readElsewhere=new Map()) {
   const now=Date.now();
   if(state.status!=='available')return {...item,availability:state.status,checkedAt:now};
   const previous=item.current||item.baseline,answers=cleanIds((state.answers||[]).map(a=>a.id)).sort(),known=new Set(previous?.answerIds);
@@ -29,7 +29,7 @@ export function savedObservation(item,state) {
   for(const answer of state.answers||[])if(added.includes(answer.id)) {
     const source=answer.title?answer:preview.get(answer.id)?.title?preview.get(answer.id):state.title?state:item;
     const entry={...cleanEntries([{...answer,title:source.title,titleLanguage:titleLanguage(source),relatedQuestionId:item.id,recordKind:'answer'}])[0],kind:'answer',discoveredAt:now,readAt:null};
-    if(!entries.has(identity(entry)))entries.set(identity(entry),entry);
+    if(!entries.has(identity(entry)))entries.set(identity(entry),{...entry,readAt:readElsewhere.get(identity(entry))??null});
   }
   const observed={revision:state.revision,answerIds:cleanIds([...(previous?.answerIds||[]),...answers]),total:state.total||0,latestIds:[]};
   return compactItem({...item,title:state.title||item.title,titleLanguage:titleLanguage(state.title?state:item),memberId:item.memberId||state.memberId||null,availability:'available',current:observed,
@@ -54,6 +54,10 @@ function cleanSignals(item) {
   return signals;
 }
 const identity=entry=>(entry.kind==='answer'?'answer':'activity')+':'+entry.id;
+// Another follow can discover a record after it was opened through this one,
+// by which time compaction may have dropped the read entry from history.
+const OPENED_MEMORY_MS=30*24*60*60*1000;
+const recentOpened=(opened,now)=>Object.fromEntries(Object.entries(opened&&typeof opened==='object'?opened:{}).filter(([,at])=>Number.isFinite(at)&&at+OPENED_MEMORY_MS>now));
 const minimal=({kind,id,title,titleLanguage,memberId,savedAt})=>({kind,id,title,titleLanguage,memberId,savedAt});
 const keys=items=>items.map(savedKey).sort();
 // Old tabs can retain only 100 of each kind. Only those keys participate in
@@ -88,7 +92,7 @@ function migrate(item,now=Date.now(), ui = defaultUi) {
 }
 export function savedLinks(item) {return item.entries||[];}
 export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
-  let items=[],epoch=null,legacyKeys=[],manifest=null,storageError=null,unsavedSince=null,restarted=false,checkState='pending',questionCheckState='pending';
+  let items=[],openedRecords={},epoch=null,legacyKeys=[],manifest=null,storageError=null,unsavedSince=null,restarted=false,checkState='pending',questionCheckState='pending';
   let tabOnly=!storage,snapshot;
   const refresh=()=>{snapshot={items,persistent:!tabOnly,storageError,unsavedSince,restarted,checkState,questionCheckState,epoch,manifest};notify();};
   const failure=error=>{storageError=error?.name==='QuotaExceededError'?'quota':'unavailable';unsavedSince??=Date.now();};
@@ -100,6 +104,7 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
         const cleaned=readSaved(JSON.stringify({version:1,items:raw.items}));
         const originals=new Map(raw.items.filter(valid).map(item=>[savedKey(item),item]));
         const now=Date.now();
+        openedRecords=recentOpened(raw.openedRecords,now);
         items=cleaned.map(item=>{
           const old=originals.get(savedKey(item));
           if(!Array.isArray(old.entries)||old.legacyUpdated&&!Number.isFinite(old.legacyAt)||old.signalledAt!==undefined)migration=true;
@@ -112,7 +117,7 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
         // old tab has already truncated v1 before this tab reloads.
         legacyKeys=keys(legacyMirror(items.filter(item=>legacyKeys.includes(savedKey(item)))));
         if(reconcile())publish(true);
-      } else {const legacy=readSaved(storage?.getItem(LEGACY_KEY));items=legacy.map(item=>migrate(item, undefined, ui));legacyKeys=keys(legacy);migration=items.length>0;}
+      } else {const legacy=readSaved(storage?.getItem(LEGACY_KEY));openedRecords={};items=legacy.map(item=>migrate(item, undefined, ui));legacyKeys=keys(legacy);migration=items.length>0;}
     } catch {tabOnly=true;}
     derive();if(migration)publish();else refresh();
   }
@@ -122,10 +127,10 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
     return {...next,updated:itemHasNew(next,now),newActivity:next.entries?.some(x=>x.kind==='activity'&&isNewEntry(x,now)),newAnswer:next.entries?.some(x=>x.kind==='answer'&&isNewEntry(x,now))};
   });}
   function publish(mirror=false) {
-    derive();let success=true;
+    derive();openedRecords=recentOpened(openedRecords,Date.now());let success=true;
     if(!tabOnly)try {
       const mirrored=mirror?legacyMirror(items):null,nextKeys=mirrored?keys(mirrored):legacyKeys;
-      storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys:nextKeys}));
+      storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys:nextKeys,openedRecords}));
       if(mirrored)storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:mirrored}));
       legacyKeys=nextKeys;storageError=null;unsavedSince=null;
     }catch(error){failure(error);success=false;}
@@ -139,6 +144,20 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
   }
   const update=(key,change)=>{items=items.map(item=>savedKey(item)===key?compactItem(change(item)):item);return publish();};
   const same=(item,expected)=>!expected||item.savedAt===expected.savedAt;
+  const readRecords=()=>new Map([...Object.entries(recentOpened(openedRecords,Date.now())),...items.flatMap(item=>(item.entries||[]).filter(entry=>Number.isFinite(entry.readAt)).map(entry=>[identity(entry),entry.readAt]))]);
+  // One record can sit on several followed MEPs and on its followed question.
+  const openRecord=opened=>{
+    const now=Date.now(),question=opened.kind==='answer'?opened.relatedQuestionId:opened.id;
+    const shown=entry=>entry.readAt===null&&readTogether(opened,entry);
+    openedRecords={...openedRecords,[identity(opened)]:now,...(question?{['activity:'+question]:now}:{})};
+    for(const item of items)for(const entry of item.entries||[])if(shown(entry))openedRecords[identity(entry)]=now;
+    items=items.map(item=>{
+      const followed=item.kind==='question'&&item.id===question;
+      if(!followed&&!item.entries?.some(shown))return item;
+      return compactItem({...item,entries:(item.entries||[]).map(entry=>shown(entry)?{...entry,readAt:now}:entry),...(followed?{baseline:item.current||item.baseline,changedAt:undefined,legacyUpdated:false}:{})},now);
+    });
+    return publish();
+  };
   load();let lastSavedAt=Math.max(0,...items.map(item=>item.savedAt||0));
   return {
     snapshot:()=>snapshot,publish,
@@ -155,7 +174,7 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
         const added={...item,id:String(item.id),savedAt:lastSavedAt=Math.max(Date.now(),lastSavedAt+1),updated:false};
         items=[...items,item.kind==='mep'?{...minimal(added),seen:manifest?.members[item.id]?marks(manifest.members[item.id]):null,entries:[],historyOmitted:0,unreadOmitted:0,legacyUpdated:false,signals:{}}:{...added,entries:[],historyOmitted:0}];
       }
-      if(!publish(true)){items=before;legacyKeys=previousKeys;try{storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys}));storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:legacyMirror(items)}));}catch{}derive();refresh();throw new UiMessageError("batch5.bookmarks.mjs.156.122", {}, ui);}
+      if(!publish(true)){items=before;legacyKeys=previousKeys;try{storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys,openedRecords}));storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:legacyMirror(items)}));}catch{}derive();refresh();throw new UiMessageError("batch5.bookmarks.mjs.156.122", {}, ui);}
     },
     applyManifest(data) {
       const reset=epoch!==null&&epoch!==data.epoch;manifest=data;
@@ -178,8 +197,8 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
       if(reset)restarted=true;epoch=data.epoch;checkState='available';return publish(true);
     },
     observe(states,expected=items) {
-      const selected=new Map(expected.map(item=>[savedKey(item),item]));
-      items=items.map(item=>{const prior=selected.get(savedKey(item)),state=states.questions?.find(s=>s.id===item.id);return item.kind==='question'&&prior&&same(item,prior)&&state?{...savedObservation(item,state),indexComplete:states.coverage?.indexComplete===true}:item;});return publish(true);
+      const selected=new Map(expected.map(item=>[savedKey(item),item])),read=readRecords();
+      items=items.map(item=>{const prior=selected.get(savedKey(item)),state=states.questions?.find(s=>s.id===item.id);return item.kind==='question'&&prior&&same(item,prior)&&state?{...savedObservation(item,state,read),indexComplete:states.coverage?.indexComplete===true}:item;});return publish(true);
     },
     materialize(data,expected) {
       if(data.epoch!==epoch||data.generation!==manifest?.generation) return false;
@@ -193,14 +212,14 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
           const {title,titleLanguage,date,relatedQuestionId}=cleanEntries([rich.get(key)])[0];
           unread.set(key,{...entry,title,titleLanguage,date,relatedQuestionId});
         }
-        const seen={activity:null,answer:null,...item.seen},legacy=item.legacy,known={activity:new Set(legacy?.latestIds),answer:new Set(legacy?.answerIds)},now=Date.now();
+        const read=readRecords(),seen={activity:null,answer:null,...item.seen},legacy=item.legacy,known={activity:new Set(legacy?.latestIds),answer:new Set(legacy?.answerIds)},now=Date.now();
         for(const [id,code,value] of data.ids) {
           const kind=code===1?'answer':'activity',entry={id,kind,mark:value,recordKind:kind==='answer'?'answer':undefined};
           if(legacy?!known[kind].has(id):item.seen&&value>(item.seen[kind]??0)) {
             // Oldest pairs are dropped, never merged: earlier marks use the first
             // retained time (unless future), without backdating later discoveries.
             const at=item.signals?.[kind]?.find(([signalMark])=>signalMark>=value)?.[1];
-            const key=identity(entry);if(!unread.has(key))unread.set(key,{...cleanEntries([rich.get(key)||entry])[0],...entry,recordKind:rich.get(key)?.recordKind||entry.recordKind,discoveredAt:Number.isFinite(at)&&at<=now?at:now,readAt:null});
+            const key=identity(entry);if(!unread.has(key))unread.set(key,{...cleanEntries([rich.get(key)||entry])[0],...entry,recordKind:rich.get(key)?.recordKind||entry.recordKind,discoveredAt:Number.isFinite(at)&&at<=now?at:now,readAt:read.get(key)??null});
           }
           seen[kind]=maxMark(seen[kind],value);
         }
@@ -215,7 +234,7 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
     markRead(key){return update(key,item=>({...item,
       ...(item.kind==='mep'?{seen:manifest?{activity:maxMark(item.seen?.activity,manifest.members[item.id]?.[0]??null),answer:maxMark(item.seen?.answer,manifest.members[item.id]?.[1]??null)}:item.seen}:{baseline:item.current||item.baseline}),
       entries:markAllRead(item.entries||[],Date.now()),unreadOmitted:0,signals:{},changedAt:undefined,legacyUpdated:false}));},
-    markEntryRead(key,kind,id){return update(key,item=>({...item,entries:markEntryRead(item.entries||[],kind,id,Date.now())}));},
-    openQuestion(key){return update(key,item=>item.kind==='question'?{...item,baseline:item.current||item.baseline,changedAt:undefined,legacyUpdated:false}:item);},
+    markEntryRead(key,kind,id){return openRecord(items.find(item=>savedKey(item)===key)?.entries?.find(entry=>entry.kind===kind&&entry.id===id)||{kind,id});},
+    openQuestion(key){const question=items.find(item=>savedKey(item)===key&&item.kind==='question');return question?openRecord({kind:'activity',id:question.id}):true;},
   };
 }

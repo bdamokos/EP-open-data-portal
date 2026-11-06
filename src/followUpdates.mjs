@@ -125,6 +125,13 @@ export function markEntryRead(entries,kind,id,now) {
   return entries.map(entry=>entry.kind===kind&&entry.id===id&&entry.readAt===null?{...entry,readAt:now}:entry);
 }
 
+// The reader shows a question with all its answers, and an answer with its
+// question. Other answers to that question stay unread after opening one answer.
+export function readTogether(opened,entry) {
+  if(entry.kind===opened.kind&&entry.id===opened.id)return true;
+  return opened.kind==='answer'?entry.kind==='activity'&&entry.id===opened.relatedQuestionId:entry.kind==='answer'&&entry.relatedQuestionId===opened.id;
+}
+
 export function markAllRead(entries,now) {
   return entries.map(entry=>isNewEntry(entry,now)?{...entry,readAt:now}:entry);
 }
