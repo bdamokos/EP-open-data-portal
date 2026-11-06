@@ -24,6 +24,9 @@ const committeeNames=JSON.parse(readFileSync(new URL('./insights-committee-label
 const AGENDA_PAGE_SIZE=50;
 const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}/.test(value)?value.slice(0,10):null;
 
+/** The held procedure events that settle where a file stands, shared with the topic pages. */
+export const statusIndexEvents=work=>array(work.consists_of).map(event=>({had_activity_type:tail(event.had_activity_type),activity_date:validDate(event.activity_date),activity_id:event.activity_id||tail(event.id)}));
+
 export function dossierStatusQuery(search) {
   for(const key of search.keys())if(!['reference','lang'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated dossier parameter.');
   return {reference:procedureReference(search.get('reference')),language:odpLanguage(search.get('lang')||'en')};
@@ -88,7 +91,7 @@ export class DossierStatus {
   async query({reference,language}) {
     const id=reference.split('(')[0].replace('/','-'),asOf=brusselsDay(this.clock());
     const {work}=await this.activity.procedure(id,language,reference);
-    const indexEvents=array(work.consists_of).map(event=>({had_activity_type:tail(event.had_activity_type),activity_date:validDate(event.activity_date),activity_id:event.activity_id||tail(event.id)}));
+    const indexEvents=statusIndexEvents(work);
     const {family,steps,stage:derived}=procedureSteps({reference,indexEvents,asOf});
     const voteEvents=indexEvents.filter(event=>event.had_activity_type==='PLENARY_VOTE_RESULTS'&&/^MTG-PL-\d{4}-\d{2}-\d{2}-VOT-ITM-\d+$/.test(event.activity_id)&&event.activity_date&&event.activity_date<=asOf);
     // A legislative sentence states Parliament's own vote, after a deal the final one. Other files state their latest main vote.
