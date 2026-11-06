@@ -1,3 +1,4 @@
+import {displayableAmendmentVersion} from './amendment-display-version.mjs';
 import {requireDistributionIdentity,nativeDistributionText} from './ep-distribution-route.mjs';
 import {docxParts} from './document-text.mjs';
 import {upcomingAgenda} from './upcoming-amendments.mjs';
@@ -201,7 +202,7 @@ function proposerDatedExtraction(store,generation,list) {
   })};
 }
 function verifiedWording(extraction,amendment) {
-  return Boolean(validAmendmentFormatting(amendment)&&extraction?.parserVersion===AMENDMENT_EXTRACTION_VERSION&&(amendment?.wordingParserVersion==null||amendment.wordingParserVersion===AMENDMENT_EXTRACTION_VERSION)&&typeof amendment?.originalText==='string'&&typeof amendment.proposedText==='string'&&amendment.originalText.length<=AMENDMENT_LIMITS.text&&amendment.proposedText.length<=AMENDMENT_LIMITS.text&&(amendment.wordingSource?.url || extraction.sourceUrl)&&(
+  return Boolean(validAmendmentFormatting(amendment)&&displayableAmendmentVersion(extraction?.parserVersion)&&(amendment?.wordingParserVersion==null||displayableAmendmentVersion(amendment.wordingParserVersion))&&typeof amendment?.originalText==='string'&&typeof amendment.proposedText==='string'&&amendment.originalText.length<=AMENDMENT_LIMITS.text&&amendment.proposedText.length<=AMENDMENT_LIMITS.text&&(amendment.wordingSource?.url || extraction.sourceUrl)&&(
     amendment.wordingRetained&&amendment.wordingParserVersion===AMENDMENT_EXTRACTION_VERSION&&amendment.wordingSource?.url || !amendmentTextLosses(extraction,amendment).length));
 }
 function mergeExtractionRefresh(old,extraction,source,fallbackDate) {
@@ -221,7 +222,7 @@ function mergeExtractionRefresh(old,extraction,source,fallbackDate) {
       row.gaps.push({code:'target-retained',number:row.number,message:'Previously accepted target location is retained because the fresh source has no target location.'});
     }
     const damaged=amendmentTextLosses(extraction,amendment).length||typeof amendment.originalText!=='string'||typeof amendment.proposedText!=='string';
-    if(damaged&&verifiedWording(old,accepted)) {
+    if(damaged&&compatible&&verifiedWording(old,accepted)) {
       row.originalText=accepted.originalText;row.proposedText=accepted.proposedText;
       row.originalFormatting=accepted.originalFormatting || [];row.proposedFormatting=accepted.proposedFormatting || [];
       row.wordingSource=accepted.wordingSource || oldSource;row.wordingRetained=true;
@@ -715,10 +716,11 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   if(linked.unavailable)gaps.push('Some linked amendment-list records have no usable exact EP document reference.');
   for(const listId of linked.unresolved)gaps.push('Linked amendment list '+listId+' is awaiting exact document-detail verification.');
   if(!lists.length)gaps.push('No published amendment list is indexed for this target.');
+  const textParserVersions=Object.fromEntries(lists.map(({work:list})=>[idOf(list),list.extraction?.parserVersion]));
   const invalidatedTextListIds=lists.filter(({work:list})=>list.extraction?.previousParserVersion&&list.extraction.previousParserVersion!==AMENDMENT_EXTRACTION_VERSION).map(({work})=>idOf(work));
   for(const {work:list,current} of lists) {
     const listNameContexts=new Map();
-    const extraction=list.extraction,date=list.document_date || null,sourceFreshness=listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
+    const extraction=list.extraction,date=list.document_date || null,sourceFreshness=listWordingFreshness(list,{parserVersion:displayableAmendmentVersion(extraction?.parserVersion)?extraction.parserVersion:AMENDMENT_EXTRACTION_VERSION});
     if(!current&&relationshipsKnown)gaps.push('A previously indexed amendment list is absent from the current target relationships; its evidence is retained.');
     if(!extraction){
       gaps.push(sourceFreshness.status==='failed'?'Initial amendment text extraction failed; its source error and retry time are retained.':!sourceFreshness.descriptor?'Current amendment DOCX distribution metadata is unavailable or empty; no current text source can be retrieved.':'Amendment text extraction is pending.');
@@ -732,11 +734,11 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
       const proposerDate=amendmentProposerDate(amendment,{documentDate:amendment.documentDate || amendment.date,listDate:list.document_date});
       const authorDate=proposerDate?.date || null,{roster,resolve}=authorContext(authorDate);
       const textLosses=amendmentTextLosses(extraction,amendment);
-      const acceptedWording=verifiedWording(extraction,amendment),incompatible=extraction.parserVersion!==AMENDMENT_EXTRACTION_VERSION || (amendment.wordingParserVersion!=null&&amendment.wordingParserVersion!==AMENDMENT_EXTRACTION_VERSION),withhold=incompatible || Boolean(textLosses.length&&!acceptedWording);
+      const acceptedWording=verifiedWording(extraction,amendment),incompatible=!displayableAmendmentVersion(extraction.parserVersion) || (amendment.wordingParserVersion!=null&&!displayableAmendmentVersion(amendment.wordingParserVersion)),withhold=incompatible || Boolean(textLosses.length&&!acceptedWording);
       Object.assign(row,{listId:idOf(list),listRelationship:current?linked.verified.has(idOf(list))?'current':'unverified':relationshipsKnown?'absent-current-relationship':'unverified',date:amendment.date || date,baseline:amendment.baseline ?? 'unknown',baselineSource:amendment.baselineSource??null,documentReferences:amendment.documentReferences??[],targetPath:amendment.targetPath??null,targetLabel:text(amendment.targetLabel),originalText:withhold?null:typeof amendment.originalText==='string'?amendment.originalText:null,proposedText:withhold?null:typeof amendment.proposedText==='string'?amendment.proposedText:null,originalFormatting:withhold?[]:amendment.originalFormatting || [],proposedFormatting:withhold?[]:amendment.proposedFormatting || [],textIntegrity:acceptedWording?'complete':withhold?'incomplete':'unavailable',textParserVersion:amendment.wordingParserVersion || extraction.parserVersion,wordingSource:Object.hasOwn(amendment,'wordingSource')?amendment.wordingSource:extractionSource(extraction),metadataSource:Object.hasOwn(amendment,'metadataSource')?amendment.metadataSource:extractionSource(extraction),proposerSource:Object.hasOwn(amendment,'proposerSource')?amendment.proposerSource:extractionSource(extraction),wordingRetained:Boolean(amendment.wordingRetained),proposerRetained:Boolean(amendment.proposerRetained),proposerDate:authorDate,proposerDateBasis:proposerDate?.basis || null,recordRetained:Boolean(amendment.recordRetained),language:amendment.language || extraction.language,onBehalfOf:amendment.onBehalfOf || null,committeeProposer:amendment.committeeProposer || null,documentDate:amendment.documentDate || amendment.date || null,listDocumentDate:list.document_date || null,dateBasis:amendment.dateBasis || (amendment.date?'individual-amendment-document':null),justification:text(amendment.justification)});
       row.sourceFreshness=sourceFreshness;
-      row.targetLabelLanguage=row.targetLabel?(Object.hasOwn(amendment,'targetLabelLanguage')?amendment.targetLabelLanguage:extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION?amendment.metadataSource?.language ?? extraction.language ?? null:null):null;
-      row.targetLabelSource=row.targetLabel?(Object.hasOwn(amendment,'targetLabelSource')?amendment.targetLabelSource:extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION?amendment.metadataSource || extractionSource(extraction):null):null;
+      row.targetLabelLanguage=row.targetLabel?(Object.hasOwn(amendment,'targetLabelLanguage')?amendment.targetLabelLanguage:displayableAmendmentVersion(extraction.parserVersion)?amendment.metadataSource?.language ?? extraction.language ?? null:null):null;
+      row.targetLabelSource=row.targetLabel?(Object.hasOwn(amendment,'targetLabelSource')?amendment.targetLabelSource:displayableAmendmentVersion(extraction.parserVersion)?amendment.metadataSource || extractionSource(extraction):null):null;
       if(sourceFreshness.status!=='fresh') {
         row.wordingRetained=Boolean(acceptedWording&&!withhold);
         row.gaps.push('Amendment wording source distribution is '+sourceFreshness.status+'; current retrieval has not been verified.');
@@ -832,7 +834,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   }
   if([...rows.values()].some(row=>row.gaps.some(gap=>gap!=='Split descriptions are parsed as selection plans; exact wording spans have not been validated.')))gaps.push('Some amendment records have incomplete text, authorship, identity or outcome evidence.');
   const uniqueGaps=[...new Set(gaps)];
-  saveAmendmentRows(store,generation,target,[...rows.values()],{complete:!uniqueGaps.length&&rows.size>0,gaps:uniqueGaps,lastUpdated:new Date(worker.clock()).toISOString(),parserVersion:SPLIT_PARSER_VERSION},{observedDecisionIds:[...observed],freshSplitParts:[...freshSplitParts.values()],invalidatedTextListIds,textParserVersion:AMENDMENT_EXTRACTION_VERSION,currentListIds,listRelationshipsKnown:relationshipsKnown});
+  saveAmendmentRows(store,generation,target,[...rows.values()],{complete:!uniqueGaps.length&&rows.size>0,gaps:uniqueGaps,lastUpdated:new Date(worker.clock()).toISOString(),parserVersion:SPLIT_PARSER_VERSION},{observedDecisionIds:[...observed],freshSplitParts:[...freshSplitParts.values()],invalidatedTextListIds,textParserVersion:AMENDMENT_EXTRACTION_VERSION,textParserVersions,currentListIds,listRelationshipsKnown:relationshipsKnown});
 }
 async function downloadVotingXml(url,{signal}={}) {
   signal?.throwIfAborted();

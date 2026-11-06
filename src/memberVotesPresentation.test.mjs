@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {projectMemberSitting} from '../server/member-votes-model.mjs';
 import {knownVoteMethodLabel,voteMethodLabel} from './voteMethod.mjs';
-import {MEMBER_VOTES_PAGE_SIZE,memberVotesAllPending,memberVotesCoverageNotice,memberVotesRoute,validateMemberVotesResponse,groupMemberVotes,displayVoteTitle,memberVoteLabel,memberVotePosition,memberVoteOutcome,memberVoteTotals,votingRecordUrl,topLevelVoteDocuments,exactAmendmentTargets} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,memberVotePositionSummary,memberVotesAllPending,memberVotesCoverageNotice,memberVotesRoute,validateMemberVotesResponse,groupMemberVotes,displayVoteTitle,memberVoteLabel,memberVotePosition,memberVoteOutcome,memberVoteTotals,votingRecordUrl,topLevelVoteDocuments,exactAmendmentTargets} from './memberVotesPresentation.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/member-votes.json',import.meta.url)));
 const memberId=197591,snapshotId='a'.repeat(64),sittingId='MTG-PL-2026-10-07';
@@ -172,7 +172,7 @@ test('response guards recorded totals and carries non-named status through selec
   const whole={...clone(selected),scope:{kind:'whole-text',basis:'english-reference-label'}};
   data.subjects[0].wholeTextDecisions=[whole];
   assert.equal(accepts(data,{...state,decisionId:selected.id}),true);
-  assert.equal(memberVotePosition(selected),'Not individually recorded');
+  assert.equal(memberVotePosition(selected),'No names on record');
   for(const patch of [{actualPosition:{status:'not-individually-recorded',position:'for'}},{ballotStatus:'unknown'},{method:'VOTE_UNKNOWN'}]){const invalid=clone(data);invalid.selected.item={...invalid.selected.item,...patch};assert.equal(accepts(invalid,{...state,decisionId:selected.id}),false);}
 });
 
@@ -181,7 +181,7 @@ test('electronic secret ballots validate across list, selected and whole-text de
   for(const key of ['had_voter_favor','had_voter_against','had_voter_abstention'])delete raw[key];
   for(const patch of [{},{decision_outcome:'def/ep-statuses/LAPSED'},{had_voter_favor:['person/'+memberId]}]){
     const item=projectMemberSitting({...fixture.snapshots[0],decisions:[{...raw,...patch}]},String(memberId)).items[0];
-    const expected=patch.decision_outcome?'Not put to a vote':patch.had_voter_favor?'Position unavailable':'Not individually recorded';
+    const expected=patch.decision_outcome?'Not put to a vote':patch.had_voter_favor?'Position unavailable':'No names on record';
     const data=response({positions:'all',items:[item],subjects:[],pagination:{offset:0,limit:50,returned:1,observedTotal:1,recordedTotal:0,filteredTotal:1,nextOffset:null},selected:{status:'found',item},alignmentCounts:{with:0,against:0,abstained:0,unclassified:1}});
     const subject=clone(projection.subjects[0]);
     subject.wholeTextDecisions=[{...clone(item),scope:{kind:'whole-text',basis:'english-reference-label'}}];
@@ -226,4 +226,44 @@ test('selected position gaps use the existing summary without a duplicate notice
   const item={id:sittingId+'-DEC-1',method:'VOTE_ELECTRONIC_ROLLCALL',actualPosition:{status:'unavailable',position:null},evidenceGaps:[],sourceConflicts:null};
   assert.equal(memberVotesCoverageNotice({coverage:{status:'partial'},selected:{status:'found',item}},{decisionId:item.id}),null);
   assert.equal(memberVotePosition(item),'Position unavailable');
+});
+
+
+test('position summary includes lapsed decisions without counting them as recorded votes',()=>{
+  const make=(status,position=null,ballotStatus='conducted')=>({ballotStatus,actualPosition:{status,position}});
+  const items=[...Array.from({length:3},()=>make('recorded','for')),...Array.from({length:6},()=>make('recorded','against')),...Array.from({length:22},()=>make('not-individually-recorded')),...Array.from({length:4},()=>make('not-conducted',null,'not-conducted'))];
+  assert.equal(items.length,35);
+  assert.equal(memberVotePositionSummary(items),'Positions: For: 3 · Against: 6 · 22 no names on record · 4 not put to a vote');
+  assert.equal(memberVotePositionSummary(items.slice(-4)),'Positions: 4 not put to a vote');
+  assert.equal(memberVotePositionSummary(items.slice(9,31)),'Positions: 22 no names on record');
+  assert.equal(memberVotePositionSummary([...items.slice(0,3),...items.slice(-4)]),'Positions: For: 3 · 4 not put to a vote');
+  assert.equal(memberVotePositionSummary(items.slice(9)),'Positions: 22 no names on record · 4 not put to a vote');
+  assert.equal(memberVotePositionSummary([]),'Positions: none');
+  assert.equal(memberVotePositionSummary([make('recorded','for','not-conducted')]),'Positions: 1 not put to a vote');
+});
+
+test('summary accounts for every known position state and omits zero terms',()=>{
+  const make=(status,position=null)=>({ballotStatus:status==='not-conducted'?'not-conducted':'conducted',actualPosition:{status,position}});
+  const states=['recorded','not-individually-recorded','not-conducted','no-record','unavailable'];
+  const expected=['For: 2','3 no names on record','4 not put to a vote','5 no recorded position','6 position unavailable'];
+  for(let mask=1;mask<32;mask++){
+    const items=states.flatMap((status,index)=>mask&(1<<index)?Array.from({length:index+2},()=>make(status,status==='recorded'?'for':null)):[]);
+    const label=memberVotePositionSummary(items);
+    assert.equal(label,'Positions: '+expected.filter((_,index)=>mask&(1<<index)).join(' · '));
+    assert.doesNotMatch(label,/\b0\b/);
+  }
+  assert.equal(memberVotePositionSummary([make('no-record'),make('unavailable')]),'Positions: 1 no recorded position · 1 position unavailable');
+  assert.equal(memberVotePositionSummary([make('conflicting')]),'Positions: 1 position unavailable');
+});
+
+// The held real-week response stays outside Git. Opt in when reviewing its counts.
+test('every subject in the held week accounts for every decision',{skip:!process.env.MEMBER_VOTES_WEEK_FIXTURE},()=>{
+  const data=JSON.parse(readFileSync(process.env.MEMBER_VOTES_WEEK_FIXTURE));
+  const groups=groupMemberVotes(data);
+  assert.equal(groups.reduce((sum,group)=>sum+group.items.length,0),data.items.length);
+  for(const group of groups){
+    const summary=memberVotePositionSummary(group.items);
+    const count=summary.split(' · ').reduce((sum,term)=>sum+Number(term.match(/\d+/)?.[0]||0),0);
+    assert.equal(count,group.items.length,`${group.id}: ${summary}`);
+  }
 });

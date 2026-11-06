@@ -15,7 +15,7 @@ import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 import {declaredSpeechEvidence} from './declared-speech-evidence.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=13;
+export const DOSSIER_ACTIVITY_VERSION=14;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');
@@ -28,6 +28,7 @@ const pick=(titles,language,fallback)=>{const code=languagePreference(Object.key
 const stage=value=>{const values=[...new Set(refs(value).map(tail))];return values.length===1?values[0]:null;};
 const unique=items=>[...new Map(items.map(item=>[item.id,item])).values()];
 const eventRef=value=>{const id=tail(value);return /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id)?'eli/dl/event/'+id:canonical(value);};
+const uniqueSources=sources=>[...new Map(sources.map(s=>[JSON.stringify([s.url,s.fetchedAt,s.contentHash||null]),s])).values()];
 const errorGap=error=>({code:error?.code||'source_unavailable',message:'Source unavailable.'});
 
 export function dossierActivityQuery(search) {
@@ -66,13 +67,35 @@ function authorAtTabling(record,member,tabling) {
   return array(record.authors).filter(author=>resolvedAmendmentAuthorId(author)===member).some(author=>array(author.evidence).some(proof=>array(proof.mandates).some(period=>validDay(period.start)&&period.start<=tabling.date&&(!period.end||validDay(period.end)&&period.end>=tabling.date))));
 }
 
+// Exact for this person, procedure and stage. A row whose count is disputed makes the total unknown.
+function amendmentTotal(store,procedure,member,scope,committee) {
+  const ids=new Set();let offset=0;
+  while(offset!==null){
+    const page=amendmentContributors(store,{procedures:[procedure],member,scope,committee,offset,limit:DOSSIER_ACTIVITY_LIMITS.speechRows});
+    if(page.items.some(item=>item.countConflict))return null;
+    for(const item of page.items)ids.add(item.id);
+    offset=page.next;
+  }
+  return ids.size;
+}
+
 /** A read-only view over public source clients and the store already owned by the app. */
 export class DossierActivity {
   constructor(store,{reader,votes=memberVotes,readAmendments=amendmentsPage,...options}={}) {
     this.store=store;this.reader=reader||new LegislationInsights(store,options);this.votes=votes;this.readAmendments=readAmendments;
   }
   async procedure(id,language,reference=null) {
-    const record=await this.reader.record('/procedures/'+id);
+    return this.identified(await this.reader.record('/procedures/'+id),id,language,reference);
+  }
+  // The saved procedure only: a missing one is not read from Parliament.
+  heldProcedure(id,language) {
+    const saved=this.store.source?.(this.store.status().servingGeneration,'/procedures/'+id);
+    if(!saved?.work)return null;
+    const time=Date.parse(saved.fetchedAt);
+    try{return this.identified({url:apiUrl('/procedures/'+id),fetchedAt:Number.isFinite(time)?time:null,payload:{data:[saved.work]}},id,language);}
+    catch(error){if(error instanceof HttpError)return null;throw error;}
+  }
+  identified(record,id,language,reference=null) {
     const nodes=record.payload.data.filter(node=>canonical(node.id)==='eli/dl/proc/'+id);
     if(nodes.length!==1)throw new HttpError(502,'dossier_identity','The exact procedure source is unavailable.');
     const work=nodes[0],label=work.label,classification=classifyProcedure(work),code=classification.code;
@@ -84,6 +107,15 @@ export class DossierActivity {
     for(const id of ids)try{items.push((await this.procedure(id,language)).procedure);}catch(error){if(isLocalRequestFailure(error))throw error;gaps.push({id,...errorGap(error)});}
     return {version:DOSSIER_ACTIVITY_VERSION,items,coverage:{status:gaps.length?'partial':'complete',gaps}};
   }
+  // Former members and non-members are absent from the current roster. Their
+  // names are held under these exact keys; nothing here matches by name.
+  personLabel(id,generation) {
+    const row=this.store.db.prepare('SELECT body FROM members WHERE id=?').get(id),member=row?JSON.parse(row.body):null;
+    const current=member?[member.firstName||member.givenName,member.lastName||member.familyName].filter(Boolean).join(' ')||member.name||member.label||null:null;
+    if(current)return current;
+    const held=this.store.source?.(generation,'amendment:member:'+id)?.work;
+    return [held?.givenName,held?.familyName].filter(Boolean).join(' ')||this.store.source?.(generation,'demographic:profile:'+id)?.work?.label||null;
+  }
   localRoles(work,procedure,generation) {
     const items=[],gaps=[];let documents=0;
     if(!Array.isArray(work.had_participation))gaps.push('Procedure role records are unavailable.');
@@ -92,7 +124,7 @@ export class DossierActivity {
         if(items.length>DOSSIER_ACTIVITY_LIMITS.roles)return;
         const id=personId(value);if(!id)continue;
         const recorded=date(part.activity_date);
-        items.push({kind:'role',id:(canonical(part.id)||[documentId||procedure.id,tail(part.participation_role),stage(part.occured_at_stage)].join(':'))+'@'+id,participationId:canonical(part.id)||null,personId:id,role:tail(part.participation_role)||'UNSPECIFIED',committee:tail(part.participation_in_name_of)||null,date:recorded||(documentId?date(documentDate):null),dateBasis:recorded||!documentId?'recorded':'document',stage:stage(part.occured_at_stage),source:from,...(documentId?{documentId}:{})});
+        items.push({kind:'role',id:(canonical(part.id)||[documentId||procedure.id,tail(part.participation_role),stage(part.occured_at_stage)].join(':'))+'@'+id,participationId:canonical(part.id)||null,personId:id,role:tail(part.participation_role)||'UNSPECIFIED',committee:tail(part.participation_in_name_of)||null,group:tail(part.politicalGroup)||null,date:recorded||(documentId?date(documentDate):null),dateBasis:recorded||!documentId?'recorded':'document',stage:stage(part.occured_at_stage),source:from,...(documentId?{documentId}:{})});
       }
     };
     add(work.had_participation,procedure.source);
@@ -106,7 +138,7 @@ export class DossierActivity {
     const roles=unique(sorted(items)).slice(0,DOSSIER_ACTIVITY_LIMITS.roles),participants=new Map();
     for(const role of roles) {
       let person=participants.get(role.personId);
-      if(!person){const row=this.store.db.prepare('SELECT body FROM members WHERE id=?').get(role.personId),member=row?JSON.parse(row.body):null;person={id:role.personId,name:member?[member.firstName||member.givenName,member.lastName||member.familyName].filter(Boolean).join(' ')||member.name||member.label||null:null,roles:[]};participants.set(person.id,person);}
+      if(!person){person={id:role.personId,name:this.personLabel(role.personId,generation),roles:[]};participants.set(person.id,person);}
       person.roles.push(role);
     }
     return {roles,participants:[...participants.values()],gaps};
@@ -122,7 +154,7 @@ export class DossierActivity {
       if(this.store.status().servingGeneration!==result.generation){result.participantCoverage={...speechResult.coverage,status:'unavailable',retryable:true,gaps:['The activity index changed. Retry participants.']};return;}
       for(const speech of speechResult.items){
         let person=people.get(speech.personId);
-        if(!person){const row=this.store.db.prepare('SELECT body FROM members WHERE id=?').get(speech.personId),member=row?JSON.parse(row.body):null;person={id:speech.personId,name:member?[member.firstName||member.givenName,member.lastName||member.familyName].filter(Boolean).join(' ')||member.name||member.label||null:null,roles:[],speeches:[]};people.set(person.id,person);}
+        if(!person){person={id:speech.personId,name:this.personLabel(speech.personId,result.generation),roles:[],speeches:[]};people.set(person.id,person);}
         person.speeches.push({id:speech.id,debateId:speech.debateId,date:speech.date,source:speech.source});
       }
     });
@@ -132,18 +164,21 @@ export class DossierActivity {
       result.amendmentGeneration=amendmentGeneration(this.store);
       result.participantPagination={offset:query.participantOffset||query.offset||0,next:contributions.next};
       const targets=amendmentProcedureTargets(this.store,result.procedure.id,{limit:1001});
+      // A count is exact only once every list of its scope has complete proposers and this read reached its end.
+      result.amendmentCountComplete=Object.fromEntries(['committee','plenary'].map(scope=>[scope,!contributions.truncated&&amendmentProcedureTargets(this.store,result.procedure.id,{scope,limit:1001}).every(target=>target.proposerComplete===true)]));
       const failed=targets.filter(target=>target.proposerComplete===false||contributions.truncated).map(target=>target.listId||target.targetDocumentId||target.id);
       const checked=targets.filter(target=>target.proposerComplete===true&&!contributions.truncated).map(target=>target.listId||target.targetDocumentId||target.id);
       result.participantCoverage.checkedTargets=[...new Set([...result.participantCoverage.checkedTargets,...checked])];
       for(const item of contributions.items)if(item.source?.url)result.participantCoverage.sources.push(item.source);
+      result.participantCoverage.sources=uniqueSources(result.participantCoverage.sources);
       result.participantCoverage.uncheckedTargets=[...new Set([...result.participantCoverage.uncheckedTargets,...failed])];
       result.participantCoverage.retryable ||= failed.length>0;
       if((failed.length||contributions.truncated||result.participantCoverage.status==='unavailable'&&contributions.items.length)&&result.participantCoverage.status!=='partial')result.participantCoverage.status='partial';
       result.participantCoverage.amendments={status:contributions.items.length?'partial':'unavailable',truncated:contributions.truncated};
       for(const contribution of contributions.items){
         let person=people.get(contribution.personId);
-        if(!person){const row=this.store.db.prepare('SELECT body FROM members WHERE id=?').get(contribution.personId),member=row?JSON.parse(row.body):null;person={id:contribution.personId,name:member?[member.firstName||member.givenName,member.lastName||member.familyName].filter(Boolean).join(' ')||member.name||member.label||null:null,roles:[],speeches:[]};people.set(person.id,person);}
-        person.amendments||=[];const {id,scope,listId,targetDocumentId,date,source,countConflict}=contribution;person.amendments.push({id,scope,listId,targetDocumentId,date,source,...(countConflict?{countConflict:true}:{})});
+        if(!person){person={id:contribution.personId,name:this.personLabel(contribution.personId,result.generation),roles:[],speeches:[]};people.set(person.id,person);}
+        person.amendments||=[];const {id,scope,countConflict}=contribution;person.amendments.push({id,scope,...(countConflict?{countConflict:true}:{})});
       }
       for(const person of people.values()){person.amendments||=[];person.amendmentCounts={committee:null,plenary:null};for(const scope of ['committee','plenary']){const ids=new Set(person.amendments.filter(value=>value.scope===scope).map(value=>value.id));if(ids.size&&!person.amendments.some(value=>value.scope===scope&&value.countConflict))person.amendmentCounts[scope]=ids.size;}}
       if(contributions.next!==null&&!result.pagination.next)result.pagination.next={offset:contributions.next,targetOffset:query.targetOffset||0};
@@ -155,13 +190,14 @@ export class DossierActivity {
   async query(query) {
     const {reference,language,member,section,offset,targetOffset,limit}=query,id=reference.split('(')[0].replace('/','-');
     const {work,procedure}=await this.procedure(id,language,reference);
-    const local=this.store.readSnapshot(()=>{const generation=this.store.status().servingGeneration;return {generation,...this.localRoles(work,procedure,generation)};});
+    const local=this.store.readSnapshot(()=>{const generation=this.store.status().servingGeneration;return {generation,memberName:member?this.personLabel(member,generation):null,...this.localRoles(work,procedure,generation)};});
     const coverage={status:'complete',gaps:section==='roles'?[...local.gaps]:[],sources:[procedure.source],checkedTargets:[],uncheckedTargets:[],checkedScope:section,observedCount:null,truncated:false},pagination={offset,targetOffset,limit,next:null};
-    const result={version:DOSSIER_ACTIVITY_VERSION,procedure,memberId:member,participants:local.participants.map(person=>({...person,amendmentCounts:{committee:null,plenary:null},amendments:[]})),section,items:[],pagination,coverage,generation:local.generation};
+    const result={version:DOSSIER_ACTIVITY_VERSION,procedure,memberId:member,memberName:local.memberName,participants:local.participants.map(person=>({...person,amendmentCounts:{committee:null,plenary:null},amendments:[]})),section,items:[],pagination,coverage,generation:local.generation};
     const page=(items,nextTarget=null)=>{result.items=items.slice(offset,offset+limit);pagination.next=offset+limit<items.length?{offset:offset+limit,targetOffset}:nextTarget;coverage.observedCount=items.length;coverage.truncated=Boolean(pagination.next);};
     if(section==='roles') {
       const roles=local.roles.filter(role=>!member||role.personId===member);page(roles);coverage.status=!Array.isArray(work.had_participation)&&!roles.length?'unavailable':local.gaps.length?'partial':'complete';
-      if(!member)await this.participants(result,work,query);
+      // The people list is whole on the first page. Only contributions can continue it.
+      if(!member){pagination.next=null;coverage.truncated=false;await this.participants(result,work,query);}
     }else if(section==='speeches')await this.speeches(result,work,query,page);
     else if(section==='amendments'){result.stage=query.stage||'all';result.committee=query.committee||null;await this.amendments(result,work,query);}
     else await this.ballots(result,work,query);
@@ -169,7 +205,7 @@ export class DossierActivity {
     if(coverage.status==='complete'&&(coverage.gaps.length||coverage.uncheckedTargets.length))coverage.status='partial';
     if(coverage.status==='unavailable')coverage.observedCount=null;
     coverage.gaps=[...new Set(coverage.gaps)];
-    coverage.sources=[...new Map(coverage.sources.map(s=>[JSON.stringify([s.url,s.fetchedAt,s.contentHash||null]),s])).values()];
+    coverage.sources=uniqueSources(coverage.sources);
     result.snapshotId=createHash('sha256').update(JSON.stringify([result.generation,result.section,result.items,result.participants,result.participantCoverage,result.coverage,result.pagination])).digest('hex');
     requestSignal()?.throwIfAborted();return result;
   }
@@ -264,6 +300,7 @@ export class DossierActivity {
     const candidates=[...new Set([...retained,...array(work.consists_of).filter(event=>tail(event.had_activity_type)==='TABLING_PLENARY').flatMap(event=>refs(event.based_on_a_realization_of)).map(tail)].filter(id=>/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(id)))].sort();
     const committeeTargets=this.store.readSnapshot(()=>amendmentProcedureTargets(this.store,procedure.id,{scope:'committee',committee:query.committee,limit:1001}));
     const stageFilter=query.stage||'all';
+    coverage.total=this.store.readSnapshot(()=>amendmentTotal(this.store,procedure.id,member,stageFilter,query.committee));
     const allTargets=[...(stageFilter==='committee'||query.committee?[]:candidates),...(stageFilter==='plenary'?[]:committeeTargets.map(value=>value.id))];
     const targets=allTargets;
     if(committeeTargets.length>=1001)coverage.gaps.push('Some amendment targets are outside this checked scope.');

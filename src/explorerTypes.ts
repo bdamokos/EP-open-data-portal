@@ -32,6 +32,7 @@ export interface Directory {
   fetchedAt: string;
   members: DirectoryMember[];
   committees: Committee[];
+  parties?: Record<string,string>;
   sync?: {
     lastSuccess: string | null;
     lastAttempt: string | null;
