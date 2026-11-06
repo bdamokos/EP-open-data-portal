@@ -50,7 +50,7 @@ export function SpeechPanel({top,speeches,current,onSelect,language,speakerName,
       {counts.speakers>0&&<> · <UiMessage id="groupvoices.count_speakers.47ae64" values={{count:counts.speakers}} counts={{count:counts.speakers}}/></>}
     </p>
     <details className="insight-speech-jump" open={open} onToggle={event=>setOpen(event.currentTarget.open)}>
-      <summary><UiMessage id="speechpanel.all_speakers_count" values={{count:speeches.length}}/></summary>
+      <summary><UiMessage id="speechpanel.all_speakers"/></summary>
       <ol ref={list}>{speeches.map(speech=>{
         const clock=time(speech),groups=[...new Set(speech.people.map(person=>person.contributionGroup).filter((group):group is string=>Boolean(group)))];
         return <li key={speech.sourceId}><button lang="" aria-current={(speech.sourceId===current) ? 'true' : undefined} onClick={()=>choose(speech.sourceId)}>

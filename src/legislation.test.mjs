@@ -98,7 +98,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   assert.equal(find('.insight-speech-panel h3').textContent,'Speeches');
   assert.equal(find('.insight-speech-counts').textContent,'3 written statements');
   const jump=find('.insight-speech-jump');assert(jump.open,'wide layouts list the speakers');
-  assert.equal(jump.querySelector('summary').textContent,'All speakers (3)');
+  assert.equal(jump.querySelector('summary').textContent,'All speakers');
   const jumpButtons=[...jump.querySelectorAll('ol button')];
   assert.match(jumpButtons[0].textContent,/09:00.*Contributor 1.*Written statement/);
   assert.equal(jumpButtons[1].getAttribute('aria-current'),'true');
