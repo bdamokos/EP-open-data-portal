@@ -85,7 +85,17 @@ export class DossierActivity {
     this.store=store;this.reader=reader||new LegislationInsights(store,options);this.votes=votes;this.readAmendments=readAmendments;
   }
   async procedure(id,language,reference=null) {
-    const record=await this.reader.record('/procedures/'+id);
+    return this.identified(await this.reader.record('/procedures/'+id),id,language,reference);
+  }
+  // The saved procedure only: a missing one is not read from Parliament.
+  heldProcedure(id,language) {
+    const saved=this.store.source?.(this.store.status().servingGeneration,'/procedures/'+id);
+    if(!saved?.work)return null;
+    const time=Date.parse(saved.fetchedAt);
+    try{return this.identified({url:apiUrl('/procedures/'+id),fetchedAt:Number.isFinite(time)?time:null,payload:{data:[saved.work]}},id,language);}
+    catch(error){if(error instanceof HttpError)return null;throw error;}
+  }
+  identified(record,id,language,reference=null) {
     const nodes=record.payload.data.filter(node=>canonical(node.id)==='eli/dl/proc/'+id);
     if(nodes.length!==1)throw new HttpError(502,'dossier_identity','The exact procedure source is unavailable.');
     const work=nodes[0],label=work.label,classification=classifyProcedure(work),code=classification.code;
