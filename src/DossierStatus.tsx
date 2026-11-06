@@ -1,0 +1,56 @@
+import type {ReactNode} from 'react';
+import {UiMessage,useUiI18n} from './UiI18nReact';
+import {useInsightData} from './InsightData';
+import {humanDate} from './InsightCharts';
+import {useProcedureProgress} from './ProcedureProgress';
+import {dossierStatusLines,mergeDossierStatus,type DossierCommittee,type DossierStatusLine,type DossierStatusResponse} from '../server/dossier-status-model.mjs';
+import type {ProcedureSummary} from '../server/procedure-steps.mjs';
+import './DossierStatus.css';
+
+const brusselsToday=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const fileUrl=(reference:string)=>'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference});
+
+function Line({line,language}:{line:DossierStatusLine;language:string}) {
+  const {date,tally,committees,label,labelLanguage}=line.values||{};
+  const values:Record<string,ReactNode>={};
+  if(date)values.date=<time dateTime={date} lang={language}>{humanDate(date,language)}</time>;
+  if(tally)values.tally=<UiMessage id="dossierstatus.tally" values={{for:tally.for,against:tally.against,abstaining:tally.abstaining}}/>;
+  if(committees?.length)values.committee=<CommitteeNames committees={committees} language={language}/>;
+  if(label)values.label=<span lang={labelLanguage||'en'}>{label}</span>;
+  return <UiMessage id={line.id} values={values}/>;
+}
+function CommitteeNames({committees,language}:{committees:DossierCommittee[];language:string}) {
+  const names=committees.map(row=>row.name===row.code ? row.code : row.name+' ('+row.code+')');
+  return <span lang={committees[0].language||language}>{new Intl.ListFormat(language,{style:'long',type:'conjunction'}).format(names)}</span>;
+}
+
+/** The first answer on a dossier: where the file stands and what comes next.
+ * The strip's rows exist from the first render, so later reads only fill them in.
+ */
+export function DossierStatus({reference,language,summaries}:{reference:string;language:string;summaries?:ProcedureSummary[]}) {
+  const ui = useUiI18n();
+  const state=useInsightData<DossierStatusResponse>('insights/dossier-status?'+new URLSearchParams({reference,lang:language}));
+  const progress=useProcedureProgress(reference,language);
+  const status=(state.data?.reference===reference) ? state.data : null;
+  const cellarEvents=(progress.data?.state==='mapped') ? progress.data.events : [];
+  const merged=mergeDossierStatus(status||{reference,indexEvents:[]},{cellarEvents,summaries,asOf:brusselsToday()});
+  const {sentence,next}=dossierStatusLines({...merged,indexEvents:status?.indexEvents,slots:status?.slots,cellarEvents});
+  // Before the held status arrives nothing is known to be current.
+  const steps=merged.steps.map(step=>(!status&&state.loading&&step.state==='current') ? {...step,state:'open' as const} : step);
+  const known=Boolean(status||cellarEvents.length);
+  const settled=!state.loading&&!progress.loading;
+  const failed=settled&&(!sentence||!known);
+  return <section className="dossier-status" lang={ui.language} aria-label={ui.t('dossierstatus.heading')}>
+    <div className="dossier-status-lines">
+      {known&&sentence ? <>
+        <p className="dossier-status-sentence"><Line line={sentence} language={language}/></p>
+        {next&&<p className="dossier-status-next"><Line line={next} language={language}/></p>}
+      </> : failed&&<p className="dossier-status-sentence"><UiMessage id="dossierstatus.unavailable"/> <a href={fileUrl(reference)} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.28.70"/></a></p>}
+    </div>
+    {steps.length>0&&<ol className="dossier-steps" aria-label={ui.t('dossierstatus.steps')} style={{'--dossier-step-count':steps.length} as React.CSSProperties}>{steps.map(step=><li key={step.key} data-state={step.state} aria-current={(step.state==='current') ? 'step' : undefined}>
+      <span className="dossier-step-mark" aria-hidden="true">{(step.state==='done') ? '✓' : ''}</span>
+      <span className="dossier-step-label"><UiMessage id={'dossierstatus.step_'+step.key}/></span>
+      <span className="dossier-step-date">{step.date&&<time dateTime={step.date} lang={language}>{humanDate(step.date,language)}</time>}{step.partial&&<> · <UiMessage id="dossierstatus.partial"/></>}</span>
+    </li>)}</ol>}
+  </section>;
+}

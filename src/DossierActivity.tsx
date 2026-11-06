@@ -153,6 +153,9 @@ export function DossierActivity({reference,language='en',onProcedure}:{reference
   const speeches=useDossierSection(reference,person,'speeches',language,Boolean(person)&&(filter==='all'||filter==='speeches'));
   const amendments=useDossierSection(reference,person,'amendments',language,Boolean(person)&&(filter==='all'||filter==='amendments'),stage,committee);
   const votes=useDossierSection(reference,person,'votes',language,Boolean(person)&&['all','amendments','votes'].includes(filter));
+  // A list holding nothing by this person says nothing about the next one.
+  const moreAmendments=amendments.more,amendmentsEmpty=Boolean(amendments.data&&!amendments.loading&&!amendments.error&&amendments.data.coverage.status!=='unavailable'&&!amendments.data.items.length&&amendments.data.pagination.next);
+  useEffect(()=>{if(amendmentsEmpty)moreAmendments();},[amendmentsEmpty,amendments.data?.pagination.next?.targetOffset]);
   const states={roles,speeches,amendments,votes};
   const participants=roles.data?.participants||[],selected=participants.find(row=>row.id===person),personLabel=selected?.name||roles.data?.memberName||null,memberName=person ? (displayName(person,personLabel)||ui.t("dossieractivity.selected_person")) : '';
   const visibleSections=(person ? ((filter==='all') ? (['roles','speeches','amendments','votes']) : ((filter==='amendments') ? (['amendments','votes']) : ([filter]))) : (['roles'])) as DossierSection[];

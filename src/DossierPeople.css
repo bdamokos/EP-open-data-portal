@@ -5,7 +5,7 @@
 .dossier-people-table thead th{color:var(--ink-muted);font-size:13px;font-weight:500;white-space:nowrap}
 .dossier-people-table tbody th{font-weight:600}
 .dossier-people-table tbody th>a{display:inline}
-.dossier-people-table a,.dossier-people-table .dossier-amendment-links a{display:inline;min-height:0}
+.dossier-activity .dossier-people-table a,.dossier-activity .dossier-people-table .dossier-amendment-links a{display:inline;min-height:0}
 .dossier-people-roles>span{display:block}
 .dossier-people-work{white-space:nowrap}
 .dossier-people-all{margin-top:14px}
