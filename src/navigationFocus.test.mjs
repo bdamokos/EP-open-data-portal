@@ -6,6 +6,7 @@ import {freshLoader} from './test-support/viteRunner.mjs';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
+import {memberOverviewVoteRead,memberOverviewVoteUnavailable} from './test-support/memberOverviewFixture.mjs';
 
 // The transform hook has no per-harness closure state. Share its transform
 // server while freshLoader creates/disposes a new module runner for each case.
@@ -46,6 +47,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
     if(route==='directory')return Response.json(unavailableMemberships?{...directory,members:[{...member,memberships:null}],index:{complete:false,loaded:0,total:1,failed:0,error:null}}:directory);
     if(route?.startsWith('portrait/')){portraitRequests.push(route);return new Response(null,{status:404});}
     if(route?.startsWith('profile/'))return Response.json(member);
+    if(memberOverviewVoteRead(url))return memberOverviewVoteUnavailable();
     if(route?.startsWith('latest-activities/')){
       if(delay)return new Promise(resolve=>pending.push({url,resolve}));
       return Response.json(page(Number(url.searchParams.get('offset'))));

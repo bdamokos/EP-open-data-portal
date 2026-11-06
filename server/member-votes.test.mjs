@@ -50,7 +50,7 @@ function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payloa
 test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
   const {service,calls}=setup();
   const first=await service.query(MEMBER,query('sitting='+SITTING));
-  assert.equal(first.version,12);
+  assert.equal(first.version,13);
   assert.equal(first.period.sittingId,SITTING);
   assert.equal(first.period.from,'2026-10-07');
   assert.equal(first.period.to,'2026-10-07');
@@ -795,6 +795,23 @@ test('period view returns every filtered decision despite a legacy offset and sm
   const recorded=await service.query(MEMBER,query('sitting='+SITTING+'&view=period&positions=recorded&snapshot='+page.snapshotId));
   assert(recorded.items.every(item=>item.actualPosition.status==='recorded'));
   assert.throws(()=>query('sitting='+SITTING+'&view=other'));
+});
+
+test('summary view returns the counts of the period view with no items from the same snapshot',async()=>{
+  const decisions=Array.from({length:30},(_,index)=>({...clone(finalDecision),id:'eli/dl/event/'+SITTING+'-DEC-'+(index+1),activity_id:SITTING+'-DEC-'+(index+1)}));
+  const {service,calls}=setup({decisions});
+  const full=await service.query(MEMBER,query('sitting='+SITTING+'&view=period'));
+  const reads=calls.length;
+  const summary=await service.query(MEMBER,query('sitting='+SITTING+'&view=summary'));
+  assert.equal(calls.length,reads);
+  assert.equal(summary.pagination.mode,'summary');
+  assert.deepEqual(summary.items,[]);assert.deepEqual(summary.subjects,[]);
+  assert.equal(summary.snapshotId,full.snapshotId);
+  assert.deepEqual(summary.period,full.period);assert.deepEqual(summary.alignmentCounts,full.alignmentCounts);
+  assert.equal(summary.pagination.observedTotal,full.pagination.observedTotal);
+  assert.equal(summary.pagination.recordedTotal,full.pagination.recordedTotal);
+  assert.equal(summary.pagination.returned,0);assert.equal(summary.pagination.nextOffset,null);
+  for(const extra of ['decision='+SITTING+'-DEC-1','positions=recorded','alignment=against','offset=5'])assert.throws(()=>query('sitting='+SITTING+'&view=summary&'+extra),/summary view/);
 });
 
 test('chairing omissions apply before counts, filters, pagination and direct selections and remain member-specific',async()=>{

@@ -22,7 +22,7 @@ import {useMediaQuery} from './useMediaQuery';
 import {ActivityDossierLinks} from './DossierActivity';
 import {navigateDossier,useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
 import {committeeCoverageComplete,matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
-import {AvailabilityNote} from './AvailabilityNote';
+import {MemberOverview} from './MemberOverview';
 import {coverageStore} from './SavedControls';
 import {FormerMemberNotice} from './MembershipUpdates';
 import {PersonName,PersonNamesProvider} from './PersonName';
@@ -376,7 +376,6 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
       </nav>}
     </>}
     <h3 ref={resultsHeading} tabIndex={-1} className="explorer-activity-results-title">{selectedLabel}{(state.data && (coverage?.status!=="source-not-verified")) ? (` · ${state.data.indexedTotal}`) : ""}</h3>
-    {page&&coverage?.status!=='source-not-verified'&&<AvailabilityNote showGaps={false} sources={page.availability} language={lang}/>}
     {state.loading && !state.data && <p role="status"><UiMessage id="insightshared.loading"/></p>}
     {state.error && <ErrorView message={state.error} retry={state.retry} />}
     {page && <>
@@ -389,7 +388,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
       <TopicBatch ids={items.map(item=>item.sourceId)} language={lang}>{items.map(item=>{
         const key=`${item.category}:${item.sourceId}`;
         return <article className="explorer-speech" id={`publication-${item.id}`} key={key}><RecordTopics id={item.sourceId}/>
-          <button className="explorer-speech-toggle" aria-expanded={isOpen(item)} onClick={()=>{const next=isOpen(item) ? null : key;onOpen(next);}}><span><small><span><>{((item.recordKind === "answer") ? ui.t("textsearch.answer") : ((item.category === "written-questions") ? ui.t("batch4.questiontopics.tsx.written.question") : ((item.category === "oral-questions") ? ui.t("batch4.questiontopics.tsx.oral.question") : item.categoryLabel)))} · {<time lang={lang} dateTime={item.date}>{date(item.date,lang)}</time>}</></span></small><strong lang={item.titleLanguage||""}><OfficialTitle title={item.title} language={item.titleLanguage} agenda={item.recordKind==='speech'}/></strong>{item.recordKind!=="answer"&&item.answerStatus&&<QuestionStatus answered={item.answerStatus==="answered"}/>} {item.resolutionOutcome&&<MotionStatuses outcome={item.resolutionOutcome} related={item.relatedJointMotions} sourceId={item.sourceId}/>}</span><b aria-hidden="true">{isOpen(item) ? "−" : "+"}</b></button>
+          <button className="explorer-speech-toggle" aria-expanded={isOpen(item)} onClick={()=>{const next=isOpen(item) ? null : key;onOpen(next);}}><span><small><span><>{((item.recordKind === "answer") ? ui.t("textsearch.answer") : ((item.category === "written-questions") ? ui.t("batch4.questiontopics.tsx.written.question") : ((item.category === "oral-questions") ? ui.t("batch4.questiontopics.tsx.oral.question") : item.categoryLabel)))} · {<time lang={lang} dateTime={item.date}>{date(item.date,lang)}</time>}</></span></small><strong lang={item.titleLanguage||""}><OfficialTitle title={item.title} language={item.titleLanguage} agenda={item.recordKind==='speech'}/></strong>{item.recordKind!=="answer"&&item.answerStatus&&<QuestionStatus answered={item.answerStatus==="answered"}/>} {item.resolutionOutcome&&<MotionStatuses outcome={item.resolutionOutcome} related={item.relatedJointMotions} sourceId={item.sourceId}/>}</span><b aria-hidden={isOpen(item) ? "true" : undefined} className={isOpen(item) ? undefined : "explorer-speech-read"}>{isOpen(item) ? "−" : <UiMessage id="memberoverview.read"/>}</b></button>
 
           {!isOpen(item)&&item.provenance.role.startsWith('RAPPORTEUR')&&<ActivityDossierLinks procedureIds={item.procedureIds} person={id} language={lang}/>}
           {isOpen(item) && <JoinedDetails item={item} lang={lang} member={id} memberName={memberName} motionQuery={motionQuery} onMotionChange={onMotionChange} />}
@@ -845,6 +844,9 @@ export default function App() {
                 <SaveButton item={{kind:'mep',id:String(member),title:[profile.data?.firstName||selected?.firstName,profile.data?.lastName||selected?.lastName].filter(Boolean).join(' ')}}/>
               </div>
             </div>
+            {!outsideRoster&&<MemberOverview key={member} member={member} language={lang} onSpeeches={()=>changeMemberTab('speeches')}
+              onActivities={category=>{changeActivity(null);changeActivityCategory(category);changeMemberTab('activities');}}
+              onVotes={week=>{votes.restore(new URLSearchParams({member:String(member),'mv-week':week,'mv-positions':'all'}),member);changeMemberTab('votes');}}/>}
             <nav className="explorer-tabs" aria-label={ui.t("app.mep_sections")} lang={lang}>
               <button
                 className={(tab === "profile") ? "selected" : ""}

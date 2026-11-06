@@ -6,6 +6,7 @@ import {freshLoader} from './test-support/viteRunner.mjs';
 import {topicLinkDetail,placeLinkFacts,recordLinkPage} from './test-support/storyLinksFixtures.mjs';
 import {storyQuery} from '../server/story-facts-reader.mjs';
 import {viewReady} from './test-support/viewReady.mjs';
+import {memberOverviewVoteRead,memberOverviewVoteUnavailable} from './test-support/memberOverviewFixture.mjs';
 
 const ref='2025/0176(COD)',documentId='A-10-2026-0010',source={url:'https://data.europarl.europa.eu/api/v2/procedures/2025-0176',fetchedAt:'2026-10-24T08:00:00Z',language:'en'};
 const member={id:257727,firstName:'Named',lastName:'Member',sortName:'MEMBER Named',gender:'',countryCode:'HU',groupCode:'EPP',memberships:[],accounts:[]};
@@ -31,6 +32,7 @@ async function harness(t,url,respond) {
     if(route==='directory')return Response.json({day:'2026-10-24',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}});
     if(route?.startsWith('profile/'))return Response.json(member);
     if(route?.startsWith('portrait/'))return new Response(null,{status:404});
+    if(memberOverviewVoteRead(url))return memberOverviewVoteUnavailable();
     if(route?.startsWith('latest-activities/'))return Response.json(activityPage);
     if(route==='insights/dossier-references')return Response.json({items:[procedure],coverage:{status:'complete',gaps:[]}});
     if(route==='insights/dossier-activity')return Response.json({version:12,procedure,memberId:url.searchParams.get('member'),section:url.searchParams.get('section'),participants:[{id:'257727',name:'Named Member',roles:[role]}],items:url.searchParams.get('section')==='roles'?[role]:[],pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Only linked records shown.'],sources:[source]},generation:1});

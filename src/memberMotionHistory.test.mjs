@@ -8,6 +8,7 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {viewReady} from './test-support/viewReady.mjs';
 import {API_VERSION} from '../server/api-version.mjs';
+import {memberOverviewVoteRead,memberOverviewVoteUnavailable} from './test-support/memberOverviewFixture.mjs';
 
 // Finite synthetic HTTP contracts exercise the real App and readers. These are
 // navigation fixtures, not evidence of raw DOCX parsing or public-source coverage.
@@ -65,6 +66,7 @@ async function harness(t,selection=query({}),{context=contextResponse,motions=mo
   if(url.pathname==='/api/directory')return Response.json(directory);
   if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
   if(url.pathname.startsWith('/api/profile/'))return Response.json({...members[Number(url.pathname.split('/').at(-1))-1],birthDate:null,memberships:[]});
+  if(memberOverviewVoteRead(url))return memberOverviewVoteUnavailable();
   if(url.pathname.startsWith('/api/latest-activities/'))return Response.json(await latest(url));
   if(url.pathname.startsWith('/api/motion-amendments/')){const result=await motions(url);return result instanceof Response?result:Response.json(result);}
   if(url.pathname.startsWith('/api/commission-followups/'))return Response.json({documentId:decodeURIComponent(url.pathname.split('/').at(-1)),requestedLanguage:url.searchParams.get('lang')||'en',status:'none-listed',items:[],gaps:[],sources:[]});

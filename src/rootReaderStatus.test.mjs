@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {memberOverviewVoteRead,memberOverviewVoteUnavailable} from './test-support/memberOverviewFixture.mjs';
 
 const member={id:257043,firstName:'Mika',lastName:'Aaltola',sortName:'AALTOLA Mika',gender:'m',countryCode:'FI',groupCode:'EPP',memberships:[],accounts:[]};
 const questionId='E-10-2026-003031',speechId='MTG-PL-2026-03-25-OTH-2017069380111';
@@ -55,6 +56,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
     if(/^(document|speech)\//.test(route))return new Promise(resolve=>pending.push({route:route+url.search,resolve,finished:false}));
     if(route==='directory')return Response.json({day:'2026-10-16',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}});
     if(route===`portrait/${member.id}`)return new Response(null,{status:404});
+    if(memberOverviewVoteRead(url))return memberOverviewVoteUnavailable();
     if(route?.startsWith('latest-activities/'))return Response.json(page(items));
   if(route==='vote-periods')return Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}});
     if(route?.startsWith('speech-statistics/'))return Response.json((typeof summary==='function'?await summary(url):summary)||{memberId:String(member.id),items:[],counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:true,available:0,total:0},nextPage:null,sources:[]});

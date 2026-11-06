@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {memberOverviewVoteRead,memberOverviewVoteUnavailable} from './test-support/memberOverviewFixture.mjs';
 
 // Synthetic directory: each unrelated row exercises one of the URL facets.
 const makeMember=(id,firstName,lastName,role,overrides={})=>({id,firstName,lastName,sortName:lastName+' '+firstName,gender:'',countryCode:'HU',groupCode:'PfE',memberships:[{id:'6567',role,classification:'COMMITTEE',current:true}],organizationMemberships:[{id:id===2||id===4?'6831':'9999',current:true}],accounts:[],...overrides});
@@ -36,6 +37,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member',sourceDirecto
     if(url.pathname==='/api/profile/1')return Response.json({...members[0],currentAffiliation:{status:'matched',day:'2026-10-31'},membershipHistory:{observationAvailable:true,observationComplete:true,items:[{index:0,section:'national-parties',bodyId:'org/6831',role:'def/ep-roles/MEMBER',classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',start:'2024-07-16',end:null,body:{prefLabel:{en:'Example party'}}}]}});
     if(url.pathname==='/api/directory')return Response.json(sourceDirectory);
     if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
+    if(memberOverviewVoteRead(url))return memberOverviewVoteUnavailable();
     if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:[],selectedItems:[],indexedTotal:0,nextOffset:null,cache:{complete:true}});
   if(url.pathname==='/api/vote-periods')return Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}});
     if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});

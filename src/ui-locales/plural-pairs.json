@@ -463,5 +463,25 @@
     "one": "weekSummary.votesOne",
     "other": "weekSummary.votes",
     "count": "count"
+  },
+  {
+    "one": "memberoverview.count_question",
+    "other": "memberoverview.count_questions",
+    "count": "count"
+  },
+  {
+    "one": "memberoverview.count_shadow_opinion",
+    "other": "memberoverview.count_shadow_opinions",
+    "count": "count"
+  },
+  {
+    "one": "memberoverview.count_shadow_report",
+    "other": "memberoverview.count_shadow_reports",
+    "count": "count"
+  },
+  {
+    "one": "memberoverview.last_week_one",
+    "other": "memberoverview.last_week",
+    "count": "count"
   }
 ]

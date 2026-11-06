@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {memberOverviewVoteRead,memberOverviewVoteUnavailable} from './test-support/memberOverviewFixture.mjs';
 
 const member={id:257043,firstName:'Mika',lastName:'Aaltola',sortName:'AALTOLA Mika',gender:'m',countryCode:'FI',groupCode:'EPP',memberships:[{id:'AFET',role:'MEMBER',classification:'COMMITTEE',current:true,start:'2024-07-16',end:null}],accounts:[]};
 const directory={day:'2026-10-16',members:[member],committees:[{id:'AFET',code:'AFET',names:{en:'Foreign affairs',fr:'Affaires étrangères',hu:'Külügy'},classification:'COMMITTEE'},{id:'LIBE',code:'LIBE',names:{en:'Civil liberties'},classification:'COMMITTEE'}],index:{complete:true,
@@ -96,6 +97,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
     if(route==='directory')return Response.json(directory);
     if(route?.startsWith('portrait/'))return new Response(null,{status:404});
     if(route?.startsWith('profile/'))return Response.json({...member,birthDate:'1969-05-02',birthPlace:'Jämsänkoski',email:'fixture@example.invalid'});
+    if(memberOverviewVoteRead(url))return memberOverviewVoteUnavailable();
     if(route?.startsWith('latest-activities/'))return Response.json(page(items));
     if(route?.startsWith('speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(route==='insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});

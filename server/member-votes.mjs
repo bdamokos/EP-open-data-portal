@@ -12,7 +12,7 @@ import {collectVoteChairs} from './vote-chairs.mjs';
 import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
 import {sittingConfirmationDay} from './refresh-policy.mjs';
 
-export const MEMBER_VOTES_VERSION=12;
+export const MEMBER_VOTES_VERSION=13;
 // Saved sitting days stay readable across additive response changes.
 export const MEMBER_VOTE_SNAPSHOT_VERSION=11;
 export const VOTE_SNAPSHOT_VERSION=1;
@@ -45,7 +45,8 @@ export function memberVotesQuery(search,{now=Date.now()}={}) {
   if(search.has('decision')&&(!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(decision||'')||!validDate(decision.slice(7,17))))throw new HttpError(400,'invalid_decision','Use an exact decision identifier.');
   if(search.has('snapshot')&&!/^[a-f0-9]{64}$/.test(snapshot||''))throw new HttpError(400,'invalid_snapshot','Use the snapshot identifier returned by this endpoint.');
   const view=search.get('view')??'page';
-  if(!['page','period'].includes(view))throw new HttpError(400,'invalid_view','Choose page or period view.');
+  if(!['page','period','summary'].includes(view))throw new HttpError(400,'invalid_view','Choose page, period or summary view.');
+  if(view==='summary'&&(search.has('decision')||positions!=='all'||alignment!=='all'||search.has('offset')))throw new HttpError(400,'invalid_view','The summary view takes only the language, week or sitting and snapshot.');
   return {language,positions,alignment,view,sitting:sitting||null,week:sitting?null:week||'latest',limit:integer('limit',25,1,100),offset:integer('offset',0,0,10000),decision:decision||null,snapshot:snapshot||null};
 }
 
@@ -254,16 +255,17 @@ export class MemberVotes extends VoteSourceReader {
     const snapshot=await this.snapshot(query);requestSignal()?.throwIfAborted();
     const {period,coverage}=snapshot;
     if(query.decision&&period.from&&(query.decision.slice(7,17)<period.from||query.decision.slice(7,17)>period.to))throw new HttpError(400,'decision_outside_period','Choose a decision in the resolved period.');
+    const summaryView=query.view==='summary';
     const projected=snapshot.days.map(day=>projectMemberSitting(day,id,query.language));
     const omitted=new Set(projected.flatMap(day=>day.omittedWhileChairing));
     const items=projected.flatMap(day=>day.items).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id));
     const positions=query.positions||'all',alignment=query.alignment||'all';
     const alignmentCounts=coverage.status==='unavailable'?null:items.reduce((counts,item)=>{counts[memberVoteAlignment(item)]++;return counts;},{with:0,against:0,abstained:0,unclassified:0});
     const filtered=items.filter(item=>(positions!=='recorded'||item.actualPosition.status==='recorded')&&(alignment==='all'||item.alignment===alignment));
-    const periodView=query.view==='period',offset=periodView?0:query.offset;
-    const page=periodView?filtered:filtered.slice(offset,offset+query.limit),selected=query.decision?items.find(item=>item.id===query.decision)||null:null;
-    const subjects=projected.flatMap(day=>day.subjects).map(subject=>({...subject,counts:{observed:items.filter(item=>item.subjectId===subject.id).length,filtered:filtered.filter(item=>item.subjectId===subject.id).length,page:page.filter(item=>item.subjectId===subject.id).length}}));
-    return {version:MEMBER_VOTES_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},period,snapshotId:snapshot.id,positions,alignment,alignmentCounts,subjects,pagination:{...(periodView?{mode:'period'}:{}),offset,limit:query.limit,returned:page.length,observedTotal:items.length,...(omitted.size?{omittedWhileChairingTotal:omitted.size}:{}),recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:filtered.length,nextOffset:offset+page.length<filtered.length?offset+page.length:null},items:page,selected:{status:query.decision?(selected?'found':omitted.has(query.decision)?'chairing':coverage.status==='unavailable'?'unavailable':'not-found-in-scanned-data'):'not-requested',item:selected},coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
+    const periodView=query.view==='period'||summaryView,offset=periodView?0:query.offset;
+    const page=summaryView?[]:periodView?filtered:filtered.slice(offset,offset+query.limit),selected=query.decision?items.find(item=>item.id===query.decision)||null:null;
+    const subjects=summaryView?[]:projected.flatMap(day=>day.subjects).map(subject=>({...subject,counts:{observed:items.filter(item=>item.subjectId===subject.id).length,filtered:filtered.filter(item=>item.subjectId===subject.id).length,page:page.filter(item=>item.subjectId===subject.id).length}}));
+    return {version:MEMBER_VOTES_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},period,snapshotId:snapshot.id,positions,alignment,alignmentCounts,subjects,pagination:{...(periodView?{mode:summaryView?'summary':'period'}:{}),offset,limit:query.limit,returned:page.length,observedTotal:items.length,...(omitted.size?{omittedWhileChairingTotal:omitted.size}:{}),recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:filtered.length,nextOffset:summaryView||offset+page.length>=filtered.length?null:offset+page.length},items:page,selected:{status:query.decision?(selected?'found':omitted.has(query.decision)?'chairing':coverage.status==='unavailable'?'unavailable':'not-found-in-scanned-data'):'not-requested',item:selected},coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
   }
 }
 

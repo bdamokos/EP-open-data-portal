@@ -9,6 +9,7 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {viewReady} from './test-support/viewReady.mjs';
 import {DocumentContext,documentContextQuery} from '../server/document-context.mjs';
+import {memberOverviewVoteRead,memberOverviewVoteUnavailable} from './test-support/memberOverviewFixture.mjs';
 
 const WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25',SNAPSHOT='a'.repeat(64),SUBJECT=SITTING+'-VOT-ITM-8';
 const DOCUMENT='B-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7',LIST=DOCUMENT+'-AM-001-007';
@@ -24,7 +25,7 @@ function vote(number) {
 function response(url) {
   const query=url.searchParams,offset=Number(query.get('offset')||0),id=query.get('decision'),items=offset?[vote(3),vote(4)]:[vote(1),vote(2)];
   const week=query.get('week')==='latest'?WEEK:query.get('week'),sitting=query.get('sitting');
-  return {version:12,member:{id:url.pathname.split('/').at(-1)},positions:query.get('positions'),alignment:query.get('alignment')||'all',alignmentCounts:{with:4,against:0,abstained:0,unclassified:0},snapshotId:query.get('snapshot')||SNAPSHOT,
+  return {version:13,member:{id:url.pathname.split('/').at(-1)},positions:query.get('positions'),alignment:query.get('alignment')||'all',alignmentCounts:{with:4,against:0,abstained:0,unclassified:0},snapshotId:query.get('snapshot')||SNAPSHOT,
     period:sitting?{kind:'sitting',week:null,sittingId:sitting,from:sitting.slice(7),to:sitting.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     items,pagination:{offset,limit:50,returned:2,observedTotal:4,recordedTotal:4,filteredTotal:4,nextOffset:offset?null:2},
     selected:id?Number(id.split('-').at(-1))<=4?{status:'found',item:vote(Number(id.split('-').at(-1)))}:{status:'not-found-in-scanned-data',item:null}:{status:'not-requested',item:null},
@@ -89,6 +90,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
   if(url.pathname==='/api/insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
     if(url.pathname==='/api/insights/search')return Response.json({offset:0,sections:[]});
+    if(memberOverviewVoteRead(url))return memberOverviewVoteUnavailable();
     if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:activities,selectedItems:[],indexedTotal:activities.length,nextOffset:null,cache:{complete:true}});
     if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(url.pathname==='/api/insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
