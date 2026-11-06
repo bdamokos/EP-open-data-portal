@@ -18,3 +18,6 @@ export function isEuPlace(iso3:string|null|undefined):boolean;
 export function withBoundaryTies<T>(rows:T[],limit:number,score:(row:T)=>number):T[];
 export function monthRangeLabel(period:string,language?:string):string;
 export function defaultMapQuarter(data:{periods:string[];sittingDays?:Record<string,number|null>;partial:{first:string|null;last:string|null}}):string;
+export const HEAT_STEPS:number;
+export function heatStep(count:number,max:number):number;
+export function topicStatusMessage(stage:string|null|undefined):string|undefined;

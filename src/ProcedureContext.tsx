@@ -11,11 +11,12 @@ import './TopicContext.css';
 import {AmendmentTrailLink} from './AmendmentTrailLink';
 import {SourceLink} from './SourceLink';
 import {ProcedureProgress} from './ProcedureProgress';
+import {DossierStatus} from './DossierStatus';
 import {PressMentions} from './PressMentions';
 import {summaryStage,compoundLanguage} from './terms.mjs';
 
 export type OfficialTopic={id:string;label:string;language:string};
-type Context={reference:string;title:string;language:string;summaries:{id:string;stage:string;date:string|null}[];summary:null|{id:string;stage:string;date:string;blocks:{kind:string;text:string}[];method:string|null;source:{url:string}};subjects:{code:string;label:string}[];topics:OfficialTopic[];source:{url:string}};
+type Context={reference:string;title:string;language:string;summaries:{id:string;stage:string;date:string|null;documentReference?:string|null}[];summary:null|{id:string;stage:string;date:string;blocks:{kind:string;text:string}[];method:string|null;source:{url:string}};subjects:{code:string;label:string}[];topics:OfficialTopic[];source:{url:string}};
 
 export function ProcedureContext({reference,language='en',onTopic,showTitle=false,showIdentity=true,showFollow=true,hideSummary=false,initialSummary='',children,fallbackTitle}:{reference:string;language?:string;onTopic?:(topic:OfficialTopic)=>void;showTitle?:boolean;showIdentity?:boolean;showFollow?:boolean;hideSummary?:boolean;initialSummary?:string;children?:ReactNode;fallbackTitle?:{title:string;titleLanguage:string|null}|null}) {
   const ui = useUiI18n();
@@ -30,19 +31,39 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
   </div>;
   const press=<PressMentions key={'press:'+reference+':'+language} reference={reference} language={language} limit={showTitle ? 5 : 3}/>;
   const amendmentLink=<AmendmentTrailLink procedure={reference} language={language}><UiMessage id="batch5.procedurecontext.tsx.27.68"/></AmendmentTrailLink>;
-  if(!data)return <section lang={ui.language} className="insight-procedure-context insight-procedure-fallback" data-procedure-context-pending={(loading && (!fallbackTitle)) ? "true" : undefined}>{identity}{amendmentLink}{children}<ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>{loading&&<p role="status"><UiMessage id="batch5.procedurecontext.tsx.28.69"/></p>}{press}{!loading&&error&&<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.28.70"/></a></p>}</section>;
-  const blocks=data.summary?.blocks||[],displayed=expanded ? blocks : blocks.slice(0,2);
-  return <section lang={ui.language} className="insight-procedure-context"><RecordTopics id={reference.replace(/^(\d{4})\/(\d{4}[A-Z]?).*$/,'$1-$2')} full language={language}/>
-    {identity}{amendmentLink}{children}
-    <ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>
-    {data.summary&&!hideSummary&&<><header><div><h3><UiMessage id="batch5.procedurecontext.tsx.33.71"/></h3><FindInText key={data.summary.id} label={ui.t("batch5.procedurecontext.tsx.33.72")} target={summaryText} onOpen={()=>setExpanded(true)}/></div><div>{(data.summaries.length>1) ? <label className="insight-summary-stage"><span className="explorer-sr-only"><UiMessage id="batch5.procedurecontext.tsx.33.73"/></span><select value={data.summary.id} onChange={event=>{setSummary(event.target.value);setExpanded(false);}}>{data.summaries.map(item=>{const stage=summaryStage(item.stage,language, ui);return <option lang={compoundLanguage(stage.language,item.date ? language : stage.language)} value={item.id} key={item.id}>{stage.text}{item.date ? (' · '+humanDate(item.date,language)) : ''}</option>;})}</select></label> : <span lang={summaryStage(data.summary.stage,language, ui).language}>{summaryStage(data.summary.stage,language, ui).text}</span>}{data.summaries.length===1&&<time lang={language}>{humanDate(data.summary.date,language)}</time>}</div></header>
+  const proposalDate=data?.summaries.find(item=>item.stage==='proposal'&&item.documentReference)?.date;
+  const recordTopics=<RecordTopics id={reference.replace(/^(\d{4})\/(\d{4}[A-Z]?).*$/,'$1-$2')} full language={language}/>;
+  const blocks=data?.summary?.blocks||[],displayed=expanded ? blocks : blocks.slice(0,2);
+  const summaryBlock=data?.summary&&!hideSummary&&<><header><div><h3><UiMessage id="batch5.procedurecontext.tsx.33.71"/></h3><FindInText key={data.summary.id} label={ui.t("batch5.procedurecontext.tsx.33.72")} target={summaryText} onOpen={()=>setExpanded(true)}/></div><div>{(data.summaries.length>1) ? <label className="insight-summary-stage"><span className="explorer-sr-only"><UiMessage id="batch5.procedurecontext.tsx.33.73"/></span><select value={data.summary.id} onChange={event=>{setSummary(event.target.value);setExpanded(false);}}>{data.summaries.map(item=>{const stage=summaryStage(item.stage,language, ui);return <option lang={compoundLanguage(stage.language,item.date ? language : stage.language)} value={item.id} key={item.id}>{stage.text}{item.date ? (' · '+humanDate(item.date,language)) : ''}</option>;})}</select></label> : <span lang={summaryStage(data.summary.stage,language, ui).language}>{summaryStage(data.summary.stage,language, ui).text}</span>}{data.summaries.length===1&&<time lang={language}>{humanDate(data.summary.date,language)}</time>}</div></header>
       <div className="insight-official-summary" ref={summaryText} lang={data.language??''}>{displayed.map((block,index)=>(block.kind==='heading') ? <h4 key={index}>{block.text}</h4> : <p key={index}>{block.text}</p>)}</div>
       <div className="insight-summary-footer">{blocks.length>2&&<button onClick={()=>setExpanded(value=>!value)} aria-expanded={expanded}>{expanded ? <UiMessage id="procedurecontext.show_less.4c852b"/> : <UiMessage id="procedurecontext.continue_reading.4f4840"/>}</button>}<small><span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(data.language)}</span>{data.summary.method ? (' · '+data.summary.method) : ''}</small></div>
-    </>}
-    {showTitle&&!data.summary&&!hideSummary&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
-    {press}
+    </>;
+  const classification=data&&<>
     {data.topics.length>0&&<div className="insight-official-topics"><h4><UiMessage id="batch4.questiontopics.tsx.topics"/> </h4><div>{data.topics.map(topic=>onTopic ? <button key={topic.id} lang={topic.language??''} onClick={()=>onTopic(topic)}>{topic.label} <span aria-hidden="true">↗</span></button> : <SourceLink key={topic.id} url={topic.id} language={language} contentLanguage={topic.language??''}>{topic.label}</SourceLink>)}</div></div>}
     {data.subjects.length>0&&<section className="insight-subject-classification" aria-label={ui.t("procedurecontext.subject_classification.eaa65a")}><h4><UiMessage id="procedurecontext.subject_classification.eaa65a"/></h4><ul>{data.subjects.map(subject=><li key={subject.code} lang={data.language??''}><a onClick={dossierLinkClick} href={topicsHref('oeil:'+subject.code)}>{subject.label}</a></li>)}</ul></section>}
+  </>;
+  // The dossier page answers first and keeps one tree, so nothing remounts when the context arrives.
+  if(showTitle&&children)return <section lang={ui.language} className="insight-procedure-context" data-procedure-context-pending={(!data && loading && (!fallbackTitle)) ? "true" : undefined}>
+    {identity}{recordTopics}{amendmentLink}
+    <DossierStatus reference={reference} language={language} summaries={data?.summaries}/>
+    {summaryBlock}
+    {data&&!data.summary&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
+    {!data&&loading&&<p role="status"><UiMessage id="batch5.procedurecontext.tsx.28.69"/></p>}
+    {!data&&!loading&&error&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
+    <ProcedureProgress key={reference+':'+language} reference={reference} language={language} proposalDate={proposalDate} timeline/>
+    {children}
+    {press}
+    {classification}
+    {data&&!data.summary&&!data.topics.length&&!data.subjects.length&&<a href={data.source.url} target="_blank" rel="noreferrer"><UiMessage id="procedurecontext.open_procedure_file.41bcb5"/></a>}
+  </section>;
+  if(!data)return <section lang={ui.language} className="insight-procedure-context insight-procedure-fallback" data-procedure-context-pending={(loading && (!fallbackTitle)) ? "true" : undefined}>{identity}{amendmentLink}{children}<ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>{loading&&<p role="status"><UiMessage id="batch5.procedurecontext.tsx.28.69"/></p>}{press}{!loading&&error&&<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.28.70"/></a></p>}</section>;
+  return <section lang={ui.language} className="insight-procedure-context">{recordTopics}
+    {identity}{amendmentLink}{children}
+    <ProcedureProgress key={reference+':'+language} reference={reference} language={language} proposalDate={proposalDate}/>
+    {summaryBlock}
+    {showTitle&&!data.summary&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
+    {press}
+    {classification}
     {!data.summary&&!data.topics.length&&!data.subjects.length&&<a href={data.source.url} target="_blank" rel="noreferrer"><UiMessage id="procedurecontext.open_procedure_file.41bcb5"/></a>}
   </section>;
 }

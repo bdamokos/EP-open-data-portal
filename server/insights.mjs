@@ -14,6 +14,8 @@ import { LegislationInsights,LEGISLATION_VIEW_VERSION } from './insights-legisla
 import { HttpError } from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
 import {DossierActivity,dossierActivityQuery,dossierReferencesQuery} from './dossier-activity.mjs';
+import {DossierStatus,dossierStatusQuery,DOSSIER_STATUS_VERSION} from './dossier-status.mjs';
+import {dossierStatuses,dossierStatusesQuery,DOSSIER_STATUSES_VERSION} from './dossier-statuses.mjs';
 import {INSIGHTS_VERSION} from './insights-model.mjs';
 import {savedQuery,savedStates} from './insights-saved.mjs';
 import {participationQuery,participation} from './insights-participation.mjs';
@@ -23,6 +25,7 @@ import {odp,agendaCacheRevision,agendaCacheRevisionIsDurable} from './odp.mjs';
 import {MeetingsReader} from './meetings-reader.mjs';
 import {recentPlenaryWeeks} from './plenary-warmup.mjs';
 import {requestSignal,waitForRequest} from './request-budget.mjs';
+import {WEEK_RESULTS_VERSION,weekResultsQuery,weekResults} from './week-results.mjs';
 import {agendaViewFreshMs,nextPlenaryWarmup,PLENARY_REFRESH_MS} from './plenary-cache-policy.mjs';
 
 // Root integration supplies its already-owned store; this module never starts a worker.
@@ -41,6 +44,7 @@ export function createInsights(store,options={}) {
   const questions=new QuestionInsights(store,shared),legislation=new LegislationInsights(store,shared);
   const speechCloud=new SpeechCloudInsights(store,{...shared,legislation});
   const dossierActivity=new DossierActivity(store,{...shared,reader:legislation});
+  const dossierStatus=new DossierStatus({activity:dossierActivity,clock});
   const officialSources=options.officialSources||(options.officialContext||options.clock?new OfficialContextSources({clock,...options.officialContext}):getSharedOfficialContextSources());
   const catalog=options.eurovocCatalog||new EurovocCatalog(officialSources,{clock,...options.eurovoc});
   const procedureContext=new ProcedureContext(officialSources,catalog),topicTrends=new TopicTrends(store,catalog,{clock});
@@ -128,6 +132,8 @@ export function createInsights(store,options={}) {
     if(view==='search')return search.query(parliamentSearchQuery(searchParams));
     if(view==='dossier-activity')return dossierActivity.query(dossierActivityQuery(searchParams));
     if(view==='dossier-references')return dossierActivity.references(dossierReferencesQuery(searchParams));
+    if(view==='dossier-status'){const query=dossierStatusQuery(searchParams);return views.get([DOSSIER_STATUS_VERSION,view,store.status().servingGeneration,brusselsDay(clock()),query],()=>dossierStatus.query(query));}
+    if(view==='dossier-statuses'){const query=dossierStatusesQuery(searchParams);return views.get([DOSSIER_STATUSES_VERSION,view,store.status().servingGeneration,brusselsDay(clock()),query],()=>dossierStatuses(dossierActivity,query,{clock}));}
     if(view==='speech-words')return speechWords.query(speechWordsQuery(searchParams,{now:clock()}));
     if(view==='speech-cloud')return speechCloud.query(speechCloudQuery(searchParams,{now:clock()}));
     if(view==='procedure-context')return procedureContext.query(procedureContextQuery(searchParams));
@@ -135,6 +141,7 @@ export function createInsights(store,options={}) {
     if(view==='topic-trends')return topicTrends.query(topicTrendsQuery(searchParams,{now:clock()}));
     if(view==='saved')return savedStates(store,savedQuery(searchParams));
     if(view==='participation'){const query=participationQuery(searchParams),generation=store.status().servingGeneration,key=[INSIGHTS_VERSION,LEGISLATION_VIEW_VERSION,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,brusselsDay(clock()),query,await agendaCacheRevision()];return views.get(key,()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}),{persist:()=>agendaCacheRevisionIsDurable(key.at(-1))});}
+    if(view==='week-results'){const query=weekResultsQuery(searchParams);return views.get([WEEK_RESULTS_VERSION,view,query.week,brusselsDay(clock())],()=>weekResults(query,{clock,votes:options.memberVotes,periods:options.votePeriods}));}
     if(!['questions','legislation'].includes(view))throw new HttpError(404,'insight_not_found','Unknown insight view.');
     const query=insightQuery(searchParams,{kind:view,now:options.clock?.()??Date.now()});
     const catalogue=view==='legislation'&&isLatest(query)?await legislation.catalogue():null;
