@@ -698,7 +698,7 @@ let directorySources = [];
 let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
-export const DIRECTORY_VERSION = 5;
+export const DIRECTORY_VERSION = 6;
 export const PROFILE_VERSION = 9;
 let directoryError = null;
 let indexPromise;
@@ -1001,11 +1001,44 @@ function startIndex() {
       indexPromise = null;
     });
 }
+// Party labels come from retained body records only, read once; a body not yet retained leaves its members without a party.
+const partyLabels=new Map();
+async function nationalParties(members) {
+  const wanted=new Set();
+  for(const member of members)for(const row of member.organizationMemberships??[])
+    if(row.classification==='NATIONAL_POLITICAL_GROUP'&&row.current===true&&bodyId.test(row.id))wanted.add(row.id);
+  await Promise.all([...wanted].filter(id=>!partyLabels.has(id)).map(async id=>{
+    const record=await peekSource(sourceKey(bodyEndpoint(id)));
+    const body=record?.payload.data.length===1?record.payload.data[0]:null;
+    const label=body&&String(body.identifier)===id&&typeof body.label==='string'?body.label.trim():'';
+    if(!label)return;
+    partyLabels.set(id,{label,end:body.temporal?.endDate||null});
+    if(partyLabels.size>MAX_CACHE_ENTRIES)partyLabels.delete(partyLabels.keys().next().value);
+  }));
+  const day=today();
+  return Object.fromEntries([...wanted].filter(id=>partyLabels.has(id)&&!(partyLabels.get(id).end<day)).map(id=>[id,partyLabels.get(id).label]));
+}
 export async function odpDirectory({retryCommitteeDetails=false}={}) {
   const d = await directoryData();
   if (directoryDetailWork) startDirectoryDetails(directoryDetailWork,{retry:retryCommitteeDetails});
   startIndex();
   if (indexState.complete) scheduleSync();
+  const members = d.members.map(m => {
+    const profile=profileIndex.get(m.id);
+    const organizationMemberships=profile?.organizationMemberships?.map(row=>({...row,current:organizationMembershipStatus(row,today(),knownOrganizationBodies.get(row.id))})) ?? null;
+    return {
+      ...m,
+      hasEmail: profile?.hasEmail ?? m.hasEmail,
+      organizationMemberships,
+      organizationMembershipsComplete: Boolean(profile?.organizationMembershipsComplete && organizationMemberships?.every(row=>row.current!==null)),
+      birthDate: profile?.birthDate,
+      gender: profile ? profile.gender : m.gender,
+      memberships: profile?.memberships.map(membership => ({
+        ...membership,
+        current: validDuring({startDate:membership.start,endDate:membership.end}),
+      })) ?? null,
+    };
+  });
   return {
     ...d,
     committees: d.committees.filter(body => activeCommittee({ classification: body.classification, temporal: { startDate: body.start, endDate: body.end } })),
@@ -1020,22 +1053,8 @@ export async function odpDirectory({retryCommitteeDetails=false}={}) {
       refreshInProgress: Boolean(directoryPromise || directoryDetailsPromise) || directorySources.some(source => pending.has(source.url)),
       refreshError: directoryError || directorySources.map(source => refreshFailures.get(source.url)?.message).find(Boolean) || null,
     },
-    members: d.members.map(m => {
-      const profile=profileIndex.get(m.id);
-      const organizationMemberships=profile?.organizationMemberships?.map(row=>({...row,current:organizationMembershipStatus(row,today(),knownOrganizationBodies.get(row.id))})) ?? null;
-      return {
-        ...m,
-        hasEmail: profile?.hasEmail ?? m.hasEmail,
-        organizationMemberships,
-        organizationMembershipsComplete: Boolean(profile?.organizationMembershipsComplete && organizationMemberships?.every(row=>row.current!==null)),
-        birthDate: profile?.birthDate,
-        gender: profile ? profile.gender : m.gender,
-        memberships: profile?.memberships.map(membership => ({
-          ...membership,
-          current: validDuring({startDate:membership.start,endDate:membership.end}),
-        })) ?? null,
-      };
-    }),
+    members,
+    parties: await nationalParties(members),
   };
 }
 export function speechSummary(activity) {

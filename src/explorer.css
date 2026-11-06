@@ -24,7 +24,11 @@
 .explorer select, .explorer input { width: 100%; min-width: 0; min-height: var(--control-height); padding: 9px 12px; font-size: var(--control-font-size); line-height: var(--control-line-height); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }
 /* WebKit native menus need an explicit height to match the other filters. */
 .explorer-filters select { height: var(--control-height); }
-.explorer-filter-line { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.explorer-filter-line { display: grid; grid-template-columns: fit-content(16rem) repeat(2,minmax(0,1fr)); gap: 12px; }
+.explorer-filter-fields { display: contents; }
+.explorer-filter-fields[hidden] { display: none; }
+.explorer-view-switch { flex-shrink: 0; }
+.explorer-active-filters { display: flex; flex-wrap: wrap; gap: 8px; }
 .explorer-results { display: flex; align-items: center; gap: 16px; margin: 20px 0 16px; }
 .explorer-results strong { font-size: 40px; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
 .explorer-results span { flex: 1; font-size: 20px; }
@@ -166,6 +170,9 @@
   .explorer-wall { padding: 18px 16px; --explorer-gutter: 16px; }
   .explorer-wall h1 { font-size: 26px; margin-bottom: 18px; }
   .explorer-filters { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .explorer-filter-fields { display: grid; gap: 12px; }
+  .explorer-filter-fields[hidden] { display: none; }
+  .explorer-filters-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .explorer-filter-line { gap: 12px; grid-template-columns: repeat(2,minmax(0,1fr)); }
   .explorer-filter-line label:first-child { grid-column: 1/-1; }
   .explorer-filter-line label { font-size: 14px; }
