@@ -96,3 +96,10 @@ test('a pasted offset past the last departure is a valid empty page',()=>{
   const data=response({departures:{...response().departures,offset:10,items:[],total:1,nextOffset:null}});
   assert.equal(validateMemberVoteRecordResponse(data,{memberId:MEMBER}),true);
 });
+
+test('language-neutral departure wording is a valid response',()=>{
+  const base=response(),item=base.departures.items[0];
+  const withLanguage=language=>response({departures:{...base.departures,items:[{...item,language}]}});
+  assert.equal(validateMemberVoteRecordResponse(withLanguage('mul'),{memberId:MEMBER}),true);
+  assert.equal(validateMemberVoteRecordResponse(withLanguage('xx'),{memberId:MEMBER}),false);
+});

@@ -167,6 +167,8 @@ test('titles prefer the requested language, then English, then any available tex
   assert.deepEqual(pickTitle({fr:'Texte'},{},'hu'),{text:'Texte',language:'fr'});
   assert.deepEqual(pickTitle({},{en:'Reference'},'hu'),{text:'Reference',language:'en'});
   assert.deepEqual(pickTitle({fr:'  '},{},'hu'),{text:null,language:null});
+  assert.deepEqual(pickTitle({hu:'Szöveg',mul:'A-1 - § 4 - Am 4',fr:'A-1 - § 4 - Am 4'},{en:'§ 4'},'en'),{text:'A-1 - § 4 - Am 4',language:'mul'},'the language-neutral label beats an arbitrary translation');
+  assert.deepEqual(pickTitle({hu:'Szöveg'},{en:'§ 4'},'en'),{text:'Szöveg',language:'hu'},'a title in any language still comes before reference wording');
 });
 
 test('an abstention is with the group when the group line is to abstain, and a departure otherwise',()=>{

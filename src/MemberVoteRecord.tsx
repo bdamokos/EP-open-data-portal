@@ -81,7 +81,7 @@ function Departures({data,memberId,onOffset,onOpenDecision}:{data:MemberVoteReco
     <h3><UiMessage id="membervoterecord.departures.all"/></h3>
     {!departures.total&&<p className="member-vote-record-muted"><UiMessage id="membervoterecord.departures.empty"/></p>}
     {Boolean(departures.total)&&<ol start={departures.offset+1}>{departures.items.map(item=><li key={item.decisionId+item.sittingId}>
-      <a href={decisionHref(memberId,item)??undefined} onClick={event=>{
+      <a href={decisionHref(memberId,item)??undefined} lang={item.language&&item.language!=='mul'&&item.language!==ui.language?item.language:undefined} onClick={event=>{
         if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
         event.preventDefault();onOpenDecision(item);
       }}>{item.text||ui.t('membervoterecord.departures.untitled')}</a>

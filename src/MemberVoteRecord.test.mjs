@@ -70,6 +70,7 @@ test('an active member record shows labelled figures, an accessible trend and li
   assert.match(view.container.querySelector('.member-vote-record-trend ul').textContent,/7 Oct 2026: 100% with their group \(2 of 2\)/);
   assert.equal(links(view.container).length,5,'the first page keeps five departures');
   assert.match(links(view.container)[0].getAttribute('href'),/mv-decision=MTG-PL-2026-10-07-DEC-10/);
+  assert.equal(links(view.container)[0].hasAttribute('lang'),false,'text in the interface language needs no language mark');
   assert.match(view.container.querySelector('.member-vote-record-departures small').textContent,/7 Oct 2026 · Against · group For/);
   assert.equal(new URL(links(view.container)[0].href).searchParams.get('module'),'votes');
   await act(async()=>links(view.container)[0].click());
@@ -155,4 +156,11 @@ test('a chairing member with no comparable vote shows recorded and chaired count
   assert.equal(view.container.textContent.includes('With their group'),false);
   assert.equal(view.container.textContent.includes('Group unavailable'),false);
   assert.equal(view.container.querySelector('.member-vote-record-departures'),null);
+});
+
+test('departure wording in another language is marked, and language-neutral wording is not',async t=>{
+  const items=[{...departures[1],text:'Après le considérant 27',language:'fr'},{...departures[2],text:'RC-B10-0371/2025 - § 2 - Am 3',language:'mul'}];
+  const view=await mount(t,{data:response({departures:{scope:'all',offset:0,limit:5,total:2,items,nextOffset:null}})});
+  assert.equal(links(view.container)[0].getAttribute('lang'),'fr');
+  assert.equal(links(view.container)[1].hasAttribute('lang'),false);
 });

@@ -50,11 +50,12 @@ export function memberVoteRecordRevision(day,groupGeneration) {
   });
 }
 
+// The language-neutral label ('mul') is preferred over an arbitrary translation.
 export function pickTitle(titles,referenceTexts,language) {
+  const usable=text=>typeof text==='string'&&text.trim();
   for(const source of [titles,referenceTexts]) {
-    if(source?.[language])return {text:source[language],language};
-    if(source?.en)return {text:source.en,language:'en'};
-    const first=Object.entries(source||{}).find(([,text])=>typeof text==='string'&&text.trim());
+    for(const code of [language,'en','mul'])if(usable(source?.[code]))return {text:source[code],language:code};
+    const first=Object.entries(source||{}).find(([,text])=>usable(text));
     if(first)return {text:first[1],language:first[0]};
   }
   return {text:null,language:null};
