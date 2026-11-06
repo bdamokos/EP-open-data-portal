@@ -501,9 +501,8 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [memberView, setMemberView] = useState(() => queryMemberView(initial.get("mep-view")));
   const [memberSort, setMemberSort] = useState<MemberSort>({key: null});
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const narrow = useMediaQuery("(max-width:767px)");
-  const shownMemberView = effectiveMemberView(memberView, narrow);
+  const shownMemberView = effectiveMemberView(memberView);
   const [speechLink, setSpeechLink] = useState(initial.get("speech"));
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
@@ -563,7 +562,6 @@ export default function App() {
     return ()=>{observer.disconnect();page.style.removeProperty("--explorer-results-height");};
   },[wallVisible,directory]);
   const showFilters=()=>{
-    setFiltersOpen(true);
     const page=document.querySelector<HTMLElement>(".explorer"),heading=page?.querySelector<HTMLElement>(".explorer-wall h1");
     page?.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
     if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
@@ -683,7 +681,6 @@ export default function App() {
   );
   const partialCommittee = Boolean((committee||organization) && (!directory?.index.complete||Boolean(organization&&directoryState.loading)||Boolean(organization&&directory?.members.some(m=>!organizationCoverageComplete(m,organization)))||Boolean(committee&&directory?.members.some(m=>!committeeCoverageComplete(m,committee)))));
   const selected = directory?.members.find((m) => m.id === member);
-  const filterFieldsId = useId();
   const viewSwitch = <div className="explorer-view-switch" role="group">
     <button type="button" lang={ui.messageLocale("app.memberViewCards")} aria-pressed={shownMemberView==='cards'} onClick={()=>setMemberView('cards')}><UiMessage id="app.memberViewCards"/></button>
     <button type="button" lang={ui.messageLocale("app.memberViewList")} aria-pressed={shownMemberView==='list'} onClick={()=>setMemberView('list')}><UiMessage id="app.memberViewList"/></button>
@@ -912,24 +909,7 @@ export default function App() {
               const groupCodes = Array.from(
                 new Set(directory?.members.map((m) => m.groupCode).filter((code): code is string => typeof code === 'string' && Boolean(code))),
               ).sort((a,b) => groupLabel(a,ui).localeCompare(groupLabel(b,ui),lang));
-              const applied = [
-                committee && {key:'committee',text:directory?.committees.find(b => b.id === committee)?.code||committee,lang:'',clear:()=>setCommittee('')},
-                role!=='both' && {key:'role',text:roleName(role),lang,clear:()=>setRole('both')},
-                country && {key:'country',text:countryName(lang,country,ui),lang,clear:()=>setCountry('')},
-                group && {key:'group',text:groupLabel(group,ui),lang:groupLabelLanguage(group,ui),clear:()=>setGroup('')},
-              ].filter((filter): filter is {key:string;text:string;lang:string;clear:()=>void} => Boolean(filter));
               return <div className="explorer-filters" ref={wallFilters}>
-              {narrow && searchInput}
-              {narrow && <div className="explorer-filters-bar">
-                <button type="button" className="explorer-filters-toggle" aria-expanded={filtersOpen} aria-controls={filterFieldsId} lang={ui.messageLocale(applied.length ? 'app.filtersCount' : 'app.show_filters')} onClick={() => setFiltersOpen(open => !open)}>
-                  {applied.length ? <UiMessage id="app.filtersCount" values={{count: String(applied.length)}}/> : <UiMessage id="app.show_filters"/>}
-                </button>
-                {viewSwitch}
-              </div>}
-              {narrow && !filtersOpen && applied.length > 0 && <div className="explorer-active-filters">
-                {applied.map(filter => <button type="button" key={filter.key} aria-label={ui.t("app.removeFilter",{filter:filter.text})} lang={filter.lang} onClick={filter.clear}>{filter.text} <span aria-hidden="true">×</span></button>)}
-              </div>}
-              <div className="explorer-filter-fields" id={filterFieldsId} hidden={narrow && !filtersOpen}>
               <label lang={lang}>
                 {c.committee}
                 <select
@@ -985,8 +965,7 @@ export default function App() {
                   </select>
                 </label>
               </div>
-              </div>
-              {!narrow && searchInput}
+              {searchInput}
             </div>;
             })()}
             <Status scope={JSON.stringify([lang,committee,organization,country,group,search,role])} pending={directoryState.loading} oncePerScope message={(() => {
@@ -1036,6 +1015,7 @@ export default function App() {
                 {(() => {
                   const noMatches = !filtered.length && <p lang={ui.language}>{partialCommittee ? <UiMessage id="app.no_matches_yet"/> : <UiMessage id="app.no_meps_match_these_filters"/>}</p>;
                   return shownMemberView === 'list' ? <>
+                    {narrow && viewSwitch}
                     <MemberList key={JSON.stringify([committee,organization,country,group,search,role])} members={filtered} committees={directory.committees} parties={directory.parties} language={lang} narrow={narrow} sort={memberSort} onSort={sortMemberList} onOpen={openMember} portrait={m=><Portrait lazy member={{...m,imageUrl:`${API_ROOT}/portrait/${m.id}`}}/>}/>
                     {noMatches}
                   </> : <div className="explorer-portraits">
@@ -1049,7 +1029,6 @@ export default function App() {
                           eager={index < 8}
                           onClick={() => openMember(m.id)}
                         />
-                        <MemberAffiliation group={m.groupCode} country={m.countryCode} language={lang}/>
                         <div className="explorer-portrait-follow">
                           <SaveButton compact item={{kind:'mep',id:String(m.id),title:[m.firstName,m.lastName].filter(Boolean).join(' ')}}/>
                         </div>

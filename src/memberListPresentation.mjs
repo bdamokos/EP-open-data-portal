@@ -2,8 +2,8 @@ import {compareMembers} from './memberOrder.mjs';
 
 export const memberListPageSize=50;
 export const queryMemberView=value=>value==='cards'||value==='list'?value:null;
-// Phones read a list; wider screens start with portraits. An explicit choice wins.
-export const effectiveMemberView=(view,narrow)=>view||(narrow?'list':'cards');
+// Portraits are the home page at every width; the list is opt-in.
+export const effectiveMemberView=view=>view||'cards';
 
 const codes=new Intl.Collator('en',{usage:'sort',sensitivity:'base'});
 // Current committees as codes, members before substitutes; null while memberships are unknown.
