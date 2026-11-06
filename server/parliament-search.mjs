@@ -28,7 +28,7 @@ export function parliamentSearchQuery(params) {
   if(!terms.length)throw new HttpError(400,'invalid_query','Enter a search term.');
   return {query,terms,type,offset,from,to,language:odpLanguage(params.get('lang')||'en')};
 }
-const cachedRequest=(endpoint,params,options)=>{
+export const cachedAgendaRequest=(endpoint,params,options)=>{
   const id=endpoint.match(/^\/meetings\/(MTG-PL-\d{4}-\d{2}-\d{2})\/foreseen-activities$/)?.[1];
   const page=id&&sittingSnapshots.read('agenda',1,id)?.pages.find(page=>Number(new URL(page.url).searchParams.get('offset'))===Number(params.offset||0));
   return page?Promise.resolve({...page,fetchedAt:Date.parse(page.fetchedAt)}):odp(endpoint,params,{...options,cachedOnly:true});
@@ -37,7 +37,7 @@ const cachedRequest=(endpoint,params,options)=>{
 // Search existing public observations. This reader neither starts collection nor
 // writes another index; missing retained calendars/agendas remain coverage gaps.
 export class ParliamentSearch {
-  constructor(store,{request=cachedRequest,clock=Date.now}={}){this.store=store;this.request=request;this.clock=clock;this.meetings=new MeetingsReader({request,clock,snapshots:request===cachedRequest?sittingSnapshots:null});}
+  constructor(store,{request=cachedAgendaRequest,clock=Date.now}={}){this.store=store;this.request=request;this.clock=clock;this.meetings=new MeetingsReader({request,clock,snapshots:request===cachedAgendaRequest?sittingSnapshots:null});}
   async query(query) {
     const status=this.store.status(),generation=status.servingGeneration;
     if(!generation)throw new HttpError(503,'search_unavailable','Search unavailable.');

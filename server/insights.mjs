@@ -14,6 +14,7 @@ import { LegislationInsights,LEGISLATION_VIEW_VERSION } from './insights-legisla
 import { HttpError } from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
 import {DossierActivity,dossierActivityQuery,dossierReferencesQuery} from './dossier-activity.mjs';
+import {DossierStatus,dossierStatusQuery,DOSSIER_STATUS_VERSION} from './dossier-status.mjs';
 import {INSIGHTS_VERSION} from './insights-model.mjs';
 import {savedQuery,savedStates} from './insights-saved.mjs';
 import {participationQuery,participation} from './insights-participation.mjs';
@@ -41,6 +42,7 @@ export function createInsights(store,options={}) {
   const questions=new QuestionInsights(store,shared),legislation=new LegislationInsights(store,shared);
   const speechCloud=new SpeechCloudInsights(store,{...shared,legislation});
   const dossierActivity=new DossierActivity(store,{...shared,reader:legislation});
+  const dossierStatus=new DossierStatus({activity:dossierActivity,clock});
   const officialSources=options.officialSources||(options.officialContext||options.clock?new OfficialContextSources({clock,...options.officialContext}):getSharedOfficialContextSources());
   const catalog=options.eurovocCatalog||new EurovocCatalog(officialSources,{clock,...options.eurovoc});
   const procedureContext=new ProcedureContext(officialSources,catalog),topicTrends=new TopicTrends(store,catalog,{clock});
@@ -128,6 +130,7 @@ export function createInsights(store,options={}) {
     if(view==='search')return search.query(parliamentSearchQuery(searchParams));
     if(view==='dossier-activity')return dossierActivity.query(dossierActivityQuery(searchParams));
     if(view==='dossier-references')return dossierActivity.references(dossierReferencesQuery(searchParams));
+    if(view==='dossier-status'){const query=dossierStatusQuery(searchParams);return views.get([DOSSIER_STATUS_VERSION,view,store.status().servingGeneration,brusselsDay(clock()),query],()=>dossierStatus.query(query));}
     if(view==='speech-words')return speechWords.query(speechWordsQuery(searchParams,{now:clock()}));
     if(view==='speech-cloud')return speechCloud.query(speechCloudQuery(searchParams,{now:clock()}));
     if(view==='procedure-context')return procedureContext.query(procedureContextQuery(searchParams));

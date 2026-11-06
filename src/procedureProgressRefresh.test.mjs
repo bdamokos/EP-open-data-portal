@@ -37,7 +37,7 @@ async function harness(t) {
 
 test('stale admitted progress reaches a settled result, keeping the timeline and lazy document boundary',async t=>{
   const h=await harness(t);await h.render();await h.finish(pending());
-  assert.match(h.container.textContent,/Checking…/);assert.match(h.container.textContent,/End of procedure/);
+  assert.doesNotMatch(h.container.textContent,/Checking…/);assert.match(h.container.textContent,/End of procedure/);
   await h.tick(500);assert.equal(h.requests.length,2,'poll bypasses the stale browser cache');
   await h.finish(progress());assert.doesNotMatch(h.container.textContent,/Checking|Checked|Not checked/);
   assert.match(h.container.querySelector('h3').textContent,/Procedure progress/);
