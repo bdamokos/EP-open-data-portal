@@ -105,3 +105,50 @@ export function procedureReference(ids) {
   const match = /^(\d{4})-(\d{4})$/.exec(ids[0]);
   return match ? match[1] + '/' + match[2] : null;
 }
+
+// A date inside a Home message is formatted in the locale the message text
+// actually came from, so an English fallback sentence never carries a
+// Hungarian date. `ui.messageLocale(id)` names that locale.
+export const longDate = (value, locale) => new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Brussels' }).format(new Date(value + 'T12:00:00Z'));
+
+// The headline sentence and the language it is written in.
+export function headlineLine(ui, headline) {
+  const city = headline.city;
+  const pick = (withCity, plain) => (city ? withCity : plain);
+  const id = {
+    'sitting-today': pick('home.headline.today_city', 'home.headline.today_plain'),
+    'sitting-later-this-week': pick('home.headline.later_city', 'home.headline.later_plain'),
+    'next-known': pick('home.headline.next_city', 'home.headline.next_plain'),
+  }[headline.case] || 'home.headline.none';
+  const locale = ui.messageLocale(id);
+  const values = {};
+  if (city) values.city = city;
+  if (headline.nextDate) values.date = longDate(headline.nextDate, locale);
+  return { text: ui.t(id, values), locale };
+}
+
+// Debate words that say nothing about a topic. Kept short and explicit: these
+// are the filler terms that lead a real week's cloud ("time", "debate",
+// "proposal", "business") and carry no subject. Matched on the stemmed form.
+const GENERIC_TERMS = ['time', 'debate', 'proposal', 'business', 'vote', 'report', 'start', 'life', 'single', 'left', 'public', 'political', 'solution', 'deliver', 'reduce', 'essential', 'rules'];
+const stem = word => word.replace(/ies$/, 'y').replace(/(ss|x|ch|sh)es$/, '$1').replace(/([^s])s$/, '$1');
+const stems = name => name.toLowerCase().split(/\s+/).filter(Boolean).map(stem);
+const contains = (outer, inner) => outer.length > inner.length && outer.some((_, start) => inner.every((word, i) => outer[start + i] === word));
+
+// Speech-cloud words, most used first, reduced to subject terms: generic words,
+// plural duplicates and terms already inside a longer shown phrase are dropped.
+// Up to eight; none when fewer than four remain.
+export function homeTerms(words) {
+  const seen = new Set(), kept = [];
+  for (const word of Array.isArray(words) ? words : []) {
+    if (kept.length === 8) break;
+    const name = String(word?.label || word?.word || '').replace(/-/g, ' ').trim();
+    if (!name) continue;
+    const parts = stems(name), key = parts.join(' ');
+    if (parts.length === 1 && GENERIC_TERMS.map(stem).includes(parts[0]) || seen.has(key) || kept.some(other => contains(other.parts, parts))) continue;
+    seen.add(key);
+    kept.push({ name, parts });
+  }
+  const terms = kept.filter(term => !kept.some(other => contains(other.parts, term.parts))).map(term => term.name);
+  return terms.length >= 4 ? terms : [];
+}

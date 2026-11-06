@@ -99,3 +99,8 @@
 
 /* The section links and "N more" carry the accent; the rule above would otherwise inherit body ink. */
 .home .home-section-more, .home .home-agenda-more a { color: var(--accent-strong); }
+
+/* Links close the heading row; a held rail slot keeps later sections still while terms load. */
+.home .home-section-more { margin-inline-start: auto; }
+.home-topics.is-loading { min-height: 6.1rem; }
+@media (min-width: 1000px) { .home-topics.is-loading { min-height: 8.05rem; } }

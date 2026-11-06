@@ -9,3 +9,7 @@ export function votePicks<T extends {id:string;date:string;totals:{for:number;ag
 export function unreadRows(items:any[],now:number):{item:any;entry:any}[];
 export const HOME_COUNTRIES:string[];
 export function procedureReference(ids:string[]|undefined):string|null;
+
+export function longDate(value: string, locale: string): string;
+export function headlineLine(ui: {t(id: string, values?: Record<string, string>): string; messageLocale(id: string): string}, headline: {case: string; city?: string|null; nextDate?: string}): {text: string; locale: string};
+export function homeTerms(words: unknown): string[];

@@ -30,7 +30,9 @@ a.parliament-brand-link:focus-visible { outline:3px solid var(--focus); outline-
 }
 .parliament-header nav button:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
 .parliament-header nav button small { font-size:13px; }
-.parliament-header .explorer-saved-count { margin-left:0; }
+/* The count sits on the corner of the label, so it never widens the row. */
+.parliament-header nav button { position:relative; }
+.parliament-header .explorer-saved-count { position:absolute; top:3px; right:-3px; margin:0; min-width:16px; padding:0 4px; box-sizing:border-box; text-align:center; line-height:16px; font-size:11px; }
 /* Theme, language and search stay together when the header wraps. */
 .parliament-header-tools { display:flex; align-items:center; gap:2px; margin-left:auto; flex:none; }
 /* Narrow desktops, or labels too long for one row: brand and tools share the first row; destinations get their own. */

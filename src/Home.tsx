@@ -11,7 +11,7 @@ import {humanDate} from './InsightCharts';
 import {InsightStatus} from './InsightShared';
 import {agendaTitle} from './topicPresentation.mjs';
 import {recordHref} from './TopicsLinks';
-import {headlineState,defaultAgendaWeek,agendaDays,votePicks,unreadRows,HOME_COUNTRIES,procedureReference} from './homeModel.mjs';
+import {headlineState,headlineLine,defaultAgendaWeek,agendaDays,votePicks,unreadRows,homeTerms,longDate,HOME_COUNTRIES,procedureReference} from './homeModel.mjs';
 import {brusselsDate} from './plenaryAvailability.mjs';
 import {useSaved,useSavedNow} from './SavedControls';
 import {summarizeByType} from './followUpdates.mjs';
@@ -30,18 +30,6 @@ const useHomeDate=()=>{
 
 const agendaHref=(week:string|null)=>week ? ('?'+new URLSearchParams({view:'legislation','pl-mode':'agenda','agenda-period':'week:'+week})) : '?view=legislation&pl-mode=agenda';
 const viewHref=(view:string)=>'?'+new URLSearchParams({view});
-
-const longDate=(value:string,language:string)=>new Intl.DateTimeFormat(language,{weekday:'long',day:'numeric',month:'long',timeZone:'Europe/Brussels'}).format(new Date(value+'T12:00:00Z'));
-
-function headlineText(ui:ReturnType<typeof useUiI18n>,headline:{case:string;city?:string|null;nextDate?:string},language:string) {
-  const city=headline.city,date=headline.nextDate?longDate(headline.nextDate,language):'';
-  switch(headline.case) {
-    case 'sitting-today': return city ? ui.t('home.headline.today_city',{city}) : ui.t('home.headline.today_plain');
-    case 'sitting-later-this-week': return city ? ui.t('home.headline.later_city',{city,date}) : ui.t('home.headline.later_plain',{date});
-    case 'next-known': return city ? ui.t('home.headline.next_city',{city,date}) : ui.t('home.headline.next_plain',{date});
-    default: return ui.t('home.headline.none');
-  }
-}
 
 const goTo=(search:string)=>{
   const url=new URL(location.href);
@@ -76,10 +64,11 @@ export function Home({language}:{language:string}) {
   const settled=Boolean(calendar.data||calendar.error);
   const headline=headlineState(today,weeks,upcoming);
   const week=defaultAgendaWeek(today,weeks,upcoming);
+  const line=settled?headlineLine(ui,headline):null;
   return <div className="home" lang={ui.language}>
     <div className="home-main">
       <header className="home-headline">
-        <h1 tabIndex={-1} aria-busy={settled?undefined:true}>{!settled ? '\u00a0' : (calendar.error&&!calendar.data?.weeks) ? ui.t('home.headline.unavailable') : headlineText(ui,headline,language)}</h1>
+        <h1 tabIndex={-1} aria-busy={settled?undefined:true} lang={line?.locale}>{!settled ? '\u00a0' : (calendar.error&&!calendar.data?.weeks) ? ui.t('home.headline.unavailable') : line?.text}</h1>
         <div className="home-search">
           <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} placeholder={ui.t("home.search.placeholder")} language={language} className="explorer-text-search-global" inline/>
           <FindMeps language={language}/>
@@ -90,7 +79,7 @@ export function Home({language}:{language:string}) {
     </div>
     <aside className="home-rail">
       <HomeFollowing/>
-      <HomeTalking language={language} week={weeks.find(held=>held.sittings.some(sitting=>sitting.date<=today))?.week||null}/>
+      <HomeTalking language={language} settled={settled} week={weeks.find(held=>held.sittings.some(sitting=>sitting.date<=today))?.week||null}/>
       <HomeOutside language={language}/>
       <HomeEntries/>
     </aside>
@@ -104,7 +93,7 @@ function HomeAgenda({settled,week,language,today}:{settled:boolean;week:string|n
   if(!week)return <section className="home-section home-agenda"><h2><UiMessage id="home.agenda.section"/></h2><p><UiMessage id="home.agenda.empty"/></p></section>;
   const days=agendaDays(agenda.data?.topics,today,4);
   return <section className="home-section home-agenda">
-    <h2><UiMessage id="home.agenda.section"/> <a className="home-section-more" href={agendaHref(week)} onClick={dossierLinkClick}><UiMessage id="home.agenda.all"/></a></h2>
+    <h2><UiMessage id="home.agenda.section"/>{days.length>0&&<a className="home-section-more" href={agendaHref(week)} onClick={dossierLinkClick}><UiMessage id="home.agenda.all"/></a>}</h2>
     <InsightStatus loading={agenda.loading&&!agenda.data} error={agenda.data?null:agenda.error} retry={agenda.retry}/>
     {days.map(({day,rows,more,sittingId})=><div key={day} className="home-agenda-day">
       <h3><time lang='' dateTime={day}>{longDate(day,language)}</time></h3>
@@ -174,15 +163,16 @@ const followingEntryHref=(item:{kind:string;id:string},entry:{id:string|number;r
 };
 
 type CloudTerms={words:{word:string;label:string|null;speechCount:number}[]};
-function HomeTalking({language,week}:{language:string;week:string|null}) {
+function HomeTalking({language,week,settled}:{language:string;week:string|null;settled:boolean}) {
   const cloud=useInsightData<CloudTerms>(week?'insights/speech-cloud?'+new URLSearchParams({lang:language,week,page:'1'}):null);
-  const words=(cloud.data?.words||[]).slice(0,8);
-  if(!week||!words.length)return null;
+  const terms=homeTerms(cloud.data?.words);
+  // Hold the rail slot while the terms load so the sections below stay put.
+  if(!settled||(week&&cloud.loading&&!cloud.data))return <section className="home-section home-topics is-loading" aria-hidden="true"/>;
+  if(!week||!terms.length)return null;
   const href='?'+new URLSearchParams({view:'legislation','pl-mode':'cloud','cloud-period':'week:'+week});
   return <section className="home-section home-topics">
     <h2><UiMessage id="home.topics.section"/> <a className="home-section-more" href={href} onClick={dossierLinkClick}><UiMessage id="home.more"/></a></h2>
-    <p className="home-section-lead"><UiMessage id="home.topics.lead"/></p>
-    <ul className="home-terms">{words.map(term=><li key={term.word}><a href={href} onClick={dossierLinkClick}>{(term.label||term.word).replace(/-/g,' ')}</a></li>)}</ul>
+    <ul className="home-terms">{terms.map(term=><li key={term}><a href={href} onClick={dossierLinkClick}>{term}</a></li>)}</ul>
   </section>;
 }
 

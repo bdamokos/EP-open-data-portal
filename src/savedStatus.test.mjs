@@ -139,7 +139,7 @@ test('navigation checks before Following opens, then waits four hours for a prep
  now+=60_000;await h.tick(60_000);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,initial,'prepared data is not polled every minute');
  now+=4*60*60_000-60_000;await h.tick(4*60*60_000-60_000);await settle();
- assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'3 new');
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'3');assert.equal(h.container.querySelector('.explorer-saved-count').getAttribute('aria-label'),'3 new');
  assert.equal(h.container.querySelector('.explorer-saved-count').title,'3 followed items have new updates');
  assert(!h.container.querySelector('.explorer-saved-view'));
  assert(!h.requests.some(x=>x.route==='following-member'),'multiple marker kinds still count each MEP once');
@@ -159,7 +159,7 @@ test('background polling waits while hidden and refreshes on returning without o
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
  Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
  await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
- assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1');assert.equal(h.container.querySelector('.explorer-saved-count').getAttribute('aria-label'),'1 new');
  assert.equal(h.container.querySelector('.explorer-saved-count').title,'1 followed item has new updates');
 });
 test('unprepared data retries until ready and then backs off; a failed manifest retries sooner',async t=>{
@@ -172,7 +172,7 @@ test('unprepared data retries until ready and then backs off; a failed manifest 
  assert.equal(h.controls.savedStore.snapshot().checkState,'error');
  h.fail('');await automaticRecovery(t);await settle();
  assert.equal(h.controls.savedStore.snapshot().checkState,'available');
- assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1');assert.equal(h.container.querySelector('.explorer-saved-count').getAttribute('aria-label'),'1 new');
  const count=h.requests.filter(x=>x.route==='following-status').length;
  now+=60_000;await h.tick(60_000);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
@@ -186,7 +186,7 @@ test('a manual failure replaces the prepared deadline with a one-minute retry',a
  const count=h.requests.filter(x=>x.route==='following-status').length;
  h.fail('');h.setStatus({generation:6});await automaticRecovery(t);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count+1);
- assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1');assert.equal(h.container.querySelector('.explorer-saved-count').getAttribute('aria-label'),'1 new');
 });
 test('question-only status failures recover on schedule despite a cached prepared status',async t=>{
  let now=Date.now();t.mock.method(Date,'now',()=>now);
@@ -198,7 +198,7 @@ test('question-only status failures recover on schedule despite a cached prepare
  h.fail('');h.setStatus({generation:6});h.setQuestionAnswers([{id:'new-answer'}]);
  await automaticRecovery(t);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count+1);
- assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1');assert.equal(h.container.querySelector('.explorer-saved-count').getAttribute('aria-label'),'1 new');
 });
 test('membership and group snapshots must be prepared before checks back off',async t=>{
  let now=Date.now();t.mock.method(Date,'now',()=>now);
@@ -292,7 +292,7 @@ test('visible Following auto-resolves; inline read leaves the other MEP new and 
  const h=await harness(t,[member(),member({id:'43',title:'Second member'})]);await newSpeech(h);
  assert.equal(h.requests.filter(x=>x.route==='following-member').length,2);assert.doesNotMatch(h.container.textContent,/Open updates|Refresh updates/);
  const [first,second]=cards(h),row=rows(first)[0];assert.equal(row.getAttribute('aria-expanded'),'false');assert.equal(row.querySelector('[lang="fr"]').textContent,'Late speech');assert.match(row.href,/member=42&module=activities&activity=late/);
- await dispatch(h,row);assert.equal(row.getAttribute('aria-expanded'),'true');assert.match(first.textContent,/Inline 42 late/);assert(!row.querySelector('.explorer-saved-new'));assert(second.querySelector('.explorer-saved-new'));assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ await dispatch(h,row);assert.equal(row.getAttribute('aria-expanded'),'true');assert.match(first.textContent,/Inline 42 late/);assert(!row.querySelector('.explorer-saved-new'));assert(second.querySelector('.explorer-saved-new'));assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1');assert.equal(h.container.querySelector('.explorer-saved-count').getAttribute('aria-label'),'1 new');
  assert.equal(rows(first)[0],row,'read row keeps DOM position');await dispatch(h,first.querySelector('.explorer-saved-detail a'));assert.deepEqual(h.opened,[[42,'late']]);
  await act(async()=>h.window.dispatchEvent(new h.window.Event('pagehide')));await h.clear();assert.equal(h.controls.savedStore.snapshot().items[1].entries[0].readAt,null);
  await h.render();assert.equal(cards(h)[1].querySelector('details summary').textContent,'Earlier updates (1)');assert(cards(h)[0].querySelector('.explorer-saved-new'));
@@ -305,9 +305,9 @@ test('Profile marks nothing; modified and middle clicks preserve href and mark o
 test('one expiry timer drops the badge and moves expired entries to Earlier updates without a storage write',async t=>{
  let now=Date.now();t.mock.method(Date,'now',()=>now);
  const entry={...speech,discoveredAt:now-86_400_000+1500,readAt:null};
- const h=await harness(t,[member({seen:{activity:6,answer:3},entries:[entry]})],true);await h.render();assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ const h=await harness(t,[member({seen:{activity:6,answer:3},entries:[entry]})],true);await h.render();assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1');assert.equal(h.container.querySelector('.explorer-saved-count').getAttribute('aria-label'),'1 new');
  const before=h.window.localStorage.getItem('ep.following.v2');
- now+=1499;await h.tick(1499);assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ now+=1499;await h.tick(1499);assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1');assert.equal(h.container.querySelector('.explorer-saved-count').getAttribute('aria-label'),'1 new');
  assert.equal(h.window.localStorage.getItem('ep.following.v2'),before);
  now+=1;await h.tick(1);
  assert(!h.container.querySelector('.explorer-saved-count'));assert.equal(cards(h)[0].querySelector('summary').textContent,'Earlier updates (1)');assert(!cards(h)[0].querySelector('.explorer-saved-new'));assert.equal(h.window.localStorage.getItem('ep.following.v2'),before);
@@ -427,7 +427,7 @@ test('reading a membership entry leaves activity unread',async t=>{
  const h=await harness(t);h.setStatus({epoch:membershipEpoch,membershipReady:true});await newSpeech(h);
  const link=[...cards(h)[0].querySelectorAll('a')].find(node=>node.textContent.includes('Left Parliament'));await dispatch(h,link);
  assert.equal(h.item().entries[0].readAt,null);assert.notEqual(h.controls.membershipStore.snapshot().entries[0].readAt,null);
- assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1');assert.equal(h.container.querySelector('.explorer-saved-count').getAttribute('aria-label'),'1 new');
 });
 
 for(const failure of ['fetch','verification'])test(`membership ${failure} failure preserves baselines and later discoveries`,async t=>{
@@ -522,7 +522,7 @@ for(const status of [502,429])test('Following POST recovers from non-JSON HTTP '
  const count=()=>h.requests.filter(request=>request.route==='saved').length;assert.equal(count(),1);assert.equal(h.controls.savedStore.snapshot().questionCheckState,'error');
  if(status===429){await installRetryClock(t).advance(110_000);assert.equal(count(),1,'the HTTP header survives the non-JSON body');}
  h.setRawFailure(null);h.setQuestionAnswers([{id:'published-answer'}]);await automaticRecovery(t);await settle();
- assert.equal(count(),2);assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');assert.equal(h.item().id,question.id);assert.equal(h.container.querySelector('[role=alert] button'),null);
+ assert.equal(count(),2);assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1');assert.equal(h.container.querySelector('.explorer-saved-count').getAttribute('aria-label'),'1 new');assert.equal(h.item().id,question.id);assert.equal(h.container.querySelector('[role=alert] button'),null);
 });
 test('a malformed successful Following POST remains terminal',async t=>{
  const h=await harness(t,[{kind:'question',id:'E-10-2026-000001',title:'Question',savedAt:1}],true);h.setRawFailure({route:'saved',status:200,body:'not JSON'});await h.render('en',false,false);await settle();

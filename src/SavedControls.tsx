@@ -287,5 +287,5 @@ export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;co
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
   const ui = useUiI18n();
   const dossiers=useDossiers(),groups=useGroups(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),items=[...saved.items,...dossiers.items],updates=items.filter(item=>itemHasNew(item,now)||item.kind==='mep'&&membership.entries.some(entry=>entry.mep===item.id&&membershipIsNew(entry,now))||item.kind==='mep'&&groups.entries.some(entry=>entry.mep===item.id&&groupIsNew(entry,now))).length;
-  return <button onClick={onClick} lang={ui.language} aria-current={current ? 'page' : undefined}><UiMessage id="batch4.dossiercontrols.tsx.64.2"/>{updates>0&&<span className="explorer-saved-count" title={ui.t("savedcontrols.count.followed.items.have.new.updates", {count: updates})}><UiMessage id="dossierCard.state.1" values={{count: updates}}/></span>}</button>;
+  return <button onClick={onClick} lang={ui.language} aria-current={current ? 'page' : undefined}><UiMessage id="batch4.dossiercontrols.tsx.64.2"/>{updates>0&&<span className="explorer-saved-count" role="img" aria-label={ui.t("dossierCard.state.1", {count: updates})} title={ui.t("savedcontrols.count.followed.items.have.new.updates", {count: updates})}>{updates}</span>}</button>;
 }

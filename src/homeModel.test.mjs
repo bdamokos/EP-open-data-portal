@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isHomeQuery,headlineState,defaultAgendaWeek,agendaDays,votePicks,unreadRows,procedureReference,HOME_COUNTRIES} from './homeModel.mjs';
+import {isHomeQuery,headlineState,defaultAgendaWeek,agendaDays,votePicks,unreadRows,procedureReference,HOME_COUNTRIES,headlineLine,homeTerms} from './homeModel.mjs';
 
 const query = value => new URLSearchParams(value);
 const week = (week,sittings) => ({week,sittings:sittings.map(([date,location]) => ({sittingId:'MTG-PL-'+date,date,location:location||null}))});
@@ -142,4 +142,25 @@ test('an older directory link with filters and no view opens the directory, so c
   assert.equal(explorerViewFromQuery(query('')), null);
   assert.equal(explorerViewFromQuery(query('role=both')), null);
   assert.equal(explorerViewFromQuery(query('lang=hu&global-fts-search=x')), null);
+});
+
+test('a headline date uses the locale of the message text, so an English fallback gets an English date', () => {
+  const ui = locales => ({ t: (id, values = {}) => `${id}|${values.city ?? ''}|${values.date ?? ''}`, messageLocale: id => locales[id] || 'en' });
+  const headline = { case: 'next-known', city: 'Brussels', nextDate: '2026-11-11' };
+  const fallback = headlineLine(ui({}), headline);
+  assert.equal(fallback.locale, 'en');
+  assert.match(fallback.text, /Wednesday, November 11$/);
+  const translated = headlineLine(ui({ 'home.headline.next_city': 'hu' }), headline);
+  assert.equal(translated.locale, 'hu');
+  assert.match(translated.text, /november 11\., szerda$/);
+  assert.equal(headlineLine(ui({}), { case: 'sitting-today', city: 'Strasbourg' }).text, 'home.headline.today_city|Strasbourg|');
+  assert.equal(headlineLine(ui({}), { case: 'no-future-date' }).text, 'home.headline.none||');
+});
+
+test('home terms drop filler words, plural duplicates and words inside a shown phrase', () => {
+  const word = (w, label = null) => ({ word: w, label });
+  const words = [word('time'), word('debate'), word('critical-raw-materials', 'critical raw materials'), word('businesses'), word('proposal'), word('companies'), word('business'), word('market'), word('raw-materials', 'raw materials'), word('china'), word('company'), word('materials'), word('packaging'), word('recycling'), word('poverty'), word('waste'), word('jobs')];
+  assert.deepEqual(homeTerms(words), ['critical raw materials', 'companies', 'market', 'china', 'packaging', 'recycling', 'poverty', 'waste']);
+  assert.deepEqual(homeTerms([word('time'), word('debate'), word('china'), word('industry'), word('waste')]), [], 'fewer than four subject terms: no section');
+  assert.deepEqual(homeTerms(undefined), []);
 });
