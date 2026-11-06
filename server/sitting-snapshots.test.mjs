@@ -744,3 +744,18 @@ test('parser upgrades immediately requeue never-collected rejections at every ag
   const c=cases[0];h.store.db.prepare("UPDATE sitting_snapshots SET next_check=? WHERE kind='debate' AND id=?").run(next,c.id);
   h.collector.admit();assert.equal(read.get(c.kind,c.id).next_check,next);
 });
+
+test('a failed refresh keeps a final sitting in the voting-record backfill and one unreadable sitting does not block the rest',async t=>{
+  const h=setup(t);await drain(h);
+  const clear=()=>h.store.db.exec('DELETE FROM member_vote_record_members;DELETE FROM member_vote_record_sittings;DELETE FROM member_vote_record_totals;');
+  clear();h.collector.projectionCheckAt=null;
+  h.store.db.prepare("UPDATE sitting_snapshots SET error='Exact sitting metadata unavailable.' WHERE kind='votes' AND id=?").run(SNAPSHOT_SITTING);
+  assert(h.collector.backfillProjection(),'the last good body is projected');
+  assert.equal(h.store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_sittings WHERE sitting_id=?').get(SNAPSHOT_SITTING).n,1);
+  assert.equal(h.collector.backfillProjection(),false,'nothing is left to project');
+
+  clear();h.collector.projectionCheckAt=null;
+  h.store.db.prepare("UPDATE sitting_snapshots SET body=x'00' WHERE kind='votes' AND id=?").run(SNAPSHOT_SITTING);
+  assert.equal(h.collector.backfillProjection(),false);
+  assert.equal(h.collector.projectionBacklog(),null,'the unreadable sitting is skipped, not retried at the head of the queue');
+});

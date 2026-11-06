@@ -84,7 +84,7 @@ export const completeAttendanceSnapshot=value=>['observed','not-published'].incl
 export class SittingSnapshotCollector {
   constructor(store,{hints=sittingSnapshotHints,readChairs=collectVoteChairs,diskLimit,readCached=(endpoint,params)=>odp(endpoint,params,{cachedOnly:true,ttl:Infinity})}={}){
     this.store=store;this.writer=new SittingSnapshotWriter(store,{diskLimit});this.hints=hints;this.readChairs=readChairs;this.readCached=readCached;
-    this.projectionCheckAt=null;this.projectionCheckId=null;
+    this.projectionCheckAt=null;this.projectionCheckId=null;this.projectionFailed=new Set();
   }
   due(){
     const now=this.store.clock();
@@ -93,7 +93,7 @@ export class SittingSnapshotCollector {
   projectionBacklog(){
     const now=this.store.clock();
     if(this.projectionCheckAt!==null&&now-this.projectionCheckAt<5000)return this.projectionCheckId;
-    const id=missingMemberVoteRecord(this.store,MEMBER_VOTE_SNAPSHOT_VERSION,this.store.get('active')??null);
+    const id=missingMemberVoteRecord(this.store,MEMBER_VOTE_SNAPSHOT_VERSION,this.store.get('active')??null,this.projectionFailed);
     this.projectionCheckAt=now;this.projectionCheckId=id;
     return id;
   }
@@ -103,9 +103,10 @@ export class SittingSnapshotCollector {
     const id=this.projectionBacklog();
     if(!id)return false;
     this.projectionCheckAt=null;
-    const saved=new SittingSnapshotReader({db:this.store.db,clock:this.store.clock}).read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,id,{retained:true});
-    if(!saved?.day||saved.day.sittingId!==id)return false;
-    try{retainMemberVoteRecord(this.store,saved.day,MEMBER_VOTE_SNAPSHOT_VERSION);}catch{return false;}
+    const saved=new SittingSnapshotReader({db:this.store.db,clock:this.store.clock}).read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,id,{lastGood:true});
+    // A sitting that cannot be projected is skipped until restart so it never blocks the older ones.
+    if(!saved?.day||saved.day.sittingId!==id){this.projectionFailed.add(id);return false;}
+    try{retainMemberVoteRecord(this.store,saved.day,MEMBER_VOTE_SNAPSHOT_VERSION);}catch{this.projectionFailed.add(id);return false;}
     return true;
   }
   discoverSittings(nodes){

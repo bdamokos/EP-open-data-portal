@@ -47,8 +47,9 @@ test('a complete votes snapshot without a current projection becomes one bounded
   assert.equal(missingMemberVoteRecord(store,7,'g2'),id,'a new group generation makes the projection stale');
   snapshotRow(store,{id:'MTG-PL-2026-10-08',version:7,complete:0});
   snapshotRow(store,{id:'MTG-PL-2026-10-09',version:7,complete:1,error:'source unavailable'});
-  assert.equal(missingMemberVoteRecord(store,7,'g1'),null,'incomplete or failed snapshots have no projection to rebuild');
-  assert.equal(missingMemberVoteRecord(store,7,'g2'),id,'the retained complete sitting is still the backfill unit');
+  assert.equal(missingMemberVoteRecord(store,7,'g1'),'MTG-PL-2026-10-09','a failed refresh does not take a complete sitting out of the backfill');
+  assert.equal(missingMemberVoteRecord(store,7,'g2'),'MTG-PL-2026-10-09','the newest sitting comes first and incomplete snapshots are never rebuilt');
+  assert.equal(missingMemberVoteRecord(store,7,'g2',['MTG-PL-2026-10-09']),id,'a skipped sitting does not block older ones');
 });
 
 test('retaining a sitting records the active group generation only when its history exists',async t=>{

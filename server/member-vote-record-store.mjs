@@ -50,15 +50,17 @@ export function writeMemberVoteRecord(store,day,{groupOn=null,groupGeneration=nu
 }
 
 // The scheduler treats a complete votes snapshot without a current projection
-// as one bounded backfill unit; no request-time sitting parse is needed.
-export function missingMemberVoteRecord(store,version,groupGeneration) {
+// as one bounded backfill unit; no request-time sitting parse is needed. A past
+// vote is final, so a failed refresh flag does not take a sitting out.
+export function missingMemberVoteRecord(store,version,groupGeneration,skip=[]) {
   if(!store?.db)return null;
+  const skipped=new Set(skip);
   try {
     return store.db.prepare(`SELECT s.id FROM sitting_snapshots s
       LEFT JOIN member_vote_record_sittings r ON r.sitting_id=s.id
-      WHERE s.kind='votes' AND s.version=? AND s.complete=1 AND s.error IS NULL
+      WHERE s.kind='votes' AND s.version=? AND s.complete=1
       AND (r.sitting_id IS NULL OR r.snapshot_version IS NOT ? OR r.group_generation IS NOT ?)
-      ORDER BY s.id DESC LIMIT 1`).get(version,version,groupGeneration??null)?.id||null;
+      ORDER BY s.id DESC LIMIT ?`).all(version,version,groupGeneration??null,skipped.size+1).find(row=>!skipped.has(row.id))?.id||null;
   }catch{return null;}
 }
 
