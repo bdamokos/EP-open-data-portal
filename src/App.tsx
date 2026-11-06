@@ -14,6 +14,11 @@ import {DocumentPages} from './DocumentPages';
 import {QuestionAnswerer} from './QuestionAnswerer';
 import {useSpeechTranslation,SpeechTextStatus} from './SpeechTranslation';
 import {MemberAffiliation} from './components/MemberAffiliation';
+import {MemberList} from './MemberList';
+import {effectiveMemberView,queryMemberView} from './memberListPresentation.mjs';
+import type {MemberSort} from './memberListPresentation.mjs';
+import {groupLabel,groupLabelLanguage} from './groupLabels';
+import {useMediaQuery} from './useMediaQuery';
 import {ActivityDossierLinks} from './DossierActivity';
 import {navigateDossier,useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
 import {committeeCoverageComplete,matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
@@ -494,6 +499,11 @@ export default function App() {
   const [country, setCountry] = useState(initial.get("view") ? "" : filterCountry(initial.get("country")));
   const [group, setGroup] = useState(initial.get("group") || "");
   const [search, setSearch] = useState("");
+  const [memberView, setMemberView] = useState(() => queryMemberView(initial.get("mep-view")));
+  const [memberSort, setMemberSort] = useState<MemberSort>({key: null});
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const narrow = useMediaQuery("(max-width:767px)");
+  const shownMemberView = effectiveMemberView(memberView, narrow);
   const [speechLink, setSpeechLink] = useState(initial.get("speech"));
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
@@ -553,6 +563,7 @@ export default function App() {
     return ()=>{observer.disconnect();page.style.removeProperty("--explorer-results-height");};
   },[wallVisible,directory]);
   const showFilters=()=>{
+    setFiltersOpen(true);
     const page=document.querySelector<HTMLElement>(".explorer"),heading=page?.querySelector<HTMLElement>(".explorer-wall h1");
     page?.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
     if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
@@ -588,7 +599,7 @@ export default function App() {
     // Selected speech links already hand focus to the exact item once it mounts.
     if(!view&&member&&speechLink&&!intent.opener){pendingDestination.current=null;return;}
     const page=document.querySelector<HTMLElement>('main.explorer,main.explorer-insights');
-    const portrait=(intent.portrait!=null) ? page?.querySelector<HTMLElement>(`[data-member-id="${intent.portrait}"] .portrait--button`) : null;
+    const portrait=(intent.portrait!=null) ? page?.querySelector<HTMLElement>(`[data-member-id="${intent.portrait}"] :is(.portrait--button,.member-list__open)`) : null;
     const opener=intent.opener;
     const returned=opener?.node?.isConnected ? opener.node : ((opener && (opener.headerIndex>=0)) ? page?.querySelectorAll<HTMLElement>('.parliament-header nav button')[opener.headerIndex] : null);
     const target=portrait||returned||page?.querySelector<HTMLElement>('h1');
@@ -640,6 +651,7 @@ export default function App() {
       ...(((!view) && country) ? ({ country }) : ({})),
       ...(((!view) && group) ? ({ group }) : ({})),
       ...(((!view) && (role!=='both')) ? ({role}) : ({})),
+      ...(((!view) && memberView) ? ({ "mep-view": memberView }) : ({})),
       ...(view ? ({ view }) : ({})),
       ...((((!view) && member) && speechLink) ? ({ speech: speechLink }) : ({})),
       ...((((!view) && member) && activityLink) ? ({ activity: activityLink }) : ({})),
@@ -653,7 +665,7 @@ export default function App() {
     if (u.href !== location.href) step ? history.pushState(history.state, "", u) : history.replaceState(history.state, "", u);
     window.dispatchEvent(new Event('explorer-query-change'));
     document.documentElement.lang = lang;
-  }, [lang, member, tab, committee, organization, organizationName, role, country, group, view, speechLink, activityLink, activityCategory,activityOffset,votes.journey,motions.query]);
+  }, [lang, member, tab, committee, organization, organizationName, role, country, group, memberView, view, speechLink, activityLink, activityCategory,activityOffset,votes.journey,motions.query]);
   const filtered = useMemo(
     () =>
       (organization&&directoryState.loading?[]:directory?.members)?.filter(
@@ -671,6 +683,25 @@ export default function App() {
   );
   const partialCommittee = Boolean((committee||organization) && (!directory?.index.complete||Boolean(organization&&directoryState.loading)||Boolean(organization&&directory?.members.some(m=>!organizationCoverageComplete(m,organization)))||Boolean(committee&&directory?.members.some(m=>!committeeCoverageComplete(m,committee)))));
   const selected = directory?.members.find((m) => m.id === member);
+  const filterFieldsId = useId();
+  const viewSwitch = <div className="explorer-view-switch" role="group">
+    <button type="button" lang={ui.messageLocale("app.memberViewCards")} aria-pressed={shownMemberView==='cards'} onClick={()=>setMemberView('cards')}><UiMessage id="app.memberViewCards"/></button>
+    <button type="button" lang={ui.messageLocale("app.memberViewList")} aria-pressed={shownMemberView==='list'} onClick={()=>setMemberView('list')}><UiMessage id="app.memberViewList"/></button>
+  </div>;
+  const openMember = (id: number) => {
+    memberOpener.current=id;
+    pendingDestination.current={view:null,member:id};
+    memberStep.current=true;setMember(id);
+    setSpeechLink(null);
+    setActivityLink(null);
+    setActivityCategory('');
+    setActivityOffset(0);
+    setTab("speeches");
+  };
+  const sortMemberList = (key: 'name'|'group'|'country') => setMemberSort(current => {
+    const active = current.key ?? 'name';
+    return key === active ? {key, descending: !(current.key && current.descending)} : {key, descending: false};
+  });
   const titleMember = (profile.data?.id === member) ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(member)});
   const pageTitle = (view==='legislation') ? null : (view ? {hemicycle:ui.t('hemicycle.title'),geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title));
@@ -707,7 +738,7 @@ export default function App() {
       setRestoration(value=>value+1);
       const query=new URLSearchParams(location.search),next=query.get('view');
       const restored=publicExplorerView(next);
-      setLang(queryLanguage(query));setRole(queryRole(query));setOrganization(organizationId(query.get('organization')));setOrganizationName(query.get('organization-name')?.slice(0,512)||'');
+      setLang(queryLanguage(query));setRole(queryRole(query));setMemberView(queryMemberView(query.get('mep-view')));setOrganization(organizationId(query.get('organization')));setOrganizationName(query.get('organization-name')?.slice(0,512)||'');
       const nextMember=/^\d+$/.test(query.get('member')||'') ? Number(query.get('member')) : null;
       votes.restore(query,nextMember);
       motions.restore(query,nextMember);
@@ -870,7 +901,35 @@ export default function App() {
           <section className="explorer-wall" hidden={!wallVisible}>
             <h1 lang={lang}>{c.title}</h1>
             {organization&&<p className="explorer-organization-filter"><strong>{organizationName||organization}</strong> <button type="button" onClick={()=>{setOrganization('');setOrganizationName('');}}><UiMessage id="app.clear_filter"/></button></p>}
-            <div className="explorer-filters" ref={wallFilters}>
+            {(() => {
+              const searchInput = <input
+                lang={lang}
+                aria-label={c.search}
+                placeholder={c.search}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />;
+              const groupCodes = Array.from(
+                new Set(directory?.members.map((m) => m.groupCode).filter((code): code is string => typeof code === 'string' && Boolean(code))),
+              ).sort((a,b) => groupLabel(a,ui).localeCompare(groupLabel(b,ui),lang));
+              const applied = [
+                committee && {key:'committee',text:directory?.committees.find(b => b.id === committee)?.code||committee,lang:'',clear:()=>setCommittee('')},
+                role!=='both' && {key:'role',text:roleName(role),lang,clear:()=>setRole('both')},
+                country && {key:'country',text:countryName(lang,country,ui),lang,clear:()=>setCountry('')},
+                group && {key:'group',text:groupLabel(group,ui),lang:groupLabelLanguage(group,ui),clear:()=>setGroup('')},
+              ].filter((filter): filter is {key:string;text:string;lang:string;clear:()=>void} => Boolean(filter));
+              return <div className="explorer-filters" ref={wallFilters}>
+              {narrow && searchInput}
+              {narrow && <div className="explorer-filters-bar">
+                <button type="button" className="explorer-filters-toggle" aria-expanded={filtersOpen} aria-controls={filterFieldsId} lang={ui.messageLocale(applied.length ? 'app.filtersCount' : 'app.show_filters')} onClick={() => setFiltersOpen(open => !open)}>
+                  {applied.length ? <UiMessage id="app.filtersCount" values={{count: String(applied.length)}}/> : <UiMessage id="app.show_filters"/>}
+                </button>
+                {viewSwitch}
+              </div>}
+              {narrow && !filtersOpen && applied.length > 0 && <div className="explorer-active-filters">
+                {applied.map(filter => <button type="button" key={filter.key} aria-label={ui.t("app.removeFilter",{filter:filter.text})} lang={filter.lang} onClick={filter.clear}>{filter.text} <span aria-hidden="true">×</span></button>)}
+              </div>}
+              <div className="explorer-filter-fields" id={filterFieldsId} hidden={narrow && !filtersOpen}>
               <label lang={lang}>
                 {c.committee}
                 <select
@@ -922,23 +981,14 @@ export default function App() {
                     onChange={(e) => setGroup(e.target.value)}
                   >
                     <option lang={ui.language} value=""><UiMessage id="dossieractivity.all"/></option>
-                    {Array.from(
-                      new Set(directory?.members.map((m) => m.groupCode).filter((code): code is string => typeof code === 'string' && Boolean(code))),
-                    )
-                      .filter((v): v is string => Boolean(v))
-                      .sort((a,b) => a.localeCompare(b,lang))
-                      .map((v) => <option lang="" key={v}>{v}</option>)}
+                    {groupCodes.map((v) => <option lang={groupLabelLanguage(v,ui)} key={v} value={v}>{groupLabel(v,ui)}</option>)}
                   </select>
                 </label>
               </div>
-              <input
-                lang={lang}
-                aria-label={c.search}
-                placeholder={c.search}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+              </div>
+              {!narrow && searchInput}
+            </div>;
+            })()}
             <Status scope={JSON.stringify([lang,committee,organization,country,group,search,role])} pending={directoryState.loading} oncePerScope message={(() => {
               if(!directory||error)return null;
               const resultMessage=partialCommittee
@@ -958,6 +1008,7 @@ export default function App() {
                     {partialCommittee && !filtered.length ? <UiMessage id="app.mepCountUnknownUnit"/> : <UiMessage id="app.mepCountUnit" counts={{count:filtered.length}}/>}{" "}
                     <small lang={ui.language}><UiMessage id="app.currentAt" values={{date: <time lang={lang} dateTime={directory.day}>{date(directory.day, lang)}</time>}}/></small>
                   </span>
+                  {!narrow && viewSwitch}
                   {filtersPassed ? <button type="button" lang={ui.language} onClick={showFilters}><UiMessage id="app.show_filters"/></button> : <button
                     lang={lang}
                     onClick={() => {
@@ -982,7 +1033,12 @@ export default function App() {
                       ui.t("app.loadingMemberships", {loaded: String(directory.index.loaded), total: String(directory.index.total)})}
                     {directory.index.error && null}
                   </div>}
-                <div className="explorer-portraits">
+                {(() => {
+                  const noMatches = !filtered.length && <p lang={ui.language}>{partialCommittee ? <UiMessage id="app.no_matches_yet"/> : <UiMessage id="app.no_meps_match_these_filters"/>}</p>;
+                  return shownMemberView === 'list' ? <>
+                    <MemberList key={JSON.stringify([committee,organization,country,group,search,role])} members={filtered} committees={directory.committees} parties={directory.parties} language={lang} narrow={narrow} sort={memberSort} onSort={sortMemberList} onOpen={openMember} portrait={m=><Portrait lazy member={{...m,imageUrl:`${API_ROOT}/portrait/${m.id}`}}/>}/>
+                    {noMatches}
+                  </> : <div className="explorer-portraits">
                     {filtered.map((m, index) => <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
                         <Portrait
                           member={{
@@ -991,17 +1047,9 @@ export default function App() {
                           }}
                           labelled
                           eager={index < 8}
-                          onClick={() => {
-                            memberOpener.current=m.id;
-                            pendingDestination.current={view:null,member:m.id};
-                            memberStep.current=true;setMember(m.id);
-                            setSpeechLink(null);
-                            setActivityLink(null);
-                            setActivityCategory('');
-                            setActivityOffset(0);
-                            setTab("speeches");
-                          }}
+                          onClick={() => openMember(m.id)}
                         />
+                        <MemberAffiliation group={m.groupCode} country={m.countryCode} language={lang}/>
                         <div className="explorer-portrait-follow">
                           <SaveButton compact item={{kind:'mep',id:String(m.id),title:[m.firstName,m.lastName].filter(Boolean).join(' ')}}/>
                         </div>
@@ -1011,8 +1059,9 @@ export default function App() {
                               .map((v,index) => <span key={index} lang={['MEMBER_SUBSTITUTE','MEMBER','CHAIR','CHAIR_VICE'].includes(v.role) ? lang : ''}>{(index>0) ? " · " : ""}{roleName(v.role)}</span>)}
                           </small>}
                       </div>)}
-                    {!filtered.length && <p lang={ui.language}>{partialCommittee ? <UiMessage id="app.no_matches_yet"/> : <UiMessage id="app.no_meps_match_these_filters"/>}</p>}
-                  </div>
+                    {noMatches}
+                  </div>;
+                })()}
               </>}
           </section>
         <footer className="explorer-footer" lang={ui.language}>

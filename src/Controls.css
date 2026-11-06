@@ -27,7 +27,7 @@
 }
 
 /* Alternate presentations of the same content form one segmented control. */
-.insight-chart-switch:not(.insight-mode-nav),.member-votes-filter {
+.insight-chart-switch:not(.insight-mode-nav),.member-votes-filter,.explorer-view-switch {
   display:flex;
   flex-wrap:wrap;
   gap:4px;
@@ -38,7 +38,7 @@
   border-radius:var(--radius-sm);
   background:var(--surface-2);
 }
-:is(.explorer,.explorer-insights) :is(.insight-chart-switch:not(.insight-mode-nav),.member-votes-filter) > button {
+:is(.explorer,.explorer-insights) :is(.insight-chart-switch:not(.insight-mode-nav),.member-votes-filter,.explorer-view-switch) > button {
   flex:1 1 auto;
   min-width:0;
   min-height:var(--control-height);
@@ -52,7 +52,7 @@
   text-align:center;
   white-space:normal;
 }
-:is(.explorer,.explorer-insights) :is(.insight-chart-switch:not(.insight-mode-nav),.member-votes-filter) > button[aria-pressed=true] {
+:is(.explorer,.explorer-insights) :is(.insight-chart-switch:not(.insight-mode-nav),.member-votes-filter,.explorer-view-switch) > button[aria-pressed=true] {
   border-color:var(--accent);
   background:var(--accent-soft);
   color:var(--accent-strong);
@@ -60,7 +60,7 @@
 }
 
 /* Applied filters are removable selections; text actions keep their link style. */
-:is(.explorer,.explorer-insights) :is(.insight-active-filters,.gv-selected) > button:not(.insight-text-button) {
+:is(.explorer,.explorer-insights) :is(.insight-active-filters,.gv-selected,.explorer-active-filters) > button:not(.insight-text-button) {
   min-height:var(--control-height);
   padding:9px 12px;
   border:1px solid var(--accent);
