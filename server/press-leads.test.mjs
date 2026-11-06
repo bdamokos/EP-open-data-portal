@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,mkdtempSync,rmSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {parsePressRelease,pressExcerpt,pressReleaseUrl} from './press-releases-model.mjs';
+import {parsePressRelease,pressExcerpt,pressParagraphs,pressReleaseUrl} from './press-releases-model.mjs';
 import {PressStore,PressFollower,PRESS_LIMITS} from './press-releases.mjs';
 
 const fixtures=JSON.parse(readFileSync(new URL('./fixtures/press-leads-public.json',import.meta.url)));
@@ -85,6 +85,7 @@ test('week lookup uses indexed exact identifiers, Brussels date boundaries, list
   try{
     const query={procedureIds:['2025/0222(COD)'],documentIds:['A-10-2026-0276'],from:'2026-10-19',to:'2026-10-25'};
     assert.deepEqual(reader.forWeek(query).map(row=>row.id),['20261018IPR48002','20261018IPR48007','20261018IPR48000']);
+    assert.deepEqual(reader.forWeek({...query,procedureIds:['2025-0222']}).map(row=>row.id),reader.forWeek(query).map(row=>row.id),'agenda topic procedure IDs use a hyphen');
     assert.deepEqual(reader.forWeek({...query,procedureIds:[],documentIds:[]}),[]);
     const plan=reader.db.prepare("EXPLAIN QUERY PLAN SELECT release FROM links WHERE kind='procedure' AND value>=? AND value<?").all('2025/0222(','2025/0222)');
     assert.ok(plan.some(row=>/SEARCH.*PRIMARY KEY|SEARCH.*COVERING INDEX/.test(row.detail)));
@@ -100,4 +101,44 @@ test('a nofollow re-read removes links and stored text without changing its firs
   assert.equal(row.linked_at,first);assert.equal(row.body.leadVersion,1);
   assert.equal(row.body.lead,null);assert.deepEqual(row.body.paragraphs,[]);
   assert.deepEqual(store.mentions('2025/0222(COD)').items,[]);
+}));
+
+test('empty body paragraphs do not consume an editorial text slot',()=>{
+  const html='<div class="ep-a_text ep-layout_chapo"><p>Lead.</p></div>'+
+    ['', '&nbsp;', '<br>'].map(value=>`<p class="ep-wysiwig_paragraph">${value}</p>`).join('')+
+    '<p class="ep-wysiwig_paragraph">The vote passed.</p><p class="ep-wysiwig_paragraph">Third paragraph.</p>';
+  assert.deepEqual(pressParagraphs(html),['Lead.','The vote passed.']);
+});
+
+test('ordinary no and art sentence endings are not abbreviations',()=>{
+  for(const sentence of ['MEPs voted no.','This is state-of-the-art.'])
+    assert.equal(pressExcerpt({paragraphs:['Lead.',sentence+' The vote passed.']}).second,sentence);
+});
+
+test('failed enrichment is one attempt and preserves held links across 120 days',()=>withStore(async store=>{
+  const cases=[{status:404},{status:410},{message:'fetch failed',cause:{code:'UND_ERR_INVALID_ARG'}},{status:503},{html:'<html>canonical mismatch</html>'}];
+  let clock=now,reads=0;
+  const ids=cases.map((failure,index)=>{
+    const id='20261018IPR'+String(48100+index);put(store,release(id));
+    return id;
+  });
+  const held=ids.map(id=>store.release(id));
+  store.db.prepare('UPDATE releases SET next_check=?').run(now);
+  store.set('follow',{nextPollAt:now+200*24*60*60_000});
+  const follower=new PressFollower(store,{clock:()=>clock,fetchText:async url=>{
+    reads++;const failure=cases[ids.indexOf(url.split('/').at(-2))];
+    if(failure.html)return failure.html;
+    throw Object.assign(new Error(failure.message||'Parliament unavailable'),failure);
+  }});
+  for(let day=0;day<120;day++){clock=now+day*24*60*60_000;await follower.run();}
+  assert.equal(reads,cases.length);
+  for(const [index,id] of ids.entries()) {
+    const row=store.release(id);
+    assert.equal(row.next_check,null);assert.equal(row.body.leadVersion,1);
+    assert.equal(row.checked_at,held[index].checked_at);assert.equal(row.linked_at,held[index].linked_at);
+    assert.equal(store.mentions('2025/0222(COD)').items.some(item=>item.id===id),true);
+  }
+  const fresh=release('20261018IPR48199');store.discover(fresh,{feed:'press-releases',now});
+  store.fail(fresh.id,Object.assign(new Error('Unavailable'),{status:503}),{now});
+  assert.ok(store.release(fresh.id).next_check>now,'initial reads retain the existing retry policy');
 }));

@@ -108,6 +108,14 @@ export class PressStore {
   }
   fail(id,error,{now,retryAt}) {
     const old=this.release(id),attempts=(old?.attempts||0)+1;
+    // Enrichment is one additional attempt, including transport or parse
+    // failures. Preserve the held page and its links; only a changed feed
+    // announcement can reopen it, under discover's existing policy.
+    if(old?.checked_at!=null) {
+      this.db.prepare('UPDATE releases SET body=?,attempts=?,next_check=NULL,error=?,failure_state=?,rejected_source=NULL,missing_since=NULL WHERE id=?')
+        .run(JSON.stringify({...old.body,leadVersion:1}),attempts,message(error),'transient',id);
+      return;
+    }
     const missingSince=sourceMissing(error)?(old.missing_since??now):null;
     const {rejection,confirmed}=confirmSourceRejection(old.rejected_source?JSON.parse(old.rejected_source):null,error,{descriptor:old.url,parserVersion:1,now});
     this.db.prepare('UPDATE releases SET rejected_source=? WHERE id=?').run(rejection?JSON.stringify(rejection):null,id);
@@ -126,7 +134,7 @@ export class PressStore {
     catch(error){try{if(this.db.isTransaction)this.db.exec('ROLLBACK');}catch{}throw error;}
   }
   readWeek({procedureIds=[],documentIds=[],from,to}) {
-    const ranges=[...new Set(procedureIds.map(id=>String(id).match(/^(\d{4}\/\d{4}[A-Z]?)(?:\([A-Z]{2,8}\))?$/)?.[1]).filter(Boolean))];
+    const ranges=[...new Set(procedureIds.map(id=>String(id).replace(/^(\d{4})-/, '$1/').match(/^(\d{4}\/\d{4}[A-Z]?)(?:\([A-Z]{2,8}\))?$/)?.[1]).filter(Boolean))];
     const ids=new Set();
     const procedures=this.db.prepare("SELECT release FROM links WHERE kind='procedure' AND value>=? AND value<?");
     for(const reference of ranges)for(const row of procedures.all(reference+'(',reference+')'))ids.add(row.release);

@@ -99,7 +99,7 @@ export function pressParagraphs(html) {
   const pattern=/<p\b[^>]*class=["'][^"']*ep-wysiwig[^"']*["'][^>]*>([\s\S]*?)<\/p>|<div\b[^>]*class=["'][^"']*\bep-a_text\b[^"']*["'][^>]*>\s*<p\b[^>]*>([\s\S]*?)<\/p>/gi;
   for(const match of html.matchAll(pattern)) {
     const value=decodeHtml((match[1]??match[2]).replace(/<br\s*\/?\s*>/gi,' ').replace(/<[^>]*>/g,'')).replace(/\s+/g,' ').trim();
-    paragraphs.push(value);
+    if(value)paragraphs.push(value);
     if(paragraphs.length===2)break;
   }
   return paragraphs;
@@ -110,7 +110,7 @@ export function pressExcerpt({lead=null,paragraphs=[]}={}) {
   const paragraph=paragraphs[1]?.trim()||'';
   let end=paragraph.length;
   for(const match of paragraph.matchAll(/[.!?]\s+(?=[A-Z])/g)) {
-    if(/(?:\b(?:Mr|Dr|No|Art)|\be\.g|\bi\.e)\.$/i.test(paragraph.slice(0,match.index+1)))continue;
+    if(/(?:\b(?:Mr|Dr|No|Art)|\b[Ee]\.g|\b[Ii]\.e)\.$/.test(paragraph.slice(0,match.index+1)))continue;
     end=match.index+1;break;
   }
   const sentence=paragraph.slice(0,end);
