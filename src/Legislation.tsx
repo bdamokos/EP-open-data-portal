@@ -18,7 +18,9 @@ import {prefetchInsightData,useInsightData} from './InsightData';
 import {InsightShell,InsightStatus,InsightPeople,InsightDemographics,humanDate} from './InsightShared';
 import {groupColor,groupLabel,groupLabelLanguage} from './groupLabels';
 import {CountryFilter} from './CountryFilter';
-import {InsightQuestionReader,InsightSpeechReader} from './InsightReaders';
+import {InsightQuestionReader} from './InsightReaders';
+import {SpeechPanel} from './SpeechPanel';
+import {listedSpeakerName} from './debateSpeeches.mjs';
 import type {InsightProps,InsightStats} from './InsightTypes';
 import {countryName} from './CountryMap';
 import {interfaceTerm,voteScope,compoundLanguage} from './terms.mjs';
@@ -102,7 +104,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const today=usePlenaryDate();
   const [dossierMetadata,setDossierMetadata]=useState<DossierReference|null>(null);
   const displayName=usePersonName();
-  const readerId=useId(),speechTop=useRef<HTMLElement>(null),speechJump=useRef<HTMLDetailsElement>(null),speechJumpSummary=useRef<HTMLElement>(null);
+  const readerId=useId(),speechTop=useRef<HTMLElement>(null);
   const [country,setCountry]=useExplorerParam<string|null>('agenda-country',null);
   const [contribution,setContribution]=useExplorerParam<'all'|'committee'|'plenary'>('agenda-contribution','all',contributionFilters);
   const [mode,setMode]=useExplorerParam<PlenaryMode>('pl-mode','agenda',plenaryModes),[officialTopic,setOfficialTopic]=useExplorerParam<string|null>('trend-source',null),[reference]=useExplorerParam<string>('dossier-ref',''),[voteId]=useExplorerParam<string>('pl-vote','');
@@ -190,18 +192,12 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const earlierSpeeches=Boolean(detail?.speeches.length&&detail.speeches.every(s=>s.date<detail.date));
   const shownPeople=contributors ? orderLegislationPeople(contributors.people,contributors.roles,props.members).filter(p=>matchesCountry(country,p.country)) : ([]),shownSpeeches=detail?.speeches.filter(s=>!country||s.people.some(p=>matchesCountry(country,p.country)))||[];
   useEffect(()=>{setSpeech(dossierJourneyRestoring() ? dossierReaderValue('agenda-speech',shownSpeeches[0]?.sourceId||null) : (shownSpeeches.find(s=>s.sourceId===focusedSpeech)?.sourceId||shownSpeeches[0]?.sourceId||null));},[country,detail?.id,focusedSpeech]);
-  const speechIndex=shownSpeeches.findIndex(s=>s.sourceId===speech),currentSpeech=shownSpeeches[speechIndex];
+  const speakerName=(p:typeof shownSpeeches[number]['people'][number])=>displayName(p.id,p.currentMep ? p.name : listedSpeakerName(p.name,speakerNames[p.id]));
+  const speakerText=(s:typeof shownSpeeches[number])=>s.people.map(p=>speakerName(p)||ui.t('insightshared.speaker')).join(', ')||ui.t('dossieractivity.speech');
   const speechLabel=(s:typeof shownSpeeches[number])=>{
-    const speakers=s.people.map(p=>displayName(p.id,p.currentMep ? p.name : (speakerNames[p.id]||p.name))||ui.t('insightshared.speaker')).join(', ')||ui.t('dossieractivity.speech');
-    const time=contributionTime(s.start,language),written=s.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT';
+    const speakers=speakerText(s),time=contributionTime(s.start,language),written=s.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT';
     return written ? ui.t(time?'legislation.speakers_time_brussels_written_statement.684324':'legislation.speakers_written_statement.811c16',{speakers,time:time||''}) : (time ? ui.t('legislation.speakers_time_brussels.05daf4',{speakers,time}) : speakers);
   };
-  function pageSpeech(offset:number,scroll=false){
-    const next=shownSpeeches[speechIndex+offset];
-    if(speechIndex<0||!next)return;
-    setSpeech(next.sourceId);
-    if(scroll)requestAnimationFrame(()=>speechTop.current?.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'}));
-  }
   function chooseAgendaTopic(id:string){if(id!==topic)resetSearchPosition();if(data?.week)setAgendaPeriod('week:'+data.week);setTopic(id);setVote('');updateExplorerQuery(url=>url.searchParams.delete('agenda-speech'));}
   function showAgenda(){
     const opener=agendaRef.current?.querySelector<HTMLButtonElement>('[aria-pressed=true]');
@@ -229,21 +225,8 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
       {detail.kind==='PLENARY_VOTE'&&<TopicVotes detail={detail} route={detailRoute} country={country} language={language} onMember={props.onMember} today={today} retry={selected.retry}/>}
       {speechAvailability&&<p className="insight-secondary" role={(speechAvailability.state==='error') ? 'alert' : undefined}>{speechAvailability.message}{earlierSpeeches&&ui.t("legislation.earlier_linked_speeches_are_shown_below.9b2bcd")}{speechAvailability.state==='error'&&<> </>}</p>}
       <TextSearch prefix="agenda-fts" label={ui.t("legislation.search_linked_speeches.1d2a60")} language={language} kinds={['speech']} scopeIdentity={detail.id+':'+(country||'')} sourceIds={shownSpeeches.map(speech=>speech.sourceId)} disabledReason={(!shownSpeeches.length) ? ui.t("legislation.no_linked_speeches_are_available_for_this_selection.a6a717") : undefined}/>
+      {shownSpeeches.length>0&&<SpeechPanel top={speechTop} speeches={shownSpeeches} current={speech} onSelect={setSpeech} language={language} speakerName={speakerName} speakerText={speakerText} positionText={speechLabel} time={s=>contributionTime(s.start,language)} onSpeakers={rememberSpeakers}/>}
       {detail.coverage.speechAssociations.sources.length>0&&<SpeechCloud key={detail.id} sitting={topicSitting} topic={detail.id} country={country} interfaceLanguage={language} onSpeakers={rememberSpeakers} onSpeechSpeakers={rememberSpeechSpeakers}/>}
-      {shownSpeeches.length>0&&<section className="insight-speech-panel"><h3>{earlierSpeeches ? <UiMessage id="legislation.earlier_speeches_count_listed.d1e6bd" values={{count:<small>{shownSpeeches.length}</small>}} counts={{count:shownSpeeches.length}}/> : <>{ui.t("dossieractivity.speeches")} <small><UiMessage id="legislation.count_listed.703e33" values={{count:shownSpeeches.length}}/></small></>}</h3>
-        <nav className="insight-speech-pager" aria-label={ui.t("dossieractivity.speeches")} ref={speechTop}>
-          <button aria-label={ui.t("legislation.previous_speech.52d5e7")} aria-disabled={speechIndex<=0} onClick={()=>pageSpeech(-1)}><span aria-hidden="true">‹</span></button>
-          <div className="insight-speech-position"><strong aria-live="polite" aria-atomic="true"><UiMessage id="legislation.speech_speechnumber_of_count.73b64d" values={{speechNumber: (speechIndex+1), count: shownSpeeches.length}}/></strong>{currentSpeech&&<span lang="">{speechLabel(currentSpeech)}</span>}</div>
-          <button aria-label={ui.t("legislation.next_speech.4ed12e")} aria-disabled={speechIndex<0||speechIndex===shownSpeeches.length-1} onClick={()=>pageSpeech(1)}><span aria-hidden="true">›</span></button>
-        </nav>
-        <details className="insight-speech-jump" ref={speechJump}><summary ref={speechJumpSummary}><UiMessage id="legislation.jump_to_speech.193a38"/></summary><ol>{shownSpeeches.map(s=><li key={s.sourceId}><button lang="" aria-current={(s.sourceId===speech) ? 'true' : undefined} onClick={()=>{setSpeech(s.sourceId);if(speechJump.current)speechJump.current.open=false;speechJumpSummary.current?.focus({preventScroll:true});}}>{speechLabel(s)}</button></li>)}</ol></details>
-        {currentSpeech&&<><InsightSpeechReader key={speech} id={currentSpeech.sourceId} language={language} onSpeakers={rememberSpeakers}/>
-          <nav className="insight-speech-pager insight-speech-pager-bottom" aria-label={ui.t("legislation.speeches_bottom.166999")}>
-            <button aria-label={ui.t("legislation.previous_speech.52d5e7")} aria-disabled={speechIndex<=0} onClick={()=>pageSpeech(-1,true)}><span aria-hidden="true">‹</span>  <UiMessage id="textsearch.previous"/></button>
-            <span>{speechIndex+1} / {shownSpeeches.length}</span>
-            <button aria-label={ui.t("legislation.next_speech.4ed12e")} aria-disabled={speechIndex===shownSpeeches.length-1} onClick={()=>pageSpeech(1,true)}><UiMessage id="textsearch.next"/> <span aria-hidden="true">›</span></button>
-          </nav></>}
-      </section>}
       <section className="insight-participants"><div className="insight-section-heading"><h3><UiMessage id="legislation.who_is_involved.e6f55b"/></h3><label className="insight-contribution-filter"><UiMessage id="legislation.contribution.982d5a"/><select value={contribution} onChange={event=>setContribution(event.target.value as typeof contribution)}><option value="all"><UiMessage id="legislation.all_contributors.267ac6"/></option><option value="committee"><UiMessage id="legislation.committee_amendment_authors.d966d1"/></option><option value="plenary"><UiMessage id="legislation.plenary_amendment_authors.11da35"/></option></select></label><span>{shownPeople.length ? <>{<UiMessage id="legislation.count_people.83f265" values={{count: shownPeople.length}} counts={{count: shownPeople.length}}/>}</> : (country ? ui.t("textsearch.no_matches") : ui.t("legislation.no_records_yet.e619c5"))}</span></div><InsightPeople previewCount={6} people={shownPeople.map(p=>({...p,name:((!p.currentMep) && speakerNames[p.id]) ? speakerNames[p.id] : p.name,office:(!p.currentMep) ? legislationOffice(detail,speechHeaders,p.id,language, ui)?.text : null,officeLanguage:(!p.currentMep) ? legislationOffice(detail,speechHeaders,p.id,language, ui)?.language : null}))} language={language} onMember={props.onMember} roles={contributors!.roles} renderSecondary={person=><><ContributorActivity detail={detail} headers={speechHeaders} person={person.id} language={language} onSpeech={id=>{setSpeech(id);requestAnimationFrame(()=>{speechTop.current?.scrollIntoView({block:'start'});const heading=speechTop.current?.querySelector<HTMLElement>('.insight-speech-position strong');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}});}}/><DossierWorkLinks references={detail.procedures.filter(p=>p.reference).map(p=>({id:p.id,reference:p.reference!}))} person={person.id} language={language}/></>}/>{!shownPeople.length&&<p><UiMessage id="legislation.no_matching_contributors.b162e0"/></p>}</section>
       {!shownSpeeches.length&&detail.speeches.length>0&&country&&<p className="insight-secondary"><UiMessage id="legislation.no_listed_speeches_match_this_country_filter.5e7efa"/></p>}
       {detail.committeeWork.length>0&&<section className="insight-committee-work"><h3><UiMessage id="legislation.committee_work.df8696"/></h3><ol>{detail.committeeWork.map(event=><li key={event.id}><time lang={language}>{humanDate(event.date,language)}</time><div><strong>{committeeAction(event.kind, ui)}</strong>{event.committees?.map(c=><p key={c.code}>{c.websiteUrl ? <a lang="" href={c.websiteUrl} target="_blank" rel="noreferrer">{c.code} · {c.name.replace(/^Committee on /,'')} ↗</a> : c.code}</p>)}<div className="insight-document-links">{event.documentIds.map(id=><button key={id} aria-expanded={document===id&&documentEvent===event.id} aria-controls={documentTarget(event.id)} onClick={click=>toggleDocument(id,event.id,click.currentTarget)}>{((document===id) && (documentEvent===event.id)) ? <UiMessage id="legislation.hide_id.bbed1e" values={{id: String(id ?? '')}}/> : <UiMessage id="legislation.read_id.de4be3" values={{id: String(id ?? '')}}/>}</button>)}{!event.documentIds.length&&detail.procedures.find(p=>p.id===event.procedureId)?.websiteUrl&&<a href={detail.procedures.find(p=>p.id===event.procedureId)!.websiteUrl!} target="_blank" rel="noreferrer"><UiMessage id="legislation.dossier.6a6fa3"/></a>}</div>{event.documentIds.map(id=><CommitteeAmendments key={id} id={id} procedure={event.procedureId} language={language}/>)}{renderDocumentReader(event.id)}</div></li>)}</ol></section>}

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {personNameVariants} from '../server/speaker-identity.mjs';
-import {speakerPresentation,speakerTerm} from './speakerPresentation.mjs';
+import {speakerPresentation,speakerTerm,speakerWithFallbackName} from './speakerPresentation.mjs';
 const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/speaker-names-20261017.json',import.meta.url)));
 const [greek,bulgarian]=fixture.examples.map(({person})=>({id:person.identifier,name:[person.officialGivenName,person.officialFamilyName].join(' '),nameVariants:personNameVariants(person)}));
 
@@ -63,4 +63,19 @@ test('exact structured group capacity replaces redundant translated role wording
   assert.deepEqual(speakerPresentation(commissioner,'bg',{intervention}).roles,[speakerTerm('commissioner','bg')]);
   const unspecific={...person,roleLabels:{bg:person.roleLabels.bg}};
   assert.deepEqual(speakerPresentation(unspecific,'bg',{intervention}).roles,[person.roleLabels.bg],'unclassified role text is not silently discarded');
+});
+
+test('a presiding header takes the exact-ID row name and nothing else',()=>{
+  // Speech MTG-PL-2026-10-21-OTH-2017100378403: the header says only "Presiding".
+  const header={id:'197770',name:'Presiding',role:'Chairing the sitting'};
+  const row={id:'197770',name:'Martin Hojsík'};
+  const named=speakerWithFallbackName(header,row);
+  assert.equal(speakerPresentation(header,'en').nameUnavailable,true);
+  assert.equal(speakerPresentation(named,'en').name.text,'Martin Hojsík');
+  assert.equal(speakerPresentation(named,'en').nameUnavailable,false);
+  assert.equal(speakerWithFallbackName(header,{...row,id:'1'}),header,'other IDs never match');
+  assert.equal(speakerWithFallbackName(header,{id:'197770',name:'Presiding'}),header,'a role word is not a name');
+  assert.equal(speakerWithFallbackName(header,{id:'197770',name:null}),header);
+  const known={id:'197770',name:'Martin Hojsík'};
+  assert.equal(speakerWithFallbackName(known,{id:'197770',name:'Other Name'}),known,'a name the header supplies stays');
 });
