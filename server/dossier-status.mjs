@@ -18,7 +18,8 @@ import {isLocalRequestFailure,requestSignal} from './request-budget.mjs';
 
 export const DOSSIER_STATUS_VERSION=1;
 // Held sittings only: a page view neither requests a source nor queues collection.
-export const heldVotes=new MemberVotes({request:cachedAgendaRequest,limits:{cacheEntries:1},snapshots:{read:(kind,version,id)=>sittingSnapshots.read(kind,version,id,{retained:true}),enqueue(){}}});
+// Chairs are downloaded separately from the request client, and a main vote needs none.
+export const heldVotes=new MemberVotes({request:cachedAgendaRequest,readChairs:async()=>null,limits:{cacheEntries:1},snapshots:{read:(kind,version,id)=>sittingSnapshots.read(kind,version,id,{retained:true}),enqueue(){}}});
 const committeeNames=JSON.parse(readFileSync(new URL('./insights-committee-labels.json',import.meta.url),'utf8')).committees;
 const AGENDA_PAGE_SIZE=50;
 const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}/.test(value)?value.slice(0,10):null;

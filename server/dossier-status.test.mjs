@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import https from 'node:https';
 import {DossierStatus,dossierStatusQuery,heldVotes,leadCommittees} from './dossier-status.mjs';
 import {sittingSnapshotHints} from './sitting-snapshot-store.mjs';
 import {dossierStatusLines,mergeDossierStatus,resolutionStage} from './dossier-status-model.mjs';
@@ -179,6 +180,8 @@ test('the main vote comes from the exact subject of the held vote event',async()
 });
 test('the default tally read makes no source request and queues no collection',async t=>{
   let fetched=0;t.mock.method(globalThis,'fetch',async()=>{fetched++;throw new Error('no upstream');});
+  t.mock.method(https,'get',()=>{fetched++;throw new Error('no upstream');});
+  assert.equal(await heldVotes.readChairs(heldVotes.request,'MTG-PL-2026-10-22',{}),null,'chair minutes are never downloaded');
   const before=sittingSnapshotHints.size;
   const result=await heldVotes.snapshot({sitting:'MTG-PL-2026-10-22',week:null,language:'en',snapshot:null}).catch(error=>error);
   assert.equal(fetched,0);assert.equal(sittingSnapshotHints.size,before);
