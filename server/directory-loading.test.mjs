@@ -200,6 +200,41 @@ test('a profile body observation applies exact ended bounds to the existing dire
  assert.equal(out.reads,out.readCount,'directory applies known metadata without fetching bodies');
 });
 
+test('the directory labels current national parties from retained body records only',async t=>{
+ const out=await run(t,`
+  const partyClass='def/ep-entities/NATIONAL_POLITICAL_GROUP';
+  const party=(id,extra)=>({id:'org/'+id,identifier:String(id),classification:partyClass,temporal:{startDate:'2024-07-16'},...extra});
+  const parties=[party(6831,{label:' PL '}),party(6832,{label:'PN',temporal:{startDate:'2024-07-16',endDate:'2025-01-01'}}),party(6833,{}),party(6834,{label:'Not retained'})];
+  const row=party=>({id:'membership/'+party.identifier,organization:{id:party.id},role:'def/ep-roles/MEMBER',membershipClassification:partyClass,memberDuring:{startDate:'2024-09-01'}});
+  const people=[...parties.map((p,index)=>({...person(43+index),hasMembership:[row(p)]})),{...person(50),hasMembership:[row(parties[1]),row(parties[0])]}];
+  for(const p of parties.slice(0,3))await save('/corporate-bodies/'+p.identifier,{},[p]);
+  let bodyReads=0;
+  globalThis.fetch=async url=>{
+   const endpoint=new URL(url).pathname;
+   if(endpoint.endsWith('/meps/show-current'))return Response.json({data:people});
+   if(endpoint.endsWith('/corporate-bodies/show-current'))return Response.json({data:[]});
+   if(endpoint.includes('/meps/'))return Response.json({data:[people.find(p=>p.identifier===endpoint.split('/').at(-1))]});
+   bodyReads++;throw Error('Unexpected fixture '+url);
+  };
+  const {odpDirectory}=await import(${moduleUrl});
+  await odpDirectory();const first=await until(async()=>{const d=await odpDirectory();return d.index.complete&&d;});
+  const statuses=first.members.find(m=>m.id===50).organizationMemberships.map(r=>[r.id,r.current]);
+  await save('/corporate-bodies/6831',{},[party(6831,{label:'PL2'})]);
+  await save('/corporate-bodies/6834',{},[parties[3]]);
+  const same=(await odpDirectory()).parties;
+  const realNow=Date.now;Date.now=()=>realNow()+11*60*1000;
+  const later=(await odpDirectory()).parties;
+  console.log(JSON.stringify({parties:first.parties,statuses,same,later,bodyReads}));process.exit(0);
+ `);
+ assert.deepEqual(out.parties,{6831:'PL'},'ended, unlabelled and unretained bodies are left out');
+ assert.deepEqual(out.statuses,[['6832',false],['6831',true]],'retained bounds end the predecessor membership');
+ assert.equal(out.same[6831],'PL','labels are not reread within ten minutes');
+ assert.equal(out.later[6831],'PL2','a changed retained record is picked up later');
+ assert.equal(out.same[6834],undefined,'an unretained body is not probed again within ten minutes');
+ assert.equal(out.later[6834],'Not retained');
+ assert.equal(out.bodyReads,0,'labels never fetch a body');
+});
+
 test('directory completeness follows newly uncertain body bounds and preserves missing observations',async t=>{
  const out=await run(t,`
   const party={id:'org/6831',identifier:'6831',classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',temporal:{startDate:'2026-02-30'}};
