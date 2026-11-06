@@ -573,7 +573,8 @@ export class CorpusStore {
           compressedBytes+=row.body.byteLength;rows++;
           const saved=JSON.parse(zstdDecompressSync(row.body,{maxOutputLength:2*1024*1024}));
           if(saved.summary?.id!==row.source_id||saved.summary?.date!==date)throw new Error('Speech identity mismatch');
-          records.push({id:row.source_id,date,type:saved.summary.intervention?.type||null,parentIds:saved.summary.intervention?.parentIds||[],people:saved.speakers||[]});
+          const parentTitles=Object.fromEntries(array(saved.activity?.inverse_consists_of).filter(parent=>parent&&typeof parent==='object'&&parent.activity_label).map(parent=>[String(parent.activity_id||parent.id||'').split('/').at(-1),parent.activity_label]));
+          records.push({id:row.source_id,date,type:saved.summary.intervention?.type||null,parentIds:saved.summary.intervention?.parentIds||[],parentTitles,people:(saved.speakers||[]).filter(person=>person?.id!=null).map(person=>String(person.id))});
         }
       }
       return {records,rows,compressedBytes};

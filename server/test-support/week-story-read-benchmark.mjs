@@ -10,6 +10,6 @@ export function runWeekStoryReadBenchmark() {
   const put=db.prepare('INSERT INTO speech_metadata VALUES (?,zeroblob(512))');
   for(let i=0;i<20000;i++)put.run('MTG-PL-2026-'+(i<1371?'10-19':'09-14')+'-OTH-'+i);
   db.exec('COMMIT');
-  return {scenarios:[{name:'weekStory.speechFacts',...measureRead(file,"SELECT source_id,length(body) FROM speech_metadata WHERE source_id>='MTG-PL-2026-10-19-' AND source_id<'MTG-PL-2026-10-19-~' ORDER BY source_id")}]};
+  return {scenarios:[{name:'weekStory.speechFacts',...measureRead(file,"SELECT source_id,hex(body) FROM speech_metadata WHERE source_id>='MTG-PL-2026-10-19-' AND source_id<'MTG-PL-2026-10-19-~' ORDER BY source_id")}]};
  }finally {db.close();rmSync(dir,{recursive:true,force:true});}
 }

@@ -2,13 +2,16 @@ import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {DatabaseSync} from 'node:sqlite';
 import path from 'node:path';
 import {SittingSnapshotReader} from './sitting-snapshot-store.mjs';
-import {projectWeekVoteFacts} from './week-story.mjs';
-import {waitForRequest} from './request-budget.mjs';
+import {projectWeekVoteFacts} from './week-story-votes.mjs';
+import {SerialFactReads} from './week-story-queue.mjs';
+import {waitForRequest,requestSignal} from './request-budget.mjs';
 
 // Snapshot decompression, evidence graphs and history JSON parsing are all
 // synchronous. Keep the entire projection off the HTTP event loop.
-export async function retainedWeekVoteFacts({ids,directory,generation}) {
- if(!directory)return {votes:[],agenda:[],completeVotes:false};
+const reads=new SerialFactReads();
+export function retainedWeekVoteFacts(params) {return reads.read(JSON.stringify(params),()=>readVoteFacts(params)).catch(()=>{requestSignal()?.throwIfAborted();return {votes:[],storyVotes:[],agenda:[],completeVotes:false};});}
+async function readVoteFacts({ids,directory,generation}) {
+ if(!directory)return {votes:[],storyVotes:[],agenda:[],completeVotes:false};
  const worker=new Worker(new URL(import.meta.url),{workerData:{type:'week-story-votes',ids,directory,generation}});let timer;
  try {
   return await waitForRequest(new Promise((resolve,reject)=>{

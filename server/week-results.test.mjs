@@ -89,9 +89,18 @@ test('v2 exposes single-vote summaries and unlinked decisions without losing lap
  assert.equal(result.version,2);
  const single=result.items.find(item=>!item.main&&item.voteCount===1);assert.equal(single.summary.kind,'single');assert.equal(typeof single.summary.vote.id,'string');
  assert(result.unlinked.some(item=>item.sittingId==='MTG-PL-2026-10-05'));
- const multiple=structuredClone(days),raw=structuredClone(multiple[0].decisions[0]);
- raw.activity_id+='-fixture';raw.id=raw.id.replace(/[^/]+$/,raw.activity_id);raw.decision_outcome='def/ep-statuses/LAPSED';
- multiple[0].decisions.push(raw);
+ const multiple=structuredClone(days),singleDay=multiple[0];
+ // Clone the single-vote item's decision to four non-main decisions, forcing
+ // outcome counts regardless of the one-counted-sibling exception.
+ const decision=singleDay.decisions.find(row=>row.activity_id===single.summary.vote.id);
+ assert(decision);
+ for(let i=1;i<=3;i++) {
+  const raw=structuredClone(decision);raw.activity_id+='-fixture'+i;
+  raw.id=raw.id.replace(/[^/]+$/,raw.activity_id);raw.decision_outcome='def/ep-statuses/LAPSED';
+  singleDay.decisions.push(raw);
+ }
  const counts=projectWeekResults({week:'2026-10-05'},{days:multiple},null).items.find(item=>item.agendaItemId===single.agendaItemId);
- if(counts.summary.kind==='counts')assert.equal(counts.summary.adopted+counts.summary.rejected+counts.summary.lapsed+counts.summary.unknown,counts.voteCount);
+ assert.equal(counts.summary.kind,'counts');
+ assert.equal(counts.summary.lapsed,4);
+ assert.equal(counts.summary.adopted+counts.summary.rejected+counts.summary.lapsed+counts.summary.unknown,counts.voteCount);
 });

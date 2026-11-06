@@ -1,6 +1,7 @@
 import {booleanFromEnvironment, absolutePathFromEnvironment} from './config.mjs';
 import {existsSync} from 'node:fs';
 import path from 'node:path';
+import {SerialFactReads} from './week-story-queue.mjs';
 import {CorpusReader} from './corpus-reader.mjs';
 import {requestSignal,waitForRequest} from './request-budget.mjs';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -40,12 +41,13 @@ export async function retainedSpeechMetadata(id) {
 export const retainedWeekCloud=params=>read('speech-cloud',params);
 
 // A separate serial slot: large weekly metadata reads never occupy the 2 s pool.
-let weekReader,weekDirectory;
+let weekReader,weekDirectory;const weekReads=new SerialFactReads();
 export async function retainedWeekSpeechFacts(params) {
   const current=absolutePathFromEnvironment('CORPUS_DIR');
   if(!booleanFromEnvironment('CORPUS_ENABLED')||!current||!existsSync(path.join(current,'corpus-v1.sqlite')))return null;
-  if(weekDirectory!==current){weekDirectory=current;weekReader=new CorpusReader(current,{timeoutMs:8000});}
-  if(weekReader.busy)return null;
-  try{return await waitForRequest(weekReader.query('speech-week-facts',params));}
+  try{return await weekReads.read(JSON.stringify([current,params]),async()=>{
+    if(weekDirectory!==current){weekDirectory=current;weekReader=new CorpusReader(current,{timeoutMs:8000});}
+    return weekReader.query('speech-week-facts',params);
+  });}
   catch{requestSignal()?.throwIfAborted();return null;}
 }

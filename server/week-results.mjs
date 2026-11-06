@@ -2,6 +2,7 @@ import {HttpError} from './http-utils.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
 import {memberVotes,memberVotesQuery} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
+import {itemVoteSummary} from './week-result-summary.mjs';
 import {mainVote} from './main-vote.mjs';
 import {votePeriods} from './vote-periods.mjs';
 
@@ -54,7 +55,7 @@ export function projectWeekResults(query,snapshot,location) {
     items:[...items.values()].sort((a,b)=>a.agendaItemId.localeCompare(b.agendaItemId)).map(({agendaItemId,voteCount,mains,decisions})=>{
       const main=mains.size===1?[...mains.values()][0]:null;
       const rows=[...decisions.values()];
-      const summary=main?null:rows.length===1?{kind:'single',vote:{id:rows[0].id,label:rows[0].title,outcome:rows[0].outcome,method:rows[0].method,totals:rows[0].totals}}:{kind:'counts',adopted:rows.filter(r=>r.outcome==='ADOPTED').length,rejected:rows.filter(r=>r.outcome==='REJECTED').length,lapsed:rows.filter(r=>r.outcome==='LAPSED').length,unknown:rows.filter(r=>!['ADOPTED','REJECTED','LAPSED'].includes(r.outcome)).length};
+      const summary=itemVoteSummary(rows,main);
       return {agendaItemId,voteCount,summary,main:main&&{id:main.id,outcome:main.outcome,method:main.method,totals:main.totals}};
     }),
   };
