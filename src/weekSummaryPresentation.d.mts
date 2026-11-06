@@ -3,7 +3,7 @@ type Ui=import('./uiI18n.mjs').UiFormatter;
 export const agendaShows:readonly ['all','votes','debates'];
 export type AgendaShow=typeof agendaShows[number];
 export const weekResultsRoute:(week:string,language?:string)=>string;
-export const voteHref:(id:string,language?:string)=>string;
+export const voteHref:(week:string,itemId:string,voteId:string,language?:string)=>string;
 export function weekMode(days:{phase:'past'|'today'|'upcoming'}[]):'past'|'upcoming'|'mixed';
 export function showCounts(topics:AgendaTopic[]):{all:number;votes:number;debates:number};
 export function visibleTopics(topics:AgendaTopic[],options?:{show?:AgendaShow;upcoming?:boolean}):AgendaTopic[];

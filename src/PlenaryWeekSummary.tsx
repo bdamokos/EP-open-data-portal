@@ -105,7 +105,7 @@ function Results({data,results,language,onOpen}:{data:LegislationResponse;result
         {pending?<p><UiMessage id="weekSummary.resultsPending"/></p>:<ul>{topics.map(topic=>{
           const entry=results.data!.items.find(item=>item.agendaItemId===topic.id),line=entry&&resultLine(entry,ui);
           return <li key={topic.id}><button className="week-result-title" lang={topic.titleLanguage??''} onClick={()=>onOpen(topic.id)}>{agendaTitle(topic.title)}</button>
-            {line&&<span className="week-result-line">{[line.outcome&&<span key="outcome">{line.outcome}</span>,(line.tally||line.hands)&&(line.voteId?<a key="tally" href={voteHref(line.voteId,ui.language)} aria-label={line.tallyLabel??undefined} onClick={dossierLinkClick}>{line.tally??line.hands}</a>:<span key="tally">{line.tally??line.hands}</span>),<span key="votes">{line.votes}</span>].filter(Boolean).flatMap((part,index)=>index?[' · ',part]:[part])}</span>}
+            {line&&<span className="week-result-line">{[line.outcome&&<span key="outcome">{line.outcome}</span>,(line.tally||line.hands)&&(line.voteId&&data.week?<a key="tally" href={voteHref(data.week,topic.id,line.voteId,ui.language)} aria-label={line.tallyLabel??undefined} onClick={dossierLinkClick}>{line.tally??line.hands}</a>:<span key="tally">{line.tally??line.hands}</span>),<span key="votes">{line.votes}</span>].filter(Boolean).flatMap((part,index)=>index?[' · ',part]:[part])}</span>}
           </li>;
         })}</ul>}
       </div>;
