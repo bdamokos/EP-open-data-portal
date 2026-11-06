@@ -1,31 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {seatBallots,positionTotals,unseatedDotTotals,differingVoterIds,countryGroupBreakdown,allCountriesBreakdown,sortCountryRows,pluralityPosition,encodeMatrixSort,decodeMatrixSort} from './voteSeatsModel.mjs';
+import {differingVoterIds,countryGroupBreakdown,allCountriesBreakdown,sortCountryRows,pluralityPosition,encodeMatrixSort,decodeMatrixSort} from './voteSeatsModel.mjs';
 import {differentFromMajority} from './voteGroupMetrics.mjs';
-
-const seat=(number,member)=>({seat:number,x:number*10,y:10,r:5,member});
-const seats=[seat(1,101),seat(2,102),seat(3,103),seat(4,104)];
-
-test('recorded positions join to seats by exact person ID only',()=>{
-  const voters=[{id:'101',position:'for'},{id:'104',position:'against'}];
-  const {bySeat,unseated}=seatBallots(voters,seats);
-  assert.deepEqual([...bySeat.entries()].map(([key,value])=>[key,value.position]),[[1,'for'],[4,'against']]);
-  assert.deepEqual(unseated,[]);
-  // A padded or unknown ID never claims a seat.
-  const {bySeat:missing}=seatBallots([{id:'103 ',position:'for'},{id:'999',position:'for'}],seats);
-  assert.equal(missing.size,0);
-});
-
-test('voters without a seat stay out of the chart and their dots keep the totals',()=>{
-  const voters=[{id:'101',position:'for'},{id:'102',position:'for'},{id:'333',position:'against'},{id:'334',position:'against'},{id:'335',position:'abstaining'},{id:'103',position:'against'}];
-  const {bySeat}=seatBallots(voters,seats);
-  assert.equal(bySeat.size,3);
-  assert.deepEqual(unseatedDotTotals(voters,seats),{for:0,against:2,abstaining:1});
-  const totals=positionTotals(voters),drawn={for:0,against:0,abstaining:0};
-  for(const value of bySeat.values())drawn[value.position]++;
-  const dots=unseatedDotTotals(voters,seats);
-  assert.deepEqual({for:drawn.for+dots.for,against:drawn.against+dots.against,abstaining:drawn.abstaining+dots.abstaining},totals,'drawn marks add up to the recorded votes');
-});
 
 test('differing voter IDs follow the delegation rule and match differentFromMajority',()=>{
   const rows=[];
@@ -108,7 +84,7 @@ test('the all-countries row sums every country and group, and rows sort by ballo
   assert.deepEqual(sortCountryRows(table,{kind:'group',key:'NI',dir:'desc'},name).map(row=>row.country),['DE','FR','MT'],'countries without ballots for the group sort last, by name');
 });
 
-import {seatBounds,groupLabelPlacements} from './voteSeatsModel.mjs';
+import {seatBounds} from './voteSeatsModel.mjs';
 // A synthetic half-ring of three groups by angle, standing in for a chamber plan.
 const ring=(group,from,to,rows=3)=>{const out=[];for(let row=0;row<rows;row++)for(let i=0;i<=8;i++){const angle=(from+(to-from)*i/8)*Math.PI/180,radius=200+row*12;out.push({seat:out.length,x:300+radius*Math.cos(angle),y:300-radius*Math.sin(angle),r:4,group,member:1});}return out;};
 const plan=[...ring('A',170,125),...ring('B',115,65),...ring('C',55,10)].map((seat,index)=>({...seat,seat:index}));
@@ -116,32 +92,6 @@ test('seat bounds hug the drawn seats',()=>{
   const bounds=seatBounds(plan);
   assert(bounds.width<460&&bounds.width>430);assert(bounds.height<230);assert.equal(seatBounds([]),null);
 });
-test('group labels sit outside the outer edge along each group, derived from the plan',()=>{
-  const labels=groupLabelPlacements(plan,{scale:1,widthOf:()=>30});
-  assert.deepEqual(labels.map(label=>label.group).sort(),['A','B','C']);
-  const by=Object.fromEntries(labels.map(label=>[label.group,label]));
-  assert(by.A.x<by.B.x&&by.B.x<by.C.x,'labels follow the groups left to right');
-  const cx=(seatBounds(plan).minX+seatBounds(plan).maxX)/2;
-  for(const label of labels)assert(Math.hypot(label.x-cx,300-label.y)>224,'outside the seats');
-  assert.equal(by.A.anchor,'end');assert.equal(by.C.anchor,'start');
-});
-test('labels that would overlap are skipped, and an unknown scale places none',()=>{
-  const crowded=groupLabelPlacements(plan,{scale:1,widthOf:()=>700,height:300}).map(label=>label.group);
-  assert(crowded.length<3&&!crowded.includes('B'),'the top label overlaps both side labels and is skipped');
-  assert.deepEqual(groupLabelPlacements(plan,{scale:0,widthOf:()=>30}),[]);
-});
-test('a label steps outwards past other groups\' seats instead of covering them',()=>{
-  // Group D sits outside group A on the same angles, so A's own outer edge is inside D's seats.
-  const outer=[...ring('D',170,125,3)].map(seat=>({...seat,x:300+(seat.x-300)*1.1,y:300-(300-seat.y)*1.1}));
-  const behind=[...plan,...outer].map((seat,index)=>({...seat,seat:index}));
-  const width=30,height=12,labels=groupLabelPlacements(behind,{scale:1,widthOf:()=>width,height,gap:3,pad:5});
-  assert(labels.some(label=>label.group==='A'),'A is still labelled');
-  for(const label of labels) {
-    const left=label.anchor==='start'?label.x:label.anchor==='end'?label.x-width:label.x-width/2,top=label.y-height/2;
-    for(const seat of behind)assert(!(seat.x+seat.r>left&&seat.x-seat.r<left+width&&seat.y+seat.r>top&&seat.y-seat.r<top+height),'label '+label.group+' covers seat '+seat.seat);
-  }
-});
-
 import {countryFilterPressed} from './voteSeatsModel.mjs';
 test('a country filter reads as pressed only while the list shows it, and a cell only for its own position',()=>{
   const open={country:'DE',group:'ESN',position:'against'};
@@ -152,13 +102,6 @@ test('a country filter reads as pressed only while the list shows it, and a cell
   assert.equal(countryFilterPressed(open,{country:'FR',group:'ESN'}),false);
   assert.equal(countryFilterPressed({country:'DE',group:null,position:'for'},{country:'DE',group:null}),true);
 });
-test('a label carries its count line only where the taller box clears every seat',()=>{
-  const fits=groupLabelPlacements(plan,{scale:1,widthOf:()=>30,extra:12,extraWidthOf:()=>50});
-  assert.equal(fits.length,3);assert(fits.every(label=>label.withExtra),'room for every count line');
-  for(const label of fits)for(const seat of plan)assert(!(seat.x+seat.r>label.box.left&&seat.x-seat.r<label.box.right&&seat.y+seat.r>label.box.top&&seat.y-seat.r<label.box.bottom),'the taller box clears every seat');
-  assert.equal(groupLabelPlacements(plan,{scale:1,widthOf:()=>30}).every(label=>!label.withExtra),true,'no extra line unless asked for');
-});
-
 import {planGroupOrder,groupArcLayout,arcLabelPlacements,allocateRows} from './voteSeatsModel.mjs';
 test('the group order is read from where each group sits in the plan, leftmost first',()=>{
   assert.deepEqual(planGroupOrder(plan),['A','B','C']);

@@ -3,32 +3,6 @@ import {groupMajorities} from './voteGroupMetrics.mjs';
 
 const positions=['for','against','abstaining'];
 
-// A seat shows the recorded position of the Member who holds it. The join is by
-// exact person identifier only; voters without a seat in the plan stay visible
-// as dots below the chart, so the drawn marks keep adding up to the votes.
-export function seatBallots(voters,seats) {
-  const seatByMember=new Map();
-  for(const seat of seats)if(seat.member!==undefined&&seat.member!==null&&!seatByMember.has(String(seat.member)))seatByMember.set(String(seat.member),seat);
-  const bySeat=new Map(),unseated=[];
-  for(const voter of voters) {
-    if(!positions.includes(voter.position))continue;
-    const seat=seatByMember.get(String(voter.id));
-    if(seat)bySeat.set(seat.seat,{id:String(voter.id),position:voter.position});
-    else unseated.push({id:String(voter.id),position:voter.position});
-  }
-  return {bySeat,unseated};
-}
-
-export function positionTotals(voters) {
-  const totals={for:0,against:0,abstaining:0};
-  for(const voter of voters)if(positions.includes(voter.position))totals[voter.position]++;
-  return totals;
-}
-
-export function unseatedDotTotals(voters,seats) {
-  return positionTotals(seatBallots(voters,seats).unseated);
-}
-
 // The same rule as differentFromMajority: a voter differs when their group has a
 // majority position and they recorded another one. Groups without a majority and
 // groups outside the metrics (NI, unavailable) never differ.
@@ -125,51 +99,6 @@ export function seatBounds(seats) {
     minY=Math.min(minY,seat.y-seat.r);maxY=Math.max(maxY,seat.y+seat.r);
   }
   return {minX,minY,maxX,maxY,width:maxX-minX,height:maxY-minY};
-}
-
-// Group labels sit just outside the outer edge of the hemicycle, along the mean
-// direction of each group's seats. Everything derives from the plan: the centre
-// is the middle of the seats' span at their lowest line. A label is skipped when
-// it would overlap one already placed (larger groups win) at the rendered scale,
-// so a small chart shows fewer labels instead of colliding ones.
-export function groupLabelPlacements(seats,{scale,widthOf,height=12,gap=4,pad=6,extra=0,extraWidthOf=()=>0}) {
-  const bounds=seatBounds(seats);
-  if(!bounds||!(scale>0))return [];
-  const cx=(bounds.minX+bounds.maxX)/2,cy=bounds.maxY;
-  const groups=new Map();
-  for(const seat of seats) {
-    if(!seat.group)continue;
-    const dx=seat.x-cx,dy=cy-seat.y,distance=Math.hypot(dx,dy);
-    if(!distance)continue;
-    const entry=groups.get(seat.group)||{group:seat.group,count:0,ux:0,uy:0,outer:0};
-    entry.count++;entry.ux+=dx/distance;entry.uy+=dy/distance;entry.outer=Math.max(entry.outer,distance+seat.r);
-    groups.set(seat.group,entry);
-  }
-  const seatStep=bounds.width/200,placed=[];
-  // A label may carry a second line (`extra` px tall, `extraWidthOf` wide); it keeps that line only where the
-  // taller box clears every seat and every label already placed, otherwise it is the label alone.
-  const attempt=(entry,withExtra)=>{
-    const length=Math.hypot(entry.ux,entry.uy);
-    if(!length)return null;
-    const ux=entry.ux/length,uy=entry.uy/length;
-    const anchor=ux>0.35?'start':ux<-0.35?'end':'middle';
-    const w=Math.max(widthOf(entry.group),withExtra?extraWidthOf(entry.group):0)/scale,h=(height+(withExtra?extra:0))/scale,g=gap/scale;
-    // The ray can pass other groups' outer seats, so step outwards until the label clears every seat.
-    let reach=entry.outer+pad/scale,x,y,box,clear=false;
-    for(let step=0;step<40;step++,reach+=seatStep) {
-      x=cx+ux*reach;y=cy-uy*reach;
-      const left=anchor==='start'?x:anchor==='end'?x-w:x-w/2,top=y-height/2/scale;
-      box={left:left-g,right:left+w+g,top:top-g,bottom:top+h+g};
-      if(!seats.some(seat=>seat.x+seat.r>box.left&&seat.x-seat.r<box.right&&seat.y+seat.r>box.top&&seat.y-seat.r<box.bottom)){clear=true;break;}
-    }
-    if(!clear||placed.some(other=>box.left<other.box.right&&box.right>other.box.left&&box.top<other.box.bottom&&box.bottom>other.box.top))return null;
-    return {group:entry.group,x,y,anchor,box,withExtra};
-  };
-  for(const entry of [...groups.values()].sort((a,b)=>b.count-a.count||a.group.localeCompare(b.group))) {
-    const label=(extra>0?attempt(entry,true):null)||attempt(entry,false);
-    if(label)placed.push(label);
-  }
-  return placed;
 }
 
 // A country, group or cell reads as pressed only while the voter list is showing that filter:

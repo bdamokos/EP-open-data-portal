@@ -6,7 +6,6 @@ import {voteCountryName as countryName} from './voteCountryName';
 import {groupLabel,groupLabelLanguage} from './groupLabels';
 import {countryGroupBreakdown,allCountriesBreakdown,sortCountryRows,encodeMatrixSort,decodeMatrixSort,defaultMatrixSort,countryFilterPressed,type MatrixSort,type CountryBreakdownRow} from './voteSeatsModel.mjs';
 import {votePositionKeys,type VotePosition} from './votePositions';
-import {VoteBar} from './VoteResult';
 import type {VoteMetricRow} from './voteGroupMetrics.mjs';
 import {useExplorerParam} from './explorerUrl';
 import './VoteBreakdown.css';
@@ -49,7 +48,6 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
       return <li key={key} className={row.country===null?'vote-country-all':undefined} data-voter-anchor={'country:'+key}>
         <button type="button" className="vote-country-row" aria-expanded={expanded} onClick={()=>setOpen(expanded?null:key)} aria-label={ui.t('votegroups.countries.country_row',{country:label(row),for:String(row.counts.for),against:String(row.counts.against),abstaining:String(row.counts.abstaining)})}>
           <span className="vote-country-row-head"><span className="vote-chevron" aria-hidden="true"/><span className="vote-country-name" lang={labelLang(row)}>{label(row)}</span>{totalsText(row.counts)}</span>
-          <VoteBar totals={row.counts} thin/>
         </button>
         {expanded&&<ul className="vote-country-groups">
           {groups.filter(code=>row.groups.has(code)).map(code=>{const counts=row.groups.get(code)!;return <li key={code}><button type="button" aria-pressed={pressed(row.country,code)} aria-label={ui.t('votegroups.countries.group_row',{group:groupLabel(code,ui),for:String(counts.for),against:String(counts.against),abstaining:String(counts.abstaining)})} onClick={()=>choose(row.country,code)}><span lang={groupLabelLanguage(code,ui)}>{groupLabel(code,ui)}</span>{totalsText(counts)}</button></li>;})}

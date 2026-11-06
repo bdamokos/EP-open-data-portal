@@ -1,8 +1,3 @@
-export type SeatBallotVoter={id:string;position:'for'|'against'|'abstaining'};
-export type SeatBallots={bySeat:Map<number,{id:string;position:'for'|'against'|'abstaining'}>;unseated:SeatBallotVoter[]};
-export function seatBallots(voters:SeatBallotVoter[],seats:import('./hemicycleModel.mjs').HemicycleSeat[]):SeatBallots;
-export function positionTotals(voters:SeatBallotVoter[]):Record<'for'|'against'|'abstaining',number>;
-export function unseatedDotTotals(voters:SeatBallotVoter[],seats:import('./hemicycleModel.mjs').HemicycleSeat[]):Record<'for'|'against'|'abstaining',number>;
 export function differingVoterIds(rows:(import('./voteGroupMetrics.mjs').VoteMetricRow&{id?:string})[]):Set<string>;
 type Position='for'|'against'|'abstaining';
 type PositionCounts=Record<Position,number>;
@@ -18,8 +13,6 @@ export function encodeMatrixSort(sort:MatrixSort|undefined|null):string;
 export function decodeMatrixSort(raw:string):MatrixSort|null;
 export type SeatBounds={minX:number;minY:number;maxX:number;maxY:number;width:number;height:number};
 export function seatBounds(seats:import('./hemicycleModel.mjs').HemicycleSeat[]):SeatBounds|null;
-export type GroupLabel={group:string;x:number;y:number;anchor:'start'|'middle'|'end';withExtra:boolean;box:{left:number;right:number;top:number;bottom:number}};
-export function groupLabelPlacements(seats:import('./hemicycleModel.mjs').HemicycleSeat[],options:{scale:number;widthOf:(group:string)=>number;height?:number;gap?:number;pad?:number;extra?:number;extraWidthOf?:(group:string)=>number}):GroupLabel[];
 export function countryFilterPressed(selection:{country:string|null;group:string|null;position:string|null},target:{country:string|null;group:string|null;position?:string}):boolean;
 export function planGroupOrder(seats:import('./hemicycleModel.mjs').HemicycleSeat[]):string[];
 export type ArcBallot={id:string|number;group?:string|null;position:string};
