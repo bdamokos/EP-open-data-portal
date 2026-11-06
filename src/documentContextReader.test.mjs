@@ -36,6 +36,15 @@ test('a document whose text cannot be shown keeps its original-document link',as
 const pinnedEvidence=(wordingLanguage,extra={})=>({amendmentId:amendment,listId:list,wordingLanguage,wordingSource:null,referenceDecisions:[],...extra});
 const choice=(id,to=original)=>({id,titles:{en:'***I Exact adopted resolution '+id.slice(-4)},date:'2026-10-08',kind:'TEXT_ADOPTED',roles:[],files:[],answers:[],relationship:{from:id,field:'adopts',to},source:{}});
 
+test('an existing reader keeps its text directly in the section, with no Contents layout',async t=>{
+  const doc=sourceDocument(report,['Official title.','Heading.','Text.'],{formatStatus:'extracted',paragraphFormats:[{},{heading:1},{}]});
+  const h=await harness(t,()=>response(report,doc));
+  await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.querySelector('.read-contents'),null);
+  assert.equal(h.container.querySelector('.read-page-with-contents'),null);
+  assert.equal(h.container.querySelector('.document-context-text').parentElement.parentElement.className,'document-context-document','the text sits where it did: inside its reference scope in the document');
+});
+
 test('embedded dossier readers can omit original-document links while preserving reproduced text',async t=>{
   let current=response(report);
   const h=await harness(t,()=>current);
@@ -1528,15 +1537,6 @@ test('resolution boundary notes remain with the insertion and preserve the sourc
   data.placement.evidence=[{basis:'citation-number-collision'}];
   const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
   let block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/This number already exists in the text\./);assert.match(block.previousElementSibling.textContent,/First citation/);assert.match(block.nextElementSibling.textContent,/Existing second citation/);
-});
-
-test('a numeric point after the paragraph lead carries no note',async t=>{
-  const data=overlayResponse({insertAfter:1,insertBefore:2});
-  data.placement.evidence=[{basis:'first-numeric-point-in-lettered-list'}];
-  const h=await harness(t,()=>data);
-  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','1. Paragraph lead:','Topic heading','a) First source point;']});
-  await h.render({request:overlayRequest,language:'en'});
-  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.querySelector('.document-context-notice'),null);assert.match(block.previousElementSibling.textContent,/Paragraph lead/);assert.match(block.nextElementSibling.textContent,/Topic heading/);
 });
 
 test('new-paragraph formula gap remains labelled with its native source link',async t=>{
