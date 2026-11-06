@@ -17,9 +17,9 @@ export function countryFilterPressed(selection:{country:string|null;group:string
 export function planGroupOrder(seats:import('./hemicycleModel.mjs').HemicycleSeat[]):string[];
 export type ArcBallot={id:string|number;group?:string|null;position:string};
 export type ArcDot={index:number;id:string;group:string;position:Position;x:number;y:number;angle:number;row:number;radius:number};
-export function allocateRows(rowCounts:number[],totals:number[]):number[][];
 export type ArcWedge={group:string;count:number;counts:PositionCounts;start:number;end:number;angle:number;known:boolean};
-export type ArcLayout={dots:ArcDot[];wedges:ArcWedge[];dotRadius:number;rows:number;radius:number;inner?:number;gapAngle?:number;spacing?:number};
-export function groupArcLayout(ballots:ArcBallot[],options:{order:string[];radius:number;innerRatio?:number}):ArcLayout;
-export type ArcLabel={group:string;x:number;top:number;anchor:'start'|'middle'|'end';box:{left:number;right:number;top:number;bottom:number}};
-export function arcLabelPlacements(wedges:ArcWedge[],options:{radius:number;dotRadius:number;measure:(group:string)=>{w:number;h:number};gap?:number;edge?:number}):ArcLabel[];
+export type ArcLayout={dots:ArcDot[];wedges:ArcWedge[];dotRadius:number;rows:number;radius:number;inner:number;gap?:number};
+export function groupArcLayout(ballots:ArcBallot[],options:{order:string[];radius:number}):ArcLayout;
+export type WedgeLabel={group:string;x:number;y:number;alignX:string;alignY:string};
+export function wedgeLabels(wedges:ArcWedge[],options:{radius:number;dotRadius:number}):WedgeLabel[];
+export function tableGroupOrder(voteCounts:Iterable<[string,number]>,planCounts?:{group:string;count:number}[]):string[];

@@ -1,8 +1,10 @@
 import {defaultUi} from './uiDefault.mjs';
-import {memberVoteLabel,memberVoteOutcome,memberVoteTotals} from './memberVotesPresentation.mjs';
+import {memberVoteLabel,memberVoteTotals} from './memberVotesPresentation.mjs';
+import {groupMajorities} from './voteGroupMetrics.mjs';
+import {amendmentNumber as readAmendmentNumber} from './readRoute.mjs';
 
-const amendmentNumber=/-AM-(\d+(?:-\d+)?)$/;
 const withoutNames=new Set(['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']);
+const positions=['for','against','abstaining'];
 const unique=values=>[...new Set(values)];
 
 export const voteHref=(id,language='en')=>'?'+new URLSearchParams({view:'legislation','pl-mode':'vote','pl-vote':id,lang:language});
@@ -10,62 +12,168 @@ export function agendaItemHref(id,language='en') {
   const day=/^MTG-PL-\d{4}-\d{2}-\d{2}/.exec(id)?.[0];
   return '?'+new URLSearchParams({view:'legislation',...(day?{'agenda-period':'sitting:'+day}:{}),'agenda-topic':id,lang:language});
 }
+export const sittingHref=(sittingId,language='en')=>'?'+new URLSearchParams({view:'legislation','agenda-period':'sitting:'+sittingId,lang:language});
+// English dates on these pages read day, month, year.
+const dateLocale=language=>language==='en'?'en-GB':language;
+const dateText=(value,language,options)=>new Intl.DateTimeFormat(dateLocale(language),{timeZone:'Europe/Brussels',...options}).format(new Date(value.slice(0,10)+'T12:00:00Z'));
+export const longDate=(value,language='en')=>dateText(value,language,{day:'numeric',month:'long',year:'numeric'});
+export const fullDate=(value,language='en')=>{const text=dateText(value,language,{weekday:'long',day:'numeric',month:'long',year:'numeric'});return language==='en'?text.replace(',',''):text;};
+export const dayDate=(value,language='en')=>dateText(value,language,{weekday:'long',day:'numeric',month:'long'});
+export const shortDate=(value,language='en')=>dateText(value,language,{weekday:'short',day:'numeric',month:'short'});
+export const clockTime=(value,language='en')=>new Intl.DateTimeFormat(dateLocale(language),{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Europe/Brussels'}).format(new Date(value));
+
 function singleAmendment(vote) {
-  const numbers=unique((vote.context?.amendmentIds||[]).map(id=>amendmentNumber.exec(id)?.[1]).filter(Boolean));
+  const numbers=unique((vote.context?.amendmentIds||[]).map(readAmendmentNumber).filter(Boolean));
   return numbers.length===1?numbers[0]:null;
 }
 function singlePart(vote) {
   const numbers=unique((vote.parts||[]).map(part=>part.number).filter(value=>value!==null&&value!==undefined&&String(value).trim()).map(String));
   return numbers.length===1?numbers[0]:null;
 }
-const voteTally=(vote,ui)=>{const totals=memberVoteTotals(vote);return totals?ui.t('votepage.tally',{for:totals.for,against:totals.against,abstaining:totals.abstaining}):null;};
-/** A block vote names every amendment it covers, so its row uses the source label. */
-export function voteRowLabel(vote,language='en',ui=defaultUi) {
-  if(unique(vote.context?.amendmentIds||[]).length>1)return vote.referenceTexts?.[language]||vote.referenceTexts?.en||Object.values(vote.referenceTexts||{})[0]||memberVoteLabel(vote,language,ui);
-  return memberVoteLabel(vote,language,ui);
+export const voteNumbers=vote=>({n:singleAmendment(vote),p:singlePart(vote)});
+const referenceText=(vote,language)=>vote.referenceTexts?.[language]||vote.referenceTexts?.en||Object.values(vote.referenceTexts||{})[0]||null;
+
+/** One row's label. The main vote is the final vote and a block vote counts its amendments;
+ * an amendment or part names its exact reference, then the provision the source gives. */
+export function voteRowLabel(vote,language='en',ui=defaultUi,{mainVoteId=null}={}) {
+  if(vote.id===mainVoteId)return ui.t('votepage.final_vote');
+  const amendments=unique(vote.context?.amendmentIds||[]);
+  if(amendments.length>1)return ui.t('votepage.row.block',{count:amendments.length},{count:amendments.length});
+  const target=referenceText(vote,language)?.replace(/\s[–—-]\s*Am [\d/]+$/u,'')||null,{n,p}=voteNumbers(vote);
+  if(n)return target&&!/^Amendments by/.test(target)?ui.t(p?'votepage.row.part':'votepage.row.amendment',{n,p,target}):ui.t(p?'votepage.centre.part_row':'votepage.centre.amendment',{n,p});
+  if(p&&target&&!target.includes('/'))return ui.t('votepage.row.text_part',{target,p});
+  return target||memberVoteLabel(vote,language,ui);
 }
-export function voteRowResult(vote,ui=defaultUi) {
-  if(vote.ballotStatus==='not-conducted')return {text:ui.t('activityvote.not_put_to_a_vote'),label:null};
-  const totals=memberVoteTotals(vote);
-  if(totals)return {text:totals.for+'–'+totals.against+'–'+totals.abstaining,label:voteTally(vote,ui)};
-  return vote.method==='VOTE_HAND'?{text:ui.t('voteMethod.hands'),label:null}:null;
+/** The word in a row or the chart's centre. Nothing when the record holds no result. */
+export function voteOutcomeWord(vote,ui=defaultUi) {
+  if(vote.outcome==='ADOPTED')return ui.t('votepage.word.adopted');
+  if(vote.outcome==='REJECTED')return ui.t('votepage.word.rejected');
+  if(vote.outcome==='LAPSED')return ui.t('votepage.word.lapsed');
+  return vote.ballotStatus==='not-conducted'?ui.t('votepage.no_vote_held'):null;
 }
-/** The page heading: one fixed template per case. `{n}` and `{p}` come from exact
- * amendment and part references. Referral comes only from the server's exact
- * same-date procedure event, never from wording. */
-export function voteSentence(vote,{mainVoteId=null,procedureReferral=false,itemTitle=null,language='en'}={},ui=defaultUi) {
-  const conducted=vote.ballotStatus==='conducted',hands=conducted&&vote.method==='VOTE_HAND',tally=voteTally(vote,ui);
-  const noNames=conducted&&withoutNames.has(vote.method);
-  const form=tally?'tally':hands?'hands':'plain';
+/** The page's sentence: one fixed template per case. `{n}` and `{p}` come from exact amendment
+ * and part references. Referral comes only from the server's exact same-date procedure event,
+ * never from wording. A rejection's template puts the larger number first. */
+export function voteSentence(vote,{mainVoteId=null,procedureReferral=false,language='en'}={},ui=defaultUi) {
+  const totals=memberVoteTotals(vote),hands=vote.ballotStatus==='conducted'&&vote.method==='VOTE_HAND';
+  const tally=totals?{for:totals.for,against:totals.against,abstaining:totals.abstaining}:{},form=totals?'tally':hands?'hands':'plain';
+  const {n,p}=voteNumbers(vote),kind=n?(p?'part':'amendment'):null;
+  const noNames=Boolean(totals)&&withoutNames.has(vote.method);
+  const label=()=>voteRowLabel(vote,language,ui);
+  if(vote.ballotStatus==='not-conducted') {
+    const lapsed=vote.outcome==='LAPSED';
+    if(kind)return {id:'votepage.'+kind+'.'+(lapsed?'lapsed':'not_held'),values:{n,p},noNames:false};
+    return lapsed?{id:'votepage.other.lapsed',values:{label:label()},noNames:false}:{id:'votepage.no_result',values:{},noNames:false};
+  }
   const outcome=vote.outcome==='ADOPTED'?'adopted':vote.outcome==='REJECTED'?'rejected':null;
-  const n=singleAmendment(vote),p=singlePart(vote);
-  if(vote.id===mainVoteId&&itemTitle&&outcome) {
-    const referred=procedureReferral&&outcome==='adopted';
-    return {id:'votepage.main.'+(referred?'position':outcome)+'.'+form,values:{tally},item:true,noNames};
+  if(!outcome)return {id:'votepage.no_result',values:{},noNames:false};
+  if(vote.id===mainVoteId) {
+    const referred=procedureReferral&&outcome==='adopted'&&form!=='plain';
+    return {id:'votepage.main.'+(referred?'position':outcome)+'.'+form,values:{...tally,date:longDate(vote.date,language)},noNames};
   }
-  if(n) {
-    const kind=p?'part':'amendment';
-    if(vote.ballotStatus==='not-conducted')return {id:'votepage.'+kind+'.not_voted',values:{n,p},item:false,noNames:false};
-    if(outcome)return {id:'votepage.'+kind+'.'+outcome+'.'+form,values:{n,p,tally},item:false,noNames};
-  }
-  return {id:'votepage.other.'+(tally?'tally':'plain'),values:{label:voteRowLabel(vote,language,ui),outcome:memberVoteOutcome(vote,ui),tally},item:false,noNames};
+  if(kind&&form!=='plain')return {id:'votepage.'+kind+'.'+outcome+'.'+form,values:{n,p,...tally},noNames};
+  return {id:'votepage.other.'+outcome+'.'+(form==='tally'?'tally':'plain'),values:{label:label(),...tally},noNames};
 }
-/** Build the agenda's vote shape from a decision read. Current members resolve
- * through the client's directory; everyone else through the response's held names. */
-export function namedVoteFromDecision(data,directory=new Map(),nameOf=()=>null) {
-  const positions=['for','against','abstaining'];
-  const person=(id,group)=>{
-    const member=directory.get(id),held=data.people?.[id];
-    return {id,name:held?.name??(nameOf(id)||null),personUri:'https://data.europarl.europa.eu/person/'+id,currentMep:Boolean(member),country:member?.countryCode??held?.country??null,group,contributionGroup:group};
-  };
-  const decision=data.decision,recorded=data.voters.filter(voter=>voter.status==='recorded');
-  const available=Boolean(decision.namedVoters?.available)&&data.integrity!=='conflicting';
-  const groups=Object.fromEntries(positions.map(position=>[position,recorded.filter(voter=>voter.position===position).map(voter=>person(voter.personId,voter.group?.code??null))]));
-  const codes=unique(recorded.map(voter=>voter.group?.code||'unavailable')).sort();
-  return {
-    id:decision.id,date:decision.date,titles:{},subjects:{},scope:decision.scope?.kind||'unclassified',outcome:decision.outcome||'',aggregateTotals:decision.totals,
-    namedVotersAvailable:available,totalsMatchNamed:data.integrity==='complete',groups:available?groups:null,
-    politicalGroups:available?codes.map(code=>({code,positions:Object.fromEntries(positions.map(position=>[position,groups[position].filter(row=>(row.contributionGroup||'unavailable')===code)]))})):null,
-    intendedCorrections:Object.fromEntries(positions.map(position=>[position,(data.corrections?.[position]||[]).map(id=>person(id,null))])),
-  };
+/** The chart's centre: the outcome word, then the small line that says what was voted on. */
+export function voteCentre(vote,{mainVoteId=null,procedureReferral=false}={},ui=defaultUi) {
+  const {n,p}=voteNumbers(vote),word=voteOutcomeWord(vote,ui);
+  if(n&&vote.id!==mainVoteId)return {word,small:p?ui.t('votepage.centre.part',{n,p}):ui.t('votepage.centre.amendment',{n}),smallLanguage:ui.language};
+  if(vote.id===mainVoteId&&procedureReferral&&vote.outcome==='ADOPTED')return {word,small:ui.t('votepage.centre.referral'),smallLanguage:ui.language};
+  const small=typeof vote.title==='string'?vote.title.split(' – ').at(-1).trim():'';
+  return {word,small:small||null,smallLanguage:vote.titleLanguage??''};
+}
+/** Named voters as flat rows. Current members resolve through the client's directory; everyone
+ * else through the response's held names. A conflicting record has no single position to show. */
+export function decisionVoterRows(data,directory=new Map(),nameOf=()=>null) {
+  if(!data.decision?.namedVoters?.available||data.integrity==='conflicting')return [];
+  return data.voters.filter(voter=>voter.status==='recorded').map(voter=>({...decisionPerson(data,voter.personId,directory,nameOf),group:voter.group?.code??'unavailable',position:voter.position}));
+}
+function decisionPerson(data,id,directory,nameOf) {
+  const member=directory.get(id),held=data.people?.[id];
+  return {id,name:held?.name??(nameOf(id)||null),country:member?.countryCode??held?.country??null};
+}
+/** Everyone who appears in Find a member: the voters, then members with no vote on record. */
+export function findableMembers(rows,noRecord,data,directory=new Map(),nameOf=()=>null) {
+  const absent=(noRecord?.ids||[]).map((id,index)=>({...decisionPerson(data,id,directory,nameOf),group:noRecord.groups?.[index]??'unavailable',position:null}));
+  return [...rows,...absent].filter(row=>row.name);
+}
+const folded=value=>String(value||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLocaleLowerCase();
+/** An exact name wins; otherwise the first name containing what was typed, from two letters. */
+export function findMember(people,query) {
+  const wanted=folded(query).trim();
+  if(wanted.length<2)return null;
+  return people.find(person=>folded(person.name)===wanted)||people.find(person=>folded(person.name).includes(wanted))||null;
+}
+export function groupCountsOf(rows) {
+  const counts=new Map();
+  for(const row of rows) {
+    const code=row.group||'unavailable';
+    if(!counts.has(code))counts.set(code,{for:0,against:0,abstaining:0,total:0});
+    const entry=counts.get(code);entry[row.position]++;entry.total++;
+  }
+  return counts;
+}
+/** A group's strict most common position, for bolding; a tie has none. */
+export function groupLead(counts) {
+  const ranked=[...positions].sort((a,b)=>counts[b]-counts[a]);
+  return counts[ranked[0]]&&counts[ranked[0]]!==counts[ranked[1]]?ranked[0]:null;
+}
+/** The way line: groups by their majority, from `groupMajorities`, in table order. NI is excluded
+ * and a tied group goes under Split. */
+export function wayLine(rows,order) {
+  const majorities=new Map(groupMajorities(rows).map(group=>[group.code,group.majority]));
+  const way={for:[],against:[],abstaining:[],split:[]};
+  for(const code of order)if(majorities.has(code))way[majorities.get(code)||'split'].push(code);
+  return way;
+}
+const surname=name=>folded(String(name||'').trim().split(/\s+/).at(-1));
+const byName=(a,b)=>surname(a.name).localeCompare(surname(b.name))||folded(a.name).localeCompare(folded(b.name))||String(a.id).localeCompare(String(b.id),undefined,{numeric:true});
+/** Everyone by group in table order, minority positions first, names by surname. */
+export function membersByGroup(rows,order) {
+  const counts=groupCountsOf(rows);
+  return order.filter(code=>counts.has(code)).map(code=>{
+    const lead=groupLead(counts.get(code)),people=rows.filter(row=>(row.group||'unavailable')===code);
+    return {code,positions:[...positions].sort((a,b)=>(a===lead)-(b===lead)||positions.indexOf(a)-positions.indexOf(b)).map(position=>({position,people:people.filter(row=>row.position===position).sort(byName)})).filter(entry=>entry.people.length)};
+  });
+}
+/** Members who differ from their group, by group in table order, each position's names by surname. */
+export function differingByGroup(rows,differIds,order) {
+  return order.flatMap(code=>{
+    const people=rows.filter(row=>(row.group||'unavailable')===code&&differIds.has(String(row.id)));
+    return people.length?[{code,count:people.length,positions:positions.map(position=>({position,people:people.filter(row=>row.position===position).sort(byName)})).filter(entry=>entry.people.length)}]:[];
+  });
+}
+const hasCount=vote=>positions.every(position=>Number.isFinite(vote.totals?.[position]));
+/** Votes on an item in the page's sections, main vote first in its own section. A row with a count
+ * is Counted; a vote not held is Lapsed, or No vote held when Parliament's outcome isn't lapsed. */
+export function itemVoteSections(votes,mainVoteId=null) {
+  const counted=[],hands=[],lapsed=[],notHeld=[];
+  const ordered=[...votes].sort((a,b)=>(a.id!==mainVoteId)-(b.id!==mainVoteId));
+  for(const vote of ordered) {
+    if(hasCount(vote))counted.push(vote);
+    else if(vote.ballotStatus==='not-conducted')(vote.outcome==='LAPSED'?lapsed:notHeld).push(vote);
+    else hands.push(vote);
+  }
+  return [{key:'counted',votes:counted},{key:'hands',votes:hands},{key:'lapsed',votes:lapsed},{key:'not_held',votes:notHeld}].filter(section=>section.votes.length);
+}
+/** Previous and next follow the order the Votes on this item fold shows. */
+export function voteSteps(votes,mainVoteId,id) {
+  const flat=itemVoteSections(votes,mainVoteId).flatMap(section=>section.votes),index=flat.findIndex(vote=>vote.id===id);
+  return {previous:index>0?flat[index-1].id:null,next:index>=0&&index<flat.length-1?flat[index+1].id:null};
+}
+/** An old agenda address with a chosen vote now belongs to the vote page. */
+export function agendaVoteRedirect(search) {
+  const params=new URLSearchParams(search),vote=params.get('agenda-vote');
+  if(!vote||!params.get('agenda-topic')||!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(vote))return null;
+  return voteHref(vote,params.get('lang')||'en');
+}
+/** The wording for a plain amendment page. A number prefix up to the first tab is not the text.
+ * The provision keeps the source's case, except an English label's sentence-initial capital. */
+export function voteAmendmentWording(variants,vote,ui=defaultUi) {
+  const held=(variants||[]).filter(variant=>variant?.wordingStatus==='available'&&typeof variant.proposedText==='string'&&variant.proposedText.trim());
+  if(!held.length)return {state:'none'};
+  if(new Set(held.map(variant=>variant.language+'\n'+variant.proposedText)).size>1)return {state:'versions'};
+  const variant=held[0],{n}=voteNumbers(vote),target=typeof variant.targetLabel==='string'?variant.targetLabel.trim():'';
+  const provision=target&&variant.targetLabelLanguage==='en'?target[0].toLocaleLowerCase('en')+target.slice(1):target;
+  return {state:'text',language:variant.language||'',text:variant.proposedText.replace(/^[^\t]{0,12}\t/,''),heading:provision?ui.t('votepage.amendment_provision',{n,provision}):ui.t('votepage.centre.amendment',{n})};
 }

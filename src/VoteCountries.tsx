@@ -16,7 +16,7 @@ const allKey='*';
 
 export function VoteCountries({rows,language,country,group,position,onChoose}:Props) {
   const ui=useUiI18n(),narrow=useNarrow();
-  const [rawSort,setRawSort]=useExplorerParam<string>('agenda-country-sort','');
+  const [rawSort,setRawSort]=useExplorerParam<string>('vote-country-sort','');
   const sort=decodeMatrixSort(rawSort)||{...defaultMatrixSort} as MatrixSort;
   const [open,setOpen]=useState<string|null>(null);
   const breakdown=useMemo(()=>countryGroupBreakdown(rows),[rows]);
@@ -36,7 +36,7 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
     const dir=same?(sort.dir==='asc'?'desc':'asc'):(kind==='country'?'asc':'desc');
     setRawSort(encodeMatrixSort(kind==='group'?{kind,key:key!,dir}:{kind,dir}));
   };
-  const heading=<div className="vote-countries-head"><h4><UiMessage id="votegroups.countries.heading"/></h4>{encodeMatrixSort(sort)!==''&&<button type="button" className="insight-text-button" onClick={()=>setRawSort('')}><UiMessage id="votegroups.countries.reset"/></button>}</div>;
+  const heading=encodeMatrixSort(sort)!==''?<div className="vote-countries-head"><button type="button" className="insight-text-button" onClick={()=>setRawSort('')}><UiMessage id="votegroups.countries.reset"/></button></div>:null;
   const totalsText=(counts:Record<VotePosition,number>)=><span className="vote-country-totals">{votePositionKeys.map((p,i)=><span key={p} className={'vote-'+p}>{i?' · ':''}{counts[p]}</span>)}</span>;
   const label=(row:CountryBreakdownRow)=>row.country===null?ui.t('votegroups.countries.clear'):countryName(row.country,language);
   const labelLang=(row:CountryBreakdownRow)=>row.country===null?ui.language:language;
