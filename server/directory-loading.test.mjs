@@ -220,6 +220,7 @@ test('the directory labels current national parties from retained body records o
   await odpDirectory();const first=await until(async()=>{const d=await odpDirectory();return d.index.complete&&d;});
   const statuses=first.members.find(m=>m.id===50).organizationMemberships.map(r=>[r.id,r.current]);
   await save('/corporate-bodies/6831',{},[party(6831,{label:'PL2'})]);
+  await save('/corporate-bodies/6834',{},[parties[3]]);
   const same=(await odpDirectory()).parties;
   const realNow=Date.now;Date.now=()=>realNow()+11*60*1000;
   const later=(await odpDirectory()).parties;
@@ -229,6 +230,8 @@ test('the directory labels current national parties from retained body records o
  assert.deepEqual(out.statuses,[['6832',false],['6831',true]],'retained bounds end the predecessor membership');
  assert.equal(out.same[6831],'PL','labels are not reread within ten minutes');
  assert.equal(out.later[6831],'PL2','a changed retained record is picked up later');
+ assert.equal(out.same[6834],undefined,'an unretained body is not probed again within ten minutes');
+ assert.equal(out.later[6834],'Not retained');
  assert.equal(out.bodyReads,0,'labels never fetch a body');
 });
 

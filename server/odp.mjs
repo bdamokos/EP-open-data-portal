@@ -1016,15 +1016,14 @@ async function retainNationalParties() {
     const body=record?.payload.data.length===1?record.payload.data[0]:null;
     const label=body&&String(body.identifier)===id&&typeof body.label==='string'?body.label.trim():'';
     if(record)rememberOrganizationBody(key,record);
-    if(label)partyLabels.set(id,{label,checked:now});
-    else partyLabels.delete(id);
+    partyLabels.set(id,{label:label||null,checked:now});
     if(partyLabels.size>MAX_CACHE_ENTRIES)partyLabels.delete(partyLabels.keys().next().value);
   }));
 }
 function nationalParties(members) {
   const parties={};
   for(const member of members)for(const row of member.organizationMemberships??[])
-    if(row.classification==='NATIONAL_POLITICAL_GROUP'&&row.current===true&&partyLabels.has(row.id))parties[row.id]=partyLabels.get(row.id).label;
+    if(row.classification==='NATIONAL_POLITICAL_GROUP'&&row.current===true&&partyLabels.get(row.id)?.label)parties[row.id]=partyLabels.get(row.id).label;
   return parties;
 }
 export async function odpDirectory({retryCommitteeDetails=false}={}) {
