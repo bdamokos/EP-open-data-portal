@@ -14,3 +14,4 @@ export type SeatBounds={minX:number;minY:number;maxX:number;maxY:number;width:nu
 export function seatBounds(seats:import('./hemicycleModel.mjs').HemicycleSeat[]):SeatBounds|null;
 export type GroupLabel={group:string;x:number;y:number;anchor:'start'|'middle'|'end';box:{left:number;right:number;top:number;bottom:number}};
 export function groupLabelPlacements(seats:import('./hemicycleModel.mjs').HemicycleSeat[],options:{scale:number;widthOf:(group:string)=>number;height?:number;gap?:number;pad?:number}):GroupLabel[];
+export function countryFilterPressed(selection:{country:string|null;group:string|null;position:string|null},target:{country:string;group:string|null;position?:string}):boolean;

@@ -108,3 +108,14 @@ test('a label steps outwards past other groups\' seats instead of covering them'
     for(const seat of behind)assert(!(seat.x+seat.r>left&&seat.x-seat.r<left+width&&seat.y+seat.r>top&&seat.y-seat.r<top+height),'label '+label.group+' covers seat '+seat.seat);
   }
 });
+
+import {countryFilterPressed} from './voteSeatsModel.mjs';
+test('a country filter reads as pressed only while the list shows it, and a cell only for its own position',()=>{
+  const open={country:'DE',group:'ESN',position:'against'};
+  assert.equal(countryFilterPressed(open,{country:'DE',group:'ESN',position:'against'}),true);
+  assert.equal(countryFilterPressed({...open,position:'for'},{country:'DE',group:'ESN',position:'against'}),false,'list switched to another position');
+  assert.equal(countryFilterPressed({...open,position:'for'},{country:'DE',group:'ESN'}),true,'row buttons do not depend on position');
+  assert.equal(countryFilterPressed({...open,position:null},{country:'DE',group:'ESN'}),false,'list hidden');
+  assert.equal(countryFilterPressed(open,{country:'FR',group:'ESN'}),false);
+  assert.equal(countryFilterPressed({country:'DE',group:null,position:'for'},{country:'DE',group:null}),true);
+});

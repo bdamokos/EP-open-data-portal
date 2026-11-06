@@ -243,7 +243,7 @@ export class LegislationInsights {
         } catch(error){voteCoverage.error=error.message;gaps.push({source:'named roll-calls',message:error.message,sourceError:true});}
       }
       const selectedVote=query.vote?votes.find(v=>v.id===query.vote):votes[0]||null;
-      if(query.vote&&!selectedVote)throw new HttpError(404,'vote_not_found','That roll-call is not joined to this agenda topic.');
+      if(query.vote&&!selectedVote)throw new HttpError(404,'vote_not_found','That vote is not joined to this agenda topic.');
       detail={...localize(topic),phase,procedures,committeeWork:[...new Map(committeeWork.map(e=>[e.id,e])).values()].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12),roles,speeches,people,amendments:{...amendments,counts:Object.fromEntries(people.map(person=>[person.id,amendments.counts[person.id]??null])),countsByStage:Object.fromEntries(people.map(person=>[person.id,amendments.countsByStage[person.id]||{committee:null,plenary:null}]))},stats:{...demographicStats(participantIds,members,metadata,sitting.activity_date),groupContributions:groupContributions([...amendments.authorIds.map(id=>({id,date:amendments.authorDates[id]})),...roles.map(r=>({id:r.id,date:r.date})),...participationRows.map(r=>({id:String(r.mepId),date:r.date}))],groupOn)},
         votes:votes.map(v=>({id:v.id,date:v.date,title:displayTitle(v.titles,query.language,v.id),subject:displayTitle(v.subjects,query.language,null),scope:v.scope,outcome:v.outcome,method:v.method,decidedDocumentIds:v.decidedDocumentIds,namedVotersAvailable:v.namedVotersAvailable,aggregateTotals:v.aggregateTotals,uniqueNamedVoters:v.uniqueNamedVoters})),
         selectedVote,finalVotePatterns:finalVotePatterns(votes,members,metadata,groupOn),voteCoverage,

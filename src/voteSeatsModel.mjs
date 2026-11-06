@@ -139,3 +139,11 @@ export function groupLabelPlacements(seats,{scale,widthOf,height=12,gap=4,pad=6}
   }
   return placed.map(({box,...label})=>({...label,box}));
 }
+
+// A country, group or cell reads as pressed only while the voter list is showing that filter:
+// the list shown (position not null), the same country and group, and for a cell the same position.
+export function countryFilterPressed(selection,target) {
+  if(selection.position===null)return false;
+  if(selection.country!==target.country||selection.group!==target.group)return false;
+  return target.position===undefined||selection.position===target.position;
+}

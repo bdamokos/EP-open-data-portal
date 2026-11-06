@@ -2398,6 +2398,7 @@
   "votegroups.result.method.VOTE_HAND": "Show of hands",
   "votegroups.result.method.VOTE_ELECTRONIC": "Electronic vote",
   "votegroups.texts.other": "Other texts ({count})",
+  "votegroups.texts.all": "Texts ({count})",
   "votegroups.picker.ordinal": "{number} of {count}",
   "votegroups.countries.short.greens": "Greens",
   "votegroups.countries.short.left": "Left",

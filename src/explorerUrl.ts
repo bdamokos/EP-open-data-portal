@@ -39,3 +39,10 @@ export function useExplorerParam<T extends string|number|null>(key:string,fallba
   },[key,fallback,storage]);
   return [value,set] as const;
 }
+
+// A vote change drops the previous vote's voter filters. The change itself is already one Back/Forward
+// step, so clearing rewrites that entry: a second push would leave stale filters behind Back and cut Forward.
+export const voterParamKeys=['agenda-voters','agenda-voters-position','agenda-voters-group','agenda-voters-country'] as const;
+export function clearVoterParams() {
+  updateExplorerQuery(url=>{for(const key of voterParamKeys)url.searchParams.delete(key);},true);
+}
