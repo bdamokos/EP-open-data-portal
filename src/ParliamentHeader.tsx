@@ -47,7 +47,15 @@ function useStackedDestinations(language:string,items:string) {
 
 type ExplorerView = 'legislation' | 'questions' | 'geopolitics' | 'outside' | 'amendments' | 'groups' | 'hemicycle';
 
-export function ParliamentHeader({view,onHome,onMembers,onNavigate,onSaved,onLanguageChange,language='en',search=true}: {
+// The site title returns to the bare URL, keeping the language and global search.
+export function goHome() {
+  const url=new URL(location.href);
+  url.search=new URLSearchParams([...url.searchParams].filter(([key])=>key==='lang'||key.startsWith('global-fts-'))).toString();
+  url.hash='';
+  if(url.href!==location.href){history.pushState(history.state,'',url);window.dispatchEvent(new Event('popstate'));}
+}
+
+export function ParliamentHeader({view,onHome=goHome,onMembers,onNavigate,onSaved,onLanguageChange,language='en',search=true}: {
   view: 'home' | 'members' | ExplorerView | 'saved';
   onHome?: () => void;
   onMembers: () => void;

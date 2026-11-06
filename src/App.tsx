@@ -28,6 +28,7 @@ import {lazyView} from './lazyView';
 import {filterCountry,matchesCountry} from './countries.mjs';
 import {explorerParams,useExplorerParam} from './explorerUrl';
 import {isHomeQuery} from './homeModel.mjs';
+import {goHome} from './ParliamentHeader';
 import {compareMembers} from './memberOrder.mjs';
 import {SpeechCloud} from './SpeechCloud';
 import {FindInText,TextSearch} from './TextSearch';
@@ -493,7 +494,7 @@ export default function App() {
   const [organizationName,setOrganizationName]=useState(()=>initial.get('organization-name')?.slice(0,512)||'');
   const [committee, setCommittee] = useState(initial.get("committee") || "");
   const [role, setRole] = useState(() => queryRole(initial));
-  const [country, setCountry] = useState(initial.get("view") ? "" : filterCountry(initial.get("country")));
+  const [country, setCountry] = useState(memberWallView(initial.get("view")) ? filterCountry(initial.get("country")) : "");
   const [group, setGroup] = useState(initial.get("group") || "");
   const [search, setSearch] = useState("");
   const [speechLink, setSpeechLink] = useState(initial.get("speech"));
@@ -506,10 +507,10 @@ export default function App() {
   const [tab, setTab] = useState(
     publicMemberModule(initial.get('module')),
   );
-  // Home owns the bare URL only; the explorer-query-change event covers
-  // param writes that do not change the view or member state.
+  // Home owns the bare URL only; history restores update this with the rest of
+  // the restored state, and explorer-query-change covers param writes.
   const [querySearch,setQuerySearch]=useState(()=>location.search);
-  useEffect(()=>{const update=()=>setQuerySearch(location.search);window.addEventListener('popstate',update);window.addEventListener('explorer-query-change',update);return()=>{window.removeEventListener('popstate',update);window.removeEventListener('explorer-query-change',update);};},[]);
+  useEffect(()=>{const update=()=>setQuerySearch(location.search);window.addEventListener('explorer-query-change',update);return()=>window.removeEventListener('explorer-query-change',update);},[]);
   const currentQuery=useMemo(()=>new URLSearchParams(querySearch),[querySearch]);
   const homeVisible=!view&&!member&&isHomeQuery(currentQuery);
   const votes=useMemberVotesJourney(member,!view&&Boolean(member)&&tab==='votes',initial);
@@ -715,6 +716,8 @@ export default function App() {
       const redirect=emptyDossierRedirect(new URLSearchParams(location.search));if(redirect)history.replaceState(history.state,'',redirect+location.hash);
       pendingDestination.current=null;
       setRestoration(value=>value+1);
+      // Same batch as the rest of the restored state: a separate popstate listener would render the new URL with the old member.
+      setQuerySearch(location.search);
       const query=new URLSearchParams(location.search),next=query.get('view');
       const restored=explorerViewFromQuery(query);
       setLang(queryLanguage(query));setRole(queryRole(query));setOrganization(organizationId(query.get('organization')));setOrganizationName(query.get('organization-name')?.slice(0,512)||'');
@@ -770,10 +773,7 @@ export default function App() {
   const showHome = () => {
     votes.remember();
     motions.remember();
-    const url=new URL(location.href);
-    url.search=new URLSearchParams([...url.searchParams].filter(([key])=>key==='lang'||key.startsWith('global-fts-'))).toString();
-    url.hash='';
-    if(url.href!==location.href){history.pushState(history.state,'',url);window.dispatchEvent(new PopStateEvent('popstate'));}
+    goHome();
   };
   const openOrganization=(id:string,name:string)=>{
     votes.remember();motions.remember();memberStep.current=true;

@@ -170,6 +170,15 @@ test('Home does not load or mount the directory; opening the MEPs view does',asy
   assert(h.container.querySelector('.explorer-wall [data-member-id]'));
 });
 
+test('the site title returns to Home from every main view, keeping only language and search',async t=>{
+  const h=await harness(t,'?view=questions&lang=hu&global-fts-search=x&role=both');
+  const brand=h.container.querySelector('.parliament-brand');
+  assert.equal(brand.tagName,'A');
+  await h.click(brand);
+  assert(h.container.querySelector('.home'));
+  assert.deepEqual([...new URL(location.href).searchParams].sort(),[['global-fts-search','x'],['lang','hu']]);
+});
+
 test('old amendment URLs fall back without exposing or requesting the catalogue',async t=>{
   for(const query of ['?view=amendments&am-document=A-10-2026-0254&am-procedure=2025%2F0407(COD)','?member=257043&module=amendments&am-member=257043'])await t.test(query,async t=>{
     const h=await harness(t,query);

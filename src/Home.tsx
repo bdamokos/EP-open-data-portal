@@ -47,7 +47,7 @@ const goTo=(search:string)=>{
   const url=new URL(location.href);
   url.search=search;url.hash='';
   history.pushState(history.state,'',url);
-  window.dispatchEvent(new PopStateEvent('popstate'));
+  window.dispatchEvent(new Event('popstate'));
 };
 
 function FindMeps({language}:{language:string}) {
