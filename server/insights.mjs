@@ -23,6 +23,7 @@ import {odp,agendaCacheRevision,agendaCacheRevisionIsDurable} from './odp.mjs';
 import {MeetingsReader} from './meetings-reader.mjs';
 import {recentPlenaryWeeks} from './plenary-warmup.mjs';
 import {requestSignal,waitForRequest} from './request-budget.mjs';
+import {WEEK_RESULTS_VERSION,weekResultsQuery,weekResults} from './week-results.mjs';
 import {agendaViewFreshMs,nextPlenaryWarmup,PLENARY_REFRESH_MS} from './plenary-cache-policy.mjs';
 
 // Root integration supplies its already-owned store; this module never starts a worker.
@@ -135,6 +136,7 @@ export function createInsights(store,options={}) {
     if(view==='topic-trends')return topicTrends.query(topicTrendsQuery(searchParams,{now:clock()}));
     if(view==='saved')return savedStates(store,savedQuery(searchParams));
     if(view==='participation'){const query=participationQuery(searchParams),generation=store.status().servingGeneration,key=[INSIGHTS_VERSION,LEGISLATION_VIEW_VERSION,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,brusselsDay(clock()),query,await agendaCacheRevision()];return views.get(key,()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}),{persist:()=>agendaCacheRevisionIsDurable(key.at(-1))});}
+    if(view==='week-results'){const query=weekResultsQuery(searchParams);return views.get([WEEK_RESULTS_VERSION,view,query.week,brusselsDay(clock())],()=>weekResults(query,{clock,votes:options.memberVotes,periods:options.votePeriods}));}
     if(!['questions','legislation'].includes(view))throw new HttpError(404,'insight_not_found','Unknown insight view.');
     const query=insightQuery(searchParams,{kind:view,now:options.clock?.()??Date.now()});
     const catalogue=view==='legislation'&&isLatest(query)?await legislation.catalogue():null;
