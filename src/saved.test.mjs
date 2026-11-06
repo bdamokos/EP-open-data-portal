@@ -165,6 +165,17 @@ test('a record found later on another follow arrives read, while a later answer 
  store.observe({questions:[{id:question.id,status:'available',revision:'two',answers:[{id:answerId},{id:'E-10-2026-003031-ASW3'}]}]});
  assert.deepEqual(unread(store,question.id),['E-10-2026-003031-ASW3']);
 });
+test('opened records outlast history compaction and reloads, then expire',t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const disk=storage(),ids=Array.from({length:6},(_,i)=>'E-10-2026-00000'+i),store=sharedStore(disk,[]),rows=ids.map(id=>[id,0,6]);
+ store.materialize(detail(rows,[],{member:'42'}));for(const id of ids)store.markEntryRead('mep:42','activity',id);
+ assert.equal(followed(store,'42').entries.length,5);
+ const reloaded=createSavedStore(disk),current={...manifest(6),members:{42:[6,6,1,1],43:[6,6,1,1]}};reloaded.applyManifest(current);
+ reloaded.materialize(detail(rows,[],{member:'43'}));assert.deepEqual(unread(reloaded,'43'),[]);
+ now+=31*24*3600_000;
+ createSavedStore(disk).publish();
+ assert.deepEqual(JSON.parse(disk.getItem(SAVED_KEY)).openedRecords,{});
+});
 test('question revision signals expire without refreshing, clear on open, and new revisions signal again',t=>{
  let now=1000;t.mock.method(Date,'now',()=>now);const store=createSavedStore(storage());store.toggle({...question,baseline:{revision:'old',answerIds:[]}});
  const observe=revision=>store.observe({questions:[{id:question.id,status:'available',revision,answers:[]}]});observe('new');assert.equal(item(store).changedAt,1000);
