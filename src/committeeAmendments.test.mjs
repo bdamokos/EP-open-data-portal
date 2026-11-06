@@ -109,7 +109,7 @@ test('committee cards retain list identities, public sources, empty edits and se
   await h.render(el('div',null,el(AmendmentCard,{item:amendment,language:'en'}),el(AmendmentCard,{item:joint,language:'en'})));
   const cards=h.container.querySelectorAll('.explorer-amendment-card');assert.equal(cards.length,2);assert.notEqual(cards[0].id,cards[1].id);
   assert.match(cards[0].textContent,/Committee amendment · AGRI · Draft report/);assert.match(cards[0].textContent,/Document date/);assert.match(cards[1].textContent,/CJ61 · Draft opinion/);assert.match(cards[1].textContent,/Committee decision · Whole amendment/);
-  assert.equal(cards[1].querySelector('.explorer-amendment-context'),null);assert.equal(cards[0].querySelector('.explorer-amendment-context').open,false);
+  assert.equal(cards[1].querySelector('.explorer-amendment-context'),null);assert.equal(new URL(cards[0].querySelector('.explorer-amendment-context a').href).searchParams.get('pl-mode'),'read');
   assert.equal(cards[1].querySelectorAll('ins').length,1);assert.equal(h.calls.length,0);
   const links=[...h.container.querySelectorAll('a')].map(a=>a.href);assert(!links.includes('https://www.europarl.europa.eu/doceo/document/CJ61-AM-778402_EN.html'));assert(links.every(href=>!href.includes('data.europarl')));
   assert(!h.container.textContent.includes(amendment.id));assert.doesNotMatch(h.container.textContent,/Made it into law|Survived|Successful amendment|Final text|fetchedAt|2026-10-30T/);
@@ -160,13 +160,9 @@ test('contribution filters preserve the exact speech reader and committee work l
   assert.equal(h.container.querySelector('.insight-speech-panel'),reader);
 });
 
-test('committee context opens lazily with exact typed identity and restores disclosure focus',async t=>{
-  const h=await harness(t,url=>{
-    assert(url.pathname.endsWith('/document-context/'+target));
-    return Response.json({version:42,documentId:target,requestedLanguage:'en',requestedWordingLanguage:'en',document:null,amendment:{id:amendment.id,status:'unavailable',variants:[],gaps:[]},target:{status:'unavailable',paragraphs:[]},related:{status:'not-requested',items:[],gaps:[]},sources:[]});
-  }),{AmendmentCard}=await h.load('/src/Amendments.tsx');
+test('committee context links to the reader with its exact typed identity',async t=>{
+  const h=await harness(t,()=>{assert.fail('the card itself reads no document');}),{AmendmentCard}=await h.load('/src/Amendments.tsx');
   await h.render(el(AmendmentCard,{item:amendment,language:'en'}));assert.equal(h.calls.length,0);
-  const summary=h.container.querySelector('.explorer-amendment-context summary');await act(async()=>summary.click());await waitFor(()=>h.container.querySelector('.document-context-back'));
-  const query=h.calls[0].searchParams;assert.equal(query.get('scope'),'committee');assert.equal(query.get('amendment'),amendment.id);assert.equal(query.get('list'),list);assert.equal(query.get('wording-lang'),'en');
-  await act(async()=>h.container.querySelector('.document-context-back').click());assert.equal(h.container.querySelector('.explorer-amendment-context').open,false);assert.equal(document.activeElement,summary);
+  const query=new URL(h.container.querySelector('.explorer-amendment-context a').href).searchParams;
+  assert.equal(query.get('read-doc'),target);assert.equal(query.get('read-amendment'),amendment.id);assert.equal(query.get('read-list'),list);assert.equal(query.get('read-lang'),'en');
 });

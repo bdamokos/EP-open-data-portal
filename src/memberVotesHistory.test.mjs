@@ -85,6 +85,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
       const payload={documentId:id,requestedLanguage:url.searchParams.get('lang')||'en',...(url.searchParams.has('wording-lang')?{requestedWordingLanguage:url.searchParams.get('wording-lang')==='unknown'?null:url.searchParams.get('wording-lang')}:{}),document:contextDocument(id),related:{status:'available',items:choices,gaps:[]},amendment:{id:AMENDMENT,status:'available',variants:[{listId:LIST,language:'en',wordingStatus:'available',targetLabel:null,originalText:'Original',proposedText:'Proposed',authors:[]}]}};
       return contextResponse?.(url,payload)??Response.json(payload);
     }
+    if(url.pathname==='/api/amendment-neighbours')return Response.json({version:1,amendmentId:url.searchParams.get('amendment'),listId:url.searchParams.get('list'),outcome:null,authors:[],committeeProposer:null,proposerLanguage:null,onBehalfOf:null,previous:null,next:null});
     if(url.pathname.startsWith('/api/qa-cache/'))return Response.json({id:url.pathname.split('/').at(-1)});
   if(url.pathname==='/api/insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
@@ -132,6 +133,9 @@ for(const blocked of [false,true])test('vote navigation preserves an older close
   assert.deepEqual(JSON.parse(params().get('mv-expanded')),[SUBJECT]);
 });
 
+const readLink=container=>[...container.querySelectorAll('a')].find(item=>item.textContent.trim()==='Read in context');
+// An entry saved before amendments had their own page still opens inside the Votes tab.
+const earlierContext=detail=>new URL(detail).search.slice(1)+'&mv-document='+DOCUMENT+'&mv-view=document&mv-amendment='+AMENDMENT+'&mv-list='+LIST+'&mv-wording-lang=en';
 test('Votes is public; canonical pinning replaces, every user navigation pushes once and MEP searches survive',async t=>{
   const search='&mep-speech-fts-search=transport&mep-activity-fts-search=rail&global-fts-search=climate&ma-document=B-10-2026-0001&ma-view=document';
   const h=await harness(t,'member=1&module=votes&lang=en'+search),length=history.length;
@@ -233,19 +237,32 @@ test('decision and exact wording context survive Back/Forward without selecting 
   await h.click(h.container.querySelector('.member-votes-subject h3 button'));
   await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
   const detail=location.href,length=history.length;
-  await h.click(button(h.container,'Read in context'));
+  const votesRead=()=>h.requests.filter(url=>url.pathname.startsWith('/api/member-votes/')).length,before=votesRead();
+  await h.click(readLink(h.container));
   assert.equal(history.length,length+1);
-  assert.equal(params().get('mv-decision'),decision(2));assert.equal(params().get('mv-document'),DOCUMENT);
-  assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);assert.equal(params().get('mv-view'),'document');
-  assert.equal(params().get('mv-wording-lang'),'en');
+  assert.equal(params().get('pl-mode'),'read');assert.equal(params().get('read-doc'),DOCUMENT);assert.equal(params().get('member'),null);
+  assert.equal(params().get('read-amendment'),AMENDMENT);assert.equal(params().get('read-list'),LIST);assert.equal(params().get('read-lang'),'en');
   assert.match(h.container.querySelector('.document-context-reader').textContent,/Synthetic context body/);
   assert(h.requests.some(url=>url.pathname==='/api/document-context/'+DOCUMENT&&url.searchParams.get('list')===LIST&&url.searchParams.get('amendment')===AMENDMENT));
+  assert.equal(votesRead(),before,'the reader needs no voting record');
   const context=location.href;
+  assert.equal(new URL(h.container.querySelector('.read-page-back').href).href,detail);
   await h.go(-1);assert.equal(location.href,detail);assert(h.container.querySelector('.member-votes-detail'));
-  await h.go(1);assert.equal(location.href,context);assert(h.container.querySelector('.document-context-back'));
+  await h.go(1);assert.equal(location.href,context);assert(h.container.querySelector('.read-page-bar'));
   await h.restore('member=1&module=votes&mv-week='+WEEK+'&mv-decision='+decision(999));
   assert.equal(params().get('mv-decision'),decision(999));assert.match(h.container.textContent,/requested decision is unavailable/);
   assert.equal(h.container.querySelector('.member-votes-detail'),null);
+});
+
+test('an old amendment link opens the reader and Back returns to the expanded vote',async t=>{
+  const origin='member=1&module=votes&lang=en&mv-week='+WEEK+'&mv-positions=all&mv-decision='+decision(2)+'&mv-snapshot='+SNAPSHOT+'&mv-expanded='+encodeURIComponent(JSON.stringify([SUBJECT]));
+  const h=await harness(t,origin+'&mv-document='+DOCUMENT+'&mv-view=document&mv-amendment='+AMENDMENT+'&mv-list='+LIST+'&mv-wording-lang=en');
+  assert.equal(params().get('pl-mode'),'read');assert.equal(params().get('read-amendment'),AMENDMENT);assert.equal(params().get('read-list'),LIST);assert.equal(params().get('read-lang'),'en');
+  assert(h.container.querySelector('.read-page-bar'));assert.equal(h.requests.filter(url=>url.pathname.startsWith('/api/member-votes/')).length,0);
+  assert.equal(history.length,2);
+  await h.go(-1);
+  assert.equal(params().get('mv-decision'),decision(2));assert.equal(params().get('mv-snapshot'),SNAPSHOT);assert.deepEqual(JSON.parse(params().get('mv-expanded')),[SUBJECT]);
+  assert.equal(params().get('mv-document'),null);assert(h.container.querySelector('.member-votes-detail'));
 });
 
 test('choosing Hungarian wording in one multilingual list opens and restores its exact Hungarian source passage',async t=>{
@@ -260,18 +277,15 @@ test('choosing Hungarian wording in one multilingual list opens and restores its
   await act(async()=>{selector.value=option.value;selector.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
   assert.equal(h.container.querySelector('.member-votes-comparison')?.lang,'hu');
   const detail=location.href;
-  await h.click(button(h.container,'Read in context'));
+  await h.click(readLink(h.container));
   const context=location.href;
-  h.container.querySelector('.member-votes').scrollTop=4237;
-  h.container.querySelector('.explorer-profile-body').scrollTop=413;
   const assertHungarian=()=>{
     assert.equal(location.href,context);assert.equal(params().get('lang'),null,'default English is implicit');assert.equal(document.documentElement.lang,'en','the interface language stays independent');
-    assert.equal(params().get('mv-wording-lang'),'hu');assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
+    assert.equal(params().get('read-lang'),'hu');assert.equal(params().get('read-amendment'),AMENDMENT);assert.equal(params().get('read-list'),LIST);
     const highlighted=h.container.querySelector('.document-context-reader [data-context-target="true"]');
     assert(highlighted?.querySelector('.wording-diff'),'the exact Hungarian source is shown as an in-place diff');
     assert.equal(wordingText(highlighted,'original'),source.indexed.variants[1].originalText);
     assert.equal(h.container.querySelector('.document-context-text')?.lang,'hu');
-    assert.equal(h.container.querySelector('.member-votes').scrollTop,4237);assert.equal(h.container.querySelector('.explorer-profile-body').scrollTop,413);
   };
   assertHungarian();
   const full=h.requests.filter(url=>url.pathname==='/api/document-context/'+DOCUMENT&&url.searchParams.get('body')!=='0');
@@ -279,8 +293,6 @@ test('choosing Hungarian wording in one multilingual list opens and restores its
   assert.deepEqual(source.reads,['hu']);
   const resolved=source.results.find(result=>result.document);
   assert.equal(resolved.requestedWordingLanguage,'hu');assert.equal(resolved.target.status,'found');assert.equal(resolved.target.evidence.wordingLanguage,'hu');
-  await h.click(button(h.container,'Profile'));
-  await h.go(-1);assertHungarian();
   await h.go(-1);assert.equal(location.href,detail);assert.equal(params().get('mv-decision'),decision(2));
   assert.equal(Boolean(h.container.querySelector('.document-context-reader')),false);
   await h.go(1);assertHungarian();
@@ -297,10 +309,12 @@ test('unknown wording language and conflicting same-language versions do not acq
     const option=[...selector.options].find(option=>option.textContent.includes(kind==='unknown'?'Version 3':'Version 2 · Hungarian'));
     assert.equal(Boolean(option),true);
     await act(async()=>{selector.value=option.value;selector.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
-    await h.click(button(h.container,'Read in context'));
-    assert.equal(params().get('mv-wording-lang'),kind==='unknown'?'unknown':'hu');
-    assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
+    await h.click(readLink(h.container));
+    assert.equal(params().get('read-lang'),kind==='unknown'?'unknown':'hu');
+    assert.equal(params().get('read-amendment'),AMENDMENT);assert.equal(params().get('read-list'),LIST);
     assert.equal(Boolean(h.container.querySelector('.document-context-reader [data-context-target="true"]')),false);
+    assert.equal(Boolean(h.container.querySelector('.document-context-text [data-source-paragraph]')),false,'an unplaced amendment has no passage window');
+    await h.click(button(h.container,'Show whole text'));
     assert.equal(Boolean(h.container.querySelector('.document-context-text [data-source-paragraph]')),true,'the exact source body stays readable without an assigned passage');
     assert.equal(h.container.querySelector('.document-context-reader .document-context-notice[role="status"]').textContent,kind==='unknown'?'Language unavailable.':'Wording unavailable.');
     const resolved=source.results.find(result=>result.document);
@@ -314,7 +328,7 @@ for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+'
   await h.click(h.container.querySelector('.member-votes-subject h3 button'));
   await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
   const detail=location.href;
-  await h.click(button(h.container,'Read in context'));
+  await h.restore(earlierContext(detail));
   const context=location.href,outer=()=>h.container.querySelector(scroller),contextScroller=()=>h.container.querySelector('.member-votes');
   if(scroller==='main.explorer'){
     Object.defineProperties(outer(),{scrollHeight:{value:6000},clientHeight:{value:800}});
@@ -356,7 +370,7 @@ test('an evicted amendment context restores its scroll after the delayed source 
   t.after(()=>{for(const release of delayedBodies)release();});
   await h.click(h.container.querySelector('.member-votes-subject h3 button'));
   await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
-  await h.click(button(h.container,'Read in context'));
+  await h.restore(earlierContext(location.href));
   const context=location.href,prototype=h.window.HTMLElement.prototype,ownScroll=Object.getOwnPropertyDescriptor(prototype,'scrollTop');
   let sourcePrototype=prototype;
   while(!Object.hasOwn(sourcePrototype,'scrollTop'))sourcePrototype=Object.getPrototypeOf(sourcePrototype);

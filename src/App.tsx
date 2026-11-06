@@ -20,7 +20,8 @@ import type {MemberSort} from './memberListPresentation.mjs';
 import {groupLabel,groupLabelLanguage} from './groupLabels';
 import {useMediaQuery} from './useMediaQuery';
 import {ActivityDossierLinks} from './DossierActivity';
-import {navigateDossier,useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
+import {navigateDossier,openFromOrigin,useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
+import {legacyReaderRedirect} from './readRoute.mjs';
 import {committeeCoverageComplete,matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
 import {AvailabilityNote} from './AvailabilityNote';
 import {coverageStore} from './SavedControls';
@@ -94,6 +95,8 @@ import {motionJourneyParams} from './motionJourney.mjs';
 import type {MemberMotionReaderProps} from './MemberMotionReader';
 
 const MemberVotes=lazyView(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
+if(typeof window!=='undefined'){const legacy=legacyReaderRedirect(window.location.search);if(legacy)openFromOrigin(legacy.origin,legacy.read);}
+const ReadView=lazyView(()=>import('./ReadPage').then(module=>({default:module.ReadView})));
 const DocumentContextReader=lazyView(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
 const MemberMotionReader=lazyView(()=>import('./MemberMotionReader').then(module=>({default:module.MemberMotionReader})));
 
@@ -521,7 +524,7 @@ export default function App() {
   // Member and Votes tab navigation add one entry through the URL effect.
   const memberStep=useRef(false);
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
-  const directoryState=useData<Directory>((view==='outside'||view==='groups'||view==='hemicycle') ? null : "directory");
+  const directoryState=useData<Directory>((view==='outside'||view==='groups'||view==='hemicycle'||view==='legislation'&&plenaryMode==='read') ? null : "directory");
   const directory = directoryState.data;
   const coverageFollows=useSaved().items;
   useEffect(()=>{coverageStore.observe(directory,coverageFollows,Boolean(directoryState.error));},[directory,directoryState.error,coverageFollows]);
@@ -816,7 +819,7 @@ export default function App() {
   if (view === 'geopolitics' || view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups' || view === 'hemicycle') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
     const title={hemicycle:ui.t('hemicycle.title'),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),legislation:plenaryModeTitlesUi(ui)[plenaryMode],outside:ui.t("outsidevoices.outside_voices.a027e6"),geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions")}[view];
-    return <InsightFrame {...props} view={view} onLanguageChange={changeLanguage}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='geopolitics') ? <Topics {...props}/> : (view==='hemicycle') ? <Hemicycle {...props}/> : (view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
+    return <InsightFrame {...props} view={view} onLanguageChange={changeLanguage}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='legislation'&&plenaryMode==='read') ? <ReadView {...props}/> : (view==='geopolitics') ? <Topics {...props}/> : (view==='hemicycle') ? <Hemicycle {...props}/> : (view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
   }
   return <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={(view==='saved') ? 'saved' : 'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>

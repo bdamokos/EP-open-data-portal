@@ -1,10 +1,12 @@
 import {retryableGap,gapRetryAt} from './automaticRetry.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
-import {useDossierReaderState} from './dossierJourney';
+import {dossierLinkClick} from './dossierJourney';
+import {publicUrl} from './publicUrl';
+import {readHref} from './readRoute.mjs';
 import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
 import {PersonName} from './PersonName';
-import {Fragment,lazy,Suspense,useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
+import {Fragment,useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
 import {selectLanguageText} from './language.mjs';
 import {compareMembers} from './memberOrder.mjs';
 import {useData} from './data';
@@ -25,7 +27,6 @@ import {AmendmentNamedVotes} from './AmendmentNamedVotes';
 import {voteMethodLabel} from './voteMethod.mjs';
 import FinalTextCheck from './FinalTextCheck';
 
-const DocumentContextReader=lazy(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
 import {amendmentLanguageScope} from './amendmentLanguageScope.mjs';
 
 const outcomes=['','ADOPTED','REJECTED','LAPSED','WITHDRAWN','mixed','unavailable'] as const;
@@ -158,7 +159,6 @@ export function AmendmentCard({item,language,onMember,showOutcome=true,memberId,
   const ui = useUiI18n();
   const splitParts=[...(item.splitParts||[])].sort((a,b)=>(Number.isFinite(Number(a.number)) && Number.isFinite(Number(b.number))) ? (Number(a.number)-Number(b.number)) : 0),decisions=readerDecisions??item.decisions??[],whole=decisions.filter(decision=>!amendmentDecisionPart(splitParts,decision));
   const committee=item.scope==='committee',selection=amendmentContextSelection(item);
-  const [contextOpen,setContextOpen]=useDossierReaderState('amendment-context:'+item.id,false),contextSummary=useRef<HTMLElement>(null);
   const title=selectLanguageText(item.titles,language,item.title||'','');
   return <article lang={ui.language} className="explorer-amendment-card" id={'amendment-'+item.id} data-amendment-scope={item.scope||'plenary'}>
     {committee&&<p className="explorer-amendment-stage">{(item.contributionKind==='draft-report') ? ui.t("legislation.draft_report.b4f899") : ((item.contributionKind==='draft-opinion') ? ui.t("legislation.draft_opinion.ed1618") : ui.t("amendments.committee_amendment.f106ba"))}{item.committees?.map(c=><Fragment key={c.code}> · <span lang="" title={c.name||undefined}>{c.code}</span></Fragment>)}{item.contributionKind==='tabled-amendment'&&item.committeeDocumentKind&&<> · {(item.committeeDocumentKind==='draft-report') ? ui.t("legislation.draft_report.b4f899") : ui.t("legislation.draft_opinion.ed1618")}</>}</p>}
@@ -169,7 +169,7 @@ export function AmendmentCard({item,language,onMember,showOutcome=true,memberId,
     {reader&&<>{children}{!item.conflicted&&<section className="dossier-amendment-wording"><AmendmentWording item={item} reader/></section>}</>}
     {(decisions.length>0||splitParts.length>0) ? <div className="explorer-amendment-voting">{splitParts.length>0&&<ol className="explorer-amendment-parts">{splitParts.map((part,index)=><SplitPart key={part.id||JSON.stringify([part.componentIndex??index,part.rawDescription??part.description??null])} part={part} item={item} language={language} reader={reader} availableDecisions={decisions}/>)}</ol>}{whole.length>0&&<ul className="explorer-amendment-decisions">{whole.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language} compact={!reader&&decisions.length===1&&!splitParts.length} reader={reader}/>)}</ul>}</div> : (((!reader) && (!committee)) ? <p className="explorer-amendment-secondary"><UiMessage id="amendments.outcome_unavailable.9323fe"/></p> : null)}
     {!reader&&!item.conflicted&&<details className="explorer-amendment-wording"><summary><UiMessage id="batch5.amendments.tsx.187.19"/></summary><AmendmentWording item={item}/></details>}
-    {selection&&(!reader||committee)&&<details className="explorer-amendment-context" open={contextOpen} onToggle={event=>setContextOpen(event.currentTarget.open)}><summary ref={contextSummary}><UiMessage id="membervotes.tsx.read.in.context"/></summary>{contextOpen&&<Suspense fallback={<p role="status"><UiMessage id="batch5.amendments.tsx.188.20"/></p>}><DocumentContextReader language={language} request={{...selection,onBack:()=>{setContextOpen(false);contextSummary.current?.focus({preventScroll:true});}}}/></Suspense>}</details>}
+    {selection&&(!reader||committee)&&<p className="explorer-amendment-context"><a href={publicUrl(readHref({...selection,language}))} onClick={dossierLinkClick}><UiMessage id="membervotes.tsx.read.in.context"/></a></p>}
     {committee&&selection?.amendmentId&&selection.listId&&<FinalTextCheck documentId={selection.documentId} amendmentId={selection.amendmentId} listId={selection.listId} wordingLanguage={selection.wordingLanguage??null} language={language}/>}
     {(!reader||committee)&&<details className="explorer-amendment-evidence"><summary><UiMessage id="amendments.sources.2eb56b"/></summary><AmendmentEvidenceState item={item}/>{item.title&&<p className="explorer-amendment-title" lang={(title.text===item.title) ? title.language : ''}>{title.text}</p>}{!committee&&<p className="explorer-amendment-reference">{item.id}</p>}<p className="explorer-amendment-meta">{joinMeta([documentDateLabel(item,language, undefined, ui),metadataLanguage(item) ? metadataLanguage(item).toUpperCase() : null])}</p>
       {item.officialIds?.length ? <p className="explorer-amendment-reference"><UiMessage id="amendments.official_references_references.3f6cd6" values={{references: item.officialIds.join(', ')}}/></p> : null}
