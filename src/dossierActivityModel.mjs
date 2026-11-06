@@ -15,6 +15,58 @@ export function dossierHref(reference,person,language='en',base=location.href,{s
   return url.pathname+url.search;
 }
 
+export const dossierPeopleSegments=['lead','opinions','others','all'];
+const segmentRoles={lead:['RAPPORTEUR','RAPPORTEUR_CO','RAPPORTEUR_SHADOW'],opinions:['RAPPORTEUR_OPINION','RAPPORTEUR_SHADOW_OPINION']};
+const roleOrder=['RAPPORTEUR','RAPPORTEUR_CO','RAPPORTEUR_SHADOW','RAPPORTEUR_OPINION','RAPPORTEUR_SHADOW_OPINION'];
+const inSegment=(person,segment)=>{
+  if(segment==='all')return true;
+  const hasRole=roles=>person.roles.some(role=>roles.includes(role.role));
+  return segment==='others'?!hasRole([...segmentRoles.lead,...segmentRoles.opinions]):hasRole(segmentRoles[segment]);
+};
+// The total is a claim about the whole dossier. Any missing record or continuation withholds it.
+// An incomplete proposer list alone keeps it: those lists are named on their own counts.
+export const dossierPeopleCountExact=page=>{
+  const people=page.participantCoverage;
+  return Boolean(people)&&!page.pagination.next&&!page.coverage.gaps.length&&page.coverage.checkedComplete!==false&&!people.gaps.length&&people.status!=='unavailable'&&people.checkedComplete!==false&&!people.retained&&!people.uncheckedTargets?.some(id=>/-PVCRE-ITM-/.test(id));
+};
+export const dossierPeopleCounts=people=>({
+  total:people.length,withRole:people.filter(person=>person.roles.length>0).length,withoutRole:people.filter(person=>!person.roles.length).length,
+  segments:Object.fromEntries(dossierPeopleSegments.map(segment=>[segment,people.filter(person=>inSegment(person,segment)).length])),
+});
+// Within a segment: its highest role, then committee amendments, then name. Unnamed people stay last.
+export function dossierPeopleRows(people,segment,nameOf=person=>person.name||'') {
+  const scope=segment==='lead'||segment==='opinions'?segmentRoles[segment]:roleOrder;
+  const rank=person=>{const ranks=person.roles.map(role=>scope.indexOf(role.role)).filter(index=>index>=0);return ranks.length?Math.min(...ranks):scope.length;};
+  // Co-rapporteurs share the rapporteur's rank.
+  const level=value=>scope===roleOrder||scope===segmentRoles.lead?(value===1?0:value):value;
+  return people.filter(person=>inSegment(person,segment)).map(person=>({person,rank:level(rank(person)),amendments:person.amendmentCounts?.committee??0,name:nameOf(person)||''}))
+    .sort((a,b)=>a.rank-b.rank||b.amendments-a.amendments||Number(!a.name)-Number(!b.name)||a.name.localeCompare(b.name)||a.person.id.localeCompare(b.person.id)).map(row=>row.person);
+}
+// One line per role and committee. A date recorded on the role beats a document's date; the earliest wins.
+export function dossierRoleLines(roles) {
+  const lines=new Map();
+  const better=(a,b)=>{
+    const basis=row=>row.dateBasis==='document'?1:0;
+    return basis(a)-basis(b)||(a.date||'9999').localeCompare(b.date||'9999');
+  };
+  for(const role of roles){const key=JSON.stringify([role.role,role.committee||null]),old=lines.get(key);if(!old||better(role,old)<0)lines.set(key,role);}
+  const rows=[...lines.values()].sort((a,b)=>{
+    const rank=row=>{const index=roleOrder.indexOf(row.role);return index<0?roleOrder.length:index;};
+    return rank(a)-rank(b)||(a.committee||'').localeCompare(b.committee||'');
+  });
+  const firstReadingOnly=roles.every(role=>!role.stage||role.stage==='RDG1');
+  return rows.map(row=>firstReadingOnly?{...row,stage:null}:row);
+}
+// A dated group is known only from a role row; the latest recorded one describes the person's latest role.
+// Role rows name organisations by source code. Unknown codes show no group.
+const roleGroupCodes={PPE:'PPE','S-D':'S&D',PFE:'PfE',ECR:'ECR',RENEW:'Renew','VERTS-ALE':'Verts/ALE','THE-LEFT':'TheLeft',ESN:'ESN',NI:'NI'};
+export const dossierPersonGroup=person=>{
+  const code=person.roles.filter(role=>role.group).toSorted((a,b)=>(a.date||'').localeCompare(b.date||'')).at(-1)?.group;
+  return Object.hasOwn(roleGroupCodes,code??'')?roleGroupCodes[code]:null;
+};
+// Amendment IDs embed their exact list or target, so evidence stays compact on the wire.
+export const amendmentEvidenceTarget=id=>String(id).match(/^committee:([^:]+):/)?.[1]??String(id).split('-AM-')[0];
+
 const matchesDecision=(decision,row)=>decision.id===row.vote.id||Boolean(decision.partId&&[...(row.vote.context?.componentIds||[]),...(row.vote.parts||[]).map(part=>part.componentId)].includes(decision.partId));
 
 export function dossierUnrenderedDecisions(item,votes) {
@@ -61,7 +113,7 @@ function mergeCoverage(before,after,unavailableStatus=null) {
   const uncheckedTargets=[...new Set([...(before.uncheckedTargets||[]),...(after.uncheckedTargets||[])])].filter(id=>!checkedTargets.includes(id));
   const gaps=[...new Set([...before.gaps,...after.gaps])];
   const otherPartial=[before,after].some(coverage=>coverage.checkedComplete===false||coverage.checkedComplete===undefined&&coverage.status==='partial'&&!coverage.uncheckedTargets?.length);
-  return {...after,status:unavailableStatus||(gaps.length||uncheckedTargets.length||otherPartial?'partial':'complete'),checkedComplete:!otherPartial&&!unavailableStatus,checkedTargets,uncheckedTargets,gaps,
+  return {...after,...(after.total===undefined&&before.total!==undefined?{total:before.total}:{}),status:unavailableStatus||(gaps.length||uncheckedTargets.length||otherPartial?'partial':'complete'),checkedComplete:!otherPartial&&!unavailableStatus,checkedTargets,uncheckedTargets,gaps,
     retryable:Boolean(before.retryable||after.retryable),failedDebates:[...new Set([...(before.failedDebates||[]),...(after.failedDebates||[])])],
     unresolvedChildIds:[...new Set([...(before.unresolvedChildIds||[]),...(after.unresolvedChildIds||[])])],
     missingSpeechIds:[...new Set([...(before.missingSpeechIds||[]),...(after.missingSpeechIds||[])])],retained:Boolean(before.retained||after.retained),
@@ -103,7 +155,7 @@ export function retainDossierContributors(previous,page) {
   for(const old of previous.participants){
     const current=people.get(old.id),known=new Set((current?.speeches||[]).map(speech=>speech.id)),earlier=(old.speeches||[]).filter(speech=>!known.has(speech.id)&&(coverage.failedDebates?.length?coverage.failedDebates.includes(speech.debateId):coverage.status==='unavailable'));
     const knownAmendments=new Set((current?.amendments||[]).map(item=>item.id));
-    const earlierAmendments=(old.amendments||[]).filter(item=>!knownAmendments.has(item.id)&&(coverage.status==='unavailable'||[item.listId,item.targetDocumentId].some(id=>id&&coverage.uncheckedTargets?.includes(id))));
+    const earlierAmendments=(old.amendments||[]).filter(item=>!knownAmendments.has(item.id)&&(coverage.status==='unavailable'||coverage.uncheckedTargets?.includes(amendmentEvidenceTarget(item.id))));
     if(!earlier.length&&!earlierAmendments.length)continue;
     retained=true;
     // Retain only established contribution evidence. Fresh role observations

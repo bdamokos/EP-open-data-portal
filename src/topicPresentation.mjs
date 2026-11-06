@@ -38,3 +38,11 @@ export function monthRangeLabel(period,language='en'){
 
 // The map opens on the newest quarter that has had a plenary sitting (partial quarters included).
 export function defaultMapQuarter(data){const periods=data?.periods||[];for(let i=periods.length-1;i>=0;i--)if(Number(data.sittingDays?.[periods[i]])>0)return periods[i];return lastFullQuarter(data);}
+
+export const HEAT_STEPS=5;
+// Five shades by the square root of the count, so a few busy topics don't flatten the rest.
+export const heatStep=(count,max)=>count>0&&max>0?Math.min(HEAT_STEPS,1+Math.floor(HEAT_STEPS*Math.sqrt(count/max))):0;
+
+// Stages beyond Parliament's position keep that word: it stays true until the act is signed.
+const stageWords={'position-talks':'topictrends.parliament_position_adopted.28ef10',position:'topictrends.parliament_position_adopted.28ef10','council-approved':'topictrends.parliament_position_adopted.28ef10',signed:'topictrends.final_act_signed.15beeb',journal:'topictrends.published_in_official_journal.548f3e'};
+export const topicStatusMessage=stage=>stage&&Object.hasOwn(stageWords,stage)?stageWords[stage]:undefined;

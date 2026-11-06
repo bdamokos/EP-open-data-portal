@@ -35,3 +35,8 @@ export function speakerPresentation(person,language='en',{chair=false,interventi
   if(!specific&&chair)roles.push(speakerTerm('name-unavailable',language));
   return {name,roles,nameUnavailable:!specific};
 }
+// An exact-ID row name replaces a header that carries only a role word, never a name match.
+export function speakerWithFallbackName(person,fallback,language='en') {
+  if(!person||!fallback?.id||person.id!==fallback.id||!speakerNameIsSpecific(fallback.name)||!speakerPresentation(person,language).nameUnavailable)return person;
+  return {...person,name:fallback.name};
+}
