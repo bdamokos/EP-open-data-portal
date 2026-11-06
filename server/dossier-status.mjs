@@ -82,8 +82,8 @@ export class DossierStatus {
     const indexEvents=array(work.consists_of).map(event=>({had_activity_type:tail(event.had_activity_type),activity_date:validDate(event.activity_date),activity_id:event.activity_id||tail(event.id)}));
     const {family,steps,stage:derived}=procedureSteps({reference,indexEvents,asOf});
     const voteEvents=indexEvents.filter(event=>event.had_activity_type==='PLENARY_VOTE_RESULTS'&&/^MTG-PL-\d{4}-\d{2}-\d{2}-VOT-ITM-\d+$/.test(event.activity_id)&&event.activity_date&&event.activity_date<=asOf);
-    // A legislative sentence states Parliament's own vote; other files state their latest main vote.
-    const parliament=steps.find(step=>step.key==='parliament')?.date;
+    // A legislative sentence states Parliament's own vote, after a deal the final one. Other files state their latest main vote.
+    const parliament=steps.find(step=>step.key==='final')?.date||steps.find(step=>step.key==='parliament')?.date;
     const relevant=family==='COD'&&parliament?voteEvents.filter(event=>event.activity_date===parliament):voteEvents;
     const vote=relevant.length?await this.voteOnDate(relevant,language):null;
     const stage=family==='COD'?derived:resolutionStage(vote);

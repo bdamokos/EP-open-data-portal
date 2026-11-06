@@ -11,7 +11,7 @@ const rapporteur={id:'p',participation_role:'def/ep-roles/RAPPORTEUR',participat
 const work=(fixture,extra={})=>({consists_of:fixture.indexEvents.map(event=>({...event,id:'eli/dl/event/'+event.activity_id})),had_participation:[rapporteur],...extra});
 const vote={id:'MTG-PL-2026-10-22-DEC-198405',date:'2026-10-22',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:'conducted',totals:tally};
 const lines=(stage,values={})=>dossierStatusLines({stage,...values});
-const step=(key,date)=>({key,state:'done',date,partial:false});
+const step=(key,date,state='done')=>({key,state,date,partial:false});
 
 test('Erasmus+ reads its position with the tally of the same day',()=>{
   const merged=mergeDossierStatus({reference:erasmus.reference,indexEvents:erasmus.indexEvents},{cellarEvents:erasmus.cellarEvents,summaries:erasmus.summaries,asOf:erasmus.asOf});
@@ -23,7 +23,7 @@ test('Erasmus+ reads its position with the tally of the same day',()=>{
   assert.equal(next.id,'dossierstatus.next_talks');
 });
 test('a tally of another day, or none, never reaches the sentence',()=>{
-  const steps=[step('parliament','2026-10-22')];
+  const steps=[step('parliament','2026-10-22'),step('council',null,'current')];
   assert.equal(lines('position',{steps,slots:{mainVote:{...vote,date:'2026-09-01'}}}).sentence.id,'dossierstatus.position_no_tally');
   assert.equal(lines('position',{steps,slots:{mainVote:{...vote,totals:null}}}).sentence.id,'dossierstatus.position_no_tally');
   assert.equal(lines('position',{steps,slots:{mainVote:{...vote,totals:{for:1,against:null,abstaining:0}}}}).sentence.id,'dossierstatus.position_no_tally');
@@ -48,10 +48,17 @@ test('every stage has one template, and the next step follows it',()=>{
   assert.deepEqual(ids('reported'),['reported','next_plenary_vote','2025-02-01']);
   assert.deepEqual(lines('reported',{steps,slots:{plenaryDate:'2026-11-11'}}).next,{id:'dossierstatus.next_plenary_vote_on',values:{date:'2026-11-11'}});
   assert.deepEqual(ids('deal'),['deal','next_plenary_vote','2025-05-01']);
-  assert.deepEqual(ids('council-approved'),['council_approved','next_signature','2025-04-01']);
+  assert.deepEqual(ids('council-approved',{councilApproval:{date:'2025-05-20'}}),['council_approved','next_signature','2025-05-20']);
   assert.deepEqual(ids('signed'),['signed','next_journal','2025-06-01']);
   assert.deepEqual(ids('journal'),['journal',null,'2025-07-01']);
   assert.equal(lines('referred',{indexEvents}).sentence.id,'dossierstatus.referred_no_committee');
+});
+test('both positions with no referral or deal leave no next step, and a final vote dates the position',()=>{
+  const both=[step('parliament','2026-03-01'),step('council','2026-01-01')];
+  const none=lines('position',{steps:both});assert.equal(none.next,null);assert.equal(none.sentence.values.date,'2026-03-01');
+  const final=[step('parliament','2026-03-01'),step('deal','2026-06-01'),step('final','2026-07-01'),step('signed',null,'current')];
+  const voted=lines('position',{steps:final,slots:{mainVote:{...vote,date:'2026-07-01'}}});
+  assert.equal(voted.sentence.id,'dossierstatus.position');assert.equal(voted.sentence.values.date,'2026-07-01');assert.equal(voted.next.id,'dossierstatus.next_council_reading');
 });
 test('a rejected main vote reads as rejected, with no next step',()=>{
   const rejected={...vote,outcome:'REJECTED'};

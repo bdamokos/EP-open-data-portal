@@ -20,7 +20,7 @@ export function mergeDossierStatus(status,{cellarEvents=[],summaries=[],asOf}) {
 /** A fixed template and its held values for the current stage. Nothing is
  * inferred from wording. A tally shows only when its vote has the sentence's date.
  */
-export function dossierStatusLines({stage,steps=[],latest=null,indexEvents=[],slots={},cellarEvents=[]}) {
+export function dossierStatusLines({stage,steps=[],councilApproval=null,latest=null,indexEvents=[],slots={},cellarEvents=[]}) {
   const stepDate=key=>steps.find(step=>step.key===key)?.date||null;
   const committees=slots.committees||[],named=committees.length>0,vote=slots.mainVote||null;
   const voted=date=>{
@@ -30,7 +30,7 @@ export function dossierStatusLines({stage,steps=[],latest=null,indexEvents=[],sl
   const parliament=(id,date,next)=>{
     const {tally,rejected}=voted(date);
     if(rejected)return {sentence:{id:tally?'dossierstatus.rejected':'dossierstatus.rejected_no_tally',values:{date,tally}},next:null};
-    return {sentence:{id:tally?'dossierstatus.'+id:'dossierstatus.'+id+'_no_tally',values:{date,tally}},next:{id:next}};
+    return {sentence:{id:tally?'dossierstatus.'+id:'dossierstatus.'+id+'_no_tally',values:{date,tally}},next:next?{id:next}:null};
   };
   if(vote?.outcome==='REJECTED'&&stage==='unknown'&&vote.date){const {tally}=voted(vote.date);return {sentence:{id:tally?'dossierstatus.rejected':'dossierstatus.rejected_no_tally',values:{date:vote.date,tally}},next:null};}
   switch(stage) {
@@ -46,9 +46,10 @@ export function dossierStatusLines({stage,steps=[],latest=null,indexEvents=[],sl
     }
     case 'reported':return {sentence:{id:named?'dossierstatus.reported':'dossierstatus.reported_no_committee',values:{committees,date:stepDate('committee')}},next:slots.plenaryDate?{id:'dossierstatus.next_plenary_vote_on',values:{date:slots.plenaryDate}}:{id:'dossierstatus.next_plenary_vote'}};
     case 'position-talks':return parliament('position_talks',stepDate('parliament'),'dossierstatus.next_talks');
-    case 'position':return parliament('position',stepDate('parliament'),'dossierstatus.next_council_reading');
+    // Both institutions' positions with no referral and no deal leave no recorded next step.
+    case 'position':return parliament('position',stepDate('final')||stepDate('parliament'),steps.some(step=>step.state==='current')?'dossierstatus.next_council_reading':null);
     case 'deal':return {sentence:{id:'dossierstatus.deal',values:{date:stepDate('deal')}},next:{id:'dossierstatus.next_plenary_vote'}};
-    case 'council-approved':return {sentence:{id:'dossierstatus.council_approved',values:{date:stepDate('council')}},next:{id:'dossierstatus.next_signature'}};
+    case 'council-approved':return {sentence:{id:'dossierstatus.council_approved',values:{date:councilApproval?.date??null}},next:{id:'dossierstatus.next_signature'}};
     case 'signed':return {sentence:{id:'dossierstatus.signed',values:{date:stepDate('signed')}},next:{id:'dossierstatus.next_journal'}};
     case 'journal':return {sentence:{id:'dossierstatus.journal',values:{date:stepDate('journal')}},next:null};
     case 'resolution-adopted':{

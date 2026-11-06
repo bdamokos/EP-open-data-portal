@@ -8,4 +8,4 @@ export type DossierStatusResponse={version:number;reference:string;family:string
 export type DossierStatusLine={id:string;values?:{date?:string|null;tally?:DossierTally|null;committees?:DossierCommittee[];label?:string;labelLanguage?:string|null}};
 export function resolutionStage(vote:DossierMainVote|null|undefined):ProcedureStage;
 export function mergeDossierStatus(status:{reference:string;indexEvents?:IndexEvent[];stage?:ProcedureStage},input:{cellarEvents?:CellarEvent[];summaries?:ProcedureSummary[];asOf:string}):ReturnType<typeof procedureSteps>;
-export function dossierStatusLines(input:{stage:ProcedureStage;steps?:ReturnType<typeof procedureSteps>['steps'];latest?:unknown;indexEvents?:IndexEvent[];slots?:DossierStatusSlots;cellarEvents?:CellarEvent[]}):{sentence:DossierStatusLine|null;next:DossierStatusLine|null};
+export function dossierStatusLines(input:{stage:ProcedureStage;steps?:ReturnType<typeof procedureSteps>['steps'];councilApproval?:{date:string}|null;latest?:unknown;indexEvents?:IndexEvent[];slots?:DossierStatusSlots;cellarEvents?:CellarEvent[]}):{sentence:DossierStatusLine|null;next:DossierStatusLine|null};
