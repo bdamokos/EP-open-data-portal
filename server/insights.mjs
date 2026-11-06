@@ -38,7 +38,7 @@ export function createInsights(store,options={}) {
     pendingMetadata={key,promise};try{return await promise;}finally{if(pendingMetadata?.promise===promise)pendingMetadata=null;}
   };
   // One held reader for the foreground and warmed agenda, whichever request each wraps.
-  const shared={...options,loadMetadata,heldVotes:options.heldVotes??(options.request?null:heldVotes)};
+  const shared={...options,loadMetadata,heldVotes:options.heldVotes===undefined?heldVotes:options.heldVotes};
   const speechWords=new SpeechWordInsights(store,shared);
   const questions=new QuestionInsights(store,shared),legislation=new LegislationInsights(store,shared);
   const speechCloud=new SpeechCloudInsights(store,{...shared,legislation});
