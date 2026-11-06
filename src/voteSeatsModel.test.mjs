@@ -97,3 +97,14 @@ test('labels that would overlap are skipped, and an unknown scale places none',(
   assert(crowded.length<3&&!crowded.includes('B'),'the top label overlaps both side labels and is skipped');
   assert.deepEqual(groupLabelPlacements(plan,{scale:0,widthOf:()=>30}),[]);
 });
+test('a label steps outwards past other groups\' seats instead of covering them',()=>{
+  // Group D sits outside group A on the same angles, so A's own outer edge is inside D's seats.
+  const outer=[...ring('D',170,125,3)].map(seat=>({...seat,x:300+(seat.x-300)*1.1,y:300-(300-seat.y)*1.1}));
+  const behind=[...plan,...outer].map((seat,index)=>({...seat,seat:index}));
+  const width=30,height=12,labels=groupLabelPlacements(behind,{scale:1,widthOf:()=>width,height,gap:3,pad:5});
+  assert(labels.some(label=>label.group==='A'),'A is still labelled');
+  for(const label of labels) {
+    const left=label.anchor==='start'?label.x:label.anchor==='end'?label.x-width:label.x-width/2,top=label.y-height/2;
+    for(const seat of behind)assert(!(seat.x+seat.r>left&&seat.x-seat.r<left+width&&seat.y+seat.r>top&&seat.y-seat.r<top+height),'label '+label.group+' covers seat '+seat.seat);
+  }
+});

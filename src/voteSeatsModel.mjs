@@ -118,16 +118,22 @@ export function groupLabelPlacements(seats,{scale,widthOf,height=12,gap=4,pad=6}
     entry.count++;entry.ux+=dx/distance;entry.uy+=dy/distance;entry.outer=Math.max(entry.outer,distance+seat.r);
     groups.set(seat.group,entry);
   }
-  const placed=[];
+  const seatStep=bounds.width/200,placed=[];
   for(const entry of [...groups.values()].sort((a,b)=>b.count-a.count||a.group.localeCompare(b.group))) {
     const length=Math.hypot(entry.ux,entry.uy);
     if(!length)continue;
-    const ux=entry.ux/length,uy=entry.uy/length,reach=entry.outer+pad/scale;
-    const x=cx+ux*reach,y=cy-uy*reach;
+    const ux=entry.ux/length,uy=entry.uy/length;
     const anchor=ux>0.35?'start':ux<-0.35?'end':'middle';
     const w=widthOf(entry.group)/scale,h=height/scale,g=gap/scale;
-    const left=anchor==='start'?x:anchor==='end'?x-w:x-w/2,top=y-h/2;
-    const box={left:left-g,right:left+w+g,top:top-g,bottom:top+h+g};
+    // The ray can pass other groups' outer seats, so step outwards until the label clears every seat.
+    let reach=entry.outer+pad/scale,x,y,box,clear=false;
+    for(let step=0;step<40;step++,reach+=seatStep) {
+      x=cx+ux*reach;y=cy-uy*reach;
+      const left=anchor==='start'?x:anchor==='end'?x-w:x-w/2,top=y-h/2;
+      box={left:left-g,right:left+w+g,top:top-g,bottom:top+h+g};
+      if(!seats.some(seat=>seat.x+seat.r>box.left&&seat.x-seat.r<box.right&&seat.y+seat.r>box.top&&seat.y-seat.r<box.bottom)){clear=true;break;}
+    }
+    if(!clear)continue;
     if(placed.some(other=>box.left<other.box.right&&box.right>other.box.left&&box.top<other.box.bottom&&box.bottom>other.box.top))continue;
     placed.push({group:entry.group,x,y,anchor,box});
   }
