@@ -17,5 +17,6 @@
 .member-votes-context-vote .member-votes-part{margin:10px 0;padding:10px 12px;font-size:13px;line-height:1.5;max-width:90ch}
 .member-votes-context-vote .member-votes-part h3{font-size:12px;line-height:1.4;margin:0 0 6px}
 .member-votes-context-vote .member-votes-part p{margin:0;white-space:pre-wrap}
+.member-votes-strip .member-votes-open{grid-column:1/-1;flex-basis:100%;font-size:13px}
 .member-votes-read-context{display:inline-flex;align-items:center;font-size:var(--control-font-size);line-height:var(--control-line-height);color:var(--accent);background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius-sm);min-height:var(--control-height);padding:9px 14px;text-decoration:none}
 .member-votes-read-context:hover{background:var(--surface-2)}

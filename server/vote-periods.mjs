@@ -3,7 +3,7 @@ import {brusselsDay} from './analysis-period.mjs';
 import {currentTermSittings,calendarWeeks} from './plenary-calendar.mjs';
 import {HttpError} from './http-utils.mjs';
 import {requestSignal} from './request-budget.mjs';
-export const VOTE_PERIODS_VERSION=3;
+export const VOTE_PERIODS_VERSION=4;
 const places=new Map([
   ['http://publications.europa.eu/resource/authority/place/FRA_SXB','Strasbourg'],
   ['http://publications.europa.eu/resource/authority/place/BEL_BRU','Brussels'],
@@ -16,8 +16,14 @@ export class VotePeriods {
     try {
       const {nodes,coverage}=await this.reader.catalogue();
       requestSignal()?.throwIfAborted();
+      const today=brusselsDay(this.clock());
       const locations=new Map(nodes.map(node=>[node.activity_id,sittingLocation(node)]));
-      const value={version:VOTE_PERIODS_VERSION,weeks:calendarWeeks(currentTermSittings(nodes,brusselsDay(this.clock()))).map(week=>({...week,sittings:week.sittings.map(sitting=>({...sitting,location:locations.get(sitting.sittingId)||null}))})),coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
+      const located=weeks=>weeks.map(week=>({...week,sittings:week.sittings.map(sitting=>({...sitting,location:locations.get(sitting.sittingId)||null}))}));
+      const value={version:VOTE_PERIODS_VERSION,weeks:located(calendarWeeks(currentTermSittings(nodes,today))),
+        // Future sitting dates for readers with no vote history to show; vote
+        // navigation keeps reading only `weeks`.
+        upcoming:located(calendarWeeks(currentTermSittings(nodes.filter(node=>node.activity_date>today),today,{heldOnly:false}))),
+        coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
       if(coverage.status==='complete'&&coverage.years.every(year=>year.sources.every(source=>!source.stale&&!source.refreshInProgress&&!source.refreshError)))this.lastGood={at:this.clock(),value:structuredClone(value)};
       return value;
     }catch(error){

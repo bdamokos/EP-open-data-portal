@@ -10,6 +10,8 @@ const source=value=>{
   if(!object(value)||typeof value.fetchedAt!=='string'||!Number.isFinite(Date.parse(value.fetchedAt))||! /^[a-f0-9]{64}$/.test(value.contentHash))return false;
   try {const url=new URL(value.url);return url.origin==='https://data.europarl.europa.eu'&&url.pathname.startsWith('/api/v2/meetings/');}catch{return false;}
 };
+const subjectShape=value=>object(value)&&typeof value.id==='string'&&object(value.titles)&&refs(value.agendaItemIds)&&refs(value.documentIds)&&refs(value.procedureIds)&&Array.isArray(value.procedures)&&value.procedures.every(row=>object(row)&&typeof row.id==='string'&&typeof row.reference==='string');
+const votePartsShape=value=>object(value)&&Array.isArray(value.parts)&&value.parts.every(object);
 export function decisionVotesRoute(id,language) {
   if(typeof id!=='string'||!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(id))return null;
   try {memberVotesRoute('1',{sittingId:id.slice(0,17),decisionId:id},language);}
@@ -17,10 +19,12 @@ export function decisionVotesRoute(id,language) {
   return 'decision-votes/'+id+'?'+new URLSearchParams({lang:language});
 }
 export function validateDecisionVotes(data,id) {
-  if(!object(data)||data.version!==6||data.decisionId!==id||data.sittingId!==id.slice(0,17)||! /^[a-f0-9]{64}$/.test(data.snapshotId)||!['complete','partial','unavailable'].includes(data.coverage)||!['found','unavailable'].includes(data.status)||!['complete','partial','conflicting','unavailable'].includes(data.integrity)||!Array.isArray(data.voters))return false;
+  if(!object(data)||data.version!==7||data.decisionId!==id||data.sittingId!==id.slice(0,17)||! /^[a-f0-9]{64}$/.test(data.snapshotId)||!['complete','partial','unavailable'].includes(data.coverage)||!['found','unavailable'].includes(data.status)||!['complete','partial','conflicting','unavailable'].includes(data.integrity)||!Array.isArray(data.voters))return false;
+  if(!Array.isArray(data.siblings)||typeof data.procedureReferral!=='boolean'||!object(data.people)||data.mainVoteId!==null&&typeof data.mainVoteId!=='string'||data.subject!==null&&!subjectShape(data.subject)||!data.siblings.every(sibling=>votePartsShape(sibling)&&typeof sibling.id==='string'&&object(sibling.totals)&&object(sibling.referenceTexts)&&object(sibling.scope)&&refs(sibling.context?.amendmentIds)))return false;
   if(data.status==='unavailable')return data.decision===null&&data.voters.length===0&&data.integrity==='unavailable';
   const vote=data.decision;
   if(!object(vote)||vote.id!==id||vote.date!==id.slice(7,17)||!['method','outcome'].every(key=>vote[key]===null||typeof vote[key]==='string')||!['conducted','not-conducted','unknown'].includes(vote.ballotStatus)||typeof vote.referencesValid!=='boolean'||!refs(vote.amendmentIds)||!refs(vote.componentIds)||!object(vote.totals)||!positions.every(p=>vote.totals[p]===null||Number.isSafeInteger(vote.totals[p])&&vote.totals[p]>=0))return false;
+  if(!votePartsShape(vote)||!object(vote.scope)||!object(vote.referenceTexts)||!refs(vote.context?.documentIds)||!refs(vote.context?.amendmentIds)||!vote.parts.every(part=>object(part.contentByLanguage)&&Array.isArray(part.contextComponents)))return false;
   if(!refs(vote.decidedIds)||!object(vote.sources)||!['decisions','results','agenda'].every(key=>Array.isArray(vote.sources[key])&&vote.sources[key].every(source)))return false;
   if(!object(vote.resultRelationship)||!['consistent','single-direction','ambiguous','unlinked'].includes(vote.resultRelationship.binding)||!refs(vote.resultRelationship.inverseResultIds)||!refs(vote.resultRelationship.forwardResultIds)||!Array.isArray(vote.evidenceGaps)||!vote.evidenceGaps.every(gap=>object(gap)&&typeof gap.code==='string'&&(gap.details===undefined||Array.isArray(gap.details)&&gap.details.every(detail=>object(detail)&&typeof detail.code==='string'))))return false;
   if(!Array.isArray(vote.bindingConflicts)||!vote.bindingConflicts.every(gap=>object(gap)&&typeof gap.code==='string'))return false;

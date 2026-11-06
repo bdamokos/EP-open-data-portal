@@ -1,0 +1,26 @@
+.vote-page { --mv-ink:var(--ink); --mv-muted:var(--ink-muted); --mv-line:var(--line); --mv-for:var(--vote-for); --mv-against:var(--vote-against); --mv-abstain:var(--vote-abstain); max-width:760px; margin:16px auto 0; }
+.vote-page-back { display:inline-block; margin-bottom:12px; }
+.vote-page .member-votes-result { font-size:15px; }
+.vote-page .member-votes-result-heading,.vote-page .member-votes-result-heading span { font-size:14px; }
+.vote-page .member-votes-bar { height:10px; }
+.vote-page .member-votes-counts { font-size:15px; }
+.vote-page-eyebrow { margin:0 0 4px; color:var(--ink-muted); font-size:14px; }
+.vote-page-item { display:flex; flex-wrap:wrap; gap:4px 12px; margin:0 0 12px; font-size:15px; }
+.vote-page-reference { white-space:nowrap; }
+.vote-page h1 { margin:0 0 16px; font-size:24px; line-height:1.3; }
+.vote-page h1:focus { outline:none; }
+.vote-page-placeholder { color:var(--ink-muted); }
+.vote-page h2 { margin:28px 0 8px; font-size:20px; }
+.vote-page .member-votes-part { margin:0 0 16px; }
+.vote-page .member-votes-part h3 { margin:0 0 4px; font-size:14px; }
+.vote-page .member-votes-part p { margin:0 0 4px; }
+.vote-page-others ul { list-style:none; margin:0; padding:0; }
+.explorer-insights a.vote-page-row,.vote-page-row { display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 12px; padding:8px 0; border-top:1px solid var(--line); text-decoration:none; }
+.vote-page-row-result { color:var(--ink-muted); white-space:nowrap; }
+a.vote-page-row .vote-page-row-label { text-decoration:underline; text-underline-offset:4px; }
+.vote-page-row small { flex-basis:100%; color:var(--ink-muted); }
+.vote-page-row[aria-current] { font-weight:600; }
+.vote-page-text { margin-top:24px; }
+@media (max-width:640px) {
+  .vote-page h1 { font-size:20px; }
+}

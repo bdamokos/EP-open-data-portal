@@ -1,10 +1,11 @@
 import type {MemberVotesState} from './MemberVotes';
 export type PlenarySitting={id:string;date:string;phase?:string};
 export type VotePeriodWeek={week:string;sittings:{sittingId:string;date:string;location?:string|null}[]};
-export type VotePeriodsResponse={version:2|3;weeks:VotePeriodWeek[];coverage:{status:'complete'|'partial'|'unavailable';years:{year:number;state:string;sources:unknown[]}[]}};
+export type VotePeriodsResponse={version:2|3|4;weeks:VotePeriodWeek[];upcoming?:VotePeriodWeek[];coverage:{status:'complete'|'partial'|'unavailable';years:{year:number;state:string;sources:unknown[]}[]}};
 export function plenaryMonday(value:string):string|null;
 export function groupPlenaryWeeks<T extends PlenarySitting>(sittings:T[]):{week:string;sittings:T[]}[];
 export function votePeriodWeek(state:Pick<MemberVotesState,'week'|'sittingId'>,resolvedWeek:string|null|undefined,weeks?:VotePeriodWeek[]):string;
 export function voteWeekNeighbours(weeks:VotePeriodWeek[],week:string):{previous:string|null;next:string|null};
 export function votePeriodTransition(state:MemberVotesState,week:string,sittingId?:string|null):MemberVotesState;
 export function validateVotePeriods(data:unknown):data is VotePeriodsResponse;
+export function defaultAgendaWeek(today:string,weeks?:VotePeriodWeek[],upcoming?:VotePeriodWeek[]):string|null;

@@ -89,3 +89,61 @@ test('each supplied tally is checked even when another tally is missing',async()
   }
  }
 });
+function subjectFixture() {
+ const f=voteFixture(),parent=f.day.results.find(node=>node.id===f.raw.inverse_consists_of[0]);
+ parent.inverse_consists_of=[...(parent.inverse_consists_of||[]),'eli/dl/proc/2025-0222'];
+ const sibling=(id,fields)=>{const raw={...structuredClone(f.raw),id:'eli/dl/event/MTG-PL-2026-10-07-DEC-'+id,activity_id:'MTG-PL-2026-10-07-DEC-'+id,decided_on_a_realization_of:[],...fields};f.day.decisions.push(raw);return raw;};
+ sibling(1,{referenceText:{en:'Commission proposal'},decision_method:'def/ep-entities/VOTE_ELECTRONIC_ROLLCALL'});
+ sibling(2,{referenceText:{en:'Request for referral back to committee'}});
+ parent.consists_of=[...(parent.consists_of||[]),'eli/dl/event/MTG-PL-2026-10-07-DEC-1','eli/dl/event/MTG-PL-2026-10-07-DEC-2'];
+ const other={...structuredClone(parent),id:parent.id.replace(/\d+$/,'777777'),activity_id:parent.activity_id.replace(/\d+$/,'777777'),consists_of:['eli/dl/event/MTG-PL-2026-10-07-DEC-3']};f.day.results.push(other);
+ sibling(3,{referenceText:{en:'Motion for a resolution'},inverse_consists_of:[other.id]});
+ return f;
+}
+const referral=date=>({data:[{label:'2025/0222(COD)',consists_of:[{had_activity_type:'def/ep-activities/PLENARY_REFER_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS',activity_date:date}]}]});
+test('vote page context lists the same subject only, main vote first, and never reads upstream',async()=>{
+ const f=subjectFixture(),data=await f.read(),ids=data.siblings.map(row=>row.id);
+ assert.equal(data.mainVoteId,'MTG-PL-2026-10-07-DEC-1');assert.equal(ids[0],'MTG-PL-2026-10-07-DEC-1');
+ assert.deepEqual(new Set(ids),new Set(['MTG-PL-2026-10-07-DEC-1','MTG-PL-2026-10-07-DEC-2',decisionId]));
+ assert(!ids.includes('MTG-PL-2026-10-07-DEC-3'),'a decision of another subject is not a sibling');
+ assert.equal(f.reads(),1);assert(data.subject.procedureIds.includes('2025-0222'));assert.deepEqual(data.subject.procedures,[],'an unheld procedure has no reference');
+ assert(data.subject.agendaItemIds.every(id=>typeof id==='string'));
+});
+test('a referral label is never the main vote and a subject without a main vote has none',async()=>{
+ const f=subjectFixture();f.raw.referenceText={en:'Request for a separate vote'};f.day.decisions=f.day.decisions.filter(raw=>raw.activity_id!=='MTG-PL-2026-10-07-DEC-1');
+ assert.equal((await f.read()).mainVoteId,null);
+});
+test('a partial sitting establishes no main vote',async()=>{
+ const f=subjectFixture();f.day.coverage={state:'partial'};const data=await f.read();
+ assert.equal(data.mainVoteId,null);assert.equal(data.siblings.length,3);
+});
+test('procedure referral needs the exact event on the vote date',async()=>{
+ const vote=f=>f.raw.activity_date;
+ let f=subjectFixture();assert.equal((await f.read()).procedureReferral,false,'no held procedure');
+ f=subjectFixture();f.sources['/procedures/2025-0222']=referral(vote(f));let data=await f.read();assert.equal(data.procedureReferral,true);assert.deepEqual(data.subject.procedures,[{id:'2025-0222',reference:'2025/0222(COD)'}]);
+ f=subjectFixture();f.sources['/procedures/2025-0222']=referral('2001-01-01');assert.equal((await f.read()).procedureReferral,false,'another date');
+ f=subjectFixture();f.sources['/procedures/2025-0222']={data:[{label:'2025/0222(COD)',consists_of:[{had_activity_type:'def/ep-activities/PLENARY_AMEND',activity_date:vote(f)}]}]};assert.equal((await f.read()).procedureReferral,false,'another event');
+});
+test('a procedure outside the index is read only from the retained source, and a miss stays unknown',async()=>{
+ const f=subjectFixture(),asked=[];
+ const read=id=>decisionVotes(f.query,{reader:f.reader,store:f.store,readProcedure:async wanted=>{asked.push(wanted);return wanted===id?{label:'2025/0222(COD)',...referral(f.raw.activity_date).data[0]}:null;}});
+ const data=await read('2025-0222');
+ assert.equal(data.procedureReferral,true);assert.deepEqual(data.subject.procedures,[{id:'2025-0222',reference:'2025/0222(COD)'}]);assert(asked.includes('2025-0222'));
+ const miss=await read('none');assert.equal(miss.procedureReferral,false);assert.deepEqual(miss.subject.procedures,[]);
+});
+test('corrections and names outside the roster come from exact held records',async()=>{
+ const f=voteFixture();f.sources['amendment:member:256852']={givenName:'Former',familyName:'Member'};f.sources['demographic:profile:256852']={label:'FORMER Member',fields:{'api:country-of-representation':['HU']}};
+ const data=await f.read();
+ assert.deepEqual(data.corrections.against,['197591']);assert.deepEqual(data.corrections.for,[]);
+ assert.deepEqual(data.people,{'256852':{name:'Former Member',country:'HU'}});
+ const missing=voteFixture();assert.deepEqual((await missing.read()).people,{'256852':{name:null,country:null}});
+});
+test('rows carry labels only: part wording stays with the requested vote',async()=>{
+ const f=splitBindingFixture();const data=await f.read();
+ if(data.siblings.length)for(const row of data.siblings)for(const part of row.parts)assert.equal(part.contentByLanguage,undefined);
+ for(const part of data.decision.parts)assert(part.contentByLanguage&&Array.isArray(part.contextComponents));
+});
+test('an unknown decision answers with empty vote page context',async()=>{
+ const f=voteFixture();f.day.decisions=[];const data=await f.read();
+ assert.equal(data.status,'unavailable');assert.deepEqual(data.siblings,[]);assert.equal(data.subject,null);assert.equal(data.mainVoteId,null);assert.equal(data.procedureReferral,false);
+});

@@ -19,6 +19,8 @@ import {memberVoteLabel,memberVoteOutcome} from './memberVotesPresentation.mjs';
 import {useExplorerParam} from './explorerUrl';
 import {dossierPeopleCountExact,dossierCoverageNotices,dossierEmptyLabel,dossierUnrenderedDecisions,dossierVoteCards,dossierFilters,dossierHref,dossierTimeline,fullDossierReference,mergeDossierPage,retainDossierContributors,validDossierPerson} from './dossierActivityModel.mjs';
 import {dossierBackHref,dossierLinkClick,navigateDossier,useDossierReaderState} from './dossierJourney';
+import {voteHref} from './votePagePresentation.mjs';
+import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import type {DossierActivityResponse,DossierAmendment,DossierCoverage,DossierCursor,DossierFilter,DossierItem,DossierReference,DossierReferencesResponse,DossierRole,DossierSection,DossierSource,DossierSpeech,DossierVote} from './DossierActivityTypes';
 import {useInsightData} from './InsightData';
 import './DossierActivity.css';
@@ -120,6 +122,7 @@ function Ballot({item,language,memberName,inline=false,inlineLabel=false}:{item:
     {inline&&inlineLabel&&<h5>{memberVoteLabel(item.vote,language, ui)}</h5>}
     {!inline&&<><h4>{memberVoteLabel(item.vote,language, ui)}</h4>{item.vote.title&&<p lang={item.vote.titleLanguage??''}>{item.vote.title}</p>}</>}
     {inline ? <><Position vote={item.vote} memberName={memberName} compact/>{item.vote.ballotStatus!=='not-conducted'&&<details className="dossier-vote-totals"><summary><UiMessage id="dossieractivity.vote_totals"/></summary><Result vote={item.vote}/></details>}</> : <div className="dossier-ballot"><Position vote={item.vote} memberName={memberName}/><Result vote={item.vote}/></div>}
+    {PLENARY_REDESIGN_LIVE&&<a className="dossier-open-vote" href={voteHref(item.id,language)} onClick={dossierLinkClick}><UiMessage id="votepage.open"/></a>}
     {item.vote.intention?.status==='reported'&&<p className="dossier-muted"><UiMessage id="dossieractivity.declared_intention_positions" values={{positions: item.vote.intention.positions.map(position=>({for:ui.t('membervotespresentation.for'),against:ui.t('membervotespresentation.against'),abstaining:ui.t('activityvote.abstain')}[position])).join(', ')}}/></p>}
     {!inline&&<details open={textOpen} onToggle={event=>setTextOpen(event.currentTarget.open)}><summary>{(item.vote.scope.kind==='procedural') ? <UiMessage id="dossieractivity.read_vote_description"/> : <UiMessage id="dossieractivity.read_text"/>}</summary>{textOpen&&<Suspense fallback={<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}><DossierVoteText key={item.id+':'+language} vote={item.vote} language={language}/></Suspense>}</details>}
   </article>;

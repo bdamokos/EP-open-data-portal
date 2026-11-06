@@ -14,7 +14,7 @@ import { LegislationInsights,LEGISLATION_VIEW_VERSION } from './insights-legisla
 import { HttpError } from './http-utils.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
 import {DossierActivity,dossierActivityQuery,dossierReferencesQuery} from './dossier-activity.mjs';
-import {DossierStatus,dossierStatusQuery,DOSSIER_STATUS_VERSION} from './dossier-status.mjs';
+import {DossierStatus,dossierStatusQuery,DOSSIER_STATUS_VERSION,heldVotes} from './dossier-status.mjs';
 import {dossierStatuses,dossierStatusesQuery,DOSSIER_STATUSES_VERSION} from './dossier-statuses.mjs';
 import {INSIGHTS_VERSION} from './insights-model.mjs';
 import {savedQuery,savedStates} from './insights-saved.mjs';
@@ -39,7 +39,8 @@ export function createInsights(store,options={}) {
     const promise=readMetadata(args).then(value=>{metadata={key,at:clock(),value};return value;});
     pendingMetadata={key,promise};try{return await promise;}finally{if(pendingMetadata?.promise===promise)pendingMetadata=null;}
   };
-  const shared={...options,loadMetadata};
+  // One held reader for the foreground and warmed agenda, whichever request each wraps.
+  const shared={...options,loadMetadata,heldVotes:options.heldVotes===undefined?heldVotes:options.heldVotes};
   const speechWords=new SpeechWordInsights(store,shared);
   const questions=new QuestionInsights(store,shared),legislation=new LegislationInsights(store,shared);
   const speechCloud=new SpeechCloudInsights(store,{...shared,legislation});
