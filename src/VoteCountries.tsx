@@ -59,7 +59,7 @@ export function VoteCountries({rows,language,country,group,position,onChoose}:Pr
           <VoteBar totals={row.counts} thin/>
         </button>
         {expanded&&<ul className="vote-country-groups">
-          {[...row.groups].map(([code,counts])=><li key={code}><button type="button" aria-pressed={country===row.country&&group===code} aria-label={ui.t('votegroups.countries.group_row',{group:groupLabel(code,ui),for:String(counts.for),against:String(counts.against),abstaining:String(counts.abstaining)})} onClick={()=>choose(row.country,code)}><span lang={groupLabelLanguage(code,ui)}>{groupLabel(code,ui)}</span>{totalsText(counts)}</button></li>)}
+          {groups.filter(code=>row.groups.has(code)).map(code=>{const counts=row.groups.get(code)!;return <li key={code}><button type="button" aria-pressed={country===row.country&&group===code} aria-label={ui.t('votegroups.countries.group_row',{group:groupLabel(code,ui),for:String(counts.for),against:String(counts.against),abstaining:String(counts.abstaining)})} onClick={()=>choose(row.country,code)}><span lang={groupLabelLanguage(code,ui)}>{groupLabel(code,ui)}</span>{totalsText(counts)}</button></li>;})}
         </ul>}
       </li>;
     })}</ul>
