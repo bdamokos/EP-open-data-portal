@@ -173,9 +173,10 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const requestedWeek=params.get('week'),requestedSitting=params.get('sitting');
   const selectedPeriod=((requestedWeek==='latest') && data) ? (data.week ? ('week:'+data.week) : ('sitting:'+data.sitting.id)) : (requestedWeek ? ('week:'+requestedWeek) : ('sitting:'+(requestedSitting||data?.sitting.id||'')));
   const selectedTopic=data?.topics.find(item=>item.id===topic);
-  const topicSitting=selectedTopic?.sittingId||data?.sitting.id||sitting||'';
+  // A deep link names its sitting (or the topic id does), so the item is read without waiting for the agenda list.
+  const topicSitting=selectedTopic?.sittingId||data?.sitting.id||sitting||topic.match(/^(MTG-PL-\d{4}-\d{2}-\d{2})-/)?.[1]||'';
   const detailRoute=agendaItemRoute(language,topicSitting,topic);
-  const selected=useInsightData<LegislationResponse>((((mode==='agenda') && topic) && data) ? detailRoute : null),detail=selected.data?.detail,displayTopic=detail||selectedTopic,detailRef=useRef<HTMLElement>(null),agendaRef=useRef<HTMLElement>(null),detailNavRef=useRef<HTMLDivElement>(null);
+  const selected=useInsightData<LegislationResponse>((((mode==='agenda') && topic) && (data||topicSitting)) ? detailRoute : null),detail=selected.data?.detail,displayTopic=detail||selectedTopic,detailRef=useRef<HTMLElement>(null),agendaRef=useRef<HTMLElement>(null),detailNavRef=useRef<HTMLDivElement>(null);
   const activeAgendaIds=new Set([topic,detail?.id,...(detail?.scheduledAgendaIds||[])]);
   const agendaSelection=data?.topics.some(item=>item.id===topic)?topic:detail?.scheduledAgendaIds?.[0]||detail?.id||topic;
   const focusEpoch=useRef(0),detailFocusEpoch=useRef(0);
