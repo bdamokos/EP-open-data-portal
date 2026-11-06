@@ -105,7 +105,6 @@
  .topics-content {padding:0 12px 36px}.topic-quarter-desktop {display:none}.topic-quarter-mobile {display:inline;font-size:9px}.places-layout {grid-template-columns:1fr}.topic-story {font-size:18px;margin-top:12px;padding-top:16px}.topic-bars {gap:3px}.topics-content .topic-bars small {font-size:9px}.topic-detail-header h1 {font-size:2rem}
 }
 
-.topic-heat td.topic-partial{position:relative}.topic-heat td.topic-partial::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--line) 45%,transparent) 5px 6px)}
 
 .topic-story-records{border-left:2px solid var(--accent);padding:12px 20px;background:var(--surface)}
 .topic-story-records article{display:flex;flex-direction:column;gap:4px;margin:12px 0}
