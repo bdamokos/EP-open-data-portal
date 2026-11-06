@@ -30,7 +30,7 @@ export function storySitting(day,{store,sharedHistory}={}) {
     const summary=itemVoteSummary([...entry.decisions.values()],main);
     const displayed=main||summary?.vote;
     const keys=item.procedureIds.length?item.procedureIds.map(procedure):[item.agendaItemId];
-    if(displayed&&!displayed.sourceConflicts)for(const key of keys)storyVotes.push({...compactVote({...displayed,agendaItemId:id}),key});
+    if(displayed&&!entry.decisions.get(displayed.id)?.sourceConflicts)for(const key of keys)storyVotes.push({...compactVote({...displayed,agendaItemId:id}),key});
     if(!main||main.sourceConflicts||main.ballotStatus!=='conducted'||!['ADOPTED','REJECTED'].includes(main.outcome)||!countedTotals(main.totals))continue;
     let differing=null;
     if(main.namedVoters.available&&context.history) {
@@ -38,7 +38,7 @@ export function storySitting(day,{store,sharedHistory}={}) {
       const verified=projected.voters.filter(v=>v.groupStatus==='verified');
       if(projected.integrity==='complete'&&verified.length)differing=groupMajorities(verified).reduce((n,g)=>n+(g.position?Object.values(g.counts).reduce((a,b)=>a+b,0)-g.counts[g.position]:0),0);
     }
-    for(const key of keys)votes.push({...item,key,linked:true,id:main.id,date:main.date,outcome:main.outcome,method:main.method,totals:main.totals,differing});
+    for(const key of keys)votes.push({...item,key,linked:true,id:main.id,date:main.date,outcome:main.outcome,method:main.method,label:main.title,totals:main.totals,differing});
   }
   return {votes,storyVotes,agenda:[...agenda.values()]};
 }

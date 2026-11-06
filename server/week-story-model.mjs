@@ -1,4 +1,6 @@
 import {languagePreference} from './language-order.mjs';
+// Internal cache hint: Symbols survive local spreads but never enter JSON.
+export const TRANSIENT_STORY_READ=Symbol('transient-week-story-read');
 export {pressExcerpt} from './press-releases-model.mjs';
 // Competition ranks keep every tie at the fifth rank. Input rows are facts,
 // never reader-facing prose. Each list contains one entry per exact identity.
@@ -26,12 +28,27 @@ export function selectWeekStory(lists,{pressByKey=new Map(),voteByKey=new Map(),
       if(!entry.reasons.some(reason=>reason.list===list))entry.reasons.push({list,rank:row.rank,value:list==='closest'?Math.abs(row.totals.for-row.totals.against):row[list]});
       // A vote reason must display exactly that decision, not another item on
       // the same procedure. Speech-only stories use the retained item lookup.
-      if(['closest','differing'].includes(list)&&row.id&&!entry.vote)entry.vote={...voteByKey.get(key),id:row.id,agendaItemId:row.agendaItemId,method:row.method,outcome:row.outcome,totals:row.totals};
+      if(['closest','differing'].includes(list)&&row.id&&!entry.vote)entry.vote={...voteByKey.get(key),id:row.id,agendaItemId:row.agendaItemId,method:row.method,label:row.label||null,outcome:row.outcome,totals:row.totals};
       candidates.set(key,entry);
     }
   }
-  const stories=[...candidates.values()].sort((a,b)=>b.reasons.length-a.reasons.length||Math.min(...a.reasons.map(r=>r.rank))-Math.min(...b.reasons.map(r=>r.rank))||a.key.localeCompare(b.key)).map(row=>({...row,press:pressByKey.get(row.key),vote:row.vote||voteByKey.get(row.key)||null}));
-  const storyKeys=new Set(stories.map(row=>row.key)),shown=new Set(storyKeys),highlights=[],debates=new Map();
+  // A release may explicitly link several procedures. Quote it once, retaining
+  // every qualifying key, item and reason; never select by title similarity.
+  const byRelease=new Map();
+  for(const row of candidates.values()) {
+    const press=pressByKey.get(row.key),identity=press.id||press.url;
+    const entry=byRelease.get(identity)||{...row,keys:[],items:[],reasons:[],press,vote:row.vote||voteByKey.get(row.key)||null};
+    entry.keys.push(row.key);if(!entry.items.some(item=>item.id===row.item.id&&item.key===row.item.key))entry.items.push(row.item);
+    for(const reason of row.reasons) {
+      const previous=entry.reasons.find(old=>old.list===reason.list);
+      if(!previous)entry.reasons.push(reason);
+      else if(reason.rank<previous.rank)Object.assign(previous,reason);
+    }
+    if(row.key<entry.key)entry.key=row.key;
+    byRelease.set(identity,entry);
+  }
+  const stories=[...byRelease.values()].sort((a,b)=>b.reasons.length-a.reasons.length||Math.min(...a.reasons.map(r=>r.rank))-Math.min(...b.reasons.map(r=>r.rank))||a.key.localeCompare(b.key));
+  const storyKeys=new Set(stories.flatMap(row=>row.keys)),shown=new Set(storyKeys),highlights=[],debates=new Map();
   for(const [list,rows] of Object.entries(lists))for(const row of rows.filter(r=>r.rank===1))if(!keysOf(row).some(key=>storyKeys.has(key))) {
     // A joint debate keeps one row with all agenda items and references.
     if(['speeches','blueCards'].includes(list)&&debates.has(row.id)) {debates.get(row.id).lists.push(list);continue;}
@@ -49,7 +66,7 @@ export function selectWeekStory(lists,{pressByKey=new Map(),voteByKey=new Map(),
 export function projectStoryLanguage(value,language) {
   if(Array.isArray(value))return value.map(row=>projectStoryLanguage(row,language));
   if(!value||typeof value!=='object')return value;
-  return Object.fromEntries(Object.entries(value).map(([key,child])=>{
+  const projected=Object.fromEntries(Object.entries(value).map(([key,child])=>{
     if(key==='titles') {
       const selected=Object.fromEntries(Object.entries(child||{}).filter(([code])=>code===language||code==='en'));
       const fallback=languagePreference(Object.keys(child||{}),language)[0];
@@ -58,4 +75,6 @@ export function projectStoryLanguage(value,language) {
     }
     return [key,projectStoryLanguage(child,language)];
   }));
+  if(value[TRANSIENT_STORY_READ])projected[TRANSIENT_STORY_READ]=true;
+  return projected;
 }

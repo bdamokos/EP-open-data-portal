@@ -1,3 +1,6 @@
+import {mkdtempSync,readdirSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {storyLists,rankFacts,selectWeekStory,pressExcerpt,projectStoryLanguage} from './week-story-model.mjs';
@@ -30,20 +33,21 @@ test('mainVote fallback includes unclassified decisions and differing remains un
 const week='2026-10-05',date='2026-10-07',id='MTG-PL-'+date;
 const periods={collect:async()=>({weeks:[{week,sittings:[{sittingId:id,date}]}]})};
 const clock=()=>Date.parse('2026-11-06T12:00:00Z');
+const observedSpeechDay=()=>({records:[{id:'chair',date,type:'chair',parentIds:[],people:[]}]});
 test('unfinished weeks do not read votes, press or corpus',async()=>{
  const result=await weekStory({week:'2026-11-09'},{periods,clock,readSpeechFacts:()=>assert.fail()});assert.equal(result.status,'unavailable');assert.deepEqual(result.highlights,[]);
 });
 test('missing classification suppresses blue cards only; exact executed links and full labels survive',async()=>{
  const f=voteFixture();f.day.coverage={state:'complete'};
- const readEvent=async eventId=>({payload:{data:[{activity_id:eventId,activity_label:{en:'Complete debate label'},executed:f.day.agenda[0].id}]}});
- const options={periods,clock,snapshots:{read:()=>({day:f.day})},readEvent,readSpeechFacts:async()=>({records:[{id:'speech',type:'speech',parentIds:['debate'],people:[{id:'1'}]},{id:'blue',type:'blue-card-reaction',parentIds:['debate'],people:[{id:'2'}]},{id:'unknown',type:null,parentIds:['other'],people:[]}]})};
+ const readEvent=async eventId=>({payload:{data:[{activity_id:eventId,had_activity_type:'def/ep-activities/PLENARY_DEBATE',activity_label:{en:'Complete debate label'},executed:f.day.agenda[0].id}]}});
+ const options={periods,clock,snapshots:{read:()=>({day:f.day})},readEvent,readSpeechFacts:async()=>({records:[{id:'speech',date,type:'speech',parentIds:['debate'],people:[{id:'1'}]},{id:'blue',date,type:'blue-card-reaction',parentIds:['debate'],people:[{id:'2'}]},{id:'unknown',date,type:null,parentIds:['other'],people:[]}]})};
  const result=await weekStory({week},options);assert.equal(result.status,'complete');assert(result.highlights.some(h=>h.list==='speeches'&&h.titles.en==='Complete debate label'));assert(!result.highlights.some(h=>h.list==='blueCards'));
  const failed=await weekStory({week},{...options,readSpeechFacts:async()=>null});assert.equal(failed.status,'partial');
 });
 test('query validates week and language',()=>{assert.equal(weekStoryQuery(new URLSearchParams({week,lang:'hu'})).language,'hu');assert.throws(()=>weekStoryQuery(new URLSearchParams({week:'2026-10-06'})));});
 test('cache coalesces complete views, retries partial views and changes with generation/day',async()=>{
  const f=voteFixture();f.day.coverage={state:'complete'};
- let reads=0,generation=1,now=clock();const insights=createInsights({status:()=>({servingGeneration:generation}),get:()=>0},{clock:()=>now,viewCache:{directory:null},weekStory:{store:null,periods,readSpeechFacts:async()=>{reads++;return reads===1?null:{records:[]};},snapshots:{read:()=>({day:f.day})}}});
+ let reads=0,generation=1,now=clock();const insights=createInsights({status:()=>({servingGeneration:generation}),get:()=>0},{clock:()=>now,viewCache:{directory:null},weekStory:{store:null,periods,readSpeechFacts:async()=>{reads++;return reads===1?null:observedSpeechDay();},snapshots:{read:()=>({day:f.day})}}});
  const query=new URLSearchParams({week});await Promise.all([insights.query('week-story',query),insights.query('week-story',query)]);assert.equal(reads,1);
  await insights.query('week-story',query);await insights.query('week-story',query);assert.equal(reads,2);
  generation++;await insights.query('week-story',query);assert.equal(reads,3);now+=86400000;await insights.query('week-story',query);assert.equal(reads,4);
@@ -59,7 +63,7 @@ test('duplicate reference keeps the best ranked fact regardless of source order'
 });
 test('a partial sitting suppresses every vote list and story even with a matching release',async()=>{
  const f=voteFixture();f.day.coverage={state:'partial'};
- const result=await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readSpeechFacts:async()=>({records:[]}),pressStore:{forWeek:()=>[{id:'release',url:'https://example.test',lead:'Source words.'}]}});
+ const result=await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readSpeechFacts:async()=>observedSpeechDay(),pressStore:{forWeek:()=>[{id:'release',url:'https://example.test',lead:'Source words.'}]}});
  assert.deepEqual(result.stories,[]);assert.deepEqual(result.highlights,[]);
 });
 test('joint debates take one rank and keep all exact keys and agenda items',()=>{
@@ -71,13 +75,13 @@ test('joint debates take one rank and keep all exact keys and agenda items',()=>
 });
 test('bare blue-card and catch-the-eye rows are spoken; bare blue cards suppress the blue list',async()=>{
  const f=voteFixture();f.day.coverage={state:'complete'};
- const result=await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readEvent:async()=>null,readSpeechFacts:async()=>({records:['blue-card','blue-card','catch-the-eye'].map((type,i)=>({id:String(i),type,parentIds:['debate'],parentTitles:{debate:{en:'Held parent label'}},people:['123']}))})});
- const highlighted=result.highlights.find(row=>row.list==='speeches');assert.equal(highlighted.speeches,3);assert.equal(highlighted.speakers,1);assert.deepEqual(highlighted.titles,{en:'Held parent label'});assert.equal(highlighted.linked,false);assert(!result.highlights.some(row=>row.list==='blueCards'));
+ const result=await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readEvent:async()=>null,readSpeechFacts:async()=>({records:['blue-card','blue-card','catch-the-eye'].map((type,i)=>({id:String(i),date,type,parentIds:['debate'],people:['123']}))})});
+ const highlighted=result.highlights.find(row=>row.list==='speeches');assert.equal(highlighted.speeches,3);assert.equal(highlighted.speakers,1);assert.deepEqual(highlighted.titles,{});assert.equal(result.status,'partial');assert.equal(highlighted.linked,false);assert(!result.highlights.some(row=>row.list==='blueCards'));
 });
 test('missing vote facts and missing debate labels remain partial and retryable',async()=>{
- const result=await weekStory({week},{periods,clock,snapshots:{read:()=>null},readSpeechFacts:async()=>({records:[]})});assert.equal(result.status,'partial');
+ const result=await weekStory({week},{periods,clock,snapshots:{read:()=>null},readSpeechFacts:async()=>observedSpeechDay()});assert.equal(result.status,'partial');
  const f=voteFixture();f.day.coverage={state:'complete'};
- const missing=await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readEvent:async()=>null,readSpeechFacts:async()=>({records:[{id:'s',type:'speech',parentIds:['missing'],people:[]}]})});assert.equal(missing.status,'partial');assert.equal(missing.highlights.find(h=>h.id==='missing').labelStatus,'unavailable');
+ const missing=await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readEvent:async()=>null,readSpeechFacts:async()=>({records:[{id:'s',date,type:'speech',parentIds:['missing'],people:[]}]})});assert.equal(missing.status,'partial');assert.equal(missing.highlights.find(h=>h.id==='missing').labelStatus,'unavailable');
 });
 test('hands main votes remain in story lookup while ranking requires counted totals',()=>{
  const f=voteFixture();delete f.raw.decided_on_a_realization_of;f.raw.referenceText={en:'Commission proposal'};f.raw.decision_method='def/ep-decision-methods/VOTE_HAND';
@@ -89,19 +93,59 @@ test('language projection keeps requested labels and English, with held fallback
  assert.deepEqual(projectStoryLanguage(value,'hu').highlights[0].titles,{en:'English source',hu:'Hungarian source'});
  assert.deepEqual(projectStoryLanguage(value,'en').highlights[0].titles,{en:'English source'});
 });
-test('languages share complete raw facts; partial vote facts are retried',async()=>{
- const f=voteFixture();f.day.coverage={state:'complete'};let reads=0,ready=false;
- const insights=createInsights({status:()=>({servingGeneration:1}),get:()=>0},{clock,viewCache:{directory:null},weekStory:{store:null,periods,snapshots:{read:()=>ready?{day:f.day}:null},readSpeechFacts:async()=>{reads++;return {records:[]};}}});
- await insights.query('week-story',new URLSearchParams({week,lang:'en'}));await insights.query('week-story',new URLSearchParams({week,lang:'en'}));assert.equal(reads,2);
- ready=true;await Promise.all(['en','hu','fr'].map(lang=>insights.query('week-story',new URLSearchParams({week,lang}))));assert.equal(reads,3);
+test('languages share complete raw facts; stable partials reuse memory briefly and never persist',async()=>{
+ const f=voteFixture();f.day.coverage={state:'complete'};let reads=0,ready=false,now=clock();
+ const insights=createInsights({status:()=>({servingGeneration:1}),get:()=>0},{clock:()=>now,viewCache:{directory:null},weekStory:{store:null,periods,snapshots:{read:()=>ready?{day:f.day}:null},readSpeechFacts:async()=>{reads++;return observedSpeechDay();}}});
+ await insights.query('week-story',new URLSearchParams({week,lang:'en'}));await insights.query('week-story',new URLSearchParams({week,lang:'en'}));assert.equal(reads,1);
+ ready=true;now+=61_000;
+ // InsightViewCache serves the short-lived partial while refreshing it.
+ await insights.query('week-story',new URLSearchParams({week,lang:'hu'}));
+ for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve));
+ await Promise.all(['en','hu','fr'].map(lang=>insights.query('week-story',new URLSearchParams({week,lang}))));assert.equal(reads,2);
 });
 test('press lookup uses exact procedure/document IDs and the full Brussels week window',async()=>{
  const f=voteFixture();delete f.raw.decided_on_a_realization_of;f.raw.referenceText={en:'Commission proposal'};f.day.coverage={state:'complete'};
- const requests=[];await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readSpeechFacts:async()=>({records:[]}),pressStore:{forWeek:query=>{requests.push(query);return [];}}});
- assert(requests.length>0);for(const query of requests){assert.equal(query.from,'2026-10-05');assert.equal(query.to,'2026-10-11');assert(Array.isArray(query.procedureIds));assert(Array.isArray(query.documentIds));}
+ const requests=[];await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readSpeechFacts:async()=>observedSpeechDay(),pressStore:{forWeek:query=>{requests.push(query);return [];}}});
+ assert(requests.length>0);for(const query of requests){assert.equal(query.from,'2026-10-05');assert.equal(query.to,'2026-10-11');const expected={'MTG-PL-2026-10-07-OJ-ITM-V-45':{procedures:['2023-0134'],documents:['C-10-2025-0235','A-10-2026-0131']},'MTG-PL-2026-10-07-OJ-ITM-V-48':{procedures:['2025-2117'],documents:['A-10-2026-0237']}}[query.agendaItemId];assert(expected);assert.deepEqual(query.procedureIds,expected.procedures);assert.deepEqual(query.documentIds,expected.documents);}
 });
 test('a similar label cannot create an exact event or procedure join',async()=>{
  const f=voteFixture();f.day.coverage={state:'complete'};
- const result=await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readSpeechFacts:async()=>({records:[{id:'speech',type:'speech',parentIds:['debate'],people:['1']}]}),readEvent:async()=>({payload:{data:[{activity_id:'different-debate',activity_label:{en:'Similar title'},executed:f.day.agenda[0].id}]}}),pressStore:{forWeek:()=>[{url:'press',lead:'Verbatim source.'}]}});
+ const result=await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readSpeechFacts:async()=>({records:[{id:'speech',date,type:'speech',parentIds:['debate'],people:['1']}]}),readEvent:async()=>({payload:{data:[{activity_id:'different-debate',activity_label:{en:'Similar title'},executed:f.day.agenda[0].id}]}}),pressStore:{forWeek:()=>[{url:'press',lead:'Verbatim source.'}]}});
  const highlighted=result.highlights.find(h=>h.id==='debate');assert(highlighted);assert.equal(highlighted.linked,false);assert.deepEqual(highlighted.agendaItemIds,[]);assert.equal(result.status,'partial');
+});
+test('a missing speech day suppresses every speech ranking and remains partial',async()=>{
+ const f=voteFixture();f.day.coverage={state:'complete'};
+ for(const records of [[],[{id:'speech',date:'2026-10-06',type:'speech',parentIds:['debate'],people:['1']}]]) {
+  const result=await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readSpeechFacts:async()=>({records}),readEvent:()=>assert.fail('an incomplete speech week must not resolve ranks')});
+  assert.equal(result.status,'partial');assert(!result.highlights.some(row=>['speeches','blueCards'].includes(row.list)));
+ }
+});
+test('one release linked to several references produces one story with every key and reason',()=>{
+ const lists=storyLists({votes:[{...vote('a',3),label:'Exact vote label'}],speeches:[{id:'joint',key:'a|b|c',keys:['a','b','c'],linked:true,speeches:100}]});
+ const press={id:'same-release',url:'press',title:'Published title'};
+ const result=selectWeekStory(lists,{pressByKey:new Map(['a','b','c'].map(key=>[key,press]))});
+ assert.equal(result.stories.length,1);assert.deepEqual(result.stories[0].keys.sort(),['a','b','c']);assert.deepEqual(result.stories[0].reasons.map(r=>r.list).sort(),['closest','differing','speeches']);assert.equal(result.highlights.length,0);assert.equal(result.stories[0].vote.label,'Exact vote label');
+});
+test('a ranked vote label never comes from a different decision on the same reference',()=>{
+ const ranked={...vote('a'),id:'ranked',label:'Label of ranked vote'};
+ const result=selectWeekStory(storyLists({votes:[ranked]}),{pressByKey:new Map([['a',{id:'press'}]]),voteByKey:new Map([['a',{id:'other',label:'Label of another vote'}]])});
+ assert.equal(result.stories[0].vote.id,'ranked');assert.equal(result.stories[0].vote.label,'Label of ranked vote');
+});
+test('held oral vote explanation events cannot enter the debate lists',async()=>{
+ const f=voteFixture();f.day.coverage={state:'complete'};
+ const result=await weekStory({week},{periods,clock,snapshots:{read:()=>({day:f.day})},readSpeechFacts:async()=>({records:[{id:'speech',date,type:'speech',parentIds:['explanation'],people:['1']}]}),readEvent:async()=>({payload:{data:[{activity_id:'explanation',had_activity_type:'def/ep-activities/PLENARY_VOTE_EXPLANATIONS',activity_label:{en:'Published explanation label'}}]}})});
+ assert(!result.highlights.some(row=>row.id==='explanation'));
+});
+test('conflicting summary decisions cannot become story votes',()=>{
+ const f=voteFixture();f.raw._conflictingSourceObservations=['fixture'];
+ assert(!storySitting(f.day).storyVotes.some(row=>row.id===f.raw.activity_id));
+});
+test('lasting speech gaps reuse memory across languages without being written to disk',async()=>{
+ const directory=mkdtempSync(path.join(tmpdir(),'week-partial-cache-'));let reads=0;
+ const f=voteFixture();f.day.coverage={state:'complete'};
+ try {
+  const insights=createInsights({status:()=>({servingGeneration:1}),get:()=>0},{clock,viewCache:{directory},weekStory:{store:null,periods,snapshots:{read:()=>({day:f.day})},readSpeechFacts:async()=>{reads++;return {records:[]};}}});
+  for(const lang of ['en','hu','en'])assert.equal((await insights.query('week-story',new URLSearchParams({week,lang}))).status,'partial');
+  assert.equal(reads,1);assert.deepEqual(readdirSync(directory,{recursive:true}),[]);
+ }finally{rmSync(directory,{recursive:true,force:true});}
 });

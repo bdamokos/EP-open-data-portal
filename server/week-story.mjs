@@ -12,9 +12,9 @@ import {brusselsDay} from './analysis-period.mjs';
 import {odpLanguage} from './odp.mjs';
 import {cachedEvent} from './insights-participation.mjs';
 import {retainedWeekSpeechFacts} from './corpus-speeches.mjs';
-import {storyLists,selectWeekStory,projectStoryLanguage} from './week-story-model.mjs';
+import {storyLists,selectWeekStory,projectStoryLanguage,TRANSIENT_STORY_READ} from './week-story-model.mjs';
 import {pressExcerpt} from './press-releases-model.mjs';
-import {identifier,references,labels} from './vote-evidence.mjs';
+import {identifier,references,labels,term} from './vote-evidence.mjs';
 
 export const WEEK_STORY_VERSION=1;
 export function weekStoryQuery(search) {return {...weekResultsQuery(search),language:odpLanguage(search.get('lang')||'en')};}
@@ -24,12 +24,16 @@ export async function weekStory(query,{store=null,periods=votePeriods,snapshots=
   if(!ids.length)return empty;
   const projected=snapshots!==sittingSnapshots?await projectWeekVoteFacts(ids,{store,snapshots}):await retainedWeekVoteFacts({ids,directory:absolutePathFromEnvironment('ACTIVITY_INDEX_DIR'),generation:store?.status().servingGeneration});
   const {votes,storyVotes,completeVotes}=projected,agenda=new Map(projected.agenda.map(item=>[item.agendaItemId,item]));
-  const facts=await readSpeechFacts({dates:ids.map(id=>id.slice(7,17))});
+  const dates=ids.map(id=>id.slice(7,17)),facts=await readSpeechFacts({dates});
+  // No held rows on a requested sitting date is a gap, not an observed zero.
+  // Row presence cannot prove that ingestion within that date has finished.
+  const observedDates=new Set((facts?.records||[]).map(row=>row.date));
+  const completeSpeeches=Boolean(facts)&&dates.every(date=>observedDates.has(date));
   const debates=new Map(),classified=Boolean(facts)&&facts.records.every(row=>row.type&&row.type!=='unclassified'&&row.type!=='blue-card');
-  for(const row of facts?.records||[]) {
+  for(const row of completeSpeeches?facts.records:[]) {
     if(['chair','written','procedure'].includes(row.type))continue;
     for(const id of row.parentIds) {
-      const debate=debates.get(id)||{id,key:id,titles:row.parentTitles?.[id]||{},speeches:0,blueCards:0,people:new Set()};
+      const debate=debates.get(id)||{id,key:id,speeches:0,blueCards:0,people:new Set()};
       debate.speeches++;if(row.type?.startsWith('blue-card-'))debate.blueCards++;
       for(const personId of row.people)if(personId)debate.people.add(typeof personId==='string'?personId:personId.id);
       debates.set(id,debate);
@@ -40,9 +44,11 @@ export async function weekStory(query,{store=null,periods=votePeriods,snapshots=
   const resolve=async row=>{
     if(resolved.has(row.id))return resolved.get(row.id);
     const saved=await readEvent(row.id),event=saved?.payload?.data?.find(node=>(node.activity_id||identifier(node.id))===row.id);
+    if(event&&term(event.had_activity_type)!=='PLENARY_DEBATE'){resolved.set(row.id,null);return null;}
     const itemIds=references(event?.executed,'event').map(identifier),items=itemIds.map(id=>agenda.get(id)).filter(Boolean);
     const keys=[...new Set(items.flatMap(item=>item.procedureIds.map(procedure)))].sort();
-    const observed=labels(event?.activity_label),titles=Object.keys(observed).length?observed:labels(row.titles);if(!Object.keys(titles).length)missingLabels=true;
+    // Speech parents are URI references; their label exists only on the held event.
+    const titles=labels(event?.activity_label);if(!Object.keys(titles).length)missingLabels=true;
     const entry={id:row.id,key:keys.join('|')||row.id,keys,linked:items.length>0,titles,labelStatus:Object.keys(titles).length?'available':'unavailable',agendaItemIds:itemIds,speeches:row.speeches,speakers:row.people.size,blueCards:row.blueCards};
     resolved.set(row.id,entry);await yieldTurn();return entry;
   };
@@ -50,7 +56,7 @@ export async function weekStory(query,{store=null,periods=votePeriods,snapshots=
     const rows=[...debates.values()].filter(r=>metric!=='blueCards'||r.blueCards>0).sort((a,b)=>b[metric]-a[metric]||a.id.localeCompare(b.id)),out=[],seen=new Set();let boundary=null;
     for(const row of rows) {
       if(seen.size>=5&&row[metric]!==boundary)break;
-      const entry=await resolve(row);
+      const entry=await resolve(row);if(!entry)continue;
       if(!seen.has(entry.key)){seen.add(entry.key);out.push(entry);}
       if(seen.size>=5)boundary=row[metric];
     }
@@ -74,6 +80,7 @@ export async function weekStory(query,{store=null,periods=votePeriods,snapshots=
       }
     }
   }finally{ownedPress?.close();}
-  const result={...empty,status:facts&&completeVotes&&!missingLabels?'complete':'partial',...selectWeekStory(lists,{pressByKey,voteByKey,completeVotes}),press};
+  const result={...empty,status:completeSpeeches&&completeVotes&&!missingLabels?'complete':'partial',...selectWeekStory(lists,{pressByKey,voteByKey,completeVotes}),press};
+  if(!facts||projected.transientReadFailure)result[TRANSIENT_STORY_READ]=true;
   return query.language?projectStoryLanguage(result,query.language):result;
 }

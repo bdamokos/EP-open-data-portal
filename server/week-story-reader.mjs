@@ -9,7 +9,7 @@ import {waitForRequest,requestSignal} from './request-budget.mjs';
 // Snapshot decompression, evidence graphs and history JSON parsing are all
 // synchronous. Keep the entire projection off the HTTP event loop.
 const reads=new SerialFactReads();
-export function retainedWeekVoteFacts(params) {return reads.read(JSON.stringify(params),()=>readVoteFacts(params)).catch(()=>{requestSignal()?.throwIfAborted();return {votes:[],storyVotes:[],agenda:[],completeVotes:false};});}
+export function retainedWeekVoteFacts(params) {return reads.read(JSON.stringify(params),()=>readVoteFacts(params)).catch(()=>{requestSignal()?.throwIfAborted();return {votes:[],storyVotes:[],agenda:[],completeVotes:false,transientReadFailure:true};});}
 async function readVoteFacts({ids,directory,generation}) {
  if(!directory)return {votes:[],storyVotes:[],agenda:[],completeVotes:false};
  const worker=new Worker(new URL(import.meta.url),{workerData:{type:'week-story-votes',ids,directory,generation}});let timer;

@@ -26,7 +26,7 @@ import {MeetingsReader} from './meetings-reader.mjs';
 import {recentPlenaryWeeks} from './plenary-warmup.mjs';
 import {requestSignal,waitForRequest} from './request-budget.mjs';
 import {WEEK_STORY_VERSION,weekStoryQuery,weekStory} from './week-story.mjs';
-import {projectStoryLanguage} from './week-story-model.mjs';
+import {projectStoryLanguage,TRANSIENT_STORY_READ} from './week-story-model.mjs';
 import {WEEK_RESULTS_VERSION,weekResultsQuery,weekResults} from './week-results.mjs';
 import {agendaViewFreshMs,nextPlenaryWarmup,PLENARY_REFRESH_MS} from './plenary-cache-policy.mjs';
 
@@ -55,7 +55,9 @@ export function createInsights(store,options={}) {
   const views=new InsightViewCache({clock,...options.viewCache,cacheable:topicAmendmentsCacheable});
   // Keep the latest week's item responses from displacing its navigation lists.
   const details=new InsightViewCache({clock,directory:views.directory&&path.join(views.directory,'plenary-details-v1'),maxEntries:512,...options.detailCache,cacheable:topicAmendmentsCacheable});
-  const storyCache={clock,...options.viewCache,freshMs:24*60*60_000,cacheable:value=>value.status==='complete'};
+  // Lasting gaps get a short memory-only reuse window. Transient read failures
+  // retry on the next visit; only complete views reach the disk cache.
+  const storyCache={clock,...options.viewCache,freshMs:value=>value.status==='partial'?60_000:24*60*60_000,cacheable:value=>['complete','partial'].includes(value.status)&&!value[TRANSIENT_STORY_READ]};
   const stories=new InsightViewCache({...storyCache,directory:views.directory&&path.join(views.directory,'week-stories-v1')});
   const storyFacts=new InsightViewCache({...storyCache,directory:views.directory&&path.join(views.directory,'week-story-facts-v1')});
   const search=new ParliamentSearch(store,{clock});
@@ -150,7 +152,12 @@ export function createInsights(store,options={}) {
     if(view==='week-story') {
       const query=weekStoryQuery(searchParams),generation=store.status().servingGeneration,today=brusselsDay(clock());
       const factsKey=[WEEK_STORY_VERSION,view,query.week,generation,today];
-      return stories.get([WEEK_STORY_VERSION,view,query.week,query.language,generation,today],async()=>projectStoryLanguage(await storyFacts.get(factsKey,()=>weekStory({...query,language:null},{store,clock,...options.weekStory})),query.language));
+      let raw,localized;
+      return stories.get([WEEK_STORY_VERSION,view,query.week,query.language,generation,today],async()=>{
+        let loaded;
+        raw=await storyFacts.get(factsKey,async()=>{loaded=await weekStory({...query,language:null},{store,clock,...options.weekStory});return loaded;},{persist:()=>loaded?.status==='complete'});
+        localized=projectStoryLanguage(raw,query.language);return localized;
+      },{persist:()=>localized?.status==='complete'});
     }
     if(view==='week-results'){const query=weekResultsQuery(searchParams);return views.get([WEEK_RESULTS_VERSION,view,query.week,brusselsDay(clock())],()=>weekResults(query,{clock,votes:options.memberVotes,periods:options.votePeriods}));}
     if(!['questions','legislation'].includes(view))throw new HttpError(404,'insight_not_found','Unknown insight view.');
