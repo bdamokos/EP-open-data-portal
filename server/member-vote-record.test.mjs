@@ -183,3 +183,11 @@ test('query parsing rejects unsupported, repeated, out-of-range and malformed va
   assert.equal(memberVoteRecordLanguage(new URLSearchParams()),'en');
   for(const lang of ['eng','EN','e',''])assert.throws(()=>memberVoteRecordLanguage(new URLSearchParams({lang})),error=>error instanceof HttpError&&error.status===400);
 });
+
+test('the period ends at the latest stored sitting, even for a member absent from it',()=>{
+  const {db,sitting,member}=database({includeC:false});
+  sitting(A,{named:1});sitting(C,{named:1});
+  member(memberRow({sittingId:A,date:'2026-09-16',alignment:{with:1,against:0,abstained:0,notComparable:0},recorded:1,named:1,withGroup:1,comparable:1}));
+  const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-09T12:00:00Z')});
+  assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).period,{from:'2024-07-16',to:'2026-10-08'});
+});

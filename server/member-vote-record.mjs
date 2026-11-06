@@ -97,7 +97,8 @@ export class MemberVoteRecordReader {
       const included=sittings.length;
       const missing=Math.max(0,expected-included);
       const coverage={sittings:expected,included,missing,status:!expected&&!included?'unavailable':missing?'partial':'complete'};
-      const period={from:CURRENT_TERM_START,to:rows[0]?.date??null};
+      // The period is the stored sittings' range, the same for every member.
+      const period={from:CURRENT_TERM_START,to:sittings.reduce((latest,sitting)=>sitting.date>latest?sitting.date:latest,'')||null};
       // Medians are published only from a complete projection, so a gap in the
       // stored sittings never shifts them.
       let comparison=null;
