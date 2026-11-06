@@ -94,17 +94,29 @@ function Departures({data,memberId,language,scope,tag,offset,onOffset,onTagChang
 }
 
 // Rows share one grid so the label, share and count each keep one edge in both lists.
+// Rows share one grid so the label, share and count each keep one edge in both lists;
+// the column labels sit on the heading row in the same grid.
+const capitalise=(text:string,language:string)=>text.charAt(0).toLocaleUpperCase(language||'en')+text.slice(1);
 function BreakdownList({heading,list,tag,onTag}:{heading:string;list:MemberVoteRecordBreakdownList;tag:string|null;onTag:(tag:string|null)=>void}) {
   const ui=useUiI18n();
   return <div className="member-vote-record-list">
-    <h4>{heading}</h4>
-    <ul>{list.rows.map(row=><li key={row.key}>
-      <button type="button" aria-pressed={tag===row.key} onClick={()=>onTag(tag===row.key?null:row.key)}>
-        <span className="member-vote-record-row-label" lang={row.language&&row.language!=='mul'&&row.language!==ui.language?row.language:undefined}>{row.label}</span>
-        <span className="member-vote-record-row-share">{ui.t('membervoterecord.percent',{value:Math.round(row.share*100)})}</span>
-        <span className="member-vote-record-row-count">{ui.t('membervoterecord.breakdown.votes',{count:num(ui,row.comparable)})}</span>
-      </button>
-    </li>)}</ul>
+    <div className="member-vote-record-list-head">
+      <h4>{heading}</h4>
+      <span className="member-vote-record-row-share"><UiMessage id="membervoterecord.breakdown.share"/></span>
+      <span className="member-vote-record-row-count"><UiMessage id="membervoterecord.breakdown.count"/></span>
+    </div>
+    <ul>{list.rows.map(row=>{
+      // EuroVoc labels are lower case in the source; capitalised for display only.
+      const label=row.key.startsWith('topic:')?capitalise(row.label,row.language):row.label;
+      const share=ui.t('membervoterecord.percent',{value:Math.round(row.share*100)}),count=num(ui,row.comparable);
+      return <li key={row.key}>
+        <button type="button" aria-pressed={tag===row.key} aria-label={ui.t('membervoterecord.breakdown.row',{label,share,count})} onClick={()=>onTag(tag===row.key?null:row.key)}>
+          <span className="member-vote-record-row-label" lang={row.language&&row.language!=='mul'&&row.language!==ui.language?row.language:undefined}>{label}</span>
+          <span className="member-vote-record-row-share">{share}</span>
+          <span className="member-vote-record-row-count">{count}</span>
+        </button>
+      </li>;
+    })}</ul>
   </div>;
 }
 

@@ -218,8 +218,11 @@ test('the breakdown sits between the figures and the departures with two lists o
   assert.equal(section(view.container).querySelector('h3').textContent,'Where they differ most from their group');
   const lists=[...section(view.container).querySelectorAll('.member-vote-record-list')];
   assert.deepEqual(lists.map(list=>list.querySelector('h4').textContent),['By topic','By country discussed']);
-  assert.deepEqual(rowsOf(lists[0]).map(row=>row.textContent),['trade policy58%145 votes','regions of EU Member States75%1,234 votes']);
-  assert.deepEqual(rowsOf(lists[1]).map(row=>row.textContent),['Mexico39%33 votes','China88%162 votes']);
+  // The columns are named on the heading row, in the same grid as the rows.
+  assert.deepEqual(lists.map(list=>[...list.querySelector('.member-vote-record-list-head').children].map(cell=>cell.textContent)),[['By topic','With group','Votes'],['By country discussed','With group','Votes']]);
+  assert.deepEqual(rowsOf(lists[0]).map(row=>row.textContent),['Trade policy58%145','Regions of EU Member States75%1,234'],'EuroVoc labels are capitalised for display');
+  assert.deepEqual(rowsOf(lists[1]).map(row=>row.textContent),['Mexico39%33','China88%162']);
+  assert.equal(rowsOf(lists[0])[0].getAttribute('aria-label'),'Trade policy: 58% with their group, 145 votes');
   assert.equal(section(view.container).querySelector('svg'),null,'no bars or charts');
 });
 
@@ -228,9 +231,12 @@ test('every row has the same three cells so label, share and count keep one edge
   for(const row of rowsOf(section(view.container)))
     assert.deepEqual([...row.children].map(cell=>cell.className),['member-vote-record-row-label','member-vote-record-row-share','member-vote-record-row-count']);
   const css=readFileSync(new URL('./MemberVoteRecord.css',import.meta.url),'utf8');
-  const rule=name=>css.match(new RegExp(name.replace(/[.[\]]/g,'\\$&')+'[^{]*\\{([^}]*)\\}'))?.[1]||'';
-  const grid=rule('.member-vote-record .member-vote-record-list button');
-  assert.match(grid,/grid-template-columns:minmax\(0,1fr\) 3\.25rem 6rem/,'one column template for every row of both lists');
+  const rule=name=>css.match(new RegExp('(?:^|\\n|\\})\\s*'+name.replace(/[.[\]+()]/g,'\\$&')+'\\s*\\{([^}]*)\\}'))?.[1]||'';
+  const grid=rule('.member-vote-record-list-head,.member-vote-record .member-vote-record-list button');
+  assert.match(grid,/grid-template-columns:minmax\(0,1fr\) 5\.5rem 3\.5rem/,'one column template for the heading row and every row of both lists');
+  // The text sits on the list's edges: the button grows by its padding on both sides, so hover and focus move nothing.
+  const button_=rule('.member-vote-record .member-vote-record-list button');
+  assert.match(button_,/width:calc\(100% \+ 12px\);margin:0 -6px;/);assert.match(button_,/padding:8px 6px/);
   assert.match(rule('.member-vote-record-row-share,.member-vote-record-row-count'),/text-align:right;font-variant-numeric:tabular-nums/);
   assert.equal(/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i.test(css),false,'tokens only');
 });
@@ -244,7 +250,7 @@ test('a row is a button that sets the exact tag, and the pressed row clears it',
 test('the pressed row clears its tag when pressed again',async t=>{
   const filtered=await mount(t,{tag:'country:MEX',data:response({breakdown:breakdown(topicRows,countryRows),departures:{...response().departures,tag:{key:'country:MEX',label:'Mexico',language:'en'}}})});
   const pressed=rowsOf(section(filtered.container)).filter(row=>row.getAttribute('aria-pressed')==='true');
-  assert.deepEqual(pressed.map(row=>row.textContent),['Mexico39%33 votes']);
+  assert.deepEqual(pressed.map(row=>row.textContent),['Mexico39%33']);
   await act(async()=>pressed[0].click());
   assert.deepEqual(filtered.tags,[null]);
 });

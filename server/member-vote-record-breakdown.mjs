@@ -4,6 +4,9 @@
 // distinct procedures, and it is shown only when it is clearly below the
 // member's own overall share in the same scope.
 export const BREAKDOWN={minVotes:20,minProcedures:3,margin:0.05,rows:5};
+// Procedures are counted by their base number: 2025-0810 and 2025-0810R are one file,
+// and one file's many amendment votes are exactly what the rule guards against.
+export const baseProcedure=id=>String(id).replace(/[A-Z]+$/,'');
 
 // rows: one {vector,tags} per sitting the member has a row in. The vector has one
 // mark per named decision (w with, a against, b abstained, n not comparable;
@@ -29,7 +32,7 @@ export function memberBreakdown(rows,scope='all') {
         for(const key of keys) {
           const row=map.get(key)||{key,withGroup:0,against:0,procedures:new Set()};
           if(kind==='w')row.withGroup++;else row.against++;
-          for(const procedure of procedures)row.procedures.add(procedure);
+          for(const procedure of procedures)row.procedures.add(baseProcedure(procedure));
           map.set(key,row);
         }
     }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {BREAKDOWN,memberBreakdown} from './member-vote-record-breakdown.mjs';
+import {BREAKDOWN,baseProcedure,memberBreakdown} from './member-vote-record-breakdown.mjs';
 
 // One sitting row: `marks` is the member's vector, `tagged` gives the tags of each decision.
 const sitting=(marks,tagFor)=>({vector:marks,tags:[...marks].map((_,index)=>[`D${index}`,...tagFor(index)])});
@@ -56,4 +56,12 @@ test('the final scope counts whole-text votes only, and untagged votes count tow
 test('with no comparable vote there is no overall share and nothing is shown',()=>{
   const result=memberBreakdown([sitting('b'.repeat(30)+'n'.repeat(30),only(['1'],5))]);
   assert.equal(result.overall,null);assert.equal(result.topics.eligible,0);assert.deepEqual(result.countries.rows,[]);
+});
+
+test('a procedure and its lettered variant are one file when counting distinct procedures',()=>{
+  assert.equal(baseProcedure('2025-0810R'),'2025-0810');assert.equal(baseProcedure('2024-0260M'),'2024-0260');assert.equal(baseProcedure('2025-0810'),'2025-0810');
+  const make=ids=>[sitting('a'.repeat(25),index=>[[ids[index%ids.length]],['100195'],[]])];
+  assert.equal(memberBreakdown(make(['2025-0271','2025-0810','2025-0810R'])).topics.eligible,0,'two files, not three');
+  assert.equal(memberBreakdown(make(['2025-0271','2025-0810','2025-0810R','2025-0900'])).topics.eligible,1);
+  assert.equal(memberBreakdown(make(['2025-0810','2025-0810R','2025-0810M'])).topics.eligible,0,'one file');
 });
