@@ -169,3 +169,53 @@ test('indexed title matches do not restrict coverage or let future and malformed
   const section=(await service.query(query('q=unmatched-title&type=question'))).sections[0];
   assert.equal(section.total,0);assert.equal(section.coverage.availability.latestObservedDate,baseline);assert(baseline);
 });
+
+function holdReferences(store,generation) {
+  store.acquire();
+  const put=(key,kind,body)=>store.db.prepare('INSERT INTO sources(generation,key,kind,body,fetched_at) VALUES (?,?,?,?,?)').run(generation,key,kind,JSON.stringify(body),'2026-10-14T00:00:00Z');
+  put('/procedures/2025-0222','procedure',{id:'eli/dl/proc/2025-0222',label:'2025/0222(COD)',process_title:{en:'Establishing the Erasmus+ programme'}});
+  put('/plenary-documents/A-10-2026-0257','document',{identifier:'A-10-2026-0257',label:'A10-0257/2026',document_date:'2026-10-02',title_dcterms:{en:'REPORT on Erasmus+'}});
+  put('/adopted-texts/TA-10-2026-0257','document',{identifier:'TA-10-2026-0257',label:'T10-0257/2026',document_date:'2026-07-08',title_dcterms:{en:'Adopted text'}});
+  put('committee:association:CULT-PR-787958','committee-association',{procedureIds:['2025-0222']});
+  store.db.prepare('INSERT INTO dossier_documents(generation,procedure,source_key) VALUES (?,?,?)').run(generation,'2025-0222','/plenary-documents/A-10-2026-0257');
+  store.db.prepare('INSERT INTO dossier_documents(generation,procedure,source_key) VALUES (?,?,?)').run(generation,'2023-0142','/adopted-texts/TA-10-2026-0257');
+  store.db.prepare('INSERT INTO dossier_documents(generation,procedure,source_key) VALUES (?,?,?)').run(generation,'/MTG-PL-2026-07-08-PVCRE-ITM-10-7','/adopted-texts/TA-10-2026-0257');
+}
+test('a pasted reference opens its held record by exact keys',async t=>{
+  const {service,store,generation,calls}=setup(t);holdReferences(store,generation);
+  const read=async q=>(await service.query(query('q='+encodeURIComponent(q)+'&type=reference'))).sections[0];
+  for(const form of ['A10-0257/2026','A-10-2026-0257','a10-0257/2026']) {
+    const section=await read(form);
+    assert.equal(section.type,'reference');
+    assert.deepEqual(section.results.map(({kind,reference,title,date,dossier})=>({kind,reference,title,date,dossier})),[{kind:'report',reference:'A10-0257/2026',title:'REPORT on Erasmus+',date:'2026-10-02',dossier:'2025/0222(COD)'}],form);
+  }
+  for(const form of ['2025/0222(COD)','2025-0222'])assert.deepEqual((await read(form)).results.map(({kind,reference,dossier})=>({kind,reference,dossier})),[{kind:'dossier',reference:'2025/0222(COD)',dossier:'2025/0222(COD)'}],form);
+  assert.equal((await read('2025/0222(CNS)')).held,false,'the type must match the held file');
+  assert.equal((await read('A10-9999/2026')).held,false);
+  assert.equal((await read('A10-9999/2026')).total,0);
+  assert.deepEqual((await read('CULT-PR-787958')).results.map(({kind,reference,title,dossier})=>({kind,reference,title,dossier})),[{kind:'document',reference:'CULT-PR-787958',title:null,dossier:'2025/0222(COD)'}],'committee documents resolve through their association');
+  const text=await read('T10-0257/2026');
+  assert.equal(text.results[0].dossier,null,'a procedure that is not held gives no dossier link');
+  assert.equal(text.results[0].kind,'document');
+  const commission=await read('COM(2025) 0549');
+  assert.deepEqual([commission.held,commission.lookup],[null,{key:'com:2025/549',reference:'COM(2025) 549'}]);
+  assert.equal(calls.length,0,'reference lookups read nothing upstream');
+});
+test('person references need an MEP, and all sections carry the reference first', async t=>{
+  const {service,store,generation}=setup(t);holdReferences(store,generation);
+  const sections=async q=>(await service.query(query('q='+encodeURIComponent(q)))).sections.map(section=>section.type);
+  assert.deepEqual(await sections('A10-0257/2026'),['reference','mep','topic','question']);
+  assert.deepEqual(await sections('Blue'),['mep','topic','question'],'text queries carry no reference section');
+  assert.equal((await service.query(query('q=MEP+999999&type=reference'))).sections[0].held,false);
+  assert.deepEqual((await service.query(query('q=999999&type=reference'))).sections,[],'a bare number that is no member is an ordinary search');
+  store.db.prepare('INSERT INTO members(id,body) VALUES (?,?)').run('113523',JSON.stringify({id:'113523',name:'Peter AGIUS'}));
+  assert.deepEqual((await service.query(query('q=MEP+113523&type=reference'))).sections[0].results.map(r=>[r.kind,r.member,r.title]),[['member','113523','Peter AGIUS']]);
+});
+test('an exact full-name match sorts first among MEPs', async t=>{
+  const {service,store}=setup(t);store.acquire();
+  store.db.prepare('INSERT INTO members(id,body) VALUES (?,?)').run('7',JSON.stringify({id:'7',name:'Anna Éva Example',nameVariants:[{value:'Anna Eva Example'}]}));
+  const ids=async q=>(await service.query(query('q='+encodeURIComponent(q)+'&type=mep'))).sections[0].results.map(r=>r.id);
+  assert.deepEqual(await ids('Example'),['7','43'],'alphabetical without an exact match');
+  assert.deepEqual(await ids('eva example'),['43','7'],'the exact full name leads, folded for case and accents');
+  assert.deepEqual(await ids('Éva Example'),['43','7']);
+});

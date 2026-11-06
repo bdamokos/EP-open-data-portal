@@ -463,5 +463,10 @@
     "one": "weekSummary.votesOne",
     "other": "weekSummary.votes",
     "count": "count"
+  },
+  {
+    "one": "searchreference.agendas_not_searched_one",
+    "other": "searchreference.agendas_not_searched",
+    "count": "count"
   }
 ]
