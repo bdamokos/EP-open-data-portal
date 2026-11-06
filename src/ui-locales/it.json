@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Trova un deputato",
   "Saved.findTopic": "Cerca un tema",
   "Saved.thisWeeksAgenda": "Ordine del giorno di questa settimana",
-  "app.filtersCount": "Filtri ({count})",
   "app.memberViewCards": "Schede",
   "app.memberViewList": "Elenco",
   "app.memberListName": "Nome",
   "app.memberListCommittees": "Commissioni",
   "app.memberListNationalParty": "Partito nazionale",
-  "app.removeFilter": "Rimuovi {filter}",
   "app.showMore": "Mostra altro",
   "app.substituteShort": "(suppl.)",
   "batch6.procedureprogress.full_timeline": "Cronologia completa ({count} eventi)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} a favore, {against} contro, {abstaining} astenuti",
   "weekSummary.votes": "{count} votazioni",
   "weekSummary.votesOne": "{count} votazione",
-  "weekSummary.weekOf": "Settimana del {date}"
+  "weekSummary.weekOf": "Settimana del {date}",
+  "reader.amendment_not_found": "Emendamento non trovato.",
+  "reader.contents": "Indice",
+  "reader.header": "Emendamento {number} · {provision}",
+  "reader.header_number": "Emendamento {number}",
+  "reader.loading_amendment": "Caricamento dell’emendamento…",
+  "reader.next_amendment": "Emendamento successivo",
+  "reader.previous_amendment": "Emendamento precedente",
+  "reader.show_whole_text": "Mostra il testo completo"
 }

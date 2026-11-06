@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Atrast EP deputātu",
   "Saved.findTopic": "Meklēt tematu",
   "Saved.thisWeeksAgenda": "Šīs nedēļas darba kārtība",
-  "app.filtersCount": "Filtri ({count})",
   "app.memberViewCards": "Kartes",
   "app.memberViewList": "Saraksts",
   "app.memberListName": "Vārds",
   "app.memberListCommittees": "Komitejas",
   "app.memberListNationalParty": "Nacionālā partija",
-  "app.removeFilter": "Noņemt {filter}",
   "app.showMore": "Rādīt vairāk",
   "app.substituteShort": "(aizst.)",
   "batch6.procedureprogress.full_timeline": "Pilna hronoloģija ({count} notikumi)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} par, {against} pret, {abstaining} atturējās",
   "weekSummary.votes": "{count} balsojumi",
   "weekSummary.votesOne": "{count} balsojums",
-  "weekSummary.weekOf": "Nedēļa no {date}"
+  "weekSummary.weekOf": "Nedēļa no {date}",
+  "reader.amendment_not_found": "Grozījums nav atrasts.",
+  "reader.contents": "Saturs",
+  "reader.header": "Grozījums {number} · {provision}",
+  "reader.header_number": "Grozījums {number}",
+  "reader.loading_amendment": "Ielādē grozījumu…",
+  "reader.next_amendment": "Nākamais grozījums",
+  "reader.previous_amendment": "Iepriekšējais grozījums",
+  "reader.show_whole_text": "Rādīt visu tekstu"
 }

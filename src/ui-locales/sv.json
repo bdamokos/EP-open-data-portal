@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Hitta en ledamot",
   "Saved.findTopic": "Sök efter ett ämne",
   "Saved.thisWeeksAgenda": "Den här veckans föredragningslista",
-  "app.filtersCount": "Filter ({count})",
   "app.memberViewCards": "Kort",
   "app.memberViewList": "Lista",
   "app.memberListName": "Namn",
   "app.memberListCommittees": "Utskott",
   "app.memberListNationalParty": "Nationellt parti",
-  "app.removeFilter": "Ta bort {filter}",
   "app.showMore": "Visa fler",
   "app.substituteShort": "(supp.)",
   "batch6.procedureprogress.full_timeline": "Hela tidslinjen ({count} händelser)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} för, {against} mot, {abstaining} avstod",
   "weekSummary.votes": "{count} omröstningar",
   "weekSummary.votesOne": "{count} omröstning",
-  "weekSummary.weekOf": "Veckan från {date}"
+  "weekSummary.weekOf": "Veckan från {date}",
+  "reader.amendment_not_found": "Ändringsförslaget hittades inte.",
+  "reader.contents": "Innehåll",
+  "reader.header": "Ändringsförslag {number} · {provision}",
+  "reader.header_number": "Ändringsförslag {number}",
+  "reader.loading_amendment": "Läser in ändringsförslag…",
+  "reader.next_amendment": "Nästa ändringsförslag",
+  "reader.previous_amendment": "Föregående ändringsförslag",
+  "reader.show_whole_text": "Visa hela texten"
 }

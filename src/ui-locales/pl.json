@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Znajdź posła do PE",
   "Saved.findTopic": "Znajdź temat",
   "Saved.thisWeeksAgenda": "Porządek obrad tego tygodnia",
-  "app.filtersCount": "Filtry ({count})",
   "app.memberViewCards": "Karty",
   "app.memberViewList": "Lista",
   "app.memberListName": "Imię i nazwisko",
   "app.memberListCommittees": "Komisje",
   "app.memberListNationalParty": "Partia krajowa",
-  "app.removeFilter": "Usuń {filter}",
   "app.showMore": "Pokaż więcej",
   "app.substituteShort": "(zast.)",
   "batch6.procedureprogress.full_timeline": "Pełna oś czasu (liczba zdarzeń: {count})",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} za, {against} przeciw, {abstaining} wstrzymujących się",
   "weekSummary.votes": "{count} głosowania",
   "weekSummary.votesOne": "{count} głosowanie",
-  "weekSummary.weekOf": "Tydzień od {date}"
+  "weekSummary.weekOf": "Tydzień od {date}",
+  "reader.amendment_not_found": "Nie znaleziono poprawki.",
+  "reader.contents": "Spis treści",
+  "reader.header": "Poprawka {number} · {provision}",
+  "reader.header_number": "Poprawka {number}",
+  "reader.loading_amendment": "Wczytywanie poprawki…",
+  "reader.next_amendment": "Następna poprawka",
+  "reader.previous_amendment": "Poprzednia poprawka",
+  "reader.show_whole_text": "Pokaż cały tekst"
 }

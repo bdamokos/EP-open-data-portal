@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Poišči poslanca",
   "Saved.findTopic": "Poišči temo",
   "Saved.thisWeeksAgenda": "Dnevni red tega tedna",
-  "app.filtersCount": "Filtri ({count})",
   "app.memberViewCards": "Kartice",
   "app.memberViewList": "Seznam",
   "app.memberListName": "Ime",
   "app.memberListCommittees": "Odbori",
   "app.memberListNationalParty": "Nacionalna stranka",
-  "app.removeFilter": "Odstrani {filter}",
   "app.showMore": "Pokaži več",
   "app.substituteShort": "(nam.)",
   "batch6.procedureprogress.full_timeline": "Celotna časovnica (število dogodkov: {count})",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} za, {against} proti, {abstaining} vzdržanih",
   "weekSummary.votes": "{count} glasovanj",
   "weekSummary.votesOne": "{count} glasovanje",
-  "weekSummary.weekOf": "Teden od {date}"
+  "weekSummary.weekOf": "Teden od {date}",
+  "reader.amendment_not_found": "Predloga spremembe ni bilo mogoče najti.",
+  "reader.contents": "Kazalo",
+  "reader.header": "Predlog spremembe {number} · {provision}",
+  "reader.header_number": "Predlog spremembe {number}",
+  "reader.loading_amendment": "Nalaganje predloga spremembe…",
+  "reader.next_amendment": "Naslednji predlog spremembe",
+  "reader.previous_amendment": "Prejšnji predlog spremembe",
+  "reader.show_whole_text": "Pokaži celotno besedilo"
 }

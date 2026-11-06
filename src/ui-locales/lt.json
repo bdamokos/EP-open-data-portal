@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Rasti EP narį",
   "Saved.findTopic": "Ieškoti temos",
   "Saved.thisWeeksAgenda": "Šios savaitės darbotvarkė",
-  "app.filtersCount": "Filtrai ({count})",
   "app.memberViewCards": "Kortelės",
   "app.memberViewList": "Sąrašas",
   "app.memberListName": "Vardas ir pavardė",
   "app.memberListCommittees": "Komitetai",
   "app.memberListNationalParty": "Nacionalinė partija",
-  "app.removeFilter": "Pašalinti {filter}",
   "app.showMore": "Rodyti daugiau",
   "app.substituteShort": "(pavad.)",
   "batch6.procedureprogress.full_timeline": "Visa laiko juosta (įvykių skaičius: {count})",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} už, {against} prieš, {abstaining} susilaikė",
   "weekSummary.votes": "{count} balsavimų",
   "weekSummary.votesOne": "{count} balsavimas",
-  "weekSummary.weekOf": "Savaitė nuo {date}"
+  "weekSummary.weekOf": "Savaitė nuo {date}",
+  "reader.amendment_not_found": "Pakeitimas nerastas.",
+  "reader.contents": "Turinys",
+  "reader.header": "Pakeitimas {number} · {provision}",
+  "reader.header_number": "Pakeitimas {number}",
+  "reader.loading_amendment": "Įkeliamas pakeitimas…",
+  "reader.next_amendment": "Kitas pakeitimas",
+  "reader.previous_amendment": "Ankstesnis pakeitimas",
+  "reader.show_whole_text": "Rodyti visą tekstą"
 }

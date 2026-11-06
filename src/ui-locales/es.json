@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Buscar un eurodiputado",
   "Saved.findTopic": "Buscar un tema",
   "Saved.thisWeeksAgenda": "Orden del día de esta semana",
-  "app.filtersCount": "Filtros ({count})",
   "app.memberViewCards": "Tarjetas",
   "app.memberViewList": "Lista",
   "app.memberListName": "Nombre",
   "app.memberListCommittees": "Comisiones",
   "app.memberListNationalParty": "Partido nacional",
-  "app.removeFilter": "Quitar {filter}",
   "app.showMore": "Mostrar más",
   "app.substituteShort": "(supl.)",
   "batch6.procedureprogress.full_timeline": "Cronología completa ({count} eventos)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} a favor, {against} en contra, {abstaining} abstenciones",
   "weekSummary.votes": "{count} votaciones",
   "weekSummary.votesOne": "{count} votación",
-  "weekSummary.weekOf": "Semana del {date}"
+  "weekSummary.weekOf": "Semana del {date}",
+  "reader.amendment_not_found": "Enmienda no encontrada.",
+  "reader.contents": "Contenido",
+  "reader.header": "Enmienda {number} · {provision}",
+  "reader.header_number": "Enmienda {number}",
+  "reader.loading_amendment": "Cargando la enmienda…",
+  "reader.next_amendment": "Enmienda siguiente",
+  "reader.previous_amendment": "Enmienda anterior",
+  "reader.show_whole_text": "Mostrar el texto completo"
 }

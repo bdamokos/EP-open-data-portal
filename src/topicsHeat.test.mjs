@@ -1,12 +1,13 @@
 import {installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {Window} from 'happy-dom';
 import {createElement,act} from 'react';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {heatStep,topicStatusMessage} from './topicPresentation.mjs';
 
-async function mount(t,{url,narrow=false,language='en',fetch}) {
+async function mount(t,{url,narrow=false,language='en',fetch,omit=[]}) {
   const window=new Window({url}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));
   for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
   window.HTMLElement.prototype.scrollIntoView=function(){};
@@ -21,7 +22,9 @@ async function mount(t,{url,narrow=false,language='en',fetch}) {
   let page=createElement(Topics,{language});
   if(language!=='en') {
     const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await load('/src/uiCatalogues.mjs'),{default:catalogue}=await load('/src/ui-locales/'+language+'.json');
-    page=createElement(UiI18nProvider,{i18n:createAppUiI18n({[language]:catalogue}),language},page);
+    // `omit` stubs a catalogue that lacks those messages, whatever the shipped catalogue holds.
+    const stub=Object.fromEntries(Object.entries(catalogue).filter(([id])=>!omit.includes(id)));
+    page=createElement(UiI18nProvider,{i18n:createAppUiI18n({[language]:stub}),language},page);
   }
   await act(async()=>root.render(page));
   return {node,wait,window};
@@ -112,8 +115,9 @@ test('a failed status read leaves the references without status or message',asyn
   assert.doesNotMatch(node.textContent,/Down|unavailable/i);
 });
 
-test('messages without a French translation keep their English language tag',async t=>{
-  const {node,wait}=await mount(t,{url:'http://localhost/?view=legislation&pl-mode=topics&lang=fr',language:'fr',fetch:overview});
+const topicViewIds=['topics.heatCaption','topics.scaleFewer','topics.scaleMore','topics.viewLabel','topics.viewGrid','topics.viewList'];
+test('messages missing from a catalogue keep their English language tag',async t=>{
+  const {node,wait}=await mount(t,{url:'http://localhost/?view=legislation&pl-mode=topics&lang=fr',language:'fr',fetch:overview,omit:topicViewIds});
   await wait(()=>node.querySelector('.topic-heat'));
   const lang=element=>element.closest('[lang]')?.getAttribute('lang');
   assert.equal(node.querySelector('.topic-heat-key p').textContent,'Debates and dossiers per quarter.');
@@ -122,6 +126,18 @@ test('messages without a French translation keep their English language tag',asy
   const view=node.querySelector('.topic-view');
   assert.equal(view.getAttribute('lang'),'en');assert.equal(view.getAttribute('aria-label'),'View');
   assert.deepEqual([...view.querySelectorAll('button')].map(b=>b.textContent+':'+lang(b)),['Grid:en','List:en']);
+});
+test('translated topic view messages carry the interface language',async t=>{
+  const french=JSON.parse(await readFile(new URL('./ui-locales/fr.json',import.meta.url),'utf8'));
+  const {node,wait}=await mount(t,{url:'http://localhost/?view=legislation&pl-mode=topics&lang=fr',language:'fr',fetch:overview});
+  await wait(()=>node.querySelector('.topic-heat'));
+  const lang=element=>element.closest('[lang]')?.getAttribute('lang');
+  assert.equal(node.querySelector('.topic-heat-key p').textContent,french['topics.heatCaption']);
+  assert.equal(lang(node.querySelector('.topic-heat-key p')),'fr');
+  assert.deepEqual([...node.querySelectorAll('.topic-scale span')].map(span=>span.textContent+':'+lang(span)),[french['topics.scaleFewer']+':fr',french['topics.scaleMore']+':fr']);
+  const view=node.querySelector('.topic-view');
+  assert.equal(view.getAttribute('lang'),'fr');assert.equal(view.getAttribute('aria-label'),french['topics.viewLabel']);
+  assert.deepEqual([...view.querySelectorAll('button')].map(b=>b.textContent+':'+lang(b)),[french['topics.viewGrid']+':fr',french['topics.viewList']+':fr']);
 });
 test('a status word keeps the language of its own message',async t=>{
   const {node,wait}=await mount(t,{url:'http://localhost/?view=legislation&pl-mode=topics&topic=oeil%3A3.60&lang=fr',language:'fr',fetch:detail(()=>Response.json({version:1,items:[{id:'2025-0222',reference:'2025/0222(COD)',stage:'position-talks'}]}))});

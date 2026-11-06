@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Najít poslance EP",
   "Saved.findTopic": "Najít téma",
   "Saved.thisWeeksAgenda": "Pořad jednání tohoto týdne",
-  "app.filtersCount": "Filtry ({count})",
   "app.memberViewCards": "Karty",
   "app.memberViewList": "Seznam",
   "app.memberListName": "Jméno",
   "app.memberListCommittees": "Výbory",
   "app.memberListNationalParty": "Národní strana",
-  "app.removeFilter": "Odebrat {filter}",
   "app.showMore": "Zobrazit více",
   "app.substituteShort": "(náhr.)",
   "batch6.procedureprogress.full_timeline": "Celá časová osa (počet událostí: {count})",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} pro, {against} proti, {abstaining} se zdrželo",
   "weekSummary.votes": "{count} hlasování",
   "weekSummary.votesOne": "{count} hlasování",
-  "weekSummary.weekOf": "Týden od {date}"
+  "weekSummary.weekOf": "Týden od {date}",
+  "reader.amendment_not_found": "Pozměňovací návrh nebyl nalezen.",
+  "reader.contents": "Obsah",
+  "reader.header": "Pozměňovací návrh {number} · {provision}",
+  "reader.header_number": "Pozměňovací návrh {number}",
+  "reader.loading_amendment": "Načítání pozměňovacího návrhu…",
+  "reader.next_amendment": "Další pozměňovací návrh",
+  "reader.previous_amendment": "Předchozí pozměňovací návrh",
+  "reader.show_whole_text": "Zobrazit celý text"
 }

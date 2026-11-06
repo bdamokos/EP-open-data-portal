@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Pronađite zastupnika u EP-u",
   "Saved.findTopic": "Pronađite temu",
   "Saved.thisWeeksAgenda": "Dnevni red ovog tjedna",
-  "app.filtersCount": "Filtri ({count})",
   "app.memberViewCards": "Kartice",
   "app.memberViewList": "Popis",
   "app.memberListName": "Ime",
   "app.memberListCommittees": "Odbori",
   "app.memberListNationalParty": "Nacionalna stranka",
-  "app.removeFilter": "Ukloni {filter}",
   "app.showMore": "Prikaži više",
   "app.substituteShort": "(zamj.)",
   "batch6.procedureprogress.full_timeline": "Cijela vremenska crta (broj događaja: {count})",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} za, {against} protiv, {abstaining} suzdržanih",
   "weekSummary.votes": "{count} glasovanja",
   "weekSummary.votesOne": "{count} glasovanje",
-  "weekSummary.weekOf": "Tjedan od {date}"
+  "weekSummary.weekOf": "Tjedan od {date}",
+  "reader.amendment_not_found": "Amandman nije pronađen.",
+  "reader.contents": "Sadržaj",
+  "reader.header": "Amandman {number} · {provision}",
+  "reader.header_number": "Amandman {number}",
+  "reader.loading_amendment": "Učitavanje amandmana…",
+  "reader.next_amendment": "Sljedeći amandman",
+  "reader.previous_amendment": "Prethodni amandman",
+  "reader.show_whole_text": "Prikaži cijeli tekst"
 }

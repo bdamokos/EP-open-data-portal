@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Zoek een EP-lid",
   "Saved.findTopic": "Zoek een onderwerp",
   "Saved.thisWeeksAgenda": "Agenda van deze week",
-  "app.filtersCount": "Filters ({count})",
   "app.memberViewCards": "Kaarten",
   "app.memberViewList": "Lijst",
   "app.memberListName": "Naam",
   "app.memberListCommittees": "Commissies",
   "app.memberListNationalParty": "Nationale partij",
-  "app.removeFilter": "{filter} verwijderen",
   "app.showMore": "Meer tonen",
   "app.substituteShort": "(plv.)",
   "batch6.procedureprogress.full_timeline": "Volledige tijdlijn ({count} gebeurtenissen)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} voor, {against} tegen, {abstaining} onthoudingen",
   "weekSummary.votes": "{count} stemmingen",
   "weekSummary.votesOne": "{count} stemming",
-  "weekSummary.weekOf": "Week van {date}"
+  "weekSummary.weekOf": "Week van {date}",
+  "reader.amendment_not_found": "Amendement niet gevonden.",
+  "reader.contents": "Inhoud",
+  "reader.header": "Amendement {number} · {provision}",
+  "reader.header_number": "Amendement {number}",
+  "reader.loading_amendment": "Amendement laden…",
+  "reader.next_amendment": "Volgend amendement",
+  "reader.previous_amendment": "Vorig amendement",
+  "reader.show_whole_text": "Hele tekst tonen"
 }

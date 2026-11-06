@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Nájsť poslanca EP",
   "Saved.findTopic": "Nájsť tému",
   "Saved.thisWeeksAgenda": "Program tohto týždňa",
-  "app.filtersCount": "Filtre ({count})",
   "app.memberViewCards": "Karty",
   "app.memberViewList": "Zoznam",
   "app.memberListName": "Meno",
   "app.memberListCommittees": "Výbory",
   "app.memberListNationalParty": "Národná strana",
-  "app.removeFilter": "Odstrániť {filter}",
   "app.showMore": "Zobraziť viac",
   "app.substituteShort": "(náhr.)",
   "batch6.procedureprogress.full_timeline": "Celá časová os (počet udalostí: {count})",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} za, {against} proti, {abstaining} sa zdržalo",
   "weekSummary.votes": "{count} hlasovaní",
   "weekSummary.votesOne": "{count} hlasovanie",
-  "weekSummary.weekOf": "Týždeň od {date}"
+  "weekSummary.weekOf": "Týždeň od {date}",
+  "reader.amendment_not_found": "Pozmeňujúci návrh sa nenašiel.",
+  "reader.contents": "Obsah",
+  "reader.header": "Pozmeňujúci návrh {number} · {provision}",
+  "reader.header_number": "Pozmeňujúci návrh {number}",
+  "reader.loading_amendment": "Načítava sa pozmeňujúci návrh…",
+  "reader.next_amendment": "Ďalší pozmeňujúci návrh",
+  "reader.previous_amendment": "Predchádzajúci pozmeňujúci návrh",
+  "reader.show_whole_text": "Zobraziť celý text"
 }

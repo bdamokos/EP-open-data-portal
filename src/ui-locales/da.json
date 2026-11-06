@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Find et medlem af Europa-Parlamentet",
   "Saved.findTopic": "Find et emne",
   "Saved.thisWeeksAgenda": "Denne uges dagsorden",
-  "app.filtersCount": "Filtre ({count})",
   "app.memberViewCards": "Kort",
   "app.memberViewList": "Liste",
   "app.memberListName": "Navn",
   "app.memberListCommittees": "Udvalg",
   "app.memberListNationalParty": "National parti",
-  "app.removeFilter": "Fjern {filter}",
   "app.showMore": "Vis mere",
   "app.substituteShort": "(stedf.)",
   "batch6.procedureprogress.full_timeline": "Fuld tidslinje ({count} begivenheder)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} for, {against} imod, {abstaining} undlod at stemme",
   "weekSummary.votes": "{count} afstemninger",
   "weekSummary.votesOne": "{count} afstemning",
-  "weekSummary.weekOf": "Ugen fra {date}"
+  "weekSummary.weekOf": "Ugen fra {date}",
+  "reader.amendment_not_found": "Ændringsforslaget blev ikke fundet.",
+  "reader.contents": "Indhold",
+  "reader.header": "Ændringsforslag {number} · {provision}",
+  "reader.header_number": "Ændringsforslag {number}",
+  "reader.loading_amendment": "Indlæser ændringsforslag…",
+  "reader.next_amendment": "Næste ændringsforslag",
+  "reader.previous_amendment": "Forrige ændringsforslag",
+  "reader.show_whole_text": "Vis hele teksten"
 }

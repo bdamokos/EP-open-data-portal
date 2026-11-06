@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Намерете член на ЕП",
   "Saved.findTopic": "Търсене на тема",
   "Saved.thisWeeksAgenda": "Дневен ред за тази седмица",
-  "app.filtersCount": "Филтри ({count})",
   "app.memberViewCards": "Карти",
   "app.memberViewList": "Списък",
   "app.memberListName": "Име",
   "app.memberListCommittees": "Комисии",
   "app.memberListNationalParty": "Национална партия",
-  "app.removeFilter": "Премахване на {filter}",
   "app.showMore": "Покажи още",
   "app.substituteShort": "(зам.)",
   "batch6.procedureprogress.full_timeline": "Пълна хронология ({count} събития)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} за, {against} против, {abstaining} въздържали се",
   "weekSummary.votes": "{count} гласувания",
   "weekSummary.votesOne": "{count} гласуване",
-  "weekSummary.weekOf": "Седмицата от {date}"
+  "weekSummary.weekOf": "Седмицата от {date}",
+  "reader.amendment_not_found": "Изменението не е намерено.",
+  "reader.contents": "Съдържание",
+  "reader.header": "Изменение {number} · {provision}",
+  "reader.header_number": "Изменение {number}",
+  "reader.loading_amendment": "Зареждане на изменението…",
+  "reader.next_amendment": "Следващо изменение",
+  "reader.previous_amendment": "Предишно изменение",
+  "reader.show_whole_text": "Покажи целия текст"
 }

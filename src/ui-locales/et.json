@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Leia parlamendiliige",
   "Saved.findTopic": "Otsi teemat",
   "Saved.thisWeeksAgenda": "Selle nädala päevakord",
-  "app.filtersCount": "Filtrid ({count})",
   "app.memberViewCards": "Kaardid",
   "app.memberViewList": "Loend",
   "app.memberListName": "Nimi",
   "app.memberListCommittees": "Komisjonid",
   "app.memberListNationalParty": "Riiklik erakond",
-  "app.removeFilter": "Eemalda {filter}",
   "app.showMore": "Näita rohkem",
   "app.substituteShort": "(asend.)",
   "batch6.procedureprogress.full_timeline": "Täielik ajajoon ({count} sündmust)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} poolt, {against} vastu, {abstaining} erapooletut",
   "weekSummary.votes": "{count} hääletust",
   "weekSummary.votesOne": "{count} hääletus",
-  "weekSummary.weekOf": "Nädal alates {date}"
+  "weekSummary.weekOf": "Nädal alates {date}",
+  "reader.amendment_not_found": "Muudatusettepanekut ei leitud.",
+  "reader.contents": "Sisukord",
+  "reader.header": "Muudatusettepanek {number} · {provision}",
+  "reader.header_number": "Muudatusettepanek {number}",
+  "reader.loading_amendment": "Muudatusettepaneku laadimine…",
+  "reader.next_amendment": "Järgmine muudatusettepanek",
+  "reader.previous_amendment": "Eelmine muudatusettepanek",
+  "reader.show_whole_text": "Näita kogu teksti"
 }

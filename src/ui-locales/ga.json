@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Aimsigh Feisire",
   "Saved.findTopic": "Aimsigh ábhar",
   "Saved.thisWeeksAgenda": "Clár oibre na seachtaine seo",
-  "app.filtersCount": "Scagairí ({count})",
   "app.memberViewCards": "Cártaí",
   "app.memberViewList": "Liosta",
   "app.memberListName": "Ainm",
   "app.memberListCommittees": "Coistí",
   "app.memberListNationalParty": "Páirtí náisiúnta",
-  "app.removeFilter": "Bain {filter}",
   "app.showMore": "Taispeáin níos mó",
   "app.substituteShort": "(ionad.)",
   "batch6.procedureprogress.full_timeline": "Amlíne iomlán (líon imeachtaí: {count})",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} ar son, {against} i gcoinne, {abstaining} staonadh",
   "weekSummary.votes": "{count} de vótaí",
   "weekSummary.votesOne": "{count} vóta",
-  "weekSummary.weekOf": "Seachtain an {date}"
+  "weekSummary.weekOf": "Seachtain an {date}",
+  "reader.amendment_not_found": "Níor aimsíodh an leasú.",
+  "reader.contents": "Clár ábhair",
+  "reader.header": "Leasú {number} · {provision}",
+  "reader.header_number": "Leasú {number}",
+  "reader.loading_amendment": "Leasú á lódáil…",
+  "reader.next_amendment": "An chéad leasú eile",
+  "reader.previous_amendment": "An leasú roimhe seo",
+  "reader.show_whole_text": "Taispeáin an téacs iomlán"
 }

@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Abgeordnete suchen",
   "Saved.findTopic": "Thema suchen",
   "Saved.thisWeeksAgenda": "Tagesordnung dieser Woche",
-  "app.filtersCount": "Filter ({count})",
   "app.memberViewCards": "Karten",
   "app.memberViewList": "Liste",
   "app.memberListName": "Name",
   "app.memberListCommittees": "Ausschüsse",
   "app.memberListNationalParty": "Nationale Partei",
-  "app.removeFilter": "{filter} entfernen",
   "app.showMore": "Mehr anzeigen",
   "app.substituteShort": "(Stv.)",
   "batch6.procedureprogress.full_timeline": "Gesamter Verlauf ({count} Ereignisse)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} dafür, {against} dagegen, {abstaining} Enthaltungen",
   "weekSummary.votes": "{count} Abstimmungen",
   "weekSummary.votesOne": "{count} Abstimmung",
-  "weekSummary.weekOf": "Woche vom {date}"
+  "weekSummary.weekOf": "Woche vom {date}",
+  "reader.amendment_not_found": "Änderungsantrag nicht gefunden.",
+  "reader.contents": "Inhalt",
+  "reader.header": "Änderungsantrag {number} · {provision}",
+  "reader.header_number": "Änderungsantrag {number}",
+  "reader.loading_amendment": "Änderungsantrag wird geladen…",
+  "reader.next_amendment": "Nächster Änderungsantrag",
+  "reader.previous_amendment": "Vorheriger Änderungsantrag",
+  "reader.show_whole_text": "Gesamten Text anzeigen"
 }

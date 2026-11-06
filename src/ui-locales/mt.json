@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Sib membru tal-PE",
   "Saved.findTopic": "Sib suġġett",
   "Saved.thisWeeksAgenda": "L-aġenda ta’ din il-ġimgħa",
-  "app.filtersCount": "Filtri ({count})",
   "app.memberViewCards": "Kards",
   "app.memberViewList": "Lista",
   "app.memberListName": "Isem",
   "app.memberListCommittees": "Kumitati",
   "app.memberListNationalParty": "Partit nazzjonali",
-  "app.removeFilter": "Neħħi {filter}",
   "app.showMore": "Uri aktar",
   "app.substituteShort": "(sost.)",
   "batch6.procedureprogress.full_timeline": "Kronoloġija sħiħa (għadd ta’ avvenimenti: {count})",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} favur, {against} kontra, {abstaining} astensjonijiet",
   "weekSummary.votes": "{count} votazzjoni",
   "weekSummary.votesOne": "{count} votazzjoni",
-  "weekSummary.weekOf": "Il-ġimgħa ta’ {date}"
+  "weekSummary.weekOf": "Il-ġimgħa ta’ {date}",
+  "reader.amendment_not_found": "L-emenda ma nstabitx.",
+  "reader.contents": "Werrej",
+  "reader.header": "Emenda {number} · {provision}",
+  "reader.header_number": "Emenda {number}",
+  "reader.loading_amendment": "Qed titgħabba l-emenda…",
+  "reader.next_amendment": "L-emenda li jmiss",
+  "reader.previous_amendment": "L-emenda ta’ qabel",
+  "reader.show_whole_text": "Uri t-test kollu"
 }

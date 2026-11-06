@@ -2369,13 +2369,11 @@
   "Saved.findMep": "EP-képviselő keresése",
   "Saved.findTopic": "Téma keresése",
   "Saved.thisWeeksAgenda": "Heti napirend",
-  "app.filtersCount": "Szűrők ({count})",
   "app.memberViewCards": "Kártyák",
   "app.memberViewList": "Lista",
   "app.memberListName": "Név",
   "app.memberListCommittees": "Bizottságok",
   "app.memberListNationalParty": "Nemzeti párt",
-  "app.removeFilter": "{filter} eltávolítása",
   "app.showMore": "Továbbiak megjelenítése",
   "app.substituteShort": "(póttag)",
   "batch6.procedureprogress.full_timeline": "Teljes idővonal ({count} esemény)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} igen, {against} nem, {abstaining} tartózkodás",
   "weekSummary.votes": "{count} szavazás",
   "weekSummary.votesOne": "{count} szavazás",
-  "weekSummary.weekOf": "{date} hete"
+  "weekSummary.weekOf": "{date} hete",
+  "reader.amendment_not_found": "A módosítás nem található.",
+  "reader.contents": "Tartalom",
+  "reader.header": "{number}. módosítás · {provision}",
+  "reader.header_number": "{number}. módosítás",
+  "reader.loading_amendment": "Módosítás betöltése…",
+  "reader.next_amendment": "Következő módosítás",
+  "reader.previous_amendment": "Előző módosítás",
+  "reader.show_whole_text": "A teljes szöveg megjelenítése"
 }

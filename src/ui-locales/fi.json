@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Etsi Euroopan parlamentin jäsen",
   "Saved.findTopic": "Etsi aihe",
   "Saved.thisWeeksAgenda": "Tämän viikon esityslista",
-  "app.filtersCount": "Suodattimet ({count})",
   "app.memberViewCards": "Kortit",
   "app.memberViewList": "Luettelo",
   "app.memberListName": "Nimi",
   "app.memberListCommittees": "Valiokunnat",
   "app.memberListNationalParty": "Kansallinen puolue",
-  "app.removeFilter": "Poista {filter}",
   "app.showMore": "Näytä lisää",
   "app.substituteShort": "(vara)",
   "batch6.procedureprogress.full_timeline": "Koko aikajana ({count} tapahtumaa)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} puolesta, {against} vastaan, {abstaining} tyhjää",
   "weekSummary.votes": "{count} äänestystä",
   "weekSummary.votesOne": "{count} äänestys",
-  "weekSummary.weekOf": "Viikko alkaen {date}"
+  "weekSummary.weekOf": "Viikko alkaen {date}",
+  "reader.amendment_not_found": "Tarkistusta ei löytynyt.",
+  "reader.contents": "Sisältö",
+  "reader.header": "Tarkistus {number} · {provision}",
+  "reader.header_number": "Tarkistus {number}",
+  "reader.loading_amendment": "Ladataan tarkistusta…",
+  "reader.next_amendment": "Seuraava tarkistus",
+  "reader.previous_amendment": "Edellinen tarkistus",
+  "reader.show_whole_text": "Näytä koko teksti"
 }

@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Căutați un deputat",
   "Saved.findTopic": "Caută o temă",
   "Saved.thisWeeksAgenda": "Ordinea de zi din această săptămână",
-  "app.filtersCount": "Filtre ({count})",
   "app.memberViewCards": "Carduri",
   "app.memberViewList": "Listă",
   "app.memberListName": "Nume",
   "app.memberListCommittees": "Comisii",
   "app.memberListNationalParty": "Partid național",
-  "app.removeFilter": "Eliminați {filter}",
   "app.showMore": "Afișați mai mult",
   "app.substituteShort": "(supl.)",
   "batch6.procedureprogress.full_timeline": "Cronologie completă ({count} de evenimente)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} pentru, {against} împotrivă, {abstaining} abțineri",
   "weekSummary.votes": "{count} de voturi",
   "weekSummary.votesOne": "{count} vot",
-  "weekSummary.weekOf": "Săptămâna din {date}"
+  "weekSummary.weekOf": "Săptămâna din {date}",
+  "reader.amendment_not_found": "Amendamentul nu a fost găsit.",
+  "reader.contents": "Cuprins",
+  "reader.header": "Amendamentul {number} · {provision}",
+  "reader.header_number": "Amendamentul {number}",
+  "reader.loading_amendment": "Se încarcă amendamentul…",
+  "reader.next_amendment": "Amendamentul următor",
+  "reader.previous_amendment": "Amendamentul anterior",
+  "reader.show_whole_text": "Afișați întregul text"
 }

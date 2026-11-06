@@ -2369,13 +2369,11 @@
   "Saved.findMep": "Αναζήτηση ευρωβουλευτή",
   "Saved.findTopic": "Αναζήτηση θέματος",
   "Saved.thisWeeksAgenda": "Ημερήσια διάταξη αυτής της εβδομάδας",
-  "app.filtersCount": "Φίλτρα ({count})",
   "app.memberViewCards": "Κάρτες",
   "app.memberViewList": "Λίστα",
   "app.memberListName": "Όνομα",
   "app.memberListCommittees": "Επιτροπές",
   "app.memberListNationalParty": "Εθνικό κόμμα",
-  "app.removeFilter": "Αφαίρεση {filter}",
   "app.showMore": "Εμφάνιση περισσότερων",
   "app.substituteShort": "(αναπλ.)",
   "batch6.procedureprogress.full_timeline": "Πλήρες χρονολόγιο ({count} γεγονότα)",
@@ -2514,5 +2512,13 @@
   "weekSummary.tallyLabel": "{for} υπέρ, {against} κατά, {abstaining} αποχές",
   "weekSummary.votes": "{count} ψηφοφορίες",
   "weekSummary.votesOne": "{count} ψηφοφορία",
-  "weekSummary.weekOf": "Εβδομάδα της {date}"
+  "weekSummary.weekOf": "Εβδομάδα της {date}",
+  "reader.amendment_not_found": "Η τροπολογία δεν βρέθηκε.",
+  "reader.contents": "Περιεχόμενα",
+  "reader.header": "Τροπολογία {number} · {provision}",
+  "reader.header_number": "Τροπολογία {number}",
+  "reader.loading_amendment": "Φόρτωση τροπολογίας…",
+  "reader.next_amendment": "Επόμενη τροπολογία",
+  "reader.previous_amendment": "Προηγούμενη τροπολογία",
+  "reader.show_whole_text": "Εμφάνιση ολόκληρου του κειμένου"
 }
