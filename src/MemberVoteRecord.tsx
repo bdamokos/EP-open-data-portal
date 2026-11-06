@@ -13,6 +13,7 @@ const dateLabel=(value:string|null,locale:string)=>{
 };
 const percent=(share:number|null,ui:ReturnType<typeof useUiI18n>)=>share===null?ui.t('membervoterecord.noValue'):ui.t('membervoterecord.percent',{value:recordShare(share)??0});
 const num=(ui:ReturnType<typeof useUiI18n>,value:number)=>new Intl.NumberFormat(ui.language).format(value);
+const MARKER_LIMIT=24;
 const trendPath=(points:{x:number;y:number}[])=>points.map((point,index)=>(index?'L':'M')+point.x.toFixed(2)+' '+point.y.toFixed(2)).join(' ');
 
 const votesHref=(memberId:number)=>{
@@ -46,6 +47,8 @@ function Trend({data,scope}:{data:MemberVoteRecordResponse;scope:'all'|'final'})
     y:day.share===null?null:paddingY+(1-day.share)*(height-paddingY*2),
   }));
   if(!points.some(point=>point.y!==null))return null;
+  // Dozens of markers merge into a bar, so a long series is drawn as a line and only isolated points keep one.
+  const dense=points.length>MARKER_LIMIT;
   // A null sitting breaks the line instead of drawing through a zero.
   const runs:{x:number;y:number}[][]=[];
   let run:{x:number;y:number}[]=[];
@@ -63,7 +66,7 @@ function Trend({data,scope}:{data:MemberVoteRecordResponse;scope:'all'|'final'})
     <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
       {[paddingY,height/2,height-paddingY].map(y=><line key={y} x1={paddingX} x2={width-right} y1={y} y2={y} className="member-vote-record-grid"/>)}
       {runs.filter(item=>item.length>1).map((item,index)=><path key={index} d={trendPath(item)} className="member-vote-record-line"/>)}
-      {points.map(point=>point.y===null?null:<circle key={point.sittingId} cx={point.x} cy={point.y} r={3} className="member-vote-record-dot"/>)}
+      {points.map((point,index)=>point.y===null||dense&&(points[index-1]?.y??null)!==null||dense&&(points[index+1]?.y??null)!==null?null:<circle key={point.sittingId} cx={point.x} cy={point.y} r={3} className="member-vote-record-dot"/>)}
     </svg>
     </div>
     <div className="member-vote-record-axis"><span>{dateLabel(trend[0].date,ui.locale)}</span><span>{dateLabel(trend[trend.length-1].date,ui.locale)}</span></div>

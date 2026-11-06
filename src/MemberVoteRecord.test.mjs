@@ -164,3 +164,12 @@ test('departure wording in another language is marked, and language-neutral word
   assert.equal(links(view.container)[0].getAttribute('lang'),'fr');
   assert.equal(links(view.container)[1].hasAttribute('lang'),false);
 });
+
+test('a long trend keeps markers only for isolated sittings',async t=>{
+  const day=index=>({sittingId:'MTG-PL-2026-'+String(1+Math.floor(index/28)).padStart(2,'0')+'-'+String(1+index%28).padStart(2,'0'),withGroup:index%2,comparable:1,finalWithGroup:null,finalComparable:null});
+  const bySitting=Array.from({length:40},(_,index)=>({...day(index),date:'2026-'+String(1+Math.floor(index/28)).padStart(2,'0')+'-'+String(1+index%28).padStart(2,'0')}));
+  bySitting[10]={...bySitting[10],withGroup:null,comparable:null};bySitting[12]={...bySitting[12],withGroup:null,comparable:null};
+  const view=await mount(t,{data:response({coverage:{sittings:40,included:40,missing:0,status:'complete'},bySitting})});
+  assert.equal(view.container.querySelectorAll('svg circle').length,1,'only the point between two gaps is marked');
+  assert.equal(view.container.querySelectorAll('svg path.member-vote-record-line').length,2,'the isolated point has no line of its own');
+});
