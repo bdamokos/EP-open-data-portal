@@ -21,8 +21,28 @@
 .topic-heat th small {display:block;font-size:10px}
 .topic-cell {display:flex;align-items:center;justify-content:center;box-sizing:border-box;height:100%;min-height:30px;border:1px solid transparent;text-decoration:none;border-radius:2px}
 .topic-cell[data-zero=true] {border-color:transparent}
-.topic-cell span {opacity:0;background:var(--surface);color:var(--ink);padding:2px 4px;border-radius:2px;font-size:12px}
-.topic-cell:hover span,.topic-cell:focus-visible span {opacity:1}
+.topic-cell {color:var(--ink);font-variant-numeric:tabular-nums}
+.topic-cell span {font-size:12px;line-height:1}
+/* Steps 4 and 5 are dark in the light theme and light in the dark theme, so the accent ink reads on them. */
+:is(.topic-cell,.topic-scale i)[data-step="0"] {background:color-mix(in srgb,var(--ink) 3%,var(--bg))}
+:is(.topic-cell,.topic-scale i)[data-step="1"] {background:color-mix(in srgb,var(--accent) 20%,var(--surface))}
+:is(.topic-cell,.topic-scale i)[data-step="2"] {background:color-mix(in srgb,var(--accent) 32%,var(--surface))}
+:is(.topic-cell,.topic-scale i)[data-step="3"] {background:color-mix(in srgb,var(--accent) 45%,var(--surface))}
+:is(.topic-cell,.topic-scale i)[data-step="4"] {background:color-mix(in srgb,var(--accent) 85%,var(--surface))}
+:is(.topic-cell,.topic-scale i)[data-step="5"] {background:var(--accent)}
+.topic-cell:is([data-step="4"],[data-step="5"]) {color:var(--accent-ink)}
+.topic-heat-controls {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px}
+.topic-heat-key {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 16px;margin:16px 0 0}
+.topic-heat-key p {margin:0;font-size:14px;color:var(--ink-muted)}
+.topic-scale {display:flex;align-items:center;gap:3px;font-size:12px;color:var(--ink-muted)}
+.topic-scale i {width:18px;height:10px;border-radius:2px}
+.topic-scale span:first-child {margin-right:4px}
+.topic-scale span:last-child {margin-left:4px}
+.topic-list {list-style:none;margin:16px 0;padding:0}
+.topic-list li {display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}
+.topic-list a {color:var(--ink);font-size:15px;line-height:1.3;text-decoration:none;overflow-wrap:anywhere}
+.topic-list a:hover {color:var(--accent);text-decoration:underline}
+.topic-list b {font-weight:600;font-variant-numeric:tabular-nums;font-size:15px}
 .topic-heat .topic-partial {outline:0;box-shadow:inset 0 0 0 .5px var(--line)}
 .topic-spark .topic-partial {opacity:.55}
 .topic-partial .topic-cell {background-blend-mode:multiply}
@@ -85,7 +105,6 @@
  .topics-content {padding:0 12px 36px}.topic-quarter-desktop {display:none}.topic-quarter-mobile {display:inline;font-size:9px}.places-layout {grid-template-columns:1fr}.topic-story {font-size:18px;margin-top:12px;padding-top:16px}.topic-bars {gap:3px}.topics-content .topic-bars small {font-size:9px}.topic-detail-header h1 {font-size:2rem}
 }
 
-.topic-heat td.topic-partial{position:relative}.topic-heat td.topic-partial::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--line) 45%,transparent) 5px 6px)}
 
 .topic-story-records{border-left:2px solid var(--accent);padding:12px 20px;background:var(--surface)}
 .topic-story-records article{display:flex;flex-direction:column;gap:4px;margin:12px 0}
@@ -109,6 +128,7 @@
  .explorer-insights .topics-content .topic-sort .insight-chart-switch > button {padding:9px 10px;white-space:nowrap}
  .topic-heat td {height:auto}
  .topic-cell {height:28px}
+ .topic-cell span {font-size:11px}
  .topics-content[data-tab=places] > .topic-tabs {margin-bottom:4px}
  .topics-content .places-quarter {font-size:1.35rem}
  .places-map .topic-legend {margin:8px 0 0}
