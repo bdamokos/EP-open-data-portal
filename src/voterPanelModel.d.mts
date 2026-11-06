@@ -1,0 +1,3 @@
+export type PanelVoter={id:string;name:string|null;country:string|null;group:string;position:'for'|'against'|'abstaining'};
+export function panelVoters(positionsByName:Partial<Record<'for'|'against'|'abstaining',{id:string;name?:string|null;country?:string|null}[]>>|undefined,options?:{groupOf?:(id:string)=>string|null|undefined;matchesCountry?:(country:string|null|undefined)=>boolean;group?:string|null;query?:string}):{rows:PanelVoter[];counts:Record<'all'|'for'|'against'|'abstaining',number>};
+export function listFor(rows:PanelVoter[],position:'all'|'for'|'against'|'abstaining'):PanelVoter[];
