@@ -30,7 +30,7 @@ export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:st
 export type MemberVotesState={
   week:string;sittingId:string|null;positions:'recorded'|'all';alignment:'all'|'with'|'against'|'abstained';offset:number;
   decisionId:string|null;snapshotId:string|null;expandedSubjectIds:string[];context:MemberVotesContext|null;
-  recordScope?:'all'|'final';recordOffset?:number;
+  recordScope?:'all'|'final';recordTag?:string;recordOffset?:number;
 };
 export type MemberVotesContextRequest=MemberVotesContext&{onBack:()=>void;backLabel:string;summary:ReactNode};
 export type MemberVotesProps={

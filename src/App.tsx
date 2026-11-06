@@ -874,8 +874,9 @@ export default function App() {
                   initialSpeech={speechLink}
                   onOpen={setSpeechLink}
                 /> : ((tab==='votes') ? <>
-                  <MemberVoteRecord memberId={member} language={lang} scope={votes.journey.state.recordScope??'all'} offset={votes.journey.state.recordOffset??0}
+                  <MemberVoteRecord memberId={member} language={lang} scope={votes.journey.state.recordScope??'all'} offset={votes.journey.state.recordOffset??0} tag={votes.journey.state.recordTag??null}
                     onScopeChange={recordScope=>votes.onStateChange({...votes.journey.state,recordScope,recordOffset:0})}
+                    onTagChange={recordTag=>votes.onStateChange({...votes.journey.state,recordTag:recordTag??undefined,recordOffset:0})}
                     onOffset={recordOffset=>votes.onStateChange({...votes.journey.state,recordOffset})}
                     onOpenDecision={item=>votes.onStateChange({...votes.journey.state,sittingId:item.sittingId,decisionId:item.decisionId,snapshotId:null,context:null,offset:0})}/>
                   {votes.journey.invalid ? <section lang={ui.language} role="alert"><h2><UiMessage id="app.invalid_voting_records_link"/></h2><p><UiMessage id="membervotes.tsx.these.voting.records.are.unavailable"/></p></section> : <Suspense fallback={<p className="member-votes-loading" role="status" lang={ui.language}><UiMessage id="membervotes.tsx.loading.voting.records"/></p>}>

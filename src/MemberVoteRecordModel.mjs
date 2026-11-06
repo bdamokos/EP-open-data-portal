@@ -9,15 +9,17 @@ const share=value=>object(value)&&typeof value.median==='number'&&Number.isFinit
 const medians=value=>value===null||object(value)&&share(value.group);
 const alignment=value=>object(value)&&['with','against','abstained','notComparable'].every(key=>integer(value[key]));
 
-export function memberVoteRecordRoute(memberId,{language='en',scope='all',limit=MEMBER_VOTE_RECORD_LIMIT,offset=0}={}) {
+export const memberVoteRecordTag=value=>typeof value==='string'&&/^(?:topic:\d{1,8}|country:[A-Z0-9_]{2,8})$/.test(value);
+export function memberVoteRecordRoute(memberId,{language='en',scope='all',limit=MEMBER_VOTE_RECORD_LIMIT,offset=0,tag=null}={}) {
   if(!/^[1-9]\d*$/.test(String(memberId))||!Number.isSafeInteger(Number(memberId)))throw new RangeError('Invalid member identifier.');
-  if(!languages.has(language)||!['all','final'].includes(scope)||!integer(limit)||limit>50||!integer(offset)||offset>10000)throw new RangeError('Invalid voting-record request.');
+  if(!languages.has(language)||!['all','final'].includes(scope)||!integer(limit)||limit>50||!integer(offset)||offset>10000||tag!==null&&!memberVoteRecordTag(tag))throw new RangeError('Invalid voting-record request.');
   const query=new URLSearchParams({lang:language,scope,limit:String(limit),offset:String(offset)});
+  if(tag!==null)query.set('tag',tag);
   return 'member-vote-record/'+memberId+'?'+query;
 }
 
 export function validateMemberVoteRecordResponse(data,{memberId}={}) {
-  if(!object(data)||data.version!==2||data.member?.id!==String(memberId)||typeof data.member?.uri!=='string')return false;
+  if(!object(data)||data.version!==3||data.member?.id!==String(memberId)||typeof data.member?.uri!=='string')return false;
   if(!object(data.period)||!date(data.period.from)||data.period.to!==null&&!date(data.period.to))return false;
   const coverage=data.coverage;
   if(!object(coverage)||!integer(coverage.sittings)||!integer(coverage.included)||!integer(coverage.missing)||
@@ -27,7 +29,12 @@ export function validateMemberVoteRecordResponse(data,{memberId}={}) {
     data.group.code!==null&&typeof data.group.code!=='string')return false;
   if(data.alignment!==null&&(!object(data.alignment)||!alignment(data.alignment.all)||!alignment(data.alignment.wholeText)))return false;
   if(!object(data.ballots)||!integer(data.ballots.chaired))return false;
+  const row=value=>object(value)&&memberVoteRecordTag(value.key)&&typeof value.label==='string'&&value.label.length>0&&(languages.has(value.language)||value.language==='mul')&&
+    integer(value.comparable)&&integer(value.withGroup)&&value.withGroup<=value.comparable&&typeof value.share==='number'&&value.share>=0&&value.share<=1;
+  const list=value=>object(value)&&integer(value.eligible)&&Array.isArray(value.rows)&&value.rows.length<=value.eligible&&value.rows.every(row);
+  if(data.breakdown!==null&&!(object(data.breakdown)&&typeof data.breakdown.overall==='number'&&list(data.breakdown.topics)&&list(data.breakdown.countries)))return false;
   const departures=data.departures;
+  if(departures?.tag!==null&&!(object(departures?.tag)&&memberVoteRecordTag(departures.tag.key)))return false;
   if(!object(departures)||!['all','final'].includes(departures.scope)||!integer(departures.offset)||
     !integer(departures.limit)||departures.limit>50||!integer(departures.total)||!Array.isArray(departures.items)||
     departures.items.length>departures.limit||departures.items.length>0&&departures.offset+departures.items.length>departures.total)return false;

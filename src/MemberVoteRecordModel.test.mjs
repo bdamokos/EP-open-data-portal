@@ -6,14 +6,15 @@ const MEMBER=197591,A='MTG-PL-2026-09-16',B='MTG-PL-2026-10-07';
 const counts=(withGroup,against,abstained=0,notComparable=0)=>({with:withGroup,against,abstained,notComparable});
 function response(patch={}) {
   return {
-    version:2,
+    version:3,
     member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER},
     period:{from:'2024-07-16',to:'2026-10-07'},
     coverage:{sittings:2,included:2,missing:0,status:'complete'},
     group:{code:'S&D',status:'attached'},
     alignment:{all:counts(3,1,1,0),wholeText:counts(2,0,0,0)},
     ballots:{chaired:0},
-    departures:{scope:'all',offset:0,limit:5,total:1,items:[{decisionId:B+'-DEC-4',sittingId:B,date:'2026-10-07',scope:'all',wholeText:false,position:'against',line:'for',text:'Amendment 4',language:'en'}],nextOffset:null},
+    breakdown:null,
+    departures:{scope:'all',tag:null,offset:0,limit:5,total:1,items:[{decisionId:B+'-DEC-4',sittingId:B,date:'2026-10-07',scope:'all',wholeText:false,position:'against',line:'for',text:'Amendment 4',language:'en'}],nextOffset:null},
     comparison:{all:{group:{median:0.625,members:2}},final:{group:{median:1,members:2}}},
     attribution:'European Parliament Open Data API v2, CC BY 4.0',
     ...patch,
@@ -36,7 +37,7 @@ test('the response validator accepts stored shapes and rejects a member or page 
   assert.equal(validateMemberVoteRecordResponse(response({group:{code:'NI',status:'non-attached'},alignment:null,comparison:null}),{memberId:MEMBER}),true);
   const invalid=[
     ['member',response({member:{id:'2',uri:'https://data.europarl.europa.eu/person/2'}})],
-    ['version',response({version:1})],
+    ['version',response({version:2})],
     ['coverage total',response({coverage:{sittings:3,included:2,missing:0,status:'complete'}})],
     ['coverage status',response({coverage:{sittings:2,included:2,missing:0,status:'unknown'}})],
     ['alignment',response({alignment:{all:{with:3,against:1,abstained:1},wholeText:counts(2,0,0,0)}})],
@@ -76,4 +77,22 @@ test('language-neutral departure wording is a valid response',()=>{
   const withLanguage=language=>response({departures:{...base.departures,items:[{...item,language}]}});
   assert.equal(validateMemberVoteRecordResponse(withLanguage('mul'),{memberId:MEMBER}),true);
   assert.equal(validateMemberVoteRecordResponse(withLanguage('xx'),{memberId:MEMBER}),false);
+});
+
+test('the route carries a tag only when it is a topic or country key',()=>{
+  assert.equal(new URL(memberVoteRecordRoute(MEMBER,{tag:'topic:100195'}),'http://localhost').searchParams.get('tag'),'topic:100195');
+  assert.equal(new URL(memberVoteRecordRoute(MEMBER,{tag:'country:RUS'}),'http://localhost').searchParams.get('tag'),'country:RUS');
+  assert.equal(new URL(memberVoteRecordRoute(MEMBER),'http://localhost').searchParams.has('tag'),false);
+  for(const tag of ['oeil:6.40','topic:','country:rus','x'])assert.throws(()=>memberVoteRecordRoute(MEMBER,{tag}),RangeError,tag);
+});
+
+test('the response validator checks the breakdown rows and the tag echoed on the departures',()=>{
+  const row={key:'topic:100195',label:'consumption',language:'en',comparable:25,withGroup:10,share:0.4};
+  const breakdown={overall:0.8,topics:{eligible:1,rows:[row]},countries:{eligible:0,rows:[]}};
+  assert.equal(validateMemberVoteRecordResponse(response({breakdown}),{memberId:MEMBER}),true);
+  for(const [label,value] of [['key',{...row,key:'oeil:6'}],['empty label',{...row,label:''}],['share',{...row,share:1.2}],['counts',{...row,withGroup:30}],['language',{...row,language:'xx'}]])
+    assert.equal(validateMemberVoteRecordResponse(response({breakdown:{...breakdown,topics:{eligible:1,rows:[value]}}}),{memberId:MEMBER}),false,label);
+  assert.equal(validateMemberVoteRecordResponse(response({breakdown:{...breakdown,topics:{eligible:0,rows:[row]}}}),{memberId:MEMBER}),false,'more rows than eligible');
+  assert.equal(validateMemberVoteRecordResponse(response({departures:{...response().departures,tag:{key:'country:FRA',label:'France',language:'en'}}}),{memberId:MEMBER}),true);
+  assert.equal(validateMemberVoteRecordResponse(response({departures:{...response().departures,tag:{key:'bad',label:null,language:null}}}),{memberId:MEMBER}),false);
 });
