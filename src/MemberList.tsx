@@ -1,6 +1,5 @@
 import {Fragment,useEffect,useMemo,useRef,useState} from 'react';
-import {API_ROOT} from './api';
-import {Portrait} from './components/Portrait';
+import type {ReactNode} from 'react';
 import {MemberAffiliation} from './components/MemberAffiliation';
 import {SaveButton} from './SavedControls';
 import {useUiI18n,UiMessage} from './UiI18nReact';
@@ -15,10 +14,12 @@ type SortKey='name'|'group'|'country';
 type Props={
   members:DirectoryMember[];committees:Committee[];parties?:Record<string,string>|null;
   language:string;narrow:boolean;sort:MemberSort;onSort:(key:SortKey)=>void;onOpen:(id:number)=>void;
+  // Supplied by App: importing Portrait here changes the build's chunk graph and merges the shared chunk into the entry.
+  portrait:(member:DirectoryMember)=>ReactNode;
 };
 const fullName=(member:DirectoryMember)=>[member.firstName,member.lastName].filter(Boolean).join(' ');
 
-export function MemberList({members,committees,parties,language,narrow,sort,onSort,onOpen}:Props) {
+export function MemberList({members,committees,parties,language,narrow,sort,onSort,onOpen,portrait}:Props) {
   const ui=useUiI18n();
   const [shown,setShown]=useState(memberListPageSize);
   const revealed=useRef<number|null>(null);
@@ -68,7 +69,7 @@ export function MemberList({members,committees,parties,language,narrow,sort,onSo
         const code=member.groupCode&&member.groupCode!=='unavailable'?member.groupCode:null;
         const party=showParty?memberParty(member,parties):null;
         return <tr key={member.id} data-member-id={member.id} lang="">
-          <td className="member-list__photo"><Portrait lazy member={{...member,imageUrl:`${API_ROOT}/portrait/${member.id}`}}/></td>
+          <td className="member-list__photo">{portrait(member)}</td>
           <th scope="row">{open(member)}</th>
           <td>{code&&<span className="member-list__group" lang={groupLabelLanguage(code,ui)}><i aria-hidden="true" style={{background:groupColor(code)}}/>{groupLabel(code,ui)}</span>}</td>
           <td>{/^[A-Z]{2}$/.test(member.countryCode||'')&&<span lang={language}>{countryName(language,member.countryCode!,ui)}</span>}</td>

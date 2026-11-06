@@ -1036,7 +1036,7 @@ export default function App() {
                 {(() => {
                   const noMatches = !filtered.length && <p lang={ui.language}>{partialCommittee ? <UiMessage id="app.no_matches_yet"/> : <UiMessage id="app.no_meps_match_these_filters"/>}</p>;
                   return shownMemberView === 'list' ? <>
-                    <MemberList key={JSON.stringify([committee,organization,country,group,search,role])} members={filtered} committees={directory.committees} parties={directory.parties} language={lang} narrow={narrow} sort={memberSort} onSort={sortMemberList} onOpen={openMember}/>
+                    <MemberList key={JSON.stringify([committee,organization,country,group,search,role])} members={filtered} committees={directory.committees} parties={directory.parties} language={lang} narrow={narrow} sort={memberSort} onSort={sortMemberList} onOpen={openMember} portrait={m=><Portrait lazy member={{...m,imageUrl:`${API_ROOT}/portrait/${m.id}`}}/>}/>
                     {noMatches}
                   </> : <div className="explorer-portraits">
                     {filtered.map((m, index) => <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
