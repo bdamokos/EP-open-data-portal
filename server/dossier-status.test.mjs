@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {DossierStatus,dossierStatusQuery,leadCommittees} from './dossier-status.mjs';
+import {DossierStatus,dossierStatusQuery,heldVotes,leadCommittees} from './dossier-status.mjs';
+import {sittingSnapshotHints} from './sitting-snapshot-store.mjs';
 import {dossierStatusLines,mergeDossierStatus,resolutionStage} from './dossier-status-model.mjs';
 
 const {procedures,votes}=JSON.parse(readFileSync(new URL('./fixtures/reader-first-helpers.json',import.meta.url)));
@@ -169,8 +170,17 @@ test('the main vote comes from the exact subject of the held vote event',async()
   const reference='2026/2000(RSP)',fixture={reference,indexEvents:[{activity_id:'MTG-PL-2026-10-22-VOT-ITM-993260',activity_date:'2026-10-22',had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS'}]};
   const decision=(id,en,outcome='ADOPTED')=>({id:'eli/dl/event/'+id,activity_id:id,activity_date:'2026-10-22',type:'Vote',had_activity_type:'def/ep-activities/PLENARY_VOTE',decision_method:'def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL',decision_outcome:'def/ep-decision-outcomes/'+outcome,activity_label:{en},referenceText:{en},number_of_votes_favor:454,number_of_votes_against:34,number_of_votes_abstention:93,inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993260'],recorded_in_a_realization_of:[],had_voter_favor:['person/1'],had_voter_against:[],had_voter_abstention:[]});
   const main=decision(raw.activity_id,'Motion for a resolution');
-  const day={sittingId:'MTG-PL-2026-10-22',date:'2026-10-22',decisions:[main,decision('MTG-PL-2026-10-22-DEC-2','Am 1')],results:[{id:'eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993260',activity_id:'MTG-PL-2026-10-22-VOT-ITM-993260',had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',consists_of:[main.id,'eli/dl/event/MTG-PL-2026-10-22-DEC-2'],based_on_a_realization_of:[],executed:[]}],agenda:[],requests:[],sources:{results:[],decisions:[]},coverage:{},chairing:null};
+  const day={sittingId:'MTG-PL-2026-10-22',date:'2026-10-22',decisions:[main,decision('MTG-PL-2026-10-22-DEC-2','Am 1')],results:[{id:'eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993260',activity_id:'MTG-PL-2026-10-22-VOT-ITM-993260',had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',consists_of:[main.id,'eli/dl/event/MTG-PL-2026-10-22-DEC-2'],based_on_a_realization_of:[],executed:[]}],agenda:[],requests:[],sources:{results:[],decisions:[]},coverage:{state:'complete'},chairing:null};
   const result=await service(fixture,{votesRead:{days:[day]}}).status.query({reference,language:'en'});
   assert.equal(result.slots.mainVote?.id,raw.activity_id);assert.equal(result.stage,'resolution-adopted');
   assert.deepEqual(result.slots.mainVote.totals,{for:454,against:34,abstaining:93});
+  const partial=await service(fixture,{votesRead:{days:[{...day,coverage:{state:'partial'}}]}}).status.query({reference,language:'en'});
+  assert.equal(partial.slots.mainVote,null,'a partial sitting establishes no main vote');assert.equal(partial.stage,'unknown');
+});
+test('the default tally read makes no source request and queues no collection',async t=>{
+  let fetched=0;t.mock.method(globalThis,'fetch',async()=>{fetched++;throw new Error('no upstream');});
+  const before=sittingSnapshotHints.size;
+  const result=await heldVotes.snapshot({sitting:'MTG-PL-2026-10-22',week:null,language:'en',snapshot:null}).catch(error=>error);
+  assert.equal(fetched,0);assert.equal(sittingSnapshotHints.size,before);
+  assert(result instanceof Error||result.days.every(row=>row.coverage.state!=='complete'),'an unheld sitting yields nothing complete');
 });

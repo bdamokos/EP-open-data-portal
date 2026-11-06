@@ -629,6 +629,10 @@ test('the people total is withheld when a record is missing, not for an incomple
   assert.equal(dossierPeopleCountExact(read({coverage:{gaps:['Some recorded roles are outside this page.']}})),false);
   assert.equal(dossierPeopleCountExact(read({},{gaps:['A linked debate is unavailable.'],failedDebates:['d']})),false);
   assert.equal(dossierPeopleCountExact(read({},{status:'unavailable'})),false);
+  assert.equal(dossierPeopleCountExact(read({coverage:{gaps:[],checkedComplete:false}})),false,'a generation change discarded earlier pages');
+  assert.equal(dossierPeopleCountExact(read({},{checkedComplete:false})),false);
+  assert.equal(dossierPeopleCountExact(read({},{retained:true})),false);
+  assert.equal(dossierPeopleCountExact(read({},{uncheckedTargets:['MTG-PL-2026-10-21-PVCRE-ITM-12']})),false,'an unread debate can hide speakers');
   assert.equal(dossierPeopleCountExact({pagination:{next:null},coverage:{gaps:[]}}),false,'a person view has no people total');
 });
 test('duplicate role rows collapse to one line per role and committee',()=>{
