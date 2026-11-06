@@ -45,11 +45,11 @@ async function harness(t,{width,query='lang=en',source=directory()}) {
   return {container,click,button,names,window};
 }
 
-test('wide screens start with cards that carry an affiliation line and offer a list with sortable columns',async t=>{
+test('wide screens start with cards and offer a list with sortable columns',async t=>{
   const h=await harness(t,{width:1280});
   const {container}=h;
   assert(container.querySelector('.explorer-portraits'),'cards by default');
-  assert.deepEqual([...container.querySelectorAll('.explorer-portrait-item .member-affiliation')].map(node=>node.textContent),['EPP · Malta','Greens/EFA · Hungary','S&D · Malta','EPP · Hungary']);
+  assert.equal(container.querySelector('.explorer-portrait-item .member-affiliation'),null,'cards show the portrait and name only');
   const group=[...container.querySelectorAll('.explorer-filters select')].at(-1);
   assert.deepEqual([...group.options].map(option=>[option.value,option.textContent]),[['','All'],['PPE','EPP'],['Verts/ALE','Greens/EFA'],['S&D','S&D']],'group names, not raw codes');
   await h.click(h.button('List'));
@@ -71,24 +71,27 @@ test('wide screens start with cards that carry an affiliation line and offer a l
   assert(container.querySelector('.explorer-portraits'));
 });
 
-test('phones start with a two-line list and collapse the filters behind a count',async t=>{
+test('phones start with cards and the filters in view, and show no list unless the URL asks for one',async t=>{
   const h=await harness(t,{width:390,query:'lang=en&country=MT'});
+  const {container}=h;
+  assert(container.querySelector('.explorer-portraits'),'no mep-view gives cards at a narrow width');
+  assert.equal(container.querySelector('.member-list__compact'),null);
+  assert.equal(container.querySelector('.explorer-view-switch'),null,'no Cards / List switch on phones');
+  assert.equal(container.querySelector('.explorer-filters-toggle'),null);
+  assert.equal(container.querySelectorAll('.explorer-filters select').length,4,'filters are not collapsed');
+  assert.equal([...container.querySelectorAll('.explorer-filters select')].some(node=>node.closest('[hidden]')),false);
+  assert.equal(new URL(h.window.location.href).searchParams.has('mep-view'),false);
+  assert.deepEqual(h.names(),['1','3']);
+});
+
+test('a saved list URL still opens the two-line list on phones, with a way back to cards',async t=>{
+  const h=await harness(t,{width:390,query:'lang=en&country=MT&mep-view=list'});
   const {container}=h;
   assert.equal(container.querySelector('.member-list__table'),null);
   assert.deepEqual([...container.querySelectorAll('.member-list__compact li')].map(item=>item.querySelector('.member-list__open').textContent+' | '+item.querySelector('.member-affiliation').textContent),['Anna Abel | EPP · Malta · AFET, BUDG (sub)','Cora Cox | S&D · Malta']);
-  assert.equal(container.querySelector('.explorer-filter-fields').hidden,true);
-  assert.equal(new URL(h.window.location.href).searchParams.has('mep-view'),false,'the default view is not written to the URL');
-  const toggle=h.button('Filters (1)');
-  assert.equal(toggle.getAttribute('aria-expanded'),'false');
-  const chip=[...container.querySelectorAll('.explorer-active-filters button')];
-  assert.deepEqual(chip.map(node=>node.textContent.trim()),['Malta ×']);
-  await h.click(toggle);
-  assert.equal(container.querySelector('.explorer-filter-fields').hidden,false);
-  assert.equal(container.querySelector('.explorer-active-filters'),null,'chips give way to the open filters');
-  await h.click(h.button('Filters (1)'));
-  await h.click(container.querySelector('.explorer-active-filters button'));
-  assert.equal(container.querySelector('.explorer-results strong').textContent,'4');
-  assert(h.button('Filters'),'no count without applied filters');
+  await h.click(h.button('Cards'));
+  assert(container.querySelector('.explorer-portraits'));
+  assert.equal(container.querySelector('.explorer-view-switch'),null);
 });
 
 test('the list pages in fifty rows and keeps the exact count',async t=>{

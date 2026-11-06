@@ -63,7 +63,7 @@ test('electronic secret dossier ballots keep unrecorded positions separate from 
   const h=await harness(t,undefined,url=>url.pathname.endsWith('/insights/dossier-activity')?Response.json(page(url.searchParams.get('section'),url.searchParams.get('member'),url.searchParams.get('section')==='votes'?[item]:[])):null);
   await h.render(createElement(h.module.DossierActivity,{reference}));
   const card=h.container.querySelector('[data-dossier-vote]');assert(card);
-  assert.equal(card.querySelector('.member-votes-position strong').textContent,'Not individually recorded');
+  assert.equal(card.querySelector('.member-votes-position strong').textContent,'No names on record');
   assert.match(card.textContent,/Declared intention: For/);assert.match(card.textContent,/Adopted/);
   assert.equal(card.querySelector('.member-votes-position-for'),null);
 });
@@ -102,12 +102,9 @@ test('other votes load exact amendment wording only when opened, including colle
   const requests=h.calls.filter(url=>url.pathname.includes('/document-context/'));
   assert.deepEqual(requests.map(url=>url.searchParams.get('amendment')).sort(),[id,other]);
   assert(requests.every(url=>url.pathname.endsWith('A-10-2026-0010')&&url.searchParams.get('body')==='0'));
-  const opener=[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Read in context');opener.focus();
-  await h.click('Read in context');
-  assert.equal(document.activeElement,h.container.querySelector('.document-context-back'),'opening context moves focus into its visible reader');
-  await h.click('← Back to vote text');
-  await act(async()=>{await new Promise(resolve=>h.window.requestAnimationFrame(resolve));});
-  assert.equal(document.activeElement.textContent,'Read in context','closing context restores its initiating control');
+  const links=[...h.container.querySelectorAll('a')].filter(link=>link.textContent==='Read in context');
+  assert.deepEqual(links.map(link=>new URL(link.href).searchParams.get('read-amendment')).sort(),[id,other]);
+  assert(links.every(link=>new URL(link.href).searchParams.get('pl-mode')==='read'&&new URL(link.href).searchParams.get('read-doc')==='A-10-2026-0010'));
 });
 
 test('unloaded indexed decisions retain their outcomes beside an already loaded whole ballot',async t=>{

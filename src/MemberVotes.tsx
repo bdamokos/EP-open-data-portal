@@ -9,13 +9,12 @@ import {memberAttendanceRoute,validateMemberAttendanceResponse} from './memberAt
 import {voteMethodLabel} from './voteMethod.mjs';
 import {PersonName} from './PersonName';
 import {voteHref} from './votePagePresentation.mjs';
-import {dossierLinkClick} from './dossierJourney';
 import {Result,Position,VotePartDescriptions} from './MemberVoteSummary';
 import {OutcomeAlignmentFilter} from './OutcomeAlignmentFilter';
 import {VotePeriodNavigation} from './VotePeriodNavigation';
 import {validateVotePeriods,votePeriodTransition,type VotePeriodsResponse} from './plenaryPeriods.mjs';
 import {useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
-import {useData} from './data';
+import {useData,reuseDataResponse} from './data';
 import {selectLanguageText} from './language.mjs';
 import {selectVoteTitle} from './voteTitles.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
@@ -24,6 +23,9 @@ import './MemberVotes.css';
 import {WordingDiff} from './components/WordingDiff';
 import {AmendmentJustification} from './components/AmendmentJustification';
 import {MemberVoteExplanations} from './MemberVoteExplanations';
+import {dossierLinkClick} from './dossierJourney';
+import {publicUrl} from './publicUrl';
+import {readHref} from './readRoute.mjs';
 
 export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted'};
 export type MemberVotesState={
@@ -83,7 +85,7 @@ function WholeText({vote,memberName,onDecision}:{vote:MemberVoteWholeTextDecisio
   return <button type="button" className="member-votes-whole" onClick={()=>onDecision(vote.id)}><UiMessage id="membervotes.tsx.final.vote.outcome.position" values={{outcome: <strong>{memberVoteOutcome(vote, ui)}</strong>, position: <Position vote={vote} memberName={memberName} compact/>}}/></button>;
 }
 
-export function MemberVoteWording({documentId,amendmentId,language,openContext,showHeading=true}:{documentId:string;amendmentId:string;language:string;showHeading?:boolean;openContext:(context:MemberVotesContext)=>void}) {
+export function MemberVoteWording({documentId,amendmentId,language,showHeading=true}:{documentId:string;amendmentId:string;language:string;showHeading?:boolean}) {
   const ui = useUiI18n();
   const [selectedVersion,setSelectedVersion]=useState<string|null>(null);
   const query=new URLSearchParams({amendment:amendmentId,lang:language,body:'0'});
@@ -115,7 +117,7 @@ export function MemberVoteWording({documentId,amendmentId,language,openContext,s
         {readable ? <div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff originalFormatting={selected.originalFormatting} proposedFormatting={selected.proposedFormatting} key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:ui.t("membervotes.tsx.original.wording"),proposed:ui.t("membervotes.tsx.proposed.wording"),emptyOriginal:'',emptyProposed:''}}/></div> : <p><UiMessage id="membervotes.tsx.amendment.wording.unavailable.here"/></p>}
         
         <AmendmentJustification record={selected}/>
-        <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,view:'document'})}><UiMessage id="membervotes.tsx.read.in.context"/></button>
+        <a className="member-votes-read-context" href={publicUrl(readHref({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,language}))} onClick={dossierLinkClick}><UiMessage id="membervotes.tsx.read.in.context"/></a>
       </>}
     </>
   </section>;
@@ -134,7 +136,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
   const targets=exactAmendmentTargets(vote),documents=topLevelVoteDocuments(vote);
   const requesterLabels=vote.rollCallRequesters.filter(requester=>requester.binding==='exact-decision-was_motivated_by').map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text);
   const requestIds=new Set(vote.parts.map(part=>part.requestId));
-  const siblingVotes=data.items.filter(item=>item.id!==vote.id&&item.parts.some(part=>requestIds.has(part.requestId)));
+  const siblingVotes=(data.selected.siblings??[]).filter(item=>item.id!==vote.id&&item.parts.some(part=>requestIds.has(part.requestId)));
   const contexts=vote.parts.flatMap(part=>[...part.contextComponents,part].sort((a,b)=>(/^\d+$/.test(String(a.number)) && /^\d+$/.test(String(b.number))) ? (Number(a.number)-Number(b.number)) : 0)).filter((component,index,all)=>all.findIndex(other=>other.componentId===component.componentId)===index);
   return <article className="member-votes-detail">
     <header><p className="member-votes-eyebrow">{dateLabel(vote.date,ui.locale)}</p>{subject&&<VoteSubjectTitle subject={subject} vote={vote} language={language}/>}<h2 tabIndex={-1}>{memberVoteLabel(vote,language, ui)}</h2></header>
@@ -142,7 +144,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
       {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention"><UiMessage id="activityvote.declared_intention_positions_declared_afterwards_result_unchanged" values={{positions: <strong>{vote.intention.positions.map(position=>({for:ui.t("membervotespresentation.for"),against:ui.t("membervotespresentation.against"),abstaining:ui.t("activityvote.abstain")}[position])).join(', ')}</strong>}}/></p>}
     </section>
     <VotePartDescriptions vote={vote} language={language}/>
-    {targets.map(target=><MemberVoteWording key={vote.id+':'+target.amendmentId+':'+language} {...target} language={language} openContext={openContext} showHeading={targets.length!==1||memberVoteLabel(vote,language, ui)!==ui.t("membervotes.tsx.amendment.number", {number: String(/-AM-(\d+(?:-\d+)?)$/.exec(target.amendmentId)?.[1]||'')})}/>)}
+    {targets.map(target=><MemberVoteWording key={vote.id+':'+target.amendmentId+':'+language} {...target} language={language} showHeading={targets.length!==1||memberVoteLabel(vote,language, ui)!==ui.t("membervotes.tsx.amendment.number", {number: String(/-AM-(\d+(?:-\d+)?)$/.exec(target.amendmentId)?.[1]||'')})}/>)}
     {!targets.length&&vote.context.amendmentIds.length>0&&<p><UiMessage id="membervotes.tsx.amendment.wording.unavailable.here"/></p>}
     {explanationsActive&&<MemberVoteExplanations key={[data.member.id,vote.id,data.snapshotId,language].join(':')} vote={vote} data={data} memberId={data.member.id} language={language} onDecision={onDecision}/>}
     {contexts.length>0&&<details className="member-votes-related"><summary>{memberVoteParentLabel(vote,language,ui) ? <UiMessage id="membervotes.tsx.split.vote.parent" values={{parent: memberVoteParentLabel(vote,language,ui)}}/> : <UiMessage id="membervotes.tsx.split.vote"/>}</summary>{contexts.map(component=>{
@@ -174,18 +176,26 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const requestedWeek=chooseLatest ? search.week : state.week;
   const requestedState={...state,week:requestedWeek};
   const route=useMemo(()=>{try{return memberVotesRoute(memberId,{...state,week:requestedWeek},language);}catch{return null;}},[memberId,requestedWeek,state.sittingId,state.positions,state.alignment,state.offset,state.decisionId,state.snapshotId,language]);
+
   const request=useData<MemberVotesResponse>(route,{unavailable:'error.records'}) as ReturnType<typeof useData<MemberVotesResponse>>&{status?:number};
   const valid=Boolean(request.data&&validateMemberVotesResponse(request.data,{memberId,state:requestedState}));
   const scope=JSON.stringify([memberId,language,requestedWeek,state.sittingId,state.positions,state.alignment,state.offset,state.snapshotId]);
   const retained=useRef<{scope:string;data:MemberVotesResponse}|null>(null);
   useLayoutEffect(()=>{
     if(request.error||request.data&&!valid)retained.current=null;
-    else if(valid&&request.data)retained.current={scope,data:request.data};
-  },[valid,request.data,request.error,scope]);
+    else if(valid&&request.data){
+      retained.current={scope,data:request.data};
+      if(!state.snapshotId&&route){
+        const pinned=memberVotesRoute(memberId,{...state,week:state.sittingId?state.week:request.data.period.week??state.week,snapshotId:request.data.snapshotId,offset:request.data.pagination.mode==='period'?0:state.offset},language);
+        reuseDataResponse(route,pinned,request.data);
+      }
+    }
+  },[valid,request.data,request.error,scope,route,memberId,language,state]);
   // A decision read changes only selection. Keep this exact page mounted while
   // it resolves; never carry records across member, language, filter or snapshot.
   const previous=(request.loading && (retained.current?.scope===scope)) ? retained.current.data : null;
-  const previousSelection=previous?.items.find(item=>item.id===state.decisionId)??((previous?.selected.item?.id===state.decisionId) ? previous.selected.item : null);
+  const previousRow=previous?.items.find(item=>item.id===state.decisionId);
+  const previousSelection=previous?.selected.item?.id===state.decisionId ? previous.selected.item : previousRow&&'rollCallRequesters' in previousRow ? previousRow as MemberVote : null;
   const pendingCandidate=previous ? ({...previous,selected:state.decisionId ? (previousSelection ? ({status:'found' as const,item:previousSelection}) : ({status:'unavailable' as const,item:null})) : ({status:'not-requested' as const,item:null})}) : null;
   const candidateData=valid ? request.data : ((pendingCandidate && validateMemberVotesResponse(pendingCandidate,{memberId,state:requestedState})) ? pendingCandidate : null);
   const unavailableEarlier=chooseLatest&&!search.complete&&requestedWeek!=='latest'&&candidateData?.coverage.status==='unavailable';
@@ -306,7 +316,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
         <button className="member-votes-back" type="button" onClick={()=>change({decisionId:null,context:null})}><UiMessage id="membervotes.tsx.back.to.votes"/></button>
         <div ref={headingRef}>{selected ? <Detail vote={selected} data={data} memberName={memberName} language={language} onDecision={selectDecision} openContext={context=>change({context})} explanationsActive={!state.context}/> : (state.decisionId ? <div className="member-votes-empty">{request.loading ? <p role="status"><UiMessage id="membervotes.tsx.loading.selected.vote"/></p> : <><h2 tabIndex={-1}><UiMessage id="membervotes.tsx.vote.unavailable"/></h2><p><UiMessage id="membervotes.tsx.the.requested.decision.is.unavailable.in.this.period"/></p></>}</div> : null)}</div>
       </div>
-      {state.context&&(contextAllowed ? renderContext({...state.context,onBack:()=>change({context:null}),backLabel:ui.t("membervotes.tsx.back.to.vote"),summary:<ContextVote vote={selected!} memberName={memberName} language={language}/>}) : <div className="member-votes-empty"><button type="button" onClick={()=>change({context:null})}><UiMessage id="batch2.membervotes.tsx.back.to.vote"/></button><p><UiMessage id="membervotes.tsx.the.requested.document.is.unavailable.for.this.vote"/></p></div>)}
+      {state.context&&(contextAllowed ? renderContext({...state.context,onBack:()=>change({context:null}),backLabel:ui.t("membervotes.tsx.back.to.vote"),summary:<ContextVote vote={selected!} memberName={memberName} language={language}/>}) : <div className="member-votes-empty"><button type="button" onClick={()=>change({context:null})}><UiMessage id="batch2.membervotes.tsx.back.to.vote"/></button>{request.loading ? <p role="status"><UiMessage id="membervotes.tsx.loading.selected.vote"/></p> : <p><UiMessage id="membervotes.tsx.the.requested.document.is.unavailable.for.this.vote"/></p>}</div>)}
     </>}
   </section>;
 }

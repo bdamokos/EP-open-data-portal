@@ -12,7 +12,7 @@ function response({member='197494',id=decision,method='VOTE_ELECTRONIC_ROLLCALL'
     method,outcome,ballotStatus,scope:{kind:'whole-text'},actualPosition:position,intention:{status:'reported',positions:['against']},
     totals:{for:445,against:37,abstaining:97},alignment:'with',subjectId:null,context:{documentIds:['RC-10-2026-0443'],amendmentIds:[],componentIds:[],partialReferenceIds:[]},
     parts:[],rollCallRequesters:[],resultRelationship:{binding:'consistent'}};
-  return {version:12,member:{id:member},period:{kind:'sitting',week:null,sittingId:sitting,from:'2026-10-08',to:'2026-10-08'},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[],subjects:[],
+  return {version:13,member:{id:member},period:{kind:'sitting',week:null,sittingId:sitting,from:'2026-10-08',to:'2026-10-08'},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[],subjects:[],
     pagination:{offset:0,limit:50,returned:0,observedTotal:1,recordedTotal:1,filteredTotal:1,nextOffset:0},selected:{status:'found',item:vote},coverage:{status:'partial',termWide:false}};
 }
 function exactResponse(patch) {
@@ -39,7 +39,7 @@ test('activity reuses exact vote data and links without carrying filters, snapsh
 });
 test('show of hands preserves the known result and explains why individual positions are not recorded',async t=>{
   const h=await mount(t,async()=>{const value=exactResponse({method:'VOTE_HAND',position:{status:'not-individually-recorded',position:null}});value.selected.item.totals={for:null,against:null,abstaining:null};return Response.json(value);});await h.render();
-  assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Not individually recorded/);assert.doesNotMatch(h.container.textContent,/Position unavailable|Tallies unavailable|details.*unavailable/);
+  assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/No names on record/);assert.doesNotMatch(h.container.textContent,/Position unavailable|Tallies unavailable|details.*unavailable/);
 });
 test('wrong identities and failed reads retain indexed facts, expose retry and never invent a position',async t=>{
   let wrong=true;const h=await mount(t,async()=>Response.json(exactResponse({member:wrong?'99':'197494'})));await h.render();
@@ -85,7 +85,7 @@ test('a conducted named ballot cannot inherit a saved lapsed outcome',async t=>{
 });
 test('known show-of-hands method cannot override an unavailable position when ballot type is unknown',async t=>{
   const h=await mount(t,async()=>Response.json(exactResponse({method:'VOTE_HAND',outcome:'ADOPTED',ballotStatus:'unknown',position:{status:'unavailable',position:null}})));await h.render({indexed:{outcome:'ADOPTED',method:'VOTE_HAND'}});
-  assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/Position unavailable/);assert.doesNotMatch(h.container.textContent,/Not individually recorded/);
+  assert.match(h.container.textContent,/Adopted/);assert.match(h.container.textContent,/Show of hands/);assert.match(h.container.textContent,/Position unavailable/);assert.doesNotMatch(h.container.textContent,/No names on record/);
 });
 
 test('published counts remain visible when named-ballot collection is unknown',async t=>{
@@ -107,11 +107,11 @@ test('a saved lapsed-motion explanation stays within its labelled saved result a
 for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_SECRET','VOTE_SECRET_BALLOT'])test('activity uses authoritative position certainty for '+method,async t=>{
   let status='not-individually-recorded',ballotStatus='conducted',outcome='ADOPTED';
   const h=await mount(t,async url=>Response.json(exactResponse({id:new URL(url,'http://localhost').searchParams.get('decision'),method,position:{status,position:null},ballotStatus,outcome})));await h.render();
-  assert.match(h.container.querySelector('.member-votes-position').textContent,/Not individually recorded/);
+  assert.match(h.container.querySelector('.member-votes-position').textContent,/No names on record/);
   status='unavailable';ballotStatus='unknown';await h.render({decisionId:sitting+'-DEC-198252'});
-  assert.match(h.container.querySelector('.member-votes-position').textContent,/Position unavailable/);assert.doesNotMatch(h.container.textContent,/Not individually recorded/);
+  assert.match(h.container.querySelector('.member-votes-position').textContent,/Position unavailable/);assert.doesNotMatch(h.container.textContent,/No names on record/);
   status='not-conducted';ballotStatus='not-conducted';outcome='LAPSED';await h.render({decisionId:sitting+'-DEC-198253'});
-  assert.match(h.container.querySelector('.member-votes-position').textContent,/Not put to a vote/);assert.doesNotMatch(h.container.textContent,/Not individually recorded/);
+  assert.match(h.container.querySelector('.member-votes-position').textContent,/Not put to a vote/);assert.doesNotMatch(h.container.textContent,/No names on record/);
 });
 
 for(const outcome of ['LAPSED','WITHDRAWN'])test('activity labels an unheld '+outcome+' ballot without its retained roll-call method',async t=>{

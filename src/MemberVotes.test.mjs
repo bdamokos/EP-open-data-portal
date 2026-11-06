@@ -8,7 +8,7 @@ import {readFileSync} from 'node:fs';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {projectMemberDecision} from '../server/member-votes-model.mjs';
+import {memberVotePeriodRow,memberVotePeriodSubject,projectMemberDecision} from '../server/member-votes-model.mjs';
 
 const MEMBER=197673,WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25',SNAPSHOT='a'.repeat(64);
 const SUBJECT='MTG-PL-2026-03-25-VOT-ITM-8',DOCUMENT='A-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7';
@@ -49,15 +49,17 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:12,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:13,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
-    selected:selected??(state.decisionId?{status:'found',item:items.find(item=>item.id===state.decisionId)||null}:{status:'not-requested',item:null}),
+    selected:selected?{siblings:items.filter(item=>item.id!==state.decisionId),...selected}:(state.decisionId?{status:'found',item:items.find(item=>item.id===state.decisionId)||null,siblings:items.filter(item=>item.id!==state.decisionId)}:{status:'not-requested',item:null}),
     coverage:{status:'complete',collectionComplete:true,termWide:false,expectedSittingIds:[SITTING],scannedSittingIds:[SITTING],failedSittingIds:[],incompleteSittingIds:[],catalogue:emptyPage,sittings:[],basis:'Synthetic exact API fixture',...coverage},
     attribution:'European Parliament public data',...patch};
 }
 const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>(item.getAttribute('aria-label')||item.textContent.trim())===text);
+const readLink=container=>[...container.querySelectorAll('a')].find(item=>item.textContent.trim()==='Read in context');
+const readTarget=container=>{const link=readLink(container);assert(link,'Missing Read in context');return new URL(link.href).searchParams;};
 const visiblePane=container=>[...container.querySelectorAll('.member-votes-pane')].find(item=>!item.hidden);
 
 async function mount(t,{state={},calendar={version:2,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}},handler=url=>Response.json(responseFor(url)),attendanceHandler=()=>Response.json({error:{code:'unavailable'}}),statusCompatibility=false,renderContext,members}={}) {
@@ -269,7 +271,7 @@ test('null totals, real zero totals and lapsed decisions remain distinct without
   assert.equal(rows[0].querySelector('.member-votes-bar'),null);assert.deepEqual([...rows[0].querySelectorAll('.member-votes-counts b')].map(item=>item.textContent),['0','0','0']);
   assert.equal(rows[1].querySelector('.member-votes-bar,.member-votes-counts'),null);assert.match(rows[1].textContent,/Tallies unavailable/);assert.doesNotMatch(rows[1].textContent,/No tally published/);
   assert.match(rows[2].textContent,/Not put to a vote.*Lapsed/);assert.doesNotMatch(rows[2].textContent,/Roll-call vote/);assert.equal(rows[2].querySelector('.member-votes-row-copy .member-votes-muted'),null);assert.equal(rows[2].querySelector('.member-votes-bar,.member-votes-counts'),null);
-  assert.match(rows[3].textContent,/Not individually recorded/);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
+  assert.match(rows[3].textContent,/No names on record/);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
 });
 
 test('actual FOR, later intention to abstain and official raw counts are displayed independently',async t=>{
@@ -313,17 +315,16 @@ test('amendment wording loads only after decision selection and requires an expl
   const wordingCalls=h.calls.filter(url=>url.includes('document-context/'));assert.equal(wordingCalls.length,1);
   const query=new URL(wordingCalls[0],'http://localhost');assert.equal(query.pathname,'/api/document-context/'+DOCUMENT);assert.equal(query.searchParams.get('amendment'),AMENDMENT);assert.equal(query.searchParams.get('lang'),'en');
   assert.equal(query.searchParams.get('body'),'0');
-  assert.equal(button(h.container,'Read in context'),undefined);assert.equal(h.container.querySelector('.member-votes-comparison'),null);
+  assert.equal(readLink(h.container),undefined);assert.equal(h.container.querySelector('.member-votes-comparison'),null);
   assert.equal(h.container.querySelector('select[aria-label="Published version"]').value,'');
   await h.select('select[aria-label="Published version"]',variants[1].listId);
   const comparison=h.container.querySelector('.member-votes-comparison');assert.equal(comparison.lang,'hu');
   assert.match(wordingViewText(comparison),/Eredeti pontos szöveg.*Javasolt pontos szöveg/);
   assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language: Hungarian · Proposed by Második pontos javaslattevő/);
   assert.equal(h.contexts.length,0,'reading wording must not open the full source context');
-  await h.click('Read in context');
-  assert.deepEqual(h.state,{...initial,context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId:variants[1].listId,wordingLanguage:'hu',view:'document'}});
-  assert.equal(h.contexts.at(-1).documentId,DOCUMENT);assert.equal(h.contexts.at(-1).listId,variants[1].listId);
-  await h.click('Back from context');assert.deepEqual(h.state,initial);
+  const target=readTarget(h.container);
+  assert.deepEqual(Object.fromEntries(target),{view:'legislation','pl-mode':'read','read-doc':DOCUMENT,'read-amendment':AMENDMENT,'read-list':variants[1].listId,'read-lang':'hu',lang:'en'});
+  assert.deepEqual(h.state,initial);
   assert.equal(h.container.querySelector('select[aria-label="Published version"]').value,variants[1].listId);
   assert.equal(h.calls.filter(url=>url.includes('document-context/')).length,1);
   await h.click('← Back to votes');assert.deepEqual(h.state,{...initial,decisionId:null});
@@ -343,9 +344,8 @@ test('a single exact amendment version shows its wording on detail and opens ful
   assert.match(wordingViewText(comparison),/Texte original exact.*Texte proposé exact/);
   assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language: French · Proposed by Exact amendment proposer/);
   assert.equal(h.contexts.length,0);
-  await h.click('Read in context');
-  assert.equal(h.contexts.at(-1).documentId,DOCUMENT);assert.equal(h.contexts.at(-1).amendmentId,AMENDMENT);assert.equal(h.contexts.at(-1).listId,variant.listId);assert.equal(h.contexts.at(-1).view,'document');
-  await h.click('Back from context');assert.equal(h.state.context,null);assert.equal(h.state.decisionId,item.id);
+  const target=readTarget(h.container);
+  assert.equal(target.get('read-doc'),DOCUMENT);assert.equal(target.get('read-amendment'),AMENDMENT);assert.equal(target.get('read-list'),variant.listId);
   assert.equal(h.calls.filter(url=>url.includes('document-context/')).length,1);
 });
 
@@ -367,7 +367,7 @@ test('known unavailable wording remains a competing published version and opens 
   assert.deepEqual([...h.container.querySelector(selector).options].map(option=>option.value),['',...variants.map(variant=>variant.listId)]);
   assert.equal(h.container.querySelector(selector).value,'');
   assert.equal(h.container.querySelector('.member-votes-comparison'),null);
-  assert.equal(button(h.container,'Read in context'),undefined);
+  assert.equal(readLink(h.container),undefined);
   await h.select(selector,variants[0].listId);
   assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Texte original exact.*Texte proposé exact/);
   await h.select(selector,variants[1].listId);
@@ -375,11 +375,10 @@ test('known unavailable wording remains a competing published version and opens 
   assert.match(wordingViewText(h.container.querySelector('.member-votes-wording')),/Amendment wording unavailable./);
   assert.doesNotMatch(wordingViewText(h.container.querySelector('.member-votes-wording')),/Text language/);
   assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes(variants[0].proposedText));
-  await h.click('Read in context');
-  assert.equal(h.contexts.at(-1).listId,variants[1].listId);
-  assert.equal(h.contexts.at(-1).documentId,DOCUMENT);assert.equal(h.contexts.at(-1).amendmentId,AMENDMENT);
-  assert.equal(h.contexts.at(-1).wordingLanguage,null,'unknown wording language is retained as an explicit source choice');
-  await h.click('Back from context');
+  const target=readTarget(h.container);
+  assert.equal(target.get('read-list'),variants[1].listId);
+  assert.equal(target.get('read-doc'),DOCUMENT);assert.equal(target.get('read-amendment'),AMENDMENT);
+  assert.equal(target.get('read-lang'),'unknown','unknown wording language is retained as an explicit source choice');
   assert.deepEqual(h.state,initial);
   assert.equal(h.container.querySelector(selector).value,variants[1].listId);
   assert.equal(h.container.querySelector('.member-votes-comparison'),null);
@@ -406,7 +405,7 @@ test('nullable wording language is explicit, null text stays unavailable and emp
   assert(insertion);assert.equal(wordingText(insertion,'original'),'');
   assert.equal(wordingText(insertion,'proposed'),variants[3].proposedText);assert(insertion.querySelector('ins'));
   assert(!wordingViewText(h.container.querySelector('.member-votes-wording')).includes('Amendment wording unavailable.'));
-  await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,variants[3].listId);
+  assert.equal(readTarget(h.container).get('read-list'),variants[3].listId);
 });
 
 test('target labels use their own source language independently of amendment wording and unknown labels inherit no English',async t=>{
@@ -454,9 +453,9 @@ test('same-list language variants pass the exact source list and chosen language
   await h.select(selector,options[1].value);
   assert.equal(h.container.querySelector('.member-votes-comparison').getAttribute('lang'),'hu');
   assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Javasolt pontos szöveg/);
-  await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,'same-exact-list');
-  assert.equal(h.contexts.at(-1).wordingLanguage,'hu');
-  await h.click('Back from context');assert.equal(h.container.querySelector(selector).value,options[1].value);
+  assert.equal(readTarget(h.container).get('read-list'),'same-exact-list');
+  assert.equal(readTarget(h.container).get('read-lang'),'hu');
+  assert.equal(h.container.querySelector(selector).value,options[1].value);
 });
 
 test('a selected published version disappearing from refreshed data never silently selects a remaining version',async t=>{
@@ -474,11 +473,11 @@ test('a selected published version disappearing from refreshed data never silent
   wordingData.amendment.variants=[variants[1]];
   await h.update({expandedSubjectIds:[SUBJECT]});
   assert.equal(h.container.querySelector('.member-votes-comparison'),null);
-  assert.equal(button(h.container,'Read in context'),undefined);
+  assert.equal(readLink(h.container),undefined);
   assert.equal(h.container.querySelector(selector)?.value,'');
   await h.select(selector,variants[1].listId);
   assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Different source version/);
-  await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,variants[1].listId);
+  assert.equal(readTarget(h.container).get('read-list'),variants[1].listId);
 });
 
 test('an initially automatic single version remains pinned when another sole version replaces it',async t=>{
@@ -490,14 +489,14 @@ test('an initially automatic single version remains pinned when another sole ver
     const response=new Response();response.json=async()=>wordingData;return response;
   }}),selector='select[aria-label="Published version"]';
   assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Texte proposé exact/);
-  assert(button(h.container,'Read in context'));assert.equal(h.container.querySelector(selector),null);
+  assert(readLink(h.container));assert.equal(h.container.querySelector(selector),null);
   wordingData.amendment.variants=[replacement];
   await h.update({expandedSubjectIds:[SUBJECT]});
   assert.equal(h.container.querySelector('.member-votes-comparison'),null);
-  assert.equal(button(h.container,'Read in context'),undefined);assert.equal(h.container.querySelector(selector)?.value,'');
+  assert.equal(readLink(h.container),undefined);assert.equal(h.container.querySelector(selector)?.value,'');
   await h.select(selector,replacement.listId);
   assert.match(wordingViewText(h.container.querySelector('.member-votes-comparison')),/Different replacement wording/);
-  await h.click('Read in context');assert.equal(h.contexts.at(-1).listId,replacement.listId);
+  assert.equal(readTarget(h.container).get('read-list'),replacement.listId);
 });
 
 test('unavailable amendment wording uses plain missing copy and never opens the shared reader',async t=>{
@@ -505,7 +504,7 @@ test('unavailable amendment wording uses plain missing copy and never opens the 
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},handler:url=>String(url).includes('document-context/')?Response.json({documentId:DOCUMENT,requestedLanguage:'en',amendment:{id:AMENDMENT,status:'unavailable',variants:[]}}):Response.json(responseFor(url,{items:[item]}))});
   assert.match(wordingViewText(h.container),/Amendment wording unavailable./);
   assert.equal(h.calls.filter(url=>url.includes('document-context/')).length,1);
-  assert.equal(button(h.container,'Read in context'),undefined);assert.equal(h.contexts.length,0);
+  assert.equal(readLink(h.container),undefined);assert.equal(h.contexts.length,0);
 });
 
 test('document actions use only exact top-level A/B/RC contexts and cannot open an unrelated requested document',async t=>{
@@ -530,7 +529,7 @@ test('snapshot expiry offers no retry and preserves the requested period, decisi
   assert.equal(installRetryClock(t).timers.size,0);assert.equal(h.calls.length,1);assert.deepEqual(h.state,initial);
 });
 
-test('snapshot conflicts do not start a retry episode or reuse cached unpinned reads',async t=>{
+test('a later pinned read verifies conflicts without retrying an unpinned route',async t=>{
   const item=vote(99),nextSnapshot='b'.repeat(64);
   const initial={week:WEEK,sittingId:null,positions:'all',alignment:'all',offset:50,decisionId:item.id,snapshotId:null,expandedSubjectIds:[SUBJECT],context:null};
   let unpinnedReads=0;
@@ -541,6 +540,8 @@ test('snapshot conflicts do not start a retry episode or reuse cached unpinned r
     return Response.json(responseFor(url,{items:[vote(1)],selected:{status:'found',item},subjects:[subject([item],{counts:{observed:51,filtered:51,page:1}})],snapshotId,pagination:{observedTotal:51,filteredTotal:51}}));
   }});
   assert.equal(unpinnedReads,1);assert.equal(h.state.snapshotId,SNAPSHOT);
+  assert.doesNotMatch(h.container.textContent,/This page is out of date/);
+  await h.update({alignment:'against'});
   assert.match(h.container.textContent,/This page is out of date/);
   assert.equal(h.container.querySelector('.member-votes-notice button'),null);
   assert.equal(installRetryClock(t).timers.size,0);assert.equal(unpinnedReads,1);assert.equal(h.state.snapshotId,SNAPSHOT);
@@ -805,25 +806,25 @@ test('a complete empty sitting keeps the no-votes message under an outcome filte
 });
 
 
-test('vote Read in context reaches the same in-place amendment diff as motion reading',async t=>{
+test('an earlier history entry for an amendment reaches the same in-place diff as motion reading',async t=>{
   const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}}),listId=DOCUMENT+'-AM-001-020';
-  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},renderContext:'reader',handler:url=>{
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id,context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId,wordingLanguage:'en',view:'document'}},renderContext:'reader',handler:url=>{
     if(String(url).includes('/api/references'))return Response.json({references:[]});
     return Response.json(String(url).includes('document-context/')?contextOverlayResponse(DOCUMENT,AMENDMENT,listId):responseFor(url,{items:[item]}));
   }});
-  await h.click('Read in context');await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
   assertContextOverlay(h.container);
   assert(h.calls.some(url=>url.includes('wording-lang=en')&&!url.includes('body=0')));
 });
 
 
-test('member-vote A-report Read in context reaches the Commission proposal',async t=>{
+test('an earlier history entry for an A-report amendment reaches the Commission proposal',async t=>{
   const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT],amendmentIds:[AMENDMENT]}}),listId=DOCUMENT+'-AM-001-020';
-  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id},renderContext:'reader',handler:url=>{
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:item.id,context:{documentId:DOCUMENT,amendmentId:AMENDMENT,listId,wordingLanguage:'en',view:'document'}},renderContext:'reader',handler:url=>{
     if(String(url).includes('/api/references'))return Response.json({references:[]});
     return Response.json(String(url).includes('document-context/')?proposalContextResponse(DOCUMENT,AMENDMENT,listId,7):responseFor(url,{items:[item]}));
   }});
-  await h.click('Read in context');await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
+  await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
   assert(h.container.textContent.includes('Commission proposal · COM(2025)0087'));
   assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,'true');
   const reader=h.container.querySelector('.document-context-reader'),summary=reader.querySelector('[aria-label="Vote on this text"]');
@@ -965,10 +966,10 @@ test('all decisions shows non-named ballots, shared methods, counts and page sum
   const h=await mount(t,{state:{week:WEEK,expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items:[hand,electronic,vote(3)]})),attendanceHandler:()=>Response.json(attendanceResponse())});
   assert.equal(h.state.positions,'all');assert.equal(h.container.querySelector('.member-votes-filter button').textContent,'All decisions');
   assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–3 of 3 decisions · 1 with a recorded position/);
-  assert.match(h.container.querySelector('.member-votes-subject-count:last-child').textContent,/2 not individually recorded/);
+  assert.match(h.container.querySelector('.member-votes-subject-count:last-child').textContent,/2 no names on record/);
   const rows=h.container.querySelectorAll('.member-votes-row');
-  assert.match(rows[0].textContent,/Show of hands.*Not individually recorded.*No tally published/);
-  assert.match(rows[1].textContent,/Electronic vote \(names not recorded\).*Not individually recorded.*For 400/);
+  assert.match(rows[0].textContent,/Show of hands.*No names on record.*No tally published/);
+  assert.match(rows[1].textContent,/Electronic vote \(names not recorded\).*No names on record.*For 400/);
   assert.equal(h.container.querySelectorAll('.member-votes-row .member-votes-attendance').length,0);
   assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/listed present 25 Mar/);
 });
@@ -1265,7 +1266,7 @@ test('period view keeps a subject larger than the old page together and canonica
 
 test('chairing-only periods show no vote entries or Parliament outcome controls and clear omitted deep links',async t=>{
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:decision(1)},handler:url=>Response.json(responseFor(url,{items:[],subjects:[],pagination:{omittedWhileChairingTotal:1},selected:stateFrom(url).decisionId?{status:'chairing',item:null}:{status:'not-requested',item:null}}))});
-  assert.equal(h.state.decisionId,null);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);assert.equal(h.container.querySelector('.member-votes-tools'),null);assert.equal(h.container.querySelector('.member-votes-subject'),null);assert.doesNotMatch(h.container.textContent,/Not individually recorded|Vote unavailable|No votes were recorded/);
+  assert.equal(h.state.decisionId,null);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);assert.equal(h.container.querySelector('.member-votes-tools'),null);assert.equal(h.container.querySelector('.member-votes-subject'),null);assert.doesNotMatch(h.container.textContent,/No names on record|Vote unavailable|No votes were recorded/);
 });
 
 test('an omitted deep link clears selection in the same update that pins its first snapshot',async t=>{
@@ -1275,4 +1276,38 @@ test('an omitted deep link clears selection in the same update that pins its fir
   assert(pinned.length>0);assert(pinned.every(change=>change.state.decisionId===null&&change.state.context===null),'snapshot pinning must never reintroduce the omitted selection');
   assert.equal(h.calls.filter(route=>{const p=new URL(route,'http://localhost').searchParams;return p.get('snapshot')===SNAPSHOT&&p.get('decision')===decision(1);}).length,0);
   assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+});
+
+function leanPeriodResponse(url,options={}) {
+  const data=responseFor(url,{...options,pagination:{mode:'period',...options.pagination}});
+  data.items=data.items.map(item=>memberVotePeriodRow(item,'en'));
+  data.subjects=data.subjects.map(subject=>memberVotePeriodSubject(subject,'en'));
+  return data;
+}
+test('a direct lean decision link makes one read while adopting its exact snapshot',async t=>{
+  const h=await mount(t,{state:{week:WEEK,decisionId:decision(1)},handler:url=>Response.json(leanPeriodResponse(url))});
+  assert.equal(h.calls.length,1);assert.equal(h.state.snapshotId,SNAPSHOT);
+  assert.equal(visiblePane(h.container).querySelector('h2').textContent,'Decision 1');
+  await h.update({snapshotId:'b'.repeat(64)});assert.equal(h.calls.length,2);
+  assert.match(h.container.textContent,/These voting records are unavailable/);
+});
+test('lean rows keep list nodes while full selection loads and never treat row data as detail',async t=>{
+  let release,hold=false;
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT]},handler:async url=>{if(hold)await new Promise(resolve=>{release=resolve;});return Response.json(leanPeriodResponse(url));}});
+  const list=h.container.querySelector('.member-votes-pane'),row=list.querySelector('[data-vote-id]');
+  hold=true;await h.update({decisionId:decision(1)});
+  assert.equal(list,h.container.querySelector('.member-votes-pane'));assert.equal(list.querySelector('[data-vote-id]'),row);
+  assert.match(visiblePane(h.container).textContent,/Loading selected vote/);assert.equal(h.container.querySelector('.member-votes-detail'),null);
+  hold=false;await act(async()=>release());assert(h.container.querySelector('.member-votes-detail'));
+});
+
+test('a history jump into lean context shows loading until its full selection arrives',async t=>{
+  let release,hold=false;
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT]}});
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:async url=>{if(hold)await new Promise(resolve=>{release=resolve;});return Response.json(leanPeriodResponse(url,{items:[item]}));}});
+  hold=true;await h.update({decisionId:item.id,context:{documentId:DOCUMENT,view:'document'}});
+  assert.match(h.container.textContent,/Loading selected vote/);
+  assert.doesNotMatch(h.container.textContent,/The requested document is unavailable/);
+  hold=false;await act(async()=>release());
+  assert(h.container.querySelector('[data-testid="context"]'));
 });

@@ -13,7 +13,7 @@ const change='dossier-journey-change';
 const capture='dossier-journey-capture';
 const readerStates=new Map<string,Map<string,unknown>>();
 const returnOrigins=new Map<string,string|null>();
-const journeyMode=(href:string)=>{const mode=new URL(href,window.location.href).searchParams.get('pl-mode');return mode==='dossier'||mode==='vote'?mode:null;};
+const journeyMode=(href:string)=>{const mode=new URL(href,window.location.href).searchParams.get('pl-mode');return mode==='dossier'||mode==='read'||mode==='vote'?mode:null;};
 
 const routeKey=(href:string)=>{const url=new URL(href,window.location.href);if(!url.searchParams.has('role'))url.searchParams.set('role','both');if(!url.searchParams.has('lang'))url.searchParams.set('lang',defaultInterfaceLanguage());if(url.searchParams.has('member')&&!url.searchParams.has('view')&&!url.searchParams.has('module'))url.searchParams.set('module','profile');url.searchParams.sort();return url.pathname+url.search+url.hash;};
 function pathFor(node:Element|null):string|null {
@@ -48,7 +48,7 @@ export function navigateDossier(href:string) {
   const leaving=rememberDossierOrigin();
   const from=journeyMode(leaving.href),to=journeyMode(url.href);
   // Going back to the origin gives that page its own back link again, so a
-  // dossier and a vote opened from it cannot send a reader round in a loop.
+  // dossier and a page opened from it cannot send a reader round in a loop.
   if(origin&&routeKey(origin)===routeKey(url.href)&&from)origin=returnOrigins.get(routeKey(url.href))??null;
   else if(to&&to!==from){returnOrigins.set(routeKey(leaving.href),origin);if(returnOrigins.size>30)returnOrigins.delete(returnOrigins.keys().next().value!);origin=leaving.href;}
   pending=snapshots.get(routeKey(url.href))||null;destination=url.href;navigating=true;
@@ -56,6 +56,12 @@ export function navigateDossier(href:string) {
   history.pushState({...nextState,dossierOrigin:origin},'',url);
   window.dispatchEvent(new Event('popstate'));window.dispatchEvent(new Event('explorer-query-change'));window.dispatchEvent(new Event(change));
   navigating=false;return true;
+}
+// An old link opens its page as if its origin had navigated there, so Back returns to it.
+export function openFromOrigin(originHref:string,href:string) {
+  origin=new URL(originHref,window.location.href).href;
+  history.replaceState(history.state,'',origin);
+  history.pushState({...history.state,dossierOrigin:origin},'',href);
 }
 export function dossierLinkClick(event:MouseEvent<HTMLAnchorElement>) {
   if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.currentTarget.target&&event.currentTarget.target!=='_self')return;
@@ -89,6 +95,8 @@ function destinationMounted() {
     if((panel.dataset.dossierStage||'all')!==(query.get('dossier-stage')||'all')||(panel.dataset.dossierCommittee||'')!==(query.get('dossier-committee')||''))return false;
   }else if(query.get('view')==='legislation'&&query.get('pl-mode')==='vote'){
     if(document.querySelector<HTMLElement>('[data-vote-page]')?.dataset.votePage!==query.get('pl-vote'))return false;
+  }else if(query.get('view')==='legislation'&&query.get('pl-mode')==='read'){
+    if(document.querySelector<HTMLElement>('[data-read-page]')?.dataset.readPage!==(query.get('read-doc')||'')+':'+(query.get('read-amendment')||''))return false;
   }else if(query.get('view')==='legislation'&&(!query.get('pl-mode')||query.get('pl-mode')==='agenda')){
     const panel=document.querySelector<HTMLElement>('[data-agenda-topic]');if(!panel||query.get('agenda-topic')&&panel.dataset.agendaTopic!==query.get('agenda-topic'))return false;
   }else if(query.get('view')==='geopolitics'||query.get('view')==='legislation'&&query.get('pl-mode')==='topics'){
@@ -135,7 +143,7 @@ export function useDossierJourney() {
       apply();
     };
     const cancel=(event:Event)=>{if(event.isTrusted){pending=null;destination=null;}};
-    const observer=new window.MutationObserver(apply);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open','data-topic-key','data-topics-pending','data-agenda-topic','data-agenda-pending','data-activities-pending','data-motion-pending','data-context-pending','data-reader-pending','data-dossier-pending','data-procedure-context-pending','data-vote-page','data-vote-pending']});
+    const observer=new window.MutationObserver(apply);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open','data-topic-key','data-topics-pending','data-agenda-topic','data-agenda-pending','data-activities-pending','data-motion-pending','data-context-pending','data-reader-pending','data-dossier-pending','data-procedure-context-pending','data-read-page','data-vote-page','data-vote-pending']});
     window.addEventListener('popstate',restore);window.addEventListener(change,apply);
     for(const event of ['pointerdown','keydown','wheel','focusin'])document.addEventListener(event,cancel,{capture:true});
     return()=>{observer.disconnect();window.removeEventListener('popstate',restore);window.removeEventListener(change,apply);for(const event of ['pointerdown','keydown','wheel','focusin'])document.removeEventListener(event,cancel,true);if(scheduled.current!==null)window.cancelAnimationFrame(scheduled.current);};
