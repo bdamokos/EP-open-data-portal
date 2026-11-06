@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {projectMemberSitting} from '../server/member-votes-model.mjs';
+import {memberVotePeriodRow,memberVotePeriodSubject,projectMemberSitting} from '../server/member-votes-model.mjs';
 import {knownVoteMethodLabel,voteMethodLabel} from './voteMethod.mjs';
 import {MEMBER_VOTES_PAGE_SIZE,memberVotePositionSummary,memberVotesAllPending,memberVotesCoverageNotice,memberVotesRoute,validateMemberVotesResponse,groupMemberVotes,displayVoteTitle,memberVoteLabel,memberVotePosition,memberVoteOutcome,memberVoteTotals,votingRecordUrl,topLevelVoteDocuments,exactAmendmentTargets} from './memberVotesPresentation.mjs';
 
@@ -11,7 +11,7 @@ const projection=projectMemberSitting(fixture.snapshots[0],String(memberId),'en'
 const clone=value=>structuredClone(value);
 function response(overrides={}) {
   const items=projection.items.filter(item=>item.actualPosition.status==='recorded');
-  return {version:12,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
+  return {version:13,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
 }
 const state={week:'latest',sittingId,positions:'recorded',offset:0,decisionId:null,snapshotId:null};
 const accepts=(data,requestState=state)=>validateMemberVotesResponse(data,{memberId,state:requestState});
@@ -265,5 +265,29 @@ test('every subject in the held week accounts for every decision',{skip:!process
     const summary=memberVotePositionSummary(group.items);
     const count=summary.split(' · ').reduce((sum,term)=>sum+Number(term.match(/\d+/)?.[0]||0),0);
     assert.equal(count,group.items.length,`${group.id}: ${summary}`);
+  }
+});
+
+test('compact period validation requires row labels and full selected detail',()=>{
+  const data=response({positions:'all'});data.pagination.mode='period';
+  data.items=data.items.map(item=>memberVotePeriodRow(item,'en'));
+  data.subjects=data.subjects.map(subject=>memberVotePeriodSubject(subject,'en'));
+  assert(accepts(data,{...state,positions:'all'}));
+  for(const mutate of [value=>delete value.items[0].parts[0]?.requestScopeByLanguage,value=>delete value.items[0].context.amendmentIds,value=>delete value.items[0].namedVoters.available]){
+    const invalid=clone(data);mutate(invalid);
+    if(JSON.stringify(invalid)!==JSON.stringify(data))assert.equal(accepts(invalid,{...state,positions:'all'}),false);
+  }
+  data.selected={status:'found',item:data.items[0]};
+  assert.equal(accepts(data,{...state,positions:'all',decisionId:data.items[0].id}),false);
+});
+
+test('real week compact rows preserve every label and stay below the transport target',{skip:!process.env.MEMBER_VOTES_WEEK_FIXTURE},()=>{
+  const data=JSON.parse(readFileSync(process.env.MEMBER_VOTES_WEEK_FIXTURE));
+  for(const language of 'bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ')){
+    const compact={...data,version:13,pagination:{...data.pagination,limit:50},items:data.items.map(item=>memberVotePeriodRow(item,language)),subjects:data.subjects.map(subject=>memberVotePeriodSubject(subject,language))};
+    assert(Buffer.byteLength(JSON.stringify(compact))<1_200_000);
+    assert(validateMemberVotesResponse(compact,{memberId:data.member.id,state:{week:data.period.week}}));
+    for(let index=0;index<data.items.length;index++)assert.equal(memberVoteLabel(compact.items[index],language),memberVoteLabel(data.items[index],language));
+    assert.deepEqual(groupMemberVotes(compact).map(group=>[group.id,group.items.map(item=>item.id),memberVotePositionSummary(group.items)]),groupMemberVotes(data).map(group=>[group.id,group.items.map(item=>item.id),memberVotePositionSummary(group.items)]));
   }
 });

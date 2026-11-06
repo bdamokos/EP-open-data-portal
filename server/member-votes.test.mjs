@@ -50,7 +50,7 @@ function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payloa
 test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
   const {service,calls}=setup();
   const first=await service.query(MEMBER,query('sitting='+SITTING));
-  assert.equal(first.version,12);
+  assert.equal(first.version,13);
   assert.equal(first.period.sittingId,SITTING);
   assert.equal(first.period.from,'2026-10-07');
   assert.equal(first.period.to,'2026-10-07');
@@ -818,4 +818,19 @@ test('an evicted weekly snapshot opens a sitting decision and survives retrieval
   assert.equal(opened.id,week.id);assert.equal(opened.period.kind,'week');
   service.snapshots.clear();service.periods.clear();service.cacheBytes=0;changed=true;
   await assert.rejects(service.snapshot(query(`sitting=${SITTING}&snapshot=${week.id}`)),error=>error.status===409);
+});
+
+test('lean period rows retain exact selections, snapshot identities and reusable assembled responses',async()=>{
+  const {service}=setup();
+  const page=await service.query(MEMBER,query('sitting='+SITTING));
+  const stored=JSON.stringify(await service.snapshot(query('sitting='+SITTING+'&snapshot='+page.snapshotId)));
+  const request=query('sitting='+SITTING+'&view=period&decision='+finalDecision.activity_id+'&snapshot='+page.snapshotId);
+  const lean=await service.query(MEMBER,request),again=await service.query(MEMBER,request);
+  assert.deepEqual(again,lean);assert.equal(again.items,lean.items);
+  assert.equal(lean.snapshotId,page.snapshotId);
+  assert.deepEqual(lean.selected.item,page.items.find(item=>item.id===finalDecision.activity_id));
+  assert.equal(lean.items[0].sources,undefined);assert.equal(lean.items[0].rollCallRequesters,undefined);
+  assert.equal(lean.items[0].context.relationships,undefined);assert.equal(lean.items[0].evidencePaths,undefined);
+  assert.equal(JSON.stringify(await service.snapshot(query('sitting='+SITTING+'&snapshot='+page.snapshotId))),stored);
+  await assert.rejects(service.query(MEMBER,{...request,snapshot:'a'.repeat(64)}),error=>error.status===409);
 });

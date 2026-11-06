@@ -141,3 +141,25 @@ export function memberVoteAlignment(vote) {
   if(!['for','against'].includes(position))return 'unclassified';
   return (position==='for')===(vote.outcome==='ADOPTED')?'with':'against';
 }
+
+// Transport projections only: never apply these to the held snapshot or its hash.
+function rowLanguages(values,language) {
+  const selected=Object.fromEntries(Object.entries(values).filter(([key])=>key===language||key==='en'));
+  // Preserve the existing source-language fallback when neither preferred text exists.
+  if(!Object.values(selected).some(value=>value?.trim())){
+    const fallback=Object.entries(values).find(([,value])=>value?.trim());
+    if(fallback)selected[fallback[0]]=fallback[1];
+  }
+  return selected;
+}
+export function memberVotePeriodRow(vote,language='en') {
+  const {id,sittingId,date,scope,method,outcome,ballotStatus,actualPosition,intention,subjectId,alignment,totals,title,titleLanguage}=vote;
+  return {id,sittingId,date,scope,method,outcome,ballotStatus,actualPosition,intention,subjectId,alignment,totals,title,titleLanguage,
+    titles:rowLanguages(vote.titles,language),referenceTexts:rowLanguages(vote.referenceTexts,language),
+    namedVoters:{available:vote.namedVoters.available},resultRelationship:{binding:vote.resultRelationship.binding},
+    context:{amendmentIds:vote.context.amendmentIds},parts:vote.parts.map(({number,requestScopeByLanguage})=>({number,requestScopeByLanguage:rowLanguages(requestScopeByLanguage,language)}))};
+}
+export function memberVotePeriodSubject(subject,language='en') {
+  const {id,uri,title,titleLanguage,documentIds,agendaItemIds,counts,wholeTextDecisions}=subject;
+  return {id,uri,title,titleLanguage,documentIds,agendaItemIds,counts,titles:rowLanguages(subject.titles,language),wholeTextDecisions:wholeTextDecisions.map(({id,date,scope,method,outcome,ballotStatus,actualPosition,intention,totals})=>({id,date,scope,method,outcome,ballotStatus,actualPosition,intention,totals}))};
+}

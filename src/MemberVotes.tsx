@@ -13,7 +13,7 @@ import {OutcomeAlignmentFilter} from './OutcomeAlignmentFilter';
 import {VotePeriodNavigation} from './VotePeriodNavigation';
 import {validateVotePeriods,votePeriodTransition,type VotePeriodsResponse} from './plenaryPeriods.mjs';
 import {useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
-import {useData} from './data';
+import {useData,reuseDataResponse} from './data';
 import {selectLanguageText} from './language.mjs';
 import {selectVoteTitle} from './voteTitles.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
@@ -132,7 +132,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
   const targets=exactAmendmentTargets(vote),documents=topLevelVoteDocuments(vote);
   const requesterLabels=vote.rollCallRequesters.filter(requester=>requester.binding==='exact-decision-was_motivated_by').map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text);
   const requestIds=new Set(vote.parts.map(part=>part.requestId));
-  const siblingVotes=data.items.filter(item=>item.id!==vote.id&&item.parts.some(part=>requestIds.has(part.requestId)));
+  const siblingVotes=(data.selected.siblings??[]).filter(item=>item.id!==vote.id&&item.parts.some(part=>requestIds.has(part.requestId)));
   const contexts=vote.parts.flatMap(part=>[...part.contextComponents,part].sort((a,b)=>(/^\d+$/.test(String(a.number)) && /^\d+$/.test(String(b.number))) ? (Number(a.number)-Number(b.number)) : 0)).filter((component,index,all)=>all.findIndex(other=>other.componentId===component.componentId)===index);
   return <article className="member-votes-detail">
     <header><p className="member-votes-eyebrow">{dateLabel(vote.date,ui.locale)}</p>{subject&&<VoteSubjectTitle subject={subject} vote={vote} language={language}/>}<h2 tabIndex={-1}>{memberVoteLabel(vote,language, ui)}</h2></header>
@@ -172,18 +172,26 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const requestedWeek=chooseLatest ? search.week : state.week;
   const requestedState={...state,week:requestedWeek};
   const route=useMemo(()=>{try{return memberVotesRoute(memberId,{...state,week:requestedWeek},language);}catch{return null;}},[memberId,requestedWeek,state.sittingId,state.positions,state.alignment,state.offset,state.decisionId,state.snapshotId,language]);
+
   const request=useData<MemberVotesResponse>(route,{unavailable:'error.records'}) as ReturnType<typeof useData<MemberVotesResponse>>&{status?:number};
   const valid=Boolean(request.data&&validateMemberVotesResponse(request.data,{memberId,state:requestedState}));
   const scope=JSON.stringify([memberId,language,requestedWeek,state.sittingId,state.positions,state.alignment,state.offset,state.snapshotId]);
   const retained=useRef<{scope:string;data:MemberVotesResponse}|null>(null);
   useLayoutEffect(()=>{
     if(request.error||request.data&&!valid)retained.current=null;
-    else if(valid&&request.data)retained.current={scope,data:request.data};
-  },[valid,request.data,request.error,scope]);
+    else if(valid&&request.data){
+      retained.current={scope,data:request.data};
+      if(!state.snapshotId&&route){
+        const pinned=memberVotesRoute(memberId,{...state,week:state.sittingId?state.week:request.data.period.week??state.week,snapshotId:request.data.snapshotId,offset:request.data.pagination.mode==='period'?0:state.offset},language);
+        reuseDataResponse(route,pinned,request.data);
+      }
+    }
+  },[valid,request.data,request.error,scope,route,memberId,language,state]);
   // A decision read changes only selection. Keep this exact page mounted while
   // it resolves; never carry records across member, language, filter or snapshot.
   const previous=(request.loading && (retained.current?.scope===scope)) ? retained.current.data : null;
-  const previousSelection=previous?.items.find(item=>item.id===state.decisionId)??((previous?.selected.item?.id===state.decisionId) ? previous.selected.item : null);
+  const previousRow=previous?.items.find(item=>item.id===state.decisionId);
+  const previousSelection=previous?.selected.item?.id===state.decisionId ? previous.selected.item : previousRow&&'rollCallRequesters' in previousRow ? previousRow as MemberVote : null;
   const pendingCandidate=previous ? ({...previous,selected:state.decisionId ? (previousSelection ? ({status:'found' as const,item:previousSelection}) : ({status:'unavailable' as const,item:null})) : ({status:'not-requested' as const,item:null})}) : null;
   const candidateData=valid ? request.data : ((pendingCandidate && validateMemberVotesResponse(pendingCandidate,{memberId,state:requestedState})) ? pendingCandidate : null);
   const unavailableEarlier=chooseLatest&&!search.complete&&requestedWeek!=='latest'&&candidateData?.coverage.status==='unavailable';
