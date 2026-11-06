@@ -2502,7 +2502,7 @@
   "weekSummary.deadline": "{date}, {time}: sprioc-am tíolactha – {item}",
   "weekSummary.debates": "{count} de dhíospóireachtaí",
   "weekSummary.debatesOne": "{count} díospóireacht",
-  "weekSummary.nextDeadlines": "Na spriocanna eile",
+  "weekSummary.nextDeadlines": "Na sprioc-amanna atá le teacht",
   "weekSummary.noVotes": "Gan vótaí an tseachtain seo.",
   "weekSummary.results": "Torthaí",
   "weekSummary.resultsPending": "Níl na torthaí ar fáil go fóill.",
