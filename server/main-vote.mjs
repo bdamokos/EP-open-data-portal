@@ -1,4 +1,4 @@
-const labels=new Set(['Commission proposal','Commission proposal and amendments','Commission proposal to the Council','Motion for a resolution','Motion for a resolution (as a whole)','Proposal for a decision','Draft legislative act']);
+const labels=new Set(['Commission proposal','Commission proposal and amendments','Commission proposal to the Council','Motion for a resolution','Motion for a resolution (as a whole)','Proposal for a decision','Draft legislative act','Provisional agreement']);
 const notHeld=new Set(['LAPSED','WITHDRAWN','CANCELLED','CANCELED','NOT_HELD']);
 const eligible=decision=>decision&&decision.ballotStatus!=='not-conducted'&&!notHeld.has(decision.outcome);
 
