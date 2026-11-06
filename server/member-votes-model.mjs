@@ -1,3 +1,4 @@
+import {languagePreference} from './language-order.mjs';
 import {personId} from './insights-model.mjs';
 import {decodeCharacterReferences} from './character-references.mjs';
 import {explicitVoteScope,isWholeProposalVote} from './vote-scope.mjs';
@@ -152,14 +153,22 @@ function rowLanguages(values,language) {
   }
   return selected;
 }
+// Titles also support the held multilingual agenda format and protocol fallback.
+function rowTitles(values,language) {
+  const selected=rowLanguages(values,language);
+  const fallback=languagePreference(Object.keys(values).filter(key=>values[key]?.trim()),language)[0];
+  for(const key of [fallback,...(Object.hasOwn(values,'mul')?['mul','fr']:[])])
+    if(key&&Object.hasOwn(values,key))selected[key]=values[key];
+  return selected;
+}
 export function memberVotePeriodRow(vote,language='en') {
   const {id,sittingId,date,scope,method,outcome,ballotStatus,actualPosition,intention,subjectId,alignment,totals,title,titleLanguage}=vote;
   return {id,sittingId,date,scope,method,outcome,ballotStatus,actualPosition,intention,subjectId,alignment,totals,title,titleLanguage,
-    titles:rowLanguages(vote.titles,language),referenceTexts:rowLanguages(vote.referenceTexts,language),
+    titles:rowTitles(vote.titles,language),referenceTexts:rowLanguages(vote.referenceTexts,language),
     namedVoters:{available:vote.namedVoters.available},resultRelationship:{binding:vote.resultRelationship.binding},
     context:{amendmentIds:vote.context.amendmentIds},parts:vote.parts.map(({number,requestScopeByLanguage})=>({number,requestScopeByLanguage:rowLanguages(requestScopeByLanguage,language)}))};
 }
 export function memberVotePeriodSubject(subject,language='en') {
   const {id,uri,title,titleLanguage,documentIds,agendaItemIds,counts,wholeTextDecisions}=subject;
-  return {id,uri,title,titleLanguage,documentIds,agendaItemIds,counts,titles:rowLanguages(subject.titles,language),wholeTextDecisions:wholeTextDecisions.map(({id,date,scope,method,outcome,ballotStatus,actualPosition,intention,totals})=>({id,date,scope,method,outcome,ballotStatus,actualPosition,intention,totals}))};
+  return {id,uri,title,titleLanguage,documentIds,agendaItemIds,counts,titles:rowTitles(subject.titles,language),wholeTextDecisions:wholeTextDecisions.map(({id,date,scope,method,outcome,ballotStatus,actualPosition,intention,totals})=>({id,date,scope,method,outcome,ballotStatus,actualPosition,intention,totals}))};
 }

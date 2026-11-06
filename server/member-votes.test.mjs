@@ -834,3 +834,22 @@ test('lean period rows retain exact selections, snapshot identities and reusable
   assert.equal(JSON.stringify(await service.snapshot(query('sitting='+SITTING+'&snapshot='+page.snapshotId))),stored);
   await assert.rejects(service.query(MEMBER,{...request,snapshot:'a'.repeat(64)}),error=>error.status===409);
 });
+
+test('assembled snapshot projections never refresh in background and use current verified coverage',async t=>{
+  let now=NOW;
+  const {service}=setup({clock:()=>now});
+  const request=query('week=2026-10-05&view=period');
+  let snapshot=await service.snapshot(request);
+  t.mock.method(service,'snapshot',async()=>snapshot);
+  const refresh=t.mock.method(service.views,'refresh');
+  const first=await service.query(MEMBER,request);
+  for(const elapsed of [61_000,122_000]){
+    now=NOW+elapsed;
+    snapshot={...snapshot,coverage:{...snapshot.coverage,catalogue:{...snapshot.coverage.catalogue,sources:snapshot.coverage.catalogue.sources.map(source=>({...source,fetchedAt:new Date(now).toISOString()}))}}};
+    const current=await service.query(MEMBER,request);
+    assert.equal(current.items,first.items);
+    assert.equal(current.coverage,snapshot.coverage);
+    assert.deepEqual(current.coverage.catalogue,snapshot.coverage.catalogue);
+    assert.equal(refresh.mock.callCount(),1,'cache hits must not schedule projection work');
+  }
+});

@@ -1301,3 +1301,14 @@ test('lean rows keep list nodes while full selection loads and never treat row d
   assert.match(visiblePane(h.container).textContent,/Loading selected vote/);assert.equal(h.container.querySelector('.member-votes-detail'),null);
   hold=false;await act(async()=>release());assert(h.container.querySelector('.member-votes-detail'));
 });
+
+test('a history jump into lean context shows loading until its full selection arrives',async t=>{
+  let release,hold=false;
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT]}});
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:async url=>{if(hold)await new Promise(resolve=>{release=resolve;});return Response.json(leanPeriodResponse(url,{items:[item]}));}});
+  hold=true;await h.update({decisionId:item.id,context:{documentId:DOCUMENT,view:'document'}});
+  assert.match(h.container.textContent,/Loading selected vote/);
+  assert.doesNotMatch(h.container.textContent,/The requested document is unavailable/);
+  hold=false;await act(async()=>release());
+  assert(h.container.querySelector('[data-testid="context"]'));
+});
