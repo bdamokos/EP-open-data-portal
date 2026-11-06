@@ -5,7 +5,7 @@ import {memberVoteOutcome,notHeldLabel,memberVotePositionState,memberVotePositio
 import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import './MemberVotes.css';
 type ResultVote=Pick<MemberVote,'outcome'|'totals'|'ballotStatus'>;
-type PositionVote=Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>;
+type PositionVote=Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'|'outcome'>;
 export function Result({vote,showMissingTotals=true,showPartialTotals=false}:{vote:ResultVote;showMissingTotals?:boolean;showPartialTotals?:boolean}) {
   const ui = useUiI18n();
   const totals=memberVoteTotals(vote),outcome=memberVoteOutcome(vote, ui);
