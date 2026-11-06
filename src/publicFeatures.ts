@@ -22,7 +22,7 @@ export function explorerViewFromQuery(query: URLSearchParams): ExplorerView|null
   if (/^\d+$/.test(query.get('member') || '')) return null;
   const view = publicExplorerView(query.get('view'));
   if (view) return view;
-  return ['country','committee','group','organization'].some(key => query.has(key)) || (query.has('role') && query.get('role') !== 'both') ? 'meps' : null;
+  return ['country','committee','group','organization','mep-view'].some(key => query.has(key)) || (query.has('role') && query.get('role') !== 'both') ? 'meps' : null;
 }
 
 export function publicMemberModule(value: string|null): string {
