@@ -13,7 +13,7 @@ import {PRESS_FEEDS,parsePressFeed,parsePressRelease} from './press-releases-mod
 
 export const PRESS_RELEASES_VERSION=2;
 const HOUR=60*60_000,DAY=24*HOUR;
-export const PRESS_LIMITS=Object.freeze({pollInterval:DAY,pagesPerRun:6,listed:5});
+export const PRESS_LIMITS=Object.freeze({pollInterval:DAY,pagesPerRun:6,enrichmentAttempts:3,listed:5});
 const parse=value=>value==null?null:JSON.parse(value);
 const message=error=>String(error?.message||error).slice(0,300);
 const SCHEMA=`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -49,7 +49,7 @@ export class PressStore {
     return this.ready;
   }
   // Outside a press transaction: journal mode cannot change inside one.
-  initialize() {
+  initialize({now=Date.now()}={}) {
     if(this.initialized)return;
     mkdirSync(this.directory,{recursive:true});
     (this.db||this.open()).exec('PRAGMA journal_mode=WAL;'+SCHEMA);
@@ -63,6 +63,12 @@ export class PressStore {
     if(this.get('retryPolicyVersion')!==1)this.transaction(()=>{
       this.db.prepare('UPDATE releases SET next_check=? WHERE checked_at IS NULL AND next_check IS NULL AND error IS NOT NULL AND failure_state IS NULL').run(Date.now());
       this.set('retryPolicyVersion',1);
+    });
+    if(this.get('leadBackfillVersion')!==1)this.transaction(()=>{
+      this.db.prepare(`UPDATE releases SET next_check=? WHERE checked_at IS NOT NULL
+        AND json_extract(body,'$.listed')=1 AND json_extract(body,'$.leadVersion') IS NULL
+        AND EXISTS (SELECT 1 FROM links WHERE release=releases.id)`).run(now);
+      this.set('leadBackfillVersion',1);
     });
     this.ready=true;this.initialized=true;
   }
@@ -100,8 +106,18 @@ export class PressStore {
     const insert=this.db.prepare('INSERT OR IGNORE INTO links VALUES (?,?,?,?)');
     for(const link of links)insert.run(link.kind,link.value,id,link.label??null);
   }
-  fail(id,error,{now,retryAt}) {
+  fail(id,error,{now,retryAt,parseFailure=false}) {
     const old=this.release(id),attempts=(old?.attempts||0)+1;
+    // A held page gets one successful enrichment read. Missing pages,
+    // redirects and parser rejections end it immediately; transport failures
+    // retain backoff for at most three attempts. Never discard held links.
+    const enrichment=old?.checked_at!=null;
+    const redirect=(error?.status>=300&&error.status<400)||error?.cause?.message==='unexpected redirect';
+    if(enrichment&&(sourceMissing(error)||parseFailure||redirect||attempts>=PRESS_LIMITS.enrichmentAttempts)) {
+      this.db.prepare('UPDATE releases SET body=?,attempts=?,next_check=NULL,error=?,failure_state=?,rejected_source=NULL,missing_since=NULL WHERE id=?')
+        .run(JSON.stringify({...old.body,leadVersion:1}),attempts,message(error),'permanent-source-issue',id);
+      return;
+    }
     const missingSince=sourceMissing(error)?(old.missing_since??now):null;
     const {rejection,confirmed}=confirmSourceRejection(old.rejected_source?JSON.parse(old.rejected_source):null,error,{descriptor:old.url,parserVersion:1,now});
     this.db.prepare('UPDATE releases SET rejected_source=? WHERE id=?').run(rejection?JSON.stringify(rejection):null,id);
@@ -109,6 +125,29 @@ export class PressStore {
     const missing=sourceMissing(error)&&attempts>1&&now-missingSince>7*DAY;
     const next=permanent||missing?now+SOURCE_RECHECK_MS:Math.max(retryAt||0,now+Number(error.retryAfter||0)*1000,now+transientSourceDelay(attempts-1,{base:15*60_000,cap:DAY}));
     this.db.prepare('UPDATE releases SET attempts=?,next_check=?,error=?,failure_state=?,missing_since=? WHERE id=?').run(attempts,next,message(error),permanent?'permanent-source-issue':'transient',missingSince,id);
+  }
+  // Exact year/number identity across procedure types; no summary joins here.
+  // from/to are inclusive Brussels calendar dates (Monday through Sunday).
+  forWeek(query) {
+    if(!this.tables())return [];
+    if(this.db.isTransaction)return this.readWeek(query);
+    this.db.exec('BEGIN');
+    try{const result=this.readWeek(query);this.db.exec('COMMIT');return result;}
+    catch(error){try{if(this.db.isTransaction)this.db.exec('ROLLBACK');}catch{}throw error;}
+  }
+  readWeek({procedureIds=[],documentIds=[],from,to}) {
+    const ranges=[...new Set(procedureIds.map(id=>String(id).replace(/^(\d{4})-/, '$1/').match(/^(\d{4}\/\d{4}[A-Z]?)(?:\([A-Z]{2,8}\))?$/)?.[1]).filter(Boolean))];
+    const ids=new Set();
+    const procedures=this.db.prepare("SELECT release FROM links WHERE kind='procedure' AND value>=? AND value<?");
+    for(const reference of ranges)for(const row of procedures.all(reference+'(',reference+')'))ids.add(row.release);
+    if(documentIds.length)for(const row of this.db.prepare("SELECT release FROM links WHERE kind='document' AND value IN (SELECT value FROM json_each(?))").all(JSON.stringify(documentIds)))ids.add(row.release);
+    if(!ids.size)return [];
+    const start=brusselsInstant(from+'T00:00:00'),last=new Date(to+'T00:00:00Z');
+    last.setUTCDate(last.getUTCDate()+1);
+    const end=brusselsInstant(last.toISOString().slice(0,10)+'T00:00:00');
+    return this.db.prepare(`SELECT body FROM releases WHERE id IN (SELECT value FROM json_each(?))
+      AND json_extract(body,'$.listed')=1 AND json_extract(body,'$.publishedAt')>=? AND json_extract(body,'$.publishedAt')<?
+      ORDER BY json_extract(body,'$.publishedAt') DESC,id DESC`).all(JSON.stringify([...ids]),start,end).map(row=>parse(row.body));
   }
   // Releases whose own Further information list links this exact procedure, or
   // one of the OEIL summaries or documents its procedure file links.
@@ -207,9 +246,15 @@ export class PressFollower {
     const now=this.clock();
     let page;
     try{page=parsePressRelease(response.text,id,{robotsHeader:response.robotsHeader});}
-    catch(error){this.write(()=>this.store.fail(id,error,{now}));return;}
+    catch(error){this.write(()=>this.store.fail(id,error,{now,parseFailure:true}));return;}
     const listed=page.robots.listed;
-    this.write(()=>this.store.record(id,{...release.body,title:page.title??release.body.title,publishedAt:(page.publishedLocal&&brusselsInstant(page.publishedLocal))||release.body.feedPublishedAt,publishedLocal:page.publishedLocal,robots:page.robots,listed,furtherInformation:page.furtherInformation,fetchedAt:new Date(now).toISOString()},{now,links:listed?page.links:[]}));
+    this.write(()=>{
+      // A missing section is an unavailable observation, not an empty list.
+      // A listed page can enrich its text without destroying held exact links.
+      const held=listed&&release.checked_at!=null&&!page.furtherInformation;
+      const links=held?this.store.db.prepare('SELECT kind,value,label FROM links WHERE release=?').all(id):(listed?page.links:[]);
+      this.store.record(id,{...release.body,title:page.title??release.body.title,lead:page.lead,paragraphs:page.paragraphs,leadVersion:1,publishedAt:(page.publishedLocal&&brusselsInstant(page.publishedLocal))||release.body.publishedAt||release.body.feedPublishedAt,publishedLocal:page.publishedLocal??release.body.publishedLocal,robots:page.robots,listed,furtherInformation:held?release.body.furtherInformation:page.furtherInformation,fetchedAt:new Date(now).toISOString()},{now,links});
+    });
   }
 }
 
