@@ -59,7 +59,7 @@ export async function latestResults(query,{snapshots=sittingSnapshots,store=null
   const base={version:LATEST_RESULTS_VERSION,language:query.language,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
   const nodes=[];
   for(const year of calendarYears(today).reverse()) {
-    const calendar=snapshots.read('calendar',SITTING_CALENDAR_VERSION,String(year));
+    const calendar=snapshots.read('calendar',SITTING_CALENDAR_VERSION,String(year),{retained:true});
     if(calendar?.nodes)nodes.push(...calendar.nodes);
     if(nodes.length>=MAX_SITTINGS_SCANNED)break;
   }
@@ -69,7 +69,7 @@ export async function latestResults(query,{snapshots=sittingSnapshots,store=null
     requestSignal()?.throwIfAborted();
     const monday=calendarMonday(sitting.activity_date);
     if(week&&monday!==week)break;
-    const saved=snapshots.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,sitting.activity_id);
+    const saved=snapshots.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,sitting.activity_id,{retained:true});
     if(!saved?.day)continue;
     days.push({day:saved.day,bytes:saved.bytes||0});week=monday;
   }
