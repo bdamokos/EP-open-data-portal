@@ -508,9 +508,9 @@ export default function App() {
   );
   // Home owns the bare URL only; the explorer-query-change event covers
   // param writes that do not change the view or member state.
-  const [queryTick,setQueryTick]=useState(0);
-  useEffect(()=>{const update=()=>setQueryTick(value=>value+1);window.addEventListener('popstate',update);window.addEventListener('explorer-query-change',update);return()=>{window.removeEventListener('popstate',update);window.removeEventListener('explorer-query-change',update);};},[]);
-  const currentQuery=useMemo(()=>new URLSearchParams(location.search),[queryTick]);
+  const [querySearch,setQuerySearch]=useState(()=>location.search);
+  useEffect(()=>{const update=()=>setQuerySearch(location.search);window.addEventListener('popstate',update);window.addEventListener('explorer-query-change',update);return()=>{window.removeEventListener('popstate',update);window.removeEventListener('explorer-query-change',update);};},[]);
+  const currentQuery=useMemo(()=>new URLSearchParams(querySearch),[querySearch]);
   const homeVisible=!view&&!member&&isHomeQuery(currentQuery);
   const votes=useMemberVotesJourney(member,!view&&Boolean(member)&&tab==='votes',initial);
   const motions=useMemberMotionJourney(member,!view&&Boolean(member)&&tab==='activities',initial,{language:lang,activity:activityLink,category:activityCategory,offset:activityOffset});
@@ -1014,7 +1014,7 @@ export default function App() {
                           onClick={() => {
                             memberOpener.current=m.id;
                             pendingDestination.current={view:null,member:m.id};
-                            memberStep.current=true;setMember(m.id);
+                            memberStep.current=true;setView(null);setMember(m.id);
                             setSpeechLink(null);
                             setActivityLink(null);
                             setActivityCategory('');

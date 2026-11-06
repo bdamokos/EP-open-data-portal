@@ -61,7 +61,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
     if(route?.startsWith('speech/'))return Response.json({id:speechId,xml:null,speakers:[],availableTextLanguages:['en'],textLanguage:'en'});
     if(brokenGroup&&route==='insights/group-voices'&&url.searchParams.get('group')==='ECR')return Response.json({people:[null],months:[],window:{},contributions:[],coverage:{initialized:true}});
     // Main-view error states still have a stable destination before any data.
-    if(route?.startsWith('insights/')||route?.startsWith('outside/'))return Response.json({error:{message:'Local fixture unavailable.'}},{status:503});
+    if(route?.startsWith('insights/')||route?.startsWith('outside/')||route==='latest-results')return Response.json({error:{message:'Local fixture unavailable.'}},{status:503});
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
   });
   const loaderOptions={configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}};
@@ -102,14 +102,14 @@ test('global search stays remembered across top-level navigation while its share
 });
 
 test('roster portraits are requested while committee memberships are unavailable',async t=>{
-  const h=await harness(t,'',false,false,false,true);
+  const h=await harness(t,'?view=meps',false,false,false,true);
   assert.match(h.container.querySelector('[data-member-id="257043"] img').getAttribute('src'),/^\/api\/portrait\/257043\?v=2$/);
   assert.deepEqual(h.portraitRequests,[], 'portraits use native image loading');
   assert.match(h.container.querySelector('.explorer-index[role="status"]').textContent,/Loading committee memberships: 0 \/ 1\./);
 });
 
 test('member destination and Back keep the wall, its portraits and scroll position while retaining filters',async t=>{
-  const h=await harness(t),input=h.container.querySelector('.explorer-filters input');
+  const h=await harness(t,'?view=meps'),input=h.container.querySelector('.explorer-filters input');
   input.focus();await act(async()=>{Object.getOwnPropertyDescriptor(h.window.HTMLInputElement.prototype,'value').set.call(input,'Mika');input.dispatchEvent(new h.window.Event('input',{bubbles:true}));});
   const original=h.container.querySelector('[data-member-id="257043"] button'),main=h.container.querySelector('main.explorer'),order=[];
   Object.defineProperties(main,{scrollHeight:{value:1000,configurable:true},clientHeight:{value:100,configurable:true}});
@@ -130,7 +130,7 @@ test('member destination and Back keep the wall, its portraits and scroll positi
 });
 
 test('browser Back restores the wall page offset without remounting the wall',async t=>{
-  const h=await harness(t),grid=h.container.querySelector('.explorer-portraits'),main=h.container.querySelector('main.explorer'),original=h.container.querySelector('[data-member-id="257043"] button');
+  const h=await harness(t,'?view=meps'),grid=h.container.querySelector('.explorer-portraits'),main=h.container.querySelector('main.explorer'),original=h.container.querySelector('[data-member-id="257043"] button');
   main.scrollTop=900;await act(async()=>main.dispatchEvent(new h.window.Event('scroll')));
   await h.click(original);
   assert.equal(h.container.querySelector('.explorer-wall').hidden,true);
@@ -145,7 +145,7 @@ test('browser Back restores the wall page offset without remounting the wall',as
 });
 
 test('explicit main-view gestures orient to the current heading without adding history beyond existing navigation',async t=>{
-  const h=await harness(t);
+  const h=await harness(t,'?view=meps');
   assert.equal(document.activeElement,document.body,'ordinary initial load does not force focus');
   for(const label of ['Following','Plenary agenda','Questions','Outside voices','MEPs']) {
     const before=history.length;
@@ -175,7 +175,7 @@ test('old amendment URLs fall back without exposing or requesting the catalogue'
 });
 
 test('history restoration rejects disabled catalogue views even when the fallback state is unchanged',async t=>{
-  const h=await harness(t);
+  const h=await harness(t,'?view=meps');
   for(const query of ['?view=amendments&am-document=A-10-2026-0254','?member=257043&module=amendments&am-member=257043','?member=257043&module=amendments&am-offset=20']){
     await act(async()=>{history.pushState(null,'',query);window.dispatchEvent(new window.Event('popstate'));});
     assert.equal(h.button('Amendments'),undefined);
@@ -191,7 +191,7 @@ test('history restoration rejects disabled catalogue views even when the fallbac
 });
 
 test('Following Back restores its semantic header trigger even after the header remounts',async t=>{
-  const h=await harness(t);
+  const h=await harness(t,'?view=meps');
   await h.click(h.button('Questions'));
   const original=h.button('Following');await h.click(original);
   assert.equal(original.isConnected,false);
@@ -248,7 +248,7 @@ test('revealing a speech scrolls only the page and respects the sticky-tab margi
 
 test('delayed view imports keep navigation focus until mount and yield to a subsequent focus choice',async t=>{
   for(const moved of [false,true,'returned'])await t.test(String(moved),async t=>{
-    const h=await harness(t,'',false,true);
+    const h=await harness(t,'?view=meps',false,true);
     await h.click(h.button('Group voices'));
     const loading=h.container.querySelector('[data-view-loading]');
     assert(loading,'the import is still pending');
@@ -269,13 +269,13 @@ test('delayed view imports keep navigation focus until mount and yield to a subs
 });
 
 test('a pending view can be left immediately and its late import cannot reopen it',async t=>{
-  const h=await harness(t,'',false,true);
+  const h=await harness(t,'?view=meps',false,true);
   await h.click(h.button('Group voices'));
   assert(h.container.querySelector('[data-view-loading]'));
   await h.click(h.button('MEPs'));
   assert.equal(h.container.querySelector('[data-view-loading]'),null);
   assert(h.container.querySelector('.explorer-filters'));
-  assert.equal(new URL(location.href).searchParams.has('view'),false);
+  assert.equal(new URL(location.href).searchParams.get('view'),'meps');
   await h.releaseView();
   assert(h.container.querySelector('.explorer-filters'));
   assert.equal(h.container.querySelector('.explorer-insights'),null);
@@ -301,7 +301,7 @@ test('cold legislation links show the validated mode heading before and after th
 });
 
 test('Following retains its mounted header during a delayed first import',async t=>{
-  const h=await harness(t,'',false,'saved');
+  const h=await harness(t,'?view=meps',false,'saved');
   const header=h.container.querySelector('.parliament-header');
   await h.click(h.button('Following'));
   assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,'Following');
@@ -312,7 +312,7 @@ test('Following retains its mounted header during a delayed first import',async 
 });
 
 test('loaded insight destinations reset the shared frame scroll on clicks and browser Back',async t=>{
-  const h=await harness(t);
+  const h=await harness(t,'?view=meps');
   await h.click(h.button('Questions'));
   const frame=h.container.querySelector('main.explorer-insights');
   const header=frame.querySelector('.parliament-header');

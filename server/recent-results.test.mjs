@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {latestResults,latestResultsQuery,referenceLine,sittingResults} from './latest-results.mjs';
+import {latestResults,latestResultsQuery,referenceLine,sittingResults} from './recent-results.mjs';
 import {voteFixture} from './test-support/decision-votes.mjs';
 
 // Small attributed fixtures: reduced from the retained public member-votes fixture

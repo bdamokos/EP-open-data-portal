@@ -32,7 +32,7 @@ import {motionAmendmentsQuery,motionAmendmentsPage} from './motion-amendments.mj
 import {votePeriods} from './vote-periods.mjs';
 import {memberVotes,memberVotesQuery,MEMBER_VOTES_PERIOD_RESPONSE_BYTES} from './member-votes.mjs';
 import {decisionVotes,decisionVotesQuery} from './decision-votes.mjs';
-import {latestResultsCached,latestResultsQuery} from './latest-results.mjs';
+import {latestResultsCached,latestResultsQuery} from './recent-results.mjs';
 import {memberAttendance,memberAttendanceQuery} from './member-attendance.mjs';
 import {memberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
 import {documentPages} from './document-pages.mjs';

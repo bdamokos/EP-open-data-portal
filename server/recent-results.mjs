@@ -8,7 +8,7 @@ import {brusselsDay} from './analysis-period.mjs';
 import {list,labels,preferred} from './vote-evidence.mjs';
 import {HttpError} from './http-utils.mjs';
 import {requestSignal} from './request-budget.mjs';
-import {differentFromMajority} from '../src/voteGroupMetrics.mjs';
+import {groupMajorities} from './your-vote-ballot.mjs';
 
 export const LATEST_RESULTS_VERSION=1;
 const MAX_SITTINGS_SCANNED=12,MAX_VOTES=24,CACHE_MS=60_000;
@@ -47,7 +47,7 @@ export function sittingResults(day,{language,store=null,context=null}={}) {
     let differing=null;
     if(context.history) {
       const projected=projectDecisionVotes({sitting:day.sittingId,decision:item.id,language},snapshot,{store,context});
-      if(projected.integrity==='complete')differing=differentFromMajority(projected.voters.filter(voter=>voter.status==='recorded'&&voter.groupStatus==='verified').map(voter=>({group:voter.group?.code,position:voter.position})));
+      if(projected.integrity==='complete')differing=groupMajorities(projected.voters.filter(voter=>voter.groupStatus==='verified')).reduce((sum,g)=>g.position?sum+Object.values(g.counts).reduce((a,b)=>a+b,0)-g.counts[g.position]:sum,0);
     }
     votes.push({id:item.id,date:item.date,sittingId:day.sittingId,topicId,title,titleLanguage,reference:referenceLine(item.context.procedureIds,item.context.documentIds),outcome:item.outcome,totals:{for:yes,against,abstaining},differing});
   }

@@ -22,6 +22,8 @@ async function harness(t,width=1440,query='') {
   let root,loadModule;
   t.mock.method(globalThis,'fetch',(input,options)=>{
     const url=new URL(input,location.href);
+    // The default agenda week waits for the sitting calendar; no calendar keeps the latest week.
+    if(url.pathname.endsWith('/vote-periods'))return Promise.resolve(Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}}));
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected request '+url);
     if(!url.searchParams.has('topic')){agendaRequests.push(url);return Promise.resolve(Response.json(response(url.searchParams)));}
     return new Promise(resolve=>requests.push({url,...options,resolve,settled:false}));
