@@ -1,7 +1,7 @@
 .vote-page { --mv-ink:var(--ink); --mv-muted:var(--ink-muted); --mv-line:var(--line); --mv-for:var(--vote-for); --mv-against:var(--vote-against); --mv-abstain:var(--vote-abstain); max-width:760px; margin:16px auto 0; }
 .vote-page-back { display:inline-block; margin-bottom:12px; }
 .vote-page .member-votes-result { font-size:15px; }
-.vote-page .member-votes-result-heading { font-size:14px; }
+.vote-page .member-votes-result-heading,.vote-page .member-votes-result-heading span { font-size:14px; }
 .vote-page .member-votes-bar { height:10px; }
 .vote-page .member-votes-counts { font-size:15px; }
 .vote-page-eyebrow { margin:0 0 4px; color:var(--ink-muted); font-size:14px; }
