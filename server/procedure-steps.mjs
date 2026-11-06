@@ -34,7 +34,7 @@ export function procedureSteps({reference,indexEvents=[],cellarEvents=[],summari
     // A post-deal vote completes the final step, preserving the mandate date.
     if(key==='parliament'&&dealDate&&row.date>=dealDate){
       if(!done.has('parliament'))done.set('parliament',{date:row.date,partial:false});
-      if(code==='ADP_R1_POS_byEP')done.set('final',{date:row.date,partial:false});
+      if(code==='ADP_R1_POS_byEP'||code==='PLENARY_ADOPT_POSITION')done.set('final',{date:row.date,partial:false});
       continue;
     }
     // Keep the earliest Council mandate; approval is exposed separately.
