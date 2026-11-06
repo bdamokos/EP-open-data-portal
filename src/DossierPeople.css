@@ -1,0 +1,20 @@
+.dossier-people{min-width:0}
+.dossier-people-count{margin:4px 0 14px;color:var(--ink-muted);font-size:15px;line-height:1.5}
+.dossier-people-table{width:100%;margin-top:14px;border-collapse:collapse;font-size:15px;line-height:1.45}
+.dossier-people-table th,.dossier-people-table td{padding:10px 12px 10px 0;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:anywhere}
+.dossier-people-table thead th{color:var(--ink-muted);font-size:13px;font-weight:500;white-space:nowrap}
+.dossier-people-table tbody th{font-weight:600}
+.dossier-people-table tbody th>a{display:inline}
+.dossier-activity .dossier-people-table a,.dossier-activity .dossier-people-table .dossier-amendment-links a{display:inline;min-height:0}
+.dossier-people-roles>span{display:block}
+.dossier-people-work{white-space:nowrap}
+.dossier-people-all{margin-top:14px}
+@media(max-width:680px){
+  .dossier-people-table,.dossier-people-table tbody,.dossier-people-table tr,.dossier-people-table th,.dossier-people-table td{display:block}
+  .dossier-people-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .dossier-people-table tbody tr{padding:10px 0;border-bottom:1px solid var(--line)}
+  .dossier-people-table tbody th,.dossier-people-table tbody td{padding:0;border:0}
+  .dossier-people-table tbody :is(.dossier-people-amendments,.dossier-people-speeches){display:inline}
+  .dossier-people-amendments:not(:empty)+.dossier-people-speeches:not(:empty)::before{content:' · '}
+  .dossier-people-table tr[data-has-counts] .dossier-people-work{display:none}
+}

@@ -403,6 +403,26 @@ test('participant amendment evidence continues through existing offset/target cu
   assert.equal(new Set([...first.participants[0].amendments,...second.participants[0].amendments].map(item=>item.id)).size,2005);
   assert.equal(second.participantCoverage.retryable,false);
 });
+test('dossier people carry compact evidence, exact-count flags and exact totals, and a former member keeps their held name',async t=>{
+  const x=setup(t);signedRows(x,'AGRI-AM-900000',3);signedRows(x,'AGRI-AM-900001',2);
+  x.store.putSource(x.generation,'amendment:member:555',"amendment-member",{id:'555',givenName:'Former',familyName:'Member'},at);
+  x.store.putSource(x.generation,'demographic:profile:556',"demographic-profile",{id:'556',kind:'profile',label:'Held PROFILE'},at);
+  const person=id=>['person/'+id];
+  const work={...proc('2024-0318'),consists_of:[],had_participation:[{id:'p1',had_participant_person:person(555),participation_role:'def/ep-roles/RAPPORTEUR',participation_in_name_of:'org/AGRI',politicalGroup:'org/PPE'},{id:'p2',had_participant_person:person(556),participation_role:'def/ep-roles/RAPPORTEUR_SHADOW'},{id:'p3',had_participant_person:person(557),participation_role:'def/ep-roles/RAPPORTEUR_SHADOW'}]},reader={record:async endpoint=>({url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:at,payload:{data:[work]}})},service=new DossierActivity(x.store,{reader});
+  const roles=await service.query(dossierActivityQuery(new URLSearchParams({reference:work.label,section:'roles'})));
+  const byId=new Map(roles.participants.map(row=>[row.id,row]));
+  assert.equal(byId.get('555').name,'Former Member');assert.equal(byId.get('556').name,'Held PROFILE');assert.equal(byId.get('557').name,null);
+  assert.equal(byId.get('555').roles[0].group,'PPE');
+  for(const item of byId.get('100').amendments)assert.deepEqual(Object.keys(item).sort(),['id','scope']);
+  assert.equal(byId.get('100').amendmentCounts.committee,5);
+  assert.equal(roles.participantCoverage.sources.length,new Set(roles.participantCoverage.sources.map(row=>JSON.stringify([row.url,row.fetchedAt]))).size);
+  assert.equal(roles.amendmentCountComplete.committee,true);assert.equal(roles.amendmentCountComplete.plenary,true);
+  const total=extra=>service.query(dossierActivityQuery(new URLSearchParams({reference:work.label,section:'amendments',member:'100',...extra})));
+  assert.equal((await total({})).coverage.total,5);assert.equal((await total({stage:'committee'})).coverage.total,5);assert.equal((await total({stage:'plenary'})).coverage.total,0);
+  saveAmendmentRows(x.store,x.generation,{id:'committee:AGRI-AM-900001',listId:'AGRI-AM-900001',scope:'committee',procedureIds:['2024-0318'],committees:[{code:'AGRI'}],committeeProjectionVersion:1,sources:[{url:'https://data.europarl.europa.eu/api/v2/documents/AGRI-AM-900001',fetchedAt:at,language:null}]},[{id:'committee:AGRI-AM-900001:1',number:1,listId:'AGRI-AM-900001',scope:'committee',procedureIds:['2024-0318'],targetDocumentId:null,documentDate:day,textParserVersion:AMENDMENT_EXTRACTION_VERSION,countConflict:true,authors:[{name:'Published member',personId:'100',status:'resolved'}],proposerDate:day,gaps:[]}],{complete:false,proposerComplete:false});
+  const conflicted=await total({});assert.equal(conflicted.coverage.total,null,'a disputed count makes the total unknown');
+  const partial=await service.query(dossierActivityQuery(new URLSearchParams({reference:work.label,section:'roles'})));assert.equal(partial.amendmentCountComplete.committee,false);
+});
 test('list-specific dossier continuation reaches a target after the first 24 lists, including missing draft targets',async t=>{
   const x=setup(t);for(let i=0;i<25;i++)signedRows(x,'AGRI-AM-'+(900000+i));
   const work=proc('2024-0318'),reader={record:async endpoint=>({url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:at,payload:{data:[work]}})};
