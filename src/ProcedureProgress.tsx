@@ -34,16 +34,25 @@ function Status({event,today}:{event:ProgressEvent;today:string}) {
   return (event.date && (event.date>today)) ? <span className="procedure-progress-tag procedure-progress-tag-muted"><UiMessage id="batch6.procedureprogress.upcoming.25"/></span> : null;
 }
 
-export function ProcedureProgress({reference,language}:{reference:string;language:string}) {
+// Requests for one route share a read, so the status strip and timeline cost one.
+export function useProcedureProgress(reference:string,language:string) {
+  const state=useInsightData<Progress>('insights/procedure-progress?'+new URLSearchParams({reference,lang:language}),undefined,progressRetry);
+  return {...state,data:(state.data?.reference===reference) ? state.data : null};
+}
+// OEIL dates the proposal document, whereas Cellar may date its registration. Only the display changes.
+const proposalDated=(event:ProgressEvent,date?:string|null)=>(date&&event.types.some(type=>type.code==='ADP_PROPLEG_byCOM')) ? {...event,date,dates:[date]} : event;
+
+/** `timeline` is the dossier page: the status above already says where the file stands, so only the closed timeline remains. */
+export function ProcedureProgress({reference,language,proposalDate,timeline=false}:{reference:string;language:string;proposalDate?:string|null;timeline?:boolean}) {
   const ui = useUiI18n();
   const params=new URLSearchParams({reference,lang:language}),timelineId=useId(),headingId=useId();
-  const state=useInsightData<Progress>('insights/procedure-progress?'+params,undefined,progressRetry),data=(state.data?.reference===reference) ? state.data : null;
-  const [expanded,setExpanded]=useState(false),[institution,setInstitution]=useState('all'),[allEvents,setAllEvents]=useState(false),[documentsNeeded,setDocumentsNeeded]=useState(false);
-  useEffect(()=>{setExpanded(false);setInstitution('all');setAllEvents(false);setDocumentsNeeded(false);},[reference,language]);
+  const state=useProcedureProgress(reference,language),data=state.data;
+  const [expanded,setExpanded]=useState(false),[institution,setInstitution]=useState('all'),[allEvents,setAllEvents]=useState(timeline),[documentsNeeded,setDocumentsNeeded]=useState(false);
+  useEffect(()=>{setExpanded(false);setInstitution('all');setAllEvents(timeline);setDocumentsNeeded(false);},[reference,language,timeline]);
   const documents=useInsightData<Documents>(documentsNeeded ? ('insights/procedure-progress?'+params+'&detail=documents') : null,undefined,progressRetry);
   // Date-only legislative dates retain their calendar day in every time zone.
   const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-  const events=(data?.state==='mapped') ? data.events : ([]);
+  const events=(data?.state==='mapped') ? data.events.map(event=>proposalDated(event,proposalDate)) : ([]);
   const recorded=events.filter(event=>event.status==='recorded'&&event.date&&event.date<=today).sort(dated);
   const latest=(recorded.filter(event=>event.milestone).at(-1)||recorded.at(-1));
   const scheduled=events.filter(event=>event.status==='projected').sort(dated),next=scheduled.find(event=>event.date&&event.date>=today);
@@ -58,26 +67,26 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
   const retryDisabled=state.loading||retryAt>Date.now();
   const title=/\((COD|CNS)\)$/.test(reference) ? ui.t("dossierCard.event.11") : ui.t("batch6.procedureprogress.procedure.progress.57");
   const docData=(documents.data?.reference===reference) ? documents.data : null;
-  return <section className="procedure-progress" aria-labelledby={headingId} lang={ui.language}>
-    <header><h3 id={headingId}>{title}</h3>
+  if(timeline&&(data?.state!=='mapped'||!events.length))return state.loading ? <div className="procedure-progress-slot"/> : null;
+  return <section className="procedure-progress" aria-labelledby={timeline ? undefined : headingId} aria-label={timeline ? title : undefined} lang={ui.language}>
+    {!timeline&&(data||!state.loading)&&<header><h3 id={headingId}>{title}</h3>
       {available&&data?.status&&<span className="procedure-progress-stage" lang={data.status.language}>{data.status.label}</span>}
-      {!available&&<span className="procedure-progress-muted" role="status">{state.loading ? <UiMessage id="batch6.procedureprogress.checking.62"/> : <UiMessage id="grouplabels.ts.unavailable"/>}</span>}
-      {available&&(state.loading||savedFailure)&&<span className="procedure-progress-muted" role="status">{state.loading ? ui.t("batch6.procedureprogress.checking.62") : ui.t("batch6.procedureprogress.update.unavailable.63")}</span>}
-      {!available&&!state.loading&&null}
-    </header>
+      {!available&&!state.loading&&<span className="procedure-progress-muted" role="status"><UiMessage id="grouplabels.ts.unavailable"/></span>}
+      {available&&savedFailure&&<span className="procedure-progress-muted" role="status">{ui.t("batch6.procedureprogress.update.unavailable.63")}</span>}
+    </header>}
     {data&&<>
       {data.state==='mapped'&&<>
-        {data.coverage.limited&&<p className="procedure-progress-status"><UiMessage id="coverage.timelineLimit" values={{count:events.length}}/></p>}
+        {(!timeline||expanded)&&<>{data.coverage.limited&&<p className="procedure-progress-status"><UiMessage id="coverage.timelineLimit" values={{count:events.length}}/></p>}
         {data.coverage.invalidRows>0&&<p className="procedure-progress-status"><UiMessage id="coverage.timelineUnreadable" values={{count:data.coverage.invalidRows}}/></p>}
         {data.coverage.incompleteEvents>0&&<p className="procedure-progress-status"><UiMessage id="coverage.eventsIncomplete" values={{count:data.coverage.incompleteEvents}}/></p>}
-        {data.coverage.timeline==='unavailable'&&<p className="procedure-progress-status"><UiMessage id="coverage.earlierTimeline"/></p>}
+        {data.coverage.timeline==='unavailable'&&<p className="procedure-progress-status"><UiMessage id="coverage.earlierTimeline"/></p>}</>}
         {events.length>0&&<div className="procedure-progress-overview">
-          {latest ? <p className="procedure-progress-latest">{latest.institutions.length>0&&<EventInstitutions event={latest}/>}<strong><EventName event={latest}/></strong><EventDate event={latest} language={language}/></p> : <p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.no.dated.milestone.70"/></p>}
-          <button className="procedure-progress-toggle" type="button" aria-expanded={expanded} aria-controls={timelineId} onClick={()=>setExpanded(value=>!value)}>{expanded ? <UiMessage id="batch6.procedureprogress.hide.timeline.71"/> : <UiMessage id="batch6.procedureprogress.show.timeline.71"/>}</button>
+          {!timeline&&(latest ? <p className="procedure-progress-latest">{latest.institutions.length>0&&<EventInstitutions event={latest}/>}<strong><EventName event={latest}/></strong><EventDate event={latest} language={language}/></p> : <p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.no.dated.milestone.70"/></p>)}
+          <button className="procedure-progress-toggle" type="button" aria-expanded={expanded} aria-controls={timelineId} onClick={()=>setExpanded(value=>!value)}>{timeline ? <UiMessage id="batch6.procedureprogress.full_timeline" values={{count:events.length}} counts={{count:events.length}}/> : (expanded ? <UiMessage id="batch6.procedureprogress.hide.timeline.71"/> : <UiMessage id="batch6.procedureprogress.show.timeline.71"/>)}</button>
         </div>}
-        {next&&<div className="procedure-progress-next"><span className="procedure-progress-tag"><UiMessage id="batch6.procedureprogress.next.scheduled.action.73"/></span><p>{next.institutions.length>0&&<EventInstitutions event={next}/>}<strong><EventName event={next}/></strong><EventDate event={next} language={language}/></p></div>}
-        {scheduled.some(event=>!event.date)&&<p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.scheduled.date.unavailable.74"/></p>}
-        {scheduled.some(event=>event.date&&event.date<today)&&<p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.past.scheduled.dates.75"/></p>}
+        {!timeline&&next&&<div className="procedure-progress-next"><span className="procedure-progress-tag"><UiMessage id="batch6.procedureprogress.next.scheduled.action.73"/></span><p>{next.institutions.length>0&&<EventInstitutions event={next}/>}<strong><EventName event={next}/></strong><EventDate event={next} language={language}/></p></div>}
+        {(!timeline||expanded)&&scheduled.some(event=>!event.date)&&<p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.scheduled.date.unavailable.74"/></p>}
+        {(!timeline||expanded)&&scheduled.some(event=>event.date&&event.date<today)&&<p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.past.scheduled.dates.75"/></p>}
         {events.length>0&&expanded&&<div id={timelineId} className="procedure-progress-expanded">
             {(options.length>0||hasOtherEvents)&&<div className="procedure-progress-filters">{options.length>0&&<label><UiMessage id="batch6.procedureprogress.institution.77"/><select value={institution} onChange={event=>setInstitution(event.target.value)}><option value="all"><UiMessage id="batch6.procedureprogress.all.institutions.77"/></option>{options.map(term=><option key={term.id} value={term.id} lang={term.language||'en'}>{institutionLabel(term, ui)}</option>)}</select></label>}{hasOtherEvents&&<button type="button" aria-pressed={allEvents} onClick={()=>setAllEvents(value=>!value)}>{allEvents ? <UiMessage id="batch6.procedureprogress.show.key.milestones.77"/> : <UiMessage id="batch6.procedureprogress.show.all.recorded.events.77"/>}</button>}</div>}
             <p className="procedure-progress-muted" role="status"><UiMessage id={data.coverage.limited?'batch6.procedureprogress.count.events.in.this.selection.incomplete.78':'batch6.procedureprogress.count.events.in.this.selection.78'} values={{count:visible.length}}/></p>
