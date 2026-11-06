@@ -73,6 +73,36 @@ test('the theme resolver rejects nested unresolved pairs while ignoring comments
   for(const scheme of schemes)assert.throws(()=>themeCss(scheme,':root {--fixture:light-dark(rgb(0 0 0), #fff);}'),/Unresolved colour pair/);
 });
 
+test('the slate accent is the only interface accent, including the pre-React shell and the favicon',async()=>{
+  const [html,favicon]=await Promise.all([readFile(new URL('../index.html',import.meta.url),'utf8'),readFile(new URL('../public/assets/favicon.svg',import.meta.url),'utf8')]);
+  const pair=`light-dark(${tokenValue('light','accent')},${tokenValue('dark','accent')})`;
+  assert.equal(html.split(pair).length-1,2,'the initial shell paints its current link and focus ring in the accent');
+  assert.match(favicon,new RegExp(`<rect[^>]* fill="${tokenValue('light','accent')}"`));
+  for(const [name,source] of [['theme.css',themeCss('light')+themeCss('dark')],['index.html',html],['favicon.svg',favicon]])
+    assert.doesNotMatch(source,/#(?:0b5f69|6cc7cf|0a1c1f|163a40|dcedee|084a52|9adde3|d9e9ea|1f3437)\b/i,`${name} keeps a retired teal`);
+});
+
+test('vote positions, their washes and the accent are separate colours',()=>{
+  for(const scheme of schemes) {
+    const positions=['vote-for','vote-against','vote-abstain'].map(name=>tokenValue(scheme,name));
+    assert.equal(new Set([...positions,tokenValue(scheme,'accent')]).size,4,`${scheme}: positions and accent are four colours`);
+    for(const soft of ['vote-for-soft','vote-against-soft','vote-abstain-soft'])
+      assert.notEqual(tokenValue(scheme,soft),tokenValue(scheme,'accent-soft'),`${scheme}: --${soft} is not the accent wash`);
+  }
+});
+
+test('the type, space and grid scale ships with phone values under 768 px',()=>{
+  const css=themeCss('light');
+  const base=css.match(/:root\s*{[\s\S]*?\n}/)[0],phone=css.match(/@media \(max-width: 767px\)\s*{\s*:root\s*{([\s\S]*?)}/)[1];
+  const read=(source,name)=>source.match(new RegExp(`--${name}:\\s*(\\d+)px`))?.[1];
+  const scale={'t-small':[13,12],'t-meta':[15,14],'t-row':[18,16],'t-say':[22,18],'t-h2':[28,20],'t-h1':[36,24],
+    s1:[4],s2:[8],s3:[12],s4:[16],s5:[24],s6:[40,32],s7:[64],num:[88,68],word:[96],gut:[104,52],table:[520],gutter:[40,16]};
+  for(const [name,[wide,narrow]] of Object.entries(scale)) {
+    assert.equal(Number(read(base,name)),wide,`--${name}`);
+    assert.equal(read(phone,name)===undefined?undefined:Number(read(phone,name)),narrow,`--${name} on phones`);
+  }
+});
+
 test('the legacy Parliament palette variables are gone',async()=>{
   for(const file of [...await stylesheets(),'theme.css']) {
     const css=await readFile(new URL(file,import.meta.url),'utf8');
