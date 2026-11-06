@@ -1,7 +1,15 @@
-import type {DossierActivityResponse,DossierAmendment,DossierItem,DossierVote,DossierSection,DossierFilter} from './DossierActivityTypes';
+import type {DossierActivityResponse,DossierAmendment,DossierItem,DossierParticipant,DossierRole,DossierVote,DossierSection,DossierFilter} from './DossierActivityTypes';
 import type {AmendmentDecision} from './AmendmentTypes';
 export const dossierSections:DossierSection[];
 export const dossierFilters:DossierFilter[];
+export type DossierPeopleSegment='lead'|'opinions'|'others'|'all';
+export const dossierPeopleSegments:DossierPeopleSegment[];
+export function dossierPeopleCounts(people:DossierParticipant[]):{total:number;withRole:number;withoutRole:number;segments:Record<DossierPeopleSegment,number>};
+export function dossierPeopleCountExact(page:DossierActivityResponse):boolean;
+export function dossierPeopleRows(people:DossierParticipant[],segment:DossierPeopleSegment,nameOf?:(person:DossierParticipant)=>string):DossierParticipant[];
+export function dossierRoleLines(roles:DossierRole[]):DossierRole[];
+export function dossierPersonGroup(person:DossierParticipant):string|null;
+export function amendmentEvidenceTarget(id:string):string;
 export function fullDossierReference(value:unknown):value is string;
 export function validDossierPerson(value:unknown):value is string;
 export function dossierHref(reference:string,person?:string|number|null,language?:string,base?:string,options?:{section?:DossierSection;stage?:'all'|'committee'|'plenary';committee?:string|null}):string;
