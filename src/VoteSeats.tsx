@@ -23,7 +23,7 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
   const ui=useUiI18n(),headingId=useId();
   const [view,setView]=useExplorerParam<'all'|'differ'>('agenda-seat-view','all',['all','differ']);
   const [active,setActive]=useState<number|null>(null),[hovered,setHovered]=useState<number|null>(null);
-  const pointerType=useRef<'mouse'|'touch'|'pen'>('mouse');
+  const pointerType=useRef<'mouse'|'touch'|'pen'>('mouse'),activeAtPress=useRef<number|null>(null);
   const [svgNode,setSvgNode]=useState<SVGSVGElement|null>(null),[pixelWidth,setPixelWidth]=useState(0);
   useEffect(()=>{
     if(!svgNode||typeof ResizeObserver==='undefined')return;
@@ -61,8 +61,9 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
   const clickSeat=(event:MouseEvent<SVGCircleElement>,seat:HemicycleSeat)=>{
     event.stopPropagation();
     setActive(seat.seat);
-    // A mouse click opens the MEP; a touch or pen tap selects first.
-    if(pointerType.current==='mouse'||active===seat.seat)openMember(seat);
+    // A mouse click opens the MEP; a touch or pen tap selects first. Pressing a seat focuses it, so the
+    // selection to compare is the one held when the press began.
+    if(pointerType.current==='mouse'||activeAtPress.current===seat.seat)openMember(seat);
   };
   const clickChart=(event:MouseEvent<SVGSVGElement>)=>{
     if(event.target!==event.currentTarget)return;
@@ -72,7 +73,7 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
     const seat=nearestSeat(seats,point.x,point.y,14/matrix.a);
     if(seat)setActive(seat.seat);
   };
-  const markPointer=(event:ReactPointerEvent<SVGCircleElement>)=>{pointerType.current=event.pointerType as typeof pointerType.current;};
+  const markPointer=(event:ReactPointerEvent<SVGCircleElement>)=>{pointerType.current=event.pointerType as typeof pointerType.current;activeAtPress.current=active;};
   const keySeat=(event:KeyboardEvent<SVGCircleElement>,seat:HemicycleSeat)=>{
     if(event.key==='Enter'||event.key===' '){event.preventDefault();openMember(seat);return;}
     const step={'ArrowRight':1,'ArrowDown':1,'ArrowLeft':-1,'ArrowUp':-1}[event.key];
@@ -96,7 +97,7 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
   },[seats,pixelWidth,ui]);
   const circles=useMemo(()=>seats.map(seat=>{
             const ballot=ballots.bySeat.get(seat.seat);
-            return <circle key={seat.seat} data-seat={seat.seat} cx={seat.x} cy={seat.y} r={seat.r} fill={ballot?positionFill[ballot.position]:'transparent'} style={ballot?undefined:{stroke:'var(--line)',strokeWidth:Math.max(1,seat.r*.18)}} data-dimmed={dimmed(seat)?'true':undefined} tabIndex={seat.seat===(active??seats[0]?.seat)?0:-1} role="button" aria-label={labels.get(seat.seat)} onPointerDown={markPointer} onClick={event=>clickSeat(event,seat)} onFocus={()=>setActive(seat.seat)} onPointerEnter={()=>setHovered(seat.seat)} onPointerLeave={()=>setHovered(null)} onKeyDown={event=>keySeat(event,seat)}>
+            return <circle key={seat.seat} data-seat={seat.seat} cx={seat.x} cy={seat.y} r={seat.r} fill={ballot?positionFill[ballot.position]:'transparent'} strokeWidth={ballot?undefined:Math.max(1,seat.r*.18)} data-hollow={ballot?undefined:'true'} data-dimmed={dimmed(seat)?'true':undefined} tabIndex={seat.seat===(active??seats[0]?.seat)?0:-1} role="button" aria-label={labels.get(seat.seat)} onPointerDown={markPointer} onClick={event=>clickSeat(event,seat)} onFocus={()=>setActive(seat.seat)} onPointerEnter={()=>setHovered(seat.seat)} onPointerLeave={()=>setHovered(null)} onKeyDown={event=>keySeat(event,seat)}>
               <title>{labels.get(seat.seat)}</title>
             </circle>;
           }),[seats,ballots,view,differIds,active,labels]);

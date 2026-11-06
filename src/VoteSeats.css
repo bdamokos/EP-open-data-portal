@@ -2,6 +2,7 @@
 .vote-seats-chart{margin:0}
 .vote-seats-chart svg{display:block;width:100%;height:auto;touch-action:manipulation}
 .vote-seats-chart circle[role=button]{cursor:pointer;outline:none}
+.vote-seats-chart circle[data-hollow=true]{stroke:var(--line)}
 .vote-seats-chart circle[role=button]:focus-visible{stroke:var(--focus);stroke-width:3px;paint-order:stroke}
 .vote-seats-chart circle[data-dimmed=true]{opacity:.18}
 .vote-seat-selected{fill:none;stroke:var(--ink);pointer-events:none}
@@ -21,4 +22,4 @@
 .vote-seats-chart svg{overflow:visible}
 .vote-seat-group{fill:var(--ink);font-weight:600;pointer-events:none}
 .vote-seat-info{min-height:0;margin-top:.5rem}
-@media (min-width:640px){.vote-seat-info{min-height:2.75em}}
+@media (min-width:640px){.vote-seat-info{min-height:var(--control-height)}}
