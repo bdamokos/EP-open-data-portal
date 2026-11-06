@@ -628,7 +628,8 @@ test('duplicate role rows collapse to one line per role and committee',()=>{
   const lines=dossierRoleLines([row('RAPPORTEUR_SHADOW_OPINION','EMPL','2026-03-01','document'),row('RAPPORTEUR_SHADOW','CULT','2026-02-01'),row('RAPPORTEUR_SHADOW_OPINION','EMPL','2026-03-17'),row('RAPPORTEUR_SHADOW','CULT','2025-12-01')]);
   assert.deepEqual(lines.map(line=>[line.role,line.committee,line.date,line.dateBasis,line.stage]),[['RAPPORTEUR_SHADOW','CULT','2025-12-01','recorded',null],['RAPPORTEUR_SHADOW_OPINION','EMPL','2026-03-17','recorded',null]]);
   assert.equal(dossierRoleLines([row('RAPPORTEUR','CULT','2026-01-01'),row('RAPPORTEUR','ENVI','2026-05-01','recorded','RDG2')])[1].stage,'RDG2','a later reading stays visible');
-  assert.equal(dossierPersonGroup({roles:[{date:'2026-01-01',group:'PPE'},{date:'2026-05-01',group:'ECR'},{date:'2026-06-01',group:null}]}),'ECR');
+  assert.equal(dossierPersonGroup({roles:[{date:'2026-01-01',group:'PPE'},{date:'2026-05-01',group:'VERTS-ALE'},{date:'2026-06-01',group:null}]}),'Verts/ALE');
+  assert.equal(dossierPersonGroup({roles:[{date:'2026-01-01',group:'UNKNOWN'}]}),null);
   assert.equal(dossierPersonGroup({roles:[]}),null);
 });
 test('compact amendment evidence still identifies its exact target for retention',()=>{

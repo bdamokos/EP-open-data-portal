@@ -52,7 +52,12 @@ export function dossierRoleLines(roles) {
   return rows.map(row=>firstReadingOnly?{...row,stage:null}:row);
 }
 // A dated group is known only from a role row; the latest recorded one describes the person's latest role.
-export const dossierPersonGroup=person=>person.roles.filter(role=>role.group).toSorted((a,b)=>(a.date||'').localeCompare(b.date||'')).at(-1)?.group??null;
+// Role rows name organisations by source code. Unknown codes show no group.
+const roleGroupCodes={PPE:'PPE','S-D':'S&D',PFE:'PfE',ECR:'ECR',RENEW:'Renew','VERTS-ALE':'Verts/ALE','THE-LEFT':'TheLeft',ESN:'ESN',NI:'NI'};
+export const dossierPersonGroup=person=>{
+  const code=person.roles.filter(role=>role.group).toSorted((a,b)=>(a.date||'').localeCompare(b.date||'')).at(-1)?.group;
+  return Object.hasOwn(roleGroupCodes,code??'')?roleGroupCodes[code]:null;
+};
 // Amendment IDs embed their exact list or target, so evidence stays compact on the wire.
 export const amendmentEvidenceTarget=id=>String(id).match(/^committee:([^:]+):/)?.[1]??String(id).split('-AM-')[0];
 
