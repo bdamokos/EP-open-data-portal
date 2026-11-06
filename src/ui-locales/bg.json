@@ -1285,8 +1285,6 @@
   "membervotesummary.membername_voted_position": "{memberName}: {position}",
   "membervotesummary.no_tally_published": "Няма публикувани общи резултати",
   "membervotesummary.parliament": "Парламент",
-  "membervotesummary.published_description": "Публикувано описание",
-  "membervotesummary.published_description_of_part_number": "Публикувано описание на част {number}",
   "membervotesummary.tallies_unavailable": "Общите резултати не са налични",
   "motionJourney.reason42": "Текстът на предложението не е наличен.",
   "motionJourney.reason53": "Заявеният текст на предложение за резолюция не е наличен за тази дейност.",

@@ -1,7 +1,7 @@
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {selectLanguageText} from './language.mjs';
-import type {MemberVote} from './MemberVotesTypes';
-import {memberVoteOutcome,memberVotePositionState,memberVotePosition,memberVoteTotals} from './memberVotesPresentation.mjs';
+import type {MemberVote,MemberVoteComponent} from './MemberVotesTypes';
+import {memberVoteOutcome,memberVotePositionState,memberVotePosition,memberVoteTotals,splitVoteRequests} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 type ResultVote=Pick<MemberVote,'outcome'|'totals'|'ballotStatus'>;
 type PositionVote=Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>;
@@ -24,9 +24,14 @@ export function Position({vote,memberName,compact=false}:{vote:PositionVote;memb
 }
 
 
-export function VotePartDescriptions({vote,language}:{vote:Pick<MemberVote,'parts'>;language:string}) {
-  return <>{vote.parts.map(part=>{
+type VotePartRow=Pick<MemberVoteComponent,'componentId'|'number'|'requestUri'|'contentByLanguage'>;
+// "Part 2: those words" means nothing alone, so a split shows every part of its
+// request together. The source wording stays verbatim, in its own language.
+export function VotePartDescriptions({vote,language}:{vote:{parts:(VotePartRow&{contextComponents:VotePartRow[]})[]};language:string}) {
+  return <>{splitVoteRequests(vote.parts).map(request=><section className="member-votes-part" key={request.requestUri}><h3><UiMessage id="votepage.split_vote"/></h3>{request.parts.map(part=>{
     const text=selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
-    return text.text ? <section className="member-votes-part" key={part.componentId}><h3><UiMessage id={part.number!==null ? "membervotesummary.published_description_of_part_number" : "membervotesummary.published_description"} values={{number:part.number??''}}/></h3><p lang={text.language}>{text.text}</p></section> : null;
-  })}</>;
+    if(!text.text)return null;
+    const wording=<span lang={text.language}>{text.text}</span>,single=request.parts.length===1;
+    return <p key={part.componentId} aria-current={!single&&part.current ? 'true' : undefined}>{part.number===null ? wording : <UiMessage id={!single&&part.current ? "votepage.part_this_vote" : "votepage.part"} values={{number:String(part.number),text:wording}}/>}</p>;
+  })}</section>)}</>;
 }

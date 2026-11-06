@@ -1285,8 +1285,6 @@
   "membervotesummary.membername_voted_position": "{memberName}: Stimmabgabe {position}",
   "membervotesummary.no_tally_published": "Keine Stimmensumme veröffentlicht",
   "membervotesummary.parliament": "Parlament",
-  "membervotesummary.published_description": "Veröffentlichte Beschreibung",
-  "membervotesummary.published_description_of_part_number": "Veröffentlichte Beschreibung von Teil {number}",
   "membervotesummary.tallies_unavailable": "Stimmensummen nicht verfügbar",
   "motionJourney.reason42": "Text des Antrags nicht verfügbar.",
   "motionJourney.reason53": "Der angeforderte Antragstext ist für diese Aktivität nicht verfügbar.",

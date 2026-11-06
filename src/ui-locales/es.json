@@ -1285,8 +1285,6 @@
   "membervotesummary.membername_voted_position": "{memberName} · Voto: {position}",
   "membervotesummary.no_tally_published": "Recuento no publicado",
   "membervotesummary.parliament": "Parlamento",
-  "membervotesummary.published_description": "Descripción publicada",
-  "membervotesummary.published_description_of_part_number": "Descripción publicada de la parte {number}",
   "membervotesummary.tallies_unavailable": "Recuentos no disponibles",
   "motionJourney.reason42": "Texto de la propuesta no disponible.",
   "motionJourney.reason53": "El texto de la propuesta de resolución solicitado no está disponible para esta actividad.",

@@ -1285,8 +1285,6 @@
   "membervotesummary.membername_voted_position": "{memberName}: glas {position}",
   "membervotesummary.no_tally_published": "Broj glasova nije objavljen",
   "membervotesummary.parliament": "Parlament",
-  "membervotesummary.published_description": "Objavljeni opis",
-  "membervotesummary.published_description_of_part_number": "Objavljeni opis dijela {number}",
   "membervotesummary.tallies_unavailable": "Brojevi glasova nisu dostupni",
   "motionJourney.reason42": "Tekst prijedloga nije dostupan.",
   "motionJourney.reason53": "Traženi tekst prijedloga nije dostupan za ovu aktivnost.",

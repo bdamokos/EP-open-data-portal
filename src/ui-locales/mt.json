@@ -1285,8 +1285,6 @@
   "membervotesummary.membername_voted_position": "{memberName}: vot {position}",
   "membervotesummary.no_tally_published": "Ebda għadd ippubblikat",
   "membervotesummary.parliament": "Parlament",
-  "membervotesummary.published_description": "Deskrizzjoni ppubblikata",
-  "membervotesummary.published_description_of_part_number": "Deskrizzjoni ppubblikata tal-parti {number}",
   "membervotesummary.tallies_unavailable": "L-għadd tal-voti mhuwiex disponibbli",
   "motionJourney.reason42": "It-test tal-mozzjoni mhuwiex disponibbli.",
   "motionJourney.reason53": "It-test tal-mozzjoni mitlub mhuwiex disponibbli għal din l-attività.",
