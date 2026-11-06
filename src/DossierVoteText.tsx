@@ -19,7 +19,7 @@ export default function DossierVoteText({vote,language}:{vote:MemberVote;languag
   return <div className="dossier-vote-text">
     <div hidden={Boolean(context)}>
       <VotePartDescriptions vote={vote} language={language}/>
-      {targets.map(target=><MemberVoteWording key={target.amendmentId+':'+language} {...target} language={language} openContext={openContext}/>)}
+      {targets.map(target=><MemberVoteWording key={target.amendmentId+':'+language} {...target} language={language}/>)}
       {!targets.length&&Boolean(vote.context.amendmentIds.length)&&<p><UiMessage id="batch5.dossiervotetext.tsx.21.49"/></p>}
       {!targets.length&&vote.scope.kind==='procedural'&&<p lang={vote.titleLanguage??''}>{vote.title}</p>}
       {documents.map(documentId=><button type="button" key={documentId} onClick={()=>openContext({documentId,view:'document'})}>{ui.t(documentId.startsWith('TA-') ? ((documents.length>1) ? 'dossiervotetext.read_adopted_text_documentid.f1ac78' : 'dossiervotetext.read_adopted_text.4fa328') : (documentId.startsWith('A-') ? ((documents.length>1) ? 'membervotes.tsx.read.report.documentid' : 'dossiervotetext.read_report.024cda') : (documentId.startsWith('RC-') ? ((documents.length>1) ? 'membervotes.tsx.read.joint.motion.documentid' : 'dossiervotetext.read_joint_motion.14177c') : ((documents.length>1) ? 'membervotes.tsx.read.motion.documentid' : 'dossiervotetext.read_motion.cedd60'))),{documentId})}</button>)}

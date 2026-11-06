@@ -13,6 +13,8 @@ export function api<T>(route: string, signal?: AbortSignal, { priority = 'auto',
   return readJson<T>(`${API_ROOT}/${route}`, { signal, priority, getPriority, timeoutMs: dataTimeoutFor(route) }, ui).then(data=>/^(?:topics\/|insights\/record-topics(?:\?|$))/.test(route)?localizePlaceLabels(data,new URLSearchParams(route.split('?')[1]).get('lang')||'en') as T:data);
 }
 const client = createDataClient((route,signal,options)=>api(route==='directory'&&client.peek<{committeeDetails?:{error?:string}}>(route)?.committeeDetails?.error?'directory?retry=committee-details':route,signal,options), { timeoutFor: dataTimeoutFor });
+// Call only after validating that the returned snapshot is the requested identity.
+export function reuseDataResponse(from:string,to:string,data:unknown) {return client.reuse(from,to,data);}
 export function expireActivityReads() { client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route)); }
 export function useSpeechData(id:string,language:string) {
   const route=encodeURIComponent(id)+'?lang='+language;

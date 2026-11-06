@@ -96,8 +96,11 @@ function requesterShape(requester) {
 function usableVote(item,period) {
   return withinPeriod(item,period)&&outcomeShape(item)&&['with','against','abstained','unclassified'].includes(item.alignment)&&nullableString(item.title)&&nullableString(item.titleLanguage)&&stringMap(item.titles)&&stringMap(item.referenceTexts)&&nullableString(item.subjectId)&&isObject(item.context)&&['documentIds','amendmentIds','componentIds','partialReferenceIds'].every(key=>stringArray(item.context[key]))&&Array.isArray(item.parts)&&item.parts.every(part=>componentShape(part)&&typeof part.requestId==='string'&&typeof part.resultId==='string'&&stringMap(part.requestScopeByLanguage)&&Array.isArray(part.contextComponents)&&part.contextComponents.every(componentShape))&&Array.isArray(item.rollCallRequesters)&&item.rollCallRequesters.every(requesterShape)&&isObject(item.resultRelationship)&&['consistent','single-direction','ambiguous','unlinked'].includes(item.resultRelationship.binding);
 }
+function usableRow(item,period) {
+  return withinPeriod(item,period)&&outcomeShape(item)&&['with','against','abstained','unclassified'].includes(item.alignment)&&nullableString(item.title)&&nullableString(item.titleLanguage)&&stringMap(item.titles)&&stringMap(item.referenceTexts)&&nullableString(item.subjectId)&&isObject(item.context)&&['amendmentIds'].every(key=>stringArray(item.context[key]))&&Array.isArray(item.parts)&&item.parts.every(part=>isObject(part)&&(part.number===null||typeof part.number==='string'||typeof part.number==='number'&&Number.isFinite(part.number))&&stringMap(part.requestScopeByLanguage))&&isObject(item.namedVoters)&&typeof item.namedVoters.available==='boolean'&&isObject(item.resultRelationship)&&['consistent','single-direction','ambiguous','unlinked'].includes(item.resultRelationship.binding);
+}
 export function validateMemberVotesResponse(data,{memberId,state={}}) {
-  if(!isObject(data)||data.version!==12||!isObject(data.member)||data.member.id!==String(memberId)||!/^\d+$/.test(data.member.id))return false;
+  if(!isObject(data)||data.version!==13||!isObject(data.member)||data.member.id!==String(memberId)||!/^\d+$/.test(data.member.id))return false;
   if(!alignments.has(data.alignment)||data.alignment!==(state.alignment??'all')||data.positions!==(state.positions??'all')||!isObject(data.coverage)||!['complete','partial','unavailable'].includes(data.coverage.status)||data.coverage.termWide!==false)return false;
   if(!matchesPeriod(data.period,state,data.coverage.status==='unavailable')||typeof data.snapshotId!=='string'||!snapshot.test(data.snapshotId)||state.snapshotId&&data.snapshotId!==state.snapshotId)return false;
   const page=data.pagination;
@@ -108,12 +111,13 @@ export function validateMemberVotesResponse(data,{memberId,state={}}) {
   if(data.coverage.status==='unavailable'?data.alignmentCounts!==null:!isObject(data.alignmentCounts)||Object.keys(data.alignmentCounts).length!==4||!['with','against','abstained','unclassified'].every(key=>integer(data.alignmentCounts[key]))||Object.values(data.alignmentCounts).reduce((sum,value)=>sum+value,0)!==page.observedTotal)return false;
   if(!Array.isArray(data.items)||page.returned!==data.items.length||(page.mode!=='period'&&page.returned>page.limit)||page.filteredTotal>page.observedTotal||page.returned>Math.max(0,page.filteredTotal-page.offset))return false;
   if(page.nextOffset!==(page.offset+page.returned<page.filteredTotal?page.offset+page.returned:null)||page.nextOffset!==null&&page.returned===0)return false;
-  if(!data.items.every(item=>usableVote(item,data.period))||new Set(data.items.map(item=>item.id)).size!==data.items.length)return false;
+  if(!data.items.every(item=>(page.mode==='period'?usableRow:usableVote)(item,data.period))||new Set(data.items.map(item=>item.id)).size!==data.items.length)return false;
   if(data.alignment!=='all'&&data.items.some(item=>item.alignment!==data.alignment))return false;
   if(data.positions==='recorded'&&data.items.some(item=>item.actualPosition.status!=='recorded'))return false;
   if(!Array.isArray(data.subjects)||data.subjects.some(subject=>!isObject(subject)||typeof subject.id!=='string'||!nullableString(subject.title)||!nullableString(subject.titleLanguage)||!stringMap(subject.titles)||!stringArray(subject.documentIds)||!stringArray(subject.agendaItemIds)||!isObject(subject.counts)||!['observed','filtered','page'].every(key=>integer(subject.counts[key]))||subject.counts.page>subject.counts.filtered||subject.counts.filtered>subject.counts.observed||subject.counts.page!==data.items.filter(item=>item.subjectId===subject.id).length||!Array.isArray(subject.wholeTextDecisions)||!subject.wholeTextDecisions.every(item=>withinPeriod(item,data.period,false)&&outcomeShape(item)&&item.scope.kind==='whole-text')))return false;
   if(!isObject(data.selected))return false;
   if(state.decisionId) {
+    if(data.selected.siblings!==undefined&&(!Array.isArray(data.selected.siblings)||!data.selected.siblings.every(item=>usableVote(item,data.period))||new Set(data.selected.siblings.map(item=>item.id)).size!==data.selected.siblings.length))return false;
     if(data.selected.status==='found')return usableVote(data.selected.item,data.period)&&data.selected.item.id===state.decisionId;
     return ['not-found-in-scanned-data','unavailable','chairing'].includes(data.selected.status)&&data.selected.item===null;
   }
@@ -178,8 +182,14 @@ export function memberVotePositionSummary(items, ui = defaultUi) {
   const counts={for:0,against:0,abstaining:0};
   for(const item of items){const state=memberVotePositionState(item);if(Object.hasOwn(counts,state))counts[state]++;}
   const recorded=Object.entries(counts).filter(([,count])=>count).map(([position,count])=>ui.t('membervotespresentation.count_position',{count,position:memberVotePosition({actualPosition:{status:'recorded',position}},ui)})).join(' · ');
-  const count=items.filter(item=>memberVotePositionState(item)==='notIndividuallyRecorded').length;
-  return ui.t(recorded ? (count?'membervotespresentation.positions_positions_count_not_individually_recorded':'membervotespresentation.positions_positions') : (count?'membervotespresentation.positions_none_count_not_individually_recorded.9fd0f5':'membervotespresentation.positions_none'),{positions:recorded,count});
+  const noNames=items.filter(item=>memberVotePositionState(item)==='notIndividuallyRecorded').length;
+  const notConducted=items.filter(item=>memberVotePositionState(item)==='notConducted').length;
+  const noRecord=items.filter(item=>memberVotePositionState(item)==='noRecordedPosition').length;
+  const unavailable=items.filter(item=>['unavailable','conflicting'].includes(memberVotePositionState(item))).length;
+  // Each combination is a whole message so translators can reorder its slots.
+  const terms=[recorded?'recorded':null,noNames?'unnamed':null,notConducted?'not_conducted':null,noRecord?'no_record':null,unavailable?'unavailable':null].filter(Boolean);
+  if(terms.length===1&&terms[0]==='recorded')return ui.t('membervotespresentation.positions_positions',{positions:recorded});
+  return ui.t(terms.length?'membervotespresentation.positions_'+terms.join('_'):'membervotespresentation.positions_none',{positions:recorded,noNames,notConducted,noRecord,unavailable});
 }
 export function memberVoteOutcome(vote, ui = defaultUi) {
   return {ADOPTED:ui.t("membervotespresentation.adopted"),REJECTED:ui.t("membervotespresentation.rejected"),LAPSED:ui.t("membervotespresentation.lapsed"),WITHDRAWN:ui.t("membervotespresentation.withdrawn"),CANCELLED:ui.t("membervotespresentation.cancelled")}[vote.outcome]||ui.t("membervotespresentation.outcome_unavailable");

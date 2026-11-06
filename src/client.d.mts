@@ -7,6 +7,7 @@ export function createDataClient(
   load: (route: string, signal: AbortSignal, options: { priority: 'auto' | 'low'; getPriority: () => 'auto' | 'low' }) => Promise<unknown>,
   options?: { maxEntries?: number; maxAge?: number; maxAgeFor?: (data: unknown, route: string) => number; timeoutFor?: (route: string) => number; prefetchDelay?: number },
 ): {
+  reuse(from:string,to:string,data:unknown):boolean;
   expireMatching(matches: (route: string) => boolean): void;
   peek<T>(route: string): T | null;
   get<T>(route: string, options?: { force?: boolean; priority?: 'auto' | 'low'; signal?: AbortSignal }): Promise<T>;
