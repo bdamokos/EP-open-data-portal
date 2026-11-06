@@ -162,3 +162,15 @@ test('a visitor can use foreground capacity while its cold detail is queued for 
     assert.equal(queue.waiters.length,1,'the background slot remains occupied');
   }finally{release();await warming;}
 });
+
+test('the warmed agenda reads the main vote from the held sitting, and a failed read leaves the item intact',async t=>{
+ const h=await harness(t),sittings=[];
+ const heldVotes={async snapshot(query){sittings.push(query.sitting);throw Object.assign(new Error('held read timed out'),{status:504,code:'request_timeout'});}};
+ const service=createInsights(h.store,{...h.options,heldVotes});
+ await warmAll(service);
+ assert(sittings.length>0,'the warm reader uses the same held reader');
+ h.setForeground(true);
+ const week=await service.query('legislation',new URLSearchParams('week=latest')),topic=week.topics.find(item=>item.kind==='PLENARY_VOTE');
+ const result=await service.query('legislation',new URLSearchParams({sitting:topic.sittingId,topic:topic.id}));
+ assert.equal(result.detail.id,topic.id);assert.equal(result.detail.mainVote,null);assert(Array.isArray(result.detail.votes));
+});
