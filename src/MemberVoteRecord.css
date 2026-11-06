@@ -1,0 +1,83 @@
+.member-vote-record{--mvr-muted:var(--ink-muted);--mvr-line:var(--line);color:var(--ink);background:var(--surface);border:1px solid var(--mvr-line);padding:20px;margin:0 0 18px;min-width:0;font-size:13px;line-height:1.55}
+.member-vote-record *{box-sizing:border-box}
+.member-vote-record h2{font-size:22px;line-height:1.25;letter-spacing:-.02em;margin:0 0 4px}
+.member-vote-record h3{font-size:14px;line-height:1.4;margin:0 0 9px}
+.member-vote-record p{margin:0 0 10px}
+.member-vote-record button{font:inherit;font-size:var(--control-font-size);line-height:var(--control-line-height);min-height:var(--control-height);padding:7px 12px;color:var(--accent-strong);background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius-sm);cursor:pointer;text-align:left}
+.member-vote-record button:hover{background:var(--surface-2)}
+.member-vote-record button:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.member-vote-record-header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.member-vote-record-filter{display:flex;gap:4px;flex-wrap:wrap}
+.member-vote-record-filter button{font-size:12px;padding:6px 11px}
+.member-vote-record-filter button[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong)}
+.member-vote-record-muted,.member-vote-record-status{color:var(--mvr-muted);font-size:12px}
+.member-vote-record-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:16px;margin:0 0 10px}
+.member-vote-record-figures small{display:block;color:var(--mvr-muted);font-size:12px;margin-top:4px}
+.member-vote-record-departures{border-top:1px solid var(--mvr-line);padding-top:14px}
+.member-vote-record-departures ol{list-style:none;margin:0 0 8px;padding:0}
+.member-vote-record-departures li{border-bottom:1px solid var(--mvr-line)}
+.member-vote-record-departures li:last-child{border-bottom:0}
+.member-vote-record-departure-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.member-vote-record .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(max-width:600px){
+ .member-vote-record{padding:15px}
+ .member-vote-record h2{font-size:20px}
+ .member-vote-record-figures{grid-template-columns:1fr 1fr;gap:13px}
+ .member-vote-record-figures dd{font-size:19px}
+}
+
+.member-vote-record-figures{margin:14px 0 0}
+.member-vote-record-figures>div{min-width:0;overflow-wrap:anywhere}
+.member-vote-record-departures li{padding:8px 0}
+.member-vote-record-departures li a{color:var(--accent-strong);text-underline-offset:3px}
+.member-vote-record-departures li small{display:block;color:var(--mvr-muted);font-size:12px;margin-top:2px}
+.member-vote-record-figures dt{color:var(--mvr-muted);font-size:12px;letter-spacing:.03em;text-transform:uppercase}
+.member-vote-record-figures dd{font-size:21px;font-weight:bold;line-height:1.25;margin:2px 0 0}
+
+.member-vote-record-label{display:block;color:var(--mvr-muted);font-size:12px;margin-top:2px;overflow-wrap:anywhere}
+.member-vote-record-disclosure{border-top:1px solid var(--mvr-line);padding:0}
+.member-vote-record-disclosure summary{cursor:pointer;font-weight:bold;padding:10px 0;min-height:var(--control-height)}
+.member-vote-record-disclosure summary:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+@media(max-width:639px){
+ .member-vote-record{padding:12px 14px;margin-bottom:12px}
+ .member-vote-record-header{flex-wrap:nowrap;align-items:center}
+ .member-vote-record-header>div:first-child{min-width:0}
+ .member-vote-record h2{font-size:18px;margin:0}
+ .member-vote-record-header .member-vote-record-muted{margin:2px 0 0}
+ .member-vote-record-filter button{padding:4px 8px;min-height:32px}
+ .member-vote-record-figures{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0 6px}
+ .member-vote-record-figures dd{font-size:16px}
+ .member-vote-record-figures dt{font-size:12px}
+ .member-vote-record-figures small:not(.member-vote-record-keep){display:none}
+}
+@media(min-width:640px){
+ .member-vote-record-disclosure summary{display:none}
+}
+.member-vote-record-disclosure h3{display:none}
+
+.member-vote-record-notes{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--mvr-muted);font-size:12px;margin:12px 0 0}
+
+/* Breakdown: label, share and count each keep one edge across rows and in both lists. */
+.member-vote-record-breakdown{border-top:1px solid var(--mvr-line);padding-top:14px;margin-top:6px}
+.member-vote-record-breakdown h3{margin:0 0 10px}
+.member-vote-record-lists{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 28px}
+.member-vote-record-lists-single{grid-template-columns:minmax(0,1fr)}
+.member-vote-record-list ul{list-style:none;margin:0;padding:0}
+.member-vote-record-list li{border-top:1px solid var(--mvr-line)}
+.member-vote-record-list li:first-child{border-top:0}
+/* One grid for the heading row and every row: label, share, count. */
+.member-vote-record-list-head,.member-vote-record .member-vote-record-list button{display:grid;grid-template-columns:minmax(0,1fr) 5.5rem 3.5rem;column-gap:12px;align-items:baseline}
+.member-vote-record-list-head{margin:0 0 4px;color:var(--mvr-muted);font-size:14px;line-height:1.4}
+.member-vote-record-list-head h4{margin:0;font-size:14px;line-height:1.4;color:var(--ink)}
+/* The row's text sits on the list edges; hover and focus extend the background outwards. */
+.member-vote-record .member-vote-record-list button{width:calc(100% + 12px);margin:0 -6px;min-height:var(--control-height);padding:8px 6px;border:0;border-radius:0;background:transparent;color:var(--ink);font-size:14px;line-height:1.4;text-align:left}
+.member-vote-record .member-vote-record-list button:hover{background:var(--surface-2)}
+.member-vote-record .member-vote-record-list button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent-strong)}
+.member-vote-record .member-vote-record-list button:focus-visible{outline:3px solid var(--focus);outline-offset:-3px}
+.member-vote-record-row-label{overflow-wrap:anywhere}
+.member-vote-record-row-share,.member-vote-record-row-count{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.member-vote-record-filterline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:14px;margin:0 0 10px}
+.member-vote-record-filterline button{font-size:13px;padding:4px 10px;min-height:32px}
+@media(max-width:639px){
+ .member-vote-record-lists{grid-template-columns:minmax(0,1fr)}
+}
