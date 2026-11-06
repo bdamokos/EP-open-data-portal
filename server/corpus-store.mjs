@@ -561,6 +561,24 @@ export class CorpusStore {
     return {...metadata,speakers:speakers.map(person=>({...person,roleSource:{speechId:metadata.summary.id,date:metadata.summary.date,
       url:metadata.sourceUrl,fetchedAt:metadata.fetchedAt,historyComplete,...(Number.isSafeInteger(evidenceRevision)?{evidenceRevision}:{})}}))};
   }
+  // Bounded primary-key ranges; decompress each retained body once, off-thread.
+  weekSpeechFacts({dates}) {
+    return this.snapshot(()=>{
+      const records=[];let compressedBytes=0,rows=0;
+      const read=this.db.prepare('SELECT source_id,body FROM speech_metadata WHERE source_id>=? AND source_id<? ORDER BY source_id');
+      for(const date of [...new Set(dates)]) {
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('Invalid speech date');
+        const prefix='MTG-PL-'+date+'-';
+        for(const row of read.iterate(prefix,prefix+'~')) {
+          compressedBytes+=row.body.byteLength;rows++;
+          const saved=JSON.parse(zstdDecompressSync(row.body,{maxOutputLength:2*1024*1024}));
+          if(saved.summary?.id!==row.source_id||saved.summary?.date!==date)throw new Error('Speech identity mismatch');
+          records.push({id:row.source_id,date,type:saved.summary.intervention?.type||null,parentIds:saved.summary.intervention?.parentIds||[],people:saved.speakers||[]});
+        }
+      }
+      return {records,rows,compressedBytes};
+    });
+  }
   weekCloud(params){return this.snapshot(()=>readWeekCloud(this,params));}
   speechData(params){return this.snapshot(()=>this.speechDataSnapshot(params));}
   speechDataSnapshot({sourceIds,language=null,metadataOnly=false,websiteSitting=null}) {

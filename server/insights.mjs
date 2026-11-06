@@ -25,6 +25,7 @@ import {odp,agendaCacheRevision,agendaCacheRevisionIsDurable} from './odp.mjs';
 import {MeetingsReader} from './meetings-reader.mjs';
 import {recentPlenaryWeeks} from './plenary-warmup.mjs';
 import {requestSignal,waitForRequest} from './request-budget.mjs';
+import {WEEK_STORY_VERSION,weekStoryQuery,weekStory} from './week-story.mjs';
 import {WEEK_RESULTS_VERSION,weekResultsQuery,weekResults} from './week-results.mjs';
 import {agendaViewFreshMs,nextPlenaryWarmup,PLENARY_REFRESH_MS} from './plenary-cache-policy.mjs';
 
@@ -53,6 +54,7 @@ export function createInsights(store,options={}) {
   const views=new InsightViewCache({clock,...options.viewCache,cacheable:topicAmendmentsCacheable});
   // Keep the latest week's item responses from displacing its navigation lists.
   const details=new InsightViewCache({clock,directory:views.directory&&path.join(views.directory,'plenary-details-v1'),maxEntries:512,...options.detailCache,cacheable:topicAmendmentsCacheable});
+  const stories=new InsightViewCache({clock,freshMs:24*60*60_000,...options.viewCache,cacheable:value=>value.status==='complete'});
   const search=new ParliamentSearch(store,{clock});
   const isLatest=query=>query.week==='latest'||!query.week&&!query.sitting;
   const viewKey=async(view,query,catalogue)=>{
@@ -142,6 +144,7 @@ export function createInsights(store,options={}) {
     if(view==='topic-trends')return topicTrends.query(topicTrendsQuery(searchParams,{now:clock()}));
     if(view==='saved')return savedStates(store,savedQuery(searchParams));
     if(view==='participation'){const query=participationQuery(searchParams),generation=store.status().servingGeneration,key=[INSIGHTS_VERSION,LEGISLATION_VIEW_VERSION,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,brusselsDay(clock()),query,await agendaCacheRevision()];return views.get(key,()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}),{persist:()=>agendaCacheRevisionIsDurable(key.at(-1))});}
+    if(view==='week-story'){const query=weekStoryQuery(searchParams);return stories.get([WEEK_STORY_VERSION,view,query.week,query.language,store.status().servingGeneration,brusselsDay(clock())],()=>weekStory(query,{store,clock,...options.weekStory}),{persist:()=>true});}
     if(view==='week-results'){const query=weekResultsQuery(searchParams);return views.get([WEEK_RESULTS_VERSION,view,query.week,brusselsDay(clock())],()=>weekResults(query,{clock,votes:options.memberVotes,periods:options.votePeriods}));}
     if(!['questions','legislation'].includes(view))throw new HttpError(404,'insight_not_found','Unknown insight view.');
     const query=insightQuery(searchParams,{kind:view,now:options.clock?.()??Date.now()});

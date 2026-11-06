@@ -67,7 +67,7 @@ if(!isMainThread && workerData?.type===CORPUS_READER_WORKER)void (async()=>{
   let store;
   try {
     store=new CorpusStore(workerData.directory,{indexFile:workerData.indexFile,readOnly:true});
-    const result=workerData.operation==='speech-cloud'?store.weekCloud(workerData.params):workerData.operation==='speech-transcript'?store.speechTranscript(workerData.params):workerData.operation==='speech-data'?store.speechData(workerData.params):workerData.operation==='speech-page'?store.speechPage(workerData.params):workerData.operation==='status'?store.status(workerData.params):workerData.operation==='text'?store.text(workerData.params):store.search(workerData.params);
+    const result=workerData.operation==='speech-week-facts'?store.weekSpeechFacts(workerData.params):workerData.operation==='speech-cloud'?store.weekCloud(workerData.params):workerData.operation==='speech-transcript'?store.speechTranscript(workerData.params):workerData.operation==='speech-data'?store.speechData(workerData.params):workerData.operation==='speech-page'?store.speechPage(workerData.params):workerData.operation==='status'?store.status(workerData.params):workerData.operation==='text'?store.text(workerData.params):store.search(workerData.params);
     if(workerData.operation==='speech-transcript'&&result.metadataRecord) {
       try {
         result.metadata=await retainedSpeechMetadata(result,{deadlineMs:workerData.deadlineMs});

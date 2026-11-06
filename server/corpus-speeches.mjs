@@ -38,3 +38,14 @@ export async function retainedSpeechMetadata(id) {
 }
 
 export const retainedWeekCloud=params=>read('speech-cloud',params);
+
+// A separate serial slot: large weekly metadata reads never occupy the 2 s pool.
+let weekReader,weekDirectory;
+export async function retainedWeekSpeechFacts(params) {
+  const current=absolutePathFromEnvironment('CORPUS_DIR');
+  if(!booleanFromEnvironment('CORPUS_ENABLED')||!current||!existsSync(path.join(current,'corpus-v1.sqlite')))return null;
+  if(weekDirectory!==current){weekDirectory=current;weekReader=new CorpusReader(current,{timeoutMs:8000});}
+  if(weekReader.busy)return null;
+  try{return await waitForRequest(weekReader.query('speech-week-facts',params));}
+  catch{requestSignal()?.throwIfAborted();return null;}
+}
