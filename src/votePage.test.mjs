@@ -5,7 +5,7 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {voteFixture,decisionId} from '../server/test-support/decision-votes.mjs';
 
-async function mount(t,handler,{id=decisionId,url}={}) {
+async function mount(t,handler,{id=decisionId,url,members=[]}={}) {
  const window=new Window({url:url||'http://localhost/?view=legislation&pl-mode=vote&pl-vote='+id+'&lang=en'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map();
  for(const [key,value] of Object.entries(globals)){old.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});}
  const calls=[];t.mock.method(globalThis,'fetch',async input=>{const target=new URL(input,window.location.href);calls.push(target.pathname);return handler(target);});
@@ -13,7 +13,7 @@ async function mount(t,handler,{id=decisionId,url}={}) {
  const {VotePage}=await load('/src/VotePage.tsx'),{PersonNamesProvider}=await load('/src/PersonName.tsx'),{createRoot}=await import('react-dom/client');
  const container=window.document.createElement('div');window.document.body.append(container);const root=createRoot(container);
  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
- await act(async()=>root.render(createElement(PersonNamesProvider,{members:[]},createElement(VotePage,{decisionId:id,language:'en',country:null,onCountry:()=>{}}))));
+ await act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(VotePage,{decisionId:id,language:'en',country:null,onCountry:()=>{}}))));
  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
  return {container,calls};
 }
@@ -28,6 +28,12 @@ test('a roll-call vote page shows the sentence, totals and groups without a memb
  assert.equal(h.calls.length,1);assert.match(h.calls[0],/decision-votes\//);assert(!h.calls.some(path=>path.includes('member-votes')));
  assert.equal(h.container.querySelector('.member-votes-position'),null,'no member frame');
  assert.equal(h.container.querySelector('details.vote-page-text').open,false);
+});
+test('vote corrections name a current member from the directory',async t=>{
+ const f=voteFixture();f.raw.referenceText={en:'Article 1'};const data=await f.read();
+ const h=await mount(t,async()=>Response.json(data),{members:[{id:197591,firstName:'Known',lastName:'Member',countryCode:'FR'}]});
+ const corrections=[...h.container.querySelectorAll('details')].find(details=>/Vote corrections/.test(details.querySelector('summary').textContent));
+ assert.match(corrections.textContent,/Known Member/);assert(!/: MEP\b/.test(corrections.textContent));
 });
 test('a show of hands has no group table or voter list and says so in the sentence',async t=>{
  const f=voteFixture();f.raw.referenceText={en:'Article 1'};f.raw.decision_method='def/ep-entities/VOTE_HAND';for(const key of ['had_voter_favor','had_voter_against','had_voter_abstention','number_of_votes_favor','number_of_votes_against','number_of_votes_abstention'])delete f.raw[key];
