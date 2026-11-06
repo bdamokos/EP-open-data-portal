@@ -156,7 +156,7 @@ function rowLanguages(values,language) {
 // Titles also support the held multilingual agenda format and protocol fallback.
 function rowTitles(values,language) {
   const selected=rowLanguages(values,language);
-  const fallback=languagePreference(Object.keys(values).filter(key=>values[key]?.trim()),language)[0];
+  const fallback=languagePreference(Object.keys(values).filter(key=>key!=='mul'&&values[key]?.trim()),language)[0];
   for(const key of [fallback,...(Object.hasOwn(values,'mul')?['mul','fr']:[])])
     if(key&&Object.hasOwn(values,key))selected[key]=values[key];
   return selected;

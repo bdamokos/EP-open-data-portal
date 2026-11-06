@@ -297,7 +297,7 @@ test('compact multilingual subject and row titles retain every reader language a
   const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/multilingual-vote-titles.json',import.meta.url)));
   const nodes=fixture.sources.flatMap(source=>source.payload.data).filter(node=>node.activity_label);
   assert(nodes.some(node=>node.activity_label.mul&&node.activity_label.fr));
-  const titles=[...nodes.map(node=>node.activity_label),{de:'Deutsch',fr:'Français'}];
+  const titles=[...nodes.map(node=>node.activity_label),{de:'Deutsch',fr:'Français'},{mul:'Multilingual',pl:'Polski'},{sv:'Svenska',pl:'Polski',mul:'Multilingual'}];
   for(const language of 'bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' '))for(const values of titles){
     const subject={...projection.subjects[0],titles:values};
     const vote={...projection.items[0],titles:values};
