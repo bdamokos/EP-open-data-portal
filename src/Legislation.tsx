@@ -258,7 +258,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const voteFirst=detail?.kind==='PLENARY_VOTE';
   const compactDetail=mode==='agenda'&&Boolean(topic);
   // A fresh deep link to a vote is its own page, the phone layout at every width; Back to agenda restores the rest.
-  const soloActive=compactDetail&&votePageActive({landed:solo,hasTopic:true,loadedVoteCount:detail?.votes.length});
+  const soloActive=compactDetail&&votePageActive({landed:solo,hasTopic:true,loadedVoteCount:detail?.votes?.length});
   const readable=displayTopic?displayTopic.documentIds.filter(id=>/^(?:A|B|RC)-|^(?:[A-Z]{3,5}|CJ\d{2})-(?:AD|AL|AM|PA|PR)-/.test(id)):[];
   // A vote item shows the text voted on; the rest sit in a disclosure. When the votes name no single text, all sit in one.
   const multiText=voteFirst&&readable.length>1,primaryText=multiText?votedDocumentId(detail!.votes,readable):null;
