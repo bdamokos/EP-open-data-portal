@@ -2,15 +2,16 @@ import {oracleAddress} from './amendment-oracle-grammar.mjs';
 import {rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.mjs';
 
 // Reviewed list-position correspondences, never phonetic transliteration.
-// Bulgarian uses а..щ for Latin a..z, then аа, аб, etc.; Greek uses α..ω.
-const alphabets={bg:'абвгдежзийклмнопрстуфхцчшщ',el:'αβγδεζηθικλμνξοπρστυφχψω'};
+// Bulgarian uses а..щ for Latin a..z, then аа, аб, etc.
+// Only the held Greek insertion suffix α is mapped; base letters stay unverified.
+const alphabets={bg:'абвгдежзийклмнопрстуфхцчшщ'};
 const latinSuffixes=['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
 const letters=(value,language)=>[...(value??'')].map(c=>{
   if(!/[\p{L}]/u.test(c)||/[a-z]/iu.test(c))return c;
   const at=alphabets[language]?.indexOf(c.toLowerCase());
   return at===undefined||at<0?'?':String.fromCharCode((c===c.toUpperCase()?65:97)+at);
 }).join('');
-const suffix=(value,language)=>latinSuffixes.includes(value)?String.fromCharCode(97+latinSuffixes.indexOf(value)):letters(value,language);
+const suffix=(value,language)=>language==='el'&&value==='α'?'a':latinSuffixes.includes(value)?String.fromCharCode(97+latinSuffixes.indexOf(value)):letters(value,language);
 const key=path=>JSON.stringify(path.map(p=>[p.kind,p.value,p.isNew]));
 const unknown=()=>({assertion:{status:'unverified',reason:'oracle-edition-address-disagreement'}});
 

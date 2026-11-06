@@ -43,3 +43,8 @@ test('a new quoted subparagraph requires agreement on its parent address',async(
  wording.addressEditions[0].targetLabel=wording.addressEditions[0].targetLabel.replace('lid 2 –','lid 2 bis –');
  assert.equal(oracleEditionTarget({wording,placement:{status:'placed',operation:'insert'}}),null);
 });
+test('unsupported Greek base letters do not inherit a modern-alphabet rank',async()=>{
+ const {editionAddress}=await import('./amendment-edition-address-oracle.mjs');
+ assert.equal(editionAddress({language:'el',baseline:'motion-resolution',targetLabel:'Παράγραφος 1 – σημείο ζ (νέο)'}),null);
+ assert.equal(editionAddress({language:'el',baseline:'motion-resolution',targetLabel:'Παράγραφος 12 α (νέα)'}).at(-1).value,'12a');
+});

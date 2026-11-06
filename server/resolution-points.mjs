@@ -77,6 +77,31 @@ function pointUnits(text, rows, structure) {
   }));
 }
 
+// Published list positions: Bulgarian а..щ correspond to Latin a..z;
+// multi-letter labels use those same positions (аа/aa, аб/ab, ...).
+// This table is local to the placer; the oracle defines its own correspondence.
+const editionLetters=new Map([...'абвгдежзийклмнопрстуфхцчшщ'].map((letter,i)=>[letter,String.fromCharCode(97+i)]));
+const editionSuffixes=['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
+function heldEditionPath(edition) {
+  let raw=edition.targetLabel?.normalize('NFC').replace(/\s+/gu,' ').trim();
+  if(edition.language==='bg') {
+    const part=/^(Параграф \d+ [–—-] буква )([а-яa-z]+(?: [а-яa-z]+)*)(.*)$/u.exec(raw||'');
+    if(!part)return null;
+    const positionLetters=value=>[...value].map(letter=>/[a-z]/u.test(letter)?letter:editionLetters.get(letter)??'?').join('');
+    const bits=part[2].split(' '),ending=/\((?:нов|нова|ново)\)/u.test(part[3])&&bits.length>1?' '+positionLetters(bits.pop()):'';
+    raw=part[1]+positionLetters(bits.join(''))+ending+part[3];
+    if(raw.includes('?'))return null;
+  }
+  try {
+    const parsed=parseTargetLabel(raw,edition.language);
+    if(!parsed.complete)return null;
+    return parsed.segments.map(part=>{
+      const rank=editionSuffixes.indexOf(part.suffix);
+      return rank<0?part:{...part,suffix:String.fromCharCode(97+rank),value:part.base+String.fromCharCode(97+rank)};
+    });
+  }catch{return null;}
+}
+
 export function resolutionPointPlacement(text, rows, structure, options, operation) {
   let target;
   try { target = parseTargetLabel(options.targetLabel, options.language); } catch { return null; }
@@ -84,19 +109,14 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   if (!target.complete || segments?.length < 2 || segments[0].kind !== 'paragraph' || segments.slice(1).some(part => part.kind !== 'point')) return null;
   const units = pointUnits(text, rows, structure);
   if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))) {
-    if(segments.length!==2||!/^\d+$/u.test(String(segments[1].base)))return null;
+    if(segments.length!==2||!/^\d+$/u.test(String(segments[1].base??segments[1].number)))return null;
     const parents=segments.slice(0,-1),points=units.filter(unit=>samePath(unit.path.slice(0,-1),parents));
     if(!points.length)return null;
     const withheld=()=>({operation,status:'unresolved',reason:'conflicting_target_evidence',evidence:[]});
     const others=(options.addressEditions||[]).filter(edition=>edition.language!==options.language);
     if(!others.length)return withheld();
-    const paths=others.map(edition=>{
-      // Explicit reviewed correspondence: twelfth Bulgarian л / Latin l,
-      // first inserted suffix а / a. Other scripts remain unsupported.
-      const raw=edition.language==='bg'?edition.targetLabel?.replace(/буква л а(?= \()/u,'буква l a'):edition.targetLabel;
-      try {const parsed=parseTargetLabel(raw,edition.language);return parsed.complete?parsed.segments:null;}catch{return null;}
-    });
-    const key=path=>JSON.stringify(path.map(p=>[p.kind,p.base??p.value,p.suffix==='bis'?'a':p.suffix,p.isNew]));
+    const paths=others.map(heldEditionPath);
+    const key=path=>JSON.stringify(path.map(p=>[p.kind,p.base??p.value,p.suffix,p.isNew]));
     if(paths.some(path=>!path||path.length!==segments.length)||new Set(paths.map(key)).size!==1)return withheld();
     const candidate=paths[0],last=candidate.at(-1);
     if(operation!=='insert'||options.originalText!==''||!last.isNew||!last.suffix||!samePath(candidate.slice(0,-1),parents)
