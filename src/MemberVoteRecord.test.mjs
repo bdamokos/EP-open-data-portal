@@ -173,3 +173,13 @@ test('a long trend keeps markers only for isolated sittings',async t=>{
   assert.equal(view.container.querySelectorAll('svg circle').length,1,'only the point between two gaps is marked');
   assert.equal(view.container.querySelectorAll('svg path.member-vote-record-line').length,2,'the isolated point has no line of its own');
 });
+
+test('before the first projection the panel and the strip show a short pending state without figures',async t=>{
+  const pending=response({coverage:{sittings:3,included:0,missing:3,status:'partial'},alignment:{all:counts(0,0),wholeText:counts(0,0)},ballots:{recorded:0,named:0,chaired:0},bySitting:[],departures:{scope:'all',offset:0,limit:5,total:0,items:[],nextOffset:null},comparison:null});
+  const view=await mount(t,{data:pending});
+  assert.match(view.container.textContent,/Voting record not available yet\./);
+  assert.equal(/Recorded votes|0 of 0/.test(view.container.textContent),false);
+  await view.renderSummary();
+  assert.match(view.container.textContent,/Voting record not available yet\./);
+  assert.equal(view.container.querySelector('a'),null);
+});

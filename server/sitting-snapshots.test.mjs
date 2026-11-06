@@ -758,4 +758,12 @@ test('a failed refresh keeps a final sitting in the voting-record backfill and o
   h.store.db.prepare("UPDATE sitting_snapshots SET body=x'00' WHERE kind='votes' AND id=?").run(SNAPSHOT_SITTING);
   assert.equal(h.collector.backfillProjection(),false);
   assert.equal(h.collector.projectionBacklog(),null,'the unreadable sitting is skipped, not retried at the head of the queue');
+  assert(!h.collector.due()||h.collector.projectionBacklog()===null,'a skipped sitting does not keep the worker busy');
+  h.advance(60*60_000+1);h.collector.projectionCheckAt=null;
+  assert.equal(h.collector.projectionBacklog(),SNAPSHOT_SITTING,'it is tried again after the cooldown');
+  assert.equal(h.collector.backfillProjection(),false);
+  h.advance(60*60_000+1);h.collector.projectionCheckAt=null;
+  assert.equal(h.collector.projectionBacklog(),null,'a second failure doubles the cooldown');
+  h.advance(60*60_000);h.collector.projectionCheckAt=null;
+  assert.equal(h.collector.projectionBacklog(),SNAPSHOT_SITTING);
 });

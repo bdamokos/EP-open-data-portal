@@ -84,7 +84,7 @@ export const completeAttendanceSnapshot=value=>['observed','not-published'].incl
 export class SittingSnapshotCollector {
   constructor(store,{hints=sittingSnapshotHints,readChairs=collectVoteChairs,diskLimit,readCached=(endpoint,params)=>odp(endpoint,params,{cachedOnly:true,ttl:Infinity})}={}){
     this.store=store;this.writer=new SittingSnapshotWriter(store,{diskLimit});this.hints=hints;this.readChairs=readChairs;this.readCached=readCached;
-    this.projectionCheckAt=null;this.projectionCheckId=null;this.projectionFailed=new Set();
+    this.projectionCheckAt=null;this.projectionCheckId=null;this.projectionFailed=new Map();
   }
   due(){
     const now=this.store.clock();
@@ -93,7 +93,7 @@ export class SittingSnapshotCollector {
   projectionBacklog(){
     const now=this.store.clock();
     if(this.projectionCheckAt!==null&&now-this.projectionCheckAt<5000)return this.projectionCheckId;
-    const id=missingMemberVoteRecord(this.store,MEMBER_VOTE_SNAPSHOT_VERSION,this.store.get('active')??null,this.projectionFailed);
+    const id=missingMemberVoteRecord(this.store,MEMBER_VOTE_SNAPSHOT_VERSION,this.store.get('active')??null,[...this.projectionFailed].filter(([,failure])=>failure.until>now).map(([id])=>id));
     this.projectionCheckAt=now;this.projectionCheckId=id;
     return id;
   }
@@ -104,10 +104,16 @@ export class SittingSnapshotCollector {
     if(!id)return false;
     this.projectionCheckAt=null;
     const saved=new SittingSnapshotReader({db:this.store.db,clock:this.store.clock}).read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,id,{lastGood:true});
-    // A sitting that cannot be projected is skipped until restart so it never blocks the older ones.
-    if(!saved?.day||saved.day.sittingId!==id){this.projectionFailed.add(id);return false;}
-    try{retainMemberVoteRecord(this.store,saved.day,MEMBER_VOTE_SNAPSHOT_VERSION);}catch{this.projectionFailed.add(id);return false;}
+    if(!saved?.day||saved.day.sittingId!==id){this.projectionFailure(id);return false;}
+    try{retainMemberVoteRecord(this.store,saved.day,MEMBER_VOTE_SNAPSHOT_VERSION);}catch{this.projectionFailure(id);return false;}
+    this.projectionFailed.delete(id);
     return true;
+  }
+  // A sitting that cannot be projected backs off (1 h, doubling to 24 h) so it never blocks the older ones.
+  projectionFailure(id){
+    const attempts=(this.projectionFailed.get(id)?.attempts||0)+1;
+    this.projectionFailed.set(id,{attempts,until:this.store.clock()+Math.min(24,2**(attempts-1))*60*60_000});
+    this.projectionCheckAt=null;
   }
   discoverSittings(nodes){
     for(const node of nodes){

@@ -191,3 +191,35 @@ test('the period ends at the latest stored sitting, even for a member absent fro
   const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-09T12:00:00Z')});
   assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).period,{from:'2024-07-16',to:'2026-10-08'});
 });
+
+test('coverage counts only complete stored sittings, so an incomplete or uncollected one is not a missing projection',()=>{
+  const {db,sitting,member,snapshot}=database({includeC:false});
+  sitting(A,{named:1});
+  member(memberRow({sittingId:A,date:'2026-09-16',alignment:{with:1,against:0,abstained:0,notComparable:0},recorded:1,named:1,withGroup:1,comparable:1}));
+  snapshot.run('votes',VERSION,B,0,null);
+  snapshot.run('votes',VERSION,C,1,'Exact sitting metadata unavailable.');
+  const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-09T12:00:00Z')});
+  // C is complete with a failed-refresh flag and not projected yet: a pending projection. B is incomplete: not counted.
+  assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).coverage,{sittings:2,included:1,missing:1,status:'partial'});
+  db.prepare('DELETE FROM sitting_snapshots WHERE id=?').run(C);sitting(C,{named:0});
+  assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).coverage,{sittings:2,included:2,missing:0,status:'complete'});
+});
+
+test('an ambiguous group-history answer leaves named votes held unknown',()=>{
+  const db=fullDatabase({complete:true});
+  db.prepare('DELETE FROM member_vote_record_members WHERE sitting_id=?').run(A);
+  const ambiguous={...history,members:{...history.members,'1':{...person('S&D'),mandates:[{start:'2024-07-16',end:null}],ambiguous:[{start:'2024-07-16',end:null}]}}};
+  db.prepare('UPDATE group_history_snapshots SET body=?').run(JSON.stringify(ambiguous));
+  const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00:00Z')});
+  assert.equal(reader.query(MEP,{...query(),language:'en'}).ballots.named,null);
+});
+
+test('odd and even medians are rounded alike',()=>{
+  const share=(withGroup,comparable)=>({withGroup,comparable,finalWithGroup:withGroup,finalComparable:comparable});
+  const db=fullDatabase({complete:true});
+  db.prepare('DELETE FROM member_vote_record_totals').run();
+  const put=db.prepare('INSERT INTO member_vote_record_totals VALUES (?,?)');
+  put.run(MEP,JSON.stringify(share(1,3)));
+  const data=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00:00Z')}).query(MEP,{...query(),language:'en'});
+  assert.equal(data.comparison.all.group.median,0.3333);
+});

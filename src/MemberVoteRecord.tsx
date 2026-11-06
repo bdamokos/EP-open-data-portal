@@ -111,6 +111,10 @@ export function MemberVoteRecord({memberId,language,scope,offset,onScopeChange,o
       {request.error||!request.loading?<UiMessage id="membervoterecord.unavailable"/>:<UiMessage id="membervoterecord.loading"/>}
     </p>
   </section>;
+  // Before the first projection there is nothing to count, and zeros would read as real figures.
+  if(data.coverage.included===0)return <section className="member-vote-record" lang={ui.language} aria-label={ui.t('membervoterecord.heading')}>
+    <p className="member-vote-record-status" role="status"><UiMessage id="membervoterecord.pending"/></p>
+  </section>;
   const figures=recordAlignment(data,scope);
   // With no comparable vote at all there is nothing to say about the group line.
   const groupKnown=data.group.status==='attached'&&recordAlignment(data,'all')!==null&&(recordAlignment(data,'all')?.comparable??0)>0&&figures!==null;
@@ -157,6 +161,7 @@ export function MemberVoteRecordSummary({memberId,language,onOpen}:{memberId:num
   const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
   const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
   if(!data)return <p className="member-vote-record-summary member-vote-record-status" role="status">{request.error||!request.loading?<UiMessage id="membervoterecord.unavailable"/>:<UiMessage id="membervoterecord.loading"/>}</p>;
+  if(data.coverage.included===0)return <p className="member-vote-record-summary member-vote-record-status" role="status"><UiMessage id="membervoterecord.pending"/></p>;
   const summary=recordSummary(data);
   const chaired=summary.chaired?ui.t('membervoterecord.summary.chaired',{count:summary.chaired}):'';
   return <p className="member-vote-record-summary"><a href={votesHref(memberId)??undefined} onClick={event=>{

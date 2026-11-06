@@ -10,6 +10,8 @@ export const MEMBER_VOTE_RECORD_LIMITS=Object.freeze({departures:50,maxOffset:10
 const emptyAlignment=()=>({with:0,against:0,abstained:0,notComparable:0});
 // A group-history answer that places the person in office on that day.
 const serving=answer=>typeof answer==='object'||answer==='ambiguous';
+// Named votes held need a known mandate day; an ambiguous answer stays unknown.
+const holding=answer=>typeof answer==='object';
 
 export function memberVoteRecordQuery(search) {
   const allowed=['lang','scope','limit','offset'];
@@ -32,7 +34,7 @@ export function memberVoteRecordLanguage(search) {
 const median=values=>{
   if(!values.length)return null;
   const sorted=[...values].sort((a,b)=>a-b),middle=Math.floor(sorted.length/2);
-  return sorted.length%2?sorted[middle]:Math.round((sorted[middle-1]+sorted[middle])/2*10000)/10000;
+  return Math.round((sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2)*10000)/10000;
 };
 const readGroupOn=(db,generation)=>{
   if(generation==null)return null;
@@ -89,11 +91,12 @@ export class MemberVoteRecordReader {
       for(const sitting of sittings) {
         if(!sitting.named)continue;
         const answer=groupOn?groupOn(id,sitting.date):'unavailable';
-        if(withRow.has(sitting.sittingId)||serving(answer))ballots.named+=sitting.named;
+        if(withRow.has(sitting.sittingId)||holding(answer))ballots.named+=sitting.named;
         else if(answer!=='not-serving')unknown++;
       }
       if(unknown)ballots.named=null;
-      const expected=db.prepare("SELECT COUNT(*) AS n FROM sitting_snapshots WHERE kind='votes' AND version=? AND id>=?").get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
+      // Only a complete stored snapshot can be projected; a kept error flag after a failed refresh does not remove it.
+      const expected=db.prepare("SELECT COUNT(*) AS n FROM sitting_snapshots WHERE kind='votes' AND version=? AND id>=? AND complete=1").get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
       const included=sittings.length;
       const missing=Math.max(0,expected-included);
       const coverage={sittings:expected,included,missing,status:!expected&&!included?'unavailable':missing?'partial':'complete'};
