@@ -44,7 +44,7 @@ export const retainedWeekCloud=params=>read('speech-cloud',params);
 let weekReader,weekDirectory;const weekReads=new SerialFactReads();
 export async function retainedWeekSpeechFacts(params) {
   const current=absolutePathFromEnvironment('CORPUS_DIR');
-  if(!booleanFromEnvironment('CORPUS_ENABLED')||!current||!existsSync(path.join(current,'corpus-v1.sqlite')))return null;
+  if(!booleanFromEnvironment('CORPUS_ENABLED')||!current||!existsSync(path.join(current,'corpus-v1.sqlite')))return {records:[]};
   try{return await weekReads.read(JSON.stringify([current,params]),async()=>{
     if(weekDirectory!==current){weekDirectory=current;weekReader=new CorpusReader(current,{timeoutMs:8000});}
     return weekReader.query('speech-week-facts',params);

@@ -25,7 +25,7 @@ export function selectWeekStory(lists,{pressByKey=new Map(),voteByKey=new Map(),
     if(!row.linked)continue;
     for(const key of keysOf(row).filter(key=>pressByKey.has(key))) {
       const entry=candidates.get(key)||{key,item:row,reasons:[]};
-      if(!entry.reasons.some(reason=>reason.list===list))entry.reasons.push({list,rank:row.rank,value:list==='closest'?Math.abs(row.totals.for-row.totals.against):row[list]});
+      if(!entry.reasons.some(reason=>reason.list===list))entry.reasons.push({list,rank:row.rank,value:list==='closest'?Math.abs(row.totals.for-row.totals.against):row[list],key,...(['closest','differing'].includes(list)?{voteId:row.id}:{})});
       // A vote reason must display exactly that decision, not another item on
       // the same procedure. Speech-only stories use the retained item lookup.
       if(['closest','differing'].includes(list)&&row.id&&!entry.vote)entry.vote={...voteByKey.get(key),id:row.id,agendaItemId:row.agendaItemId,method:row.method,label:row.label||null,outcome:row.outcome,totals:row.totals};
@@ -40,6 +40,9 @@ export function selectWeekStory(lists,{pressByKey=new Map(),voteByKey=new Map(),
     const entry=byRelease.get(identity)||{...row,keys:[],items:[],reasons:[],press,vote:row.vote||voteByKey.get(row.key)||null};
     entry.keys.push(row.key);if(!entry.items.some(item=>item.id===row.item.id&&item.key===row.item.key))entry.items.push(row.item);
     for(const reason of row.reasons) {
+      // Figures and vote-derived claims must describe the same decision, even
+      // when a release links several separately voted procedures.
+      if(reason.voteId&&reason.voteId!==entry.vote?.id)continue;
       const previous=entry.reasons.find(old=>old.list===reason.list);
       if(!previous)entry.reasons.push(reason);
       else if(reason.rank<previous.rank)Object.assign(previous,reason);

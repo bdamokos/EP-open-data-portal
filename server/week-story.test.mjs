@@ -149,3 +149,30 @@ test('lasting speech gaps reuse memory across languages without being written to
   assert.equal(reads,1);assert.deepEqual(readdirSync(directory,{recursive:true}),[]);
  }finally{rmSync(directory,{recursive:true,force:true});}
 });
+test('a shared release keeps vote-derived reasons attached to its displayed vote',()=>{
+ const a={...vote('a',5),id:'vote-a',label:'Published A label',totals:{for:100,against:99,abstaining:0}};
+ const b={...vote('b',50),id:'vote-b',label:'Published B label',totals:{for:100,against:90,abstaining:0}};
+ const press={id:'joint-release',url:'press'};
+ const [story]=selectWeekStory(storyLists({votes:[a,b]}),{pressByKey:new Map([['a',press],['b',press]])}).stories;
+ assert.equal(story.vote.id,'vote-a');
+ assert.deepEqual(story.reasons.map(({list,rank,value,key,voteId})=>({list,rank,value,key,voteId})),[
+  {list:'closest',rank:1,value:1,key:'a',voteId:'vote-a'},
+  {list:'differing',rank:2,value:5,key:'a',voteId:'vote-a'},
+ ]);
+ assert(!story.reasons.some(reason=>reason.value===50));assert.deepEqual(story.keys,['a','b']);
+});
+test('disabled and absent corpus states reuse vote projections for sixty seconds',async()=>{
+ const directory=mkdtempSync(path.join(tmpdir(),'week-no-corpus-')),previous={CORPUS_DIR:process.env.CORPUS_DIR,CORPUS_ENABLED:process.env.CORPUS_ENABLED};
+ const f=voteFixture();f.day.coverage={state:'complete'};
+ try {
+  for(const enabled of ['false','true']) {
+   process.env.CORPUS_DIR=directory;process.env.CORPUS_ENABLED=enabled;let voteReads=0;
+   const insights=createInsights({status:()=>({servingGeneration:1}),get:()=>0},{clock,viewCache:{directory:null},weekStory:{store:null,periods,snapshots:{read:()=>{voteReads++;return {day:f.day};}}}});
+   for(const lang of ['en','hu','en'])assert.equal((await insights.query('week-story',new URLSearchParams({week,lang}))).status,'partial');
+   assert.equal(voteReads,1,'lasting corpus absence must not reproject votes on every visit');
+  }
+ }finally{
+  for(const [key,value] of Object.entries(previous))if(value===undefined)delete process.env[key];else process.env[key]=value;
+  rmSync(directory,{recursive:true,force:true});
+ }
+});
