@@ -448,5 +448,20 @@
     "one": "topics.story.count.shortDebatesOne",
     "other": "topics.story.count.shortDebates",
     "count": "count"
+  },
+  {
+    "one": "weekSummary.agendaItemsOne",
+    "other": "weekSummary.agendaItems",
+    "count": "count"
+  },
+  {
+    "one": "weekSummary.debatesOne",
+    "other": "weekSummary.debates",
+    "count": "count"
+  },
+  {
+    "one": "weekSummary.votesOne",
+    "other": "weekSummary.votes",
+    "count": "count"
   }
 ]
