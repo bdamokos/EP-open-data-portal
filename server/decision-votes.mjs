@@ -4,12 +4,12 @@ import {createGroupOn} from './group-attribution.mjs';
 import {groupHistorySnapshot} from './group-history.mjs';
 import {HttpError} from './http-utils.mjs';
 import {requestSignal} from './request-budget.mjs';
-import {list,exactReference,references,identifier,deriveVoteEvidence,eventUri,term as tail,preferred} from './vote-evidence.mjs';
+import {list,exactReference,references,identifier,deriveVoteEvidence,eventUri,preferred} from './vote-evidence.mjs';
 import {decisionVoteBindingConflict} from './decision-vote-binding.mjs';
 import {mainVote} from './main-vote.mjs';
+import {referredForTalksOn} from './procedure-referral.mjs';
 
 export const DECISION_VOTES_VERSION=7;
-const REFERRAL_EVENT='PLENARY_REFER_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS';
 
 export function decisionVotesQuery(id,search,options) {
   if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(id))throw new HttpError(400,'invalid_decision','Use an exact decision identifier.');
@@ -58,7 +58,7 @@ function subjectContext(vote,day,context,query,store) {
   const siblings=main?[main,...votes.filter(row=>row!==main)]:votes;
   const procedureIds=[...new Set(votes.flatMap(row=>row.context.procedureIds))].sort();
   const procedures=procedureIds.map(id=>({id,node:heldProcedure(store,context.generation,id)}));
-  const procedureReferral=procedures.some(({node})=>list(node?.consists_of).some(event=>tail(event?.had_activity_type)===REFERRAL_EVENT&&event?.activity_date===vote.date));
+  const procedureReferral=procedures.some(({node})=>referredForTalksOn(node,vote.date));
   return {subject:{id:subject.id,...preferred(subject.titles,query.language),titles:subject.titles,agendaItemIds:subject.agendaItemIds,documentIds:subject.documentIds,procedureIds,procedures:procedures.flatMap(({id,node})=>typeof node?.label==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(node.label)?[{id,reference:node.label}]:[])},siblings:siblings.map(row=>siblingFields(row,query.language)),mainVoteId:main?.id??null,procedureReferral};
 }
 // Voters and corrections outside the current roster are absent from the client

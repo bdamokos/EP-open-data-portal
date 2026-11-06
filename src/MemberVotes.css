@@ -17,3 +17,4 @@
 .member-votes-context-vote .member-votes-part{margin:10px 0;padding:10px 12px;font-size:13px;line-height:1.5;max-width:90ch}
 .member-votes-context-vote .member-votes-part h3{font-size:12px;line-height:1.4;margin:0 0 6px}
 .member-votes-context-vote .member-votes-part p{margin:0;white-space:pre-wrap}
+.member-votes-strip .member-votes-open{grid-column:1/-1;flex-basis:100%;font-size:13px}

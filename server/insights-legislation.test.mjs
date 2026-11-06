@@ -369,3 +369,17 @@ test('former MEP name lookup is capped at four and skips all held outsiders',asy
  for(const id of Object.keys(names)){const speech='MTG-PL-2026-10-07-OTH-'+id,work={...fixture.speech.payload.data[0],activity_id:speech,had_participation:[{had_participant_person:['person/'+id]}]};h.store.putSource(h.generation,'/speeches/'+speech,'speech',work,'2026-10-14T09:30:00Z',speechRows(work,'2026-10-14T09:30:00Z'));h.event.consists_of=[...h.event.consists_of,'eli/dl/event/'+speech];}
  heldGuest(h,'MTG-PL-2026-10-07-OTH-222222','999997','Held outsider','2026-10-07T12:20:00+02:00');const r=await h.query(),reads=h.calls.filter(([ep])=>ep.startsWith('/meps/'));assert.equal(reads.length,4);assert(!reads.some(([ep])=>ep==='/meps/999997'));const former=r.detail.people.filter(p=>p.name==='Former Member');assert.equal(former.length,4);assert(former.every(p=>p.profileUrl==='https://www.europarl.europa.eu/meps/en/'+p.id));
 });
+test('agenda main vote uses exact labels and the exact same-date referral event',async()=>{
+ const {agendaMainVote}=await import('./insights-legislation-model.mjs');
+ const vote=(id,label,fields={})=>({id,date:'2026-10-22',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',scope:'unclassified',subjects:{en:label},aggregateTotals:{for:1,against:0,abstaining:0},associations:[{resultId:'R'}],...fields});
+ const refer=date=>[{consists_of:[{had_activity_type:'def/ep-activities/PLENARY_REFER_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS',activity_date:date}]}];
+ assert.equal(agendaMainVote([vote('A','Amendment 1 – Article 3')]),null);
+ assert.equal(agendaMainVote([vote('A','Request for referral back to committee')],refer('2026-10-22')),null);
+ const main=agendaMainVote([vote('A','Article 3'),vote('M','Commission proposal')],refer('2026-10-22'));
+ assert.equal(main.id,'M');assert.equal(main.procedureReferral,true);
+ assert.equal(agendaMainVote([vote('M','Commission proposal')],refer('2026-10-21')).procedureReferral,false);
+ assert.equal(agendaMainVote([vote('M','Commission proposal',{outcome:'LAPSED'})]),null);
+ assert.equal(agendaMainVote([vote('P','Provisional agreement - Am 3')]),null);
+ assert.equal(agendaMainVote([vote('P','Provisional agreement')]).id,'P');
+ assert.equal(agendaMainVote([vote('M','Commission proposal'),vote('N','Motion for a resolution',{associations:[{resultId:'S'}]})]),null,'two subjects name different main votes');
+});

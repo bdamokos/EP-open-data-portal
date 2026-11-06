@@ -1741,6 +1741,7 @@
   "voteMethod.secret": "Secret ballot",
   "voteMethod.secretElectronic": "Secret ballot (electronic)",
   "votepage.loading": "Loading vote…",
+  "votepage.open": "Open this vote",
   "votepage.not_found": "Vote not found.",
   "votepage.unavailable": "Vote unavailable.",
   "votepage.tally": "{for} for, {against} against, {abstaining} abstaining",
