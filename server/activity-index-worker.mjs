@@ -1076,7 +1076,9 @@ export class ActivityWorker {
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           if(cycle&&this.store.get('working')){this.scheduleRecovery(generation);scheduleDeclaredDebateRecovery(this,generation);scheduleWebsiteRechecks(this.store,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
-          if(++sittingSnapshotTurn%8===0){await this.fillProjectionBatch();this.sittingSnapshots?.projectionTurn?.(250);if(this.documentBodies.due())await this.documentBodies.step(this,{requestBudget:1});if(this.requests>=this.budget)break;}
+          // One voting-record projection step per core task: it needs no request, so it neither spends budget nor waits for jobs.
+          this.sittingSnapshots?.projectionTurn?.(0);
+          if(++sittingSnapshotTurn%8===0){await this.fillProjectionBatch();if(this.documentBodies.due())await this.documentBodies.step(this,{requestBudget:1});if(this.requests>=this.budget)break;}
           if(sittingSnapshotTurn%8===0&&this.officialContext?.due()&&this.requests<this.budget&&this.monotonic()<this.runDeadline)await this.officialContext.step(this);
           if(sittingSnapshotTurn%8===0&&this.sittingSnapshots?.due()){
             await this.sittingSnapshots.step(this,{requestBudget:1});
