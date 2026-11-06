@@ -180,6 +180,21 @@
     "count": "count"
   },
   {
+    "one": "dossieractivity.exact_stage_amendment",
+    "other": "dossieractivity.exact_stage_amendments",
+    "count": "count"
+  },
+  {
+    "one": "dossierpeople.count_line_one",
+    "other": "dossierpeople.count_line",
+    "count": "count"
+  },
+  {
+    "one": "dossierpeople.speech",
+    "other": "dossierpeople.speeches",
+    "count": "count"
+  },
+  {
     "one": "dossieractivity.count_stage_amendment",
     "other": "dossieractivity.count_stage_amendments",
     "count": "count"
