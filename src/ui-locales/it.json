@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName} ha votato: {position}",
   "membervotesummary.no_tally_published": "Nessun conteggio pubblicato",
   "membervotesummary.parliament": "Parlamento",
+  "membervotesummary.published_description": "Descrizione pubblicata",
+  "membervotesummary.published_description_of_part_number": "Descrizione pubblicata della parte {number}",
   "membervotesummary.tallies_unavailable": "Conteggi non disponibili",
   "motionJourney.reason42": "Testo della mozione non disponibile.",
   "motionJourney.reason53": "Il testo della proposta di risoluzione richiesta non è disponibile per questa attività.",

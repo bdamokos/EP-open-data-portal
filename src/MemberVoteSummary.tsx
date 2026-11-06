@@ -2,6 +2,7 @@ import {UiMessage, useUiI18n} from './UiI18nReact';
 import {selectLanguageText} from './language.mjs';
 import type {MemberVote,MemberVoteComponent} from './MemberVotesTypes';
 import {memberVoteOutcome,memberVotePositionState,memberVotePosition,memberVoteTotals,splitVoteRequests} from './memberVotesPresentation.mjs';
+import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import './MemberVotes.css';
 type ResultVote=Pick<MemberVote,'outcome'|'totals'|'ballotStatus'>;
 type PositionVote=Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>;
@@ -27,7 +28,11 @@ export function Position({vote,memberName,compact=false}:{vote:PositionVote;memb
 type VotePartRow=Pick<MemberVoteComponent,'componentId'|'number'|'requestUri'|'contentByLanguage'>;
 // "Part 2: those words" means nothing alone, so a split shows every part of its
 // request together. The source wording stays verbatim, in its own language.
-export function VotePartDescriptions({vote,language}:{vote:{parts:(VotePartRow&{contextComponents:VotePartRow[]})[]};language:string}) {
+export function VotePartDescriptions({vote,language,grouped=PLENARY_REDESIGN_LIVE}:{vote:{parts:(VotePartRow&{contextComponents:VotePartRow[]})[]};language:string;grouped?:boolean}) {
+  if(!grouped)return <>{vote.parts.map(part=>{
+    const text=selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
+    return text.text ? <section className="member-votes-part" key={part.componentId}><h3><UiMessage id={part.number!==null ? "membervotesummary.published_description_of_part_number" : "membervotesummary.published_description"} values={{number:part.number??''}}/></h3><p lang={text.language}>{text.text}</p></section> : null;
+  })}</>;
   return <>{splitVoteRequests(vote.parts).map(request=><section className="member-votes-part" key={request.requestUri}><h3><UiMessage id="votepage.split_vote"/></h3>{request.parts.map(part=>{
     const text=selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
     if(!text.text)return null;

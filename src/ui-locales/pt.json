@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName}: {position}",
   "membervotesummary.no_tally_published": "Sem contagem publicada",
   "membervotesummary.parliament": "Parlamento",
+  "membervotesummary.published_description": "Descrição publicada",
+  "membervotesummary.published_description_of_part_number": "Descrição publicada da parte {number}",
   "membervotesummary.tallies_unavailable": "Contagens indisponíveis",
   "motionJourney.reason42": "Texto da moção indisponível.",
   "motionJourney.reason53": "O texto de proposta de resolução pedido está indisponível para esta atividade.",

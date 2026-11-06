@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName}: glasovanje {position}",
   "membervotesummary.no_tally_published": "Seštevek ni objavljen",
   "membervotesummary.parliament": "Parlament",
+  "membervotesummary.published_description": "Objavljeni opis",
+  "membervotesummary.published_description_of_part_number": "Objavljeni opis dela {number}",
   "membervotesummary.tallies_unavailable": "Seštevki niso na voljo",
   "motionJourney.reason42": "Besedilo predloga ni na voljo.",
   "motionJourney.reason53": "Zahtevano besedilo predloga za to dejavnost ni na voljo.",

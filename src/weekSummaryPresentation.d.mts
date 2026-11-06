@@ -21,5 +21,3 @@ export function sittingRange(dates:string[],language?:string):string|null;
 export function procedureReferences(topic:AgendaTopic):string[];
 export function validWeekResults(data:unknown):data is WeekResultsResponse;
 export function resultsComplete(results:WeekResultsResponse,voteDayIds:string[]):boolean;
-export type WeekStandoutFact={kind:'closest';voteId:string;topic:AgendaTopic;for:number;against:number}|{kind:'split';voteId:string;topic:AgendaTopic;count:number};
-export function weekStandouts(results:WeekResultsResponse|null|undefined,topics:AgendaTopic[]):WeekStandoutFact[];

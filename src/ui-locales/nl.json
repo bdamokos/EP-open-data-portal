@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName}: {position}",
   "membervotesummary.no_tally_published": "Geen telling gepubliceerd",
   "membervotesummary.parliament": "Parlement",
+  "membervotesummary.published_description": "Gepubliceerde beschrijving",
+  "membervotesummary.published_description_of_part_number": "Gepubliceerde beschrijving van onderdeel {number}",
   "membervotesummary.tallies_unavailable": "Tellingen niet beschikbaar",
   "motionJourney.reason42": "Tekst van de motie niet beschikbaar.",
   "motionJourney.reason53": "De gevraagde ontwerpresolutie is niet beschikbaar voor deze activiteit.",

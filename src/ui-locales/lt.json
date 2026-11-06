@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName} balsavo: {position}",
   "membervotesummary.no_tally_published": "Balsų skaičius nepaskelbtas",
   "membervotesummary.parliament": "Parlamentas",
+  "membervotesummary.published_description": "Paskelbtas aprašymas",
+  "membervotesummary.published_description_of_part_number": "Paskelbtas dalies {number} aprašymas",
   "membervotesummary.tallies_unavailable": "Balsų skaičiai nepasiekiami",
   "motionJourney.reason42": "Pasiūlymo tekstas nepasiekiamas.",
   "motionJourney.reason53": "Prašomas pasiūlymo tekstas šiai veiklai nepasiekiamas.",

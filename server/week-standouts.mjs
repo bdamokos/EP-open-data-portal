@@ -35,6 +35,14 @@ export function sittingVotes(day,{store=null,sharedHistory}={}) {
   return votes;
 }
 
+// Only a week with every sitting held and none still ahead is finished; it gives
+// its sitting identities, anything else gives none.
+export function finishedWeekSittings(calendar,week,today) {
+  const sittings=calendar.weeks.find(entry=>entry.week===week)?.sittings||[];
+  if(calendar.upcoming?.some(entry=>entry.week===week)||sittings.some(sitting=>sitting.date>=today))return [];
+  return sittings.map(sitting=>sitting.sittingId);
+}
+
 const margin=vote=>Math.abs(vote.totals.for-vote.totals.against);
 // Equal values fall back to the later date, then the lower identifier.
 const stable=(a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id);

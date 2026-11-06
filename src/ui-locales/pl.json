@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName} — głos: {position}",
   "membervotesummary.no_tally_published": "Nie opublikowano wyników liczbowych",
   "membervotesummary.parliament": "Parlament",
+  "membervotesummary.published_description": "Opublikowany opis",
+  "membervotesummary.published_description_of_part_number": "Opublikowany opis części {number}",
   "membervotesummary.tallies_unavailable": "Wyniki liczbowe niedostępne",
   "motionJourney.reason42": "Tekst wniosku niedostępny.",
   "motionJourney.reason53": "Żądany tekst projektu rezolucji jest niedostępny dla tej aktywności.",

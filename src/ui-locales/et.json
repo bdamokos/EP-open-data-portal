@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName} hääletas: {position}",
   "membervotesummary.no_tally_published": "Häälte arvu pole avaldatud",
   "membervotesummary.parliament": "Parlament",
+  "membervotesummary.published_description": "Avaldatud kirjeldus",
+  "membervotesummary.published_description_of_part_number": "Osa {number} avaldatud kirjeldus",
   "membervotesummary.tallies_unavailable": "Häälte arvud pole saadaval",
   "motionJourney.reason42": "Ettepaneku tekst pole saadaval.",
   "motionJourney.reason53": "Soovitud resolutsiooni ettepaneku tekst pole selle tegevuse jaoks saadaval.",

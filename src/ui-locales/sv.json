@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName} röstade {position}",
   "membervotesummary.no_tally_published": "Inget röstetal publicerat",
   "membervotesummary.parliament": "Parlamentet",
+  "membervotesummary.published_description": "Publicerad beskrivning",
+  "membervotesummary.published_description_of_part_number": "Publicerad beskrivning av del {number}",
   "membervotesummary.tallies_unavailable": "Röstetal är inte tillgängliga",
   "motionJourney.reason42": "Motionens text är inte tillgänglig.",
   "motionJourney.reason53": "Den begärda förslagstexten är inte tillgänglig för denna aktivitet.",

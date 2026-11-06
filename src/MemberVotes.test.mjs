@@ -293,7 +293,7 @@ test('detail renders exact split wording, sibling context and only exact request
   const sibling=vote(2,{parts:[part(2,{contextComponents:[part(1),part(2)]})],outcome:'ADOPTED'});
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:first.id},handler:url=>Response.json(responseFor(url,{items:[first,sibling]}))});
   const detail=visiblePane(h.container);
-  assert.equal(detail.querySelector('.member-votes-part h3').textContent,'Split vote');assert.equal(detail.querySelector('.member-votes-part p[aria-current]').textContent,'Part 1: Littéral exact de la première partie (this vote)');assert.equal(detail.querySelector('.member-votes-part p span').lang,'fr');
+  assert.equal(detail.querySelector('.member-votes-part p').textContent,'Littéral exact de la première partie');assert.equal(detail.querySelector('.member-votes-part p').lang,'fr');
   assert.match(detail.querySelector('.member-votes-related').textContent,/Littéral exact de la deuxième partie/);
   assert.match(detail.querySelector('.member-votes-siblings').textContent,/Part 2 · Adopted/);
   assert.match(detail.querySelector('.member-votes-requester').textContent,/Roll call requested by Demandeur exact/);assert(!detail.textContent.includes('Unbound requester'));
@@ -1179,9 +1179,9 @@ test('split amendment and whole-text context restore published part descriptions
     const h=await mount(t,{state:{week:WEEK,decisionId:item.id,context},renderContext:request=>createElement('section',null,request.summary,createElement('button',{onClick:request.onBack},'Back from context')),handler:url=>Response.json(responseFor(url,{items:[item]}))});
     const check=()=>{
       const summary=h.container.querySelector('[aria-label="Vote on this text"]');assert(summary);
-      assert.equal(summary.querySelector('.member-votes-part p').textContent,'Part 1: Première phrase exacte.');
-      assert.equal(summary.querySelector('.member-votes-part p span').lang,'fr');
-      assert.match(summary.textContent,/Split vote/);
+      assert.equal(summary.querySelector('.member-votes-part p').textContent,'Première phrase exacte.');
+      assert.equal(summary.querySelector('.member-votes-part p').lang,'fr');
+      assert.match(summary.textContent,/Published description of part 1/);
       assert(summary.querySelector('.member-votes-position'));assert(summary.querySelector('.member-votes-result'));
     };
     check();await h.remount();check();await h.click('Back from context');

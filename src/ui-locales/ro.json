@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName} a votat {position}",
   "membervotesummary.no_tally_published": "Nicio numărătoare publicată",
   "membervotesummary.parliament": "Parlament",
+  "membervotesummary.published_description": "Descriere publicată",
+  "membervotesummary.published_description_of_part_number": "Descrierea publicată a părții {number}",
   "membervotesummary.tallies_unavailable": "Numărători indisponibile",
   "motionJourney.reason42": "Textul moțiunii nu este disponibil.",
   "motionJourney.reason53": "Textul propunerii de rezoluție solicitate nu este disponibil pentru această activitate.",

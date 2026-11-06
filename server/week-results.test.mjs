@@ -31,7 +31,7 @@ test('the response stays small and keeps the sitting order of the snapshot',()=>
 test('a week with no snapshot has a place and no results',async()=>{
   const reads=[];
   const result=await weekResults({week:'2026-11-09'},{clock:()=>Date.parse('2026-11-06T10:00:00Z'),periods:{collect:async()=>({weeks:[{week:'2026-11-09',sittings:[{location:'Brussels'},{location:'Brussels'}]}]})},votes:{snapshot:async query=>{reads.push(query);}}});
-  assert.deepEqual(result,{version:2,week:'2026-11-09',location:'Brussels',days:[],standouts:{closest:null,split:null},items:[]});
+  assert.deepEqual(result,{version:1,week:'2026-11-09',location:'Brussels',days:[],items:[]});
   assert.deepEqual(reads,[]);
 });
 
@@ -83,17 +83,4 @@ test('a sitting with partial records has unknown counts and contributes no items
   assert.deepEqual(result.days[0],{sittingId:'MTG-PL-2026-10-07',complete:false,voteCount:null,rollCallCount:null,notConducted:null});
   assert.equal(result.days[1].complete,true);
   assert.deepEqual(result.items,[]);
-});
-
-test('a finished week carries its standouts from stored snapshots; a week still running carries none',async()=>{
-  const stored=[],snapshots={read:(kind,version,id)=>{stored.push(id);return null;}};
-  const options={clock:()=>Date.parse('2026-11-06T10:00:00Z'),votes:{snapshot:async()=>({id:'a'.repeat(64),days,coverage:{status:'complete'}})},snapshots};
-  const dated=week=>({weeks:[{week,sittings:[{sittingId:'MTG-PL-2026-10-05',date:'2026-10-05',location:'Strasbourg'},{sittingId:'MTG-PL-2026-10-07',date:'2026-10-07',location:'Strasbourg'}]}]});
-  const finished=await weekResults({week:'2026-10-05'},{...options,periods:{collect:async()=>dated('2026-10-05')}});
-  assert.deepEqual(stored,['MTG-PL-2026-10-05'],'stored reads stop at the first missing snapshot');
-  assert.deepEqual(finished.standouts,{closest:null,split:null},'no stored snapshot names no winner');
-  stored.length=0;
-  const ahead=await weekResults({week:'2026-10-05'},{...options,periods:{collect:async()=>({...dated('2026-10-05'),upcoming:[{week:'2026-10-05',sittings:[{sittingId:'MTG-PL-2026-10-09',date:'2026-10-09'}]}]})}});
-  const today=await weekResults({week:'2026-11-02'},{...options,periods:{collect:async()=>({weeks:[{week:'2026-11-02',sittings:[{sittingId:'MTG-PL-2026-11-06',date:'2026-11-06',location:'Brussels'}]}]})}});
-  assert.deepEqual([stored,ahead.standouts,today.standouts],[[],{closest:null,split:null},{closest:null,split:null}],'a sitting still ahead or running today reads nothing');
 });

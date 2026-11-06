@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {sittingVotes,weekStandouts} from './week-standouts.mjs';
+import {finishedWeekSittings,sittingVotes,weekStandouts} from './week-standouts.mjs';
 import {voteFixture} from './test-support/decision-votes.mjs';
 
 // Small attributed fixtures: reduced from the retained public member-votes fixture
@@ -89,4 +89,13 @@ test('incomplete week data names no winner',()=>{
   // A snapshot with another sitting's day, and a week with no sittings.
   assert.deepEqual(weekStandouts([a.day.sittingId],{snapshots:store(new Map([[a.day.sittingId,b.day]])),store:a.store}),none);
   assert.deepEqual(weekStandouts([],{snapshots:store(new Map()),store:null}),none);
+});
+
+test('only a week with every sitting held and none ahead is finished',()=>{
+  const sittings=[{sittingId:'MTG-PL-2026-10-05',date:'2026-10-05'},{sittingId:'MTG-PL-2026-10-07',date:'2026-10-07'}];
+  const calendar={weeks:[{week:'2026-10-05',sittings}]};
+  assert.deepEqual(finishedWeekSittings(calendar,'2026-10-05','2026-11-06'),['MTG-PL-2026-10-05','MTG-PL-2026-10-07']);
+  assert.deepEqual(finishedWeekSittings(calendar,'2026-10-05','2026-10-07'),[],'a sitting today is not finished');
+  assert.deepEqual(finishedWeekSittings({...calendar,upcoming:[{week:'2026-10-05',sittings:[]}]},'2026-10-05','2026-11-06'),[],'a sitting still ahead');
+  assert.deepEqual(finishedWeekSittings(calendar,'2026-09-28','2026-11-06'),[],'an unknown week');
 });

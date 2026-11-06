@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName} äänesti {position}",
   "membervotesummary.no_tally_published": "Äänimäärää ei ole julkaistu",
   "membervotesummary.parliament": "Parlamentti",
+  "membervotesummary.published_description": "Julkaistu kuvaus",
+  "membervotesummary.published_description_of_part_number": "Osan {number} julkaistu kuvaus",
   "membervotesummary.tallies_unavailable": "Äänimääriä ei ole saatavilla",
   "motionJourney.reason42": "Ehdotuksen tekstiä ei ole saatavilla.",
   "motionJourney.reason53": "Pyydettyä päätöslauselmaesityksen tekstiä ei ole saatavilla tälle toiminnalle.",

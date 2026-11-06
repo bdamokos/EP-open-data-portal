@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "Vótáil {memberName} {position}",
   "membervotesummary.no_tally_published": "Níl comhaireamh foilsithe",
   "membervotesummary.parliament": "An Pharlaimint",
+  "membervotesummary.published_description": "Cur síos foilsithe",
+  "membervotesummary.published_description_of_part_number": "Cur síos foilsithe ar chuid {number}",
   "membervotesummary.tallies_unavailable": "Níl comhairimh ar fáil",
   "motionJourney.reason42": "Níl téacs an tairisceana ar fáil.",
   "motionJourney.reason53": "Níl téacs na tairisceana iarrtha ar fáil don ghníomhaíocht seo.",

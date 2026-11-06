@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName} stemte {position}",
   "membervotesummary.no_tally_published": "Intet stemmetal offentliggjort",
   "membervotesummary.parliament": "Parlamentet",
+  "membervotesummary.published_description": "Offentliggjort beskrivelse",
+  "membervotesummary.published_description_of_part_number": "Offentliggjort beskrivelse af del {number}",
   "membervotesummary.tallies_unavailable": "Stemmetal er ikke tilgængelige",
   "motionJourney.reason42": "Forslagets tekst er ikke tilgængelig.",
   "motionJourney.reason53": "Den ønskede forslagstekst er ikke tilgængelig for denne aktivitet.",

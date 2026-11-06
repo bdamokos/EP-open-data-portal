@@ -460,11 +460,6 @@
     "count": "count"
   },
   {
-    "one": "weekSummary.mepsOne",
-    "other": "weekSummary.meps",
-    "count": "count"
-  },
-  {
     "one": "weekSummary.votesOne",
     "other": "weekSummary.votes",
     "count": "count"

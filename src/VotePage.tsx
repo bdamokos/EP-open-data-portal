@@ -55,7 +55,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
     <p className="vote-page-eyebrow"><time dateTime={vote.date} lang={language}>{humanDate(vote.date,language)}</time></p>
     {(itemTitle||subject?.procedures.length) ? <p className="vote-page-item">{itemTitle&&(agendaItem ? <a lang={itemLanguage} href={agendaItemHref(agendaItem,language)} onClick={dossierLinkClick}>{itemTitle}</a> : <span lang={itemLanguage}>{itemTitle}</span>)}{subject?.procedures.map(procedure=><a key={procedure.id} className="vote-page-reference" href={dossierHref(procedure.reference,language)} onClick={dossierLinkClick}>{procedure.reference}</a>)}</p> : null}
     <h1 tabIndex={-1}><UiMessage id={sentence.id} values={{...sentence.values,...(sentence.item ? {item:<span lang={itemLanguage}>{itemTitle}</span>} : {}),...(sentence.values.label ? {label:<span lang="">{sentence.values.label}</span>} : {})}}/>{sentence.noNames&&<> <UiMessage id="votepage.no_names"/></>}</h1>
-    <VotePartDescriptions vote={vote} language={language}/>
+    <VotePartDescriptions vote={vote} language={language} grouped/>
     {memberVoteTotals(vote)&&<Result vote={vote} showMissingTotals={false}/>}
     {named&&<section className="vote-page-groups"><h2><UiMessage id="legislation.how_meps_voted.789bfc"/></h2><div className="insight-controls insight-detail-country"><CountryFilter country={country} onChange={onCountry} language={language}/></div><VoteView standalone country={country} vote={namedVoteFromDecision(data,directory,id=>displayName(id))} language={language} onMember={onMember}/></section>}
     {(data.integrity==='conflicting'||noList)&&<p><UiMessage id="legislation.individual_votes_unavailable.ca5dc2"/></p>}

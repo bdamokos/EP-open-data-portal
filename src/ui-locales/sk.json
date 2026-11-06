@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName}: hlasovanie {position}",
   "membervotesummary.no_tally_published": "Súčty nezverejnené",
   "membervotesummary.parliament": "Parlament",
+  "membervotesummary.published_description": "Zverejnený opis",
+  "membervotesummary.published_description_of_part_number": "Zverejnený opis časti {number}",
   "membervotesummary.tallies_unavailable": "Súčty nie sú k dispozícii",
   "motionJourney.reason42": "Text návrhu nie je k dispozícii.",
   "motionJourney.reason53": "Požadovaný text návrhu nie je pre túto činnosť k dispozícii.",

@@ -1285,6 +1285,8 @@
   "membervotesummary.membername_voted_position": "{memberName}: hlasování {position}",
   "membervotesummary.no_tally_published": "Součty nezveřejněny",
   "membervotesummary.parliament": "Parlament",
+  "membervotesummary.published_description": "Zveřejněný popis",
+  "membervotesummary.published_description_of_part_number": "Zveřejněný popis části {number}",
   "membervotesummary.tallies_unavailable": "Součty nejsou k dispozici",
   "motionJourney.reason42": "Text návrhu není k dispozici.",
   "motionJourney.reason53": "Požadovaný text návrhu není pro tuto činnost k dispozici.",
