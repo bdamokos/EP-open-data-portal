@@ -63,7 +63,7 @@ test('electronic secret dossier ballots keep unrecorded positions separate from 
   const h=await harness(t,undefined,url=>url.pathname.endsWith('/insights/dossier-activity')?Response.json(page(url.searchParams.get('section'),url.searchParams.get('member'),url.searchParams.get('section')==='votes'?[item]:[])):null);
   await h.render(createElement(h.module.DossierActivity,{reference}));
   const card=h.container.querySelector('[data-dossier-vote]');assert(card);
-  assert.equal(card.querySelector('.member-votes-position strong').textContent,'Not individually recorded');
+  assert.equal(card.querySelector('.member-votes-position strong').textContent,'No names on record');
   assert.match(card.textContent,/Declared intention: For/);assert.match(card.textContent,/Adopted/);
   assert.equal(card.querySelector('.member-votes-position-for'),null);
 });
