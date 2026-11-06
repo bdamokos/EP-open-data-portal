@@ -127,7 +127,7 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
     return {...next,updated:itemHasNew(next,now),newActivity:next.entries?.some(x=>x.kind==='activity'&&isNewEntry(x,now)),newAnswer:next.entries?.some(x=>x.kind==='answer'&&isNewEntry(x,now))};
   });}
   function publish(mirror=false) {
-    derive();let success=true;
+    derive();openedRecords=recentOpened(openedRecords,Date.now());let success=true;
     if(!tabOnly)try {
       const mirrored=mirror?legacyMirror(items):null,nextKeys=mirrored?keys(mirrored):legacyKeys;
       storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys:nextKeys,openedRecords}));
@@ -144,12 +144,12 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
   }
   const update=(key,change)=>{items=items.map(item=>savedKey(item)===key?compactItem(change(item)):item);return publish();};
   const same=(item,expected)=>!expected||item.savedAt===expected.savedAt;
-  const readRecords=()=>new Map([...Object.entries(openedRecords),...items.flatMap(item=>(item.entries||[]).filter(entry=>Number.isFinite(entry.readAt)).map(entry=>[identity(entry),entry.readAt]))]);
+  const readRecords=()=>new Map([...Object.entries(recentOpened(openedRecords,Date.now())),...items.flatMap(item=>(item.entries||[]).filter(entry=>Number.isFinite(entry.readAt)).map(entry=>[identity(entry),entry.readAt]))]);
   // One record can sit on several followed MEPs and on its followed question.
   const openRecord=opened=>{
     const now=Date.now(),question=opened.kind==='answer'?opened.relatedQuestionId:opened.id;
     const shown=entry=>entry.readAt===null&&readTogether(opened,entry);
-    openedRecords={...recentOpened(openedRecords,now),[identity(opened)]:now};
+    openedRecords={...openedRecords,[identity(opened)]:now,...(question?{['activity:'+question]:now}:{})};
     for(const item of items)for(const entry of item.entries||[])if(shown(entry))openedRecords[identity(entry)]=now;
     items=items.map(item=>{
       const followed=item.kind==='question'&&item.id===question;

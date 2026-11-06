@@ -152,6 +152,12 @@ test('opening a co-signed record on one MEP leaves unrelated activity unread',()
  store.markEntryRead('mep:42','activity',motion);
  assert.deepEqual(unread(store,'42'),['speech-42']);assert.deepEqual(unread(store,'43'),['speech-43']);
 });
+test('opening an answer remembers its question for a copy found later',()=>{
+ const store=sharedStore(storage(),[]);
+ store.materialize(detail([[answerId,1,6]],[shared[1]],{member:'42'}));store.markEntryRead('mep:42','answer',answerId);
+ store.materialize(detail([[question.id,0,6]],[shared[0]],{member:'43'}));
+ assert.deepEqual(unread(store,'43'),[]);
+});
 test('Mark all read stays on its own card',()=>{
  const store=sharedStore();store.markRead('mep:42');
  assert.deepEqual(unread(store,'42'),[]);assert.equal(unread(store,'43').length,3);
@@ -173,6 +179,9 @@ test('opened records outlast history compaction and reloads, then expire',t=>{
  const reloaded=createSavedStore(disk),current={...manifest(6),members:{42:[6,6,1,1],43:[6,6,1,1]}};reloaded.applyManifest(current);
  reloaded.materialize(detail(rows,[],{member:'43'}));assert.deepEqual(unread(reloaded,'43'),[]);
  now+=31*24*3600_000;
+ store.applyManifest({...current,generation:7,members:{42:[7,7,1,1],43:[7,7,1,1]}});
+ store.materialize(detail(ids.map(id=>[id,0,7]),[],{member:'43',generation:7}));
+ assert.equal(unread(store,'43').length,1,'in an open tab only the row still in history stays read');
  createSavedStore(disk).publish();
  assert.deepEqual(JSON.parse(disk.getItem(SAVED_KEY)).openedRecords,{});
 });
