@@ -94,10 +94,28 @@ export const procedureReferences=topic=>(topic.procedureIds||[]).filter(id=>/^\d
 
 const count=value=>Number.isSafeInteger(value)&&value>=0;
 const totals=value=>value&&['for','against','abstaining'].every(key=>value[key]===null||count(value[key]));
+const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+const validStandouts=value=>object(value)
+  &&(value.closest===null||object(value.closest)&&typeof value.closest.voteId==='string'&&typeof value.closest.agendaItemId==='string'&&object(value.closest.totals)&&['for','against','abstaining'].every(key=>count(value.closest.totals[key])))
+  &&(value.split===null||object(value.split)&&typeof value.split.voteId==='string'&&typeof value.split.agendaItemId==='string'&&Number.isSafeInteger(value.split.differing)&&value.split.differing>0);
 /** The week-results contract. Anything else reads as unavailable. */
 export const validWeekResults=data=>Boolean(data&&typeof data.week==='string'&&(data.location===null||typeof data.location==='string')
   &&Array.isArray(data.days)&&data.days.every(day=>typeof day?.sittingId==='string'&&typeof day.complete==='boolean'&&(day.complete?count(day.voteCount)&&count(day.rollCallCount)&&count(day.notConducted):day.voteCount===null&&day.rollCallCount===null&&day.notConducted===null))
+  &&validStandouts(data.standouts)
   &&Array.isArray(data.items)&&data.items.every(item=>typeof item?.agendaItemId==='string'&&count(item.voteCount)&&(item.main===null||typeof item.main?.id==='string'&&totals(item.main.totals))));
 
 /** Exact totals only when every sitting with votes was read completely. */
 export const resultsComplete=(results,voteDayIds)=>voteDayIds.every(id=>results.days.find(day=>day.sittingId===id)?.complete===true);
+
+/**
+ * The facts that stood out in a finished week, each with the agenda row it belongs to.
+ * A fact whose agenda item is not on the page is left out rather than shown without a title.
+ */
+export function weekStandouts(results,topics) {
+  const facts=[],standouts=results?.standouts;
+  const named=agendaItemId=>topics.find(topic=>topic.id===agendaItemId)||null;
+  const closest=standouts?.closest,split=standouts?.split;
+  if(closest&&named(closest.agendaItemId))facts.push({kind:'closest',voteId:closest.voteId,topic:named(closest.agendaItemId),for:closest.totals.for,against:closest.totals.against});
+  if(split&&named(split.agendaItemId))facts.push({kind:'split',voteId:split.voteId,topic:named(split.agendaItemId),count:split.differing});
+  return facts;
+}

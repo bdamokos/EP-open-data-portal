@@ -41,9 +41,10 @@ async function retainedProcedure(id) {
 }
 const procedureLabel=node=>typeof node?.label==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(node.label)?node.label:null;
 // Freeze one group-history generation and one evidence graph for the read.
-export function decisionVotesContext(day,store,{derived=null}={}) {
+export function decisionVotesContext(day,store,{derived=null,sharedHistory}={}) {
   const generation=store?.status().servingGeneration||null;
-  const history=generation?groupHistorySnapshot(store,generation):null;
+  // A caller projecting several days of one request reads the group history once and passes it back.
+  const history=sharedHistory!==undefined?sharedHistory:generation?groupHistorySnapshot(store,generation):null;
   return {derived:derived||deriveVoteEvidence(day,{includeBindingEvidence:true}),generation,history,groupOn:createGroupOn(history),decisions:new Map(day.decisions.map(d=>[d.activity_id,d]))};
 }
 // A held, exact-key read; a procedure outside the index is simply unknown here.

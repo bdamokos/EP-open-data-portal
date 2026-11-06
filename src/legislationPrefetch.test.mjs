@@ -14,6 +14,7 @@ function response(params) {
     ...selected,phase:'past',procedures:[],committeeWork:[],roles:[],speeches:[],people:[],stats,votes:[],selectedVote:null,voteCoverage:{truncated:false},coverage:{roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}
   }:null};
 }
+let calendarResponse=null;
 async function harness(t,width=1440,query='') {
   const window=new Window({url:'http://localhost/?view=legislation'+query}),originals=new Map(),requests=[],agendaRequests=[];
   for(const [key,value] of Object.entries({window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,innerWidth:width,requestAnimationFrame:callback=>{callback();return 0;},IS_REACT_ACT_ENVIRONMENT:true})) {
@@ -22,7 +23,9 @@ async function harness(t,width=1440,query='') {
   let root,loadModule;
   t.mock.method(globalThis,'fetch',(input,options)=>{
     const url=new URL(input,location.href);
-    if(url.pathname.endsWith('/insights/week-results'))return Promise.resolve(Response.json({version:1,week:url.searchParams.get('week'),location:null,days:[],items:[]}));
+    // The default agenda week waits for the sitting calendar; no calendar keeps the latest week.
+    if(url.pathname.endsWith('/vote-periods'))return Promise.resolve(calendarResponse?calendarResponse():Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}}));
+    if(url.pathname.endsWith('/insights/week-results'))return Promise.resolve(Response.json({version:2,week:url.searchParams.get('week'),location:null,standouts:{closest:null,split:null},days:[],items:[]}));
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected request '+url);
     if(!url.searchParams.has('topic')){agendaRequests.push(url);return Promise.resolve(Response.json(response(url.searchParams)));}
     return new Promise(resolve=>requests.push({url,...options,resolve,settled:false}));
@@ -142,4 +145,15 @@ for(const width of [1440,390])for(const query of ['', '&agenda-period=week:lates
   }
   await act(async()=>container.querySelector('.insight-agenda-navigation button').click());
   assertAgenda();assert.equal(container.querySelector('.insight-topic-detail h2').textContent,'Week of Oct 5, 2026');
+});
+
+const coverage={status:'complete',years:[]};
+for(const [name,calendar,expected] of [
+  ['opens on the next sitting week when none is current',()=>Response.json({version:4,weeks:[{week:'2026-10-05',sittings:[{sittingId:'MTG-PL-2026-10-07',date:'2026-10-07'}]}],upcoming:[{week:'2099-01-05',sittings:[{sittingId:'MTG-PL-2099-01-07',date:'2099-01-07'}]}],coverage}),'2099-01-05'],
+  ['keeps the latest week when the calendar fails',()=>Response.json({error:{message:'down'}},{status:503}),'latest'],
+  ['keeps the latest week when the calendar is malformed',()=>Response.json({version:4,weeks:[{week:'bad',sittings:[]}],upcoming:[],coverage}),'latest'],
+])test('the default agenda week '+name,async t=>{
+  calendarResponse=calendar;t.after(()=>{calendarResponse=null;});
+  const h=await harness(t,1440);
+  assert.deepEqual(h.agendaRequests.map(url=>url.searchParams.get('week')),[expected]);
 });

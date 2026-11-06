@@ -3,9 +3,10 @@ import {UiMessage,useUiI18n} from './UiI18nReact';
 import {useInsightData} from './InsightData';
 import {agendaTitle} from './topicPresentation.mjs';
 import {dossierLinkClick} from './dossierJourney';
+import {recordHref} from './TopicsLinks';
 import {
   agendaShows,dayChipText,deadlineParts,nextDeadlines,pastCount,procedureReferences,resultLine,resultText,resultsComplete,showCounts,sittingRange,upcomingCount,
-  validWeekResults,visibleTopics,voteHref,weekMode,weekOfDate,weekResultsRoute,type AgendaShow,
+  validWeekResults,visibleTopics,voteHref,weekMode,weekOfDate,weekResultsRoute,weekStandouts,type AgendaShow,
 } from './weekSummaryPresentation.mjs';
 import type {AgendaTopic,LegislationResponse,WeekResultsResponse} from './LegislationTypes';
 import './PlenaryWeekSummary.css';
@@ -82,6 +83,27 @@ function DayChips({data,results,language}:{data:LegislationResponse;results:Week
   })}</ul>;
 }
 
+/** The agenda item the way the agenda list opens it, with the decision selected inside it. */
+export function standoutHref(agendaItemId:string,voteId:string,language:string) {
+  const query=new URLSearchParams(recordHref(agendaItemId).slice(1));
+  query.set('agenda-vote',voteId);query.set('lang',language);
+  return '?'+query;
+}
+
+/** The closest vote and the biggest split from group, for a finished week. */
+function Standouts({data,results,language}:{data:LegislationResponse;results:WeekResults;language:string}) {
+  const ui=useUiI18n();
+  if(weekMode(data.agendaSittings||[])!=='past')return null;
+  const facts=weekStandouts(results.data,data.topics);
+  if(!facts.length)return null;
+  return <ul className="week-standouts" lang={ui.language}>{facts.map(fact=>{
+    const vote=<a href={standoutHref(fact.topic.id,fact.voteId,ui.language)} lang={fact.topic.titleLanguage??''} onClick={dossierLinkClick}>{agendaTitle(fact.topic.title)}</a>;
+    return <li key={fact.kind}>{fact.kind==='closest'
+      ?<UiMessage id="weekSummary.closest" values={{vote,for:fact.for,against:fact.against}}/>
+      :<UiMessage id="weekSummary.split" values={{vote,count:ui.t('weekSummary.meps',{count:fact.count})}}/>}</li>;
+  })}</ul>;
+}
+
 function Deadlines({data,language}:{data:LegislationResponse;language:string}) {
   const ui=useUiI18n(),rows=nextDeadlines(data.topics,Date.now());
   if(!rows.length)return null;
@@ -128,6 +150,7 @@ export function PlenaryWeekSummary({data,results,language,onOpen,list=false}:{da
     <Heading data={data} results={results} language={language}/>
     <CountLine data={data} results={results}/>
     <DayChips data={data} results={results} language={language}/>
+    <Standouts data={data} results={results} language={language}/>
     <Deadlines data={data} language={language}/>
     {!list&&<>{results.error?null:<Results data={data} results={results} language={language} onOpen={onOpen}/>}<Upcoming data={data} language={language} onOpen={onOpen}/></>}
   </div>;

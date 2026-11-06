@@ -9,7 +9,7 @@ const topic=(id,kind,extra={})=>({id,kind,sittingId:id.slice(0,17),title:id.incl
 const day=(id,phase)=>({id,date:id.slice(7),phase,agendaComplete:true,agendaError:null});
 const past={week:'2026-10-19',agendaSittings:[day('MTG-PL-2026-10-19','past'),day('MTG-PL-2026-10-21','past'),day('MTG-PL-2026-10-22','past')],topics:[
   topic('MTG-PL-2026-10-19-OJ-ITM-D-1','PLENARY_DEBATE'),topic('MTG-PL-2026-10-21-OJ-ITM-V-71','PLENARY_VOTE'),topic('MTG-PL-2026-10-22-OJ-ITM-V-52','PLENARY_VOTE'),topic('MTG-PL-2026-10-22-OJ-ITM-V-60','PLENARY_VOTE')]};
-const results={version:1,week:'2026-10-19',location:'Strasbourg',days:[{sittingId:'MTG-PL-2026-10-22',complete:true,voteCount:31,rollCallCount:20,notConducted:4},{sittingId:'MTG-PL-2026-10-21',complete:true,voteCount:0,rollCallCount:0,notConducted:0},{sittingId:'MTG-PL-2026-10-19',complete:true,voteCount:5,rollCallCount:5,notConducted:0}],items:[
+const results={version:2,week:'2026-10-19',location:'Strasbourg',standouts:{closest:{voteId:'MTG-PL-2026-10-22-DEC-198405',agendaItemId:'MTG-PL-2026-10-22-OJ-ITM-V-52',outcome:'ADOPTED',totals:{for:321,against:319,abstaining:5}},split:{voteId:'MTG-PL-2026-10-21-DEC-1',agendaItemId:'MTG-PL-2026-10-21-OJ-ITM-V-71',differing:48}},days:[{sittingId:'MTG-PL-2026-10-22',complete:true,voteCount:31,rollCallCount:20,notConducted:4},{sittingId:'MTG-PL-2026-10-21',complete:true,voteCount:0,rollCallCount:0,notConducted:0},{sittingId:'MTG-PL-2026-10-19',complete:true,voteCount:5,rollCallCount:5,notConducted:0}],items:[
   {agendaItemId:'MTG-PL-2026-10-22-OJ-ITM-V-52',voteCount:35,main:{id:'MTG-PL-2026-10-22-DEC-198405',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:454,against:34,abstaining:93}}}]};
 
 async function mount(t,props) {
@@ -65,7 +65,7 @@ test('an upcoming week shows the sitting dates, counts, next deadlines and items
     topic('MTG-PL-2026-11-11-OJ-ITM-D-1','PLENARY_DEBATE'),
     topic('MTG-PL-2026-11-11-OJ-ITM-V-2','PLENARY_VOTE',{procedureIds:['2025-0235'],deadlines:[{id:'d1',end,type:'def/ep-activities/TABLING_PLENARY',labels:{de:'Frist'}}]}),
     topic('MTG-PL-2026-11-12-OJ-ITM-V-3','PLENARY_VOTE')]};
-  const view=await mount(t,{data,results:{data:{version:1,week:'2026-11-09',location:'Brussels',days:[],items:[]},error:null}});
+  const view=await mount(t,{data,results:{data:{version:2,week:'2026-11-09',standouts:{closest:null,split:null},location:'Brussels',days:[],items:[]},error:null}});
   assert.equal(view.querySelector('h2').textContent,'Week of Nov 9, 2026 · Brussels · Nov 11–12');
   assert.equal(view.querySelector('.week-count').textContent,'2 votes and 1 debate scheduled.');
   assert.equal(view.querySelector('.week-days'),null);
@@ -102,5 +102,30 @@ test('totals are withheld while a voting day is only partly read',async t=>{
 test('a deadline later today still shows on a sitting day that has begun',async t=>{
   const end=new Date(Date.now()+3600_000).toISOString();
   const today={week:'2026-11-09',agendaSittings:[day('MTG-PL-2026-11-09','today')],topics:[topic('MTG-PL-2026-11-09-OJ-ITM-V-2','PLENARY_VOTE',{deadlines:[{id:'d',end,type:'def/ep-activities/TABLING_PLENARY',labels:{}}]})]};
-  assert((await mount(t,{data:today,results:{data:{version:1,week:'2026-11-09',location:null,days:[],items:[]},error:null}})).querySelector('.week-deadlines'));
+  assert((await mount(t,{data:today,results:{data:{version:2,week:'2026-11-09',standouts:{closest:null,split:null},location:null,days:[],items:[]},error:null}})).querySelector('.week-deadlines'));
+});
+
+test('a finished week lists the closest vote and the biggest split, each linking to its vote',async t=>{
+  const view=await mount(t,{data:past,results:{data:results,error:null}});
+  const lines=[...view.querySelectorAll('.week-standouts li')];
+  assert.deepEqual(lines.map(li=>li.textContent),['Closest vote: Erasmus+ programme 2028-2034 ***I, 321 to 319','Most MEPs against their group: Title V-71, 48 MEPs']);
+  // Routes that exist on main: the agenda item, with its decision selected.
+  assert.equal(lines[0].querySelector('a').getAttribute('href'),'?view=legislation&agenda-topic=MTG-PL-2026-10-22-OJ-ITM-V-52&agenda-period=sitting%3AMTG-PL-2026-10-22&agenda-vote=MTG-PL-2026-10-22-DEC-198405&lang=en');
+  assert.equal(lines[1].querySelector('a').getAttribute('href'),'?view=legislation&agenda-topic=MTG-PL-2026-10-21-OJ-ITM-V-71&agenda-period=sitting%3AMTG-PL-2026-10-21&agenda-vote=MTG-PL-2026-10-21-DEC-1&lang=en');
+  assert(!lines.some(li=>li.querySelector('a').getAttribute('href').includes('pl-mode')));
+});
+
+test('a missing fact is left out, and no facts leave no list',async t=>{
+  const one=await mount(t,{data:past,results:{data:{...results,standouts:{closest:null,split:{...results.standouts.split,differing:1}}},error:null}});
+  assert.deepEqual([...one.querySelectorAll('.week-standouts li')].map(li=>li.textContent),['Most MEPs against their group: Title V-71, 1 MEP']);
+});
+
+test('a week with no standouts shows none',async t=>{
+  const empty=await mount(t,{data:past,results:{data:{...results,standouts:{closest:null,split:null}},error:null}});
+  assert.equal(empty.querySelector('.week-standouts'),null);
+});
+
+test('standouts stay off a week that is still ahead or running',async t=>{
+  const mixed={...past,agendaSittings:[past.agendaSittings[0],{...past.agendaSittings[1],phase:'upcoming'}]};
+  assert.equal((await mount(t,{data:mixed,results:{data:results,error:null}})).querySelector('.week-standouts'),null);
 });
