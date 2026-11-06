@@ -15,7 +15,8 @@ import {missingSourceDelay,sourceMissing,transientSourceDelay,confirmSourceRejec
 import {requestTimeout,runWithRequestSignal} from './request-budget.mjs';
 import {collectVoteChairs} from './vote-chairs.mjs';
 import {SittingSnapshotWriter,sittingSnapshotHints,SITTING_CALENDAR_VERSION,SITTING_SNAPSHOT_SCHEMA,SNAPSHOT_MAX_BYTES} from './sitting-snapshot-store.mjs';
-import {retainMemberVoteRecord,missingMemberVoteRecord} from './member-vote-record-store.mjs';
+import {retainMemberVoteRecord,missingMemberVoteRecord,retagMemberVoteRecord,memberVoteRecordNeedsOnlyTags} from './member-vote-record-store.mjs';
+import {topicsGeneration} from './member-vote-record-topics.mjs';
 
 const SIX_HOURS=6*60*60_000;
 const agendaEndpoint=id=>'/meetings/'+id.slice(0,17)+'/foreseen-activities';
@@ -93,7 +94,7 @@ export class SittingSnapshotCollector {
   projectionBacklog(){
     const now=this.store.clock();
     if(this.projectionCheckAt!==null&&now-this.projectionCheckAt<5000)return this.projectionCheckId;
-    const id=missingMemberVoteRecord(this.store,MEMBER_VOTE_SNAPSHOT_VERSION,this.store.get('active')??null,[...this.projectionFailed].filter(([,failure])=>failure.until>now).map(([id])=>id));
+    const id=missingMemberVoteRecord(this.store,MEMBER_VOTE_SNAPSHOT_VERSION,this.store.get('active')??null,[...this.projectionFailed].filter(([,failure])=>failure.until>now).map(([id])=>id),topicsGeneration(this.store));
     this.projectionCheckAt=now;this.projectionCheckId=id;
     return id;
   }
@@ -103,6 +104,12 @@ export class SittingSnapshotCollector {
     const id=this.projectionBacklog();
     if(!id)return false;
     this.projectionCheckAt=null;
+    // Only the topics changed: re-tag from the row, without reading the snapshot.
+    if(memberVoteRecordNeedsOnlyTags(this.store,id,MEMBER_VOTE_SNAPSHOT_VERSION,this.store.get('active')??null)) {
+      try{retagMemberVoteRecord(this.store,id);}catch{this.projectionFailure(id);return false;}
+      this.projectionFailed.delete(id);
+      return true;
+    }
     const saved=new SittingSnapshotReader({db:this.store.db,clock:this.store.clock}).read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,id,{lastGood:true,partial:true});
     if(!saved?.day||saved.day.sittingId!==id){this.projectionFailure(id);return false;}
     try{retainMemberVoteRecord(this.store,saved.day,MEMBER_VOTE_SNAPSHOT_VERSION);}catch{this.projectionFailure(id);return false;}

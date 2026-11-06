@@ -7,7 +7,7 @@ import {ActivityStore} from './activity-index-store.mjs';
 import {createGroupOn} from './group-attribution.mjs';
 import {groupHistorySchema} from './group-history.mjs';
 import {voteFixture} from './test-support/decision-votes.mjs';
-import {writeMemberVoteRecord,missingMemberVoteRecord,retainMemberVoteRecord} from './member-vote-record-store.mjs';
+import {writeMemberVoteRecord,missingMemberVoteRecord,retainMemberVoteRecord,retagMemberVoteRecord,memberVoteRecordNeedsOnlyTags} from './member-vote-record-store.mjs';
 
 const recordsComplete=day=>{day.coverage={...day.coverage,completeness:{...day.coverage?.completeness,complete:false,votingRecordsComplete:true}};return day;};
 function setup(t) {
@@ -86,4 +86,43 @@ test('a sitting is projected on complete voting records even with an unfinished 
   const unread=structuredClone(fixture.day);
   unread.coverage={completeness:{complete:false,votingRecordsComplete:false,declaredDecisionCount:3,conflictingDecisionIds:[]}};
   assert.equal(status(unread).reason,'records-incomplete');
+});
+
+function topicRecords(store,generation,assignments,procedures=['2025-2117']) {
+  store.db.exec('CREATE TABLE IF NOT EXISTS record_topic_records(generation INTEGER,id TEXT,kind TEXT,date TEXT,group_key TEXT,group_kind TEXT,body TEXT,PRIMARY KEY(generation,id))');
+  store.db.prepare("INSERT OR REPLACE INTO record_topic_records(generation,id,kind,body) VALUES(?,?,'document',?)").run(generation,'A-10-2026-0237',JSON.stringify({procedureIds:procedures,assignments}));
+}
+const keywords=[{key:'eurovoc:08133',role:'keyword'},{key:'place:FRA',role:'place'},{key:'oeil:6.40.08',role:'topic'},{key:'subject-matter:EXT',role:'hidden'}];
+
+test('each member row keeps one mark per named decision, and the sitting row keeps exact tags for them',async t=>{
+  const store=setup(t),fixture=voteFixture(),groupOn=createGroupOn(fixture.history);recordsComplete(fixture.day);
+  topicRecords(store,7,keywords);
+  writeMemberVoteRecord(store,fixture.day,{groupOn,groupGeneration:'g1',snapshotVersion:7,topicGeneration:7});
+  const row=store.db.prepare('SELECT tags,topics_generation FROM member_vote_record_sittings').get();
+  assert.equal(row.topics_generation,7);
+  // Only the microthesaurus of a keyword and a place are tags; OEIL subjects and hidden keys are not.
+  assert.deepEqual(JSON.parse(row.tags),[[fixture.raw.id?.split('/').pop()||JSON.parse(row.tags)[0][0],['2025-2117'],['100195'],['FRA']]]);
+  assert.equal(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_members WHERE member_id='197591'").get().body).vector,'w');
+  assert.equal(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_members WHERE member_id='256852'").get().body).vector,'n','a non-attached vote is recorded but not comparable');
+});
+
+test('a sitting that is current except for its topics is re-tagged without touching the vectors',async t=>{
+  const store=setup(t),fixture=voteFixture(),groupOn=createGroupOn(fixture.history),id=fixture.day.sittingId;recordsComplete(fixture.day);
+  snapshotRow(store,{id});topicRecords(store,7,keywords);
+  writeMemberVoteRecord(store,fixture.day,{groupOn,groupGeneration:'g1',snapshotVersion:7,topicGeneration:7});
+  assert.equal(missingMemberVoteRecord(store,7,'g1',[],7),null,'current');
+  assert.equal(missingMemberVoteRecord(store,7,'g1',[],8),id,'a new topics generation makes the sitting stale');
+  assert.equal(memberVoteRecordNeedsOnlyTags(store,id,7,'g1'),true);
+  assert.equal(memberVoteRecordNeedsOnlyTags(store,id,7,'g2'),false,'a stale group generation still needs the full projection');
+  const vectors=store.db.prepare('SELECT body FROM member_vote_record_members ORDER BY member_id').all().map(row=>row.body);
+  // The pending procedure topics arrive: same documents, more concepts.
+  topicRecords(store,8,[...keywords,{key:'place:DEU',role:'place'}]);
+  assert.equal(retagMemberVoteRecord(store,id,8),true);
+  assert.deepEqual(JSON.parse(store.db.prepare('SELECT tags FROM member_vote_record_sittings').get().tags)[0].slice(1),[['2025-2117'],['100195'],['DEU','FRA']]);
+  assert.equal(store.db.prepare('SELECT topics_generation AS g FROM member_vote_record_sittings').get().g,8);
+  assert.equal(missingMemberVoteRecord(store,7,'g1',[],8),null);
+  assert.deepEqual(store.db.prepare('SELECT body FROM member_vote_record_members ORDER BY member_id').all().map(row=>row.body),vectors);
+  // Without a topics index the tags are empty, never invented.
+  assert.equal(retagMemberVoteRecord(store,id,null),true);
+  assert.deepEqual(JSON.parse(store.db.prepare('SELECT tags FROM member_vote_record_sittings').get().tags)[0].slice(1),[[],[],[]]);
 });

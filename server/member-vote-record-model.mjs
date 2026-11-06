@@ -78,9 +78,10 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
   const documents=resultDocumentMap(day);
   const decisions={},members=new Map(),named={count:0},subjects={};
   const subjectTitles=new Map(derived.subjects.map(subject=>[subject.id,subject.titles]));
+  const subjectDocuments=new Map(derived.subjects.map(subject=>[subject.id,subject.documentIds||[]]));
   function member(id) {
     let value=members.get(id);
-    if(!value){value={memberId:id,sittingId,date,groupCode:null,alignment:emptyAlignment(),wholeText:emptyAlignment(),ballots:{recorded:0,named:0,chaired:0},departures:[]};members.set(id,value);}
+    if(!value){value={memberId:id,sittingId,date,groupCode:null,alignment:emptyAlignment(),wholeText:emptyAlignment(),ballots:{recorded:0,named:0,chaired:0},departures:[],marks:new Map()};members.set(id,value);}
     return value;
   }
   for(const raw of list(day.decisions)) {
@@ -101,7 +102,7 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
     // The result a decision belongs to, only when the link is exact.
     const subjectId=item.subjectId&&['consistent','single-direction'].includes(item.resultRelationship?.binding)&&Object.keys(subjectTitles.get(item.subjectId)||{}).length?item.subjectId:null;
     if(subjectId)subjects[subjectId]=subjectTitles.get(subjectId);
-    decisions[item.id]={subjectId,titles:item.titles||{},referenceTexts:item.referenceTexts||{},outcome:item.outcome,scope:wholeText?'whole-text':item.scope?.kind||'unclassified',wholeText,method:item.method};
+    decisions[item.id]={subjectId,docs:subjectId?subjectDocuments.get(subjectId)||[]:[],titles:item.titles||{},referenceTexts:item.referenceTexts||{},outcome:item.outcome,scope:wholeText?'whole-text':item.scope?.kind||'unclassified',wholeText,method:item.method};
     for(const position of positions)for(const id of actual.groups[position]) {
       if(conflicts.has(id))continue;
       const group=resolve(id,date),attached=attachedGroup(group);
@@ -112,6 +113,8 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
       const alignment=classified==='unclassified'?'notComparable':classified;
       record.alignment[alignment]++;
       if(wholeText)record.wholeText[alignment]++;
+      // One mark per named decision, in named order; capitals are whole-text votes.
+      record.marks.set(named.count-1,(wholeText?String.prototype.toUpperCase:String.prototype.toLowerCase).call({with:'w',against:'a',abstained:'b',notComparable:'n'}[alignment]));
       if(alignment==='against')record.departures.push({decisionId:item.id,date,wholeText,position,line:linePosition});
     }
     // A chairing member's own ballot is omitted rather than counted as absence.
@@ -120,6 +123,8 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
   const sitting={sittingId,date,named:named.count,decisions,subjects,complete:Boolean(day.coverage?.completeness?.votingRecordsComplete)};
   for(const record of members.values()) {
     record.ballots.named=sitting.named;
+    record.vector=Array.from({length:sitting.named},(_,index)=>record.marks.get(index)??'-').join('');
+    delete record.marks;
     const attached=attachedGroup(resolve(record.memberId,date));
     const comparable=record.alignment.with+record.alignment.against,finalComparable=record.wholeText.with+record.wholeText.against;
     record.bySitting={sittingId,date,
