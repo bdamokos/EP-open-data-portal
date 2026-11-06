@@ -16,7 +16,7 @@ import {FollowTopic} from './TopicFollowing';
 import {TopicStory} from './TopicStory';
 import {HEAT_STEPS,heatStep,topicStatusMessage,point,topicsHref,quarterBounds,partialQuarter,lastFullQuarter,defaultMapQuarter,monthRangeLabel,placeValue,risers,agendaTitle,isEuPlace,withBoundaryTies} from './topicPresentation.mjs';
 import {recordHref,agendaTopicTarget} from './TopicsLinks';
-import {useNarrowScreen} from './topicHeat';
+import {useMediaQuery} from './useMediaQuery';
 import {useTopicStatuses} from './topicStatus';
 import type {InsightProps} from './InsightTypes';
 import type {TopicOverview,TopicDetail,TopicSeries,TopicGroup} from './TopicsTypes';
@@ -24,7 +24,7 @@ import './Topics.css';
 const PlacesMap=lazy(()=>import('./PlacesMap'));
 const periodLabel=(p:string)=>p.replace('-',' ');
 export function HeatStrip({data}:{data:TopicOverview}){
- const ui=useUiI18n(),sortLabel=useId(),[sortValue,setSort]=useExplorerParam<string>('t-sort','total',['total','last','current']),[allValue,setAllValue]=useExplorerParam<string>('t-all','0',['0','1']),all=allValue==='1',[viewValue,setView]=useExplorerParam<string>('t-view','',['','grid','list']),narrow=useNarrowScreen(),view=viewValue||(narrow?'list':'grid');
+ const ui=useUiI18n(),sortLabel=useId(),[sortValue,setSort]=useExplorerParam<string>('t-sort','total',['total','last','current']),[allValue,setAllValue]=useExplorerParam<string>('t-all','0',['0','1']),all=allValue==='1',[viewValue,setView]=useExplorerParam<string>('t-view','',['','grid','list']),narrow=useMediaQuery('(max-width: 620px)'),view=viewValue||(narrow?'list':'grid');
  // Sort by the whole term, the last full quarter or, while it runs, the current quarter so far.
  const last=lastFullQuarter(data),latest=data.periods.at(-1)||last,current=latest!==last?latest:'',sort=sortValue==='current'&&!current?'last':sortValue,sortPeriod=sort==='current'?current:sort==='last'?last:'';
  const sorts=[['total',ui.t('topics.thisTerm')],...(last?[['last',periodLabel(last)]]:[]),...(current?[['current',ui.t('topics.periodSoFar',{period:periodLabel(current)})]]:[])];
