@@ -17,7 +17,7 @@ const members=[
 ];
 const directory=(count=members.length)=>({day:'2026-11-06',members:members.length>=count?members.slice(0,count):members,committees,parties:{900:'PN',901:'GRÜNE'},index:{complete:true,loaded:4,total:4,failed:0,error:null},committeeDetails:{complete:true,loaded:2,total:2,failed:0,error:null},sync:{error:null,lastSuccess:null,lastAttempt:null,changedMeps:0,changedCommittees:0}});
 
-async function harness(t,{width,query='lang=en',source=directory()}) {
+async function harness(t,{width,query='view=meps&lang=en',source=directory()}) {
   const window=new Window({url:'http://localhost/?'+query,width,height:900}),unexpected=[];
   const globals={window,document:window.document,location:window.location,history:window.history,localStorage:window.localStorage,Event:window.Event,HTMLElement:window.HTMLElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),matchMedia:window.matchMedia.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
