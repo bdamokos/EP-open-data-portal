@@ -21,8 +21,8 @@
   .member-overview[aria-busy=true] { min-height: 94px; }
   .member-overview { display: grid; gap: 4px; }
   .member-overview ul { display: grid; grid-template-rows: repeat(2, auto); grid-auto-flow: column; grid-auto-columns: calc(50% - 2px); gap: 4px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
-  .member-overview ul:empty { display: none; }
   .member-overview ul:last-child { display: block; overflow: visible; }
+  .member-overview ul:empty { display: none; }
   .member-overview li { scroll-snap-align: start; }
   .explorer .member-overview button { width: 100%; min-height: 36px; padding: 2px 8px; font-size: 13px; line-height: 1.15; }
   .member-overview b { font-size: 15px; }
