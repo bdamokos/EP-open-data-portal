@@ -284,7 +284,7 @@ test('Members filters sort displayed labels in every interface language and pres
   const groups=['S&D','EPP','Renew','The Left','NI','ECR'];
   const members=countries.map((countryCode,i)=>({...member,id:100+i,countryCode,groupCode:groups[i%groups.length]}));
   for(const language of 'bg cs da de el en es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' '))await t.test(language,async t=>{
-    const h=await harness(t,'?lang='+language,url=>url.pathname.endsWith('/directory')?{...directory,members}:fixture(url));
+    const h=await harness(t,'?view=meps&lang='+language,url=>url.pathname.endsWith('/directory')?{...directory,members}:fixture(url));
     const {default:App}=await h.load('/src/App.tsx');
     await h.render(createElement(App));
     const [country,group]=[...h.container.querySelectorAll('.explorer-filter-line select')].slice(-2);
@@ -305,7 +305,7 @@ test('Members filters sort displayed labels in every interface language and pres
 });
 
 test('Members list portraits follow and unfollow MEPs without opening the profile',async t=>{
-  const h=await harness(t,'');
+  const h=await harness(t,'?view=meps');
   const {default:App}=await h.load('/src/App.tsx');
   await h.render(createElement(App));
   const star=()=>h.container.querySelector('[data-member-id="257043"] .explorer-portrait-follow button');

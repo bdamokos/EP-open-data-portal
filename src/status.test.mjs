@@ -133,7 +133,7 @@ test('known committee matches stay usable after another profile fails, with hone
 
 test('completed memberships keep polling promptly until optional committee names arrive',async t=>{
   let response={...directory,committees:[{id:'ENVI',code:'ENVI',names:{}}],committeeDetails:{complete:false,loaded:0,total:1,failed:0,error:null},index:{complete:true,loaded:2,total:2,failed:0,error:null}};
-  const h=await harness(t,'',url=>{
+  const h=await harness(t,'?view=meps',url=>{
     if(url.pathname.endsWith('/directory'))return response;
     if(url.pathname.endsWith('/insights/following-status'))return {epoch:'test',generation:1,marksReady:false,indexComplete:false};
     if(url.pathname.endsWith('/insights/saved'))return {members:[],questions:[]};
