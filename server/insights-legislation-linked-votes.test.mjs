@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
-import {topicVotes} from './insights-legislation-model.mjs';
+import {topicVotes,boundedTopicVotes} from './insights-legislation-model.mjs';
 import {rollCallDecisions} from './insights-participation.mjs';
 
 // Fixture provenance: decision fields below are trimmed copies of nodes in the
@@ -52,4 +52,16 @@ test('decided-on document links are exposed by exact id for the picker and the p
   const by=id=>votes.find(v=>v.id.endsWith(id));
   assert.deepEqual(by('199513').decidedDocumentIds,[sitting+'-VOT-ITM-993352-SPLIT-4-2']);
   assert.deepEqual(by('199510').decidedDocumentIds,[]);
+});
+test('the vote cap bounds one item, so a large sitting keeps votes that sit late in its decision list',()=>{
+  // 2026-10-21 published 400 decisions; slicing the sitting to 250 first dropped later items' votes.
+  const filler=Array.from({length:300},(_,i)=>decision('1'+String(i).padStart(5,'0'),'VOTE_HAND','ADOPTED',{},[parent+'-FILLER']));
+  const late=['199001','199002','199003'].map(n=>decision(n,'VOTE_HAND','ADOPTED'));
+  const big={...decisions,payload:{data:[...filler,...decisions.payload.data,...late]}};
+  const kept=boundedTopicVotes(topic,results,big,new Map(),new Map(),'2026-10-22',undefined,250);
+  assert.equal(kept.truncated,false);
+  assert(kept.votes.some(v=>v.id.endsWith('199003')),'a decision after position 250 is kept');
+  assert.equal(kept.votes.length,7);
+  const capped=boundedTopicVotes(topic,results,big,new Map(),new Map(),'2026-10-22',undefined,5);
+  assert.equal(capped.truncated,true);assert.equal(capped.votes.length,5);
 });

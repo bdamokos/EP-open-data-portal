@@ -83,6 +83,12 @@ export function topicVotes(topic,results,decisions,members,metadata,referenceDat
   return decisions.payload.data.filter(n=>refs(n.inverse_consists_of).some(p=>parentIds.has(p))).map(n=>({...namedVote(n,decisions,members,metadata,referenceDate,groupOn,derived),
     associations:parents.filter(p=>refs(n.inverse_consists_of).includes(canonical(p.id))).map(p=>({resultId:p.activity_id,documentIds:refs(p.based_on_a_realization_of).map(documentId).filter(Boolean),procedureIds:refs(p.inverse_consists_of).map(procedureId).filter(Boolean),agendaItemId:topic.id,resultApiUrl:results.url,resultFetchedAt:sourceDate(results)}))})).sort((a,b)=> (a.scope==='final-text'?0:1)-(b.scope==='final-text'?0:1)||a.id.localeCompare(b.id));
 }
+// The cap bounds one item's votes, not the sitting's decisions: a budget sitting publishes hundreds of
+// decisions across its items, and slicing the sitting first would drop later items' votes without a trace.
+export function boundedTopicVotes(topic,results,decisions,members,metadata,referenceDate,groupOn,limit) {
+  const all=topicVotes(topic,results,decisions,members,metadata,referenceDate,groupOn);
+  return {votes:all.slice(0,limit),truncated:all.length>limit};
+}
 export function finalVotePatterns(votes,members,metadata,groupOn=()=>'unavailable') {
   const finals=votes.filter(v=>v.scope==='final-text'&&v.namedVotersAvailable),observations=new Map();
   for(const vote of finals)for(const [position,people] of Object.entries(vote.groups))for(const person of people){

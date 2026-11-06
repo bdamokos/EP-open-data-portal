@@ -12,7 +12,7 @@ import { odp,agendaCacheRevision } from './odp.mjs';
 import { array,tail } from './activity-index-model.mjs';
 import { canonical,demographicStats,memberPeople } from './insights-model.mjs';
 import { savedMetadata,brusselsDay } from './insights-store.mjs';
-import { agendaTopics,classifyProcedure,topicRoles,topicVotes,finalVotePatterns,refs,committeeEvent } from './insights-legislation-model.mjs';
+import { agendaTopics,classifyProcedure,topicRoles,boundedTopicVotes,finalVotePatterns,refs,committeeEvent } from './insights-legislation-model.mjs';
 import {speakerNameIsSpecific} from './speech-speakers.mjs';
 import {CURRENT_TERM_START} from './analysis-period.mjs';
 import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
@@ -237,8 +237,8 @@ export class LegislationInsights {
           // No false paging, no filter-output=voters (that removes named voters). No vote-method filter:
           // show-of-hands and non-roll-call electronic decisions join the item through the same exact parent link.
           const decisions=await recordSource('/meetings/'+sitting.activity_id+'/decisions',{limit:1,offset:0});
-          const truncated=decisions.payload.data.length>LEGISLATION_LIMITS.decisions;
-          votes=topicVotes(topic,results,{...decisions,payload:{...decisions.payload,data:decisions.payload.data.slice(0,LEGISLATION_LIMITS.decisions)}},members,metadata,sitting.activity_date,groupOn);
+          const bounded=boundedTopicVotes(topic,results,decisions,members,metadata,sitting.activity_date,groupOn,LEGISLATION_LIMITS.decisions);
+          const truncated=bounded.truncated;votes=bounded.votes;
           voteCoverage={available:true,sourceDecisionCount:decisions.payload.data.length,truncated,sourceUrl:decisions.url,fetchedAt:new Date(decisions.fetchedAt).toISOString(),error:null};
         } catch(error){voteCoverage.error=error.message;gaps.push({source:'named roll-calls',message:error.message,sourceError:true});}
       }
