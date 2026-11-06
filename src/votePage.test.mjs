@@ -35,6 +35,22 @@ test('vote corrections name a current member from the directory',async t=>{
  const corrections=[...h.container.querySelectorAll('details')].find(details=>/Vote corrections/.test(details.querySelector('summary').textContent));
  assert.match(corrections.textContent,/Known Member/);assert(!/: MEP\b/.test(corrections.textContent));
 });
+test('the plenary view renders the vote page on its route, without the agenda read',async t=>{
+ const f=voteFixture();f.raw.referenceText={en:'Article 1'};const data=await f.read();
+ const window=new Window({url:'http://localhost/?view=legislation&pl-mode=vote&pl-vote='+decisionId+'&lang=en'}),old=new Map();
+ for(const [key,value] of Object.entries({window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true})){old.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});}
+ const calls=[];t.mock.method(globalThis,'fetch',async input=>{const target=new URL(input,window.location.href);calls.push(target.pathname);return target.pathname.includes('decision-votes')?Response.json(data):Response.json({});});
+ const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+ const {Legislation}=await load('/src/Legislation.tsx'),{createRoot}=await import('react-dom/client');
+ const container=window.document.createElement('div');window.document.body.append(container);const root=createRoot(container);
+ t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
+ await act(async()=>root.render(createElement(Legislation,{language:'en',onBack:()=>{},onNavigate:()=>{},onMember:()=>{},onSaved:()=>{}})));
+ await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
+ assert.equal(container.querySelector('[data-vote-page]').dataset.votePage,decisionId);
+ assert.match(container.querySelector('[data-vote-page] h1').textContent,/Amendment 114 was adopted/);
+ assert.equal(container.querySelector('.insight-mode-nav'),null);
+ assert(!calls.some(path=>path.includes('insights/legislation')));
+});
 test('a show of hands has no group table or voter list and says so in the sentence',async t=>{
  const f=voteFixture();f.raw.referenceText={en:'Article 1'};f.raw.decision_method='def/ep-entities/VOTE_HAND';for(const key of ['had_voter_favor','had_voter_against','had_voter_abstention','number_of_votes_favor','number_of_votes_against','number_of_votes_abstention'])delete f.raw[key];
  const data=await f.read(),h=await mount(t,async()=>Response.json(data));
