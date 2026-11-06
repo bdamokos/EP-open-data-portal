@@ -1,3 +1,4 @@
+import {resolutionBoundaryNative,boundaryParagraph} from '../scripts/fixtures/resolution-boundary-native.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -105,6 +106,21 @@ test('missing document languages use one exact translated list and amendment num
     assert.equal(result.amendment.variants.at(-1).source.language,expected);assert.deepEqual(calls,['/plenary-documents/'+id,'/documents/'+listId]);
     assert.equal(bodyCalls.length,expected==='fr'?1:2);
   }
+});
+
+test('translated context placement receives the indexed edition address',async()=>{
+  const input=resolutionBoundaryNative({point:true,change:xml=>xml.replace(boundaryParagraph('b)\tdeuxième point;',{indent:300}),[...'bcdefghijklm'].map(label=>boundaryParagraph(label+')\tPublished point;',{indent:300})).join(''))});
+  const selected={...indexed,baseline:'motion-resolution',targetLabelLanguage:'en',targetLabel:'Paragraph 1 – point l a (new)',originalText:'',proposedText:'(la) New point;'};
+  const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:'eli/dl/doc/'+id,is_realized_by:[{language:'fr',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:source.url.replace('_en','_fr')}]}]};
+  const reader=service({findAmendment:()=>selected,request:async path=>record(path==='/documents/'+listId?list:{...work,originalLanguage:['en'],inverse_foresees_change_of:['eli/dl/doc/'+listId]}),readText:async()=>({...input.text,status:'available',availableTextLanguages:['fr']})});
+  reader.readList=async(_list,file)=>({source:{...source,url:file.url,language:'fr'},extraction:{amendments:[{...input.wording,number:40,authors:[]}]}});
+  const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+  assert.equal(result.wordingLanguageFallback.language,'fr');
+  assert.equal(result.placement.status,'placed',result.placement.reason);
+  assert.deepEqual([result.placement.insertAfter,result.placement.insertBefore],[14,15]);
+  const consensus=result.placement.evidence.find(e=>e.basis==='held-edition-address-consensus');
+  assert.deepEqual(consensus.editions.map(e=>e.language),['en','fr']);
+  assert.equal(result.amendment.variants.find(v=>v.language==='fr').targetLabel,input.wording.targetLabel);
 });
 
 test('translation fallback retains unavailable evidence for a different number, target, or duplicate language file',async()=>{

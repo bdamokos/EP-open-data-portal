@@ -8,7 +8,7 @@
   if (!Object.hasOwn(titles, view)) view = 'members';
   var title = titles[view];
   if (view === 'legislation') {
-    var modes = { participation: 'What’s hot', cloud: 'Plenary word cloud', topics: 'Topics', dossier: 'Dossiers', vote: 'Vote' };
+    var modes = { participation: 'What’s hot', cloud: 'Plenary word cloud', topics: 'Topics', dossier: 'Dossiers', read: 'Document', vote: 'Vote' };
     var mode = query.get('pl-mode');
     if (mode === 'dossier' && !(query.get('dossier-ref') || '').trim()) mode = 'agenda';
     if (mode === 'vote' && !(query.get('pl-vote') || '').trim()) mode = 'agenda';

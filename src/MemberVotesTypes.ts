@@ -98,18 +98,26 @@ export type MemberVoteSittingCoverage = {
   pendingVotes?:{scheduledVoteCount:number;startsAt:string|null}|null;
 };
 
+export type MemberVoteRow = Pick<MemberVote,'id'|'sittingId'|'date'|'scope'|'method'|'outcome'|'ballotStatus'|'actualPosition'|'intention'|'subjectId'|'alignment'|'totals'|'title'|'titleLanguage'|'titles'|'referenceTexts'> & {
+  namedVoters:Pick<MemberVote['namedVoters'],'available'>;
+  resultRelationship:Pick<MemberVote['resultRelationship'],'binding'>;
+  context:Pick<MemberVote['context'],'amendmentIds'>;
+  parts:Pick<MemberVotePart,'number'|'requestScopeByLanguage'>[];
+};
+export type MemberVoteSubjectSummary = Pick<MemberVoteSubject,'id'|'uri'|'title'|'titleLanguage'|'titles'|'documentIds'|'agendaItemIds'|'counts'|'wholeTextDecisions'>;
+
 export type MemberVotesResponse = {
-  version:12;
+  version:13;
   member:{id:string;uri:string;mandateStatus:'not-assessed';historicalGroupStatus:'not-collected'};
   period:{kind:'week'|'sitting';week:string|null;sittingId:string|null;from:string|null;to:string|null};
   snapshotId:string;
   positions:'all'|'recorded';
   alignment:'all'|'with'|'against'|'abstained';
   alignmentCounts:Record<MemberVoteAlignment,number>|null;
-  subjects:MemberVoteSubject[];
+  subjects:MemberVoteSubjectSummary[];
   pagination:{mode?:'period';omittedWhileChairingTotal?:number;offset:number;limit:number;returned:number;observedTotal:number;recordedTotal:number|null;filteredTotal:number;nextOffset:number|null};
-  items:MemberVote[];
-  selected:{status:'found'|'not-found-in-scanned-data'|'unavailable'|'not-requested'|'chairing';item:MemberVote|null};
+  items:MemberVoteRow[];
+  selected:{status:'found'|'not-found-in-scanned-data'|'unavailable'|'not-requested'|'chairing';item:MemberVote|null;siblings?:MemberVote[]};
   coverage:{
     status:'complete'|'partial'|'unavailable';
     collectionComplete:boolean;
@@ -165,7 +173,7 @@ export type MemberVoteRequester = {
   binding:'exact-decision-was_motivated_by';
   evidencePaths:MemberVoteEvidencePath[];
 };
-export type MemberVoteWholeTextDecision = Pick<MemberVote,'id'|'uri'|'date'|'scope'|'method'|'outcome'|'ballotStatus'|'actualPosition'|'intention'|'totals'|'evidencePaths'|'evidenceGaps'>;
+export type MemberVoteWholeTextDecision = Pick<MemberVote,'id'|'date'|'scope'|'method'|'outcome'|'ballotStatus'|'actualPosition'|'intention'|'totals'>;
 export type MemberVoteSubject = {
   id:string;
   uri:string;
