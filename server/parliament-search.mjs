@@ -13,8 +13,9 @@ import {comparable,exactReference} from './vote-evidence.mjs';
 import {indexAvailability} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {periodAvailability} from './source-availability.mjs';
+import {searchReference} from './search-reference.mjs';
 
-export const PARLIAMENT_SEARCH_VERSION=8;
+export const PARLIAMENT_SEARCH_VERSION=9;
 const types=['mep','topic','question'];
 const fold=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase();
 const date=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
@@ -22,7 +23,7 @@ export function parliamentSearchQuery(params) {
   for(const key of params.keys())if(!['q','type','lang','offset','from','to'].includes(key)||params.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated search parameter.');
   const query=params.get('q')?.trim(),type=params.get('type')||'all',raw=params.get('offset')||'0',offset=Number(raw),from=params.get('from'),to=params.get('to');
   if(!query||query.length>200||/[\u0000-\u001f\u007f]/u.test(query))throw new HttpError(400,'invalid_query','Enter up to 200 characters.');
-  if(!['all',...types].includes(type)||!/^\d+$/.test(raw)||!Number.isSafeInteger(offset)||offset>1000)throw new HttpError(400,'invalid_query','Choose a result type and page.');
+  if(!['all',...types,'reference'].includes(type)||!/^\d+$/.test(raw)||!Number.isSafeInteger(offset)||offset>1000)throw new HttpError(400,'invalid_query','Choose a result type and page.');
   if(from&&!date(from)||to&&!date(to)||from&&to&&from>to)throw new HttpError(400,'invalid_date','Choose a valid date range.');
   const terms=[...query.matchAll(/"([^"]+)"|“([^”]+)”|(\S+)/gu)].map(m=>fold(m[1]||m[2]||m[3]));
   if(!terms.length)throw new HttpError(400,'invalid_query','Enter a search term.');
@@ -38,12 +39,50 @@ export const cachedAgendaRequest=(endpoint,params,options)=>{
 // writes another index; missing retained calendars/agendas remain coverage gaps.
 export class ParliamentSearch {
   constructor(store,{request=cachedAgendaRequest,clock=Date.now}={}){this.store=store;this.request=request;this.clock=clock;this.meetings=new MeetingsReader({request,clock,snapshots:request===cachedAgendaRequest?sittingSnapshots:null});}
+  // A pasted reference is looked up by its exact keys; nothing is scanned.
+  reference(query,generation) {
+    const parsed=searchReference(query.query);
+    if(!parsed)return null;
+    const db=this.store.db,body=key=>{const row=db.prepare('SELECT body,fetched_at FROM sources WHERE generation=? AND key=?').get(generation,key);return row?{...JSON.parse(row.body),fetchedAt:row.fetched_at}:null;};
+    const pick=titles=>{const language=languagePreference(Object.keys(titles||{}).filter(key=>typeof titles[key]==='string'&&titles[key].trim()),query.language)[0];return language?{title:titles[language],titleLanguage:language}:{title:null,titleLanguage:null};};
+    const dossier=process=>{const row=body('/procedures/'+process);return row?.label?{reference:row.label,...pick(row.process_title)}:null;};
+    const rows=(sql,...args)=>{try{return db.prepare(sql).all(...args);}catch(error){if(/no such table/.test(error.message))return [];throw error;}};
+    const section=(results,extra={})=>({type:'reference',total:results.length,results,nextOffset:null,truncated:false,coverage:{complete:true,available:true,limited:false},input:parsed.kind,...extra});
+    const missing=extra=>section([],{held:false,...extra});
+    if(parsed.kind==='dossier') {
+      const found=dossier(parsed.process);
+      return found&&(!parsed.type||found.reference.endsWith('('+parsed.type+')'))?section([{id:found.reference,type:'reference',kind:'dossier',reference:found.reference,title:found.title,titleLanguage:found.titleLanguage,date:null,dossier:found.reference}]):missing();
+    }
+    if(parsed.kind==='commission')return section([],{held:null,lookup:{key:parsed.key,reference:parsed.label}});
+    if(parsed.kind==='member') {
+      const row=db.prepare('SELECT body FROM members WHERE id=?').get(parsed.id);
+      if(!row)return parsed.explicit?missing():null;
+      const member=JSON.parse(row.body);
+      return section([{id:parsed.id,type:'reference',kind:'member',reference:parsed.id,title:member.name||[member.firstName,member.lastName].filter(Boolean).join(' ')||'MEP',titleLanguage:null,date:null,member:parsed.id}]);
+    }
+    const documents=parsed.keys.map(key=>[key,body(key)]).filter(([,row])=>row);
+    if(!documents.length)return missing();
+    const source=documents.find(([key])=>!key.startsWith('committee:'))?.[1];
+    const processes=new Set();
+    for(const [key,row] of documents) {
+      if(key.startsWith('committee:'))for(const id of row.procedureIds||[])processes.add(id);
+      else {
+        for(const {procedure} of rows('SELECT procedure FROM dossier_documents WHERE generation=? AND source_key=?',generation,key))processes.add(procedure);
+        for(const {procedure_id} of rows('SELECT procedure_id FROM committee_document_procedures WHERE generation=? AND source_key=?',generation,key))processes.add(procedure_id.replace(/^eli\/dl\/proc\//,''));
+      }
+    }
+    const dossiers=[...processes].filter(id=>/^\d{4}-\d{4}[A-Z]?$/.test(id)).map(dossier).filter(Boolean);
+    const linked=new Set(dossiers.map(found=>found.reference)).size===1?dossiers[0].reference:null;
+    const titled=source?pick(source.title_dcterms):{title:null,titleLanguage:null};
+    return section([{id:parsed.id,type:'reference',kind:/^A-/.test(parsed.id)?'report':'document',reference:source?.label||parsed.id,...titled,date:source?.document_date||null,dossier:linked}]);
+  }
   async query(query) {
     const status=this.store.status(),generation=status.servingGeneration;
     if(!generation)throw new HttpError(503,'search_unavailable','Search unavailable.');
     const selected=types.filter(type=>query.type==='all'||query.type===type),matches=new Map(selected.map(type=>[type,[]]));
     const totals=new Map(selected.map(type=>[type,0]));
-    const compare=type=>(a,b)=>type==='mep'?a.title.localeCompare(b.title,query.language)||a.id.localeCompare(b.id):(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id);
+    const exactName=new Set();
+    const compare=type=>(a,b)=>type==='mep'?exactName.has(b.id)-exactName.has(a.id)||a.title.localeCompare(b.title,query.language)||a.id.localeCompare(b.id):(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id);
     const add=result=>{const rows=matches.get(result.type);totals.set(result.type,totals.get(result.type)+1);rows.push(result);if(rows.length>2020){rows.sort(compare(result.type));rows.length=1010;}};
     const coverage=Object.fromEntries(selected.map(type=>[type,{complete:false,available:true,limited:false}]));
     const inPeriod=value=>(!query.from||value&&value>=query.from)&&(!query.to||value&&value<=query.to);
@@ -52,7 +91,11 @@ export class ParliamentSearch {
     if(matches.has('mep')) {
       for(const row of this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all()) {
         const member=JSON.parse(row.body),name=member.name||[member.firstName,member.lastName].filter(Boolean).join(' ');
-        if(match([row.id,name,...(member.nameVariants||[]).map(variant=>variant.value)]))add({id:row.id,type:'mep',title:name||'MEP',titleLanguage:null,date:null,sourceUrl:'https://www.europarl.europa.eu/meps/en/'+row.id,source:{url:'https://data.europarl.europa.eu/api/v2/meps/show-current',fetchedAt:status.rosterFetchedAt||null}});
+        const names=[name,...(member.nameVariants||[]).map(variant=>variant.value)];
+        if(match([row.id,...names])) {
+          if(names.some(value=>value&&fold(value).split(/\s+/).join(' ')===query.terms.join(' ')))exactName.add(row.id);
+          add({id:row.id,type:'mep',title:name||'MEP',titleLanguage:null,date:null,sourceUrl:'https://www.europarl.europa.eu/meps/en/'+row.id,source:{url:'https://data.europarl.europa.eu/api/v2/meps/show-current',fetchedAt:status.rosterFetchedAt||null}});
+        }
       }
       coverage.mep.complete=Boolean(status.currentMeps);
     }
@@ -130,11 +173,12 @@ export class ParliamentSearch {
       if(coverage.topic.missingAgendas&&!coverage.topic.agendasRead)coverage.topic.available=false;
       coverage.topic.complete=calendarComplete&&!coverage.topic.missingAgendas&&!coverage.topic.missingAgendaPages.length&&!coverage.topic.limited&&!coverage.topic.error&&!coverage.topic.conflicts.length;
     }
-    const sections=selected.map(type=>{
+    const reference=['all','reference'].includes(query.type)?this.reference(query,generation):null;
+    const sections=[...(reference?[reference]:[]),...selected.map(type=>{
       const rows=matches.get(type).sort(compare(type)),total=totals.get(type);
       const next=query.offset+10;
       return {type,total,results:rows.slice(query.offset,next),nextOffset:next<total&&next<=1000?next:null,truncated:total>1010,coverage:coverage[type]};
-    });
+    })];
     if(this.store.status().servingGeneration!==generation)throw new HttpError(409,'generation_changed','Search changed. Try again.');
     return {version:PARLIAMENT_SEARCH_VERSION,query:query.query,offset:query.offset,sections};
   }
