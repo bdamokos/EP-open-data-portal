@@ -17,3 +17,15 @@ test('missing, disagreeing, unparsed or absent edition targets withhold',()=>{
   const input=example();change(input.wording);assert.equal(resolveAmendmentPlacement(input.text,input.wording).status,'unresolved');
  }
 });
+test('negative first-point insertion retains the general placer fallback',()=>{
+ const input=resolutionBoundaryNative({point:true,change:xml=>xml.replace('Le Parlement européen,','The European Parliament,').replace(boundaryParagraph('Sauvegarder le multilatéralisme',{topic:true}),'')});input.text.textLanguage='en';input.wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 1 – point -a (new)',originalText:'',proposedText:'(-a) New first point;'};
+ const result=resolveAmendmentPlacement(input.text,input.wording);
+ assert.equal(result.status,'placed',result.reason);assert.deepEqual([result.insertAfter,result.insertBefore],[1,2]);
+ assert.equal(verifyPlacement({...input,placement:result}).status,'verified');
+});
+test('one independently held other edition can establish the existing target',()=>{
+ const input=example();input.wording.addressEditions=input.wording.addressEditions.slice(0,1);
+ const placement=resolveAmendmentPlacement(input.text,input.wording);
+ assert.equal(placement.status,'placed');assert.equal(placement.insertAfter,14);
+ assert.equal(verifyPlacement({...input,placement}).status,'verified');
+});

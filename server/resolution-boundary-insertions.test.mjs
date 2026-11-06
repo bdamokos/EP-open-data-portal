@@ -7,9 +7,8 @@ test('a new ordinal citation precedes the existing ordinal, preserving both labe
  const input=resolutionBoundaryNative(),placement=place(input);assert.equal(placement.status,'placed',placement.reason);assert.equal(placement.insertBefore,2);assert.equal(placement.evidence.at(-1).basis,'citation-number-collision');assert.equal(verifyPlacement({...input,placement}).status,'verified');
 });
 test('boundary placement requires complete predecessors, the printed new label and an agreeing reference',()=>{
- for(const point of [false])for(const mutate of [a=>a.text.paragraphSources[1].complete=false,a=>a.text.paragraphSources[2].ordinal+=2,a=>a.wording.proposedText='Unlabelled text']){const input=resolutionBoundaryNative({point});mutate(input);assert.equal(place(input).status,'unresolved',mutate.toString());}
+ for(const mutate of [a=>a.text.paragraphSources[1].complete=false,a=>a.text.paragraphSources[2].ordinal+=2,a=>a.wording.proposedText='Unlabelled text']){const input=resolutionBoundaryNative();mutate(input);assert.equal(place(input).status,'unresolved',mutate.toString());}
  const referenced=resolutionBoundaryNative();referenced.wording.referenceText='After §4';assert.equal(place(referenced).status,'unresolved');
-
 });
 
 test('multiline citation extents remain withheld by the ordinal insertion fallback',()=>{

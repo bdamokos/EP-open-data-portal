@@ -84,6 +84,7 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   if (!target.complete || segments?.length < 2 || segments[0].kind !== 'paragraph' || segments.slice(1).some(part => part.kind !== 'point')) return null;
   const units = pointUnits(text, rows, structure);
   if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))) {
+    if(segments.length!==2||!/^\d+$/u.test(String(segments[1].base)))return null;
     const parents=segments.slice(0,-1),points=units.filter(unit=>samePath(unit.path.slice(0,-1),parents));
     if(!points.length)return null;
     const withheld=()=>({operation,status:'unresolved',reason:'conflicting_target_evidence',evidence:[]});
@@ -105,7 +106,8 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   if (!editionResolved && !/\bEUR\s+XXX\b/u.test(options.originalText||'') && segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
     && unit.label === (operation === 'insert' ? segments[1].base : segments[1].value)
     && structure.units.find(parent => parent.start === unit.parent)?.label === segments[0].value)) return null;
-  const evidence = [{basis: 'published-point-path', path: segments.map(({kind, value}) => ({kind, value}))}];
+  const evidence = [{basis: 'published-point-path', path: segments.map(({kind, value}) => ({kind, value}))},
+    ...(editionResolved?[{basis:'held-edition-address-consensus',workingLabel:options.targetLabel,editions:options.addressEditions.map(({language,targetLabel,sourceUrl,source,listId})=>({language,targetLabel,listId,sourceUrl:sourceUrl??source?.url??null}))}]:[])];
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const matches = units.filter(unit => samePath(unit.path, segments));
   if (operation === 'insert') {
