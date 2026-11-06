@@ -53,7 +53,10 @@ export function ParliamentSearchResults({query,type,language,from,to}:{query:str
   // A failed or ambiguous lookup says nothing about the reference, so the sections below stand as they are.
   const block:{results:Result[];missing:boolean}|null=!referenceSection?null
     :referenceSection.lookup?(!found||!['found','not-found'].includes(found.status)?null
-      :found.status==='found'&&found.procedure&&fullDossierReference(found.procedure)?{missing:false,results:[{id:found.procedure,type:'reference',kind:'dossier',reference:found.procedure,title:found.title||null,titleLanguage:found.titleLanguage||null,date:found.date||null,dossier:found.procedure}]}:{missing:true,results:[]})
+      :found.status==='not-found'?{missing:true,results:[]}
+      :found.procedure&&fullDossierReference(found.procedure)?{missing:false,results:[{id:found.procedure,type:'reference',kind:'dossier',reference:found.procedure,title:found.title||null,titleLanguage:found.titleLanguage||null,date:found.date||null,dossier:found.procedure}]}
+      // A found document without exactly one dossier is still a found document.
+      :{missing:false,results:[{id:referenceSection.lookup.key,type:'reference',kind:'document',reference:referenceSection.lookup.reference,title:found.title||null,titleLanguage:found.titleLanguage||null,date:found.date||null,dossier:null}]})
     :{missing:referenceSection.held===false,results:referenceSection.results};
   // The other sections were never going to match a pasted reference, so their empty states stay out of the way.
   const hideEmpty=Boolean(block&&(block.missing||block.results.length));

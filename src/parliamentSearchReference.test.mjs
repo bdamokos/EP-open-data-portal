@@ -49,6 +49,14 @@ test('a Commission reference resolves through the reference lookup',async t=>{
   assert.match(container.querySelector('.explorer-search-reference').textContent,/Dossier · 2025\/0222\(COD\)/);
   assert.match(container.querySelector('.explorer-search-reference a').textContent,/Proposal for Erasmus\+/);
 });
+test('a found Commission document without one dossier is shown, not reported missing',async t=>{
+  const lookup={...empty('reference'),held:null,input:'commission',lookup:{key:'com:2025/549',reference:'COM(2025) 549'}};
+  const {container}=await render(t,{query:'COM(2025) 549',sections:{reference:lookup},commission:{references:[{status:'found',procedure:null,title:'A Commission document',titleLanguage:'en',date:'2025-07-16'}]}});
+  const block=container.querySelector('.explorer-search-reference');
+  assert.match(block.textContent,/Document · COM\(2025\) 549/);
+  assert.doesNotMatch(container.textContent,/No document with this reference/);
+  assert(!block.querySelector('a'),'no dossier to link');
+});
 test('a failed Commission lookup falls through to the ordinary sections',async t=>{
   const lookup={...empty('reference'),held:null,input:'commission',lookup:{key:'com:2025/549',reference:'COM(2025) 549'}};
   const {container}=await render(t,{query:'COM(2025) 549',sections:{reference:lookup}});
