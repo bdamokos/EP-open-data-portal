@@ -31,10 +31,12 @@ async function harness(t,url,respond) {
   const {ReadPage}=await loadModule('/src/ReadPage.tsx'),journey=await loadModule('/src/dossierJourney.ts');
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const settle=async()=>{for(let i=0;i<6;i++)await act(async()=>new Promise(resolve=>setTimeout(resolve,15)));};
-  await act(async()=>root.render(el(ReadPage,{language:'en'})));await settle();
+  const mount=async()=>{await act(async()=>root.render(el(ReadPage,{language:'en'})));await settle();};
+  await mount();
   const click=async element=>{assert(element,'Missing control');await act(async()=>element.click());await settle();};
   const button=text=>[...container.querySelectorAll('button')].find(item=>(item.getAttribute('aria-label')||item.textContent.trim())===text);
-  return {window,container,requests,scrolls,settle,click,button,journey};
+  const remount=async()=>{await act(async()=>root.render(null));await mount();};
+  return {window,container,requests,scrolls,settle,click,button,journey,remount};
 }
 const placedParagraphs=h=>[...h.container.querySelectorAll('[data-proposal-item] [data-source-paragraph]')].map(node=>Number(node.dataset.sourceParagraph));
 
@@ -80,6 +82,8 @@ test('Show whole proposal adds the full text without repeating the amendment and
 test('the whole proposal stays open when the reader navigates away and returns',async t=>{
   const source=proposalContextResponse(report,amendment,list,7);
   const h=await harness(t,readUrl('&read-amendment='+amendment+'&read-list='+list+'&read-lang=en'),()=>source);
+  // With the response cached, the document body and the proposal mount together.
+  await h.remount();
   await h.click(h.button('Show whole proposal'));
   h.journey.rememberDossierOrigin();
   assert.equal(h.journey.dossierReaderValue('read-whole:'+amendment,false),true,'the document body saves its own state under its own name');
