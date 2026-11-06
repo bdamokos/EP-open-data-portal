@@ -519,7 +519,7 @@ export default function App() {
   // Member and Votes tab navigation add one entry through the URL effect.
   const memberStep=useRef(false);
   const pendingDestination=useRef<{view:typeof view;member:number|null;portrait?:number|null;opener?:{node:HTMLElement|null;headerIndex:number}|null}|null>(null);
-  const directoryState=useData<Directory>((view==='outside'||view==='groups'||view==='hemicycle') ? null : "directory");
+  const directoryState=useData<Directory>((homeVisible||view==='outside'||view==='groups'||view==='hemicycle') ? null : "directory");
   const directory = directoryState.data;
   const coverageFollows=useSaved().items;
   useEffect(()=>{coverageStore.observe(directory,coverageFollows,Boolean(directoryState.error));},[directory,directoryState.error,coverageFollows]);

@@ -20,7 +20,7 @@ export function memberWallView(value: string|null): boolean {
 export function explorerViewFromQuery(query: URLSearchParams): ExplorerView|null {
   const view = publicExplorerView(query.get('view'));
   if (view || /^\d+$/.test(query.get('member') || '')) return view;
-  return ['country','committee','group','organization','role'].some(key => query.has(key)) ? 'meps' : null;
+  return ['country','committee','group','organization'].some(key => query.has(key)) || (query.has('role') && query.get('role') !== 'both') ? 'meps' : null;
 }
 
 export function publicMemberModule(value: string|null): string {

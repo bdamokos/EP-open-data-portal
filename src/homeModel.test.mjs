@@ -140,5 +140,6 @@ test('an older directory link with filters and no view opens the directory, so c
   assert.equal(explorerViewFromQuery(query('view=questions&country=CZ')), 'questions');
   assert.equal(explorerViewFromQuery(query('member=840&country=CZ')), null);
   assert.equal(explorerViewFromQuery(query('')), null);
+  assert.equal(explorerViewFromQuery(query('role=both')), null);
   assert.equal(explorerViewFromQuery(query('lang=hu&global-fts-search=x')), null);
 });

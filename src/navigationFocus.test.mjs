@@ -24,7 +24,7 @@ const item={id:'speech:'+speechId,sourceId:speechId,date:'2026-10-07',title:'Pub
 const page=(offset=0)=>({categories:{},categoryGroups:[],categoryCoverage:{},items:offset?[]:[item],selectedItems:[],indexedTotal:11,nextOffset:offset?null:10,cache:{complete:false}});
 
 async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=false, unavailableMemberships=false) {
-  const window=new Window({url:'http://localhost/'+query}),pending=[],unexpected=[],portraitRequests=[];
+  const window=new Window({url:'http://localhost/'+query}),pending=[],unexpected=[],portraitRequests=[],directoryRequests=[];
   if(unavailableMemberships)delete window.IntersectionObserver;
   let releaseModule;const moduleGate=new Promise(resolve=>{releaseModule=resolve;});
   const delayedFile=delayedModule==='saved'?'Saved.tsx':delayedModule==='legislation'?'Legislation.tsx':'GroupVoices.tsx';
@@ -43,6 +43,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
   t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;
     const url=new URL(input,location.href),route=url.pathname.split('/api/')[1];
     if(route?.startsWith('speech-transcript/'))return Response.json({id:route.split('/')[1],available:false});
+    if(route==='directory'){directoryRequests.push(route);}
     if(route==='directory')return Response.json(unavailableMemberships?{...directory,members:[{...member,memberships:null}],index:{complete:false,loaded:0,total:1,failed:0,error:null}}:directory);
     if(route?.startsWith('portrait/')){portraitRequests.push(route);return new Response(null,{status:404});}
     if(route?.startsWith('profile/'))return Response.json(member);
@@ -74,13 +75,13 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
   const click=async node=>{assert(node,'Missing control');node.focus();await act(async()=>node.click());if(!delayedModule)await viewReady(container);};
   const finish=(data,status=200)=>act(async()=>{assert(pending.length,'Missing pending page');pending.shift().resolve(Response.json(data,{status}));});
-  return {window,container,pending,portraitRequests,button,click,finish,releaseView:async()=>{await act(async()=>{releaseModule();await loadModule('/src/'+delayedFile);});await viewReady(container);}};
+  return {window,container,pending,portraitRequests,directoryRequests,button,click,finish,releaseView:async()=>{await act(async()=>{releaseModule();await loadModule('/src/'+delayedFile);});await viewReady(container);}};
 }
 
 for(const [query,expected] of [
   ['',''],
   ['?lang=en&role=both',''],
-  ['?lang=hu&role=member','?lang=hu&role=member'],
+  ['?lang=hu&role=member','?lang=hu&role=member&view=meps'],
   ['?lang=hu&role=substitute&view=outside','?lang=hu&view=outside'],
   ['?global-fts-text-lang=en&global-fts-search=deutsch&lang=en&role=both&view=outside&global-fts-closed=1&ov-person=257105','?view=outside&ov-person=257105'],
 ])test('App omits defaults and irrelevant URL state for '+(query||'the default view'),async t=>{
@@ -157,6 +158,16 @@ test('explicit main-view gestures orient to the current heading without adding h
   const search=h.container.querySelector('.explorer-filters input');search.focus();
   await act(async()=>{search.value='No such member';search.dispatchEvent(new h.window.Event('input',{bubbles:true}));});
   assert.equal(document.activeElement,search,'filter updates do not invoke a page destination');
+});
+
+test('Home does not load or mount the directory; opening the MEPs view does',async t=>{
+  const h=await harness(t);
+  assert(h.container.querySelector('.home'));
+  assert.deepEqual(h.directoryRequests,[]);
+  assert.equal(h.container.querySelector('.explorer-wall [data-member-id]'),null);
+  await h.click(h.button('MEPs'));
+  assert.equal(h.directoryRequests.length,1);
+  assert(h.container.querySelector('.explorer-wall [data-member-id]'));
 });
 
 test('old amendment URLs fall back without exposing or requesting the catalogue',async t=>{
