@@ -77,27 +77,60 @@ function pointUnits(text, rows, structure) {
   }));
 }
 
+// Published list positions: Bulgarian а..щ correspond to Latin a..z;
+// multi-letter labels use those same positions (аа/aa, аб/ab, ...).
+// This table is local to the placer; the oracle defines its own correspondence.
+const editionLetters=new Map([...'абвгдежзийклмнопрстуфхцчшщ'].map((letter,i)=>[letter,String.fromCharCode(97+i)]));
+const editionSuffixes=['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
+function heldEditionPath(edition) {
+  let raw=edition.targetLabel?.normalize('NFC').replace(/\s+/gu,' ').trim();
+  if(edition.language==='bg') {
+    const part=/^(Параграф \d+ [–—-] буква )([а-яa-z]+(?: [а-яa-z]+)*)(.*)$/u.exec(raw||'');
+    if(!part)return null;
+    // Only Latin a/o share both glyph and list position with Cyrillic а/о.
+    const positionLetters=value=>[...value].map(letter=>/[ao]/u.test(letter)?letter:editionLetters.get(letter)??'?').join('');
+    const bits=part[2].split(' '),ending=/\((?:нов|нова|ново)\)/u.test(part[3])&&bits.length>1?' '+positionLetters(bits.pop()):'';
+    raw=part[1]+positionLetters(bits.join(''))+ending+part[3];
+    if(raw.includes('?'))return null;
+  }
+  try {
+    const parsed=parseTargetLabel(raw,edition.language);
+    if(!parsed.complete)return null;
+    return parsed.segments.map(part=>{
+      const rank=editionSuffixes.indexOf(part.suffix);
+      return rank<0?part:{...part,suffix:String.fromCharCode(97+rank),value:part.base+String.fromCharCode(97+rank)};
+    });
+  }catch{return null;}
+}
+
 export function resolutionPointPlacement(text, rows, structure, options, operation) {
   let target;
   try { target = parseTargetLabel(options.targetLabel, options.language); } catch { return null; }
-  const segments = target.segments;
+  let segments = target.segments, editionResolved=false;
   if (!target.complete || segments?.length < 2 || segments[0].kind !== 'paragraph' || segments.slice(1).some(part => part.kind !== 'point')) return null;
-  const firstNumeric=options.language==='fr'&&operation==='insert'&&segments.length===2&&segments[1].isNew&&segments[1].base==='1'&&segments[1].suffix==='bis';
-  if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))&&!firstNumeric) return null;
-  if (!/\bEUR\s+XXX\b/u.test(options.originalText||'') && segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
+  const units = pointUnits(text, rows, structure);
+  if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))) {
+    if(segments.length!==2||!/^\d+$/u.test(String(segments[1].base??segments[1].number)))return null;
+    const parents=segments.slice(0,-1),points=units.filter(unit=>samePath(unit.path.slice(0,-1),parents));
+    if(!points.length)return null;
+    const withheld=()=>({operation,status:'unresolved',reason:'conflicting_target_evidence',evidence:[]});
+    const others=(options.addressEditions||[]).filter(edition=>edition.language!==options.language);
+    if(!others.length)return withheld();
+    const paths=others.map(heldEditionPath);
+    const key=path=>JSON.stringify(path.map(p=>[p.kind,p.base??p.value,p.suffix,p.isNew]));
+    if(paths.some(path=>!path||path.length!==segments.length)||new Set(paths.map(key)).size!==1)return withheld();
+    const candidate=paths[0],last=candidate.at(-1);
+    if(operation!=='insert'||options.originalText!==''||!last.isNew||!last.suffix||!samePath(candidate.slice(0,-1),parents)
+      ||!points.some(point=>point.value===last.base))return withheld();
+    segments=candidate;editionResolved=true;
+  }
+  if (!editionResolved && !/\bEUR\s+XXX\b/u.test(options.originalText||'') && segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
     && unit.label === (operation === 'insert' ? segments[1].base : segments[1].value)
     && structure.units.find(parent => parent.start === unit.parent)?.label === segments[0].value)) return null;
-  const units = pointUnits(text, rows, structure), evidence = [{basis: 'published-point-path', path: segments.map(({kind, value}) => ({kind, value}))}];
+  const evidence = [{basis: 'published-point-path', path: segments.map(({kind, value}) => ({kind, value}))},
+    ...(editionResolved?[{basis:'held-edition-address-consensus',workingLabel:options.targetLabel,editions:options.addressEditions.map(({language,targetLabel,sourceUrl,source,listId})=>({language,targetLabel,listId,sourceUrl:sourceUrl??source?.url??null}))}]:[])];
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const matches = units.filter(unit => samePath(unit.path, segments));
-  if(firstNumeric){
-    const points=units.filter(unit=>unit.path.length===2&&unit.path[0].value===segments[0].value).sort((a,b)=>a.start-b.start),first=points[0],parent=first?.parent;
-    if(!first||first.value!=='a'||!first.complete||points.some(unit=>unit.parent!==parent)||!/^1\s*bis\)\s/u.test(options.proposedText)||options.originalText!==''||options.referenceText)return unresolved('insertion_reference_unavailable');
-    const start=parent.start,interior=first.start-start;
-    if(![1,2].includes(interior)||!/:\s*$/u.test(rows[start].value)||interior===2&&!resolutionSubheading(rows[start+1].value,text.paragraphFormats?.[start+1])||rows.slice(start,first.start+1).some((row,i)=>!row.complete||row.source.container!=='body'||i&&!contiguous(rows[start+i-1],row)))return unresolved('source_passage_incomplete');
-    evidence.push({basis:'first-numeric-point-in-lettered-list',anchor:start});
-    return {operation,status:'placed',insertAfter:start,insertBefore:start+1,evidence};
-  }
   if (operation === 'insert') {
     if (matches.length) return unresolved('duplicate_target_label');
     const label = segments.at(-1);
