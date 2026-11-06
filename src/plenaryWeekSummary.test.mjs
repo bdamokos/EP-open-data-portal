@@ -100,7 +100,10 @@ test('a finished week lists the closest vote and the biggest split, each linking
   const view=await mount(t,{data:past,results:{data:results,error:null}});
   const lines=[...view.querySelectorAll('.week-standouts li')];
   assert.deepEqual(lines.map(li=>li.textContent),['Closest vote: Erasmus+ programme 2028-2034 ***I, 321 to 319','Most MEPs against their group: Title V-71, 48 MEPs']);
-  assert.equal(lines[0].querySelector('a').getAttribute('href'),'?view=legislation&pl-mode=vote&pl-vote=MTG-PL-2026-10-22-DEC-198405&lang=en');
+  // Routes that exist on main: the agenda item, with its decision selected.
+  assert.equal(lines[0].querySelector('a').getAttribute('href'),'?view=legislation&agenda-topic=MTG-PL-2026-10-22-OJ-ITM-V-52&agenda-period=sitting%3AMTG-PL-2026-10-22&agenda-vote=MTG-PL-2026-10-22-DEC-198405&lang=en');
+  assert.equal(lines[1].querySelector('a').getAttribute('href'),'?view=legislation&agenda-topic=MTG-PL-2026-10-21-OJ-ITM-V-71&agenda-period=sitting%3AMTG-PL-2026-10-21&agenda-vote=MTG-PL-2026-10-21-DEC-1&lang=en');
+  assert(!lines.some(li=>li.querySelector('a').getAttribute('href').includes('pl-mode')));
 });
 
 test('a missing fact is left out, and no facts leave no list',async t=>{

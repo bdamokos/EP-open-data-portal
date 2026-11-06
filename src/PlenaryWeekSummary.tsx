@@ -3,6 +3,7 @@ import {UiMessage,useUiI18n} from './UiI18nReact';
 import {useInsightData} from './InsightData';
 import {agendaTitle} from './topicPresentation.mjs';
 import {dossierLinkClick} from './dossierJourney';
+import {recordHref} from './TopicsLinks';
 import {
   agendaShows,dayChipText,deadlineParts,nextDeadlines,pastCount,procedureReferences,resultLine,resultText,resultsComplete,showCounts,sittingRange,upcomingCount,
   validWeekResults,visibleTopics,voteHref,weekMode,weekOfDate,weekResultsRoute,weekStandouts,type AgendaShow,
@@ -82,6 +83,13 @@ function DayChips({data,results,language}:{data:LegislationResponse;results:Week
   })}</ul>;
 }
 
+/** The agenda item the way the agenda list opens it, with the decision selected inside it. */
+export function standoutHref(agendaItemId:string,voteId:string,language:string) {
+  const query=new URLSearchParams(recordHref(agendaItemId).slice(1));
+  query.set('agenda-vote',voteId);query.set('lang',language);
+  return '?'+query;
+}
+
 /** The closest vote and the biggest split from group, for a finished week. */
 function Standouts({data,results,language}:{data:LegislationResponse;results:WeekResults;language:string}) {
   const ui=useUiI18n();
@@ -89,7 +97,7 @@ function Standouts({data,results,language}:{data:LegislationResponse;results:Wee
   const facts=weekStandouts(results.data,data.topics);
   if(!facts.length)return null;
   return <ul className="week-standouts" lang={ui.language}>{facts.map(fact=>{
-    const vote=<a href={voteHref(fact.voteId,ui.language)} lang={fact.topic.titleLanguage??''} onClick={dossierLinkClick}>{agendaTitle(fact.topic.title)}</a>;
+    const vote=<a href={standoutHref(fact.topic.id,fact.voteId,ui.language)} lang={fact.topic.titleLanguage??''} onClick={dossierLinkClick}>{agendaTitle(fact.topic.title)}</a>;
     return <li key={fact.kind}>{fact.kind==='closest'
       ?<UiMessage id="weekSummary.closest" values={{vote,for:fact.for,against:fact.against}}/>
       :<UiMessage id="weekSummary.split" values={{vote,count:ui.t('weekSummary.meps',{count:fact.count})}}/>}</li>;
