@@ -1530,15 +1530,6 @@ test('resolution boundary notes remain with the insertion and preserve the sourc
   let block=h.container.querySelector('[data-amendment-block]');assert.match(block.textContent,/This number already exists in the text\./);assert.match(block.previousElementSibling.textContent,/First citation/);assert.match(block.nextElementSibling.textContent,/Existing second citation/);
 });
 
-test('a numeric point after the paragraph lead carries no note',async t=>{
-  const data=overlayResponse({insertAfter:1,insertBefore:2});
-  data.placement.evidence=[{basis:'first-numeric-point-in-lettered-list'}];
-  const h=await harness(t,()=>data);
-  Object.assign(data.document.selectedText,{paragraphs:['The European Parliament,','1. Paragraph lead:','Topic heading','a) First source point;']});
-  await h.render({request:overlayRequest,language:'en'});
-  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.querySelector('.document-context-notice'),null);assert.match(block.previousElementSibling.textContent,/Paragraph lead/);assert.match(block.nextElementSibling.textContent,/Topic heading/);
-});
-
 test('new-paragraph formula gap remains labelled with its native source link',async t=>{
   const value=proposalContextResponse(report,amendment,list),variant=value.amendment.variants[0];
   variant.gaps=[{code:'formula-not-shown'}];variant.source={url:source};

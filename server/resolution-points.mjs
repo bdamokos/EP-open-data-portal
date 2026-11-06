@@ -80,24 +80,34 @@ function pointUnits(text, rows, structure) {
 export function resolutionPointPlacement(text, rows, structure, options, operation) {
   let target;
   try { target = parseTargetLabel(options.targetLabel, options.language); } catch { return null; }
-  const segments = target.segments;
+  let segments = target.segments, editionResolved=false;
   if (!target.complete || segments?.length < 2 || segments[0].kind !== 'paragraph' || segments.slice(1).some(part => part.kind !== 'point')) return null;
-  const firstNumeric=options.language==='fr'&&operation==='insert'&&segments.length===2&&segments[1].isNew&&segments[1].base==='1'&&segments[1].suffix==='bis';
-  if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))&&!firstNumeric) return null;
-  if (!/\bEUR\s+XXX\b/u.test(options.originalText||'') && segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
+  const units = pointUnits(text, rows, structure);
+  if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))) {
+    const parents=segments.slice(0,-1),points=units.filter(unit=>samePath(unit.path.slice(0,-1),parents));
+    if(!points.length)return null;
+    const withheld=()=>({operation,status:'unresolved',reason:'conflicting_target_evidence',evidence:[]});
+    const others=(options.addressEditions||[]).filter(edition=>edition.language!==options.language);
+    if(!others.length)return withheld();
+    const paths=others.map(edition=>{
+      // Explicit reviewed correspondence: twelfth Bulgarian л / Latin l,
+      // first inserted suffix а / a. Other scripts remain unsupported.
+      const raw=edition.language==='bg'?edition.targetLabel?.replace(/буква л а(?= \()/u,'буква l a'):edition.targetLabel;
+      try {const parsed=parseTargetLabel(raw,edition.language);return parsed.complete?parsed.segments:null;}catch{return null;}
+    });
+    const key=path=>JSON.stringify(path.map(p=>[p.kind,p.base??p.value,p.suffix==='bis'?'a':p.suffix,p.isNew]));
+    if(paths.some(path=>!path||path.length!==segments.length)||new Set(paths.map(key)).size!==1)return withheld();
+    const candidate=paths[0],last=candidate.at(-1);
+    if(operation!=='insert'||options.originalText!==''||!last.isNew||!last.suffix||!samePath(candidate.slice(0,-1),parents)
+      ||!points.some(point=>point.value===last.base))return withheld();
+    segments=candidate;editionResolved=true;
+  }
+  if (!editionResolved && !/\bEUR\s+XXX\b/u.test(options.originalText||'') && segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
     && unit.label === (operation === 'insert' ? segments[1].base : segments[1].value)
     && structure.units.find(parent => parent.start === unit.parent)?.label === segments[0].value)) return null;
-  const units = pointUnits(text, rows, structure), evidence = [{basis: 'published-point-path', path: segments.map(({kind, value}) => ({kind, value}))}];
+  const evidence = [{basis: 'published-point-path', path: segments.map(({kind, value}) => ({kind, value}))}];
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const matches = units.filter(unit => samePath(unit.path, segments));
-  if(firstNumeric){
-    const points=units.filter(unit=>unit.path.length===2&&unit.path[0].value===segments[0].value).sort((a,b)=>a.start-b.start),first=points[0],parent=first?.parent;
-    if(!first||first.value!=='a'||!first.complete||points.some(unit=>unit.parent!==parent)||!/^1\s*bis\)\s/u.test(options.proposedText)||options.originalText!==''||options.referenceText)return unresolved('insertion_reference_unavailable');
-    const start=parent.start,interior=first.start-start;
-    if(![1,2].includes(interior)||!/:\s*$/u.test(rows[start].value)||interior===2&&!resolutionSubheading(rows[start+1].value,text.paragraphFormats?.[start+1])||rows.slice(start,first.start+1).some((row,i)=>!row.complete||row.source.container!=='body'||i&&!contiguous(rows[start+i-1],row)))return unresolved('source_passage_incomplete');
-    evidence.push({basis:'first-numeric-point-in-lettered-list',anchor:start});
-    return {operation,status:'placed',insertAfter:start,insertBefore:start+1,evidence};
-  }
   if (operation === 'insert') {
     if (matches.length) return unresolved('duplicate_target_label');
     const label = segments.at(-1);
