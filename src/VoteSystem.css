@@ -88,14 +88,14 @@
 .vs .ledger th.fig { display:table-cell; }
 .vs .ledger td.n.maj { font-weight:600; }
 .vs .ledger .total th { padding:0 0 var(--s2); border-bottom:2px solid var(--ink); vertical-align:bottom; }
-.vs .ledger .total th.meta { font-size:var(--t-meta); line-height:1.35; }
+.vs .ledger .total th.meta { font-size:var(--t-meta); line-height:1.55; }
 .vs .ledger .grp th,.vs .ledger .grp td { padding:var(--s2) 0; border-bottom:1px solid var(--line); }
 .vs .ledger .grp { cursor:default; }
 .vs .ledger .grp:hover { background:var(--surface-2); }
 .vs .row.total { padding-top:var(--s4); align-items:end; }
 .vs .findbox { padding-top:var(--s3); }
 .vs .find { display:block; }
-.vs .find input { width:100%; max-width:20em; height:36px; padding:0; font:var(--t-meta) var(--font-sans); color:var(--ink); background:transparent; border:0; border-bottom:1px solid var(--line-strong); border-radius:0; -webkit-appearance:none; appearance:none; }
+.vs .find input { width:100%; max-width:20em; height:36px; min-height:36px; padding:0; font:var(--t-meta) var(--font-sans); color:var(--ink); background:transparent; border:0; border-bottom:1px solid var(--line-strong); border-radius:0; -webkit-appearance:none; appearance:none; }
 .vs .find input::placeholder { color:var(--ink-muted); }
 .vs .findans { min-height:1.4em; padding-top:var(--s1); font-size:var(--t-meta); }
 .vs .split { display:grid; grid-template-columns:minmax(0,1fr) var(--table); gap:0 var(--s6); align-items:start; padding-top:var(--s3); }

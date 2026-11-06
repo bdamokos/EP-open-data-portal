@@ -1,4 +1,4 @@
-import {lazy,Suspense,useMemo,useState} from 'react';
+import {lazy,Suspense,useMemo,useRef,useState} from 'react';
 import {UiMessage,useUiI18n} from './UiI18nReact';
 import {VotePartDescriptions} from './MemberVoteSummary';
 import {insightMemberHref} from './InsightShared';
@@ -17,14 +17,14 @@ import {VoteMark} from './VoteMark';
 import {TallyHeads,TallyNumbers,TotalFigure,TotalsFigures,VoteRow} from './VoteRow';
 import {groupLabel,groupLabelLanguage} from './groupLabels';
 import {voteCountryName as countryName} from './voteCountryName';
-import {matchesCountry} from './countries.mjs';
+import {filterCountry,matchesCountry} from './countries.mjs';
 import {delegationBreaks} from './voteGroupMetrics.mjs';
 import {differingVoterIds,planGroupOrder,tableGroupOrder} from './voteSeatsModel.mjs';
 import {panelVoters} from './voterPanelModel.mjs';
 import {groupCounts,type HemicycleSeat} from './hemicycleModel.mjs';
 import {validateVotePeriods,type VotePeriodsResponse} from './plenaryPeriods.mjs';
 import {votePositionKeys,type VotePosition} from './votePositions';
-import type {DecisionVotesResponse,DecisionVoteSibling} from './DecisionVotesTypes';
+import type {DecisionItemVote,DecisionVotesResponse} from './DecisionVotesTypes';
 import type {InsightProps} from './InsightTypes';
 
 import './VoteSystem.css';
@@ -58,13 +58,14 @@ function WayLine({rows,order}:{rows:Row[];order:string[]}) {
 }
 // A group is the same row as a vote, in a real table. Pointing at it picks out its wedge.
 function GroupTable({rows,order,totals,onDim}:{rows:Row[];order:string[];totals:ReturnType<typeof memberVoteTotals>;onDim:(group:string|null)=>void}) {
-  const ui=useUiI18n(),counts=useMemo(()=>groupCountsOf(rows),[rows]);
+  const ui=useUiI18n(),counts=useMemo(()=>groupCountsOf(rows),[rows]),pointer=useRef('mouse'),tapped=useRef<string|null>(null);
+  const tap=(code:string)=>{if(pointer.current==='mouse')return;tapped.current=tapped.current===code?null:code;onDim(tapped.current);};
   return <section className="ledger" id="groups"><table>
     <colgroup><col/><col className="numcol"/><col className="numcol"/><col className="numcol"/></colgroup>
     {totals&&<thead><tr className="total"><th scope="col" className="meta"><UiMessage id="votepage.votes_cast" values={{count:totals.total}} counts={{count:totals.total}}/></th>{votePositionKeys.map(position=><th scope="col" key={position} className={'n fig '+column[position]}><TotalFigure position={position} value={totals[position]}/></th>)}</tr></thead>}
     <tbody>{order.filter(code=>counts.has(code)).map(code=>{
       const row=counts.get(code)!,lead=groupLead(row);
-      return <tr key={code} className="grp" onPointerEnter={event=>{if(event.pointerType==='mouse')onDim(code);}} onPointerLeave={event=>{if(event.pointerType==='mouse')onDim(null);}} onClick={()=>onDim(code)}>
+      return <tr key={code} className="grp" onPointerDown={event=>{pointer.current=event.pointerType;}} onPointerEnter={event=>{if(event.pointerType==='mouse')onDim(code);}} onPointerLeave={event=>{if(event.pointerType==='mouse')onDim(null);}} onClick={()=>tap(code)}>
         <th scope="row"><span className="t" lang={groupLabelLanguage(code,ui)}>{groupName(code,ui)}</span></th>
         {votePositionKeys.map(position=><td key={position} className={['n',column[position],row[position]===0?'zero':'',lead===position?'maj':''].filter(Boolean).join(' ')}>{row[position]}</td>)}
       </tr>;
@@ -90,7 +91,7 @@ function DifferBlock({entries,language}:{entries:ReturnType<typeof differingByGr
   return <div className="people">{entries.map(entry=><p key={entry.code}><b><span lang={groupLabelLanguage(entry.code,ui)}>{groupName(entry.code,ui)}</span> {entry.count}:</b>{entry.positions.map(line=><span key={line.position}> <VoteMark position={line.position}/><Names people={line.people as Row[]} language={language}/></span>)}</p>)}</div>;
 }
 // Every vote on the item, complete, main vote first. The agenda item uses the same rows.
-export function ItemVotes({votes,current,mainVoteId,language}:{votes:DecisionVoteSibling[];current?:string;mainVoteId:string|null;language:string}) {
+export function ItemVotes({votes,current,mainVoteId,language}:{votes:DecisionItemVote[];current?:string;mainVoteId:string|null;language:string}) {
   const ui=useUiI18n();
   const heading=(key:string,count:number)=><h3><UiMessage id={'votepage.section.'+key}/> <small>{count}</small></h3>;
   return <>{itemVoteSections(votes,mainVoteId).map(section=>{
@@ -120,7 +121,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
   const calendar=useData<VotePeriodsResponse>(route?'vote-periods':null,{unavailable:'error.records'});
   const sitting=useMemo(()=>calendar.data&&validateVotePeriods(calendar.data)?calendar.data.weeks.flatMap(week=>week.sittings).find(row=>row.sittingId===decisionId.slice(0,17))??null:null,[calendar.data,decisionId]);
   const chamber=chamberFor(sitting?.location);
-  const planState=useData<HemicyclePlan>(named&&!calendar.loading?`hemicycle/${chamber}`:null,{unavailable:'error.unavailable'});
+  const planState=useData<HemicyclePlan>(named&&(calendar.data||calendar.error)?`hemicycle/${chamber}`:null,{unavailable:'error.unavailable'});
   const plan=planState.data?.chamber===chamber?planState.data:null;
   const seats=useMemo(()=>plan?plan.seats.filter(seat=>seat.member):[],[plan]);
   const voteCounts=useMemo(()=>[...groupCountsOf(rows)].map(([code,counts])=>[code,counts.total] as [string,number]),[rows]);
@@ -199,7 +200,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
         {(activeCountry||filter.group)&&<p className="chip"><button type="button" className="word" onClick={clearFilter}>{filter.group&&<><span lang={groupLabelLanguage(filter.group,ui)}>{groupName(filter.group,ui)}</span>{activeCountry?' · ':''}</>}{activeCountry&&<UiMessage id="legislation.meps_elected_in_countryname.9c4b7d" values={{country:<span lang={language}>{countryName(activeCountry,language)}</span>}}/>}</button></p>}
         <PeopleBlock entries={memberEntries} language={language}/>
       </FoldRow>}
-      {named&&<FoldRow title={<UiMessage id="votepage.countries"/>} value={new Set(rows.flatMap(row=>row.country?[row.country]:[])).size}>
+      {named&&<FoldRow title={<UiMessage id="votepage.countries"/>} value={new Set(rows.flatMap(row=>row.country?[filterCountry(row.country)]:[])).size}>
         <Suspense fallback={<p role="status"><UiMessage id="insightshared.loading"/></p>}><VoteCountries rows={rows} language={language} country={filter.country} group={filter.group} position={filter.position} onChoose={chooseCountry}/></Suspense>
         {breaks.length>0&&<><h3 className="breaks"><UiMessage id="votegroups.delegations.heading"/></h3><ul className="break-list">{breaks.map(row=><li key={row.group+row.country}><UiMessage id="votegroups.delegation.row" values={{country:countryName(row.country,language),group:groupLabel(row.group,ui),for:row.for,against:row.against,restFor:row.restFor,restAgainst:row.restAgainst}}/></li>)}</ul></>}
       </FoldRow>}

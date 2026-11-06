@@ -1,7 +1,7 @@
-import type {DecisionVotesResponse,DecisionVoteSibling} from './DecisionVotesTypes';
+import type {DecisionItemVote,DecisionVotesResponse,DecisionVoteSibling} from './DecisionVotesTypes';
 type Formatter=import('./uiI18n.mjs').UiFormatter;
 type Position='for'|'against'|'abstaining';
-type RowVote=Pick<DecisionVoteSibling,'scope'|'referenceTexts'|'context'|'parts'>&{id?:string};
+type RowVote=Pick<DecisionItemVote,'scope'|'referenceTexts'|'context'|'parts'>&{id?:string};
 type SentenceVote=Pick<DecisionVoteSibling,'id'|'outcome'|'method'|'ballotStatus'|'totals'|'scope'|'referenceTexts'|'context'|'parts'>&{date?:string};
 export type VoterRow={id:string;name:string|null;country:string|null;group:string;position:Position};
 export type FindableMember=Omit<VoterRow,'position'>&{position:Position|null};

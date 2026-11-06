@@ -5,6 +5,7 @@ type VotePosition='for'|'against'|'abstaining';
 type VotePartLabel={number:string|number|null;requestUri:string|null;requestId:string;requestScopeByLanguage:Record<string,string>};
 type VotePartComponent={componentId:string;number:string|number|null;requestUri:string|null;contentByLanguage:Record<string,{sourceLiteral:string;text:string|null}>};
 export type DecisionVoteSibling={id:string;scope:MemberVoteScope;outcome:string|null;method:string|null;ballotStatus:'conducted'|'not-conducted'|'unknown';totals:Record<VotePosition,number|null>;namedVotersAvailable:boolean;referenceTexts:Record<string,string>;context:{amendmentIds:string[]};parts:VotePartLabel[]};
+export type DecisionItemVote=Omit<DecisionVoteSibling,'namedVotersAvailable'|'parts'>&{parts:{number:string|number|null}[]};
 export type DecisionVoteSubject={id:string;title:string|null;titleLanguage:string|null;titles:Record<string,string>;agendaItemIds:string[];documentIds:string[];procedureIds:string[];procedures:{id:string;reference:string}[];debates:{id:string;date:string;start:string|null;agendaItemId:string|null}[]};
 export type DecisionVotesResponse={
   version:8;decisionId:string;sittingId:string;snapshotId:string;coverage:'complete'|'partial'|'unavailable';status:'found'|'unavailable';integrity:'complete'|'partial'|'conflicting'|'unavailable';voters:DecisionVoter[];

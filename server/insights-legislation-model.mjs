@@ -102,7 +102,8 @@ export function agendaVotes(topic,day,procedures=[],language='en') {
   const vote=new Set(mains.map(row=>row.id)).size===1?mains[0]:null;
   return {
     mainVote:vote&&{id:vote.id,date:vote.date,outcome:vote.outcome,method:vote.method,ballotStatus:vote.ballotStatus,totals:vote.totals,procedureReferral:procedures.some(work=>referredForTalksOn(work,vote.date))},
-    itemVotes:(vote?[vote,...rows.filter(row=>row.id!==vote.id)]:rows).map(row=>voteRowFields(row,language)),
+    // Only what a row shows: its label, result and numbers.
+    itemVotes:(vote?[vote,...rows.filter(row=>row.id!==vote.id)]:rows).map(row=>{const {namedVotersAvailable,parts,...fields}=voteRowFields(row,language);return {...fields,parts:parts.map(({number})=>({number}))};}),
   };
 }
 export function finalVotePatterns(votes,members,metadata,groupOn=()=>'unavailable') {

@@ -4,7 +4,7 @@ import {groupLabel,groupLabelLanguage} from './groupLabels';
 import {groupShortLabel} from './groupShort';
 import {voteCountryName as countryName} from './voteCountryName';
 import {againstPath} from './VoteMark';
-import {type VotePosition} from './votePositions';
+import {votePositionKeys,type VotePosition} from './votePositions';
 import {groupArcLayout,wedgeLabels,type ArcDot} from './voteSeatsModel.mjs';
 
 export type ArcVoter={id:string;name:string|null;group:string;position:VotePosition;country:string|null};
@@ -24,6 +24,7 @@ const MemoMark=memo(Mark);
 export function VoteArc({voters,order,word,small,smallLanguage,noRecord,picked,onPick,dimmedGroup,language,onMember,positionWord}:Props) {
   const ui=useUiI18n(),svg=useRef<SVGSVGElement>(null);
   const [hovered,setHovered]=useState<number|null>(null),[focused,setFocused]=useState(0);
+  const words=useMemo(()=>Object.fromEntries(votePositionKeys.map(position=>[position,positionWord(position)])) as Record<VotePosition,string>,[ui]);
   const people=useMemo(()=>new Map(voters.map(voter=>[voter.id,voter])),[voters]);
   const layout=useMemo(()=>groupArcLayout(voters,{order,radius}),[voters,order]);
   const labels=useMemo(()=>wedgeLabels(layout.wedges,{radius,dotRadius:layout.dotRadius}),[layout]);
@@ -64,13 +65,13 @@ export function VoteArc({voters,order,word,small,smallLanguage,noRecord,picked,o
     onPick(dots[next].id);
   };
   const over=(event:ReactPointerEvent<SVGSVGElement>)=>{if(event.pointerType==='mouse'){const index=indexOf(event.target);if(index!==null)setHovered(index);}};
-  const marks=dots.map(dot=><MemoMark key={dot.index} dot={dot} r={layout.dotRadius} tabbable={dot.index===focused} selected={dot.index===pickedIndex} dim={Boolean(dimmedGroup)&&dot.group!==dimmedGroup} label={describe(dot.id)+': '+positionWord(dot.position)}/>);
+  const marks=useMemo(()=>dots.map(dot=><MemoMark key={dot.index} dot={dot} r={layout.dotRadius} tabbable={dot.index===focused} selected={dot.index===pickedIndex} dim={Boolean(dimmedGroup)&&dot.group!==dimmedGroup} label={describe(dot.id)+': '+words[dot.position]}/>),[dots,layout.dotRadius,focused,pickedIndex,dimmedGroup,describe,words]);
   return <figure className="seats">
     <div className="stage" style={{aspectRatio:`${WIDTH}/${Math.round(height)}`}}>
       <svg ref={svg} viewBox={`${-WIDTH/2} ${-(TOP+radius)} ${WIDTH} ${height}`} role="group" aria-label={ui.t('votegroups.seats.chart')} onClick={click} onKeyDown={key} onPointerOver={over} onPointerLeave={()=>setHovered(null)}>{marks}</svg>
       {labels.map(label=><span key={label.group} className={'gl'+(dimmedGroup&&dimmedGroup!==label.group?' off':'')} lang={groupLabelLanguage(label.group,ui)} aria-hidden="true" style={{left:`${(label.x+WIDTH/2)/WIDTH*100}%`,top:`${(label.y+TOP+radius)/height*100}%`,transform:`translate(${label.alignX},${label.alignY})`}}>{label.group==='unavailable'?ui.t('votegroups.seats.unknownGroup'):groupShortLabel(label.group,ui)}</span>)}
       <div className="hollow" style={{width:`${(layout.inner*1.78/WIDTH*100).toFixed(1)}%`}} aria-live="polite">
-        {answer?<><strong>{positionWord(answer.position)}</strong><small lang="">{describe(answer.id)}</small></>:<><strong>{word}</strong>{small&&<small lang={smallLanguage}>{small}</small>}</>}
+        {answer?<><strong>{words[answer.position]}</strong><small lang="">{describe(answer.id)}</small></>:<><strong>{word}</strong>{small&&<small lang={smallLanguage}>{small}</small>}</>}
       </div>
     </div>
     {noRecord!==null&&<p className="seatkey">{ui.t('votepage.no_vote_recorded',{count:noRecord})}</p>}
