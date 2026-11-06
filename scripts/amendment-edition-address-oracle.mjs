@@ -1,3 +1,4 @@
+import {assertEditionFrameFit} from './amendment-edition-frame-oracle.mjs';
 import {oracleAddress} from './amendment-oracle-grammar.mjs';
 import {rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.mjs';
 
@@ -47,7 +48,8 @@ export function editionAddress(wording,raw=wording.targetLabel?.split('\n')[0]||
 // Compare every held edition's outer address, including ordinary alphabetic
 // labels. Additional underlying-act lines are compared wherever both editions
 // print them; omission is retained as a heading gap, never a different target.
-export function oracleEditionTarget({text,wording,placement}) {
+export function oracleEditionTarget(input) {
+  const {text,wording,placement}=input;
   const editions=wording.addressEditions||[],path=editionAddress(wording);
   if(placement?.status!=='placed')return null;
   const points=path?.length===2&&path[0].kind==='paragraph'&&path[1].kind==='point'
@@ -74,7 +76,10 @@ export function oracleEditionTarget({text,wording,placement}) {
       const own=underlying(wording);
       const nestedInsertion=wording.originalText===''&&!path.at(-1).isNew&&own.some(p=>p.at(-1).kind==='subparagraph'&&p.at(-1).isNew);
       const sets=[own,...others.map(underlying)];
-      if((wording.baseline==='present-text'||nestedInsertion)&&sets.filter(p=>p.length).length>1&&new Set(sets.filter(p=>p.length).map(paths=>JSON.stringify(paths.map(key)))).size>1)return unknown();
+      if((wording.baseline==='present-text'||nestedInsertion)&&sets.filter(p=>p.length).length>1&&new Set(sets.filter(p=>p.length).map(paths=>JSON.stringify(paths.map(key)))).size>1) {
+        if(sets.some(paths=>paths.length!==1))return unknown();
+        return {assertion:assertEditionFrameFit(input,[wording,...others].map((entry,i)=>({language:entry.language,path:sets[i][0]})))};
+      }
     }
     return null;
   }
