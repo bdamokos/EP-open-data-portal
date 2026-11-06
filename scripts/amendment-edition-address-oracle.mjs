@@ -6,17 +6,19 @@ import {rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.m
 // Only the held Greek insertion suffix α is mapped; base letters stay unverified.
 const alphabets={bg:'абвгдежзийклмнопрстуфхцчшщ'};
 const latinSuffixes=['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
-const letters=(value,language)=>[...(value??'')].map(c=>{
-  if(!/[\p{L}]/u.test(c)||/[a-z]/iu.test(c))return c;
+const letters=(value,language,decoded=false)=>[...(value??'')].map(c=>{
+  if(!/[\p{L}]/u.test(c))return c;
+  if(/[a-z]/iu.test(c))return language==='bg'&&!decoded&&!/[ao]/iu.test(c)?'?':c;
   const at=alphabets[language]?.indexOf(c.toLowerCase());
   return at===undefined||at<0?'?':String.fromCharCode((c===c.toUpperCase()?65:97)+at);
 }).join('');
-const suffix=(value,language)=>language==='el'&&value==='α'?'a':latinSuffixes.includes(value)?String.fromCharCode(97+latinSuffixes.indexOf(value)):letters(value,language);
+const suffix=(value,language,decoded=false)=>language==='el'&&value==='α'?'a':latinSuffixes.includes(value)?String.fromCharCode(97+latinSuffixes.indexOf(value)):letters(value,language,decoded);
 const key=path=>JSON.stringify(path.map(p=>[p.kind,p.value,p.isNew]));
 const unknown=()=>({assertion:{status:'unverified',reason:'oracle-edition-address-disagreement'}});
 
 export function editionAddress(wording,raw=wording.targetLabel?.split('\n')[0]||'') {
   raw=raw.normalize('NFC').replace(/\s+/gu,' ').replace(/([–—])(?=\S)/gu,'$1 ').trim();
+  let decodedPoint=false;
   if(wording.language==='bg') {
     // A Latin e in the heading is a Cyrillic е only when both native columns
     // explicitly print е). This repairs a glyph, never a target from prose.
@@ -26,6 +28,7 @@ export function editionAddress(wording,raw=wording.targetLabel?.split('\n')[0]||
       const bits=point[2].split(' '),isNew=/\((?:нова|ново|нов)\)/u.test(point[3]);
       const ending=isNew&&bits.length>1?' '+letters(bits.pop(),'bg'):'';
       raw=point[1]+letters(bits.join(''),'bg')+ending+point[3];
+      decodedPoint=true;
     }
   }
   if(wording.language==='cs')raw=raw.replace(/podbod/gu,'písm.').replace(/třetí pododstavec/gu,'pododstavec 3');
@@ -33,7 +36,7 @@ export function editionAddress(wording,raw=wording.targetLabel?.split('\n')[0]||
   const path=oracleAddress(raw,wording.language,{resolution:['motion-resolution','unknown'].includes(wording.baseline)});
   if(!path)return null;
   const result=path.map((p,i)=>{
-    const base=letters(p.base??p.value,wording.language),ending=suffix(p.suffix,wording.language);
+    const base=letters(p.base??p.value,wording.language,decodedPoint),ending=suffix(p.suffix,wording.language,decodedPoint);
     // In a legislative instruction Czech bod directly under Čl. is a point.
     const kind=wording.language==='cs'&&p.kind==='paragraph'&&i===1&&/^Čl\. \d+ – bod /u.test(raw)?'point':wording.language==='nl'&&p.kind==='paragraph'&&i>0&&path[i-1].kind==='paragraph'?'subparagraph':p.kind;
     return {...p,kind,base,suffix:ending,value:base+ending,isNew:p.isNew||Boolean(p.negative&&wording.originalText==='')};

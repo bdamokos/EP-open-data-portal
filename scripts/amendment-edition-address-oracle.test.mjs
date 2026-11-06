@@ -48,3 +48,9 @@ test('unsupported Greek base letters do not inherit a modern-alphabet rank',asyn
  assert.equal(editionAddress({language:'el',baseline:'motion-resolution',targetLabel:'Παράγραφος 1 – σημείο ζ (νέο)'}),null);
  assert.equal(editionAddress({language:'el',baseline:'motion-resolution',targetLabel:'Παράγραφος 12 α (νέα)'}).at(-1).value,'12a');
 });
+test('native Cyrillic source labels can repair a glyph only with both comparison columns',async()=>{
+ const {editionAddress}=await import('./amendment-edition-address-oracle.mjs');
+ const wording={language:'bg',baseline:'motion-resolution',targetLabel:'Параграф 1 – буква e',originalText:'е) Original.',proposedText:'е) Changed.'};
+ assert.equal(editionAddress(wording).at(-1).value,'f');
+ assert.equal(editionAddress({...wording,originalText:''}),null);
+});

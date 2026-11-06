@@ -87,7 +87,8 @@ function heldEditionPath(edition) {
   if(edition.language==='bg') {
     const part=/^(Параграф \d+ [–—-] буква )([а-яa-z]+(?: [а-яa-z]+)*)(.*)$/u.exec(raw||'');
     if(!part)return null;
-    const positionLetters=value=>[...value].map(letter=>/[a-z]/u.test(letter)?letter:editionLetters.get(letter)??'?').join('');
+    // Only Latin a/o share both glyph and list position with Cyrillic а/о.
+    const positionLetters=value=>[...value].map(letter=>/[ao]/u.test(letter)?letter:editionLetters.get(letter)??'?').join('');
     const bits=part[2].split(' '),ending=/\((?:нов|нова|ново)\)/u.test(part[3])&&bits.length>1?' '+positionLetters(bits.pop()):'';
     raw=part[1]+positionLetters(bits.join(''))+ending+part[3];
     if(raw.includes('?'))return null;

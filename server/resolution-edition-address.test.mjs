@@ -44,3 +44,11 @@ test('the placer maps Bulgarian list positions and Latin suffix ordinals general
  input.wording.addressEditions=[{language:'bg',targetLabel:'Параграф 1 – буква ы а (нова)'}];
  assert.equal(resolveAmendmentPlacement(input.text,input.wording).status,'unresolved');
 });
+test('ambiguous Latin glyphs in a Bulgarian insertion cannot choose a point',()=>{
+ for(const glyph of ['e','c']){
+  const input=example();input.wording.addressEditions=[{language:'bg',baseline:'motion-resolution',targetLabel:`Параграф 1 – буква ${glyph} а (нова)`,originalText:'',proposedText:'еа) New.'}];
+  assert.equal(resolveAmendmentPlacement(input.text,input.wording).status,'unresolved');
+  const position=glyph==='e'?7:5;
+  assert.equal(verifyPlacement({...input,placement:{status:'placed',operation:'insert',insertAfter:position,insertBefore:position+1}}).status,'unverified');
+ }
+});
