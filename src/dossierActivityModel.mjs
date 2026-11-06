@@ -24,7 +24,11 @@ const inSegment=(person,segment)=>{
   return segment==='others'?!hasRole([...segmentRoles.lead,...segmentRoles.opinions]):hasRole(segmentRoles[segment]);
 };
 // The total is a claim about the whole dossier. Any missing record or continuation withholds it.
-export const dossierPeopleCountExact=page=>Boolean(page.participantCoverage)&&!page.pagination.next&&!page.coverage.gaps.length&&!page.participantCoverage.gaps.length&&page.participantCoverage.status!=='unavailable';
+// An incomplete proposer list alone keeps it: those lists are named on their own counts.
+export const dossierPeopleCountExact=page=>{
+  const people=page.participantCoverage;
+  return Boolean(people)&&!page.pagination.next&&!page.coverage.gaps.length&&page.coverage.checkedComplete!==false&&!people.gaps.length&&people.status!=='unavailable'&&people.checkedComplete!==false&&!people.retained&&!people.uncheckedTargets?.some(id=>/-PVCRE-ITM-/.test(id));
+};
 export const dossierPeopleCounts=people=>({
   total:people.length,withRole:people.filter(person=>person.roles.length>0).length,withoutRole:people.filter(person=>!person.roles.length).length,
   segments:Object.fromEntries(dossierPeopleSegments.map(segment=>[segment,people.filter(person=>inSegment(person,segment)).length])),

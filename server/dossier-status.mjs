@@ -4,7 +4,7 @@ import {odpLanguage} from './odp.mjs';
 import {procedureReference} from './official-context.mjs';
 import {array,tail} from './activity-index-model.mjs';
 import {agendaTopics} from './insights-legislation-model.mjs';
-import {memberVotes} from './member-votes.mjs';
+import {MemberVotes} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 import {cachedAgendaRequest} from './parliament-search.mjs';
 import {MeetingsReader} from './meetings-reader.mjs';
@@ -17,6 +17,8 @@ import {calendarMonday} from './plenary-calendar.mjs';
 import {isLocalRequestFailure,requestSignal} from './request-budget.mjs';
 
 export const DOSSIER_STATUS_VERSION=1;
+// Held sittings only: a page view neither requests a source nor queues collection.
+export const heldVotes=new MemberVotes({request:cachedAgendaRequest,limits:{cacheEntries:1},snapshots:{read:(kind,version,id)=>sittingSnapshots.read(kind,version,id,{retained:true}),enqueue(){}}});
 const committeeNames=JSON.parse(readFileSync(new URL('./insights-committee-labels.json',import.meta.url),'utf8')).committees;
 const AGENDA_PAGE_SIZE=50;
 const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}/.test(value)?value.slice(0,10):null;
@@ -35,11 +37,11 @@ export function leadCommittees(work,language) {
 }
 
 /** Where a file stands, from held sources. The tally comes through the bounded
- * sitting snapshot and the plenary date only from retained agendas. A failed
+ * held sitting and the plenary date only from retained agendas. A failed
  * read leaves its slot empty and the sentence drops it.
  */
 export class DossierStatus {
-  constructor({activity,calendar,votes=memberVotes,readAgenda=cachedAgendaRequest,clock=Date.now}) {
+  constructor({activity,calendar,votes=heldVotes,readAgenda=cachedAgendaRequest,clock=Date.now}) {
     // Held calendars and agendas only: a page view never starts a source read for this date.
     Object.assign(this,{activity,calendar:calendar||new MeetingsReader({request:cachedAgendaRequest,clock,snapshots:sittingSnapshots}),votes,readAgenda,clock});
   }
@@ -50,7 +52,8 @@ export class DossierStatus {
       try{snapshot=await this.votes.snapshot({sitting,week:null,language,snapshot:null});}
       catch(error){if(isLocalRequestFailure(error))throw error;return null;}
       requestSignal()?.throwIfAborted();
-      const day=snapshot.days.find(row=>row.sittingId===sitting);if(!day)continue;
+      // A partial sitting could hide the last decision, so it establishes no main vote.
+      const day=snapshot.days.find(row=>row.sittingId===sitting);if(day?.coverage?.state!=='complete')continue;
       const {items,subjects}=projectMemberSitting(day,'1',language);
       for(const event of events.filter(row=>row.activity_id.startsWith(sitting)).reverse()) {
         const subject=subjects.find(row=>row.id===event.activity_id),decision=mainVote(items.filter(item=>item.subjectId===event.activity_id),subject);
