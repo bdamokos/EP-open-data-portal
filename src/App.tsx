@@ -79,7 +79,7 @@ import { api, useData } from "./data";
 import {validateVotePeriods,type VotePeriodsResponse} from "./plenaryPeriods.mjs";
 import { useSpeechVideo } from "./SpeechPlayer";
 import {AmendmentTrailLink} from './AmendmentTrailLink';
-import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule,memberWallView} from './publicFeatures';
+import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule,memberWallView,explorerViewFromQuery} from './publicFeatures';
 import {Status} from './Status';
 import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAuthors.mjs';
 import {selectLanguageText} from './language.mjs';
@@ -501,7 +501,7 @@ export default function App() {
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
   const [activityOffset,setActivityOffset]=useState(()=>queryActivityOffset(initial));
   const [view, setView] = useState<'legislation'|'questions'|'geopolitics'|'outside'|'amendments'|'groups'|'hemicycle'|'saved'|'meps'|null>(
-    publicExplorerView(initial.get('view')),
+    explorerViewFromQuery(initial),
   );
   const [tab, setTab] = useState(
     publicMemberModule(initial.get('module')),
@@ -716,7 +716,7 @@ export default function App() {
       pendingDestination.current=null;
       setRestoration(value=>value+1);
       const query=new URLSearchParams(location.search),next=query.get('view');
-      const restored=publicExplorerView(next);
+      const restored=explorerViewFromQuery(query);
       setLang(queryLanguage(query));setRole(queryRole(query));setOrganization(organizationId(query.get('organization')));setOrganizationName(query.get('organization-name')?.slice(0,512)||'');
       const nextMember=/^\d+$/.test(query.get('member')||'') ? Number(query.get('member')) : null;
       votes.restore(query,nextMember);

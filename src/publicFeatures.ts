@@ -16,6 +16,13 @@ export function memberWallView(value: string|null): boolean {
   return !value || value === 'meps';
 }
 
+// An older directory link carries filters and no view; it still opens the directory.
+export function explorerViewFromQuery(query: URLSearchParams): ExplorerView|null {
+  const view = publicExplorerView(query.get('view'));
+  if (view || /^\d+$/.test(query.get('member') || '')) return view;
+  return ['country','committee','group','organization','role'].some(key => query.has(key)) ? 'meps' : null;
+}
+
 export function publicMemberModule(value: string|null): string {
   if (value === 'amendments' && !publicAmendmentsEnabled) return 'speeches';
   return ['profile','activities','amendments','votes'].includes(value || '') ? value! : 'speeches';

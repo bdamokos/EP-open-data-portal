@@ -133,3 +133,12 @@ test('every existing deep link stays outside Home and the directory view keeps t
   assert.equal(memberWallView(null), true);
   assert.equal(memberWallView('legislation'), false);
 });
+
+test('an older directory link with filters and no view opens the directory, so clearing a filter does not land on Home', async () => {
+  const {explorerViewFromQuery} = await import('./publicFeatures.ts').catch(() => import('./publicFeatures.mjs'));
+  for (const search of ['country=CZ', 'group=Renew', 'committee=6587', 'organization=7035', 'role=MEMBER_SUBSTITUTE', 'country=CZ&lang=hu']) assert.equal(explorerViewFromQuery(query(search)), 'meps', search);
+  assert.equal(explorerViewFromQuery(query('view=questions&country=CZ')), 'questions');
+  assert.equal(explorerViewFromQuery(query('member=840&country=CZ')), null);
+  assert.equal(explorerViewFromQuery(query('')), null);
+  assert.equal(explorerViewFromQuery(query('lang=hu&global-fts-search=x')), null);
+});

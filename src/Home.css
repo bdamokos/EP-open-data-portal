@@ -96,3 +96,6 @@
   .home-headline { order: 1; } .home-following { order: 2; } .home-agenda { order: 3; } .home-votes { order: 4; }
   .home-topics { order: 5; } .home-outside { order: 6; } .home-entries { order: 7; }
 }
+
+/* The section links and "N more" carry the accent; the rule above would otherwise inherit body ink. */
+.home .home-section-more, .home .home-agenda-more a { color: var(--accent-strong); }
