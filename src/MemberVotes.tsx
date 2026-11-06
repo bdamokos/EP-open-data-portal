@@ -8,6 +8,7 @@ import type {MemberAttendanceResponse} from './MemberAttendanceTypes';
 import {memberAttendanceRoute,validateMemberAttendanceResponse} from './memberAttendancePresentation.mjs';
 import {voteMethodLabel} from './voteMethod.mjs';
 import {PersonName} from './PersonName';
+import {voteHref} from './votePagePresentation.mjs';
 import {Result,Position,VotePartDescriptions} from './MemberVoteSummary';
 import {OutcomeAlignmentFilter} from './OutcomeAlignmentFilter';
 import {VotePeriodNavigation} from './VotePeriodNavigation';
@@ -139,7 +140,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
   const contexts=vote.parts.flatMap(part=>[...part.contextComponents,part].sort((a,b)=>(/^\d+$/.test(String(a.number)) && /^\d+$/.test(String(b.number))) ? (Number(a.number)-Number(b.number)) : 0)).filter((component,index,all)=>all.findIndex(other=>other.componentId===component.componentId)===index);
   return <article className="member-votes-detail">
     <header><p className="member-votes-eyebrow">{dateLabel(vote.date,ui.locale)}</p>{subject&&<VoteSubjectTitle subject={subject} vote={vote} language={language}/>}<h2 tabIndex={-1}>{memberVoteLabel(vote,language, ui)}</h2></header>
-    <section className="member-votes-strip" aria-label={ui.t("activityvote.member_position_and_parliament_result")}><Position vote={vote} memberName={memberName}/><Result vote={vote}/>
+    <section className="member-votes-strip" aria-label={ui.t("activityvote.member_position_and_parliament_result")}><Position vote={vote} memberName={memberName}/><Result vote={vote}/><a className="member-votes-open" href={voteHref(vote.id,language)} onClick={dossierLinkClick}><UiMessage id="votepage.open"/></a>
       {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention"><UiMessage id="activityvote.declared_intention_positions_declared_afterwards_result_unchanged" values={{positions: <strong>{vote.intention.positions.map(position=>({for:ui.t("membervotespresentation.for"),against:ui.t("membervotespresentation.against"),abstaining:ui.t("activityvote.abstain")}[position])).join(', ')}</strong>}}/></p>}
     </section>
     <VotePartDescriptions vote={vote} language={language}/>

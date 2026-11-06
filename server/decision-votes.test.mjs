@@ -113,6 +113,10 @@ test('a referral label is never the main vote and a subject without a main vote 
  const f=subjectFixture();f.raw.referenceText={en:'Request for a separate vote'};f.day.decisions=f.day.decisions.filter(raw=>raw.activity_id!=='MTG-PL-2026-10-07-DEC-1');
  assert.equal((await f.read()).mainVoteId,null);
 });
+test('a partial sitting establishes no main vote',async()=>{
+ const f=subjectFixture();f.day.coverage={state:'partial'};const data=await f.read();
+ assert.equal(data.mainVoteId,null);assert.equal(data.siblings.length,3);
+});
 test('procedure referral needs the exact event on the vote date',async()=>{
  const vote=f=>f.raw.activity_date;
  let f=subjectFixture();assert.equal((await f.read()).procedureReferral,false,'no held procedure');

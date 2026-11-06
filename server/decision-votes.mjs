@@ -71,7 +71,8 @@ function subjectContext(vote,day,context,query,store) {
   const subject=vote.subjectId&&bound(vote)?context.derived.subjects.find(row=>row.id===vote.subjectId):null;
   if(!subject)return {subject:null,siblings:[],mainVoteId:null,procedureReferral:false};
   const votes=day.decisions.filter(raw=>context.derived.decisions.get(eventUri(raw))?.subjectId===subject.id).map(raw=>projectMemberDecision(raw,day,'1',query.language,context.derived)).filter(bound);
-  const main=mainVote(votes,{id:subject.id,wholeTextDecisions:votes.filter(row=>row.scope.kind==='whole-text')});
+  // A partial sitting could hide the deciding vote, so it establishes no main vote.
+  const main=day.coverage&&day.coverage.state!=='complete'?null:mainVote(votes,{id:subject.id,wholeTextDecisions:votes.filter(row=>row.scope.kind==='whole-text')});
   const siblings=main?[main,...votes.filter(row=>row!==main)]:votes;
   const procedureIds=[...new Set(votes.flatMap(row=>row.context.procedureIds))].sort();
   const procedures=procedureIds.map(id=>({id,node:heldProcedure(store,context.generation,id)}));

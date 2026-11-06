@@ -66,3 +66,4 @@
 .insight-person-activity .dossier-amendment-links summary{min-height:44px;cursor:pointer;white-space:normal}
 .insight-committee-amendments>summary{min-height:44px;cursor:pointer;padding-block:10px}
 .insight-committee-amendments>summary:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.dossier-open-vote{display:inline-block;margin:6px 0}
