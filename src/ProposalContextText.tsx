@@ -248,7 +248,7 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
         {scopeFor(p,index,<ItemText proposal={p} itemIndex={index} placement={effective} block={passageMark} prefix={prefix+'-'+index} marking range={range}/>,range)}
       </section>;
     })}</div>
-    {!whole&&<div className="read-passage-more"><button type="button" onClick={()=>{revealed.current=true;setWhole(true);}}><UiMessage id="reader.show_whole_proposal"/></button></div>}
+    {!whole&&<div className="read-passage-more"><button type="button" onClick={()=>{revealed.current=true;setWhole(true);}}><UiMessage id="reader.show_whole_text"/></button></div>}
     <p className="document-context-source">{baseline.attribution}</p>
   </>;
   return <>

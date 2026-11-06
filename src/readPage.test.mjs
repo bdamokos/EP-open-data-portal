@@ -63,13 +63,13 @@ test('an amendment opens with its header, reference and diff above a passage of 
   assert.equal(h.container.querySelectorAll('[data-amendment-block]').length,1,'the amendment appears once');
 });
 
-test('Show whole proposal adds the full text without repeating the amendment and marks where it was',async t=>{
+test('Show whole text adds the full text without repeating the amendment and marks where it was',async t=>{
   const source=proposalContextResponse(report,amendment,list,7);
   const whole=source.proposal.items.reduce((sum,item)=>sum+item.proposal.paragraphs.length,0);
   const h=await harness(t,readUrl('&read-amendment='+amendment+'&read-list='+list+'&read-lang=en'),()=>source);
   const before=h.container.querySelector('[data-amendment-block]').textContent;
-  await h.click(h.button('Show whole proposal'));
-  assert.equal(h.button('Show whole proposal'),undefined);
+  await h.click(h.button('Show whole text'));
+  assert.equal(h.button('Show whole text'),undefined);
   assert.equal(placedParagraphs(h).length,whole);
   assert.equal(h.container.querySelectorAll('[data-amendment-block]').length,1);
   assert.equal(h.container.querySelector('[data-amendment-block]').textContent,before,'the amendment itself does not change');
@@ -84,7 +84,7 @@ test('the whole proposal stays open when the reader navigates away and returns',
   const h=await harness(t,readUrl('&read-amendment='+amendment+'&read-list='+list+'&read-lang=en'),()=>source);
   // With the response cached, the document body and the proposal mount together.
   await h.remount();
-  await h.click(h.button('Show whole proposal'));
+  await h.click(h.button('Show whole text'));
   h.journey.rememberDossierOrigin();
   assert.equal(h.journey.dossierReaderValue('read-whole:'+amendment,false),true,'the document body saves its own state under its own name');
 });
@@ -105,7 +105,7 @@ test('an unplaced amendment shows its notice and no passage until the whole text
   assert.equal(h.container.querySelector('.document-context-notice[role="status"]').textContent,'Not shown in the text.');
   assert(h.container.querySelector('[data-amendment-block] .wording-diff'));
   assert.equal(placedParagraphs(h).length,0);
-  await h.click(h.button('Show whole proposal'));
+  await h.click(h.button('Show whole text'));
   assert(placedParagraphs(h).length>0);
 });
 
@@ -113,7 +113,7 @@ test('a whole-document operation stays as it is',async t=>{
   const source=proposalContextResponse(report,amendment,list,7);
   source.placement={operation:'reject',status:'document-operation',scope:'commission-proposal',reason:'rejects_proposal',evidence:[]};
   const h=await harness(t,readUrl('&read-amendment='+amendment+'&read-list='+list+'&read-lang=en'),()=>source);
-  assert.equal(h.button('Show whole proposal'),undefined);
+  assert.equal(h.button('Show whole text'),undefined);
   assert(placedParagraphs(h).length>0);
 });
 
@@ -129,7 +129,7 @@ test('an amendment to a motion opens above its passage and marks new text in pla
   const mark=h.container.querySelector('.read-passage-mark');
   assert.equal(mark.textContent,'Amendment 5');assert.equal(mark.previousElementSibling.textContent,'(a) last point;');
   assert(shown().length<source.document.selectedText.paragraphs.length);
-  await h.click(h.button('Show whole proposal'));
+  await h.click(h.button('Show whole text'));
   assert.equal(shown().at(-1),7);assert.equal(h.container.querySelectorAll('[data-amendment-block]').length,1);
 });
 

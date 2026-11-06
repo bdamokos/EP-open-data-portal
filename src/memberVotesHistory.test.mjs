@@ -313,7 +313,7 @@ test('unknown wording language and conflicting same-language versions do not acq
     assert.equal(params().get('read-amendment'),AMENDMENT);assert.equal(params().get('read-list'),LIST);
     assert.equal(Boolean(h.container.querySelector('.document-context-reader [data-context-target="true"]')),false);
     assert.equal(Boolean(h.container.querySelector('.document-context-text [data-source-paragraph]')),false,'an unplaced amendment has no passage window');
-    await h.click(button(h.container,'Show whole proposal'));
+    await h.click(button(h.container,'Show whole text'));
     assert.equal(Boolean(h.container.querySelector('.document-context-text [data-source-paragraph]')),true,'the exact source body stays readable without an assigned passage');
     assert.equal(h.container.querySelector('.document-context-reader .document-context-notice[role="status"]').textContent,kind==='unknown'?'Language unavailable.':'Wording unavailable.');
     const resolved=source.results.find(result=>result.document);

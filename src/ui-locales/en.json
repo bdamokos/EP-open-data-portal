@@ -1671,7 +1671,7 @@
   "reader.header": "Am {number} · {provision}",
   "reader.header_number": "Am {number}",
   "reader.loading_amendment": "Loading amendment…",
-  "reader.show_whole_proposal": "Show whole proposal",
+  "reader.show_whole_text": "Show whole text",
   "savedcontrols.count.followed.item.has.new.updates": "{count} followed item has new updates",
   "savedcontrols.count.followed.items.have.new.updates": "{count} followed items have new updates",
   "savedcontrols.data.was.updated.try.again": "Data was updated.",
