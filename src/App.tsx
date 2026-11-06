@@ -682,6 +682,8 @@ export default function App() {
     next=publicExplorerView(next);
     if(next===view){
       const url=new URL(location.href);
+      // The vote page has no mode tabs, so the highlighted tab is the way back to the agenda.
+      if(next==='legislation'&&url.searchParams.get('pl-mode')==='vote'){for(const key of ['pl-mode','pl-vote','agenda-country'])url.searchParams.delete(key);url.hash='';navigateDossier(url.pathname+url.search);return;}
       if(!['legislation','geopolitics'].includes(next||'')||!['topic','place','t-record','t-records'].some(key=>url.searchParams.has(key)))return;
       for(const key of [...url.searchParams.keys()])if(key==='topic'||key==='place'||key.startsWith('t-'))url.searchParams.delete(key);
       if(next==='legislation')url.searchParams.set('pl-mode','topics');

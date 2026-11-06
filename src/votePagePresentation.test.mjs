@@ -30,6 +30,12 @@ test('the main vote names the item; referral comes only from the exact event fla
  assert.equal(render(voteSentence({...main,method:'VOTE_HAND',totals:noTally},{...page,mainVoteId:'M'})),'Parliament adopted Erasmus+ programme 2028-2034 by show of hands. No names on record.');
  assert.equal(render(voteSentence(main,{...page,mainVoteId:'other',procedureReferral:true})),'Commission proposal: Adopted, 454 for, 34 against, 93 abstaining.','referral belongs to the main vote');
 });
+test('a deal vote with an amendment reference reads as the main vote; its amendment variants do not',()=>{
+ const deal={...base,id:'P',referenceTexts:{en:'Provisional agreement'},context:{amendmentIds:['A-10-2026-0104-AM-118']},totals:{for:477,against:59,abstaining:41}};
+ assert.equal(render(voteSentence(deal,{...page,mainVoteId:'P'})),'Parliament adopted Erasmus+ programme 2028-2034: 477 for, 59 against, 41 abstaining.');
+ assert.equal(render(voteSentence({...deal,outcome:'REJECTED'},{...page,mainVoteId:'P'})),'Parliament rejected Erasmus+ programme 2028-2034: 477 for, 59 against, 41 abstaining.');
+ assert.equal(render(voteSentence({...deal,id:'A',referenceTexts:{en:'Provisional agreement - Am 118'}},{...page,mainVoteId:'P'})),'Amendment 118 was adopted: 477 for, 59 against, 41 abstaining.');
+});
 test('anything else uses its source label; a block vote never lists every amendment',()=>{
  const block={...base,method:'VOTE_HAND',totals:noTally,referenceTexts:{en:'Amendments by the committee responsible – block vote'},context:{amendmentIds:['A-10-2026-0257-AM-1','A-10-2026-0257-AM-2']}};
  assert.equal(voteRowLabel(block,'en'),'Amendments by the committee responsible – block vote');

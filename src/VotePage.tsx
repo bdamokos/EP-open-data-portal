@@ -59,7 +59,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
     {memberVoteTotals(vote)&&<Result vote={vote} showMissingTotals={false}/>}
     {named&&<section className="vote-page-groups"><h2><UiMessage id="legislation.how_meps_voted.789bfc"/></h2><div className="insight-controls insight-detail-country"><CountryFilter country={country} onChange={onCountry} language={language}/></div><VoteView standalone country={country} vote={namedVoteFromDecision(data,directory)} language={language} onMember={onMember}/></section>}
     {(data.integrity==='conflicting'||noList)&&<p><UiMessage id="legislation.individual_votes_unavailable.ca5dc2"/></p>}
-    {data.siblings.length>0&&<OtherVotes key={decisionId} rows={data.siblings} current={decisionId} language={language}/>}
+    {data.siblings.length>1&&<OtherVotes key={decisionId} rows={data.siblings} current={decisionId} language={language}/>}
     <details className="vote-page-text" open={textOpen} onToggle={event=>setTextOpen(event.currentTarget.open)}><summary><UiMessage id="votepage.read_text"/></summary>{textOpen&&<Suspense fallback={<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}><DossierVoteText key={decisionId+':'+language} vote={vote} language={language} showParts={false}/></Suspense>}</details>
   </>);
 }
