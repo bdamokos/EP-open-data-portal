@@ -37,7 +37,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     if(url.pathname.includes('/document/'))return Response.json({selectedDocumentId:topic.documentIds[0],files:[],answers:[],selectedText:{status:'available',paragraphs:['Document text'],textLanguage:['de','fr'].includes(params.get('lang'))?params.get('lang'):'de',availableTextLanguages:['de','fr']}});
     if(url.pathname.includes('/speech-transcript/'))return Response.json({id:url.pathname.split('/').at(-1),available:false});
     if(url.pathname.includes('/speech-context/'))return Response.json({speechId:url.pathname.split('/').at(-1),unavailable:true,debates:[]});
-    if(url.pathname.includes('/speech/'))return Response.json({id:url.pathname.split('/').at(-1),xml:`<root><p>Speech text ${url.pathname.split('/').at(-1)}</p></root>`,websiteUrl:'https://example.test/'+url.pathname.split('/').at(-1),speakers:[],availableTextLanguages:['en'],textLanguage:'en'});
+    if(url.pathname.includes('/speech/'))return Response.json({id:url.pathname.split('/').at(-1),xml:`<root><p>Speech text ${url.pathname.split('/').at(-1)}</p></root>`,websiteUrl:'https://example.test/'+url.pathname.split('/').at(-1),speakers:url.pathname.endsWith('test-speech-1')?[{id:'1',name:'Presiding',role:null}]:[],availableTextLanguages:['en'],textLanguage:'en'});
     throw new Error('Unexpected request: '+url);
   });
   // Use the existing TSX pipeline without a listening server or external data.
@@ -71,6 +71,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const speechRequests=()=>calls.filter(url=>url.pathname.includes('/speech/')).map(url=>url.pathname.split('/').at(-1));
   assert.equal(counter(),'Speech 1 of 3');assert(disabled(previous));assert(!disabled(next));
   assert.equal(pager.querySelector('[aria-live]').getAttribute('aria-live'),'polite');
+  assert.equal(find('.insight-speech-panel .insight-reader-heading h3').textContent,'Contributor 1','a role-only header keeps the listed name');
   assert.match(find('.insight-speech-position').textContent,/Contributor 1 · 09:00 Brussels · Written statement/);
   next.focus();await act(async()=>next.click());
   assert.equal(counter(),'Speech 2 of 3');assert.equal(document.activeElement,next);

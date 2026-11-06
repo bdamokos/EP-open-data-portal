@@ -1,3 +1,4 @@
+import {speakerNameIsSpecific} from './speakerNames.mjs';
 // Counts come from the same listed speeches as the speaker list, split by kind.
 export function speechPanelCounts(speeches) {
   const spoken=speeches.filter(speech=>speech.kind!=='PLENARY_DEBATE_WRITTEN_STATEMENT');
@@ -6,4 +7,8 @@ export function speechPanelCounts(speeches) {
 export function speechPanelDate(speeches) {
   const dates=new Set(speeches.map(speech=>speech.date));
   return dates.size===1&&[...dates][0]?[...dates][0]:null;
+}
+// A speech header that carries only a role word never replaces the listed name.
+export function listedSpeakerName(listed,header) {
+  return speakerNameIsSpecific(header)?header:listed;
 }

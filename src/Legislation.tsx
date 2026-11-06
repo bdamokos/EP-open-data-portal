@@ -20,6 +20,7 @@ import {groupColor,groupLabel,groupLabelLanguage} from './groupLabels';
 import {CountryFilter} from './CountryFilter';
 import {InsightQuestionReader} from './InsightReaders';
 import {SpeechPanel} from './SpeechPanel';
+import {listedSpeakerName} from './debateSpeeches.mjs';
 import type {InsightProps,InsightStats} from './InsightTypes';
 import {countryName} from './CountryMap';
 import {interfaceTerm,voteScope,compoundLanguage} from './terms.mjs';
@@ -214,7 +215,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const earlierSpeeches=Boolean(detail?.speeches.length&&detail.speeches.every(s=>s.date<detail.date));
   const shownPeople=contributors ? orderLegislationPeople(contributors.people,contributors.roles,props.members).filter(p=>matchesCountry(country,p.country)) : ([]),shownSpeeches=detail?.speeches.filter(s=>!country||s.people.some(p=>matchesCountry(country,p.country)))||[];
   useEffect(()=>{setSpeech(dossierJourneyRestoring() ? dossierReaderValue('agenda-speech',shownSpeeches[0]?.sourceId||null) : (shownSpeeches.find(s=>s.sourceId===focusedSpeech)?.sourceId||shownSpeeches[0]?.sourceId||null));},[country,detail?.id,focusedSpeech]);
-  const speakerName=(p:typeof shownSpeeches[number]['people'][number])=>displayName(p.id,p.currentMep ? p.name : (speakerNames[p.id]||p.name));
+  const speakerName=(p:typeof shownSpeeches[number]['people'][number])=>displayName(p.id,p.currentMep ? p.name : listedSpeakerName(p.name,speakerNames[p.id]));
   const speakerText=(s:typeof shownSpeeches[number])=>s.people.map(p=>speakerName(p)||ui.t('insightshared.speaker')).join(', ')||ui.t('dossieractivity.speech');
   const speechLabel=(s:typeof shownSpeeches[number])=>{
     const speakers=speakerText(s),time=contributionTime(s.start,language),written=s.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT';
