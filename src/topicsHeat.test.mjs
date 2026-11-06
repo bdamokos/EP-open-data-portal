@@ -6,7 +6,7 @@ import {createElement,act} from 'react';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {heatStep,topicStatusMessage} from './topicPresentation.mjs';
 
-async function mount(t,{url,narrow=false,fetch}) {
+async function mount(t,{url,narrow=false,language='en',fetch}) {
   const window=new Window({url}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));
   for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
   window.HTMLElement.prototype.scrollIntoView=function(){};
@@ -18,7 +18,12 @@ async function mount(t,{url,narrow=false,fetch}) {
   const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');
   document.body.append(node);installRetryClock(t);root=createRoot(node);
   const wait=async predicate=>{for(let i=0;i<60&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
-  await act(async()=>root.render(createElement(Topics,{language:'en'})));
+  let page=createElement(Topics,{language});
+  if(language!=='en') {
+    const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await load('/src/uiCatalogues.mjs'),{default:catalogue}=await load('/src/ui-locales/'+language+'.json');
+    page=createElement(UiI18nProvider,{i18n:createAppUiI18n({[language]:catalogue}),language},page);
+  }
+  await act(async()=>root.render(page));
   return {node,wait,window};
 }
 
@@ -105,4 +110,22 @@ test('a failed status read leaves the references without status or message',asyn
   await act(async()=>new Promise(r=>setTimeout(r,100)));
   assert.deepEqual([...node.querySelectorAll('.topic-record-group > small')].map(row=>row.textContent).slice(0,2),['2026-10-22 · Dossier · 2025/0222(COD)','2026-10-22 · Dossier · 2025/0235(COD)']);
   assert.doesNotMatch(node.textContent,/Down|unavailable/i);
+});
+
+test('messages without a French translation keep their English language tag',async t=>{
+  const {node,wait}=await mount(t,{url:'http://localhost/?view=legislation&pl-mode=topics&lang=fr',language:'fr',fetch:overview});
+  await wait(()=>node.querySelector('.topic-heat'));
+  const lang=element=>element.closest('[lang]')?.getAttribute('lang');
+  assert.equal(node.querySelector('.topic-heat-key p').textContent,'Debates and dossiers per quarter.');
+  assert.equal(lang(node.querySelector('.topic-heat-key p')),'en');
+  assert.deepEqual([...node.querySelectorAll('.topic-scale span')].map(lang),['en','en']);
+  const view=node.querySelector('.topic-view');
+  assert.equal(view.getAttribute('lang'),'en');assert.equal(view.getAttribute('aria-label'),'View');
+  assert.deepEqual([...view.querySelectorAll('button')].map(b=>b.textContent+':'+lang(b)),['Grid:en','List:en']);
+});
+test('a status word keeps the language of its own message',async t=>{
+  const {node,wait}=await mount(t,{url:'http://localhost/?view=legislation&pl-mode=topics&topic=oeil%3A3.60&lang=fr',language:'fr',fetch:detail(()=>Response.json({version:1,items:[{id:'2025-0222',reference:'2025/0222(COD)',stage:'position-talks'}]}))});
+  await wait(()=>node.querySelectorAll('.topic-record-group').length===3&&node.textContent.includes('Position du Parlement adoptée'));
+  const word=[...node.querySelector('.topic-record-group small').querySelectorAll('span[lang]')].at(-1);
+  assert.equal(word.getAttribute('lang'),'fr');assert.notEqual(word.textContent,'Parliament position adopted');
 });
