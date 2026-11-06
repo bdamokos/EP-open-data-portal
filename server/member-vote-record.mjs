@@ -4,14 +4,17 @@ import {sittingSnapshots} from './sitting-snapshot-store.mjs';
 import {MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
 import {createGroupOn} from './group-attribution.mjs';
 import {pickTitle} from './member-vote-record-model.mjs';
+import {memberBreakdown} from './member-vote-record-breakdown.mjs';
+import {topicLabel,countryLabel} from './member-vote-record-topics.mjs';
 
-export const MEMBER_VOTE_RECORD_VERSION=2;
+export const MEMBER_VOTE_RECORD_VERSION=3;
+const tagPattern=/^(?:topic:\d{1,8}|country:[A-Z0-9_]{2,8})$/;
 export const MEMBER_VOTE_RECORD_LIMITS=Object.freeze({departures:50,maxOffset:10000});
 const emptyAlignment=()=>({with:0,against:0,abstained:0,notComparable:0});
 // A group-history answer that places the person in office on that day.
 
 export function memberVoteRecordQuery(search) {
-  const allowed=['lang','scope','limit','offset'];
+  const allowed=['lang','scope','limit','offset','tag'];
   for(const key of search.keys())if(!allowed.includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated voting-record parameter.');
   const scope=search.get('scope')??'all';
   if(!['all','final'].includes(scope))throw new HttpError(400,'invalid_scope','Choose all or final votes.');
@@ -20,7 +23,9 @@ export function memberVoteRecordQuery(search) {
     if(!/^(0|[1-9]\d*)$/.test(raw)||!Number.isSafeInteger(value)||value<min||value>max)throw new HttpError(400,'invalid_query',`Invalid ${key}.`);
     return value;
   }
-  return {scope,limit:integer('limit',5,0,MEMBER_VOTE_RECORD_LIMITS.departures),offset:integer('offset',0,0,MEMBER_VOTE_RECORD_LIMITS.maxOffset)};
+  const tag=search.get('tag');
+  if(tag!==null&&!tagPattern.test(tag))throw new HttpError(400,'invalid_tag','Use a topic or country from the breakdown.');
+  return {scope,tag,limit:integer('limit',5,0,MEMBER_VOTE_RECORD_LIMITS.departures),offset:integer('offset',0,0,MEMBER_VOTE_RECORD_LIMITS.maxOffset)};
 }
 export function memberVoteRecordLanguage(search) {
   const value=search.get('lang')??'en';
@@ -43,8 +48,8 @@ const readGroupOn=(db,generation)=>{
 
 function pendingRecord(id,query) {
   return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period:{from:CURRENT_TERM_START,to:null},
-    coverage:{sittings:0,included:0,missing:0,status:'pending'},group:{code:null,status:'unavailable'},alignment:null,ballots:{chaired:0},
-    departures:{scope:query.scope,offset:query.offset,limit:query.limit,total:0,items:[],nextOffset:null},comparison:null,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
+    coverage:{sittings:0,included:0,missing:0,status:'pending'},group:{code:null,status:'unavailable'},alignment:null,ballots:{chaired:0},breakdown:null,
+    departures:{scope:query.scope,tag:null,offset:query.offset,limit:query.limit,total:0,items:[],nextOffset:null},comparison:null,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
 }
 
 // Reads only the compact projection. No sitting snapshot is parsed and no
@@ -72,7 +77,7 @@ export class MemberVoteRecordReader {
         WHERE m.member_id=? AND s.snapshot_version=? ORDER BY s.date DESC,s.sitting_id DESC`).all(id,MEMBER_VOTE_SNAPSHOT_VERSION);
       const alignment={all:emptyAlignment(),wholeText:emptyAlignment()};
       const ballots={chaired:0};
-      const departures=[];
+      const departures=[],vectors=[];
       for(const row of rows) {
         const body=JSON.parse(row.body);
         for(const key of ['with','against','abstained','notComparable']) {
@@ -80,6 +85,7 @@ export class MemberVoteRecordReader {
           alignment.wholeText[key]+=body.wholeText?.[key]||0;
         }
         ballots.chaired+=body.ballots?.chaired||0;
+        if(typeof body.vector==='string')vectors.push({sittingId:row.sittingId,vector:body.vector});
         for(const departure of body.departures||[]) {
           departures.push({decisionId:departure.decisionId,sittingId:row.sittingId,date:departure.date,scope:departure.wholeText?'final':'all',wholeText:Boolean(departure.wholeText),
             position:departure.position??null,line:departure.line??null});
@@ -117,8 +123,20 @@ export class MemberVoteRecordReader {
         };
         comparison={all:pair('all'),final:pair('final')};
       }
+      // The breakdown reads only this member's marks and the tags kept on the sittings.
+      let breakdown=null,decisionTags=new Map();
+      if(group.status==='attached'&&vectors.length) {
+        const tagRows=new Map(db.prepare("SELECT sitting_id,tags FROM member_vote_record_sittings WHERE snapshot_version=? AND status='projected'").all(MEMBER_VOTE_SNAPSHOT_VERSION).map(row=>[row.sitting_id,row.tags]));
+        const calculated=memberBreakdown(vectors.map(({sittingId,vector})=>({vector,tags:JSON.parse(tagRows.get(sittingId)||'[]')})),query.scope);
+        decisionTags=calculated.decisionTags;
+        const named=(list,label)=>list.rows.flatMap(row=>{const text=label(row.key.slice(row.key.indexOf(':')+1),query.language);return text?[{key:row.key,label:text.text,language:text.language,comparable:row.comparable,withGroup:row.withGroup,share:row.share}]:[];});
+        const topics=named(calculated.topics,topicLabel),countries=named(calculated.countries,countryLabel);
+        if(calculated.topics.eligible+calculated.countries.eligible>0)breakdown={overall:calculated.overall,topics:{eligible:calculated.topics.eligible,rows:topics},countries:{eligible:calculated.countries.eligible,rows:countries}};
+      }
       const sorted=departures.sort((a,b)=>(b.wholeText?1:0)-(a.wholeText?1:0)||b.date.localeCompare(a.date)||b.decisionId.localeCompare(a.decisionId))
-        .filter(item=>query.scope==='all'||item.wholeText);
+        .filter(item=>query.scope==='all'||item.wholeText)
+        .filter(item=>!query.tag||decisionTags.get(item.decisionId)?.includes(query.tag));
+      const filterLabel=query.tag?(query.tag.startsWith('topic:')?topicLabel:countryLabel)(query.tag.slice(query.tag.indexOf(':')+1),query.language):null;
       // Wording is large, so only the sittings on the requested page are read.
       const wording=new Map();
       const items=sorted.slice(query.offset,query.offset+query.limit).map(item=>{
@@ -133,7 +151,7 @@ export class MemberVoteRecordReader {
         return {...item,...label,subject:subject.text?subject:null};
       }),nextOffset=query.offset+items.length<sorted.length?query.offset+items.length:null;
       return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period,coverage,group,
-        alignment:group.status==='attached'?alignment:null,ballots,departures:{scope:query.scope,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},
+        alignment:group.status==='attached'?alignment:null,ballots,breakdown,departures:{scope:query.scope,tag:query.tag?{key:query.tag,label:filterLabel?.text??null,language:filterLabel?.language??null}:null,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},
         comparison,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
     }catch(error){if(error instanceof HttpError)throw error;throw new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.');}
   }

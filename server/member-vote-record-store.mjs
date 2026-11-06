@@ -19,6 +19,10 @@ export function prepareMemberVoteRecord(store) {
     PRIMARY KEY(member_id,sitting_id));
     CREATE TABLE IF NOT EXISTS member_vote_record_totals (
     member_id TEXT PRIMARY KEY, body TEXT NOT NULL);`);
+  // A table written by an earlier build gains the topic columns; its sittings are then re-tagged.
+  const columns=new Set(store.db.prepare('PRAGMA table_info(member_vote_record_sittings)').all().map(column=>column.name));
+  if(!columns.has('topics_generation'))store.db.exec('ALTER TABLE member_vote_record_sittings ADD COLUMN topics_generation INTEGER');
+  if(!columns.has('tags'))store.db.exec("ALTER TABLE member_vote_record_sittings ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'");
 }
 
 const totalKeys=['withGroup','comparable','finalWithGroup','finalComparable'];

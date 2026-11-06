@@ -24,7 +24,7 @@ function database({includeC=true,generation=3,groupSnapshot=history,totals=[{mem
     sitting_id TEXT PRIMARY KEY, revision TEXT NOT NULL, date TEXT NOT NULL,
     group_generation INTEGER, snapshot_version INTEGER NOT NULL,
     named INTEGER NOT NULL, decisions TEXT NOT NULL, complete INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'projected', reason TEXT, subjects TEXT NOT NULL DEFAULT '{}');
+    status TEXT NOT NULL DEFAULT 'projected', reason TEXT, subjects TEXT NOT NULL DEFAULT '{}', topics_generation INTEGER, tags TEXT NOT NULL DEFAULT '[]');
     CREATE TABLE member_vote_record_members (member_id TEXT NOT NULL, sitting_id TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(member_id,sitting_id));
     CREATE TABLE member_vote_record_totals (member_id TEXT PRIMARY KEY, body TEXT NOT NULL);
     CREATE TABLE sitting_snapshots (kind TEXT, version INTEGER, id TEXT, complete INTEGER, error TEXT);
@@ -32,11 +32,11 @@ function database({includeC=true,generation=3,groupSnapshot=history,totals=[{mem
     CREATE TABLE group_history_snapshots (generation INTEGER PRIMARY KEY, body TEXT NOT NULL);`);
   db.prepare('INSERT INTO meta VALUES (?,?)').run('active',JSON.stringify(generation));
   if(groupSnapshot)db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(generation,JSON.stringify(groupSnapshot));
-  const insertSitting=db.prepare('INSERT INTO member_vote_record_sittings(sitting_id,revision,date,group_generation,snapshot_version,named,decisions,complete,status,subjects) VALUES (?,?,?,?,?,?,?,?,?,?)');
+  const insertSitting=db.prepare('INSERT INTO member_vote_record_sittings(sitting_id,revision,date,group_generation,snapshot_version,named,decisions,complete,status,subjects,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
   const insertMember=db.prepare('INSERT INTO member_vote_record_members VALUES (?,?,?)');
   const snapshot=db.prepare('INSERT INTO sitting_snapshots VALUES (?,?,?,?,?)');
-  const sitting=(id,{named=0,complete=1,decisions={},status='projected',subjects={}}={})=>{
-    insertSitting.run(id,'a'.repeat(64),id.slice(7),generation,VERSION,named,JSON.stringify(decisions),complete,status,JSON.stringify(subjects));
+  const sitting=(id,{named=0,complete=1,decisions={},status='projected',subjects={},tags=[]}={})=>{
+    insertSitting.run(id,'a'.repeat(64),id.slice(7),generation,VERSION,named,JSON.stringify(decisions),complete,status,JSON.stringify(subjects),JSON.stringify(tags));
     snapshot.run('votes',VERSION,id,complete,null);
   };
   const member=row=>insertMember.run(MEP,row.sittingId,JSON.stringify(row));
@@ -72,6 +72,7 @@ test('the reader combines stored member rows without parsing snapshots or contac
   const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00:00Z')});
   const data=reader.query(MEP,{...query(),language:'en'});
   assert.equal(data.version,MEMBER_VOTE_RECORD_VERSION);
+  assert.equal(data.breakdown,null,'a record without tags has no breakdown');
   assert.deepEqual(data.member,{id:MEP,uri:'https://data.europarl.europa.eu/person/'+MEP});
   assert.deepEqual(data.period,{from:'2024-07-16',to:'2026-10-07'});
   assert.deepEqual(data.coverage,{sittings:3,included:2,missing:1,status:'partial'});
@@ -160,9 +161,11 @@ test('an unavailable index fails, and a projection that does not exist yet answe
 });
 
 test('query parsing rejects unsupported, repeated, out-of-range and malformed values',()=>{
-  assert.deepEqual(memberVoteRecordQuery(new URLSearchParams()),{scope:'all',limit:5,offset:0});
-  assert.deepEqual(memberVoteRecordQuery(new URLSearchParams({scope:'final',limit:'50',offset:'10000'})),{scope:'final',limit:50,offset:10000});
-  for(const params of ['scope=other','limit=51','limit=-1','limit=1.5','offset=10001','offset=x','limit=1&limit=2','unknown=1'])
+  assert.deepEqual(memberVoteRecordQuery(new URLSearchParams()),{scope:'all',tag:null,limit:5,offset:0});
+  assert.deepEqual(memberVoteRecordQuery(new URLSearchParams({scope:'final',limit:'50',offset:'10000'})),{scope:'final',tag:null,limit:50,offset:10000});
+  assert.equal(memberVoteRecordQuery(new URLSearchParams({tag:'topic:100195'})).tag,'topic:100195');
+  assert.equal(memberVoteRecordQuery(new URLSearchParams({tag:'country:RUS'})).tag,'country:RUS');
+  for(const params of ['scope=other','limit=51','limit=-1','limit=1.5','offset=10001','offset=x','limit=1&limit=2','unknown=1','tag=oeil:6.40','tag=topic:','tag=country:rus','tag=topic:1&tag=topic:2'])
     assert.throws(()=>memberVoteRecordQuery(new URLSearchParams(params)),error=>error instanceof HttpError&&error.status===400,params);
   assert.equal(memberVoteRecordLanguage(new URLSearchParams({lang:'hu'})),'hu');
   assert.equal(memberVoteRecordLanguage(new URLSearchParams()),'en');
@@ -219,4 +222,61 @@ test('odd and even medians are rounded alike',()=>{
   put.run(MEP,JSON.stringify(share(1,3)));
   const data=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00:00Z')}).query(MEP,{...query(),language:'en'});
   assert.equal(data.comparison.all.group.median,0.3333);
+});
+
+function breakdownDatabase({tagged=25,againstTagged=15,procedures=['2026-1','2026-2','2026-3'],withOthers=50,group='S&D'}={}) {
+  const {db,sitting,member}=database({includeC:false});
+  const names=Array.from({length:tagged},(_,index)=>decision(A,index+1));
+  const decisions=Object.fromEntries(names.map(id=>[id,{subjectId:null,titles:titles('Vote '+id.split('-').pop()),referenceTexts:{},outcome:'ADOPTED',scope:'amendment',wholeText:false,method:'VOTE_ELECTRONIC_ROLLCALL'}]));
+  const tags=names.map((id,index)=>[id,[procedures[index%procedures.length]],['100195'],['FRA']]);
+  sitting(A,{named:tagged,decisions,tags});
+  const marks=Array.from({length:tagged},(_,index)=>index<againstTagged?'a':'w').join('');
+  const against=names.slice(0,againstTagged);
+  member({...memberRow({sittingId:A,date:'2026-09-16',alignment:{with:tagged-againstTagged,against:againstTagged,abstained:0,notComparable:0},recorded:tagged,named:tagged,withGroup:tagged-againstTagged,comparable:tagged,
+    departures:against.map(id=>({decisionId:id,date:'2026-09-16',wholeText:false,position:'against',line:'for'}))}),vector:marks});
+  // Many votes with the group and no tag: they raise the overall share only.
+  const others=Array.from({length:withOthers},(_,index)=>decision(B,index+1));
+  sitting(B,{named:withOthers,decisions:Object.fromEntries(others.map(id=>[id,{subjectId:null,titles:titles('Other'),referenceTexts:{},outcome:'ADOPTED',scope:'amendment',wholeText:false,method:'VOTE_ELECTRONIC_ROLLCALL'}])),tags:others.map(id=>[id,[],[],[]])});
+  member({...memberRow({sittingId:B,date:'2026-10-07',alignment:{with:withOthers,against:0,abstained:0,notComparable:0},recorded:withOthers,named:withOthers,withGroup:withOthers,comparable:withOthers}),vector:'w'.repeat(withOthers)});
+  db.prepare("UPDATE group_history_snapshots SET body=?").run(JSON.stringify({members:{[MEP]:person(group)},catalogue:{sources:[],bodies:[]}}));
+  return db;
+}
+const readerFor=db=>new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00:00Z')});
+
+test('the breakdown lists topics and countries clearly below the member\'s overall share, with labels and the evidence behind them',()=>{
+  const data=readerFor(breakdownDatabase()).query(MEP,{...query(),language:'en'});
+  // 35 of 75 with the group overall; the tagged votes are 10 of 25.
+  assert.equal(data.breakdown.overall,60/75);
+  assert.deepEqual(data.breakdown.topics.rows,[{key:'topic:100195',label:'consumption',language:'en',comparable:25,withGroup:10,share:0.4}]);
+  assert.deepEqual(data.breakdown.countries.rows,[{key:'country:FRA',label:'France',language:'en',comparable:25,withGroup:10,share:0.4}]);
+  assert.deepEqual([data.breakdown.topics.eligible,data.breakdown.countries.eligible],[1,1]);
+  // Other languages use the metadata where it has them and name the language where it falls back.
+  const hungarian=readerFor(breakdownDatabase()).query(MEP,{...query({lang:'hu'}),language:'hu'});
+  assert.equal(hungarian.breakdown.countries.rows[0].language,'hu');
+  assert.deepEqual([hungarian.breakdown.topics.rows[0].label,hungarian.breakdown.topics.rows[0].language],['consumption','en'],'the microthesaurus labels exist in English only');
+});
+
+test('the breakdown is absent without enough votes or texts, and when the member has no group line',()=>{
+  assert.equal(readerFor(breakdownDatabase({tagged:19,againstTagged:12})).query(MEP,{...query(),language:'en'}).breakdown,null,'19 comparable votes');
+  assert.equal(readerFor(breakdownDatabase({procedures:['2026-1','2026-2']})).query(MEP,{...query(),language:'en'}).breakdown,null,'two procedures');
+  assert.equal(readerFor(breakdownDatabase({group:'NI'})).query(MEP,{...query(),language:'en'}).breakdown,null,'non-attached');
+  // Eligible but not clearly below: a section with no rows, so the reader can say so.
+  const level=readerFor(breakdownDatabase({againstTagged:2,withOthers:2})).query(MEP,{...query(),language:'en'});
+  assert.deepEqual([level.breakdown.topics.eligible,level.breakdown.topics.rows.length],[1,0]);
+});
+
+test('a tag filters the departures to that exact tag and keeps paginating',()=>{
+  const reader=readerFor(breakdownDatabase());
+  const all=reader.query(MEP,{...query(),language:'en'});
+  assert.equal(all.departures.total,15);assert.equal(all.departures.tag,null);
+  const first=reader.query(MEP,{...query({tag:'topic:100195'}),language:'en'});
+  assert.equal(first.departures.total,15);
+  assert.deepEqual(first.departures.tag,{key:'topic:100195',label:'consumption',language:'en'});
+  assert.equal(first.departures.items.length,5);assert.equal(first.departures.nextOffset,5);
+  const page=reader.query(MEP,{...query({tag:'country:FRA',limit:'5',offset:'10'}),language:'en'});
+  assert.equal(page.departures.items.length,5);assert.equal(page.departures.nextOffset,null);assert.equal(page.departures.total,15);
+  const none=reader.query(MEP,{...query({tag:'country:DEU'}),language:'en'});
+  assert.equal(none.departures.total,0);assert.deepEqual(none.departures.items,[]);
+  // The scope still applies: no whole-text vote carries the tag, so Final is empty.
+  assert.equal(reader.query(MEP,{...query({tag:'topic:100195',scope:'final'}),language:'en'}).departures.total,0);
 });
