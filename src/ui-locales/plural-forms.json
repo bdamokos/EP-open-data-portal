@@ -504,6 +504,38 @@
     "topics.story.links.urgency": {
       "one": "{count} неотложно разискване",
       "other": "{count} неотложни разисквания"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} изказване",
+      "other": "{count} изказвания"
+    },
+    "weekSummary.debates": {
+      "one": "{count} разискване",
+      "other": "{count} разисквания"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Пълна хронология ({count} събитие)",
+      "other": "Пълна хронология ({count} събития)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "{count} изменение на етап {stage}",
+      "other": "{count} изменения на етап {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} човек: {roles} с роля по досието, {others} с изказвания или внесени изменения.",
+      "other": "{count} души: {roles} с роля по досието, {others} с изказвания или внесени изменения."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} дневен ред не е претърсен.",
+      "other": "{count} дневни реда не са претърсени."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} точка от дневния ред",
+      "other": "{count} точки от дневния ред"
+    },
+    "weekSummary.votes": {
+      "one": "{count} гласуване",
+      "other": "{count} гласувания"
     }
   },
   "cs": {
@@ -1217,6 +1249,54 @@
       "other": "{count} naléhavých rozprav",
       "few": "{count} naléhavé rozpravy",
       "many": "{count} naléhavé rozpravy"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} projev",
+      "few": "Počet projevů: {count}",
+      "many": "Počet projevů: {count}",
+      "other": "Počet projevů: {count}"
+    },
+    "weekSummary.debates": {
+      "one": "{count} rozprava",
+      "few": "{count} rozpravy",
+      "many": "{count} rozpravy",
+      "other": "{count} rozprav"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Celá časová osa (počet událostí: {count})",
+      "few": "Celá časová osa (počet událostí: {count})",
+      "many": "Celá časová osa (počet událostí: {count})",
+      "other": "Celá časová osa (počet událostí: {count})"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Počet pozměňovacích návrhů: {count} · {stage}",
+      "few": "Počet pozměňovacích návrhů: {count} · {stage}",
+      "many": "Počet pozměňovacích návrhů: {count} · {stage}",
+      "other": "Počet pozměňovacích návrhů: {count} · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "Počet osob: {count} · s rolí ve spisu: {roles}, vystoupili nebo podali pozměňovací návrhy: {others}.",
+      "few": "Počet osob: {count} · s rolí ve spisu: {roles}, vystoupili nebo podali pozměňovací návrhy: {others}.",
+      "many": "Počet osob: {count} · s rolí ve spisu: {roles}, vystoupili nebo podali pozměňovací návrhy: {others}.",
+      "other": "Počet osob: {count} · s rolí ve spisu: {roles}, vystoupili nebo podali pozměňovací návrhy: {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "Neprohledané pořady jednání: {count}.",
+      "few": "Neprohledané pořady jednání: {count}.",
+      "many": "Neprohledané pořady jednání: {count}.",
+      "other": "Neprohledané pořady jednání: {count}."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} bod pořadu jednání",
+      "few": "{count} body pořadu jednání",
+      "many": "{count} bodu pořadu jednání",
+      "other": "{count} bodů pořadu jednání"
+    },
+    "weekSummary.votes": {
+      "one": "{count} hlasování",
+      "few": "{count} hlasování",
+      "many": "{count} hlasování",
+      "other": "{count} hlasování"
     }
   },
   "da": {
@@ -1755,6 +1835,38 @@
     "topics.story.links.urgency": {
       "one": "{count} uopsættelig debat",
       "other": "{count} uopsættelige debatter"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} tale",
+      "other": "{count} taler"
+    },
+    "weekSummary.debates": {
+      "one": "{count} debat",
+      "other": "{count} debatter"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Fuld tidslinje ({count} begivenhed)",
+      "other": "Fuld tidslinje ({count} begivenheder)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "{count} ændringsforslag i {stage}",
+      "other": "{count} ændringsforslag i {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} person: {roles} med en rolle i sagen, {others} der har talt eller stillet ændringsforslag.",
+      "other": "{count} personer: {roles} med en rolle i sagen, {others} der har talt eller stillet ændringsforslag."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} dagsorden ikke søgt.",
+      "other": "{count} dagsordener ikke søgt."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} dagsordenspunkt",
+      "other": "{count} dagsordenspunkter"
+    },
+    "weekSummary.votes": {
+      "one": "{count} afstemning",
+      "other": "{count} afstemninger"
     }
   },
   "de": {
@@ -2293,6 +2405,38 @@
     "topics.story.links.urgency": {
       "one": "{count} Dringlichkeitsdebatte",
       "other": "{count} Dringlichkeitsdebatten"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} Rede",
+      "other": "{count} Reden"
+    },
+    "weekSummary.debates": {
+      "one": "{count} Debatte",
+      "other": "{count} Debatten"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Gesamter Verlauf ({count} Ereignis)",
+      "other": "Gesamter Verlauf ({count} Ereignisse)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "{count} Änderungsantrag · {stage}",
+      "other": "{count} Änderungsanträge · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} Person: {roles} mit einer Rolle im Dossier, {others} mit Reden oder Änderungsanträgen.",
+      "other": "{count} Personen: {roles} mit einer Rolle im Dossier, {others} mit Reden oder Änderungsanträgen."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} Tagesordnung nicht durchsucht.",
+      "other": "{count} Tagesordnungen nicht durchsucht."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} Tagesordnungspunkt",
+      "other": "{count} Tagesordnungspunkte"
+    },
+    "weekSummary.votes": {
+      "one": "{count} Abstimmung",
+      "other": "{count} Abstimmungen"
     }
   },
   "el": {
@@ -2799,6 +2943,38 @@
     "topics.story.links.urgency": {
       "one": "{count} συζήτηση κατεπείγοντος",
       "other": "{count} συζητήσεις κατεπείγοντος"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} ομιλία",
+      "other": "{count} ομιλίες"
+    },
+    "weekSummary.debates": {
+      "one": "{count} συζήτηση",
+      "other": "{count} συζητήσεις"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Πλήρες χρονολόγιο ({count} γεγονός)",
+      "other": "Πλήρες χρονολόγιο ({count} γεγονότα)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Τροπολογίες: {count} · {stage}",
+      "other": "Τροπολογίες: {count} · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} άτομο: {roles} με ρόλο στον φάκελο, {others} με ομιλίες ή τροπολογίες.",
+      "other": "{count} άτομα: {roles} με ρόλο στον φάκελο, {others} με ομιλίες ή τροπολογίες."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} ημερήσια διάταξη δεν αναζητήθηκε.",
+      "other": "{count} ημερήσιες διατάξεις δεν αναζητήθηκαν."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} θέμα ημερήσιας διάταξης",
+      "other": "{count} θέματα ημερήσιας διάταξης"
+    },
+    "weekSummary.votes": {
+      "one": "{count} ψηφοφορία",
+      "other": "{count} ψηφοφορίες"
     }
   },
   "es": {
@@ -3403,6 +3579,46 @@
       "one": "{count} debate de urgencia",
       "other": "{count} debates de urgencia",
       "many": "{count} de debates de urgencia"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} discurso",
+      "many": "{count} discursos",
+      "other": "{count} discursos"
+    },
+    "weekSummary.debates": {
+      "one": "{count} debate",
+      "other": "{count} debates",
+      "many": "{count} de debates"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Cronología completa ({count} evento)",
+      "many": "Cronología completa ({count} de eventos)",
+      "other": "Cronología completa ({count} eventos)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Enmiendas: {count} · {stage}",
+      "many": "Enmiendas: {count} · {stage}",
+      "other": "Enmiendas: {count} · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} persona: {roles} con un cargo en el expediente, {others} con intervenciones o enmiendas.",
+      "many": "{count} de personas: {roles} con un cargo en el expediente, {others} con intervenciones o enmiendas.",
+      "other": "{count} personas: {roles} con un cargo en el expediente, {others} con intervenciones o enmiendas."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} orden del día no consultado.",
+      "many": "{count} de órdenes del día no consultados.",
+      "other": "{count} órdenes del día no consultados."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} punto del orden del día",
+      "many": "{count} de puntos del orden del día",
+      "other": "{count} puntos del orden del día"
+    },
+    "weekSummary.votes": {
+      "one": "{count} votación",
+      "many": "{count} de votaciones",
+      "other": "{count} votaciones"
     }
   },
   "et": {
@@ -3910,6 +4126,38 @@
     "topics.story.links.urgency": {
       "one": "{count} kiireloomuline arutelu",
       "other": "{count} kiireloomulist arutelu"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} sõnavõtt",
+      "other": "{count} sõnavõttu"
+    },
+    "weekSummary.debates": {
+      "one": "{count} arutelu",
+      "other": "{count} arutelu"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Täielik ajajoon ({count} sündmus)",
+      "other": "Täielik ajajoon ({count} sündmust)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "{count} muudatusettepanek etapis {stage}",
+      "other": "{count} muudatusettepanekut etapis {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} isik: {roles} rolliga toimikus, {others} sõnavõttude või muudatusettepanekutega.",
+      "other": "{count} isikut: {roles} rolliga toimikus, {others} sõnavõttude või muudatusettepanekutega."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} päevakorda ei otsitud.",
+      "other": "{count} päevakorda ei otsitud."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} päevakorrapunkt",
+      "other": "{count} päevakorrapunkti"
+    },
+    "weekSummary.votes": {
+      "one": "{count} hääletus",
+      "other": "{count} hääletust"
     }
   },
   "fi": {
@@ -4448,6 +4696,38 @@
     "topics.story.links.urgency": {
       "one": "{count} kiireellinen keskustelu",
       "other": "{count} kiireellistä keskustelua"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} puhe",
+      "other": "{count} puhetta"
+    },
+    "weekSummary.debates": {
+      "one": "{count} keskustelu",
+      "other": "{count} keskustelua"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Koko aikajana ({count} tapahtuma)",
+      "other": "Koko aikajana ({count} tapahtumaa)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "{count} tarkistus vaiheessa {stage}",
+      "other": "{count} tarkistusta vaiheessa {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "Henkilöitä: {count} · asiassa roolin saaneita: {roles}, puhuneita tai tarkistuksia jättäneitä: {others}.",
+      "other": "Henkilöitä: {count} · asiassa roolin saaneita: {roles}, puhuneita tai tarkistuksia jättäneitä: {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} esityslista ei haettu.",
+      "other": "{count} esityslistaa ei haettu."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} esityslistan kohta",
+      "other": "{count} esityslistan kohtaa"
+    },
+    "weekSummary.votes": {
+      "one": "{count} äänestys",
+      "other": "{count} äänestystä"
     }
   },
   "fr": {
@@ -5052,6 +5332,46 @@
       "one": "{count} débat d’urgence",
       "many": "{count} de débats d’urgence",
       "other": "{count} débats d’urgence"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} discours",
+      "many": "{count} discours",
+      "other": "{count} discours"
+    },
+    "weekSummary.debates": {
+      "one": "{count} débat",
+      "other": "{count} débats",
+      "many": "{count} de débats"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Chronologie complète ({count} événement)",
+      "other": "Chronologie complète ({count} événements)",
+      "many": "Chronologie complète ({count} d’événements)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Amendements : {count} · {stage}",
+      "other": "Amendements : {count} · {stage}",
+      "many": "Amendements : {count} · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} personne : {roles} avec un rôle dans le dossier, {others} ayant pris la parole ou déposé des amendements.",
+      "other": "{count} personnes : {roles} avec un rôle dans le dossier, {others} ayant pris la parole ou déposé des amendements.",
+      "many": "{count} de personnes : {roles} avec un rôle dans le dossier, {others} ayant pris la parole ou déposé des amendements."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} ordre du jour non consulté.",
+      "other": "{count} ordres du jour non consultés.",
+      "many": "{count} d’ordres du jour non consultés."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} point à l’ordre du jour",
+      "other": "{count} points à l’ordre du jour",
+      "many": "{count} de points à l’ordre du jour"
+    },
+    "weekSummary.votes": {
+      "one": "{count} vote",
+      "other": "{count} votes",
+      "many": "{count} de votes"
     }
   },
   "ga": {
@@ -5849,6 +6169,62 @@
       "few": "{count} dhíospóireacht phráinneacha",
       "many": "{count} ndíospóireacht phráinneacha",
       "other": "{count} de dhíospóireachtaí práinneacha"
+    },
+    "dossierpeople.speeches": {
+      "one": "Líon óráidí: {count}",
+      "other": "Líon óráidí: {count}",
+      "two": "Líon óráidí: {count}",
+      "few": "Líon óráidí: {count}",
+      "many": "Líon óráidí: {count}"
+    },
+    "weekSummary.debates": {
+      "one": "{count} díospóireacht",
+      "other": "{count} de dhíospóireachtaí",
+      "two": "{count} dhíospóireacht",
+      "few": "{count} dhíospóireacht",
+      "many": "{count} ndíospóireacht"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Amlíne iomlán (líon imeachtaí: {count})",
+      "other": "Amlíne iomlán (líon imeachtaí: {count})",
+      "two": "Amlíne iomlán (líon imeachtaí: {count})",
+      "few": "Amlíne iomlán (líon imeachtaí: {count})",
+      "many": "Amlíne iomlán (líon imeachtaí: {count})"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Líon leasuithe ag céim {stage}: {count}",
+      "other": "Líon leasuithe ag céim {stage}: {count}",
+      "two": "Líon leasuithe ag céim {stage}: {count}",
+      "few": "Líon leasuithe ag céim {stage}: {count}",
+      "many": "Líon leasuithe ag céim {stage}: {count}"
+    },
+    "dossierpeople.count_line": {
+      "one": "Líon daoine: {count} · le ról sa sainchomhad: {roles}, a labhair nó a thíolaic leasuithe: {others}.",
+      "other": "Líon daoine: {count} · le ról sa sainchomhad: {roles}, a labhair nó a thíolaic leasuithe: {others}.",
+      "two": "Líon daoine: {count} · le ról sa sainchomhad: {roles}, a labhair nó a thíolaic leasuithe: {others}.",
+      "few": "Líon daoine: {count} · le ról sa sainchomhad: {roles}, a labhair nó a thíolaic leasuithe: {others}.",
+      "many": "Líon daoine: {count} · le ról sa sainchomhad: {roles}, a labhair nó a thíolaic leasuithe: {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "Cláir oibre nár cuardaíodh: {count}.",
+      "other": "Cláir oibre nár cuardaíodh: {count}.",
+      "two": "Cláir oibre nár cuardaíodh: {count}.",
+      "few": "Cláir oibre nár cuardaíodh: {count}.",
+      "many": "Cláir oibre nár cuardaíodh: {count}."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} mír ar an gclár oibre",
+      "other": "{count} de mhíreanna ar an gclár oibre",
+      "two": "{count} mhír ar an gclár oibre",
+      "few": "{count} mhír ar an gclár oibre",
+      "many": "{count} mír ar an gclár oibre"
+    },
+    "weekSummary.votes": {
+      "one": "{count} vóta",
+      "other": "{count} de vótaí",
+      "two": "{count} bhóta",
+      "few": "{count} bhóta",
+      "many": "{count} bhfóta"
     }
   },
   "hr": {
@@ -6451,6 +6827,46 @@
       "one": "{count} hitna rasprava",
       "other": "{count} hitnih rasprava",
       "few": "{count} hitne rasprave"
+    },
+    "dossierpeople.speeches": {
+      "one": "Broj govora: {count}",
+      "few": "Broj govora: {count}",
+      "other": "Broj govora: {count}"
+    },
+    "weekSummary.debates": {
+      "one": "{count} rasprava",
+      "few": "{count} rasprave",
+      "other": "{count} rasprava"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Cijela vremenska crta (broj događaja: {count})",
+      "few": "Cijela vremenska crta (broj događaja: {count})",
+      "other": "Cijela vremenska crta (broj događaja: {count})"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Broj amandmana: {count} · {stage}",
+      "few": "Broj amandmana: {count} · {stage}",
+      "other": "Broj amandmana: {count} · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "Broj osoba: {count} · s ulogom u predmetu: {roles}, govorili ili podnijeli amandmane: {others}.",
+      "few": "Broj osoba: {count} · s ulogom u predmetu: {roles}, govorili ili podnijeli amandmane: {others}.",
+      "other": "Broj osoba: {count} · s ulogom u predmetu: {roles}, govorili ili podnijeli amandmane: {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "Nepretraženi dnevni redovi: {count}.",
+      "few": "Nepretraženi dnevni redovi: {count}.",
+      "other": "Nepretraženi dnevni redovi: {count}."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} točka dnevnog reda",
+      "few": "{count} točke dnevnog reda",
+      "other": "{count} točaka dnevnog reda"
+    },
+    "weekSummary.votes": {
+      "one": "{count} glasovanje",
+      "few": "{count} glasovanja",
+      "other": "{count} glasovanja"
     }
   },
   "hu": {
@@ -6954,6 +7370,38 @@
     "topics.story.links.urgency": {
       "one": "{count} sürgősségi vita",
       "other": "{count} sürgősségi vita"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} beszéd",
+      "other": "{count} beszéd"
+    },
+    "weekSummary.debates": {
+      "one": "{count} vita",
+      "other": "{count} vita"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Teljes idővonal ({count} esemény)",
+      "other": "Teljes idővonal ({count} esemény)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "{count} módosítás · {stage}",
+      "other": "{count} módosítás · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} személy: {roles} tölt be szerepet az ügyben, {others} szólalt fel vagy nyújtott be módosítást.",
+      "other": "{count} személy: {roles} tölt be szerepet az ügyben, {others} szólalt fel vagy nyújtott be módosítást."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} napirendben nem történt keresés.",
+      "other": "{count} napirendben nem történt keresés."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} napirendi pont",
+      "other": "{count} napirendi pont"
+    },
+    "weekSummary.votes": {
+      "one": "{count} szavazás",
+      "other": "{count} szavazás"
     }
   },
   "it": {
@@ -7558,6 +8006,46 @@
       "one": "{count} dibattito d'urgenza",
       "other": "{count} dibattiti d'urgenza",
       "many": "{count} di dibattiti d'urgenza"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} intervento",
+      "many": "{count} interventi",
+      "other": "{count} interventi"
+    },
+    "weekSummary.debates": {
+      "one": "{count} dibattito",
+      "other": "{count} dibattiti",
+      "many": "{count} di dibattiti"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Cronologia completa ({count} evento)",
+      "many": "Cronologia completa ({count} di eventi)",
+      "other": "Cronologia completa ({count} eventi)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Emendamenti: {count} · {stage}",
+      "many": "Emendamenti: {count} · {stage}",
+      "other": "Emendamenti: {count} · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} persona: {roles} con un ruolo nel fascicolo, {others} con interventi o emendamenti.",
+      "many": "{count} di persone: {roles} con un ruolo nel fascicolo, {others} con interventi o emendamenti.",
+      "other": "{count} persone: {roles} con un ruolo nel fascicolo, {others} con interventi o emendamenti."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} ordine del giorno non consultato.",
+      "many": "{count} di ordini del giorno non consultati.",
+      "other": "{count} ordini del giorno non consultati."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} punto all’ordine del giorno",
+      "many": "{count} di punti all’ordine del giorno",
+      "other": "{count} punti all’ordine del giorno"
+    },
+    "weekSummary.votes": {
+      "one": "{count} votazione",
+      "many": "{count} di votazioni",
+      "other": "{count} votazioni"
     }
   },
   "lt": {
@@ -8258,6 +8746,54 @@
       "few": "{count} skubios diskusijos",
       "many": "{count} skubios diskusijos",
       "other": "{count} skubių diskusijų"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} kalba",
+      "other": "{count} kalbų",
+      "few": "{count} kalbos",
+      "many": "Kalbų skaičius: {count}"
+    },
+    "weekSummary.debates": {
+      "one": "{count} diskusija",
+      "other": "{count} diskusijų",
+      "few": "{count} diskusijos",
+      "many": "{count} diskusijos"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Visa laiko juosta (įvykių skaičius: {count})",
+      "other": "Visa laiko juosta (įvykių skaičius: {count})",
+      "few": "Visa laiko juosta (įvykių skaičius: {count})",
+      "many": "Visa laiko juosta (įvykių skaičius: {count})"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "{count} pakeitimas · {stage}",
+      "other": "{count} pakeitimų · {stage}",
+      "few": "{count} pakeitimai · {stage}",
+      "many": "{count} pakeitimo · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "Asmenų skaičius: {count} · su vaidmeniu byloje: {roles}, kalbėjo arba pateikė pakeitimų: {others}.",
+      "other": "Asmenų skaičius: {count} · su vaidmeniu byloje: {roles}, kalbėjo arba pateikė pakeitimų: {others}.",
+      "few": "Asmenų skaičius: {count} · su vaidmeniu byloje: {roles}, kalbėjo arba pateikė pakeitimų: {others}.",
+      "many": "Asmenų skaičius: {count} · su vaidmeniu byloje: {roles}, kalbėjo arba pateikė pakeitimų: {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "Neieškotos darbotvarkės: {count}.",
+      "other": "Neieškotos darbotvarkės: {count}.",
+      "few": "Neieškotos darbotvarkės: {count}.",
+      "many": "Neieškotos darbotvarkės: {count}."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} darbotvarkės punktas",
+      "other": "{count} darbotvarkės punktų",
+      "few": "{count} darbotvarkės punktai",
+      "many": "{count} darbotvarkės punkto"
+    },
+    "weekSummary.votes": {
+      "one": "{count} balsavimas",
+      "other": "{count} balsavimų",
+      "few": "{count} balsavimai",
+      "many": "{count} balsavimo"
     }
   },
   "lv": {
@@ -8859,6 +9395,46 @@
       "one": "{count} steidzamības debates",
       "other": "{count} steidzamības debates",
       "zero": "{count} steidzamības debašu"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} runa",
+      "other": "{count} runas",
+      "zero": "{count} runu"
+    },
+    "weekSummary.debates": {
+      "one": "{count} debates",
+      "other": "{count} debates",
+      "zero": "{count} debašu"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Pilna hronoloģija ({count} notikums)",
+      "other": "Pilna hronoloģija ({count} notikumi)",
+      "zero": "Pilna hronoloģija ({count} notikumu)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "{count} grozījums · {stage}",
+      "other": "{count} grozījumi · {stage}",
+      "zero": "{count} grozījumu · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} persona · ar lomu lietā: {roles}, uzstājušies vai iesnieguši grozījumus: {others}.",
+      "other": "{count} personas · ar lomu lietā: {roles}, uzstājušies vai iesnieguši grozījumus: {others}.",
+      "zero": "{count} personu · ar lomu lietā: {roles}, uzstājušies vai iesnieguši grozījumus: {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "Nemeklētās darba kārtības: {count}.",
+      "other": "Nemeklētās darba kārtības: {count}.",
+      "zero": "Nemeklētās darba kārtības: {count}."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} darba kārtības punkts",
+      "other": "{count} darba kārtības punkti",
+      "zero": "{count} darba kārtības punktu"
+    },
+    "weekSummary.votes": {
+      "one": "{count} balsojums",
+      "other": "{count} balsojumi",
+      "zero": "{count} balsojumu"
     }
   },
   "mt": {
@@ -9656,6 +10232,62 @@
       "few": "{count} dibattiti b’urġenza",
       "many": "{count}-il dibattitu b’urġenza",
       "other": "{count} dibattitu b’urġenza"
+    },
+    "dossierpeople.speeches": {
+      "one": "Għadd ta’ diskorsi: {count}",
+      "other": "Għadd ta’ diskorsi: {count}",
+      "two": "Għadd ta’ diskorsi: {count}",
+      "few": "Għadd ta’ diskorsi: {count}",
+      "many": "Għadd ta’ diskorsi: {count}"
+    },
+    "weekSummary.debates": {
+      "one": "{count} dibattitu",
+      "other": "{count} dibattitu",
+      "two": "{count} dibattiti",
+      "few": "{count} dibattiti",
+      "many": "{count}-il dibattitu"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Kronoloġija sħiħa (għadd ta’ avvenimenti: {count})",
+      "other": "Kronoloġija sħiħa (għadd ta’ avvenimenti: {count})",
+      "two": "Kronoloġija sħiħa (għadd ta’ avvenimenti: {count})",
+      "few": "Kronoloġija sħiħa (għadd ta’ avvenimenti: {count})",
+      "many": "Kronoloġija sħiħa (għadd ta’ avvenimenti: {count})"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Għadd ta’ emendi fl-istadju {stage}: {count}",
+      "other": "Għadd ta’ emendi fl-istadju {stage}: {count}",
+      "two": "Għadd ta’ emendi fl-istadju {stage}: {count}",
+      "few": "Għadd ta’ emendi fl-istadju {stage}: {count}",
+      "many": "Għadd ta’ emendi fl-istadju {stage}: {count}"
+    },
+    "dossierpeople.count_line": {
+      "one": "Għadd ta’ persuni: {count} · b’rwol fid-dossier: {roles}, li tkellmu jew ippreżentaw emendi: {others}.",
+      "other": "Għadd ta’ persuni: {count} · b’rwol fid-dossier: {roles}, li tkellmu jew ippreżentaw emendi: {others}.",
+      "two": "Għadd ta’ persuni: {count} · b’rwol fid-dossier: {roles}, li tkellmu jew ippreżentaw emendi: {others}.",
+      "few": "Għadd ta’ persuni: {count} · b’rwol fid-dossier: {roles}, li tkellmu jew ippreżentaw emendi: {others}.",
+      "many": "Għadd ta’ persuni: {count} · b’rwol fid-dossier: {roles}, li tkellmu jew ippreżentaw emendi: {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "Aġendi li ma nfittxux: {count}.",
+      "other": "Aġendi li ma nfittxux: {count}.",
+      "two": "Aġendi li ma nfittxux: {count}.",
+      "few": "Aġendi li ma nfittxux: {count}.",
+      "many": "Aġendi li ma nfittxux: {count}."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} punt tal-aġenda",
+      "other": "{count} punt tal-aġenda",
+      "two": "{count} punti tal-aġenda",
+      "few": "{count} punti tal-aġenda",
+      "many": "{count}-il punt tal-aġenda"
+    },
+    "weekSummary.votes": {
+      "one": "{count} votazzjoni",
+      "other": "{count} votazzjoni",
+      "two": "{count} votazzjonijiet",
+      "few": "{count} votazzjonijiet",
+      "many": "{count}-il votazzjoni"
     }
   },
   "nl": {
@@ -10194,6 +10826,38 @@
     "topics.story.links.urgency": {
       "one": "{count} urgentiedebat",
       "other": "{count} urgentiedebatten"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} toespraak",
+      "other": "{count} toespraken"
+    },
+    "weekSummary.debates": {
+      "one": "{count} debat",
+      "other": "{count} debatten"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Volledige tijdlijn ({count} gebeurtenis)",
+      "other": "Volledige tijdlijn ({count} gebeurtenissen)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "{count} amendement ({stage})",
+      "other": "{count} amendementen ({stage})"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} persoon: {roles} met een rol in het dossier, {others} met toespraken of amendementen.",
+      "other": "{count} personen: {roles} met een rol in het dossier, {others} met toespraken of amendementen."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} agenda niet doorzocht.",
+      "other": "{count} agenda’s niet doorzocht."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} agendapunt",
+      "other": "{count} agendapunten"
+    },
+    "weekSummary.votes": {
+      "one": "{count} stemming",
+      "other": "{count} stemmingen"
     }
   },
   "pl": {
@@ -10895,6 +11559,54 @@
       "few": "{count} debaty w trybie pilnym",
       "many": "{count} debat w trybie pilnym",
       "other": "{count} debaty w trybie pilnym"
+    },
+    "dossierpeople.speeches": {
+      "one": "Liczba wystąpień: {count}",
+      "few": "Liczba wystąpień: {count}",
+      "many": "Liczba wystąpień: {count}",
+      "other": "Liczba wystąpień: {count}"
+    },
+    "weekSummary.debates": {
+      "one": "{count} debata",
+      "few": "{count} debaty",
+      "many": "{count} debat",
+      "other": "{count} debaty"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Pełna oś czasu (liczba zdarzeń: {count})",
+      "few": "Pełna oś czasu (liczba zdarzeń: {count})",
+      "many": "Pełna oś czasu (liczba zdarzeń: {count})",
+      "other": "Pełna oś czasu (liczba zdarzeń: {count})"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Liczba poprawek: {count} · {stage}",
+      "few": "Liczba poprawek: {count} · {stage}",
+      "many": "Liczba poprawek: {count} · {stage}",
+      "other": "Liczba poprawek: {count} · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "Liczba osób: {count} · z rolą w dossier: {roles}, z wystąpieniami lub poprawkami: {others}.",
+      "few": "Liczba osób: {count} · z rolą w dossier: {roles}, z wystąpieniami lub poprawkami: {others}.",
+      "many": "Liczba osób: {count} · z rolą w dossier: {roles}, z wystąpieniami lub poprawkami: {others}.",
+      "other": "Liczba osób: {count} · z rolą w dossier: {roles}, z wystąpieniami lub poprawkami: {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "Nieprzeszukane porządki obrad: {count}.",
+      "few": "Nieprzeszukane porządki obrad: {count}.",
+      "many": "Nieprzeszukane porządki obrad: {count}.",
+      "other": "Nieprzeszukane porządki obrad: {count}."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} punkt porządku obrad",
+      "few": "{count} punkty porządku obrad",
+      "many": "{count} punktów porządku obrad",
+      "other": "{count} punktu porządku obrad"
+    },
+    "weekSummary.votes": {
+      "one": "{count} głosowanie",
+      "few": "{count} głosowania",
+      "many": "{count} głosowań",
+      "other": "{count} głosowania"
     }
   },
   "pt": {
@@ -11499,6 +12211,46 @@
       "one": "{count} debate de urgência",
       "other": "{count} debates de urgência",
       "many": "{count} de debates de urgência"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} discurso",
+      "many": "{count} discursos",
+      "other": "{count} discursos"
+    },
+    "weekSummary.debates": {
+      "one": "{count} debate",
+      "other": "{count} debates",
+      "many": "{count} de debates"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Cronologia completa ({count} evento)",
+      "many": "Cronologia completa ({count} de eventos)",
+      "other": "Cronologia completa ({count} eventos)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Alterações: {count} ({stage})",
+      "many": "Alterações: {count} ({stage})",
+      "other": "Alterações: {count} ({stage})"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} pessoa: {roles} com funções no dossiê, {others} com intervenções ou alterações.",
+      "many": "{count} de pessoas: {roles} com funções no dossiê, {others} com intervenções ou alterações.",
+      "other": "{count} pessoas: {roles} com funções no dossiê, {others} com intervenções ou alterações."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} ordem do dia não consultada.",
+      "many": "{count} de ordens do dia não consultadas.",
+      "other": "{count} ordens do dia não consultadas."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} ponto da ordem do dia",
+      "many": "{count} de pontos da ordem do dia",
+      "other": "{count} pontos da ordem do dia"
+    },
+    "weekSummary.votes": {
+      "one": "{count} votação",
+      "many": "{count} de votações",
+      "other": "{count} votações"
     }
   },
   "ro": {
@@ -12103,6 +12855,46 @@
       "one": "{count} dezbatere de urgență",
       "few": "{count} dezbateri de urgență",
       "other": "{count} de dezbateri de urgență"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} discurs",
+      "few": "{count} discursuri",
+      "other": "{count} de discursuri"
+    },
+    "weekSummary.debates": {
+      "one": "{count} dezbatere",
+      "other": "{count} de dezbateri",
+      "few": "{count} dezbateri"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Cronologie completă ({count} eveniment)",
+      "few": "Cronologie completă ({count} evenimente)",
+      "other": "Cronologie completă ({count} de evenimente)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Amendamente: {count} ({stage})",
+      "few": "Amendamente: {count} ({stage})",
+      "other": "Amendamente: {count} ({stage})"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} persoană: cu un rol în dosar – {roles}, cu intervenții sau amendamente – {others}.",
+      "few": "{count} persoane: cu un rol în dosar – {roles}, cu intervenții sau amendamente – {others}.",
+      "other": "{count} de persoane: cu un rol în dosar – {roles}, cu intervenții sau amendamente – {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} ordine de zi nu a fost căutată.",
+      "few": "{count} ordini de zi nu au fost căutate.",
+      "other": "{count} de ordini de zi nu au fost căutate."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} punct pe ordinea de zi",
+      "few": "{count} puncte pe ordinea de zi",
+      "other": "{count} de puncte pe ordinea de zi"
+    },
+    "weekSummary.votes": {
+      "one": "{count} vot",
+      "few": "{count} voturi",
+      "other": "{count} de voturi"
     }
   },
   "sk": {
@@ -12816,6 +13608,54 @@
       "few": "{count} naliehavé rozpravy",
       "many": "{count} naliehavej rozpravy",
       "other": "{count} naliehavých rozpráv"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} prejav",
+      "few": "Počet prejavov: {count}",
+      "many": "Počet prejavov: {count}",
+      "other": "Počet prejavov: {count}"
+    },
+    "weekSummary.debates": {
+      "one": "{count} rozprava",
+      "few": "{count} rozpravy",
+      "many": "{count} rozpravy",
+      "other": "{count} rozpráv"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Celá časová os (počet udalostí: {count})",
+      "few": "Celá časová os (počet udalostí: {count})",
+      "many": "Celá časová os (počet udalostí: {count})",
+      "other": "Celá časová os (počet udalostí: {count})"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Počet pozmeňujúcich návrhov: {count} · {stage}",
+      "few": "Počet pozmeňujúcich návrhov: {count} · {stage}",
+      "many": "Počet pozmeňujúcich návrhov: {count} · {stage}",
+      "other": "Počet pozmeňujúcich návrhov: {count} · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "Počet osôb: {count} · s rolou v spise: {roles}, vystúpili alebo podali pozmeňujúce návrhy: {others}.",
+      "few": "Počet osôb: {count} · s rolou v spise: {roles}, vystúpili alebo podali pozmeňujúce návrhy: {others}.",
+      "many": "Počet osôb: {count} · s rolou v spise: {roles}, vystúpili alebo podali pozmeňujúce návrhy: {others}.",
+      "other": "Počet osôb: {count} · s rolou v spise: {roles}, vystúpili alebo podali pozmeňujúce návrhy: {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "Neprehľadané programy rokovania: {count}.",
+      "few": "Neprehľadané programy rokovania: {count}.",
+      "many": "Neprehľadané programy rokovania: {count}.",
+      "other": "Neprehľadané programy rokovania: {count}."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} bod programu",
+      "few": "{count} body programu",
+      "many": "{count} bodu programu",
+      "other": "{count} bodov programu"
+    },
+    "weekSummary.votes": {
+      "one": "{count} hlasovanie",
+      "few": "{count} hlasovania",
+      "many": "{count} hlasovania",
+      "other": "{count} hlasovaní"
     }
   },
   "sl": {
@@ -13529,6 +14369,54 @@
       "two": "{count} nujni razpravi",
       "few": "{count} nujne razprave",
       "other": "{count} nujnih razprav"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} govor",
+      "two": "Število govorov: {count}",
+      "few": "Število govorov: {count}",
+      "other": "Število govorov: {count}"
+    },
+    "weekSummary.debates": {
+      "one": "{count} razprava",
+      "two": "{count} razpravi",
+      "few": "{count} razprave",
+      "other": "{count} razprav"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Celotna časovnica (število dogodkov: {count})",
+      "two": "Celotna časovnica (število dogodkov: {count})",
+      "few": "Celotna časovnica (število dogodkov: {count})",
+      "other": "Celotna časovnica (število dogodkov: {count})"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "Število predlogov sprememb: {count} · {stage}",
+      "two": "Število predlogov sprememb: {count} · {stage}",
+      "few": "Število predlogov sprememb: {count} · {stage}",
+      "other": "Število predlogov sprememb: {count} · {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "Število oseb: {count} · z vlogo v dosjeju: {roles}, govorili ali vložili predloge sprememb: {others}.",
+      "two": "Število oseb: {count} · z vlogo v dosjeju: {roles}, govorili ali vložili predloge sprememb: {others}.",
+      "few": "Število oseb: {count} · z vlogo v dosjeju: {roles}, govorili ali vložili predloge sprememb: {others}.",
+      "other": "Število oseb: {count} · z vlogo v dosjeju: {roles}, govorili ali vložili predloge sprememb: {others}."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "Nepreiskani dnevni redi: {count}.",
+      "two": "Nepreiskani dnevni redi: {count}.",
+      "few": "Nepreiskani dnevni redi: {count}.",
+      "other": "Nepreiskani dnevni redi: {count}."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} točka dnevnega reda",
+      "two": "{count} točki dnevnega reda",
+      "few": "{count} točke dnevnega reda",
+      "other": "{count} točk dnevnega reda"
+    },
+    "weekSummary.votes": {
+      "one": "{count} glasovanje",
+      "two": "{count} glasovanji",
+      "few": "{count} glasovanja",
+      "other": "{count} glasovanj"
     }
   },
   "sv": {
@@ -14067,6 +14955,38 @@
     "topics.story.links.urgency": {
       "one": "{count} brådskande debatt",
       "other": "{count} brådskande debatter"
+    },
+    "dossierpeople.speeches": {
+      "one": "{count} tal",
+      "other": "{count} tal"
+    },
+    "weekSummary.debates": {
+      "one": "{count} debatt",
+      "other": "{count} debatter"
+    },
+    "batch6.procedureprogress.full_timeline": {
+      "one": "Hela tidslinjen ({count} händelse)",
+      "other": "Hela tidslinjen ({count} händelser)"
+    },
+    "dossieractivity.exact_stage_amendments": {
+      "one": "{count} ändringsförslag i {stage}",
+      "other": "{count} ändringsförslag i {stage}"
+    },
+    "dossierpeople.count_line": {
+      "one": "{count} person: {roles} med en roll i ärendet, {others} som har talat eller lagt fram ändringsförslag.",
+      "other": "{count} personer: {roles} med en roll i ärendet, {others} som har talat eller lagt fram ändringsförslag."
+    },
+    "searchreference.agendas_not_searched": {
+      "one": "{count} föredragningslista inte genomsökt.",
+      "other": "{count} föredragningslistor inte genomsökta."
+    },
+    "weekSummary.agendaItems": {
+      "one": "{count} dagordningspunkt",
+      "other": "{count} dagordningspunkter"
+    },
+    "weekSummary.votes": {
+      "one": "{count} omröstning",
+      "other": "{count} omröstningar"
     }
   }
 }
