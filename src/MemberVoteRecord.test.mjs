@@ -31,8 +31,9 @@ function response(patch={}) {
   };
 }
 
-async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',offset=0}={}) {
+async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',offset=0,matches=false}={}) {
   const window=new Window({url:'http://localhost/?member='+MEMBER+'&module=votes'});
+  window.matchMedia=query=>({matches:matches&&query.includes('max-width'),media:query,addEventListener(){},removeEventListener(){}});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
@@ -182,4 +183,70 @@ test('before the first projection the panel and the strip show a short pending s
   await view.renderSummary();
   assert.match(view.container.textContent,/Voting record not available yet\./);
   assert.equal(view.container.querySelector('a'),null);
+});
+
+const pagesOf=total=>url=>{
+  const offset=Number(url.searchParams.get('offset')),limit=Number(url.searchParams.get('limit'));
+  const all=Array.from({length:total},(_,index)=>({...departures[0],decisionId:B+'-DEC-'+(100+index),scope:'all',wholeText:false,text:'Departure '+(index+1)}));
+  const items=all.slice(offset,offset+limit),next=offset+items.length<total?offset+items.length:null;
+  return response({departures:{scope:'all',offset,limit,total,items,nextOffset:next}});
+};
+
+test('Show more appends the next page, and the offset in the URL restores every page shown',async t=>{
+  const view=await mount(t,{data:pagesOf(12)});
+  assert.equal(links(view.container).length,5);
+  assert.match(view.container.textContent,/1–5 of 12/);
+  await act(async()=>button(view.container,'Show more').click());
+  assert.deepEqual(view.offsets,[5]);
+  // The page that owns the URL offset renders every page up to it, in order.
+  await view.render({offset:5});
+  assert.deepEqual(links(view.container).map(link=>link.textContent),Array.from({length:10},(_,index)=>'Departure '+(index+1)));
+  assert.match(view.container.textContent,/1–10 of 12/);
+  assert.equal(view.calls.some(call=>call.includes('offset=5')),true);
+  await view.render({offset:10});
+  assert.equal(links(view.container).length,12);
+  assert.equal(/ of 12/.test(view.container.textContent),false,'the range label goes when everything is shown');
+  assert.equal(button(view.container,'Show more'),undefined);
+  assert.equal(button(view.container,'Show first'),undefined);
+});
+
+test('a departure shows the result title with the vote label beneath, or the label alone without an exact link',async t=>{
+  const items=[{...departures[1],text:'A10-1/2026 – Rapporteur – § 4 – Am 4',language:'en',subject:{text:'Energy efficiency of buildings',language:'en'}},{...departures[2],text:'B10-2/2026 – § 9',language:'en',subject:null}];
+  const view=await mount(t,{data:response({departures:{scope:'all',offset:0,limit:5,total:2,items,nextOffset:null}})});
+  const rows=[...view.container.querySelectorAll('.member-vote-record-departures li')];
+  assert.equal(rows[0].querySelector('a').textContent,'Energy efficiency of buildings');
+  assert.equal(rows[0].querySelector('.member-vote-record-label').textContent,'A10-1/2026 – Rapporteur – § 4 – Am 4');
+  assert.equal(rows[1].querySelector('a').textContent,'B10-2/2026 – § 9');
+  assert.equal(rows[1].querySelector('.member-vote-record-label'),null);
+});
+
+test('the All/Final control is hidden when it would do nothing',async t=>{
+  const view=await mount(t,{data:response({group:{code:'NI',status:'non-attached'},alignment:null,comparison:null})});
+  assert.equal(button(view.container,'Final votes'),undefined);
+});
+
+test('the All/Final control stays for a member with a group line',async t=>{
+  const view=await mount(t);
+  assert.notEqual(button(view.container,'Final votes'),undefined);
+});
+
+test('the profile strip adds the sitting count only when the record is partial',async t=>{
+  const view=await mount(t,{data:response({coverage:{sittings:124,included:92,missing:32,status:'partial'}})});
+  await view.renderSummary();
+  assert.match(view.container.textContent,/5 recorded votes · 92 of 124 sittings/);
+});
+
+test('on a narrow screen the trend and the departures sit behind disclosures, closed by default',async t=>{
+  const view=await mount(t,{matches:true});
+  const details=[...view.container.querySelectorAll('details.member-vote-record-disclosure')];
+  assert.equal(details.length,2);
+  assert.equal(details.every(item=>item.open===false),true);
+  assert.match(details[1].querySelector('summary').textContent,/Votes against their group · 6/);
+  assert.equal(view.container.querySelectorAll('.member-vote-record-figures > div').length,3,'the three figures stay in view');
+});
+
+test('on a wide screen the trend and the departures stay open',async t=>{
+  const view=await mount(t);
+  assert.equal(view.container.querySelector('details'),null);
+  assert.equal(links(view.container).length,5);
 });

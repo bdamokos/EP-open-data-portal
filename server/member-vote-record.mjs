@@ -44,6 +44,12 @@ const readGroupOn=(db,generation)=>{
   }catch{return null;}
 };
 
+function pendingRecord(id,query) {
+  return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period:{from:CURRENT_TERM_START,to:null},
+    coverage:{sittings:0,included:0,missing:0,status:'pending'},group:{code:null,status:'unavailable'},alignment:null,ballots:{recorded:0,named:0,chaired:0},bySitting:[],
+    departures:{scope:query.scope,offset:query.offset,limit:query.limit,total:0,items:[],nextOffset:null},comparison:null,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
+}
+
 // Reads only the compact projection. No sitting snapshot is parsed and no
 // upstream request is made; missing projection rows stay explicit.
 export class MemberVoteRecordReader {
@@ -54,7 +60,8 @@ export class MemberVoteRecordReader {
     const db=this.snapshots.connection();
     if(!db)throw new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.');
     try {
-      if(!db.prepare("SELECT 1 FROM sqlite_master WHERE name='member_vote_record_sittings'").get())throw new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.');
+      // Before the projection exists the answer is a pending record, not an error to retry.
+      if(!db.prepare("SELECT 1 FROM sqlite_master WHERE name='member_vote_record_sittings'").get())return pendingRecord(id,query);
       const today=brusselsDay(this.clock());
       let generation=null;
       try{generation=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='active'").get()?.value??'null');}catch{}
@@ -86,7 +93,7 @@ export class MemberVoteRecordReader {
       // Named votes only count while the person held a mandate; a sitting whose
       // membership is unknown leaves the total unknown rather than zero.
       const termFirst='MTG-PL-'+CURRENT_TERM_START;
-      const sittings=db.prepare('SELECT sitting_id AS sittingId,date,named FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=?').all(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst);
+      const sittings=db.prepare('SELECT sitting_id AS sittingId,date,named FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=? AND status=\'projected\'').all(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst);
       let unknown=0;
       for(const sitting of sittings) {
         if(!sitting.named)continue;
@@ -95,17 +102,21 @@ export class MemberVoteRecordReader {
         else if(answer!=='not-serving')unknown++;
       }
       if(unknown)ballots.named=null;
-      // Only a complete stored snapshot can be projected; a kept error flag after a failed refresh does not remove it.
-      const expected=db.prepare("SELECT COUNT(*) AS n FROM sitting_snapshots WHERE kind='votes' AND version=? AND id>=? AND complete=1").get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
+      // Every stored votes sitting counts except those that held no decisions. One that is not
+      // examined yet, or whose voting records are incomplete or conflicting, is missing.
+      const stored=db.prepare("SELECT COUNT(*) AS n FROM sitting_snapshots WHERE kind='votes' AND version=? AND id>=?").get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
+      const examined=db.prepare("SELECT status,COUNT(*) AS n FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=? GROUP BY status").all(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst);
+      const count=status=>examined.find(row=>row.status===status)?.n||0;
       const included=sittings.length;
-      const missing=Math.max(0,expected-included);
-      const coverage={sittings:expected,included,missing,status:!expected&&!included?'unavailable':missing?'partial':'complete'};
+      const missing=Math.max(0,stored-count('empty')-included);
+      const total=included+missing;
+      const coverage={sittings:total,included,missing,status:!total?'unavailable':!included?'pending':missing?'partial':'complete'};
       // The period is the stored sittings' range, the same for every member.
       const period={from:CURRENT_TERM_START,to:sittings.reduce((latest,sitting)=>sitting.date>latest?sitting.date:latest,'')||null};
-      // Medians are published only from a complete projection, so a gap in the
-      // stored sittings never shifts them.
+      // Every member's totals cover the same projected sittings, so medians stay
+      // comparable with a member's own figures while some sittings are missing.
       let comparison=null;
-      if(group.status==='attached'&&groupOn&&ballots.recorded>0&&coverage.status==='complete') {
+      if(group.status==='attached'&&groupOn&&ballots.recorded>0&&included>0) {
         const shares={all:{all:[],same:[]},final:{all:[],same:[]}};
         for(const row of db.prepare('SELECT member_id,body FROM member_vote_record_totals').all()) {
           const totals=JSON.parse(row.body),answer=groupOn(row.member_id,today);
@@ -129,9 +140,15 @@ export class MemberVoteRecordReader {
       // Wording is large, so only the sittings on the requested page are read.
       const wording=new Map();
       const items=sorted.slice(query.offset,query.offset+query.limit).map(item=>{
-        if(!wording.has(item.sittingId))wording.set(item.sittingId,JSON.parse(db.prepare('SELECT decisions FROM member_vote_record_sittings WHERE sitting_id=?').get(item.sittingId)?.decisions||'{}'));
-        const decision=wording.get(item.sittingId)[item.decisionId]||{};
-        return {...item,...pickTitle(decision.titles,decision.referenceTexts,query.language)};
+        if(!wording.has(item.sittingId)) {
+          const row=db.prepare('SELECT decisions,subjects FROM member_vote_record_sittings WHERE sitting_id=?').get(item.sittingId);
+          wording.set(item.sittingId,{decisions:JSON.parse(row?.decisions||'{}'),subjects:JSON.parse(row?.subjects||'{}')});
+        }
+        const sitting=wording.get(item.sittingId),decision=sitting.decisions[item.decisionId]||{};
+        const label=pickTitle(decision.titles,decision.referenceTexts,query.language);
+        // The result's own title, only through the exact decision-to-result link.
+        const subject=decision.subjectId&&sitting.subjects[decision.subjectId]?pickTitle(sitting.subjects[decision.subjectId],null,query.language):{text:null,language:null};
+        return {...item,...label,subject:subject.text?subject:null};
       }),nextOffset=query.offset+items.length<sorted.length?query.offset+items.length:null;
       return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period,coverage,group,
         alignment:group.status==='attached'?alignment:null,ballots,bySitting,departures:{scope:query.scope,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},

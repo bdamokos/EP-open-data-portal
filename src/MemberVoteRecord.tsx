@@ -1,4 +1,4 @@
-import {useMemo} from 'react';
+import {useEffect,useMemo,useState} from 'react';
 import {useData} from './data';
 import {UiMessage,useUiI18n} from './UiI18nReact';
 import type {MemberVoteRecordDeparture,MemberVoteRecordResponse} from './MemberVoteRecordTypes';
@@ -14,6 +14,26 @@ const dateLabel=(value:string|null,locale:string)=>{
 const percent=(share:number|null,ui:ReturnType<typeof useUiI18n>)=>share===null?ui.t('membervoterecord.noValue'):ui.t('membervoterecord.percent',{value:recordShare(share)??0});
 const num=(ui:ReturnType<typeof useUiI18n>,value:number)=>new Intl.NumberFormat(ui.language).format(value);
 const MARKER_LIMIT=24;
+const COMPACT='(max-width: 639px)';
+// Narrow screens fold the trend and the departures behind disclosures to keep the panel short.
+function useCompact() {
+  const [compact,setCompact]=useState(()=>typeof window!=='undefined'&&window.matchMedia?.(COMPACT)?.matches===true);
+  useEffect(()=>{
+    const query=window.matchMedia?.(COMPACT);
+    if(!query)return;
+    const update=()=>setCompact(query.matches);
+    update();query.addEventListener?.('change',update);
+    return ()=>query.removeEventListener?.('change',update);
+  },[]);
+  return compact;
+}
+function Disclosure({compact,summary,children}:{compact:boolean;summary:React.ReactNode;children:React.ReactNode}) {
+  const [open,setOpen]=useState(false);
+  if(!compact)return <>{children}</>;
+  return <details className="member-vote-record-disclosure" open={open} onToggle={event=>setOpen((event.currentTarget as HTMLDetailsElement).open)}>
+    <summary>{summary}</summary>{children}
+  </details>;
+}
 const trendPath=(points:{x:number;y:number}[])=>points.map((point,index)=>(index?'L':'M')+point.x.toFixed(2)+' '+point.y.toFixed(2)).join(' ');
 
 const votesHref=(memberId:number)=>{
@@ -37,7 +57,7 @@ const decisionHref=(memberId:number,item:MemberVoteRecordDeparture)=>{
 
 const positionLabel=(position:string|null,ui:ReturnType<typeof useUiI18n>)=>position?ui.t('votegroups.position.'+position):ui.t('membervoterecord.noValue');
 
-function Trend({data,scope}:{data:MemberVoteRecordResponse;scope:'all'|'final'}) {
+function Trend({data,scope,caption=true}:{data:MemberVoteRecordResponse;scope:'all'|'final';caption?:boolean}) {
   const ui=useUiI18n();
   const trend=useMemo(()=>recordTrend(data,scope),[data,scope]);
   const width=320,height=96,paddingX=34,paddingY=10,right=10;
@@ -58,7 +78,7 @@ function Trend({data,scope}:{data:MemberVoteRecordResponse;scope:'all'|'final'})
   }
   if(run.length)runs.push(run);
   return <figure className="member-vote-record-trend">
-    <figcaption><UiMessage id="membervoterecord.trend.heading"/></figcaption>
+    {caption&&<figcaption><UiMessage id="membervoterecord.trend.heading"/></figcaption>}
     <div className="member-vote-record-plot">
     <span className="member-vote-record-tick" style={{top:paddingY/height*100+'%'}} aria-hidden="true">100%</span>
     <span className="member-vote-record-tick" style={{top:'50%'}} aria-hidden="true">50%</span>
@@ -77,24 +97,42 @@ function Trend({data,scope}:{data:MemberVoteRecordResponse;scope:'all'|'final'})
   </figure>;
 }
 
-function Departures({data,memberId,onOffset,onOpenDecision}:{data:MemberVoteRecordResponse;memberId:number;onOffset:(offset:number)=>void;onOpenDecision:(item:MemberVoteRecordDeparture)=>void}) {
+const PAGE=MEMBER_VOTE_RECORD_LIMIT;
+
+// One page of departures, fetched on its own so a reload restores every page already shown.
+function DeparturePage({memberId,language,scope,offset,onOpenDecision}:{memberId:number;language:string;scope:'all'|'final';offset:number;onOpenDecision:(item:MemberVoteRecordDeparture)=>void}) {
   const ui=useUiI18n();
-  const departures=data.departures;
-  return <section className="member-vote-record-departures">
-    <h3><UiMessage id="membervoterecord.departures.all"/></h3>
-    {!departures.total&&<p className="member-vote-record-muted"><UiMessage id="membervoterecord.departures.empty"/></p>}
-    {Boolean(departures.total)&&<ol start={departures.offset+1}>{departures.items.map(item=><li key={item.decisionId+item.sittingId}>
-      <a href={decisionHref(memberId,item)??undefined} lang={item.language&&item.language!=='mul'&&item.language!==ui.language?item.language:undefined} onClick={event=>{
+  const route=useMemo(()=>memberVoteRecordRoute(memberId,{language,scope,limit:PAGE,offset}),[memberId,language,scope,offset]);
+  const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
+  const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
+  if(!data)return null;
+  return <>{data.departures.items.map(item=>{
+    const primary=item.subject?.text??item.text,primaryLanguage=item.subject?.text?item.subject.language:item.language;
+    const markLanguage=(code:string|null)=>code&&code!=='mul'&&code!==ui.language?code:undefined;
+    return <li key={item.decisionId+item.sittingId}>
+      <a href={decisionHref(memberId,item)??undefined} lang={markLanguage(primaryLanguage)} onClick={event=>{
         if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
         event.preventDefault();onOpenDecision(item);
-      }}>{item.text||ui.t('membervoterecord.departures.untitled')}</a>
+      }}>{primary||ui.t('membervoterecord.departures.untitled')}</a>
+      {item.subject?.text&&item.text&&<span className="member-vote-record-label" lang={markLanguage(item.language)}>{item.text}</span>}
       <small>{dateLabel(item.date,ui.locale)} · <UiMessage id="membervoterecord.departures.line" values={{position:positionLabel(item.position,ui),line:positionLabel(item.line,ui)}}/></small>
-    </li>)}</ol>}
-    {departures.items.length>0&&<p className="member-vote-record-muted"><UiMessage id="membervoterecord.departures.range" values={{start:departures.offset+1,end:departures.offset+departures.items.length,total:departures.total}}/></p>}
-    <div className="member-vote-record-departure-actions">
-      {departures.offset>0&&<button type="button" onClick={()=>onOffset(0)}><UiMessage id="membervoterecord.departures.first"/></button>}
-      {departures.nextOffset!==null&&<button type="button" onClick={()=>onOffset(departures.nextOffset??0)}><UiMessage id="membervoterecord.departures.more"/></button>}
-    </div>
+    </li>;
+  })}</>;
+}
+
+function Departures({data,memberId,language,scope,offset,onOffset,onOpenDecision}:{data:MemberVoteRecordResponse;memberId:number;language:string;scope:'all'|'final';offset:number;onOffset:(offset:number)=>void;onOpenDecision:(item:MemberVoteRecordDeparture)=>void}) {
+  const ui=useUiI18n();
+  const total=data.departures.total;
+  // The URL offset is the last page shown; every page up to it is rendered, in order.
+  const pages=Math.floor(offset/PAGE)+1,shown=Math.min(pages*PAGE,total);
+  return <section className="member-vote-record-departures">
+    <h3><UiMessage id="membervoterecord.departures.all"/></h3>
+    {!total&&<p className="member-vote-record-muted"><UiMessage id="membervoterecord.departures.empty"/></p>}
+    {Boolean(total)&&<ol>{Array.from({length:pages},(_,page)=><DeparturePage key={scope+page} memberId={memberId} language={language} scope={scope} offset={page*PAGE} onOpenDecision={onOpenDecision}/>)}</ol>}
+    {shown<total&&<>
+      <p className="member-vote-record-muted"><UiMessage id="membervoterecord.departures.range" values={{start:1,end:shown,total}}/></p>
+      <div className="member-vote-record-departure-actions"><button type="button" onClick={()=>onOffset(pages*PAGE)}><UiMessage id="membervoterecord.departures.more"/></button></div>
+    </>}
   </section>;
 }
 
@@ -103,7 +141,8 @@ export function MemberVoteRecord({memberId,language,scope,offset,onScopeChange,o
   onScopeChange:(scope:'all'|'final')=>void;onOffset:(offset:number)=>void;onOpenDecision:(item:MemberVoteRecordDeparture)=>void;
 }) {
   const ui=useUiI18n();
-  const route=useMemo(()=>memberVoteRecordRoute(memberId,{language,scope,limit:MEMBER_VOTE_RECORD_LIMIT,offset}),[memberId,language,scope,offset]);
+  const compact=useCompact();
+  const route=useMemo(()=>memberVoteRecordRoute(memberId,{language,scope,limit:MEMBER_VOTE_RECORD_LIMIT,offset:0}),[memberId,language,scope]);
   const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
   const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
   if(!data)return <section className="member-vote-record" lang={ui.language} aria-label={ui.t('membervoterecord.heading')}>
@@ -120,6 +159,7 @@ export function MemberVoteRecord({memberId,language,scope,offset,onScopeChange,o
   const groupKnown=data.group.status==='attached'&&recordAlignment(data,'all')!==null&&(recordAlignment(data,'all')?.comparable??0)>0&&figures!==null;
   const medians=recordComparison(data,scope);
   const {ballots}=data;
+  const medianLine=medians?<UiMessage id="membervoterecord.medians" values={{group:percent(medians.group.median,ui),parliament:percent(medians.parliament.median,ui)}}/>:null;
   return <section className="member-vote-record" lang={ui.language} aria-labelledby="member-vote-record-heading">
     <header className="member-vote-record-header">
       <div>
@@ -129,28 +169,33 @@ export function MemberVoteRecord({memberId,language,scope,offset,onScopeChange,o
           : <UiMessage id="membervoterecord.period" values={{from:dateLabel(data.period.from,ui.locale),to:dateLabel(data.period.to,ui.locale)}}/>}
           {data.coverage.status==='partial'&&<> · <UiMessage id="membervoterecord.coverage.partial" values={{missing:data.coverage.missing}}/></>}</p>
       </div>
-      <div className="member-vote-record-filter" role="group" aria-label={ui.t('membervoterecord.scope.label')}>
+      {groupKnown&&<div className="member-vote-record-filter" role="group" aria-label={ui.t('membervoterecord.scope.label')}>
         <button type="button" aria-pressed={scope==='all'} onClick={()=>onScopeChange('all')}><UiMessage id="membervoterecord.scope.all"/></button>
         <button type="button" aria-pressed={scope==='final'} onClick={()=>onScopeChange('final')}><UiMessage id="membervoterecord.scope.final"/></button>
-      </div>
+      </div>}
     </header>
     <dl className="member-vote-record-figures">
       {groupKnown&&<>
         <div><dt><UiMessage id="membervoterecord.withGroup"/></dt><dd>{percent(figures.withShare,ui)}</dd>
           <small>{figures.comparable?<UiMessage id="membervoterecord.share.detail" values={{count:figures.with,comparable:figures.comparable}}/>:null}</small>
-          {medians&&<small><UiMessage id="membervoterecord.medians" values={{group:percent(medians.group.median,ui),parliament:percent(medians.parliament.median,ui)}}/></small>}</div>
+          {medians&&<small className="member-vote-record-wide">{medianLine}</small>}</div>
         <div><dt><UiMessage id="membervoterecord.againstGroup"/></dt><dd>{figures.comparable?num(ui,figures.against):ui.t('membervoterecord.noValue')}</dd>
           <small>{figures.comparable?<UiMessage id="membervoterecord.share.detail" values={{count:figures.against,comparable:figures.comparable}}/>:null}</small></div>
       </>}
       <div><dt><UiMessage id="membervoterecord.recorded"/></dt>
         <dd>{ballots.named===null?num(ui,ballots.recorded):<UiMessage id="membervoterecord.recorded.value" values={{recorded:num(ui,ballots.recorded),named:num(ui,ballots.named)}}/>}</dd>
         {ballots.named!==null&&<small><UiMessage id="membervoterecord.recorded.detail"/></small>}
-        {ballots.chaired>0&&<small><UiMessage id="membervoterecord.chaired" values={{count:num(ui,ballots.chaired)}}/></small>}
-        {data.group.status!=='attached'&&<small>{data.group.status==='non-attached'?<UiMessage id="membervoterecord.nonAttached"/>:<UiMessage id="membervoterecord.groupUnavailable"/>}</small>}</div>
+        {ballots.chaired>0&&<small className="member-vote-record-keep"><UiMessage id="membervoterecord.chaired" values={{count:num(ui,ballots.chaired)}}/></small>}
+        {data.group.status!=='attached'&&<small className="member-vote-record-keep">{data.group.status==='non-attached'?<UiMessage id="membervoterecord.nonAttached"/>:<UiMessage id="membervoterecord.groupUnavailable"/>}</small>}</div>
     </dl>
     {groupKnown&&<>
-      <Trend data={data} scope={scope}/>
-      <Departures data={data} memberId={memberId} onOffset={onOffset} onOpenDecision={onOpenDecision}/>
+      <Disclosure compact={compact} summary={<UiMessage id="membervoterecord.trend.heading"/>}>
+        {compact&&medianLine&&<p className="member-vote-record-muted">{medianLine}</p>}
+        <Trend data={data} scope={scope} caption={!compact}/>
+      </Disclosure>
+      <Disclosure compact={compact} summary={<><UiMessage id="membervoterecord.departures.all"/> · {num(ui,data.departures.total)}</>}>
+        <Departures data={data} memberId={memberId} language={language} scope={scope} offset={offset} onOffset={onOffset} onOpenDecision={onOpenDecision}/>
+      </Disclosure>
     </>}
   </section>;
 }
@@ -164,12 +209,13 @@ export function MemberVoteRecordSummary({memberId,language,onOpen}:{memberId:num
   if(data.coverage.included===0)return <p className="member-vote-record-summary member-vote-record-status" role="status"><UiMessage id="membervoterecord.pending"/></p>;
   const summary=recordSummary(data);
   const chaired=summary.chaired?ui.t('membervoterecord.summary.chaired',{count:summary.chaired}):'';
+  const coverage=data.coverage.status==='partial'?ui.t('membervoterecord.summary.coverage',{included:data.coverage.included,sittings:data.coverage.sittings}):'';
   return <p className="member-vote-record-summary"><a href={votesHref(memberId)??undefined} onClick={event=>{
     if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
     event.preventDefault();onOpen();
   }}>{summary.recorded===0
     ? <UiMessage id="membervoterecord.summary.empty"/>
     : summary.attached&&summary.share!==null
-      ? <UiMessage id="membervoterecord.summary.attached" values={{share:percent(summary.share,ui),recorded:summary.recorded,chaired}}/>
-      : <UiMessage id="membervoterecord.summary.nonAttached" values={{recorded:summary.recorded,chaired}}/>}</a></p>;
+      ? <UiMessage id="membervoterecord.summary.attached" values={{share:percent(summary.share,ui),recorded:summary.recorded,chaired,coverage}}/>
+      : <UiMessage id="membervoterecord.summary.nonAttached" values={{recorded:summary.recorded,chaired,coverage}}/>}</a></p>;
 }

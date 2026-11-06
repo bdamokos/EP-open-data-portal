@@ -3,13 +3,14 @@ export type MemberVoteRecordDeparture={
   decisionId:string;sittingId:string;date:string;scope:'all'|'final';wholeText:boolean;
   position:'for'|'against'|'abstaining'|null;line:'for'|'against'|'abstaining'|null;
   text:string|null;language:string|null;
+  subject:{text:string;language:string}|null;
 };
 export type MemberVoteRecordMedians=null|{group:{median:number;members:number};parliament:{median:number;members:number}};
 export type MemberVoteRecordResponse={
   version:1;
   member:{id:string;uri:string};
   period:{from:string;to:string|null};
-  coverage:{sittings:number;included:number;missing:number;status:'complete'|'partial'|'unavailable'};
+  coverage:{sittings:number;included:number;missing:number;status:'complete'|'partial'|'pending'|'unavailable'};
   group:{code:string|null;status:'attached'|'non-attached'|'unavailable'};
   alignment:null|{all:MemberVoteRecordAlignment;wholeText:MemberVoteRecordAlignment};
   ballots:{recorded:number;named:number|null;chaired:number};

@@ -1247,7 +1247,7 @@
   "membervotes.tsx.vote.unavailable": "Vote unavailable",
   "membervotes.tsx.vote.without.a.linked.subject": "Vote without a linked subject",
   "membervotes.tsx.votes.shown": "Votes shown",
-  "membervotes.tsx.voting.records": "Voting records",
+  "membervotes.tsx.voting.records": "Votes by week",
   "membervotes.tsx.voting.records.could.not.be.loaded.try.again": "Voting records could not be loaded.",
   "membervotes.tsx.voting.records.pages": "Voting records pages",
   "membervotes.tsx.week.of.date": "Week of {date}",
@@ -2397,10 +2397,10 @@
   "membervoterecord.departures.line": "{position} · group {line}",
   "membervoterecord.departures.untitled": "Untitled vote",
   "membervoterecord.departures.range": "{start}–{end} of {total}",
-  "membervoterecord.departures.first": "Show first",
   "membervoterecord.departures.more": "Show more",
   "membervoterecord.summary.empty": "Voting record: no recorded votes",
-  "membervoterecord.summary.attached": "Voting record: {share} with their group · {recorded} recorded votes{chaired}",
-  "membervoterecord.summary.nonAttached": "Voting record: {recorded} recorded votes{chaired}",
-  "membervoterecord.summary.chaired": " · chaired {count}"
+  "membervoterecord.summary.attached": "Voting record: {share} with their group · {recorded} recorded votes{chaired}{coverage}",
+  "membervoterecord.summary.nonAttached": "Voting record: {recorded} recorded votes{chaired}{coverage}",
+  "membervoterecord.summary.chaired": " · chaired {count}",
+  "membervoterecord.summary.coverage": " · {included} of {sittings} sittings"
 }

@@ -23,7 +23,8 @@ function database({includeC=true,generation=3,groupSnapshot=history,totals=[{mem
   db.exec(`CREATE TABLE member_vote_record_sittings (
     sitting_id TEXT PRIMARY KEY, revision TEXT NOT NULL, date TEXT NOT NULL,
     group_generation INTEGER, snapshot_version INTEGER NOT NULL,
-    named INTEGER NOT NULL, decisions TEXT NOT NULL, complete INTEGER NOT NULL);
+    named INTEGER NOT NULL, decisions TEXT NOT NULL, complete INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'projected', reason TEXT, subjects TEXT NOT NULL DEFAULT '{}');
     CREATE TABLE member_vote_record_members (member_id TEXT NOT NULL, sitting_id TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(member_id,sitting_id));
     CREATE TABLE member_vote_record_totals (member_id TEXT PRIMARY KEY, body TEXT NOT NULL);
     CREATE TABLE sitting_snapshots (kind TEXT, version INTEGER, id TEXT, complete INTEGER, error TEXT);
@@ -31,11 +32,11 @@ function database({includeC=true,generation=3,groupSnapshot=history,totals=[{mem
     CREATE TABLE group_history_snapshots (generation INTEGER PRIMARY KEY, body TEXT NOT NULL);`);
   db.prepare('INSERT INTO meta VALUES (?,?)').run('active',JSON.stringify(generation));
   if(groupSnapshot)db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(generation,JSON.stringify(groupSnapshot));
-  const insertSitting=db.prepare('INSERT INTO member_vote_record_sittings VALUES (?,?,?,?,?,?,?,?)');
+  const insertSitting=db.prepare('INSERT INTO member_vote_record_sittings(sitting_id,revision,date,group_generation,snapshot_version,named,decisions,complete,status,subjects) VALUES (?,?,?,?,?,?,?,?,?,?)');
   const insertMember=db.prepare('INSERT INTO member_vote_record_members VALUES (?,?,?)');
   const snapshot=db.prepare('INSERT INTO sitting_snapshots VALUES (?,?,?,?,?)');
-  const sitting=(id,{named=0,complete=1,decisions={}}={})=>{
-    insertSitting.run(id,'a'.repeat(64),id.slice(7),generation,VERSION,named,JSON.stringify(decisions),complete);
+  const sitting=(id,{named=0,complete=1,decisions={},status='projected',subjects={}}={})=>{
+    insertSitting.run(id,'a'.repeat(64),id.slice(7),generation,VERSION,named,JSON.stringify(decisions),complete,status,JSON.stringify(subjects));
     snapshot.run('votes',VERSION,id,complete,null);
   };
   const member=row=>insertMember.run(MEP,row.sittingId,JSON.stringify(row));
@@ -88,7 +89,7 @@ test('the reader combines stored member rows without parsing snapshots or contac
   assert.equal(data.departures.items[0].text,'Second final');
   assert.equal(data.departures.total,3);
   assert.equal(data.departures.nextOffset,null);
-  assert.equal(data.comparison,null,'medians need every stored sitting');
+  assert.deepEqual(data.comparison.all,{group:{median:0.625,members:2},parliament:{median:0.5,members:3}},'every member\'s totals cover the same projected sittings, so a missing one does not switch medians off');
 });
 
 test('medians come from current members with comparable votes, for each scope, once coverage is complete',()=>{
@@ -168,10 +169,12 @@ test('non-attached and unavailable group states omit group figures while keeping
   assert.equal(unavailable.alignment,null);
 });
 
-test('an unavailable index or projection table fails without pretending the record is empty',()=>{
+test('an unavailable index fails, and a projection that does not exist yet answers as pending rather than as an error to retry',()=>{
   const empty=new DatabaseSync(':memory:');
   assert.throws(()=>new MemberVoteRecordReader({snapshots:{connection:()=>null},clock:Date.now}).query(MEP,{...query(),language:'en'}),error=>error instanceof HttpError&&error.status===503);
-  assert.throws(()=>new MemberVoteRecordReader({snapshots:{connection:()=>empty},clock:Date.now}).query(MEP,{...query(),language:'en'}),error=>error instanceof HttpError&&error.status===503);
+  const pending=new MemberVoteRecordReader({snapshots:{connection:()=>empty},clock:Date.now}).query(MEP,{...query(),language:'en'});
+  assert.deepEqual(pending.coverage,{sittings:0,included:0,missing:0,status:'pending'});
+  assert.equal(pending.departures.total,0);
 });
 
 test('query parsing rejects unsupported, repeated, out-of-range and malformed values',()=>{
@@ -192,17 +195,38 @@ test('the period ends at the latest stored sitting, even for a member absent fro
   assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).period,{from:'2024-07-16',to:'2026-10-08'});
 });
 
-test('coverage counts only complete stored sittings, so an incomplete or uncollected one is not a missing projection',()=>{
+test('coverage counts what is stored except sittings without decisions; unexamined, incomplete or conflicting ones are missing',()=>{
   const {db,sitting,member,snapshot}=database({includeC:false});
   sitting(A,{named:1});
   member(memberRow({sittingId:A,date:'2026-09-16',alignment:{with:1,against:0,abstained:0,notComparable:0},recorded:1,named:1,withGroup:1,comparable:1}));
   snapshot.run('votes',VERSION,B,0,null);
   snapshot.run('votes',VERSION,C,1,'Exact sitting metadata unavailable.');
   const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-09T12:00:00Z')});
-  // C is complete with a failed-refresh flag and not projected yet: a pending projection. B is incomplete: not counted.
+  assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).coverage,{sittings:3,included:1,missing:2,status:'partial'});
+  // B held no decisions: not a sitting that is missing. C was examined and excluded: still missing.
+  db.prepare('DELETE FROM sitting_snapshots WHERE id IN (?,?)').run(B,C);
+  sitting(B,{named:0,complete:0,status:'empty'});sitting(C,{named:0,complete:1,status:'excluded'});
   assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).coverage,{sittings:2,included:1,missing:1,status:'partial'});
-  db.prepare('DELETE FROM sitting_snapshots WHERE id=?').run(C);sitting(C,{named:0});
+  db.prepare("UPDATE member_vote_record_sittings SET status='projected' WHERE sitting_id=?").run(C);
   assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).coverage,{sittings:2,included:2,missing:0,status:'complete'});
+});
+
+test('stored sittings that are not projected yet read as pending, and departures carry the result title only through an exact link',()=>{
+  const {db,snapshot,sitting,member}=database({includeC:false});
+  snapshot.run('votes',VERSION,A,1,null);
+  const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-09T12:00:00Z')});
+  assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).coverage,{sittings:1,included:0,missing:1,status:'pending'});
+  db.prepare('DELETE FROM sitting_snapshots').run();
+  sitting(A,{named:2,decisions:{
+    [decision(A,1)]:{subjectId:'result-1',titles:titles('Label one'),referenceTexts:{},outcome:'ADOPTED',scope:'amendment',wholeText:false,method:'VOTE_ELECTRONIC_ROLLCALL'},
+    [decision(A,2)]:{subjectId:null,titles:titles('Label two'),referenceTexts:{},outcome:'ADOPTED',scope:'amendment',wholeText:false,method:'VOTE_ELECTRONIC_ROLLCALL'},
+  },subjects:{'result-1':{en:'Energy efficiency of buildings',mul:'x'}}});
+  member(memberRow({sittingId:A,date:'2026-09-16',recorded:2,named:2,withGroup:0,comparable:2,alignment:{with:0,against:2,abstained:0,notComparable:0},
+    departures:[1,2].map(n=>({decisionId:decision(A,n),date:'2026-09-16',wholeText:false,position:'against',line:'for'}))}));
+  const items=reader.query(MEP,{...query(),language:'en'}).departures.items;
+  const one=items.find(item=>item.decisionId===decision(A,1)),two=items.find(item=>item.decisionId===decision(A,2));
+  assert.deepEqual(one.subject,{text:'Energy efficiency of buildings',language:'en'});assert.equal(one.text,'Label one');
+  assert.equal(two.subject,null);assert.equal(two.text,'Label two');
 });
 
 test('an ambiguous group-history answer leaves named votes held unknown',()=>{

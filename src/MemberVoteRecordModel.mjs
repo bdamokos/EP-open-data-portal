@@ -23,7 +23,7 @@ export function validateMemberVoteRecordResponse(data,{memberId}={}) {
   const coverage=data.coverage;
   if(!object(coverage)||!integer(coverage.sittings)||!integer(coverage.included)||!integer(coverage.missing)||
     coverage.included>coverage.sittings||coverage.missing!==coverage.sittings-coverage.included||
-    !['complete','partial','unavailable'].includes(coverage.status))return false;
+    !['complete','partial','pending','unavailable'].includes(coverage.status))return false;
   if(!object(data.group)||!['attached','non-attached','unavailable'].includes(data.group.status)||
     data.group.code!==null&&typeof data.group.code!=='string')return false;
   if(data.alignment!==null&&(!object(data.alignment)||!alignment(data.alignment.all)||!alignment(data.alignment.wholeText)))return false;
@@ -39,7 +39,8 @@ export function validateMemberVoteRecordResponse(data,{memberId}={}) {
   if(!departures.items.every(item=>object(item)&&/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(item.decisionId||'')&&
     sitting(item.sittingId)&&date(item.date)&&['all','final'].includes(item.scope)&&typeof item.wholeText==='boolean'&&
     position(item.position)&&position(item.line)&&
-    (item.text===null&&item.language===null||typeof item.text==='string'&&(languages.has(item.language)||item.language==='mul'))))return false;
+    (item.text===null&&item.language===null||typeof item.text==='string'&&(languages.has(item.language)||item.language==='mul'))&&
+    (item.subject==null||object(item.subject)&&typeof item.subject.text==='string'&&(languages.has(item.subject.language)||item.subject.language==='mul'))))return false;
   if(data.comparison!==null&&!(object(data.comparison)&&medians(data.comparison.all)&&medians(data.comparison.final)))return false;
   return typeof data.attribution==='string';
 }

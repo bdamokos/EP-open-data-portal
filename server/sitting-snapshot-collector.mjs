@@ -103,11 +103,18 @@ export class SittingSnapshotCollector {
     const id=this.projectionBacklog();
     if(!id)return false;
     this.projectionCheckAt=null;
-    const saved=new SittingSnapshotReader({db:this.store.db,clock:this.store.clock}).read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,id,{lastGood:true});
+    const saved=new SittingSnapshotReader({db:this.store.db,clock:this.store.clock}).read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,id,{lastGood:true,partial:true});
     if(!saved?.day||saved.day.sittingId!==id){this.projectionFailure(id);return false;}
     try{retainMemberVoteRecord(this.store,saved.day,MEMBER_VOTE_SNAPSHOT_VERSION);}catch{this.projectionFailure(id);return false;}
     this.projectionFailed.delete(id);
     return true;
+  }
+  // The worker gives projection a turn in every loop, even while snapshot jobs or core tasks are
+  // due, so a first deploy never waits for them: one sitting at least, then more while under the time limit.
+  projectionTurn(limitMs=1000,now=()=>performance.now()) {
+    const started=now();let steps=0;
+    do {if(!this.backfillProjection())break;steps++;}while(now()-started<limitMs);
+    return steps;
   }
   // A sitting that cannot be projected backs off (1 h, doubling to 24 h) so it never blocks the older ones.
   projectionFailure(id){
@@ -300,8 +307,9 @@ export class SittingSnapshotCollector {
         if(failure&&!complete)next=retryNext(failure);
         else this.store.db.prepare('DELETE FROM meta WHERE key=?').run(rejectionKey);
         this.writer.retain(job,value,{complete,now,next,preserveStage:!complete&&['calendar','agenda','debate'].includes(job.kind)});
-        if(job.kind==='votes'&&complete) {
-          retainSittingBallotBindings(this.store,value.day,ballotVotingLists(this.store,job.id));
+        if(job.kind==='votes'&&complete)retainSittingBallotBindings(this.store,value.day,ballotVotingLists(this.store,job.id));
+        // A sitting is examined from what was stored, complete or not: its voting records may be complete without its agenda.
+        if(job.kind==='votes'&&value?.day?.sittingId===job.id) {
           try{retainMemberVoteRecord(this.store,value.day,job.version);}catch{/* The stored snapshot remains, so the next step retries its projection. */}
           this.projectionCheckAt=null;
         }

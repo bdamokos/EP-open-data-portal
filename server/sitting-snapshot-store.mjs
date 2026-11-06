@@ -68,10 +68,11 @@ export class SittingSnapshotReader {
   }
   // retained: ignore the re-check time. lastGood: also keep a complete body whose
   // latest refresh failed, for readers of final records such as past votes.
-  read(kind,version,id,{retained=false,lastGood=false}={}){
+  // partial: with lastGood, also a body that never became complete (its voting records may be).
+  read(kind,version,id,{retained=false,lastGood=false,partial=false}={}){
     try {
       // Filter on metadata before reading or decompressing any payload.
-      const row=this.connection()?.prepare(`SELECT body FROM sitting_snapshots WHERE kind=? AND version=? AND id=? AND complete=1${lastGood?'':' AND error IS NULL AND next_check>?'}`).get(...[kind,version,id,...lastGood?[]:[retained?0:this.clock()]]);
+      const row=this.connection()?.prepare(`SELECT body FROM sitting_snapshots WHERE kind=? AND version=? AND id=?${lastGood&&partial?'':' AND complete=1'}${lastGood?'':' AND error IS NULL AND next_check>?'}`).get(...[kind,version,id,...lastGood?[]:[retained?0:this.clock()]]);
       if(row?.body)return decode(row.body);
     }catch{/* Unavailable/corrupt local evidence falls back to the public reader. */}
     return null;

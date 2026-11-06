@@ -41,7 +41,7 @@ export function memberVoteRecordRevision(day,groupGeneration) {
   return digest({
     sittingId:day.sittingId,date:day.date,groupGeneration,
     chairing:day.chairing?.status==='observed'?{status:'observed',byResultDocument:day.chairing.byResultDocument}:{status:day.chairing?.status||'unavailable'},
-    complete:Boolean(day.coverage?.completeness?.complete),
+    records:Boolean(day.coverage?.completeness?.votingRecordsComplete),
     decisions:list(day.decisions).map(raw=>{
       const item=projectMemberDecision(raw,day,'0','en',derived),actual=voterGroups(raw,'had_voter_');
       return {id:item.id,outcome:item.outcome,method:item.method,ballotStatus:item.ballotStatus,scope:item.scope?.kind,subjectId:item.subjectId,binding:item.resultRelationship?.binding,
@@ -61,12 +61,23 @@ export function pickTitle(titles,referenceTexts,language) {
   return {text:null,language:null};
 }
 
+// A ballot does not depend on the agenda, so a sitting is projected when its voting
+// records are complete. A sitting without any decision held no votes and is not counted;
+// conflicting decisions, or records not yet read in full, keep a sitting out as missing.
+export function voteSittingStatus(day) {
+  const completeness=day.coverage?.completeness||{};
+  if(!list(day.decisions).length&&!(completeness.declaredDecisionCount>0))return {status:'empty',reason:null};
+  if(completeness.votingRecordsComplete===true)return {status:'projected',reason:null};
+  return {status:'excluded',reason:list(completeness.conflictingDecisionIds).length?'conflicting-decisions':'records-incomplete'};
+}
+
 // Every observation is computed once for the sitting. Member rows only carry
 // counts, ballots and departures; decision wording stays on the sitting row.
 export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
   const derived=deriveVoteEvidence(day),resolve=resolver(groupOn),date=day.date,sittingId=day.sittingId;
   const documents=resultDocumentMap(day);
-  const decisions={},members=new Map(),named={count:0};
+  const decisions={},members=new Map(),named={count:0},subjects={};
+  const subjectTitles=new Map(derived.subjects.map(subject=>[subject.id,subject.titles]));
   function member(id) {
     let value=members.get(id);
     if(!value){value={memberId:id,sittingId,date,groupCode:null,alignment:emptyAlignment(),wholeText:emptyAlignment(),ballots:{recorded:0,named:0,chaired:0},departures:[]};members.set(id,value);}
@@ -87,7 +98,10 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
     const lines=voteGroupLines(voters);
     const chair=chairOwner(day,item,documents);
     named.count++;
-    decisions[item.id]={titles:item.titles||{},referenceTexts:item.referenceTexts||{},outcome:item.outcome,scope:wholeText?'whole-text':item.scope?.kind||'unclassified',wholeText,method:item.method};
+    // The result a decision belongs to, only when the link is exact.
+    const subjectId=item.subjectId&&['consistent','single-direction'].includes(item.resultRelationship?.binding)&&Object.keys(subjectTitles.get(item.subjectId)||{}).length?item.subjectId:null;
+    if(subjectId)subjects[subjectId]=subjectTitles.get(subjectId);
+    decisions[item.id]={subjectId,titles:item.titles||{},referenceTexts:item.referenceTexts||{},outcome:item.outcome,scope:wholeText?'whole-text':item.scope?.kind||'unclassified',wholeText,method:item.method};
     for(const position of positions)for(const id of actual.groups[position]) {
       if(conflicts.has(id))continue;
       const group=resolve(id,date),attached=attachedGroup(group);
@@ -103,7 +117,7 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
     // A chairing member's own ballot is omitted rather than counted as absence.
     if(chair&&!actual.byPerson.has(String(chair))&&!conflicts.has(String(chair)))member(chair).ballots.chaired++;
   }
-  const sitting={sittingId,date,named:named.count,decisions,complete:Boolean(day.coverage?.completeness?.complete)};
+  const sitting={sittingId,date,named:named.count,decisions,subjects,complete:Boolean(day.coverage?.completeness?.votingRecordsComplete)};
   for(const record of members.values()) {
     record.ballots.named=sitting.named;
     const attached=attachedGroup(resolve(record.memberId,date));

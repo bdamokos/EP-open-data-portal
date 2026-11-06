@@ -39,7 +39,7 @@ function sitting(decisions,{complete=true,chairing}={}) {
     raw.push(item);results.push(result);
   });
   fixture.day.decisions=raw;fixture.day.results=results;
-  fixture.day.coverage={completeness:{complete}};
+  fixture.day.coverage={completeness:{complete,votingRecordsComplete:complete}};
   if(chairing)fixture.day.chairing={status:'observed',byResultDocument:{[DOCUMENT]:String(chairing)},sources:[]};
   return {day:fixture.day,groupOn:createGroupOn(fixture.history)};
 }
@@ -157,7 +157,7 @@ test('the projection revision changes only with the sitting content, completenes
   assert.equal(first.revision,summariseVoteSitting(structuredClone(day.day),groupOn,{groupGeneration:'g1'}).revision);
   assert.notEqual(first.revision,memberVoteRecordRevision(day.day,'g2'));
   assert.notEqual(first.revision,memberVoteRecordRevision({...structuredClone(day.day),date:'2026-10-08'},'g1'));
-  assert.notEqual(first.revision,memberVoteRecordRevision({...structuredClone(day.day),coverage:{completeness:{complete:false}}},'g1'));
+  assert.notEqual(first.revision,memberVoteRecordRevision({...structuredClone(day.day),coverage:{completeness:{complete:false,votingRecordsComplete:false}}},'g1'));
   day.day.decisions[0].had_voter_abstention=['person/3'];
   assert.notEqual(first.revision,memberVoteRecordRevision(day.day,'g1'));
 });
