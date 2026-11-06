@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {plenaryMonday,groupPlenaryWeeks,votePeriodWeek,voteWeekNeighbours,votePeriodTransition,validateVotePeriods} from './plenaryPeriods.mjs';
+import {plenaryMonday,groupPlenaryWeeks,votePeriodWeek,voteWeekNeighbours,votePeriodTransition,validateVotePeriods,defaultAgendaWeek} from './plenaryPeriods.mjs';
 const weeks=[{week:'2026-10-19',sittings:[{sittingId:'MTG-PL-2026-10-19',date:'2026-10-19'}]},{week:'2026-10-05',sittings:[{sittingId:'MTG-PL-2026-10-06',date:'2026-10-06'}]}];
 test('calendar grouping and fallback accept any valid day and snap across month/year boundaries',()=>{
  assert.equal(plenaryMonday('2026-10-07'),'2026-10-05');assert.equal(plenaryMonday('2026-01-01'),'2025-12-29');assert.equal(plenaryMonday('2026-02-30'),null);
@@ -28,4 +28,25 @@ test('calendar validator rejects malformed entries before inspecting their field
   }
  }
  for(const week of [null,undefined,4,{},[]])assert.equal(validateVotePeriods({...valid,weeks:[{week,sittings:weeks[0].sittings}]}),false);
+});
+test('version 4 requires a valid upcoming list; older versions do not carry one',()=>{
+ const coverage={status:'partial',years:[{year:2026,state:'partial',sources:[]}]};
+ const upcoming=[{week:'2026-11-09',sittings:[{sittingId:'MTG-PL-2026-11-11',date:'2026-11-11'}]}];
+ assert.equal(validateVotePeriods({version:4,weeks,upcoming,coverage}),true);
+ assert.equal(validateVotePeriods({version:4,weeks,coverage}),false,'upcoming missing');
+ assert.equal(validateVotePeriods({version:4,weeks,upcoming:[],coverage}),true,'no future sittings is a valid empty list');
+ assert.equal(validateVotePeriods({version:3,weeks,upcoming,coverage}),true,'older versions ignore the new field');
+ assert.equal(validateVotePeriods({version:4,weeks,upcoming:[{week:'2026-11-09',sittings:[]}],coverage}),false,'empty sitting lists stay invalid');
+});
+test('the default agenda week is the current sitting week, else the next, else the latest',()=>{
+ const sitting=date=>({sittingId:'MTG-PL-'+date,date});
+ const weeks=[{week:'2026-10-19',sittings:[sitting('2026-10-20')]},{week:'2026-10-05',sittings:[sitting('2026-10-06')]}];
+ const upcoming=[{week:'2026-11-23',sittings:[sitting('2026-11-24')]},{week:'2026-11-09',sittings:[sitting('2026-11-11')]}];
+ assert.equal(defaultAgendaWeek('2026-11-11',weeks,upcoming),'2026-11-09','a sitting week in progress');
+ assert.equal(defaultAgendaWeek('2026-10-21',weeks,upcoming),'2026-10-19','held sittings of this week count');
+ assert.equal(defaultAgendaWeek('2026-11-02',weeks,upcoming),'2026-11-09','between weeks: the next one');
+ assert.equal(defaultAgendaWeek('2026-12-01',weeks,upcoming),'2026-10-19','no future week: the latest held week');
+ assert.equal(defaultAgendaWeek('2026-12-01',weeks,[]),'2026-10-19');
+ assert.equal(defaultAgendaWeek('not a date',weeks,upcoming),null);
+ assert.equal(defaultAgendaWeek('2026-12-01',[],[]),null);
 });
