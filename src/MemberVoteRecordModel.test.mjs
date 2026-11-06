@@ -1,24 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {MEMBER_VOTE_RECORD_LIMIT,recordComparison,memberVoteRecordRoute,recordAlignment,recordShare,recordSummary,recordTrend,validateMemberVoteRecordResponse} from './MemberVoteRecordModel.mjs';
+import {MEMBER_VOTE_RECORD_LIMIT,recordComparison,memberVoteRecordRoute,recordAlignment,recordShare,validateMemberVoteRecordResponse} from './MemberVoteRecordModel.mjs';
 
 const MEMBER=197591,A='MTG-PL-2026-09-16',B='MTG-PL-2026-10-07';
 const counts=(withGroup,against,abstained=0,notComparable=0)=>({with:withGroup,against,abstained,notComparable});
 function response(patch={}) {
   return {
-    version:1,
+    version:2,
     member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER},
     period:{from:'2024-07-16',to:'2026-10-07'},
     coverage:{sittings:2,included:2,missing:0,status:'complete'},
     group:{code:'S&D',status:'attached'},
     alignment:{all:counts(3,1,1,0),wholeText:counts(2,0,0,0)},
-    ballots:{recorded:5,named:4,chaired:0},
-    bySitting:[
-      {sittingId:B,date:'2026-10-07',withGroup:2,comparable:2,finalWithGroup:2,finalComparable:2},
-      {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2,finalWithGroup:null,finalComparable:null},
-    ],
+    ballots:{chaired:0},
     departures:{scope:'all',offset:0,limit:5,total:1,items:[{decisionId:B+'-DEC-4',sittingId:B,date:'2026-10-07',scope:'all',wholeText:false,position:'against',line:'for',text:'Amendment 4',language:'en'}],nextOffset:null},
-    comparison:{all:{group:{median:0.625,members:2},parliament:{median:0.5,members:3}},final:{group:{median:1,members:2},parliament:{median:0.75,members:3}}},
+    comparison:{all:{group:{median:0.625,members:2}},final:{group:{median:1,members:2}}},
     attribution:'European Parliament Open Data API v2, CC BY 4.0',
     ...patch,
   };
@@ -40,16 +36,14 @@ test('the response validator accepts stored shapes and rejects a member or page 
   assert.equal(validateMemberVoteRecordResponse(response({group:{code:'NI',status:'non-attached'},alignment:null,comparison:null}),{memberId:MEMBER}),true);
   const invalid=[
     ['member',response({member:{id:'2',uri:'https://data.europarl.europa.eu/person/2'}})],
-    ['version',response({version:2})],
+    ['version',response({version:1})],
     ['coverage total',response({coverage:{sittings:3,included:2,missing:0,status:'complete'}})],
     ['coverage status',response({coverage:{sittings:2,included:2,missing:0,status:'unknown'}})],
     ['alignment',response({alignment:{all:{with:3,against:1,abstained:1},wholeText:counts(2,0,0,0)}})],
-    ['ballots',response({ballots:{recorded:-1,named:4,chaired:0}})],
-    ['sitting date',response({bySitting:[{sittingId:B,date:'2026-10-08',withGroup:2,comparable:2,finalWithGroup:null,finalComparable:null}]})],
-    ['sitting counts',response({bySitting:[{sittingId:B,date:'2026-10-07',withGroup:3,comparable:2,finalWithGroup:null,finalComparable:null}]})],
+    ['ballots',response({ballots:{chaired:-1}})],
     ['departure identity',response({departures:{...response().departures,items:[{...response().departures.items[0],decisionId:'other'}]}})],
     ['departure offset',response({departures:{...response().departures,offset:1}})],
-    ['comparison range',response({comparison:{all:{group:{median:1.2,members:2},parliament:{median:0.5,members:3}},final:null}})],
+    ['comparison range',response({comparison:{all:{group:{median:1.2,members:2}},final:null}})],
   ];
   for(const [label,value] of invalid)assert.equal(validateMemberVoteRecordResponse(value,{memberId:MEMBER}),false,label);
 });
@@ -62,29 +56,9 @@ test('all-vote and final-vote figures share one comparable definition',()=>{
   assert.deepEqual(recordAlignment(response({alignment:{all:counts(0,0,2),wholeText:counts(0,0,0)}})),{...counts(0,0,2),total:2,comparable:0,withShare:null,againstShare:null});
 });
 
-test('the trend sorts sittings and keeps gaps as explicit nulls',()=>{
-  const data=response({bySitting:[
-    {sittingId:B,date:'2026-10-07',withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null},
-    {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2,finalWithGroup:1,finalComparable:1},
-  ]});
-  assert.deepEqual(recordTrend(data),[
-    {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2,share:0.5},
-    {sittingId:B,date:'2026-10-07',withGroup:null,comparable:null,share:null},
-  ]);
-  assert.deepEqual(recordTrend(data,'final').map(point=>point.share),[1,null]);
-});
-
-test('the profile summary reports attached, non-attached, empty and chaired states',()=>{
-  assert.deepEqual(recordSummary(response()),{attached:true,share:0.75,comparable:4,recorded:5,named:4,chaired:0});
-  assert.deepEqual(recordSummary(response({group:{code:'NI',status:'non-attached'},alignment:null})),{attached:false,share:null,comparable:0,recorded:5,named:4,chaired:0});
-  assert.deepEqual(recordSummary(response({alignment:null,ballots:{recorded:0,named:0,chaired:0}})),{attached:true,share:null,comparable:0,recorded:0,named:0,chaired:0});
-  assert.equal(recordSummary(response({ballots:{recorded:5,named:4,chaired:3}})).chaired,3);
-});
-
 test('medians follow the chosen scope and may be absent',()=>{
   assert.equal(recordComparison(response(),'final').group.median,1);
   assert.equal(recordComparison(response({comparison:null}),'all'),null);
-  assert.equal(validateMemberVoteRecordResponse(response({ballots:{recorded:5,named:null,chaired:0}}),{memberId:MEMBER}),true);
 });
 
 test('shares round to one decimal without inventing a value for a gap',()=>{

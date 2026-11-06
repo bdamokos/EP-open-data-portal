@@ -13,19 +13,15 @@ const departures=Array.from({length:6},(_,index)=>({
 }));
 function response(patch={}) {
   return {
-    version:1,
+    version:2,
     member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER},
     period:{from:'2024-07-16',to:'2026-10-07'},
     coverage:{sittings:2,included:2,missing:0,status:'complete'},
     group:{code:'S&D',status:'attached'},
     alignment:{all:counts(3,1,1,0),wholeText:counts(2,0,0,0)},
-    ballots:{recorded:5,named:4,chaired:0},
-    bySitting:[
-      {sittingId:B,date:'2026-10-07',withGroup:2,comparable:2,finalWithGroup:2,finalComparable:2},
-      {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2,finalWithGroup:null,finalComparable:null},
-    ],
+    ballots:{chaired:0},
     departures:{scope:'all',offset:0,limit:5,total:6,items:departures.slice(0,5),nextOffset:5},
-    comparison:{all:{group:{median:0.625,members:2},parliament:{median:0.5,members:3}},final:{group:{median:1,members:2},parliament:{median:0.75,members:3}}},
+    comparison:{all:{group:{median:0.625,members:2}},final:{group:{median:1,members:2}}},
     attribution:'European Parliament Open Data API v2, CC BY 4.0',
     ...patch,
   };
@@ -46,29 +42,27 @@ async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',o
     return Response.json(typeof data==='function'?data(url_):data);
   });
   load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {MemberVoteRecord,MemberVoteRecordSummary}=await load('/src/MemberVoteRecord.tsx');
+  const {MemberVoteRecord}=await load('/src/MemberVoteRecord.tsx');
   const {createRoot}=await import('react-dom/client');const container=window.document.createElement('div');window.document.body.append(container);installRetryClock(t);root=createRoot(container);
   const props={memberId,language:'en',scope,offset,onScopeChange:value=>scopes.push(value),onOffset:value=>offsets.push(value),onOpenDecision:value=>opened.push(value)};
   await act(async()=>root.render(createElement(MemberVoteRecord,props)));
-  return {container,calls,offsets,scopes,opened,MemberVoteRecordSummary,window,
-    async renderSummary(summaryProps={}){await act(async()=>root.render(createElement(MemberVoteRecordSummary,{memberId,language:'en',onOpen:()=>scopes.push('open'),...summaryProps})));},
+  return {container,calls,offsets,scopes,opened,window,
     async render(next){await act(async()=>root.render(createElement(MemberVoteRecord,{...props,...next})));}};
 }
 const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>item.textContent.trim()===text);
 const links=container=>[...container.querySelectorAll('.member-vote-record-departures a')];
 
-test('an active member record shows labelled figures, an accessible trend and linked departures',async t=>{
+test('an active member record leads with the votes against the group and links its departures',async t=>{
   const view=await mount(t);
   const text=view.container.textContent;
   assert.match(text,/Voting record/);
   assert.match(text,/Current term · 16 Jul 2024 – 7 Oct 2026/);
-  assert.match(text,/With their group75%3 of 4 votesGroup median 62.5% · Parliament median 50%/);
-  assert.match(text,/Against their group11 of 4 votes/);
-  assert.match(text,/Recorded votes5 of 4named votes held/);
+  const figures=[...view.container.querySelectorAll('.member-vote-record-figures dt')].map(item=>item.textContent);
+  assert.deepEqual(figures,['Against their group','With their group'],'the lead figure is the count against the group');
+  assert.match(view.container.querySelector('.member-vote-record-figures').textContent,/Against their group1With their group75%Group median 62.5%/);
+  assert.equal(/ of \d| votes held|Recorded votes|Parliament median/.test(text.replace(/Show more|1–5 of 6/,'')),false,'no X of Y lines, recorded figure or Parliament median');
+  assert.equal(view.container.querySelector('svg'),null,'there is no trend chart');
   assert.equal(text.includes('Partial'),false);
-  assert.equal(view.container.querySelectorAll('svg circle').length,2);
-  assert.equal(view.container.querySelectorAll('svg path.member-vote-record-line').length,1);
-  assert.match(view.container.querySelector('.member-vote-record-trend ul').textContent,/7 Oct 2026: 100% with their group \(2 of 2\)/);
   assert.equal(links(view.container).length,5,'the first page keeps five departures');
   assert.match(links(view.container)[0].getAttribute('href'),/mv-decision=MTG-PL-2026-10-07-DEC-10/);
   assert.equal(links(view.container)[0].hasAttribute('lang'),false,'text in the interface language needs no language mark');
@@ -93,35 +87,22 @@ test('scope and departure page actions report their own values',async t=>{
 
 test('final votes use whole-text counts and label their departures separately',async t=>{
   const view=await mount(t,{scope:'final',data:response({departures:{...response().departures,scope:'final',items:departures.slice(0,1),total:1,nextOffset:null}})});
-  assert.match(view.container.textContent,/With their group100%2 of 2 votesGroup median 100% · Parliament median 75%/);
-  assert.equal(view.container.querySelectorAll('svg circle').length,1,'final votes plot only sittings with a final comparable vote');
+  assert.match(view.container.querySelector('.member-vote-record-figures').textContent,/Against their group0With their group100%Group median 100%/);
   assert.equal(view.container.querySelectorAll('.member-vote-record-departures a').length,1);
   assert.equal(button(view.container,'Show more'),undefined);
 });
 
-test('a non-attached member sees recorded ballots and one short label, never group figures',async t=>{
+test('a non-attached member sees one short label, never group figures',async t=>{
   const view=await mount(t,{data:response({group:{code:'NI',status:'non-attached'},alignment:null,comparison:null,departures:{...response().departures,total:0,items:[],nextOffset:null}})});
-  assert.match(view.container.textContent,/Recorded votes5 of 4named votes heldNon-attached/);
+  assert.match(view.container.textContent,/Non-attached/);
+  assert.equal(button(view.container,'Final votes'),undefined);
   assert.equal(view.container.textContent.includes('With their group'),false);
   assert.equal(view.container.textContent.includes('Against'),false);
-  assert.equal(view.container.querySelector('svg'),null);
 });
 
 test('a chairing member gets a separate chaired count',async t=>{
-  const view=await mount(t,{data:response({ballots:{recorded:5,named:4,chaired:2}})});
+  const view=await mount(t,{data:response({ballots:{chaired:2}})});
   assert.match(view.container.textContent,/Chaired: 2/);
-});
-
-test('unknown named votes leave only the recorded count, and a null sitting breaks the trend line',async t=>{
-  const data=response({ballots:{recorded:5,named:null,chaired:0},bySitting:[
-    {sittingId:B,date:'2026-10-07',withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null},
-    {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2,finalWithGroup:null,finalComparable:null},
-  ]});
-  const view=await mount(t,{data});
-  assert.match(view.container.textContent,/Recorded votes5(?!.*named votes held)/);
-  assert.equal(view.container.querySelectorAll('svg circle').length,1);
-  assert.equal(view.container.querySelectorAll('svg path.member-vote-record-line').length,0);
-  assert.match(view.container.querySelector('.member-vote-record-trend ul').textContent,/7 Oct 2026: no comparable votes/);
 });
 
 test('a failed record read shows a few words and leaves the rest of the page to the Votes tab',async t=>{
@@ -136,24 +117,10 @@ test('a partial record states the missing sittings instead of zeroes',async t=>{
   assert.match(view.container.textContent,/Partial · missing sittings: 1/);
 });
 
-test('the profile strip summarizes the record and opens the Votes tab',async t=>{
-  const view=await mount(t);
-  await view.renderSummary();
-  assert.equal(view.calls.at(-1).includes('limit=0'),true);
-  assert.match(view.container.textContent,/Voting record: 75% with their group · 5 recorded votes/);
-  await act(async()=>view.container.querySelector('.member-vote-record-summary a').click());
-  assert.deepEqual(view.scopes,['open']);
-});
-
-test('the profile strip keeps non-attached and chaired counts to one line',async t=>{
-  const view=await mount(t,{data:response({group:{code:'NI',status:'non-attached'},alignment:null,comparison:null,ballots:{recorded:5,named:4,chaired:1}})});
-  await view.renderSummary();
-  assert.match(view.container.textContent,/Voting record: 5 recorded votes · chaired 1/);
-});
-
-test('a chairing member with no comparable vote shows recorded and chaired counts only',async t=>{
-  const view=await mount(t,{data:response({alignment:{all:counts(0,0,0,0),wholeText:counts(0,0,0,0)},comparison:null,ballots:{recorded:14,named:612,chaired:598}})});
-  assert.match(view.container.textContent,/Recorded votes14 of 612named votes heldChaired: 598/);
+test('a chairing member with no comparable vote shows the chaired count and nothing to compare',async t=>{
+  const view=await mount(t,{data:response({alignment:{all:counts(0,0,0,0),wholeText:counts(0,0,0,0)},comparison:null,ballots:{chaired:598}})});
+  assert.match(view.container.textContent,/Chaired: 598/);
+  assert.equal(view.container.textContent.includes('Against their group'),false,'unknown is not shown as zero');
   assert.equal(view.container.textContent.includes('With their group'),false);
   assert.equal(view.container.textContent.includes('Group unavailable'),false);
   assert.equal(view.container.querySelector('.member-vote-record-departures'),null);
@@ -166,23 +133,11 @@ test('departure wording in another language is marked, and language-neutral word
   assert.equal(links(view.container)[1].hasAttribute('lang'),false);
 });
 
-test('a long trend keeps markers only for isolated sittings',async t=>{
-  const day=index=>({sittingId:'MTG-PL-2026-'+String(1+Math.floor(index/28)).padStart(2,'0')+'-'+String(1+index%28).padStart(2,'0'),withGroup:index%2,comparable:1,finalWithGroup:null,finalComparable:null});
-  const bySitting=Array.from({length:40},(_,index)=>({...day(index),date:'2026-'+String(1+Math.floor(index/28)).padStart(2,'0')+'-'+String(1+index%28).padStart(2,'0')}));
-  bySitting[10]={...bySitting[10],withGroup:null,comparable:null};bySitting[12]={...bySitting[12],withGroup:null,comparable:null};
-  const view=await mount(t,{data:response({coverage:{sittings:40,included:40,missing:0,status:'complete'},bySitting})});
-  assert.equal(view.container.querySelectorAll('svg circle').length,1,'only the point between two gaps is marked');
-  assert.equal(view.container.querySelectorAll('svg path.member-vote-record-line').length,2,'the isolated point has no line of its own');
-});
-
-test('before the first projection the panel and the strip show a short pending state without figures',async t=>{
-  const pending=response({coverage:{sittings:3,included:0,missing:3,status:'partial'},alignment:{all:counts(0,0),wholeText:counts(0,0)},ballots:{recorded:0,named:0,chaired:0},bySitting:[],departures:{scope:'all',offset:0,limit:5,total:0,items:[],nextOffset:null},comparison:null});
+test('before the first projection the panel shows a short pending state without figures',async t=>{
+  const pending=response({coverage:{sittings:3,included:0,missing:3,status:'partial'},alignment:{all:counts(0,0),wholeText:counts(0,0)},ballots:{chaired:0},departures:{scope:'all',offset:0,limit:5,total:0,items:[],nextOffset:null},comparison:null});
   const view=await mount(t,{data:pending});
   assert.match(view.container.textContent,/Voting record not available yet\./);
-  assert.equal(/Recorded votes|0 of 0/.test(view.container.textContent),false);
-  await view.renderSummary();
-  assert.match(view.container.textContent,/Voting record not available yet\./);
-  assert.equal(view.container.querySelector('a'),null);
+  assert.equal(/Against their group|0 of 0/.test(view.container.textContent),false);
 });
 
 const pagesOf=total=>url=>{
@@ -230,22 +185,16 @@ test('the All/Final control stays for a member with a group line',async t=>{
   assert.notEqual(button(view.container,'Final votes'),undefined);
 });
 
-test('the profile strip adds the sitting count only when the record is partial',async t=>{
-  const view=await mount(t,{data:response({coverage:{sittings:124,included:92,missing:32,status:'partial'}})});
-  await view.renderSummary();
-  assert.match(view.container.textContent,/5 recorded votes · 92 of 124 sittings/);
-});
-
-test('on a narrow screen the trend and the departures sit behind disclosures, closed by default',async t=>{
+test('on a narrow screen the departures sit behind a disclosure, closed by default',async t=>{
   const view=await mount(t,{matches:true});
   const details=[...view.container.querySelectorAll('details.member-vote-record-disclosure')];
-  assert.equal(details.length,2);
+  assert.equal(details.length,1);
   assert.equal(details.every(item=>item.open===false),true);
-  assert.match(details[1].querySelector('summary').textContent,/Votes against their group · 6/);
-  assert.equal(view.container.querySelectorAll('.member-vote-record-figures > div').length,3,'the three figures stay in view');
+  assert.match(details[0].querySelector('summary').textContent,/Votes against their group · 6/);
+  assert.equal(view.container.querySelectorAll('.member-vote-record-figures > div').length,2,'the figures stay in view');
 });
 
-test('on a wide screen the trend and the departures stay open',async t=>{
+test('on a wide screen the departures stay open',async t=>{
   const view=await mount(t);
   assert.equal(view.container.querySelector('details'),null);
   assert.equal(links(view.container).length,5);

@@ -5,13 +5,10 @@ import {MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
 import {createGroupOn} from './group-attribution.mjs';
 import {pickTitle} from './member-vote-record-model.mjs';
 
-export const MEMBER_VOTE_RECORD_VERSION=1;
+export const MEMBER_VOTE_RECORD_VERSION=2;
 export const MEMBER_VOTE_RECORD_LIMITS=Object.freeze({departures:50,maxOffset:10000});
 const emptyAlignment=()=>({with:0,against:0,abstained:0,notComparable:0});
 // A group-history answer that places the person in office on that day.
-const serving=answer=>typeof answer==='object'||answer==='ambiguous';
-// Named votes held need a known mandate day; an ambiguous answer stays unknown.
-const holding=answer=>typeof answer==='object';
 
 export function memberVoteRecordQuery(search) {
   const allowed=['lang','scope','limit','offset'];
@@ -46,7 +43,7 @@ const readGroupOn=(db,generation)=>{
 
 function pendingRecord(id,query) {
   return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period:{from:CURRENT_TERM_START,to:null},
-    coverage:{sittings:0,included:0,missing:0,status:'pending'},group:{code:null,status:'unavailable'},alignment:null,ballots:{recorded:0,named:0,chaired:0},bySitting:[],
+    coverage:{sittings:0,included:0,missing:0,status:'pending'},group:{code:null,status:'unavailable'},alignment:null,ballots:{chaired:0},
     departures:{scope:query.scope,offset:query.offset,limit:query.limit,total:0,items:[],nextOffset:null},comparison:null,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
 }
 
@@ -74,34 +71,22 @@ export class MemberVoteRecordReader {
         FROM member_vote_record_members m JOIN member_vote_record_sittings s ON s.sitting_id=m.sitting_id
         WHERE m.member_id=? AND s.snapshot_version=? ORDER BY s.date DESC,s.sitting_id DESC`).all(id,MEMBER_VOTE_SNAPSHOT_VERSION);
       const alignment={all:emptyAlignment(),wholeText:emptyAlignment()};
-      const ballots={recorded:0,named:0,chaired:0};
-      const bySitting=[],departures=[],withRow=new Set();
+      const ballots={chaired:0};
+      const departures=[];
       for(const row of rows) {
         const body=JSON.parse(row.body);
-        withRow.add(row.sittingId);
         for(const key of ['with','against','abstained','notComparable']) {
           alignment.all[key]+=body.alignment?.[key]||0;
           alignment.wholeText[key]+=body.wholeText?.[key]||0;
         }
-        ballots.recorded+=body.ballots?.recorded||0;ballots.chaired+=body.ballots?.chaired||0;
-        bySitting.push({sittingId:row.sittingId,date:row.date,...Object.fromEntries(['withGroup','comparable','finalWithGroup','finalComparable'].map(key=>[key,body.bySitting?.[key]??null]))});
+        ballots.chaired+=body.ballots?.chaired||0;
         for(const departure of body.departures||[]) {
           departures.push({decisionId:departure.decisionId,sittingId:row.sittingId,date:departure.date,scope:departure.wholeText?'final':'all',wholeText:Boolean(departure.wholeText),
             position:departure.position??null,line:departure.line??null});
         }
       }
-      // Named votes only count while the person held a mandate; a sitting whose
-      // membership is unknown leaves the total unknown rather than zero.
       const termFirst='MTG-PL-'+CURRENT_TERM_START;
-      const sittings=db.prepare('SELECT sitting_id AS sittingId,date,named FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=? AND status=\'projected\'').all(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst);
-      let unknown=0;
-      for(const sitting of sittings) {
-        if(!sitting.named)continue;
-        const answer=groupOn?groupOn(id,sitting.date):'unavailable';
-        if(withRow.has(sitting.sittingId)||holding(answer))ballots.named+=sitting.named;
-        else if(answer!=='not-serving')unknown++;
-      }
-      if(unknown)ballots.named=null;
+      const sittings=db.prepare('SELECT date FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=? AND status=\'projected\'').all(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst);
       // Every stored votes sitting counts except those that held no decisions. One that is not
       // examined yet, or whose voting records are incomplete or conflicting, is missing.
       const stored=db.prepare("SELECT COUNT(*) AS n FROM sitting_snapshots WHERE kind='votes' AND version=? AND id>=?").get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
@@ -116,22 +101,19 @@ export class MemberVoteRecordReader {
       // Every member's totals cover the same projected sittings, so medians stay
       // comparable with a member's own figures while some sittings are missing.
       let comparison=null;
-      if(group.status==='attached'&&groupOn&&ballots.recorded>0&&included>0) {
-        const shares={all:{all:[],same:[]},final:{all:[],same:[]}};
+      if(group.status==='attached'&&groupOn&&included>0) {
+        // The group median is taken over the other current members of the same group.
+        const shares={all:[],final:[]};
         for(const row of db.prepare('SELECT member_id,body FROM member_vote_record_totals').all()) {
-          const totals=JSON.parse(row.body),answer=groupOn(row.member_id,today);
-          if(!serving(answer))continue;
-          const same=typeof answer==='object'&&answer.code===group.code;
-          for(const [key,withKey,comparableKey] of [['all','withGroup','comparable'],['final','finalWithGroup','finalComparable']]) {
-            if(!(totals[comparableKey]>0))continue;
-            const share=totals[withKey]/totals[comparableKey];
-            shares[key].all.push(share);
-            if(same)shares[key].same.push(share);
-          }
+          const answer=groupOn(row.member_id,today);
+          if(typeof answer!=='object'||answer.code!==group.code)continue;
+          const totals=JSON.parse(row.body);
+          for(const [key,withKey,comparableKey] of [['all','withGroup','comparable'],['final','finalWithGroup','finalComparable']])
+            if(totals[comparableKey]>0)shares[key].push(totals[withKey]/totals[comparableKey]);
         }
         const pair=key=>{
-          const groupMedian=median(shares[key].same),parliamentMedian=median(shares[key].all);
-          return groupMedian===null||parliamentMedian===null?null:{group:{median:groupMedian,members:shares[key].same.length},parliament:{median:parliamentMedian,members:shares[key].all.length}};
+          const groupMedian=median(shares[key]);
+          return groupMedian===null?null:{group:{median:groupMedian,members:shares[key].length}};
         };
         comparison={all:pair('all'),final:pair('final')};
       }
@@ -151,7 +133,7 @@ export class MemberVoteRecordReader {
         return {...item,...label,subject:subject.text?subject:null};
       }),nextOffset=query.offset+items.length<sorted.length?query.offset+items.length:null;
       return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period,coverage,group,
-        alignment:group.status==='attached'?alignment:null,ballots,bySitting,departures:{scope:query.scope,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},
+        alignment:group.status==='attached'?alignment:null,ballots,departures:{scope:query.scope,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},
         comparison,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
     }catch(error){if(error instanceof HttpError)throw error;throw new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.');}
   }

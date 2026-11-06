@@ -7,7 +7,4 @@ export type MemberVoteRecordFigures=MemberVoteRecordAlignment&{total:number;comp
 export function recordAlignment(data:MemberVoteRecordResponse,scope?:'all'|'final'):MemberVoteRecordFigures|null;
 export type MemberVoteRecordComparison=NonNullable<MemberVoteRecordResponse['comparison']>['all'];
 export function recordComparison(data:MemberVoteRecordResponse,scope?:'all'|'final'):MemberVoteRecordComparison;
-export type MemberVoteRecordTrendPoint={sittingId:string;date:string;withGroup:number|null;comparable:number|null;share:number|null};
-export function recordTrend(data:MemberVoteRecordResponse,scope?:'all'|'final'):MemberVoteRecordTrendPoint[];
-export function recordSummary(data:MemberVoteRecordResponse):{attached:boolean;share:number|null;comparable:number;recorded:number;named:number;chaired:number};
 export function recordShare(value:number|null|undefined):number|null;

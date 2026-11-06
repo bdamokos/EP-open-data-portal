@@ -13,38 +13,24 @@
 .member-vote-record-muted,.member-vote-record-status{color:var(--mvr-muted);font-size:11px}
 .member-vote-record-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:16px;margin:0 0 10px}
 .member-vote-record-figures small{display:block;color:var(--mvr-muted);font-size:10px;margin-top:4px}
-.member-vote-record-trend{margin:18px 0 20px;border-top:1px solid var(--mvr-line);padding-top:14px}
-.member-vote-record-plot{position:relative;max-width:640px;margin:6px 0 2px}
-.member-vote-record-plot svg{display:block;width:100%;height:auto}
-.member-vote-record-tick{position:absolute;left:0;transform:translateY(-50%);color:var(--mvr-muted);font-size:10px;line-height:1}
-.member-vote-record-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 3}
-.member-vote-record-line{fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.member-vote-record-dot{fill:var(--accent);stroke:var(--surface);stroke-width:1.5}
-.member-vote-record-empty{color:var(--mvr-muted);font-size:12px}
 .member-vote-record-departures{border-top:1px solid var(--mvr-line);padding-top:14px}
 .member-vote-record-departures ol{list-style:none;margin:0 0 8px;padding:0}
 .member-vote-record-departures li{border-bottom:1px solid var(--mvr-line)}
 .member-vote-record-departures li:last-child{border-bottom:0}
 .member-vote-record-departure-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.member-vote-record-summary{margin:0 0 16px}
 .member-vote-record .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 @media(max-width:600px){
  .member-vote-record{padding:15px}
  .member-vote-record h2{font-size:20px}
  .member-vote-record-figures{grid-template-columns:1fr 1fr;gap:13px}
- .member-vote-record-ballots{gap:8px 18px}
  .member-vote-record-figures dd{font-size:19px}
 }
 
 .member-vote-record-figures{margin:14px 0 0}
 .member-vote-record-figures>div{min-width:0;overflow-wrap:anywhere}
-.member-vote-record-axis{display:flex;justify-content:space-between;color:var(--mvr-muted);font-size:10px;max-width:640px;padding:0 3% 0 10.6%}
 .member-vote-record-departures li{padding:8px 0}
 .member-vote-record-departures li a{color:var(--accent-strong);text-underline-offset:3px}
 .member-vote-record-departures li small{display:block;color:var(--mvr-muted);font-size:11px;margin-top:2px}
-.member-vote-record-summary a{display:block;border:1px solid var(--line);background:var(--surface);color:var(--accent-strong);font-size:12px;padding:9px 12px;text-underline-offset:3px;overflow-wrap:anywhere}
-.member-vote-record-summary a:hover{border-color:var(--line-strong)}
-.member-vote-record-summary a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
 .member-vote-record-figures dt{color:var(--mvr-muted);font-size:10px;letter-spacing:.03em;text-transform:uppercase}
 .member-vote-record-figures dd{font-size:21px;font-weight:bold;line-height:1.25;margin:2px 0 0}
 
@@ -52,7 +38,6 @@
 .member-vote-record-disclosure{border-top:1px solid var(--mvr-line);padding:0}
 .member-vote-record-disclosure summary{cursor:pointer;font-weight:bold;padding:10px 0;min-height:var(--control-height)}
 .member-vote-record-disclosure summary:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
-.member-vote-record-disclosure .member-vote-record-trend,.member-vote-record-disclosure .member-vote-record-departures{border-top:0;padding-top:0;margin-top:0}
 @media(max-width:639px){
  .member-vote-record{padding:12px 14px;margin-bottom:12px}
  .member-vote-record-header{flex-wrap:nowrap;align-items:center}
@@ -60,7 +45,7 @@
  .member-vote-record h2{font-size:18px;margin:0}
  .member-vote-record-header .member-vote-record-muted{margin:2px 0 0}
  .member-vote-record-filter button{padding:4px 8px;min-height:32px}
- .member-vote-record-figures{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 6px}
+ .member-vote-record-figures{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0 6px}
  .member-vote-record-figures dd{font-size:16px}
  .member-vote-record-figures dt{font-size:9px}
  .member-vote-record-figures small:not(.member-vote-record-keep){display:none}
@@ -69,3 +54,5 @@
  .member-vote-record-disclosure summary{display:none}
 }
 .member-vote-record-disclosure h3{display:none}
+
+.member-vote-record-notes{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--mvr-muted);font-size:12px;margin:12px 0 0}

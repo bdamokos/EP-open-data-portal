@@ -90,7 +90,7 @@ import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAutho
 import {selectLanguageText} from './language.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
 import {useMemberVotesJourney} from './useMemberVotesJourney';
-import {MemberVoteRecord,MemberVoteRecordSummary} from './MemberVoteRecord';
+import {MemberVoteRecord} from './MemberVoteRecord';
 import {useMemberMotionJourney} from './useMemberMotionJourney';
 import {motionJourneyParams} from './motionJourney.mjs';
 import type {MemberMotionReaderProps} from './MemberMotionReader';
@@ -885,7 +885,6 @@ export default function App() {
                       </Suspense>}/>
                   </Suspense>}
                 </> : ((publicAmendmentsEnabled && (tab === "amendments")) ? <Amendments key={member} member={member} language={lang} onMember={openInsightMember} heading={ui.t("app.amendments_tabled")}/> : ((tab === "activities") ? <Activities id={member} lang={lang} memberName={memberName} initialActivity={activityLink} onOpen={changeActivity} category={activityCategory} onCategory={changeActivityCategory} offset={activityOffset} onOffset={changeActivityOffset} motionQuery={motions.query} onMotionChange={motions.onJourneyChange} preserveScroll={motions.hasSavedScroll||dossierJourneyRestoring()} /> : <>
-                  <MemberVoteRecordSummary memberId={member} language={lang} onOpen={()=>changeMemberTab('votes')}/>
                   {profile.loading && <p role="status" lang={ui.language}><UiMessage id="app.loading_profile"/></p>}
                   {profile.error && <ErrorView message={profile.error} retry={profile.retry} />}{" "}
                   {profile.data && <>

@@ -78,45 +78,28 @@ test('the reader combines stored member rows without parsing snapshots or contac
   assert.deepEqual(data.group,{code:'S&D',status:'attached'});
   assert.deepEqual(data.alignment.all,{with:3,against:1,abstained:1,notComparable:0});
   assert.deepEqual(data.alignment.wholeText,{with:3,against:0,abstained:0,notComparable:0});
-  assert.deepEqual(data.ballots,{recorded:5,named:4,chaired:1});
-  assert.deepEqual(data.bySitting,[
-    {sittingId:B,date:'2026-10-07',withGroup:2,comparable:2,finalWithGroup:2,finalComparable:2},
-    {sittingId:A,date:'2026-09-16',withGroup:1,comparable:2,finalWithGroup:1,finalComparable:1},
-  ]);
+  assert.deepEqual(data.ballots,{chaired:1});
+  assert.equal('bySitting' in data,false,'the per-sitting series is not part of the record');
   // Whole texts sort first, then newest first within each scope.
   assert.deepEqual(data.departures.items.map(item=>item.decisionId),[decision(B,3),decision(B,4),decision(A,2)]);
   assert.deepEqual(data.departures.items.map(item=>item.scope),['final','all','all']);
   assert.equal(data.departures.items[0].text,'Second final');
   assert.equal(data.departures.total,3);
   assert.equal(data.departures.nextOffset,null);
-  assert.deepEqual(data.comparison.all,{group:{median:0.625,members:2},parliament:{median:0.5,members:3}},'every member\'s totals cover the same projected sittings, so a missing one does not switch medians off');
+  assert.deepEqual(data.comparison.all,{group:{median:0.625,members:2}},'every member\'s totals cover the same projected sittings, so a missing one does not switch medians off');
 });
 
-test('medians come from current members with comparable votes, for each scope, once coverage is complete',()=>{
+test('the group median comes from current members of the same group with comparable votes, for each scope',()=>{
   const db=fullDatabase({complete:true});
   const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00:00Z')});
   const data=reader.query(MEP,{...query(),language:'en'});
   assert.equal(data.coverage.status,'complete');
-  assert.deepEqual(data.comparison.all,{group:{median:0.625,members:2},parliament:{median:0.5,members:3}});
-  assert.deepEqual(data.comparison.final,{group:{median:0.5,members:2},parliament:{median:0.5,members:3}});
+  assert.deepEqual(data.comparison.all,{group:{median:0.625,members:2}});
+  assert.deepEqual(data.comparison.final,{group:{median:0.5,members:2}});
   // A member who left office is not a current member.
   const left={...history,members:{...history.members,'3':{...person('S&D'),mandates:[{start:'2024-07-16',end:'2026-01-01'}],mandateCoverage:'complete',groups:[{code:'S&D',org:'org/S&D',groupId:'org/S&D',start:'2024-07-16',end:'2026-01-01'}]}}};
   db.prepare('UPDATE group_history_snapshots SET body=?').run(JSON.stringify(left));
-  assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).comparison.all,{group:{median:0.75,members:1},parliament:{median:0.625,members:2}});
-});
-
-test('named votes count only while in office, and an unknown mandate leaves the total unknown',()=>{
-  const db=fullDatabase({complete:true});
-  const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00:00Z')});
-  // Joined after the first sitting without a ballot there: only the second sitting's votes are due.
-  db.prepare('DELETE FROM member_vote_record_members WHERE sitting_id=?').run(A);
-  const joined={...history,members:{...history.members,'1':{...person('S&D'),mandates:[{start:'2026-10-01',end:null}],groups:[{code:'S&D',org:'org/S&D',groupId:'org/S&D',start:'2026-10-01',end:null}]}}};
-  db.prepare('UPDATE group_history_snapshots SET body=?').run(JSON.stringify(joined));
-  assert.equal(reader.query(MEP,{...query(),language:'en'}).ballots.named,2);
-  db.prepare('UPDATE group_history_snapshots SET body=?').run(JSON.stringify({members:{},catalogue:{sources:[],bodies:[]}}));
-  const unknown=reader.query(MEP,{...query(),language:'en'});
-  assert.equal(unknown.ballots.named,null);
-  assert.equal(unknown.ballots.recorded,3);
+  assert.deepEqual(reader.query(MEP,{...query(),language:'en'}).comparison.all,{group:{median:0.75,members:1}});
 });
 
 test('scope, limit and offset select departures without changing the stored totals',()=>{
@@ -150,10 +133,9 @@ test('a missing snapshot leaves explicit partial coverage and an absent projecti
   db.prepare('INSERT INTO sitting_snapshots VALUES (?,?,?,?,?)').run('votes',VERSION,C,1,null);
   const partial=reader.query(MEP,{...query(),language:'en'});
   assert.deepEqual(partial.coverage,{sittings:2,included:1,missing:1,status:'partial'});
-  assert.equal(partial.bySitting.length,1);
 });
 
-test('non-attached and unavailable group states omit group figures while keeping recorded ballots',()=>{
+test('non-attached and unavailable group states omit group figures while keeping the chaired count',()=>{
   const db=fullDatabase();
   const nonAttached={...history,members:{...history.members,'1':person('NI')}};
   db.prepare('UPDATE group_history_snapshots SET body=?').run(JSON.stringify(nonAttached));
@@ -162,7 +144,7 @@ test('non-attached and unavailable group states omit group figures while keeping
   assert.deepEqual(data.group,{code:'NI',status:'non-attached'});
   assert.equal(data.alignment,null);
   assert.equal(data.comparison,null);
-  assert.equal(data.ballots.recorded,5);
+  assert.deepEqual(data.ballots,{chaired:1});
   db.prepare('UPDATE group_history_snapshots SET body=?').run(JSON.stringify({members:{},catalogue:{sources:[],bodies:[]}}));
   const unavailable=reader.query(MEP,{...query(),language:'en'});
   assert.deepEqual(unavailable.group,{code:null,status:'unavailable'});
@@ -227,15 +209,6 @@ test('stored sittings that are not projected yet read as pending, and departures
   const one=items.find(item=>item.decisionId===decision(A,1)),two=items.find(item=>item.decisionId===decision(A,2));
   assert.deepEqual(one.subject,{text:'Energy efficiency of buildings',language:'en'});assert.equal(one.text,'Label one');
   assert.equal(two.subject,null);assert.equal(two.text,'Label two');
-});
-
-test('an ambiguous group-history answer leaves named votes held unknown',()=>{
-  const db=fullDatabase({complete:true});
-  db.prepare('DELETE FROM member_vote_record_members WHERE sitting_id=?').run(A);
-  const ambiguous={...history,members:{...history.members,'1':{...person('S&D'),mandates:[{start:'2024-07-16',end:null}],ambiguous:[{start:'2024-07-16',end:null}]}}};
-  db.prepare('UPDATE group_history_snapshots SET body=?').run(JSON.stringify(ambiguous));
-  const reader=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00:00Z')});
-  assert.equal(reader.query(MEP,{...query(),language:'en'}).ballots.named,null);
 });
 
 test('odd and even medians are rounded alike',()=>{
