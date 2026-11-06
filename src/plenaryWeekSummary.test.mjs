@@ -36,7 +36,7 @@ test('a finished week names its place, counts, days and results by day',async t=
   assert.equal(rows[1].textContent,'Title V-60');
 });
 
-test('the tally opens its agenda item with that vote selected and Back returns',async t=>{
+test('the tally links to its agenda item with that vote selected and adds a history entry',async t=>{
   const view=await mount(t,{data:past,results:{data:results,error:null}}),length=history.length;
   const link=view.querySelector('.week-results li a');
   await act(async()=>{link.dispatchEvent(new view.ownerDocument.defaultView.MouseEvent('click',{bubbles:true,cancelable:true,button:0}));});
