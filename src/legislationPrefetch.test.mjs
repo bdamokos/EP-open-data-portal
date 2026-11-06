@@ -24,6 +24,7 @@ async function harness(t,width=1440,query='') {
     const url=new URL(input,location.href);
     // The default agenda week waits for the sitting calendar; no calendar keeps the latest week.
     if(url.pathname.endsWith('/vote-periods'))return Promise.resolve(Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}}));
+    if(url.pathname.endsWith('/insights/week-results'))return Promise.resolve(Response.json({version:1,week:url.searchParams.get('week'),location:null,days:[],items:[]}));
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected request '+url);
     if(!url.searchParams.has('topic')){agendaRequests.push(url);return Promise.resolve(Response.json(response(url.searchParams)));}
     return new Promise(resolve=>requests.push({url,...options,resolve,settled:false}));
@@ -139,8 +140,8 @@ for(const width of [1440,390])for(const query of ['', '&agenda-period=week:lates
   for(const url of [first,initial,first]){
     await act(async()=>{history.replaceState(null,'',url);window.dispatchEvent(new window.Event('popstate'));});
     assertAgenda();
-    assert.equal(container.querySelector('.insight-topic-detail h2').textContent,url===initial?'Choose an agenda item':topics[0].title);
+    assert.equal(container.querySelector('.insight-topic-detail h2').textContent,url===initial?'Week of Oct 5, 2026':topics[0].title);
   }
   await act(async()=>container.querySelector('.insight-agenda-navigation button').click());
-  assertAgenda();assert.equal(container.querySelector('.insight-topic-detail h2').textContent,'Choose an agenda item');
+  assertAgenda();assert.equal(container.querySelector('.insight-topic-detail h2').textContent,'Week of Oct 5, 2026');
 });

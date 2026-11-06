@@ -1,0 +1,24 @@
+.member-list { padding: 0 8px 16px 0; }
+.member-list__table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.member-list__table th, .member-list__table td { padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; font-weight: 400; }
+.member-list__table thead th, .member-list__table thead td { padding-bottom: 8px; color: var(--ink-muted); font-size: 14px; white-space: nowrap; }
+.member-list__table tbody tr:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.member-list__photo { width: 44px; }
+.member-list__photo .portrait { width: 36px; height: 42px; }
+.member-list__photo .portrait__photo { width: 36px; height: 42px; border-radius: var(--radius-sm); overflow: hidden; }
+.member-list__group i { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; }
+.member-list__follow { width: 52px; text-align: right; white-space: nowrap; }
+.member-list__table .member-list__follow { padding-right: 0; }
+.explorer .member-list__open { min-height: 0; padding: 4px 0; border: 0; background: transparent; color: var(--ink); font-weight: 600; text-align: left; }
+.explorer .member-list__open:hover:not(:disabled) { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+.explorer .member-list__table thead button { min-height: 0; padding: 4px 0; border: 0; background: transparent; color: inherit; font-size: inherit; }
+.explorer .member-list__table thead button:hover:not(:disabled) { background: transparent; color: var(--ink); }
+.member-list__table th[aria-sort=ascending] button, .member-list__table th[aria-sort=descending] button { color: var(--ink); font-weight: 600; }
+.member-list__arrow { display: inline-block; min-width: 1em; margin-left: 4px; font-size: 10px; }
+.member-list .explorer-save-button { min-width: 44px; padding: 6px; justify-content: center; border-color: var(--line-strong); border-radius: var(--radius-sm); }
+.member-list__compact { margin: 0; padding: 0; list-style: none; }
+.member-list__compact li { display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.member-list__compact .member-list__open { grid-column: 1; grid-row: 1; justify-self: start; max-width: 100%; }
+.member-list__compact .member-list__follow { grid-column: 2; grid-row: 1 / span 2; width: auto; }
+.member-list__compact .member-affiliation { grid-column: 1; grid-row: 2; margin: 0 0 4px; font-size: 14px; }
+.explorer .member-list__more { display: block; margin: 16px auto 0; }

@@ -54,6 +54,21 @@ function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity
   </section>;
 }
 
+const narrowScreen='(max-width: 560px)';
+function useNarrowScreen() {
+  const [narrow,setNarrow]=useState(()=>typeof matchMedia==='function'&&matchMedia(narrowScreen).matches);
+  useEffect(()=>{
+    if(typeof matchMedia!=='function')return;
+    const media=matchMedia(narrowScreen),update=()=>setNarrow(media.matches);
+    update();media.addEventListener('change',update);
+    return()=>media.removeEventListener('change',update);
+  },[]);
+  return narrow;
+}
+function SearchFilters({collapsed,count,children}:{collapsed:boolean;count:number;children:ReactNode}) {
+  const ui=useUiI18n(),body=<div className="explorer-search-facets">{children}</div>;
+  return collapsed ? <details className="explorer-search-filters"><summary>{count ? ui.t('searchreference.filters_active',{count}) : ui.t('searchreference.filters')}</summary>{body}</details> : body;
+}
 export function TextSearch({prefix,label,language,kinds,member,country,addressee,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange,global=false,inline=false,placeholder,summary,inputRef,resetRef}:TextSearchProps) {
   const ui = useUiI18n();
   useGlobalSearchMemory(prefix);
@@ -64,6 +79,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
   const offset=(exactOffset<0) ? (page*20) : exactOffset;
   const [read,setRead]=useTextSearchParam<string>(prefix+'-read','');
   const [field,setField]=useTextSearchParam<string>(prefix+'-kind','');
+  const narrow=useNarrowScreen();
   const [,setCatalogOffset]=useTextSearchParam<number>('global-fts-catalog-offset',0);
   const [searchFrom,setSearchFrom]=useTextSearchParam<string>('global-fts-from','');
   const [searchTo,setSearchTo]=useTextSearchParam<string>('global-fts-to','');
@@ -142,13 +158,13 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
       {!inline&&<header className="explorer-search-heading"><h3>{label}</h3><button type="button" className="explorer-search-icon" aria-label={global ? ui.t("textsearch.close_search") : ui.t("textsearch.close_text_search")} title={global ? ui.t("textsearch.close_search") : ui.t("textsearch.close_text_search")} onClick={close}><CloseIcon/></button></header>}
       <form onSubmit={submit}><div className="explorer-search-inline-heading"><div className="explorer-search-input"><label className="explorer-search-field"><span className="explorer-search-sr">{inline ? label : (global ? ui.t("textsearch.names_topics_or_words") : ui.t("textsearch.words_or_exact_phrase_132"))}</span><input ref={input} type="search" value={draft} onChange={e=>setDraft(e.target.value)} maxLength={200} placeholder={placeholder ?? (inline ? ui.t("textsearch.search_speech_text") : (global ? ui.t("textsearch.names_topics_or_words") : ui.t("textsearch.words_or_exact_phrase")))} aria-describedby={(!inline) ? (panel+'-hint') : undefined}/></label>{(inline && draft) ? <button type="button" className="explorer-search-icon" aria-label={ui.t("textsearch.clear_speech_search")} onClick={close}><CloseIcon/></button> : <button type="submit" className="explorer-search-icon" aria-label={ui.t("textsearch.run_text_search")} title={ui.t("textsearch.search")} disabled={Boolean(disabledReason)||loading}><Magnifier/></button>}</div>{inline&&summary&&<span className="explorer-search-summary">{summary}</span>}</div>
       {!inline&&<p id={panel+'-hint'} className="explorer-search-hint"><UiMessage id="textsearch.all_words_use_quotes_for_a_phrase"/></p>}
-      {(!inline||active)&&<div className="explorer-search-facets">
+      {(!inline||active)&&<SearchFilters collapsed={global&&narrow} count={[['mep','topic','question','speech','answer'].includes(field),showText&&sort!=='relevance',global&&field!=='mep'&&Boolean(searchFrom),global&&field!=='mep'&&Boolean(searchTo)].filter(Boolean).length}>
       {global&&<label><UiMessage id="textsearch.result_type"/><select value={['mep','topic','question','speech','answer'].includes(field) ? field : ''} onChange={e=>{setField(e.target.value);reset();}}><option value=""><UiMessage id="textsearch.all_results"/></option><option value="mep"><UiMessage id="textsearch.meps"/></option><option value="topic"><UiMessage id="textsearch.plenary_topics"/></option><option value="question"><UiMessage id="textsearch.questions"/></option><option value="speech"><UiMessage id="dossieractivity.speeches"/></option><option value="answer"><UiMessage id="textsearch.institutional_answers"/></option></select></label>}
       {!global&&allowedKinds.length>1&&<label><UiMessage id="textsearch.search_in"/><select value={(actualKinds.length===1) ? actualKinds[0] : ''} onChange={e=>{setField(e.target.value);reset();}}><option value="">{(group==='question') ? <UiMessage id="textsearch.questions_answers"/> : <UiMessage id="textsearch.all_text_types"/>}</option>{allowedKinds.map(kind=><option key={kind} value={kind}>{(kind==='answer') ? ui.t("textsearch.answer_text") : ((kind==='question') ? ui.t("textsearch.question_text") : ui.t("textsearch.speech_text"))}</option>)}</select></label>}
       {showText&&<label>{global ? ui.t("textsearch.text_order") : ui.t("textsearch.order")}<select value={sort} onChange={e=>{setSort(e.target.value);reset();}}><option value="relevance"><UiMessage id="textsearch.best_match"/></option><option value="newest"><UiMessage id="textsearch.newest_first"/></option></select></label>}
       {global&&field!=='mep'&&<><label><UiMessage id="textsearch.from"/><input type="date" value={searchFrom} max={searchTo||undefined} onChange={e=>{setSearchFrom(e.target.value);reset();}}/></label><label><UiMessage id="textsearch.to"/><input type="date" value={searchTo} min={searchFrom||undefined} onChange={e=>{setSearchTo(e.target.value);reset();}}/></label></>}
       {showText&&<details className="explorer-search-advanced" open={textLanguage!==''&&textLanguage!==(languages.includes(language) ? language : 'en')}><summary><UiMessage id="textsearch.advanced_options"/></summary><label><UiMessage id="textsearch.text_language"/><select value={searchedLanguage} onChange={e=>{setTextLanguage(e.target.value);reset();}}>{languages.map(code=><option value={code} key={code} lang={language}>{languageName(code,language)}</option>)}<option value="all"><UiMessage id="textsearch.all_available_languages"/></option></select></label></details>}
-      </div>}</form>
+      </SearchFilters>}</form>
       {showCatalog&&query&&<ParliamentSearchResults key={JSON.stringify([query,catalogType,language,dateFrom,dateTo,attempt])} query={query} type={catalogType} language={language} from={dateFrom} to={dateTo}/>}
       {global&&showText&&query&&<h4 className="explorer-search-text-heading"><UiMessage id="textsearch.matching_text"/></h4>}
       {scopeNote&&<p className="explorer-search-scope">{scopeNote}</p>}

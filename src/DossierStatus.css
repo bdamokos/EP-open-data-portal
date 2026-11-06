@@ -1,0 +1,26 @@
+.dossier-status{margin:8px 0 20px;min-width:0}
+.dossier-status-lines{min-height:3.2em;max-width:80ch}
+.dossier-status-sentence{margin:0;font-size:18px;line-height:1.45;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.dossier-status-sentence a{font-size:15px;font-weight:400;color:var(--accent)}
+.dossier-status-next{margin:4px 0 0;font-size:16px;line-height:1.45;color:var(--ink-muted)}
+.dossier-steps{list-style:none;display:grid;grid-template-columns:repeat(var(--dossier-step-count,9),minmax(0,1fr));gap:4px;margin:16px 0 0;padding:0}
+.dossier-steps>li{display:flex;flex-direction:column;gap:2px;min-width:0;padding-top:8px;border-top:3px solid var(--line);font-size:13px;line-height:1.3;color:var(--ink-muted)}
+.dossier-steps>li[data-state=done]{border-top-color:var(--accent);color:var(--ink)}
+.dossier-steps>li[data-state=current]{border-top-color:var(--accent-strong);color:var(--ink);font-weight:700}
+.dossier-step-mark{display:none}
+.dossier-steps>li[data-state=done] .dossier-step-label::before{content:'✓ ';color:var(--accent)}
+.dossier-step-date{min-height:1.3em;color:var(--ink-muted);font-weight:400}
+@media(max-width:680px){
+  .dossier-status-sentence{font-size:16px;line-height:1.35}
+  .dossier-status-next{font-size:15px;margin-top:2px}
+  .dossier-steps{display:block;margin-top:6px}
+  .dossier-steps>li{flex-direction:row;align-items:baseline;gap:6px;min-height:28px;padding:4px 0;border-top:0;font-size:14px;line-height:20px}
+  .dossier-steps>li[data-state=done] .dossier-step-label::before{content:none}
+  .dossier-step-mark{display:inline-block;flex:0 0 14px;color:var(--accent)}
+  .dossier-step-label{flex:0 1 auto}
+  .dossier-step-date{flex:1 1 auto;min-height:0;text-align:right;white-space:nowrap}
+}
+.insight-procedure-context:has(>.dossier-status){margin-top:8px;padding-top:8px}
+.insight-procedure-context .dossier-status :is(.dossier-status-sentence,.dossier-status-next,.dossier-step-date) time{font:inherit;color:inherit}
+.insight-procedure-context:has(>.dossier-status)>.record-topics{margin:2px 0}
+.insight-procedure-context:has(>.dossier-status)>.insight-dossier-title{margin-bottom:4px}

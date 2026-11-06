@@ -15,6 +15,7 @@ const listeners=new Set<()=>void>();let storage:Storage|null=null;try{storage=wi
 export const yourVotesStore=createYourVotesStore(storage,()=>listeners.forEach(fn=>fn()));
 const subscribe=(fn:()=>void)=>{listeners.add(fn);return()=>{listeners.delete(fn);};};
 function useYourVotes(){return useSyncExternalStore(subscribe,yourVotesStore.snapshot);}
+export function useHasSavedVotes(){const state=useYourVotes();return state.choices.length>0||state.stars.length>0;}
 window.addEventListener('storage',event=>{if(event.key===YOUR_VOTES_KEY||event.key===null)yourVotesStore.reload();});
 type Amendment={id:string;listId?:string;originalText?:string;proposedText?:string;language?:string|null};
 type Row={key:string;documentId:string;revision:string|null;kind:string;motion?:string|null;amendments:{number:number;cp:number|null;deleting?:boolean}[];authors?:string[];subject:string[];subjectLanguage?:string|null;part?:number;partText?:string;vote?:{rollCall?:boolean};status?:string;outcome:string|null;decisionId:string|null;amendmentRows:Amendment[];falls?:{amendments:{number:number;cp?:number|null}[];motions?:string[];replacesMotions?:boolean;text?:string};fallsIf?:{key:string;amendments:number[];motion?:string|null}[]};
@@ -106,5 +107,6 @@ export function YourVotes({language,members}:{language:string;members?:Directory
   const people=[...selectedPeople].map(id=>{const member=members?.find(m=>String(m.id)===id);return {id,name:member?member.firstName+' '+member.lastName:saved.items.find(s=>s.kind==='mep'&&s.id===id)?.title||ui.t('insightshared.mep')};});
   const sittings=[...new Set([...dossierSittings,...dossiers.items.flatMap(d=>d.entries.flatMap(e=>(e.sourceId||e.id).match(/MTG-PL-\d{4}-\d{2}-\d{2}/g)||[])),...calendar,...state.choices.map(c=>c.sittingId),...state.stars.map(c=>c.sittingId)])].sort().reverse();
   const sessions=new Map<string,string[]>();for(const sitting of sittings){const week=plenaryMonday(sitting.slice(7));if(week)sessions.set(week,[...(sessions.get(week)||[]),sitting]);}
+  if(!hasSavedVotes)return null;
   return <section className="your-votes-following" lang={ui.messageLocale('yourVote.yours')}><h2>{ui.t('yourVote.yours')}</h2><label className="your-votes-picker">{ui.t('yourVote.pick')} <select value={picked} onChange={e=>setPicked(e.target.value)}><option value="">{ui.t('yourVote.pick')}</option>{members?.map(m=><option key={m.id} value={m.id}>{m.firstName+' '+m.lastName}</option>)}</select></label><p className="your-votes-note">{ui.t('yourVote.rollCall')}</p>{!sittings.length&&<p>{ui.t('yourVote.noSaved')}</p>}{[...sessions].map(([week,days])=><FollowingSession key={week} sittings={days} dates={periods.find(p=>p.week===week)?.sittings.map(s=>s.date)||days.map(s=>s.slice(7))} language={language} people={people} dossiers={dossiers.items.map(d=>d.id.replace(/^(\d{4})\/(\d{4})[A-Z]?\([A-Z]+\)$/,'$1-$2'))}/>)}</section>;
 }
