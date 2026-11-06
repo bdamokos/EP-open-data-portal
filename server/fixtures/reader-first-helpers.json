@@ -1,0 +1,1302 @@
+{
+  "provenance": {
+    "retrievedAt": "2026-11-06 (fixture handoff date; source retrieval times retained per procedure)",
+    "basis": "Reduced held public EP procedure records and explorer projections; fetched once by the orchestrator. No new requests.",
+    "procedureSource": "https://data.europarl.europa.eu/api/v2/procedures/{year}-{number}",
+    "cellarSource": "https://publications.europa.eu/webapi/rdf/sparql",
+    "contextSource": "https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference={reference}",
+    "voteSource": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-22/decisions"
+  },
+  "procedures": [
+    {
+      "reference": "2025/0222(COD)",
+      "asOf": "2026-11-06",
+      "indexEvents": [
+        {
+          "activity_id": "2025-0222-DEC-DCPL-2026-10-22",
+          "activity_date": "2026-10-22",
+          "had_activity_type": "def/ep-activities/PLENARY_AMEND"
+        },
+        {
+          "activity_id": "2025-0222-DEC-ADCP-2026-09-29",
+          "activity_date": "2026-09-29",
+          "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_REPORT"
+        },
+        {
+          "activity_id": "2025-0222-DEPOT-2026-10-02",
+          "activity_date": "2026-10-02",
+          "had_activity_type": "def/ep-activities/TABLING_PLENARY"
+        },
+        {
+          "activity_id": "CULT-PR-787958-DEPOT-2026-05-12",
+          "activity_date": "2026-05-12",
+          "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_REPORT"
+        },
+        {
+          "activity_id": "CULT-AM-789967-DEPOT-2026-06-12",
+          "activity_date": "2026-06-12",
+          "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_AMENDMENT"
+        },
+        {
+          "activity_id": "CULT-AM-789899-DEPOT-2026-06-12",
+          "activity_date": "2026-06-12",
+          "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_AMENDMENT"
+        },
+        {
+          "activity_id": "2025-0222-ANPRO-2025-10-23",
+          "activity_date": "2025-10-23",
+          "had_activity_type": "def/ep-activities/REFERRAL"
+        },
+        {
+          "activity_id": "A-10-2026-0257-AM-167-172-DEPOT-2026-10-13",
+          "activity_date": "2026-10-13",
+          "had_activity_type": "def/ep-activities/TABLING_PLENARY"
+        },
+        {
+          "activity_id": "2025-0222-DEC-ADCP-BUDG-2026-06-23",
+          "activity_date": "2026-06-23",
+          "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION"
+        },
+        {
+          "activity_id": "2025-0222-DEC-ADCP-DEVE-2026-06-03",
+          "activity_date": "2026-06-03",
+          "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION"
+        },
+        {
+          "activity_id": "2025-0222-DEC-ADCP-CONT-2026-06-02",
+          "activity_date": "2026-06-02",
+          "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION"
+        },
+        {
+          "activity_id": "A-10-2026-0257-AM-173-178-DEPOT-2026-10-14",
+          "activity_date": "2026-10-14",
+          "had_activity_type": "def/ep-activities/TABLING_PLENARY"
+        },
+        {
+          "activity_id": "CULT-AM-789968-DEPOT-2026-06-12",
+          "activity_date": "2026-06-12",
+          "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_AMENDMENT"
+        },
+        {
+          "activity_id": "MTG-PL-2026-10-22-VOT-ITM-993260",
+          "activity_date": "2026-10-22",
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS"
+        },
+        {
+          "activity_id": "2025-0222-DEC-ADCP-EMPL-2026-05-06",
+          "activity_date": "2026-05-06",
+          "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION"
+        },
+        {
+          "activity_id": "A-10-2026-0257-AM-001-163-DEPOT-2026-10-19",
+          "activity_date": "2026-10-19",
+          "had_activity_type": "def/ep-activities/TABLING_PLENARY"
+        },
+        {
+          "activity_id": "A-10-2026-0257-AM-164-166-DEPOT-2026-10-14",
+          "activity_date": "2026-10-14",
+          "had_activity_type": "def/ep-activities/TABLING_PLENARY"
+        },
+        {
+          "activity_id": "2025-0222-DEC-REFBAK-2026-10-22",
+          "activity_date": "2026-10-22",
+          "had_activity_type": "def/ep-activities/PLENARY_REFER_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS"
+        },
+        {
+          "activity_id": "MTG-PL-2026-10-22-PVCRE-ITM-7-2",
+          "activity_date": "2026-10-22",
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE"
+        },
+        {
+          "activity_id": "MTG-PL-2026-10-21-PVCRE-ITM-12",
+          "activity_date": "2026-10-21",
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE"
+        }
+      ],
+      "cellarEvents": [
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0001",
+          "date": "2025-07-17",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "ADP_PROPLEG_byCOM"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0009",
+          "date": "2025-09-08",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0014",
+          "date": "2025-09-17",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0013",
+          "date": "2025-10-08",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0012",
+          "date": "2025-10-09",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0008",
+          "date": "2025-10-20",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0011",
+          "date": "2025-10-21",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0006",
+          "date": "2025-10-23",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "REF_OF_byEP"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0007",
+          "date": "2025-10-28",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0010",
+          "date": "2025-10-29",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0015",
+          "date": "2026-01-21",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_byEESC"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0020",
+          "date": "2026-02-26",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_byECA"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0018",
+          "date": "2026-03-02",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0019",
+          "date": "2026-03-12",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0017",
+          "date": "2026-03-13",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0022",
+          "date": "2026-04-29",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_COREPER_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0023",
+          "date": "2026-05-06",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_R1_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0027",
+          "date": "2026-05-06",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_byCOR"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0021",
+          "date": "2026-05-11",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "PART_APPRGEN_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0024",
+          "date": "2026-05-12",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "REP_R1_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0025",
+          "date": "2026-06-02",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_R1_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0026",
+          "date": "2026-06-03",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_R1_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0028",
+          "date": "2026-06-12",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "TABLAMEND_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0029",
+          "date": "2026-06-23",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_R1_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0030",
+          "date": "2026-09-29",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "ADP_REP_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0031",
+          "date": "2026-10-02",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "TABLING_toEP_PLENARY"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0036",
+          "date": "2026-10-13",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "TABLING_toEP_PLENARY"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0034",
+          "date": "2026-10-14",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "TABLING_toEP_PLENARY"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0035",
+          "date": "2026-10-16",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "TABLING_toEP_PLENARY"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0037",
+          "date": "2026-10-19",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "TABLING_toEP_PLENARY"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0033",
+          "date": "2026-10-21",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DEBATE_byEP"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0032",
+          "date": "2026-10-22",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "VOTE_byEP"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0038",
+          "date": "2026-10-22",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "REF_toCMT_NGTINST_byEP_PLEN"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/f387c0d7-6302-11f0-bf4e-01aa75ed71a1.0039",
+          "date": "2026-10-22",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "AMEND_byEP"
+            }
+          ]
+        }
+      ],
+      "summaries": [
+        {
+          "id": "1830667",
+          "stage": "proposal",
+          "date": "2025-07-16",
+          "documentReference": "COM(2025)0549",
+          "url": "https://oeil.europarl.europa.eu/oeil/en/document-summary?id=1830667"
+        },
+        {
+          "id": "1920905",
+          "stage": "first-reading",
+          "date": "2026-10-22",
+          "documentReference": "T10-0361/2026",
+          "url": "https://oeil.europarl.europa.eu/oeil/en/document-summary?id=1920905"
+        }
+      ],
+      "sources": {
+        "index": {
+          "url": "https://data.europarl.europa.eu/api/v2/procedures/2025-0222",
+          "retrievedAt": "2026-11-06 (date supplied by acquiring orchestrator; exact timestamp unavailable)"
+        },
+        "cellar": {
+          "name": "EU Publications Office",
+          "url": "https://publications.europa.eu/webapi/rdf/sparql?query=PREFIX+cdm%3A%3Chttp%3A%2F%2Fpublications.europa.eu%2Fontology%2Fcdm%23%3E%0APREFIX+xsd%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema%23%3E%0APREFIX+skos%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore%23%3E%0APREFIX+owl%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2002%2F07%2Fowl%23%3E%0ASELECT+DISTINCT+%3Fkind+%3Freference+%3Fdossier+%3Fevent+%3Fdate+%3Ftype+%3Flabel+%3Fstatus+%3FstatusLabel+%3Finstitution+%3FinstitutionLabel+%3Fwork+%3Fcelex+%3Falias+%3Ftitle+WHERE+%7B%0A+%7B+%7B+SELECT+DISTINCT+%3Fdossier+WHERE+%7B+%3Fdossier+cdm%3Aprocedure_code_interinstitutional_reference_procedure+%222025%2F0222%2FCOD%22%5E%5Exsd%3Astring.+%7D+LIMIT+3+%7D+BIND%28%220%22+AS+%3Fkind%29+%7D%0A+UNION+%7B+%7B+SELECT+DISTINCT+%3Fdossier+%3Fevent+WHERE+%7B+%3Fdossier+cdm%3Aprocedure_code_interinstitutional_reference_procedure+%222025%2F0222%2FCOD%22%5E%5Exsd%3Astring.+%3Fevent+cdm%3Aevent_legal_part_of_dossier+%3Fdossier.+%7D+ORDER+BY+%3Fevent+LIMIT+301+%7D%0A+BIND%28%221%22+AS+%3Fkind%29+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_date+%3Fdate+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_has_type_concept_type_event_legal+%3Ftype.%0A++OPTIONAL+%7B+%3Ftype+skos%3AprefLabel+%3Flabel.+FILTER%28lang%28%3Flabel%29+IN+%28%22en%22%2C%22en%22%29%29+%7D+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_has-status_event-status+%3Fstatus.%0A++OPTIONAL+%7B+%3Fstatus+skos%3AprefLabel+%3FstatusLabel.+FILTER%28lang%28%3FstatusLabel%29+IN+%28%22en%22%2C%22en%22%29%29+%7D+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_initiated_by_institution+%3Finstitution.%0A++OPTIONAL+%7B+%3Finstitution+skos%3AprefLabel+%3FinstitutionLabel.+FILTER%28lang%28%3FinstitutionLabel%29+IN+%28%22en%22%2C%22en%22%29%29+%7D+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_contains_work+%3Fwork+%7D+%7D%0A+BIND%28%222025%2F0222%2FCOD%22+AS+%3Freference%29%0A%7D+ORDER+BY+%3Fkind+%3Fdossier+%3Fevent+%3Fwork+%3Fdate+%3Ftype+%3Finstitution+%3Flabel+%3Fcelex+%3Falias+%3Ftitle+LIMIT+1201&format=application%2Fsparql-results%2Bjson",
+          "fetchedAt": "2026-11-06T08:40:00.367Z",
+          "stale": true,
+          "refreshInProgress": true,
+          "refreshError": null,
+          "retryAt": null
+        },
+        "oeil": {
+          "url": "https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2025%2F0222%28COD%29",
+          "fetchedAt": "2026-11-06T07:26:56.005Z",
+          "stale": false
+        }
+      }
+    },
+    {
+      "reference": "2025/0235(COD)",
+      "asOf": "2026-11-06",
+      "indexEvents": [
+        {
+          "activity_id": "2025-0235-DEC-ADCP-ENVI-2026-07-06",
+          "activity_date": "2026-07-06",
+          "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION"
+        },
+        {
+          "activity_id": "PECH-PR-788825-DEPOT-2026-05-12",
+          "activity_date": "2026-05-12",
+          "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_REPORT"
+        },
+        {
+          "activity_id": "2025-0235-ANPRO-2025-10-23",
+          "activity_date": "2025-10-23",
+          "had_activity_type": "def/ep-activities/REFERRAL"
+        },
+        {
+          "activity_id": "2025-0235-DEC-ADCP-BUDG-2026-07-15",
+          "activity_date": "2026-07-15",
+          "had_activity_type": "def/ep-activities/COMMITTEE_ADOPTING_OPINION"
+        },
+        {
+          "activity_id": "PECH-AM-789935-DEPOT-2026-06-10",
+          "activity_date": "2026-06-10",
+          "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_AMENDMENT"
+        },
+        {
+          "activity_id": "PECH-AM-789128-DEPOT-2026-06-10",
+          "activity_date": "2026-06-10",
+          "had_activity_type": "def/ep-activities/COMMITTEE_TABLING_AMENDMENT"
+        }
+      ],
+      "cellarEvents": [
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0001",
+          "date": "2025-07-17",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "ADP_PROPLEG_byCOM"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0007",
+          "date": "2025-09-17",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_COREPER_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0008",
+          "date": "2025-09-18",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0006",
+          "date": "2025-09-22",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0010",
+          "date": "2025-10-02",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0009",
+          "date": "2025-10-20",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0005",
+          "date": "2025-10-23",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "REF_OF_byEP"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0011",
+          "date": "2025-11-21",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_WP_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0012",
+          "date": "2025-12-11",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0013",
+          "date": "2026-01-21",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_byEESC"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0014",
+          "date": "2026-05-12",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "REP_R1_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0016",
+          "date": "2026-06-10",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "TABLAMEND_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0017",
+          "date": "2026-06-17",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_COREPER_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0018",
+          "date": "2026-06-19",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_COREPER_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0015",
+          "date": "2026-06-22",
+          "status": "cancelled",
+          "types": [
+            {
+              "code": "PART_APPRGEN_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0020",
+          "date": "2026-06-22",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0019",
+          "date": "2026-06-30",
+          "status": "cancelled",
+          "types": [
+            {
+              "code": "ADP_PARNEGM_byCOREPER"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0021",
+          "date": "2026-06-30",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_COREPER_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0026",
+          "date": "2026-07-01",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_byCOR"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0022",
+          "date": "2026-07-06",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_R1_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0023",
+          "date": "2026-07-15",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "OPI_R1_byEP_CMT"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0027",
+          "date": "2026-09-23",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "DELIB_COREPER_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0025",
+          "date": "2026-09-28",
+          "status": "cancelled",
+          "types": [
+            {
+              "code": "PART_APPRGEN_byCONSIL"
+            }
+          ]
+        },
+        {
+          "id": "http://publications.europa.eu/resource/cellar/c48365d9-6304-11f0-bf4e-01aa75ed71a1.0024",
+          "date": "2026-09-29",
+          "status": "recorded",
+          "types": [
+            {
+              "code": "PART_APPRGEN_byCONSIL"
+            }
+          ]
+        }
+      ],
+      "summaries": [
+        {
+          "id": "1830670",
+          "stage": "proposal",
+          "date": "2025-07-16",
+          "documentReference": "COM(2025)0559",
+          "url": "https://oeil.europarl.europa.eu/oeil/en/document-summary?id=1830670"
+        }
+      ],
+      "sources": {
+        "index": {
+          "url": "https://data.europarl.europa.eu/api/v2/procedures/2025-0235",
+          "retrievedAt": "2026-11-06 (date supplied by acquiring orchestrator; exact timestamp unavailable)"
+        },
+        "cellar": {
+          "name": "EU Publications Office",
+          "url": "https://publications.europa.eu/webapi/rdf/sparql?query=PREFIX+cdm%3A%3Chttp%3A%2F%2Fpublications.europa.eu%2Fontology%2Fcdm%23%3E%0APREFIX+xsd%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema%23%3E%0APREFIX+skos%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore%23%3E%0APREFIX+owl%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2002%2F07%2Fowl%23%3E%0ASELECT+DISTINCT+%3Fkind+%3Freference+%3Fdossier+%3Fevent+%3Fdate+%3Ftype+%3Flabel+%3Fstatus+%3FstatusLabel+%3Finstitution+%3FinstitutionLabel+%3Fwork+%3Fcelex+%3Falias+%3Ftitle+WHERE+%7B%0A+%7B+%7B+SELECT+DISTINCT+%3Fdossier+WHERE+%7B+%3Fdossier+cdm%3Aprocedure_code_interinstitutional_reference_procedure+%222025%2F0235%2FCOD%22%5E%5Exsd%3Astring.+%7D+LIMIT+3+%7D+BIND%28%220%22+AS+%3Fkind%29+%7D%0A+UNION+%7B+%7B+SELECT+DISTINCT+%3Fdossier+%3Fevent+WHERE+%7B+%3Fdossier+cdm%3Aprocedure_code_interinstitutional_reference_procedure+%222025%2F0235%2FCOD%22%5E%5Exsd%3Astring.+%3Fevent+cdm%3Aevent_legal_part_of_dossier+%3Fdossier.+%7D+ORDER+BY+%3Fevent+LIMIT+301+%7D%0A+BIND%28%221%22+AS+%3Fkind%29+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_date+%3Fdate+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_has_type_concept_type_event_legal+%3Ftype.%0A++OPTIONAL+%7B+%3Ftype+skos%3AprefLabel+%3Flabel.+FILTER%28lang%28%3Flabel%29+IN+%28%22en%22%2C%22en%22%29%29+%7D+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_has-status_event-status+%3Fstatus.%0A++OPTIONAL+%7B+%3Fstatus+skos%3AprefLabel+%3FstatusLabel.+FILTER%28lang%28%3FstatusLabel%29+IN+%28%22en%22%2C%22en%22%29%29+%7D+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_initiated_by_institution+%3Finstitution.%0A++OPTIONAL+%7B+%3Finstitution+skos%3AprefLabel+%3FinstitutionLabel.+FILTER%28lang%28%3FinstitutionLabel%29+IN+%28%22en%22%2C%22en%22%29%29+%7D+%7D%0A+OPTIONAL+%7B+%3Fevent+cdm%3Aevent_legal_contains_work+%3Fwork+%7D+%7D%0A+BIND%28%222025%2F0235%2FCOD%22+AS+%3Freference%29%0A%7D+ORDER+BY+%3Fkind+%3Fdossier+%3Fevent+%3Fwork+%3Fdate+%3Ftype+%3Finstitution+%3Flabel+%3Fcelex+%3Falias+%3Ftitle+LIMIT+1201&format=application%2Fsparql-results%2Bjson",
+          "fetchedAt": "2026-11-06T08:29:00.329Z",
+          "stale": true,
+          "refreshInProgress": true,
+          "refreshError": null,
+          "retryAt": null
+        },
+        "oeil": {
+          "url": "https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2025%2F0235%28COD%29",
+          "fetchedAt": "2026-11-06T08:29:00.341Z",
+          "stale": false
+        }
+      }
+    }
+  ],
+  "votes": {
+    "subjects": [
+      {
+        "id": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "wholeTextDecisions": []
+      },
+      {
+        "id": "MTG-PL-2026-10-19-VOT-ITM-000005",
+        "wholeTextDecisions": []
+      },
+      {
+        "id": "MTG-PL-2026-10-20-VOT-ITM-993254",
+        "wholeTextDecisions": []
+      }
+    ],
+    "decisions": [
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198389",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 3, § 1, sub§ 1"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198390",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 3, § 2, point b"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198391",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 3, § 2, point b"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198392",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 3, § 3, after point b"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198393",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 5, § 1, after point a"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198394",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 7, § 1, point a"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198396",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 8, § 6"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198398",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 9, § 4"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198401",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 14, after § 1"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198402",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 14, § 5"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198404",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "After recital 27"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198405",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Commission proposal"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "unclassified",
+          "basis": "unclassified"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199359",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Amendments by the committee responsible – separate vote"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "split-part",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199360",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Amendments by the committee responsible – separate vote"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "split-part",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199361",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Amendments by the committee responsible – separate vote"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199362",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Amendments by the committee responsible – separate vote"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199364",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Amendments by the committee responsible – separate vote"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "split-part",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199365",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Amendments by the committee responsible – separate vote"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "split-part",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199367",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Amendments by the committee responsible – separate vote"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "split-part",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199368",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Amendments by the committee responsible – separate vote"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "split-part",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199372",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 3, § 1, sub§ 1"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199373",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 8, § 1"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199374",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "After Article 8"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199375",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 13 – § 2 – sub§ 1 – point e"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199376",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 14, § 1"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199377",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Recital 16"
+        },
+        "ballotStatus": "not-conducted",
+        "outcome": "LAPSED",
+        "scope": {
+          "kind": "unclassified",
+          "basis": "unclassified"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199378",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Recital 25"
+        },
+        "ballotStatus": "not-conducted",
+        "outcome": "LAPSED",
+        "scope": {
+          "kind": "unclassified",
+          "basis": "unclassified"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199379",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Recital 27"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "REJECTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199473",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Request for referral back to committee"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "procedural",
+          "basis": "english-reference-label"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199518",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Amendments by the committee responsible – block vote"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199519",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 2, § 1, point 12"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199521",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 2, § 1, point 12"
+        },
+        "ballotStatus": "not-conducted",
+        "outcome": "LAPSED",
+        "scope": {
+          "kind": "split-part",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199522",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Article 2, § 1, point 12"
+        },
+        "ballotStatus": "not-conducted",
+        "outcome": "LAPSED",
+        "scope": {
+          "kind": "split-part",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199523",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Recital 16"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-22-DEC-199524",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993260",
+        "referenceTexts": {
+          "en": "Recital 25"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-19-DEC-198884",
+        "subjectId": "MTG-PL-2026-10-19-VOT-ITM-000005",
+        "referenceTexts": {
+          "en": "Request by the Renew Group – The Trump Administration waiving of sanctions and tariffs"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "procedural",
+          "basis": "english-reference-label"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-20-DEC-198290",
+        "subjectId": "MTG-PL-2026-10-20-VOT-ITM-993254",
+        "referenceTexts": {
+          "en": "Provisional agreement"
+        },
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "scope": {
+          "kind": "amendment",
+          "basis": "exact-component-reference"
+        }
+      }
+    ]
+  }
+}
