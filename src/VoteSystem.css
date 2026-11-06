@@ -57,6 +57,7 @@
 /* Large totals: the same columns, a bigger size. */
 .vs .fig { display:block; align-self:end; }
 .vs .fig small { display:block; }
+.vs .fig b.unk { color:var(--ink-muted); }
 .vs .fig b { display:block; font:700 var(--t-h1)/1.1 var(--font-sans); letter-spacing:-.01em; margin-right:-.02em; }
 .vs .c-for { color:var(--vote-for); } .vs .c-against { color:var(--vote-against); } .vs .c-abstaining { color:var(--vote-abstain); }
 

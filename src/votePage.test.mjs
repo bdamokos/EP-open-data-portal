@@ -85,6 +85,15 @@ test('partial records keep official figures and the published-totals line',async
  const h=await mount(t,serve(data));
  assert(h.container.querySelector('.ledger'));assert.match(h.container.querySelector('.ledger thead').textContent,/11 votes cast/);assert.match(h.container.textContent,/The named-voter list differs from Parliament’s published totals\./);
 });
+test('a missing official total keeps the column heads, with a dash for that total',async t=>{
+ const f=voteFixture();f.raw.referenceText={en:'Article 1'};delete f.raw.number_of_votes_favor;const data=await f.read();
+ const h=await mount(t,serve(data));
+ const heads=[...h.container.querySelectorAll('.ledger thead th[scope=col]')];
+ assert.equal(heads.length,4);
+ assert.match(heads[1].textContent,/For–/);assert.match(heads[2].textContent,/Against1/);
+ assert(!/votes cast/.test(heads[0].textContent),'no total without every position');
+ assert.equal(h.container.querySelectorAll('.ledger tbody tr').length,4);
+});
 test('a decision absent from complete data reads not found',async t=>{
  const f=voteFixture();f.day.decisions=[];const data=await f.read();
  const h=await mount(t,serve(data));assert.equal(h.container.querySelector('h1').textContent,'Vote not found.');

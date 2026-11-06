@@ -2604,6 +2604,7 @@
   "votepage.section.counted": "Counted",
   "votepage.section.hands": "Show of hands",
   "votepage.section.lapsed": "Lapsed",
+  "votepage.section.no_count": "No count",
   "votepage.section.not_held": "No vote held",
   "votepage.this_vote": "This vote",
   "votepage.split": "Split:",

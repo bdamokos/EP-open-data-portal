@@ -144,17 +144,20 @@ export function differingByGroup(rows,differIds,order) {
   });
 }
 const hasCount=vote=>positions.every(position=>Number.isFinite(vote.totals?.[position]));
-/** Votes on an item in the page's sections, main vote first in its own section. A row with a count
- * is Counted; a vote not held is Lapsed, or No vote held when Parliament's outcome isn't lapsed. */
+/** Votes on an item in the page's sections, main vote first in its own section. A full count is
+ * Counted; a vote not held is Lapsed, or No vote held when Parliament's outcome isn't lapsed. Any
+ * other row with a number stays Counted, its unknowns dashes. Show of hands is the recorded method
+ * only: a missing tally on any other method is No count, never a method the record doesn't state. */
 export function itemVoteSections(votes,mainVoteId=null) {
-  const counted=[],hands=[],lapsed=[],notHeld=[];
+  const counted=[],hands=[],lapsed=[],notHeld=[],noCount=[];
   const ordered=[...votes].sort((a,b)=>(a.id!==mainVoteId)-(b.id!==mainVoteId));
   for(const vote of ordered) {
     if(hasCount(vote))counted.push(vote);
     else if(vote.ballotStatus==='not-conducted')(vote.outcome==='LAPSED'?lapsed:notHeld).push(vote);
-    else hands.push(vote);
+    else if(positions.some(position=>Number.isFinite(vote.totals?.[position])))counted.push(vote);
+    else (vote.method==='VOTE_HAND'?hands:noCount).push(vote);
   }
-  return [{key:'counted',votes:counted},{key:'hands',votes:hands},{key:'lapsed',votes:lapsed},{key:'not_held',votes:notHeld}].filter(section=>section.votes.length);
+  return [{key:'counted',votes:counted},{key:'hands',votes:hands},{key:'no_count',votes:noCount},{key:'lapsed',votes:lapsed},{key:'not_held',votes:notHeld}].filter(section=>section.votes.length);
 }
 /** Previous and next follow the order the Votes on this item fold shows. */
 export function voteSteps(votes,mainVoteId,id) {

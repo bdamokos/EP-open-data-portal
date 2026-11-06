@@ -102,7 +102,7 @@ test('a country filter reads as pressed only while the list shows it, and a cell
   assert.equal(countryFilterPressed(open,{country:'FR',group:'ESN'}),false);
   assert.equal(countryFilterPressed({country:'DE',group:null,position:'for'},{country:'DE',group:null}),true);
 });
-import {planGroupOrder,groupArcLayout,tableGroupOrder,wedgeLabels} from './voteSeatsModel.mjs';
+import {planGroupOrder,groupArcLayout,nearestDot,tableGroupOrder,wedgeLabels} from './voteSeatsModel.mjs';
 import {groupCounts} from './hemicycleModel.mjs';
 import {readFileSync} from 'node:fs';
 test('the group order is read from where each group sits in the plan, leftmost first',()=>{
@@ -143,4 +143,10 @@ test('wedge labels sit outside the arc, on the side of their wedge',()=>{
   const labels=wedgeLabels(layout.wedges,{radius:322,dotRadius:layout.dotRadius});
   assert.deepEqual(labels.map(label=>[label.group,label.alignX]),[['A','-100%'],['B','-50%'],['C','0%']]);
   for(const label of labels)assert(Math.hypot(label.x,label.y)>322);
+});
+test('a press picks the closest mark within reach',()=>{
+  const {dots,dotRadius}=groupArcLayout(ballots('A',{for:100}),{order:['A'],radius:322});
+  const dot=dots[40];
+  assert.equal(nearestDot(dots,dot.x+dotRadius,dot.y,dotRadius*1.2)?.index,40);
+  assert.equal(nearestDot(dots,dot.x+500,dot.y+500,10),null);
 });

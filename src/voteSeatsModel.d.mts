@@ -23,3 +23,4 @@ export function groupArcLayout(ballots:ArcBallot[],options:{order:string[];radiu
 export type WedgeLabel={group:string;x:number;y:number;alignX:string;alignY:string};
 export function wedgeLabels(wedges:ArcWedge[],options:{radius:number;dotRadius:number}):WedgeLabel[];
 export function tableGroupOrder(voteCounts:Iterable<[string,number]>,planCounts?:{group:string;count:number}[]):string[];
+export function nearestDot(dots:ArcDot[],x:number,y:number,reach:number):ArcDot|null;

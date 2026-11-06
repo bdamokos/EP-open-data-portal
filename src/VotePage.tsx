@@ -57,12 +57,12 @@ function WayLine({rows,order}:{rows:Row[];order:string[]}) {
   return <p className="way">{votePositionKeys.filter(position=>way[position].length).map(position=><span key={position} className="wp"><VoteMark position={position}/><span className="muted">{words(position)}:</span> {names(way[position])}</span>)}{way.split.length>0&&<span className="wp"><span className="muted"><UiMessage id="votepage.split"/></span> {names(way.split)}</span>}</p>;
 }
 // A group is the same row as a vote, in a real table. Pointing at it picks out its wedge.
-function GroupTable({rows,order,totals,onDim}:{rows:Row[];order:string[];totals:ReturnType<typeof memberVoteTotals>;onDim:(group:string|null)=>void}) {
+function GroupTable({rows,order,totals,official,onDim}:{rows:Row[];order:string[];totals:ReturnType<typeof memberVoteTotals>;official:Record<VotePosition,number|null>;onDim:(group:string|null)=>void}) {
   const ui=useUiI18n(),counts=useMemo(()=>groupCountsOf(rows),[rows]),pointer=useRef('mouse'),tapped=useRef<string|null>(null);
   const tap=(code:string)=>{if(pointer.current==='mouse')return;tapped.current=tapped.current===code?null:code;onDim(tapped.current);};
   return <section className="ledger" id="groups"><table>
     <colgroup><col/><col className="numcol"/><col className="numcol"/><col className="numcol"/></colgroup>
-    {totals&&<thead><tr className="total"><th scope="col" className="meta"><UiMessage id="votepage.votes_cast" values={{count:totals.total}} counts={{count:totals.total}}/></th>{votePositionKeys.map(position=><th scope="col" key={position} className={'n fig '+column[position]}><TotalFigure position={position} value={totals[position]}/></th>)}</tr></thead>}
+    <thead><tr className="total"><th scope="col" className="meta">{totals?<UiMessage id="votepage.votes_cast" values={{count:totals.total}} counts={{count:totals.total}}/>:<span className="sr"><UiMessage id="groupvoices.political_group.c2db1f"/></span>}</th>{votePositionKeys.map(position=><th scope="col" key={position} className={'n fig '+column[position]}><TotalFigure position={position} value={official[position]}/></th>)}</tr></thead>
     <tbody>{order.filter(code=>counts.has(code)).map(code=>{
       const row=counts.get(code)!,lead=groupLead(row);
       return <tr key={code} className="grp" onPointerDown={event=>{pointer.current=event.pointerType;}} onPointerEnter={event=>{if(event.pointerType==='mouse')onDim(code);}} onPointerLeave={event=>{if(event.pointerType==='mouse')onDim(null);}} onClick={()=>tap(code)}>
@@ -188,7 +188,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
     {amendmentPage&&<VoteAmendmentText key={decisionId+':'+language} vote={vote} language={language}/>}
     {named&&<div className="split">
       {planState.error&&!plan?<NoChart/>:plan?<Suspense fallback={<figure className="seats"><div className="stage stage-empty"/></figure>}><VoteArc voters={rows} order={seatOrder} word={centre.word} small={centre.small} smallLanguage={centre.smallLanguage} noRecord={data.noRecord?data.noRecord.ids.length:null} picked={picked} onPick={setPicked} dimmedGroup={dimmed} language={language} onMember={onMember?(id:number)=>onMember(id):undefined} positionWord={words}/></Suspense>:<figure className="seats"><div className="stage stage-empty"/></figure>}
-      <GroupTable rows={rows} order={tableOrder} totals={totals} onDim={setDimmed}/>
+      <GroupTable rows={rows} order={tableOrder} totals={totals} official={vote.totals} onDim={setDimmed}/>
       <FindMember people={people} language={language} onFound={setPicked}/>
     </div>}
     {!named&&totals&&<TotalsFigures totals={totals} label={<UiMessage id="votepage.votes_cast" values={{count:totals.total}} counts={{count:totals.total}}/>}/>}

@@ -399,5 +399,8 @@ test('agenda main vote matches the vote page on labels, ballots and the exact re
  assert.equal(listed.itemVotes[0].id,listed.mainVote?.id??listed.itemVotes[0].id,'main vote first');
  assert.deepEqual(Object.keys(listed.itemVotes[0]).sort(),['ballotStatus','context','id','method','outcome','parts','referenceTexts','scope','totals']);
  assert.equal(agendaVotes(topic,day([raw(1,'x')],'partial')).itemVotes,null,'a partial sitting has no list, never a short one');
+ const conflicted=agendaVotes(topic,day([raw(1,'Motion for a resolution (as a whole)'),raw(2,'After § 7',{_conflictingSourceObservations:{fields:['decision_method']}})]),[],'en');
+ assert.equal(conflicted.itemVotes.length,2,'a conflicting decision stays in the list, so the count holds');
+ assert.equal(conflicted.itemVotes.find(row=>row.id.endsWith('-2')).ballotStatus,'unknown');
  assert.equal(main([raw(2,'Commission proposal'),raw(4,'Motion for a resolution',{inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-2']})]),null,'two subjects name different main votes');
 });

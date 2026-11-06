@@ -190,6 +190,12 @@ export function groupArcLayout(ballots,{order,radius}) {
   return {dots,wedges,dotRadius:Math.min(spacing,rowGap)*.43,rows:radii.length,radius,inner,gap:WEDGE_GAP};
 }
 
+// A mark is a few pixels wide on a phone, so a press picks the closest one within reach.
+export function nearestDot(dots,x,y,reach) {
+  let best=null,distance=Infinity;
+  for(const dot of dots){const d=Math.hypot(dot.x-x,dot.y-y);if(d<distance&&d<=reach){best=dot;distance=d;}}
+  return best;
+}
 // A label sits just outside the middle of its wedge. `align` says how far the text shifts from that point.
 export function wedgeLabels(wedges,{radius,dotRadius}) {
   const reach=radius+dotRadius+8;

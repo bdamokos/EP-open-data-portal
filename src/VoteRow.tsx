@@ -28,8 +28,8 @@ export function TallyHeads({heading}:{heading:ReactNode}) {
   return <div className="heads static"><span className="main">{heading}</span>{votePositionKeys.map(position=><span key={position} className={'n hd '+column[position]}><VoteMark position={position}/><UiMessage id={headId[position]}/></span>)}</div>;
 }
 // One large total on its column. Colour appears only here and on marks.
-export function TotalFigure({position,value}:{position:VotePosition;value:number}) {
-  return <><small className="hd"><VoteMark position={position}/><UiMessage id={headId[position]}/></small><b className={'c-'+position}>{value}</b></>;
+export function TotalFigure({position,value}:{position:VotePosition;value:number|null}) {
+  return <><small className="hd"><VoteMark position={position}/><UiMessage id={headId[position]}/></small><b className={value===null?'unk':'c-'+position}>{value??'–'}</b></>;
 }
 // Large totals on the same three columns as every row.
 export function TotalsFigures({totals,label}:{totals:Record<VotePosition,number>;label?:ReactNode}) {

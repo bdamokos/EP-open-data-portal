@@ -173,3 +173,10 @@ test('debates come from the held procedure, with time and agenda item from the h
  ]);
  assert.equal(reads.length,2);
 });
+test('a conflicting decision on the item stays among the rows and never becomes the main vote',async()=>{
+ const f=subjectFixture(),other=f.day.decisions.find(raw=>raw.activity_id==='MTG-PL-2026-10-07-DEC-2');
+ other._conflictingSourceObservations={fields:['decision_method']};
+ const data=await f.read(),row=data.siblings.find(sibling=>sibling.id==='MTG-PL-2026-10-07-DEC-2');
+ assert.equal(row.ballotStatus,'unknown');assert.equal(row.outcome,null);
+ assert.notEqual(data.mainVoteId,row.id);
+});

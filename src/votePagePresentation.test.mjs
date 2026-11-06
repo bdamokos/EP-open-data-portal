@@ -117,7 +117,7 @@ test('members list minority positions first, by surname; only real majorities di
 });
 test('item votes fall into sections with the main vote first, and the steps follow them',()=>{
  const v=(id,fields)=>({id,totals:noTally,ballotStatus:'conducted',outcome:'ADOPTED',...fields});
- const votes=[v('a',{totals:{for:1,against:2,abstaining:0}}),v('h'),v('m',{}),v('l',{ballotStatus:'not-conducted',outcome:'LAPSED'}),v('n',{ballotStatus:'not-conducted',outcome:null})];
+ const votes=[v('a',{totals:{for:1,against:2,abstaining:0}}),v('h',{method:'VOTE_HAND'}),v('m',{method:'VOTE_HAND'}),v('l',{ballotStatus:'not-conducted',outcome:'LAPSED'}),v('n',{ballotStatus:'not-conducted',outcome:null})];
  const sections=itemVoteSections(votes,'m');
  assert.deepEqual(sections.map(section=>[section.key,section.votes.map(row=>row.id)]),[['counted',['a']],['hands',['m','h']],['lapsed',['l']],['not_held',['n']]]);
  assert.equal(sections.flatMap(section=>section.votes).length,votes.length,'every row, no preview cut');
@@ -125,6 +125,8 @@ test('item votes fall into sections with the main vote first, and the steps foll
  assert.deepEqual(voteSteps(votes,'m','h'),{previous:'m',next:'l'});
  assert.deepEqual(voteSteps(votes,'m','n'),{previous:'l',next:null});
  assert.deepEqual(voteSteps(votes,'m','missing'),{previous:null,next:null});
+ const methods=itemVoteSections([v('p',{method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:3,against:null,abstaining:1}}),v('e',{method:'VOTE_ELECTRONIC'}),v('r',{method:'VOTE_ELECTRONIC_ROLLCALL'}),v('u',{method:null}),v('c',{method:null,ballotStatus:'unknown',outcome:null})],null);
+ assert.deepEqual(methods.map(section=>[section.key,section.votes.map(row=>row.id)]),[['counted',['p']],['no_count',['e','r','u','c']]],'a missing tally never becomes a show of hands');
 });
 test('the amendment wording is plain; differing versions keep their chooser',()=>{
  const variant={wordingStatus:'available',proposedText:'(3)\tThe text.',language:'en',targetLabel:'Article 3 – paragraph 1',targetLabelLanguage:'en'};

@@ -4,7 +4,7 @@ import {createGroupOn} from './group-attribution.mjs';
 import {groupHistorySnapshot} from './group-history.mjs';
 import {HttpError} from './http-utils.mjs';
 import {requestSignal} from './request-budget.mjs';
-import {list,exactReference,references,identifier,deriveVoteEvidence,eventUri,preferred} from './vote-evidence.mjs';
+import {list,exactReference,references,identifier,decisionOnSubject,deriveVoteEvidence,eventUri,preferred} from './vote-evidence.mjs';
 import {decisionVoteBindingConflict} from './decision-vote-binding.mjs';
 import {mainVote} from './main-vote.mjs';
 import {referredForTalksOn} from './procedure-referral.mjs';
@@ -91,10 +91,13 @@ function subjectContext(vote,day,context,query,store) {
   const bound=row=>['consistent','single-direction'].includes(row.resultRelationship.binding);
   const subject=vote.subjectId&&bound(vote)?context.derived.subjects.find(row=>row.id===vote.subjectId):null;
   if(!subject)return {subject:null,siblings:[],mainVoteId:null,procedureReferral:false};
-  const votes=day.decisions.filter(raw=>context.derived.decisions.get(eventUri(raw))?.subjectId===subject.id).map(raw=>projectMemberDecision(raw,day,'1',query.language,context.derived)).filter(bound);
+  const projected=day.decisions.filter(raw=>decisionOnSubject(raw,context.derived.decisions.get(eventUri(raw)),[subject.id])).map(raw=>projectMemberDecision(raw,day,'1',query.language,context.derived));
+  const votes=projected.filter(bound);
+  // A conflicting record stays among the rows with no result, as on the agenda item, so the count holds.
+  const rows=projected.filter(row=>bound(row)||row.sourceConflicts);
   // A partial sitting could hide the deciding vote, so it establishes no main vote.
   const main=day.coverage&&day.coverage.state!=='complete'?null:mainVote(votes,{id:subject.id,wholeTextDecisions:votes.filter(row=>row.scope.kind==='whole-text')});
-  const siblings=main?[main,...votes.filter(row=>row!==main)]:votes;
+  const siblings=main?[main,...rows.filter(row=>row!==main)]:rows;
   const procedureIds=[...new Set(votes.flatMap(row=>row.context.procedureIds))].sort();
   const procedures=procedureIds.map(id=>({id,node:heldProcedure(store,context.generation,id)}));
   const procedureReferral=procedures.some(({node})=>referredForTalksOn(node,vote.date));

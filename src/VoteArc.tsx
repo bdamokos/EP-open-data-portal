@@ -5,7 +5,7 @@ import {groupShortLabel} from './groupShort';
 import {voteCountryName as countryName} from './voteCountryName';
 import {againstPath} from './VoteMark';
 import {votePositionKeys,type VotePosition} from './votePositions';
-import {groupArcLayout,wedgeLabels,type ArcDot} from './voteSeatsModel.mjs';
+import {groupArcLayout,nearestDot,wedgeLabels,type ArcDot} from './voteSeatsModel.mjs';
 
 export type ArcVoter={id:string;name:string|null;group:string;position:VotePosition;country:string|null};
 type Props={voters:ArcVoter[];order:string[];word:string|null;small:string|null;smallLanguage?:string;noRecord:number|null;picked:string|null;onPick:(id:string|null)=>void;dimmedGroup:string|null;language:string;onMember?:(id:number)=>void;positionWord:(position:VotePosition)=>string};
@@ -40,10 +40,8 @@ export function VoteArc({voters,order,word,small,smallLanguage,noRecord,picked,o
   const touchNearest=(event:MouseEvent<SVGSVGElement>)=>{
     const matrix=event.currentTarget.getScreenCTM();
     if(!matrix)return null;
-    const point=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse()),x=point.x-WIDTH/2,y=point.y-(TOP+radius);
-    let best:ArcDot|null=null,distance=Infinity;
-    for(const dot of dots){const d=Math.hypot(dot.x-x,dot.y-y);if(d<distance){distance=d;best=dot;}}
-    return best&&distance<=layout.dotRadius+14/matrix.a?best.index:null;
+    const point=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse());
+    return nearestDot(dots,point.x,point.y,layout.dotRadius+14/matrix.a)?.index??null;
   };
   const click=(event:MouseEvent<SVGSVGElement>)=>{
     const index=indexOf(event.target)??touchNearest(event);
