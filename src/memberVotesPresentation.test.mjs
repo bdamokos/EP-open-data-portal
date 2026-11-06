@@ -254,3 +254,15 @@ test('summary accounts for every known position state and omits zero terms',()=>
   assert.equal(memberVotePositionSummary([make('no-record'),make('unavailable')]),'Positions: 1 no recorded position · 1 position unavailable');
   assert.equal(memberVotePositionSummary([make('conflicting')]),'Positions: 1 position unavailable');
 });
+
+// The held real-week response stays outside Git. Opt in when reviewing its counts.
+test('every subject in the held week accounts for every decision',{skip:!process.env.MEMBER_VOTES_WEEK_FIXTURE},()=>{
+  const data=JSON.parse(readFileSync(process.env.MEMBER_VOTES_WEEK_FIXTURE));
+  const groups=groupMemberVotes(data);
+  assert.equal(groups.reduce((sum,group)=>sum+group.items.length,0),data.items.length);
+  for(const group of groups){
+    const summary=memberVotePositionSummary(group.items);
+    const count=summary.split(' · ').reduce((sum,term)=>sum+Number(term.match(/\d+/)?.[0]||0),0);
+    assert.equal(count,group.items.length,`${group.id}: ${summary}`);
+  }
+});
