@@ -29,7 +29,7 @@ test('native proposal labels retain their language and native part references ne
 });
 
 test('request route explicitly defaults to all decisions and retains exact page, selection and snapshot',()=>{
-  assert.equal(MEMBER_VOTES_PAGE_SIZE,memberVotePositionSummary,50);
+  assert.equal(MEMBER_VOTES_PAGE_SIZE,50);
   const basic=new URL(memberVotesRoute(memberId), 'https://example.invalid/');
   assert.equal(basic.searchParams.get('view'),null);
   assert.equal(new URL(memberVotesRoute(memberId,state,'en',{view:'period'}),'https://example.invalid/').searchParams.get('view'),'period');
