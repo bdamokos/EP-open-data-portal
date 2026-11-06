@@ -51,7 +51,7 @@ async function harness(t,items=[member()],v2=false,dossiers=[]) {
  const holdNextDetail=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);memberGate={started,wait};return {ready,release};};
  const holdNextStatus=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);statusGate={started,wait};return {ready,release};};
  const holdNextManifest=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);manifestGate={started,wait};return {ready,release};};
- return {setRawFailure:value=>rawFailure=value,setFailures:(errors,delayed='')=>{routeFailures=errors;delayedFailure=delayed;},holdNextManifest,tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,holdNextStatus,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:(route,status=503)=>{fail=route;failureStatus=status;},conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
+ return {load:path=>loadModule(path),setRawFailure:value=>rawFailure=value,setFailures:(errors,delayed='')=>{routeFailures=errors;delayedFailure=delayed;},holdNextManifest,tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,holdNextStatus,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:(route,status=503)=>{fail=route;failureStatus=status;},conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
 }
 const cards=h=>[...h.container.querySelectorAll('.explorer-saved-items>article')];
 const rows=card=>[...card.querySelectorAll('.explorer-saved-disclosure')];
@@ -534,4 +534,22 @@ for(const name of ['TypeError','TimeoutError'])test('Following POST body '+name+
  const h=await harness(t,[question],true);h.setRawFailure({route:'saved',status:200,error:name==='TypeError'?new TypeError('Disconnected body'):new DOMException('Body timed out','TimeoutError')});await h.render('en',false,false);await settle();
  assert.equal(h.controls.savedStore.snapshot().questionCheckState,'error');assert.equal(h.requests.filter(request=>request.route==='saved').length,1);
  h.setRawFailure(null);await automaticRecovery(t);await settle();assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');assert.equal(h.requests.filter(request=>request.route==='saved').length,2);assert.equal(h.item().id,question.id);
+});
+
+test('Following with nothing followed shows the empty state and hides vote comparison until a vote is saved',async t=>{
+ const h=await harness(t,[],true);await h.render();
+ const empty=h.container.querySelector('.explorer-saved-empty');
+ assert.deepEqual([...empty.querySelectorAll('p')].map(p=>p.textContent),["Follow MEPs, dossiers, questions and topics to see what's new.",'Kept in this browser. No account needed.']);
+ assert.deepEqual([...empty.querySelectorAll('a')].map(a=>[a.textContent,a.getAttribute('href')]),[['Find an MEP','/'],["This week's agenda",'/?view=legislation'],['Find a topic','/?view=legislation&pl-mode=topics']]);
+ for(const text of ['Your votes','Compare with an MEP','roll-call votes only'])assert(!h.container.textContent.includes(text),text);
+ const {yourVotesStore}=await h.load('/src/YourVotes.tsx');
+ await act(async()=>yourVotesStore.toggleStar({id:'MTG-PL-2026-09-15-OJ-ITM-V-29',sittingId:'MTG-PL-2026-09-15',title:'Fixture'}));
+ assert(h.container.textContent.includes('Your votes'));assert(h.container.textContent.includes('Compare with an MEP'));
+ assert(!h.container.querySelector('.explorer-saved-empty'));
+ await act(async()=>yourVotesStore.toggleStar({id:'MTG-PL-2026-09-15-OJ-ITM-V-29',sittingId:'MTG-PL-2026-09-15'}));
+ assert(h.container.querySelector('.explorer-saved-empty'));
+});
+test('Following drops the empty state once an MEP is followed',async t=>{
+ const followed=await harness(t,[member()],true);await followed.render();
+ assert(!followed.container.querySelector('.explorer-saved-empty'));assert(!followed.container.textContent.includes('Your votes'));
 });

@@ -1,6 +1,8 @@
 import {useAutomaticRetry} from './useAutomaticRetry';
 import {useSavedReadState,useSavedRecovery} from './SavedControls';
-import {YourVotes} from './YourVotes';
+import {YourVotes,useHasSavedVotes} from './YourVotes';
+import {dossierLinkClick} from './dossierJourney';
+import {interfaceLanguageInUrl} from './interfaceLanguage.mjs';
 import {FollowedTopics,useTopics} from './TopicFollowing';
 import {uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -82,7 +84,7 @@ function FollowCard({item,directoryMember,language,onMember,renderActivity,now,r
 }
 export function Saved({members,language,onBack,onMember,renderActivity}:SavedProps) {
   useSavedRecovery(language);
-  const topicFollows=useTopics(),readState=useSavedReadState(),recovering=readState.loading||readState.retrying;
+  const topicFollows=useTopics(),hasVotes=useHasSavedVotes(),readState=useSavedReadState(),recovering=readState.loading||readState.retrying;
   const ui = useUiI18n();
   const membersById=useMemo(()=>new Map(members?.map(member=>[String(member.id),member])),[members]);
   useDossierChecks();
@@ -97,6 +99,9 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
   const cardKey=(item:typeof cards[number]['item'])=>item.kind+':'+item.id+':'+item.savedAt;
   for(const {item} of cards)if(!cardOrder.current.has(cardKey(item)))cardOrder.current.set(cardKey(item),cardOrder.current.size);
   cards.sort((a,b)=>cardOrder.current.get(cardKey(a.item))!-cardOrder.current.get(cardKey(b.item))!);
+  const empty=!items.length&&!dossiers.items.length&&!topicFollows.length&&!hasVotes;
+  const href=(path:string,query:Record<string,string>={})=>{const params=new URLSearchParams(interfaceLanguageInUrl(language)?{lang:language,...query}:query).toString();return params?path+'?'+params:path;};
+  const emptyLinks=[{id:'Saved.findMep',href:href('/')},{id:'Saved.thisWeeksAgenda',href:href('/',{view:'legislation'})},{id:'Saved.findTopic',href:href('/',{view:'legislation','pl-mode':'topics'})}];
   const key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(','),context=language+':'+key,request=useRef(0),active=useRef(false);
   const [attempt,setAttempt]=useState(0),[completion,setCompletion]=useState<{items:SavedItem[];message:string}|null>(null);
   useEffect(()=>{active.current=true;setChecking(false);setError('');setCompletion(null);return()=>{active.current=false;request.current++;};},[context]);
@@ -119,7 +124,7 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
   };
   return <section className="explorer-saved-view" lang={ui.language}>
     <Status scope={`saved-check:${context}:${attempt}`} message={((!dossiers.items.length) && (completion?.items===items)) ? completion.message : null} pending={checking||dossierChecking}/>
-    <button onClick={onBack}><UiMessage id="document.back"/></button>
+    <button className="explorer-saved-back" onClick={onBack}><UiMessage id="document.back"/></button>
     <div className="explorer-saved-heading"><h1><UiMessage id="batch4.dossiercontrols.tsx.64.2"/></h1></div>
     <FollowedTopics/><YourVotes language={language} members={members}/>
     {!saved.persistent&&<p><UiMessage id="Saved.browser_storage_is_unavailable_follows_last_only_for_this_tab"/></p>}
@@ -134,7 +139,7 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
     {error&&!recovering&&membershipCheck!=='error'&&<p>{error}</p>}
     {!dossiers.persistent&&dossiers.items.length>0&&<p><UiMessage id="Saved.dossier_follows_last_only_for_this_tab"/></p>}
     {dossiers.storageError&&<p role="alert"><UiMessage id="Saved.dossier_changes_couldn_t_be_saved_in_this_browser"/> </p>}
-    {!items.length&&!dossiers.items.length&&!topicFollows.length&&<p><UiMessage id="Saved.follow_a_mep_or_dossier_or_save_a_question_to_see_updates_here"/></p>}
+    {empty&&<div className="explorer-saved-empty"><p><UiMessage id="Saved.emptyLead"/></p>{saved.persistent&&<p><UiMessage id="Saved.emptyStorage"/></p>}<nav className="explorer-saved-empty-links">{emptyLinks.map(({id,href})=><a key={id} href={href} onClick={dossierLinkClick}><UiMessage id={id}/></a>)}</nav></div>}
     <div className="explorer-saved-items">{cards.map(({item})=>(item.kind==='dossier') ? <DossierCard key={'dossier:'+item.id+':'+item.savedAt} item={item} language={language} now={now}/> : <FollowCard key={savedKey(item)+':'+item.savedAt} item={item} directoryMember={membersById.get(item.id)} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={(item.kind==='question') ? saved.questionCheckState : saved.checkState} check={check}/>)}</div>
     <FollowSuggestions language={language}/>
   </section>;
