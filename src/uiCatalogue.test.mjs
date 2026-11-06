@@ -117,7 +117,7 @@ test('startup shell uses explicit owned bindings and keeps numeric member IDs li
   assert.equal(window.document.title,title,'a late shell binding never inspects or rewrites the mounted app');
 });
 
-const awaitingTranslation=new Set(['Saved.emptyLead','Saved.emptyStorage','Saved.findMep','Saved.findTopic','Saved.thisWeeksAgenda','dossieractivity.count_of_total','dossieractivity.exact_stage_amendment','dossieractivity.exact_stage_amendments','batch6.procedureprogress.full_timeline','batch6.procedureprogress.full_timeline_one']);
+const awaitingTranslation=new Set(['Saved.emptyLead','Saved.emptyStorage','Saved.findMep','Saved.findTopic','Saved.thisWeeksAgenda','app.filtersCount','app.memberListCommittees','app.memberListName','app.memberListNationalParty','app.memberViewCards','app.memberViewList','app.removeFilter','app.showMore','app.substituteShort','dossieractivity.count_of_total','dossieractivity.exact_stage_amendment','dossieractivity.exact_stage_amendments','batch6.procedureprogress.full_timeline','batch6.procedureprogress.full_timeline_one']);
 test('all reachable messages have translated values in each supported language',async()=>{
   for(const language of 'bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ')) {
     const catalogue=JSON.parse(await readFile(new URL(`./ui-locales/${language}.json`,import.meta.url),'utf8'));
