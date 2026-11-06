@@ -25,7 +25,7 @@ async function harness(t,width=1440,query='') {
     const url=new URL(input,location.href);
     // The default agenda week waits for the sitting calendar; no calendar keeps the latest week.
     if(url.pathname.endsWith('/vote-periods'))return Promise.resolve(calendarResponse?calendarResponse():Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}}));
-    if(url.pathname.endsWith('/insights/week-results'))return Promise.resolve(Response.json({version:1,week:url.searchParams.get('week'),location:null,days:[],items:[]}));
+    if(url.pathname.endsWith('/insights/week-results'))return Promise.resolve(Response.json({version:2,week:url.searchParams.get('week'),location:null,standouts:{closest:null,split:null},days:[],items:[]}));
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected request '+url);
     if(!url.searchParams.has('topic')){agendaRequests.push(url);return Promise.resolve(Response.json(response(url.searchParams)));}
     return new Promise(resolve=>requests.push({url,...options,resolve,settled:false}));

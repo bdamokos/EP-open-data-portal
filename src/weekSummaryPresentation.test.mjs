@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {defaultUi} from './uiDefault.mjs';
-import {dayChipText,deadlineParts,nextDeadlines,pastCount,procedureReferences,resultLine,resultText,showCounts,sittingRange,tallyText,upcomingCount,visibleTopics,voteHref,weekMode,weekOfDate} from './weekSummaryPresentation.mjs';
+import {dayChipText,deadlineParts,nextDeadlines,pastCount,procedureReferences,resultLine,resultText,showCounts,sittingRange,tallyText,upcomingCount,visibleTopics,voteHref,weekMode,weekOfDate,weekStandouts,validWeekResults} from './weekSummaryPresentation.mjs';
 
 const erasmus={agendaItemId:'MTG-PL-2026-10-22-OJ-ITM-V-52',voteCount:35,main:{id:'MTG-PL-2026-10-22-DEC-198405',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:454,against:34,abstaining:93}}};
 const budget={agendaItemId:'MTG-PL-2026-10-21-OJ-ITM-V-71',voteCount:133,main:null};
@@ -78,4 +78,21 @@ test('the week is past, upcoming or mixed by its days',()=>{
 test('links use the fixed vote-page route and exact procedure identifiers',()=>{
   assert.equal(voteHref('MTG-PL-2026-10-22-DEC-198405','fr'),'?view=legislation&pl-mode=vote&pl-vote=MTG-PL-2026-10-22-DEC-198405&lang=fr');
   assert.deepEqual(procedureReferences(topic('MTG-PL-2026-11-11-OJ-ITM-V-1','PLENARY_VOTE',{procedureIds:['2025-0235','eli/dl/proc/x','2025-0222A']})),['2025/0235','2025/0222A']);
+});
+
+const standouts={closest:{voteId:'MTG-PL-2026-10-22-DEC-1',agendaItemId:'MTG-PL-2026-10-22-OJ-ITM-V-52',outcome:'ADOPTED',totals:{for:321,against:319,abstaining:5}},split:{voteId:'MTG-PL-2026-10-21-DEC-2',agendaItemId:'MTG-PL-2026-10-21-OJ-ITM-V-71',differing:48}};
+const week=extra=>({version:2,week:'2026-10-19',location:null,days:[],items:[],standouts,...extra});
+
+test('the week-results contract requires standouts with known counts',()=>{
+  assert.equal(validWeekResults(week()),true);
+  assert.equal(validWeekResults(week({standouts:{closest:null,split:null}})),true);
+  for(const bad of [undefined,null,{closest:null},{closest:null,split:{...standouts.split,differing:0}},{closest:{...standouts.closest,totals:{for:null,against:2,abstaining:0}},split:null},{closest:{...standouts.closest,voteId:4},split:null}])assert.equal(validWeekResults(week({standouts:bad})),false);
+});
+
+test('a standout fact is shown only with the agenda row it belongs to',()=>{
+  const topics=[topic('MTG-PL-2026-10-22-OJ-ITM-V-52','PLENARY_VOTE'),topic('MTG-PL-2026-10-21-OJ-ITM-V-71','PLENARY_VOTE')];
+  assert.deepEqual(weekStandouts(week(),topics).map(fact=>[fact.kind,fact.voteId,fact.topic.id]),[['closest','MTG-PL-2026-10-22-DEC-1','MTG-PL-2026-10-22-OJ-ITM-V-52'],['split','MTG-PL-2026-10-21-DEC-2','MTG-PL-2026-10-21-OJ-ITM-V-71']]);
+  assert.deepEqual(weekStandouts(week(),topics.slice(0,1)).map(fact=>fact.kind),['closest']);
+  assert.deepEqual(weekStandouts(week({standouts:{closest:null,split:null}}),topics),[]);
+  assert.deepEqual(weekStandouts(null,topics),[]);
 });

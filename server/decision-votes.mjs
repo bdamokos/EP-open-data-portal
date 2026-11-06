@@ -22,9 +22,10 @@ export async function decisionVotes(query,{reader=memberVotes,store=null}={}) {
   const snapshot=await reader.snapshot(query);return projectDecisionVotes(query,snapshot,{store});
 }
 // Freeze one group-history generation and one evidence graph for the read.
-export function decisionVotesContext(day,store,{derived=null}={}) {
+export function decisionVotesContext(day,store,{derived=null,sharedHistory}={}) {
   const generation=store?.status().servingGeneration||null;
-  const history=generation?groupHistorySnapshot(store,generation):null;
+  // A caller projecting several days of one request reads the group history once and passes it back.
+  const history=sharedHistory!==undefined?sharedHistory:generation?groupHistorySnapshot(store,generation):null;
   return {derived:derived||deriveVoteEvidence(day,{includeBindingEvidence:true}),generation,history,groupOn:createGroupOn(history),decisions:new Map(day.decisions.map(d=>[d.activity_id,d]))};
 }
 export function projectDecisionVotes(query,snapshot,{store=null,context=null}={}) {

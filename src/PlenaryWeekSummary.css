@@ -9,6 +9,7 @@
 .week-days { display:flex; flex-wrap:wrap; gap:8px; margin:0; padding:0; list-style:none; }
 .explorer-insights .week-days button { display:block; padding:6px 12px; min-height:0; white-space:nowrap; background:var(--surface); }
 .week-deadlines ul, .week-results ul, .week-upcoming ul { display:grid; gap:0; margin:6px 0 0; padding:0; list-style:none; }
+.week-standouts { display:grid; gap:4px; margin:0; padding:0; list-style:none; }
 .week-deadlines li { padding:4px 0; }
 .week-results li, .week-upcoming li { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 16px; align-items:baseline; padding:8px 0; border-top:1px solid var(--line); }
 .explorer-insights .week-result-title { justify-self:start; display:inline; min-height:0; padding:0; border:0; border-radius:0; background:none; text-align:left; text-decoration:underline; text-decoration-color:var(--line-strong); text-underline-offset:3px; }
