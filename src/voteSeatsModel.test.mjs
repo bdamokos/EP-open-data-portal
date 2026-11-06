@@ -159,27 +159,50 @@ test('a label carries its count line only where the taller box clears every seat
   assert.equal(groupLabelPlacements(plan,{scale:1,widthOf:()=>30}).every(label=>!label.withExtra),true,'no extra line unless asked for');
 });
 
-import {planGroupOrder,groupArcLayout,arcLabelPlacements} from './voteSeatsModel.mjs';
+import {planGroupOrder,groupArcLayout,arcLabelPlacements,allocateRows} from './voteSeatsModel.mjs';
 test('the group order is read from where each group sits in the plan, leftmost first',()=>{
   assert.deepEqual(planGroupOrder(plan),['A','B','C']);
   assert.deepEqual(planGroupOrder([]),[]);
 });
 const ballots=(group,counts)=>Object.entries(counts).flatMap(([position,n])=>Array.from({length:n},(_,i)=>({id:group+position+i,group,position})));
-test('the group arc has one dot per ballot, wedges in plan order and For, Against, Abstained blocks inside each',()=>{
-  const all=[...ballots('B',{abstaining:3,for:5,against:2}),...ballots('A',{against:4,for:6}),...ballots('C',{for:1}),...ballots(null,{for:2,against:1}),...ballots('Z',{abstaining:2})];
+test('row allocation keeps every row and column total and cuts each row into consecutive parts',()=>{
+  const rows=[10,14,18,22],totals=[30,20,14];
+  const m=allocateRows(rows,totals);
+  assert.deepEqual(m.map(row=>row.reduce((a,b)=>a+b,0)),rows,'each row keeps its dots');
+  assert.deepEqual(totals.map((_,k)=>m.reduce((a,row)=>a+row[k],0)),totals,'each part keeps its total');
+  assert(m.every(row=>row.every(value=>value>=0)));
+  assert.deepEqual(allocateRows([5],[2,0,3]),[[2,0,3]]);
+});
+test('the group arc has one dot per ballot, wedges in plan order, gaps between them and one block per position inside each',()=>{
+  const all=[...ballots('B',{abstaining:23,for:35,against:12}),...ballots('A',{against:24,for:46}),...ballots('C',{for:11}),...ballots(null,{for:2,against:1}),...ballots('Z',{abstaining:2})];
   const layout=groupArcLayout(all,{order:['A','B','C'],radius:300});
   assert.equal(layout.dots.length,all.length,'the dots add up to the recorded ballots');
   assert.deepEqual(layout.wedges.map(w=>w.group),['A','B','C','Z','unavailable'],'plan order, then other groups, the unknown one last');
-  assert.deepEqual(layout.wedges.map(w=>w.count),[10,10,1,2,3]);
-  const angles=layout.dots.map(dot=>dot.angle);
-  assert(angles.every((angle,i)=>i===0||angle<=angles[i-1]+1e-9),'dots run left to right');
+  assert.deepEqual(layout.wedges.map(w=>w.count),[70,70,11,2,3]);
+  const starts=layout.wedges.map(w=>w.start),ends=layout.wedges.map(w=>w.end);
+  assert(starts.every((start,i)=>i===0||start<ends[i-1]),'wedges follow each other left to right without overlapping');
+  const rank={for:0,against:1,abstaining:2};
   for(const wedge of layout.wedges) {
-    const own=layout.dots.filter(dot=>dot.group===wedge.group),rank={for:0,against:1,abstaining:2};
-    assert(own.every((dot,i)=>i===0||rank[dot.position]>=rank[own[i-1].position]),wedge.group+' runs For, Against, Abstained');
-    assert.deepEqual(layout.dots.slice(own[0].index,own[0].index+own.length).map(dot=>dot.group),own.map(dot=>dot.group),'a wedge is contiguous');
+    const own=layout.dots.filter(dot=>dot.group===wedge.group);
+    assert.deepEqual(layout.dots.slice(own[0].index,own[0].index+own.length).map(dot=>dot.group),own.map(dot=>dot.group),'a wedge is contiguous in the keyboard order');
+    for(let row=0;row<layout.rows;row++) {
+      const inRow=own.filter(dot=>dot.row===row).sort((x,y)=>y.angle-x.angle);
+      assert(inRow.every((dot,i)=>i===0||rank[dot.position]>=rank[inRow[i-1].position]),wedge.group+' row '+row+': For, then Against, then Abstained, each in one piece');
+    }
+    for(const position of ['for','against','abstaining']) {
+      const dots=own.filter(dot=>dot.position===position);
+      if(dots.length>=layout.rows*2)assert.equal(new Set(dots.map(dot=>dot.row)).size,layout.rows,wedge.group+' '+position+' reaches from the inner row to the outer row');
+    }
+  }
+  // Neighbouring wedges are about two dot spacings apart on top of the normal spacing (measured from the middle row out).
+  for(let w=0;w<layout.wedges.length-1;w++)for(let row=Math.floor(layout.rows/2);row<layout.rows;row++){
+    const left=layout.dots.filter(dot=>dot.group===layout.wedges[w].group&&dot.row===row).map(dot=>dot.angle),right=layout.dots.filter(dot=>dot.group===layout.wedges[w+1].group&&dot.row===row).map(dot=>dot.angle);
+    if(!left.length||!right.length)continue;
+    const radius=layout.dots.find(dot=>dot.row===row).radius,distance=(Math.min(...left)-Math.max(...right))*radius;
+    assert(distance>=2.4*layout.spacing,'wedges '+w+' and '+(w+1)+' are separated in row '+row);
   }
   for(const dot of layout.dots){const r=Math.hypot(dot.x,dot.y);assert(r>=layout.inner&&r<=layout.radius&&dot.y<=0,'inside the half ring');}
-  assert.deepEqual(new Set(layout.dots.map(dot=>dot.id)).size,all.length,'every ballot keeps its own dot');
+  assert.equal(new Set(layout.dots.map(dot=>dot.id)).size,all.length,'every ballot keeps its own dot');
   assert.equal(groupArcLayout([],{order:[],radius:100}).dots.length,0);
   assert.equal(groupArcLayout([{id:1,position:'maybe'}],{order:[],radius:100}).dots.length,0,'only recorded positions count');
 });

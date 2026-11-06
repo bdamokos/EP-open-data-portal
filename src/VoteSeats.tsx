@@ -113,11 +113,11 @@ export function VoteSeats({vote,rows,sittingId,language,onMember,onList}:Props) 
       <div className="vote-seat-controls">
       <div className="insight-chart-switch" role="group" aria-label={ui.t('votegroups.seats.arrangement')}>
         <button type="button" aria-pressed={arrangement==='group'} onClick={()=>setArrangement('group')}><UiMessage id="votegroups.seats.arrangement.group"/></button>
-        <button type="button" aria-pressed={arrangement==='seats'} onClick={()=>setArrangement('seats')}><UiMessage id="votegroups.seats.arrangement.seats"/></button>
+        <button type="button" aria-pressed={arrangement==='seats'} onClick={()=>setArrangement('seats')} aria-label={narrow?ui.t('votegroups.seats.arrangement.seats'):undefined}>{narrow?ui.t('votegroups.seats.arrangement.seats.short'):ui.t('votegroups.seats.arrangement.seats')}</button>
       </div>
       <div className="insight-chart-switch" role="group" aria-label={ui.t('votegroups.seats.view')}>
-        <button type="button" aria-pressed={view==='all'} onClick={()=>setView('all')}><UiMessage id="votegroups.seats.view.all"/></button>
-        <button type="button" aria-pressed={view==='differ'} onClick={()=>setView('differ')}>{ui.t('votegroups.seats.view.differ',{count:String(differIds.size)})}</button>
+        <button type="button" aria-pressed={view==='all'} onClick={()=>setView('all')} aria-label={narrow?ui.t('votegroups.seats.view.all'):undefined}>{narrow?ui.t('votegroups.seats.view.all.short'):ui.t('votegroups.seats.view.all')}</button>
+        <button type="button" aria-pressed={view==='differ'} onClick={()=>setView('differ')} aria-label={narrow?ui.t('votegroups.seats.view.differ',{count:String(differIds.size)}):undefined}>{ui.t(narrow?'votegroups.seats.view.differ.short':'votegroups.seats.view.differ',{count:String(differIds.size)})}</button>
       </div>
       </div>
     </div>

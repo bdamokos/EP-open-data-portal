@@ -193,3 +193,14 @@
   .insight-agenda-view[data-voters-open=true] .insight-legislation-grid { grid-template-columns:minmax(0,1fr); gap:0; }
   .insight-agenda-view[data-voters-open=true] .insight-voter-dock { display:block; flex:0 0 420px; position:sticky; top:12px; max-height:calc(100dvh - 24px); overflow:auto; }
 }
+/* Phones: the group table is two compact lines per group; the share with the majority sits beside the bar. */
+@media (max-width:639px) {
+  .insight-vote-matrix-head,.insight-vote-group-row { grid-template-columns:minmax(0,1fr) repeat(3,46px); gap:4px 6px; }
+  .insight-vote-matrix-head>span:last-child { display:none; }
+  .insight-vote-matrix-head>span:nth-child(n+2) { font-size:10px; }
+  .insight-vote-group-row { padding:3px 0; align-items:center; }
+  .explorer-insights .insight-vote-group-row button.vote-for,.explorer-insights .insight-vote-group-row button.vote-against,.explorer-insights .insight-vote-group-row button.vote-abstaining { min-height:32px; padding:2px 4px; font-size:14px; }
+  .insight-vote-group-row>.vote-group-unity { grid-row:2; grid-column:2/-1; text-align:right; font-size:11px; line-height:1.2; white-space:nowrap; }
+  .insight-vote-group-row>.vote-bar { grid-row:2; grid-column:1; }
+  .insight-vote-group-row>.vote-group-unity .vote-group-unity-count { white-space:nowrap; }
+}

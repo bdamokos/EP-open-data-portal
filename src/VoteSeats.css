@@ -40,3 +40,4 @@
 .vote-arc-chart circle[role=button]:focus-visible{stroke:var(--focus);stroke-width:3px;paint-order:stroke}
 .vote-arc-chart circle[data-dimmed=true]{opacity:.18}
 .vote-arc-name{fill:var(--ink);font-weight:600;pointer-events:none}
+@media (max-width:639px){.vote-seat-controls{flex-wrap:nowrap;gap:.4rem;justify-content:space-between}.vote-seat-controls .insight-chart-switch button{padding-inline:.6rem}}
