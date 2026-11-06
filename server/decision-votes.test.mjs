@@ -120,6 +120,13 @@ test('procedure referral needs the exact event on the vote date',async()=>{
  f=subjectFixture();f.sources['/procedures/2025-0222']=referral('2001-01-01');assert.equal((await f.read()).procedureReferral,false,'another date');
  f=subjectFixture();f.sources['/procedures/2025-0222']={data:[{label:'2025/0222(COD)',consists_of:[{had_activity_type:'def/ep-activities/PLENARY_AMEND',activity_date:vote(f)}]}]};assert.equal((await f.read()).procedureReferral,false,'another event');
 });
+test('a procedure outside the index is read only from the retained source, and a miss stays unknown',async()=>{
+ const f=subjectFixture(),asked=[];
+ const read=id=>decisionVotes(f.query,{reader:f.reader,store:f.store,readProcedure:async wanted=>{asked.push(wanted);return wanted===id?{label:'2025/0222(COD)',...referral(f.raw.activity_date).data[0]}:null;}});
+ const data=await read('2025-0222');
+ assert.equal(data.procedureReferral,true);assert.deepEqual(data.subject.procedures,[{id:'2025-0222',reference:'2025/0222(COD)'}]);assert(asked.includes('2025-0222'));
+ const miss=await read('none');assert.equal(miss.procedureReferral,false);assert.deepEqual(miss.subject.procedures,[]);
+});
 test('corrections and names outside the roster come from exact held records',async()=>{
  const f=voteFixture();f.sources['amendment:member:256852']={givenName:'Former',familyName:'Member'};f.sources['demographic:profile:256852']={label:'FORMER Member',fields:{'api:country-of-representation':['HU']}};
  const data=await f.read();

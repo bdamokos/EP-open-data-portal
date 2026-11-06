@@ -8,6 +8,7 @@ import {list,exactReference,references,identifier,deriveVoteEvidence,eventUri,pr
 import {decisionVoteBindingConflict} from './decision-vote-binding.mjs';
 import {mainVote} from './main-vote.mjs';
 import {referredForTalksOn} from './procedure-referral.mjs';
+import {odp} from './odp.mjs';
 
 export const DECISION_VOTES_VERSION=7;
 
@@ -20,9 +21,25 @@ export function decisionVotesQuery(id,search,options) {
 }
 
 // Uses the member reader's bounded, shared sitting snapshot; no source writer.
-export async function decisionVotes(query,{reader=memberVotes,store=null}={}) {
-  const snapshot=await reader.snapshot(query);return projectDecisionVotes(query,snapshot,{store,withSubject:true});
+export async function decisionVotes(query,{reader=memberVotes,store=null,readProcedure=retainedProcedure}={}) {
+  const snapshot=await reader.snapshot(query),data=projectDecisionVotes(query,snapshot,{store,withSubject:true});
+  // Not every voted procedure reaches the index. The retained source record is
+  // the one the agenda reads; a miss stays unknown and never goes upstream.
+  for(const id of data.subject?.procedureIds||[])if(!data.subject.procedures.some(row=>row.id===id)) {
+    const node=await readProcedure(id);requestSignal()?.throwIfAborted();
+    if(!node)continue;
+    const reference=procedureLabel(node);if(reference)data.subject.procedures.push({id,reference});
+    if(referredForTalksOn(node,data.decision.date))data.procedureReferral=true;
+  }
+  return data;
 }
+async function retainedProcedure(id) {
+  try {
+    const record=await odp('/procedures/'+id,{},{cachedOnly:true,ttl:Infinity}),node=record.payload?.data?.[0];
+    return node?.id==='eli/dl/proc/'+id?node:null;
+  }catch(error){if(error instanceof HttpError&&error.status===404)return null;throw error;}
+}
+const procedureLabel=node=>typeof node?.label==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(node.label)?node.label:null;
 // Freeze one group-history generation and one evidence graph for the read.
 export function decisionVotesContext(day,store,{derived=null}={}) {
   const generation=store?.status().servingGeneration||null;
@@ -59,7 +76,7 @@ function subjectContext(vote,day,context,query,store) {
   const procedureIds=[...new Set(votes.flatMap(row=>row.context.procedureIds))].sort();
   const procedures=procedureIds.map(id=>({id,node:heldProcedure(store,context.generation,id)}));
   const procedureReferral=procedures.some(({node})=>referredForTalksOn(node,vote.date));
-  return {subject:{id:subject.id,...preferred(subject.titles,query.language),titles:subject.titles,agendaItemIds:subject.agendaItemIds,documentIds:subject.documentIds,procedureIds,procedures:procedures.flatMap(({id,node})=>typeof node?.label==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(node.label)?[{id,reference:node.label}]:[])},siblings:siblings.map(row=>siblingFields(row,query.language)),mainVoteId:main?.id??null,procedureReferral};
+  return {subject:{id:subject.id,...preferred(subject.titles,query.language),titles:subject.titles,agendaItemIds:subject.agendaItemIds,documentIds:subject.documentIds,procedureIds,procedures:procedures.flatMap(({id,node})=>procedureLabel(node)?[{id,reference:procedureLabel(node)}]:[])},siblings:siblings.map(row=>siblingFields(row,query.language)),mainVoteId:main?.id??null,procedureReferral};
 }
 // Voters and corrections outside the current roster are absent from the client
 // directory. Read their held records by exact key; a missing name stays null.
