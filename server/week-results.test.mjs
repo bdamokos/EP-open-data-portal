@@ -4,14 +4,14 @@ import {readFileSync} from 'node:fs';
 import {projectWeekResults,weekResults,weekResultsQuery} from './week-results.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/member-votes.json',import.meta.url),'utf8'));
-const days=structuredClone(fixture.snapshots);
+const days=structuredClone(fixture.snapshots).map(day=>({...day,coverage:{state:'complete'}}));
 const calendar=location=>({weeks:[{week:'2026-10-05',sittings:[{sittingId:'MTG-PL-2026-10-05',location},{sittingId:'MTG-PL-2026-10-07',location}]}]});
 
 test('counts conducted, roll-call and not-conducted decisions per sitting, and joins items to subjects by exact identifier',()=>{
   const result=projectWeekResults({week:'2026-10-05'},{days},'Strasbourg');
   assert.deepEqual(result.days,[
-    {sittingId:'MTG-PL-2026-10-07',voteCount:4,rollCallCount:4,notConducted:1},
-    {sittingId:'MTG-PL-2026-10-05',voteCount:1,rollCallCount:1,notConducted:0},
+    {sittingId:'MTG-PL-2026-10-07',complete:true,voteCount:4,rollCallCount:4,notConducted:1},
+    {sittingId:'MTG-PL-2026-10-05',complete:true,voteCount:1,rollCallCount:1,notConducted:0},
   ]);
   assert.deepEqual(result.items.map(item=>[item.agendaItemId,item.voteCount]),[['MTG-PL-2026-10-07-OJ-ITM-V-45',1],['MTG-PL-2026-10-07-OJ-ITM-V-48',4]]);
 });
@@ -75,4 +75,12 @@ test('the insights route serves the view through the response cache',async()=>{
   assert.deepEqual(second.items,first.items);
   assert.equal(reads,1);
   await assert.rejects(insights.query('week-results',new URLSearchParams()),{status:400});
+});
+
+test('a sitting with partial records has unknown counts and contributes no items',()=>{
+  const partial=days.map((day,index)=>index?day:{...day,coverage:{state:'partial'}});
+  const result=projectWeekResults({week:'2026-10-05'},{days:partial},null);
+  assert.deepEqual(result.days[0],{sittingId:'MTG-PL-2026-10-07',complete:false,voteCount:null,rollCallCount:null,notConducted:null});
+  assert.equal(result.days[1].complete,true);
+  assert.deepEqual(result.items,[]);
 });

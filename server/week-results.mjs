@@ -29,9 +29,12 @@ function weekLocation(calendar,week) {
 export function projectWeekResults(query,snapshot,location) {
   const days=[],items=new Map();
   for(const day of snapshot?.days||[]) {
+    // A sitting whose records are partial or still pending gives no counts: a
+    // surviving subset would read as the whole day.
+    if(day.coverage?.state!=='complete'){days.push({sittingId:day.sittingId,complete:false,voteCount:null,rollCallCount:null,notConducted:null});continue;}
     const {items:decisions,subjects}=projectMemberSitting(day,NO_MEMBER);
     const status=value=>decisions.filter(decision=>decision.ballotStatus===value).length;
-    days.push({sittingId:day.sittingId,voteCount:status('conducted'),rollCallCount:decisions.filter(decision=>decision.namedVoters.available).length,notConducted:status('not-conducted')});
+    days.push({sittingId:day.sittingId,complete:true,voteCount:status('conducted'),rollCallCount:decisions.filter(decision=>decision.namedVoters.available).length,notConducted:status('not-conducted')});
     for(const subject of subjects) {
       const own=decisions.filter(decision=>decision.subjectId===subject.id);
       const main=mainVote(decisions,subject);

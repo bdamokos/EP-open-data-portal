@@ -20,3 +20,4 @@ export function dayChipText(date:string,language?:string):string;
 export function sittingRange(dates:string[],language?:string):string|null;
 export function procedureReferences(topic:AgendaTopic):string[];
 export function validWeekResults(data:unknown):data is WeekResultsResponse;
+export function resultsComplete(results:WeekResultsResponse,voteDayIds:string[]):boolean;

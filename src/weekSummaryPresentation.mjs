@@ -44,7 +44,7 @@ export const resultText=line=>[line.outcome,line.tally??line.hands,line.votes].f
 
 /** Past count line: exact totals over the sittings read. */
 export function pastCount(results,ui=defaultUi) {
-  const sum=key=>results.days.reduce((total,day)=>total+day[key],0);
+  const sum=key=>results.days.reduce((total,day)=>total+(day[key]??0),0);
   const votes=ui.t('weekSummary.votes',{count:sum('voteCount')}),items=ui.t('weekSummary.agendaItems',{count:results.items.length});
   const named=sum('rollCallCount'),notPut=sum('notConducted');
   return [
@@ -95,5 +95,8 @@ const count=value=>Number.isSafeInteger(value)&&value>=0;
 const totals=value=>value&&['for','against','abstaining'].every(key=>value[key]===null||count(value[key]));
 /** The week-results contract. Anything else reads as unavailable. */
 export const validWeekResults=data=>Boolean(data&&typeof data.week==='string'&&(data.location===null||typeof data.location==='string')
-  &&Array.isArray(data.days)&&data.days.every(day=>typeof day?.sittingId==='string'&&count(day.voteCount)&&count(day.rollCallCount)&&count(day.notConducted))
+  &&Array.isArray(data.days)&&data.days.every(day=>typeof day?.sittingId==='string'&&typeof day.complete==='boolean'&&(day.complete?count(day.voteCount)&&count(day.rollCallCount)&&count(day.notConducted):day.voteCount===null&&day.rollCallCount===null&&day.notConducted===null))
   &&Array.isArray(data.items)&&data.items.every(item=>typeof item?.agendaItemId==='string'&&count(item.voteCount)&&(item.main===null||typeof item.main?.id==='string'&&totals(item.main.totals))));
+
+/** Exact totals only when every sitting with votes was read completely. */
+export const resultsComplete=(results,voteDayIds)=>voteDayIds.every(id=>results.days.find(day=>day.sittingId===id)?.complete===true);

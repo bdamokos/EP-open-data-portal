@@ -4,7 +4,7 @@ import {useInsightData} from './InsightData';
 import {agendaTitle} from './topicPresentation.mjs';
 import {dossierLinkClick} from './dossierJourney';
 import {
-  agendaShows,dayChipText,deadlineParts,nextDeadlines,pastCount,procedureReferences,resultLine,resultText,showCounts,sittingRange,upcomingCount,
+  agendaShows,dayChipText,deadlineParts,nextDeadlines,pastCount,procedureReferences,resultLine,resultText,resultsComplete,showCounts,sittingRange,upcomingCount,
   validWeekResults,visibleTopics,voteHref,weekMode,weekOfDate,weekResultsRoute,type AgendaShow,
 } from './weekSummaryPresentation.mjs';
 import type {AgendaTopic,LegislationResponse,WeekResultsResponse} from './LegislationTypes';
@@ -63,8 +63,11 @@ function CountLine({data,results}:{data:LegislationResponse;results:WeekResults}
   const idsOf=(ahead:boolean)=>new Set(days.filter(day=>(day.phase==='upcoming')===ahead).map(day=>day.id));
   const past=idsOf(false),ahead=idsOf(true);
   const pastTopics=data.topics.filter(topic=>past.has(topic.sittingId||'')),aheadTopics=data.topics.filter(topic=>ahead.has(topic.sittingId||''));
+  // Only a fully read week with no vote on any day says there were none.
+  const pastVoteDays=[...past].filter(id=>pastTopics.some(topic=>topic.sittingId===id&&topic.kind==='PLENARY_VOTE'));
+  const noVotes=!ahead.size&&!data.topics.some(topic=>topic.kind==='PLENARY_VOTE')&&days.every(day=>day.agendaComplete&&!day.agendaError);
   const lines=[
-    past.size?(!pastTopics.some(topic=>topic.kind==='PLENARY_VOTE')?ui.t('weekSummary.noVotes'):results.error?ui.t('weekSummary.resultsUnavailable'):results.data?pastCount(results.data,ui):null):null,
+    past.size?(noVotes?ui.t('weekSummary.noVotes'):!pastVoteDays.length?null:results.error?ui.t('weekSummary.resultsUnavailable'):results.data&&resultsComplete(results.data,pastVoteDays)?pastCount(results.data,ui):null):null,
     ahead.size?upcomingCount(aheadTopics,ui):null,
   ].filter(Boolean);
   return lines.length?<p className="week-count" lang={ui.language}>{lines.join(' ')}</p>:null;
@@ -80,7 +83,7 @@ function DayChips({data,results,language}:{data:LegislationResponse;results:Week
 }
 
 function Deadlines({data,language}:{data:LegislationResponse;language:string}) {
-  const ui=useUiI18n(),rows=nextDeadlines(data.topics.filter(topic=>data.agendaSittings?.find(day=>day.id===topic.sittingId)?.phase==='upcoming'),Date.now());
+  const ui=useUiI18n(),rows=nextDeadlines(data.topics,Date.now());
   if(!rows.length)return null;
   return <section className="week-deadlines" lang={ui.language}><h3><UiMessage id="weekSummary.nextDeadlines"/></h3><ul>{rows.map(({id,end,topic})=>{
     const {date,time}=deadlineParts(end,language);

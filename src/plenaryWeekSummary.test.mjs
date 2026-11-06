@@ -9,7 +9,7 @@ const topic=(id,kind,extra={})=>({id,kind,sittingId:id.slice(0,17),title:id.incl
 const day=(id,phase)=>({id,date:id.slice(7),phase,agendaComplete:true,agendaError:null});
 const past={week:'2026-10-19',agendaSittings:[day('MTG-PL-2026-10-19','past'),day('MTG-PL-2026-10-21','past'),day('MTG-PL-2026-10-22','past')],topics:[
   topic('MTG-PL-2026-10-19-OJ-ITM-D-1','PLENARY_DEBATE'),topic('MTG-PL-2026-10-21-OJ-ITM-V-71','PLENARY_VOTE'),topic('MTG-PL-2026-10-22-OJ-ITM-V-52','PLENARY_VOTE'),topic('MTG-PL-2026-10-22-OJ-ITM-V-60','PLENARY_VOTE')]};
-const results={version:1,week:'2026-10-19',location:'Strasbourg',days:[{sittingId:'MTG-PL-2026-10-22',voteCount:31,rollCallCount:20,notConducted:4},{sittingId:'MTG-PL-2026-10-19',voteCount:5,rollCallCount:5,notConducted:0}],items:[
+const results={version:1,week:'2026-10-19',location:'Strasbourg',days:[{sittingId:'MTG-PL-2026-10-22',complete:true,voteCount:31,rollCallCount:20,notConducted:4},{sittingId:'MTG-PL-2026-10-21',complete:true,voteCount:0,rollCallCount:0,notConducted:0},{sittingId:'MTG-PL-2026-10-19',complete:true,voteCount:5,rollCallCount:5,notConducted:0}],items:[
   {agendaItemId:'MTG-PL-2026-10-22-OJ-ITM-V-52',voteCount:35,main:{id:'MTG-PL-2026-10-22-DEC-198405',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:454,against:34,abstaining:93}}}]};
 
 async function mount(t,props) {
@@ -69,4 +69,29 @@ test('an upcoming week shows the sitting dates, counts, next deadlines and items
 test('the list variant carries the heading, count and chips without the result rows',async t=>{
   const view=await mount(t,{data:past,results:{data:results,error:null},list:true});
   assert(view.querySelector('.week-summary-list'));assert(view.querySelector('.week-days'));assert.equal(view.querySelector('.week-results'),null);
+});
+
+const debatesOnly={...past,topics:past.topics.filter(item=>item.kind!=='PLENARY_VOTE')};
+
+test('no votes is not stated while a day agenda is unread',async t=>{
+  const unread={...debatesOnly,agendaSittings:debatesOnly.agendaSittings.map((item,index)=>index?item:{...item,agendaComplete:false})};
+  assert.equal((await mount(t,{data:unread,results:{data:null,error:null}})).querySelector('.week-count'),null);
+});
+
+test('a debates-only start to a running week does not claim no votes',async t=>{
+  const mixed={...debatesOnly,agendaSittings:[...debatesOnly.agendaSittings,day('MTG-PL-2026-10-23','upcoming')],topics:[...debatesOnly.topics,topic('MTG-PL-2026-10-23-OJ-ITM-V-9','PLENARY_VOTE')]};
+  assert.equal((await mount(t,{data:mixed,results:{data:null,error:null}})).querySelector('.week-count').textContent,'1 vote scheduled.');
+});
+
+test('totals are withheld while a voting day is only partly read',async t=>{
+  const partial={...results,days:results.days.map(item=>item.sittingId==='MTG-PL-2026-10-22'?{sittingId:item.sittingId,complete:false,voteCount:null,rollCallCount:null,notConducted:null}:item),items:[]};
+  const view=await mount(t,{data:past,results:{data:partial,error:null}});
+  assert.equal(view.querySelector('.week-count'),null);
+  assert.deepEqual([...view.querySelectorAll('.week-days button')].map(b=>b.textContent),['Mon 19 · 5 votes','Wed 21','Thu 22']);
+});
+
+test('a deadline later today still shows on a sitting day that has begun',async t=>{
+  const end=new Date(Date.now()+3600_000).toISOString();
+  const today={week:'2026-11-09',agendaSittings:[day('MTG-PL-2026-11-09','today')],topics:[topic('MTG-PL-2026-11-09-OJ-ITM-V-2','PLENARY_VOTE',{deadlines:[{id:'d',end,type:'def/ep-activities/TABLING_PLENARY',labels:{}}]})]};
+  assert((await mount(t,{data:today,results:{data:{version:1,week:'2026-11-09',location:null,days:[],items:[]},error:null}})).querySelector('.week-deadlines'));
 });
