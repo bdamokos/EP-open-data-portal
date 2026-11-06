@@ -65,7 +65,7 @@ test('one-time migration schedules only checked, listed, linked pages and respec
   await follower.run();assert.equal(calls.length,8);
   store.close();store.initialize({now:now+100});assert.deepEqual(store.due(now+100,100),[]);
   const reader=new PressStore(directory,{readOnly:true});
-  try{assert.deepEqual(reader.forWeek({procedureIds:['2025/0222(COD)'],from:'2026-10-19',to:'2026-10-25'}).map(row=>row.id),['20261018IPR48022'],'missing publication dates stay absent');}finally{reader.close();}
+  try{assert.equal(reader.forWeek({procedureIds:['2025/0222(COD)'],from:'2026-10-19',to:'2026-10-25'}).length,9,'held publication times survive missing metadata');}finally{reader.close();}
 }));
 
 test('week lookup uses indexed exact identifiers, Brussels date boundaries, listing and newest order',()=>withStore((store,directory)=>{
@@ -115,9 +115,9 @@ test('ordinary no and art sentence endings are not abbreviations',()=>{
     assert.equal(pressExcerpt({paragraphs:['Lead.',sentence+' The vote passed.']}).second,sentence);
 });
 
-test('failed enrichment is one attempt and preserves held links across 120 days',()=>withStore(async store=>{
-  const cases=[{status:404},{status:410},{message:'fetch failed',cause:{code:'UND_ERR_INVALID_ARG'}},{status:503},{html:'<html>canonical mismatch</html>'}];
-  let clock=now,reads=0;
+test('enrichment failures stop immediately or after three transient attempts across 120 days',()=>withStore(async store=>{
+  const cases=[{status:404},{status:410},{message:'fetch failed',cause:{message:'unexpected redirect'}},{status:302},{html:'<html>canonical mismatch</html>'},{message:'network unavailable'},{code:'upstream_busy'},{status:429},{status:503},{status:202}];
+  let clock=now;const reads=new Map();
   const ids=cases.map((failure,index)=>{
     const id='20261018IPR'+String(48100+index);put(store,release(id));
     return id;
@@ -126,19 +126,52 @@ test('failed enrichment is one attempt and preserves held links across 120 days'
   store.db.prepare('UPDATE releases SET next_check=?').run(now);
   store.set('follow',{nextPollAt:now+200*24*60*60_000});
   const follower=new PressFollower(store,{clock:()=>clock,fetchText:async url=>{
-    reads++;const failure=cases[ids.indexOf(url.split('/').at(-2))];
+    const id=url.split('/').at(-2);reads.set(id,(reads.get(id)||0)+1);const failure=cases[ids.indexOf(id)];
     if(failure.html)return failure.html;
     throw Object.assign(new Error(failure.message||'Parliament unavailable'),failure);
   }});
   for(let day=0;day<120;day++){clock=now+day*24*60*60_000;await follower.run();}
-  assert.equal(reads,cases.length);
   for(const [index,id] of ids.entries()) {
     const row=store.release(id);
+    assert.equal(reads.get(id),index<5?1:3);
     assert.equal(row.next_check,null);assert.equal(row.body.leadVersion,1);
     assert.equal(row.checked_at,held[index].checked_at);assert.equal(row.linked_at,held[index].linked_at);
-    assert.equal(store.mentions('2025/0222(COD)').items.some(item=>item.id===id),true);
+    assert.equal(store.mentions('2025/0222(COD)',{},100).items.some(item=>item.id===id),true);
   }
   const fresh=release('20261018IPR48199');store.discover(fresh,{feed:'press-releases',now});
   store.fail(fresh.id,Object.assign(new Error('Unavailable'),{status:503}),{now});
   assert.ok(store.release(fresh.id).next_check>now,'initial reads retain the existing retry policy');
+}));
+
+test('transient enrichment backs off, honors retryAt and recovers before its attempt cap',()=>withStore(async store=>{
+  const id='20261018IPR48265',retryAt=now+60*60_000;
+  put(store,release(id,{furtherInformation:true}));
+  const first=store.release(id).linked_at;let clock=now,reads=0;
+  store.set('follow',{nextPollAt:now+24*60*60_000});
+  store.db.prepare('UPDATE releases SET next_check=? WHERE id=?').run(now,id);
+  const follower=new PressFollower(store,{clock:()=>clock,fetchText:async()=>{
+    if(++reads===1)throw Object.assign(new Error('Busy'),{status:503,retryAt});
+    return fixtures[id].html;
+  }});
+  await follower.run();assert.equal(reads,1);
+  assert.equal(store.release(id).next_check,retryAt);assert.equal(store.release(id).body.leadVersion,undefined);
+  clock=retryAt-1;await follower.run();assert.equal(reads,1);
+  clock=retryAt;await follower.run();assert.equal(reads,2);
+  const row=store.release(id);assert.equal(row.body.leadVersion,1);assert.ok(row.body.lead);assert.equal(row.attempts,0);assert.equal(row.next_check,null);assert.equal(row.linked_at,first);
+}));
+
+test('a missing Further information section preserves held links and its flag while enriching text',()=>withStore(async store=>{
+  const id='20261018IPR48265';
+  put(store,release(id,{furtherInformation:true}));
+  const first=store.release(id).linked_at;
+  const html=`<link rel="canonical" href="${pressReleaseUrl(id)}"><meta property="og:description" content="Lead."><div class="ep-a_text"><p>Lead.</p></div><p class="ep-wysiwig_paragraph">The vote passed.</p>`;
+  await new PressFollower(store,{clock:()=>now,fetchText:async()=>html}).read(id);
+  const row=store.release(id);
+  assert.equal(row.body.lead,'Lead.');assert.equal(row.body.furtherInformation,true);assert.equal(row.linked_at,first);
+  assert.equal(store.mentions('2025/0222(COD)').total,1);
+  assert.equal(store.forWeek({procedureIds:['2025-0222'],from:'2026-10-19',to:'2026-10-25'}).length,1,'held publication time and links stay available');
+  // Explicitly published empty sections are still observations; only absence
+  // keeps old links. Robots withholding takes precedence over preservation.
+  await new PressFollower(store,{clock:()=>now,fetchText:async()=>html+'<ul><span class="ep_name">Further information</span></ul>'}).read(id);
+  assert.equal(store.mentions('2025/0222(COD)').total,0);
 }));

@@ -13,7 +13,7 @@ import {PRESS_FEEDS,parsePressFeed,parsePressRelease} from './press-releases-mod
 
 export const PRESS_RELEASES_VERSION=2;
 const HOUR=60*60_000,DAY=24*HOUR;
-export const PRESS_LIMITS=Object.freeze({pollInterval:DAY,pagesPerRun:6,listed:5});
+export const PRESS_LIMITS=Object.freeze({pollInterval:DAY,pagesPerRun:6,enrichmentAttempts:3,listed:5});
 const parse=value=>value==null?null:JSON.parse(value);
 const message=error=>String(error?.message||error).slice(0,300);
 const SCHEMA=`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -106,14 +106,16 @@ export class PressStore {
     const insert=this.db.prepare('INSERT OR IGNORE INTO links VALUES (?,?,?,?)');
     for(const link of links)insert.run(link.kind,link.value,id,link.label??null);
   }
-  fail(id,error,{now,retryAt}) {
+  fail(id,error,{now,retryAt,parseFailure=false}) {
     const old=this.release(id),attempts=(old?.attempts||0)+1;
-    // Enrichment is one additional attempt, including transport or parse
-    // failures. Preserve the held page and its links; only a changed feed
-    // announcement can reopen it, under discover's existing policy.
-    if(old?.checked_at!=null) {
+    // A held page gets one successful enrichment read. Missing pages,
+    // redirects and parser rejections end it immediately; transport failures
+    // retain backoff for at most three attempts. Never discard held links.
+    const enrichment=old?.checked_at!=null;
+    const redirect=(error?.status>=300&&error.status<400)||error?.cause?.message==='unexpected redirect';
+    if(enrichment&&(sourceMissing(error)||parseFailure||redirect||attempts>=PRESS_LIMITS.enrichmentAttempts)) {
       this.db.prepare('UPDATE releases SET body=?,attempts=?,next_check=NULL,error=?,failure_state=?,rejected_source=NULL,missing_since=NULL WHERE id=?')
-        .run(JSON.stringify({...old.body,leadVersion:1}),attempts,message(error),'transient',id);
+        .run(JSON.stringify({...old.body,leadVersion:1}),attempts,message(error),'permanent-source-issue',id);
       return;
     }
     const missingSince=sourceMissing(error)?(old.missing_since??now):null;
@@ -244,9 +246,15 @@ export class PressFollower {
     const now=this.clock();
     let page;
     try{page=parsePressRelease(response.text,id,{robotsHeader:response.robotsHeader});}
-    catch(error){this.write(()=>this.store.fail(id,error,{now}));return;}
+    catch(error){this.write(()=>this.store.fail(id,error,{now,parseFailure:true}));return;}
     const listed=page.robots.listed;
-    this.write(()=>this.store.record(id,{...release.body,title:page.title??release.body.title,lead:page.lead,paragraphs:page.paragraphs,leadVersion:1,publishedAt:(page.publishedLocal&&brusselsInstant(page.publishedLocal))||release.body.feedPublishedAt,publishedLocal:page.publishedLocal,robots:page.robots,listed,furtherInformation:page.furtherInformation,fetchedAt:new Date(now).toISOString()},{now,links:listed?page.links:[]}));
+    this.write(()=>{
+      // A missing section is an unavailable observation, not an empty list.
+      // A listed page can enrich its text without destroying held exact links.
+      const held=listed&&release.checked_at!=null&&!page.furtherInformation;
+      const links=held?this.store.db.prepare('SELECT kind,value,label FROM links WHERE release=?').all(id):(listed?page.links:[]);
+      this.store.record(id,{...release.body,title:page.title??release.body.title,lead:page.lead,paragraphs:page.paragraphs,leadVersion:1,publishedAt:(page.publishedLocal&&brusselsInstant(page.publishedLocal))||release.body.publishedAt||release.body.feedPublishedAt,publishedLocal:page.publishedLocal??release.body.publishedLocal,robots:page.robots,listed,furtherInformation:held?release.body.furtherInformation:page.furtherInformation,fetchedAt:new Date(now).toISOString()},{now,links});
+    });
   }
 }
 
