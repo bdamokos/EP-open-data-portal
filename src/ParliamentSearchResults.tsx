@@ -55,7 +55,8 @@ export function ParliamentSearchResults({query,type,language,from,to}:{query:str
     :referenceSection.lookup?(!found||!['found','not-found'].includes(found.status)?null
       :found.status==='found'&&found.procedure&&fullDossierReference(found.procedure)?{missing:false,results:[{id:found.procedure,type:'reference',kind:'dossier',reference:found.procedure,title:found.title||null,titleLanguage:found.titleLanguage||null,date:found.date||null,dossier:found.procedure}]}:{missing:true,results:[]})
     :{missing:referenceSection.held===false,results:referenceSection.results};
-  const hideEmpty=Boolean(block?.missing);
+  // The other sections were never going to match a pasted reference, so their empty states stay out of the way.
+  const hideEmpty=Boolean(block&&(block.missing||block.results.length));
   return <div className="explorer-catalog-results">
     {block&&(block.results.length>0||block.missing)&&<div className="explorer-search-reference">
       {block.results.map(result=>{const href=referenceUrl(result,language),text=result.title||result.reference;return <article className="explorer-search-result" key={result.id}>

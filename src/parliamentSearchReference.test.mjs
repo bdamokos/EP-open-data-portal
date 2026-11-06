@@ -33,6 +33,7 @@ test('a held reference leads the page and links to its dossier',async t=>{
   assert(block,'reference block');
   assert(container.querySelector('.explorer-catalog-results').firstElementChild===block,'it comes before every section');
   assert.match(block.textContent,/Report · A10-0257\/2026/);
+  assert.doesNotMatch(container.textContent,/No matches/);
   assert.match(block.querySelector('a').getAttribute('href'),/dossier-ref=2025%2F0222%28COD%29/);
 });
 test('a reference that is not held hides the empty sections and says so once',async t=>{
