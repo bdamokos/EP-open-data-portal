@@ -21,10 +21,10 @@ function GapNotice({notice,language}:{notice:CoverageNotice;language:string}) {
   const ids={'speaker-list':'coverage.speakerList','question-list':'coverage.questionList','speech-list':'coverage.speechList','dossier-list':'coverage.dossierList',records:'coverage.records'};
   return <UiMessage id={ids[notice.kind]} values={{period}}/>;
 }
-export function AvailabilityNote({sources,label='record',kind,language='en',start,end,showGaps=true,sourceIds,archive=false}:{sources?:SourceAvailability|SourceAvailability[]|null;label?:string;kind?:AvailabilityKind;language?:string;start?:string|null;end?:string|null;partial?:boolean;showGaps?:boolean;sourceIds?:string[];archive?:boolean}) {
+export function AvailabilityNote({sources,label='record',kind,language='en',start,end,showGaps=true,sourceIds,archive=false,showLatest=true}:{sources?:SourceAvailability|SourceAvailability[]|null;label?:string;kind?:AvailabilityKind;language?:string;start?:string|null;end?:string|null;partial?:boolean;showGaps?:boolean;sourceIds?:string[];archive?:boolean;showLatest?:boolean}) {
   const ui=useUiI18n();
   if(!sources)return null;
-  const latest=availabilitySummary(sources).latestObservedDate,notices=showGaps?coverageNotices(sources,{start,end,onlyRelevant:!archive,sourceIds}).filter(notice=>!('sourceUrl' in notice&&notice.retained===true)):[];
+  const latest=showLatest?availabilitySummary(sources).latestObservedDate:null,notices=showGaps?coverageNotices(sources,{start,end,onlyRelevant:!archive,sourceIds}).filter(notice=>!('sourceUrl' in notice&&notice.retained===true)):[];
   if(!latest&&!notices.length)return null;
   const knownKinds:Record<string,AvailabilityKind>={record:'record',event:'event',question:'question',speech:'speech','speech record':'speech.record',text:'text',vote:'vote'};
   const messageKind=kind||knownKinds[label]||'record';

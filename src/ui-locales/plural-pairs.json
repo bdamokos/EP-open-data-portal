@@ -465,6 +465,11 @@
     "count": "count"
   },
   {
+    "one": "searchreference.agendas_not_searched_one",
+    "other": "searchreference.agendas_not_searched",
+    "count": "count"
+  },
+  {
     "one": "memberoverview.count_question",
     "other": "memberoverview.count_questions",
     "count": "count"

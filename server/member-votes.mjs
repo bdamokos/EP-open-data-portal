@@ -1,3 +1,4 @@
+import {InsightViewCache} from './insights-view-cache.mjs';
 import {VoteSourceReader,pageCoverage,sourceEvidence} from './vote-source-reader.mjs';
 import {meetingsReader,MeetingsReader} from './meetings-reader.mjs';
 import {calendarYears,identifiedPlenarySitting,currentTermSittings,isPlenarySitting} from './plenary-calendar.mjs';
@@ -6,7 +7,7 @@ import {HttpError} from './http-utils.mjs';
 import {odp,odpLanguage} from './odp.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
 import {requestSignal,runWithRequestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
-import {projectMemberSitting,memberVoteAlignment} from './member-votes-model.mjs';
+import {projectMemberSitting,memberVoteAlignment,memberVotePeriodRow,memberVotePeriodSubject} from './member-votes-model.mjs';
 import {mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evidence.mjs';
 import {collectVoteChairs} from './vote-chairs.mjs';
 import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
@@ -17,7 +18,7 @@ export const MEMBER_VOTES_VERSION=13;
 export const MEMBER_VOTE_SNAPSHOT_VERSION=11;
 export const VOTE_SNAPSHOT_VERSION=1;
 // Period reads include every observed decision; keep a separate finite transport budget.
-export const MEMBER_VOTES_PERIOD_RESPONSE_BYTES=32*1024*1024;
+export const MEMBER_VOTES_PERIOD_RESPONSE_BYTES=8*1024*1024;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});
 const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
 const dayOffset=(value,days)=>new Date(Date.parse(value+'T12:00:00Z')+days*86400_000).toISOString().slice(0,10);
@@ -53,7 +54,7 @@ export function memberVotesQuery(search,{now=Date.now()}={}) {
 // Period snapshots are independent of the requested member, language, and page.
 // No activity store or writer is opened by this reader.
 export class MemberVotes extends VoteSourceReader {
-  constructor({request=odp,clock=Date.now,limits={},meetings,readChairs=collectVoteChairs,snapshots=request===odp?sittingSnapshots:null}={}){super();this.diskSnapshots=snapshots;this.readChairs=readChairs;this.meetings=meetings||(request===odp&&clock===Date.now&&!Object.keys(limits).length?meetingsReader:new MeetingsReader({request,clock,limits}));this.request=request;this.clock=clock;this.limits={...MEMBER_VOTES_LIMITS,...limits};this.periods=new Map();this.snapshots=new Map();this.pending=new Map();this.cacheBytes=0;}
+  constructor({request=odp,clock=Date.now,limits={},meetings,readChairs=collectVoteChairs,snapshots=request===odp?sittingSnapshots:null}={}){super();this.diskSnapshots=snapshots;this.readChairs=readChairs;this.meetings=meetings||(request===odp&&clock===Date.now&&!Object.keys(limits).length?meetingsReader:new MeetingsReader({request,clock,limits}));this.request=request;this.clock=clock;this.limits={...MEMBER_VOTES_LIMITS,...limits};this.periods=new Map();this.snapshots=new Map();this.pending=new Map();this.cacheBytes=0;this.views=new InsightViewCache({directory:null,writable:false,clock,freshMs:Infinity,maxEntries:16,maxBytes:16*1024*1024,maxRecordBytes:MEMBER_VOTES_PERIOD_RESPONSE_BYTES});}
 
   async catalogue(query,budget) {
     if(query.sitting){
@@ -255,17 +256,25 @@ export class MemberVotes extends VoteSourceReader {
     const snapshot=await this.snapshot(query);requestSignal()?.throwIfAborted();
     const {period,coverage}=snapshot;
     if(query.decision&&period.from&&(query.decision.slice(7,17)<period.from||query.decision.slice(7,17)>period.to))throw new HttpError(400,'decision_outside_period','Choose a decision in the resolved period.');
-    const summaryView=query.view==='summary';
+    const key=[MEMBER_VOTES_VERSION,snapshot.id,id,query.language,query.view,query.positions,query.alignment,query.offset,query.limit,query.decision];
+    const load=async()=>{
     const projected=snapshot.days.map(day=>projectMemberSitting(day,id,query.language));
     const omitted=new Set(projected.flatMap(day=>day.omittedWhileChairing));
     const items=projected.flatMap(day=>day.items).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id));
     const positions=query.positions||'all',alignment=query.alignment||'all';
     const alignmentCounts=coverage.status==='unavailable'?null:items.reduce((counts,item)=>{counts[memberVoteAlignment(item)]++;return counts;},{with:0,against:0,abstained:0,unclassified:0});
     const filtered=items.filter(item=>(positions!=='recorded'||item.actualPosition.status==='recorded')&&(alignment==='all'||item.alignment===alignment));
-    const periodView=query.view==='period'||summaryView,offset=periodView?0:query.offset;
+    const periodView=query.view==='period',summaryView=query.view==='summary',offset=periodView||summaryView?0:query.offset;
     const page=summaryView?[]:periodView?filtered:filtered.slice(offset,offset+query.limit),selected=query.decision?items.find(item=>item.id===query.decision)||null:null;
     const subjects=summaryView?[]:projected.flatMap(day=>day.subjects).map(subject=>({...subject,counts:{observed:items.filter(item=>item.subjectId===subject.id).length,filtered:filtered.filter(item=>item.subjectId===subject.id).length,page:page.filter(item=>item.subjectId===subject.id).length}}));
-    return {version:MEMBER_VOTES_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},period,snapshotId:snapshot.id,positions,alignment,alignmentCounts,subjects,pagination:{...(periodView?{mode:summaryView?'summary':'period'}:{}),offset,limit:query.limit,returned:page.length,observedTotal:items.length,...(omitted.size?{omittedWhileChairingTotal:omitted.size}:{}),recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:filtered.length,nextOffset:summaryView||offset+page.length>=filtered.length?null:offset+page.length},items:page,selected:{status:query.decision?(selected?'found':omitted.has(query.decision)?'chairing':coverage.status==='unavailable'?'unavailable':'not-found-in-scanned-data'):'not-requested',item:selected},coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
+    const requestIds=new Set(selected?.parts.map(part=>part.requestId)||[]);
+    const siblings=selected?page.filter(item=>item.id!==selected.id&&item.subjectId===selected.subjectId&&item.parts.some(part=>requestIds.has(part.requestId))):[];
+    return {response:{version:MEMBER_VOTES_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},period,snapshotId:snapshot.id,positions,alignment,alignmentCounts,subjects:periodView?subjects.map(subject=>memberVotePeriodSubject(subject,query.language)):subjects,pagination:{...(periodView?{mode:'period'}:summaryView?{mode:'summary'}:{}),offset,limit:query.limit,returned:page.length,observedTotal:items.length,...(omitted.size?{omittedWhileChairingTotal:omitted.size}:{}),recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:filtered.length,nextOffset:!summaryView&&offset+page.length<filtered.length?offset+page.length:null},items:periodView?page.map(item=>memberVotePeriodRow(item,query.language)):page,selected:{status:query.decision?(selected?'found':omitted.has(query.decision)?'chairing':coverage.status==='unavailable'?'unavailable':'not-found-in-scanned-data'):'not-requested',item:selected,...(periodView?{siblings}:{})},coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'}};
+    };
+    // The verified catalogue freshness is not an immutable projection input.
+    // Keep it outside the cache envelope's calendar-refresh policy.
+    const {response}=await this.views.get(key,load);
+    return {...response,coverage:snapshot.coverage};
   }
 }
 

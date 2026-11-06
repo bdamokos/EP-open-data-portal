@@ -223,3 +223,18 @@ for(const name of ['TypeError','TimeoutError','AbortError'])test('successful res
 test('an HTTP error preserves its status and retry header when its body is interrupted',async()=>{
  const now=Date.now();await assert.rejects(readJson('/api/body',{fetchImpl:async()=>new Response(new ReadableStream({start(controller){controller.error(new TypeError('Body disconnected'));}}),{status:429,headers:{'Retry-After':'120'}})}),error=>error.status===429&&error.retryAt>=now+120_000);
 });
+
+test('validated response reuse retains age, refresh route, bounds and access invalidation',async()=>{
+  const calls=[];let denied=false;
+  const client=createDataClient(async route=>{calls.push(route);if(denied)throw Object.assign(new Error('denied'),{status:403});return {route};},{maxEntries:2});
+  const body=await client.get('unbound');
+  assert.equal(client.reuse('unbound','pinned',{}),false);
+  assert.equal(client.reuse('unbound','pinned',body),true);
+  assert.equal(await client.get('pinned'),body);assert.deepEqual(calls,['unbound']);
+  await client.get('pinned',{force:true});assert.deepEqual(calls,['unbound','pinned']);
+  await client.get('third');assert.equal(client.peek('unbound'),null);
+  denied=true;await assert.rejects(client.get('pinned',{force:true}));assert.equal(client.peek('third'),null);
+  let reads=0;const expired=createDataClient(async()=>({read:++reads}));
+  const old=await expired.get('from');expired.expireMatching(()=>true);expired.reuse('from','to',old);
+  assert.notEqual(await expired.get('to'),old,'reuse cannot renew an expired entry');
+});
