@@ -1,6 +1,6 @@
 import {UiMessageError} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
-import {compactEntries,isNewEntry,itemHasNew,markEntryRead,markAllRead,migrateUnread} from './followUpdates.mjs';
+import {compactEntries,isNewEntry,itemHasNew,readTogether,markAllRead,migrateUnread} from './followUpdates.mjs';
 export const LEGACY_KEY='ep.bookmarks.v1';
 export const SAVED_KEY='ep.following.v2';
 export const savedKey=item=>item.kind+':'+item.id;
@@ -19,7 +19,7 @@ export function readSaved(raw) {
   }catch{return [];}
 }
 // Questions retain revision-based detection and their exact answer-ID baseline.
-export function savedObservation(item,state) {
+export function savedObservation(item,state,readElsewhere=new Map()) {
   const now=Date.now();
   if(state.status!=='available')return {...item,availability:state.status,checkedAt:now};
   const previous=item.current||item.baseline,answers=cleanIds((state.answers||[]).map(a=>a.id)).sort(),known=new Set(previous?.answerIds);
@@ -29,7 +29,7 @@ export function savedObservation(item,state) {
   for(const answer of state.answers||[])if(added.includes(answer.id)) {
     const source=answer.title?answer:preview.get(answer.id)?.title?preview.get(answer.id):state.title?state:item;
     const entry={...cleanEntries([{...answer,title:source.title,titleLanguage:titleLanguage(source),relatedQuestionId:item.id,recordKind:'answer'}])[0],kind:'answer',discoveredAt:now,readAt:null};
-    if(!entries.has(identity(entry)))entries.set(identity(entry),entry);
+    if(!entries.has(identity(entry)))entries.set(identity(entry),{...entry,readAt:readElsewhere.get(identity(entry))??null});
   }
   const observed={revision:state.revision,answerIds:cleanIds([...(previous?.answerIds||[]),...answers]),total:state.total||0,latestIds:[]};
   return compactItem({...item,title:state.title||item.title,titleLanguage:titleLanguage(state.title?state:item),memberId:item.memberId||state.memberId||null,availability:'available',current:observed,
@@ -54,6 +54,8 @@ function cleanSignals(item) {
   return signals;
 }
 const identity=entry=>(entry.kind==='answer'?'answer':'activity')+':'+entry.id;
+// Another follow can discover a record after it was opened through this one.
+const readRecords=items=>new Map(items.flatMap(item=>(item.entries||[]).filter(entry=>Number.isFinite(entry.readAt)).map(entry=>[identity(entry),entry.readAt])));
 const minimal=({kind,id,title,titleLanguage,memberId,savedAt})=>({kind,id,title,titleLanguage,memberId,savedAt});
 const keys=items=>items.map(savedKey).sort();
 // Old tabs can retain only 100 of each kind. Only those keys participate in
@@ -139,6 +141,17 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
   }
   const update=(key,change)=>{items=items.map(item=>savedKey(item)===key?compactItem(change(item)):item);return publish();};
   const same=(item,expected)=>!expected||item.savedAt===expected.savedAt;
+  // One record can sit on several followed MEPs and on its followed question.
+  const openRecord=opened=>{
+    const now=Date.now(),question=opened.kind==='answer'?opened.relatedQuestionId:opened.id;
+    const shown=entry=>entry.readAt===null&&readTogether(opened,entry);
+    items=items.map(item=>{
+      const followed=item.kind==='question'&&item.id===question;
+      if(!followed&&!item.entries?.some(shown))return item;
+      return compactItem({...item,entries:(item.entries||[]).map(entry=>shown(entry)?{...entry,readAt:now}:entry),...(followed?{baseline:item.current||item.baseline,changedAt:undefined,legacyUpdated:false}:{})},now);
+    });
+    return publish();
+  };
   load();let lastSavedAt=Math.max(0,...items.map(item=>item.savedAt||0));
   return {
     snapshot:()=>snapshot,publish,
@@ -178,8 +191,8 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
       if(reset)restarted=true;epoch=data.epoch;checkState='available';return publish(true);
     },
     observe(states,expected=items) {
-      const selected=new Map(expected.map(item=>[savedKey(item),item]));
-      items=items.map(item=>{const prior=selected.get(savedKey(item)),state=states.questions?.find(s=>s.id===item.id);return item.kind==='question'&&prior&&same(item,prior)&&state?{...savedObservation(item,state),indexComplete:states.coverage?.indexComplete===true}:item;});return publish(true);
+      const selected=new Map(expected.map(item=>[savedKey(item),item])),read=readRecords(items);
+      items=items.map(item=>{const prior=selected.get(savedKey(item)),state=states.questions?.find(s=>s.id===item.id);return item.kind==='question'&&prior&&same(item,prior)&&state?{...savedObservation(item,state,read),indexComplete:states.coverage?.indexComplete===true}:item;});return publish(true);
     },
     materialize(data,expected) {
       if(data.epoch!==epoch||data.generation!==manifest?.generation) return false;
@@ -193,14 +206,14 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
           const {title,titleLanguage,date,relatedQuestionId}=cleanEntries([rich.get(key)])[0];
           unread.set(key,{...entry,title,titleLanguage,date,relatedQuestionId});
         }
-        const seen={activity:null,answer:null,...item.seen},legacy=item.legacy,known={activity:new Set(legacy?.latestIds),answer:new Set(legacy?.answerIds)},now=Date.now();
+        const read=readRecords(items),seen={activity:null,answer:null,...item.seen},legacy=item.legacy,known={activity:new Set(legacy?.latestIds),answer:new Set(legacy?.answerIds)},now=Date.now();
         for(const [id,code,value] of data.ids) {
           const kind=code===1?'answer':'activity',entry={id,kind,mark:value,recordKind:kind==='answer'?'answer':undefined};
           if(legacy?!known[kind].has(id):item.seen&&value>(item.seen[kind]??0)) {
             // Oldest pairs are dropped, never merged: earlier marks use the first
             // retained time (unless future), without backdating later discoveries.
             const at=item.signals?.[kind]?.find(([signalMark])=>signalMark>=value)?.[1];
-            const key=identity(entry);if(!unread.has(key))unread.set(key,{...cleanEntries([rich.get(key)||entry])[0],...entry,recordKind:rich.get(key)?.recordKind||entry.recordKind,discoveredAt:Number.isFinite(at)&&at<=now?at:now,readAt:null});
+            const key=identity(entry);if(!unread.has(key))unread.set(key,{...cleanEntries([rich.get(key)||entry])[0],...entry,recordKind:rich.get(key)?.recordKind||entry.recordKind,discoveredAt:Number.isFinite(at)&&at<=now?at:now,readAt:read.get(key)??null});
           }
           seen[kind]=maxMark(seen[kind],value);
         }
@@ -215,7 +228,7 @@ export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
     markRead(key){return update(key,item=>({...item,
       ...(item.kind==='mep'?{seen:manifest?{activity:maxMark(item.seen?.activity,manifest.members[item.id]?.[0]??null),answer:maxMark(item.seen?.answer,manifest.members[item.id]?.[1]??null)}:item.seen}:{baseline:item.current||item.baseline}),
       entries:markAllRead(item.entries||[],Date.now()),unreadOmitted:0,signals:{},changedAt:undefined,legacyUpdated:false}));},
-    markEntryRead(key,kind,id){return update(key,item=>({...item,entries:markEntryRead(item.entries||[],kind,id,Date.now())}));},
-    openQuestion(key){return update(key,item=>item.kind==='question'?{...item,baseline:item.current||item.baseline,changedAt:undefined,legacyUpdated:false}:item);},
+    markEntryRead(key,kind,id){return openRecord(items.find(item=>savedKey(item)===key)?.entries?.find(entry=>entry.kind===kind&&entry.id===id)||{kind,id});},
+    openQuestion(key){const question=items.find(item=>savedKey(item)===key&&item.kind==='question');return question?openRecord({kind:'activity',id:question.id}):true;},
   };
 }

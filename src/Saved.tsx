@@ -23,7 +23,7 @@ import {membershipStore,useMembership,useMembershipCheck} from './SavedControls'
 import {useEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {Status} from './Status';
 import {savedKey,type SavedItem,type SavedStates} from './bookmarks.mjs';
-import {followEntries,isNewEntry,itemHasNew,summarizeByType,LIST_LIMIT,NEW_WINDOW_MS,type FollowEntry} from './followUpdates.mjs';
+import {followEntries,isNewEntry,itemHasNew,readTogether,summarizeByType,LIST_LIMIT,NEW_WINDOW_MS,type FollowEntry} from './followUpdates.mjs';
 import {humanDate} from './InsightCharts';
 import {SaveButton,useSaved,checkSaved,savedStore as store,requestedKeys,useSavedNow,useResolveSavedMembers} from './SavedControls';
 
@@ -37,13 +37,14 @@ function savedCheckMessage(items:SavedItem[],data:SavedStates, ui: import('./uiI
 export type FollowingActivityProps={member:number;sourceId:string;profileHref:string;onOpenProfile:()=>void};
 type SavedProps={members?:Directory['members'];language:string;onBack:()=>void;onMember:(id:number,sourceId?:string)=>void;renderActivity:(props:FollowingActivityProps)=>ReactNode};
 const entryKey=(entry:FollowEntry)=>entry.kind+':'+entry.id;
-function FollowCard({item,directoryMember,language,onMember,renderActivity,now,resolution,retry,checkState,check}:{item:SavedItem;directoryMember?:Directory['members'][number];now:number;resolution:{pending?:boolean;error?:string;failure?:unknown};retry:()=>void;checkState:string;check:()=>void}&Pick<SavedProps,'language'|'onMember'|'renderActivity'>) {
+const cardId=(item:SavedItem)=>savedKey(item)+':'+item.savedAt;
+function FollowCard({item,directoryMember,language,onMember,renderActivity,now,retained,openEntry,resolution,retry,checkState,check}:{item:SavedItem;directoryMember?:Directory['members'][number];now:number;retained:FollowEntry[];openEntry:(item:SavedItem,entry:FollowEntry)=>void;resolution:{pending?:boolean;error?:string;failure?:unknown};retry:()=>void;checkState:string;check:()=>void}&Pick<SavedProps,'language'|'onMember'|'renderActivity'>) {
   const ui = useUiI18n();
   const retrying=useAutomaticRetry(JSON.stringify([language,item.kind,item.id,item.savedAt]),resolution.failure,Boolean(resolution.pending),retry);
   const groups=useGroups(),groupsNew=(item.kind==='mep') ? groupEntries(groups,item.id,now).fresh.length : 0;
   const membership=useMembership(),membershipNew=(item.kind==='mep') ? membershipEntries(membership,item.id,now).fresh.length : 0;
   const key=savedKey(item),{fresh,history,historyOmitted}=followEntries(item,now),hasNew=itemHasNew(item,now)||membershipNew>0||groupsNew>0;
-  const [open,setOpen]=useState(new Set<string>()),[retained,setRetained]=useState<FollowEntry[]>([]);
+  const [open,setOpen]=useState(new Set<string>());
   const member=Number((item.kind==='mep') ? item.id : item.memberId),profileHref='?'+new URLSearchParams({lang:language,member:String(member),module:'activities'});
   const onOpenProfile=()=>onMember(member);
   const rowOrder=useRef(new Map<string,number>());
@@ -55,7 +56,7 @@ function FollowCard({item,directoryMember,language,onMember,renderActivity,now,r
   const link=(label:string)=><a href={profileHref} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();onOpenProfile();}}>{label}</a>;
   const row=(entry:FollowEntry)=>{
     const id=entryKey(entry),expanded=open.has(id),current=item.entries?.find(value=>entryKey(value)===id)||entry,isNew=isNewEntry(current,now),href=profileHref+'&activity='+encodeURIComponent(entry.id);
-    const read=()=>{if(current.readAt===null){if(fresh.some(value=>entryKey(value)===id))setRetained(previous=>previous.some(value=>entryKey(value)===id) ? previous : ([...previous,{...entry,readAt:now}]));store.markEntryRead(key,entry.kind,entry.id);}};
+    const read=()=>openEntry(item,current);
     return <div className="explorer-saved-entry" key={id}>
       <a className="explorer-saved-disclosure" role="button" href={href} aria-expanded={expanded} onAuxClick={event=>{if(event.button===1)read();}} onKeyDown={event=>{if(event.key===' '){event.preventDefault();event.currentTarget.click();}}} onClick={event=>{
         if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey){read();return;}
@@ -96,6 +97,16 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
   // Prioritise unread cards on entry, then keep this visit's reading order.
   // Reading, expiry and background checks must not move cards under the user.
   const cardOrder=useRef(new Map<string,number>());
+  // Rows read through any card stay where they are for this visit.
+  const [retained,setRetained]=useState(new Map<string,FollowEntry[]>());
+  const openEntry=(owner:SavedItem,entry:FollowEntry)=>{
+    const at=Date.now(),next=new Map(retained);
+    for(const other of items)for(const row of other.entries||[])if(isNewEntry(row,at)&&readTogether(entry,row)) {
+      const kept=next.get(cardId(other))||[];
+      if(!kept.some(value=>entryKey(value)===entryKey(row)))next.set(cardId(other),[...kept,{...row,readAt:at}]);
+    }
+    setRetained(next);store.markEntryRead(savedKey(owner),entry.kind,entry.id);
+  };
   const cardKey=(item:typeof cards[number]['item'])=>item.kind+':'+item.id+':'+item.savedAt;
   for(const {item} of cards)if(!cardOrder.current.has(cardKey(item)))cardOrder.current.set(cardKey(item),cardOrder.current.size);
   cards.sort((a,b)=>cardOrder.current.get(cardKey(a.item))!-cardOrder.current.get(cardKey(b.item))!);
@@ -140,7 +151,7 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
     {!dossiers.persistent&&dossiers.items.length>0&&<p><UiMessage id="Saved.dossier_follows_last_only_for_this_tab"/></p>}
     {dossiers.storageError&&<p role="alert"><UiMessage id="Saved.dossier_changes_couldn_t_be_saved_in_this_browser"/> </p>}
     {empty&&<div className="explorer-saved-empty"><p lang={ui.messageLocale('Saved.emptyLead')}><UiMessage id="Saved.emptyLead"/></p>{saved.persistent&&<p lang={ui.messageLocale('Saved.emptyStorage')}><UiMessage id="Saved.emptyStorage"/></p>}<nav className="explorer-saved-empty-links">{emptyLinks.map(({id,href})=><a key={id} href={href} lang={ui.messageLocale(id)} onClick={dossierLinkClick}><UiMessage id={id}/></a>)}</nav></div>}
-    <div className="explorer-saved-items">{cards.map(({item})=>(item.kind==='dossier') ? <DossierCard key={'dossier:'+item.id+':'+item.savedAt} item={item} language={language} now={now}/> : <FollowCard key={savedKey(item)+':'+item.savedAt} item={item} directoryMember={membersById.get(item.id)} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={(item.kind==='question') ? saved.questionCheckState : saved.checkState} check={check}/>)}</div>
+    <div className="explorer-saved-items">{cards.map(({item})=>(item.kind==='dossier') ? <DossierCard key={'dossier:'+item.id+':'+item.savedAt} item={item} language={language} now={now}/> : <FollowCard key={cardId(item)} item={item} directoryMember={membersById.get(item.id)} language={language} onMember={onMember} renderActivity={renderActivity} now={now} retained={retained.get(cardId(item))||[]} openEntry={openEntry} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={(item.kind==='question') ? saved.questionCheckState : saved.checkState} check={check}/>)}</div>
     <FollowSuggestions language={language}/>
   </section>;
 }

@@ -9,7 +9,7 @@ export const LEGACY_KEY:string;
 export const SAVED_KEY:string;
 export function savedKey(item:SavedItem):string;
 export function readSaved(raw:string|null):SavedItem[];
-export function savedObservation(item:SavedItem,state:any):SavedItem;
+export function savedObservation(item:SavedItem,state:any,readElsewhere?:Map<string,number>):SavedItem;
 export function savedLinks(item:SavedItem):SavedActivity[];
 export function createSavedStore(storage:Storage|null,notify?:()=>void, ui?: import('./uiI18n.mjs').UiFormatter):{
  snapshot:()=>{items:SavedItem[];persistent:boolean;storageError:null|'quota'|'unavailable';unsavedSince:number|null;restarted:boolean;checkState:string;questionCheckState:string;epoch:string|null;manifest:FollowingManifest|null};

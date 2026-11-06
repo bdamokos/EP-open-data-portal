@@ -120,6 +120,51 @@ test('overflow is bounded and honest, expires, and Mark all read clears omission
  store.materialize(detail(ids));assert.equal(item(store).unreadOmitted,5);assert(!itemHasNew(item(store),Date.now()+NEW_WINDOW_MS));
  store.applyManifest(manifest(7));store.markRead('mep:42');assert.deepEqual(item(store).seen,{activity:7,answer:3});assert(!item(store).updated);assert.equal(item(store).entries.length,5);assert.equal(item(store).historyOmitted,195);assert.equal(item(store).unreadOmitted,0);
 });
+const answerId=question.id+'-ASW',secondAnswerId=answerId+'2';
+const shared=[{id:question.id,kind:'activity',title:'Question',category:'written-questions'},{id:answerId,kind:'answer',title:'Question',relatedQuestionId:question.id},{id:secondAnswerId,kind:'answer',title:'Question',relatedQuestionId:question.id}];
+const sharedIds=[[question.id,0,6],[answerId,1,6],[secondAnswerId,1,7]];
+const followed=(store,id)=>store.snapshot().items.find(x=>x.id===id);
+const unread=(store,id)=>followEntries(followed(store,id),Date.now()).fresh.map(x=>x.id).sort();
+function sharedStore(disk=storage(),materialized=['42','43']) {
+ const store=createSavedStore(disk);store.toggle(mep);store.toggle({...mep,id:'43'});
+ const both=activity=>({...manifest(activity),members:{42:[activity,activity,1,1],43:[activity,activity,1,1]}});
+ store.applyManifest(both(5));store.applyManifest(both(6));
+ for(const member of materialized)store.materialize(detail(sharedIds,shared,{member}));
+ return store;
+}
+test('opening a question reads every copy on followed MEPs and its answers, and clears its followed question',()=>{
+ const disk=storage(),store=sharedStore(disk);store.toggle({...question,baseline:{revision:'old',answerIds:[]}});
+ store.observe({questions:[{id:question.id,status:'available',revision:'changed',answers:[{id:answerId}]}]});
+ store.observe({questions:[{id:question.id,status:'available',revision:'changed-again',answers:[{id:answerId}]}]});
+ assert(followed(store,question.id).changedAt);assert.deepEqual(unread(store,question.id),[answerId]);
+ store.markEntryRead('mep:42','activity',question.id);
+ for(const id of ['42','43',question.id])assert.deepEqual(unread(store,id),[]);
+ assert.equal(followed(store,question.id).changedAt,undefined);assert(!followed(store,question.id).updated);
+ assert.deepEqual(followEntries(followed(createSavedStore(disk),'43'),Date.now()).fresh,[]);
+});
+test('opening an answer reads its copies and its question, not another answer to that question',()=>{
+ const store=sharedStore();store.markEntryRead('mep:43','answer',answerId);
+ for(const id of ['42','43'])assert.deepEqual(unread(store,id),[secondAnswerId]);
+});
+test('opening a co-signed record on one MEP leaves unrelated activity unread',()=>{
+ const store=sharedStore(storage(),[]),motion='B-10-2026-0441';
+ for(const member of ['42','43'])store.materialize(detail([[motion,0,6],['speech-'+member,0,6]],[],{member}));
+ store.markEntryRead('mep:42','activity',motion);
+ assert.deepEqual(unread(store,'42'),['speech-42']);assert.deepEqual(unread(store,'43'),['speech-43']);
+});
+test('Mark all read stays on its own card',()=>{
+ const store=sharedStore();store.markRead('mep:42');
+ assert.deepEqual(unread(store,'42'),[]);assert.equal(unread(store,'43').length,3);
+});
+test('a record found later on another follow arrives read, while a later answer stays new',()=>{
+ const store=sharedStore(storage(),['42']);store.markEntryRead('mep:42','answer',answerId);
+ const readAt=followed(store,'42').entries.find(x=>x.id===answerId).readAt;
+ store.materialize(detail(sharedIds,shared,{member:'43'}));
+ assert.deepEqual(unread(store,'43'),[secondAnswerId]);assert.equal(followed(store,'43').entries.find(x=>x.id===answerId).readAt,readAt);
+ store.toggle(question);store.observe({questions:[{id:question.id,status:'available',revision:'one',answers:[]}]});
+ store.observe({questions:[{id:question.id,status:'available',revision:'two',answers:[{id:answerId},{id:'E-10-2026-003031-ASW3'}]}]});
+ assert.deepEqual(unread(store,question.id),['E-10-2026-003031-ASW3']);
+});
 test('question revision signals expire without refreshing, clear on open, and new revisions signal again',t=>{
  let now=1000;t.mock.method(Date,'now',()=>now);const store=createSavedStore(storage());store.toggle({...question,baseline:{revision:'old',answerIds:[]}});
  const observe=revision=>store.observe({questions:[{id:question.id,status:'available',revision,answers:[]}]});observe('new');assert.equal(item(store).changedAt,1000);
