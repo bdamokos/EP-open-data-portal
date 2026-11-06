@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {dossierAmendmentVotes,dossierVoteCards,dossierHref,dossierTimeline,mergeDossierPage,retainDossierContributors,dossierEmptyLabel,dossierCoverageNotices} from './dossierActivityModel.mjs';
+import {amendmentEvidenceTarget,dossierAmendmentVotes,dossierPeopleCountExact,dossierPeopleCounts,dossierPeopleRows,dossierPersonGroup,dossierRoleLines,dossierVoteCards,dossierHref,dossierTimeline,mergeDossierPage,retainDossierContributors,dossierEmptyLabel,dossierCoverageNotices} from './dossierActivityModel.mjs';
 import {dataTimeoutFor} from './client.mjs';
 import {readFile} from 'node:fs/promises';
 import {contrast,paintedBackground,themeCss,tokenValue} from './test-support/themeStyles.mjs';
@@ -175,7 +175,7 @@ test('full dossier keeps exact participant roles; document role dates do not bec
   await h.render(createElement(h.module.DossierActivity,{reference}));
   assert.match(h.container.textContent,/Co-rapporteur/);assert.match(h.container.textContent,/Opinion rapporteur/);assert.match(h.container.textContent,/Document date/);
   assert.equal(h.calls.filter(url=>url.pathname.endsWith('dossier-activity')).length,1);
-  const name=h.container.querySelector('.dossier-participants li>a');assert.equal(new URL(name.href).searchParams.get('module'),'profile');
+  const name=h.container.querySelector('.dossier-participants tbody th a');assert.equal(new URL(name.href).searchParams.get('module'),'profile');
   assert.equal(new URL([...h.container.querySelectorAll('a')].find(node=>node.textContent==='Work on this dossier').href).searchParams.get('dossier-person'),'257727');
 });
 
@@ -463,7 +463,7 @@ test('no-role RSP opens from a cold person link, keeps speech before gaps, and f
   assert.doesNotMatch(h.container.textContent,/Votes could not be loaded/);await exhaustAutomaticRetries(t);assert.match(h.container.textContent,/Votes could not be loaded/);assert.equal(h.container.querySelector('[aria-label="Votes coverage"] button'),null);assert.doesNotMatch(h.container.textContent,/No linked records|No participants|rapporteur/i);
   failVotes=false;await act(async()=>window.dispatchEvent(new window.Event('online')));assert(h.container.querySelector('.dossier-speech'));
   await h.click('Amendments');assert.doesNotMatch(h.container.textContent,/No linked amendments|No records available yet|Records unavailable/);
-  await h.click('Full dossier');assert.equal(h.container.querySelector('.dossier-participants a').textContent,'Gabriele Bischoff');assert.match(h.container.textContent,/Speeches · 1 shown/);
+  await h.click('Full dossier');assert.equal(h.container.querySelector('.dossier-participants a').textContent,'Gabriele Bischoff');assert.match(h.container.textContent,/1 speech/);
   await h.click('Work on this dossier');assert(h.container.querySelector('.dossier-speech'));assert.equal(new URL(location.href).searchParams.get('dossier-person'),rsp.personId);
 });
 
@@ -536,7 +536,7 @@ test('dossier participants and selected person use country only, with exact ID j
  {id:99,firstName:'Other',lastName:'member',countryCode:'IT',groupCode:'Renew'}];
  await h.render(createElement(PersonNamesProvider,{members},createElement(h.module.DossierActivity,{reference})));
  const chip=h.container.querySelector('.dossier-person-chip .member-affiliation');assert.equal(chip.textContent,'HUHungary');assert.equal(chip.querySelector('i'),null);
- const participants=h.container.querySelectorAll('.dossier-participants>ul>li');
+ const participants=h.container.querySelectorAll('.dossier-participants tbody tr');
  assert.equal(participants[0].querySelector('.member-affiliation').textContent,'HUHungary');
  assert.equal(participants[1].querySelector('.member-affiliation'),null,'a matching name cannot supply country');
 });
@@ -612,6 +612,70 @@ test('amendment-only dossier participants render separate stage links and surviv
   await automaticRecovery(t);assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ committee amendment/);
 });
 
+test('people segments, order, role lines and count follow the recorded roles',()=>{
+  const row=(role,committee,date,extra={})=>({id:[role,committee,date].join(':'),role,committee,date,dateBasis:'recorded',stage:'RDG1',...extra});
+  const person=(id,name,roles,committee=null)=>({id,name,roles,amendmentCounts:{committee,plenary:null}});
+  const people=[person('1','Zed Opinion',[row('RAPPORTEUR_OPINION','BUDG','2026-01-01')],3),person('2','Bea Shadow',[row('RAPPORTEUR_SHADOW','CULT','2026-01-01')],1),person('3','Ana Shadow',[row('RAPPORTEUR_SHADOW','CULT','2026-01-01')],1),person('4','Lead',[row('RAPPORTEUR','CULT','2026-01-01')]),person('5','Busy Shadow',[row('RAPPORTEUR_SHADOW','CULT','2026-01-01')],9),person('6','Author',[],4),person('7','Both',[row('RAPPORTEUR_SHADOW_OPINION','DEVE','2026-01-01'),row('RAPPORTEUR_SHADOW','CULT','2026-01-01')])];
+  assert.deepEqual(dossierPeopleRows(people,'lead').map(item=>item.id),['4','5','3','2','7']);
+  assert.deepEqual(dossierPeopleRows(people,'opinions').map(item=>item.id),['1','7']);
+  assert.deepEqual(dossierPeopleRows(people,'others').map(item=>item.id),['6']);
+  assert.deepEqual(dossierPeopleRows(people,'all').map(item=>item.id),['4','5','3','2','7','1','6']);
+  assert.deepEqual(dossierPeopleCounts(people),{total:7,withRole:6,withoutRole:1,segments:{lead:5,opinions:2,others:1,all:7}});
+});
+test('the people total is withheld when a record is missing, not for an incomplete proposer list alone',()=>{
+  const read=(extra={},participantCoverage={})=>({pagination:{next:null},coverage:{gaps:[]},participantCoverage:{status:'partial',gaps:[],...participantCoverage},...extra});
+  assert.equal(dossierPeopleCountExact(read({},{uncheckedTargets:['A-10-2026-0257']})),true);
+  assert.equal(dossierPeopleCountExact(read({pagination:{next:{offset:2000,targetOffset:0}}})),false);
+  assert.equal(dossierPeopleCountExact(read({coverage:{gaps:['Some recorded roles are outside this page.']}})),false);
+  assert.equal(dossierPeopleCountExact(read({},{gaps:['A linked debate is unavailable.'],failedDebates:['d']})),false);
+  assert.equal(dossierPeopleCountExact(read({},{status:'unavailable'})),false);
+  assert.equal(dossierPeopleCountExact(read({coverage:{gaps:[],checkedComplete:false}})),false,'a generation change discarded earlier pages');
+  assert.equal(dossierPeopleCountExact(read({},{checkedComplete:false})),false);
+  assert.equal(dossierPeopleCountExact(read({},{retained:true})),false);
+  assert.equal(dossierPeopleCountExact(read({},{uncheckedTargets:['MTG-PL-2026-10-21-PVCRE-ITM-12']})),false,'an unread debate can hide speakers');
+  assert.equal(dossierPeopleCountExact({pagination:{next:null},coverage:{gaps:[]}}),false,'a person view has no people total');
+});
+test('duplicate role rows collapse to one line per role and committee',()=>{
+  const row=(role,committee,date,dateBasis='recorded',stage='RDG1')=>({id:[role,committee,date].join(':'),role,committee,date,dateBasis,stage});
+  // One participation comes from the procedure, the other from the committee document.
+  const lines=dossierRoleLines([row('RAPPORTEUR_SHADOW_OPINION','EMPL','2026-03-01','document'),row('RAPPORTEUR_SHADOW','CULT','2026-02-01'),row('RAPPORTEUR_SHADOW_OPINION','EMPL','2026-03-17'),row('RAPPORTEUR_SHADOW','CULT','2025-12-01')]);
+  assert.deepEqual(lines.map(line=>[line.role,line.committee,line.date,line.dateBasis,line.stage]),[['RAPPORTEUR_SHADOW','CULT','2025-12-01','recorded',null],['RAPPORTEUR_SHADOW_OPINION','EMPL','2026-03-17','recorded',null]]);
+  assert.equal(dossierRoleLines([row('RAPPORTEUR','CULT','2026-01-01'),row('RAPPORTEUR','ENVI','2026-05-01','recorded','RDG2')])[1].stage,'RDG2','a later reading stays visible');
+  assert.equal(dossierPersonGroup({roles:[{date:'2026-01-01',group:'PPE'},{date:'2026-05-01',group:'VERTS-ALE'},{date:'2026-06-01',group:null}]}),'Verts/ALE');
+  assert.equal(dossierPersonGroup({roles:[{date:'2026-01-01',group:'UNKNOWN'}]}),null);
+  assert.equal(dossierPersonGroup({roles:[]}),null);
+});
+test('compact amendment evidence still identifies its exact target for retention',()=>{
+  assert.equal(amendmentEvidenceTarget('committee:AGRI-AM-773343:51'),'AGRI-AM-773343');
+  assert.equal(amendmentEvidenceTarget('A-10-2026-0257-AM-164'),'A-10-2026-0257');
+  const merged=mergeDossierPage({...page('amendments'),coverage:{status:'partial',gaps:[],sources:[],total:90}},{...page('amendments'),coverage:{status:'unavailable',gaps:[],sources:[]}});
+  assert.equal(merged.coverage.total,90,'a failed later target keeps the known total');
+});
+test('person view counts read against the exact total, and only a complete empty section reads zero',async t=>{
+  const committeeItem={...amendment,amendment:{...amendment.amendment,scope:'committee',decisions:[]}};
+  const h=await harness(t,undefined,url=>{
+    const section=url.searchParams.get('section');
+    if(section==='amendments')return Response.json(page(section,'257727',[committeeItem],{coverage:{status:'partial',gaps:[],sources:[source],total:90,uncheckedTargets:['AGRI-AM-1']}}));
+    if(section==='speeches')return Response.json(page(section,'257727',[],{coverage:{status:'complete',gaps:[],sources:[source]}}));
+    if(section==='votes')return Response.json(page(section,'257727',[],{coverage:{status:'unavailable',gaps:[],sources:[source]}}));
+    return null;
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  const chips=Object.fromEntries([...h.container.querySelectorAll('.dossier-filters button')].map(button=>[button.querySelector('span').textContent,button.querySelector('small').textContent]));
+  assert.equal(chips.Amendments,'1 of 90');assert.equal(chips.Speeches,'0');assert.equal(chips.Votes,'—');
+});
+test('people list reads exact counts without the plus, names the unnamed plainly and offers everyone',async t=>{
+  const contributor=(id,name,committee,plenary,extra={})=>({id,name,roles:[],speeches:[],amendments:[],amendmentCounts:{committee,plenary},...extra});
+  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>url.searchParams.get('section')==='roles'?Response.json(page('roles',null,[],{amendmentCountComplete:{committee:true,plenary:false},coverage:{status:'complete',gaps:[],sources:[source]},participantCoverage:{status:'partial',gaps:[],sources:[source]},participants:[{...contributor('1','Lead person',null,null),roles:[{...role,role:'RAPPORTEUR',id:'lead'}]},contributor('2','Exact author',90,null),contributor('3',null,38,6,{speeches:[{id:'s',debateId:'d',date:'2026-09-15',source}]})]})):null);
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  const text=()=>h.container.querySelector('.dossier-participants').textContent;
+  assert.match(text(),/3 people: 1 with a role on the file, 2 who spoke or tabled amendments\./);assert.doesNotMatch(text(),/Exact author/);
+  await h.click('Show all people (3)');assert.equal(new URL(location.href).searchParams.get('dossier-people'),'all');
+  assert.match(text(),/90 committee amendments/);assert.doesNotMatch(text(),/90\+/);
+  assert.match(text(),/38 committee · 6\+ plenary amendments/);assert.match(text(),/1 speech/);
+  assert.match(text(),/Name unavailable/);assert.doesNotMatch(text(),/Person \d/);
+  const speech=[...h.container.querySelectorAll('.dossier-participants a')].find(node=>node.textContent==='1 speech');assert.equal(new URL(speech.href).searchParams.get('dossier-show'),'speeches');
+});
 test('a sole document opens after Read text without a second Read report action',async t=>{
   const item=structuredClone(rejection),id='A-10-2025-0275';item.vote.context.documentIds=[id];
   const h=await harness(t,undefined,url=>{

@@ -180,6 +180,26 @@
     "count": "count"
   },
   {
+    "one": "dossieractivity.exact_stage_amendment",
+    "other": "dossieractivity.exact_stage_amendments",
+    "count": "count"
+  },
+  {
+    "one": "batch6.procedureprogress.full_timeline_one",
+    "other": "batch6.procedureprogress.full_timeline",
+    "count": "count"
+  },
+  {
+    "one": "dossierpeople.count_line_one",
+    "other": "dossierpeople.count_line",
+    "count": "count"
+  },
+  {
+    "one": "dossierpeople.speech",
+    "other": "dossierpeople.speeches",
+    "count": "count"
+  },
+  {
     "one": "dossieractivity.count_stage_amendment",
     "other": "dossieractivity.count_stage_amendments",
     "count": "count"
@@ -427,6 +447,21 @@
   {
     "one": "topics.story.count.shortDebatesOne",
     "other": "topics.story.count.shortDebates",
+    "count": "count"
+  },
+  {
+    "one": "weekSummary.agendaItemsOne",
+    "other": "weekSummary.agendaItems",
+    "count": "count"
+  },
+  {
+    "one": "weekSummary.debatesOne",
+    "other": "weekSummary.debates",
+    "count": "count"
+  },
+  {
+    "one": "weekSummary.votesOne",
+    "other": "weekSummary.votes",
     "count": "count"
   }
 ]
