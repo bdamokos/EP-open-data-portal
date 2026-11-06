@@ -1358,7 +1358,6 @@
   "membervotespresentation.positions_not_conducted_unavailable": "Positions: {notConducted} not put to a vote · {unavailable} position unavailable",
   "membervotespresentation.positions_positions": "Positions: {positions}",
   "membervotespresentation.positions_positions_count_not_individually_recorded": "Positions: {positions} · {count} no names on record",
-  "membervotespresentation.positions_recorded": "Positions: {positions}",
   "membervotespresentation.positions_recorded_no_record": "Positions: {positions} · {noRecord} no recorded position",
   "membervotespresentation.positions_recorded_no_record_unavailable": "Positions: {positions} · {noRecord} no recorded position · {unavailable} position unavailable",
   "membervotespresentation.positions_recorded_not_conducted": "Positions: {positions} · {notConducted} not put to a vote",

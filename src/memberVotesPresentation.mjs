@@ -184,6 +184,7 @@ export function memberVotePositionSummary(items, ui = defaultUi) {
   const unavailable=items.filter(item=>['unavailable','conflicting'].includes(memberVotePositionState(item))).length;
   // Each combination is a whole message so translators can reorder its slots.
   const terms=[recorded?'recorded':null,noNames?'unnamed':null,notConducted?'not_conducted':null,noRecord?'no_record':null,unavailable?'unavailable':null].filter(Boolean);
+  if(terms.length===1&&terms[0]==='recorded')return ui.t('membervotespresentation.positions_positions',{positions:recorded});
   return ui.t(terms.length?'membervotespresentation.positions_'+terms.join('_'):'membervotespresentation.positions_none',{positions:recorded,noNames,notConducted,noRecord,unavailable});
 }
 export function memberVoteOutcome(vote, ui = defaultUi) {

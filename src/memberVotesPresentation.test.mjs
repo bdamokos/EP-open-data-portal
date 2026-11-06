@@ -245,10 +245,11 @@ test('position summary includes lapsed decisions without counting them as record
 test('summary accounts for every known position state and omits zero terms',()=>{
   const make=(status,position=null)=>({ballotStatus:status==='not-conducted'?'not-conducted':'conducted',actualPosition:{status,position}});
   const states=['recorded','not-individually-recorded','not-conducted','no-record','unavailable'];
+  const expected=['For: 2','3 no names on record','4 not put to a vote','5 no recorded position','6 position unavailable'];
   for(let mask=1;mask<32;mask++){
-    const items=states.flatMap((status,index)=>mask&(1<<index)?[make(status,status==='recorded'?'for':null)]:[]);
+    const items=states.flatMap((status,index)=>mask&(1<<index)?Array.from({length:index+2},()=>make(status,status==='recorded'?'for':null)):[]);
     const label=memberVotePositionSummary(items);
-    assert.equal((label.match(/\b1\b/g)||[]).length,items.length,label);
+    assert.equal(label,'Positions: '+expected.filter((_,index)=>mask&(1<<index)).join(' · '));
     assert.doesNotMatch(label,/\b0\b/);
   }
   assert.equal(memberVotePositionSummary([make('no-record'),make('unavailable')]),'Positions: 1 no recorded position · 1 position unavailable');
