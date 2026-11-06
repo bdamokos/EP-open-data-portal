@@ -11,6 +11,29 @@
   --control-font-size: 16px;
   --control-line-height: 24px;
 
+  /* Type scale: serif says, sans counts. Phone values are set below. */
+  --t-small: 13px;
+  --t-meta: 15px;
+  --t-row: 18px;
+  --t-say: 22px;
+  --t-h2: 28px;
+  --t-h1: 36px;
+  /* Space scale. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 40px;
+  --s7: 64px;
+  /* Vote grid: three number columns, the result word, the gap before the numbers,
+     the table width and the page gutter. */
+  --num: 88px;
+  --word: 96px;
+  --gut: 104px;
+  --table: 520px;
+  --gutter: 40px;
+
   /* Surfaces: page, raised panel and inset, from back to front. */
   --bg: light-dark(#f6f5f1, #141618);
   --document-paper: #ffffff;
@@ -29,11 +52,11 @@
   --ink: light-dark(#1c1f23, #ecebe6);
   --ink-muted: light-dark(#595e65, #a9aeb4);
 
-  /* One interface accent, kept away from the vote and status hues. */
-  --accent: light-dark(#0b5f69, #6cc7cf);
-  --accent-strong: light-dark(#084a52, #9adde3);
-  --accent-ink: light-dark(#ffffff, #0a1c1f);
-  --accent-soft: light-dark(#dcedee, #163a40);
+  /* One interface accent, a slate kept away from the vote and status hues. */
+  --accent: light-dark(#34485f, #b4c5da);
+  --accent-strong: light-dark(#26374b, #d0dceb);
+  --accent-ink: light-dark(#ffffff, #10161d);
+  --accent-soft: light-dark(#e2e7ee, #232e3b);
   --focus: var(--accent);
 
   /* Search and highlight marks. */
@@ -50,12 +73,12 @@
   --danger-soft: light-dark(#fbe4e2, #3e1f1d);
 
   /* Vote positions. */
-  --vote-for: light-dark(#276b2d, #74c779);
-  --vote-against: light-dark(#b3261e, #ff8c84);
-  --vote-abstain: light-dark(#7f5800, #e2b34c);
-  --vote-for-soft: light-dark(#d4e9d5, #23432a);
-  --vote-against-soft: light-dark(#f6d6d3, #4b2522);
-  --vote-abstain-soft: light-dark(#f1e3c2, #43381a);
+  --vote-for: light-dark(#0d7146, #a5f0c4);
+  --vote-against: light-dark(#c5320a, #ee6b4a);
+  --vote-abstain: light-dark(#3e3d3a, #b2b1ab);
+  --vote-for-soft: light-dark(#cfe8d9, #1d4230);
+  --vote-against-soft: light-dark(#f7d9cf, #4a261c);
+  --vote-abstain-soft: light-dark(#e2e1dd, #35352f);
 
   /* Political groups, at least 3:1 against bg and surface in each scheme. */
   --group-ppe: light-dark(#2a6fbd, #55aaff);
@@ -75,9 +98,23 @@
   --chart-3: light-dark(#8b5ba7, #c5a3de);
   --chart-neutral: light-dark(#8a929c, #8292a6);
   /* Sequential map scale; values blend from low to high. */
-  --map-low: light-dark(#d9e9ea, #1f3437);
-  --map-high: light-dark(#0b5f69, #6cc7cf);
+  --map-low: light-dark(#e2e7ee, #232e3b);
+  --map-high: light-dark(#34485f, #b4c5da);
   --map-empty: light-dark(#ebe8e1, #2a2e33);
+}
+@media (max-width: 767px) {
+  :root {
+    --t-small: 12px;
+    --t-meta: 14px;
+    --t-row: 16px;
+    --t-say: 18px;
+    --t-h2: 20px;
+    --t-h1: 24px;
+    --s6: 32px;
+    --num: 68px;
+    --gut: 52px;
+    --gutter: 16px;
+  }
 }
 :root[data-theme=light] { color-scheme: light; }
 :root[data-theme=dark] { color-scheme: dark; }
