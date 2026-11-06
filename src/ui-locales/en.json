@@ -1674,7 +1674,7 @@
   "reader.loading_amendment": "Loading amendment…",
   "reader.next_amendment": "Next amendment",
   "reader.previous_amendment": "Previous amendment",
-  "reader.show_whole_proposal": "Show whole proposal",
+  "reader.show_whole_text": "Show whole text",
   "savedcontrols.count.followed.item.has.new.updates": "{count} followed item has new updates",
   "savedcontrols.count.followed.items.have.new.updates": "{count} followed items have new updates",
   "savedcontrols.data.was.updated.try.again": "Data was updated.",
