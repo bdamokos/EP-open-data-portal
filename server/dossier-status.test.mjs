@@ -66,6 +66,13 @@ test('both positions with no referral or deal leave no next step, and a final vo
   assert.equal(merged.stage,'position');assert.equal(merged.steps.find(row=>row.key==='final').date,'2026-09-16');
   assert.equal(real.sentence.id,'dossierstatus.final_vote');assert.equal(real.sentence.values.date,'2026-09-16');assert.equal(real.next.id,'dossierstatus.next_signature');
 });
+test('a rejected main vote ends the stages before a position, unless a later report reopens the file',()=>{
+  const rejectedVote={...vote,outcome:'REJECTED',date:'2026-10-22'};
+  for(const stage of ['reported','drafting','referred','proposal']){const read=lines(stage,{steps:[step('committee','2026-09-29')],slots:{mainVote:rejectedVote}});assert.equal(read.sentence.id,'dossierstatus.rejected');assert.equal(read.next,null);}
+  assert.equal(lines('reported',{steps:[step('committee','2026-11-01')],slots:{mainVote:rejectedVote}}).sentence.id,'dossierstatus.reported_no_committee');
+  assert.equal(lines('deal',{steps:[step('deal','2026-11-01')],slots:{mainVote:rejectedVote}}).sentence.id,'dossierstatus.deal','a later recorded milestone stands');
+  assert.equal(lines('reported',{steps:[step('committee','2026-09-29')],slots:{mainVote:vote}}).sentence.id,'dossierstatus.reported_no_committee');
+});
 test('a rejected main vote reads as rejected, with no next step',()=>{
   const rejected={...vote,outcome:'REJECTED'};
   const position=lines('position',{steps:[step('parliament','2026-10-22')],slots:{mainVote:rejected}});
@@ -85,9 +92,9 @@ const day={sittingId:'MTG-PL-2026-10-22'};
 function service(fixture,{extra,votesRead,sittings=[],agenda,now='2026-11-06T12:00:00Z',reference=fixture.reference}={}) {
   const calls={votes:0,agenda:[]};
   const activity={procedure:async(id,language,given)=>{assert.equal(given,reference);return {work:work(fixture,extra),procedure:{id,reference}};}};
-  const reader={catalogue:async()=>({sittings})};
+  const calendar={catalogue:async()=>({nodes:sittings})};
   const votes=votesRead===null?{snapshot:async()=>{throw Object.assign(new Error('unavailable'),{status:503});}}:{snapshot:async query=>{calls.votes++;assert.equal(query.sitting,'MTG-PL-2026-10-22');return votesRead||{days:[]};}};
-  return {calls,status:new DossierStatus({activity,reader,votes,readAgenda:agenda||(async endpoint=>{calls.agenda.push(endpoint);throw Object.assign(new Error('miss'),{code:'odp_cache_miss'});}),clock:()=>Date.parse(now)})};
+  return {calls,status:new DossierStatus({activity,calendar,votes,readAgenda:agenda||(async endpoint=>{calls.agenda.push(endpoint);throw Object.assign(new Error('miss'),{code:'odp_cache_miss'});}),clock:()=>Date.parse(now)})};
 }
 test('query identity is exact',()=>{
   assert.deepEqual(dossierStatusQuery(new URLSearchParams({reference:'2025/0222(COD)',lang:'fr'})),{reference:'2025/0222(COD)',language:'fr'});
@@ -131,6 +138,25 @@ test('the plenary date needs the exact procedure on a foreseen vote in the next 
   assert.equal(debate.slots.plenaryDate,null,'a debate is not a vote');
   const missing=await service(reported,{sittings}).status.query({reference:reported.reference,language:'en'});
   assert.equal(missing.slots.plenaryDate,null,'an agenda that is not held leaves the date out');
+});
+test('every held agenda page counts for the plenary date, and a repeated page ends the read',async()=>{
+  const sittings=[sitting('2026-11-11')];
+  const filler=(offset,count=50)=>Array.from({length:count},(_,i)=>({id:'eli/dl/event/filler-'+(offset+i),had_activity_type:'def/ep-activities/OTHER'}));
+  const third=agendaFor('2026-11-11','2025-0235');
+  const pages={0:[third.payload.data[0],...filler(0,49)],50:filler(100),100:[third.payload.data[1]]};
+  const held=await service(reported,{sittings,agenda:async(endpoint,params)=>({url:'u',fetchedAt:1,payload:{data:pages[params.offset]}})}).status.query({reference:reported.reference,language:'en'});
+  assert.equal(held.slots.plenaryDate,'2026-11-11','a match on the third page is found');
+  let reads=0;
+  const repeated=await service(reported,{sittings,agenda:async()=>{reads++;return {url:'u',fetchedAt:1,payload:{data:filler(0)}};}}).status.query({reference:reported.reference,language:'en'});
+  assert.equal(repeated.slots.plenaryDate,null);assert.equal(reads,2,'a page adding nothing ends the read');
+});
+test('the calendar lookup is held-only: an absent calendar leaves the date out with no source read',async()=>{
+  const originalFetch=globalThis.fetch;let fetched=0;globalThis.fetch=async()=>{fetched++;throw new Error('no upstream');};
+  try {
+    const activity={procedure:async()=>({work:work(reported),procedure:{}})};
+    const result=await new DossierStatus({activity,calendar:{catalogue:async()=>{throw Object.assign(new Error('miss'),{code:'odp_cache_miss'});}},votes:{snapshot:async()=>({days:[]})},readAgenda:async()=>{throw new Error('unreached');},clock:()=>Date.parse('2026-11-06T12:00:00Z')}).query({reference:reported.reference,language:'en'});
+    assert.equal(result.stage,'reported');assert.equal(result.slots.plenaryDate,null);assert.equal(fetched,0);
+  }finally{globalThis.fetch=originalFetch;}
 });
 test('a non-COD file becomes resolution-adopted only through its exact main vote',async()=>{
   const reference='2026/2000(RSP)',fixture={reference,indexEvents:[{activity_id:'MTG-PL-2026-10-22-VOT-ITM-993260',activity_date:'2026-10-22',had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS'}]};
