@@ -549,6 +549,11 @@ test('Following with nothing followed shows the empty state and hides vote compa
  await act(async()=>yourVotesStore.toggleStar({id:'MTG-PL-2026-09-15-OJ-ITM-V-29',sittingId:'MTG-PL-2026-09-15'}));
  assert(h.container.querySelector('.explorer-saved-empty'));
 });
+test('Following empty state marks untranslated messages as English in another interface language',async t=>{
+ const h=await harness(t,[],true);await h.render('de');
+ const empty=h.container.querySelector('.explorer-saved-empty');
+ assert(empty);for(const node of empty.querySelectorAll('p,a'))assert.equal(node.getAttribute('lang'),'en',node.textContent);
+});
 test('Following drops the empty state once an MEP is followed',async t=>{
  const followed=await harness(t,[member()],true);await followed.render();
  assert(!followed.container.querySelector('.explorer-saved-empty'));assert(!followed.container.textContent.includes('Your votes'));

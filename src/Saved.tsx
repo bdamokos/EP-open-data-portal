@@ -139,7 +139,7 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
     {error&&!recovering&&membershipCheck!=='error'&&<p>{error}</p>}
     {!dossiers.persistent&&dossiers.items.length>0&&<p><UiMessage id="Saved.dossier_follows_last_only_for_this_tab"/></p>}
     {dossiers.storageError&&<p role="alert"><UiMessage id="Saved.dossier_changes_couldn_t_be_saved_in_this_browser"/> </p>}
-    {empty&&<div className="explorer-saved-empty"><p><UiMessage id="Saved.emptyLead"/></p>{saved.persistent&&<p><UiMessage id="Saved.emptyStorage"/></p>}<nav className="explorer-saved-empty-links">{emptyLinks.map(({id,href})=><a key={id} href={href} onClick={dossierLinkClick}><UiMessage id={id}/></a>)}</nav></div>}
+    {empty&&<div className="explorer-saved-empty"><p lang={ui.messageLocale('Saved.emptyLead')}><UiMessage id="Saved.emptyLead"/></p>{saved.persistent&&<p lang={ui.messageLocale('Saved.emptyStorage')}><UiMessage id="Saved.emptyStorage"/></p>}<nav className="explorer-saved-empty-links">{emptyLinks.map(({id,href})=><a key={id} href={href} lang={ui.messageLocale(id)} onClick={dossierLinkClick}><UiMessage id={id}/></a>)}</nav></div>}
     <div className="explorer-saved-items">{cards.map(({item})=>(item.kind==='dossier') ? <DossierCard key={'dossier:'+item.id+':'+item.savedAt} item={item} language={language} now={now}/> : <FollowCard key={savedKey(item)+':'+item.savedAt} item={item} directoryMember={membersById.get(item.id)} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={(item.kind==='question') ? saved.questionCheckState : saved.checkState} check={check}/>)}</div>
     <FollowSuggestions language={language}/>
   </section>;
