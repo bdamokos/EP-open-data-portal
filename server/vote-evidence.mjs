@@ -96,12 +96,11 @@ function indexAdd(index,uri,node,paths) {
 // member, language, page and selected-decision projections are separate.
 // A decision belongs to a subject by its binding. A conflicting decision has no binding, but its exact
 // link to one result still places it among that item's rows, with no result of its own.
-export function decisionOnSubject(raw,evidence,subjectIds) {
-  if(!evidence)return false;
-  if(subjectIds.includes(evidence.subjectId))return true;
-  if(!raw._conflictingSourceObservations)return false;
+export function decisionSubjectId(raw,evidence) {
+  if(!evidence)return null;
+  if(evidence.subjectId||!raw._conflictingSourceObservations)return evidence.subjectId;
   const linked=[...new Set([...evidence.resultRelationship.inverseResultIds,...evidence.resultRelationship.forwardResultIds])];
-  return linked.length===1&&subjectIds.includes(linked[0]);
+  return linked.length===1?linked[0]:null;
 }
 export function deriveVoteEvidence(snapshot,{includeBindingEvidence=false}={}) {
   const results=new Map(),requests=new Map(),components=new Map(),parents=new Map(),decisions=new Map(),globalGaps=[];

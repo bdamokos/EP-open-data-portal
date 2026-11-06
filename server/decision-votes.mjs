@@ -4,7 +4,7 @@ import {createGroupOn} from './group-attribution.mjs';
 import {groupHistorySnapshot} from './group-history.mjs';
 import {HttpError} from './http-utils.mjs';
 import {requestSignal} from './request-budget.mjs';
-import {list,exactReference,references,identifier,decisionOnSubject,deriveVoteEvidence,eventUri,preferred} from './vote-evidence.mjs';
+import {list,exactReference,references,identifier,decisionSubjectId,deriveVoteEvidence,eventUri,preferred} from './vote-evidence.mjs';
 import {decisionVoteBindingConflict} from './decision-vote-binding.mjs';
 import {mainVote} from './main-vote.mjs';
 import {referredForTalksOn} from './procedure-referral.mjs';
@@ -87,12 +87,13 @@ function partFields(part,language) {
 }
 /** Same day, same subject, in source order. Joins by the exact decision-to-result
  * link only; the procedure is read from the held index and never fetched here. */
-function subjectContext(vote,day,context,query,store) {
+function subjectContext(vote,raw,day,context,query,store) {
   const bound=row=>['consistent','single-direction'].includes(row.resultRelationship.binding);
-  const subject=vote.subjectId&&bound(vote)?context.derived.subjects.find(row=>row.id===vote.subjectId):null;
+  const subjectId=decisionSubjectId(raw,context.derived.decisions.get(eventUri(raw)));
+  const subject=subjectId&&(bound(vote)||vote.sourceConflicts)?context.derived.subjects.find(row=>row.id===subjectId):null;
   if(!subject)return {subject:null,siblings:[],mainVoteId:null,procedureReferral:false};
-  const projected=day.decisions.filter(raw=>decisionOnSubject(raw,context.derived.decisions.get(eventUri(raw)),[subject.id])).map(raw=>projectMemberDecision(raw,day,'1',query.language,context.derived));
-  const votes=projected.filter(bound);
+  const projected=day.decisions.filter(row=>decisionSubjectId(row,context.derived.decisions.get(eventUri(row)))===subject.id).map(row=>projectMemberDecision(row,day,'1',query.language,context.derived));
+  const votes=projected.filter(row=>bound(row)&&!row.sourceConflicts);
   // A conflicting record stays among the rows with no result, as on the agenda item, so the count holds.
   const rows=projected.filter(row=>bound(row)||row.sourceConflicts);
   // A partial sitting could hide the deciding vote, so it establishes no main vote.
@@ -138,7 +139,7 @@ export function projectDecisionVotes(query,snapshot,{store=null,context=null,wit
   const intended=withSubject?voterGroups(raw,'had_voter_intended_'):null;
   const corrections=intended&&!vote.sourceConflicts?Object.fromEntries(['for','against','abstaining'].map(position=>[position,[...new Set(intended.groups[position])]])):null;
   const noRecord=withSubject&&voters.length?noRecordMembers(history,groupOn,vote.date,voters):null;
-  const extra=withSubject?{...subjectContext(vote,day,context,query,store),corrections,noRecord,people:outsideRoster(store,generation,[...new Set([...voters.map(voter=>voter.personId),...Object.values(corrections||{}).flat(),...(noRecord?.ids||[])])])}:{};
+  const extra=withSubject?{...subjectContext(vote,raw,day,context,query,store),corrections,noRecord,people:outsideRoster(store,generation,[...new Set([...voters.map(voter=>voter.personId),...Object.values(corrections||{}).flat(),...(noRecord?.ids||[])])])}:{};
   return {...base,...extra,status:'found',integrity,voters,groupHistory:history?{epoch:store.get('marksEpoch'),generation,catalogue:history.catalogue}:null,
     decision:{...(withSubject?{subjectId:vote.subjectId,scope:vote.scope,title:vote.title,titleLanguage:vote.titleLanguage,referenceTexts:inLanguage(vote.referenceTexts,query.language),parts:vote.parts.map(part=>partFields(part,query.language)),context:{documentIds:vote.context.documentIds,amendmentIds:vote.context.amendmentIds}}:{}),id:vote.id,date:vote.date,method:vote.method,outcome:vote.outcome,ballotStatus:vote.ballotStatus,totals:vote.totals,amendmentIds:vote.context.amendmentIds,componentIds:vote.context.componentIds,
       decidedIds:references(raw.decided_on_a_realization_of,'doc').map(identifier),referencesValid:list(raw.decided_on_a_part_of_a_realization_of).length===0&&list(raw.decided_on_a_realization_of).length>0&&list(raw.decided_on_a_realization_of).every(value=>exactReference(value,'doc')),

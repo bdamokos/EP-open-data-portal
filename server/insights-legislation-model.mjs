@@ -7,7 +7,7 @@ import {XMLParser} from 'fast-xml-parser';
 import {readFileSync} from 'node:fs';
 import { array,tail } from './activity-index-model.mjs';
 import { canonical,personId,officialApi,memberPeople,demographicStats } from './insights-model.mjs';
-import {decisionOnSubject,deriveVoteEvidence,eventUri} from './vote-evidence.mjs';
+import {decisionSubjectId,deriveVoteEvidence,eventUri} from './vote-evidence.mjs';
 import {explicitVoteScope,isWholeProposalVote} from './vote-scope.mjs';
 import {procedureClassification} from './procedure-types.mjs';
 
@@ -99,7 +99,7 @@ export function agendaVotes(topic,day,procedures=[],language='en') {
   const subjects=array(day.results).filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS'&&refs(n.executed).includes(topic.uri)).map(n=>n.activity_id);
   const bound=row=>['consistent','single-direction'].includes(row.resultRelationship.binding);
   // A conflicting record can't be the main vote, but it stays in the list with no result, so the count holds.
-  const listed=array(day.decisions).filter(raw=>decisionOnSubject(raw,derived.decisions.get(eventUri(raw)),subjects)).map(raw=>projectMemberDecision(raw,day,'1',language,derived)).filter(row=>bound(row)||row.sourceConflicts);
+  const listed=array(day.decisions).filter(raw=>subjects.includes(decisionSubjectId(raw,derived.decisions.get(eventUri(raw))))).map(raw=>projectMemberDecision(raw,day,'1',language,derived)).filter(row=>bound(row)||row.sourceConflicts);
   const rows=listed.filter(row=>bound(row)&&!row.sourceConflicts);
   const mains=subjects.map(id=>mainVote(rows,{id,wholeTextDecisions:rows.filter(row=>row.subjectId===id&&row.scope.kind==='whole-text')})).filter(Boolean);
   const vote=new Set(mains.map(row=>row.id)).size===1?mains[0]:null;

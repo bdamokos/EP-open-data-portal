@@ -180,3 +180,15 @@ test('a conflicting decision on the item stays among the rows and never becomes 
  assert.equal(row.ballotStatus,'unknown');assert.equal(row.outcome,null);
  assert.notEqual(data.mainVoteId,row.id);
 });
+test('a conflicting decision keeps the item around it on its own page, with no result of its own',async()=>{
+ const f=subjectFixture();f.raw._conflictingSourceObservations={fields:['decision_method']};
+ const data=await f.read();
+ assert.equal(data.integrity,'conflicting');assert.deepEqual(data.voters,[]);
+ assert.notEqual(data.subject,null);
+ assert.deepEqual(new Set(data.siblings.map(row=>row.id)),new Set(['MTG-PL-2026-10-07-DEC-1','MTG-PL-2026-10-07-DEC-2',decisionId]));
+ assert.equal(data.mainVoteId,'MTG-PL-2026-10-07-DEC-1');
+ assert.equal(data.siblings.find(row=>row.id===decisionId).outcome,null);
+ const other=subjectFixture();other.raw._conflictingSourceObservations={fields:['decision_method']};
+ const main=await decisionVotes({...other.query,decision:'MTG-PL-2026-10-07-DEC-1'},{reader:other.reader,store:other.store});
+ assert.equal(main.mainVoteId,'MTG-PL-2026-10-07-DEC-1');assert(main.siblings.some(row=>row.id===decisionId),'the row is on its neighbours too');
+});
