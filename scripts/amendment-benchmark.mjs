@@ -248,6 +248,17 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
         else stages.S2=passed({parserVersion:runtime?.AMENDMENT_EXTRACTION_VERSION||AMENDMENT_EXTRACTION_VERSION,originalSha256:digest(wording.originalText),proposedSha256:digest(wording.proposedText)});
       }
     }
+    if(wording&&variant?.listId) {
+      const held=(cache.sealed?[...cache.sealed]:[]).filter(url=>typeof url==='string'&&url.startsWith('https://data.europarl.europa.eu/distribution/')&&url.includes('/'+variant.listId+'/')&&url.endsWith('.docx'));
+      const candidates=[...variants(row),...held.map(url=>({listId:variant.listId,language:/_([a-z]{2})\.docx$/u.exec(url)?.[1],wordingSource:{url}}))];
+      const editions=[];
+      for(const candidate of candidates.filter(v=>v.listId===variant.listId&&v.language&&v.wordingSource?.url)) {
+        if(editions.some(e=>e.sourceUrl===candidate.wordingSource.url))continue;
+        const native=await extractionFor(candidate),entry=native.extraction?.amendments.find(a=>a.number===row.number);
+        if(entry)editions.push({...entry,listId:candidate.listId,language:candidate.language,sourceUrl:candidate.wordingSource.url});
+      }
+      wording={...wording,addressEditions:editions};
+    }
     let target=null;
     let nativeCitationEvidence=null,documentOperation=null,calibrationInput=null;
     if(wording) {
