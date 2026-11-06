@@ -105,4 +105,8 @@ test('held index negotiation endorsement establishes talks; committee agreement 
   assert(deal);
   const result=runIndex(deal.activity_date);
   assert.equal(result.stage,'deal');assert.equal(step(result,'deal').date,deal.activity_date);assert.equal(step(result,'talks').state,'done');assert.equal(step(result,'talks').date,null);
+  const voted=runIndex('2026-11-06');
+  assert.equal(voted.stage,'position');
+  assert.equal(step(voted,'final').state,'done');assert.equal(step(voted,'final').date,'2026-09-16');
+  assert.equal(step(voted,'parliament').date,'2026-01-21');assert.equal(step(voted,'signed').state,'current');
 });

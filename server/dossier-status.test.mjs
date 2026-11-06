@@ -58,7 +58,13 @@ test('both positions with no referral or deal leave no next step, and a final vo
   const none=lines('position',{steps:both});assert.equal(none.next,null);assert.equal(none.sentence.values.date,'2026-03-01');
   const final=[step('parliament','2026-03-01'),step('deal','2026-06-01'),step('final','2026-07-01'),step('signed',null,'current')];
   const voted=lines('position',{steps:final,slots:{mainVote:{...vote,date:'2026-07-01'}}});
-  assert.equal(voted.sentence.id,'dossierstatus.position');assert.equal(voted.sentence.values.date,'2026-07-01');assert.equal(voted.next.id,'dossierstatus.next_council_reading');
+  assert.equal(voted.sentence.id,'dossierstatus.final_vote');assert.equal(voted.sentence.values.date,'2026-07-01');assert.deepEqual(voted.sentence.values.tally,tally);assert.equal(voted.next.id,'dossierstatus.next_signature');
+  assert.equal(lines('position',{steps:final}).sentence.id,'dossierstatus.final_vote_no_tally');
+  // 2025/0176(COD): a post-deal vote recorded through the index and Cellar helpers.
+  const merged=mergeDossierStatus({reference:'2025/0176(COD)',indexEvents:[{had_activity_type:'COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT',activity_date:'2026-07-14'},{had_activity_type:'PLENARY_ADOPT_POSITION',activity_date:'2026-09-16'}]},{cellarEvents:[{status:'recorded',date:'2026-09-16',types:[{code:'ADP_R1_POS_byEP'}]}],asOf:'2026-11-06'});
+  const real=dossierStatusLines({...merged,slots:{mainVote:{...vote,date:'2026-09-16'}}});
+  assert.equal(merged.stage,'position');assert.equal(merged.steps.find(row=>row.key==='final').date,'2026-09-16');
+  assert.equal(real.sentence.id,'dossierstatus.final_vote');assert.equal(real.sentence.values.date,'2026-09-16');assert.equal(real.next.id,'dossierstatus.next_signature');
 });
 test('a rejected main vote reads as rejected, with no next step',()=>{
   const rejected={...vote,outcome:'REJECTED'};
