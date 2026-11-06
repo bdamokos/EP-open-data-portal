@@ -24,7 +24,8 @@ function database({includeC=true,generation=3,groupSnapshot=history,totals=[{mem
     sitting_id TEXT PRIMARY KEY, revision TEXT NOT NULL, date TEXT NOT NULL,
     group_generation INTEGER, snapshot_version INTEGER NOT NULL,
     named INTEGER NOT NULL, decisions TEXT NOT NULL, complete INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'projected', reason TEXT, subjects TEXT NOT NULL DEFAULT '{}', topics_generation INTEGER, tags TEXT NOT NULL DEFAULT '[]');
+    status TEXT NOT NULL DEFAULT 'projected', reason TEXT, subjects TEXT NOT NULL DEFAULT '{}');
+    CREATE TABLE member_vote_record_tags (sitting_id TEXT PRIMARY KEY, topics_generation INTEGER, tags TEXT NOT NULL);
     CREATE TABLE member_vote_record_members (member_id TEXT NOT NULL, sitting_id TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(member_id,sitting_id));
     CREATE TABLE member_vote_record_totals (member_id TEXT PRIMARY KEY, body TEXT NOT NULL);
     CREATE TABLE sitting_snapshots (kind TEXT, version INTEGER, id TEXT, complete INTEGER, error TEXT);
@@ -32,11 +33,12 @@ function database({includeC=true,generation=3,groupSnapshot=history,totals=[{mem
     CREATE TABLE group_history_snapshots (generation INTEGER PRIMARY KEY, body TEXT NOT NULL);`);
   db.prepare('INSERT INTO meta VALUES (?,?)').run('active',JSON.stringify(generation));
   if(groupSnapshot)db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(generation,JSON.stringify(groupSnapshot));
-  const insertSitting=db.prepare('INSERT INTO member_vote_record_sittings(sitting_id,revision,date,group_generation,snapshot_version,named,decisions,complete,status,subjects,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+  const insertSitting=db.prepare('INSERT INTO member_vote_record_sittings(sitting_id,revision,date,group_generation,snapshot_version,named,decisions,complete,status,subjects) VALUES (?,?,?,?,?,?,?,?,?,?)');
   const insertMember=db.prepare('INSERT INTO member_vote_record_members VALUES (?,?,?)');
   const snapshot=db.prepare('INSERT INTO sitting_snapshots VALUES (?,?,?,?,?)');
   const sitting=(id,{named=0,complete=1,decisions={},status='projected',subjects={},tags=[]}={})=>{
-    insertSitting.run(id,'a'.repeat(64),id.slice(7),generation,VERSION,named,JSON.stringify(decisions),complete,status,JSON.stringify(subjects),JSON.stringify(tags));
+    insertSitting.run(id,'a'.repeat(64),id.slice(7),generation,VERSION,named,JSON.stringify(decisions),complete,status,JSON.stringify(subjects));
+    db.prepare('INSERT INTO member_vote_record_tags VALUES (?,?,?)').run(id,null,JSON.stringify(tags));
     snapshot.run('votes',VERSION,id,complete,null);
   };
   const member=row=>insertMember.run(MEP,row.sittingId,JSON.stringify(row));

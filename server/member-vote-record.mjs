@@ -126,7 +126,7 @@ export class MemberVoteRecordReader {
       // The breakdown reads only this member's marks and the tags kept on the sittings.
       let breakdown=null,decisionTags=new Map();
       if(group.status==='attached'&&vectors.length) {
-        const tagRows=new Map(db.prepare("SELECT sitting_id,tags FROM member_vote_record_sittings WHERE snapshot_version=? AND status='projected'").all(MEMBER_VOTE_SNAPSHOT_VERSION).map(row=>[row.sitting_id,row.tags]));
+        const tagRows=new Map(db.prepare('SELECT sitting_id,tags FROM member_vote_record_tags').all().map(row=>[row.sitting_id,row.tags]));
         const calculated=memberBreakdown(vectors.map(({sittingId,vector})=>({vector,tags:JSON.parse(tagRows.get(sittingId)||'[]')})),query.scope);
         decisionTags=calculated.decisionTags;
         const named=(list,label)=>list.rows.flatMap(row=>{const text=label(row.key.slice(row.key.indexOf(':')+1),query.language);return text?[{key:row.key,label:text.text,language:text.language,comparable:row.comparable,withGroup:row.withGroup,share:row.share}]:[];});

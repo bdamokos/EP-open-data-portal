@@ -98,7 +98,7 @@ test('each member row keeps one mark per named decision, and the sitting row kee
   const store=setup(t),fixture=voteFixture(),groupOn=createGroupOn(fixture.history);recordsComplete(fixture.day);
   topicRecords(store,7,keywords);
   writeMemberVoteRecord(store,fixture.day,{groupOn,groupGeneration:'g1',snapshotVersion:7,topicGeneration:7});
-  const row=store.db.prepare('SELECT tags,topics_generation FROM member_vote_record_sittings').get();
+  const row=store.db.prepare('SELECT tags,topics_generation FROM member_vote_record_tags').get();
   assert.equal(row.topics_generation,7);
   // Only the microthesaurus of a keyword and a place are tags; OEIL subjects and hidden keys are not.
   assert.deepEqual(JSON.parse(row.tags),[[fixture.raw.id?.split('/').pop()||JSON.parse(row.tags)[0][0],['2025-2117'],['100195'],['FRA']]]);
@@ -118,11 +118,11 @@ test('a sitting that is current except for its topics is re-tagged without touch
   // The pending procedure topics arrive: same documents, more concepts.
   topicRecords(store,8,[...keywords,{key:'place:DEU',role:'place'}]);
   assert.equal(retagMemberVoteRecord(store,id,8),true);
-  assert.deepEqual(JSON.parse(store.db.prepare('SELECT tags FROM member_vote_record_sittings').get().tags)[0].slice(1),[['2025-2117'],['100195'],['DEU','FRA']]);
-  assert.equal(store.db.prepare('SELECT topics_generation AS g FROM member_vote_record_sittings').get().g,8);
+  assert.deepEqual(JSON.parse(store.db.prepare('SELECT tags FROM member_vote_record_tags').get().tags)[0].slice(1),[['2025-2117'],['100195'],['DEU','FRA']]);
+  assert.equal(store.db.prepare('SELECT topics_generation AS g FROM member_vote_record_tags').get().g,8);
   assert.equal(missingMemberVoteRecord(store,7,'g1',[],8),null);
   assert.deepEqual(store.db.prepare('SELECT body FROM member_vote_record_members ORDER BY member_id').all().map(row=>row.body),vectors);
   // Without a topics index the tags are empty, never invented.
   assert.equal(retagMemberVoteRecord(store,id,null),true);
-  assert.deepEqual(JSON.parse(store.db.prepare('SELECT tags FROM member_vote_record_sittings').get().tags)[0].slice(1),[[],[],[]]);
+  assert.deepEqual(JSON.parse(store.db.prepare('SELECT tags FROM member_vote_record_tags').get().tags)[0].slice(1),[[],[],[]]);
 });
