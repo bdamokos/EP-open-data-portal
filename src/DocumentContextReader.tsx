@@ -208,6 +208,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const fallbackHref=sourceUrl||(passageFirst?sourcePageUrl('https://data.europarl.europa.eu/eli/dl/doc/'+id,{language}):null);
   const wide=useMediaQuery('(min-width:1000px)');
   const contents=passageFirst&&!amendmentRequest?.amendmentId&&hasText?documentContents(body.paragraphs,formatting.formats,body.start):[];
+  const withContents=(node:ReactNode)=>contents.length>0&&wide?<div className="read-page-with-contents"><Contents items={contents} wide onGo={goTo}/><div>{node}</div></div>:node;
   const goTo=(paragraph:number)=>{const node=reader.current?.querySelector<HTMLElement>(`[data-source-paragraph="${paragraph}"]`);if(!node)return;node.tabIndex=-1;node.scrollIntoView({block:'start'});node.focus({preventScroll:true});};
   const stale=Boolean(passageFirst&&amendmentRequest?.amendmentId&&data&&!state.loading&&(!data.amendment||data.amendment.status==='unavailable'&&!data.amendment.variants.length));
   if(stale)return <>
@@ -255,7 +256,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
       {id.startsWith('TA-')&&<CommissionFollowups id={id} language={language} interfaceLanguage={interfaceLanguage}/>}
       
       {contents.length>0&&!wide&&<Contents items={contents} wide={false} onGo={goTo}/>}
-      {hasText ? <div className={contents.length>0&&wide ? 'read-page-with-contents' : undefined}>{contents.length>0&&wide&&<Contents items={contents} wide onGo={goTo}/>}<div>
+      {hasText ? withContents(<>
         {!passage&&!provisional&&amendmentRequest?.amendmentId&&((reportHeading!==null) ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : (placement ? ((placement.status==='not-applicable') ? null : (placed ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : <p className="document-context-notice" role="status">{placementReason}</p>)) : (found ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.passage.179"/></button>{target?.quoteMatches===false&&<p><UiMessage id="batch6.documentcontextreader.the.published.text.differs.from.the.amendment.s.quotation.179"/></p>}</div> : <p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.the.passage.this.amendment.changes.could.not.be.found.64"/></p>)))}
         {incomplete&&<p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.some.content.is.only.available.in.the.original.document.180"/></p>}
         <ReferenceScope key={id+':'+language} texts={readerTexts(shown.paragraphs,shownNotes,shownLinks)} notes={shownNotes} notePrefix={notePrefix} language={interfaceLanguage} textLanguage={actual} renderQuestion={question=><InsightQuestionReader id={question} language={interfaceLanguage} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers/>}>
@@ -281,7 +282,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
             renderText={(sourceIndex,paragraph,from,to,final,marks)=><DocumentObjectText assets={text?.imageAssets} text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes assets={text?.imageAssets} notes={shownNotes} prefix={notePrefix}/></div>
         </ReferenceScope>
         {collapsed&&<div className="read-passage-more"><button type="button" onClick={()=>{revealed.current=true;setWhole(true);}}><UiMessage id="reader.show_whole_proposal"/></button></div>}
-      </div></div> : (!state.loading&&!loadError&&<p><UiMessage id="batch6.documentcontextreader.document.text.unavailable.here.190"/></p>)}
+      </>) : (!state.loading&&!loadError&&<p><UiMessage id="batch6.documentcontextreader.document.text.unavailable.here.190"/></p>)}
       {!collapsed&&<DocumentPages documentId={id} language={actual||language}/>}{showOriginalLink&&sourceUrl&&!hasText&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="batch6.documentcontextreader.open.original.document.191"/></a></p>}
     </>}
   </div>;

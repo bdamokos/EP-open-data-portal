@@ -85,6 +85,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
       const payload={documentId:id,requestedLanguage:url.searchParams.get('lang')||'en',...(url.searchParams.has('wording-lang')?{requestedWordingLanguage:url.searchParams.get('wording-lang')==='unknown'?null:url.searchParams.get('wording-lang')}:{}),document:contextDocument(id),related:{status:'available',items:choices,gaps:[]},amendment:{id:AMENDMENT,status:'available',variants:[{listId:LIST,language:'en',wordingStatus:'available',targetLabel:null,originalText:'Original',proposedText:'Proposed',authors:[]}]}};
       return contextResponse?.(url,payload)??Response.json(payload);
     }
+    if(url.pathname==='/api/amendment-neighbours')return Response.json({version:1,amendmentId:url.searchParams.get('amendment'),listId:url.searchParams.get('list'),outcome:null,authors:[],committeeProposer:null,proposerLanguage:null,onBehalfOf:null,previous:null,next:null});
     if(url.pathname.startsWith('/api/qa-cache/'))return Response.json({id:url.pathname.split('/').at(-1)});
   if(url.pathname==='/api/insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
