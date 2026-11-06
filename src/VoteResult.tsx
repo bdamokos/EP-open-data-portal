@@ -21,7 +21,7 @@ export type VoteViewVote=Pick<NamedVote,'id'|'date'|'titles'|'subjects'|'scope'|
 // The item's outcome in the vote page's words, directly under its agenda heading.
 export function AgendaOutcome({main,title,titleLanguage,language}:{main:NonNullable<NonNullable<LegislationResponse['detail']>['mainVote']>;title:string;titleLanguage:string|null;language:string}) {
   const ui=useUiI18n();
-  const sentence=voteSentence({...main,ballotStatus:'conducted',scope:{kind:'unclassified',basis:'unclassified'},referenceTexts:{},context:{amendmentIds:[]},parts:[]},{mainVoteId:main.id,procedureReferral:main.procedureReferral,itemTitle:title,language},ui);
+  const sentence=voteSentence({...main,scope:{kind:'unclassified',basis:'unclassified'},referenceTexts:{},context:{amendmentIds:[]},parts:[]},{mainVoteId:main.id,procedureReferral:main.procedureReferral,itemTitle:title,language},ui);
   return <p className="insight-agenda-outcome" lang={ui.language}><UiMessage id={sentence.id} values={{...sentence.values,item:<span lang={titleLanguage??''}>{title}</span>}}/>{sentence.noNames&&<> <UiMessage id="votepage.no_names"/></>}</p>;
 }
 export function VoteView({vote,language,onMember,country,standalone=false,mainVoteId=null}:{country:string|null;vote:VoteViewVote;language:string;onMember:InsightProps['onMember'];standalone?:boolean;mainVoteId?:string|null}) {
