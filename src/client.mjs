@@ -191,7 +191,13 @@ export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, maxAg
       finally { prefetching = false; schedulePrefetch(); }
     }, prefetchDelay);
   };
-  return { peek, get, prefetch(routes) {
+  return { peek, get, reuse(from,to,data) {
+    const saved=cache.get(from);
+    if(!saved||saved.data!==data||cache.has(to)||pending.has(to))return false;
+    cache.set(to,{...saved});
+    while(cache.size>maxEntries)cache.delete(cache.keys().next().value);
+    return true;
+  }, prefetch(routes) {
     if (!routes.length) return () => {};
     const batch = new Set(routes).values();
     prefetches.add(batch);

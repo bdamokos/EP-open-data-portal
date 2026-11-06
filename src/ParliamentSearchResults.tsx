@@ -10,6 +10,7 @@ import {AvailabilityNote} from './AvailabilityNote';
 import {searchReference} from '../server/search-reference.mjs';
 import {dossierHref} from './followDossiers.mjs';
 import {fullDossierReference} from './dossierActivityModel.mjs';
+import {readHref,readableDocument} from './readRoute.mjs';
 import type {SourceAvailability} from '../server/source-availability.mjs';
 const InsightQuestionReader=lazyView(()=>import('./InsightReaders').then(module=>({default:module.InsightQuestionReader})));
 
@@ -30,6 +31,7 @@ function resultUrl(result:Result,language:string) {
 }
 function referenceUrl(result:Result,language:string) {
   if(result.kind==='member')return resultUrl({...result,type:'mep'},language);
+  if(result.kind!=='dossier'&&readableDocument(result.id))return publicUrl(readHref({documentId:result.id,language}));
   return result.dossier?publicUrl(dossierHref(result.dossier,language)):null;
 }
 export function ParliamentSearchResults({query,type,language,from,to}:{query:string;type:string;language:string;from?:string;to?:string}) {
