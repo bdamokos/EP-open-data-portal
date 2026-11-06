@@ -1285,8 +1285,6 @@
   "membervotesummary.membername_voted_position": "{memberName} szavazata: {position}",
   "membervotesummary.no_tally_published": "Nincs közzétett összesítés",
   "membervotesummary.parliament": "Parlament",
-  "membervotesummary.published_description": "Közzétett leírás",
-  "membervotesummary.published_description_of_part_number": "A(z) {number}. rész közzétett leírása",
   "membervotesummary.tallies_unavailable": "Az összesítések nem érhetők el",
   "motionJourney.reason42": "Az indítvány szövege nem érhető el.",
   "motionJourney.reason53": "A kért indítványszöveg e tevékenységhez nem érhető el.",

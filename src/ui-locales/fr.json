@@ -1285,8 +1285,6 @@
   "membervotesummary.membername_voted_position": "Vote de {memberName} : {position}",
   "membervotesummary.no_tally_published": "Aucun décompte publié",
   "membervotesummary.parliament": "Parlement",
-  "membervotesummary.published_description": "Description publiée",
-  "membervotesummary.published_description_of_part_number": "Description publiée de la partie {number}",
   "membervotesummary.tallies_unavailable": "Décomptes indisponibles",
   "motionJourney.reason42": "Texte de la proposition indisponible.",
   "motionJourney.reason53": "Le texte de proposition de résolution demandé est indisponible pour cette activité.",

@@ -1285,8 +1285,6 @@
   "membervotesummary.membername_voted_position": "{memberName}: {position}",
   "membervotesummary.no_tally_published": "Δεν δημοσιεύθηκε καταμέτρηση",
   "membervotesummary.parliament": "Κοινοβούλιο",
-  "membervotesummary.published_description": "Δημοσιευμένη περιγραφή",
-  "membervotesummary.published_description_of_part_number": "Δημοσιευμένη περιγραφή μέρους {number}",
   "membervotesummary.tallies_unavailable": "Καταμετρήσεις μη διαθέσιμες",
   "motionJourney.reason42": "Κείμενο πρότασης μη διαθέσιμο.",
   "motionJourney.reason53": "Το ζητούμενο κείμενο πρότασης ψηφίσματος δεν είναι διαθέσιμο για αυτή τη δραστηριότητα.",
