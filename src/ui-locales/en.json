@@ -888,6 +888,8 @@
   "dossierstatus.drafting_amendments_no_committee": "Amendments tabled on {date}.",
   "dossierstatus.drafting_report": "With the {committee}. Draft report on {date}.",
   "dossierstatus.drafting_report_no_committee": "Draft report on {date}.",
+  "dossierstatus.final_vote": "Parliament voted the deal on {date}: {tally}.",
+  "dossierstatus.final_vote_no_tally": "Parliament voted the deal on {date}.",
   "dossierstatus.heading": "Where this file stands",
   "dossierstatus.journal": "Published in the Official Journal on {date}.",
   "dossierstatus.latest": "Latest step: {label}, {date}.",
