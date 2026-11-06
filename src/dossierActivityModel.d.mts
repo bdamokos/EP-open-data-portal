@@ -5,6 +5,7 @@ export const dossierFilters:DossierFilter[];
 export type DossierPeopleSegment='lead'|'opinions'|'others'|'all';
 export const dossierPeopleSegments:DossierPeopleSegment[];
 export function dossierPeopleCounts(people:DossierParticipant[]):{total:number;withRole:number;withoutRole:number;segments:Record<DossierPeopleSegment,number>};
+export function dossierPeopleCountExact(page:DossierActivityResponse):boolean;
 export function dossierPeopleRows(people:DossierParticipant[],segment:DossierPeopleSegment,nameOf?:(person:DossierParticipant)=>string):DossierParticipant[];
 export function dossierRoleLines(roles:DossierRole[]):DossierRole[];
 export function dossierPersonGroup(person:DossierParticipant):string|null;

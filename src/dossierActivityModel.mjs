@@ -23,6 +23,8 @@ const inSegment=(person,segment)=>{
   const hasRole=roles=>person.roles.some(role=>roles.includes(role.role));
   return segment==='others'?!hasRole([...segmentRoles.lead,...segmentRoles.opinions]):hasRole(segmentRoles[segment]);
 };
+// The total is a claim about the whole dossier. Any missing record or continuation withholds it.
+export const dossierPeopleCountExact=page=>Boolean(page.participantCoverage)&&!page.pagination.next&&!page.coverage.gaps.length&&!page.participantCoverage.gaps.length&&page.participantCoverage.status!=='unavailable';
 export const dossierPeopleCounts=people=>({
   total:people.length,withRole:people.filter(person=>person.roles.length>0).length,withoutRole:people.filter(person=>!person.roles.length).length,
   segments:Object.fromEntries(dossierPeopleSegments.map(segment=>[segment,people.filter(person=>inSegment(person,segment)).length])),

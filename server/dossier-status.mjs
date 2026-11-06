@@ -7,6 +7,8 @@ import {agendaTopics} from './insights-legislation-model.mjs';
 import {memberVotes} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 import {cachedAgendaRequest} from './parliament-search.mjs';
+import {MeetingsReader} from './meetings-reader.mjs';
+import {sittingSnapshots} from './sitting-snapshot-store.mjs';
 import {mainVote} from './main-vote.mjs';
 import {procedureSteps} from './procedure-steps.mjs';
 import {resolutionStage} from './dossier-status-model.mjs';
@@ -16,7 +18,7 @@ import {isLocalRequestFailure,requestSignal} from './request-budget.mjs';
 
 export const DOSSIER_STATUS_VERSION=1;
 const committeeNames=JSON.parse(readFileSync(new URL('./insights-committee-labels.json',import.meta.url),'utf8')).committees;
-const AGENDA_PAGES=2,AGENDA_PAGE_SIZE=50;
+const AGENDA_PAGE_SIZE=50;
 const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}/.test(value)?value.slice(0,10):null;
 
 export function dossierStatusQuery(search) {
@@ -37,8 +39,9 @@ export function leadCommittees(work,language) {
  * read leaves its slot empty and the sentence drops it.
  */
 export class DossierStatus {
-  constructor({activity,reader,votes=memberVotes,readAgenda=cachedAgendaRequest,clock=Date.now}) {
-    Object.assign(this,{activity,reader,votes,readAgenda,clock});
+  constructor({activity,calendar,votes=memberVotes,readAgenda=cachedAgendaRequest,clock=Date.now}) {
+    // Held calendars and agendas only: a page view never starts a source read for this date.
+    Object.assign(this,{activity,calendar:calendar||new MeetingsReader({request:cachedAgendaRequest,clock,snapshots:sittingSnapshots}),votes,readAgenda,clock});
   }
   async voteOnDate(events,language) {
     const sittings=[...new Set(events.map(event=>event.activity_id.slice(0,17)))].sort().reverse();
@@ -58,19 +61,21 @@ export class DossierStatus {
   }
   async plenaryDate(id,asOf) {
     try {
-      const catalogue=await this.reader.catalogue();
-      const upcoming=catalogue.sittings.filter(sitting=>sitting.activity_date>=asOf).sort((a,b)=>a.activity_date.localeCompare(b.activity_date));
+      const catalogue=await this.calendar.catalogue();
+      const upcoming=catalogue.nodes.filter(sitting=>sitting.activity_date>=asOf).sort((a,b)=>a.activity_date.localeCompare(b.activity_date));
       const weeks=new Set([...new Set(upcoming.map(sitting=>calendarMonday(sitting.activity_date)))].slice(0,2));
       for(const sitting of upcoming.filter(row=>weeks.has(calendarMonday(row.activity_date)))) {
-        const nodes=[];let first=null;
-        for(let page=0;page<AGENDA_PAGES;page++) {
-          const record=await this.readAgenda('/meetings/'+sitting.activity_id+'/foreseen-activities',{limit:AGENDA_PAGE_SIZE,offset:page*AGENDA_PAGE_SIZE},{}).catch(error=>{if(isLocalRequestFailure(error))throw error;return null;});
+        // Every held page counts. A page that is not held, or adds nothing new, ends the read.
+        const nodes=new Map();let first=null;
+        for(let offset=0;;offset+=AGENDA_PAGE_SIZE) {
+          const record=await this.readAgenda('/meetings/'+sitting.activity_id+'/foreseen-activities',{limit:AGENDA_PAGE_SIZE,offset},{}).catch(error=>{if(isLocalRequestFailure(error))throw error;return null;});
           if(!record)break;
-          first||=record;nodes.push(...record.payload.data);
-          if(record.payload.data.length<AGENDA_PAGE_SIZE)break;
+          first||=record;
+          const before=nodes.size;for(const node of record.payload.data)nodes.set(node.id,node);
+          if(record.payload.data.length<AGENDA_PAGE_SIZE||nodes.size===before)break;
         }
         if(!first)continue;
-        const topic=agendaTopics({payload:{data:[sitting]}},{...first,payload:{data:nodes}}).find(item=>item.kind==='PLENARY_VOTE'&&item.procedureIds.includes(id));
+        const topic=agendaTopics({payload:{data:[sitting]}},{...first,payload:{data:[...nodes.values()]}}).find(item=>item.kind==='PLENARY_VOTE'&&item.procedureIds.includes(id));
         if(topic)return validDate(topic.date)||sitting.activity_date;
       }
     }catch(error){if(isLocalRequestFailure(error))throw error;}

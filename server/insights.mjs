@@ -42,7 +42,7 @@ export function createInsights(store,options={}) {
   const questions=new QuestionInsights(store,shared),legislation=new LegislationInsights(store,shared);
   const speechCloud=new SpeechCloudInsights(store,{...shared,legislation});
   const dossierActivity=new DossierActivity(store,{...shared,reader:legislation});
-  const dossierStatus=new DossierStatus({activity:dossierActivity,reader:legislation,clock});
+  const dossierStatus=new DossierStatus({activity:dossierActivity,clock});
   const officialSources=options.officialSources||(options.officialContext||options.clock?new OfficialContextSources({clock,...options.officialContext}):getSharedOfficialContextSources());
   const catalog=options.eurovocCatalog||new EurovocCatalog(officialSources,{clock,...options.eurovoc});
   const procedureContext=new ProcedureContext(officialSources,catalog),topicTrends=new TopicTrends(store,catalog,{clock});

@@ -32,7 +32,9 @@ export function dossierStatusLines({stage,steps=[],councilApproval=null,latest=n
     if(rejected)return {sentence:{id:tally?'dossierstatus.rejected':'dossierstatus.rejected_no_tally',values:{date,tally}},next:null};
     return {sentence:{id:tally?'dossierstatus.'+id:'dossierstatus.'+id+'_no_tally',values:{date,tally}},next:next?{id:next}:null};
   };
-  if(vote?.outcome==='REJECTED'&&stage==='unknown'&&vote.date){const {tally}=voted(vote.date);return {sentence:{id:tally?'dossierstatus.rejected':'dossierstatus.rejected_no_tally',values:{date:vote.date,tally}},next:null};}
+  // A rejected main vote ends the stages before Parliament's position, unless a later report reopens the file.
+  const beforePosition=['unknown','proposal','referred','drafting','reported'].includes(stage);
+  if(vote?.outcome==='REJECTED'&&vote.date&&beforePosition&&!(stepDate('committee')>vote.date)){const {tally}=voted(vote.date);return {sentence:{id:tally?'dossierstatus.rejected':'dossierstatus.rejected_no_tally',values:{date:vote.date,tally}},next:null};}
   switch(stage) {
     case 'proposal':return {sentence:{id:'dossierstatus.proposal',values:{date:stepDate('proposal')}},next:{id:'dossierstatus.next_committee_takes_up'}};
     case 'referred':{

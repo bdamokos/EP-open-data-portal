@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {amendmentEvidenceTarget,dossierAmendmentVotes,dossierPeopleCounts,dossierPeopleRows,dossierPersonGroup,dossierRoleLines,dossierVoteCards,dossierHref,dossierTimeline,mergeDossierPage,retainDossierContributors,dossierEmptyLabel,dossierCoverageNotices} from './dossierActivityModel.mjs';
+import {amendmentEvidenceTarget,dossierAmendmentVotes,dossierPeopleCountExact,dossierPeopleCounts,dossierPeopleRows,dossierPersonGroup,dossierRoleLines,dossierVoteCards,dossierHref,dossierTimeline,mergeDossierPage,retainDossierContributors,dossierEmptyLabel,dossierCoverageNotices} from './dossierActivityModel.mjs';
 import {dataTimeoutFor} from './client.mjs';
 import {readFile} from 'node:fs/promises';
 import {contrast,paintedBackground,themeCss,tokenValue} from './test-support/themeStyles.mjs';
@@ -622,6 +622,15 @@ test('people segments, order, role lines and count follow the recorded roles',()
   assert.deepEqual(dossierPeopleRows(people,'all').map(item=>item.id),['4','5','3','2','7','1','6']);
   assert.deepEqual(dossierPeopleCounts(people),{total:7,withRole:6,withoutRole:1,segments:{lead:5,opinions:2,others:1,all:7}});
 });
+test('the people total is withheld when a record is missing, not for an incomplete proposer list alone',()=>{
+  const read=(extra={},participantCoverage={})=>({pagination:{next:null},coverage:{gaps:[]},participantCoverage:{status:'partial',gaps:[],...participantCoverage},...extra});
+  assert.equal(dossierPeopleCountExact(read({},{uncheckedTargets:['A-10-2026-0257']})),true);
+  assert.equal(dossierPeopleCountExact(read({pagination:{next:{offset:2000,targetOffset:0}}})),false);
+  assert.equal(dossierPeopleCountExact(read({coverage:{gaps:['Some recorded roles are outside this page.']}})),false);
+  assert.equal(dossierPeopleCountExact(read({},{gaps:['A linked debate is unavailable.'],failedDebates:['d']})),false);
+  assert.equal(dossierPeopleCountExact(read({},{status:'unavailable'})),false);
+  assert.equal(dossierPeopleCountExact({pagination:{next:null},coverage:{gaps:[]}}),false,'a person view has no people total');
+});
 test('duplicate role rows collapse to one line per role and committee',()=>{
   const row=(role,committee,date,dateBasis='recorded',stage='RDG1')=>({id:[role,committee,date].join(':'),role,committee,date,dateBasis,stage});
   // One participation comes from the procedure, the other from the committee document.
@@ -653,7 +662,7 @@ test('person view counts read against the exact total, and only a complete empty
 });
 test('people list reads exact counts without the plus, names the unnamed plainly and offers everyone',async t=>{
   const contributor=(id,name,committee,plenary,extra={})=>({id,name,roles:[],speeches:[],amendments:[],amendmentCounts:{committee,plenary},...extra});
-  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>url.searchParams.get('section')==='roles'?Response.json(page('roles',null,[],{amendmentCountComplete:{committee:true,plenary:false},participants:[{...contributor('1','Lead person',null,null),roles:[{...role,role:'RAPPORTEUR',id:'lead'}]},contributor('2','Exact author',90,null),contributor('3',null,38,6,{speeches:[{id:'s',debateId:'d',date:'2026-09-15',source}]})]})):null);
+  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>url.searchParams.get('section')==='roles'?Response.json(page('roles',null,[],{amendmentCountComplete:{committee:true,plenary:false},coverage:{status:'complete',gaps:[],sources:[source]},participantCoverage:{status:'partial',gaps:[],sources:[source]},participants:[{...contributor('1','Lead person',null,null),roles:[{...role,role:'RAPPORTEUR',id:'lead'}]},contributor('2','Exact author',90,null),contributor('3',null,38,6,{speeches:[{id:'s',debateId:'d',date:'2026-09-15',source}]})]})):null);
   await h.render(createElement(h.module.DossierActivity,{reference}));
   const text=()=>h.container.querySelector('.dossier-participants').textContent;
   assert.match(text(),/3 people: 1 with a role on the file, 2 who spoke or tabled amendments\./);assert.doesNotMatch(text(),/Exact author/);
