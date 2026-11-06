@@ -44,3 +44,11 @@ test('a vote outside the list has no position instead of "Vote 0 of N"',()=>{
   assert.equal(votePosition(votes,'gone'),null);
   assert.equal(votePosition(votes,''),null);
 });
+
+import {voteSentenceKind} from './voteTexts.mjs';
+test('the result sentence names a part, an amendment or the text from the vote\'s own scope and decided-on links',()=>{
+  assert.equal(voteSentenceKind({scope:'amendment',decidedDocumentIds:['MTG-PL-2026-10-22-VOT-ITM-993352-SPLIT-4-1']}),'part');
+  assert.equal(voteSentenceKind({scope:'amendment',decidedDocumentIds:['RC-10-2026-0476-AM-3']}),'amendment');
+  assert.equal(voteSentenceKind({scope:'final-text',decidedDocumentIds:[]}),'text');
+  assert.equal(voteSentenceKind({scope:'procedural'}),'other');
+});

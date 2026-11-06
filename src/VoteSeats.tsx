@@ -9,6 +9,7 @@ import {nearestSeat,type HemicycleSeat} from './hemicycleModel.mjs';
 import {seatBallots,unseatedDotTotals,differingVoterIds,seatBounds,groupLabelPlacements,type SeatBallotVoter} from './voteSeatsModel.mjs';
 import {groupShortLabel} from './groupShort';
 import {positionsUi,votePositionKeys,type VotePosition} from './votePositions';
+import {useNarrow} from './useNarrow';
 import type {NamedVote} from './LegislationTypes';
 import './VoteSeats.css';
 
@@ -20,7 +21,7 @@ const chamberFor=(location:string|null|undefined)=>location==='Brussels'?'bru':'
 const fullName=(seat:HemicycleSeat)=>`${seat.firstName||''} ${seat.name||''}`.trim();
 
 export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
-  const ui=useUiI18n(),headingId=useId();
+  const ui=useUiI18n(),headingId=useId(),narrow=useNarrow();
   const [view,setView]=useExplorerParam<'all'|'differ'>('agenda-seat-view','all',['all','differ']);
   const [active,setActive]=useState<number|null>(null),[hovered,setHovered]=useState<number|null>(null);
   const pointerType=useRef<'mouse'|'touch'|'pen'>('mouse'),activeAtPress=useRef<number|null>(null);
@@ -49,6 +50,7 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
   const dotted=unseatedDotTotals(voters,seats);
   const groupCodes=useMemo(()=>[...new Set(rows.map(row=>row.group).filter((code):code is string=>Boolean(code)))],[rows]);
   const groupCounts=(code:string)=>votePositionKeys.map(position=>rows.filter(row=>row.group===code&&row.position===position).length);
+  const countsText=(code:string)=>groupCounts(code).join(' · ');
   const positionLabel=(seat:HemicycleSeat,ballot:{position:VotePosition}|undefined)=>ballot?positions[ballot.position]:ui.t('votegroups.seats.noRecord');
   const label=(seat:HemicycleSeat,ballot:{position:VotePosition}|undefined)=>{
     const differs=ballot&&differIds.has(ballots.bySeat.get(seat.seat)!.id);
@@ -92,9 +94,10 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
     if(!bounds)return {box:'0 0 1 1',width:1,labels:[] as ReturnType<typeof groupLabelPlacements>,scale:0};
     const padX=bounds.width*.1,padTop=bounds.width*.06,width=bounds.width+padX*2,height=bounds.height+padTop+bounds.width*.01;
     const scale=pixelWidth>0?pixelWidth/width:0;
-    const labels=groupLabelPlacements(seats,{scale,widthOf:group=>groupShortLabel(group,ui).length*6.6+4,height:12,gap:3,pad:5});
+    // Phones keep the labels alone; wider screens add each group's three counts where they fit.
+    const labels=groupLabelPlacements(seats,{scale,widthOf:group=>groupShortLabel(group,ui).length*6.6+4,height:12,gap:3,pad:5,extra:narrow?0:12,extraWidthOf:group=>countsText(group).length*6+6});
     return {box:`${bounds.minX-padX} ${bounds.minY-padTop} ${width} ${height}`,width,labels,scale};
-  },[seats,pixelWidth,ui]);
+  },[seats,pixelWidth,ui,narrow,rows]);
   const circles=useMemo(()=>seats.map(seat=>{
             const ballot=ballots.bySeat.get(seat.seat);
             return <circle key={seat.seat} data-seat={seat.seat} cx={seat.x} cy={seat.y} r={seat.r} fill={ballot?positionFill[ballot.position]:'transparent'} strokeWidth={ballot?undefined:Math.max(1,seat.r*.18)} data-hollow={ballot?undefined:'true'} data-dimmed={dimmed(seat)?'true':undefined} tabIndex={seat.seat===(active??seats[0]?.seat)?0:-1} role="button" aria-label={labels.get(seat.seat)} onPointerDown={markPointer} onClick={event=>clickSeat(event,seat)} onFocus={()=>setActive(seat.seat)} onPointerEnter={()=>setHovered(seat.seat)} onPointerLeave={()=>setHovered(null)} onKeyDown={event=>keySeat(event,seat)}>
@@ -113,12 +116,12 @@ export function VoteSeats({vote,rows,sittingId,language,onMember}:Props) {
       <figure className="vote-seats-chart">
         <svg ref={setSvgNode} viewBox={chart.box} role="group" aria-label={ui.t('votegroups.seats.chart')} onClick={clickChart}>
           {circles}
-          {chart.labels.map(label=><text key={label.group} className="vote-seat-group" x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline="middle" fontSize={11/(chart.scale||1)} aria-hidden="true" lang={groupLabelLanguage(label.group,ui)}>{groupShortLabel(label.group,ui)}</text>)}
+          {chart.labels.map(label=>{const counts=label.withExtra?groupCounts(label.group):null;return <g key={label.group} aria-hidden="true"><text className="vote-seat-group" x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline="middle" fontSize={11/(chart.scale||1)} lang={groupLabelLanguage(label.group,ui)}>{groupShortLabel(label.group,ui)}</text>{counts&&counts.some(Boolean)&&<text className="vote-seat-counts" x={label.x} y={label.y+12/(chart.scale||1)} textAnchor={label.anchor} dominantBaseline="middle" fontSize={10/(chart.scale||1)}>{votePositionKeys.map((position,index)=><tspan key={position} className={'vote-'+position}>{index?<tspan className="vote-seat-counts-sep"> · </tspan>:null}{counts[index]}</tspan>)}</text>}</g>;})}
           {selected&&<circle className="vote-seat-selected" cx={selected.x} cy={selected.y} r={selected.r*1.9} style={{strokeWidth:Math.max(1.5,selected.r*.4)}}/>}
         </svg>
         <figcaption className="vote-seat-info" aria-live="polite">{selected?<>{fullName(selected)} · <span lang={groupLabelLanguage(selected.group||'',ui)}>{groupLabel(selected.group||'',ui)}</span> · {countryName(selected.country||'',language)} · {positionLabel(selected,selectedBallot||undefined)}{selectedBallot&&differIds.has(selectedBallot.id)&&<> · <UiMessage id="votegroups.seats.differs"/></>}{selectedBallot&&<button type="button" className="insight-text-button" onClick={()=>openMember(selected)}><UiMessage id="hemicycle.openMember"/></button>}</>:null}</figcaption>
       </figure>
-      <p className="insight-chart-caption"><UiMessage id="votegroups.seats.caption"/></p>
+      <ul className="vote-seat-legend">{votePositionKeys.map(position=><li key={position}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill={positionFill[position]}/></svg>{ui.t('votegroups.position.'+position)}</li>)}<li><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle className="vote-seat-legend-hollow" cx="6" cy="6" r="5" fill="transparent"/></svg>{ui.t('votegroups.seats.noRecord')}</li></ul>
       {(dotted.for||dotted.against||dotted.abstaining)>0&&<div className="vote-seat-unseated"><p className="insight-chart-caption"><UiMessage id="votegroups.seats.unseated"/></p>{votePositionKeys.filter(position=>dotted[position]).map(position=><div key={position} className="vote-seat-dots-row"><span className={'vote-seat-dots-label vote-'+position}>{positions[position]} <strong>{dotted[position]}</strong></span><span className="vote-seat-dots" aria-hidden="true">{Array.from({length:dotted[position]},(_,index)=><i key={index} className={'vote-'+position}/>)}</span></div>)}</div>}
     </>}
     <table className="vote-seats-sr">

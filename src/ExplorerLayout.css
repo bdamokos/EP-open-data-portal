@@ -65,7 +65,7 @@
 .insight-vote-matrix-head>span:not(:first-child) { text-align:center; }
 .insight-vote-group-row { border-top:1px solid var(--line); padding:8px 0; }
 .insight-vote-group-row>span { display:flex; gap:8px; align-items:center; font-size:15px; }
-.insight-vote-group-row i { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.insight-vote-group-row>span>i { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
 .explorer-insights .insight-vote-group-row button { text-align:center; min-height:44px; padding:8px; background-repeat:no-repeat; font-variant-numeric:tabular-nums; }
 .insight-vote-group-row .vote-for { background-image:linear-gradient(var(--vote-for-soft),var(--vote-for-soft)); }
 .insight-vote-group-row .vote-against { background-image:linear-gradient(var(--vote-against-soft),var(--vote-against-soft)); }
@@ -174,3 +174,13 @@
 .explorer-insights button { scroll-margin-block:8px; }
 
 .insight-vote-group-row>.vote-group-unity {display:block;text-align:center;font-size:12px;}
+
+.insight-vote-group-row>.vote-bar { grid-column:1/-1; margin:0; }
+.explorer-insights .insight-vote-group-row .insight-vote-group-name { min-height:0; padding:0; text-align:left; border:0; background:none; font-size:inherit; text-decoration:underline; text-underline-offset:4px; }
+.explorer-insights .insight-vote-group-row .insight-vote-group-name[aria-pressed=true] { font-weight:700; }
+.explorer-insights .insight-vote-group-row .insight-vote-group-name:disabled { text-decoration:none; color:var(--ink-muted); }
+.insight-solo-hide { display:none; }
+.insight-agenda-view[data-solo=true] { max-width:960px; margin-inline:auto; }
+.insight-agenda-view[data-solo=true] .insight-agenda,.insight-agenda-view[data-solo=true] .insight-agenda-select { display:none; }
+.insight-agenda-view[data-solo=true] .insight-agenda-navigation { display:grid; gap:10px; margin-bottom:18px; }
+.insight-agenda-view[data-solo=true] .insight-legislation-grid { grid-template-columns:minmax(0,1fr); gap:0; }

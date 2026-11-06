@@ -16,14 +16,16 @@ export function VoteBar({totals,thin=false}:{totals:Record<VotePosition,number>;
 
 // The headline of a plenary vote: outcome in words, the three totals, a
 // proportional bar and the group line. Unknown totals stay a dash, never 0.
-export function VoteResult({outcome,method,aggregate,scoped,groups,rows}:{outcome:string;method?:string;aggregate:Totals;scoped?:Record<VotePosition,number>|null;groups:GroupMajority[];rows:VoteMetricRow[]}) {
+export function VoteResult({outcome,method,kind='other',aggregate,scoped,groups,rows}:{outcome:string;method?:string;kind?:'text'|'amendment'|'part'|'other';aggregate:Totals;scoped?:Record<VotePosition,number>|null;groups:GroupMajority[];rows:VoteMetricRow[]}) {
   const ui=useUiI18n(),positions=positionsUi(ui);
   // A vote with no published tally at all shows its outcome and method only; a partial tally keeps the cards.
   const hasTotals=Boolean(scoped)||votePositionKeys.some(position=>typeof aggregate[position]==='number');
   const known=votePositionKeys.every(position=>typeof aggregate[position]==='number');
+  // One sentence only when all three Parliament totals are published; otherwise the outcome word stays.
+  const sentence=outcomeIds.has(outcome)&&known?{id:'votegroups.result.sentence.'+outcome+'.'+kind,values:{for:aggregate.for,against:aggregate.against,abstaining:aggregate.abstaining}}:null;
   const barTotals=(scoped||(known?aggregate:null)) as Record<VotePosition,number>|null;
   return <section className="vote-result" lang={ui.language}>
-    <p className="vote-result-outcome" data-outcome={outcome}>{outcomeIds.has(outcome)?<UiMessage id={'votegroups.result.outcome.'+outcome}/>:outcome.toLowerCase()}{method&&methodIds.has(method)&&<span className="vote-result-method"> · <UiMessage id={'votegroups.result.method.'+method}/></span>}</p>
+    <p className={'vote-result-outcome'+(sentence?' vote-result-sentence':'')} data-outcome={outcome}>{sentence?<UiMessage id={sentence.id} values={sentence.values}/>:outcomeIds.has(outcome)?<UiMessage id={'votegroups.result.outcome.'+outcome}/>:outcome.toLowerCase()}{method&&methodIds.has(method)&&<span className="vote-result-method"> · <UiMessage id={'votegroups.result.method.'+method}/></span>}</p>
     {hasTotals&&<div className="vote-result-totals">{votePositionKeys.map(position=><div key={position} className={'vote-'+position}>
       <span>{positions[position]}</span>
       <strong>{scoped?scoped[position]:(aggregate[position]??ui.t('votegroups.result.unknown'))}</strong>

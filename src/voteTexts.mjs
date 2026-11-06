@@ -37,3 +37,11 @@ export function votePosition(votes,id) {
   const index=votes.findIndex(vote=>vote.id===id);
   return index<0?null:{number:index+1,count:votes.length};
 }
+
+// What the result sentence calls the thing voted on: a split part, an amendment, the text, or just "this".
+export function voteSentenceKind(vote) {
+  if((vote.decidedDocumentIds||[]).some(id=>/-SPLIT-\d+-\d+$/.test(id)))return 'part';
+  if(vote.scope==='amendment')return 'amendment';
+  if(vote.scope==='final-text')return 'text';
+  return 'other';
+}

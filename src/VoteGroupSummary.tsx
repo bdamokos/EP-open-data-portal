@@ -1,5 +1,5 @@
 import {UiMessage,useUiI18n} from './UiI18nReact';
-import {groupLabel,groupLabelLanguage} from './groupLabels';
+import {groupLabel,groupLabelLanguage,groupColor} from './groupLabels';
 import {allGroupsAgree,differentFromMajority,type GroupMajority,type VoteMetricRow} from './voteGroupMetrics.mjs';
 import './VoteGroupSummary.css';
 export function GroupUnity({metric,withPosition=false}:{metric?:GroupMajority;withPosition?:boolean}) {
@@ -17,7 +17,7 @@ export function VoteGroupSummary({groups,rows}:{groups:GroupMajority[];rows:Vote
   return <div className="vote-group-summary">
     {allGroupsAgree(groups)?<p lang={ui.messageLocale('votegroups.all_agree.'+groups[0].majority)}><UiMessage id={'votegroups.all_agree.'+groups[0].majority}/></p>:(['for','against','abstaining',null] as const).map(position=>{
       const matching=groups.filter(g=>g.majority===position);
-      return matching.length>0&&<p key={position??'split'} lang={ui.messageLocale('votegroups.line.'+(position??'split'))}><UiMessage id={'votegroups.line.'+(position??'split')} values={{groups:matching.map((g,i)=><span key={g.code} lang={groupLabelLanguage(g.code,ui)}>{i?', ':''}{groupLabel(g.code,ui)}</span>)}}/></p>;
+      return matching.length>0&&<p key={position??'split'} lang={ui.messageLocale('votegroups.line.'+(position??'split'))}><UiMessage id={'votegroups.line.'+(position??'split')} values={{groups:matching.map((g,i)=><span key={g.code} lang={groupLabelLanguage(g.code,ui)}>{i?', ':''}<i className="vote-group-dot" style={{background:groupColor(g.code)}} aria-hidden="true"/>{groupLabel(g.code,ui)}</span>)}}/></p>;
     })}
     <p lang={ui.messageLocale("votegroups.voted_differently")}><UiMessage id="votegroups.voted_differently" values={{count:differentFromMajority(rows)}} counts={{count:differentFromMajority(rows)}}/></p>
   </div>;
