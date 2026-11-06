@@ -300,3 +300,10 @@ test('labels in another language than the interface carry their language',async 
   const labels=[...section(view.container).querySelectorAll('.member-vote-record-row-label')];
   assert.equal(labels[0].getAttribute('lang'),'de');assert.equal(labels[1].hasAttribute('lang'),false);
 });
+
+test('on a narrow screen a tag opens the departures so the way back to all is in view',async t=>{
+  const tagged=response({departures:{...response().departures,tag:{key:'topic:2006',label:'trade policy',language:'en'}}});
+  const view=await mount(t,{matches:true,tag:'topic:2006',data:tagged});
+  assert.equal(view.container.querySelector('details.member-vote-record-disclosure').open,true);
+  assert.notEqual(view.container.querySelector('.member-vote-record-filterline'),null);
+});

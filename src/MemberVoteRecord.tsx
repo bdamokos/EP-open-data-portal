@@ -26,8 +26,10 @@ function useCompact() {
   },[]);
   return compact;
 }
-function Disclosure({compact,summary,children}:{compact:boolean;summary:React.ReactNode;children:React.ReactNode}) {
-  const [open,setOpen]=useState(false);
+// openWhen: a value that opens the disclosure whenever it becomes set, so a filter's way back is never hidden.
+function Disclosure({compact,summary,openWhen=null,children}:{compact:boolean;summary:React.ReactNode;openWhen?:string|null;children:React.ReactNode}) {
+  const [open,setOpen]=useState(openWhen!==null);
+  useEffect(()=>{if(openWhen!==null)setOpen(true);},[openWhen]);
   if(!compact)return <>{children}</>;
   return <details className="member-vote-record-disclosure" open={open} onToggle={event=>setOpen((event.currentTarget as HTMLDetailsElement).open)}>
     <summary>{summary}</summary>{children}
@@ -172,7 +174,7 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
       {data.group.status==='attached'&&!groupKnown&&<span><UiMessage id="membervoterecord.noComparable"/></span>}
     </p>}
     {groupKnown&&<Breakdown data={data} tag={tag} onTag={onTagChange}/>}
-    {groupKnown&&<Disclosure compact={compact} summary={<><UiMessage id="membervoterecord.departures.all"/> · {num(ui,data.departures.total)}</>}>
+    {groupKnown&&<Disclosure compact={compact} openWhen={tag} summary={<><UiMessage id="membervoterecord.departures.all"/> · {num(ui,data.departures.total)}</>}>
       <Departures data={data} memberId={memberId} language={language} scope={scope} tag={tag} offset={offset} onOffset={onOffset} onTagChange={onTagChange} onOpenDecision={onOpenDecision}/>
     </Disclosure>}
   </section>;
