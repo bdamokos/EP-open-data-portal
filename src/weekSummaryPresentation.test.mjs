@@ -76,6 +76,6 @@ test('the week is past, upcoming or mixed by its days',()=>{
 });
 
 test('links use the fixed vote-page route and exact procedure identifiers',()=>{
-  assert.equal(voteHref('MTG-PL-2026-10-22-DEC-198405','fr'),'?view=legislation&pl-mode=vote&pl-vote=MTG-PL-2026-10-22-DEC-198405&lang=fr');
+  assert.equal(voteHref('2026-10-19','MTG-PL-2026-10-22-OJ-ITM-V-52','MTG-PL-2026-10-22-DEC-198405','fr'),'?view=legislation&agenda-period=week%3A2026-10-19&agenda-topic=MTG-PL-2026-10-22-OJ-ITM-V-52&agenda-vote=MTG-PL-2026-10-22-DEC-198405&lang=fr');
   assert.deepEqual(procedureReferences(topic('MTG-PL-2026-11-11-OJ-ITM-V-1','PLENARY_VOTE',{procedureIds:['2025-0235','eli/dl/proc/x','2025-0222A']})),['2025/0235','2025/0222A']);
 });

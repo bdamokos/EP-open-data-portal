@@ -7,7 +7,8 @@ const noon=date=>new Date(date.slice(0,10)+'T12:00:00Z');
 
 export const agendaShows=['all','votes','debates'];
 export const weekResultsRoute=(week,language='en')=>'insights/week-results?'+new URLSearchParams({week,lang:language});
-export const voteHref=(id,language='en')=>'?'+new URLSearchParams({view:'legislation','pl-mode':'vote','pl-vote':id,lang:language});
+/** The agenda item of a week with one of its votes selected. */
+export const voteHref=(week,itemId,voteId,language='en')=>'?'+new URLSearchParams({view:'legislation','agenda-period':'week:'+week,'agenda-topic':itemId,'agenda-vote':voteId,lang:language});
 
 /** `past` when no day is ahead, `upcoming` when all are, `mixed` while the week is running. */
 export function weekMode(days) {

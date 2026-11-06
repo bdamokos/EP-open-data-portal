@@ -32,8 +32,17 @@ test('a finished week names its place, counts, days and results by day',async t=
   assert.equal(view.querySelectorAll('.week-results p').length,1);assert.equal(view.querySelector('.week-results p').textContent,'Results not in yet.');
   const rows=[...view.querySelectorAll('.week-results li')];assert.equal(rows.length,2);
   assert.equal(rows[0].textContent,'Erasmus+ programme 2028-2034 ***IAdopted · 454–34–93 · 35 votes');
-  const link=rows[0].querySelector('a');assert.equal(link.textContent,'454–34–93');assert.equal(link.getAttribute('href'),'?view=legislation&pl-mode=vote&pl-vote=MTG-PL-2026-10-22-DEC-198405&lang=en');
+  const link=rows[0].querySelector('a');assert.equal(link.textContent,'454–34–93');assert.equal(link.getAttribute('href'),'?view=legislation&agenda-period=week%3A2026-10-19&agenda-topic=MTG-PL-2026-10-22-OJ-ITM-V-52&agenda-vote=MTG-PL-2026-10-22-DEC-198405&lang=en');
   assert.equal(rows[1].textContent,'Title V-60');
+});
+
+test('the tally links to its agenda item with that vote selected and adds a history entry',async t=>{
+  const view=await mount(t,{data:past,results:{data:results,error:null}}),length=history.length;
+  const link=view.querySelector('.week-results li a');
+  await act(async()=>{link.dispatchEvent(new view.ownerDocument.defaultView.MouseEvent('click',{bubbles:true,cancelable:true,button:0}));});
+  const query=new URL(location.href).searchParams;
+  assert.deepEqual(Object.fromEntries(query),{view:'legislation','agenda-period':'week:2026-10-19','agenda-topic':'MTG-PL-2026-10-22-OJ-ITM-V-52','agenda-vote':'MTG-PL-2026-10-22-DEC-198405',lang:'en'});
+  assert.equal(history.length,length+1,'a new history entry, so Back returns to the summary');
 });
 
 test('a week without votes says so and results failing leaves the heading',async t=>{
