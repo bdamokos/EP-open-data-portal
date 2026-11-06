@@ -733,6 +733,9 @@ test('alignment filters the pinned period before pagination while counts and sel
   assert.equal(all.items.some(item=>item.id===decisions[5].activity_id),false);
   const lapsed=await service.query(MEMBER,query(`sitting=${SITTING}&limit=100&decision=${decisions[5].activity_id}`));
   assert.equal(lapsed.selected.status,'found');assert.equal(lapsed.selected.item.ballotStatus,'not-conducted');assert.equal(lapsed.pagination.observedTotal,6);
+  // Whole-text evidence is a member-facing row too: a lapsed one stays out of it, while conducted ones remain.
+  const wholeText=all.subjects.flatMap(subject=>subject.wholeTextDecisions);
+  assert(wholeText.length>0);assert(wholeText.every(decision=>decision.ballotStatus!=='not-conducted'));assert(!wholeText.some(decision=>decision.id===decisions[5].activity_id));
   const ids=all.items.filter(item=>item.alignment==='against').map(item=>item.id);
   const suffix=`sitting=${SITTING}&alignment=against&snapshot=${all.snapshotId}&decision=${decisions[6].activity_id}`;
   const first=await service.query(MEMBER,query(suffix+'&positions=all&limit=1'));
