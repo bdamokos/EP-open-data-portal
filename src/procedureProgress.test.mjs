@@ -31,7 +31,7 @@ test('progress is independent, preserves exact selection and lazy readable docum
   const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(ProcedureContext,{reference:ref,language:'en'})));
-  assert.match(container.textContent,/Checking…/);assert.match(container.textContent,/Loading summary/);
+  assert.doesNotMatch(container.textContent,/Checking/);assert.equal(container.querySelector('.procedure-progress header'),null,'nothing shows until data arrives');assert.match(container.textContent,/Loading summary/);
   await act(async()=>answerProgress(Response.json({...progress,source:{...source,stale:true,refreshInProgress:false}})));
   assert.doesNotMatch(container.textContent,/Saved progress/);
   assert.doesNotMatch(container.textContent,/Checking for updates/,'a completed progress read must not imply continued checking');
