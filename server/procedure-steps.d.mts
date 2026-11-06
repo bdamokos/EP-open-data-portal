@@ -8,5 +8,6 @@ export function procedureSteps(input:{reference:string;indexEvents?:IndexEvent[]
   family:string|null;
   steps:Array<{key:ProcedureStepKey;state:'done'|'current'|'open';date:string|null;partial:boolean}>;
   stage:ProcedureStage;
+  councilApproval:{date:string}|null;
   latest:IndexEvent|CellarEvent|ProcedureSummary|null;
 };

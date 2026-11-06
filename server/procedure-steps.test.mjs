@@ -70,3 +70,39 @@ test('post-deal final vote and same-day index position keep the original mandate
   assert.equal(step(result,'parliament').date,'2025-06-01');assert.equal(step(result,'final').date,'2026-03-01');assert.equal(result.stage,'position');
   assert.equal(step(result,'signed').state,'current');
 });
+
+test('a post-deal position completes Parliament even without a prior mandate row',()=>{
+  const events=[event('ADP_PROPLEG_byCOM','2025-01-01'),event('ADP_REP_byEP_CMT','2025-06-01'),event('ENDORSE_AGRPROV_COREPER_byCONSIL','2026-02-01'),event('ADP_R1_POS_byEP','2026-03-01')];
+  const result=run(events);
+  assert.equal(result.stage,'position');assert.equal(step(result,'parliament').state,'done');assert.equal(step(result,'parliament').date,'2026-03-01');
+  assert.equal(step(result,'final').state,'done');
+  const published=run([...events,event('PUB_OJ','2026-04-01')]);
+  assert.equal(step(published,'parliament').state,'done');
+});
+
+test('Council retains earliest mandate while exposing approval separately',()=>{
+  const result=run([event('ADP_APPRGEN_byCONSIL','2025-05-01'),event('ADP_MAND_NGT_INST_COREPER_byCONSIL','2025-06-01'),event('APR_R1_byCONSIL','2026-04-01')]);
+  assert.equal(step(result,'council').date,'2025-05-01');assert.deepEqual(result.councilApproval,{date:'2026-04-01'});assert.equal(result.stage,'council-approved');assert.equal(step(result,'signed').state,'current');
+  const approvalOnly=run([event('APR_R1_byCONSIL','2026-04-01')]);
+  assert.equal(step(approvalOnly,'council').date,'2026-04-01');assert.deepEqual(approvalOnly.councilApproval,{date:'2026-04-01'});
+  assert.equal(run([]).councilApproval,null);
+});
+test('positions without referral or recorded deal have no current step',()=>{
+  for(const council of ['PART_APPRGEN_byCONSIL','ADP_APPRGEN_byCONSIL']){
+    const result=run([event(council,'2025-05-01'),event('ADP_R1_POS_byEP','2026-03-01')]);
+    assert.equal(result.stage,'position');assert(!result.steps.some(step=>step.state==='current'));assert.equal(step(result,'deal').state,'open');
+  }
+});
+test('held index negotiation endorsement establishes talks; committee agreement completes it',()=>{
+  const source=JSON.parse(readFileSync(new URL('./fixtures/procedure-milestones-live-20261016.json',import.meta.url)));
+  const record=source.records.find(record=>record.work.id==='eli/dl/proc/2025-0176');
+  assert(record);
+  const indexEvents=record.work.consists_of;
+  const runIndex=asOf=>procedureSteps({reference:'2025/0176(COD)',asOf,indexEvents});
+  const endorsement=indexEvents.find(row=>row.had_activity_type.endsWith('/PLENARY_ENDORSE_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS'));
+  assert(endorsement);assert.equal(step(runIndex(endorsement.activity_date),'talks').state,'current');
+  const deal=indexEvents.find(row=>row.had_activity_type.endsWith('/COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT'));
+  assert(deal);
+  const result=runIndex(deal.activity_date);
+  assert.equal(result.stage,'deal');assert.equal(step(result,'deal').date,deal.activity_date);assert.equal(step(result,'talks').state,'done');assert.equal(step(result,'talks').date,null);
+});

@@ -9,9 +9,11 @@ test('held Erasmus+ main vote is DEC-198405 despite unclassified scope and no wh
   const decision=mainVote(votes.decisions,subject);
   assert.equal(decision.id,'MTG-PL-2026-10-22-DEC-198405');assert.equal(decision.scope.kind,'unclassified');
 });
-test('held procedural-only and amendment-only subjects have no main vote',()=>{
+test('held procedural subject and amendment-only excerpt have no main vote',()=>{
   assert.equal(votes.subjects.length,3);
-  for(const subject of votes.subjects.slice(1))assert.equal(mainVote(votes.decisions,subject),null);
+  assert.equal(mainVote(votes.decisions,votes.subjects[1]),null);
+  const amendments=votes.decisions.filter(decision=>decision.subjectId===votes.subjects[0].id&&decision.scope.kind==='amendment');
+  assert(amendments.length>0);assert.equal(mainVote(amendments,votes.subjects[0]),null);
 });
 test('last non-lapsed whole-text vote has priority over English fallback',()=>{
   const a={id:'a',outcome:'ADOPTED'},b={id:'b',outcome:'REJECTED'},c={id:'c',outcome:'LAPSED'};
@@ -29,4 +31,13 @@ test('fallback requires exact subject, conducted ballot and exact trimmed Englis
 test('held exact budget-line decisions do not become a main vote',()=>{
   assert(votes.budgetLines.decisions.length>=3);
   assert.equal(mainVote(votes.budgetLines.decisions,votes.budgetLines.subject),null);
+});
+
+test('four held provisional agreements are main votes; amendment-qualified labels are not',()=>{
+  assert.equal(votes.provisionalAgreements.length,4);
+  for(const decision of votes.provisionalAgreements){
+    const subject={id:decision.subjectId,wholeTextDecisions:[]};
+    assert.equal(mainVote([decision],subject),decision);
+    for(const en of ['Provisional agreement - Am 123','Provisional agreement (part 1)','Provisional agreement and amendments'])assert.equal(mainVote([{...decision,referenceTexts:{en}}],subject),null);
+  }
 });

@@ -1342,6 +1342,44 @@
           "outcome": "LAPSED"
         }
       ]
-    }
+    },
+    "provisionalAgreements": [
+      {
+        "id": "MTG-PL-2026-10-22-DEC-198430",
+        "subjectId": "MTG-PL-2026-10-22-VOT-ITM-993275",
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "referenceTexts": {
+          "en": "Provisional agreement"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-20-DEC-198290",
+        "subjectId": "MTG-PL-2026-10-20-VOT-ITM-993254",
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "referenceTexts": {
+          "en": "Provisional agreement"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-20-DEC-198311",
+        "subjectId": "MTG-PL-2026-10-20-VOT-ITM-993253",
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "referenceTexts": {
+          "en": "Provisional agreement"
+        }
+      },
+      {
+        "id": "MTG-PL-2026-10-20-DEC-198338",
+        "subjectId": "MTG-PL-2026-10-20-VOT-ITM-993262",
+        "ballotStatus": "conducted",
+        "outcome": "ADOPTED",
+        "referenceTexts": {
+          "en": "Provisional agreement"
+        }
+      }
+    ]
   }
 }
