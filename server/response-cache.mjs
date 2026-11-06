@@ -2,7 +2,7 @@ import {agendaViewFreshMs} from './plenary-cache-policy.mjs';
 const HOUR = 3600;
 const DAY = 24 * HOUR;
 const noStore = Object.freeze({cacheControl: 'no-store', cdnCacheControl: 'no-store'});
-const direct = new Set(['directory', 'references', 'reference-summary', 'source-record', 'amendments', 'vote-periods']);
+const direct = new Set(['directory', 'references', 'reference-summary', 'source-record', 'amendments', 'amendment-neighbours', 'vote-periods']);
 const byId = new Set(['profile', 'activities', 'speeches', 'latest-activities', 'speech', 'speech-context', 'speech-media', 'document', 'motion-comparison']);
 const insights = new Set(['questions', 'legislation', 'saved', 'participation', 'speech-words', 'procedure-context', 'procedure-progress', 'press-releases', 'group-voices']);
 

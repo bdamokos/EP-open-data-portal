@@ -11,8 +11,8 @@ import {Window} from 'happy-dom';
 
 const report='A-10-2026-0257',amendment=report+'-AM-7',list=report+'-AM-001-020',readUrl=(extra='')=>'http://localhost/?view=legislation&pl-mode=read&read-doc='+report+extra;
 
-async function harness(t,url,respond) {
-  const window=new Window({url}),requests=[],scrolls=[];
+async function harness(t,url,respond,width=390) {
+  const window=new Window({url,width,height:844}),requests=[],scrolls=[];
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
@@ -171,4 +171,72 @@ test('an invalid document names the gap and requests nothing',async t=>{
   const h=await harness(t,'http://localhost/?view=legislation&pl-mode=read&read-doc=nonsense',()=>undefined);
   assert.equal(h.requests.length,0);
   assert.match(h.container.querySelector('h1').textContent,/unavailable/);
+});
+
+const neighboursFor=extra=>({version:1,amendmentId:amendment,listId:list,outcome:null,authors:[],committeeProposer:null,proposerLanguage:null,onBehalfOf:null,previous:null,next:null,...extra});
+const withNeighbours=(source,neighbours)=>route=>route.startsWith('amendment-neighbours')?neighbours:source;
+
+test('previous and next stay in the list and in the wording language',async t=>{
+  const source=proposalContextResponse(report,amendment,list,7);
+  const h=await harness(t,readUrl('&read-amendment='+amendment+'&read-list='+list+'&read-lang=en'),withNeighbours(source,neighboursFor({previous:{id:report+'-AM-6',number:6},next:{id:report+'-AM-8',number:8}})));
+  const step=name=>new URL(h.container.querySelector(`.read-page-step[aria-label="${name}"]`).href).searchParams;
+  assert.equal(step('Previous amendment').get('read-amendment'),report+'-AM-6');
+  assert.equal(step('Next amendment').get('read-amendment'),report+'-AM-8');
+  for(const name of ['Previous amendment','Next amendment']){assert.equal(step(name).get('read-list'),list);assert.equal(step(name).get('read-lang'),'en');assert.equal(step(name).get('read-doc'),report);}
+  assert.match(h.requests.find(route=>route.startsWith('amendment-neighbours')),/amendment=A-10-2026-0257-AM-7&list=A-10-2026-0257-AM-001-020/);
+});
+
+test('the first and last amendment of a list have no link beyond it',async t=>{
+  const source=proposalContextResponse(report,amendment,list,7);
+  const h=await harness(t,readUrl('&read-amendment='+amendment+'&read-list='+list),withNeighbours(source,neighboursFor({})));
+  assert.equal(h.container.querySelectorAll('a.read-page-step').length,0);
+  assert.equal(h.container.querySelectorAll('.read-page-step[aria-disabled="true"]').length,2);
+});
+
+test('the line gives the reference, who tabled it and a known outcome',async t=>{
+  const source=proposalContextResponse(report,amendment,list,7);
+  const h=await harness(t,readUrl('&read-amendment='+amendment+'&read-list='+list),withNeighbours(source,neighboursFor({committeeProposer:'Committee on Culture and Education',proposerLanguage:'en',outcome:'ADOPTED'})));
+  assert.equal(h.container.querySelector('.read-page-line').textContent,'A10-0257/2026 · Tabled by Committee on Culture and Education · Adopted');
+});
+
+test('an unknown outcome stays out of the line, and many signatories open on request',async t=>{
+  const authors=Array.from({length:5},(_,index)=>({name:'Person '+index,displayName:null,personId:String(100+index)}));
+  const source=proposalContextResponse(report,amendment,list,7);
+  const h=await harness(t,readUrl('&read-amendment='+amendment+'&read-list='+list),withNeighbours(source,neighboursFor({authors})));
+  const details=h.container.querySelector('.read-page-authors');
+  assert.equal(details.querySelector('summary').textContent,'Tabled by Person 0, Person 1, Person 2 +2');
+  assert.equal(details.querySelectorAll('p a').length,5,'every name is there');
+  assert.doesNotMatch(h.container.querySelector('.read-page-line').textContent,/Outcome|Adopted|Rejected/);
+});
+
+const headed={id:report,titles:{en:'REPORT on Erasmus+'},date:'2026-10-02',files:[],selectedDocumentId:report,selectedText:{status:'available',formatStatus:'extracted',paragraphs:['Report text.','I.  First heading','Body.','II. Second heading','Body.'],paragraphFormats:[{},{heading:1},{},{heading:2},{}],textLanguage:'en',requestedLanguage:'en',availableTextLanguages:['en']}};
+const documentResponse=document=>()=>({version:1,documentId:report,requestedLanguage:'en',document,related:{status:'not-requested',items:[],gaps:[]},amendment:null,target:{status:'not-requested',paragraphs:[]},sources:[]});
+
+test('Contents is closed on a phone and goes to the heading it names',async t=>{
+  const h=await harness(t,readUrl(),documentResponse(headed));
+  const contents=h.container.querySelector('details.read-contents');
+  assert(contents,'closed list');assert.equal(contents.open,false);
+  assert.deepEqual([...contents.querySelectorAll('button')].map(button=>button.textContent),['I. First heading','II. Second heading']);
+  await h.click(contents.querySelectorAll('button')[1]);
+  const target=h.container.querySelector('[data-source-paragraph="3"]');
+  assert.equal(h.window.document.activeElement,target);assert(h.scrolls.some(scroll=>scroll.element===target));
+});
+
+test('Contents is a side list on a wide screen',async t=>{
+  const h=await harness(t,readUrl(),documentResponse(headed),1280);
+  assert.equal(h.container.querySelector('details.read-contents'),null);
+  const side=h.container.querySelector('.read-page-with-contents>nav.read-contents');
+  assert(side);assert.equal(side.querySelectorAll('button').length,2);
+});
+
+test('a document with no headings has no Contents',async t=>{
+  const plain={...headed,selectedText:{...headed.selectedText,paragraphFormats:headed.selectedText.paragraphFormats.map(()=>({}))}};
+  const h=await harness(t,readUrl(),documentResponse(plain));
+  assert.equal(h.container.querySelector('.read-contents'),null);
+});
+
+test('an amendment page has no Contents',async t=>{
+  const source=proposalContextResponse(report,amendment,list,7);
+  const h=await harness(t,readUrl('&read-amendment='+amendment+'&read-list='+list),withNeighbours(source,neighboursFor({})));
+  assert.equal(h.container.querySelector('.read-contents'),null);
 });

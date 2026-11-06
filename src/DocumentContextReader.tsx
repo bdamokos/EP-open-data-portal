@@ -1,6 +1,7 @@
 import {publicationRetry} from './publicationRetry';
 import {useDossierReaderState} from './dossierJourney';
-import {inPassage,paragraphPassage,passageNotes} from './proposalPassage.mjs';
+import {documentContents,inPassage,paragraphPassage,passageNotes} from './proposalPassage.mjs';
+import {useMediaQuery} from './useMediaQuery';
 import {sourcePageUrl} from './SourceLink';
 import {RecordTopics} from './RecordTopics';
 import {defaultUi} from './uiDefault.mjs';
@@ -112,6 +113,12 @@ export const placementReasonsUi = (ui: import('./uiI18n.mjs').UiFormatter = defa
 const amendmentNumber=(id:string|undefined)=>id?.match(/(?:-AM-|:)(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'')||null;
 
 
+function Contents({items,wide,onGo}:{items:{paragraph:number;level:number;label:string}[];wide:boolean;onGo:(paragraph:number)=>void}) {
+  const ui=useUiI18n();
+  const list=<ol>{items.map(item=><li key={item.paragraph} data-level={Math.min(item.level,3)}><button type="button" onClick={()=>onGo(item.paragraph)}>{item.label}</button></li>)}</ol>;
+  return wide?<nav className="read-contents" aria-label={ui.t('reader.contents')}><h2 lang={ui.language}><UiMessage id="reader.contents"/></h2>{list}</nav>:<details className="read-contents"><summary lang={ui.language}><UiMessage id="reader.contents"/></summary>{list}</details>;
+}
+
 function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest,agreementInfo,showOriginalLink=true,passageFirst=false,lead}:{agreementInfo?:ProvisionalAgreementResponse;id:string;showOriginalLink?:boolean;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest;passageFirst?:boolean;lead?:DocumentContextReaderProps['lead']}) {
   const ui = useUiI18n();
   const state=useData<DocumentContextResponse>(documentRoute(id,language,amendmentRequest),{retryWhile:data=>Boolean(data.document&&publicationRetry.retryWhile(data.document)),retryAtFor:data=>data.document?publicationRetry.retryAtFor(data.document):0});
@@ -199,6 +206,9 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   },[whole]);
   const passageMark=<p key="passage-mark" className="read-passage-mark" data-passage-target="true" tabIndex={-1} lang={ui.language}>{number ? <UiMessage id="membervotes.tsx.amendment.number" values={{number:number}}/> : <UiMessage id="motionamendments.amendment.664ccf"/>}</p>;
   const fallbackHref=sourceUrl||(passageFirst?sourcePageUrl('https://data.europarl.europa.eu/eli/dl/doc/'+id,{language}):null);
+  const wide=useMediaQuery('(min-width:1000px)');
+  const contents=passageFirst&&!amendmentRequest?.amendmentId&&hasText?documentContents(body.paragraphs,formatting.formats,body.start):[];
+  const goTo=(paragraph:number)=>{const node=reader.current?.querySelector<HTMLElement>(`[data-source-paragraph="${paragraph}"]`);if(!node)return;node.tabIndex=-1;node.scrollIntoView({block:'start'});node.focus({preventScroll:true});};
   const stale=Boolean(passageFirst&&amendmentRequest?.amendmentId&&data&&!state.loading&&(!data.amendment||data.amendment.status==='unavailable'&&!data.amendment.variants.length));
   if(stale)return <>
     <p className="document-context-notice" role="status"><UiMessage id="reader.amendment_not_found"/></p>
@@ -244,7 +254,8 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
       <TextLanguagePicker available={availableLanguages} requested={interfaceLanguage} value={actual} onChange={onLanguageChange} note={<TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/>}/>
       {id.startsWith('TA-')&&<CommissionFollowups id={id} language={language} interfaceLanguage={interfaceLanguage}/>}
       
-      {hasText ? <>
+      {contents.length>0&&!wide&&<Contents items={contents} wide={false} onGo={goTo}/>}
+      {hasText ? <div className={contents.length>0&&wide ? 'read-page-with-contents' : undefined}>{contents.length>0&&wide&&<Contents items={contents} wide onGo={goTo}/>}<div>
         {!passage&&!provisional&&amendmentRequest?.amendmentId&&((reportHeading!==null) ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : (placement ? ((placement.status==='not-applicable') ? null : (placed ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : <p className="document-context-notice" role="status">{placementReason}</p>)) : (found ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.passage.179"/></button>{target?.quoteMatches===false&&<p><UiMessage id="batch6.documentcontextreader.the.published.text.differs.from.the.amendment.s.quotation.179"/></p>}</div> : <p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.the.passage.this.amendment.changes.could.not.be.found.64"/></p>)))}
         {incomplete&&<p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.some.content.is.only.available.in.the.original.document.180"/></p>}
         <ReferenceScope key={id+':'+language} texts={readerTexts(shown.paragraphs,shownNotes,shownLinks)} notes={shownNotes} notePrefix={notePrefix} language={interfaceLanguage} textLanguage={actual} renderQuestion={question=><InsightQuestionReader id={question} language={interfaceLanguage} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers/>}>
@@ -270,7 +281,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
             renderText={(sourceIndex,paragraph,from,to,final,marks)=><DocumentObjectText assets={text?.imageAssets} text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes assets={text?.imageAssets} notes={shownNotes} prefix={notePrefix}/></div>
         </ReferenceScope>
         {collapsed&&<div className="read-passage-more"><button type="button" onClick={()=>{revealed.current=true;setWhole(true);}}><UiMessage id="reader.show_whole_proposal"/></button></div>}
-      </> : (!state.loading&&!loadError&&<p><UiMessage id="batch6.documentcontextreader.document.text.unavailable.here.190"/></p>)}
+      </div></div> : (!state.loading&&!loadError&&<p><UiMessage id="batch6.documentcontextreader.document.text.unavailable.here.190"/></p>)}
       {!collapsed&&<DocumentPages documentId={id} language={actual||language}/>}{showOriginalLink&&sourceUrl&&!hasText&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="batch6.documentcontextreader.open.original.document.191"/></a></p>}
     </>}
   </div>;

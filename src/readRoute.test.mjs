@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {amendmentNumber,documentReferenceLabel,legacyReaderRedirect,provisionLabel,readHref,readRoute,readableDocument} from './readRoute.mjs';
-import {paragraphPassage,passageNotes,proposalPassage} from './proposalPassage.mjs';
+import {documentContents,paragraphPassage,passageNotes,proposalPassage} from './proposalPassage.mjs';
 import {documentContextQuery} from '../server/document-context.mjs';
 import {explorerParams} from './explorerQuery.mjs';
 
@@ -114,4 +114,10 @@ test('a passage lists only the notes its text cites',()=>{
   const notes=[{id:'1'},{id:'2'}],anchors=[{paragraph:3,note:'1'},{paragraph:9,note:'2'}];
   assert.deepEqual(passageNotes(notes,anchors,{start:0,end:5}),[{id:'1'}]);
   assert.deepEqual(passageNotes(notes,anchors,null),notes);
+});
+
+test('contents come only from recorded headings, at their source paragraph',()=>{
+  assert.deepEqual(documentContents(['a','b  c','d','  '],[{},{heading:2},{},{heading:1}],0),[{paragraph:1,level:2,label:'b c'}]);
+  assert.deepEqual(documentContents(['b'],[{},{},{heading:1}],2),[{paragraph:2,level:1,label:'b'}]);
+  assert.deepEqual(documentContents(['a'],[],0),[]);
 });

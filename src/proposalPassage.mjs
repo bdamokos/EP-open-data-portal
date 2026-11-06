@@ -45,6 +45,13 @@ export function paragraphPassage(placement,{start=0,count,tables=[]},around=2) {
   const ranges=tables.map(table=>table.rows.flat().filter(cell=>cell.end>cell.start)).filter(cells=>cells.length).map(cells=>[Math.min(...cells.map(cell=>cell.start)),Math.max(...cells.map(cell=>cell.end))]);
   return coverRanges({start:Math.max(start,target.first-around),end:Math.min(count,target.last+around+1)},ranges);
 }
+// Contents come only from the headings the source text records; a document without any has none.
+export function documentContents(paragraphs,formats,start=0) {
+  return paragraphs.flatMap((text,offset)=>{
+    const level=formats[start+offset]?.heading,label=level?text.replace(/\s+/gu,' ').trim():'';
+    return label?[{paragraph:start+offset,level,label}]:[];
+  });
+}
 export const inPassage=(range,index)=>!range||index>=range.start&&index<range.end;
 // Notes follow the text on screen, so a passage lists only the notes it cites.
 export function passageNotes(notes,anchors,range) {
