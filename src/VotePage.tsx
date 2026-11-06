@@ -4,7 +4,7 @@ import {CountryFilter} from './CountryFilter';
 import {Result,VotePartDescriptions} from './MemberVoteSummary';
 import {VoteView} from './VoteResult';
 import {humanDate} from './InsightShared';
-import {useDirectoryMembers} from './PersonName';
+import {useDirectoryMembers,usePersonName} from './PersonName';
 import {useData} from './data';
 import {dossierBackHref,dossierLinkClick,useDossierReaderState} from './dossierJourney';
 import {decisionVotesRoute,validateDecisionVotes} from './decisionVotesPresentation.mjs';
@@ -34,7 +34,7 @@ function OtherVotes({rows,current,language}:{rows:DecisionVoteSibling[];current:
 
 export function VotePage({decisionId,language,onMember,country,onCountry}:{decisionId:string;language:string;onMember:InsightProps['onMember'];country:string|null;onCountry:(country:string|null)=>void}) {
   const ui=useUiI18n();
-  const directory=useDirectoryMembers();
+  const directory=useDirectoryMembers(),displayName=usePersonName();
   const route=decisionVotesRoute(decisionId,language);
   const request=useData<DecisionVotesResponse>(route,{unavailable:'votepage.unavailable'});
   const [textOpen,setTextOpen]=useDossierReaderState('vote-page-text:'+decisionId,false);
@@ -57,7 +57,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
     <h1 tabIndex={-1}><UiMessage id={sentence.id} values={{...sentence.values,...(sentence.item ? {item:<span lang={itemLanguage}>{itemTitle}</span>} : {}),...(sentence.values.label ? {label:<span lang="">{sentence.values.label}</span>} : {})}}/>{sentence.noNames&&<> <UiMessage id="votepage.no_names"/></>}</h1>
     <VotePartDescriptions vote={vote} language={language}/>
     {memberVoteTotals(vote)&&<Result vote={vote} showMissingTotals={false}/>}
-    {named&&<section className="vote-page-groups"><h2><UiMessage id="legislation.how_meps_voted.789bfc"/></h2><div className="insight-controls insight-detail-country"><CountryFilter country={country} onChange={onCountry} language={language}/></div><VoteView standalone country={country} vote={namedVoteFromDecision(data,directory)} language={language} onMember={onMember}/></section>}
+    {named&&<section className="vote-page-groups"><h2><UiMessage id="legislation.how_meps_voted.789bfc"/></h2><div className="insight-controls insight-detail-country"><CountryFilter country={country} onChange={onCountry} language={language}/></div><VoteView standalone country={country} vote={namedVoteFromDecision(data,directory,id=>displayName(id))} language={language} onMember={onMember}/></section>}
     {(data.integrity==='conflicting'||noList)&&<p><UiMessage id="legislation.individual_votes_unavailable.ca5dc2"/></p>}
     {data.siblings.length>1&&<OtherVotes key={decisionId} rows={data.siblings} current={decisionId} language={language}/>}
     <details className="vote-page-text" open={textOpen} onToggle={event=>setTextOpen(event.currentTarget.open)}><summary><UiMessage id="votepage.read_text"/></summary>{textOpen&&<Suspense fallback={<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}><DossierVoteText key={decisionId+':'+language} vote={vote} language={language} showParts={false}/></Suspense>}</details>

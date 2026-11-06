@@ -52,11 +52,11 @@ export function voteSentence(vote,{mainVoteId=null,procedureReferral=false,itemT
 }
 /** Build the agenda's vote shape from a decision read. Current members resolve
  * through the client's directory; everyone else through the response's held names. */
-export function namedVoteFromDecision(data,directory=new Map()) {
+export function namedVoteFromDecision(data,directory=new Map(),nameOf=()=>null) {
   const positions=['for','against','abstaining'];
   const person=(id,group)=>{
     const member=directory.get(id),held=data.people?.[id];
-    return {id,name:held?.name??null,personUri:'https://data.europarl.europa.eu/person/'+id,currentMep:Boolean(member),country:member?.countryCode??held?.country??null,group,contributionGroup:group};
+    return {id,name:held?.name??(nameOf(id)||null),personUri:'https://data.europarl.europa.eu/person/'+id,currentMep:Boolean(member),country:member?.countryCode??held?.country??null,group,contributionGroup:group};
   };
   const decision=data.decision,recorded=data.voters.filter(voter=>voter.status==='recorded');
   const available=Boolean(decision.namedVoters?.available)&&data.integrity!=='conflicting';

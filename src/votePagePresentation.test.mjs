@@ -67,6 +67,9 @@ test('decision reads become the agenda shape without guessing unknown people',()
  assert.deepEqual(vote.intendedCorrections.against.map(person=>person.id),['2']);
  assert.equal(vote.groups.for.concat(vote.groups.against).some(person=>person.id==='4'),false,'a conflicting record stays out');
  assert.equal(namedVoteFromDecision({...data,integrity:'conflicting'}).namedVotersAvailable,false);
+ const named=namedVoteFromDecision(data,new Map([['2',{countryCode:'FR'}]]),id=>id==='2'?'Known Member':null);
+ assert.equal(named.intendedCorrections.against[0].name,'Known Member','a correction by a current member keeps the name');
+ assert.equal(named.groups.for.find(person=>person.id==='3').name,'Former Member');
 });
 test('the vote route is a fixed URL and pl-vote accepts only exact decision identifiers',()=>{
  assert.equal(voteHref('MTG-PL-2026-10-22-DEC-199360','en'),'?view=legislation&pl-mode=vote&pl-vote=MTG-PL-2026-10-22-DEC-199360&lang=en');
