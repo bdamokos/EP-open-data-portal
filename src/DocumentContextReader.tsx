@@ -1,4 +1,7 @@
 import {publicationRetry} from './publicationRetry';
+import {useDossierReaderState} from './dossierJourney';
+import {inPassage,paragraphPassage,passageNotes} from './proposalPassage.mjs';
+import {sourcePageUrl} from './SourceLink';
 import {RecordTopics} from './RecordTopics';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
@@ -29,9 +32,15 @@ import {DocumentParagraphs,usableFormatting,type FormatMark} from './DocumentFor
 import {ProvisionalAgreementLinks,type ProvisionalAgreementResponse} from './ProvisionalAgreement';
 import './DocumentContextReader.css';
 
+export type DocumentReaderLeadInfo={documentId:string;amendmentId?:string;document:PublicationDocument|null;title:{text:string;language:string}|null;variant:NonNullable<DocumentContextResponse['amendment']>['variants'][number]|null;loading:boolean;failed:boolean};
 export type DocumentContextReaderProps={
   request:DocumentContextRequest;
   language:string;
+  /** Opens at the amendment and its passage; the whole text waits for a request. */
+  passageFirst?:boolean;
+  lead?:(info:DocumentReaderLeadInfo)=>ReactNode;
+  textLanguage?:string;
+  onTextLanguageChange?:(language:string)=>void;
   showOriginalLink?:boolean;
   showBackButton?:boolean;
   selectedDocumentId?:string|null;
@@ -103,7 +112,7 @@ export const placementReasonsUi = (ui: import('./uiI18n.mjs').UiFormatter = defa
 const amendmentNumber=(id:string|undefined)=>id?.match(/(?:-AM-|:)(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'')||null;
 
 
-function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest,agreementInfo,showOriginalLink=true}:{agreementInfo?:ProvisionalAgreementResponse;id:string;showOriginalLink?:boolean;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest}) {
+function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest,agreementInfo,showOriginalLink=true,passageFirst=false,lead}:{agreementInfo?:ProvisionalAgreementResponse;id:string;showOriginalLink?:boolean;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest;passageFirst?:boolean;lead?:DocumentContextReaderProps['lead']}) {
   const ui = useUiI18n();
   const state=useData<DocumentContextResponse>(documentRoute(id,language,amendmentRequest),{retryWhile:data=>Boolean(data.document&&publicationRetry.retryWhile(data.document)),retryAtFor:data=>data.document?publicationRetry.retryAtFor(data.document):0});
   const data=responseFor(state.data,id,language,amendmentRequest),document=((data?.document?.id===id) && (!data.document.selectedDocumentId||data.document.selectedDocumentId===id)) ? data.document : null;
@@ -173,34 +182,60 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const incomplete=publicationHasMissingContent(text,body,logo);
   const actual=text?.textLanguage||null;
   const availableLanguages=[...new Set([...(text?.availableTextLanguages||[]),...(actual ? ([actual]) : ([]))])];
+  const leadNode=lead?.({documentId:id,amendmentId:amendmentRequest?.amendmentId,document,title,variant:selectedVariant,loading:state.loading&&!data,failed:loadError&&!state.retrying&&!hasText});
+  const passage=Boolean(passageFirst&&placed&&reportHeading===null);
+  const [whole,setWhole]=useDossierReaderState('read-whole:'+(amendmentRequest?.amendmentId||''),false),revealed=useRef(false);
+  const collapsed=Boolean(passageFirst&&amendmentRequest?.amendmentId&&!whole&&reportHeading===null&&(placed||placement?.status==='unresolved'));
+  const formatting=usableFormatting(text,allParagraphs.length);
+  const range=collapsed ? (placed&&placement ? paragraphPassage(placement,{start:body.start,count:allParagraphs.length,tables:formatting.tables}) : {start:body.start,end:body.start}) : null;
+  const shown=range ? {paragraphs:allParagraphs.slice(range.start,range.end),start:range.start} : body;
+  const shownNotes=passageNotes(notes,anchors,range),shownLinks=links.filter(link=>inPassage(range,link.paragraph));
+  const marked=(index:number)=>Boolean(passage&&placement?.operation!=='insert'&&placement?.span&&index>=placement.span.start&&index<=placement.span.end);
+  useEffect(()=>{
+    if(!whole||!revealed.current)return;
+    revealed.current=false;
+    const node=reader.current?.querySelector<HTMLElement>('[data-passage-target="true"]');
+    node?.scrollIntoView({block:'center'});node?.focus({preventScroll:true});
+  },[whole]);
+  const passageMark=<p key="passage-mark" className="read-passage-mark" data-passage-target="true" tabIndex={-1} lang={ui.language}>{number ? <UiMessage id="membervotes.tsx.amendment.number" values={{number:number}}/> : <UiMessage id="motionamendments.amendment.664ccf"/>}</p>;
+  const fallbackHref=sourceUrl||(passageFirst?sourcePageUrl('https://data.europarl.europa.eu/eli/dl/doc/'+id,{language}):null);
+  const stale=Boolean(passageFirst&&amendmentRequest?.amendmentId&&data&&!state.loading&&(!data.amendment||data.amendment.status==='unavailable'&&!data.amendment.variants.length));
+  if(stale)return <>
+    <p className="document-context-notice" role="status"><UiMessage id="reader.amendment_not_found"/></p>
+    <DocumentBody id={id} language={language} interfaceLanguage={interfaceLanguage} showOriginalLink={showOriginalLink} onLanguageChange={onLanguageChange} passageFirst lead={lead}/>
+  </>;
   const showPassage=()=>{const paragraph=reader.current?.querySelector<HTMLElement>('[data-context-target="true"], [data-report-amendment="true"]');paragraph?.scrollIntoView({block:'center'});paragraph?.focus({preventScroll:true});};
   const proposalEvidenceMatches=Boolean(document&&wording&&amendmentRequest?.amendmentId&&data?.amendment?.id===amendmentRequest.amendmentId&&
     evidence?.amendmentId===amendmentRequest.amendmentId&&evidence?.listId===wording.listId&&evidence?.wordingLanguage===wording.language&&
     (!amendmentRequest.listId||evidence.listId===amendmentRequest.listId)&&(!wordingPinned||evidence.wordingLanguage===amendmentRequest.wordingLanguage)&&
     typeof wording.language==='string'&&data?.baseline?.language===wording.language);
   if(placement?.status==='report-quotation'&&amendmentMatches&&wording)return <div className="document-context-document">
-    {document&&<header className="document-context-heading"><h3 lang={title?.language}>{title?.text}</h3></header>}
+    {leadNode}
+    {!leadNode&&document&&<header className="document-context-heading"><h3 lang={title?.language}>{title?.text}</h3></header>}
     <p className="document-context-notice"><UiMessage id="documentcontext.council.quotation"/></p>
     {amendmentBlock(false)}
 
   </div>;
   // The agreement's own text, with Parliament's marks, replaces the report's text.
   if(provisional&&(agreement||agreementState.loading&&!agreementState.data))return <div className="document-context-document">
+    {leadNode}
     {agreement?<>
       <DocumentBody agreementInfo={agreement} key={agreement.text!.documentId+':'+language} id={agreement.text!.documentId} language={language} interfaceLanguage={interfaceLanguage} showOriginalLink={showOriginalLink} onLanguageChange={onLanguageChange}/>
     </>:<p role="status"><UiMessage id="batch5.amendments.tsx.188.20"/></p>}
   </div>;
   if(!provisional&&['commission-proposal','council-position','existing-act'].includes(data?.baseline?.kind||'')&&data?.proposal?.items.length)return <div className="document-context-document">
-    {document&&<header className="document-context-heading"><div><p className="document-context-kind"><UiMessage id="batch6.documentcontextreader.report.amendment.163"/></p><h3 lang={title?.language}>{title?.text}</h3></div></header>}
+    {leadNode}
+    {!leadNode&&document&&<header className="document-context-heading"><div><p className="document-context-kind"><UiMessage id="batch6.documentcontextreader.report.amendment.163"/></p><h3 lang={title?.language}>{title?.text}</h3></div></header>}
     {!wording&&<AmendmentJustification record={selectedVariant}/>}
-    <ProposalContextText data={(proposalEvidenceMatches||data.placement?.status==='unresolved') ? data : ({...data,placement:{...data.placement!,status:'unresolved',reason:'client_target_unconfirmed'}})} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage} showOriginalLink={showOriginalLink}/>
+    <ProposalContextText data={(proposalEvidenceMatches||data.placement?.status==='unresolved') ? data : ({...data,placement:{...data.placement!,status:'unresolved',reason:'client_target_unconfirmed'}})} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage} showOriginalLink={showOriginalLink} passageFirst={passageFirst}/>
   </div>;
   return <div className="document-context-document" data-context-pending={(state.loading && (!hasText)) ? 'true' : undefined}>
+    {leadNode}
     {agreementInfo&&<ProvisionalAgreementLinks data={agreementInfo} hasText={hasText}/>}
-    {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id, ui)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools">{hasText&&<FindInText key={id+':'+language} target={reader} label={ui.t("batch6.documentcontextreader.find.in.document.168")}/>}</div></header>}
+    {!leadNode&&document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id, ui)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools">{hasText&&<FindInText key={id+':'+language} target={reader} label={ui.t("batch6.documentcontextreader.find.in.document.168")}/>}</div></header>}
     {provisional&&<p className="document-context-notice" role="status"><UiMessage id="amendment.replaces_whole_text"/> <a href={safeHref(provisionalSource?.sourceUrl)!} target="_blank" rel="noreferrer"><UiMessage id="amendment.agreement_text"/></a></p>}
-    {state.loading&&!data&&<p role="status"><UiMessage id="batch5.amendments.tsx.188.20"/></p>}
-    {loadError&&!state.retrying&&!hasText&&<p className="document-context-notice" role="alert">{extractionError ? ui.t("batch6.documentcontextreader.document.text.could.not.be.loaded.170") : ui.t("batch6.documentcontextreader.document.could.not.be.loaded.170")} </p>}
+    {state.loading&&!data&&<p role="status">{passageFirst&&amendmentRequest?.amendmentId ? <UiMessage id="reader.loading_amendment"/> : <UiMessage id="batch5.amendments.tsx.188.20"/>}</p>}
+    {passageFirst&&fallbackHref&&loadError&&!state.retrying&&!hasText ? <p className="document-context-source"><a href={fallbackHref} target="_blank" rel="noreferrer"><UiMessage id="batch6.documentcontextreader.open.original.document.191"/></a></p> : loadError&&!state.retrying&&!hasText&&<p className="document-context-notice" role="alert">{extractionError ? ui.t("batch6.documentcontextreader.document.text.could.not.be.loaded.170") : ui.t("batch6.documentcontextreader.document.could.not.be.loaded.170")} </p>}
     {!state.loading&&!loadError&&!document&&<p><UiMessage id="batch6.documentcontextreader.document.unavailable.here.171"/></p>}
     {(!wording||hasText&&(!placement||scopeLanguageMismatch))&&<AmendmentJustification record={selectedVariant}/>}
     {rejection&&!hasText&&<p className="document-context-notice" role="status">{placementReason}</p>}
@@ -210,13 +245,16 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
       {id.startsWith('TA-')&&<CommissionFollowups id={id} language={language} interfaceLanguage={interfaceLanguage}/>}
       
       {hasText ? <>
-        {!provisional&&amendmentRequest?.amendmentId&&((reportHeading!==null) ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : (placement ? ((placement.status==='not-applicable') ? null : (placed ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : <p className="document-context-notice" role="status">{placementReason}</p>)) : (found ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.passage.179"/></button>{target?.quoteMatches===false&&<p><UiMessage id="batch6.documentcontextreader.the.published.text.differs.from.the.amendment.s.quotation.179"/></p>}</div> : <p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.the.passage.this.amendment.changes.could.not.be.found.64"/></p>)))}
+        {!passage&&!provisional&&amendmentRequest?.amendmentId&&((reportHeading!==null) ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : (placement ? ((placement.status==='not-applicable') ? null : (placed ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : <p className="document-context-notice" role="status">{placementReason}</p>)) : (found ? <div className="document-context-passage"><button type="button" onClick={showPassage}><UiMessage id="batch6.documentcontextreader.go.to.passage.179"/></button>{target?.quoteMatches===false&&<p><UiMessage id="batch6.documentcontextreader.the.published.text.differs.from.the.amendment.s.quotation.179"/></p>}</div> : <p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.the.passage.this.amendment.changes.could.not.be.found.64"/></p>)))}
         {incomplete&&<p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.some.content.is.only.available.in.the.original.document.180"/></p>}
-        <ReferenceScope key={id+':'+language} texts={readerTexts(body.paragraphs,notes,links)} notes={notes} notePrefix={notePrefix} language={interfaceLanguage} textLanguage={actual} renderQuestion={question=><InsightQuestionReader id={question} language={interfaceLanguage} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers/>}>
-          <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&!scopeLanguageMismatch&&amendmentBlock(false)}<DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,allParagraphs.length)} exactOffsets
-            paragraphProps={sourceIndex=>{const selected=Boolean(found&&indices.includes(sourceIndex)),reportSelected=sourceIndex===reportHeading;return {'data-source-paragraph':String(sourceIndex),'data-context-target':selected ? 'true' : undefined,'data-report-amendment':reportSelected ? 'true' : undefined,className:selected ? 'document-context-target' : undefined,tabIndex:(selected||reportSelected) ? (-1) : undefined};}}
-            renderTable={(last,table)=>afterTable&&last===placement?.insertAfter?<Fragment key={'table-'+last}>{table}{amendmentBlock(true)}</Fragment>:table}
+        <ReferenceScope key={id+':'+language} texts={readerTexts(shown.paragraphs,shownNotes,shownLinks)} notes={shownNotes} notePrefix={notePrefix} language={interfaceLanguage} textLanguage={actual} renderQuestion={question=><InsightQuestionReader id={question} language={interfaceLanguage} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers/>}>
+          {passage&&<div className="document-context-text" lang={actual||''}>{amendmentBlock(true)}</div>}
+          {leadNode&&<div className="read-passage-head"><FindInText key={id+':'+language} target={reader} label={ui.t("batch6.documentcontextreader.find.in.document.168")} onOpen={()=>setWhole(true)}/></div>}
+          <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&!scopeLanguageMismatch&&amendmentBlock(false)}<DocumentParagraphs texts={shown.paragraphs} start={shown.start} formatting={formatting} exactOffsets
+            paragraphProps={sourceIndex=>{const selected=Boolean(found&&indices.includes(sourceIndex)),reportSelected=sourceIndex===reportHeading,first=marked(sourceIndex)&&sourceIndex===placement?.span?.start;return {'data-source-paragraph':String(sourceIndex),'data-context-target':selected ? 'true' : undefined,'data-report-amendment':reportSelected ? 'true' : undefined,'data-passage-target':first ? 'true' : undefined,className:selected||marked(sourceIndex) ? 'document-context-target' : undefined,tabIndex:(selected||reportSelected||first) ? (-1) : undefined};}}
+            renderTable={(last,table)=>afterTable&&last===placement?.insertAfter?<Fragment key={'table-'+last}>{table}{passage?passageMark:amendmentBlock(true)}</Fragment>:table}
             renderParagraph={(sourceIndex,paragraph)=>{
+              if(passage)return !afterTable&&placement?.operation==='insert'&&sourceIndex===placement.insertAfter ? <Fragment key={sourceIndex}>{paragraph}{passageMark}</Fragment> : paragraph;
               if(placed&&placement?.span&&sourceIndex>=placement.span.start&&sourceIndex<=placement.span.end)return (sourceIndex===placement.span.start) ? amendmentBlock(true) : null;
               if(placed&&inlineOffset!==null&&sourceIndex===placement?.insertAfter&&isValidElement(paragraph)) {
                 const value=allParagraphs[sourceIndex],format=usableFormatting(text,allParagraphs.length).formats[sourceIndex],marks=format?.marks||[];
@@ -229,17 +267,18 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
               }
               return ((!afterTable&&placed && (placement?.operation==='insert')) && (sourceIndex===placement.insertAfter)) ? <Fragment key={sourceIndex}>{paragraph}{amendmentBlock(true)}</Fragment> : paragraph;
             }}
-            renderText={(sourceIndex,paragraph,from,to,final,marks)=><DocumentObjectText assets={text?.imageAssets} text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes assets={text?.imageAssets} notes={notes} prefix={notePrefix}/></div>
+            renderText={(sourceIndex,paragraph,from,to,final,marks)=><DocumentObjectText assets={text?.imageAssets} text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes assets={text?.imageAssets} notes={shownNotes} prefix={notePrefix}/></div>
         </ReferenceScope>
+        {collapsed&&<div className="read-passage-more"><button type="button" onClick={()=>{revealed.current=true;setWhole(true);}}><UiMessage id="reader.show_whole_proposal"/></button></div>}
       </> : (!state.loading&&!loadError&&<p><UiMessage id="batch6.documentcontextreader.document.text.unavailable.here.190"/></p>)}
-      <DocumentPages documentId={id} language={actual||language}/>{showOriginalLink&&sourceUrl&&!hasText&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="batch6.documentcontextreader.open.original.document.191"/></a></p>}
+      {!collapsed&&<DocumentPages documentId={id} language={actual||language}/>}{showOriginalLink&&sourceUrl&&!hasText&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="batch6.documentcontextreader.open.original.document.191"/></a></p>}
     </>}
   </div>;
 }
 
-function ContextSession({request,language,selectedDocumentId,onSelectedDocumentIdChange,showOriginalLink=true,showBackButton=true}:DocumentContextReaderProps) {
+function ContextSession({request,language,selectedDocumentId,onSelectedDocumentIdChange,showOriginalLink=true,showBackButton=true,passageFirst=false,lead,textLanguage,onTextLanguageChange}:DocumentContextReaderProps) {
   const ui = useUiI18n();
-  const [selectedLanguage,setLanguage]=useState((typeof request.wordingLanguage==='string') ? request.wordingLanguage : language),[localSelection,setLocalSelection]=useState<string|null>(null);
+  const [ownLanguage,setOwnLanguage]=useState((typeof request.wordingLanguage==='string') ? request.wordingLanguage : language),selectedLanguage=textLanguage??ownLanguage,setLanguage=(next:string)=>{setOwnLanguage(next);onTextLanguageChange?.(next);},[localSelection,setLocalSelection]=useState<string|null>(null);
   const controlled=selectedDocumentId!==undefined,selected=controlled ? selectedDocumentId : localSelection;
   const select=(id:string|null)=>{if(!controlled)setLocalSelection(id);onSelectedDocumentIdChange?.(id);};
   const related=useData<DocumentContextResponse>((request.view==='adopted') ? ('document-context/'+encodeURIComponent(request.documentId)+'?'+new URLSearchParams({lang:selectedLanguage,adopted:'1'})) : null);
@@ -247,10 +286,10 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
   const choices=data?.related.items.filter(item=>/^TA-10-\d{4}-\d{4,6}$/.test(item.id)&&item.relationship.field==='adopts'&&item.relationship.from===item.id&&item.relationship.to===request.documentId)||[];
   const selectedChoice=choices.find(item=>item.id===selected),partial=data?.related.status==='partial';
   const pendingRelated=request.view==='adopted'&&related.loading&&(selected ? (!selectedChoice) : (!data));
-  return <section className="document-context-reader" lang={ui.language} aria-label={ui.t("batch6.documentcontextreader.document.context.205")} data-context-pending={pendingRelated ? 'true' : undefined}><RecordTopics id={request.documentId} full language={language}/>
+  return <section className="document-context-reader" lang={ui.language} aria-label={ui.t("batch6.documentcontextreader.document.context.205")} data-context-pending={pendingRelated ? 'true' : undefined}>{!passageFirst&&<RecordTopics id={request.documentId} full language={language}/>}
     {showBackButton&&<button type="button" className="document-context-back" onClick={request.onBack}><>← {(request.backLabel??ui.t('interface.back'))}</></button>}
     {request.summary}
-    {(request.view==='document') ? <DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage} amendmentRequest={request}/> : <>
+    {(request.view==='document') ? <DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage} amendmentRequest={request} passageFirst={passageFirst} lead={lead}/> : <>
       {selected ? <>
         <button type="button" className="document-context-choices-back" onClick={()=>select(null)}><UiMessage id="batch6.documentcontextreader.adopted.texts.210"/></button>
         {selectedChoice ? <DocumentBody key={selectedChoice.id+':'+selectedLanguage} id={selectedChoice.id} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage}/> : (related.loading ? <p role="status"><UiMessage id="batch6.documentcontextreader.loading.linked.texts.211"/></p> : (!related.error&&<p><UiMessage id="batch6.documentcontextreader.this.adopted.text.is.unavailable.here.211"/></p>))}

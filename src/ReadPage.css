@@ -1,0 +1,16 @@
+.read-page .document-context-reader{margin-top:0}
+.read-page-bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;min-height:36px;margin-bottom:6px;background:var(--bg);border-bottom:1px solid var(--line)}
+.read-page-bar h1{flex:1;min-width:0;margin:0;font-size:1rem;line-height:1.3;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.read-page-bar h1:focus{outline:none}
+.read-page-back{flex:none;display:inline-flex;align-items:center;justify-content:center;min-width:32px;min-height:32px;text-decoration:none}
+.read-page-line{margin:0 0 8px;font-size:.9rem;line-height:1.45;color:var(--ink-muted)}
+.read-page-document h1{margin:0 0 6px;font-size:1.35rem;line-height:1.3;overflow-wrap:anywhere}
+.read-page-document h1:focus{outline:none}
+.read-passage-head{display:flex;justify-content:space-between;align-items:center;gap:.6rem;margin:1rem 0 .4rem}
+.read-passage-head .proposal-context-summary{margin:0}
+.read-passage-more{margin:1rem 0}
+.read-passage-more button{background:var(--surface);border:1px solid var(--line-strong);border-radius:3px;padding:.35rem .65rem;color:var(--context-blue)}
+.read-passage-mark{border-left:3px solid var(--context-blue);padding:.2rem .6rem;font-size:.85rem;font-weight:700;color:var(--context-muted);scroll-margin:4rem}
+.read-passage-mark:focus-visible{outline:2px solid var(--context-blue);outline-offset:3px}
+@media(max-width:600px){.read-page-line{margin-bottom:4px}.read-page .document-context-amendment{margin-top:.5rem}}
+.read-page .document-context-text p.document-context-target.doc-hanging{padding-left:calc(.85rem + min(calc(var(--doc-hanging) * var(--doc-indent-scale,1)),30%))}

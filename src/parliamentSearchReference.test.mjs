@@ -27,14 +27,14 @@ async function render(t,{query,sections,commission,type='all'}) {
 }
 const report={type:'reference',total:1,nextOffset:null,truncated:false,coverage,input:'document',results:[{id:'A-10-2026-0257',type:'reference',kind:'report',reference:'A10-0257/2026',title:'REPORT on Erasmus+',titleLanguage:'en',date:'2026-10-02',dossier:'2025/0222(COD)'}]};
 
-test('a held reference leads the page and links to its dossier',async t=>{
+test('a held reference leads the page and opens the document reader',async t=>{
   const {container}=await render(t,{query:'A10-0257/2026',sections:{reference:report}});
   const block=container.querySelector('.explorer-search-reference');
   assert(block,'reference block');
   assert(container.querySelector('.explorer-catalog-results').firstElementChild===block,'it comes before every section');
   assert.match(block.textContent,/Report · A10-0257\/2026/);
   assert.doesNotMatch(container.textContent,/No matches/);
-  assert.match(block.querySelector('a').getAttribute('href'),/dossier-ref=2025%2F0222%28COD%29/);
+  assert.match(block.querySelector('a').getAttribute('href'),/pl-mode=read&read-doc=A-10-2026-0257/);
 });
 test('a reference that is not held hides the empty sections and says so once',async t=>{
   const {container}=await render(t,{query:'A10-9999/2026',sections:{reference:{...empty('reference'),held:false,input:'document'}}});

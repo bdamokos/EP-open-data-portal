@@ -4,7 +4,9 @@ import {UiMessage, useUiI18n} from './UiI18nReact';
 import {PlacementNote} from './PlacementNote';
 import {DocumentImage} from './DocumentImage';
 import {mapWordingFormatting} from './contextAnnotations.mjs';
-import {useId,useRef,type ReactNode} from 'react';
+import {useEffect,useId,useRef,type ReactNode} from 'react';
+import {useDossierReaderState} from './dossierJourney';
+import {inPassage,passageNotes,proposalPassage,type PassageRange} from './proposalPassage.mjs';
 import type {DocumentContextResponse} from './DocumentContextTypes';
 import type {DocumentLink,NoteAnchor,DocumentNote} from './explorerTypes';
 import type {ProposalDocument,ProposalTable,ProposalUnit} from './proposalTypes';
@@ -73,7 +75,8 @@ export const proposalPlacementReasonsUi = (ui: import('./uiI18n.mjs').UiFormatte
 
 type Placement=NonNullable<DocumentContextResponse['placement']>;
 type Variant=NonNullable<DocumentContextResponse['amendment']>['variants'][number];
-function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:ProposalDocument;itemIndex:number;placement:Placement|null|undefined;block:(inPlace:boolean,proposal?:ProposalDocument)=>ReactNode;prefix:string}) {
+// A passage shows the source as published, with its target marked: the amendment itself sits above it.
+function ItemText({proposal,itemIndex,placement,block,prefix,marking=false,range}:{proposal:ProposalDocument;itemIndex:number;placement:Placement|null|undefined;block:(inPlace:boolean,proposal?:ProposalDocument)=>ReactNode;prefix:string;marking?:boolean;range?:PassageRange|null}) {
   const ui=useUiI18n();
   const anchors=proposal.anchors as NoteAnchor[],links=proposal.links as DocumentLink[],active=placement?.status==='placed'&&placement.itemIndex===itemIndex;
   function sourceSlice(index:number,start=0,end=proposal.paragraphs[index].text.length) {
@@ -91,14 +94,15 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
   const owner=units(proposal.units).find(unit=>unit.id===anchorId);
   const insertionTable=((active && (placement.operation==='insert')) && owner) ? topTables.flatMap(table=>[table,...(table.nestedTables??[])]).filter(table=>table.paragraphs.includes(placement.insertAfter!)&&!table.paragraphs.includes(owner.extent.start)).sort((a,b)=>a.sourcePath.length-b.sourcePath.length)[0] : undefined;
   const row=(index:number)=>{
-    const splice=active ? placement.splice : undefined;
+    const splice=active&&!marking ? placement.splice : undefined;
     if(splice&&index>=splice.start.paragraph&&index<=splice.end.paragraph){
       const nodes:ReactNode[]=[];
       if(index===splice.start.paragraph){if(splice.start.offset>0)nodes.push(<p key={'before'+index} data-source-paragraph={index}>{sourceSlice(index,0,splice.start.offset)}</p>);nodes.push(block(true,proposal));}
       if(index===splice.end.paragraph&&splice.end.offset<proposal.paragraphs[index].text.length)nodes.push(<p key={'after'+index} data-source-paragraph={index}>{sourceSlice(index,splice.end.offset)}</p>);
       return nodes;
     }
-    const p=<p key={index} data-source-paragraph={index}>{sourceSlice(index)}</p>;
+    const marked=marking&&active&&placement.operation!=='insert'&&!!placement.span&&index>=placement.span.start&&index<=placement.span.end;
+    const p=<p key={index} data-source-paragraph={index} className={marked ? 'document-context-target' : undefined} data-passage-target={marked&&index===placement!.span!.start ? 'true' : undefined} tabIndex={marked&&index===placement!.span!.start ? -1 : undefined}>{sourceSlice(index)}</p>;
     return (((active && (placement.operation==='insert')) && (!insertionTable)) && (placement.insertAfter===index)) ? ([p,block(true,proposal)]) : ([p]);
   };
   function tableNode(table:ProposalTable):ReactNode {
@@ -112,7 +116,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
     type GridCell={column:number;colSpan:number;rowSpan:number;paragraphs:number[]};
     // A splice over whole table rows replaces those rows: omit them instead of
     // leaving empty cells, and show the amendment after any remaining rows.
-    const splice=active ? placement.splice : undefined;
+    const splice=active&&!marking ? placement.splice : undefined;
     // Only paragraphs consumed in full, boundary offsets included, leave a row.
     const consumed=(index:number)=>!!splice&&index>=splice.start.paragraph&&index<=splice.end.paragraph
       &&(index>splice.start.paragraph||splice.start.offset===0)&&(index<splice.end.paragraph||splice.end.offset>=proposal.paragraphs[index].text.length);
@@ -147,18 +151,19 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
     // Keep reading order: rows before the replaced run, the amendment, rows after.
     if(startsHere){const first=Math.min(...replacedRows);return [part(kept.filter(row=>row.ri<first),':before'),block(true,proposal),part(kept.filter(row=>row.ri>first),':after')];}
     const content=part(kept,'');
-    if(active&&placement.evidence?.some(e=>e.basis==='table-level-elision')&&!placement.splice&&placement.span?.start===Math.min(...table.paragraphs)&&placement.span.end===Math.max(...table.paragraphs))return [block(true,proposal),content];
+    if(active&&!marking&&placement.evidence?.some(e=>e.basis==='table-level-elision')&&!placement.splice&&placement.span?.start===Math.min(...table.paragraphs)&&placement.span.end===Math.max(...table.paragraphs))return [block(true,proposal),content];
     return (insertionTable?.sourcePath===table.sourcePath) ? ([content,block(true,proposal)]) : content;
   }
   const tableParagraphs=new Set(topTables.flatMap(t=>t.paragraphs));
   return <>{proposal.paragraphs.flatMap((p,index)=>{
+    if(!inPassage(range,index))return [];
     const table=topTables.find(t=>t.paragraphs[0]===index);
     const empty=topTables.filter(t=>!t.paragraphs.length&&t.anchor===index).map(tableNode);
     return [...empty,...(table ? ([tableNode(table)]) : (tableParagraphs.has(index) ? ([]) : row(p.index)))];
-  })}{topTables.filter(t=>!t.paragraphs.length&&t.anchor===proposal.paragraphs.length).map(tableNode)}<ProposalNotes assets={proposal.imageAssets} notes={proposal.notes} prefix={prefix}/></>;
+  })}{inPassage(range,proposal.paragraphs.length)&&topTables.filter(t=>!t.paragraphs.length&&t.anchor===proposal.paragraphs.length).map(tableNode)}<ProposalNotes assets={proposal.imageAssets} notes={passageNotes(proposal.notes,proposal.anchors,range)} prefix={prefix}/></>;
 }
 
-export function ProposalContextText({data,wording,amendmentId,language,showOriginalLink=true}:{data:DocumentContextResponse;showOriginalLink?:boolean;wording:Variant|null;amendmentId?:string;language:string}) {
+export function ProposalContextText({data,wording,amendmentId,language,showOriginalLink=true,passageFirst=false}:{data:DocumentContextResponse;showOriginalLink?:boolean;wording:Variant|null;amendmentId?:string;language:string;passageFirst?:boolean}) {
   const ui = useUiI18n();
   const reader=useRef<HTMLDivElement>(null),prefix='proposal-'+useId().replace(/[^A-Za-z0-9_-]/g,''),baseline=data.baseline!,items=data.proposal!.items;
   const fileFailures=(baseline.gaps||[]).filter((gap):gap is {code:string;itemId:string}=>Boolean(gap&&typeof gap==='object'&&typeof (gap as {itemId?:unknown}).itemId==='string'&&!['stale-metadata','stale-content','bundle-too-large','native-annex-ordinal-unverified'].includes(String((gap as {code?:unknown}).code))));
@@ -173,6 +178,17 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
   const number=amendmentId?.match(/-AM-(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'');
   const existing=baseline.kind==='existing-act',council=baseline.kind==='council-position',com=baseline.celex?.match(/^5(\d{4})PC(\d{4})$/),position=baseline.celex?.match(/^5(\d{4})AG(\d{4})\(01\)$/),identity=existing ? ((baseline.actLabel && baseline.consolidationDate) ? ui.t("proposalcontexttext.existing.act.actlabel.consolidationdate", {actLabel: String(baseline.actLabel), consolidationDate: String(baseline.consolidationDate)}) : ((baseline.actLabel && (!baseline.consolidationDate)) ? ui.t("proposalcontexttext.existing.act.actlabel", {actLabel: String(baseline.actLabel)}) : (((!baseline.actLabel) && baseline.consolidationDate) ? ui.t("proposalcontexttext.existing.act.actlabel", {actLabel: String(baseline.consolidationDate)}) : ui.t("proposalcontexttext.existing.act")))) : (council ? (position ? ui.t("proposalcontexttext.council.position.number.year", {number: String(Number(position[2])), year: String(position[1])}) : ui.t("proposalcontexttext.council.position")) : (com ? ui.t("proposalcontexttext.commission.proposal.com.year.number", {year: String(com[1]), number: String(com[2])}) : ui.t("batch6.references.commission.proposal.25")));
   const official=baseline.celex ? (`https://eur-lex.europa.eu/legal-content/${baseline.language.toUpperCase()}/TXT/?uri=CELEX:${baseline.celex}`) : null;
+  // Only a placed or unplaced amendment opens as a passage; whole-document operations stay as they are.
+  const passage=passageFirst&&placed;
+  const [whole,setWhole]=useDossierReaderState('read-whole:'+(amendmentId||''),false),revealed=useRef(false);
+  const collapsed=passageFirst&&!whole&&(placed||placement?.status==='unresolved');
+  const range=collapsed&&placed ? proposalPassage(items[placement.itemIndex!].proposal,placement) : null;
+  useEffect(()=>{
+    if(!whole||!revealed.current)return;
+    revealed.current=false;
+    const node=reader.current?.querySelector<HTMLElement>('[data-passage-target="true"]')||reader.current?.querySelector<HTMLElement>('h4');
+    node?.scrollIntoView({block:'center'});node?.focus({preventScroll:true});
+  },[whole]);
   const showAmendment=()=>{const node=reader.current?.querySelector<HTMLElement>('[data-context-target="true"]');node?.scrollIntoView({block:'center'});node?.focus({preventScroll:true});};
   const amendmentBlock=(inPlace:boolean,proposal?:ProposalDocument)=>{
     const original=(inPlace && (placement?.originalText!==undefined)) ? placement.originalText : (wording?.originalText??null);
@@ -211,6 +227,30 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
     const useColumns=!!noteComparison||originalFormatting===null||pdfSpacingOnly;
     return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace ? 'true' : undefined} tabIndex={inPlace ? (-1) : undefined} aria-label={number ? ui.t("membervotes.tsx.amendment.number", {number: String(number)}) : ui.t("motionamendments.amendment.664ccf")}><h4 lang={ui.language}>{(number && council) ? <UiMessage id="proposalcontexttext.amendment.number.council.position" values={{number: number}}/> : ((number && (!council)) ? <UiMessage id="membervotes.tsx.amendment.number" values={{number: number}}/> : (((!number) && council) ? <UiMessage id="proposalcontexttext.amendment.council.position"/> : <UiMessage id="motionamendments.amendment.664ccf"/>))}</h4>{inPlace&&placement?.evidence?.some(e=>e.basis==='point-only-article-paragraph')&&<PlacementNote id="proposalcontexttext.label.names.only.point"/>}{inPlace&&placement?.evidence?.some(e=>e.basis==='negative-nested-instruction')&&<PlacementNote id="documentcontext.note.label_instruction_differ"/>}{inPlace&&placement?.evidence?.some(e=>e.basis==='colliding-new-point')&&<PlacementNote id="documentcontext.note.number_exists"/>}{inPlace&&precedingAnnex&&<PlacementNote id="documentcontext.note.follows_amendment" values={{number:precedingAnnex}}/>}{inPlace&&placement?.evidence?.some(e=>e.basis==='table-level-elision')&&<PlacementNote id="documentcontext.note.changes_table"/>}{originalDiffers&&<PlacementNote id="documentcontext.note.original_differs"/>}{sequential&&<PlacementNote id="documentcontext.note.report_paragraph" values={{report:sequential.reference??'',source:sequential.label??''}}/>}{printedPoint&&<PlacementNote id="proposalcontexttext.printed.point.label" values={{point:printedPoint.reference??'',base:printedPoint.label??''}}/>}{existing&&placed&&placement.instruction&&<p className="document-context-instruction">{placement.instruction.replace(/[‘“"„]\s*$/u,'').trim()}</p>}{labelLength>0&&<p className="document-context-provision-label" data-source-label="true">{sourcePrefix!.trim()}</p>}{formulaGap&&<p className="document-context-notice" lang={ui.language}><UiMessage id="proposalcontexttext.formula.not.shown"/>{formulaSource&&<> <a href={formulaSource} target="_blank" rel="noreferrer"><UiMessage id="proposalcontexttext.view.original"/></a></>}</p>}{wording&&<WordingDiff labels={existing ? ({original:ui.t("proposalcontexttext.existing.act")}) : (council ? ({original:ui.t("proposalcontexttext.council.position")}) : undefined)} originalFormatting={noteComparison ? noteComparison.original.bodyFormatting : useColumns ? wording.originalFormatting : originalFormatting} proposedFormatting={noteComparison ? noteComparison.proposed.bodyFormatting : ((existing && placed) && placement.proposedRange) ? wording.proposedFormatting?.filter(mark=>mark.end>placement.proposedRange!.start&&mark.start<placement.proposedRange!.end).map(mark=>({...mark,start:Math.max(mark.start,placement.proposedRange!.start)-placement.proposedRange!.start,end:Math.min(mark.end,placement.proposedRange!.end)-placement.proposedRange!.start})) : wording.proposedFormatting} original={(placement?.operation==='insert') ? '' : (noteComparison ? noteComparison.original.body : useColumns ? wording.originalText : comparisonOriginal)} proposed={(placement?.operation==='delete') ? '' : (noteComparison ? noteComparison.proposed.body : (existing && placed) ? (placement.proposedText??wording.proposedText) : wording.proposedText)} language={wording.language} emptySemantics={rejection ? "not-supplied" : "insertion-deletion"} highlightChanges={!rejection} presentation="context" renderOriginal={useColumns ? undefined : renderOriginal}/>}{noteComparison&&wording&&<section data-amendment-notes="true"><h5>{ui.t("batch6.references.notes.count.218",{count:placement?.noteScope?.proposedLabels.length??0})}</h5><WordingDiff original={noteComparison.original.notes} proposed={noteComparison.proposed.notes} originalFormatting={noteComparison.original.notesFormatting} proposedFormatting={noteComparison.proposed.notesFormatting} language={wording.language} emptySemantics="insertion-deletion" presentation="context"/></section>}{wording?.documentReferences?.filter(ref=>ref.basis==='full-width-deletion-instruction'&&ref.field==='ComparisonInstruction').map((ref,i)=><p key={'instruction-'+i} className="document-context-instruction" lang={wording.language??undefined}>{ref.raw}</p>)}<AmendmentJustification record={wording}/></section>;
   };
+  const passageMark=(_inPlace:boolean)=><p key="passage-mark" className="read-passage-mark" data-passage-target="true" tabIndex={-1} lang={ui.language}>{number ? <UiMessage id="membervotes.tsx.amendment.number" values={{number:number}}/> : <UiMessage id="motionamendments.amendment.664ccf"/>}</p>;
+  const scopeFor=(p:ProposalDocument,index:number,children:ReactNode,slice?:PassageRange|null)=>{
+    const notes=passageNotes(p.notes as DocumentNote[],p.anchors as NoteAnchor[],slice),links=(p.links as DocumentLink[]).filter(link=>inPassage(slice,link.paragraph));
+    return <ReferenceScope texts={readerTexts(p.paragraphs.filter((_,paragraph)=>inPassage(slice,paragraph)).map(p=>p.text),notes,links)} notes={notes} notePrefix={prefix+'-'+index} language={language} textLanguage={baseline.language} renderQuestion={question=><InsightQuestionReader id={question} language={language} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers/>}>{children}</ReferenceScope>;
+  };
+  const findLabel=existing ? ui.t("proposalcontexttext.find.in.existing.act") : (council ? ui.t("proposalcontexttext.find.in.council.position") : ui.t("proposalcontexttext.find.in.proposal"));
+  if(passageFirst&&(placed||placement?.status==='unresolved'))return <>
+    {!placed&&<p className="document-context-notice" role="status">{proposalPlacementReasonsUi(ui)[placement?.reason||'']||ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67")}</p>}
+    {(missingFiles>0||fileLimit)&&<p className="document-context-notice"><UiMessage id="coverage.filesUnloaded"/></p>}
+    <div className="document-context-text proposal-context-text" lang={baseline.language}>{placed ? scopeFor(items[placement.itemIndex!].proposal,placement.itemIndex!,amendmentBlock(true,items[placement.itemIndex!].proposal),proposalPassage(items[placement.itemIndex!].proposal,placement)) : amendmentBlock(false)}</div>
+    <div className="read-passage-head"><p className="proposal-context-summary">{(showOriginalLink && official) ? <a href={official} target="_blank" rel="noreferrer"><>{identity} ↗</></a> : identity}</p><FindInText target={reader} label={findLabel} onOpen={()=>setWhole(true)}/></div>
+    {baseline.language!==language&&<p className="document-context-language"><TextLanguageFallback requested={language} actual={baseline.language} interfaceLanguage={language}/></p>}
+    <div className="document-context-text proposal-context-text" ref={reader} lang={baseline.language}>{items.map((item,index)=>{
+      if(collapsed&&(!placed||index!==placement.itemIndex))return null;
+      const p=item.proposal;
+      return <section key={index} data-proposal-item={item.kind+'-'+item.index}>
+        {!collapsed&&<h4 className="proposal-item-heading" tabIndex={-1} lang={ui.language}>{ui.t('proposalcontexttext.'+(item.kind==='act' ? existing?'existing.act':council?'council.position':'proposal' : 'annexes')+(item.index>1?'.part.index':''),{index:item.index})}</h4>}
+        {p.gaps.length>0&&<p className="document-context-notice" lang={ui.language}>{p.gaps.some(gap=>gap.code==='excerpted-source') ? ui.t("proposalcontexttext.excerpt") : ((p.contentComplete===false) ? ui.t("proposalcontexttext.some.content.unavailable") : ui.t("proposalcontexttext.some.content.could.not.be.read"))}</p>}
+        {scopeFor(p,index,<ItemText proposal={p} itemIndex={index} placement={effective} block={passageMark} prefix={prefix+'-'+index} marking range={range}/>,range)}
+      </section>;
+    })}</div>
+    {!whole&&<div className="read-passage-more"><button type="button" onClick={()=>{revealed.current=true;setWhole(true);}}><UiMessage id="reader.show_whole_proposal"/></button></div>}
+    <p className="document-context-source">{baseline.attribution}</p>
+  </>;
   return <>
     <p className="proposal-context-summary">{(showOriginalLink && official) ? <a href={official} target="_blank" rel="noreferrer"><>{identity} ↗</></a> : identity}</p>
     {baseline.language!==language&&<p className="document-context-language"><TextLanguageFallback requested={language} actual={baseline.language} interfaceLanguage={language}/></p>}

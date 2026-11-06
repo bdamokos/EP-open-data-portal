@@ -22,6 +22,9 @@ import './MemberVotes.css';
 import {WordingDiff} from './components/WordingDiff';
 import {AmendmentJustification} from './components/AmendmentJustification';
 import {MemberVoteExplanations} from './MemberVoteExplanations';
+import {dossierLinkClick} from './dossierJourney';
+import {publicUrl} from './publicUrl';
+import {readHref} from './readRoute.mjs';
 
 export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted'};
 export type MemberVotesState={
@@ -81,7 +84,7 @@ function WholeText({vote,memberName,onDecision}:{vote:MemberVoteWholeTextDecisio
   return <button type="button" className="member-votes-whole" onClick={()=>onDecision(vote.id)}><UiMessage id="membervotes.tsx.final.vote.outcome.position" values={{outcome: <strong>{memberVoteOutcome(vote, ui)}</strong>, position: <Position vote={vote} memberName={memberName} compact/>}}/></button>;
 }
 
-export function MemberVoteWording({documentId,amendmentId,language,openContext,showHeading=true}:{documentId:string;amendmentId:string;language:string;showHeading?:boolean;openContext:(context:MemberVotesContext)=>void}) {
+export function MemberVoteWording({documentId,amendmentId,language,showHeading=true}:{documentId:string;amendmentId:string;language:string;showHeading?:boolean}) {
   const ui = useUiI18n();
   const [selectedVersion,setSelectedVersion]=useState<string|null>(null);
   const query=new URLSearchParams({amendment:amendmentId,lang:language,body:'0'});
@@ -113,7 +116,7 @@ export function MemberVoteWording({documentId,amendmentId,language,openContext,s
         {readable ? <div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff originalFormatting={selected.originalFormatting} proposedFormatting={selected.proposedFormatting} key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:ui.t("membervotes.tsx.original.wording"),proposed:ui.t("membervotes.tsx.proposed.wording"),emptyOriginal:'',emptyProposed:''}}/></div> : <p><UiMessage id="membervotes.tsx.amendment.wording.unavailable.here"/></p>}
         
         <AmendmentJustification record={selected}/>
-        <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,view:'document'})}><UiMessage id="membervotes.tsx.read.in.context"/></button>
+        <a className="member-votes-read-context" href={publicUrl(readHref({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,language}))} onClick={dossierLinkClick}><UiMessage id="membervotes.tsx.read.in.context"/></a>
       </>}
     </>
   </section>;
@@ -140,7 +143,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
       {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention"><UiMessage id="activityvote.declared_intention_positions_declared_afterwards_result_unchanged" values={{positions: <strong>{vote.intention.positions.map(position=>({for:ui.t("membervotespresentation.for"),against:ui.t("membervotespresentation.against"),abstaining:ui.t("activityvote.abstain")}[position])).join(', ')}</strong>}}/></p>}
     </section>
     <VotePartDescriptions vote={vote} language={language}/>
-    {targets.map(target=><MemberVoteWording key={vote.id+':'+target.amendmentId+':'+language} {...target} language={language} openContext={openContext} showHeading={targets.length!==1||memberVoteLabel(vote,language, ui)!==ui.t("membervotes.tsx.amendment.number", {number: String(/-AM-(\d+(?:-\d+)?)$/.exec(target.amendmentId)?.[1]||'')})}/>)}
+    {targets.map(target=><MemberVoteWording key={vote.id+':'+target.amendmentId+':'+language} {...target} language={language} showHeading={targets.length!==1||memberVoteLabel(vote,language, ui)!==ui.t("membervotes.tsx.amendment.number", {number: String(/-AM-(\d+(?:-\d+)?)$/.exec(target.amendmentId)?.[1]||'')})}/>)}
     {!targets.length&&vote.context.amendmentIds.length>0&&<p><UiMessage id="membervotes.tsx.amendment.wording.unavailable.here"/></p>}
     {explanationsActive&&<MemberVoteExplanations key={[data.member.id,vote.id,data.snapshotId,language].join(':')} vote={vote} data={data} memberId={data.member.id} language={language} onDecision={onDecision}/>}
     {contexts.length>0&&<details className="member-votes-related"><summary>{memberVoteParentLabel(vote,language,ui) ? <UiMessage id="membervotes.tsx.split.vote.parent" values={{parent: memberVoteParentLabel(vote,language,ui)}}/> : <UiMessage id="membervotes.tsx.split.vote"/>}</summary>{contexts.map(component=>{

@@ -131,7 +131,7 @@ test('all reachable messages have translated values in each supported language',
       if((id.startsWith('topics.')||id.startsWith('votegroups.'))&&!Object.hasOwn(catalogue,id))continue;
       if(id.startsWith('speechpanel.')&&!Object.hasOwn(catalogue,id))continue;
       // Reader-first messages await the wave's translation pass.
-      if((awaitingTranslation.has(id)||awaitingVoteSummaryTranslation.has(id)||id.startsWith('dossierpeople.')||id.startsWith('dossierstatus.')||id.startsWith('weekSummary.')||id.startsWith('searchreference.'))&&!Object.hasOwn(catalogue,id))continue;
+      if((awaitingTranslation.has(id)||awaitingVoteSummaryTranslation.has(id)||id.startsWith('dossierpeople.')||id.startsWith('dossierstatus.')||id.startsWith('weekSummary.')||id.startsWith('searchreference.')||id.startsWith('reader.'))&&!Object.hasOwn(catalogue,id))continue;
       assert.equal(typeof catalogue[id],'string',language+': '+id);
       assert(catalogue[id].trim(),language+': '+id);
     }
