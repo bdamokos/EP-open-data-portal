@@ -2,11 +2,11 @@ import {UiMessage, useUiI18n} from './UiI18nReact';
 import {useData} from './data';
 import {selectVoteTitle} from './voteTitles.mjs';
 import {displayVoteTitle} from './memberVotesPresentation.mjs';
-import type {MemberVote,MemberVoteSubject} from './MemberVotesTypes';
+import type {MemberVote,MemberVoteSubjectSummary} from './MemberVotesTypes';
 
 type RecordResponse={sourceUrl:string;payload:{data:{id:string;identifier:string;work_type:string;title_dcterms?:Record<string,string>}[]}};
 
-export function VoteSubjectTitle({subject,vote,language}:{subject:MemberVoteSubject;vote:MemberVote;language:string}) {
+export function VoteSubjectTitle({subject,vote,language}:{subject:MemberVoteSubjectSummary;vote:MemberVote;language:string}) {
   const ui = useUiI18n();
   const original=selectVoteTitle(subject.titles,language,subject.title||'',subject.titleLanguage||'en');
   const documentId=((subject.documentIds.length===1) && /^A-10-\d{4}-\d{4,6}$/.test(subject.documentIds[0])) ? subject.documentIds[0] : null;

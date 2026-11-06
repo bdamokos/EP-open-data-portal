@@ -8,7 +8,7 @@ import {readFileSync} from 'node:fs';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {projectMemberDecision} from '../server/member-votes-model.mjs';
+import {memberVotePeriodRow,memberVotePeriodSubject,projectMemberDecision} from '../server/member-votes-model.mjs';
 
 const MEMBER=197673,WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25',SNAPSHOT='a'.repeat(64);
 const SUBJECT='MTG-PL-2026-03-25-VOT-ITM-8',DOCUMENT='A-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7';
@@ -49,11 +49,11 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:12,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:13,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
-    selected:selected??(state.decisionId?{status:'found',item:items.find(item=>item.id===state.decisionId)||null}:{status:'not-requested',item:null}),
+    selected:selected?{siblings:items.filter(item=>item.id!==state.decisionId),...selected}:(state.decisionId?{status:'found',item:items.find(item=>item.id===state.decisionId)||null,siblings:items.filter(item=>item.id!==state.decisionId)}:{status:'not-requested',item:null}),
     coverage:{status:'complete',collectionComplete:true,termWide:false,expectedSittingIds:[SITTING],scannedSittingIds:[SITTING],failedSittingIds:[],incompleteSittingIds:[],catalogue:emptyPage,sittings:[],basis:'Synthetic exact API fixture',...coverage},
     attribution:'European Parliament public data',...patch};
 }
@@ -529,7 +529,7 @@ test('snapshot expiry offers no retry and preserves the requested period, decisi
   assert.equal(installRetryClock(t).timers.size,0);assert.equal(h.calls.length,1);assert.deepEqual(h.state,initial);
 });
 
-test('snapshot conflicts do not start a retry episode or reuse cached unpinned reads',async t=>{
+test('a later pinned read verifies conflicts without retrying an unpinned route',async t=>{
   const item=vote(99),nextSnapshot='b'.repeat(64);
   const initial={week:WEEK,sittingId:null,positions:'all',alignment:'all',offset:50,decisionId:item.id,snapshotId:null,expandedSubjectIds:[SUBJECT],context:null};
   let unpinnedReads=0;
@@ -540,6 +540,8 @@ test('snapshot conflicts do not start a retry episode or reuse cached unpinned r
     return Response.json(responseFor(url,{items:[vote(1)],selected:{status:'found',item},subjects:[subject([item],{counts:{observed:51,filtered:51,page:1}})],snapshotId,pagination:{observedTotal:51,filteredTotal:51}}));
   }});
   assert.equal(unpinnedReads,1);assert.equal(h.state.snapshotId,SNAPSHOT);
+  assert.doesNotMatch(h.container.textContent,/This page is out of date/);
+  await h.update({alignment:'against'});
   assert.match(h.container.textContent,/This page is out of date/);
   assert.equal(h.container.querySelector('.member-votes-notice button'),null);
   assert.equal(installRetryClock(t).timers.size,0);assert.equal(unpinnedReads,1);assert.equal(h.state.snapshotId,SNAPSHOT);
@@ -1274,4 +1276,38 @@ test('an omitted deep link clears selection in the same update that pins its fir
   assert(pinned.length>0);assert(pinned.every(change=>change.state.decisionId===null&&change.state.context===null),'snapshot pinning must never reintroduce the omitted selection');
   assert.equal(h.calls.filter(route=>{const p=new URL(route,'http://localhost').searchParams;return p.get('snapshot')===SNAPSHOT&&p.get('decision')===decision(1);}).length,0);
   assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+});
+
+function leanPeriodResponse(url,options={}) {
+  const data=responseFor(url,{...options,pagination:{mode:'period',...options.pagination}});
+  data.items=data.items.map(item=>memberVotePeriodRow(item,'en'));
+  data.subjects=data.subjects.map(subject=>memberVotePeriodSubject(subject,'en'));
+  return data;
+}
+test('a direct lean decision link makes one read while adopting its exact snapshot',async t=>{
+  const h=await mount(t,{state:{week:WEEK,decisionId:decision(1)},handler:url=>Response.json(leanPeriodResponse(url))});
+  assert.equal(h.calls.length,1);assert.equal(h.state.snapshotId,SNAPSHOT);
+  assert.equal(visiblePane(h.container).querySelector('h2').textContent,'Decision 1');
+  await h.update({snapshotId:'b'.repeat(64)});assert.equal(h.calls.length,2);
+  assert.match(h.container.textContent,/These voting records are unavailable/);
+});
+test('lean rows keep list nodes while full selection loads and never treat row data as detail',async t=>{
+  let release,hold=false;
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT]},handler:async url=>{if(hold)await new Promise(resolve=>{release=resolve;});return Response.json(leanPeriodResponse(url));}});
+  const list=h.container.querySelector('.member-votes-pane'),row=list.querySelector('[data-vote-id]');
+  hold=true;await h.update({decisionId:decision(1)});
+  assert.equal(list,h.container.querySelector('.member-votes-pane'));assert.equal(list.querySelector('[data-vote-id]'),row);
+  assert.match(visiblePane(h.container).textContent,/Loading selected vote/);assert.equal(h.container.querySelector('.member-votes-detail'),null);
+  hold=false;await act(async()=>release());assert(h.container.querySelector('.member-votes-detail'));
+});
+
+test('a history jump into lean context shows loading until its full selection arrives',async t=>{
+  let release,hold=false;
+  const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT]}});
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:async url=>{if(hold)await new Promise(resolve=>{release=resolve;});return Response.json(leanPeriodResponse(url,{items:[item]}));}});
+  hold=true;await h.update({decisionId:item.id,context:{documentId:DOCUMENT,view:'document'}});
+  assert.match(h.container.textContent,/Loading selected vote/);
+  assert.doesNotMatch(h.container.textContent,/The requested document is unavailable/);
+  hold=false;await act(async()=>release());
+  assert(h.container.querySelector('[data-testid="context"]'));
 });

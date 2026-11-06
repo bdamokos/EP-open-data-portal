@@ -1,3 +1,4 @@
+import {languagePreference} from './language-order.mjs';
 import {personId} from './insights-model.mjs';
 import {decodeCharacterReferences} from './character-references.mjs';
 import {explicitVoteScope,isWholeProposalVote} from './vote-scope.mjs';
@@ -140,4 +141,34 @@ export function memberVoteAlignment(vote) {
   if(position==='abstaining')return 'abstained';
   if(!['for','against'].includes(position))return 'unclassified';
   return (position==='for')===(vote.outcome==='ADOPTED')?'with':'against';
+}
+
+// Transport projections only: never apply these to the held snapshot or its hash.
+function rowLanguages(values,language) {
+  const selected=Object.fromEntries(Object.entries(values).filter(([key])=>key===language||key==='en'));
+  // Preserve the existing source-language fallback when neither preferred text exists.
+  if(!Object.values(selected).some(value=>value?.trim())){
+    const fallback=Object.entries(values).find(([,value])=>value?.trim());
+    if(fallback)selected[fallback[0]]=fallback[1];
+  }
+  return selected;
+}
+// Titles also support the held multilingual agenda format and protocol fallback.
+function rowTitles(values,language) {
+  const selected=rowLanguages(values,language);
+  const fallback=languagePreference(Object.keys(values).filter(key=>key!=='mul'&&values[key]?.trim()),language)[0];
+  for(const key of [fallback,...(Object.hasOwn(values,'mul')?['mul','fr']:[])])
+    if(key&&Object.hasOwn(values,key))selected[key]=values[key];
+  return selected;
+}
+export function memberVotePeriodRow(vote,language='en') {
+  const {id,sittingId,date,scope,method,outcome,ballotStatus,actualPosition,intention,subjectId,alignment,totals,title,titleLanguage}=vote;
+  return {id,sittingId,date,scope,method,outcome,ballotStatus,actualPosition,intention,subjectId,alignment,totals,title,titleLanguage,
+    titles:rowTitles(vote.titles,language),referenceTexts:rowLanguages(vote.referenceTexts,language),
+    namedVoters:{available:vote.namedVoters.available},resultRelationship:{binding:vote.resultRelationship.binding},
+    context:{amendmentIds:vote.context.amendmentIds},parts:vote.parts.map(({number,requestScopeByLanguage})=>({number,requestScopeByLanguage:rowLanguages(requestScopeByLanguage,language)}))};
+}
+export function memberVotePeriodSubject(subject,language='en') {
+  const {id,uri,title,titleLanguage,documentIds,agendaItemIds,counts,wholeTextDecisions}=subject;
+  return {id,uri,title,titleLanguage,documentIds,agendaItemIds,counts,titles:rowTitles(subject.titles,language),wholeTextDecisions:wholeTextDecisions.map(({id,date,scope,method,outcome,ballotStatus,actualPosition,intention,totals})=>({id,date,scope,method,outcome,ballotStatus,actualPosition,intention,totals}))};
 }
