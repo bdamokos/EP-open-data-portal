@@ -179,7 +179,10 @@ export function memberVotePositionSummary(items, ui = defaultUi) {
   for(const item of items){const state=memberVotePositionState(item);if(Object.hasOwn(counts,state))counts[state]++;}
   const recorded=Object.entries(counts).filter(([,count])=>count).map(([position,count])=>ui.t('membervotespresentation.count_position',{count,position:memberVotePosition({actualPosition:{status:'recorded',position}},ui)})).join(' · ');
   const count=items.filter(item=>memberVotePositionState(item)==='notIndividuallyRecorded').length;
-  return ui.t(recorded ? (count?'membervotespresentation.positions_positions_count_not_individually_recorded':'membervotespresentation.positions_positions') : (count?'membervotespresentation.positions_none_count_not_individually_recorded.9fd0f5':'membervotespresentation.positions_none'),{positions:recorded,count});
+  const notConducted=items.filter(item=>memberVotePositionState(item)==='notConducted').length;
+  const summary=ui.t(recorded ? (count?'membervotespresentation.positions_positions_count_not_individually_recorded':'membervotespresentation.positions_positions') : (count?'membervotespresentation.positions_none_count_not_individually_recorded.9fd0f5':'membervotespresentation.positions_none'),{positions:recorded,count});
+  if(!notConducted)return summary;
+  return ui.t(recorded||count?'membervotespresentation.positions_with_not_conducted':'membervotespresentation.positions_only_not_conducted',{positions:summary,count:notConducted});
 }
 export function memberVoteOutcome(vote, ui = defaultUi) {
   return {ADOPTED:ui.t("membervotespresentation.adopted"),REJECTED:ui.t("membervotespresentation.rejected"),LAPSED:ui.t("membervotespresentation.lapsed"),WITHDRAWN:ui.t("membervotespresentation.withdrawn"),CANCELLED:ui.t("membervotespresentation.cancelled")}[vote.outcome]||ui.t("membervotespresentation.outcome_unavailable");

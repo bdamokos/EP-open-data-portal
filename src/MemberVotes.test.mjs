@@ -269,7 +269,7 @@ test('null totals, real zero totals and lapsed decisions remain distinct without
   assert.equal(rows[0].querySelector('.member-votes-bar'),null);assert.deepEqual([...rows[0].querySelectorAll('.member-votes-counts b')].map(item=>item.textContent),['0','0','0']);
   assert.equal(rows[1].querySelector('.member-votes-bar,.member-votes-counts'),null);assert.match(rows[1].textContent,/Tallies unavailable/);assert.doesNotMatch(rows[1].textContent,/No tally published/);
   assert.match(rows[2].textContent,/Not put to a vote.*Lapsed/);assert.doesNotMatch(rows[2].textContent,/Roll-call vote/);assert.equal(rows[2].querySelector('.member-votes-row-copy .member-votes-muted'),null);assert.equal(rows[2].querySelector('.member-votes-bar,.member-votes-counts'),null);
-  assert.match(rows[3].textContent,/Not individually recorded/);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
+  assert.match(rows[3].textContent,/No names on record/);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
 });
 
 test('actual FOR, later intention to abstain and official raw counts are displayed independently',async t=>{
@@ -965,10 +965,10 @@ test('all decisions shows non-named ballots, shared methods, counts and page sum
   const h=await mount(t,{state:{week:WEEK,expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items:[hand,electronic,vote(3)]})),attendanceHandler:()=>Response.json(attendanceResponse())});
   assert.equal(h.state.positions,'all');assert.equal(h.container.querySelector('.member-votes-filter button').textContent,'All decisions');
   assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–3 of 3 decisions · 1 with a recorded position/);
-  assert.match(h.container.querySelector('.member-votes-subject-count:last-child').textContent,/2 not individually recorded/);
+  assert.match(h.container.querySelector('.member-votes-subject-count:last-child').textContent,/2 no names on record/);
   const rows=h.container.querySelectorAll('.member-votes-row');
-  assert.match(rows[0].textContent,/Show of hands.*Not individually recorded.*No tally published/);
-  assert.match(rows[1].textContent,/Electronic vote \(names not recorded\).*Not individually recorded.*For 400/);
+  assert.match(rows[0].textContent,/Show of hands.*No names on record.*No tally published/);
+  assert.match(rows[1].textContent,/Electronic vote \(names not recorded\).*No names on record.*For 400/);
   assert.equal(h.container.querySelectorAll('.member-votes-row .member-votes-attendance').length,0);
   assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/listed present 25 Mar/);
 });
@@ -1265,7 +1265,7 @@ test('period view keeps a subject larger than the old page together and canonica
 
 test('chairing-only periods show no vote entries or Parliament outcome controls and clear omitted deep links',async t=>{
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:decision(1)},handler:url=>Response.json(responseFor(url,{items:[],subjects:[],pagination:{omittedWhileChairingTotal:1},selected:stateFrom(url).decisionId?{status:'chairing',item:null}:{status:'not-requested',item:null}}))});
-  assert.equal(h.state.decisionId,null);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);assert.equal(h.container.querySelector('.member-votes-tools'),null);assert.equal(h.container.querySelector('.member-votes-subject'),null);assert.doesNotMatch(h.container.textContent,/Not individually recorded|Vote unavailable|No votes were recorded/);
+  assert.equal(h.state.decisionId,null);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);assert.equal(h.container.querySelector('.member-votes-tools'),null);assert.equal(h.container.querySelector('.member-votes-subject'),null);assert.doesNotMatch(h.container.textContent,/No names on record|Vote unavailable|No votes were recorded/);
 });
 
 test('an omitted deep link clears selection in the same update that pins its first snapshot',async t=>{
