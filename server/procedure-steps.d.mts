@@ -1,3 +1,4 @@
+// resolution-adopted is reserved for dossier-status; non-COD helpers return unknown.
 export type ProcedureStage='proposal'|'referred'|'drafting'|'reported'|'position-talks'|'position'|'deal'|'council-approved'|'signed'|'journal'|'resolution-adopted'|'unknown';
 export type ProcedureStepKey='proposal'|'committee'|'parliament'|'council'|'talks'|'deal'|'final'|'signed'|'journal';
 export type IndexEvent={had_activity_type?:string;activity_date?:string|null;activity_id?:string;[key:string]:unknown};
@@ -7,5 +8,6 @@ export function procedureSteps(input:{reference:string;indexEvents?:IndexEvent[]
   family:string|null;
   steps:Array<{key:ProcedureStepKey;state:'done'|'current'|'open';date:string|null;partial:boolean}>;
   stage:ProcedureStage;
+  councilApproval:{date:string}|null;
   latest:IndexEvent|CellarEvent|ProcedureSummary|null;
 };
