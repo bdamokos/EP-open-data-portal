@@ -34,7 +34,7 @@ export default defineConfig({
     },
   },{name:'pdf-reader-assets',generateBundle(){
     for(const directory of ['cmaps','standard_fonts','wasm'])for(const name of readdirSync(new URL('./node_modules/pdfjs-dist/'+directory+'/',import.meta.url))){
-      this.emitFile({type:'asset',fileName:'assets/pdfjs-6.4.299/'+directory+'/'+name,source:readFileSync(new URL('./node_modules/pdfjs-dist/'+directory+'/'+name,import.meta.url))});
+      this.emitFile({type:'asset',fileName:'assets/pdfjs-6.5.438/'+directory+'/'+name,source:readFileSync(new URL('./node_modules/pdfjs-dist/'+directory+'/'+name,import.meta.url))});
     }
   }}],
   server: {
