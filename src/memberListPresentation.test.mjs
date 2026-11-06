@@ -37,9 +37,9 @@ test('sorting keeps every member, orders ties by name and puts unknown labels la
   assert.deepEqual(sortMembers(people,{key:'name',descending:true},labels).map(m=>m.id),[4,3,2,1]);
   assert.equal(sortMembers(people,{key:null},labels),people);
 });
-test('views default by screen width and an explicit choice wins',()=>{
+test('the home page is cards at every width and an explicit view wins',()=>{
   assert.equal(queryMemberView('list'),'list');assert.equal(queryMemberView('cards'),'cards');assert.equal(queryMemberView('grid'),null);assert.equal(queryMemberView(null),null);
-  assert.equal(effectiveMemberView(null,true),'list');assert.equal(effectiveMemberView(null,false),'cards');
-  assert.equal(effectiveMemberView('cards',true),'cards');assert.equal(effectiveMemberView('list',false),'list');
+  assert.equal(effectiveMemberView(null),'cards');
+  assert.equal(effectiveMemberView('cards'),'cards');assert.equal(effectiveMemberView('list'),'list');
   assert.equal(memberListPageSize,50);
 });

@@ -60,7 +60,7 @@
 }
 
 /* Applied filters are removable selections; text actions keep their link style. */
-:is(.explorer,.explorer-insights) :is(.insight-active-filters,.gv-selected,.explorer-active-filters) > button:not(.insight-text-button) {
+:is(.explorer,.explorer-insights) :is(.insight-active-filters,.gv-selected) > button:not(.insight-text-button) {
   min-height:var(--control-height);
   padding:9px 12px;
   border:1px solid var(--accent);
