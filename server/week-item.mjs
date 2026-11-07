@@ -20,7 +20,7 @@ const procedureId=/^\d{4}-\d{4}[A-Z]?$/;
 const roles=part=>array(part.participation_role).map(tail);
 const rapporteur=part=>roles(part).some(role=>role==='RAPPORTEUR'||role==='RAPPORTEUR_CO');
 const personIds=part=>array(part.had_participant_person).map(tail).filter(id=>/^[1-9]\d*$/.test(id));
-const term=part=>Number(/ep-(\d+)$/.exec(String(part.parliamentary_term||''))?.[1])||0;
+const term=part=>Math.max(0,...array(part.parliamentary_term).map(value=>Number(/ep-(\d+)$/.exec(tail(value))?.[1])||0));
 
 export function weekItemQuery(search) {
   for(const key of search.keys())if(!['procedures','documents','sittings','lang'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated item parameter.');
@@ -59,13 +59,14 @@ export function rapporteurIds(report,work,leadCodes=[]) {
 export const votingListRows=list=>array(list?.rows).filter(row=>row.kind!=='heading').length;
 
 /** Where the item stands before this week. Only ordinary legislation has steps; other files have their committee report or adopted vote. */
-export function standingLines({family,steps,stage,indexEvents,committees,vote}) {
+export function standingLines({family,steps,stage,indexEvents,committees,vote,councilApproval=null}) {
   const slots={committees,mainVote:vote};
-  const sentence=dossierStatusLines({stage,steps,indexEvents,slots}).sentence;
+  const sentence=dossierStatusLines({stage,steps,councilApproval,indexEvents,slots}).sentence;
   const earlier=stage==='deal'?dossierStatusLines({stage:'position-talks',steps,indexEvents,slots}).sentence:null;
   const adopted=family==='COD'?null:indexEvents.filter(event=>event.had_activity_type==='COMMITTEE_ADOPTING_REPORT'&&event.activity_date).map(event=>event.activity_date).sort().at(-1);
   const reported=!sentence&&adopted?dossierStatusLines({stage:'reported',steps:[{key:'committee',date:adopted}],indexEvents,slots}).sentence:null;
-  return [earlier?.values?.date?earlier:null,sentence||reported].filter(Boolean);
+  // Each of these sentences states a date, and one without it could not be written.
+  return [earlier,sentence||reported].filter(line=>line?.values?.date);
 }
 
 async function heldProcedure(activity,id,request) {
@@ -105,9 +106,9 @@ export async function weekItem(query,{store,activity,status,groupOn=()=>'unavail
   });
   let standing=[],debated=null;
   if(primary) {
-    const indexEvents=statusIndexEvents(primary),{family,steps,stage:derived}=procedureSteps({reference,indexEvents,asOf});
+    const indexEvents=statusIndexEvents(primary),{family,steps,stage:derived,councilApproval}=procedureSteps({reference,indexEvents,asOf});
     const vote=await status.voteOnDate(mainVoteEvents({indexEvents,family,steps,asOf}),query.language);
-    standing=standingLines({family,steps,stage:family==='COD'?derived:resolutionStage(vote),indexEvents,committees,vote});
+    standing=standingLines({family,steps,stage:family==='COD'?derived:resolutionStage(vote),indexEvents,committees,vote,councilApproval});
     debated=indexEvents.filter(event=>event.had_activity_type==='PLENARY_DEBATE'&&event.activity_date&&event.activity_date<=asOf).map(event=>event.activity_date).sort().at(-1)||null;
   }
   // The newest release that names this file by its exact reference.

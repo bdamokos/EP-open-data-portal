@@ -74,6 +74,15 @@ test('standing: a non-legislative file has its committee report; a deal also has
   assert.deepEqual(standingLines({family:'COD',steps,stage:'deal',indexEvents:[],committees:[],vote:null}).map(line=>[line.id,line.values.date]),[['dossierstatus.position_talks_no_tally','2024-04-11'],['dossierstatus.deal','2026-06-23']]);
   assert.deepEqual(standingLines({family:'COD',steps,stage:'deal',indexEvents:[],committees:[],vote:{date:'2024-04-11',outcome:'ADOPTED',totals:{for:400,against:100,abstaining:50}}})[0].values.tally,{for:400,against:100,abstaining:50});
 });
+test('a Council approval states its own date, and a sentence with no date is left out',()=>{
+  const steps=[{key:'committee',date:'2024-03-20'}];
+  assert.deepEqual(standingLines({family:'COD',steps,stage:'council-approved',indexEvents:[],committees:[],vote:null,councilApproval:{date:'2026-09-01'}}).map(line=>[line.id,line.values.date]),[['dossierstatus.council_approved','2026-09-01']]);
+  assert.deepEqual(standingLines({family:'COD',steps,stage:'council-approved',indexEvents:[],committees:[],vote:null}),[]);
+});
+test('an earlier term\'s rapporteur stays out whatever shape the term is in',()=>{
+  const rows=wrap=>procedure('2025-0001','2025/0001(COD)',{had_participation:[{...part('RAPPORTEUR','111','ECON'),parliamentary_term:wrap('org/ep-9')},{...part('RAPPORTEUR','112','ECON'),parliamentary_term:wrap('org/ep-10')}]});
+  for(const wrap of [value=>value,value=>[value],value=>({id:value})])assert.deepEqual(rapporteurIds(null,rows(wrap),['ECON']),['112']);
+});
 test('one held item answers without a source read, and what is not held stays absent',async()=>{
   const list={documentId:'A-10-2026-0261',rows:[{kind:'heading'},{kind:'amendment'},{kind:'final'}]};
   const context=harness({'/procedures/2025-2139':cancer,'/plenary-documents/A-10-2026-0261':{workHadParticipation:[part('RAPPORTEUR','257112','SANT')]}},{lists:{'MTG-PL-2026-11-12':[list]}});
