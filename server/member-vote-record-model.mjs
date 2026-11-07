@@ -67,7 +67,7 @@ export function pickTitle(titles,referenceTexts,language) {
 export function voteSittingStatus(day) {
   const completeness=day.coverage?.completeness||{};
   const verifiedEmpty=key=>{const c=day.coverage?.[key];return c&&!c.error&&(c.state==='complete'||c.stopReason==='not-found');};
-  if(!list(day.decisions).length&&!(completeness.declaredDecisionCount>0)&&!day.coverage?.pendingVotes&&['decisions','namedDecisions','results'].every(verifiedEmpty))return {status:'empty',reason:null};
+  if(!list(day.decisions).length&&!(completeness.declaredDecisionCount>0)&&!day.coverage?.pendingVotes&&!(completeness.declaredResultCount>0)&&!list(completeness.invalidSourceIds).length&&verifiedEmpty('decisions')&&!(day.coverage.decisions.rows>0))return {status:'empty',reason:null};
   if(completeness.votingRecordsComplete===true)return {status:'projected',reason:null};
   return {status:'excluded',reason:list(completeness.conflictingDecisionIds).length?'conflicting-decisions':'records-incomplete'};
 }

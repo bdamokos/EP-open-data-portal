@@ -187,6 +187,11 @@ test('unavailable empty reads are excluded and omitted named arrays remain expli
   assert.deepEqual(voteSittingStatus(unavailable),{status:'excluded',reason:'records-incomplete'});
   const verified=structuredClone(unavailable);for(const key of ['decisions','namedDecisions','results'])verified.coverage[key]={state:'complete'};
   assert.equal(voteSittingStatus(verified).status,'empty');
+  verified.coverage.results={state:'unavailable',error:{code:'odp_no_content'}};
+  verified.coverage.decisions.rows=0;
+  assert.equal(voteSittingStatus(verified).status,'empty','a verified empty decision census does not require an empty results response');
+  verified.coverage.decisions.rows=1;
+  assert.equal(voteSittingStatus(verified).status,'excluded','rejected census nodes cannot imply zero decisions');
   const f=sitting([{for:[1],against:[2]}]);delete f.day.decisions[0].had_voter_abstention;
   const result=summariseVoteSitting(f.day,createGroupOn(groupsOf({1:'S&D',2:'S&D'})));
   assert.equal(result.sitting.unprojected,1);assert.equal(result.sitting.named,0);

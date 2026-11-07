@@ -137,7 +137,7 @@ export function projectMemberSitting(snapshot,memberId,language='en') {
 
 export function memberVoteAlignment(vote,line) {
   if(vote.ballotStatus!=='conducted'||vote.actualPosition?.status!=='recorded')return 'unclassified';
-  const chosen=line===undefined?(vote.outcome==='ADOPTED'?'for':vote.outcome==='REJECTED'?'against':null):(line==='ADOPTED'?'for':line==='REJECTED'?'against':line);
+  const chosen=line===undefined?(vote.outcome==='ADOPTED'?'for':vote.outcome==='REJECTED'?'against':null):line;
   if(!['for','against','abstaining'].includes(chosen))return 'unclassified';
   const position=vote.actualPosition.position;
   if(position==='abstaining')return chosen==='abstaining'?'with':'abstained';
