@@ -184,7 +184,9 @@ export function WeekPage({week,language}:{week:string|null;language:string}) {
   const counts=pastCounts(results,voteDays),aheadTopics=topics.filter(topic=>ahead.some(day=>day.id===topic.sittingId));
   // A subset of a day's agenda must not read as its total.
   const aheadRead=ahead.every(day=>day.agendaComplete&&!day.agendaError);
-  const noVotes=!ahead.length&&!topics.some(topic=>topic.kind==='PLENARY_VOTE')&&results?.items.length===0&&!results?.unlinked?.length&&days.every(day=>day.agendaComplete&&!day.agendaError);
+  const noVotes=!ahead.length&&!topics.some(topic=>topic.kind==='PLENARY_VOTE')&&results?.items.length===0&&!results.unlinked?.length&&results.days.every(day=>day.complete)&&days.every(day=>day.agendaComplete&&!day.agendaError);
+  const resultsFailed=Boolean((pastRead.error||pastRead.data)&&!results);
+  const anyResults=resultsFailed||past.some(day=>day.agendaError||resultRows(day as WeekDay,topics,results,language,ui).length>0);
   const voteBlockAt=ahead.flatMap(day=>comingSlots(aheadTopics.filter(topic=>topic.sittingId===day.id))).find(slot=>slot.kind==='votes')?.key??null;
   return page(<>
     {strip}
@@ -197,9 +199,9 @@ export function WeekPage({week,language}:{week:string|null;language:string}) {
       </p>
     </div>
     {story&&<Stories story={story} language={language}/>}
-    {past.length>0&&!noVotes&&<section className="week-section">
+    {anyResults&&!noVotes&&<section className="week-section">
       <h2 className="section"><UiMessage id="week.results"/></h2>
-      {(pastRead.error||pastRead.data)&&!results&&<p className="note"><UiMessage id="weekSummary.resultsUnavailable"/></p>}
+      {resultsFailed&&<p className="note"><UiMessage id="weekSummary.resultsUnavailable"/></p>}
       {past.map(day=><ResultDay key={day.id} day={day} topics={topics} results={results} language={language} pressUrls={story?.press??{}} retry={agenda.retry}/>)}
     </section>}
     {ahead.map(day=><ComingDay key={day.id} day={day} topics={aheadTopics} language={language} voteBlockAt={voteBlockAt} retry={agenda.retry}/>)}

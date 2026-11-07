@@ -209,6 +209,28 @@ test('an agenda read only in part gives no count line but keeps its rows',async 
  assert(c.querySelector('#week-votes'));
 });
 
+test('debates only and a results day unread: never claims there were no votes',async t=>{
+ const debatesOnly={...past,topics:past.topics.filter(topic=>topic.kind!=='PLENARY_VOTE')};
+ const unread=await mount(t,serve({agenda:debatesOnly,results:{...results,items:[],unlinked:[],days:results.days.map((entry,index)=>index?{...entry,voteCount:0}:{sittingId:entry.sittingId,complete:false,voteCount:null,rollCallCount:null,notConducted:null})}}));
+ assert.doesNotMatch(unread.container.querySelector('.say').textContent,/No votes/);
+});
+test('a fully read week with debates only says so and has no Results heading',async t=>{
+ const debatesOnly={...past,topics:past.topics.filter(topic=>topic.kind!=='PLENARY_VOTE')};
+ const {container:c}=await mount(t,serve({agenda:debatesOnly,results:{...results,items:[],unlinked:[],days:results.days.map(entry=>({...entry,voteCount:0}))}}));
+ assert.equal(c.querySelector('.say').textContent.trim(),'No votes this week.');
+ assert.deepEqual([...c.querySelectorAll('.section')].map(n=>n.textContent),['Debates']);
+});
+test('a running week with nothing to report so far has no empty Results heading',async t=>{
+ const debatesThenVotes={...running,agendaSittings:[day('2026-11-23','past'),day('2026-11-25','upcoming')],topics:[topic('MTG-PL-2026-11-23-OJ-ITM-D-1','PLENARY_DEBATE','Monday debate',{order:1}),...running.topics.filter(row=>row.sittingId==='MTG-PL-2026-11-25')]};
+ const {container:c}=await mount(t,serve({agenda:debatesThenVotes,results:{...runningResults,items:[],days:[{sittingId:'MTG-PL-2026-11-23',complete:true,voteCount:0,rollCallCount:0,notConducted:0}]}}),{id:MIXED});
+ assert.deepEqual([...c.querySelectorAll('.section')].map(n=>n.textContent),['Debates']);
+});
+test('a failed results read shows its line under Results and keeps the rows',async t=>{
+ const {container:c}=await mount(t,serve({results:new Response('{}',{status:404})}));
+ assert.match(c.querySelector('.week-section').textContent,/Results unavailable\./);
+ assert(rowOf(c,'Erasmus+'));
+});
+
 test('loading shows the heading from the route; a failed agenda offers a retry that works',async t=>{
  let release;const pending=new Promise(resolve=>{release=resolve;});
  const base=serve();let attempts=0;

@@ -92,7 +92,7 @@ const titleOf=(titles,language,fallback='',fallbackLanguage='en')=>selectLanguag
 function itemHref(item,topic,language) {
   if(item?.main)return voteHref(item.main.id,language);
   if(topic)return agendaItemHref(topic.id,language);
-  return item?.summary?.kind==='single'?voteHref(item.summary.vote.id,language):null;
+  return item?.summary?.kind==='single'?voteHref(item.summary.vote.id,language):item?agendaItemHref(item.agendaItemId,language):null;
 }
 /** One past day's rows: decisions with no agenda item first, then the items in agenda order, then items the agenda lacks. */
 export function resultRows(day,topics,results,language='en',ui=defaultUi) {
@@ -104,7 +104,7 @@ export function resultRows(day,topics,results,language='en',ui=defaultUi) {
     key:row.id,anchor:null,...titleOf(row.titles,language,ui.t('legislation.vote.64f872'),ui.language),href:voteHref(row.id,language),cells:voteCells(row,ui),votes:null,debated:null,
   }));
   const row=(topic,item)=>{
-    const text=topic?.title??(item.summary?.kind==='single'?ownLabel(item.summary.vote.label):item.agendaItemId),cells=item?itemCells(item,ui):{};
+    const text=topic?.title??(item.summary?.kind==='single'?ownLabel(item.summary.vote.label):null)??ui.t('legislation.agenda_item.39cc14'),cells=item?itemCells(item,ui):{};
     return {
       key:item?.agendaItemId??topic.id,anchor:rowAnchor(item?.agendaItemId??topic.id),text,language:topic?.titleLanguage??'',
       href:itemHref(item,topic,language),cells:cells.label===text?{...cells,label:null}:cells,votes:item?item.voteCount:null,

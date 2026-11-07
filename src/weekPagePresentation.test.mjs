@@ -89,6 +89,9 @@ test('a day lists unlinked decisions first, then items in agenda order, then ite
  assert.match(rows[4].href,/pl-vote=MTG-PL-2026-09-15-DEC-88/,'an item the agenda lacks still reaches its vote');
  assert.equal(rows[3].votes,null);
  assert.equal(rows[4].cells.label,null,'a label equal to the title is not repeated');
+ const noAgenda=resultRows(day,[],{items:[{agendaItemId:'MTG-PL-2026-09-15-OJ-ITM-V-7',voteCount:9,main:null,summary:{kind:'counts',adopted:9,rejected:0,lapsed:0,unknown:0}}],unlinked:[]},'en',ui)[0];
+ assert.equal(noAgenda.text,'Agenda item','no raw record identifier as a title');
+ assert.match(noAgenda.href,/agenda-topic=MTG-PL-2026-09-15-OJ-ITM-V-7/,'the agenda item is still reachable');
  const untitled=resultRows(day,[],{items:[],unlinked:[{id:'MTG-PL-2026-09-15-DEC-5',sittingId:day.id,titles:{},outcome:'ADOPTED',method:'VOTE_HAND',totals:unknown}]},'en',ui);
  assert.equal(untitled[0].text,'Vote');
  assert.deepEqual(resultRows(day,topics,null,'en',ui).map(row=>row.text),['MTG-PL-2026-09-15-OJ-ITM-V-1','MTG-PL-2026-09-15-OJ-ITM-V-2'],'rows wait with no tally while results are pending');
