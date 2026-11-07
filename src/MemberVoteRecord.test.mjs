@@ -5,7 +5,6 @@ import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {readFileSync} from 'node:fs';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {rolloutLive} from './test-support/rolloutLive.mjs';
 
 const MEMBER=197591,A='MTG-PL-2026-09-16',B='MTG-PL-2026-10-07';
 const counts=(withGroup,against,abstained=0,notComparable=0)=>({with:withGroup,against,abstained,notComparable});
@@ -30,13 +29,13 @@ function response(patch={}) {
   };
 }
 
-async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',offset=0,tag=null,matches=false,live=false,failWhen=null,hold=null}={}) {
+async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',offset=0,tag=null,matches=false,failWhen=null,hold=null}={}) {
   const window=new Window({url:'http://localhost/?member='+MEMBER+'&module=votes'});
   window.matchMedia=query=>({matches:matches&&query.includes('max-width'),media:query,addEventListener(){},removeEventListener(){}});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let load,root;const calls=[],offsets=[],scopes=[],opened=[];
+  let load,root;const calls=[],offsets=[],scopes=[];
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async url=>{
     calls.push(String(url));
@@ -46,13 +45,13 @@ async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',o
     await hold?.(url_);
     return Response.json(typeof data==='function'?data(url_):data);
   });
-  load=await freshLoader({configFile:false,plugins:live?[rolloutLive]:undefined,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {MemberVoteRecord}=await load('/src/MemberVoteRecord.tsx');
   const {createRoot}=await import('react-dom/client');const container=window.document.createElement('div');window.document.body.append(container);installRetryClock(t);root=createRoot(container);
   const tags=[];
-  const props={memberId,language:'en',scope,offset,tag,onTagChange:value=>tags.push(value),onScopeChange:value=>scopes.push(value),onOffset:value=>offsets.push(value),onOpenDecision:value=>opened.push(value)};
+  const props={memberId,language:'en',scope,offset,tag,onTagChange:value=>tags.push(value),onScopeChange:value=>scopes.push(value),onOffset:value=>offsets.push(value)};
   await act(async()=>root.render(createElement(MemberVoteRecord,props)));
-  return {container,calls,offsets,scopes,tags,opened,window,
+  return {container,calls,offsets,scopes,tags,window,
     async render(next){await act(async()=>root.render(createElement(MemberVoteRecord,{...props,...next})));}};
 }
 const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>item.textContent.trim()===text);
@@ -72,14 +71,8 @@ test('an active member record leads with the votes against the group and links i
   assert.equal(text.includes('Partial'),false);
   assert.equal(sentence.test(text),false,'no banned wording');
   assert.equal(links(view.container).length,5,'the first page keeps five departures');
-  assert.match(links(view.container)[0].getAttribute('href'),/mv-decision=MTG-PL-2026-10-07-DEC-10/);
   assert.equal(links(view.container)[0].hasAttribute('lang'),false,'text in the interface language needs no language mark');
   assert.match(view.container.querySelector('.mvr-rows .sub').textContent,/7 Oct 2026 · Against · group For/);
-  assert.equal(new URL(links(view.container)[0].href).searchParams.get('module'),'votes');
-  await act(async()=>links(view.container)[0].click());
-  assert.equal(view.opened.length,1);
-  assert.equal(view.opened[0].decisionId,B+'-DEC-10');
-  assert.equal(view.window.location.href.includes('mv-decision'),false,'the click keeps in-page navigation');
 });
 
 test('scope and departure page actions report their own values',async t=>{
@@ -241,11 +234,18 @@ test('the breakdown sits between the figures and the departures with two lists o
   const lists=[...section(view.container).querySelectorAll('.mvr-list')];
   assert.deepEqual(lists.map(list=>list.querySelector('h4').textContent),['By topic','By country discussed']);
   // The columns are named on the heading row, in the same grid as the rows.
-  assert.deepEqual(lists.map(list=>[...list.querySelector('.heads').children].map(cell=>cell.textContent)),[['By topic','With group','Votes'],['By country discussed','With group','Votes']]);
-  assert.deepEqual(rowsOf(lists[0]).map(row=>row.textContent),['Trade policy58%145','Regions of EU Member States75%1,234'],'EuroVoc labels are capitalised for display');
-  assert.deepEqual(rowsOf(lists[1]).map(row=>row.textContent),['Mexico39%33','China88%162']);
-  assert.equal(pick(rowsOf(lists[0])[0]).getAttribute('aria-label'),'Trade policy: 58% with their group, 145 votes');
+  assert.deepEqual(lists.map(list=>[...list.querySelector('.heads').children].map(cell=>cell.textContent)),[['By topic','Differs','Votes'],['By country discussed','Differs','Votes']]);
+  assert.deepEqual(rowsOf(lists[0]).map(row=>row.textContent),['Trade policy42%145','Regions of EU Member States25%1,234'],'EuroVoc labels are capitalised for display');
+  assert.deepEqual(rowsOf(lists[1]).map(row=>row.textContent),['Mexico61%33','China12%162']);
+  assert.equal(pick(rowsOf(lists[0])[0]).getAttribute('aria-label'),'Trade policy: differs 42%, 145 votes');
   assert.equal(section(view.container).querySelector('svg'),null,'no bars or charts');
+});
+
+test('a row shows the share of its votes that differ, from the counts, in its existing order',async t=>{
+  const rows=[{key:'topic:100235',label:'personnel management',language:'en',comparable:101,withGroup:81,share:81/101},{key:'topic:100208',label:'family',language:'en',comparable:79,withGroup:64,share:64/79},{key:'topic:100189',label:'accounts',language:'en',comparable:200,withGroup:171,share:171/200}];
+  const view=await mount(t,{data:response({breakdown:breakdown(rows,[])})});
+  assert.deepEqual(rowsOf(section(view.container)).map(row=>row.textContent),['Personnel management20%101','Family19%79','Accounts15%200'],'29 of 200 is exactly 14.5%, no floating-point rounding down');
+  assert.equal(section(view.container).textContent.includes('With group'),false);
 });
 
 test('every row has the same cells on the system row grid, in both lists',async t=>{
@@ -255,7 +255,8 @@ test('every row has the same cells on the system row grid, in both lists',async 
   for(const list of view.container.querySelectorAll('.mvr-list'))
     assert.deepEqual([...list.querySelector('.heads').children].map(cell=>cell.className.replace(' hd','')),['main','n sh','n ct']);
   const css=readFileSync(new URL('./MemberVoteRecord.css',import.meta.url),'utf8');
-  assert.match(css,/\.vs\.mvr \.mvr-list \.heads,\.vs\.mvr \.mvr-list \.row \{ grid-template-columns:minmax\(0,1fr\) var\(--num\) var\(--num\); \}/,'one template for the heading row and every row of both lists');
+  assert.match(css,/\.mvr-list \{ display:grid; grid-template-columns:minmax\(0,1fr\) repeat\(2,minmax\(var\(--num\),max-content\)\);/,'number columns start at the system width and grow to their head');
+  assert.match(css,/\.mvr-list ul,\.vs\.mvr \.mvr-list \.heads,\.vs\.mvr \.mvr-list \.row \{ display:grid; grid-column:1 \/ -1; grid-template-columns:subgrid; \}/,'the heading row and every row share one template');
   assert.match(css,/button\.pick\[aria-pressed=true\] \{ font-weight:700; \}/,'the pressed row is bold, with no fill');
   assert.equal(/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i.test(css),false,'tokens only');
   assert.equal(/--[a-z-]+\s*:/.test(css),false,'no new tokens');
@@ -270,7 +271,7 @@ test('a row is a button that sets the exact tag, and the pressed row clears it',
 test('the pressed row clears its tag when pressed again',async t=>{
   const filtered=await mount(t,{tag:'country:MEX',data:response({breakdown:breakdown(topicRows,countryRows),departures:{...response().departures,tag:{key:'country:MEX',label:'Mexico',language:'en'}}})});
   const pressed=rowsOf(section(filtered.container)).filter(row=>pick(row).getAttribute('aria-pressed')==='true');
-  assert.deepEqual(pressed.map(row=>row.textContent),['Mexico39%33']);
+  assert.deepEqual(pressed.map(row=>row.textContent),['Mexico61%33']);
   await act(async()=>pick(pressed[0]).click());
   assert.deepEqual(filtered.tags,[null]);
 });
@@ -359,11 +360,19 @@ test('an unknown member id answers with an unavailable group and nothing else',a
   assert.equal(view.container.querySelector('.mvr-rows'),null);
 });
 
-test('after the flip a title opens the vote page and keeps the journey back',async t=>{
-  const view=await mount(t,{live:true});
-  const [link]=links(view.container);
-  assert.match(link.getAttribute('href'),/^\?view=legislation&pl-mode=vote&pl-vote=MTG-PL-2026-10-07-DEC-10&lang=en$/);
-  assert.equal(view.opened.length,0);
+test('a title opens the vote page in the page itself, and a modified click is left to the browser',async t=>{
+  const view=await mount(t);
+  assert.deepEqual(links(view.container).map(link=>link.getAttribute('href')),departures.slice(0,5).map(item=>'?view=legislation&pl-mode=vote&pl-vote='+item.decisionId+'&lang=en'));
+  const click=init=>{const event=new view.window.MouseEvent('click',{bubbles:true,cancelable:true,button:0,...init});links(view.container)[0].dispatchEvent(event);return event.defaultPrevented;};
+  const pushed=[];
+  Object.defineProperty(globalThis,'history',{value:{state:null,pushState:(state,title,url)=>pushed.push({state,url:String(url)})},configurable:true});
+  const nodeEvent=globalThis.Event;globalThis.Event=view.window.Event;
+  t.after(()=>{delete globalThis.history;globalThis.Event=nodeEvent;});
+  await act(async()=>{assert.equal(click({}),true);});
+  assert.equal(new URL(pushed[0].url).searchParams.get('pl-vote'),B+'-DEC-10');
+  assert.equal(new URL(pushed[0].state.dossierOrigin).searchParams.get('module'),'votes','Back returns to the record');
+  await act(async()=>{assert.equal(click({ctrlKey:true}),false);});
+  assert.equal(pushed.length,1);
 });
 
 test('a saved offset never mounts pages past the last one, and pages load one after the other',async t=>{
