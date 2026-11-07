@@ -12,13 +12,19 @@ import type {InsightProps} from './InsightTypes';
 import {plenaryModeTitlesUi} from './plenaryModes';
 import {publicUrl} from './publicUrl';
 import {amendmentNumber,documentReferenceLabel,provisionLabel,readHref,readRoute} from './readRoute.mjs';
+import {selectLanguageText} from './language.mjs';
+import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
+import {splitRuns} from './splitRuns.mjs';
+import {SplitKey,SplitText,type SplitKeyRow} from './SplitText';
+import {voteHref} from './votePagePresentation.mjs';
+import './VoteSystem.css';
 import './ReadPage.css';
 
 const backHref=()=>dossierBackHref()||(history.state?.dossierOrigin as string|undefined)||null;
 const dayText=(day:string,language:string)=>new Intl.DateTimeFormat(language==='en'?'en-GB':language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(day+'T12:00:00Z'));
 
 type Neighbour={id:string;number:number};
-type Neighbours={amendmentId:string;listId:string|null;outcome:string|null;authors:{name:string;displayName:string|null;personId:string|null}[];committeeProposer:string|null;proposerLanguage:string|null;onBehalfOf:string|string[]|null;previous:Neighbour|null;next:Neighbour|null};
+type Neighbours={amendmentId:string;listId:string|null;outcome:string|null;authors:{name:string;displayName:string|null;personId:string|null}[];committeeProposer:string|null;proposerLanguage:string|null;onBehalfOf:string|string[]|null;splitParts?:{number:number|string|null;descriptions:Record<string,string>}[];decisions?:{id:string;partNumber:number|string|null;outcome:string|null;method:string|null;ballotStatus:string|null;totals:{for:number|null;against:number|null;abstaining:number|null}|null}[];previous:Neighbour|null;next:Neighbour|null};
 // Names beyond these open on request, so a long list of signatories doesn't push the amendment off the screen.
 const AUTHORS_SHOWN=3;
 
@@ -41,9 +47,31 @@ function Tabled({data,language}:{data:Neighbours;language:string}) {
   return <>{' · '}{extra>0?<details className="read-page-authors"><summary>{line}{onBehalf}</summary><p>{names(data.authors)}</p></details>:<>{line}{onBehalf}</>}</>;
 }
 
+const neighboursRoute=(amendmentId:string,listId?:string)=>'amendment-neighbours?'+new URLSearchParams({amendment:amendmentId,...(listId?{list:listId}:{})});
+const partOrder=(value:number|string|null)=>/^\d+$/.test(String(value))?Number(value):Number.MAX_SAFE_INTEGER;
+// The amendment as a whole: every part marked and none stressed, each with its result and vote.
+function VotedInParts({amendmentId,listId,variant,language}:{amendmentId:string;listId?:string;variant:NonNullable<DocumentReaderLeadInfo['variant']>;language:string}) {
+  const neighbours=useData<Neighbours>(neighboursRoute(amendmentId,listId),{automatic:false});
+  const data=neighbours.data?.amendmentId===amendmentId?neighbours.data:null;
+  const parts=[...(data?.splitParts??[])].sort((a,b)=>partOrder(a.number)-partOrder(b.number));
+  if(parts.length<2)return null;
+  const wordingLanguage=variant.language??'',inLanguage=parts.map(part=>({number:part.number,description:part.descriptions[wordingLanguage]??''}));
+  const match=typeof variant.proposedText==='string'&&inLanguage.every(part=>part.description.trim())?splitRuns(variant.proposedText,inLanguage):null;
+  const keyParts=parts.map((part):SplitKeyRow=>{
+    const chosen=match?{text:part.descriptions[wordingLanguage],language:wordingLanguage}:selectLanguageText(part.descriptions,language);
+    const decision=data?.decisions?.find(row=>String(row.partNumber)===String(part.number))??null;
+    return {number:part.number,description:chosen.text??null,language:chosen.language??'',result:decision,seeVote:decision?voteHref(decision.id,language):null};
+  });
+  return <section className="vs read-page-parts">
+    <h3><UiMessage id="votepage.voted_in_parts"/></h3>
+    {match&&<SplitText runs={match.runs} language={wordingLanguage} emphasis="none"/>}
+    <SplitKey parts={keyParts} match={match}/>
+  </section>;
+}
+
 function AmendmentLead({info,language,listId,wordingLanguage}:{info:DocumentReaderLeadInfo;language:string;listId?:string;wordingLanguage?:string|null}) {
   const ui=useUiI18n();
-  const neighbours=useData<Neighbours>(info.amendmentId?'amendment-neighbours?'+new URLSearchParams({amendment:info.amendmentId,...(listId?{list:listId}:{})}):null,{automatic:false});
+  const neighbours=useData<Neighbours>(info.amendmentId?neighboursRoute(info.amendmentId,listId):null,{automatic:false});
   const data=neighbours.data?.amendmentId===info.amendmentId?neighbours.data:null,list=listId??data?.listId??undefined,pin=wordingLanguage!==undefined?{wordingLanguage}:{};
   const number=amendmentNumber(info.amendmentId),provision=provisionLabel(info.variant?.targetLabel),back=backHref(),reference=documentReferenceLabel(info.documentId);
   useEffect(()=>{window.document.title=ui.t('legislation.pagetitle_european_parliament_data_explorer.42a26b',{pageTitle:provision?ui.t('reader.header',{number:number??'',provision}):ui.t('reader.header_number',{number:number??''})});},[number,provision]);
@@ -73,15 +101,19 @@ function DocumentLead({info,language}:{info:DocumentReaderLeadInfo;language:stri
 export function ReadPage({language}:{language:string}) {
   const ui=useUiI18n();
   const [documentId]=useExplorerParam<string>('read-doc',''),[amendmentId]=useExplorerParam<string>('read-amendment','');
+  const [splitPreview]=useExplorerParam<string>('split-preview','');
   const [listId]=useExplorerParam<string>('read-list',''),[textLanguage,setTextLanguage]=useExplorerParam<string>('read-lang','');
   const route=readRoute(new URLSearchParams({'read-doc':documentId,'read-amendment':amendmentId,'read-list':listId,'read-lang':textLanguage}));
   if(!route)return <section className="read-page" data-read-page={documentId+':'+amendmentId} lang={ui.language}><h1 tabIndex={-1}><UiMessage id="batch6.documentcontextreader.document.unavailable.here.171"/></h1></section>;
   const {documentId:id,amendmentId:amendment,listId:list,wordingLanguage}=route;
+  // Hidden behind its preview address until the redesign goes live.
+  const overview=amendment&&(PLENARY_REDESIGN_LIVE||splitPreview==='1');
   const request={documentId:id,view:'document' as const,onBack:()=>{},...(amendment?{amendmentId:amendment}:{}),...(list?{listId:list}:{}),...(wordingLanguage!==undefined?{wordingLanguage}:{})};
   return <div className="read-page" data-read-page={documentId+':'+amendmentId}>
     {route.staleAmendment&&<p className="document-context-notice" role="status" lang={ui.language}><UiMessage id="reader.amendment_not_found"/></p>}
     <DocumentContextReader request={request} language={language} showBackButton={false} passageFirst textLanguage={amendment?undefined:route.textLanguage} onTextLanguageChange={amendment?undefined:setTextLanguage}
-      lead={info=>info.amendmentId?<AmendmentLead info={info} language={language} listId={list} wordingLanguage={wordingLanguage}/>:<DocumentLead info={info} language={language}/>}/>
+      lead={info=>info.amendmentId?<AmendmentLead info={info} language={language} listId={list} wordingLanguage={wordingLanguage}/>:<DocumentLead info={info} language={language}/>}
+      amendmentFooter={overview?variant=><VotedInParts amendmentId={amendment} listId={list} variant={variant} language={language}/>:undefined}/>
     {!amendment&&<RecordTopics id={id} full language={language}/>}
   </div>;
 }

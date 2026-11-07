@@ -163,7 +163,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix,marking=false,range
   })}{inPassage(range,proposal.paragraphs.length)&&topTables.filter(t=>!t.paragraphs.length&&t.anchor===proposal.paragraphs.length).map(tableNode)}<ProposalNotes assets={proposal.imageAssets} notes={passageNotes(proposal.notes,proposal.anchors,range)} prefix={prefix}/></>;
 }
 
-export function ProposalContextText({data,wording,amendmentId,language,showOriginalLink=true,passageFirst=false}:{data:DocumentContextResponse;showOriginalLink?:boolean;wording:Variant|null;amendmentId?:string;language:string;passageFirst?:boolean}) {
+export function ProposalContextText({data,wording,amendmentId,language,showOriginalLink=true,passageFirst=false,amendmentFooter=null}:{data:DocumentContextResponse;showOriginalLink?:boolean;wording:Variant|null;amendmentId?:string;language:string;passageFirst?:boolean;amendmentFooter?:ReactNode}) {
   const ui = useUiI18n();
   const reader=useRef<HTMLDivElement>(null),prefix='proposal-'+useId().replace(/[^A-Za-z0-9_-]/g,''),baseline=data.baseline!,items=data.proposal!.items;
   const fileFailures=(baseline.gaps||[]).filter((gap):gap is {code:string;itemId:string}=>Boolean(gap&&typeof gap==='object'&&typeof (gap as {itemId?:unknown}).itemId==='string'&&!['stale-metadata','stale-content','bundle-too-large','native-annex-ordinal-unverified'].includes(String((gap as {code?:unknown}).code))));
@@ -237,6 +237,7 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
     {!placed&&<p className="document-context-notice" role="status">{proposalPlacementReasonsUi(ui)[placement?.reason||'']||ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67")}</p>}
     {(missingFiles>0||fileLimit)&&<p className="document-context-notice"><UiMessage id="coverage.filesUnloaded"/></p>}
     <div className="document-context-text proposal-context-text" lang={baseline.language}>{placed ? scopeFor(items[placement.itemIndex!].proposal,placement.itemIndex!,amendmentBlock(true,items[placement.itemIndex!].proposal),proposalPassage(items[placement.itemIndex!].proposal,placement)) : amendmentBlock(false)}</div>
+    {amendmentFooter}
     <div className="read-passage-head"><p className="proposal-context-summary">{(showOriginalLink && official) ? <a href={official} target="_blank" rel="noreferrer"><>{identity} ↗</></a> : identity}</p><FindInText target={reader} label={findLabel} onOpen={()=>setWhole(true)}/></div>
     {baseline.language!==language&&<p className="document-context-language"><TextLanguageFallback requested={language} actual={baseline.language} interfaceLanguage={language}/></p>}
     <div className="document-context-text proposal-context-text" ref={reader} lang={baseline.language}>{items.map((item,index)=>{

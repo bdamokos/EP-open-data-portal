@@ -2,6 +2,7 @@ import {defaultUi} from './uiDefault.mjs';
 import {memberVoteLabel,memberVoteTotals} from './memberVotesPresentation.mjs';
 import {groupMajorities} from './voteGroupMetrics.mjs';
 import {amendmentNumber as readAmendmentNumber} from './readRoute.mjs';
+import {stripNumberPrefix} from './splitRuns.mjs';
 
 const withoutNames=new Set(['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']);
 const positions=['for','against','abstaining'];
@@ -178,11 +179,16 @@ export function agendaVoteRedirect(search) {
 }
 /** The wording for a plain amendment page. A number prefix up to the first tab is not the text.
  * The provision keeps the source's case, except an English label's sentence-initial capital. */
+function provisionFields(variant) {
+  const target=typeof variant.targetLabel==='string'?variant.targetLabel.trim():'';
+  return {provision:target&&variant.targetLabelLanguage==='en'?target[0].toLocaleLowerCase('en')+target.slice(1):target,sourceLabel:target,labelLanguage:variant.targetLabelLanguage??null};
+}
 export function voteAmendmentWording(variants,vote,ui=defaultUi) {
-  const held=(variants||[]).filter(variant=>variant?.wordingStatus==='available'&&typeof variant.proposedText==='string'&&variant.proposedText.trim());
-  if(!held.length)return {state:'none'};
+  const available=(variants||[]).filter(variant=>variant?.wordingStatus==='available');
+  const held=available.filter(variant=>typeof variant.proposedText==='string'&&variant.proposedText.trim());
+  // A deletion can have no wording of its own and still a provision to place.
+  if(!held.length)return available[0]?{state:'none',...provisionFields(available[0])}:{state:'none'};
   if(new Set(held.map(variant=>variant.language+'\n'+variant.proposedText)).size>1)return {state:'versions'};
-  const variant=held[0],{n}=voteNumbers(vote),target=typeof variant.targetLabel==='string'?variant.targetLabel.trim():'';
-  const provision=target&&variant.targetLabelLanguage==='en'?target[0].toLocaleLowerCase('en')+target.slice(1):target;
-  return {state:'text',language:variant.language||'',text:variant.proposedText.replace(/^[^\t]{0,12}\t/,''),heading:provision?ui.t('votepage.amendment_provision',{n,provision}):ui.t('votepage.centre.amendment',{n})};
+  const variant=held[0],{n}=voteNumbers(vote),fields=provisionFields(variant);
+  return {state:'text',language:variant.language||'',text:stripNumberPrefix(variant.proposedText),heading:fields.provision?ui.t('votepage.amendment_provision',{n,provision:fields.provision}):ui.t('votepage.centre.amendment',{n}),...fields};
 }

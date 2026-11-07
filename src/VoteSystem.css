@@ -146,6 +146,30 @@
 .vs .clause { margin-top:var(--s4); padding-top:var(--s3); border-top:2px solid var(--ink); }
 .explorer-insights .vs .clause h3 { padding-bottom:var(--s3); }
 .vs .clause-text { font:400 var(--t-row)/1.6 var(--font-serif); max-width:40em; text-wrap:pretty; }
+/* Marked text: on a part's own page its words are dark and bold against a quieter text. The brackets stay strong; an overview stresses nothing. */
+.vs .clause-text.marked { color:var(--ink-muted); }
+.vs .run-on { color:var(--ink); font-weight:700; }
+.vs .clause-text .br { font:700 1.35em/0 var(--font-sans); }
+.vs .clause-text sub { font:700 var(--t-small)/0 var(--font-sans); vertical-align:-.45em; margin-left:.15em; }
+.vs .clause-text.plain .br,.vs .clause-text.plain sub { font-weight:400; }
+.vs .close-br { white-space:nowrap; }
+.vs .clause-key { padding:var(--s3) 0; border-bottom:1px solid var(--line); font-size:var(--t-meta); line-height:1.45; color:var(--ink-muted); }
+.vs .clause-key b { font-weight:600; }
+.vs .clause-part.this { color:var(--ink); }
+
+/* The text in its place: label in the gutter, wording beside it. */
+.explorer-insights .vs h2.section { padding-top:var(--s6); font:700 var(--t-h2)/1.16 var(--font-serif); }
+.vs .verses { margin-top:var(--s2); border-top:2px solid var(--ink); }
+.vs .verse { display:grid; grid-template-columns:var(--gut) minmax(0,1fr); align-items:baseline; padding:var(--s3) 0; border-bottom:1px solid var(--line); }
+.vs .verses.long .verse { grid-template-columns:calc(2 * var(--gut)) minmax(0,1fr); }
+.vs .verse .gut { font-size:var(--t-meta); line-height:1.35; color:var(--ink-muted); padding-right:var(--s1); text-wrap:balance; }
+.vs .verse p { font:400 var(--t-row)/1.45 var(--font-serif); max-width:40em; text-wrap:pretty; }
+.vs .verse.old del { color:var(--ink-muted); text-decoration-thickness:1px; }
+.vs .verse.new .gut { color:var(--ink); font-weight:600; }
+.explorer-insights .vs button.near-text { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; width:100%; min-height:44px; padding:0; color:var(--ink-muted); font:400 var(--t-meta)/1.45 var(--font-serif); text-align:left; white-space:pre-line; background:none; border:0; border-radius:0; cursor:pointer; }
+.explorer-insights .vs button.near-text:hover:not(:disabled) { color:var(--ink); background:none; }
+.explorer-insights .vs .near.open button.near-text { display:block; overflow:visible; }
+.vs .place-more { padding-top:var(--s1); }
 
 /* Phone: the title takes the full width and the result takes the line under it, on the same columns. */
 @media (max-width:767px) {
@@ -177,4 +201,6 @@
   .vs .split .seats,.vs .split .ledger,.vs .split .findbox { grid-column:1; grid-row:auto; }
   .vs .split .ledger { padding-top:var(--s4); }
   .vs .find input { max-width:none; }
+  .vs .verse,.vs .verses.long .verse { grid-template-columns:minmax(0,1fr); gap:var(--s1); }
+  .vs .verse .gut { padding-right:0; }
 }

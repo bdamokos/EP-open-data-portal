@@ -31,4 +31,4 @@ export function differingByGroup(rows:VoterRow[],differIds:Set<string>,order:str
 export function itemVoteSections<T extends {id:string;totals:Record<Position,number|null>;ballotStatus:string;outcome:string|null;method?:string|null}>(votes:T[],mainVoteId?:string|null):{key:string;votes:T[]}[];
 export function voteSteps(votes:{id:string;totals:Record<Position,number|null>;ballotStatus:string;outcome:string|null;method?:string|null}[],mainVoteId:string|null,id:string):{previous:string|null;next:string|null};
 export function agendaVoteRedirect(search:string):string|null;
-export function voteAmendmentWording(variants:unknown[],vote:Pick<DecisionVoteSibling,'context'|'parts'>,ui?:Formatter):{state:'none'|'versions';language?:undefined;text?:undefined;heading?:undefined}|{state:'text';language:string;text:string;heading:string};
+export function voteAmendmentWording(variants:unknown[],vote:Pick<DecisionVoteSibling,'context'|'parts'>,ui?:Formatter):{state:'versions'}|{state:'none';provision?:string;sourceLabel?:string;labelLanguage?:string|null}|{state:'text';language:string;text:string;heading:string;provision:string;sourceLabel:string;labelLanguage:string|null};

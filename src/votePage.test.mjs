@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {voteFixture,decisionId} from '../server/test-support/decision-votes.mjs';
+import {voteFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
 
 async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCountry=()=>{}}={}) {
  const window=new Window({url:url||'http://localhost/?view=legislation&pl-mode=vote&pl-vote='+id+'&lang=en'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map();
@@ -33,6 +33,94 @@ test('a roll-call vote page shows the sentence, table and way line with real tab
  assert(!h.calls.some(path=>path.includes('member-votes')));
  assert.equal(h.container.querySelector('.member-votes-position'),null,'no member frame');
  assert.deepEqual([...h.container.querySelectorAll('.frow .t')].map(node=>node.textContent),['Members','Countries','Corrections','Documents'],'folds in order, each only with content');
+});
+const partData=async ({outcome='ADOPTED',wording='full',extra={}}={})=>{
+ const f=voteFixture();f.raw.referenceText={en:'Amendment 114/2'};
+ const data=await f.read();
+ const request='MTG-PL-2026-10-07-VOT-ITM-1-SPLIT-1',uri='eli/dl/event/'+request;
+ const component=(number,text)=>({componentId:request+'-'+number,number:String(number),requestUri:uri,contentByLanguage:{en:{sourceLiteral:text,text}}});
+ const one=component(1,'Text as a whole without the words: ‘bracketed words’'),two=component(2,'those words');
+ const {decision}=data,base={scope:decision.scope,referenceTexts:{en:'Article 1'},context:{amendmentIds:[amendmentId]},namedVotersAvailable:false};
+ const label=number=>({number:String(number),requestUri:uri,requestId:request,requestScopeByLanguage:{en:'Amendment 114'}});
+ const main={...base,context:{amendmentIds:[]},id:'MTG-PL-2026-10-07-DEC-9',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:'conducted',totals:{for:500,against:50,abstaining:5},parts:[],referenceTexts:{en:'Motion for a resolution'}};
+ const other={...base,id:'MTG-PL-2026-10-07-DEC-8',outcome,method:'VOTE_HAND',ballotStatus:'conducted',totals:{for:null,against:null,abstaining:null},parts:[label(1)]};
+ const self={...base,id:decisionId,outcome:decision.outcome,method:decision.method,ballotStatus:decision.ballotStatus,totals:decision.totals,parts:[label(2)]};
+ data.decision={...decision,context:{...decision.context,amendmentIds:[amendmentId]},referenceTexts:{en:'Article 1'},parts:[{...two,...label(2),contextComponents:[one,two]}]};
+ data.siblings=[main,other,self];data.mainVoteId=main.id;data.subject={...(data.subject||{}),id:'item',title:'An item',titleLanguage:'en',titles:{en:'An item'},agendaItemIds:[],documentIds:['B-10-2026-0424'],procedureIds:['2025-0222'],procedures:[{id:'2025-0222',reference:'2025/0222(COD)'}],debates:[]};
+ data.procedureReferral=true;
+ const variant={wordingStatus:'available',language:'en',listId:'B-10-2026-0424-AM-001-200',proposedText:'(3)\tThe words before bracketed words and after.',originalText:'(3)\tThe old text.',targetLabel:'Recital 3',targetLabelLanguage:'en'};
+ const passage={before:{label:{kind:'recital',value:'2',prefix:'(2)'},text:'The recital before.'},original:{label:{kind:'recital',value:'3',prefix:'(3)'},text:'The old text.'},after:{label:{kind:'point',value:'a',prefix:'(a)'},text:'The point after.'}};
+ return {data,handler:async target=>{
+  const body=target.searchParams.get('body');
+  if(target.pathname.includes('document-context'))return body==='passage'?Response.json({version:112,documentId:'B-10-2026-0424',requestedLanguage:'en',baseline:{kind:'commission-proposal',language:'en'},placement:{operation:'replace',status:'placed',...extra.placement},passage:extra.passage===undefined?passage:extra.passage}):Response.json({version:112,documentId:'B-10-2026-0424',requestedLanguage:'en',amendment:{id:amendmentId,variants:wording==='full'?[variant]:wording==='blank'?[{...variant,proposedText:''}]:[]},placement:null});
+  return serve(data)(target);
+ }};
+};
+const text=node=>node?.textContent.replace(/\s+/g,' ').trim();
+test('a part page marks its words, keys both parts, shows the amendment in its place and hides the final vote',async t=>{
+ const {handler}=await partData();
+ const h=await mount(t,handler);
+ assert.match(text(h.container.querySelector('h1')),/Parliament adopted part 2 of amendment 114/);
+ const clause=h.container.querySelector('.clause');
+ assert.equal(text(clause.querySelector('h3')),'Amendment 114, recital 3');
+ assert.equal(text(clause.querySelector('.run-on')),'[bracketed words]Part 2','only the part\'s own words are bold');
+ assert.equal(clause.querySelector('.clause-text').getAttribute('lang'),'en');
+ const key=[...clause.querySelectorAll('.clause-part')].map(text);
+ assert.equal(key[0],'Part 1: Text as a whole without the words in part 2. Adopted by show of hands.');
+ assert.equal(key[1],'Part 2: those words. Adopted by 2 to 1, with 1 abstaining. This vote.');
+ assert.match(clause.querySelector('.clause-part a').getAttribute('href'),/pl-vote=MTG-PL-2026-10-07-DEC-8/,'the other part links to its vote');
+ assert.equal(text(h.container.querySelector('h2.section')),'In its place: recital 3');
+ const rows=[...h.container.querySelectorAll('.verse')].map(row=>[text(row.querySelector('.gut')),text(row.querySelector('p'))]);
+ assert.deepEqual(rows,[['Recital 2','The recital before.'],['Recital 3, Commission','The old text.'],['Recital 3, amendment 114','The words before bracketed words and after.'],['(a)','The point after.']]);
+ assert(h.container.querySelector('.verse.old del'),'struck: the part was adopted');
+ assert.match(h.container.querySelector('.place-more a').getAttribute('href'),/pl-mode=read.*read-amendment=B-10-2026-0424-AM-114/);
+ const folds=[...h.container.querySelectorAll('.frow .t')].map(node=>node.textContent);
+ assert(folds.includes('Dossier'));assert(!folds.includes('The file'));assert(!folds.includes('Documents'));
+ assert.doesNotMatch(h.container.textContent,/500|Source:/);
+ assert.equal(h.container.querySelector('.strip a[href*="DEC-9"]'),null,'the stepper skips the final vote');
+ const near=h.container.querySelector('.near-text');assert.equal(near.getAttribute('aria-expanded'),'false');
+ await act(async()=>near.click());
+ assert.equal(h.container.querySelector('.near-text').getAttribute('aria-expanded'),'true');
+ const votes=[...h.container.querySelectorAll('details')].find(details=>/Votes on this item/.test(details.querySelector('summary').textContent));
+ votes.open=true;await act(async()=>{votes.dispatchEvent(new globalThis.window.Event('toggle'));await new Promise(resolve=>setTimeout(resolve,10));});
+ const final=[...votes.querySelectorAll('.row')].find(row=>/Final vote/.test(row.textContent));
+ assert.equal(text(final),'Final vote','by label only');assert.equal(final.querySelector('a'),null);
+});
+test('the wrong language or shape falls back to the full text and published descriptions',async t=>{
+ const {handler,data}=await partData();
+ data.decision.parts[0].contextComponents[0].contentByLanguage={en:{sourceLiteral:'x',text:'Text as a whole without the words: ‘not in this text’'}};
+ const h=await mount(t,handler);
+ const clause=h.container.querySelector('.clause');
+ assert(clause.querySelector('.clause-text.plain'));
+ assert.equal(clause.querySelector('.run-on'),null);
+ assert.equal(text(clause.querySelector('.clause-text')),'The words before bracketed words and after.');
+ assert.match(text(clause.querySelector('.clause-part')),/Part 1: Text as a whole without the words: ‘not in this text’\. Adopted by show of hands\./);
+});
+test('In its place follows the operation, and a failed placement is silent',async t=>{
+ const insert=await partData({extra:{placement:{operation:'insert'},passage:{before:null,original:null,after:{label:null,text:'After.'}}}});
+ let h=await mount(t,insert.handler);
+ assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 3, amendment 114','']);
+});
+test('a delete has no amendment row; a rejected amendment keeps the original unstruck',async t=>{
+ const removal=await partData({extra:{placement:{operation:'delete'}}});
+ removal.data.decision.outcome='REJECTED';removal.data.siblings.forEach(row=>{row.outcome='REJECTED';});
+ const h=await mount(t,removal.handler);
+ assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, Commission','(a)']);
+ assert.equal(h.container.querySelector('.verse.old del'),null);
+});
+test('a deletion with no wording of its own still shows the original in its place',async t=>{
+ const removal=await partData({wording:'blank',extra:{placement:{operation:'delete'}}});
+ const h=await mount(t,removal.handler);
+ assert.equal(text(h.container.querySelector('h2.section')),'In its place: recital 3');
+ assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, Commission','(a)']);
+ assert(h.container.querySelector('.verse.old del'));
+});
+test('no placement or no rows: no section and no note',async t=>{
+ const unplaced=await partData({extra:{placement:{status:'unresolved'}}});
+ const h=await mount(t,unplaced.handler);
+ assert.equal(h.container.querySelector('h2.section'),null);
+ assert.equal(h.container.querySelector('.verses'),null);
+ assert.match(text(h.container.querySelector('.clause-part')),/Part 1:/,'the key still shows');
 });
 test('corrections name a current member from the directory',async t=>{
  const f=voteFixture();f.raw.referenceText={en:'Article 1'};const data=await f.read();

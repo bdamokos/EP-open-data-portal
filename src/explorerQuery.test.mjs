@@ -131,6 +131,11 @@ test('only the Plenary Topics mode retains topic drilldown parameters',()=>{
   assert.equal(q.has('topic'),mode==='topics');assert.equal(q.has('t-q'),mode==='topics');assert.equal(q.has('t-record'),mode==='topics');
  }
 });
+test('the reader keeps its temporary overview preview address, and no other view does',()=>{
+  const query=new URLSearchParams('pl-mode=read&read-doc=A-10-2026-0257&split-preview=1');
+  assert.equal(explorerParams(query,'legislation').get('split-preview'),'1');
+  assert.equal(explorerParams(query,'questions').has('split-preview'),false);
+});
 
 test('the vote page keeps its country sort; other views drop it',()=>{
   const query=new URLSearchParams({view:'legislation','pl-mode':'vote','vote-country-sort':'for-desc'});

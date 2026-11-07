@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {amendmentNumber,documentReferenceLabel,legacyReaderRedirect,provisionLabel,readHref,readRoute,readableDocument} from './readRoute.mjs';
-import {documentContents,paragraphPassage,passageNotes,proposalPassage} from './proposalPassage.mjs';
+import {documentContents,paragraphPassage,paragraphPassageRows,passageNotes,proposalPassage,proposalPassageRows} from './proposalPassage.mjs';
 import {documentContextQuery} from '../server/document-context.mjs';
 import {explorerParams} from './explorerQuery.mjs';
 
@@ -92,6 +92,88 @@ test('a point inside an article shows the whole article and two articles either 
 test('new text between two provisions shows two provisions either side of the gap',()=>{
   assert.deepEqual(proposalPassage(document,{operation:'insert',insertAfter:12,insertBefore:13}),{start:11,end:15});
   assert.deepEqual(proposalPassage(document,{operation:'insert',insertAfter:23,insertBefore:24}),{start:15,end:28},'inside an article it stays with that article');
+});
+
+// In its place, on the shape the parser records: labels, own paragraphs, titles.
+const labelled=(kind,value,start,end,children=[],extra={})=>({kind,extent:{start,end},content:[start],children,label:{kind,value,prefix:kind==='point'?'('+value+')\t':kind==='recital'?'('+value+')\t':value+'.\t'},...extra});
+const placeTexts=['Having regard to x','(1)\tFirst recital','(2)\tSecond recital','(3)\tThird recital','Article 1','Subject','1.\tParagraph one','Second subparagraph','2.\tParagraph two','(a)\tpoint a','(b)\tpoint b','Article 2','Scope','Applies','Article 3','Ends'];
+const place={paragraphs:placeTexts.map((text,index)=>({index,text})),units:[
+  {kind:'preamble',extent:{start:0,end:4},content:[],children:[{kind:'citation',extent:{start:0,end:1},content:[0],children:[]},labelled('recital','1',1,2),labelled('recital','2',2,3),labelled('recital','3',3,4)]},
+  {kind:'body',extent:{start:4,end:16},content:[],children:[
+    {id:'p/article:1',...labelled('article','1',4,11,[{kind:'title',extent:{start:5,end:6},content:[5],children:[]},labelled('paragraph','1',6,8,[{kind:'subparagraph',extent:{start:7,end:8},content:[7],children:[]}]),labelled('paragraph','2',8,11,[labelled('point','a',9,10),labelled('point','b',10,11)])]),label:{kind:'article',value:'1',prefix:null}},
+    {id:'p/article:2',...labelled('article','2',11,14,[{kind:'title',extent:{start:12,end:13},content:[12],children:[]},{kind:'paragraph',extent:{start:13,end:14},content:[13],children:[]}]),label:{kind:'article',value:'2',prefix:null}},
+    {id:'p/article:3',...labelled('article','3',14,16,[{kind:'paragraph',extent:{start:15,end:16},content:[15],children:[]}]),label:{kind:'article',value:'3',prefix:null}},
+  ]},
+]};
+const brief=row=>row&&[row.label?.kind??row.label?.prefix??null,row.label?.value??null,row.text];
+
+test('a recital sits between its own kind only, with number prefixes off',()=>{
+  const middle=proposalPassageRows(place,{operation:'replace',span:{start:2,end:2},originalText:'(2)\tSecond recital'});
+  assert.deepEqual(brief(middle.before),['recital','1','First recital']);
+  assert.deepEqual(brief(middle.original),['recital','2','Second recital']);
+  assert.deepEqual(brief(middle.after),['recital','3','Third recital']);
+  assert.equal(proposalPassageRows(place,replace(1)).before,null,'a citation is not its neighbour');
+  assert.equal(proposalPassageRows(place,replace(3)).after,null,'an article is not its neighbour');
+});
+test('inside an article the neighbours are the next words, never another article',()=>{
+  const first=proposalPassageRows(place,replace(6));
+  assert.equal(first.before,null);
+  assert.deepEqual(brief(first.after),['paragraph','1','Second subparagraph'],'an unlabelled subparagraph takes its paragraph\'s label');
+  const point=proposalPassageRows(place,replace(9));
+  assert.deepEqual(brief(point.before),['paragraph','2','Paragraph two']);
+  assert.deepEqual(brief(point.after),['point','b','point b']);
+  const last=proposalPassageRows(place,replace(10));
+  assert.equal(last.after,null,'the end of the article has nothing after it');
+});
+test('a whole article borders whole articles, without their numbers and titles',()=>{
+  const row=proposalPassageRows(place,{operation:'replace',span:{start:11,end:13}});
+  assert.deepEqual(brief(row.before),['article','1','Paragraph one\nSecond subparagraph\n2. Paragraph two\n(a) point a\n(b) point b']);
+  assert.deepEqual(brief(row.after),['article','3','Ends']);
+});
+test('an insertion has no original; a deletion keeps it',()=>{
+  const between=proposalPassageRows(place,{operation:'insert',insertAfter:2,insertBefore:3});
+  assert.equal(between.original,null);
+  assert.deepEqual(brief(between.before),['recital','2','Second recital']);
+  assert.deepEqual(brief(between.after),['recital','3','Third recital']);
+  const inside=proposalPassageRows(place,{operation:'insert',insertAfter:9,insertBefore:10});
+  assert.deepEqual(brief(inside.before),['point','a','point a']);
+  assert.deepEqual(brief(inside.after),['point','b','point b']);
+  const gone=proposalPassageRows(place,{operation:'delete',span:{start:9,end:9}});
+  assert.deepEqual(brief(gone.original),['point','a','point a']);
+  assert.equal(proposalPassageRows(place,{operation:'replace'}),null,'no span, no rows');
+});
+test('new text at the end of an article stays inside it unless the placement names the article',()=>{
+  const point={operation:'insert',insertAfter:10,insertBefore:11,evidence:[{basis:'preceding-sibling-subtree',anchor:'p/article:1/paragraph:2/point:b'}]};
+  assert.deepEqual(brief(proposalPassageRows(place,point).before),['point','b','point b']);
+  assert.equal(proposalPassageRows(place,point).after,null,'a new point borders no article');
+  assert.deepEqual(brief(proposalPassageRows(place,{operation:'insert',insertAfter:10,insertBefore:11}).before),['point','b','point b'],'no anchor: stays inside');
+  const article={operation:'insert',insertAfter:10,insertBefore:11,evidence:[{basis:'proposal-target-path',label:'Article 1 a (new)'},{basis:'preceding-sibling-subtree',anchor:'p/article:1'}]};
+  assert.equal(proposalPassageRows(place,article).before.label.kind,'article');
+  assert.deepEqual(brief(proposalPassageRows(place,article).after),['article','2','Applies']);
+});
+test('a sole paragraph placed by its own address has no article neighbours; the article itself has',()=>{
+  const paragraph=proposalPassageRows(place,{operation:'replace',span:{start:13,end:13},evidence:[{anchor:'p/article:2/paragraph:1'}]});
+  assert.equal(paragraph.before,null);assert.equal(paragraph.after,null);
+  const unanchored=proposalPassageRows(place,{operation:'replace',span:{start:13,end:13},evidence:[{basis:'ordinal-unnumbered-paragraph'}]});
+  assert.equal(unanchored.before,null,'an unanchored placement inside the article stays inside');assert.equal(unanchored.after,null);
+  const article=proposalPassageRows(place,{operation:'replace',span:{start:13,end:13},evidence:[{anchor:'p/article:2'}]});
+  assert.equal(article.before.label.kind,'article');assert.deepEqual(brief(article.after),['article','3','Ends']);
+});
+test('a neighbour inside a table is left out',()=>{
+  const withTable=structuredClone(place);
+  withTable.units[1].children[0].children[2].children[1].children=[{kind:'table',extent:{start:10,end:11},content:[],children:[],table:{paragraphs:[10]}}];
+  assert.equal(proposalPassageRows(withTable,replace(9)).after,null);
+});
+test('a report without a provision tree uses paragraphs and their source numbers',()=>{
+  const paragraphs=['Heading','1.\tFirst','2.\tSecond','\t','3.\tThird'];
+  const rows=paragraphPassageRows({operation:'replace',span:{start:2,end:2},originalText:'2.\tSecond'},{paragraphs});
+  assert.deepEqual(rows.before,{label:{kind:null,value:null,prefix:'1.'},text:'First'});
+  assert.equal(rows.original.text,'Second');
+  assert.equal(paragraphPassageRows({operation:'replace',span:{start:1,end:1}},{paragraphs}).before,null,'an unnumbered heading is not a neighbour');
+  assert.equal(paragraphPassageRows({operation:'replace',span:{start:2,end:2}},{paragraphs}).after,null,'nor is an empty numbered line');
+  assert.equal(paragraphPassageRows({operation:'insert',insertAfter:1,insertBefore:2},{paragraphs}).original,null);
+  const table=paragraphPassageRows({operation:'replace',span:{start:2,end:2}},{paragraphs,tables:[{rows:[[{start:3,end:4}]]}]});
+  assert.equal(table.after,null);
 });
 
 test('a target outside any provision falls back to source paragraphs and never cuts a table',()=>{

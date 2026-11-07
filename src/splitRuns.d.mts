@@ -1,0 +1,9 @@
+export type SplitRun={text:string;part:string|null;bracketed:boolean};
+export type SplitMatch={runs:SplitRun[];whole:{number:string;lead:string|null;other:string}|null};
+export type PartResultInput={outcome:string|null;method?:string|null;ballotStatus?:string|null;totals?:{for:number|null;against:number|null;abstaining:number|null}|null};
+export function stripNumberPrefix(text:string|null|undefined):string;
+export function describePart(description:string|null|undefined):{before:string;quote:string;after:string}|null|false;
+export function findQuote(text:string,quote:string):{start:number;end:number}|null;
+export function splitRuns(text:string,parts:{number:string|number|null;description:string}[]):SplitMatch|null;
+export function partsInLanguage(parts:{number:string|number|null;contentByLanguage?:Record<string,{text:string|null}>}[]|null|undefined,language:string):{number:string|number|null;description:string}[]|null;
+export function partResult(result:PartResultInput|null|undefined):{id:string;values:Record<string,number>}|null;

@@ -130,7 +130,7 @@ test('item votes fall into sections with the main vote first, and the steps foll
 });
 test('the amendment wording is plain; differing versions keep their chooser',()=>{
  const variant={wordingStatus:'available',proposedText:'(3)\tThe text.',language:'en',targetLabel:'Article 3 – paragraph 1',targetLabelLanguage:'en'};
- assert.deepEqual(voteAmendmentWording([variant],base),{state:'text',language:'en',text:'The text.',heading:'Amendment 4, article 3 – paragraph 1'});
+ assert.deepEqual(voteAmendmentWording([variant],base),{state:'text',language:'en',text:'The text.',heading:'Amendment 4, article 3 – paragraph 1',provision:'article 3 – paragraph 1',sourceLabel:'Article 3 – paragraph 1',labelLanguage:'en'});
  assert.equal(voteAmendmentWording([{...variant,targetLabelLanguage:'de',targetLabel:'Artikel 3'}],base).heading,'Amendment 4, Artikel 3');
  assert.equal(voteAmendmentWording([{...variant,targetLabel:null}],base).heading,'Amendment 4');
  assert.equal(voteAmendmentWording([variant,{...variant,proposedText:'Other.'}],base).state,'versions');
