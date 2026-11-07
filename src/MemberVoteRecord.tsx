@@ -202,9 +202,12 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
         <p className="meta">{data.period.to===null
           ? <UiMessage id="membervoterecord.period.open" values={{from:dateLabel(data.period.from,ui.locale)}}/>
           : <UiMessage id="membervoterecord.period" values={{from:dateLabel(data.period.from,ui.locale),to:dateLabel(data.period.to,ui.locale)}}/>}</p>
-        {coverage.status==='partial'&&<p className="meta">
-          {coverage.missing>0&&<span><UiMessage id="membervoterecord.coverage.partial" values={{missing:coverage.missing}}/></span>}
-          {coverage.unprojectedDecisions>0&&<span><UiMessage id="membervoterecord.coverage.partialVotes" values={{count:coverage.unprojectedDecisions}}/></span>}
+        {coverage.status==='partial'&&(coverage.missing>0||coverage.unprojectedDecisions>0)&&<p className="meta">
+          {coverage.missing>0&&coverage.unprojectedDecisions>0
+            ? <UiMessage id="membervoterecord.coverage.partialBoth" values={{missing:coverage.missing,count:coverage.unprojectedDecisions}}/>
+            : coverage.missing>0
+              ? <UiMessage id="membervoterecord.coverage.partial" values={{missing:coverage.missing}}/>
+              : <UiMessage id="membervoterecord.coverage.partialVotes" values={{count:coverage.unprojectedDecisions}}/>}
         </p>}
       </div>
       {view.known&&<WordSwitch label={ui.t('membervoterecord.scope.label')} value={scope} onChange={onScopeChange} options={[{value:'all',label:<UiMessage id="membervoterecord.scope.all"/>},{value:'final',label:<UiMessage id="membervoterecord.scope.final"/>}]}/>}

@@ -134,7 +134,8 @@ test('a partial record states the votes it could not read',async t=>{
 
 test('a record missing both says both',async t=>{
   const view=await mount(t,{data:response({coverage:{sittings:3,included:2,missing:1,unprojectedDecisions:31,status:'partial'}})});
-  assert.match(view.container.textContent,/missing sittings: 1.*missing votes: 31/);
+  assert.match(view.container.textContent,/Partial · missing sittings: 1, votes: 31/);
+  assert.equal(view.container.textContent.match(/Partial/g).length,1,'one line, not two');
 });
 
 test('a chairing member with no comparable vote shows the chaired count and nothing to compare',async t=>{

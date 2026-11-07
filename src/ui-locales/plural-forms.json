@@ -536,6 +536,42 @@
     "weekSummary.votes": {
       "one": "{count} гласуване",
       "other": "{count} гласувания"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} подаден глас",
+      "other": "{count} подадени гласа"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} гласуване по тази точка",
+      "other": "{count} гласувания по тази точка"
+    },
+    "votepage.votes_short": {
+      "one": "{count} гласуване",
+      "other": "{count} гласувания"
+    },
+    "votepage.meps": {
+      "one": "{count} евродепутат",
+      "other": "{count} евродепутати"
+    },
+    "week.coming.others": {
+      "one": "{count} разискване или друга точка.",
+      "other": "{count} разисквания и други точки."
+    },
+    "week.reason.differs": {
+      "one": "{count} евродепутат гласува различно от групата си",
+      "other": "{count} евродепутати гласуваха различно от групата си"
+    },
+    "week.reason.speeches": {
+      "one": "{count} изказване",
+      "other": "{count} изказвания"
+    },
+    "week.reason.blue": {
+      "one": "{count} изказване със синя карта",
+      "other": "{count} изказвания със синя карта"
+    },
+    "week.speakers": {
+      "one": "{count} оратор",
+      "other": "{count} оратори"
     }
   },
   "cs": {
@@ -1297,6 +1333,60 @@
       "few": "{count} hlasování",
       "many": "{count} hlasování",
       "other": "{count} hlasování"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} odevzdaný hlas",
+      "few": "{count} odevzdané hlasy",
+      "many": "{count} odevzdaného hlasu",
+      "other": "{count} odevzdaných hlasů"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} hlasování o tomto bodu",
+      "few": "{count} hlasování o tomto bodu",
+      "many": "{count} hlasování o tomto bodu",
+      "other": "{count} hlasování o tomto bodu"
+    },
+    "votepage.votes_short": {
+      "one": "{count} hlasování",
+      "few": "{count} hlasování",
+      "many": "{count} hlasování",
+      "other": "{count} hlasování"
+    },
+    "votepage.meps": {
+      "one": "{count} poslanec EP",
+      "few": "{count} poslanci EP",
+      "many": "{count} poslance EP",
+      "other": "{count} poslanců EP"
+    },
+    "week.coming.others": {
+      "one": "{count} rozprava nebo jiný bod.",
+      "few": "{count} rozpravy a jiné body.",
+      "many": "{count} rozpravy a jiných bodů.",
+      "other": "{count} rozprav a jiných bodů."
+    },
+    "week.reason.differs": {
+      "one": "{count} poslanec hlasoval jinak než jeho skupina",
+      "few": "{count} poslanci hlasovali jinak než jejich skupina",
+      "many": "{count} poslance hlasovalo jinak než jejich skupina",
+      "other": "{count} poslanců hlasovalo jinak než jejich skupina"
+    },
+    "week.reason.speeches": {
+      "one": "{count} projev",
+      "few": "{count} projevy",
+      "many": "{count} projevu",
+      "other": "{count} projevů"
+    },
+    "week.reason.blue": {
+      "one": "{count} projev na modrou kartu",
+      "few": "{count} projevy na modrou kartu",
+      "many": "{count} projevu na modrou kartu",
+      "other": "{count} projevů na modrou kartu"
+    },
+    "week.speakers": {
+      "one": "{count} řečník",
+      "few": "{count} řečníci",
+      "many": "{count} řečníka",
+      "other": "{count} řečníků"
     }
   },
   "da": {
@@ -1867,6 +1957,42 @@
     "weekSummary.votes": {
       "one": "{count} afstemning",
       "other": "{count} afstemninger"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} afgivet stemme",
+      "other": "{count} afgivne stemmer"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} afstemning om dette punkt",
+      "other": "{count} afstemninger om dette punkt"
+    },
+    "votepage.votes_short": {
+      "one": "{count} afstemning",
+      "other": "{count} afstemninger"
+    },
+    "votepage.meps": {
+      "one": "{count} medlem",
+      "other": "{count} medlemmer"
+    },
+    "week.coming.others": {
+      "one": "{count} debat eller andet punkt.",
+      "other": "{count} debatter og andre punkter."
+    },
+    "week.reason.differs": {
+      "one": "{count} medlem stemte anderledes end sin gruppe",
+      "other": "{count} medlemmer stemte anderledes end deres gruppe"
+    },
+    "week.reason.speeches": {
+      "one": "{count} tale",
+      "other": "{count} taler"
+    },
+    "week.reason.blue": {
+      "one": "{count} indlæg med blåt kort",
+      "other": "{count} indlæg med blåt kort"
+    },
+    "week.speakers": {
+      "one": "{count} taler",
+      "other": "{count} talere"
     }
   },
   "de": {
@@ -2437,6 +2563,42 @@
     "weekSummary.votes": {
       "one": "{count} Abstimmung",
       "other": "{count} Abstimmungen"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} abgegebene Stimme",
+      "other": "{count} abgegebene Stimmen"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} Abstimmung zu diesem Punkt",
+      "other": "{count} Abstimmungen zu diesem Punkt"
+    },
+    "votepage.votes_short": {
+      "one": "{count} Abstimmung",
+      "other": "{count} Abstimmungen"
+    },
+    "votepage.meps": {
+      "one": "{count} Parlamentsmitglied",
+      "other": "{count} Abgeordnete"
+    },
+    "week.coming.others": {
+      "one": "{count} Debatte oder anderer Punkt.",
+      "other": "{count} Debatten und andere Punkte."
+    },
+    "week.reason.differs": {
+      "one": "{count} Parlamentsmitglied stimmte anders als die eigene Fraktion",
+      "other": "{count} Abgeordnete stimmten anders als ihre Fraktion"
+    },
+    "week.reason.speeches": {
+      "one": "{count} Rede",
+      "other": "{count} Reden"
+    },
+    "week.reason.blue": {
+      "one": "{count} Wortmeldung mit blauer Karte",
+      "other": "{count} Wortmeldungen mit blauer Karte"
+    },
+    "week.speakers": {
+      "one": "{count} sprechende Person",
+      "other": "{count} sprechende Personen"
     }
   },
   "el": {
@@ -2975,6 +3137,42 @@
     "weekSummary.votes": {
       "one": "{count} ψηφοφορία",
       "other": "{count} ψηφοφορίες"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} ψήφος που δόθηκε",
+      "other": "{count} ψήφοι που δόθηκαν"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} ψηφοφορία για αυτό το θέμα",
+      "other": "{count} ψηφοφορίες για αυτό το θέμα"
+    },
+    "votepage.votes_short": {
+      "one": "{count} ψηφοφορία",
+      "other": "{count} ψηφοφορίες"
+    },
+    "votepage.meps": {
+      "one": "{count} ευρωβουλευτής",
+      "other": "{count} ευρωβουλευτές"
+    },
+    "week.coming.others": {
+      "one": "{count} συζήτηση ή άλλο θέμα.",
+      "other": "{count} συζητήσεις και άλλα θέματα."
+    },
+    "week.reason.differs": {
+      "one": "{count} ευρωβουλευτής ψήφισε διαφορετικά από την ομάδα του",
+      "other": "{count} ευρωβουλευτές ψήφισαν διαφορετικά από την ομάδα τους"
+    },
+    "week.reason.speeches": {
+      "one": "{count} ομιλία",
+      "other": "{count} ομιλίες"
+    },
+    "week.reason.blue": {
+      "one": "{count} ομιλία με γαλάζια κάρτα",
+      "other": "{count} ομιλίες με γαλάζια κάρτα"
+    },
+    "week.speakers": {
+      "one": "{count} ομιλητής",
+      "other": "{count} ομιλητές"
     }
   },
   "es": {
@@ -3619,6 +3817,51 @@
       "one": "{count} votación",
       "many": "{count} de votaciones",
       "other": "{count} votaciones"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} voto emitido",
+      "many": "{count} de votos emitidos",
+      "other": "{count} votos emitidos"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} votación sobre este punto",
+      "many": "{count} de votaciones sobre este punto",
+      "other": "{count} votaciones sobre este punto"
+    },
+    "votepage.votes_short": {
+      "one": "{count} votación",
+      "many": "{count} de votaciones",
+      "other": "{count} votaciones"
+    },
+    "votepage.meps": {
+      "one": "{count} eurodiputado",
+      "many": "{count} de eurodiputados",
+      "other": "{count} eurodiputados"
+    },
+    "week.coming.others": {
+      "one": "{count} debate u otro punto.",
+      "many": "{count} de debates y otros puntos.",
+      "other": "{count} debates y otros puntos."
+    },
+    "week.reason.differs": {
+      "one": "{count} eurodiputado votó de forma distinta a su grupo",
+      "many": "{count} de eurodiputados votaron de forma distinta a su grupo",
+      "other": "{count} eurodiputados votaron de forma distinta a su grupo"
+    },
+    "week.reason.speeches": {
+      "one": "{count} intervención",
+      "many": "{count} de intervenciones",
+      "other": "{count} intervenciones"
+    },
+    "week.reason.blue": {
+      "one": "{count} intervención de tarjeta azul",
+      "many": "{count} de intervenciones de tarjeta azul",
+      "other": "{count} intervenciones de tarjeta azul"
+    },
+    "week.speakers": {
+      "one": "{count} orador",
+      "many": "{count} de oradores",
+      "other": "{count} oradores"
     }
   },
   "et": {
@@ -4158,6 +4401,42 @@
     "weekSummary.votes": {
       "one": "{count} hääletus",
       "other": "{count} hääletust"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} antud hääl",
+      "other": "{count} antud häält"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} hääletus selle päevakorrapunkti kohta",
+      "other": "{count} hääletust selle päevakorrapunkti kohta"
+    },
+    "votepage.votes_short": {
+      "one": "{count} hääletus",
+      "other": "{count} hääletust"
+    },
+    "votepage.meps": {
+      "one": "{count} parlamendiliige",
+      "other": "{count} parlamendiliiget"
+    },
+    "week.coming.others": {
+      "one": "{count} arutelu või muu punkt.",
+      "other": "{count} arutelu ja muud punkti."
+    },
+    "week.reason.differs": {
+      "one": "{count} parlamendiliige hääletas oma fraktsioonist erinevalt",
+      "other": "{count} parlamendiliiget hääletas oma fraktsioonist erinevalt"
+    },
+    "week.reason.speeches": {
+      "one": "{count} sõnavõtt",
+      "other": "{count} sõnavõttu"
+    },
+    "week.reason.blue": {
+      "one": "{count} sinise kaardi sõnavõtt",
+      "other": "{count} sinise kaardi sõnavõttu"
+    },
+    "week.speakers": {
+      "one": "{count} sõnavõtja",
+      "other": "{count} sõnavõtjat"
     }
   },
   "fi": {
@@ -4728,6 +5007,42 @@
     "weekSummary.votes": {
       "one": "{count} äänestys",
       "other": "{count} äänestystä"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} annettu ääni",
+      "other": "{count} annettua ääntä"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} äänestys tästä asiakohdasta",
+      "other": "{count} äänestystä tästä asiakohdasta"
+    },
+    "votepage.votes_short": {
+      "one": "{count} äänestys",
+      "other": "{count} äänestystä"
+    },
+    "votepage.meps": {
+      "one": "{count} meppi",
+      "other": "{count} meppiä"
+    },
+    "week.coming.others": {
+      "one": "{count} keskustelu tai muu asia.",
+      "other": "{count} keskustelua ja muuta asiaa."
+    },
+    "week.reason.differs": {
+      "one": "{count} meppi äänesti eri tavalla kuin oma ryhmänsä",
+      "other": "{count} meppiä äänesti eri tavalla kuin oma ryhmänsä"
+    },
+    "week.reason.speeches": {
+      "one": "{count} puheenvuoro",
+      "other": "{count} puheenvuoroa"
+    },
+    "week.reason.blue": {
+      "one": "{count} sinisen kortin puheenvuoro",
+      "other": "{count} sinisen kortin puheenvuoroa"
+    },
+    "week.speakers": {
+      "one": "{count} puhuja",
+      "other": "{count} puhujaa"
     }
   },
   "fr": {
@@ -5372,6 +5687,51 @@
       "one": "{count} vote",
       "other": "{count} votes",
       "many": "{count} de votes"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} vote exprimé",
+      "other": "{count} votes exprimés",
+      "many": "{count} de votes exprimés"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} vote sur ce point",
+      "other": "{count} votes sur ce point",
+      "many": "{count} de votes sur ce point"
+    },
+    "votepage.votes_short": {
+      "one": "{count} vote",
+      "other": "{count} votes",
+      "many": "{count} de votes"
+    },
+    "votepage.meps": {
+      "one": "{count} député",
+      "other": "{count} députés",
+      "many": "{count} de députés"
+    },
+    "week.coming.others": {
+      "one": "{count} débat ou autre point.",
+      "other": "{count} débats et autres points.",
+      "many": "{count} de débats et d’autres points."
+    },
+    "week.reason.differs": {
+      "one": "{count} député a voté différemment de son groupe",
+      "other": "{count} députés ont voté différemment de leur groupe",
+      "many": "{count} de députés ont voté différemment de leur groupe"
+    },
+    "week.reason.speeches": {
+      "one": "{count} intervention",
+      "other": "{count} interventions",
+      "many": "{count} d’interventions"
+    },
+    "week.reason.blue": {
+      "one": "{count} intervention « carton bleu »",
+      "other": "{count} interventions « carton bleu »",
+      "many": "{count} d’interventions « carton bleu »"
+    },
+    "week.speakers": {
+      "one": "{count} orateur",
+      "other": "{count} orateurs",
+      "many": "{count} d’orateurs"
     }
   },
   "ga": {
@@ -6225,6 +6585,69 @@
       "two": "{count} bhóta",
       "few": "{count} bhóta",
       "many": "{count} vóta"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} vóta caite",
+      "other": "{count} de vótaí caite",
+      "two": "{count} vóta caite",
+      "few": "{count} vóta caite",
+      "many": "{count} vóta caite"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} vóta ar an mír seo",
+      "other": "{count} de vótaí ar an mír seo",
+      "two": "{count} vóta ar an mír seo",
+      "few": "{count} vóta ar an mír seo",
+      "many": "{count} vóta ar an mír seo"
+    },
+    "votepage.votes_short": {
+      "one": "{count} vóta",
+      "other": "{count} de vótaí",
+      "two": "{count} vóta",
+      "few": "{count} vóta",
+      "many": "{count} vóta"
+    },
+    "votepage.meps": {
+      "one": "{count} FPE",
+      "other": "{count} FPE",
+      "two": "{count} FPE",
+      "few": "{count} FPE",
+      "many": "{count} FPE"
+    },
+    "week.coming.others": {
+      "one": "{count} díospóireacht nó mír eile.",
+      "other": "Díospóireachtaí agus míreanna eile: {count}.",
+      "two": "Díospóireachtaí agus míreanna eile: {count}.",
+      "few": "Díospóireachtaí agus míreanna eile: {count}.",
+      "many": "Díospóireachtaí agus míreanna eile: {count}."
+    },
+    "week.reason.differs": {
+      "one": "Líon na bhFeisirí a vótáil ar bhealach éagsúil lena ngrúpa: {count}",
+      "other": "Líon na bhFeisirí a vótáil ar bhealach éagsúil lena ngrúpa: {count}",
+      "two": "Líon na bhFeisirí a vótáil ar bhealach éagsúil lena ngrúpa: {count}",
+      "few": "Líon na bhFeisirí a vótáil ar bhealach éagsúil lena ngrúpa: {count}",
+      "many": "Líon na bhFeisirí a vótáil ar bhealach éagsúil lena ngrúpa: {count}"
+    },
+    "week.reason.speeches": {
+      "one": "{count} óráid",
+      "other": "{count} d’óráidí",
+      "two": "{count} óráid",
+      "few": "{count} óráid",
+      "many": "{count} óráid"
+    },
+    "week.reason.blue": {
+      "one": "{count} óráid cárta ghoirm",
+      "other": "{count} d’óráidí cárta ghoirm",
+      "two": "{count} óráid cárta ghoirm",
+      "few": "{count} óráid cárta ghoirm",
+      "many": "{count} óráid cárta ghoirm"
+    },
+    "week.speakers": {
+      "one": "{count} cainteoir",
+      "other": "{count} de chainteoirí",
+      "two": "{count} cainteoir",
+      "few": "{count} cainteoir",
+      "many": "{count} cainteoir"
     }
   },
   "hr": {
@@ -6867,6 +7290,51 @@
       "one": "{count} glasovanje",
       "few": "{count} glasovanja",
       "other": "{count} glasovanja"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} predani glas",
+      "few": "{count} predana glasa",
+      "other": "{count} predanih glasova"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} glasovanje o ovoj točki",
+      "few": "{count} glasovanja o ovoj točki",
+      "other": "{count} glasovanja o ovoj točki"
+    },
+    "votepage.votes_short": {
+      "one": "{count} glasovanje",
+      "few": "{count} glasovanja",
+      "other": "{count} glasovanja"
+    },
+    "votepage.meps": {
+      "one": "{count} zastupnik",
+      "few": "{count} zastupnika",
+      "other": "{count} zastupnika"
+    },
+    "week.coming.others": {
+      "one": "{count} rasprava ili druga točka.",
+      "few": "{count} rasprave i druge točke.",
+      "other": "{count} rasprava i drugih točaka."
+    },
+    "week.reason.differs": {
+      "one": "{count} zastupnik glasovao je drukčije od svojeg kluba",
+      "few": "{count} zastupnika glasovala su drukčije od svojeg kluba",
+      "other": "{count} zastupnika glasovalo je drukčije od svojeg kluba"
+    },
+    "week.reason.speeches": {
+      "one": "{count} govor",
+      "few": "{count} govora",
+      "other": "{count} govora"
+    },
+    "week.reason.blue": {
+      "one": "{count} govor po plavoj kartici",
+      "few": "{count} govora po plavoj kartici",
+      "other": "{count} govora po plavoj kartici"
+    },
+    "week.speakers": {
+      "one": "{count} govornik",
+      "few": "{count} govornika",
+      "other": "{count} govornika"
     }
   },
   "hu": {
@@ -7402,6 +7870,42 @@
     "weekSummary.votes": {
       "one": "{count} szavazás",
       "other": "{count} szavazás"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} leadott szavazat",
+      "other": "{count} leadott szavazat"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} szavazás erről a pontról",
+      "other": "{count} szavazás erről a pontról"
+    },
+    "votepage.votes_short": {
+      "one": "{count} szavazás",
+      "other": "{count} szavazás"
+    },
+    "votepage.meps": {
+      "one": "{count} EP-képviselő",
+      "other": "{count} EP-képviselő"
+    },
+    "week.coming.others": {
+      "one": "{count} vita vagy egyéb pont.",
+      "other": "{count} vita vagy egyéb pont."
+    },
+    "week.reason.differs": {
+      "one": "{count} EP-képviselő a képviselőcsoportjától eltérően szavazott",
+      "other": "{count} EP-képviselő a képviselőcsoportjától eltérően szavazott"
+    },
+    "week.reason.speeches": {
+      "one": "{count} felszólalás",
+      "other": "{count} felszólalás"
+    },
+    "week.reason.blue": {
+      "one": "{count} kék kártyás felszólalás",
+      "other": "{count} kék kártyás felszólalás"
+    },
+    "week.speakers": {
+      "one": "{count} felszólaló",
+      "other": "{count} felszólaló"
     }
   },
   "it": {
@@ -8046,6 +8550,51 @@
       "one": "{count} votazione",
       "many": "{count} di votazioni",
       "other": "{count} votazioni"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} voto espresso",
+      "many": "{count} di voti espressi",
+      "other": "{count} voti espressi"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} voto su questo punto",
+      "many": "{count} di voti su questo punto",
+      "other": "{count} voti su questo punto"
+    },
+    "votepage.votes_short": {
+      "one": "{count} voto",
+      "many": "{count} di voti",
+      "other": "{count} voti"
+    },
+    "votepage.meps": {
+      "one": "{count} deputato",
+      "many": "{count} di deputati",
+      "other": "{count} deputati"
+    },
+    "week.coming.others": {
+      "one": "{count} dibattito o altro punto.",
+      "many": "{count} di dibattiti e altri punti.",
+      "other": "{count} dibattiti e altri punti."
+    },
+    "week.reason.differs": {
+      "one": "{count} deputato ha votato diversamente dal proprio gruppo",
+      "many": "{count} di deputati hanno votato diversamente dal proprio gruppo",
+      "other": "{count} deputati hanno votato diversamente dal proprio gruppo"
+    },
+    "week.reason.speeches": {
+      "one": "{count} intervento",
+      "many": "{count} di interventi",
+      "other": "{count} interventi"
+    },
+    "week.reason.blue": {
+      "one": "{count} intervento con cartellino blu",
+      "many": "{count} di interventi con cartellino blu",
+      "other": "{count} interventi con cartellino blu"
+    },
+    "week.speakers": {
+      "one": "{count} oratore",
+      "many": "{count} di oratori",
+      "other": "{count} oratori"
     }
   },
   "lt": {
@@ -8794,6 +9343,60 @@
       "other": "{count} balsavimų",
       "few": "{count} balsavimai",
       "many": "{count} balsavimo"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} paduotas balsas",
+      "other": "{count} paduotų balsų",
+      "few": "{count} paduoti balsai",
+      "many": "Paduotų balsų skaičius: {count}"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} balsas dėl šio punkto",
+      "other": "{count} balsų dėl šio punkto",
+      "few": "{count} balsai dėl šio punkto",
+      "many": "Balsų dėl šio punkto skaičius: {count}"
+    },
+    "votepage.votes_short": {
+      "one": "{count} balsas",
+      "other": "{count} balsų",
+      "few": "{count} balsai",
+      "many": "Balsų skaičius: {count}"
+    },
+    "votepage.meps": {
+      "one": "{count} EP narys",
+      "other": "{count} EP narių",
+      "few": "{count} EP nariai",
+      "many": "EP narių skaičius: {count}"
+    },
+    "week.coming.others": {
+      "one": "{count} diskusija ar kitas punktas.",
+      "other": "{count} diskusijų ir kitų punktų.",
+      "few": "{count} diskusijos ir kiti punktai.",
+      "many": "Diskusijų ir kitų punktų skaičius: {count}."
+    },
+    "week.reason.differs": {
+      "one": "{count} EP narys balsavo kitaip nei jo frakcija",
+      "other": "{count} EP narių balsavo kitaip nei jų frakcija",
+      "few": "{count} EP nariai balsavo kitaip nei jų frakcija",
+      "many": "EP narių, balsavusių kitaip nei jų frakcija: {count}"
+    },
+    "week.reason.speeches": {
+      "one": "{count} kalba",
+      "other": "{count} kalbų",
+      "few": "{count} kalbos",
+      "many": "Kalbų skaičius: {count}"
+    },
+    "week.reason.blue": {
+      "one": "{count} pasisakymas mėlynąja kortele",
+      "other": "{count} pasisakymų mėlynąja kortele",
+      "few": "{count} pasisakymai mėlynąja kortele",
+      "many": "Pasisakymų mėlynąja kortele skaičius: {count}"
+    },
+    "week.speakers": {
+      "one": "{count} kalbėtojas",
+      "other": "{count} kalbėtojų",
+      "few": "{count} kalbėtojai",
+      "many": "Kalbėtojų skaičius: {count}"
     }
   },
   "lv": {
@@ -9435,6 +10038,51 @@
       "one": "{count} balsojums",
       "other": "{count} balsojumi",
       "zero": "{count} balsojumu"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} nodots balsojums",
+      "other": "{count} nodoti balsojumi",
+      "zero": "{count} nodotu balsojumu"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} balsojums par šo punktu",
+      "other": "{count} balsojumi par šo punktu",
+      "zero": "{count} balsojumu par šo punktu"
+    },
+    "votepage.votes_short": {
+      "one": "{count} balsojums",
+      "other": "{count} balsojumi",
+      "zero": "{count} balsojumu"
+    },
+    "votepage.meps": {
+      "one": "{count} EP deputāts",
+      "other": "{count} EP deputāti",
+      "zero": "{count} EP deputātu"
+    },
+    "week.coming.others": {
+      "one": "{count} debates vai cits punkts.",
+      "other": "{count} debates un citi punkti.",
+      "zero": "{count} debašu un citu punktu."
+    },
+    "week.reason.differs": {
+      "one": "{count} EP deputāts balsoja citādi nekā sava grupa",
+      "other": "{count} EP deputāti balsoja citādi nekā sava grupa",
+      "zero": "EP deputātu skaits, kas balsoja citādi nekā sava grupa: {count}"
+    },
+    "week.reason.speeches": {
+      "one": "{count} runa",
+      "other": "{count} runas",
+      "zero": "{count} runu"
+    },
+    "week.reason.blue": {
+      "one": "{count} uzstāšanās ar zilo kartīti",
+      "other": "{count} uzstāšanās ar zilo kartīti",
+      "zero": "{count} uzstāšanās ar zilo kartīti"
+    },
+    "week.speakers": {
+      "one": "{count} runātājs",
+      "other": "{count} runātāji",
+      "zero": "{count} runātāju"
     }
   },
   "mt": {
@@ -10288,6 +10936,69 @@
       "two": "{count} votazzjonijiet",
       "few": "{count} votazzjonijiet",
       "many": "{count}-il votazzjoni"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} vot mitfugħ",
+      "other": "{count} vot mitfugħ",
+      "two": "{count} voti mitfugħa",
+      "few": "{count} voti mitfugħa",
+      "many": "{count}-il vot mitfugħ"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} votazzjoni dwar dan il-punt",
+      "other": "{count} votazzjoni dwar dan il-punt",
+      "two": "{count} votazzjonijiet dwar dan il-punt",
+      "few": "{count} votazzjonijiet dwar dan il-punt",
+      "many": "{count}-il votazzjoni dwar dan il-punt"
+    },
+    "votepage.votes_short": {
+      "one": "{count} votazzjoni",
+      "other": "{count} votazzjoni",
+      "two": "{count} votazzjonijiet",
+      "few": "{count} votazzjonijiet",
+      "many": "{count}-il votazzjoni"
+    },
+    "votepage.meps": {
+      "one": "{count} MPE",
+      "other": "{count} MPE",
+      "two": "{count} MPE",
+      "few": "{count} MPE",
+      "many": "{count} MPE"
+    },
+    "week.coming.others": {
+      "one": "{count} dibattitu jew punt ieħor.",
+      "other": "{count} dibattitu u punt ieħor.",
+      "two": "{count} dibattiti u punti oħra.",
+      "few": "{count} dibattiti u punti oħra.",
+      "many": "{count}-il dibattitu u punt ieħor."
+    },
+    "week.reason.differs": {
+      "one": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}",
+      "other": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}",
+      "two": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}",
+      "few": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}",
+      "many": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}"
+    },
+    "week.reason.speeches": {
+      "one": "{count} diskors",
+      "other": "{count} diskors",
+      "two": "{count} diskorsi",
+      "few": "{count} diskorsi",
+      "many": "{count}-il diskors"
+    },
+    "week.reason.blue": {
+      "one": "{count} intervent b’karta blu",
+      "other": "{count} intervent b’karta blu",
+      "two": "{count} interventi b’karta blu",
+      "few": "{count} interventi b’karta blu",
+      "many": "{count}-il intervent b’karta blu"
+    },
+    "week.speakers": {
+      "one": "{count} kelliem",
+      "other": "{count} kelliem",
+      "two": "{count} kelliema",
+      "few": "{count} kelliema",
+      "many": "{count}-il kelliem"
     }
   },
   "nl": {
@@ -10858,6 +11569,42 @@
     "weekSummary.votes": {
       "one": "{count} stemming",
       "other": "{count} stemmingen"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} stem uitgebracht",
+      "other": "{count} stemmen uitgebracht"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} stemming over dit punt",
+      "other": "{count} stemmingen over dit punt"
+    },
+    "votepage.votes_short": {
+      "one": "{count} stemming",
+      "other": "{count} stemmingen"
+    },
+    "votepage.meps": {
+      "one": "{count} EP-lid",
+      "other": "{count} EP-leden"
+    },
+    "week.coming.others": {
+      "one": "{count} debat of ander punt.",
+      "other": "{count} debatten en andere punten."
+    },
+    "week.reason.differs": {
+      "one": "{count} EP-lid stemde anders dan de eigen fractie",
+      "other": "{count} EP-leden stemden anders dan hun eigen fractie"
+    },
+    "week.reason.speeches": {
+      "one": "{count} toespraak",
+      "other": "{count} toespraken"
+    },
+    "week.reason.blue": {
+      "one": "{count} interventie met blauwe kaart",
+      "other": "{count} interventies met blauwe kaart"
+    },
+    "week.speakers": {
+      "one": "{count} spreker",
+      "other": "{count} sprekers"
     }
   },
   "pl": {
@@ -11607,6 +12354,60 @@
       "few": "{count} głosowania",
       "many": "{count} głosowań",
       "other": "{count} głosowania"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} oddany głos",
+      "few": "{count} oddane głosy",
+      "many": "{count} oddanych głosów",
+      "other": "{count} oddanego głosu"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} głosowanie w tej sprawie",
+      "few": "{count} głosowania w tej sprawie",
+      "many": "{count} głosowań w tej sprawie",
+      "other": "{count} głosowania w tej sprawie"
+    },
+    "votepage.votes_short": {
+      "one": "{count} głosowanie",
+      "few": "{count} głosowania",
+      "many": "{count} głosowań",
+      "other": "{count} głosowania"
+    },
+    "votepage.meps": {
+      "one": "{count} poseł do PE",
+      "few": "{count} posłów do PE",
+      "many": "{count} posłów do PE",
+      "other": "{count} posła do PE"
+    },
+    "week.coming.others": {
+      "one": "{count} debata lub inny punkt.",
+      "few": "{count} debaty i inne punkty.",
+      "many": "{count} debat i innych punktów.",
+      "other": "{count} debaty i innych punktów."
+    },
+    "week.reason.differs": {
+      "one": "{count} poseł do PE zagłosował inaczej niż jego grupa",
+      "few": "{count} posłów do PE zagłosowało inaczej niż ich grupa",
+      "many": "{count} posłów do PE zagłosowało inaczej niż ich grupa",
+      "other": "{count} posła do PE zagłosowało inaczej niż ich grupa"
+    },
+    "week.reason.speeches": {
+      "one": "{count} wystąpienie",
+      "few": "{count} wystąpienia",
+      "many": "{count} wystąpień",
+      "other": "{count} wystąpienia"
+    },
+    "week.reason.blue": {
+      "one": "{count} interwencja w trybie niebieskiej kartki",
+      "few": "{count} interwencje w trybie niebieskiej kartki",
+      "many": "{count} interwencji w trybie niebieskiej kartki",
+      "other": "{count} interwencji w trybie niebieskiej kartki"
+    },
+    "week.speakers": {
+      "one": "{count} mówca",
+      "few": "{count} mówców",
+      "many": "{count} mówców",
+      "other": "{count} mówcy"
     }
   },
   "pt": {
@@ -12251,6 +13052,51 @@
       "one": "{count} votação",
       "many": "{count} de votações",
       "other": "{count} votações"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} voto expresso",
+      "many": "{count} de votos expressos",
+      "other": "{count} votos expressos"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} votação sobre este ponto",
+      "many": "{count} de votações sobre este ponto",
+      "other": "{count} votações sobre este ponto"
+    },
+    "votepage.votes_short": {
+      "one": "{count} votação",
+      "many": "{count} de votações",
+      "other": "{count} votações"
+    },
+    "votepage.meps": {
+      "one": "{count} deputado",
+      "many": "{count} de deputados",
+      "other": "{count} deputados"
+    },
+    "week.coming.others": {
+      "one": "{count} debate ou outro ponto.",
+      "many": "{count} de debates e outros pontos.",
+      "other": "{count} debates e outros pontos."
+    },
+    "week.reason.differs": {
+      "one": "{count} deputado votou de forma diferente do seu grupo",
+      "many": "{count} de deputados votaram de forma diferente do seu grupo",
+      "other": "{count} deputados votaram de forma diferente do seu grupo"
+    },
+    "week.reason.speeches": {
+      "one": "{count} discurso",
+      "many": "{count} de discursos",
+      "other": "{count} discursos"
+    },
+    "week.reason.blue": {
+      "one": "{count} intervenção com cartão azul",
+      "many": "{count} de intervenções com cartão azul",
+      "other": "{count} intervenções com cartão azul"
+    },
+    "week.speakers": {
+      "one": "{count} orador",
+      "many": "{count} de oradores",
+      "other": "{count} oradores"
     }
   },
   "ro": {
@@ -12895,6 +13741,51 @@
       "one": "{count} vot",
       "few": "{count} voturi",
       "other": "{count} de voturi"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} vot exprimat",
+      "few": "{count} voturi exprimate",
+      "other": "{count} de voturi exprimate"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} vot asupra acestui punct",
+      "few": "{count} voturi asupra acestui punct",
+      "other": "{count} de voturi asupra acestui punct"
+    },
+    "votepage.votes_short": {
+      "one": "{count} vot",
+      "few": "{count} voturi",
+      "other": "{count} de voturi"
+    },
+    "votepage.meps": {
+      "one": "{count} deputat",
+      "few": "{count} deputați",
+      "other": "{count} de deputați"
+    },
+    "week.coming.others": {
+      "one": "{count} dezbatere sau alt punct.",
+      "few": "{count} dezbateri și alte puncte.",
+      "other": "{count} de dezbateri și alte puncte."
+    },
+    "week.reason.differs": {
+      "one": "{count} eurodeputat a votat diferit față de grupul său",
+      "few": "{count} eurodeputați au votat diferit față de grupul lor",
+      "other": "{count} de eurodeputați au votat diferit față de grupul lor"
+    },
+    "week.reason.speeches": {
+      "one": "{count} discurs",
+      "few": "{count} discursuri",
+      "other": "{count} de discursuri"
+    },
+    "week.reason.blue": {
+      "one": "{count} intervenție cu cartonaș albastru",
+      "few": "{count} intervenții cu cartonaș albastru",
+      "other": "{count} de intervenții cu cartonaș albastru"
+    },
+    "week.speakers": {
+      "one": "{count} vorbitor",
+      "few": "{count} vorbitori",
+      "other": "{count} de vorbitori"
     }
   },
   "sk": {
@@ -13656,6 +14547,60 @@
       "few": "{count} hlasovania",
       "many": "{count} hlasovania",
       "other": "{count} hlasovaní"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} odovzdaný hlas",
+      "few": "{count} odovzdané hlasy",
+      "many": "{count} odovzdaného hlasu",
+      "other": "{count} odovzdaných hlasov"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} hlasovanie o tomto bode",
+      "few": "{count} hlasovania o tomto bode",
+      "many": "{count} hlasovania o tomto bode",
+      "other": "{count} hlasovaní o tomto bode"
+    },
+    "votepage.votes_short": {
+      "one": "{count} hlasovanie",
+      "few": "{count} hlasovania",
+      "many": "{count} hlasovania",
+      "other": "{count} hlasovaní"
+    },
+    "votepage.meps": {
+      "one": "{count} poslanec EP",
+      "few": "{count} poslanci EP",
+      "many": "{count} poslanca EP",
+      "other": "{count} poslancov EP"
+    },
+    "week.coming.others": {
+      "one": "{count} rozprava alebo iná položka.",
+      "few": "{count} rozpravy alebo iné položky.",
+      "many": "{count} rozpravy alebo inej položky.",
+      "other": "{count} rozpráv a iných položiek."
+    },
+    "week.reason.differs": {
+      "one": "{count} poslanec EP hlasoval inak než jeho skupina",
+      "few": "{count} poslanci EP hlasovali inak než ich skupina",
+      "many": "{count} poslanca EP hlasovalo inak než ich skupina",
+      "other": "{count} poslancov EP hlasovalo inak než ich skupina"
+    },
+    "week.reason.speeches": {
+      "one": "{count} prejav",
+      "few": "{count} prejavy",
+      "many": "{count} prejavu",
+      "other": "{count} prejavov"
+    },
+    "week.reason.blue": {
+      "one": "{count} prejav s modrou kartou",
+      "few": "{count} prejavy s modrou kartou",
+      "many": "{count} prejavu s modrou kartou",
+      "other": "{count} prejavov s modrou kartou"
+    },
+    "week.speakers": {
+      "one": "{count} rečník",
+      "few": "{count} rečníci",
+      "many": "{count} rečníka",
+      "other": "{count} rečníkov"
     }
   },
   "sl": {
@@ -14417,6 +15362,60 @@
       "two": "{count} glasovanji",
       "few": "{count} glasovanja",
       "other": "{count} glasovanj"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} oddan glas",
+      "two": "{count} oddana glasova",
+      "few": "{count} oddani glasovi",
+      "other": "{count} oddanih glasov"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} glasovanje o tej točki",
+      "two": "{count} glasovanji o tej točki",
+      "few": "{count} glasovanja o tej točki",
+      "other": "{count} glasovanj o tej točki"
+    },
+    "votepage.votes_short": {
+      "one": "{count} glasovanje",
+      "two": "{count} glasovanji",
+      "few": "{count} glasovanja",
+      "other": "{count} glasovanj"
+    },
+    "votepage.meps": {
+      "one": "{count} poslanec EP",
+      "two": "{count} poslanca EP",
+      "few": "{count} poslanci EP",
+      "other": "{count} poslancev EP"
+    },
+    "week.coming.others": {
+      "one": "{count} razprava ali druga točka.",
+      "two": "{count} razpravi ali drugi točki.",
+      "few": "{count} razprave ali druge točke.",
+      "other": "{count} razprav ali drugih točk."
+    },
+    "week.reason.differs": {
+      "one": "{count} poslanec EP je glasoval drugače kot njegova skupina",
+      "two": "{count} poslanca EP sta glasovala drugače kot njuna skupina",
+      "few": "{count} poslanci EP so glasovali drugače kot njihova skupina",
+      "other": "{count} poslancev EP je glasovalo drugače kot njihova skupina"
+    },
+    "week.reason.speeches": {
+      "one": "{count} govor",
+      "two": "{count} govora",
+      "few": "{count} govori",
+      "other": "{count} govorov"
+    },
+    "week.reason.blue": {
+      "one": "{count} govor z modrim kartončkom",
+      "two": "{count} govora z modrim kartončkom",
+      "few": "{count} govori z modrim kartončkom",
+      "other": "{count} govorov z modrim kartončkom"
+    },
+    "week.speakers": {
+      "one": "{count} govorec",
+      "two": "{count} govorca",
+      "few": "{count} govorci",
+      "other": "{count} govorcev"
     }
   },
   "sv": {
@@ -14987,6 +15986,42 @@
     "weekSummary.votes": {
       "one": "{count} omröstning",
       "other": "{count} omröstningar"
+    },
+    "votepage.votes_cast": {
+      "one": "{count} avgiven röst",
+      "other": "{count} avgivna röster"
+    },
+    "votepage.votes_on_item": {
+      "one": "{count} omröstning om denna punkt",
+      "other": "{count} omröstningar om denna punkt"
+    },
+    "votepage.votes_short": {
+      "one": "{count} omröstning",
+      "other": "{count} omröstningar"
+    },
+    "votepage.meps": {
+      "one": "{count} ledamot",
+      "other": "{count} ledamöter"
+    },
+    "week.coming.others": {
+      "one": "{count} debatt eller annan punkt.",
+      "other": "{count} debatter och andra punkter."
+    },
+    "week.reason.differs": {
+      "one": "{count} ledamot röstade annorlunda än sin grupp",
+      "other": "{count} ledamöter röstade annorlunda än sin grupp"
+    },
+    "week.reason.speeches": {
+      "one": "{count} tal",
+      "other": "{count} tal"
+    },
+    "week.reason.blue": {
+      "one": "{count} tal med blått kort",
+      "other": "{count} tal med blått kort"
+    },
+    "week.speakers": {
+      "one": "{count} talare",
+      "other": "{count} talare"
     }
   }
 }

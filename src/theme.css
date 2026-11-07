@@ -102,6 +102,11 @@
   --map-high: light-dark(#34485f, #b4c5da);
   --map-empty: light-dark(#ebe8e1, #2a2e33);
 }
+/* Column heads wider than the default column, 13px; the longest head per language, measured. */
+:root:lang(bg) { --num: 96px; }
+:root:lang(hu) { --num: 90px; }
+:root:lang(pl) { --num: 92px; }
+
 @media (max-width: 767px) {
   :root {
     --t-small: 12px;
@@ -115,6 +120,21 @@
     --gut: 52px;
     --gutter: 16px;
   }
+  /* Longest column head per language at 12px, measured in a headless browser. */
+  :root:lang(bg) { --num: 90px; }
+  :root:lang(cs) { --num: 74px; }
+  :root:lang(de) { --num: 76px; }
+  :root:lang(es) { --num: 80px; }
+  :root:lang(et) { --num: 76px; }
+  :root:lang(fr) { --num: 76px; }
+  :root:lang(ga) { --num: 80px; }
+  :root:lang(hr) { --num: 72px; }
+  :root:lang(hu) { --num: 84px; }
+  :root:lang(it) { --num: 78px; }
+  :root:lang(mt) { --num: 74px; }
+  :root:lang(nl) { --num: 82px; }
+  :root:lang(pl) { --num: 86px; }
+  :root:lang(pt) { --num: 76px; }
 }
 :root[data-theme=light] { color-scheme: light; }
 :root[data-theme=dark] { color-scheme: dark; }
