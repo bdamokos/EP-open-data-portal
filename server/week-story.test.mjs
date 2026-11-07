@@ -1,4 +1,4 @@
-import {mkdtempSync,readdirSync,rmSync} from 'node:fs';
+import {mkdtempSync,readdirSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -153,19 +153,37 @@ test('a shared release keeps vote-derived reasons attached to its displayed vote
  const a={...vote('a',5),id:'vote-a',label:'Published A label',totals:{for:100,against:99,abstaining:0}};
  const b={...vote('b',50),id:'vote-b',label:'Published B label',totals:{for:100,against:90,abstaining:0}};
  const press={id:'joint-release',url:'press'};
- const [story]=selectWeekStory(storyLists({votes:[a,b]}),{pressByKey:new Map([['a',press],['b',press]])}).stories;
+ const {stories:[story],highlights}=selectWeekStory(storyLists({votes:[a,b]}),{pressByKey:new Map([['a',press],['b',press]])});
  assert.equal(story.vote.id,'vote-a');
+ assert.deepEqual(highlights.map(row=>[row.list,row.id]),[['differing','vote-b']],'the week\'s top differing vote stays visible');
  assert.deepEqual(story.reasons.map(({list,rank,value,key,voteId})=>({list,rank,value,key,voteId})),[
   {list:'closest',rank:1,value:1,key:'a',voteId:'vote-a'},
   {list:'differing',rank:2,value:5,key:'a',voteId:'vote-a'},
  ]);
  assert(!story.reasons.some(reason=>reason.value===50));assert.deepEqual(story.keys,['a','b']);
 });
+test('a story keeps other votes on its procedure and release visible',()=>{
+ const main={...vote('a',0),id:'v1',totals:{for:100,against:99,abstaining:0}};
+ const other={...vote('a',127),id:'v2',totals:{for:100,against:60,abstaining:0}};
+ const samePress=selectWeekStory(storyLists({votes:[main,other]}),{pressByKey:new Map([['a',{id:'p',url:'press'}]])});
+ assert.equal(samePress.stories[0].vote.id,'v1');
+ assert.deepEqual(samePress.highlights.map(row=>[row.list,row.id]),[['differing','v2']]);
+ const adopted={...vote('a',5),id:'a1',totals:{for:100,against:99,abstaining:0}};
+ const rejected={...vote('b',1),id:'b1',outcome:'REJECTED',totals:{for:90,against:100,abstaining:0}};
+ const press={id:'joint',url:'press'};
+ const joint=selectWeekStory(storyLists({votes:[adopted,rejected]}),{pressByKey:new Map([['a',press],['b',press]])});
+ assert.equal(joint.stories[0].vote.id,'a1');
+ assert(joint.highlights.some(row=>row.list==='rejected'&&row.id==='b1'),'the rejected vote on the undisplayed key keeps its highlight');
+ const alone=selectWeekStory(storyLists({votes:[rejected]}),{pressByKey:new Map([['b',press]])});
+ assert.equal(alone.stories[0].vote.id,'b1');assert.deepEqual(alone.highlights,[],'a vote the story displays gets no second mention');
+});
 test('disabled and absent corpus states reuse vote projections for sixty seconds',async()=>{
  const directory=mkdtempSync(path.join(tmpdir(),'week-no-corpus-')),previous={CORPUS_DIR:process.env.CORPUS_DIR,CORPUS_ENABLED:process.env.CORPUS_ENABLED};
  const f=voteFixture();f.day.coverage={state:'complete'};
  try {
   for(const enabled of ['false','true']) {
+   // A disabled corpus stays a lasting gap even when its file exists.
+   if(enabled==='false')writeFileSync(path.join(directory,'corpus-v1.sqlite'),'');else rmSync(path.join(directory,'corpus-v1.sqlite'));
    process.env.CORPUS_DIR=directory;process.env.CORPUS_ENABLED=enabled;let voteReads=0;
    const insights=createInsights({status:()=>({servingGeneration:1}),get:()=>0},{clock,viewCache:{directory:null},weekStory:{store:null,periods,snapshots:{read:()=>{voteReads++;return {day:f.day};}}}});
    for(const lang of ['en','hu','en'])assert.equal((await insights.query('week-story',new URLSearchParams({week,lang}))).status,'partial');

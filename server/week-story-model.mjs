@@ -51,15 +51,18 @@ export function selectWeekStory(lists,{pressByKey=new Map(),voteByKey=new Map(),
     byRelease.set(identity,entry);
   }
   const stories=[...byRelease.values()].sort((a,b)=>b.reasons.length-a.reasons.length||Math.min(...a.reasons.map(r=>r.rank))-Math.min(...b.reasons.map(r=>r.rank))||a.key.localeCompare(b.key));
-  const storyKeys=new Set(stories.flatMap(row=>row.keys)),shown=new Set(storyKeys),highlights=[],debates=new Map();
-  for(const [list,rows] of Object.entries(lists))for(const row of rows.filter(r=>r.rank===1))if(!keysOf(row).some(key=>storyKeys.has(key))) {
+  const storyKeys=new Set(stories.flatMap(row=>row.keys)),storyVotes=new Set(stories.flatMap(row=>row.reasons.map(reason=>reason.voteId))),displayedVotes=new Set(stories.map(row=>row.vote?.id));
+  const shown=new Set(),highlights=[],debates=new Map();
+  // A vote counts as told only if a story keeps its reason; sharing a release or a procedure with a story isn't enough.
+  const told=(list,row)=>['closest','differing'].includes(list)?storyVotes.has(row.id):keysOf(row).some(key=>storyKeys.has(key));
+  for(const [list,rows] of Object.entries(lists))for(const row of rows.filter(r=>r.rank===1))if(!told(list,row)) {
     // A joint debate keeps one row with all agenda items and references.
     if(['speeches','blueCards'].includes(list)&&debates.has(row.id)) {debates.get(row.id).lists.push(list);continue;}
     const entry={...row,list,lists:[list]};highlights.push(entry);
     if(['speeches','blueCards'].includes(list))debates.set(row.id,entry);
     for(const key of keysOf(row))shown.add(key);
   }
-  const rejected=lists.closest.find(row=>row.outcome==='REJECTED'&&!shown.has(row.key));
+  const rejected=lists.closest.find(row=>row.outcome==='REJECTED'&&!displayedVotes.has(row.id)&&!shown.has(row.key));
   if(rejected)highlights.push({...rejected,list:'rejected',lists:['rejected']});
   return {stories,highlights};
 }
