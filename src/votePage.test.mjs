@@ -5,9 +5,10 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {voteFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
 
-async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCountry=()=>{},member=null}={}) {
+async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCountry=()=>{},member=null,historyState=null}={}) {
  const window=new Window({url:url||'http://localhost/?view=legislation&pl-mode=vote&pl-vote='+id+'&lang=en'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map();
  for(const [key,value] of Object.entries(globals)){old.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});}
+ if(historyState)window.history.replaceState(historyState,'',window.location.href);
  const calls=[];t.mock.method(globalThis,'fetch',async input=>{const target=new URL(input,window.location.href);calls.push(target.pathname);return handler(target);});
  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {VotePage}=await load('/src/VotePage.tsx'),{PersonNamesProvider}=await load('/src/PersonName.tsx'),{createRoot}=await import('react-dom/client');
@@ -294,4 +295,9 @@ test('an exact roll-call request shows as one quiet line, and nothing shows with
   const h=await mount(sub,serve(requested));
   assert.equal([...h.container.querySelectorAll('.note')].find(node=>/Roll call/.test(node.textContent)).textContent,'Roll call requested by S&D.');
  });
+});
+test('after a reload the back link still goes to the exact place in the record',async t=>{
+ const data=await voteFixture().read(),record='http://localhost/?member=197481&module=votes&mv-record-offset=20&lang=en';
+ const h=await mount(t,serve(data),{members:named,member:'197481',historyState:{dossierOrigin:record}});
+ assert.equal(h.container.querySelector('.strip a').getAttribute('href'),record);
 });
