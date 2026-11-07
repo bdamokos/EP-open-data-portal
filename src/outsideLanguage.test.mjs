@@ -7,6 +7,8 @@ import {freshLoader} from './test-support/viteRunner.mjs';
 const source={url:'https://example.test/outside-language-fixture',fetchedAt:'2026-10-16T12:00:00Z'};
 const coverage={complete:false,pending:0,unresolved:0,gaps:1,truncated:false,initialized:true,generation:1,updatedAt:source.fetchedAt,tasks:[],source:'Public local fixture'};
 const day='2026-06-02';
+// A fixed window: without one the timeline ends today, and marker clusters shift as the date moves.
+const directoryCoverage={...coverage,window:{start:'2024-07-16',end:'2026-10-16'}};
 const titleCases=[
   {hu:'Magyar cím',en:'English title'},
   {de:'Deutscher Titel'},
@@ -71,7 +73,7 @@ async function harness(t,language,query='?view=outside',deferDetail=false) {
     const url=new URL(input,location.href);calls.push(url);
     assert.equal(url.origin,'http://localhost','only local fixture requests are allowed');
     assert.equal(url.searchParams.get('term'),'10','language markup preserves the current-term request');
-    if(url.pathname==='/api/outside/directory')return Promise.resolve(Response.json({term:'10',people,coverage}));
+    if(url.pathname==='/api/outside/directory')return Promise.resolve(Response.json({term:'10',people,coverage:directoryCoverage}));
     assert.equal(url.pathname,'/api/outside/42','no source, index or corpus requests are allowed');
     return deferDetail?new Promise(resolve=>{finishDetail=()=>resolve(Response.json(detail));}):Promise.resolve(Response.json(detail));
   });
