@@ -81,11 +81,13 @@ function DeparturePage({memberId,language,scope,tag,offset,onOpenDecision,onLoad
 // saved link with a large offset can't start more than one read at a time.
 function DeparturePages({memberId,language,scope,tag,total,offset,onOpenDecision,onOffset}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;total:number;offset:number;onOpenDecision:(item:MemberVoteRecordDeparture)=>void;onOffset:(offset:number)=>void}) {
   const pages=Math.min(Math.floor(offset/PAGE)+1,Math.max(1,Math.ceil(total/PAGE)));
-  const [loaded,setLoaded]=useState(0);
+  const [reached,setReached]=useState(0);
+  // Back to an earlier offset drops the later pages; what has loaded never counts past what is shown.
+  const loaded=Math.min(reached,pages);
   const mounted=Math.min(pages,loaded+1);
   const shown=Math.min(loaded*PAGE,total);
   return <>
-    <div className="mvr-rows">{Array.from({length:mounted},(_,page)=><DeparturePage key={page} memberId={memberId} language={language} scope={scope} tag={tag} offset={page*PAGE} onOpenDecision={onOpenDecision} onLoaded={()=>setLoaded(count=>Math.max(count,page+1))}/>)}</div>
+    <div className="mvr-rows">{Array.from({length:mounted},(_,page)=><DeparturePage key={page} memberId={memberId} language={language} scope={scope} tag={tag} offset={page*PAGE} onOpenDecision={onOpenDecision} onLoaded={()=>setReached(count=>Math.max(count,page+1))}/>)}</div>
     {loaded===pages&&shown<total&&<p className="mvr-more">
       <span className="meta"><UiMessage id="membervoterecord.departures.range" values={{start:1,end:shown,total}}/></span>
       <button type="button" className="c word" onClick={()=>onOffset(pages*PAGE)}><UiMessage id="membervoterecord.departures.more"/></button>

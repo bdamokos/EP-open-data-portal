@@ -383,3 +383,13 @@ test('a page that fails says so and offers a retry instead of looking complete',
   await act(async()=>button(view.container,'Try again').click());
   assert.equal(links(view.container).length,6);
 });
+
+test('going back to an earlier offset keeps the range and Show more',async t=>{
+  const view=await mount(t,{data:pagesOf(12)});
+  await view.render({offset:5});
+  assert.equal(links(view.container).length,10);
+  await view.render({offset:0});
+  assert.equal(links(view.container).length,5);
+  assert.match(view.container.textContent,/1–5 of 12/);
+  assert.notEqual(button(view.container,'Show more'),undefined);
+});
