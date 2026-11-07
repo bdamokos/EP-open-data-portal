@@ -393,3 +393,23 @@ test('going back to an earlier offset keeps the range and Show more',async t=>{
   assert.match(view.container.textContent,/1–5 of 12/);
   assert.notEqual(button(view.container,'Show more'),undefined);
 });
+
+test('after a filter loads, focus returns to the row that was pressed',async t=>{
+  const tagged=tag=>response({breakdown:breakdown(topicRows,countryRows),departures:{...response().departures,tag:tag?{key:tag,label:'trade policy',language:'en'}:null}});
+  const view=await mount(t,{data:url=>tagged(url.searchParams.get('tag'))});
+  const row=rowsOf(section(view.container))[0];
+  pick(row).focus();
+  await act(async()=>pick(row).click());
+  assert.deepEqual(view.tags,['topic:2006']);
+  await view.render({tag:'topic:2006'});
+  const active=view.window.document.activeElement;
+  assert.equal(active?.getAttribute('data-pick'),'topic:2006');
+  assert.equal(active?.getAttribute('aria-pressed'),'true');
+});
+
+test('after Show more, focus moves to the first appended row',async t=>{
+  const view=await mount(t,{data:pagesOf(12)});
+  await act(async()=>button(view.container,'Show more').click());
+  await view.render({offset:5});
+  assert.equal(view.window.document.activeElement,links(view.container)[5]);
+});

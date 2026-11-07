@@ -54,6 +54,20 @@ const positionLine=(position:VotePosition|null,ui:ReturnType<typeof useUiI18n>):
 
 const PAGE=MEMBER_VOTE_RECORD_LIMIT;
 
+// A control that is replaced while its data loads gives the keyboard back to the page. The click names
+// what to focus once it is there: a breakdown row by key, or the first row of an appended page.
+type FocusTarget={pick:string|null}|{row:number};
+let focusAfterLoad:FocusTarget|null=null;
+function useRestoreFocus(ready:boolean) {
+  useEffect(()=>{
+    const target=focusAfterLoad;
+    if(!target||!ready)return;
+    const found='row' in target?document.querySelectorAll<HTMLElement>('.mvr-rows a.t')[target.row]:target.pick?document.querySelector<HTMLElement>('[data-pick="'+target.pick+'"]'):null;
+    if(found){found.focus();focusAfterLoad=null;}
+    else if('pick' in target)focusAfterLoad=null;
+  });
+}
+
 // One page of departures, fetched on its own so a reload restores every page already shown.
 // It reports once its rows are in, and says so when it fails.
 function DeparturePage({memberId,language,scope,tag,offset,onOpenDecision,onLoaded}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;offset:number;onOpenDecision:(item:MemberVoteRecordDeparture)=>void;onLoaded:()=>void}) {
@@ -82,6 +96,7 @@ function DeparturePage({memberId,language,scope,tag,offset,onOpenDecision,onLoad
 function DeparturePages({memberId,language,scope,tag,total,offset,onOpenDecision,onOffset}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;total:number;offset:number;onOpenDecision:(item:MemberVoteRecordDeparture)=>void;onOffset:(offset:number)=>void}) {
   const pages=Math.min(Math.floor(offset/PAGE)+1,Math.max(1,Math.ceil(total/PAGE)));
   const [reached,setReached]=useState(0);
+  useRestoreFocus(true);
   // Back to an earlier offset drops the later pages; what has loaded never counts past what is shown.
   const loaded=Math.min(reached,pages);
   const mounted=Math.min(pages,loaded+1);
@@ -90,7 +105,7 @@ function DeparturePages({memberId,language,scope,tag,total,offset,onOpenDecision
     <div className="mvr-rows">{Array.from({length:mounted},(_,page)=><DeparturePage key={page} memberId={memberId} language={language} scope={scope} tag={tag} offset={page*PAGE} onOpenDecision={onOpenDecision} onLoaded={()=>setReached(count=>Math.max(count,page+1))}/>)}</div>
     {loaded===pages&&shown<total&&<p className="mvr-more">
       <span className="meta"><UiMessage id="membervoterecord.departures.range" values={{start:1,end:shown,total}}/></span>
-      <button type="button" className="c word" onClick={()=>onOffset(pages*PAGE)}><UiMessage id="membervoterecord.departures.more"/></button>
+      <button type="button" className="c word" onClick={()=>{focusAfterLoad={row:pages*PAGE};onOffset(pages*PAGE);}}><UiMessage id="membervoterecord.departures.more"/></button>
     </p>}
   </>;
 }
@@ -119,7 +134,7 @@ function BreakdownList({heading,list,tag,onTag}:{heading:string;list:MemberVoteR
       const label=row.key.startsWith('topic:')?capitalise(row.label,row.language):row.label;
       const share=ui.t('membervoterecord.percent',{value:Math.round(row.share*100)}),count=num(ui,row.comparable);
       return <li key={row.key} className="row tight">
-        <span className="main"><button type="button" className="t pick" aria-pressed={tag===row.key} aria-label={ui.t('membervoterecord.breakdown.row',{label,share,count})} lang={markLanguage(row.language,ui)} onClick={()=>onTag(tag===row.key?null:row.key)}>{label}</button></span>
+        <span className="main"><button type="button" className="t pick" data-pick={row.key} aria-pressed={tag===row.key} aria-label={ui.t('membervoterecord.breakdown.row',{label,share,count})} lang={markLanguage(row.language,ui)} onClick={()=>onTag(tag===row.key?null:row.key)}>{label}</button></span>
         <span className="n sh">{share}</span>
         <span className="n ct">{count}</span>
       </li>;
@@ -156,6 +171,9 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
   // On a phone the list is a fold; a tag opens it so the way back to all is in view.
   const [listOpen,setListOpen]=useState(tag!==null);
   useEffect(()=>{if(tag!==null)setListOpen(true);},[tag]);
+  // Selecting or clearing a filter replaces the panel while it loads; focus goes back to the row that was pressed.
+  const changeTag=(next:string|null)=>{focusAfterLoad={pick:next??tag};onTagChange(next);};
+  useRestoreFocus(data!==null&&recordView(data,scope).state==='record');
   const status=(id:string)=><section className="vs mvr" lang={ui.language} aria-label={ui.t('membervoterecord.heading')}><p className="muted" role="status"><UiMessage id={id}/></p></section>;
   if(!data)return status(request.error||!request.loading?'membervoterecord.unavailable':'membervoterecord.loading');
   const view=recordView(data,scope);
@@ -165,10 +183,10 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
   const {ballots,coverage}=data;
   const departures=view.list&&(phone
     ? <div className="frows"><FoldRow title={<UiMessage id="membervoterecord.votedDifferently"/>} value={num(ui,data.departures.total)} open={listOpen} onOpenChange={setListOpen}>
-        <Departures data={data} memberId={memberId} language={language} scope={scope} tag={tag} offset={offset} onOffset={onOffset} onTagChange={onTagChange} onOpenDecision={onOpenDecision}/>
+        <Departures data={data} memberId={memberId} language={language} scope={scope} tag={tag} offset={offset} onOffset={onOffset} onTagChange={changeTag} onOpenDecision={onOpenDecision}/>
       </FoldRow></div>
     : <section className="mvr-section"><h3><UiMessage id="membervoterecord.votedDifferently"/></h3>
-        <Departures data={data} memberId={memberId} language={language} scope={scope} tag={tag} offset={offset} onOffset={onOffset} onTagChange={onTagChange} onOpenDecision={onOpenDecision}/>
+        <Departures data={data} memberId={memberId} language={language} scope={scope} tag={tag} offset={offset} onOffset={onOffset} onTagChange={changeTag} onOpenDecision={onOpenDecision}/>
       </section>);
   return <section className="vs mvr" lang={ui.language} aria-labelledby="member-vote-record-heading">
     <header className="mvr-head">
@@ -195,7 +213,7 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
       {view.note==='groupUnavailable'&&<span><UiMessage id="membervoterecord.groupUnavailable"/></span>}
       {view.note==='noComparable'&&<span><UiMessage id="membervoterecord.noComparable"/></span>}
     </p>}
-    {view.known&&<Breakdown data={data} tag={tag} onTag={onTagChange}/>}
+    {view.known&&<Breakdown data={data} tag={tag} onTag={changeTag}/>}
     {departures}
   </section>;
 }
