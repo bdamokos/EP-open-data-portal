@@ -197,6 +197,13 @@ test('a member catalogue 204 is unavailable rather than an observed zero',async(
   assert.equal(empty.total,0);
 });
 
+test('the public member speech walk breaks same-date ties by numbering',async()=>{
+  const {odpSpeeches}=await import('./odp.mjs');
+  const calls=[];
+  await odpSpeeches(256956,'en',0,{readCorpusPage:null,request:async(endpoint,params)=>{calls.push([endpoint,params]);return {fetchedAt:Date.now(),payload:{data:[],meta:{total:0}}};}});
+  assert.equal(calls.length,1);assert.equal(calls[0][0],'/speeches');assert.equal(calls[0][1]['sort-by'],'sitting-date:desc,numbering:desc');
+});
+
 // Stable Array.sort must not add a numbering or identifier tie-breaker.
 test('speech timestamp ties retain hits order or graph order when hits are absent',()=>{
   const data=[{id:'z',activity_id:'z',activity_date:'2026-10-07',activity_start_date:'2026-10-07T10:00:00+02:00'},
