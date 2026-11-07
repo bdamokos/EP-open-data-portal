@@ -20,7 +20,7 @@ export class MemberVoteRecordService {
         timer=setTimeout(()=>reject(Object.assign(new HttpError(503,'request_timeout','Voting records are temporarily unavailable.'),{retryAfter:1})),this.timeoutMs);
         abort=()=>reject(signal.reason);signal?.addEventListener('abort',abort,{once:true});
         worker.once('message',message=>message.error?reject(new HttpError(message.status||503,message.code||'member_vote_record_unavailable',message.error)):resolve(message.result));
-        worker.once('error',reject);worker.once('exit',()=>reject(new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.')));
+        worker.once('error',()=>reject(Object.assign(new HttpError(503,'busy','Voting records are temporarily unavailable.'),{retryAfter:1})));worker.once('exit',()=>reject(new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.')));
       });
     }finally{clearTimeout(timer);if(abort)signal?.removeEventListener('abort',abort);await worker?.terminate();this.busy=false;}
   }

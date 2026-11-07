@@ -58,6 +58,7 @@ export function writeMemberVoteRecord(store,day,{groupOn=null,groupGeneration=nu
   const summary=status==='projected'?summariseVoteSitting(day,groupOn,{groupGeneration})
     :{sittingId:day.sittingId,date:day.date,revision:memberVoteRecordRevision(day,groupGeneration),members:new Map(),sitting:{named:0,decisions:{},subjects:{},complete:false}};
   store.transaction(()=>{
+    store.assertWriter();
     const db=store.db,putTotal=db.prepare('INSERT INTO member_vote_record_totals(member_id,snapshot_version,body) VALUES(?,?,?) ON CONFLICT(member_id,snapshot_version) DO UPDATE SET body=excluded.body');
     const oldVersion=db.prepare('SELECT snapshot_version FROM member_vote_record_sittings WHERE sitting_id=?').get(summary.sittingId)?.snapshot_version??snapshotVersion;
     for(const row of db.prepare('SELECT member_id,body FROM member_vote_record_members WHERE sitting_id=?').all(summary.sittingId)) {

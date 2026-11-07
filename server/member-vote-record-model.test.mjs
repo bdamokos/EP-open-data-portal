@@ -210,3 +210,16 @@ test('a final empty census cannot hide a failed named read or contradictory resu
   const provisional=structuredClone(empty);provisional.coverage.decisions.state='partial';provisional.coverage.agenda={state:'unavailable'};
   assert.equal(voteSittingStatus(provisional).status,'excluded','a provisional same-day 404 cannot establish no votes');
 });
+
+test('scheduled votes remain missing after empty censuses and a 204 results read',async()=>{
+  const {voteSittingStatus}=await import('./member-vote-record-model.mjs');
+  // The real reader leaves pendingVotes null when a 204 carries a coverage error.
+  const day={date:'2026-10-19',decisions:[],results:[],agenda:[{had_activity_type:'def/ep-activities/PLENARY_VOTE'},{had_activity_type:'https://data.europarl.europa.eu/def/ep-activities/PLENARY_VOTE'}],coverage:{pendingVotes:null,
+    decisions:{state:'complete',rows:0,stopReason:'not-found'},namedDecisions:{state:'complete',rows:0,stopReason:'not-found'},results:{state:'unavailable',rows:0,error:{code:'odp_no_content'}},
+    completeness:{declaredDecisionCount:0,declaredResultCount:0,votingRecordsComplete:false}}};
+  assert.deepEqual(voteSittingStatus(day),{status:'excluded',reason:'records-incomplete'});
+  const noVotes=structuredClone(day);noVotes.agenda=[];
+  assert.equal(voteSittingStatus(noVotes).status,'empty','the nine verified no-vote sittings remain empty');
+  day.coverage.results={state:'complete',rows:0,stopReason:'not-found'};day.coverage.completeness.votingRecordsComplete=true;
+  assert.equal(voteSittingStatus(day).status,'excluded','even a settled scheduled-but-unpublished sitting remains an explicit gap');
+});

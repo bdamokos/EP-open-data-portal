@@ -66,6 +66,10 @@ export function pickTitle(titles,referenceTexts,language) {
 // conflicting decisions, or records not yet read in full, keep a sitting out as missing.
 export function voteSittingStatus(day) {
   const completeness=day.coverage?.completeness||{};
+  // A results 204 can suppress pendingVotes even when scheduled votes are
+  // unpublished. An empty census cannot settle a known voting agenda.
+  const scheduledVotes=list(day.agenda).some(item=>list(item?.had_activity_type).some(type=>typeof type==='string'&&identifier(type)==='PLENARY_VOTE'));
+  if(!list(day.decisions).length&&scheduledVotes)return {status:'excluded',reason:'records-incomplete'};
   // Both decision censuses must be final empty observations. A provisional
   // first-page 404, failed named read or contradictory result graph is a gap.
   // An unavailable results endpoint alone does not contradict two empty censuses.

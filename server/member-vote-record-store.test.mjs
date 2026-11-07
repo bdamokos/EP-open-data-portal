@@ -75,7 +75,7 @@ test('a sitting is projected on complete voting records even with an unfinished 
   agendaOpen.coverage={completeness:{complete:false,votingRecordsComplete:true,unresolvedAgendaItemIds:['eli/dl/event/x'],conflictingDecisionIds:[]}};
   assert.deepEqual({...status(agendaOpen)},{status:'projected',reason:null,named:1});
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,4);
-  const noDecisions=structuredClone(fixture.day);noDecisions.decisions=[];noDecisions.results=[];
+  const noDecisions=structuredClone(fixture.day);noDecisions.decisions=[];noDecisions.results=[];noDecisions.agenda=[];
   noDecisions.coverage={decisions:{state:'complete'},namedDecisions:{state:'complete'},results:{state:'complete'},completeness:{complete:false,votingRecordsComplete:false,declaredDecisionCount:0}};
   assert.deepEqual({...status(noDecisions)},{status:'empty',reason:null,named:0});
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,0,'a later empty read replaces the earlier rows');
@@ -194,4 +194,13 @@ test('new people outside a sitting and irrelevant history metadata do not invali
   for(const person of Object.values(after.members))for(const group of person.groups||[]){group.org+='-new-metadata';group.groupId+='-new-metadata';}
   store.db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(32,JSON.stringify(after));store.set('active',32);
   assert.equal(memberVoteRecordHistory(store).key(f.day.date),key,'only attached member IDs and group codes affect the historical projection');
+});
+
+test('a lease takeover during summarisation cannot enter the projection write transaction',t=>{
+  const store=setup(t),f=voteFixture();recordsComplete(f.day);
+  const resolve=createGroupOn(f.history);
+  const groupOn=(...args)=>{store.db.prepare("UPDATE lease SET owner='other-fixture-writer' WHERE id=1").run();return resolve(...args);};
+  assert.throws(()=>writeMemberVoteRecord(store,f.day,{groupOn,snapshotVersion:7}),/writer lease was lost/);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM member_vote_record_sittings').get().n,0);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM member_vote_record_members').get().n,0);
 });
