@@ -330,6 +330,18 @@ test('an unknown fact stays absent, and a failed read leaves the links',async t=
  assert(second.querySelector('.open-item a'));
 });
 
+test('a vote fold in a running week finds a debate already held that week, not an older one',async t=>{
+ const debate=topic('MTG-PL-2026-11-24-OJ-ITM-D-9','PLENARY_DEBATE','A file',{order:5,procedureIds:['2025-0223']});
+ const vote=topic('MTG-PL-2026-11-25-OJ-ITM-V-9','PLENARY_VOTE','A file',{order:6,procedureIds:['2025-0223'],agendaCreatorIds:['1'],evidence:{containerId:'MTG-PL-2026-11-25-TF-1200'}});
+ const base=serve({agenda:{...running,topics:[...running.topics,debate,vote]}});
+ const h=await mount(t,async target=>target.pathname.includes('week-item')?json({...weekItemReply,debated:'2026-10-20',documents:[]}):base(target),{id:MIXED});
+ const fold=h.container.querySelector('[data-week-day="MTG-PL-2026-11-25"] details');
+ assert.equal(h.container.querySelector('[data-week-day="MTG-PL-2026-11-25"]').textContent.includes('A file'),true);
+ assert.equal([...h.container.querySelectorAll('[data-week-day="MTG-PL-2026-11-25"] .frow,[data-week-day="MTG-PL-2026-11-25"] .itemrow')].filter(n=>n.textContent==='A file').length,1,'the held debate stays off the days ahead');
+ fold.open=true;await act(async()=>{fold.dispatchEvent(new globalThis.window.Event('toggle'));await new Promise(resolve=>setTimeout(resolve,30));});
+ assert.equal(fold.querySelector('.refs:not(.item-links) li').textContent,'Debate: 24 November 2026');
+});
+
 test('a running week: past days as Results, days ahead as slots, both count lines, no stories',async t=>{
  const h=await mount(t,serve(),{id:MIXED});
  const c=h.container;

@@ -230,7 +230,7 @@ export function WeekPage({week,language}:{week:string|null;language:string}) {
       {resultsFailed&&<p className="note"><UiMessage id="weekSummary.resultsUnavailable"/></p>}
       {past.map(day=><ResultDay key={day.id} day={day} topics={topics} results={results} language={language} pressUrls={story?.press??{}} retry={agenda.retry}/>)}
     </section>}
-    {ahead.map(day=><ComingDay key={day.id} day={day} topics={aheadTopics} sittingIds={ahead.map(row=>row.id)} language={language} voteBlockAt={voteBlockAt} retry={agenda.retry}/>)}
+    {ahead.map(day=><ComingDay key={day.id} day={day} topics={topics} sittingIds={ahead.map(row=>row.id)} language={language} voteBlockAt={voteBlockAt} retry={agenda.retry}/>)}
     <Debates days={past} topics={topics} language={language}/>
   </>);
 }
