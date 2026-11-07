@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createAppUiI18n} from './uiCatalogues.mjs';
-import {agendaOpensWeekPage,foldFacts,weekItemRoute,comingSlots,comingSummary,debateDateFor,highlightCells,itemCells,pastCounts,pressDate,reasonLine,resultRows,sittingRangeLabel,slotTime,storyText,tallyWords,validWeekPageResults,validWeekStory,voteDateFor,weekNeighbours} from './weekPagePresentation.mjs';
+import {validWeekItem,agendaOpensWeekPage,foldFacts,weekItemRoute,comingSlots,comingSummary,debateDateFor,highlightCells,itemCells,pastCounts,pressDate,reasonLine,resultRows,sittingRangeLabel,slotTime,storyText,tallyWords,validWeekPageResults,validWeekStory,voteDateFor,weekNeighbours} from './weekPagePresentation.mjs';
 
 const ui=createAppUiI18n().forLocale('en');
 const topic=(id,kind,extra={})=>({id,kind,title:id,titleLanguage:'en',date:id.slice(7,17),sittingId:id.slice(0,17),order:0,documentIds:[],procedureIds:[],evidence:{containerId:id.slice(0,17)+'-TF-1100'},...extra});
@@ -180,4 +180,13 @@ test('the fold route carries exact identifiers and reports alone, and there is n
  const query=new URL(weekItemRoute(topic(['2025-0223'],['C-10-2025-0174','A-10-2026-0271']),['MTG-PL-2026-11-12','MTG-PL-2026-11-11'],'fr'),'http://x').searchParams;
  assert.deepEqual(Object.fromEntries(query),{procedures:'2025-0223',documents:'A-10-2026-0271',sittings:'MTG-PL-2026-11-11,MTG-PL-2026-11-12',lang:'fr'});
  assert.equal(weekItemRoute(topic([],['C-10-2025-0174']),[]),null);
+});
+
+test('a week-item reply with a row that cannot render is invalid, so the fold keeps its links',()=>{
+ const good={procedures:[{id:'2025-2139'}],rapporteurs:[{id:'1'}],committees:[],standing:[{id:'dossierstatus.reported',values:{committees:[{name:'SANT',code:'SANT'}]}}],documents:[],press:null};
+ assert(validWeekItem(good));
+ assert(!validWeekItem({...good,rapporteurs:[null]}));
+ assert(!validWeekItem({...good,procedures:[{}]}));
+ assert(!validWeekItem({...good,standing:[null]}));
+ assert(!validWeekItem({...good,standing:[{id:'x',values:{committees:[null]}}]}));
 });
