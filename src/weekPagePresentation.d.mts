@@ -22,7 +22,7 @@ export function voteDateFor(topic:AgendaTopic,topics:AgendaTopic[]):string|null;
 export function tallyWords(summary:{adopted:number;rejected:number;lapsed:number;unknown:number},ui?:Formatter):string;
 export function itemCells(item:WeekResultsResponse['items'][number],ui?:Formatter):ResultCells;
 export function resultRows(day:WeekDay,topics:AgendaTopic[],results:WeekResultsResponse|null,language?:string,ui?:Formatter):ResultRow[];
-export function pastCounts(results:WeekResultsResponse|null,voteDayIds:string[]):{votes:number;items:number}|null;
+export function pastCounts(results:WeekResultsResponse|null,pastDayIds:string[]):{votes:number;items:number}|null;
 export function reasonLine(reasons:WeekStoryReason[],ui?:Formatter):string;
 export function storyText(press:{lead?:string|null;second?:string|null}|null|undefined):string;
 export function pressDate(publishedAt:string,language?:string):string|null;

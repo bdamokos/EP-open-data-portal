@@ -180,11 +180,12 @@ export function WeekPage({week,language}:{week:string|null;language:string}) {
     if(agenda.error||!agenda.loading&&week)return page(<>{strip}<h1 tabIndex={-1}>{heading}</h1><AgendaFailed retry={agenda.retry} inline/></>);
     return page(<>{strip}<h1 tabIndex={-1}>{heading}</h1><p className="say" role="status"><UiMessage id="insightshared.loading"/></p></>);
   }
-  const voteDays=past.filter(day=>topics.some(topic=>topic.sittingId===day.id&&topic.kind==='PLENARY_VOTE')).map(day=>day.id);
-  const counts=pastCounts(results,voteDays),aheadTopics=topics.filter(topic=>ahead.some(day=>day.id===topic.sittingId));
+  // Any past day can hold votes, even with none on its agenda, so a total needs every one of them read.
+  const pastIds=past.map(day=>day.id),allPastRead=pastIds.every(id=>results?.days.some(day=>day.sittingId===id));
+  const counts=pastCounts(results,pastIds),aheadTopics=topics.filter(topic=>ahead.some(day=>day.id===topic.sittingId));
   // A subset of a day's agenda must not read as its total.
   const aheadRead=ahead.every(day=>day.agendaComplete&&!day.agendaError);
-  const noVotes=!ahead.length&&!topics.some(topic=>topic.kind==='PLENARY_VOTE')&&results?.items.length===0&&!results.unlinked?.length&&results.days.every(day=>day.complete)&&days.every(day=>day.agendaComplete&&!day.agendaError);
+  const noVotes=!ahead.length&&!topics.some(topic=>topic.kind==='PLENARY_VOTE')&&results?.items.length===0&&!results.unlinked?.length&&allPastRead&&results.days.every(day=>day.complete)&&days.every(day=>day.agendaComplete&&!day.agendaError);
   const resultsFailed=Boolean((pastRead.error||pastRead.data)&&!results);
   const anyResults=resultsFailed||past.some(day=>day.agendaError||resultRows(day as WeekDay,topics,results,language,ui).length>0);
   const voteBlockAt=ahead.flatMap(day=>comingSlots(aheadTopics.filter(topic=>topic.sittingId===day.id))).find(slot=>slot.kind==='votes')?.key??null;

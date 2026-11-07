@@ -209,6 +209,14 @@ test('an agenda read only in part gives no count line but keeps its rows',async 
  assert(c.querySelector('#week-votes'));
 });
 
+test('a past day with no agenda vote still has to be read before any total or no-votes claim',async t=>{
+ const withoutMonday=days=>days.filter(entry=>entry.sittingId!=='MTG-PL-2026-10-19');
+ const totals=await mount(t,serve({agenda:{...past,topics:past.topics.filter(topic=>!(topic.sittingId==='MTG-PL-2026-10-19'&&topic.kind==='PLENARY_VOTE'))},results:{...results,days:withoutMonday(results.days)}}));
+ assert.equal(totals.container.querySelector('.say').textContent.trim(),'','no totals with Monday unread');
+ const debatesOnly={...past,topics:past.topics.filter(topic=>topic.kind!=='PLENARY_VOTE')};
+ const none=await mount(t,serve({agenda:debatesOnly,results:{...results,items:[],unlinked:[],days:withoutMonday(results.days)}}));
+ assert.doesNotMatch(none.container.querySelector('.say').textContent,/No votes/);
+});
 test('debates only and a results day unread: never claims there were no votes',async t=>{
  const debatesOnly={...past,topics:past.topics.filter(topic=>topic.kind!=='PLENARY_VOTE')};
  const unread=await mount(t,serve({agenda:debatesOnly,results:{...results,items:[],unlinked:[],days:results.days.map((entry,index)=>index?{...entry,voteCount:0}:{sittingId:entry.sittingId,complete:false,voteCount:null,rollCallCount:null,notConducted:null})}}));

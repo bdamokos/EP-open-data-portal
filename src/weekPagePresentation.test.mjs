@@ -101,7 +101,7 @@ test('counts are exact: any day not read completely gives none',()=>{
  const days=[{sittingId:'a',complete:true,voteCount:5},{sittingId:'b',complete:true,voteCount:547}];
  assert.deepEqual(pastCounts({days,items:new Array(28)},['a','b']),{votes:552,items:28});
  assert.equal(pastCounts({days:[days[0],{sittingId:'b',complete:false,voteCount:null}],items:[]},['a','b']),null);
- assert.equal(pastCounts({days:[days[0]],items:[]},['a','b']),null,'a day with votes on the agenda but no record');
+ assert.equal(pastCounts({days:[days[0]],items:[]},['a','b']),null,'a past day with no record');
  assert.equal(pastCounts(null,[]),null);
 });
 

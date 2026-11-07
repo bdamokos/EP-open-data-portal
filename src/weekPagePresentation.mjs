@@ -115,10 +115,10 @@ export function resultRows(day,topics,results,language='en',ui=defaultUi) {
   return [...loose,...own.map(topic=>row(topic,items.get(topic.id))),...orphans.map(item=>row(null,item))];
 }
 
-/** Exact totals only when every day was read in full and every day with votes on the agenda is among them. */
-export function pastCounts(results,voteDayIds) {
+/** Exact totals only when every past day is among the results and each was read in full. */
+export function pastCounts(results,pastDayIds) {
   if(!results?.days.length||results.days.some(day=>!day.complete))return null;
-  if(voteDayIds.some(id=>!results.days.some(day=>day.sittingId===id)))return null;
+  if(pastDayIds.some(id=>!results.days.some(day=>day.sittingId===id)))return null;
   return {votes:results.days.reduce((total,day)=>total+day.voteCount,0),items:results.items.length};
 }
 
