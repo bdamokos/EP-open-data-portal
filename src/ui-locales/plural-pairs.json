@@ -468,5 +468,25 @@
     "one": "searchreference.agendas_not_searched_one",
     "other": "searchreference.agendas_not_searched",
     "count": "count"
+  },
+  {
+    "one": "votepage.votes_cast.one",
+    "other": "votepage.votes_cast",
+    "count": "count"
+  },
+  {
+    "one": "votepage.votes_on_item.one",
+    "other": "votepage.votes_on_item",
+    "count": "count"
+  },
+  {
+    "one": "votepage.votes_short.one",
+    "other": "votepage.votes_short",
+    "count": "count"
+  },
+  {
+    "one": "votepage.meps.one",
+    "other": "votepage.meps",
+    "count": "count"
   }
 ]

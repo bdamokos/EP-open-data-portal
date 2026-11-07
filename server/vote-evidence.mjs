@@ -94,6 +94,14 @@ function indexAdd(index,uri,node,paths) {
 
 // One pure transform per sitting. All joins use exact public source identities;
 // member, language, page and selected-decision projections are separate.
+// A decision belongs to a subject by its binding. A conflicting decision has no binding, but its exact
+// link to one result still places it among that item's rows, with no result of its own.
+export function decisionSubjectId(raw,evidence) {
+  if(!evidence)return null;
+  if(evidence.subjectId||!raw._conflictingSourceObservations)return evidence.subjectId;
+  const linked=[...new Set([...evidence.resultRelationship.inverseResultIds,...evidence.resultRelationship.forwardResultIds])];
+  return linked.length===1?linked[0]:null;
+}
 export function deriveVoteEvidence(snapshot,{includeBindingEvidence=false}={}) {
   const results=new Map(),requests=new Map(),components=new Map(),parents=new Map(),decisions=new Map(),globalGaps=[];
   for(const node of [...list(snapshot.results),...list(snapshot.requests),...list(snapshot.conflictingResults)]) {

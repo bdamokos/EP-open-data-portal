@@ -11,7 +11,8 @@ import {countryName} from './CountryMap';
 import {interfaceTerm,voteScope} from './terms.mjs';
 import type {InsightProps} from './InsightTypes';
 import {memberVoteOutcome} from './memberVotesPresentation.mjs';
-import {voteSentence} from './votePagePresentation.mjs';
+import {dossierLinkClick} from './dossierJourney';
+import {voteHref,voteSentence} from './votePagePresentation.mjs';
 import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import type {LegislationResponse,NamedVote} from './LegislationTypes';
 
@@ -20,10 +21,10 @@ export const positionsUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) 
 export type VoteViewVote=Pick<NamedVote,'id'|'date'|'titles'|'subjects'|'scope'|'outcome'|'aggregateTotals'|'namedVotersAvailable'|'totalsMatchNamed'|'groups'|'politicalGroups'|'intendedCorrections'>;
 
 // The item's outcome in the vote page's words, directly under its agenda heading.
-export function AgendaOutcome({main,title,titleLanguage,language}:{main:NonNullable<NonNullable<LegislationResponse['detail']>['mainVote']>;title:string;titleLanguage:string|null;language:string}) {
+export function AgendaOutcome({main,language}:{main:NonNullable<NonNullable<LegislationResponse['detail']>['mainVote']>;language:string}) {
   const ui=useUiI18n();
-  const sentence=voteSentence({...main,scope:{kind:'unclassified',basis:'unclassified'},referenceTexts:{},context:{amendmentIds:[]},parts:[]},{mainVoteId:main.id,procedureReferral:main.procedureReferral,itemTitle:title,language},ui);
-  return <p className="insight-agenda-outcome" lang={ui.language}><UiMessage id={sentence.id} values={{...sentence.values,item:<span lang={titleLanguage??''}>{title}</span>}}/>{sentence.noNames&&<> <UiMessage id="votepage.no_names"/></>}</p>;
+  const sentence=voteSentence({...main,scope:{kind:'unclassified',basis:'unclassified'},referenceTexts:{},context:{amendmentIds:[]},parts:[]},{mainVoteId:main.id,procedureReferral:main.procedureReferral,language},ui);
+  return <p className="insight-agenda-outcome" lang={ui.language}><UiMessage id={sentence.id} values={sentence.values}/>{sentence.noNames&&<> <UiMessage id="votepage.no_names"/></>} <a href={voteHref(main.id,language)} onClick={dossierLinkClick}><UiMessage id="votepage.see_the_vote"/></a></p>;
 }
 export function VoteView({vote,language,onMember,country,standalone=false,mainVoteId=null}:{country:string|null;vote:VoteViewVote;language:string;onMember:InsightProps['onMember'];standalone?:boolean;mainVoteId?:string|null}) {
   const ui = useUiI18n();

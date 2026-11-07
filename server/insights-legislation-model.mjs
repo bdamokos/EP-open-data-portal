@@ -1,5 +1,5 @@
 import {mainVote} from './main-vote.mjs';
-import {projectMemberDecision} from './member-votes-model.mjs';
+import {projectMemberDecision,voteRowFields} from './member-votes-model.mjs';
 import {referredForTalksOn} from './procedure-referral.mjs';
 import {contributionGroup,groupContributions} from './group-aggregation.mjs';
 import {datedPerson} from './group-attribution.mjs';
@@ -7,7 +7,7 @@ import {XMLParser} from 'fast-xml-parser';
 import {readFileSync} from 'node:fs';
 import { array,tail } from './activity-index-model.mjs';
 import { canonical,personId,officialApi,memberPeople,demographicStats } from './insights-model.mjs';
-import {deriveVoteEvidence,eventUri} from './vote-evidence.mjs';
+import {decisionSubjectId,deriveVoteEvidence,eventUri} from './vote-evidence.mjs';
 import {explicitVoteScope,isWholeProposalVote} from './vote-scope.mjs';
 import {procedureClassification} from './procedure-types.mjs';
 
@@ -89,14 +89,25 @@ export function topicVotes(topic,results,decisions,members,metadata,referenceDat
 // uses, one result at a time. A partial sitting could hide the deciding vote, and
 // two results naming different main votes leave the item without one.
 export function agendaMainVote(topic,day,procedures=[]) {
-  if(day?.coverage?.state!=='complete')return null;
+  return agendaVotes(topic,day,procedures).mainVote;
+}
+// The item's main vote and its full row list, method included, from one projection of the
+// same held sitting. Without a complete sitting there is no list, never a short one.
+export function agendaVotes(topic,day,procedures=[],language='en') {
+  if(day?.coverage?.state!=='complete')return {mainVote:null,itemVotes:null};
   const derived=deriveVoteEvidence(day);
   const subjects=array(day.results).filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS'&&refs(n.executed).includes(topic.uri)).map(n=>n.activity_id);
-  const rows=array(day.decisions).filter(raw=>subjects.includes(derived.decisions.get(eventUri(raw))?.subjectId)).map(raw=>projectMemberDecision(raw,day,'1','en',derived)).filter(row=>['consistent','single-direction'].includes(row.resultRelationship.binding)&&!row.sourceConflicts);
+  const bound=row=>['consistent','single-direction'].includes(row.resultRelationship.binding);
+  // A conflicting record can't be the main vote, but it stays in the list with no result, so the count holds.
+  const listed=array(day.decisions).filter(raw=>subjects.includes(decisionSubjectId(raw,derived.decisions.get(eventUri(raw))))).map(raw=>projectMemberDecision(raw,day,'1',language,derived)).filter(row=>bound(row)||row.sourceConflicts);
+  const rows=listed.filter(row=>bound(row)&&!row.sourceConflicts);
   const mains=subjects.map(id=>mainVote(rows,{id,wholeTextDecisions:rows.filter(row=>row.subjectId===id&&row.scope.kind==='whole-text')})).filter(Boolean);
-  if(new Set(mains.map(row=>row.id)).size!==1)return null;
-  const vote=mains[0];
-  return {id:vote.id,date:vote.date,outcome:vote.outcome,method:vote.method,ballotStatus:vote.ballotStatus,totals:vote.totals,procedureReferral:procedures.some(work=>referredForTalksOn(work,vote.date))};
+  const vote=new Set(mains.map(row=>row.id)).size===1?mains[0]:null;
+  return {
+    mainVote:vote&&{id:vote.id,date:vote.date,outcome:vote.outcome,method:vote.method,ballotStatus:vote.ballotStatus,totals:vote.totals,procedureReferral:procedures.some(work=>referredForTalksOn(work,vote.date))},
+    // Only what a row shows: its label, result and numbers.
+    itemVotes:(vote?[vote,...listed.filter(row=>row.id!==vote.id)]:listed).map(row=>{const {namedVotersAvailable,parts,...fields}=voteRowFields(row,language);return {...fields,parts:parts.map(({number})=>({number}))};}),
+  };
 }
 export function finalVotePatterns(votes,members,metadata,groupOn=()=>'unavailable') {
   const finals=votes.filter(v=>v.scope==='final-text'&&v.namedVotersAvailable),observations=new Map();

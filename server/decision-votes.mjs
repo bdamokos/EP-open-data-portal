@@ -1,16 +1,17 @@
 import {memberVotes,memberVotesQuery} from './member-votes.mjs';
-import {projectMemberDecision,voterGroups} from './member-votes-model.mjs';
+import {inLanguage,projectMemberDecision,voteRowFields,voterGroups} from './member-votes-model.mjs';
 import {createGroupOn} from './group-attribution.mjs';
 import {groupHistorySnapshot} from './group-history.mjs';
 import {HttpError} from './http-utils.mjs';
 import {requestSignal} from './request-budget.mjs';
-import {list,exactReference,references,identifier,deriveVoteEvidence,eventUri,preferred} from './vote-evidence.mjs';
+import {list,exactReference,references,identifier,decisionSubjectId,deriveVoteEvidence,eventUri,preferred} from './vote-evidence.mjs';
 import {decisionVoteBindingConflict} from './decision-vote-binding.mjs';
 import {mainVote} from './main-vote.mjs';
 import {referredForTalksOn} from './procedure-referral.mjs';
 import {odp} from './odp.mjs';
+import {cachedEvent} from './insights-participation.mjs';
 
-export const DECISION_VOTES_VERSION=7;
+export const DECISION_VOTES_VERSION=8;
 
 export function decisionVotesQuery(id,search,options) {
   if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(id))throw new HttpError(400,'invalid_decision','Use an exact decision identifier.');
@@ -21,7 +22,7 @@ export function decisionVotesQuery(id,search,options) {
 }
 
 // Uses the member reader's bounded, shared sitting snapshot; no source writer.
-export async function decisionVotes(query,{reader=memberVotes,store=null,readProcedure=retainedProcedure}={}) {
+export async function decisionVotes(query,{reader=memberVotes,store=null,readProcedure=retainedProcedure,readEvent=cachedEvent}={}) {
   const snapshot=await reader.snapshot(query),data=projectDecisionVotes(query,snapshot,{store,withSubject:true});
   // Not every voted procedure reaches the index. The retained source record is
   // the one the agenda reads; a miss stays unknown and never goes upstream.
@@ -30,14 +31,42 @@ export async function decisionVotes(query,{reader=memberVotes,store=null,readPro
     if(!node)continue;
     const reference=procedureLabel(node);if(reference)data.subject.procedures.push({id,reference});
     if(referredForTalksOn(node,data.decision.date))data.procedureReferral=true;
+    data.subject.debates=mergedDebates([...data.subject.debates,...procedureDebates(node,data.decision.date)]);
   }
+  if(data.subject)data.subject.debates=await Promise.all(data.subject.debates.map(debate=>heldDebate(debate,readEvent)));
+  requestSignal()?.throwIfAborted();
   return data;
+}
+// The same test as the agenda's: a held verbatim-report debate of this procedure on or before the vote.
+function procedureDebates(node,date) {
+  return list(node?.consists_of).filter(event=>String(event?.had_activity_type||'').split('/').at(-1)==='PLENARY_DEBATE'&&typeof event.activity_date==='string'&&event.activity_date<=date&&/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(event.activity_id||'')).map(event=>({id:event.activity_id,date:event.activity_date,start:null,agendaItemId:null}));
+}
+const mergedDebates=debates=>[...new Map(debates.map(debate=>[debate.id,debate])).values()].sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id,undefined,{numeric:true}));
+// The procedure's nested event has no time or agenda link. The event's own held record
+// has both, through its exact `executed` reference; a miss keeps the date and never goes upstream.
+async function heldDebate(debate,readEvent) {
+  const node=(await readEvent(debate.id).catch(()=>null))?.payload?.data?.[0];
+  if(node?.activity_id!==debate.id)return debate;
+  const start=typeof node.activity_start_date==='string'&&/^\d{4}-\d{2}-\d{2}T/.test(node.activity_start_date)?node.activity_start_date:null;
+  const items=list(node.executed).map(value=>/^eli\/dl\/event\/(MTG-PL-\d{4}-\d{2}-\d{2}-OJ-ITM-[A-Z0-9-]+)$/.exec(String(value))?.[1]).filter(Boolean);
+  return {...debate,start,agendaItemId:items.length===1?items[0]:null};
 }
 async function retainedProcedure(id) {
   try {
     const record=await odp('/procedures/'+id,{},{cachedOnly:true,ttl:Infinity}),node=record.payload?.data?.[0];
     return node?.id==='eli/dl/proc/'+id?node:null;
   }catch(error){if(error instanceof HttpError&&error.status===404)return null;throw error;}
+}
+// Members whose dated group history covers the vote, minus its voters. A seat plan is a
+// snapshot, so an old vote's count would be wrong from it.
+function noRecordMembers(history,groupOn,date,voters) {
+  if(!history?.members)return null;
+  const voted=new Set(voters.map(voter=>voter.personId)),ids=[],groups=[];
+  for(const id of Object.keys(history.members).sort((a,b)=>Number(a)-Number(b))) {
+    const group=voted.has(id)?null:groupOn(id,date);
+    if(group&&typeof group==='object'){ids.push(id);groups.push(group.code);}
+  }
+  return {ids,groups};
 }
 const procedureLabel=node=>typeof node?.label==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(node.label)?node.label:null;
 // Freeze one group-history generation and one evidence graph for the read.
@@ -52,33 +81,28 @@ function heldProcedure(store,generation,id) {
   const work=generation?store?.source?.(generation,'/procedures/'+id)?.work:null,node=Array.isArray(work?.data)?work.data[0]:work;
   return node&&typeof node==='object'?node:null;
 }
-// The requested language plus English, or everything held when neither exists.
-function inLanguage(values,language) {
-  const kept=Object.fromEntries(Object.entries(values||{}).filter(([code])=>code===language||code==='en'));
-  return Object.keys(kept).length?kept:values||{};
-}
 function partFields(part,language) {
   const component=({componentId,number,requestUri,contentByLanguage})=>({componentId,number,requestUri,contentByLanguage:inLanguage(contentByLanguage,language)});
   return {...component(part),requestId:part.requestId,requestScopeByLanguage:inLanguage(part.requestScopeByLanguage,language),contextComponents:part.contextComponents.map(component)};
 }
-// A row needs only its label: part wording stays with the requested vote.
-function siblingFields(vote,language) {
-  return {id:vote.id,scope:vote.scope,outcome:vote.outcome,method:vote.method,ballotStatus:vote.ballotStatus,totals:vote.totals,namedVotersAvailable:vote.namedVoters.available,referenceTexts:inLanguage(vote.referenceTexts,language),context:{amendmentIds:vote.context.amendmentIds},parts:vote.parts.map(({number,requestUri,requestId,requestScopeByLanguage})=>({number,requestUri,requestId,requestScopeByLanguage:inLanguage(requestScopeByLanguage,language)}))};
-}
 /** Same day, same subject, in source order. Joins by the exact decision-to-result
  * link only; the procedure is read from the held index and never fetched here. */
-function subjectContext(vote,day,context,query,store) {
+function subjectContext(vote,raw,day,context,query,store) {
   const bound=row=>['consistent','single-direction'].includes(row.resultRelationship.binding);
-  const subject=vote.subjectId&&bound(vote)?context.derived.subjects.find(row=>row.id===vote.subjectId):null;
+  const subjectId=decisionSubjectId(raw,context.derived.decisions.get(eventUri(raw)));
+  const subject=subjectId&&(bound(vote)||vote.sourceConflicts)?context.derived.subjects.find(row=>row.id===subjectId):null;
   if(!subject)return {subject:null,siblings:[],mainVoteId:null,procedureReferral:false};
-  const votes=day.decisions.filter(raw=>context.derived.decisions.get(eventUri(raw))?.subjectId===subject.id).map(raw=>projectMemberDecision(raw,day,'1',query.language,context.derived)).filter(bound);
+  const projected=day.decisions.filter(row=>decisionSubjectId(row,context.derived.decisions.get(eventUri(row)))===subject.id).map(row=>projectMemberDecision(row,day,'1',query.language,context.derived));
+  const votes=projected.filter(row=>bound(row)&&!row.sourceConflicts);
+  // A conflicting record stays among the rows with no result, as on the agenda item, so the count holds.
+  const rows=projected.filter(row=>bound(row)||row.sourceConflicts);
   // A partial sitting could hide the deciding vote, so it establishes no main vote.
   const main=day.coverage&&day.coverage.state!=='complete'?null:mainVote(votes,{id:subject.id,wholeTextDecisions:votes.filter(row=>row.scope.kind==='whole-text')});
-  const siblings=main?[main,...votes.filter(row=>row!==main)]:votes;
+  const siblings=main?[main,...rows.filter(row=>row!==main)]:rows;
   const procedureIds=[...new Set(votes.flatMap(row=>row.context.procedureIds))].sort();
   const procedures=procedureIds.map(id=>({id,node:heldProcedure(store,context.generation,id)}));
   const procedureReferral=procedures.some(({node})=>referredForTalksOn(node,vote.date));
-  return {subject:{id:subject.id,...preferred(subject.titles,query.language),titles:subject.titles,agendaItemIds:subject.agendaItemIds,documentIds:subject.documentIds,procedureIds,procedures:procedures.flatMap(({id,node})=>procedureLabel(node)?[{id,reference:procedureLabel(node)}]:[])},siblings:siblings.map(row=>siblingFields(row,query.language)),mainVoteId:main?.id??null,procedureReferral};
+  return {subject:{id:subject.id,...preferred(subject.titles,query.language),titles:subject.titles,agendaItemIds:subject.agendaItemIds,documentIds:subject.documentIds,procedureIds,procedures:procedures.flatMap(({id,node})=>procedureLabel(node)?[{id,reference:procedureLabel(node)}]:[]),debates:mergedDebates(procedures.flatMap(({node})=>procedureDebates(node,vote.date)))},siblings:siblings.map(row=>voteRowFields(row,query.language)),mainVoteId:main?.id??null,procedureReferral};
 }
 // Voters and corrections outside the current roster are absent from the client
 // directory. Read their held records by exact key; a missing name stays null.
@@ -98,7 +122,7 @@ export function projectDecisionVotes(query,snapshot,{store=null,context=null,wit
   const day=snapshot.days.find(day=>day.sittingId===query.sitting);
   const raw=context?context.decisions.get(query.decision):day?.decisions.find(raw=>raw.activity_id===query.decision);
   const base={version:DECISION_VOTES_VERSION,decisionId:query.decision,sittingId:query.sitting,snapshotId:snapshot.id,coverage:snapshot.coverage.status};
-  const noSubject=withSubject?{subject:null,siblings:[],mainVoteId:null,procedureReferral:false,corrections:null,people:{}}:{};
+  const noSubject=withSubject?{subject:null,siblings:[],mainVoteId:null,procedureReferral:false,corrections:null,noRecord:null,people:{}}:{};
   if(!raw)return {...base,...noSubject,status:'unavailable',decision:null,voters:[],integrity:'unavailable',groupHistory:null};
   // The shared projection requires a person ID; only its decision-wide fields
   // are used below. Named positions come from voterGroups, not this placeholder.
@@ -114,7 +138,8 @@ export function projectDecisionVotes(query,snapshot,{store=null,context=null,wit
   }):[];
   const intended=withSubject?voterGroups(raw,'had_voter_intended_'):null;
   const corrections=intended&&!vote.sourceConflicts?Object.fromEntries(['for','against','abstaining'].map(position=>[position,[...new Set(intended.groups[position])]])):null;
-  const extra=withSubject?{...subjectContext(vote,day,context,query,store),corrections,people:outsideRoster(store,generation,[...new Set([...voters.map(voter=>voter.personId),...Object.values(corrections||{}).flat()])])}:{};
+  const noRecord=withSubject&&voters.length?noRecordMembers(history,groupOn,vote.date,voters):null;
+  const extra=withSubject?{...subjectContext(vote,raw,day,context,query,store),corrections,noRecord,people:outsideRoster(store,generation,[...new Set([...voters.map(voter=>voter.personId),...Object.values(corrections||{}).flat(),...(noRecord?.ids||[])])])}:{};
   return {...base,...extra,status:'found',integrity,voters,groupHistory:history?{epoch:store.get('marksEpoch'),generation,catalogue:history.catalogue}:null,
     decision:{...(withSubject?{subjectId:vote.subjectId,scope:vote.scope,title:vote.title,titleLanguage:vote.titleLanguage,referenceTexts:inLanguage(vote.referenceTexts,query.language),parts:vote.parts.map(part=>partFields(part,query.language)),context:{documentIds:vote.context.documentIds,amendmentIds:vote.context.amendmentIds}}:{}),id:vote.id,date:vote.date,method:vote.method,outcome:vote.outcome,ballotStatus:vote.ballotStatus,totals:vote.totals,amendmentIds:vote.context.amendmentIds,componentIds:vote.context.componentIds,
       decidedIds:references(raw.decided_on_a_realization_of,'doc').map(identifier),referencesValid:list(raw.decided_on_a_part_of_a_realization_of).length===0&&list(raw.decided_on_a_realization_of).length>0&&list(raw.decided_on_a_realization_of).every(value=>exactReference(value,'doc')),

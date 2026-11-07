@@ -172,3 +172,12 @@ export function memberVotePeriodSubject(subject,language='en') {
   const {id,uri,title,titleLanguage,documentIds,agendaItemIds,counts,wholeTextDecisions}=subject;
   return {id,uri,title,titleLanguage,documentIds,agendaItemIds,counts,titles:rowTitles(subject.titles,language),wholeTextDecisions:wholeTextDecisions.map(({id,date,scope,method,outcome,ballotStatus,actualPosition,intention,totals})=>({id,date,scope,method,outcome,ballotStatus,actualPosition,intention,totals}))};
 }
+// The requested language plus English, or everything held when neither exists.
+export function inLanguage(values,language) {
+  const kept=Object.fromEntries(Object.entries(values||{}).filter(([code])=>code===language||code==='en'));
+  return Object.keys(kept).length?kept:values||{};
+}
+// One row of an item's votes. A row needs only its label: part wording stays with the requested vote.
+export function voteRowFields(vote,language) {
+  return {id:vote.id,scope:vote.scope,outcome:vote.outcome,method:vote.method,ballotStatus:vote.ballotStatus,totals:vote.totals,namedVotersAvailable:vote.namedVoters.available,referenceTexts:inLanguage(vote.referenceTexts,language),context:{amendmentIds:vote.context.amendmentIds},parts:vote.parts.map(({number,requestUri,requestId,requestScopeByLanguage})=>({number,requestUri,requestId,requestScopeByLanguage:inLanguage(requestScopeByLanguage,language)}))};
+}

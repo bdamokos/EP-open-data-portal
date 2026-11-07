@@ -125,44 +125,30 @@ export function planGroupOrder(seats) {
   return [...groups.entries()].map(([group,entry])=>({group,angle:Math.atan2(entry.uy,entry.ux)})).sort((a,b)=>b.angle-a.angle||a.group.localeCompare(b.group)).map(entry=>entry.group);
 }
 
-const positionRank={for:0,against:1,abstaining:2};
 const UNKNOWN_GROUP='unavailable';
+const NON_ATTACHED='NI';
 
-// Cuts each row's dots into consecutive parts so that every part adds up to its total over all rows.
-// Row i holds rowCounts[i] dots; the result m[i][k] is how many of them go to part k, in order, with
-// row sums rowCounts[i] and column sums totals[k]. Each part is a contiguous angular block across the rows.
-export function allocateRows(rowCounts,totals) {
-  const rows=rowCounts.length,parts=totals.length,sum=rowCounts.reduce((a,b)=>a+b,0);
-  const target=[];totals.reduce((acc,value,k)=>{target[k]=acc+value;return acc+value;},0);
-  const bound=rowCounts.map(count=>target.map((t,k)=>k===parts-1?count:Math.round(count*t/sum)));
-  for(let k=0;k<parts-1;k++) {
-    let diff=target[k]-bound.reduce((acc,row)=>acc+row[k],0),guard=rows*4+8;
-    while(diff!==0&&guard-->0) {
-      const direction=diff>0?1:-1;
-      let best=-1,bestScore=-Infinity;
-      for(let i=0;i<rows;i++) {
-        const next=bound[i][k]+direction;
-        if(next<(k?bound[i][k-1]:0)||next>bound[i][k+1])continue;
-        // Move where the rounding was furthest from the exact share.
-        const score=direction*(rowCounts[i]*target[k]/sum-bound[i][k]);
-        if(score>bestScore){bestScore=score;best=i;}
-      }
-      if(best<0)break;
-      bound[best][k]+=direction;diff-=direction;
-    }
-  }
-  return bound.map(row=>row.map((value,k)=>value-(k?row[k-1]:0)));
+// The table and way-line order: plan groups largest first by seats, then groups the plan lacks
+// by this vote's size, then "Group unknown", with non-attached always last. Without a plan the
+// vote's own counts order every group. A plan is a snapshot: it orders rows, never counts them.
+export function tableGroupOrder(voteCounts,planCounts=[]) {
+  const present=new Map(voteCounts),special=new Set([UNKNOWN_GROUP,NON_ATTACHED]);
+  const planned=planCounts.filter(entry=>present.has(entry.group)&&!special.has(entry.group)).map(entry=>entry.group);
+  const rest=[...present.keys()].filter(code=>!planned.includes(code)&&!special.has(code)).sort((a,b)=>present.get(b)-present.get(a)||a.localeCompare(b));
+  return [...planned,...rest,...[UNKNOWN_GROUP,NON_ATTACHED].filter(code=>present.has(code))];
 }
 
-// One dot per ballot on concentric arcs. Every wedge (a group, in `order` left to right, then other groups with
-// an unknown one last) is a block across all rows, separated from its neighbours by an angular gap of about two
-// dot spacings. Inside a wedge each position is a block of its own running from the inner row outwards: For at
-// the wedge's left edge, then Against, then Abstained. Coordinates are px around the centre of the baseline
-// (y up is negative). The dots always add up to the recorded ballots.
-export function groupArcLayout(ballots,{order,radius,innerRatio=0.3}) {
-  const valid=ballots.filter(ballot=>positions.includes(ballot.position));
-  const total=valid.length;
-  if(!total||!(radius>0))return {dots:[],wedges:[],dotRadius:0,rows:0,radius};
+const insideOut=['for','abstaining','against'];
+const WEDGE_GAP=.062,INNER_RATIO=.48;
+
+// One mark per ballot on concentric rows, with an even share of the half circle cut into one wedge
+// per group in `order` (groups the order lacks follow by size, an unknown group last). The rows are
+// evenly spaced; each takes marks in proportion to its radius. Inside a wedge marks fill from the
+// inner row out: For, then Abstain, then Against. Coordinates are px around the centre of the
+// baseline, y up negative. The marks always add up to the recorded ballots.
+export function groupArcLayout(ballots,{order,radius}) {
+  const valid=ballots.filter(ballot=>positions.includes(ballot.position)),total=valid.length;
+  if(!total||!(radius>0))return {dots:[],wedges:[],dotRadius:0,rows:0,radius,inner:0};
   const byGroup=new Map();
   for(const ballot of valid) {
     const code=ballot.group||UNKNOWN_GROUP;
@@ -170,63 +156,51 @@ export function groupArcLayout(ballots,{order,radius,innerRatio=0.3}) {
     byGroup.get(code).push(ballot);
   }
   const known=order.filter(code=>byGroup.has(code)),rest=[...byGroup.keys()].filter(code=>!order.includes(code)).sort((a,b)=>(a===UNKNOWN_GROUP)-(b===UNKNOWN_GROUP)||byGroup.get(b).length-byGroup.get(a).length||a.localeCompare(b));
-  const codes=[...known,...rest],gaps=codes.length-1;
-  const inner=radius*innerRatio,area=Math.PI/2*(radius*radius-inner*inner),mid=(radius+inner)/2;
-  // Dot spacing d with the gaps taken out of the arc: N d² + b d - A = 0.
-  const b=2*area*gaps/(mid*Math.PI),spacing=(-b+Math.sqrt(b*b+4*total*area))/(2*total);
-  const gapAngle=2*spacing/mid;
-  const rows=Math.max(1,Math.round((radius-inner)/spacing)),step=(radius-inner)/rows;
-  const radii=Array.from({length:rows},(_,i)=>inner+step*(i+0.5)),sumRadii=radii.reduce((a,b2)=>a+b2,0);
+  const codes=[...known,...rest],inner=radius*INNER_RATIO;
+  const circle=rows=>Array.from({length:rows},(_,i)=>rows===1?radius:inner+(radius-inner)*i/(rows-1));
+  // The row count whose spacing along a row best matches the spacing between rows.
+  let radii=null,best=Infinity;
+  for(let rows=5;rows<16;rows++) {
+    const candidate=circle(rows),score=Math.abs(candidate.reduce((sum,r)=>sum+Math.PI*r,0)/total-(radius-inner)/(rows-1));
+    if(score<best){best=score;radii=candidate;}
+  }
+  const usable=Math.PI-WEDGE_GAP*(codes.length-1),sumRadii=radii.reduce((a,b)=>a+b,0);
+  const spacing=sumRadii*usable/total,rowGap=(radius-inner)/(radii.length-1);
   const exact=radii.map(r=>total*r/sumRadii),rowCounts=exact.map(Math.floor);
-  let left=total-rowCounts.reduce((a,b2)=>a+b2,0);
-  for(const index of exact.map((value,i)=>[value-Math.floor(value),i]).sort((x,y)=>y[0]-x[0]).map(entry=>entry[1])){if(left<=0)break;rowCounts[index]++;left--;}
-  const wedgeRows=allocateRows(rowCounts,codes.map(code=>byGroup.get(code).length));
-  const dots=[],wedges=[],arcSpacing=[];
-  const available=Math.PI-gaps*gapAngle;
-  // Per row, the angle one dot takes: the arc left after the gaps, shared by the row's dots.
-  const cell=rowCounts.map(count=>available/count);
-  rowCounts.forEach((count,i)=>arcSpacing.push(radii[i]*cell[i]));
-  const startAt=radii.map(()=>Math.PI);
+  let left=total-rowCounts.reduce((a,b)=>a+b,0);
+  for(const [,i] of exact.map((value,i)=>[value-Math.floor(value),i]).sort((x,y)=>y[0]-x[0]||x[1]-y[1])){if(left<=0)break;rowCounts[i]++;left--;}
+  const grid=radii.flatMap((r,row)=>Array.from({length:rowCounts[row]},(_,i)=>({phi:usable*(i+.5)/rowCounts[row],r,row}))).sort((a,b)=>a.phi-b.phi||a.r-b.r);
+  const dots=[],wedges=[];
+  let at=0;
   codes.forEach((code,w)=>{
     const members=byGroup.get(code),counts={for:0,against:0,abstaining:0};
     for(const ballot of members)counts[ballot.position]++;
-    const byPosition=positions.map(position=>members.filter(ballot=>ballot.position===position).sort((x,y)=>String(x.id).localeCompare(String(y.id),undefined,{numeric:true})));
-    const perRow=allocateRows(wedgeRows.map(row=>row[w]),positions.map(position=>counts[position]));
-    const cursor=[0,0,0],own=[];
-    for(let i=0;i<rows;i++) {
-      let at=startAt[i];
-      for(let k=0;k<positions.length;k++)for(let j=0;j<perRow[i][k];j++) {
-        const ballot=byPosition[k][cursor[k]++],angle=at-cell[i]/2;at-=cell[i];
-        own.push({id:String(ballot.id),group:code,position:ballot.position,x:radii[i]*Math.cos(angle),y:-radii[i]*Math.sin(angle),angle,row:i,radius:radii[i]});
-      }
-      startAt[i]=at-gapAngle;
-    }
-    own.sort((x,y)=>y.angle-x.angle||x.radius-y.radius);
-    const angles=own.map(dot=>dot.angle);
+    const ranked=[...members].sort((a,b)=>insideOut.indexOf(a.position)-insideOut.indexOf(b.position)||String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
+    const chunk=grid.slice(at,at+members.length).sort((a,b)=>a.r-b.r||a.phi-b.phi);
+    at+=members.length;
+    const angles=chunk.map(slot=>slot.phi+w*WEDGE_GAP);
+    const own=chunk.map((slot,i)=>{
+      const angle=slot.phi+w*WEDGE_GAP;
+      return {id:String(ranked[i].id),group:code,position:ranked[i].position,x:-Math.cos(angle)*slot.r,y:-Math.sin(angle)*slot.r,angle,row:slot.row,radius:slot.r};
+    }).sort((a,b)=>a.angle-b.angle||a.radius-b.radius);
     for(const dot of own)dots.push({...dot,index:dots.length});
-    wedges.push({group:code,count:members.length,counts,start:Math.max(...angles),end:Math.min(...angles),angle:(Math.max(...angles)+Math.min(...angles))/2,known:code!==UNKNOWN_GROUP});
+    const first=Math.min(...angles),last=Math.max(...angles);
+    wedges.push({group:code,count:members.length,counts,start:first,end:last,angle:(first+last)/2,known:code!==UNKNOWN_GROUP});
   });
-  return {dots,wedges,dotRadius:0.42*Math.min(step,Math.min(...arcSpacing)),rows,radius,inner,gapAngle,spacing};
+  return {dots,wedges,dotRadius:Math.min(spacing,rowGap)*.43,rows:radii.length,radius,inner,gap:WEDGE_GAP};
 }
 
-// Labels sit just outside their wedge. Wedges at the very ends of the baseline put theirs below it. A label that
-// would touch one already placed moves outwards until it clears. `measure(group)` gives the label's size in px.
-export function arcLabelPlacements(wedges,{radius,dotRadius,measure,gap=6,edge=0.2}) {
-  const placed=[];
-  for(const wedge of wedges) {
-    const {w,h}=measure(wedge.group),cos=Math.cos(wedge.angle),sin=Math.sin(wedge.angle);
-    const atEdge=wedge.angle<edge||wedge.angle>Math.PI-edge;
-    let reach=radius+dotRadius+gap,label;
-    for(let step=0;step<60;step++,reach+=3) {
-      let x,y,anchor;
-      if(atEdge){x=cos*(radius*0.85);y=dotRadius+gap+h/2+step*3;anchor='middle';}
-      else{x=reach*cos;y=-reach*sin;anchor=cos>0.35?'start':cos<-0.35?'end':'middle';}
-      const left=anchor==='start'?x:anchor==='end'?x-w:x-w/2;
-      const top=atEdge?y-h/2:anchor==='middle'?y-h:y-h/2;
-      label={group:wedge.group,x,top,anchor,box:{left,right:left+w,top,bottom:top+h}};
-      if(!placed.some(other=>label.box.left<other.box.right+4&&label.box.right+4>other.box.left&&label.box.top<other.box.bottom+2&&label.box.bottom+2>other.box.top))break;
-    }
-    placed.push(label);
-  }
-  return placed;
+// A mark is a few pixels wide on a phone, so a press picks the closest one within reach.
+export function nearestDot(dots,x,y,reach) {
+  let best=null,distance=Infinity;
+  for(const dot of dots){const d=Math.hypot(dot.x-x,dot.y-y);if(d<distance&&d<=reach){best=dot;distance=d;}}
+  return best;
+}
+// A label sits just outside the middle of its wedge. `align` says how far the text shifts from that point.
+export function wedgeLabels(wedges,{radius,dotRadius}) {
+  const reach=radius+dotRadius+8;
+  return wedges.map(wedge=>{
+    const cos=Math.cos(wedge.angle),sin=Math.sin(wedge.angle);
+    return {group:wedge.group,x:-cos*reach,y:-sin*reach,alignX:cos<-.3?'0%':cos>.3?'-100%':'-50%',alignY:sin>.7?'-100%':'-60%'};
+  });
 }

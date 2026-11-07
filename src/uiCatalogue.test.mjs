@@ -43,8 +43,8 @@ test('every explicit static application message points to a real catalogue entry
   }
 });
 
-// Wording the redesign bans on public pages. Strings below are still live or come from the
-// first vote page; P4 and P12 replace or remove them, and the allowlist shrinks with them.
+// Wording the redesign bans on public pages. Strings below are still live; P12 removes them,
+// and the allowlist shrinks with them.
 const bannedWording=/against (their|the|own) group|rebel|defect|loyal|names on record|not put to a vote|tabling deadline/i;
 const liveBannedWording=new Set([
   'membervotespresentation.not_individually_recorded',
@@ -62,11 +62,8 @@ const liveBannedWording=new Set([
   'weekSummary.countPastNamed',
   'weekSummary.deadline',
 ]);
-const firstVotePageBannedWording=new Set([
-  'votepage.no_names',
-]);
 test('English messages avoid the banned wording except strings the redesign still has to replace',()=>{
-  const allowed=new Set([...liveBannedWording,...firstVotePageBannedWording]);
+  const allowed=liveBannedWording;
   for(const [id,text] of Object.entries(english))if(bannedWording.test(text))assert(allowed.has(id),'banned wording in '+id+': '+text);
   for(const id of allowed)assert(Object.hasOwn(english,id)&&bannedWording.test(english[id]),'allowlist entry no longer needed: '+id);
 });

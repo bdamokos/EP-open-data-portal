@@ -147,3 +147,48 @@ test('an unknown decision answers with empty vote page context',async()=>{
  const f=voteFixture();f.day.decisions=[];const data=await f.read();
  assert.equal(data.status,'unavailable');assert.deepEqual(data.siblings,[]);assert.equal(data.subject,null);assert.equal(data.mainVoteId,null);assert.equal(data.procedureReferral,false);
 });
+test('no vote recorded comes from dated group history minus voters, and is absent without history',async()=>{
+ const f=voteFixture();
+ f.history.members['555']={...f.history.members['197481']};f.history.members['666']={...f.history.members['197481'],mandates:[{start:'2030-01-01',end:null}],groups:[]};f.sources['amendment:member:555']={givenName:'Absent',familyName:'Member'};
+ const data=await f.read();
+ assert.deepEqual(data.noRecord,{ids:['555'],groups:['PPE']});
+ assert.equal(data.people['555'].name,'Absent Member');
+ const without=voteFixture();without.store.db.prepare=()=>({get:()=>undefined,all:()=>[]});
+ assert.equal((await without.read()).noRecord,null);
+ const hands=voteFixture();for(const key of ['had_voter_favor','had_voter_against','had_voter_abstention'])delete hands.raw[key];
+ assert.equal((await hands.read()).noRecord,null,'no named list, nothing to subtract');
+});
+test('debates come from the held procedure, with time and agenda item from the held event, never upstream',async()=>{
+ const f=subjectFixture(),procedure={id:'eli/dl/proc/2025-0222',label:'2025/0222(COD)',consists_of:[
+  {activity_id:'MTG-PL-2026-10-06-PVCRE-ITM-3',activity_date:'2026-10-06',had_activity_type:'def/ep-activities/PLENARY_DEBATE'},
+  {activity_id:'MTG-PL-2026-10-05-PVCRE-ITM-9',activity_date:'2026-10-05',had_activity_type:'def/ep-activities/PLENARY_DEBATE'},
+  {activity_id:'MTG-PL-2026-10-30-PVCRE-ITM-1',activity_date:'2026-10-30',had_activity_type:'def/ep-activities/PLENARY_DEBATE'},
+  {activity_id:'not-a-debate',activity_date:'2026-10-06',had_activity_type:'def/ep-activities/PLENARY_DEBATE'},
+  {activity_id:'MTG-PL-2026-10-06-PVCRE-ITM-4',activity_date:'2026-10-06',had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS'},
+ ]},reads=[];
+ const data=await decisionVotes(f.query,{reader:f.reader,store:f.store,readProcedure:async()=>procedure,readEvent:async id=>{reads.push(id);return id.endsWith('ITM-3')?{payload:{data:[{activity_id:id,activity_start_date:'2026-10-06T09:00:28+02:00',executed:['eli/dl/event/MTG-PL-2026-10-06-OJ-ITM-D-7']}]}}:null;}});
+ assert.deepEqual(data.subject.debates,[
+  {id:'MTG-PL-2026-10-05-PVCRE-ITM-9',date:'2026-10-05',start:null,agendaItemId:null},
+  {id:'MTG-PL-2026-10-06-PVCRE-ITM-3',date:'2026-10-06',start:'2026-10-06T09:00:28+02:00',agendaItemId:'MTG-PL-2026-10-06-OJ-ITM-D-7'},
+ ]);
+ assert.equal(reads.length,2);
+});
+test('a conflicting decision on the item stays among the rows and never becomes the main vote',async()=>{
+ const f=subjectFixture(),other=f.day.decisions.find(raw=>raw.activity_id==='MTG-PL-2026-10-07-DEC-2');
+ other._conflictingSourceObservations={fields:['decision_method']};
+ const data=await f.read(),row=data.siblings.find(sibling=>sibling.id==='MTG-PL-2026-10-07-DEC-2');
+ assert.equal(row.ballotStatus,'unknown');assert.equal(row.outcome,null);
+ assert.notEqual(data.mainVoteId,row.id);
+});
+test('a conflicting decision keeps the item around it on its own page, with no result of its own',async()=>{
+ const f=subjectFixture();f.raw._conflictingSourceObservations={fields:['decision_method']};
+ const data=await f.read();
+ assert.equal(data.integrity,'conflicting');assert.deepEqual(data.voters,[]);
+ assert.notEqual(data.subject,null);
+ assert.deepEqual(new Set(data.siblings.map(row=>row.id)),new Set(['MTG-PL-2026-10-07-DEC-1','MTG-PL-2026-10-07-DEC-2',decisionId]));
+ assert.equal(data.mainVoteId,'MTG-PL-2026-10-07-DEC-1');
+ assert.equal(data.siblings.find(row=>row.id===decisionId).outcome,null);
+ const other=subjectFixture();other.raw._conflictingSourceObservations={fields:['decision_method']};
+ const main=await decisionVotes({...other.query,decision:'MTG-PL-2026-10-07-DEC-1'},{reader:other.reader,store:other.store});
+ assert.equal(main.mainVoteId,'MTG-PL-2026-10-07-DEC-1');assert(main.siblings.some(row=>row.id===decisionId),'the row is on its neighbours too');
+});

@@ -370,7 +370,7 @@ test('former MEP name lookup is capped at four and skips all held outsiders',asy
  heldGuest(h,'MTG-PL-2026-10-07-OTH-222222','999997','Held outsider','2026-10-07T12:20:00+02:00');const r=await h.query(),reads=h.calls.filter(([ep])=>ep.startsWith('/meps/'));assert.equal(reads.length,4);assert(!reads.some(([ep])=>ep==='/meps/999997'));const former=r.detail.people.filter(p=>p.name==='Former Member');assert.equal(former.length,4);assert(former.every(p=>p.profileUrl==='https://www.europarl.europa.eu/meps/en/'+p.id));
 });
 test('agenda main vote matches the vote page on labels, ballots and the exact referral event',async()=>{
- const {agendaMainVote}=await import('./insights-legislation-model.mjs');
+ const {agendaMainVote,agendaVotes}=await import('./insights-legislation-model.mjs');
  const topic={uri:'eli/dl/event/MTG-PL-2026-10-22-OJ-ITM-V-1'};
  const raw=(id,label,fields={})=>({id:'eli/dl/event/MTG-PL-2026-10-22-DEC-'+id,activity_id:'MTG-PL-2026-10-22-DEC-'+id,type:'Vote',activity_date:'2026-10-22',decision_method:'def/ep-entities/VOTE_ELECTRONIC_ROLLCALL',decision_outcome:'def/ep-statuses/ADOPTED',referenceText:{en:label},had_voter_favor:['person/1'],had_voter_against:[],had_voter_abstention:[],number_of_votes_favor:1,number_of_votes_against:0,number_of_votes_abstention:0,inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-1'],...fields});
  const result=(number,ids)=>({id:'eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-'+number,activity_id:'MTG-PL-2026-10-22-VOT-ITM-'+number,had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',executed:[topic.uri],consists_of:ids.map(id=>'eli/dl/event/MTG-PL-2026-10-22-DEC-'+id)});
@@ -394,5 +394,13 @@ test('agenda main vote matches the vote page on labels, ballots and the exact re
  assert.equal(decided.id,'MTG-PL-2026-10-22-DEC-5','a later show of hands decides the item');assert.equal(decided.outcome,'REJECTED');
  assert.equal(agendaMainVote(topic,day([raw(2,'Commission proposal')],'partial')),null,'a partial sitting could hide the deciding vote');
  assert.equal(agendaMainVote(topic,undefined),null);
+ const listed=agendaVotes(topic,day([raw(1,'Motion for a resolution (as a whole)'),raw(2,'After § 7')]),[],'en');
+ assert.equal(listed.itemVotes.length,2,'every vote on the item, method included');
+ assert.equal(listed.itemVotes[0].id,listed.mainVote?.id??listed.itemVotes[0].id,'main vote first');
+ assert.deepEqual(Object.keys(listed.itemVotes[0]).sort(),['ballotStatus','context','id','method','outcome','parts','referenceTexts','scope','totals']);
+ assert.equal(agendaVotes(topic,day([raw(1,'x')],'partial')).itemVotes,null,'a partial sitting has no list, never a short one');
+ const conflicted=agendaVotes(topic,day([raw(1,'Motion for a resolution (as a whole)'),raw(2,'After § 7',{_conflictingSourceObservations:{fields:['decision_method']}})]),[],'en');
+ assert.equal(conflicted.itemVotes.length,2,'a conflicting decision stays in the list, so the count holds');
+ assert.equal(conflicted.itemVotes.find(row=>row.id.endsWith('-2')).ballotStatus,'unknown');
  assert.equal(main([raw(2,'Commission proposal'),raw(4,'Motion for a resolution',{inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-2']})]),null,'two subjects name different main votes');
 });
