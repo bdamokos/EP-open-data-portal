@@ -67,18 +67,18 @@ function Wording({context,target}:{context:Context;target:Target}) {
 // A provision of the report or motion, read by its exact number. Its parts are marked when the words
 // are found exactly; without wording the key alone says which part this vote is.
 function ProvisionText({context,target,heading}:{context:Context;target:{documentId:string;provision:string};heading:string|null}) {
-  const {language}=context,rows=partRows(context);
+  const {language}=context,requests=requestRows(context),rows=requests.length===1?requests[0]:[];
   const query=new URLSearchParams({provision:target.provision,lang:language});
   const response=useData<ProvisionResponse>('document-context/'+encodeURIComponent(target.documentId)+'?'+query,{unavailable:'error.wording'});
   const reply=response.data?.documentId===target.documentId&&response.data.provision===target.provision&&response.data.requestedLanguage===language?response.data:null;
   const text=reply?.text??null,textLanguage=reply?.language??'';
-  if(!text&&!rows.length)return null;
+  if(!text&&!requests.length)return null;
   const descriptions=text?partsInLanguage(rows,textLanguage):null,match=text&&descriptions?splitRuns(text,descriptions):null;
   const current=rows.filter(part=>part.current).map(part=>String(part.number));
   return <section className="clause">
     {heading&&<h3 lang="">{heading}</h3>}
     {text&&(match?<SplitText runs={match.runs} language={textLanguage} emphasis="part" current={current}/>:<p className="clause-text plain" lang={textLanguage}>{text}</p>)}
-    {rows.length>0&&<PartsKey context={context} rows={rows} match={match} wordingLanguage={match?textLanguage:null}/>}
+    {requests.map((request,index)=><PartsKey key={index} context={context} rows={request} match={match} wordingLanguage={match?textLanguage:null}/>)}
   </section>;
 }
 /** What the vote is on: an amendment's wording, a provision's wording, or the parts alone. */

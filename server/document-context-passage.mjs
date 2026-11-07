@@ -25,7 +25,7 @@ export const wantsDocumentProvision=params=>params.has('provision');
  * The body read is the reader's own; the record comes from what the index holds when it holds it. */
 export function documentProvisionQuery(id,params) {
   const provision=params.get('provision');
-  if(params.getAll('provision').length!==1||!provisionForms.test(provision||'')||!/^(?:A|B|RC)-/u.test(id)||[...params.keys()].some(key=>!['provision','lang'].includes(key)))throw new HttpError(400,'invalid_query','provision requires one exact provision of a report or motion.');
+  if(params.getAll('provision').length!==1||!provisionForms.test(provision||'')||!/^(?:A|B|RC)-\d+-\d{4}-\d{4,6}$/u.test(id)||[...params.keys()].some(key=>!['provision','lang'].includes(key)))throw new HttpError(400,'invalid_query','provision requires one exact provision of a report or motion.');
   const rest=new URLSearchParams(params);rest.delete('provision');
   return {...documentContextQuery(id,rest),heldMetadata:true,provision};
 }

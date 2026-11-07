@@ -269,7 +269,7 @@ test('a vote maps to a provision only from its exact reference and one document'
  assert.equal(voteProvision(vote({referenceTexts:{en:'§ 15, point f'}})).provision,'point:15:f');
  assert.equal(voteProvision(vote({referenceTexts:{en:'Recital AB'}})).provision,'recital:AB');
  assert.equal(voteProvision(vote({referenceTexts:{en:'Citation 3'}})).provision,'citation:3');
- for(const en of ['After § 5','Article 1, § 1','§ 10/2','Motion for a resolution (as a whole)','07 02 01','Recital 3'])assert.equal(voteProvision(vote({referenceTexts:{en}})),null,en);
+ for(const en of ['After § 5','Article 1, § 1','§ 10/2','Motion for a resolution (as a whole)','07 02 01','Recital 3','§ 123456','§ 0','§ 10, point abcde','Citation 0'])assert.equal(voteProvision(vote({referenceTexts:{en}})),null,en);
  assert.equal(voteProvision(vote({referenceTexts:{hu:'10. bek.'}})),null,'the exact form is the English reference');
  assert.equal(voteProvision(vote({context:{documentIds:['A-10-2026-0021'],amendmentIds:['A-10-2026-0021-AM-3']}})),null,'an amendment to it has its own wording');
  assert.equal(voteProvision(vote({scope:{kind:'amendment'}})),null);

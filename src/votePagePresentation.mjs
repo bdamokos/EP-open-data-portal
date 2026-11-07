@@ -200,7 +200,7 @@ export function itemVoteSections(votes,mainVoteId=null) {
   }
   return [{key:'counted',votes:counted},{key:'hands',votes:hands},{key:'no_count',votes:noCount},{key:'lapsed',votes:lapsed},{key:'not_held',votes:notHeld}].filter(section=>section.votes.length);
 }
-const provisionForms=[[/^§\s*(\d+[a-z]*)$/u,match=>'paragraph:'+match[1]],[/^§\s*(\d+[a-z]*), point ([a-z]+)$/u,match=>'point:'+match[1]+':'+match[2]],[/^Recital ([A-Z]{1,3})$/u,match=>'recital:'+match[1]],[/^Citation (\d+)$/u,match=>'citation:'+match[1]]];
+const provisionForms=[[/^§\s*([1-9]\d{0,4}[a-z]{0,3})$/u,match=>'paragraph:'+match[1]],[/^§\s*([1-9]\d{0,4}[a-z]{0,3}), point ([a-z]{1,4})$/u,match=>'point:'+match[1]+':'+match[2]],[/^Recital ([A-Z]{1,3})$/u,match=>'recital:'+match[1]],[/^Citation ([1-9]\d{0,4})$/u,match=>'citation:'+match[1]]];
 /** The provision of a report or motion this vote is on, from its exact reference and its one
  * document. A vote on an amendment to the provision has the amendment's wording instead. */
 export function voteProvision(vote,subject=null) {

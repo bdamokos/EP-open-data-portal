@@ -365,3 +365,13 @@ test('a final vote asks for no provision and shows no text block',async t=>{
  assert.deepEqual(seen,[]);
  assert.equal(h.container.querySelector('.clause'),null);
 });
+test('a paragraph voted in two split requests keeps both keys under its wording',async t=>{
+ const data=await paragraphVote(),other='MTG-PL-2026-03-11-VOT-ITM-986171-SPLIT-2',uri='eli/dl/event/'+other,text2='Second request words';
+ const part=data.decision.parts[0],second={...part,componentId:other+'-1',number:'1',requestUri:uri,requestId:other,contentByLanguage:{en:{sourceLiteral:text2,text:text2}},contextComponents:[]};
+ data.decision={...data.decision,parts:[part,second]};
+ const h=await mount(t,withProvision(data,paragraph));
+ const clause=h.container.querySelector('.clause');
+ assert.equal(text(clause.querySelector('.clause-text.plain')),paragraph,'no one request can mark it');
+ assert.equal(clause.querySelectorAll('.clause-key').length,2);
+ assert.match(clause.textContent,/Second request words/);
+});

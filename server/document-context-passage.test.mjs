@@ -52,6 +52,7 @@ test('provision asks for one exact provision of a report or motion, and nothing 
   for(const value of ['provision=paragraph:10','provision=point:10:a','provision=recital:AB','provision=citation:3','provision=paragraph:10a'])assert.equal(documentProvisionQuery(documentId,params(value)).provision,value.slice(10));
   for(const value of ['provision=','provision=paragraph:','provision=paragraph:0','provision=paragraph:1&provision=paragraph:2','provision=article:3','provision=paragraph:10&amendment='+amendment,'provision=paragraph:10&body=0','provision=paragraph:10&adopted=1'])assert.throws(()=>documentProvisionQuery(documentId,params(value)),error=>error.status===400,value);
   assert.throws(()=>documentProvisionQuery('TA-10-2026-0342',params('provision=paragraph:1')),error=>error.status===400,'adopted texts are read elsewhere');
+  assert.throws(()=>documentProvisionQuery(documentId+'-AM-4-1',params('provision=paragraph:1')),error=>error.status===400,'an amendment list is not a report or motion');
 });
 test('the provision reply holds its exact wording only, without the number',()=>{
   const reply=provision=>documentProvisionReply(provisionContext(motionText(motion)),provision);
