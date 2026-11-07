@@ -5,7 +5,7 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {voteFixture,decisionId} from '../server/test-support/decision-votes.mjs';
 
-async function mount(t,handler,{id=decisionId,url,members=[]}={}) {
+async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCountry=()=>{}}={}) {
  const window=new Window({url:url||'http://localhost/?view=legislation&pl-mode=vote&pl-vote='+id+'&lang=en'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map();
  for(const [key,value] of Object.entries(globals)){old.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});}
  const calls=[];t.mock.method(globalThis,'fetch',async input=>{const target=new URL(input,window.location.href);calls.push(target.pathname);return handler(target);});
@@ -13,7 +13,7 @@ async function mount(t,handler,{id=decisionId,url,members=[]}={}) {
  const {VotePage}=await load('/src/VotePage.tsx'),{PersonNamesProvider}=await load('/src/PersonName.tsx'),{createRoot}=await import('react-dom/client');
  const container=window.document.createElement('div');window.document.body.append(container);const root=createRoot(container);
  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
- await act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(VotePage,{decisionId:id,language:'en',country:null,onCountry:()=>{}}))));
+ await act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(VotePage,{decisionId:id,language:'en',country,onCountry}))));
  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
  return {container,calls};
 }
@@ -135,4 +135,16 @@ test('the shared row shows a dash for unknown, a zero for zero and a bold reject
  assert.match(row,/class="w no"/);assert.match(row,/class="n f zero">0</);assert.match(row,/class="n a unk">–</);assert.match(row,/class="n x">3</);
  const control=renderToStaticMarkup(createElement(WordSwitch,{label:'L',value:'a',onChange:()=>{},options:[{value:'a',label:'A'},{value:'b',label:'B'}]}));
  assert.match(control,/aria-pressed="true"[^>]*>A</);assert.match(control,/aria-pressed="false"[^>]*>B</);
+});
+
+test('choosing all countries clears a country that came from the address',async t=>{
+ const f=voteFixture(),data=await f.read(),cleared=[];
+ for(const voter of data.voters)data.people[voter.personId]={...data.people[voter.personId],name:'Member '+voter.personId,country:'FR'};
+ const h=await mount(t,serve(data),{country:'FR',onCountry:value=>cleared.push(value)});
+ const fold=[...h.container.querySelectorAll('details')].find(node=>/Countries/.test(node.querySelector('summary').textContent));
+ fold.open=true;await act(async()=>{fold.dispatchEvent(new globalThis.window.Event('toggle'));});
+ for(let i=0;i<100&&!fold.querySelector('button');i++)await act(async()=>{await new Promise(resolve=>setTimeout(resolve,50));});
+ const all=[...fold.querySelectorAll('button')].find(button=>/All countries/.test(button.textContent));
+ await act(async()=>{all.click();});
+ assert.deepEqual(cleared,[null]);
 });

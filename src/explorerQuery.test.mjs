@@ -131,3 +131,9 @@ test('only the Plenary Topics mode retains topic drilldown parameters',()=>{
   assert.equal(q.has('topic'),mode==='topics');assert.equal(q.has('t-q'),mode==='topics');assert.equal(q.has('t-record'),mode==='topics');
  }
 });
+
+test('the vote page keeps its country sort; other views drop it',()=>{
+  const query=new URLSearchParams({view:'legislation','pl-mode':'vote','vote-country-sort':'for-desc'});
+  assert.equal(explorerParams(query,'legislation').get('vote-country-sort'),'for-desc');
+  assert.equal(explorerParams(query,'questions').has('vote-country-sort'),false);
+});

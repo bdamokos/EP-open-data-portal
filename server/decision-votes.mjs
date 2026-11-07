@@ -138,7 +138,8 @@ export function projectDecisionVotes(query,snapshot,{store=null,context=null,wit
   }):[];
   const intended=withSubject?voterGroups(raw,'had_voter_intended_'):null;
   const corrections=intended&&!vote.sourceConflicts?Object.fromEntries(['for','against','abstaining'].map(position=>[position,[...new Set(intended.groups[position])]])):null;
-  const noRecord=withSubject&&voters.length?noRecordMembers(history,groupOn,vote.date,voters):null;
+  // An incomplete or disagreeing list can't show that someone didn't vote.
+  const noRecord=withSubject&&voters.length&&integrity==='complete'?noRecordMembers(history,groupOn,vote.date,voters):null;
   const extra=withSubject?{...subjectContext(vote,raw,day,context,query,store),corrections,noRecord,people:outsideRoster(store,generation,[...new Set([...voters.map(voter=>voter.personId),...Object.values(corrections||{}).flat(),...(noRecord?.ids||[])])])}:{};
   return {...base,...extra,status:'found',integrity,voters,groupHistory:history?{epoch:store.get('marksEpoch'),generation,catalogue:history.catalogue}:null,
     decision:{...(withSubject?{subjectId:vote.subjectId,scope:vote.scope,title:vote.title,titleLanguage:vote.titleLanguage,referenceTexts:inLanguage(vote.referenceTexts,query.language),parts:vote.parts.map(part=>partFields(part,query.language)),context:{documentIds:vote.context.documentIds,amendmentIds:vote.context.amendmentIds}}:{}),id:vote.id,date:vote.date,method:vote.method,outcome:vote.outcome,ballotStatus:vote.ballotStatus,totals:vote.totals,amendmentIds:vote.context.amendmentIds,componentIds:vote.context.componentIds,
