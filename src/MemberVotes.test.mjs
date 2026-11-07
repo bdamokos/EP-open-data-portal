@@ -49,7 +49,7 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:13,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:14,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
@@ -270,7 +270,7 @@ test('null totals, real zero totals and lapsed decisions remain distinct without
   const rows=h.container.querySelectorAll('.member-votes-row');
   assert.equal(rows[0].querySelector('.member-votes-bar'),null);assert.deepEqual([...rows[0].querySelectorAll('.member-votes-counts b')].map(item=>item.textContent),['0','0','0']);
   assert.equal(rows[1].querySelector('.member-votes-bar,.member-votes-counts'),null);assert.match(rows[1].textContent,/Tallies unavailable/);assert.doesNotMatch(rows[1].textContent,/No tally published/);
-  assert.match(rows[2].textContent,/Not put to a vote.*Lapsed/);assert.doesNotMatch(rows[2].textContent,/Roll-call vote/);assert.equal(rows[2].querySelector('.member-votes-row-copy .member-votes-muted'),null);assert.equal(rows[2].querySelector('.member-votes-bar,.member-votes-counts'),null);
+  assert.match(rows[2].textContent,/Lapsed/);assert.doesNotMatch(rows[2].textContent,/Not put to a vote/);assert.doesNotMatch(rows[2].textContent,/Roll-call vote/);assert.equal(rows[2].querySelector('.member-votes-row-copy .member-votes-muted'),null);assert.equal(rows[2].querySelector('.member-votes-bar,.member-votes-counts'),null);
   assert.match(rows[3].textContent,/No names on record/);assert.equal(rows[3].querySelector('.member-votes-position-for'),null);
 });
 
@@ -1015,7 +1015,7 @@ for(const outcome of ['LAPSED','WITHDRAWN'])test('unheld '+outcome+' detail repl
   const item=vote(1,{outcome,ballotStatus:'not-conducted',method:'VOTE_ELECTRONIC_ROLLCALL',actualPosition:{status:'not-conducted',position:null},totals:{for:null,against:null,abstaining:null}});
   const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item]}))});
   const detail=visiblePane(h.container);
-  assert.equal(detail.querySelector('.member-votes-detail > .member-votes-muted').textContent,'Not put to a vote');
+  assert.equal(detail.querySelector('.member-votes-detail > .member-votes-muted').textContent,outcome==='LAPSED'?'Lapsed':'No vote held');
   assert.doesNotMatch(detail.textContent,/Roll-call vote/);
 });
 

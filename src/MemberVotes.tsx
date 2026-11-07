@@ -19,7 +19,7 @@ import {useData,reuseDataResponse} from './data';
 import {selectLanguageText} from './language.mjs';
 import {selectVoteTitle} from './voteTitles.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
-import {MEMBER_VOTES_PAGE_SIZE,memberVotesAllPending,memberVotesCoverageNotice,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteParentLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute as memberVotesRequestRoute,topLevelVoteDocuments,validateMemberVotesResponse} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,memberVotesAllPending,memberVotesCoverageNotice,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteParentLabel,memberVoteOutcome,memberVotePositionSummary,notHeldLabel,memberVotesRoute as memberVotesRequestRoute,topLevelVoteDocuments,validateMemberVotesResponse} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 import {WordingDiff} from './components/WordingDiff';
 import {AmendmentJustification} from './components/AmendmentJustification';
@@ -153,7 +153,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
       return <div key={component.componentId}><h4>{(component.number!==null) ? ui.t("membervotes.tsx.part.number", {number: String(component.number)}) : ui.t("membervotes.tsx.another.part")}</h4>{text.text ? <p lang={text.language}>{text.text}</p> : <p><UiMessage id="membervotes.tsx.part.wording.unavailable.here"/></p>}</div>;
     })}</details>}
     {siblingVotes.length>0&&<section className="member-votes-siblings"><h3><UiMessage id="membervotes.tsx.other.decisions.shown.for.this.split.vote"/></h3>{siblingVotes.map(item=><button type="button" key={item.id} onClick={()=>onDecision(item.id)}><>{memberVoteLabel(item,language, ui)} · {memberVoteOutcome(item, ui)}</></button>)}</section>}
-    {(vote.ballotStatus==='not-conducted'||voteMethodLabel(vote.method, ui))&&<p className="member-votes-muted">{(vote.ballotStatus==='not-conducted') ? ui.t("activityvote.not_put_to_a_vote") : voteMethodLabel(vote.method, ui)}</p>}
+    {(vote.ballotStatus==='not-conducted'||voteMethodLabel(vote.method, ui))&&<p className="member-votes-muted">{(vote.ballotStatus==='not-conducted') ? notHeldLabel(vote,ui) : voteMethodLabel(vote.method, ui)}</p>}
     {requesterLabels.length>0&&<p className="member-votes-requester"><UiMessage id="activityvote.roll_call_requested_by_requesters" values={{requesters: requesterLabels.map((label,index)=><span key={index} lang={label.language}>{(index>0) ? ', ' : ''}{label.text}</span>)}}/></p>}
     {documents.length>0&&<section className="member-votes-documents"><h3><UiMessage id="membervotes.tsx.about.the.text"/></h3>{documents.map(documentId=><div key={documentId}><button type="button" onClick={()=>openContext({documentId,view:'document'})}>{documentId.startsWith('A-') ? <UiMessage id="membervotes.tsx.read.report.documentid" values={{documentId: String(documentId ?? '')}}/> : (documentId.startsWith('RC-') ? <UiMessage id="membervotes.tsx.read.joint.motion.documentid" values={{documentId: String(documentId ?? '')}}/> : <UiMessage id="membervotes.tsx.read.motion.documentid" values={{documentId: String(documentId ?? '')}}/>)}</button><button type="button" onClick={()=>openContext({documentId,view:'adopted'})}><UiMessage id="membervotes.tsx.find.adopted.text"/></button></div>)}</section>}
   </article>;
