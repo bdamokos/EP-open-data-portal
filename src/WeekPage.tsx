@@ -64,14 +64,19 @@ function Stories({story,language}:{story:WeekStoryResponse;language:string}) {
   </div>;
 }
 
-function ResultDay({day,topics,results,language,pressUrls}:{day:Day;topics:AgendaTopic[];results:WeekResultsResponse|null;language:string;pressUrls:Record<string,{url:string}>}) {
+function AgendaFailed({retry,inline=false}:{retry:()=>void;inline?:boolean}) {
+  const body=<><UiMessage id="week.agenda_unavailable"/> <button type="button" className="word" onClick={retry}><UiMessage id="week.retry"/></button></>;
+  return inline?<p className="say" role="alert">{body}</p>:<p className="note" role="alert">{body}</p>;
+}
+function ResultDay({day,topics,results,language,pressUrls,retry}:{day:Day;topics:AgendaTopic[];results:WeekResultsResponse|null;language:string;pressUrls:Record<string,{url:string}>;retry:()=>void}) {
   const ui=useUiI18n(),read=results?.days.find(entry=>entry.sittingId===day.id),complete=read?.complete===true;
   const rows=resultRows(day as WeekDay,topics,results,language,ui);
-  if(!rows.length)return null;
+  if(!rows.length&&!day.agendaError)return null;
   const heading=<h3>{dayDate(day.date,language)}{complete&&<> <small><UiMessage id="weekSummary.votes" values={{count:read!.voteCount}}/></small></>}</h3>;
   return <section className="day" data-week-day={day.id}>
     {complete?<TallyHeads heading={heading}/>:<div className="heads static"><span className="main">{heading}</span></div>}
-    {read&&!complete&&<p className="note"><UiMessage id="weekSummary.resultsPending"/></p>}
+    {day.agendaError&&<AgendaFailed retry={retry}/>}
+    {results&&!complete&&rows.length>0&&<p className="note"><UiMessage id="weekSummary.resultsPending"/></p>}
     {rows.map(row=>{
       const cells=complete?row.cells:{},pressUrl=row.agendaItemId?pressUrls[row.agendaItemId]?.url:null;
       const title=row.href?<a className="t" lang={row.language} href={row.href} onClick={dossierLinkClick}>{row.text}</a>:<span className="t" lang={row.language}>{row.text}</span>;
@@ -115,11 +120,11 @@ function ItemReferences({topic,language}:{topic:AgendaTopic;language:string}) {
     <p className="open-item"><a className="c" href={agendaItemHref(topic.id,language)} onClick={dossierLinkClick}><UiMessage id="week.open_item"/></a></p>
   </>;
 }
-function ComingDay({day,topics,language,voteBlockAt}:{day:Day;topics:AgendaTopic[];language:string;voteBlockAt:string|null}) {
+function ComingDay({day,topics,language,voteBlockAt,retry}:{day:Day;topics:AgendaTopic[];language:string;voteBlockAt:string|null;retry:()=>void}) {
   const own=topics.filter(topic=>topic.sittingId===day.id);
   return <section className="day coming" data-week-day={day.id}>
     <div className="heads static"><span className="main"><h3>{dayDate(day.date,language)}</h3></span></div>
-    {day.agendaError?<p className="note"><UiMessage id="week.agenda_unavailable"/></p>:!own.length&&<p className="note"><UiMessage id="legislation.agenda_not_yet_published.c9e27b"/></p>}
+    {day.agendaError?<AgendaFailed retry={retry}/>:!own.length&&<p className="note"><UiMessage id="legislation.agenda_not_yet_published.c9e27b"/></p>}
     {comingSlots(own).map(slot=><div key={slot.key}>
       <div className="slot" id={slot.key===voteBlockAt?VOTE_BLOCK:undefined}><span className="gut">{slot.time}</span><b><UiMessage id={slot.kind==='votes'?'week.slot.votes':'week.slot.debates'}/></b></div>
       {slot.topics.map(topic=>topic.procedureIds.length||topic.documentIds.length
@@ -167,15 +172,18 @@ export function WeekPage({week,language}:{week:string|null;language:string}) {
     return <StripLink href={weekHref(target.week,language)} onClick={dossierLinkClick} wide={body} narrow={body}/>;
   };
   const strip=<PageStrip back={steps.previous?stepLink(steps.previous,'previous'):<span/>}>{steps.next&&stepLink(steps.next,'next')}</PageStrip>;
-  const pending=agenda.loading&&!data||pastRead.loading&&!pastRead.data||storyRead.loading&&!storyRead.data;
+  // No week yet means the calendar is still choosing one; Back must not land on this placeholder.
+  const pending=week===null||agenda.loading&&!data||pastRead.loading&&!pastRead.data||storyRead.loading&&!storyRead.data;
   const page=(children:ReactNode)=><article className="vs week-page" lang={ui.language} data-week-page={week??''} data-week-pending={pending?'true':undefined}>{children}</article>;
 
   if(!data) {
-    if(agenda.error||!agenda.loading&&week)return page(<>{strip}<h1 tabIndex={-1}>{heading}</h1><p className="say" role="alert"><UiMessage id="week.agenda_unavailable"/> <button type="button" className="word" onClick={agenda.retry}><UiMessage id="week.retry"/></button></p></>);
+    if(agenda.error||!agenda.loading&&week)return page(<>{strip}<h1 tabIndex={-1}>{heading}</h1><AgendaFailed retry={agenda.retry} inline/></>);
     return page(<>{strip}<h1 tabIndex={-1}>{heading}</h1><p className="say" role="status"><UiMessage id="insightshared.loading"/></p></>);
   }
   const voteDays=past.filter(day=>topics.some(topic=>topic.sittingId===day.id&&topic.kind==='PLENARY_VOTE')).map(day=>day.id);
   const counts=pastCounts(results,voteDays),aheadTopics=topics.filter(topic=>ahead.some(day=>day.id===topic.sittingId));
+  // A subset of a day's agenda must not read as its total.
+  const aheadRead=ahead.every(day=>day.agendaComplete&&!day.agendaError);
   const noVotes=!ahead.length&&!topics.some(topic=>topic.kind==='PLENARY_VOTE')&&results?.items.length===0&&!results?.unlinked?.length&&days.every(day=>day.agendaComplete&&!day.agendaError);
   const voteBlockAt=ahead.flatMap(day=>comingSlots(aheadTopics.filter(topic=>topic.sittingId===day.id))).find(slot=>slot.kind==='votes')?.key??null;
   return page(<>
@@ -184,17 +192,17 @@ export function WeekPage({week,language}:{week:string|null;language:string}) {
       <h1 tabIndex={-1}>{heading}</h1>
       <p className="say">
         {noVotes?<UiMessage id="weekSummary.noVotes"/>:counts&&<PastCount counts={counts} location={results?.location??null}/>}
-        {counts&&ahead.length>0&&' '}
-        <ComingCount topics={aheadTopics} language={language}/>
+        {counts&&aheadRead&&ahead.length>0&&' '}
+        {aheadRead&&<ComingCount topics={aheadTopics} language={language}/>}
       </p>
     </div>
     {story&&<Stories story={story} language={language}/>}
     {past.length>0&&!noVotes&&<section className="week-section">
       <h2 className="section"><UiMessage id="week.results"/></h2>
       {(pastRead.error||pastRead.data)&&!results&&<p className="note"><UiMessage id="weekSummary.resultsUnavailable"/></p>}
-      {past.map(day=><ResultDay key={day.id} day={day} topics={topics} results={results} language={language} pressUrls={story?.press??{}}/>)}
+      {past.map(day=><ResultDay key={day.id} day={day} topics={topics} results={results} language={language} pressUrls={story?.press??{}} retry={agenda.retry}/>)}
     </section>}
-    {ahead.map(day=><ComingDay key={day.id} day={day} topics={aheadTopics} language={language} voteBlockAt={voteBlockAt}/>)}
+    {ahead.map(day=><ComingDay key={day.id} day={day} topics={aheadTopics} language={language} voteBlockAt={voteBlockAt} retry={agenda.retry}/>)}
     <Debates days={past} topics={topics} language={language}/>
   </>);
 }

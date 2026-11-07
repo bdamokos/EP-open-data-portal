@@ -172,6 +172,43 @@ test('a day not read completely keeps its rows without tally',async t=>{
  assert.equal(h.container.querySelector('.say').textContent.trim(),'','no partial totals');
 });
 
+test('a results day missing from the reply is pending, not silently bare',async t=>{
+ const h=await mount(t,serve({results:{...results,days:results.days.filter(entry=>entry.sittingId!=='MTG-PL-2026-10-22')}}));
+ const day=h.container.querySelector('[data-week-day="MTG-PL-2026-10-22"]');
+ assert.match(day.textContent,/Results not in yet\./);
+ assert.equal(day.querySelector('.n'),null);
+ assert.equal(h.container.querySelector('.say').textContent.trim(),'','no totals with a voting day unread');
+});
+
+test('with the calendar still choosing a week the page counts as pending',async t=>{
+ const h=await mount(t,serve(),{id:null});
+ assert.equal(h.container.querySelector('.week-page').getAttribute('data-week-pending'),'true');
+ assert.equal(h.container.querySelector('[role=status]').textContent,'Loading…');
+});
+
+test('a day whose agenda read failed offers the retry, in a past or a coming day',async t=>{
+ let attempts=0;const failedPast={...past,agendaSittings:past.agendaSittings.map(day=>day.id==='MTG-PL-2026-10-21'?{...day,agendaError:'failed',agendaComplete:false}:day),topics:past.topics.filter(topic=>topic.sittingId!=='MTG-PL-2026-10-21')};
+ const base=serve({agenda:failedPast});
+ const h=await mount(t,async target=>{if(target.pathname.includes('insights/legislation'))attempts++;return base(target);});
+ const day=h.container.querySelector('[data-week-day="MTG-PL-2026-10-21"]');
+ assert.equal(day.querySelector('[role=alert]').textContent.trim(),'Agenda unavailable. Try again');
+ const before=attempts;
+ await act(async()=>{day.querySelector('[role=alert] button').click();await new Promise(resolve=>setTimeout(resolve,30));});
+ assert.equal(attempts,before+1);
+});
+test('a coming day with a failed agenda has the retry and no count line',async t=>{
+ const failed={...coming,agendaSittings:coming.agendaSittings.map(day=>day.id==='MTG-PL-2026-11-12'?{...day,agendaError:'failed',agendaComplete:false}:day)};
+ const {container:c}=await mount(t,serve({agenda:failed}),{id:NEXT});
+ assert.equal(c.querySelector('[data-week-day="MTG-PL-2026-11-12"] [role=alert] button').textContent,'Try again');
+ assert.equal(c.querySelector('.say').textContent.trim(),'');
+});
+test('an agenda read only in part gives no count line but keeps its rows',async t=>{
+ const part={...coming,agendaSittings:coming.agendaSittings.map(day=>day.id==='MTG-PL-2026-11-12'?{...day,agendaComplete:false}:day)};
+ const {container:c}=await mount(t,serve({agenda:part}),{id:NEXT});
+ assert.equal(c.querySelector('.say').textContent.trim(),'','a subset must not read as the total');
+ assert(c.querySelector('#week-votes'));
+});
+
 test('loading shows the heading from the route; a failed agenda offers a retry that works',async t=>{
  let release;const pending=new Promise(resolve=>{release=resolve;});
  const base=serve();let attempts=0;
