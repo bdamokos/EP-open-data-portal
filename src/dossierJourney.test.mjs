@@ -118,3 +118,11 @@ test('a step after a reload keeps the return address the history entry saved',as
   assert.equal(history.state.dossierOrigin,record);
   assert.equal(h.journey.dossierBackHref(),record);
 });
+
+test('a page with a top strip keeps it on screen when the journey arrives',async t=>{
+  const h=await harness(t),page=document.createElement('div');
+  page.className='vs';page.innerHTML='<div class="strip"></div><h1>Vote</h1>';
+  const plain=document.createElement('h1');
+  assert.equal(h.journey.journeyScrollTarget(page.querySelector('h1')),page.querySelector('.strip'));
+  assert.equal(h.journey.journeyScrollTarget(plain),plain);
+});
