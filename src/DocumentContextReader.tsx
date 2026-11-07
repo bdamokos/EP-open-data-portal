@@ -40,6 +40,8 @@ export type DocumentContextReaderProps={
   /** Opens at the amendment and its passage; the whole text waits for a request. */
   passageFirst?:boolean;
   lead?:(info:DocumentReaderLeadInfo)=>ReactNode;
+  /** Shown directly under the amendment, whichever way the reader places it. */
+  amendmentFooter?:(variant:NonNullable<DocumentReaderLeadInfo['variant']>)=>ReactNode;
   textLanguage?:string;
   onTextLanguageChange?:(language:string)=>void;
   showOriginalLink?:boolean;
@@ -119,7 +121,7 @@ function Contents({items,wide,onGo}:{items:{paragraph:number;level:number;label:
   return wide?<nav className="read-contents" aria-label={ui.t('reader.contents')}><h2 lang={ui.language}><UiMessage id="reader.contents"/></h2>{list}</nav>:<details className="read-contents"><summary lang={ui.language}><UiMessage id="reader.contents"/></summary>{list}</details>;
 }
 
-function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest,agreementInfo,showOriginalLink=true,passageFirst=false,lead}:{agreementInfo?:ProvisionalAgreementResponse;id:string;showOriginalLink?:boolean;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest;passageFirst?:boolean;lead?:DocumentContextReaderProps['lead']}) {
+function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest,agreementInfo,showOriginalLink=true,passageFirst=false,lead,amendmentFooter}:{agreementInfo?:ProvisionalAgreementResponse;id:string;showOriginalLink?:boolean;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest;passageFirst?:boolean;lead?:DocumentContextReaderProps['lead'];amendmentFooter?:DocumentContextReaderProps['amendmentFooter']}) {
   const ui = useUiI18n();
   const state=useData<DocumentContextResponse>(documentRoute(id,language,amendmentRequest),{retryWhile:data=>Boolean(data.document&&publicationRetry.retryWhile(data.document)),retryAtFor:data=>data.document?publicationRetry.retryAtFor(data.document):0});
   const data=responseFor(state.data,id,language,amendmentRequest),document=((data?.document?.id===id) && (!data.document.selectedDocumentId||data.document.selectedDocumentId===id)) ? data.document : null;
@@ -189,6 +191,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const incomplete=publicationHasMissingContent(text,body,logo);
   const actual=text?.textLanguage||null;
   const availableLanguages=[...new Set([...(text?.availableTextLanguages||[]),...(actual ? ([actual]) : ([]))])];
+  const footer=wording?amendmentFooter?.(wording):null;
   const leadNode=lead?.({documentId:id,amendmentId:amendmentRequest?.amendmentId,document,title,variant:selectedVariant,loading:state.loading&&!data,failed:loadError&&!state.retrying&&!hasText});
   const passage=Boolean(passageFirst&&placed&&reportHeading===null);
   const [whole,setWhole]=useDossierReaderState('read-whole-document:'+(amendmentRequest?.amendmentId||''),false),revealed=useRef(false);
@@ -225,7 +228,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {!leadNode&&document&&<header className="document-context-heading"><h3 lang={title?.language}>{title?.text}</h3></header>}
     <p className="document-context-notice"><UiMessage id="documentcontext.council.quotation"/></p>
     {amendmentBlock(false)}
-
+    {footer}
   </div>;
   // The agreement's own text, with Parliament's marks, replaces the report's text.
   if(provisional&&(agreement||agreementState.loading&&!agreementState.data))return <div className="document-context-document">
@@ -238,7 +241,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {leadNode}
     {!leadNode&&document&&<header className="document-context-heading"><div><p className="document-context-kind"><UiMessage id="batch6.documentcontextreader.report.amendment.163"/></p><h3 lang={title?.language}>{title?.text}</h3></div></header>}
     {!wording&&<AmendmentJustification record={selectedVariant}/>}
-    <ProposalContextText data={(proposalEvidenceMatches||data.placement?.status==='unresolved') ? data : ({...data,placement:{...data.placement!,status:'unresolved',reason:'client_target_unconfirmed'}})} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage} showOriginalLink={showOriginalLink} passageFirst={passageFirst}/>
+    <ProposalContextText data={(proposalEvidenceMatches||data.placement?.status==='unresolved') ? data : ({...data,placement:{...data.placement!,status:'unresolved',reason:'client_target_unconfirmed'}})} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage} showOriginalLink={showOriginalLink} passageFirst={passageFirst} amendmentFooter={footer}/>
   </div>;
   return <div className="document-context-document" data-context-pending={(state.loading && (!hasText)) ? 'true' : undefined}>
     {leadNode}
@@ -251,6 +254,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {(!wording||hasText&&(!placement||scopeLanguageMismatch))&&<AmendmentJustification record={selectedVariant}/>}
     {rejection&&!hasText&&<p className="document-context-notice" role="status">{placementReason}</p>}
     {wording&&!hasText&&<div className="document-context-text">{amendmentBlock(false)}</div>}
+    {wording&&!hasText&&footer}
     {document&&<>
       <TextLanguagePicker available={availableLanguages} requested={interfaceLanguage} value={actual} onChange={onLanguageChange} note={<TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/>}/>
       {id.startsWith('TA-')&&<CommissionFollowups id={id} language={language} interfaceLanguage={interfaceLanguage}/>}
@@ -261,8 +265,9 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
         {incomplete&&<p className="document-context-notice"><UiMessage id="batch6.documentcontextreader.some.content.is.only.available.in.the.original.document.180"/></p>}
         <ReferenceScope key={id+':'+language} texts={readerTexts(shown.paragraphs,shownNotes,shownLinks)} notes={shownNotes} notePrefix={notePrefix} language={interfaceLanguage} textLanguage={actual} renderQuestion={question=><InsightQuestionReader id={question} language={interfaceLanguage} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers/>}>
           {passage&&<div className="document-context-text" lang={actual||''}>{amendmentBlock(true)}</div>}
+          {passage&&footer}
           {leadNode&&<div className="read-passage-head"><FindInText key={id+':'+language} target={reader} label={ui.t("batch6.documentcontextreader.find.in.document.168")} onOpen={()=>setWhole(true)}/></div>}
-          <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&!scopeLanguageMismatch&&amendmentBlock(false)}<DocumentParagraphs texts={shown.paragraphs} start={shown.start} formatting={formatting} exactOffsets
+          <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&!scopeLanguageMismatch&&amendmentBlock(false)}{placement&&!placed&&wording&&!scopeLanguageMismatch&&footer}<DocumentParagraphs texts={shown.paragraphs} start={shown.start} formatting={formatting} exactOffsets
             paragraphProps={sourceIndex=>{const selected=Boolean(found&&indices.includes(sourceIndex)),reportSelected=sourceIndex===reportHeading,first=marked(sourceIndex)&&sourceIndex===placement?.span?.start;return {'data-source-paragraph':String(sourceIndex),'data-context-target':selected ? 'true' : undefined,'data-report-amendment':reportSelected ? 'true' : undefined,'data-passage-target':first ? 'true' : undefined,className:selected||marked(sourceIndex) ? 'document-context-target' : undefined,tabIndex:(selected||reportSelected||first) ? (-1) : undefined};}}
             renderTable={(last,table)=>afterTable&&last===placement?.insertAfter?<Fragment key={'table-'+last}>{table}{passage?passageMark:amendmentBlock(true)}</Fragment>:table}
             renderParagraph={(sourceIndex,paragraph)=>{
@@ -288,7 +293,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   </div>;
 }
 
-function ContextSession({request,language,selectedDocumentId,onSelectedDocumentIdChange,showOriginalLink=true,showBackButton=true,passageFirst=false,lead,textLanguage,onTextLanguageChange}:DocumentContextReaderProps) {
+function ContextSession({request,language,selectedDocumentId,onSelectedDocumentIdChange,showOriginalLink=true,showBackButton=true,passageFirst=false,lead,amendmentFooter,textLanguage,onTextLanguageChange}:DocumentContextReaderProps) {
   const ui = useUiI18n();
   const [ownLanguage,setOwnLanguage]=useState((typeof request.wordingLanguage==='string') ? request.wordingLanguage : language),selectedLanguage=textLanguage??ownLanguage,setLanguage=(next:string)=>{setOwnLanguage(next);onTextLanguageChange?.(next);},[localSelection,setLocalSelection]=useState<string|null>(null);
   const controlled=selectedDocumentId!==undefined,selected=controlled ? selectedDocumentId : localSelection;
@@ -301,7 +306,7 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
   return <section className="document-context-reader" lang={ui.language} aria-label={ui.t("batch6.documentcontextreader.document.context.205")} data-context-pending={pendingRelated ? 'true' : undefined}>{!passageFirst&&<RecordTopics id={request.documentId} full language={language}/>}
     {showBackButton&&<button type="button" className="document-context-back" onClick={request.onBack}><>← {(request.backLabel??ui.t('interface.back'))}</></button>}
     {request.summary}
-    {(request.view==='document') ? <DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage} amendmentRequest={request} passageFirst={passageFirst} lead={lead}/> : <>
+    {(request.view==='document') ? <DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage} amendmentRequest={request} passageFirst={passageFirst} lead={lead} amendmentFooter={amendmentFooter}/> : <>
       {selected ? <>
         <button type="button" className="document-context-choices-back" onClick={()=>select(null)}><UiMessage id="batch6.documentcontextreader.adopted.texts.210"/></button>
         {selectedChoice ? <DocumentBody key={selectedChoice.id+':'+selectedLanguage} id={selectedChoice.id} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage}/> : (related.loading ? <p role="status"><UiMessage id="batch6.documentcontextreader.loading.linked.texts.211"/></p> : (!related.error&&<p><UiMessage id="batch6.documentcontextreader.this.adopted.text.is.unavailable.here.211"/></p>))}

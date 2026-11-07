@@ -8,7 +8,7 @@ import {AMENDMENT_LINKS_VERSION} from './activity-index-model.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {AMENDMENT_DISTRIBUTION_PROOF_VERSION} from './amendments.mjs';
 import {saveAmendmentRows} from './amendments-store.mjs';
-import {amendmentNeighbours,amendmentNeighboursQuery} from './amendment-neighbours.mjs';
+import {amendmentNeighbours,amendmentNeighboursQuery,amendmentSplitFields} from './amendment-neighbours.mjs';
 
 const target='A-10-2026-0257',date='2026-10-14',at='2026-10-18T12:00:00.000Z',first=target+'-AM-001-003',second=target+'-AM-004-005';
 const source={url:'https://data.europarl.europa.eu/distribution/example/list_en.docx',fetchedAt:at,language:'en'};
@@ -56,6 +56,23 @@ test('the line reads who tabled it and a known outcome, and nothing of a list',t
   for(const key of ['originalText','proposedText','items','total'])assert.equal(Object.hasOwn(one,key),false,key);
 });
 
+test('a split amendment reads its parts and each part\'s decision, by part number or exact part ID',()=>{
+  const reply=amendmentSplitFields({splitParts:[{id:'p/1',number:1,description:'Text as a whole without the words: ‘x’',language:'en'},{id:'p/2',number:2,sourceDescriptions:{en:'those words',fr:'ces termes'},description:'those words',language:'en'},{id:'p/3',number:3,description:null}],decisions:[
+    {id:'DEC-1',partId:'p/1',outcome:'ADOPTED',method:'VOTE_HAND',totals:{for:null,against:null,abstaining:null},date,source},
+    {id:'DEC-2',partNumber:2,outcome:'REJECTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:1,against:2,abstaining:3}},
+  ]});
+  assert.deepEqual(reply.splitParts,[{number:1,descriptions:{en:'Text as a whole without the words: ‘x’'}},{number:2,descriptions:{en:'those words',fr:'ces termes'}},{number:3,descriptions:{}}]);
+  assert.deepEqual(reply.decisions,[
+    {id:'DEC-1',partNumber:1,outcome:'ADOPTED',method:'VOTE_HAND',ballotStatus:null,totals:{for:null,against:null,abstaining:null}},
+    {id:'DEC-2',partNumber:2,outcome:'REJECTED',method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:null,totals:{for:1,against:2,abstaining:3}},
+  ]);
+  assert.deepEqual(amendmentSplitFields({}),{splitParts:[],decisions:[]});
+});
+test('every reply carries the version and split fields, empty when not voted in parts',t=>{
+  const {store}=setup(t,[amendment(1,first)]);
+  const reply=read(store,'amendment='+target+'-AM-1');
+  assert.equal(reply.version,2);assert.deepEqual(reply.splitParts,[]);assert.deepEqual(reply.decisions,[]);
+});
 test('a missing amendment is a 404 and malformed input a 400',t=>{
   const {store}=setup(t,[amendment(1,first)]);
   assert.throws(()=>read(store,'amendment='+target+'-AM-9'),error=>error.status===404);

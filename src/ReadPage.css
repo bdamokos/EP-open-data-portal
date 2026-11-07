@@ -29,3 +29,7 @@
 .read-passage-mark:focus-visible{outline:2px solid var(--context-blue);outline-offset:3px}
 @media(max-width:600px){.read-page-line{margin-bottom:4px}.read-page .document-context-amendment{margin-top:.5rem}}
 .read-page .document-context-text p.document-context-target.doc-hanging{padding-left:calc(.85rem + min(calc(var(--doc-hanging) * var(--doc-indent-scale,1)),30%))}
+.read-page .read-page-parts{margin:var(--s4) 0 var(--s4)}
+.read-page .read-page-parts h3{font:700 var(--t-say)/1.2 var(--font-serif);margin:0 0 var(--s2)}
+.read-page .read-page-parts p{margin:0}
+.read-page .read-page-parts .clause-key{margin-top:var(--s2);border-bottom:0}
