@@ -111,3 +111,18 @@ test('other families get a sentence and no strip',async t=>{
   assert.equal(adopted.container.querySelector('.dossier-status-sentence').textContent,'Parliament adopted this on Oct 22, 2026: 454 for, 34 against, 93 abstaining.');
   assert.equal(adopted.container.querySelector('.dossier-status-next'),null);
 });
+
+for(const [counts,expected] of [
+  [{blockVotes:2,blockAmendments:318,individual:48,identical:2},'On the voting list: block votes on 318 committee amendments, then 48 individual amendments, 2 of them identical.'],
+  [{blockVotes:1,blockAmendments:84,individual:5,identical:0},'On the voting list: a block vote on 84 committee amendments, then 5 individual amendments.'],
+  [{blockVotes:0,blockAmendments:0,individual:20,identical:0},'On the voting list: 20 individual amendments.'],
+  [{blockVotes:0,blockAmendments:0,individual:1,identical:0},'On the voting list: 1 individual amendment.'],
+  [null,null],
+])test(`a held voting list adds one plain line: ${expected}`,async t=>{
+  const view=await mount(t,erasmus.reference,{
+    'dossier-status':()=>Response.json(statusFor(erasmus,{committees:[],mainVote:null,plenaryDate:null,votingList:counts})),
+    'procedure-progress':()=>Response.json(progressFor(erasmus)),
+    'procedure-context':()=>Response.json(contextFor(erasmus)),
+  });
+  assert.equal(view.container.querySelector('.dossier-status-voting-list')?.textContent??null,expected);
+});

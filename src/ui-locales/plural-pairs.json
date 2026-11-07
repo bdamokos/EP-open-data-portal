@@ -490,6 +490,26 @@
     "count": "count"
   },
   {
+    "one": "dossierstatus.voting_list.block.one",
+    "other": "dossierstatus.voting_list.block",
+    "count": "count"
+  },
+  {
+    "one": "dossierstatus.voting_list.blocks.one",
+    "other": "dossierstatus.voting_list.blocks",
+    "count": "count"
+  },
+  {
+    "one": "dossierstatus.voting_list.individual.one",
+    "other": "dossierstatus.voting_list.individual",
+    "count": "count"
+  },
+  {
+    "one": "dossierstatus.voting_list.identical.one",
+    "other": "dossierstatus.voting_list.identical",
+    "count": "count"
+  },
+  {
     "one": "votepage.member.country.one",
     "other": "votepage.member.country",
     "count": "count"

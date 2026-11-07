@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {parseVotingList,votingDocumentId} from './voting-lists.mjs';
+import {parseVotingList,votingDocumentId,votingListCounts} from './voting-lists.mjs';
 const fixture=name=>readFileSync(new URL('./fixtures/voting-lists/'+name,import.meta.url));
 const parse=name=>parseVotingList(fixture(name),{observedAt:'2026-11-03T12:00:00Z'});
 test('five public DOCX samples preserve row structure and exact references',()=>{
@@ -59,4 +59,29 @@ test('short motion fall references use full table references and never borrow th
  assert.deepEqual(missing.falls,{amendments:[],motions:[],replacesMotions:false,text:missing.remarks});
  const ambiguous=parseXml(xml.replaceAll('B10-0389/2026','B10-0388/2025')).rows[31];
  assert.deepEqual(ambiguous.falls,{amendments:[],motions:[],replacesMotions:false,text:ambiguous.remarks});
+});
+
+const numbered=(from,to)=>Array.from({length:to-from+1},(_,index)=>({number:from+index,cp:null,deleting:false}));
+const listRow=(kind,amendments,authors,identical=false)=>({kind,amendments,authors,identical});
+test('a voting list counts the committee block apart from the rest, by amendment number',()=>{
+  // The shape of A10-0271/2026: 366 amendments, 309 in a block, 9 more of the committee's sharing a row, 2 identical.
+  const singles=Array.from({length:46},(_,index)=>listRow('amendment',numbered(400+index,400+index),['ESN']));
+  const civilProtection={rows:[listRow('heading',[],[]),listRow('block',numbered(1,309),['committee']),listRow('amendment',numbered(310,318),['committee']),listRow('amendment',numbered(338,339),['PfE','ESN'],true),...singles,listRow('final',[],[]),listRow('procedural',[],[])]};
+  assert.deepEqual(votingListCounts(civilProtection),{blockVotes:2,blockAmendments:318,individual:48,identical:2});
+  // The shape of A10-0261/2026: one row each and a final vote.
+  const cancer={rows:[...Array.from({length:20},(_,index)=>listRow('amendment',numbered(index+1,index+1),['ECR'])),listRow('final',[],[])]};
+  assert.deepEqual(votingListCounts(cancer),{blockVotes:0,blockAmendments:0,individual:20,identical:0});
+});
+test('an amendment voted in parts counts once, and a block never counts twice',()=>{
+  const part=cp=>listRow('amendment',[{number:117,cp,deleting:false}],['committee']);
+  assert.deepEqual(votingListCounts({rows:[part(null),part(1),part(2),listRow('amendment',numbered(118,118),['ESN'])]}),{blockVotes:0,blockAmendments:0,individual:2,identical:0});
+  assert.deepEqual(votingListCounts({rows:[listRow('block',numbered(1,3),['committee']),listRow('amendment',numbered(2,2),['committee'])]}),{blockVotes:1,blockAmendments:3,individual:0,identical:0});
+});
+test('a list gives no counts when they could not be stated exactly',()=>{
+  assert.equal(votingListCounts(null),null);
+  assert.equal(votingListCounts({rows:[listRow('final',[],[])]}),null,'no amendments to describe');
+  assert.equal(votingListCounts({rows:[listRow('block',numbered(1,5),['rapporteur'])]}),null,'a block that is not the committee\'s');
+  const unread={rows:[listRow('amendment',numbered(1,1),['ESN'])]};
+  assert.equal(votingListCounts({...unread,gaps:[{code:'unrecognised-row'}]}),null);
+  assert.equal(votingListCounts({...unread,gaps:[{code:'agenda-unbound'}]}).individual,1,'a missing agenda link changes no count');
 });

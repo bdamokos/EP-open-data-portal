@@ -64,6 +64,12 @@ export async function fetchVotingList(url,{signal,etag,lastModified}={}){
 export function prepareVotingLists(store){store.assertWriter();store.db.exec(`CREATE TABLE IF NOT EXISTS voting_list_sources (url TEXT,sitting TEXT NOT NULL,body TEXT NOT NULL,next_check INTEGER NOT NULL,purge_at INTEGER NOT NULL,PRIMARY KEY(url,sitting)); CREATE TABLE IF NOT EXISTS voting_list_revisions (url TEXT,sitting TEXT NOT NULL,hash TEXT NOT NULL,observed_at TEXT NOT NULL,body TEXT NOT NULL,purge_at INTEGER NOT NULL,PRIMARY KEY(url,sitting,hash)); CREATE INDEX IF NOT EXISTS voting_list_expiry ON voting_list_revisions(purge_at);`);store.set('votingListSchema',1);}
 export class VotingListStore {
   constructor(store,{clock=Date.now}={}){this.store=store;this.clock=clock;}
+  /** The list holding this document in a sitting on or after the given day, from one small read. */
+  upcomingVotingList(documentId,fromDay){
+    const db=this.store.db;if(!db?.prepare("SELECT 1 FROM sqlite_master WHERE name='voting_list_revisions'").get())return null;
+    const row=db.prepare("SELECT sitting FROM voting_list_revisions WHERE sitting>=? AND purge_at>? AND json_extract(body,'$.documentId')=? ORDER BY sitting LIMIT 1").get('MTG-PL-'+fromDay,this.clock(),documentId);
+    return row?this.votingListsForSitting(row.sitting).find(list=>list.documentId===documentId)||null:null;
+  }
   votingListsForSitting(sittingId){
     const db=this.store.db;if(!db?.prepare("SELECT 1 FROM sqlite_master WHERE name='voting_list_revisions'").get())return [];
     const rows=db.prepare('SELECT url,body FROM voting_list_revisions WHERE sitting=? AND purge_at>? ORDER BY observed_at DESC,hash').all(sittingId,this.clock()),seen=new Set(),result=[];

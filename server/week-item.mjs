@@ -4,7 +4,7 @@ import {odpLanguage} from './odp.mjs';
 import {array,tail} from './activity-index-model.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {amendmentsPage} from './amendments-store.mjs';
-import {committeeLabel,mainVoteEvents,statusIndexEvents} from './dossier-status.mjs';
+import {committeeLabel,mainVoteEvents,statusIndexEvents,tabledReports} from './dossier-status.mjs';
 import {dossierStatusLines,resolutionStage} from './dossier-status-model.mjs';
 import {cachedAgendaRequest} from './parliament-search.mjs';
 import {procedureSteps} from './procedure-steps.mjs';
@@ -41,12 +41,6 @@ export function leadCommitteeCodes(work) {
   const lead=array(work?.had_participation).filter(part=>roles(part).includes('COMMITTEE_LEAD')).flatMap(part=>array(part.had_participant_organization).map(tail));
   const named=array(work?.had_participation).filter(rapporteur).map(part=>tail(part.participation_in_name_of));
   return [...new Set((lead.length?lead:named).filter(Boolean))];
-}
-/** Reports tabled for plenary on this procedure, newest first: event to document, never a title. */
-export function tabledReports(work) {
-  const dated=array(work?.consists_of).filter(event=>tail(event.had_activity_type)==='TABLING_PLENARY')
-    .flatMap(event=>array(event.based_on_a_realization_of).map(tail).filter(id=>reportId.test(id)).map(id=>({id,date:event.activity_date||''})));
-  return [...new Set(dated.sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id)).map(row=>row.id))];
 }
 /** The report's own rapporteurs; else the procedure's in its latest term, without an earlier term's. */
 export function rapporteurIds(report,work,leadCodes=[]) {

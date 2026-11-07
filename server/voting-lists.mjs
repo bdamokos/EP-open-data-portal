@@ -100,3 +100,22 @@ export function parseVotingList(buffer,{sourceUrl=null,observedAt=new Date().toI
   const versionLabel=pre.find(s=>/^(FINAL VERSION(?:\/\d+)?|initial)$/.test(s))||null;
   return {sittingId:null,documentId,documentReference:reference,agendaItemId:null,heading:{kind,rapporteur:kind==='report'?pre[h].replace(/^Report:\s*/,'').split('(')[0].trim():null,procedureMark:header.match(/\[([^\]]+)\]/)?.[1]||null,title:kind==='resolutions'?pre[h].replace(/^Resolutions:\s*/,''):pre[h+1]||null,committee:pre.find(s=>s.startsWith('Committee:'))?.replace(/^Committee:\s*/,'')||null},versionLabel,revision:{sha256:createHash('sha256').update(buffer).digest('hex'),observedAt,etag:null,lastModified:null,sourceUrl,pageUrl:VOTING_LIST_PAGE,linkVersion:null},revisions:[],rows,notes:parseNotes(content.paragraphs.slice(end)),gaps};
 }
+
+/** What a voting list decides. A block is the committee's amendments voted as one, whether the list
+ * calls it a block or gives them one shared row. An individual amendment has its own row, or shares
+ * one only with identical ones. Amendments count by number, since one voted in parts takes several
+ * rows. A block by anyone else can't be described as the committee's, and a row the parser couldn't
+ * read leaves the counts unknown, so such a list gives nothing.
+ */
+export function votingListCounts(list) {
+  if(!Array.isArray(list?.rows)||list.gaps?.some(gap=>gap.code==='unrecognised-row'))return null;
+  const numbers=row=>[...new Set((row.amendments||[]).map(amendment=>amendment.number))];
+  const committee=row=>row.authors?.length>0&&row.authors.every(author=>author==='committee');
+  const block=row=>row.kind==='block'||numbers(row).length>1&&!row.identical&&committee(row);
+  const blocks=list.rows.filter(block);
+  if(!blocks.every(committee))return null;
+  const blockNumbers=new Set(blocks.flatMap(numbers)),others=list.rows.filter(row=>!block(row));
+  const own=rows=>new Set(rows.flatMap(numbers).filter(number=>!blockNumbers.has(number))).size;
+  const counts={blockVotes:blocks.length,blockAmendments:blockNumbers.size,individual:own(others),identical:own(others.filter(row=>row.identical))};
+  return counts.blockAmendments||counts.individual?counts:null;
+}
