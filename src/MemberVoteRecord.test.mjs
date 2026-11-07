@@ -363,7 +363,7 @@ test('an unknown member id answers with an unavailable group and nothing else',a
 
 test('a title opens the vote page in the page itself, and a modified click is left to the browser',async t=>{
   const view=await mount(t);
-  assert.deepEqual(links(view.container).map(link=>link.getAttribute('href')),departures.slice(0,5).map(item=>'?view=legislation&pl-mode=vote&pl-vote='+item.decisionId+'&lang=en'));
+  assert.deepEqual(links(view.container).map(link=>link.getAttribute('href')),departures.slice(0,5).map(item=>'?view=legislation&pl-mode=vote&pl-vote='+item.decisionId+'&vote-member='+MEMBER+'&lang=en'));
   const click=init=>{const event=new view.window.MouseEvent('click',{bubbles:true,cancelable:true,button:0,...init});links(view.container)[0].dispatchEvent(event);return event.defaultPrevented;};
   const pushed=[];
   Object.defineProperty(globalThis,'history',{value:{state:null,pushState:(state,title,url)=>pushed.push({state,url:String(url)})},configurable:true});

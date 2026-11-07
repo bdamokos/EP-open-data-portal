@@ -5,7 +5,7 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {voteFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
 
-async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCountry=()=>{}}={}) {
+async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCountry=()=>{},member=null}={}) {
  const window=new Window({url:url||'http://localhost/?view=legislation&pl-mode=vote&pl-vote='+id+'&lang=en'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map();
  for(const [key,value] of Object.entries(globals)){old.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});}
  const calls=[];t.mock.method(globalThis,'fetch',async input=>{const target=new URL(input,window.location.href);calls.push(target.pathname);return handler(target);});
@@ -13,7 +13,7 @@ async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCoun
  const {VotePage}=await load('/src/VotePage.tsx'),{PersonNamesProvider}=await load('/src/PersonName.tsx'),{createRoot}=await import('react-dom/client');
  const container=window.document.createElement('div');window.document.body.append(container);const root=createRoot(container);
  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
- await act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(VotePage,{decisionId:id,language:'en',country,onCountry}))));
+ await act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(VotePage,{decisionId:id,language:'en',country,onCountry,member}))));
  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
  return {container,calls};
 }
@@ -235,4 +235,63 @@ test('choosing all countries clears a country that came from the address',async 
  const all=[...fold.querySelectorAll('button')].find(button=>/All countries/.test(button.textContent));
  await act(async()=>{all.click();});
  assert.deepEqual(cleared,[null]);
+});
+
+const named=[{id:197481,firstName:'Ann',lastName:'Against',countryCode:'FR'},{id:197591,firstName:'Sam',lastName:'Socialist',countryCode:'FR'},{id:124846,firstName:'Rae',lastName:'Renew',countryCode:'FR'},{id:256852,firstName:'Nia',lastName:'Attached',countryCode:'DE'},{id:999,firstName:'Una',lastName:'Elsewhere',countryCode:'IE'}];
+test('a vote page with a member says how they voted and leads back to them',async t=>{
+ const data=await voteFixture().read();
+ data.mainVoteId=null;
+ const h=await mount(t,serve(data),{members:named,member:'197481'});
+ const line=h.container.querySelector('.member-line');
+ assert.equal(line.textContent,'Ann Against voted Against, differently from Parliament’s outcome. France: 1 of 3 MEPs voted this way.');
+ assert(line.querySelector('svg.mk'),'next to its mark');
+ const back=h.container.querySelector('.strip a');
+ assert.match(back.textContent,/Ann Against/);
+ assert.match(back.getAttribute('href'),/^\?member=197481&module=votes/);
+ const sentence=h.container.querySelector('h1');
+ assert.equal(sentence.nextElementSibling,line,'directly under the sentence');
+ assert(!/agenda-period/.test(back.getAttribute('href')));
+});
+test('without a member, and for a member not on the vote, the page stays the plain vote page',async t=>{
+ const data=await voteFixture().read();
+ for(const [label,options] of [['no member',{}],['unknown id',{member:'424242'}]]) await t.test(label,async sub=>{
+  const h=await mount(sub,serve(data),{members:named,...options});
+  assert.equal(h.container.querySelector('.member-line'),null);
+  assert.match(h.container.querySelector('.strip a').getAttribute('href'),/agenda-period=sitting/,'the day link stays');
+ });
+ await t.test('a known member who was not on this vote keeps the way back and has no line',async sub=>{
+  const h=await mount(sub,serve(data),{members:named,member:'999'});
+  assert.equal(h.container.querySelector('.member-line'),null);
+  assert.match(h.container.querySelector('.strip a').textContent,/Una Elsewhere/);
+ });
+});
+test('no recorded vote is stated, never counted',async t=>{
+ const data=await voteFixture().read();
+ data.noRecord={ids:['999'],groups:['PPE']};
+ const h=await mount(t,serve(data),{members:named,member:'999'});
+ assert.equal(h.container.querySelector('.member-line').textContent,'Una Elsewhere: no vote recorded');
+});
+test('stepping keeps the member, and their dot carries the chart focus',async t=>{
+ const {data}=await partData();
+ const h=await mount(t,serve(data),{members:named,member:'197481'});
+ const steps=[...h.container.querySelectorAll('.step a')].map(link=>link.getAttribute('href')).filter(href=>href.startsWith('?'));
+ assert(steps.length>0);
+ for(const href of steps)assert.match(href,/vote-member=197481/);
+ await act(async()=>{await new Promise(resolve=>setTimeout(resolve,50));});
+ const marked=h.container.querySelectorAll('svg .d.sel');
+ assert.equal(marked.length,1);
+ assert.match(marked[0].getAttribute('aria-label'),/^Ann Against/);
+ assert.doesNotMatch(h.container.querySelector('.hollow').textContent,/Ann Against/,'the centre keeps the outcome');
+});
+test('an exact roll-call request shows as one quiet line, and nothing shows without one',async t=>{
+ const data=await voteFixture().read();
+ await t.test('none',async sub=>{
+  const h=await mount(sub,serve(data));
+  assert.doesNotMatch(h.container.textContent,/Roll call requested/);
+ });
+ await t.test('exact',async sub=>{
+  const requested={...data,decision:{...data.decision,rollCallRequesters:[{id:'a',binding:'exact-decision-was_motivated_by',organizationLabels:{en:'S&D'}},{id:'b',binding:'other',organizationLabels:{en:'Not bound'}}]}};
+  const h=await mount(sub,serve(requested));
+  assert.equal([...h.container.querySelectorAll('.note')].find(node=>/Roll call/.test(node.textContent)).textContent,'Roll call requested by S&D.');
+ });
 });

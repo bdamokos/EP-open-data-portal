@@ -4,13 +4,14 @@ import {VotePartDescriptions} from './MemberVoteSummary';
 import {insightMemberHref} from './InsightShared';
 import {useDirectoryMembers,usePersonName} from './PersonName';
 import {useData} from './data';
-import {dossierLinkClick} from './dossierJourney';
+import {dossierBackHref,dossierLinkClick} from './dossierJourney';
 import {dossierHref} from './followDossiers.mjs';
 import {decisionVotesRoute,validateDecisionVotes} from './decisionVotesPresentation.mjs';
 import {displayVoteTitle,exactAmendmentTargets,memberVoteTotals} from './memberVotesPresentation.mjs';
 import {publicUrl} from './publicUrl';
+import {selectLanguageText} from './language.mjs';
 import {documentReferenceLabel,readableDocument,readHref} from './readRoute.mjs';
-import {agendaItemHref,clockTime,dayDate,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,groupCountsOf,groupLead,itemVoteSections,membersByGroup,shortDate,sittingHref,voteCentre,voteHref,voteNumbers,voteOutcomeWord,voteRowLabel,voteSentence,voteSteps,wayLine} from './votePagePresentation.mjs';
+import {agendaItemHref,clockTime,dayDate,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,groupCountsOf,groupLead,itemVoteSections,memberBackHref,memberVoteLine,membersByGroup,shortDate,type MemberVoteLine,sittingHref,voteCentre,voteHref,voteNumbers,voteOutcomeWord,voteRowLabel,voteSentence,voteSteps,wayLine} from './votePagePresentation.mjs';
 import {FoldLink,FoldRow} from './FoldRow';
 import {PageStrip,StripLink} from './PageStrip';
 import {InItsPlace,VoteAmendmentText} from './VoteAmendmentText';
@@ -91,8 +92,14 @@ function DifferBlock({entries,language}:{entries:ReturnType<typeof differingByGr
   const ui=useUiI18n();
   return <div className="people">{entries.map(entry=><p key={entry.code}><b><span lang={groupLabelLanguage(entry.code,ui)}>{groupName(entry.code,ui)}</span> {entry.count}:</b>{entry.positions.map(line=><span key={line.position}> <VoteMark position={line.position}/><Names people={line.people as Row[]} language={language}/></span>)}</p>)}</div>;
 }
+// How the member the reader came from voted, right under the page's sentence.
+function MemberLine({line,name,language}:{line:MemberVoteLine;name:string;language:string}) {
+  const ui=useUiI18n(),words=usePositionWords(),who=<span lang="">{name}</span>;
+  if(line.state==='no_record')return <p className="member-line"><UiMessage id="votepage.member.no_record" values={{name:who}}/></p>;
+  return <p className="member-line"><VoteMark position={line.position}/><b><UiMessage id={line.id} values={{name:who,position:words(line.position),...(line.group?{group:<span lang={groupLabelLanguage(line.group,ui)}>{groupName(line.group,ui)}</span>}:{})}}/></b>{line.country&&<> <UiMessage id="votepage.member.country" values={{count:line.country.count,total:line.country.total,country:<span lang={language}>{countryName(line.country.code,language)}</span>}} counts={{count:line.country.count}}/></>}</p>;
+}
 // Every vote on the item, complete, main vote first. The agenda item uses the same rows.
-export function ItemVotes({votes,current,mainVoteId,language,mainByLabel=false}:{votes:DecisionItemVote[];current?:string;mainVoteId:string|null;language:string;mainByLabel?:boolean}) {
+export function ItemVotes({votes,current,mainVoteId,language,mainByLabel=false,member=null}:{votes:DecisionItemVote[];current?:string;mainVoteId:string|null;language:string;mainByLabel?:boolean;member?:string|null}) {
   const ui=useUiI18n();
   const heading=(key:string,count:number)=><h3><UiMessage id={'votepage.section.'+key}/> <small>{count}</small></h3>;
   return <>{itemVoteSections(votes,mainVoteId).map(section=>{
@@ -103,7 +110,7 @@ export function ItemVotes({votes,current,mainVoteId,language,mainByLabel=false}:
         const label=voteRowLabel(row,language,ui,{mainVoteId});
         // A part's page says nothing about the final vote beyond naming it.
         if(mainByLabel&&row.id===mainVoteId)return <VoteRow key={row.id} tight title={<span className="t" lang="">{label}</span>}/>;
-        return <VoteRow key={row.id} tight title={row.id===current?<span className="t"><b lang="">{label}</b></span>:<a className="t" lang="" href={voteHref(row.id,language)} onClick={dossierLinkClick}>{label}</a>} sub={row.id===current?<UiMessage id="votepage.this_vote"/>:undefined} word={voteOutcomeWord(row,ui)} rejected={row.outcome==='REJECTED'} totals={counted?row.totals:null}/>;
+        return <VoteRow key={row.id} tight title={row.id===current?<span className="t"><b lang="">{label}</b></span>:<a className="t" lang="" href={voteHref(row.id,language,member)} onClick={dossierLinkClick}>{label}</a>} sub={row.id===current?<UiMessage id="votepage.this_vote"/>:undefined} word={voteOutcomeWord(row,ui)} rejected={row.outcome==='REJECTED'} totals={counted?row.totals:null}/>;
       })}
     </div>;
   })}</>;
@@ -112,7 +119,7 @@ function NoChart() {
   return <figure className="seats"><p className="seatkey" role="status"><UiMessage id="votepage.seat_chart_unavailable"/></p></figure>;
 }
 
-export function VotePage({decisionId,language,onMember,country,onCountry}:{decisionId:string;language:string;onMember:InsightProps['onMember'];country:string|null;onCountry:(country:string|null)=>void}) {
+export function VotePage({decisionId,language,onMember,country,onCountry,member=null}:{decisionId:string;language:string;onMember:InsightProps['onMember'];country:string|null;onCountry:(country:string|null)=>void;member?:string|null}) {
   const ui=useUiI18n(),words=usePositionWords();
   const directory=useDirectoryMembers(),displayName=usePersonName();
   const route=decisionVotesRoute(decisionId,language);
@@ -131,7 +138,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
   const tableOrder=useMemo(()=>tableGroupOrder(voteCounts,groupCounts(seats)),[voteCounts,seats]);
   const seatOrder=useMemo(()=>planGroupOrder(seats),[seats]);
   const differIds=useMemo(()=>differingVoterIds(rows),[rows]);
-  const differing=useMemo(()=>differingByGroup(rows,differIds,tableOrder),[rows,differIds,tableOrder]);
+  const differing=useMemo(()=>differingByGroup(rows,differIds,tableOrder,member),[rows,differIds,tableOrder,member]);
   const people=useMemo(()=>data?findableMembers(rows,data.noRecord,data,directory,displayName):[],[data,rows,directory,displayName]);
   const [picked,setPicked]=useState<string|null>(null),[dimmed,setDimmed]=useState<string|null>(null);
   const [filter,setFilter]=useState<Filter>({country:null,group:null,position:null});
@@ -148,9 +155,14 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
   const loading=Boolean(route&&request.loading&&!data);
   const stripDate=/^MTG-PL-(\d{4}-\d{2}-\d{2})/.exec(decisionId)?.[1]??null;
   const dayBack=stripDate?<StripLink href={sittingHref(decisionId.slice(0,17),language)} onClick={dossierLinkClick} wide={<>‹ {dayDate(stripDate,language)}</>} narrow={<>‹ {shortDate(stripDate,language)}</>}/>:<span/>;
+  const memberLine=useMemo(()=>data&&member?memberVoteLine(data,rows,member):null,[data,rows,member]);
+  // A name the reply and the directory don't hold reads as a member once the directory is in.
+  const memberName=member?data?.people?.[member]?.name??(displayName(member)||(memberLine&&directory.size?ui.t('insightshared.mep'):null)):null;
+  const memberBack=member&&memberName?<StripLink href={memberBackHref(dossierBackHref()||(typeof history!=='undefined'?history.state?.dossierOrigin:null),member,language)} onClick={dossierLinkClick} wide={<>‹ <span lang="">{memberName}</span></>} narrow={<>‹ <span lang="">{memberName}</span></>}/>:null;
+  const back=memberBack??dayBack;
   const page=(children:React.ReactNode)=><article className="vs vote-page" lang={ui.language} data-vote-page={decisionId} data-vote-pending={loading ? 'true' : undefined}>{children}</article>;
-  if(loading)return page(<><PageStrip back={dayBack}/><h1 className="vote-page-placeholder" role="status" tabIndex={-1}><UiMessage id="votepage.loading"/></h1></>);
-  if(!data||data.status!=='found'||!vote)return page(<><PageStrip back={dayBack}/><h1 tabIndex={-1}>{!route||data?.coverage==='complete' ? <UiMessage id="votepage.not_found"/> : <UiMessage id="votepage.unavailable"/>}</h1></>);
+  if(loading)return page(<><PageStrip back={back}/><h1 className="vote-page-placeholder" role="status" tabIndex={-1}><UiMessage id="votepage.loading"/></h1></>);
+  if(!data||data.status!=='found'||!vote)return page(<><PageStrip back={back}/><h1 tabIndex={-1}>{!route||data?.coverage==='complete' ? <UiMessage id="votepage.not_found"/> : <UiMessage id="votepage.unavailable"/>}</h1></>);
   const subject=data.subject,agendaItem=subject?.agendaItemIds[0]??null;
   const mainVoteId=data.mainVoteId,siblings=data.siblings;
   const itemTitle=subject?.title ? displayVoteTitle(subject.title) : null,itemLanguage=subject?.titleLanguage??'';
@@ -172,12 +184,13 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
   const corrections=data.corrections?votePositionKeys.flatMap(position=>data.corrections![position].map(id=>({id,position,name:data.people?.[id]?.name??(displayName(id)||null)}))):[];
   const referenceDossier=data.procedureReferral&&!partPage?subject?.procedures[0]??null:null;
   const exactTarget=exactAmendmentTargets(vote).length===1&&amendmentPage;
+  const requesters=vote.rollCallRequesters.filter(row=>row.binding==='exact-decision-was_motivated_by').map(row=>selectLanguageText(row.organizationLabels,language)).filter(label=>label.text);
   return page(<>
-    <PageStrip back={dayBack}>
+    <PageStrip back={back}>
       {count>1&&<>
-        <StripLink href={steps.previous?voteHref(steps.previous,language):null} onClick={dossierLinkClick} label={ui.t('votepage.previous_vote')} wide={<>‹ <UiMessage id="votepage.previous_vote"/></>} narrow="‹"/>
+        <StripLink href={steps.previous?voteHref(steps.previous,language,member):null} onClick={dossierLinkClick} label={ui.t('votepage.previous_vote')} wide={<>‹ <UiMessage id="votepage.previous_vote"/></>} narrow="‹"/>
         <StripLink href="#votes" onClick={openVotes} wide={<UiMessage id="votepage.votes_on_item" values={{count}} counts={{count}}/>} narrow={<UiMessage id="votepage.votes_short" values={{count}} counts={{count}}/>}/>
-        <StripLink href={steps.next?voteHref(steps.next,language):null} onClick={dossierLinkClick} label={ui.t('votepage.next_vote')} wide={<><UiMessage id="votepage.next_vote"/> ›</>} narrow="›"/>
+        <StripLink href={steps.next?voteHref(steps.next,language,member):null} onClick={dossierLinkClick} label={ui.t('votepage.next_vote')} wide={<><UiMessage id="votepage.next_vote"/> ›</>} narrow="›"/>
       </>}
     </PageStrip>
     {amendmentPage||!itemTitle?<>
@@ -187,15 +200,17 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
       <h1 tabIndex={-1} lang={itemLanguage}>{itemTitle}</h1>
       <p className="say">{say}</p>
     </>}
+    {memberLine&&memberName&&<MemberLine line={memberLine} name={memberName} language={language}/>}
     {named&&<WayLine rows={rows} order={tableOrder}/>}
     {vote.parts.length>0&&!exactTarget&&<VotePartDescriptions vote={vote} language={language} grouped/>}
-    {amendmentPage&&<VoteAmendmentText key={decisionId+':'+language} vote={vote} siblings={siblings} language={language}/>}
+    {amendmentPage&&<VoteAmendmentText key={decisionId+':'+language} vote={vote} siblings={siblings} language={language} member={member}/>}
     {named&&<div className="split">
-      {planState.error&&!plan?<NoChart/>:plan?<Suspense fallback={<figure className="seats"><div className="stage stage-empty"/></figure>}><VoteArc voters={rows} order={seatOrder} word={centre.word} small={centre.small} smallLanguage={centre.smallLanguage} noRecord={data.noRecord?data.noRecord.ids.length:null} picked={picked} onPick={setPicked} dimmedGroup={dimmed} language={language} onMember={onMember?(id:number)=>onMember(id):undefined} positionWord={words}/></Suspense>:<figure className="seats"><div className="stage stage-empty"/></figure>}
+      {planState.error&&!plan?<NoChart/>:plan?<Suspense fallback={<figure className="seats"><div className="stage stage-empty"/></figure>}><VoteArc voters={rows} order={seatOrder} word={centre.word} small={centre.small} smallLanguage={centre.smallLanguage} noRecord={data.noRecord?data.noRecord.ids.length:null} picked={picked} marked={member} onPick={setPicked} dimmedGroup={dimmed} language={language} onMember={onMember?(id:number)=>onMember(id):undefined} positionWord={words}/></Suspense>:<figure className="seats"><div className="stage stage-empty"/></figure>}
       <GroupTable rows={rows} order={tableOrder} totals={totals} official={vote.totals} onDim={setDimmed}/>
       <FindMember people={people} language={language} onFound={setPicked}/>
     </div>}
     {!named&&totals&&<TotalsFigures totals={totals} label={<UiMessage id="votepage.votes_cast" values={{count:totals.total}} counts={{count:totals.total}}/>}/>}
+    {requesters.length>0&&<p className="note"><UiMessage id="activityvote.roll_call_requested_by_requesters" values={{requesters:requesters.map((label,index)=><span key={index} lang={label.language}>{index>0?', ':''}{label.text}</span>)}}/></p>}
     {data.integrity==='partial'&&named&&<p className="note"><UiMessage id="legislation.the_named_voter_list_differs_from_parliament_s_published_totals.d739ef"/></p>}
     {conflicting&&<p className="note"><UiMessage id="legislation.individual_votes_unavailable.ca5dc2"/></p>}
     {amendmentPage&&<InItsPlace key={'place:'+decisionId+':'+language} vote={vote} siblings={siblings} language={language}/>}
@@ -209,7 +224,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
         <Suspense fallback={<p role="status"><UiMessage id="insightshared.loading"/></p>}><VoteCountries rows={rows} language={language} country={filter.country} group={filter.group} position={filter.position} onChoose={chooseCountry}/></Suspense>
         {breaks.length>0&&<><h3 className="breaks"><UiMessage id="votegroups.delegations.heading"/></h3><ul className="break-list">{breaks.map(row=><li key={row.group+row.country}><UiMessage id="votegroups.delegation.row" values={{country:countryName(row.country,language),group:groupLabel(row.group,ui),for:row.for,against:row.against,restFor:row.restFor,restAgainst:row.restAgainst}}/></li>)}</ul></>}
       </FoldRow>}
-      {count>1&&<FoldRow id="votes" title={<UiMessage id="votepage.votes_fold"/>} value={count} open={votesOpen??hands} onOpenChange={setVotesOpen}><ItemVotes votes={siblings} current={decisionId} mainVoteId={mainVoteId} language={language} mainByLabel={partPage}/></FoldRow>}
+      {count>1&&<FoldRow id="votes" title={<UiMessage id="votepage.votes_fold"/>} value={count} open={votesOpen??hands} onOpenChange={setVotesOpen}><ItemVotes votes={siblings} current={decisionId} mainVoteId={mainVoteId} language={language} mainByLabel={partPage} member={member}/></FoldRow>}
       {referenceDossier&&<FoldRow title={<UiMessage id="votepage.the_file"/>} value={referenceDossier.reference}><Suspense fallback={<p role="status"><UiMessage id="insightshared.loading"/></p>}><DossierStatus reference={referenceDossier.reference} language={language}/></Suspense></FoldRow>}
       {partPage&&subject?.procedures.map(procedure=><FoldLink key={procedure.id} title={<UiMessage id="searchreference.dossier"/>} value={procedure.reference} href={dossierHref(procedure.reference,language)} onClick={dossierLinkClick}/>)}
       {corrections.length>0&&<FoldRow title={<UiMessage id="votepage.corrections"/>} value={corrections.length}><div className="people">{votePositionKeys.map(position=>{const list=corrections.filter(row=>row.position===position);return list.length?<p key={position}><VoteMark position={position}/><b>{words(position)} {list.length}:</b> {list.map((row,index)=><span key={row.id}>{index?', ':''}<a href={insightMemberHref(row.id,language)} lang="">{row.name||ui.t('insightshared.mep')}</a></span>)}</p>:null;})}</div></FoldRow>}

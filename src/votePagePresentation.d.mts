@@ -7,7 +7,8 @@ export type VoterRow={id:string;name:string|null;country:string|null;group:strin
 export type FindableMember=Omit<VoterRow,'position'>&{position:Position|null};
 type GroupCounts=Record<Position,number>&{total:number};
 type Line={position:Position;people:{id:string;name:string|null;country:string|null;group:string|null;position:Position}[]};
-export function voteHref(id:string,language?:string):string;
+export function voteHref(id:string,language?:string,member?:string|number|null):string;
+export function memberBackHref(origin:string|null|undefined,member:string|number,language?:string):string;
 export function agendaItemHref(id:string,language?:string):string;
 export function sittingHref(sittingId:string,language?:string):string;
 export function longDate(value:string,language?:string):string;
@@ -27,7 +28,9 @@ export function groupCountsOf(rows:{group:string|null;position:Position}[]):Map<
 export function groupLead(counts:Record<Position,number>):Position|null;
 export function wayLine(rows:{group:string|null;position:Position|null}[],order:string[]):Record<Position|'split',string[]>;
 export function membersByGroup(rows:VoterRow[],order:string[]):{code:string;positions:Line[]}[];
-export function differingByGroup(rows:VoterRow[],differIds:Set<string>,order:string[]):{code:string;count:number;positions:Line[]}[];
+export function differingByGroup(rows:VoterRow[],differIds:Set<string>,order:string[],first?:string|null):{code:string;count:number;positions:Line[]}[];
+export type MemberVoteLine={state:'no_record'}|{state:'voted';position:Position;id:string;group:string|null;country:{code:string;count:number;total:number}|null};
+export function memberVoteLine(data:DecisionVotesResponse,rows:VoterRow[],member:string|null):MemberVoteLine|null;
 export function itemVoteSections<T extends {id:string;totals:Record<Position,number|null>;ballotStatus:string;outcome:string|null;method?:string|null}>(votes:T[],mainVoteId?:string|null):{key:string;votes:T[]}[];
 export function voteSteps(votes:{id:string;totals:Record<Position,number|null>;ballotStatus:string;outcome:string|null;method?:string|null}[],mainVoteId:string|null,id:string):{previous:string|null;next:string|null};
 export function agendaVoteRedirect(search:string):string|null;

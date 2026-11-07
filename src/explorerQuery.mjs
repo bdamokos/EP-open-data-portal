@@ -30,7 +30,7 @@ export function readExplorerParam(query,key,fallback,allowed) {
   if(key==='global-fts-catalog-offset'&&(!Number.isInteger(value)||value<0||value>1000))return fallback;
   if(['global-fts-from','global-fts-to'].includes(key)&&raw&&!validDate(raw))return fallback;
   if(key==='q-range'&&raw){const [start,end,...extra]=raw.split('_');if(extra.length||!validDate(start)||!validDate(end)||start>end)return fallback;}
-  if(['ov-person','hc-member'].includes(key)&&!/^[1-9]\d{0,12}$/.test(raw))return fallback;
+  if(['ov-person','hc-member','vote-member'].includes(key)&&!/^[1-9]\d{0,12}$/.test(raw))return fallback;
   if(key==='ov-month'&&!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(raw))return fallback;
   if(['agenda-period','hot-period','cloud-period'].includes(key)&&!(/^sitting:MTG-PL-\d{4}-\d{2}-\d{2}$/.test(raw)||raw.startsWith('week:')&&validDate(raw.slice(5))&&new Date(raw.slice(5)).getUTCDay()===1))return fallback;
   return value;
@@ -39,7 +39,7 @@ export function readExplorerParam(query,key,fallback,allowed) {
 export function explorerParams(query,view,member) {
   const result=new URLSearchParams();
   const ownsMember=member===undefined||Boolean(member&&query.get('member')===String(member));
-  const prefix=view==='geopolitics'?/^(topic$|place$|t-)/:view==='questions'?/^q-/:view==='legislation'?(query.get('pl-mode')==='topics'?/^(topic$|t-|(?:pl|agenda|hot|cloud|dossier|trend)-)/:/^(?:vote-country-sort$|split-preview$|(?:pl|agenda|hot|cloud|dossier|trend|read)-)/):view==='outside'?/^ov-/:view==='hemicycle'?/^hc-/:view==='amendments'?/^am-/:view==='groups'?/^gv-/:view===null&&ownsMember?/^mep-(speech|activity)-fts-/:null;
+  const prefix=view==='geopolitics'?/^(topic$|place$|t-)/:view==='questions'?/^q-/:view==='legislation'?(query.get('pl-mode')==='topics'?/^(topic$|t-|(?:pl|agenda|hot|cloud|dossier|trend)-)/:/^(?:vote-country-sort$|vote-member$|split-preview$|(?:pl|agenda|hot|cloud|dossier|trend|read)-)/):view==='outside'?/^ov-/:view==='hemicycle'?/^hc-/:view==='amendments'?/^am-/:view==='groups'?/^gv-/:view===null&&ownsMember?/^mep-(speech|activity)-fts-/:null;
   for(const [key,value] of query)if(/^global-fts-(search|text-lang|page|offset|catalog-offset|from|to|read|kind|sort|closed)$/.test(key)||prefix?.test(key)||view===null&&ownsMember&&(key==='mep-speech-category'||isMemberVotesParam(key)||key.startsWith('ma-')||key==='record-preview'&&value==='1')){
     if(key.endsWith('-country')){const country=readExplorerParam(query,key,null);if(country)result.set(key,country);}
     else result.set(key,value);

@@ -13,6 +13,8 @@
 :is(.explorer-insights,.explorer-profile-body) .vs h1 { font:700 var(--t-h1)/1.16 var(--font-serif); letter-spacing:-.008em; text-wrap:pretty; max-width:28em; padding-top:var(--s1); }
 :is(.explorer-insights,.explorer-profile-body) .vs h1:focus { outline:none; }
 .vs .say { margin-top:var(--s2); font:400 var(--t-say)/1.3 var(--font-serif); text-wrap:pretty; max-width:46em; }
+.vs .member-line { margin-top:var(--s2); font:400 var(--t-row)/1.35 var(--font-serif); text-wrap:pretty; max-width:46em; }
+.vs .member-line b { font-weight:600; }
 .vs .meta,.vs .sub { font-size:var(--t-meta); line-height:1.35; color:var(--ink-muted); }
 .vs .kicker { display:flex; flex-wrap:wrap; align-items:baseline; gap:0 var(--s3); font:400 var(--t-row)/1.35 var(--font-serif); padding:var(--s1) 0; }
 .vs .kicker .meta { font-family:var(--font-sans); }
@@ -25,7 +27,9 @@
 :is(.explorer-insights,.explorer-profile-body) .vs button.word[aria-pressed=true] { color:inherit; background:none; border:0; font-weight:600; text-decoration-thickness:2px; text-decoration-color:currentColor; }
 .vs .wordswitch { display:inline-flex; flex-wrap:wrap; gap:0 var(--s4); }
 .vs .strip { display:flex; justify-content:space-between; align-items:center; gap:var(--s4); min-height:44px; padding-top:var(--s2); padding-bottom:var(--s1); }
-.vs .step { display:inline-flex; gap:var(--s4); align-items:center; }
+.vs .step { display:inline-flex; gap:var(--s4); align-items:center; flex:none; }
+/* A member's long name wraps; the stepper keeps its width. */
+.vs .strip > .c:first-child { min-width:0; white-space:normal; }
 
 /* The one row: the first lines share a baseline. */
 .vs .row,.vs .heads { display:grid; grid-template-columns:minmax(0,1fr) var(--word) repeat(3,var(--num)); align-items:baseline; }

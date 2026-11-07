@@ -75,7 +75,7 @@ function DeparturePage({memberId,language,scope,tag,offset,onLoaded,onFailed}:{m
   return <>{data.departures.items.map(item=>{
     const primary=item.subject?.text??item.text,primaryLanguage=item.subject?.text?item.subject.language:item.language;
     const label=item.subject?.text&&item.text?<span className="blk" lang={markLanguage(item.language,ui)}>{item.text}</span>:null;
-    const title=<a className="t" href={voteHref(item.decisionId,ui.language)} lang={markLanguage(primaryLanguage,ui)} onClick={dossierLinkClick}>{primary||ui.t('membervoterecord.departures.untitled')}</a>;
+    const title=<a className="t" href={voteHref(item.decisionId,ui.language,memberId)} lang={markLanguage(primaryLanguage,ui)} onClick={dossierLinkClick}>{primary||ui.t('membervoterecord.departures.untitled')}</a>;
     const sub=<>{label}{dateLabel(item.date,ui.locale)} · <UiMessage id="membervoterecord.departures.line" values={{position:positionLine(item.position,ui),line:positionLine(item.line,ui)}}/></>;
     return <VoteRow key={item.decisionId+item.sittingId} tight title={title} sub={sub}/>;
   })}</>;
