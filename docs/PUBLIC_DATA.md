@@ -169,7 +169,7 @@ Parliament’s interactive plan loads `/erpl-public/hemicycle/{str,bru}/en.json`
 
 ### Voting lists
 
-The Tabling Service lists are indicative and cover the current or next part-session. The public votes page links DOCX files under `/sedcms/votingList/` and the session schedule under `/sedcms/pubfile/VOTING_SCHEDULE/` on `www.europarl.europa.eu`; these and `/plenary/en/votes.html` are the only admitted website paths. Files are overwritten in place, and link version queries do not select historical editions.
+The Tabling Service lists are indicative and cover the current or next part-session. The public votes page links DOCX files under `/sedcms/votingList/` and the session schedule under `/sedcms/pubfile/VOTING_SCHEDULE/` on `www.europarl.europa.eu`; these and `/plenary/en/votes.html` are the only admitted website paths. Files are overwritten in place, and link version queries do not select historical editions. A list can name a report the agenda does not yet attach to a vote: a vote item can have no document, only its procedure, and a report debated in the same part-session can have no vote item until after the vote.
 
 The single source writer checks the page at most hourly between 07:00 and 23:00 Brussels time, from four days before a consecutive run of ODP sittings through its last sitting. Files use conditional requests every six hours, hourly from 06:00 on their sitting day until the last known voting slot ends. Writer contention can delay collection. Parsed revisions retain exact references and unclassified cells; no raw DOCX is retained. All list and schedule data expire 30 days after the part-session's last sitting. Ballot-to-decision bindings are separate.
 

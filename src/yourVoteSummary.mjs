@@ -27,4 +27,10 @@ export function sessionDateRange(dates,language) {
 }
 
 export const brusselsToday=(now=Date.now())=>new Intl.DateTimeFormat('sv-SE',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Europe/Brussels'}).format(new Date(now));
+// The topic's sitting and the rest of its part-session, while voting lists are held.
+export function ballotSittings(sitting,sittings,now=Date.now()) {
+  const days=new Map(sittings.map(s=>[s.date,s.id])),result=[];
+  for(let at=Date.parse(sitting.slice(7));days.has(new Date(at).toISOString().slice(0,10));at+=86400000)result.push(days.get(new Date(at).toISOString().slice(0,10)));
+  return result.filter(id=>Date.parse(id.slice(7))>=now-35*86400000);
+}
 export const ballotVisible=(sitting,source,now=Date.now())=>sitting.slice(7)>=brusselsToday(now)||['voting-list','retained'].includes(source);

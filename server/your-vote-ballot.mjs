@@ -1,6 +1,7 @@
 import {persistBallotBindings} from './ballot-bindings-store.mjs';
 export {prepareBallotBindings,persistBallotBindings,readBallotBindings} from './ballot-bindings-store.mjs';
 import {ballotScheduledFor} from './ballot-source-adapter.mjs';
+import {heldDocument,placeVotingLists} from './ballot-placement.mjs';
 import {references,identifier,deriveVoteEvidence} from './vote-evidence.mjs';
 import {isWholeProposalVote} from './vote-scope.mjs';
 // The voteScope final-label family; binding deliberately requires exact case.
@@ -50,11 +51,14 @@ function matches(row,doc,raw,derived) {
   return false;
 }
 export function ballotContext(day,amendments=[],derive=deriveVoteEvidence) {
-  const derived=derive(day,{includeBindingEvidence:true}),byAgenda=new Map(),parents=new Map();
+  const derived=derive(day,{includeBindingEvidence:true}),byAgenda=new Map(),parents=new Map(),byDocument=new Map();
   const conflicting=new Set((day.conflictingResults||[]).map(r=>r.activity_id||identifier(r.id)));
-  for(const result of day.results){const id=result.activity_id||identifier(result.id);if(!conflicting.has(id))parents.set(id,[...new Set(ids(result.executed))]);}
+  const owners=new Map();
+  for(const result of day.results){const id=result.activity_id||identifier(result.id);if(conflicting.has(id))continue;parents.set(id,[...new Set(ids(result.executed))]);for(const document of ids(result.based_on_a_realization_of,'doc'))owners.set(document,[...(owners.get(document)||[]),id]);}
   for(const decision of day.decisions){const owners=ids(decision.inverse_consists_of);if(owners.length!==1)continue;for(const agenda of parents.get(owners[0])||[]){const rows=byAgenda.get(agenda)||[];rows.push(decision);byAgenda.set(agenda,rows);}}
-  return {derived,byAgenda,amendmentsById:new Map(amendments.map(a=>[a.id,a]))};
+  // Only one vote record naming a document identifies its decisions.
+  for(const [document,results] of owners)if(results.length===1)byDocument.set(document,day.decisions.filter(decision=>{const parents=ids(decision.inverse_consists_of);return parents.length===1&&parents[0]===results[0];}));
+  return {derived,byAgenda,byDocument,amendmentsById:new Map(amendments.map(a=>[a.id,a]))};
 }
 function decisionKind(raw,derived) {
   const components=[...ids(raw.decided_on_a_realization_of,'doc'),...ids(raw.decided_on_a_part_of_a_realization_of,'doc')];
@@ -68,7 +72,7 @@ function decisionKind(raw,derived) {
   return null;
 }
 export function assembleBallot({document,agendaItemId,day={decisions:[],results:[],requests:[]},amendments=[],votingList=null,retained=[],context=ballotContext(day,amendments)}) {
-  const {derived,amendmentsById}=context,decisions=context.byAgenda.get(agendaItemId)||[];
+  const {derived,amendmentsById}=context,decisions=context.byAgenda.get(agendaItemId)||context.byDocument?.get(document)||[];
   const withdrawn=new Set(votingList?.notes?.withdrawn||[]),inadmissible=new Set(votingList?.notes?.inadmissible||[]);
   const rows=votingList?[...votingList.rows]:amendments.filter(a=>ballotScheduledFor(a,agendaItemId,day.sittingId)).sort((a,b)=>a.number-b.number).map((a,index)=>({row:index+1,kind:'amendment',subject:[a.targetLabel||a.label||''],subjectLanguage:a.targetLabelLanguage||null,amendments:[{number:Number(a.id.match(/-AM-(\d+)$/)?.[1]),cp:null}],authors:[...new Set([...(a.authors||[]).map(author=>author.displayName||author.name).filter(Boolean),...(a.committeeProposer?[a.committeeProposer]:[]),...array(a.onBehalfOf)])],part:null,parentRow:null}));
   if(votingList)for(const number of [...withdrawn,...inadmissible])if(!rows.some(r=>r.amendments?.some(a=>a.number===number)))rows.push({row:0,kind:'amendment',subject:[],amendments:[{number,cp:null}],part:null});
@@ -103,7 +107,7 @@ export function groupMajorities(voters) {
 export function retainSittingBallotBindings(store,day,lists) {
   store.assertWriter();
   const context=ballotContext(day);
-  for(const votingList of lists) {
+  for(const votingList of placeVotingLists(lists,day.agenda||[],id=>heldDocument(store,id))) {
     if(!votingList.documentId||!votingList.agendaItemId)continue;
     const ballot=assembleBallot({document:votingList.documentId,agendaItemId:votingList.agendaItemId,day,votingList,context});
     persistBallotBindings(store.db,{sitting:day.sittingId,agenda:votingList.agendaItemId,document:votingList.documentId,bindings:ballot.bindings});

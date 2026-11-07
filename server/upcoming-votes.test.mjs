@@ -45,3 +45,35 @@ test('an unsettled future agenda is never pinned in the assembled response cache
  const {DatabaseSync}=await import('node:sqlite'),{prepareBallotBindings}=await import('./ballot-bindings-store.mjs');const db=new DatabaseSync(':memory:');prepareBallotBindings(db);
  try{const data=await ballotInputs({sitting,language:'en'},{store:{db,status:()=>({servingGeneration:1}),get:()=>null},clock:()=>Date.parse('2026-11-03'),meetings:{catalogue:async()=>({nodes:[{activity_id:sitting}],coverage:{status:'complete'}})},lists:async()=>[],request:async endpoint=>({stale:true,payload:{data:endpoint.endsWith('/foreseen-activities')?[]:[{activity_id:sitting,had_activity_type:'def/ep-activities/PLENARY_SITTING'}]}})});assert.equal(data.revision,null);}finally{db.close();}
 });
+test('a voting list places a report the agenda has no vote item for',async()=>{
+ const {placeVotingLists}=await import('./ballot-placement.mjs');
+ const vote=(id,docs,proc)=>({activity_id:sitting+'-OJ-ITM-'+id,id:'eli/dl/event/'+sitting+'-OJ-ITM-'+id,had_activity_type:'def/ep-activities/PLENARY_VOTE',based_on_a_realization_of:docs.map(d=>'eli/dl/doc/'+d),inverse_was_scheduled_in:proc?['eli/dl/proc/'+proc]:[]});
+ const closed={activity_id:sitting+'-OJ-ITM-D-3',id:'eli/dl/event/'+sitting+'-OJ-ITM-D-3',had_activity_type:'def/ep-activities/PLENARY_DEBATE'};
+ const other={activity_id:sitting+'-OJ-ITM-D-51',id:'eli/dl/event/'+sitting+'-OJ-ITM-D-51',had_activity_type:'def/ep-activities/PLENARY_DEBATE'};
+ const slot={activity_id:sitting+'-TF-1100',had_activity_type:'def/ep-activities/MEETING_PART',consists_of:['eli/dl/event/'+sitting+'-OJ-ITM-V-46','eli/dl/event/'+sitting+'-OJ-ITM-V-45','eli/dl/event/'+sitting+'-OJ-ITM-D-3']};
+ const agenda=[vote('V-45',['A-10-2026-0269']),vote('V-46',[],'2025-2118'),closed,other,slot];
+ const list=documentId=>({sittingId:sitting,documentId,agendaItemId:null,rows:[]});
+ const held={'A-10-2026-0280':{inverse_based_on_a_realization_of:['eli/dl/event/2025-2118-DEPOT-2026-10-26']},'A-10-2026-0271':{inverse_based_on_a_realization_of:['eli/dl/event/2025-0223-DEPOT-2026-10-12','eli/dl/event/MTG-PL-2026-11-11-OJ-ITM-D-37']},'A-10-2026-0261':{inverse_based_on_a_realization_of:[]}};
+ const placed=placeVotingLists(['A-10-2026-0269','A-10-2026-0280','A-10-2026-0271','A-10-2026-0261'].map(list),agenda,id=>held[id]);
+ assert.deepEqual(placed.map(p=>[p.agendaItemId,p.placement,p.alsoOn]),[[sitting+'-OJ-ITM-V-45','vote-item',undefined],[sitting+'-OJ-ITM-V-46','procedure',undefined],['MTG-PL-2026-11-11-OJ-ITM-D-37','debate',[sitting+'-OJ-ITM-D-3']],[sitting+'-OJ-ITM-D-3','debate',[]]]);
+ // A binding the collector already made survives a day without its agenda.
+ assert.equal(placeVotingLists([{...list('A-10-2026-0261'),agendaItemId:sitting+'-OJ-ITM-V-45'}],[],()=>{throw Error('Not needed');})[0].agendaItemId,sitting+'-OJ-ITM-V-45');
+ // No slot item and no held debate reference: nothing is guessed.
+ assert.equal(placeVotingLists([list('A-10-2026-0261')],[vote('V-45',['A-10-2026-0269'])],id=>held[id])[0].agendaItemId,null);
+ // A debate from an earlier session is not this vote's debate.
+ assert.equal(placeVotingLists([list('A-10-2026-0261')],[],()=>({inverse_based_on_a_realization_of:['eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-D-9']}))[0].agendaItemId,null);
+});
+test('placed reports get their ballot, wording and results through exact references',async()=>{
+ const report='A-10-2026-0271',debate='MTG-PL-2026-11-11-OJ-ITM-D-37',ai='A-10-2026-0280',result='MTG-PL-2026-11-12-VOT-ITM-1';
+ const data=await inputs();data.amendments=[{...row,id:report+'-AM-5',number:5,proposedText:'Text',scheduledVotes:[]}];
+ data.day.agenda=[{...agenda,activity_id:sitting+'-OJ-ITM-V-46',based_on_a_realization_of:[],inverse_was_scheduled_in:['eli/dl/proc/2025-2118']}];
+ const rows=number=>[{kind:'amendment',row:1,subject:['§ 1'],amendments:[{number,cp:null}],part:null}];
+ data.lists=[{documentId:report,sittingId:sitting,agendaItemId:debate,placement:'debate',alsoOn:[sitting+'-OJ-ITM-D-3'],procedureIds:['2025-0223'],heading:{title:'Union Civil Protection Mechanism'},rows:rows(5),revision:{sha256:'one'},notes:{}},{documentId:ai,sittingId:sitting,agendaItemId:sitting+'-OJ-ITM-V-46',placement:'procedure',rows:rows(1),revision:{sha256:'two'},notes:{}}];
+ data.day.results=[{activity_id:result,id:'eli/dl/event/'+result,had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',based_on_a_realization_of:['eli/dl/doc/'+report],executed:[]}];
+ data.day.decisions=[{activity_id:'MTG-PL-2026-11-12-DEC-1',id:'eli/dl/event/MTG-PL-2026-11-12-DEC-1',activity_order:'1.0',decided_on_a_realization_of:['eli/dl/doc/'+report+'-AM-5'],decision_outcome:'def/ep-statuses/ADOPTED',inverse_consists_of:['eli/dl/event/'+result]}];
+ const response=await upcomingVotes({sitting,language:'en'},{inputs:async()=>data});
+ const byDocument=Object.fromEntries(response.items.map(item=>[item.documentId,item]));
+ assert.equal(byDocument[ai].id,sitting+'-OJ-ITM-V-46');assert.equal(byDocument[ai].source,'voting-list');
+ assert.equal(byDocument[report].id,debate);assert.deepEqual(byDocument[report].alsoOn,[sitting+'-OJ-ITM-D-3']);assert.equal(byDocument[report].title,'Union Civil Protection Mechanism');assert.deepEqual(byDocument[report].procedureIds,['2025-0223']);
+ assert.equal(byDocument[report].rows[0].amendmentRows[0].proposedText,'Text');assert.equal(byDocument[report].rows[0].outcome,'ADOPTED');
+});
