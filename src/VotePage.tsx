@@ -166,7 +166,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry}:{decis
   const say=<>
     <UiMessage id={sentence.id} values={sentence.values.label?{...sentence.values,label:<span lang="">{sentence.values.label}</span>}:sentence.values}/>{sentence.noNames&&<> <UiMessage id="votepage.no_names"/></>}
   </>;
-  const chooseCountry=(next:string|null,group:string|null,position:VotePosition)=>{setFilter({country:next,group,position});setMembersOpen(true);requestAnimationFrame(()=>document.getElementById('members')?.scrollIntoView({block:'start'}));};
+  const chooseCountry=(next:string|null,group:string|null,position:VotePosition)=>{if(next===null&&country)onCountry(null);setFilter({country:next,group,position});setMembersOpen(true);requestAnimationFrame(()=>document.getElementById('members')?.scrollIntoView({block:'start'}));};
   const clearFilter=()=>{setFilter({country:null,group:null,position:null});if(country)onCountry(null);};
   const documents=subject?.documentIds??[];
   const corrections=data.corrections?votePositionKeys.flatMap(position=>data.corrections![position].map(id=>({id,position,name:data.people?.[id]?.name??(displayName(id)||null)}))):[];

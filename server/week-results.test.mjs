@@ -31,7 +31,7 @@ test('the response stays small and keeps the sitting order of the snapshot',()=>
 test('a week with no snapshot has a place and no results',async()=>{
   const reads=[];
   const result=await weekResults({week:'2026-11-09'},{clock:()=>Date.parse('2026-11-06T10:00:00Z'),periods:{collect:async()=>({weeks:[{week:'2026-11-09',sittings:[{location:'Brussels'},{location:'Brussels'}]}]})},votes:{snapshot:async query=>{reads.push(query);}}});
-  assert.deepEqual(result,{version:2,week:'2026-11-09',location:'Brussels',days:[],items:[],unlinked:[]});
+  assert.deepEqual(result,{version:3,week:'2026-11-09',location:'Brussels',days:[],items:[],unlinked:[]});
   assert.deepEqual(reads,[]);
 });
 
@@ -84,9 +84,9 @@ test('a sitting with partial records has unknown counts and contributes no items
   assert.equal(result.days[1].complete,true);
   assert.deepEqual(result.items,[]);
 });
-test('v2 exposes single-vote summaries and unlinked decisions without losing lapsed counts',()=>{
+test('the reply exposes single-vote summaries and unlinked decisions without losing lapsed counts',()=>{
  const result=projectWeekResults({week:'2026-10-05'},{days},null);
- assert.equal(result.version,2);
+ assert.equal(result.version,3);
  const single=result.items.find(item=>!item.main&&item.voteCount===1);assert.equal(single.summary.kind,'single');assert.equal(typeof single.summary.vote.id,'string');
  assert(result.unlinked.some(item=>item.sittingId==='MTG-PL-2026-10-05'));
  const multiple=structuredClone(days),singleDay=multiple[0];
@@ -103,4 +103,11 @@ test('v2 exposes single-vote summaries and unlinked decisions without losing lap
  assert.equal(counts.summary.kind,'counts');
  assert.equal(counts.summary.lapsed,4);
  assert.equal(counts.summary.adopted+counts.summary.rejected+counts.summary.lapsed+counts.summary.unknown,counts.voteCount);
+});
+test('an unlinked decision with no label keeps its published reference text as its title',()=>{
+ const copy=structuredClone(days),{id}=projectWeekResults({week:'2026-10-05'},{days},null).unlinked[0],target=copy.flatMap(day=>day.decisions).find(row=>row.activity_id===id);
+ assert(target);
+ delete target.activity_label;delete target.headingLabel;target.referenceText={en:'Request for an urgent decision'};
+ const row=projectWeekResults({week:'2026-10-05'},{days:copy},null).unlinked.find(item=>item.id===id);
+ assert.deepEqual(row.titles,{en:'Request for an urgent decision'});
 });

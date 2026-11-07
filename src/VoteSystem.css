@@ -45,6 +45,9 @@
 .vs .n.f { grid-column:3; } .vs .n.a { grid-column:4; } .vs .n.x { grid-column:5; }
 .vs .n.zero,.vs .n.unk { color:var(--ink-muted); }
 .vs .n.maj { font-weight:600; }
+.vs .span { grid-column:3 / -1; font-size:var(--t-meta); text-align:right; color:var(--ink-muted); }
+.vs .span.wordy { grid-column:2 / -1; }
+.explorer-insights .vs .span.wordy a { color:var(--ink); }
 
 /* Column heads: the three marks are also the legend of the seat chart. */
 .vs .hd { font-size:var(--t-small); line-height:1.3; font-weight:400; color:var(--ink-muted); white-space:nowrap; }
@@ -176,6 +179,8 @@
   .vs .row .main { padding-bottom:var(--s2); }
   .vs .w { grid-column:1; grid-row:2; }
   .vs .n.f { grid-column:2; } .vs .n.a { grid-column:3; } .vs .n.x { grid-column:4; }
+  .vs .span { grid-column:2 / -1; grid-row:2; }
+  .vs .span.wordy { grid-column:1 / -1; text-align:left; }
   .vs .heads .main { grid-column:1 / -1; padding-bottom:var(--s2); }
   .vs .heads .hd { grid-row:2; }
   .vs .row.tight:not(:has(.n)) .main { padding-bottom:0; }

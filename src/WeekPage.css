@@ -1,0 +1,83 @@
+/* The past and coming week: stories in Parliament's words, then the plain rows of the one vote system. */
+.vs .mast { padding-bottom:var(--s5); border-bottom:2px solid var(--ink); }
+.vs .mast.open { padding-bottom:var(--s1); border-bottom:0; }
+.explorer-insights .vs .section { font:700 var(--t-h2)/1.2 var(--font-serif); padding-top:var(--s6); }
+.week-page { padding-bottom:var(--s7); }
+
+/* Story text can arrive after the rows; keep the reader's place when it does. */
+.week-page .week-stories { overflow-anchor:none; }
+.week-page .reason { display:block; }
+.explorer-insights .vs h2.story-big { font:700 var(--t-h2)/1.18 var(--font-serif); letter-spacing:-.005em; max-width:26em; padding:var(--s1) 0 var(--s2); text-wrap:pretty; }
+.explorer-insights .vs h2.story-t { font:700 var(--t-say)/1.2 var(--font-serif); padding:var(--s1) 0 var(--s2); text-wrap:pretty; }
+.week-page .quote { font:400 var(--t-row)/1.42 var(--font-serif); max-width:40em; text-wrap:pretty; }
+.week-page .press { display:flex; flex-wrap:wrap; align-items:baseline; gap:0 var(--s3); padding-top:var(--s1); font-size:var(--t-meta); line-height:1.4; }
+.week-page .press-links { display:inline-flex; gap:0 var(--s3); }
+.week-page .story-hands { font-size:var(--t-meta); color:var(--ink-muted); text-align:right; }
+
+/* The first story: the figures sit on the page's number columns. */
+.week-page .lead { display:grid; grid-template-columns:minmax(0,1fr) var(--word) repeat(3,var(--num)); align-items:start; padding:var(--s5) 0; }
+.week-page .lead-story { grid-column:1 / 3; grid-row:1; padding-right:var(--s5); min-width:0; }
+.week-page .lead .row.total { display:contents; }
+.week-page .lead .row.total > .main { display:none; }
+.week-page .lead .fig { grid-row:1; align-self:start; }
+.week-page .lead .story-hands { grid-column:3 / -1; grid-row:1; }
+
+/* The other stories: two columns; numbers at row size. */
+.week-page .stories { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); border-top:1px solid var(--line); }
+.week-page .story { display:flex; flex-direction:column; padding:var(--s4) var(--s5) var(--s4) 0; }
+.week-page .story:nth-child(even) { padding:var(--s4) 0 var(--s4) var(--s5); border-left:1px solid var(--line); }
+.week-page .story:nth-child(n+3) { border-top:1px solid var(--line); }
+.week-page .story .quote { flex:1; }
+.week-page .story .row.total { padding-top:var(--s2); }
+.week-page .story .fig b,.week-page .cell .fig b { font:400 var(--t-row)/1.3 var(--font-sans); letter-spacing:0; margin-right:0; color:var(--ink); }
+
+/* The highlights: one row of cells; on a phone, one line each on the number columns. */
+.week-page .deck { overflow:hidden; border-top:1px solid var(--line); border-bottom:2px solid var(--ink); }
+.week-page .week-stories > .deck:first-child { border-top:0; }
+/* Cells wrap at narrower desktops; the first column's rule and padding sit outside the clip, so its text keeps the page edge. */
+.week-page .deck-cells { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,12.5em),1fr)); margin-left:calc(-1 * var(--s4)); }
+.week-page .cell { display:flex; flex-direction:column; gap:var(--s1); margin-left:-1px; padding:var(--s4); border-left:1px solid var(--line); min-width:0; }
+.week-page .cell .t { flex:1; font-size:var(--t-row); line-height:1.3; }
+.week-page .cell .value { padding-top:var(--s2); }
+.week-page .cell .row.total { grid-template-columns:minmax(0,1fr) repeat(3,max-content); column-gap:var(--s3); padding-top:var(--s2); }
+.week-page .cell .row.total > .main { grid-column:1; padding:0; }
+.week-page .cell .row.total .n.f { grid-column:2; }
+.week-page .cell .row.total .n.a { grid-column:3; }
+.week-page .cell .row.total .n.x { grid-column:4; }
+
+/* Coming days: time in the gutter, titles on the next column. */
+.week-page .slot { display:grid; grid-template-columns:var(--gut) minmax(0,1fr); align-items:baseline; padding:var(--s4) 0 var(--s1); border-bottom:1px solid var(--line); }
+.week-page .slot b { font-size:var(--t-meta); font-weight:600; }
+.week-page .gut { font-size:var(--t-meta); color:var(--ink-muted); font-variant-numeric:tabular-nums; }
+.week-page .coming .frow > summary { display:block; padding-left:var(--gut); }
+.week-page .coming .frow .t { display:block; max-width:44em; }
+.week-page .coming .fopen { padding-left:var(--gut); }
+.week-page .itemrow { padding:var(--s3) 0 var(--s3) var(--gut); border-bottom:1px solid var(--line); }
+.week-page .itemrow .t { display:block; max-width:44em; }
+.week-page .open-item { font-size:var(--t-meta); }
+.week-page [id] { scroll-margin-top:56px; }
+
+@media (max-width:767px) {
+  .week-page .lead { grid-template-columns:minmax(0,1fr) repeat(3,var(--num)); padding:var(--s4) 0; }
+  .week-page .lead-story { grid-column:1 / -1; padding:0 0 var(--s3); }
+  .week-page .lead .fig { grid-row:2; align-self:end; }
+  .week-page .lead .story-hands { grid-column:1 / -1; grid-row:2; }
+  .week-page .stories { grid-template-columns:minmax(0,1fr); }
+  .week-page .story,.week-page .story:nth-child(even) { padding:var(--s4) 0; border-left:0; }
+  .week-page .story + .story { border-top:1px solid var(--line); }
+  .week-page .deck { padding-bottom:var(--s2); }
+  .week-page .deck-cells { grid-template-columns:minmax(0,1fr); margin-left:0; }
+  .week-page .cell { display:grid; grid-template-columns:minmax(0,1fr) repeat(3,var(--num)); row-gap:2px; align-items:baseline; margin-left:0; padding:var(--s2) 0; border-left:0; border-top:1px solid var(--line); }
+  .week-page .cell:first-child { border-top:0; }
+  .week-page .cell .label { grid-column:1; grid-row:1; }
+  .week-page .cell .t { grid-column:1 / -1; grid-row:2; font-size:var(--t-meta); line-height:1.35; }
+  .week-page .cell .value { grid-column:2 / -1; grid-row:1; padding:0; text-align:right; }
+  .week-page .cell .row.total { display:contents; }
+  .week-page .cell .row.total > .main { display:none; }
+  .week-page .cell .row.total .n { grid-row:1; }
+  .week-page .cell .row.total .n.f { grid-column:2; }
+  .week-page .cell .row.total .n.a { grid-column:3; }
+  .week-page .cell .row.total .n.x { grid-column:4; }
+  /* The heads above and below name these columns; screen readers still hear each one. */
+  .week-page .cell .fig small { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+}

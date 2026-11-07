@@ -31,7 +31,11 @@ function singlePart(vote) {
   const numbers=unique((vote.parts||[]).map(part=>part.number).filter(value=>value!==null&&value!==undefined&&String(value).trim()).map(String));
   return numbers.length===1?numbers[0]:null;
 }
-export const voteNumbers=vote=>({n:singleAmendment(vote),p:singlePart(vote)});
+// A part vote whose part can't be named must not read as a vote on the whole amendment: it takes the source label.
+export const voteNumbers=vote=>{
+  const p=singlePart(vote);
+  return vote.scope?.kind==='split-part'&&!p?{n:null,p:null}:{n:singleAmendment(vote),p};
+};
 const referenceText=(vote,language)=>vote.referenceTexts?.[language]||vote.referenceTexts?.en||Object.values(vote.referenceTexts||{})[0]||null;
 
 /** One row's label. The main vote is the final vote and a block vote counts its amendments;
@@ -40,10 +44,12 @@ export function voteRowLabel(vote,language='en',ui=defaultUi,{mainVoteId=null}={
   if(vote.id===mainVoteId)return ui.t('votepage.final_vote');
   const amendments=unique(vote.context?.amendmentIds||[]);
   if(amendments.length>1)return ui.t('votepage.row.block',{count:amendments.length},{count:amendments.length});
-  const target=referenceText(vote,language)?.replace(/\s[–—-]\s*Am [\d/]+$/u,'')||null,{n,p}=voteNumbers(vote);
+  const {n,p}=voteNumbers(vote),source=referenceText(vote,language),target=(n?source?.replace(/\s[–—-]\s*Am [\d/]+$/u,''):source)||null;
   if(n)return target&&!/^Amendments by/.test(target)?ui.t(p?'votepage.row.part':'votepage.row.amendment',{n,p,target}):ui.t(p?'votepage.centre.part_row':'votepage.centre.amendment',{n,p});
   if(p&&target&&!target.includes('/'))return ui.t('votepage.row.text_part',{target,p});
-  return target||memberVoteLabel(vote,language,ui);
+  if(target)return target;
+  // With no source label, the shared fallback would rebuild the whole amendment's name.
+  return vote.scope?.kind==='split-part'&&!p?ui.t('membervotespresentation.decision'):memberVoteLabel(vote,language,ui);
 }
 /** The word in a row or the chart's centre. Nothing when the record holds no result. */
 export function voteOutcomeWord(vote,ui=defaultUi) {
