@@ -140,8 +140,8 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
   const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
   const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
   // On a phone the list is a fold; a tag opens it so the way back to all is in view.
-  const [folded,setFolded]=useState(tag!==null);
-  useEffect(()=>{if(tag!==null)setFolded(true);},[tag]);
+  const [listOpen,setListOpen]=useState(tag!==null);
+  useEffect(()=>{if(tag!==null)setListOpen(true);},[tag]);
   const status=(id:string)=><section className="vs mvr" lang={ui.language} aria-label={ui.t('membervoterecord.heading')}><p className="muted" role="status"><UiMessage id={id}/></p></section>;
   if(!data)return status(request.error||!request.loading?'membervoterecord.unavailable':'membervoterecord.loading');
   const view=recordView(data,scope);
@@ -150,7 +150,7 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
   const {figures,medians}=view;
   const {ballots,coverage}=data;
   const departures=view.list&&(phone
-    ? <div className="frows"><FoldRow title={<UiMessage id="membervoterecord.votedDifferently"/>} value={num(ui,data.departures.total)} open={folded} onOpenChange={setFolded}>
+    ? <div className="frows"><FoldRow title={<UiMessage id="membervoterecord.votedDifferently"/>} value={num(ui,data.departures.total)} open={listOpen} onOpenChange={setListOpen}>
         <Departures data={data} memberId={memberId} language={language} scope={scope} tag={tag} offset={offset} onOffset={onOffset} onTagChange={onTagChange} onOpenDecision={onOpenDecision}/>
       </FoldRow></div>
     : <section className="mvr-section"><h3><UiMessage id="membervoterecord.votedDifferently"/></h3>
