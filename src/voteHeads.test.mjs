@@ -74,7 +74,7 @@ test('plural families carry every category their language needs',async()=>{
   const pairs=await json('./ui-locales/plural-pairs.json');
   const forms=await json('./ui-locales/plural-forms.json');
   const newFamilies=pairs.map(pair=>pair.other).filter(id=>/^(votepage|week)\./.test(id));
-  assert.equal(newFamilies.length,11);
+  assert.equal(newFamilies.length,10);
   for(const language of languages) {
     const needed=new Intl.PluralRules(language).resolvedOptions().pluralCategories;
     for(const id of newFamilies) {

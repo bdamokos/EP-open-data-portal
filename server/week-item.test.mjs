@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {HttpError} from './http-utils.mjs';
 import {DossierActivity} from './dossier-activity.mjs';
 import {DossierStatus} from './dossier-status.mjs';
-import {leadCommitteeCodes,rapporteurIds,standingLines,tabledReports,votingListRows,weekItem,weekItemQuery} from './week-item.mjs';
+import {leadCommitteeCodes,rapporteurIds,standingLines,tabledReports,WEEK_ITEM_VERSION,weekItem,weekItemQuery} from './week-item.mjs';
 
 const event=(type,date,extra={})=>({id:'eli/dl/event/'+type+date,had_activity_type:'def/ep-activities/'+type,activity_date:date,activity_id:type+date,...extra});
 const part=(role,person,committee,term='org/ep-10')=>({participation_role:'def/ep-roles/'+role,had_participant_person:['person/'+person],participation_in_name_of:'org/'+committee,parliamentary_term:term});
@@ -30,7 +30,7 @@ function harness(held,{lists={}}={}) {
   };
   const activity=new DossierActivity(store,{reader:{record:async()=>{throw new Error('a fold asks Parliament for nothing');}}});
   const status=new DossierStatus({activity,votes:{snapshot:async()=>{throw new Error('no vote held');}},clock});
-  return {store,activity,status,clock,request:async()=>{throw new HttpError(404,'odp_cache_miss','not retained');},pressStore:{mentions:reference=>({items:reference==='2025/2139(INI)'?[{body:{url:'https://www.europarl.europa.eu/news/en/press-room/1/',title:'A title',publishedAt:'2026-09-28T10:00:00Z'}}]:[]})}};
+  return {store,activity,status,clock,request:async()=>{throw new HttpError(404,'odp_cache_miss','not retained');},pressStore:{mentions:reference=>({items:reference==='2025/2139(INI)'?[{body:{url:'https://www.europarl.europa.eu/news/en/press-room/1/',title:'A title',publishedAt:'2026-09-28T10:00:00Z',lead:' Public health MEPs want more. ',paragraphs:['Public health MEPs want more.','On Monday they adopted a resolution. It asks for a budget.']}}]:[]})}};
 }
 
 test('the query takes exact identifiers only, in a stable order',()=>{
@@ -61,10 +61,6 @@ test('the report names its rapporteurs; without them the procedure does, in its 
   assert.deepEqual(rapporteurIds(null,procedure('2025-0001','2025/0001(COD)',{had_participation:[part('RAPPORTEUR','5','JURI'),part('RAPPORTEUR','6','ECON')]}),['ECON']),['6']);
   assert.deepEqual(rapporteurIds(null,null,[]),[]);
 });
-test('voting-list section headings are not rows to vote on',()=>{
-  assert.equal(votingListRows({rows:[{kind:'heading'},{kind:'amendment'},{kind:'block'},{kind:'final'}]}),3);
-  assert.equal(votingListRows(null),0);
-});
 test('standing: a non-legislative file has its committee report; a deal also has Parliament\'s earlier position',()=>{
   const indexEvents=[{had_activity_type:'COMMITTEE_ADOPTING_REPORT',activity_date:'2026-09-28',activity_id:'x'}];
   const committees=[{code:'SANT',name:'Committee on Public Health',language:'en'}];
@@ -83,17 +79,22 @@ test('an earlier term\'s rapporteur stays out whatever shape the term is in',()=
   const rows=wrap=>procedure('2025-0001','2025/0001(COD)',{had_participation:[{...part('RAPPORTEUR','111','ECON'),parliamentary_term:wrap('org/ep-9')},{...part('RAPPORTEUR','112','ECON'),parliamentary_term:wrap('org/ep-10')}]});
   for(const wrap of [value=>value,value=>[value],value=>({id:value})])assert.deepEqual(rapporteurIds(null,rows(wrap),['ECON']),['112']);
 });
+test('a release with no lead held gives no text and no link',async()=>{
+  const context=harness({'/procedures/2025-2139':cancer});
+  context.pressStore={mentions:()=>({items:[{body:{url:'https://www.europarl.europa.eu/news/en/press-room/2/',title:'Title only',publishedAt:'2026-09-28T10:00:00Z'}}]})};
+  assert.equal((await weekItem({procedures:['2025-2139'],documents:[],sittings:[],language:'en'},context)).press,null);
+});
 test('one held item answers without a source read, and what is not held stays absent',async()=>{
   const list={documentId:'A-10-2026-0261',rows:[{kind:'heading'},{kind:'amendment'},{kind:'final'}]};
   const context=harness({'/procedures/2025-2139':cancer,'/plenary-documents/A-10-2026-0261':{workHadParticipation:[part('RAPPORTEUR','257112','SANT')]}},{lists:{'MTG-PL-2026-11-12':[list]}});
   const reply=await weekItem({procedures:['2025-2139'],documents:['A-10-2026-0261'],sittings:['MTG-PL-2026-11-11','MTG-PL-2026-11-12'],language:'en'},context);
-  assert.deepEqual(reply.procedures,[{id:'2025-2139',reference:'2025/2139(INI)',code:'INI'}]);
+  assert.deepEqual(reply.procedures,[{id:'2025-2139',code:'INI'}]);
   assert.deepEqual(reply.rapporteurs,[{id:'257112',name:'Vlad VASILE-VOICULESCU',currentMep:true,group:'Renew'}]);
-  assert.equal(reply.committees[0].code,'SANT');
+  assert.equal(reply.standing[0].values.committees[0].code,'SANT');
   assert.equal(reply.standing[0].id,'dossierstatus.reported');
-  assert.deepEqual(reply.documents,[{id:'A-10-2026-0261',amendments:null,votingList:{sittingId:'MTG-PL-2026-11-12',rows:2}}]);
-  assert.equal(reply.press.title,'A title');
+  assert.deepEqual(reply.documents,[{id:'A-10-2026-0261',amendments:null,voteSitting:'MTG-PL-2026-11-12'}]);
+  assert.deepEqual(reply.press,{url:'https://www.europarl.europa.eu/news/en/press-room/1/',publishedAt:'2026-09-28T10:00:00Z',lead:'Public health MEPs want more.',second:'On Monday they adopted a resolution.'},'verbatim, by the stories\' rule');
   assert(Buffer.byteLength(JSON.stringify(reply))<2048,'a fold\'s reply stays small');
   const none=await weekItem({procedures:['2026-2952'],documents:[],sittings:[],language:'en'},context);
-  assert.deepEqual(none,{version:1,procedures:[],rapporteurs:[],committees:[],standing:[],debated:null,documents:[],press:null});
+  assert.deepEqual(none,{version:WEEK_ITEM_VERSION,procedures:[],rapporteurs:[],standing:[],debated:null,documents:[],press:null});
 });
