@@ -16,6 +16,8 @@ import {InsightViewCache} from './insights-view-cache.mjs';
 import {DossierActivity,dossierActivityQuery,dossierReferencesQuery} from './dossier-activity.mjs';
 import {DossierStatus,dossierStatusQuery,DOSSIER_STATUS_VERSION,heldVotes} from './dossier-status.mjs';
 import {dossierStatuses,dossierStatusesQuery,DOSSIER_STATUSES_VERSION} from './dossier-statuses.mjs';
+import {weekItem,weekItemQuery,WEEK_ITEM_VERSION} from './week-item.mjs';
+import {generationGroupOn} from './group-attribution.mjs';
 import {INSIGHTS_VERSION} from './insights-model.mjs';
 import {savedQuery,savedStates} from './insights-saved.mjs';
 import {participationQuery,participation} from './insights-participation.mjs';
@@ -142,6 +144,7 @@ export function createInsights(store,options={}) {
     if(view==='dossier-references')return dossierActivity.references(dossierReferencesQuery(searchParams));
     if(view==='dossier-status'){const query=dossierStatusQuery(searchParams);return views.get([DOSSIER_STATUS_VERSION,view,store.status().servingGeneration,brusselsDay(clock()),query],()=>dossierStatus.query(query));}
     if(view==='dossier-statuses'){const query=dossierStatusesQuery(searchParams);return views.get([DOSSIER_STATUSES_VERSION,view,store.status().servingGeneration,brusselsDay(clock()),query],()=>dossierStatuses(dossierActivity,query,{clock}));}
+    if(view==='week-item'){const query=weekItemQuery(searchParams),generation=store.status().servingGeneration;return views.get([WEEK_ITEM_VERSION,view,generation,store.get('amendmentMutationRevision')||0,brusselsDay(clock()),query],()=>weekItem(query,{store,activity:dossierActivity,status:dossierStatus,groupOn:generationGroupOn(store,generation),clock,pressStore:options.pressStore||null}));}
     if(view==='speech-words')return speechWords.query(speechWordsQuery(searchParams,{now:clock()}));
     if(view==='speech-cloud')return speechCloud.query(speechCloudQuery(searchParams,{now:clock()}));
     if(view==='procedure-context')return procedureContext.query(procedureContextQuery(searchParams));

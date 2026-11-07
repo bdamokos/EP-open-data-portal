@@ -1,12 +1,14 @@
 import {defaultUi} from './uiDefault.mjs';
 import {selectLanguageText} from './language.mjs';
 import {brusselsDate} from './plenaryAvailability.mjs';
-import {agendaItemHref,dayDate,voteHref,voteOutcomeWord} from './votePagePresentation.mjs';
+import {agendaItemHref,dayDate,longDate,voteHref,voteOutcomeWord} from './votePagePresentation.mjs';
 
 const positions=['for','against','abstaining'];
+const reports=topic=>topic.documentIds.filter(id=>/^(?:A|B|RC)-\d{1,2}-\d{4}-\d{4,6}$/.test(id)).sort();
 const isVote=topic=>topic.kind==='PLENARY_VOTE';
 const isDebate=topic=>topic.kind==='PLENARY_DEBATE';
 const count=value=>Number.isSafeInteger(value)&&value>=0;
+const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const byOrder=(a,b)=>(a.order??0)-(b.order??0)||a.id.localeCompare(b.id);
 
 export const weekHref=(week,language='en')=>'?'+new URLSearchParams({view:'legislation','pl-mode':'week','pl-week':week,lang:language});
@@ -14,6 +16,12 @@ export const weekHref=(week,language='en')=>'?'+new URLSearchParams({view:'legis
 export const weekRoute=(week,language='en')=>'insights/legislation?'+new URLSearchParams({lang:language,week});
 export const weekStoryRoute=(week,language='en')=>'insights/week-story?'+new URLSearchParams({week,lang:language});
 export const rowAnchor=id=>'item-'+id;
+// The exact identifiers of one agenda item, read when its fold first opens. Without any there is nothing to read.
+export function weekItemRoute(topic,sittingIds,language='en') {
+  const procedures=[...topic.procedureIds].sort().slice(0,2),documents=reports(topic).slice(0,6);
+  if(!procedures.length&&!documents.length)return null;
+  return 'insights/week-item?'+new URLSearchParams({...(procedures.length?{procedures:procedures.join(',')}:{}),...(documents.length?{documents:documents.join(',')}:{}),...(sittingIds.length?{sittings:[...sittingIds].sort().slice(0,5).join(',')}:{}),lang:language});
+}
 
 /** At the flip the agenda opens on the week page unless a sitting or an item was chosen. */
 export const agendaOpensWeekPage=({live,mode,topic,sitting,agendaPeriod})=>Boolean(live&&mode==='agenda'&&!topic&&!sitting&&!agendaPeriod.startsWith('sitting:'));
@@ -69,6 +77,25 @@ const firstDate=rows=>rows.map(row=>row.date).sort()[0]||null;
 /** The debate that goes with a vote and the vote that goes with a debate: same exact procedure, never the title. */
 export const debateDateFor=(topic,topics)=>firstDate(topics.filter(other=>isDebate(other)&&sharesProcedure(topic,other)));
 export const voteDateFor=(topic,topics)=>firstDate(topics.filter(other=>isVote(other)&&sharesProcedure(topic,other)));
+
+const sum=values=>{const known=values.filter(count);return known.length?known.reduce((a,b)=>a+b,0):null;};
+/** A report or a named rapporteur is what a fold answers from. A procedure alone holds only its own type and reference. */
+export const itemHasFacts=topic=>reports(topic).length>0||(topic.agendaCreatorIds?.length??0)>0;
+/** The dated and counted facts of an item's fold, none of them invented: an unknown one is null. */
+export function foldFacts(item,topic,topics) {
+  const documents=item?.documents||[],vote=isVote(topic);
+  const listed=documents.map(row=>row.votingList?.sittingId).filter(Boolean).sort()[0];
+  return {
+    // A vote row already sits in its slot, and its debate may be this week or earlier.
+    voteDate:vote?null:voteDateFor(topic,topics)||listed?.slice(7)||null,
+    debateDate:vote?debateDateFor(topic,topics)||item?.debated||null:null,
+    amendments:sum(documents.map(row=>row.amendments)),
+    amendmentTarget:documents.length===1?{document:documents[0].id}:item?.procedures[0]?{procedure:item.procedures[0].id}:null,
+    listRows:sum(documents.map(row=>row.votingList?.rows)),
+  };
+}
+/** The week-item contract. Anything else shows the links alone. */
+export const validWeekItem=data=>object(data)&&[data.procedures,data.rapporteurs,data.committees,data.standing,data.documents].every(Array.isArray)&&data.documents.every(row=>typeof row?.id==='string')&&(data.press===null||typeof data.press?.url==='string'&&typeof data.press.title==='string');
 
 export function tallyWords(summary,ui=defaultUi) {
   return ['adopted','rejected','lapsed','unknown'].filter(key=>summary[key]>0).map(key=>ui.t('week.tally_words.'+key,{n:summary[key]})).join(', ');
@@ -138,6 +165,8 @@ export function reasonLine(reasons,ui=defaultUi) {
 export const storyText=press=>[press?.lead,press?.second].filter(Boolean).join(' ');
 /** The Brussels day a release came out, as a date for the sentence under it. */
 export const pressDate=(publishedAt,language='en')=>{const time=Date.parse(publishedAt);return Number.isFinite(time)?dayDate(brusselsDate(time),language):null;};
+/** The same day with its year, for a release from before this week. */
+export const pressFullDate=(publishedAt,language='en')=>{const time=Date.parse(publishedAt);return Number.isFinite(time)?longDate(brusselsDate(time),language):null;};
 
 /** One cell per fact. A debate leading two lists gets two cells; a debate with no label has nothing to show. */
 export function highlightCells(highlights,language='en',ui=defaultUi) {
@@ -155,7 +184,6 @@ export function highlightCells(highlights,language='en',ui=defaultUi) {
   }));
 }
 
-const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 /** The week-story contract. Anything else shows no stories. */
 export const validWeekStory=data=>object(data)&&['complete','partial','unavailable'].includes(data.status)&&Array.isArray(data.stories)&&Array.isArray(data.highlights)&&object(data.press)
   &&data.stories.every(story=>object(story?.press)&&typeof story.press.url==='string'&&Array.isArray(story.reasons))

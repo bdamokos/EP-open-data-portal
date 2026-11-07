@@ -32,12 +32,22 @@ export function dossierStatusQuery(search) {
   return {reference:procedureReference(search.get('reference')),language:odpLanguage(search.get('lang')||'en')};
 }
 
+/** A committee's name in the language asked for, or its code when none is held. */
+export function committeeLabel(code,language) {
+  const names=committeeNames.find(row=>row.code===code)?.names||{},lang=names[language]?language:names.en?'en':null;
+  return {code,name:lang?names[lang]:code,language:lang};
+}
 export function leadCommittees(work,language) {
   const codes=[...new Set(array(work.had_participation).filter(row=>tail(row.participation_role)==='RAPPORTEUR').map(row=>tail(row.participation_in_name_of)).filter(Boolean))];
-  return codes.map(code=>{
-    const names=committeeNames.find(row=>row.code===code)?.names||{},lang=names[language]?language:names.en?'en':null;
-    return {code,name:lang?names[lang]:code,language:lang};
-  });
+  return codes.map(code=>committeeLabel(code,language));
+}
+
+/** The plenary votes that settle a file: after a deal, only the vote on Parliament's own date. */
+export function mainVoteEvents({indexEvents,family,steps,asOf}) {
+  const voteEvents=indexEvents.filter(event=>event.had_activity_type==='PLENARY_VOTE_RESULTS'&&/^MTG-PL-\d{4}-\d{2}-\d{2}-VOT-ITM-\d+$/.test(event.activity_id)&&event.activity_date&&event.activity_date<=asOf);
+  // A legislative sentence states Parliament's own vote, after a deal the final one. Other files state their latest main vote.
+  const parliament=steps.find(step=>step.key==='final')?.date||steps.find(step=>step.key==='parliament')?.date;
+  return family==='COD'&&parliament?voteEvents.filter(event=>event.activity_date===parliament):voteEvents;
 }
 
 /** Where a file stands, from held sources. The tally comes through the bounded
@@ -93,10 +103,7 @@ export class DossierStatus {
     const {work}=await this.activity.procedure(id,language,reference);
     const indexEvents=statusIndexEvents(work);
     const {family,steps,stage:derived}=procedureSteps({reference,indexEvents,asOf});
-    const voteEvents=indexEvents.filter(event=>event.had_activity_type==='PLENARY_VOTE_RESULTS'&&/^MTG-PL-\d{4}-\d{2}-\d{2}-VOT-ITM-\d+$/.test(event.activity_id)&&event.activity_date&&event.activity_date<=asOf);
-    // A legislative sentence states Parliament's own vote, after a deal the final one. Other files state their latest main vote.
-    const parliament=steps.find(step=>step.key==='final')?.date||steps.find(step=>step.key==='parliament')?.date;
-    const relevant=family==='COD'&&parliament?voteEvents.filter(event=>event.activity_date===parliament):voteEvents;
+    const relevant=mainVoteEvents({indexEvents,family,steps,asOf});
     const vote=relevant.length?await this.voteOnDate(relevant,language):null;
     const stage=family==='COD'?derived:resolutionStage(vote);
     const plenaryDate=stage==='reported'?await this.plenaryDate(id,asOf):null;

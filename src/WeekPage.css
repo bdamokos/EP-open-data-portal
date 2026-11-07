@@ -54,7 +54,12 @@
 .week-page .coming .fopen { padding-left:var(--gut); }
 .week-page .itemrow { padding:var(--s3) 0 var(--s3) var(--gut); border-bottom:1px solid var(--line); }
 .week-page .itemrow .t { display:block; max-width:44em; }
-.week-page .open-item { font-size:var(--t-meta); }
+/* A fold's answer: one fact to a line, prose in serif, counts and links in sans. */
+.week-page .facts { display:flex; flex-direction:column; gap:var(--s2); max-width:44em; font-size:var(--t-meta); line-height:1.4; }
+.week-page .facts .kind { display:flex; flex-wrap:wrap; gap:0 var(--s2); }
+.week-page .facts .standing,.week-page .facts .pressline { font-family:var(--font-serif); }
+.week-page .facts .refs { color:inherit; }
+.week-page .facts .item-links { padding-top:var(--s1); color:var(--ink-muted); align-items:baseline; }
 .week-page [id] { scroll-margin-top:56px; }
 
 @media (max-width:767px) {

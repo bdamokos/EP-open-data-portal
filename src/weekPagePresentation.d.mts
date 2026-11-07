@@ -1,4 +1,4 @@
-import type {AgendaTopic,WeekResultsResponse,WeekStoryHighlight,WeekStoryResponse,WeekStoryReason,VoteTally} from './LegislationTypes';
+import type {AgendaTopic,WeekResultsResponse,WeekStoryHighlight,WeekStoryResponse,WeekStoryReason,VoteTally,WeekItemResponse} from './LegislationTypes';
 import type {VotePeriodWeek} from './plenaryPeriods.mjs';
 type Formatter=import('./uiI18n.mjs').UiFormatter;
 export type WeekDay={id:string;date:string;phase:'past'|'today'|'upcoming'};
@@ -10,6 +10,11 @@ export function weekHref(week:string,language?:string):string;
 export function weekRoute(week:string,language?:string):string;
 export function weekStoryRoute(week:string,language?:string):string;
 export function rowAnchor(id:string):string;
+export function weekItemRoute(topic:AgendaTopic,sittingIds:string[],language?:string):string|null;
+export type FoldFacts={voteDate:string|null;debateDate:string|null;amendments:number|null;amendmentTarget:{document:string}|{procedure:string}|null;listRows:number|null};
+export function foldFacts(item:WeekItemResponse|null,topic:AgendaTopic,topics:AgendaTopic[]):FoldFacts;
+export function itemHasFacts(topic:AgendaTopic):boolean;
+export function validWeekItem(data:unknown):data is WeekItemResponse;
 export function agendaOpensWeekPage(state:{live:boolean;mode:string;topic:string;sitting:string;agendaPeriod:string}):boolean;
 export function counted(totals:VoteTally|null|undefined):totals is Record<keyof VoteTally,number>;
 export function sittingRangeLabel(dates:string[],language?:string):string|null;
@@ -26,6 +31,7 @@ export function pastCounts(results:WeekResultsResponse|null,pastDayIds:string[])
 export function reasonLine(reasons:WeekStoryReason[],ui?:Formatter):string;
 export function storyText(press:{lead?:string|null;second?:string|null}|null|undefined):string;
 export function pressDate(publishedAt:string,language?:string):string|null;
+export function pressFullDate(publishedAt:string|null,language?:string):string|null;
 export function highlightCells(highlights:WeekStoryHighlight[],language?:string,ui?:Formatter):HighlightCell[];
 export function validWeekStory(data:unknown):data is WeekStoryResponse;
 export function validWeekPageResults(data:WeekResultsResponse):boolean;
