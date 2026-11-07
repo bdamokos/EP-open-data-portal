@@ -1548,3 +1548,11 @@ for(const mode of ['two 503s then maintenance HTML','three different archives','
    else {await assert.rejects(worker.task(task),{code:'distribution_identity_unverified'});assert.equal(store.source(generation,listKey).work.extraction,undefined);}
   }
  });
+
+test('saving a new list\'s rows makes it due for the placement log; the saved rows themselves are unchanged',async t=>{
+  const {store}=await fixture(t);
+  const saved=store.db.prepare('SELECT state,next_check FROM placement_log_lists WHERE list_id=?').get(listId);
+  assert.equal(saved.state,'pending');
+  assert.equal(Number.isFinite(saved.next_check),true);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM placement_log_failures').get().n,0);
+});

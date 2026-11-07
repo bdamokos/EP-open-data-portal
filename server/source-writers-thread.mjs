@@ -1,4 +1,5 @@
 import {BaseSourceBackfill} from './base-source-backfill.mjs';
+import {PlacementLog} from './placement-log.mjs';
 import {serveRetention} from './base-source-rpc.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {acceptOfficialHints} from './official-context-hints.mjs';
@@ -45,6 +46,7 @@ if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED')){
   const execute=service.worker.generationExecutor;
   service.worker.generationExecutor=async(...args)=>{const value=await execute(...args);service.store.onCommit?.();return value;};
   if(booleanFromEnvironment('BASE_SOURCE_BACKFILL'))service.worker.baseBackfill=new BaseSourceBackfill(service.store);
+  if(booleanFromEnvironment('PLACEMENT_LOG_ENABLED',true))service.worker.placementLog=new PlacementLog(service.store);
   stopActivity=startActivityIndex();
 }
 if(booleanFromEnvironment('CORPUS_ENABLED')){

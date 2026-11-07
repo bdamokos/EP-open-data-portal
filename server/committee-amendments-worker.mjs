@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {array,tail,projectDocument} from './activity-index-model.mjs';
 import {COMMITTEE_AMENDMENTS_VERSION,validCommitteeWork,committeeListId,committeeDraftId,committeeScopeKey,committeeDocumentEndpoint,committeeDiscoveryReferences,committeeTargetRelationship,committeeDocumentKind,sourceCommittees,committeeRevisionLists,committeeProcedureIds as procedureIds} from './committee-amendments.mjs';
 import {enqueueAmendment,saveAmendmentRows} from './amendments-store.mjs';
+import {notePlacementLists} from './placement-log-store.mjs';
 import {distributionEvidenceFor,currentDocxDescriptor,listWordingFreshness,amendmentProposerDate,amendmentTextLosses,validAmendmentDate,sameDocxDescriptor,resolvedAmendmentAuthorId} from './amendments.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {AMENDMENT_AUTHOR_NAMES_VERSION,listAuthorResolver,resolveParallelAuthors,authorNameVariants} from './amendment-author-names.mjs';
@@ -194,4 +195,5 @@ export function rebuildCommitteeList(worker,generation,key,{rosterMembers,schedu
   const proposerComplete=Boolean(rows.length&&rows.every(row=>row.authors.length&&row.authors.every(author=>author.personId)));
   saveAmendmentRows(store,generation,{id:key,scope:'committee',listId:id,targetDocumentId:list.targetDocumentId,targetRelationship:list.targetRelationship,committeeDocumentKind:list.committeeDocumentKind,committees:list.committees,procedureIds:list.procedureIds,committeeProjectionVersion:COMMITTEE_AMENDMENTS_VERSION,sources:[list.metadataSource],date:list.document_date||null},rows,
     {complete:false,wordingComplete,proposerComplete,outcomeCoverage:'unavailable',gaps,lastUpdated:saved.fetchedAt},{currentListIds:[id],invalidatedTextListIds:extraction?.previousParserVersion&&extraction.previousParserVersion!==AMENDMENT_EXTRACTION_VERSION?[id]:[],textParserVersion:AMENDMENT_EXTRACTION_VERSION,textParserVersions:{[id]:extraction?.parserVersion}});
+  notePlacementLists(store,rows,{now:worker.clock()});
 }
