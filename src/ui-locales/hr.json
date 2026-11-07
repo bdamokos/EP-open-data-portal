@@ -2587,7 +2587,7 @@
   "votepage.section.no_count": "Bez prebrojavanja",
   "votepage.section.not_held": "Glasovanje nije održano",
   "votepage.this_vote": "Ovo glasovanje",
-  "votepage.split": "Po dijelovima:",
+  "votepage.split": "Podijeljeni:",
   "votepage.final_vote": "Konačno glasovanje",
   "votepage.row.amendment": "Amandman {n}: {target}",
   "votepage.row.part": "Amandman {n}, dio {p}: {target}",

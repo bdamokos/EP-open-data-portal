@@ -2587,7 +2587,7 @@
   "votepage.section.no_count": "Zonder telling",
   "votepage.section.not_held": "Geen stemming gehouden",
   "votepage.this_vote": "Deze stemming",
-  "votepage.split": "Stemming in onderdelen:",
+  "votepage.split": "Verdeeld:",
   "votepage.final_vote": "Eindstemming",
   "votepage.row.amendment": "Amendement {n}: {target}",
   "votepage.row.part": "Amendement {n}, onderdeel {p}: {target}",

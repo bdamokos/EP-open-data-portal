@@ -2587,7 +2587,7 @@
   "votepage.section.no_count": "Fără numărare",
   "votepage.section.not_held": "Nu a avut loc votul",
   "votepage.this_vote": "Acest vot",
-  "votepage.split": "Vot pe părți:",
+  "votepage.split": "Fără majoritate:",
   "votepage.final_vote": "Vot final",
   "votepage.row.amendment": "Amendamentul {n}: {target}",
   "votepage.row.part": "Amendamentul {n}, partea {p}: {target}",

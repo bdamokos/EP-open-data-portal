@@ -2587,7 +2587,7 @@
   "votepage.section.no_count": "Sem contagem",
   "votepage.section.not_held": "Não houve votação",
   "votepage.this_vote": "Esta votação",
-  "votepage.split": "Votação por partes:",
+  "votepage.split": "Sem maioria:",
   "votepage.final_vote": "Votação final",
   "votepage.row.amendment": "Alteração {n}: {target}",
   "votepage.row.part": "Alteração {n}, parte {p}: {target}",

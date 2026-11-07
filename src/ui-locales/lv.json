@@ -2587,7 +2587,7 @@
   "votepage.section.no_count": "Bez skaitīšanas",
   "votepage.section.not_held": "Balsojums nenotika",
   "votepage.this_vote": "Šis balsojums",
-  "votepage.split": "Dalīts balsojums:",
+  "votepage.split": "Bez vairākuma:",
   "votepage.final_vote": "Galīgais balsojums",
   "votepage.row.amendment": "Grozījums {n}: {target}",
   "votepage.row.part": "Grozījums {n}, daļa {p}: {target}",

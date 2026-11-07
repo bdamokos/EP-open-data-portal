@@ -2587,7 +2587,7 @@
   "votepage.section.no_count": "Sans décompte",
   "votepage.section.not_held": "Pas de vote",
   "votepage.this_vote": "Ce vote",
-  "votepage.split": "Division :",
+  "votepage.split": "Sans majorité :",
   "votepage.final_vote": "Vote final",
   "votepage.row.amendment": "Amendement {n} : {target}",
   "votepage.row.part": "Amendement {n}, partie {p} : {target}",

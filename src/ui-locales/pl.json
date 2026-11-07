@@ -2587,7 +2587,7 @@
   "votepage.section.no_count": "Bez podliczenia",
   "votepage.section.not_held": "Głosowanie się nie odbyło",
   "votepage.this_vote": "To głosowanie",
-  "votepage.split": "Głosowanie podzielone:",
+  "votepage.split": "Podzieleni:",
   "votepage.final_vote": "Głosowanie końcowe",
   "votepage.row.amendment": "Poprawka {n}: {target}",
   "votepage.row.part": "Poprawka {n}, część {p}: {target}",

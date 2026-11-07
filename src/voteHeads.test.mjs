@@ -10,34 +10,34 @@ const languages='bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk 
 const json=async path=>JSON.parse(await readFile(new URL(path,import.meta.url),'utf8'));
 const theme=await readFile(new URL('./theme.css',import.meta.url),'utf8');
 
-// The widest of the three heads (mark, gap and word) per language at 12px, measured in a
-// headless browser at 390 px. Re-measure and update this row and the :lang() rules in
-// theme.css when a head is reworded.
+// The three heads each language was measured with, and the widest (mark, gap and word) at 12px
+// in a headless browser at 390 px. Re-measure and update this row and the :lang() rules in
+// theme.css when any head is reworded.
 const widest={
-  en:["Abstain",55.2],
-  bg:["Въздържане",87],
-  cs:["Zdržení se",71.9],
-  da:["Undlod",53.3],
-  de:["Enthaltung",73.5],
-  el:["Αποχή",48.7],
-  es:["Abstención",76.2],
-  et:["Erapooletu",73.7],
-  fi:["Puolesta",61.4],
-  fr:["Abstention",73.8],
-  ga:["Ina aghaidh",77.8],
-  hr:["Suzdržani",68.5],
-  hu:["Tartózkodás",81.5],
-  it:["Astensione",75.1],
-  lt:["Susilaikė",62.2],
-  lv:["Atturas",53.5],
-  mt:["Astensjoni",71.2],
-  nl:["Onthouding",79],
-  pl:["Wstrzymane",82.8],
-  pt:["Abstenção",72.8],
-  ro:["Împotrivă",65.4],
-  sk:["Zdržať sa",66],
-  sl:["Vzdržan",58.8],
-  sv:["Avstår",48],
+  en:["For|Against|Abstain",55.2],
+  bg:["За|Против|Въздържане",87],
+  cs:["Pro|Proti|Zdržení se",71.9],
+  da:["For|Imod|Undlod",53.3],
+  de:["Dafür|Dagegen|Enthaltung",73.5],
+  el:["Υπέρ|Κατά|Αποχή",48.7],
+  es:["A favor|En contra|Abstención",76.2],
+  et:["Poolt|Vastu|Erapooletu",73.7],
+  fi:["Puolesta|Vastaan|Tyhjää",61.4],
+  fr:["Pour|Contre|Abstention",73.8],
+  ga:["Ina fhabhar|Ina aghaidh|Staonadh",77.8],
+  hr:["Za|Protiv|Suzdržani",68.5],
+  hu:["Mellette|Ellene|Tartózkodás",81.5],
+  it:["A favore|Contrari|Astensione",75.1],
+  lt:["Už|Prieš|Susilaikė",62.2],
+  lv:["Par|Pret|Atturas",53.5],
+  mt:["Favur|Kontra|Astensjoni",71.2],
+  nl:["Voor|Tegen|Onthouding",79],
+  pl:["Za|Przeciw|Wstrzymane",82.8],
+  pt:["A favor|Contra|Abstenção",72.8],
+  ro:["Pentru|Împotrivă|Abținere",65.4],
+  sk:["Za|Proti|Zdržať sa",66],
+  sl:["Za|Proti|Vzdržan",58.8],
+  sv:["För|Emot|Avstår",48],
 };
 
 const numRule=(language,phone)=>{
@@ -63,8 +63,8 @@ test('every language renders its three column heads and the column fits the wide
     const heads=[...markup.matchAll(/<span class="n hd [fax]">(?:<svg.*?<\/svg>)([^<]*)<\/span>/g)].map(match=>match[1]);
     assert.deepEqual(heads,['votepage.head.for','votepage.head.against','votepage.head.abstain'].map(id=>catalogue[id]),language);
     for(const head of heads)assert(head.trim().length>0&&head.length<=12,language+': '+head);
-    const [word,width]=widest[language];
-    assert(heads.includes(word),language+': the measured head is no longer a head; re-measure');
+    const [measured,width]=widest[language];
+    assert.equal(heads.join('|'),measured,language+': a head changed; re-measure');
     assert(numRule(language,true)>=width+2,language+' at 390: --num '+numRule(language,true)+' for '+width);
     assert(numRule(language,false)>=width*13/12+1,language+' at 1280: --num '+numRule(language,false)+' for '+width*13/12);
   }

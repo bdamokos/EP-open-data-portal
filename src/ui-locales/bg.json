@@ -2587,7 +2587,7 @@
   "votepage.section.no_count": "Без преброяване",
   "votepage.section.not_held": "Без проведено гласуване",
   "votepage.this_vote": "Това гласуване",
-  "votepage.split": "Разделно:",
+  "votepage.split": "Разделени:",
   "votepage.final_vote": "Окончателно гласуване",
   "votepage.row.amendment": "Изменение {n}: {target}",
   "votepage.row.part": "Изменение {n}, част {p}: {target}",
