@@ -7,11 +7,10 @@ import {pickTitle} from './member-vote-record-model.mjs';
 import {memberBreakdown} from './member-vote-record-breakdown.mjs';
 import {topicLabel,countryLabel} from './member-vote-record-topics.mjs';
 
-export const MEMBER_VOTE_RECORD_VERSION=3;
+export const MEMBER_VOTE_RECORD_VERSION=4;
 const tagPattern=/^(?:topic:\d{1,8}|country:[A-Z0-9_]{2,8})$/;
 export const MEMBER_VOTE_RECORD_LIMITS=Object.freeze({departures:50,maxOffset:10000});
 const emptyAlignment=()=>({with:0,against:0,abstained:0,notComparable:0});
-// A group-history answer that places the person in office on that day.
 
 export function memberVoteRecordQuery(search) {
   const allowed=['lang','scope','limit','offset','tag'];
@@ -48,7 +47,7 @@ const readGroupOn=(db,generation)=>{
 
 function pendingRecord(id,query) {
   return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period:{from:CURRENT_TERM_START,to:null},
-    coverage:{sittings:0,included:0,missing:0,status:'pending'},group:{code:null,status:'unavailable'},alignment:null,ballots:{chaired:0},breakdown:null,
+    coverage:{sittings:0,included:0,missing:0,status:'pending',unprojectedDecisions:0},group:{code:null,status:'unavailable'},alignment:null,ballots:{chaired:0},breakdown:null,
     departures:{scope:query.scope,tag:null,offset:query.offset,limit:query.limit,total:0,items:[],nextOffset:null},comparison:null,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
 }
 
@@ -71,7 +70,7 @@ export class MemberVoteRecordReader {
       const current=groupOn?groupOn(id,today):'unavailable';
       const group=typeof current==='object'
         ?current.code==='NI'?{code:'NI',status:'non-attached'}:{code:current.code,status:'attached'}
-        :{code:null,status:'unavailable'};
+        :{code:null,status:current==='not-serving'?'not-serving':'unavailable'};
       const rows=db.prepare(`SELECT m.body AS body,s.sitting_id AS sittingId,s.date AS date
         FROM member_vote_record_members m JOIN member_vote_record_sittings s ON s.sitting_id=m.sitting_id
         WHERE m.member_id=? AND s.snapshot_version=? ORDER BY s.date DESC,s.sitting_id DESC`).all(id,MEMBER_VOTE_SNAPSHOT_VERSION);
@@ -97,11 +96,12 @@ export class MemberVoteRecordReader {
       // examined yet, or whose voting records are incomplete or conflicting, is missing.
       const stored=db.prepare("SELECT COUNT(*) AS n FROM sitting_snapshots WHERE kind='votes' AND version=? AND id>=?").get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
       const examined=db.prepare("SELECT status,COUNT(*) AS n FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=? GROUP BY status").all(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst);
+      const unprojected=db.prepare('SELECT COALESCE(SUM(unprojected),0) n FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=?').get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
       const count=status=>examined.find(row=>row.status===status)?.n||0;
       const included=sittings.length;
       const missing=Math.max(0,stored-count('empty')-included);
       const total=included+missing;
-      const coverage={sittings:total,included,missing,status:!total?'unavailable':!included?'pending':missing?'partial':'complete'};
+      const coverage={sittings:total,included,missing,status:!total?'unavailable':!included?'pending':missing||unprojected?'partial':'complete',unprojectedDecisions:unprojected};
       // The period is the stored sittings' range, the same for every member.
       const period={from:CURRENT_TERM_START,to:sittings.reduce((latest,sitting)=>sitting.date>latest?sitting.date:latest,'')||null};
       // Every member's totals cover the same projected sittings, so medians stay
@@ -110,7 +110,8 @@ export class MemberVoteRecordReader {
       if(group.status==='attached'&&groupOn&&included>0) {
         // The group median is taken over the other current members of the same group.
         const shares={all:[],final:[]};
-        for(const row of db.prepare('SELECT member_id,body FROM member_vote_record_totals').all()) {
+        for(const row of db.prepare('SELECT member_id,body FROM member_vote_record_totals WHERE snapshot_version=?').all(MEMBER_VOTE_SNAPSHOT_VERSION)) {
+          if(row.member_id===id)continue;
           const answer=groupOn(row.member_id,today);
           if(typeof answer!=='object'||answer.code!==group.code)continue;
           const totals=JSON.parse(row.body);
@@ -125,8 +126,8 @@ export class MemberVoteRecordReader {
       }
       // The breakdown reads only this member's marks and the tags kept on the sittings.
       let breakdown=null,decisionTags=new Map();
-      if(group.status==='attached'&&vectors.length) {
-        const tagRows=new Map(db.prepare('SELECT sitting_id,tags FROM member_vote_record_tags').all().map(row=>[row.sitting_id,row.tags]));
+      if((group.status==='attached'||group.status==='not-serving')&&vectors.length) {
+        const tagRows=new Map(db.prepare('SELECT t.sitting_id,t.tags FROM member_vote_record_tags t JOIN member_vote_record_members m ON m.sitting_id=t.sitting_id WHERE m.member_id=?').all(id).map(row=>[row.sitting_id,row.tags]));
         const calculated=memberBreakdown(vectors.map(({sittingId,vector})=>({vector,tags:JSON.parse(tagRows.get(sittingId)||'[]')})),query.scope);
         decisionTags=calculated.decisionTags;
         const named=(list,label)=>list.rows.flatMap(row=>{const text=label(row.key.slice(row.key.indexOf(':')+1),query.language);return text?[{key:row.key,label:text.text,language:text.language,comparable:row.comparable,withGroup:row.withGroup,share:row.share}]:[];});
@@ -151,7 +152,7 @@ export class MemberVoteRecordReader {
         return {...item,...label,subject:subject.text?subject:null};
       }),nextOffset=query.offset+items.length<sorted.length?query.offset+items.length:null;
       return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period,coverage,group,
-        alignment:group.status==='attached'?alignment:null,ballots,breakdown,departures:{scope:query.scope,tag:query.tag?{key:query.tag,label:filterLabel?.text??null,language:filterLabel?.language??null}:null,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},
+        alignment:group.status==='attached'||group.status==='not-serving'&&rows.length?alignment:null,ballots,breakdown,departures:{scope:query.scope,tag:query.tag?{key:query.tag,label:filterLabel?.text??null,language:filterLabel?.language??null}:null,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},
         comparison,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
     }catch(error){if(error instanceof HttpError)throw error;throw new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.');}
   }

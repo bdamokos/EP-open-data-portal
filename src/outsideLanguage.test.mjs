@@ -5,7 +5,8 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
 const source={url:'https://example.test/outside-language-fixture',fetchedAt:'2026-10-16T12:00:00Z'};
-const coverage={complete:false,pending:0,unresolved:0,gaps:1,truncated:false,initialized:true,generation:1,updatedAt:source.fetchedAt,tasks:[],source:'Public local fixture'};
+const coverage={complete:false,pending:0,unresolved:0,gaps:1,truncated:false,initialized:true,generation:1,updatedAt:source.fetchedAt,tasks:[],source:'Public local fixture',window:{start:'2024-07-16',end:'2026-11-06'}};
+// Keep marker bins stable: this test checks language boundaries, not today's timeline geometry.
 const day='2026-06-02';
 const titleCases=[
   {hu:'Magyar cím',en:'English title'},

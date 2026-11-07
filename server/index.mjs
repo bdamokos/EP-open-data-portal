@@ -34,7 +34,8 @@ import {memberVotes,memberVotesQuery,MEMBER_VOTES_PERIOD_RESPONSE_BYTES} from '.
 import {decisionVotes,decisionVotesQuery} from './decision-votes.mjs';
 import {memberAttendance,memberAttendanceQuery} from './member-attendance.mjs';
 import {memberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
-import {memberVoteRecord,memberVoteRecordQuery,memberVoteRecordLanguage} from './member-vote-record.mjs';
+import {memberVoteRecordQuery,memberVoteRecordLanguage} from './member-vote-record.mjs';
+import {memberVoteRecordService} from './member-vote-record-reader.mjs';
 import {documentPages} from './document-pages.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
 import {amendmentNeighbours,amendmentNeighboursQuery} from './amendment-neighbours.mjs';
@@ -235,7 +236,7 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments[0] === 'member-vote-record' && segments.length===2) {
       const query={...memberVoteRecordQuery(url.searchParams),language:memberVoteRecordLanguage(url.searchParams)};
-      result=memberVoteRecord.query(positiveId(segments[1]),query);
+      result=await memberVoteRecordService.query(positiveId(segments[1]),query);
     }
     else if (segments[0] === 'upcoming-votes' && segments.length===1) {
       result=await upcomingVotes(upcomingVotesQuery(url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});

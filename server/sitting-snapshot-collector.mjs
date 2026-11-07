@@ -4,6 +4,7 @@ import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 import {odp} from './odp.mjs';
 import {array,tail} from './activity-index-model.mjs';
 import {SittingSnapshotReader} from './sitting-snapshot-store.mjs';
+import {setImmediate as yieldProjection} from 'node:timers/promises';
 import {statSync} from 'node:fs';
 import {MemberVotes,MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
 import {MemberAttendance,MEMBER_ATTENDANCE_VERSION} from './member-attendance.mjs';
@@ -15,7 +16,7 @@ import {missingSourceDelay,sourceMissing,transientSourceDelay,confirmSourceRejec
 import {requestTimeout,runWithRequestSignal} from './request-budget.mjs';
 import {collectVoteChairs} from './vote-chairs.mjs';
 import {SittingSnapshotWriter,sittingSnapshotHints,SITTING_CALENDAR_VERSION,SITTING_SNAPSHOT_SCHEMA,SNAPSHOT_MAX_BYTES} from './sitting-snapshot-store.mjs';
-import {retainMemberVoteRecord,missingMemberVoteRecord,retagMemberVoteRecord,memberVoteRecordNeedsOnlyTags} from './member-vote-record-store.mjs';
+import {retainMemberVoteRecord,missingMemberVoteRecord,retagMemberVoteRecord,memberVoteRecordNeedsOnlyTags,memberVoteRecordHistory} from './member-vote-record-store.mjs';
 import {topicsGeneration} from './member-vote-record-topics.mjs';
 
 const SIX_HOURS=6*60*60_000;
@@ -85,7 +86,7 @@ export const completeAttendanceSnapshot=value=>['observed','not-published'].incl
 export class SittingSnapshotCollector {
   constructor(store,{hints=sittingSnapshotHints,readChairs=collectVoteChairs,diskLimit,readCached=(endpoint,params)=>odp(endpoint,params,{cachedOnly:true,ttl:Infinity})}={}){
     this.store=store;this.writer=new SittingSnapshotWriter(store,{diskLimit});this.hints=hints;this.readChairs=readChairs;this.readCached=readCached;
-    this.projectionCheckAt=null;this.projectionCheckId=null;this.projectionFailed=new Map();
+    this.diskLimit=Infinity;this.projectionCheckAt=null;this.projectionCheckId=null;this.projectionFailed=new Map();
   }
   due(){
     const now=this.store.clock();
@@ -94,18 +95,20 @@ export class SittingSnapshotCollector {
   projectionBacklog(){
     const now=this.store.clock();
     if(this.projectionCheckAt!==null&&now-this.projectionCheckAt<5000)return this.projectionCheckId;
-    const id=missingMemberVoteRecord(this.store,MEMBER_VOTE_SNAPSHOT_VERSION,this.store.get('active')??null,[...this.projectionFailed].filter(([,failure])=>failure.until>now).map(([id])=>id),topicsGeneration(this.store));
+    const id=missingMemberVoteRecord(this.store,MEMBER_VOTE_SNAPSHOT_VERSION,memberVoteRecordHistory(this.store).key,[...this.projectionFailed].filter(([,failure])=>failure.until>now).map(([id])=>id),topicsGeneration(this.store));
     this.projectionCheckAt=now;this.projectionCheckId=id;
     return id;
   }
   // A retained sitting already carries every source observation. Projecting one
   // per step is bounded and needs no request allowance.
   backfillProjection(){
+    const bytes=['','-wal','-shm'].reduce((sum,suffix)=>{try{return sum+statSync(this.store.filename+suffix).size;}catch{return sum;}},0);
+    if(bytes>=this.diskLimit)return false;
     const id=this.projectionBacklog();
     if(!id)return false;
     this.projectionCheckAt=null;
     // Only the topics changed: re-tag from the row, without reading the snapshot.
-    if(memberVoteRecordNeedsOnlyTags(this.store,id,MEMBER_VOTE_SNAPSHOT_VERSION,this.store.get('active')??null)) {
+    if(memberVoteRecordNeedsOnlyTags(this.store,id,MEMBER_VOTE_SNAPSHOT_VERSION,memberVoteRecordHistory(this.store).key(id.slice(7,17)))) {
       try{retagMemberVoteRecord(this.store,id);}catch{this.projectionFailure(id);return false;}
       this.projectionFailed.delete(id);
       return true;
@@ -169,6 +172,8 @@ export class SittingSnapshotCollector {
     for(const hint of this.hints.drain())if(readerVersions[hint.kind]===hint.version)this.writer.enqueue(hint.kind,hint.version,hint.id,100,hint);
   }
   async step(worker,{requestBudget=Infinity}={}){
+    this.diskLimit=worker.diskLimit??Infinity;
+    await yieldProjection(undefined,{signal:worker.controller?.signal});
     this.store.assertWriter();this.admit();
     const now=this.store.clock(),job=this.writer.due(now);
     if(!job)return this.backfillProjection();

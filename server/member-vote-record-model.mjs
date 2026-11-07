@@ -66,7 +66,8 @@ export function pickTitle(titles,referenceTexts,language) {
 // conflicting decisions, or records not yet read in full, keep a sitting out as missing.
 export function voteSittingStatus(day) {
   const completeness=day.coverage?.completeness||{};
-  if(!list(day.decisions).length&&!(completeness.declaredDecisionCount>0))return {status:'empty',reason:null};
+  const verifiedEmpty=key=>{const c=day.coverage?.[key];return c&&!c.error&&(c.state==='complete'||c.stopReason==='not-found');};
+  if(!list(day.decisions).length&&!(completeness.declaredDecisionCount>0)&&!day.coverage?.pendingVotes&&['decisions','namedDecisions','results'].every(verifiedEmpty))return {status:'empty',reason:null};
   if(completeness.votingRecordsComplete===true)return {status:'projected',reason:null};
   return {status:'excluded',reason:list(completeness.conflictingDecisionIds).length?'conflicting-decisions':'records-incomplete'};
 }
@@ -76,7 +77,7 @@ export function voteSittingStatus(day) {
 export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
   const derived=deriveVoteEvidence(day),resolve=resolver(groupOn),date=day.date,sittingId=day.sittingId;
   const documents=resultDocumentMap(day);
-  const decisions={},members=new Map(),named={count:0},subjects={};
+  const decisions={},members=new Map(),named={count:0},subjects={};let unprojected=0;
   const subjectTitles=new Map(derived.subjects.map(subject=>[subject.id,subject.titles]));
   const subjectDocuments=new Map(derived.subjects.map(subject=>[subject.id,subject.documentIds||[]]));
   function member(id) {
@@ -87,7 +88,7 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
   for(const raw of list(day.decisions)) {
     const item=projectMemberDecision(raw,day,'0','en',derived),actual=voterGroups(raw,'had_voter_');
     const available=item.ballotStatus==='conducted'&&item.method==='VOTE_ELECTRONIC_ROLLCALL'&&Object.values(actual.supplied).every(Boolean);
-    if(!available)continue;
+    if(!available){if(item.ballotStatus!=='not-conducted'&&item.method==='VOTE_ELECTRONIC_ROLLCALL')unprojected++;continue;}
     const conflicts=new Set([...actual.byPerson].filter(([,values])=>values.length>1).map(([id])=>id));
     const wholeText=item.scope?.kind==='whole-text';
     const voters=[];
@@ -120,7 +121,7 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
     // A chairing member's own ballot is omitted rather than counted as absence.
     if(chair&&!actual.byPerson.has(String(chair))&&!conflicts.has(String(chair)))member(chair).ballots.chaired++;
   }
-  const sitting={sittingId,date,named:named.count,decisions,subjects,complete:Boolean(day.coverage?.completeness?.votingRecordsComplete)};
+  const sitting={sittingId,date,unprojected,named:named.count,decisions,subjects,complete:Boolean(day.coverage?.completeness?.votingRecordsComplete)};
   for(const record of members.values()) {
     record.ballots.named=sitting.named;
     record.vector=Array.from({length:sitting.named},(_,index)=>record.marks.get(index)??'-').join('');

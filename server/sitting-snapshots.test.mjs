@@ -801,3 +801,15 @@ test('a sitting that never became complete is projected from its stored voting r
   await h.worker.run();
   assert.equal(projected(),'projected','the worker loop projects before spending its turn on the due job');
 });
+
+test('projection-only snapshot steps yield to timers and respect disk limits and aborts',async t=>{
+  const h=setup(t);await drain(h);
+  h.collector.projectionBacklog=()=>SNAPSHOT_SITTING;
+  let fired=false;setImmediate(()=>{fired=true;});
+  const original=h.collector.backfillProjection.bind(h.collector);
+  h.collector.backfillProjection=()=>{assert(fired,'a heartbeat/stop gets a macrotask before each idle projection');return original();};
+  h.worker.diskLimit=0;
+  assert.equal(await h.collector.step(h.worker),false,'disk limit applies even without snapshot jobs');
+  h.worker.controller.abort(new Error('test stop'));
+  await assert.rejects(h.collector.step(h.worker),/test stop|aborted/i);
+});

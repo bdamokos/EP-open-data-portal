@@ -180,3 +180,14 @@ test('an abstention is with the group when the group line is to abstain, and a d
   assert.equal(member(3).departures[0].line,'abstaining');
   assert.equal(memberVoteAlignment({ballotStatus:'conducted',actualPosition:{status:'recorded',position:'abstaining'}},'for'),'abstained');
 });
+
+test('unavailable empty reads are excluded and omitted named arrays remain explicit gaps',async()=>{
+  const {voteSittingStatus}=await import('./member-vote-record-model.mjs');
+  const unavailable={decisions:[],coverage:{state:'unavailable',decisions:{state:'unavailable',error:{status:503}},namedDecisions:{state:'unavailable'},results:{state:'unavailable'},completeness:{declaredDecisionCount:0,votingRecordsComplete:false}}};
+  assert.deepEqual(voteSittingStatus(unavailable),{status:'excluded',reason:'records-incomplete'});
+  const verified=structuredClone(unavailable);for(const key of ['decisions','namedDecisions','results'])verified.coverage[key]={state:'complete'};
+  assert.equal(voteSittingStatus(verified).status,'empty');
+  const f=sitting([{for:[1],against:[2]}]);delete f.day.decisions[0].had_voter_abstention;
+  const result=summariseVoteSitting(f.day,createGroupOn(groupsOf({1:'S&D',2:'S&D'})));
+  assert.equal(result.sitting.unprojected,1);assert.equal(result.sitting.named,0);
+});
