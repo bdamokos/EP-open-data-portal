@@ -144,3 +144,15 @@ test('a due page check warms active agendas through hints without inflating snap
  const collector=new VotingListCollector(s.store,{clock:s.now,sessions:votingListSessions(nodes),snapshots:{read:()=>assert.fail('page check needs no agenda bytes'),enqueue:(kind,version,sitting)=>hints.push([kind,version,sitting])},fetchSource:async()=>({status:200,buffer:Buffer.from(html)})});
  await collector.step({controller:new AbortController()});assert.deepEqual(hints,nodes.map(n=>['agenda',1,n.activity_id]));
 });
+test('the upcoming list for one report comes from a held sitting not yet past',t=>{
+ const s=setup(t),insert=s.store.db.prepare('INSERT INTO voting_list_revisions VALUES (?,?,?,?,?,?)'),sources=s.store.db.prepare('INSERT INTO voting_list_sources VALUES (?,?,?,?,?)');
+ const put=(sitting,documentId,hash,purgeAt=s.now()+86400000)=>{const link='https://www.europarl.europa.eu/sedcms/votingList/'+hash+'.docx';insert.run(link,sitting,hash,'2026-11-07T06:00:00Z',JSON.stringify({sittingId:sitting,documentId,agendaItemId:null,rows:[],gaps:[],revision:{sha256:hash,observedAt:'2026-11-07T06:00:00Z'}}),purgeAt);sources.run(link,sitting,JSON.stringify({latestHash:hash,checkedAt:s.now()}),0,purgeAt);};
+ put('MTG-PL-2026-11-12','A-10-2026-0271','a');put('MTG-PL-2026-11-12','A-10-2026-0261','b');put('MTG-PL-2026-10-22','A-10-2026-0100','c');put('MTG-PL-2026-11-12','A-10-2026-0099','d',s.now()-1);
+ const lists=new VotingListStore(s.store,{clock:s.now});
+ assert.equal(lists.upcomingVotingList('A-10-2026-0271','2026-11-07').documentId,'A-10-2026-0271');
+ assert.equal(lists.upcomingVotingList('A-10-2026-0271','2026-11-12').sittingId,'MTG-PL-2026-11-12','the sitting day itself counts');
+ assert.equal(lists.upcomingVotingList('A-10-2026-0271','2026-11-13'),null,'a list for a past vote is not upcoming');
+ assert.equal(lists.upcomingVotingList('A-10-2026-0100','2026-11-07'),null);
+ assert.equal(lists.upcomingVotingList('A-10-2026-0099','2026-11-07'),null,'a purged list is gone');
+ assert.equal(lists.upcomingVotingList('A-10-2026-0999','2026-11-07'),null);
+});

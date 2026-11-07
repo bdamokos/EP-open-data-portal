@@ -73,8 +73,8 @@ test('every language renders its three column heads and the column fits the wide
 test('plural families carry every category their language needs',async()=>{
   const pairs=await json('./ui-locales/plural-pairs.json');
   const forms=await json('./ui-locales/plural-forms.json');
-  const newFamilies=pairs.map(pair=>pair.other).filter(id=>/^(votepage|week)\./.test(id));
-  assert.equal(newFamilies.length,10);
+  const newFamilies=pairs.map(pair=>pair.other).filter(id=>/^(votepage|week)\.|^dossierstatus\.voting_list\./.test(id));
+  assert.equal(newFamilies.length,14);
   for(const language of languages) {
     const needed=new Intl.PluralRules(language).resolvedOptions().pluralCategories;
     for(const id of newFamilies) {

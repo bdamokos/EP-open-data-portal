@@ -130,6 +130,7 @@ export class ActivityStore {
     if(this.initializeIndexes){outsideSchema(this.db);amendmentsSchema(this.db);groupVoicesSchema(this.db);refreshPolicyTables(this.db);}
   }
   votingListsForSitting(sittingId) { return new VotingListStore(this,{clock:this.clock}).votingListsForSitting(sittingId); }
+  upcomingVotingList(documentId,fromDay) { return new VotingListStore(this,{clock:this.clock}).upcomingVotingList(documentId,fromDay); }
   readSnapshot(fn) {
     if(this.db.isTransaction)return fn();
     this.db.exec('BEGIN');try {const value=fn();this.db.exec('COMMIT');return value;}catch(error){this.db.exec('ROLLBACK');throw error;}

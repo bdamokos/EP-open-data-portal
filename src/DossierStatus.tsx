@@ -3,7 +3,7 @@ import {UiMessage,useUiI18n} from './UiI18nReact';
 import {useInsightData} from './InsightData';
 import {humanDate} from './InsightCharts';
 import {useProcedureProgress} from './ProcedureProgress';
-import {dossierStatusLines,mergeDossierStatus,type DossierCommittee,type DossierStatusLine,type DossierStatusResponse} from '../server/dossier-status-model.mjs';
+import {dossierStatusLines,mergeDossierStatus,votingListLineId,type DossierCommittee,type DossierStatusLine,type DossierStatusResponse,type DossierVotingList} from '../server/dossier-status-model.mjs';
 import type {ProcedureSummary} from '../server/procedure-steps.mjs';
 import './DossierStatus.css';
 
@@ -24,10 +24,18 @@ function CommitteeNames({committees,language}:{committees:DossierCommittee[];lan
   return <span lang={committees[0].language||language}>{new Intl.ListFormat(language,{style:'long',type:'conjunction'}).format(names)}</span>;
 }
 
+function VotingListLine({counts}:{counts:DossierVotingList}) {
+  const ui=useUiI18n(),id=votingListLineId(counts);
+  if(!id)return null;
+  const stem='dossierstatus.voting_list.';
+  const block=ui.t(stem+(counts.blockVotes>1?'blocks':'block'),{count:counts.blockAmendments}),individual=ui.t(stem+'individual',{count:counts.individual}),identical=ui.t(stem+'identical',{count:counts.identical});
+  return <p className="dossier-status-next dossier-status-voting-list"><UiMessage id={id} values={{block,individual,identical}}/></p>;
+}
+
 /** The first answer on a dossier: where the file stands and what comes next.
  * The strip's rows exist from the first render, so later reads only fill them in.
  */
-export function DossierStatus({reference,language,summaries}:{reference:string;language:string;summaries?:ProcedureSummary[]}) {
+export function DossierStatus({reference,language,summaries,votingList=false}:{reference:string;language:string;summaries?:ProcedureSummary[];votingList?:boolean}) {
   const ui = useUiI18n();
   const state=useInsightData<DossierStatusResponse>('insights/dossier-status?'+new URLSearchParams({reference,lang:language}));
   const progress=useProcedureProgress(reference,language);
@@ -46,6 +54,7 @@ export function DossierStatus({reference,language,summaries}:{reference:string;l
         <p className="dossier-status-sentence"><Line line={sentence} language={language}/></p>
         {next&&<p className="dossier-status-next"><Line line={next} language={language}/></p>}
       </> : failed&&<p className="dossier-status-sentence"><UiMessage id="dossierstatus.unavailable"/> <a href={fileUrl(reference)} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.28.70"/></a></p>}
+      {votingList&&status?.slots?.votingList&&<VotingListLine counts={status.slots.votingList}/>}
     </div>
     {steps.length>0&&<ol className="dossier-steps" aria-label={ui.t('dossierstatus.steps')} style={{'--dossier-step-count':steps.length} as React.CSSProperties}>{steps.map(step=><li key={step.key} data-state={step.state} aria-current={(step.state==='current') ? 'step' : undefined}>
       <span className="dossier-step-mark" aria-hidden="true">{(step.state==='done') ? '✓' : ''}</span>

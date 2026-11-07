@@ -11,12 +11,13 @@ import {MeetingsReader} from './meetings-reader.mjs';
 import {sittingSnapshots} from './sitting-snapshot-store.mjs';
 import {mainVote} from './main-vote.mjs';
 import {procedureSteps} from './procedure-steps.mjs';
+import {votingListCounts} from './voting-lists.mjs';
 import {resolutionStage} from './dossier-status-model.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {calendarMonday} from './plenary-calendar.mjs';
 import {isLocalRequestFailure,requestSignal} from './request-budget.mjs';
 
-export const DOSSIER_STATUS_VERSION=1;
+export const DOSSIER_STATUS_VERSION=2;
 // Held sittings only: a page view neither requests a source nor queues collection.
 // Chairs are downloaded separately from the request client, and a main vote needs none.
 export const heldVotes=new MemberVotes({request:cachedAgendaRequest,readChairs:async()=>null,limits:{cacheEntries:1},snapshots:{read:(kind,version,id)=>sittingSnapshots.read(kind,version,id,{retained:true}),enqueue(){}}});
@@ -42,6 +43,12 @@ export function leadCommittees(work,language) {
   return codes.map(code=>committeeLabel(code,language));
 }
 
+/** Reports tabled for plenary on this procedure, newest first: event to document, never a title. */
+export function tabledReports(work) {
+  const dated=array(work?.consists_of).filter(event=>tail(event.had_activity_type)==='TABLING_PLENARY')
+    .flatMap(event=>array(event.based_on_a_realization_of).map(tail).filter(id=>/^(?:A|B|RC)-\d{1,2}-\d{4}-\d{4,6}$/.test(id)).map(id=>({id,date:event.activity_date||''})));
+  return [...new Set(dated.sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id)).map(row=>row.id))];
+}
 /** The plenary votes that settle a file: after a deal, only the vote on Parliament's own date. */
 export function mainVoteEvents({indexEvents,family,steps,asOf}) {
   const voteEvents=indexEvents.filter(event=>event.had_activity_type==='PLENARY_VOTE_RESULTS'&&/^MTG-PL-\d{4}-\d{2}-\d{2}-VOT-ITM-\d+$/.test(event.activity_id)&&event.activity_date&&event.activity_date<=asOf);
@@ -98,6 +105,16 @@ export class DossierStatus {
     }catch(error){if(isLocalRequestFailure(error))throw error;}
     return null;
   }
+  // The held voting list of this file's newest report still ahead. A failed read leaves the line out.
+  votingList(work,asOf) {
+    try {
+      for(const id of tabledReports(work)) {
+        const list=this.activity.store?.upcomingVotingList?.(id,asOf);
+        if(list)return votingListCounts(list);
+      }
+    }catch(error){if(isLocalRequestFailure(error))throw error;}
+    return null;
+  }
   async query({reference,language}) {
     const id=reference.split('(')[0].replace('/','-'),asOf=brusselsDay(this.clock());
     const {work}=await this.activity.procedure(id,language,reference);
@@ -108,6 +125,6 @@ export class DossierStatus {
     const stage=family==='COD'?derived:resolutionStage(vote);
     const plenaryDate=stage==='reported'?await this.plenaryDate(id,asOf):null;
     requestSignal()?.throwIfAborted();
-    return {version:DOSSIER_STATUS_VERSION,reference,family,steps,stage,indexEvents,slots:{committees:leadCommittees(work,language),mainVote:vote,plenaryDate}};
+    return {version:DOSSIER_STATUS_VERSION,reference,family,steps,stage,indexEvents,slots:{committees:leadCommittees(work,language),mainVote:vote,plenaryDate,votingList:this.votingList(work,asOf)}};
   }
 }

@@ -9,6 +9,14 @@ export function resolutionStage(vote) {
   return vote?.outcome==='ADOPTED'?'resolution-adopted':'unknown';
 }
 
+/** Which sentence a held voting list takes. With nothing to say there is none. */
+export function votingListLineId(counts) {
+  if(!counts)return null;
+  const stem='dossierstatus.voting_list.',identical=counts.identical>0;
+  if(counts.blockAmendments>0)return stem+(counts.individual>0?(identical?'block_then_identical':'block_then'):'block_only');
+  return counts.individual>0?stem+(identical?'individual_identical':'individual_line'):null;
+}
+
 /** Merge the Council, signature and Journal events the client reads later.
  * Ordinary legislative files recompute; other families keep the server's stage.
  */

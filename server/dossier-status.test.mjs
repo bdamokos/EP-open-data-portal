@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import https from 'node:https';
 import {DossierStatus,dossierStatusQuery,heldVotes,leadCommittees} from './dossier-status.mjs';
 import {sittingSnapshotHints} from './sitting-snapshot-store.mjs';
-import {dossierStatusLines,mergeDossierStatus,resolutionStage} from './dossier-status-model.mjs';
+import {dossierStatusLines,mergeDossierStatus,resolutionStage,votingListLineId} from './dossier-status-model.mjs';
 
 const {procedures,votes}=JSON.parse(readFileSync(new URL('./fixtures/reader-first-helpers.json',import.meta.url)));
 const [erasmus,fisheries]=procedures;
@@ -186,4 +186,29 @@ test('the default tally read makes no source request and queues no collection',a
   const result=await heldVotes.snapshot({sitting:'MTG-PL-2026-10-22',week:null,language:'en',snapshot:null}).catch(error=>error);
   assert.equal(fetched,0);assert.equal(sittingSnapshotHints.size,before);
   assert(result instanceof Error||result.days.every(row=>row.coverage.state!=='complete'),'an unheld sitting yields nothing complete');
+});
+
+test('the status carries the newest tabled report\'s upcoming voting list, and nothing without one',async()=>{
+  const tabled=(date,id)=>({id:'eli/dl/event/'+id+'-DEPOT',had_activity_type:'def/ep-activities/TABLING_PLENARY',activity_date:date,activity_id:id+'-DEPOT',based_on_a_realization_of:['eli/dl/doc/'+id]});
+  const events=[tabled('2024-03-25','A-9-2024-0160'),tabled('2026-10-12','A-10-2026-0271')];
+  const list={documentId:'A-10-2026-0271',rows:[{kind:'block',amendments:[{number:1},{number:2}],authors:['committee']},{kind:'amendment',amendments:[{number:3}],authors:['ESN']}]};
+  const read=upcoming=>{
+    const asked=[],activity={store:{upcomingVotingList:(id,day)=>{asked.push([id,day]);return upcoming(id);}},procedure:async(id,language,given)=>({work:{consists_of:events,had_participation:[]},procedure:{id,reference:given}})};
+    return {asked,status:new DossierStatus({activity,calendar:{catalogue:async()=>({nodes:[]})},votes:{snapshot:async()=>({days:[]})},readAgenda:async()=>{throw new Error('no read');},clock:()=>Date.parse('2026-11-07T12:00:00Z')})};
+  };
+  const found=read(id=>id==='A-10-2026-0271'?list:null),result=await found.status.query({reference:'2025/0223(COD)',language:'en'});
+  assert.deepEqual(result.slots.votingList,{blockVotes:1,blockAmendments:2,individual:1,identical:0});
+  assert.deepEqual(found.asked,[['A-10-2026-0271','2026-11-07']],'the newest report first, with today as the floor');
+  assert.equal((await read(()=>null).status.query({reference:'2025/0223(COD)',language:'en'})).slots.votingList,null);
+  assert.equal((await read(()=>{throw new Error('locked');}).status.query({reference:'2025/0223(COD)',language:'en'})).slots.votingList,null,'a failed read leaves the line out');
+});
+test('the voting-list sentence follows what the counts hold',()=>{
+  const line=(blockAmendments,individual,identical)=>votingListLineId({blockVotes:blockAmendments?1:0,blockAmendments,individual,identical});
+  assert.equal(line(309,48,2),'dossierstatus.voting_list.block_then_identical');
+  assert.equal(line(84,5,0),'dossierstatus.voting_list.block_then');
+  assert.equal(line(84,0,0),'dossierstatus.voting_list.block_only');
+  assert.equal(line(0,14,2),'dossierstatus.voting_list.individual_identical');
+  assert.equal(line(0,20,0),'dossierstatus.voting_list.individual_line');
+  assert.equal(line(0,0,0),null);
+  assert.equal(votingListLineId(null),null);
 });

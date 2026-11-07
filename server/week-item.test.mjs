@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {HttpError} from './http-utils.mjs';
 import {DossierActivity} from './dossier-activity.mjs';
-import {DossierStatus} from './dossier-status.mjs';
-import {leadCommitteeCodes,rapporteurIds,standingLines,tabledReports,WEEK_ITEM_VERSION,weekItem,weekItemQuery} from './week-item.mjs';
+import {DossierStatus,tabledReports} from './dossier-status.mjs';
+import {leadCommitteeCodes,rapporteurIds,standingLines,WEEK_ITEM_VERSION,weekItem,weekItemQuery} from './week-item.mjs';
 
 const event=(type,date,extra={})=>({id:'eli/dl/event/'+type+date,had_activity_type:'def/ep-activities/'+type,activity_date:date,activity_id:type+date,...extra});
 const part=(role,person,committee,term='org/ep-10')=>({participation_role:'def/ep-roles/'+role,had_participant_person:['person/'+person],participation_in_name_of:'org/'+committee,parliamentary_term:term});

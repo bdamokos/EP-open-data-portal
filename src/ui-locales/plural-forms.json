@@ -576,6 +576,22 @@
     "week.speakers": {
       "one": "{count} оратор",
       "other": "{count} оратори"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "гласуване в блок на {count} изменение на комисията",
+      "other": "гласуване в блок на {count} изменения на комисията"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "гласувания в блок на {count} изменение на комисията",
+      "other": "гласувания в блок на {count} изменения на комисията"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} отделно изменение",
+      "other": "{count} отделни изменения"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "{count} от тях идентично",
+      "other": "{count} от тях идентични"
     }
   },
   "cs": {
@@ -1397,6 +1413,30 @@
       "few": "{count} řečníci",
       "many": "{count} řečníka",
       "other": "{count} řečníků"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "společné hlasování o {count} pozměňovacím návrhu výboru",
+      "few": "společné hlasování o {count} pozměňovacích návrzích výboru",
+      "many": "společné hlasování o {count} pozměňovacích návrzích výboru",
+      "other": "společné hlasování o {count} pozměňovacích návrzích výboru"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "společná hlasování o {count} pozměňovacím návrhu výboru",
+      "few": "společná hlasování o {count} pozměňovacích návrzích výboru",
+      "many": "společná hlasování o {count} pozměňovacích návrzích výboru",
+      "other": "společná hlasování o {count} pozměňovacích návrzích výboru"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} samostatný pozměňovací návrh",
+      "few": "{count} samostatné pozměňovací návrhy",
+      "many": "{count} samostatného pozměňovacího návrhu",
+      "other": "{count} samostatných pozměňovacích návrhů"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "z toho {count} totožný",
+      "few": "z toho {count} totožné",
+      "many": "z toho {count} totožného",
+      "other": "z toho {count} totožných"
     }
   },
   "da": {
@@ -2007,6 +2047,22 @@
     "week.speakers": {
       "one": "{count} taler",
       "other": "{count} talere"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "en samlet afstemning om {count} ændringsforslag fra udvalget",
+      "other": "en samlet afstemning om {count} ændringsforslag fra udvalget"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "samlede afstemninger om {count} ændringsforslag fra udvalget",
+      "other": "samlede afstemninger om {count} ændringsforslag fra udvalget"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} enkeltstående ændringsforslag",
+      "other": "{count} enkeltstående ændringsforslag"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "{count} af dem identisk",
+      "other": "{count} af dem identiske"
     }
   },
   "de": {
@@ -2617,6 +2673,22 @@
     "week.speakers": {
       "one": "{count} sprechende Person",
       "other": "{count} sprechende Personen"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "eine Abstimmung en bloc über {count} Änderungsantrag des Ausschusses",
+      "other": "eine Abstimmung en bloc über {count} Änderungsanträge des Ausschusses"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "Abstimmungen en bloc über {count} Änderungsantrag des Ausschusses",
+      "other": "Abstimmungen en bloc über {count} Änderungsanträge des Ausschusses"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} einzelner Änderungsantrag",
+      "other": "{count} einzelne Änderungsanträge"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "davon {count} identisch",
+      "other": "davon {count} identisch"
     }
   },
   "el": {
@@ -3195,6 +3267,22 @@
     "week.speakers": {
       "one": "{count} ομιλητής",
       "other": "{count} ομιλητές"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "συνολική ψηφοφορία για {count} τροπολογία της επιτροπής",
+      "other": "συνολική ψηφοφορία για {count} τροπολογίες της επιτροπής"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "συνολικές ψηφοφορίες για {count} τροπολογία της επιτροπής",
+      "other": "συνολικές ψηφοφορίες για {count} τροπολογίες της επιτροπής"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} μεμονωμένη τροπολογία",
+      "other": "{count} μεμονωμένες τροπολογίες"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "εκ των οποίων {count} ταυτόσημη",
+      "other": "εκ των οποίων {count} ταυτόσημες"
     }
   },
   "es": {
@@ -3889,6 +3977,26 @@
       "one": "{count} orador",
       "many": "{count} de oradores",
       "other": "{count} oradores"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "una votación en bloque de {count} enmienda de la comisión",
+      "many": "una votación en bloque de {count} de enmiendas de la comisión",
+      "other": "una votación en bloque de {count} enmiendas de la comisión"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "votaciones en bloque de {count} enmienda de la comisión",
+      "many": "votaciones en bloque de {count} de enmiendas de la comisión",
+      "other": "votaciones en bloque de {count} enmiendas de la comisión"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} enmienda individual",
+      "many": "{count} de enmiendas individuales",
+      "other": "{count} enmiendas individuales"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "{count} de ellas idéntica",
+      "many": "{count} de ellas idénticas",
+      "other": "{count} de ellas idénticas"
     }
   },
   "et": {
@@ -4468,6 +4576,22 @@
     "week.speakers": {
       "one": "{count} sõnavõtja",
       "other": "{count} sõnavõtjat"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "ühishääletus {count} komisjoni muudatusettepaneku kohta",
+      "other": "ühishääletus {count} komisjoni muudatusettepaneku kohta"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "ühishääletused {count} komisjoni muudatusettepaneku kohta",
+      "other": "ühishääletused {count} komisjoni muudatusettepaneku kohta"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} eraldi muudatusettepanek",
+      "other": "{count} eraldi muudatusettepanekut"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "neist {count} identne",
+      "other": "neist {count} identset"
     }
   },
   "fi": {
@@ -5078,6 +5202,22 @@
     "week.speakers": {
       "one": "{count} puhuja",
       "other": "{count} puhujaa"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "yhteisäänestys {count} valiokunnan tarkistuksesta",
+      "other": "yhteisäänestys {count} valiokunnan tarkistuksesta"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "yhteisäänestykset {count} valiokunnan tarkistuksesta",
+      "other": "yhteisäänestykset {count} valiokunnan tarkistuksesta"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} erillinen tarkistus",
+      "other": "{count} erillistä tarkistusta"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "joista {count} identtinen",
+      "other": "joista {count} identtistä"
     }
   },
   "fr": {
@@ -5772,6 +5912,26 @@
       "one": "{count} orateur",
       "other": "{count} orateurs",
       "many": "{count} d’orateurs"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "un vote en bloc sur {count} amendement de la commission",
+      "many": "un vote en bloc sur {count} d’amendements de la commission",
+      "other": "un vote en bloc sur {count} amendements de la commission"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "des votes en bloc sur {count} amendement de la commission",
+      "many": "des votes en bloc sur {count} d’amendements de la commission",
+      "other": "des votes en bloc sur {count} amendements de la commission"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} amendement individuel",
+      "many": "{count} d’amendements individuels",
+      "other": "{count} amendements individuels"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "dont {count} identique",
+      "many": "dont {count} identiques",
+      "other": "dont {count} identiques"
     }
   },
   "ga": {
@@ -6695,6 +6855,34 @@
       "two": "{count} cainteoir",
       "few": "{count} cainteoir",
       "many": "{count} cainteoir"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "vóta bloc ar leasú ón gcoiste: {count}",
+      "two": "vóta bloc ar leasuithe ón gcoiste: {count}",
+      "few": "vóta bloc ar leasuithe ón gcoiste: {count}",
+      "many": "vóta bloc ar leasuithe ón gcoiste: {count}",
+      "other": "vóta bloc ar leasuithe ón gcoiste: {count}"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "vótaí bloc ar leasú ón gcoiste: {count}",
+      "two": "vótaí bloc ar leasuithe ón gcoiste: {count}",
+      "few": "vótaí bloc ar leasuithe ón gcoiste: {count}",
+      "many": "vótaí bloc ar leasuithe ón gcoiste: {count}",
+      "other": "vótaí bloc ar leasuithe ón gcoiste: {count}"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "leasú aonair: {count}",
+      "two": "leasuithe aonair: {count}",
+      "few": "leasuithe aonair: {count}",
+      "many": "leasuithe aonair: {count}",
+      "other": "leasuithe aonair: {count}"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "díobh sin, comhionann: {count}",
+      "two": "díobh sin, comhionann: {count}",
+      "few": "díobh sin, comhionann: {count}",
+      "many": "díobh sin, comhionann: {count}",
+      "other": "díobh sin, comhionann: {count}"
     }
   },
   "hr": {
@@ -7387,6 +7575,26 @@
       "one": "{count} govornik",
       "few": "{count} govornika",
       "other": "{count} govornika"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "glasovanje en bloc o {count} amandmanu odbora",
+      "few": "glasovanje en bloc o {count} amandmana odbora",
+      "other": "glasovanje en bloc o {count} amandmana odbora"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "glasovanja en bloc o {count} amandmanu odbora",
+      "few": "glasovanja en bloc o {count} amandmana odbora",
+      "other": "glasovanja en bloc o {count} amandmana odbora"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} pojedinačni amandman",
+      "few": "{count} pojedinačna amandmana",
+      "other": "{count} pojedinačnih amandmana"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "od toga {count} istovjetan",
+      "few": "od toga {count} istovjetna",
+      "other": "od toga {count} istovjetnih"
     }
   },
   "hu": {
@@ -7962,6 +8170,22 @@
     "week.speakers": {
       "one": "{count} felszólaló",
       "other": "{count} felszólaló"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "együttes szavazás {count} bizottsági módosításról",
+      "other": "együttes szavazás {count} bizottsági módosításról"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "együttes szavazások {count} bizottsági módosításról",
+      "other": "együttes szavazások {count} bizottsági módosításról"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} egyedi módosítás",
+      "other": "{count} egyedi módosítás"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "ebből {count} azonos",
+      "other": "ebből {count} azonos"
     }
   },
   "it": {
@@ -8656,6 +8880,26 @@
       "one": "{count} oratore",
       "many": "{count} di oratori",
       "other": "{count} oratori"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "una votazione in blocco su {count} emendamento della commissione",
+      "many": "una votazione in blocco su {count} di emendamenti della commissione",
+      "other": "una votazione in blocco su {count} emendamenti della commissione"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "votazioni in blocco su {count} emendamento della commissione",
+      "many": "votazioni in blocco su {count} di emendamenti della commissione",
+      "other": "votazioni in blocco su {count} emendamenti della commissione"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} emendamento singolo",
+      "many": "{count} di emendamenti singoli",
+      "other": "{count} emendamenti singoli"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "di cui {count} identico",
+      "many": "di cui {count} identici",
+      "other": "di cui {count} identici"
     }
   },
   "lt": {
@@ -9464,6 +9708,30 @@
       "other": "{count} kalbėtojų",
       "few": "{count} kalbėtojai",
       "many": "Kalbėtojų skaičius: {count}"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "balsavimas bloku dėl {count} komiteto pakeitimo",
+      "few": "balsavimas bloku dėl {count} komiteto pakeitimų",
+      "many": "balsavimas bloku dėl {count} komiteto pakeitimo",
+      "other": "balsavimas bloku dėl {count} komiteto pakeitimų"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "balsavimai bloku dėl {count} komiteto pakeitimo",
+      "few": "balsavimai bloku dėl {count} komiteto pakeitimų",
+      "many": "balsavimai bloku dėl {count} komiteto pakeitimo",
+      "other": "balsavimai bloku dėl {count} komiteto pakeitimų"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} atskiras pakeitimas",
+      "few": "{count} atskiri pakeitimai",
+      "many": "{count} atskiro pakeitimo",
+      "other": "{count} atskirų pakeitimų"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "iš jų {count} vienodas",
+      "few": "iš jų {count} vienodi",
+      "many": "iš jų {count} vienodo",
+      "other": "iš jų {count} vienodų"
     }
   },
   "lv": {
@@ -10155,6 +10423,26 @@
       "one": "{count} runātājs",
       "other": "{count} runātāji",
       "zero": "{count} runātāju"
+    },
+    "dossierstatus.voting_list.block": {
+      "zero": "balsojums blokā par {count} komitejas grozījumiem",
+      "one": "balsojums blokā par {count} komitejas grozījumu",
+      "other": "balsojums blokā par {count} komitejas grozījumiem"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "zero": "balsojumi blokā par {count} komitejas grozījumiem",
+      "one": "balsojumi blokā par {count} komitejas grozījumu",
+      "other": "balsojumi blokā par {count} komitejas grozījumiem"
+    },
+    "dossierstatus.voting_list.individual": {
+      "zero": "{count} atsevišķu grozījumu",
+      "one": "{count} atsevišķs grozījums",
+      "other": "{count} atsevišķi grozījumi"
+    },
+    "dossierstatus.voting_list.identical": {
+      "zero": "no tiem {count} identisku",
+      "one": "no tiem {count} identisks",
+      "other": "no tiem {count} identiski"
     }
   },
   "mt": {
@@ -11078,6 +11366,34 @@
       "two": "{count} kelliema",
       "few": "{count} kelliema",
       "many": "{count}-il kelliem"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "votazzjoni f’blokk dwar emendi tal-kumitat: {count}",
+      "two": "votazzjoni f’blokk dwar emendi tal-kumitat: {count}",
+      "few": "votazzjoni f’blokk dwar emendi tal-kumitat: {count}",
+      "many": "votazzjoni f’blokk dwar emendi tal-kumitat: {count}",
+      "other": "votazzjoni f’blokk dwar emendi tal-kumitat: {count}"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "votazzjonijiet f’blokk dwar emendi tal-kumitat: {count}",
+      "two": "votazzjonijiet f’blokk dwar emendi tal-kumitat: {count}",
+      "few": "votazzjonijiet f’blokk dwar emendi tal-kumitat: {count}",
+      "many": "votazzjonijiet f’blokk dwar emendi tal-kumitat: {count}",
+      "other": "votazzjonijiet f’blokk dwar emendi tal-kumitat: {count}"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "emendi individwali: {count}",
+      "two": "emendi individwali: {count}",
+      "few": "emendi individwali: {count}",
+      "many": "emendi individwali: {count}",
+      "other": "emendi individwali: {count}"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "minnhom, identiċi: {count}",
+      "two": "minnhom, identiċi: {count}",
+      "few": "minnhom, identiċi: {count}",
+      "many": "minnhom, identiċi: {count}",
+      "other": "minnhom, identiċi: {count}"
     }
   },
   "nl": {
@@ -11688,6 +12004,22 @@
     "week.speakers": {
       "one": "{count} spreker",
       "other": "{count} sprekers"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "een stemming en bloc over {count} commissieamendement",
+      "other": "een stemming en bloc over {count} commissieamendementen"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "stemmingen en bloc over {count} commissieamendement",
+      "other": "stemmingen en bloc over {count} commissieamendementen"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} afzonderlijk amendement",
+      "other": "{count} afzonderlijke amendementen"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "waarvan {count} identiek",
+      "other": "waarvan {count} identiek"
     }
   },
   "pl": {
@@ -12497,6 +12829,30 @@
       "few": "{count} mówców",
       "many": "{count} mówców",
       "other": "{count} mówcy"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "głosowanie łączne nad {count} poprawką komisji",
+      "few": "głosowanie łączne nad {count} poprawkami komisji",
+      "many": "głosowanie łączne nad {count} poprawkami komisji",
+      "other": "głosowanie łączne nad {count} poprawki komisji"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "głosowania łączne nad {count} poprawką komisji",
+      "few": "głosowania łączne nad {count} poprawkami komisji",
+      "many": "głosowania łączne nad {count} poprawkami komisji",
+      "other": "głosowania łączne nad {count} poprawki komisji"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} odrębna poprawka",
+      "few": "{count} odrębne poprawki",
+      "many": "{count} odrębnych poprawek",
+      "other": "{count} odrębnej poprawki"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "w tym {count} identyczna",
+      "few": "w tym {count} identyczne",
+      "many": "w tym {count} identycznych",
+      "other": "w tym {count} identycznej"
     }
   },
   "pt": {
@@ -13191,6 +13547,26 @@
       "one": "{count} orador",
       "many": "{count} de oradores",
       "other": "{count} oradores"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "uma votação em bloco de {count} alteração da comissão",
+      "many": "uma votação em bloco de {count} de alterações da comissão",
+      "other": "uma votação em bloco de {count} alterações da comissão"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "votações em bloco de {count} alteração da comissão",
+      "many": "votações em bloco de {count} de alterações da comissão",
+      "other": "votações em bloco de {count} alterações da comissão"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} alteração individual",
+      "many": "{count} de alterações individuais",
+      "other": "{count} alterações individuais"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "das quais {count} idêntica",
+      "many": "das quais {count} idênticas",
+      "other": "das quais {count} idênticas"
     }
   },
   "ro": {
@@ -13885,6 +14261,26 @@
       "one": "{count} vorbitor",
       "few": "{count} vorbitori",
       "other": "{count} de vorbitori"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "un vot în bloc pentru {count} amendament al comisiei",
+      "few": "un vot în bloc pentru {count} amendamente ale comisiei",
+      "other": "un vot în bloc pentru {count} de amendamente ale comisiei"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "voturi în bloc pentru {count} amendament al comisiei",
+      "few": "voturi în bloc pentru {count} amendamente ale comisiei",
+      "other": "voturi în bloc pentru {count} de amendamente ale comisiei"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} amendament individual",
+      "few": "{count} amendamente individuale",
+      "other": "{count} de amendamente individuale"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "dintre care {count} identic",
+      "few": "dintre care {count} identice",
+      "other": "dintre care {count} identice"
     }
   },
   "sk": {
@@ -14706,6 +15102,30 @@
       "few": "{count} rečníci",
       "many": "{count} rečníka",
       "other": "{count} rečníkov"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "hlasovanie en bloc o {count} pozmeňujúcom návrhu výboru",
+      "few": "hlasovanie en bloc o {count} pozmeňujúcich návrhoch výboru",
+      "many": "hlasovanie en bloc o {count} pozmeňujúcich návrhoch výboru",
+      "other": "hlasovanie en bloc o {count} pozmeňujúcich návrhoch výboru"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "hlasovania en bloc o {count} pozmeňujúcom návrhu výboru",
+      "few": "hlasovania en bloc o {count} pozmeňujúcich návrhoch výboru",
+      "many": "hlasovania en bloc o {count} pozmeňujúcich návrhoch výboru",
+      "other": "hlasovania en bloc o {count} pozmeňujúcich návrhoch výboru"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} samostatný pozmeňujúci návrh",
+      "few": "{count} samostatné pozmeňujúce návrhy",
+      "many": "{count} samostatného pozmeňujúceho návrhu",
+      "other": "{count} samostatných pozmeňujúcich návrhov"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "z toho {count} totožný",
+      "few": "z toho {count} totožné",
+      "many": "z toho {count} totožného",
+      "other": "z toho {count} totožných"
     }
   },
   "sl": {
@@ -15527,6 +15947,30 @@
       "two": "{count} govorca",
       "few": "{count} govorci",
       "other": "{count} govorcev"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "skupno glasovanje o {count} predlogu spremembe odbora",
+      "two": "skupno glasovanje o {count} predlogih sprememb odbora",
+      "few": "skupno glasovanje o {count} predlogih sprememb odbora",
+      "other": "skupno glasovanje o {count} predlogih sprememb odbora"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "skupna glasovanja o {count} predlogu spremembe odbora",
+      "two": "skupna glasovanja o {count} predlogih sprememb odbora",
+      "few": "skupna glasovanja o {count} predlogih sprememb odbora",
+      "other": "skupna glasovanja o {count} predlogih sprememb odbora"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} posamezen predlog spremembe",
+      "two": "{count} posamezna predloga sprememb",
+      "few": "{count} posamezni predlogi sprememb",
+      "other": "{count} posameznih predlogov sprememb"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "od tega {count} enak",
+      "two": "od tega {count} enaka",
+      "few": "od tega {count} enaki",
+      "other": "od tega {count} enakih"
     }
   },
   "sv": {
@@ -16137,6 +16581,22 @@
     "week.speakers": {
       "one": "{count} talare",
       "other": "{count} talare"
+    },
+    "dossierstatus.voting_list.block": {
+      "one": "en gemensam omröstning om {count} utskottsändringsförslag",
+      "other": "en gemensam omröstning om {count} utskottsändringsförslag"
+    },
+    "dossierstatus.voting_list.blocks": {
+      "one": "gemensamma omröstningar om {count} utskottsändringsförslag",
+      "other": "gemensamma omröstningar om {count} utskottsändringsförslag"
+    },
+    "dossierstatus.voting_list.individual": {
+      "one": "{count} enskilt ändringsförslag",
+      "other": "{count} enskilda ändringsförslag"
+    },
+    "dossierstatus.voting_list.identical": {
+      "one": "varav {count} identiskt",
+      "other": "varav {count} identiska"
     }
   }
 }

@@ -45,7 +45,7 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
   // The dossier page answers first and keeps one tree, so nothing remounts when the context arrives.
   if(showTitle&&children)return <section lang={ui.language} className="insight-procedure-context" data-procedure-context-pending={(!data && loading && (!fallbackTitle)) ? "true" : undefined}>
     {identity}{recordTopics}{amendmentLink}
-    <DossierStatus reference={reference} language={language} summaries={data?.summaries}/>
+    <DossierStatus reference={reference} language={language} summaries={data?.summaries} votingList/>
     {summaryBlock}
     {data&&!data.summary&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
     {!data&&loading&&<p role="status"><UiMessage id="batch5.procedurecontext.tsx.28.69"/></p>}
