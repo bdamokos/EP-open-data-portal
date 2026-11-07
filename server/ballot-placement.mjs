@@ -7,7 +7,7 @@ const itemId=node=>node.activity_id||tail(node.id);
 const kind=node=>tail(node.had_activity_type);
 const documents=node=>array(node.based_on_a_realization_of).map(tail);
 // Newly tabled reports can lack the procedure link and carry only its tabling event.
-function documentProcedures(work) {
+export function documentProcedures(work) {
   const events=array(work?.inverse_based_on_a_realization_of).map(tail).flatMap(id=>/^(\d{4}-\d{4}[A-Z]?)-DEPOT-/.exec(id)?.[1]||[]);
   return [...new Set([...(work?procedureIds(work):[]),...events])];
 }
