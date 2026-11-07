@@ -100,7 +100,9 @@ export function missingMemberVoteRecord(store,version,groupGeneration,skip=[],to
 
 // Frozen history is cached by generation, but staleness is keyed by its answers
 // on the sitting date. Publication timestamps and clipped open interval ends can
-// change daily without changing a single historical group attribution.
+// change daily without changing a single historical group attribution. Only
+// attached IDs and group codes enter the projection; unavailable, not-serving
+// and non-attached answers have identical effects and stay out of the key.
 const histories=new WeakMap();
 export function memberVoteRecordHistory(store) {
   const generation=store.get?.('active')??null;
@@ -110,7 +112,7 @@ export function memberVoteRecordHistory(store) {
   const groupOn=snapshot?createGroupOn(snapshot):null,keys=new Map();
   const state={generation,groupOn,key:date=>{
     if(!snapshot)return null;
-    if(!keys.has(date))keys.set(date,createHash('sha256').update(JSON.stringify(Object.keys(snapshot.members||{}).sort().map(id=>[id,groupOn(id,date)]))).digest('hex'));
+    if(!keys.has(date))keys.set(date,createHash('sha256').update(JSON.stringify(Object.keys(snapshot.members||{}).sort().flatMap(id=>{const group=groupOn(id,date);return typeof group==='object'&&group.code&&group.code!=='NI'?[[id,group.code]]:[];}))).digest('hex'));
     return keys.get(date);
   }};
   // A late history repair for this same generation must be observed.

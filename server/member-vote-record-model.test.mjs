@@ -196,3 +196,17 @@ test('unavailable empty reads are excluded and omitted named arrays remain expli
   const result=summariseVoteSitting(f.day,createGroupOn(groupsOf({1:'S&D',2:'S&D'})));
   assert.equal(result.sitting.unprojected,1);assert.equal(result.sitting.named,0);
 });
+
+test('a final empty census cannot hide a failed named read or contradictory result evidence',async()=>{
+  const {voteSittingStatus}=await import('./member-vote-record-model.mjs');
+  const empty={decisions:[],results:[],coverage:{decisions:{state:'complete',rows:0,stopReason:'not-found'},namedDecisions:{state:'complete',rows:0,stopReason:'not-found'},results:{state:'unavailable',rows:0},completeness:{declaredDecisionCount:0,declaredResultCount:0,votingRecordsComplete:false}}};
+  assert.equal(voteSittingStatus(empty).status,'empty');
+  const failedNamed=structuredClone(empty);failedNamed.coverage.namedDecisions={state:'unavailable',error:{status:503}};
+  assert.deepEqual(voteSittingStatus(failedNamed),{status:'excluded',reason:'records-incomplete'});
+  const results=structuredClone(empty);results.coverage.results.rows=3;results.coverage.completeness.undeclaredChildResultIds=['result-1'];
+  assert.equal(voteSittingStatus(results).status,'excluded');
+  const unresolved=structuredClone(empty);unresolved.coverage.completeness.undeclaredChildResultIds=['result-1'];
+  assert.equal(voteSittingStatus(unresolved).status,'excluded');
+  const provisional=structuredClone(empty);provisional.coverage.decisions.state='partial';provisional.coverage.agenda={state:'unavailable'};
+  assert.equal(voteSittingStatus(provisional).status,'excluded','a provisional same-day 404 cannot establish no votes');
+});

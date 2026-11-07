@@ -297,3 +297,10 @@ test('unprojected named decisions force partial coverage without treating their 
   const data=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00Z')}).query(MEP,{...query(),language:'en'});
   assert.equal(data.coverage.status,'partial');assert.equal(data.coverage.unprojectedDecisions,1);
 });
+
+test('an attached member has no alignment observations while every sitting is still pending',()=>{
+  const {db}=database({includeC:true});
+  const data=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00Z')}).query(MEP,{...query(),language:'en'});
+  assert.equal(data.group.status,'attached');assert.equal(data.coverage.included,0);assert.equal(data.coverage.status,'pending');
+  assert.equal(data.alignment,null);assert.equal(data.comparison,null);assert.equal(data.breakdown,null);
+});

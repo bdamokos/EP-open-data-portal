@@ -66,8 +66,14 @@ export function pickTitle(titles,referenceTexts,language) {
 // conflicting decisions, or records not yet read in full, keep a sitting out as missing.
 export function voteSittingStatus(day) {
   const completeness=day.coverage?.completeness||{};
-  const verifiedEmpty=key=>{const c=day.coverage?.[key];return c&&!c.error&&(c.state==='complete'||c.stopReason==='not-found');};
-  if(!list(day.decisions).length&&!(completeness.declaredDecisionCount>0)&&!day.coverage?.pendingVotes&&!(completeness.declaredResultCount>0)&&!list(completeness.invalidSourceIds).length&&verifiedEmpty('decisions')&&!(day.coverage.decisions.rows>0))return {status:'empty',reason:null};
+  // Both decision censuses must be final empty observations. A provisional
+  // first-page 404, failed named read or contradictory result graph is a gap.
+  // An unavailable results endpoint alone does not contradict two empty censuses.
+  const verifiedEmpty=key=>{const c=day.coverage?.[key];return c&&!c.error&&c.state==='complete'&&!(c.rows>0);};
+  const contradictory=['invalidSourceIds','conflictingDecisionIds','undeclaredChildResultIds','missingDecisionIds'].some(key=>list(completeness[key]).length);
+  if(!list(day.decisions).length&&!(completeness.declaredDecisionCount>0)&&!day.coverage?.pendingVotes&&
+    !(completeness.declaredResultCount>0)&&!contradictory&&verifiedEmpty('decisions')&&verifiedEmpty('namedDecisions')&&
+    !(day.coverage?.results?.rows>0)&&!list(day.results).length)return {status:'empty',reason:null};
   if(completeness.votingRecordsComplete===true)return {status:'projected',reason:null};
   return {status:'excluded',reason:list(completeness.conflictingDecisionIds).length?'conflicting-decisions':'records-incomplete'};
 }

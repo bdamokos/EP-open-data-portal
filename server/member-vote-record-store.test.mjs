@@ -75,7 +75,7 @@ test('a sitting is projected on complete voting records even with an unfinished 
   agendaOpen.coverage={completeness:{complete:false,votingRecordsComplete:true,unresolvedAgendaItemIds:['eli/dl/event/x'],conflictingDecisionIds:[]}};
   assert.deepEqual({...status(agendaOpen)},{status:'projected',reason:null,named:1});
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,4);
-  const noDecisions=structuredClone(fixture.day);noDecisions.decisions=[];
+  const noDecisions=structuredClone(fixture.day);noDecisions.decisions=[];noDecisions.results=[];
   noDecisions.coverage={decisions:{state:'complete'},namedDecisions:{state:'complete'},results:{state:'complete'},completeness:{complete:false,votingRecordsComplete:false,declaredDecisionCount:0}};
   assert.deepEqual({...status(noDecisions)},{status:'empty',reason:null,named:0});
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,0,'a later empty read replaces the earlier rows');
@@ -180,4 +180,18 @@ test('sitting replacement uses an index and totals stay isolated across snapshot
   const totals=store.db.prepare("SELECT snapshot_version,body FROM member_vote_record_totals WHERE member_id='197591' ORDER BY snapshot_version").all();
   assert.equal(JSON.parse(totals[0].body).comparable,0);
   assert.equal(JSON.parse(totals[1].body).comparable,1);
+});
+
+test('new people outside a sitting and irrelevant history metadata do not invalidate its projection',t=>{
+  const store=setup(t),f=voteFixture();groupHistorySchema(store.db);store.set('active',31);
+  const before=structuredClone(f.history);
+  before.members['9991']={coverage:'unavailable'};
+  store.db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(31,JSON.stringify(before));
+  const key=memberVoteRecordHistory(store).key(f.day.date);
+  const after=structuredClone(f.history),future=structuredClone(after.members['197591']);
+  future.mandates=[{start:'2026-11-01',end:null}];future.groups=future.groups.map(group=>({...group,start:'2026-11-01'}));
+  after.members['9991']=structuredClone(future);after.members['9992']=future;
+  for(const person of Object.values(after.members))for(const group of person.groups||[]){group.org+='-new-metadata';group.groupId+='-new-metadata';}
+  store.db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(32,JSON.stringify(after));store.set('active',32);
+  assert.equal(memberVoteRecordHistory(store).key(f.day.date),key,'only attached member IDs and group codes affect the historical projection');
 });

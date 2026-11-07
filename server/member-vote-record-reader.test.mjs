@@ -12,8 +12,15 @@ test('bounded HTTP reader runs off-thread, rejects overlap, and releases its wor
   const store=new ActivityStore(directory);assert(store.acquire());store.close();
   const service=new MemberVoteRecordService({directory});
   const request=service.query('1',{language:'en',scope:'all',tag:null,limit:5,offset:0});
-  await assert.rejects(service.query('2',{}),error=>error.code==='member_vote_record_busy');
+  await assert.rejects(service.query('2',{}),error=>error.code==='busy'&&error.retryAfter===1);
   const data=await request;assert.equal(data.member.id,'1');assert.equal(data.coverage.status,'unavailable');
   assert.equal(service.busy,false);
   assert.equal((await service.query('2',{language:'en',scope:'all',tag:null,limit:0,offset:0})).member.id,'2');
+});
+
+
+test('a reader timeout is a retryable client error and releases the service',async()=>{
+  const service=new MemberVoteRecordService({directory:'/nonexistent-member-record-fixture',timeoutMs:1});
+  await assert.rejects(service.query('1',{}),error=>error.code==='request_timeout'&&error.retryAfter===1);
+  assert.equal(service.busy,false);
 });

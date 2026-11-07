@@ -10,14 +10,14 @@ import {requestSignal} from './request-budget.mjs';
 export class MemberVoteRecordService {
   constructor({directory=()=>absolutePathFromEnvironment('ACTIVITY_INDEX_DIR'),timeoutMs=5000}={}){this.directory=directory;this.timeoutMs=timeoutMs;this.busy=false;}
   async query(id,query) {
-    if(this.busy)throw new HttpError(503,'member_vote_record_busy','Voting records are temporarily unavailable.');
+    if(this.busy)throw Object.assign(new HttpError(503,'busy','Voting records are temporarily unavailable.'),{retryAfter:1});
     this.busy=true;let worker,timer,abort;
     const signal=requestSignal();
     try {
       signal?.throwIfAborted();
       worker=new Worker(new URL(import.meta.url),{workerData:{type:'member-vote-record',directory:typeof this.directory==='function'?this.directory():this.directory,id,query},resourceLimits:{maxOldGenerationSizeMb:256}});
       return await new Promise((resolve,reject)=>{
-        timer=setTimeout(()=>reject(new HttpError(503,'member_vote_record_timeout','Voting records are temporarily unavailable.')),this.timeoutMs);
+        timer=setTimeout(()=>reject(Object.assign(new HttpError(503,'request_timeout','Voting records are temporarily unavailable.'),{retryAfter:1})),this.timeoutMs);
         abort=()=>reject(signal.reason);signal?.addEventListener('abort',abort,{once:true});
         worker.once('message',message=>message.error?reject(new HttpError(message.status||503,message.code||'member_vote_record_unavailable',message.error)):resolve(message.result));
         worker.once('error',reject);worker.once('exit',()=>reject(new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.')));

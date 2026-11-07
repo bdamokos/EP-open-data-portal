@@ -152,7 +152,7 @@ export class MemberVoteRecordReader {
         return {...item,...label,subject:subject.text?subject:null};
       }),nextOffset=query.offset+items.length<sorted.length?query.offset+items.length:null;
       return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period,coverage,group,
-        alignment:group.status==='attached'||group.status==='not-serving'&&rows.length?alignment:null,ballots,breakdown,departures:{scope:query.scope,tag:query.tag?{key:query.tag,label:filterLabel?.text??null,language:filterLabel?.language??null}:null,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},
+        alignment:included>0&&(group.status==='attached'||group.status==='not-serving'&&rows.length)?alignment:null,ballots,breakdown,departures:{scope:query.scope,tag:query.tag?{key:query.tag,label:filterLabel?.text??null,language:filterLabel?.language??null}:null,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},
         comparison,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
     }catch(error){if(error instanceof HttpError)throw error;throw new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.');}
   }
