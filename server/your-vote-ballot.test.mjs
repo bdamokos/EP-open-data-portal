@@ -86,3 +86,14 @@ test('a decision naming another report or a foreign split never binds',()=>{
  assert.equal(list([split(parent)],1),'ADOPTED');
  assert.equal(list([split('MTG-PL-2026-09-15-VOT-ITM-999')],1),null);
 });
+test('a saved binding to a decision naming another report restores no outcome',()=>{
+ const id='MTG-PL-2026-09-15-DEC-1',decision=extra=>({activity_id:id,id:'eli/dl/event/'+id,decision_outcome:'def/ep-statuses/ADOPTED',inverse_consists_of:['eli/dl/event/'+parent],...extra});
+ const day=decisions=>({sittingId:'MTG-PL-2026-09-15',decisions,requests:[],results:[{id:'eli/dl/event/'+parent,activity_id:parent,executed:['eli/dl/event/'+agenda]}]});
+ const restored=decisions=>assembleBallot({document:doc,agendaItemId:agenda,day:day(decisions),retained:[{key:doc+':final',decisionId:id}]}).rows[0].outcome;
+ assert.equal(restored([decision({})]),'ADOPTED');
+ assert.equal(restored([decision({decided_on_a_realization_of:['eli/dl/doc/A-10-2026-0261']})]),null);
+ // Comparisons must not read it either, while an unobserved decision keeps its stored identity.
+ const row=decisions=>assembleBallot({document:doc,agendaItemId:agenda,day:day(decisions),retained:[{key:doc+':final',decisionId:id}]}).rows[0].decisionId;
+ assert.equal(row([decision({decided_on_a_realization_of:['eli/dl/doc/A-10-2026-0261']})]),null);
+ assert.equal(row([]),id);
+});

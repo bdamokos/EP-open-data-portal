@@ -77,7 +77,7 @@ export function AgendaBallot({sitting,agendaItemId,language,deadlines}:{sitting:
 export function DebateBallots({sitting,sittings,agendaItemId,language,applicable}:{sitting:string;sittings:{id:string;date:string}[];agendaItemId:string;language:string;applicable:boolean}) {
   const ui=useUiI18n(),ids=ballotSittings(sitting,sittings),request=ids.join(','),[state,setState]=useState<{items:Ballot[];failed:boolean}>({items:[],failed:false});
   useEffect(()=>{const abort=new AbortController();setState({items:[],failed:false});Promise.allSettled(ids.map(id=>api<Ballots>('upcoming-votes?'+new URLSearchParams({sitting:id,lang:language}),abort.signal))).then(results=>{if(!abort.signal.aborted)setState(debateBallots(ids,results,agendaItemId,applicable));});return()=>abort.abort();},[request,language,agendaItemId,applicable]);
-  return state.failed?<p>{ui.t('yourVote.error')}</p>:<>{state.items.map(b=><BallotCard key={b.documentId} ballot={b} language={language} showTitle={b.id!==agendaItemId}/>)}</>;
+  return state.failed?<p>{ui.t('yourVote.error')}</p>:<>{state.items.map(b=><BallotCard key={b.sittingId+':'+b.documentId} ballot={b} language={language} showTitle={b.id!==agendaItemId}/>)}</>;
 }
 function ComparisonSummary({entries,comparisons,people}:{entries:ComparisonEntry[];comparisons:Record<string,ComparisonData>;people:Person[]}) {
   const ui=useUiI18n(),summary=summarizeVotes(entries,comparisons,people);
