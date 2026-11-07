@@ -70,7 +70,7 @@ function DeparturePage({memberId,language,scope,tag,offset,onLoaded,onFailed}:{m
   const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
   const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
   useEffect(()=>{if(data)onLoaded();},[data,onLoaded]);
-  useEffect(()=>{if(!data&&request.error)onFailed();},[data,request.error,onFailed]);
+  useEffect(()=>{if(!data&&(request.error||!request.loading))onFailed();},[data,request.error,request.loading,onFailed]);
   if(!data)return request.error||!request.loading?<p className="mvr-more" role="status"><span className="muted"><UiMessage id="membervoterecord.unavailable"/></span><button type="button" className="c word" onClick={request.retry}><UiMessage id="week.retry"/></button></p>:null;
   return <>{data.departures.items.map(item=>{
     const primary=item.subject?.text??item.text,primaryLanguage=item.subject?.text?item.subject.language:item.language;
@@ -124,7 +124,7 @@ function BreakdownList({heading,list,tag,onTag}:{heading:string;list:MemberVoteR
       // EuroVoc labels are lower case in the source; capitalised for display only.
       const label=row.key.startsWith('topic:')?capitalise(row.label,row.language):row.label;
       // Votes that differed out of the row's comparable votes, the complement of the server's with-group share.
-      const share=ui.t('membervoterecord.percent',{value:Math.round((row.comparable-row.withGroup)*100/row.comparable)}),count=num(ui,row.comparable);
+      const share=row.comparable?ui.t('membervoterecord.percent',{value:Math.round((row.comparable-row.withGroup)*100/row.comparable)}):ui.t('membervoterecord.noValue'),count=num(ui,row.comparable);
       return <li key={row.key} className="row tight">
         <span className="main"><button type="button" className="t pick" data-pick={row.key} aria-pressed={tag===row.key} aria-label={ui.t('membervoterecord.breakdown.row',{label,share,count})} lang={markLanguage(row.language,ui)} onClick={()=>onTag(tag===row.key?null:row.key)}>{label}</button></span>
         <span className="n sh">{share}</span>

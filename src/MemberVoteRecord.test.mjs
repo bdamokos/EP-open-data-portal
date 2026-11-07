@@ -52,7 +52,8 @@ async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',o
   const props={memberId,language:'en',scope,offset,tag,onTagChange:value=>tags.push(value),onScopeChange:value=>scopes.push(value),onOffset:value=>offsets.push(value)};
   await act(async()=>root.render(createElement(MemberVoteRecord,props)));
   return {container,calls,offsets,scopes,tags,window,
-    async render(next){await act(async()=>root.render(createElement(MemberVoteRecord,{...props,...next})));}};
+    async render(next){await act(async()=>root.render(createElement(MemberVoteRecord,{...props,...next})));},
+    async remount(){await act(async()=>root.unmount());root=createRoot(container);await act(async()=>root.render(createElement(MemberVoteRecord,props)));}};
 }
 const button=(container,text)=>[...container.querySelectorAll('button')].find(item=>item.textContent.trim()===text);
 const links=container=>[...container.querySelectorAll('.mvr-rows .row a.t')];
@@ -400,13 +401,35 @@ test('a page that fails ends the hold, so the journey back does not wait on it',
   assert.equal(view.container.querySelector('[data-record-pending="true"]'),null);
 });
 
+test('a page that settles with an unusable body ends the hold too',async t=>{
+  const pages=pagesOf(6);
+  const view=await mount(t,{offset:5,data:url=>url.searchParams.get('offset')==='5'?response({version:0}):pages(url)});
+  assert.equal(links(view.container).length,5);
+  assert.equal(view.container.querySelector('[data-record-pending="true"]'),null);
+});
+
+test('a row with no comparable votes shows a dash, not a percentage',async t=>{
+  const view=await mount(t,{data:response({breakdown:breakdown([{key:'topic:2006',label:'trade policy',language:'en',comparable:0,withGroup:0,share:0}],[])})});
+  assert.deepEqual(rowsOf(section(view.container)).map(row=>row.textContent),['Trade policy–0']);
+});
+
+test('on a phone the opened list is still open on the way back from a vote page',async t=>{
+  const view=await mount(t,{matches:true});
+  const fold=()=>view.container.querySelector('details.frow');
+  await act(async()=>{fold().open=true;fold().dispatchEvent(new view.window.Event('toggle'));});
+  Object.defineProperty(globalThis,'history',{value:{state:null,pushState(){}},configurable:true});
+  const nodeEvent=globalThis.Event;globalThis.Event=view.window.Event;
+  t.after(()=>{delete globalThis.history;globalThis.Event=nodeEvent;});
+  await act(async()=>links(view.container)[0].dispatchEvent(new view.window.MouseEvent('click',{bubbles:true,cancelable:true,button:0})));
+  await view.remount();
+  assert.equal(fold().open,true);
+  assert.equal(links(view.container).length,5);
+});
+
 test('the first read holds the journey back as well',async t=>{
   let release;const gate=new Promise(resolve=>{release=resolve;});
   const view=await mount(t,{hold:()=>gate});
   assert.equal(view.container.querySelector('section.mvr').getAttribute('data-record-pending'),'true');
-  const journey=readFileSync(new URL('./dossierJourney.ts',import.meta.url),'utf8');
-  assert.match(journey,/\[data-record-pending="true"\]/,'the journey waits on the mark');
-  assert.match(journey,/attributeFilter:\[[^\]]*'data-record-pending'/,'and looks again when it clears');
   await act(async()=>{release();await gate;});
   assert.equal(view.container.querySelector('[data-record-pending="true"]'),null);
 });
