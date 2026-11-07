@@ -115,3 +115,9 @@ test('a report that never got a vote item keeps its results after the voting lis
  const item=(await upcomingVotes({sitting,language:'en'},{inputs:async()=>data})).items.find(entry=>entry.documentId===report);
  assert.deepEqual([item.id,item.source,item.title,item.procedureIds,item.rows[0].key,item.rows[0].outcome],[debate,'retained','Union Civil Protection Mechanism',['2025-0223'],report+':final','ADOPTED']);
 });
+test('a report without a vote item keeps every retained binding after the purge',async()=>{
+ const report='A-10-2026-0271',data=await inputs();data.amendments=[];data.lists=[];data.day.agenda=[agenda];
+ data.bindings=[{agenda:sitting+'-OJ-ITM-D-3',document:report,key:report+':final',decisionId:'DEC-1'},{agenda:'MTG-PL-2026-11-11-OJ-ITM-D-37',document:report,key:report+':am:1',decisionId:'DEC-2'}];
+ const items=(await upcomingVotes({sitting,language:'en'},{inputs:async()=>data})).items.filter(item=>item.documentId===report);
+ assert.equal(items.length,1);assert.deepEqual(items[0].rows.map(row=>row.key).sort(),[report+':am:1',report+':final']);
+});

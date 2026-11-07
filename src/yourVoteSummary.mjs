@@ -33,4 +33,10 @@ export function ballotSittings(sitting,sittings,now=Date.now()) {
   for(let at=Date.parse(sitting.slice(7));days.has(new Date(at).toISOString().slice(0,10));at+=86400000)result.push(days.get(new Date(at).toISOString().slice(0,10)));
   return result.filter(id=>Date.parse(id.slice(7))>=now-35*86400000);
 }
+// One debate item reads several sittings: its ballots from any that answered, and
+// one failure only when nothing could be shown for an item that names a document.
+export function debateBallots(ids,results,agendaItemId,applicable,now=Date.now()) {
+  const items=results.flatMap(r=>r.status==='fulfilled'&&Array.isArray(r.value?.items)?r.value.items:[]).filter(b=>b.id===agendaItemId||b.alsoOn?.includes(agendaItemId));
+  return {items,failed:applicable&&!items.length&&results.some((r,i)=>r.status==='rejected'&&ids[i].slice(7)>=brusselsToday(now))};
+}
 export const ballotVisible=(sitting,source,now=Date.now())=>sitting.slice(7)>=brusselsToday(now)||['voting-list','retained'].includes(source);

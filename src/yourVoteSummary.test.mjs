@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ballotGroups,ballotSittings,summarizeVotes,sessionDateRange} from './yourVoteSummary.mjs';
+import {ballotGroups,ballotSittings,debateBallots,summarizeVotes,sessionDateRange} from './yourVoteSummary.mjs';
 test('contiguous subjects form groups without merging a later repeated subject',()=>{
  const rows=['Recital 3','Recital 3','§ 13','Recital 3'].map((subject,i)=>({subject:[subject],key:String(i)}));
  assert.deepEqual(ballotGroups(rows).map(g=>g.rows.map(r=>r.key)),[['0','1'],['2'],['3']]);
@@ -24,4 +24,13 @@ test('ballots for a debate item come from its sitting and the rest of the part-s
  assert.deepEqual(ballotSittings('MTG-PL-2026-11-11',sittings,now),['MTG-PL-2026-11-11','MTG-PL-2026-11-12']);
  assert.deepEqual(ballotSittings('MTG-PL-2026-11-12',sittings,now),['MTG-PL-2026-11-12']);
  assert.deepEqual(ballotSittings('MTG-PL-2026-09-15',[{id:'MTG-PL-2026-09-15',date:'2026-09-15'}],now),[]);
+});
+test('a debate item shows ballots it can read and at most one failure',()=>{
+ const ids=['MTG-PL-2026-11-11','MTG-PL-2026-11-12'],now=Date.parse('2026-11-07'),ballot={id:'D-37',documentId:'A'},failed={status:'rejected'},empty={status:'fulfilled',value:{items:[]}};
+ assert.deepEqual(debateBallots(ids,[failed,{status:'fulfilled',value:{items:[ballot]}}],'D-37',true,now),{items:[ballot],failed:false});
+ assert.deepEqual(debateBallots(ids,[failed,failed],'D-37',true,now),{items:[],failed:true});
+ assert.deepEqual(debateBallots(ids,[failed,failed],'D-51',false,now),{items:[],failed:false});
+ assert.deepEqual(debateBallots(ids,[empty,empty],'D-37',true,now),{items:[],failed:false});
+ assert.deepEqual(debateBallots(ids,[failed,empty],'D-37',true,Date.parse('2026-12-20')),{items:[],failed:false});
+ assert.deepEqual(debateBallots(['s'],[{status:'fulfilled',value:{items:[{id:'V',alsoOn:['D-3']}]}}],'D-3',false,now).items.length,1);
 });

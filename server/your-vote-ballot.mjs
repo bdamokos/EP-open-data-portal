@@ -25,10 +25,13 @@ export function ballotKey(documentId,row) {
   else return null;
   return documentId+':'+suffix+(row.part!=null?':part'+row.part:'');
 }
+// A decision explicitly naming another report or motion is never this ballot's.
+const namesAnotherDocument=(raw,doc)=>[...ids(raw.decided_on_a_realization_of,'doc'),...ids(raw.decided_on_a_part_of_a_realization_of,'doc')].map(id=>id.replace(/-AM-\d+$/,'')).some(id=>targetDocument.test(id)&&id!==doc);
 function matches(row,doc,raw,derived) {
   if(raw._conflictingSourceObservations)return false;
   const full=ids(raw.decided_on_a_realization_of,'doc'),partial=ids(raw.decided_on_a_part_of_a_realization_of,'doc'),all=[...full,...partial];
   if(array(raw.decided_on_a_realization_of).length!==full.length||array(raw.decided_on_a_part_of_a_realization_of).length!==partial.length)return false;
+  if(namesAnotherDocument(raw,doc))return false;
   const xml=typeof raw.decisionAboutId_XMLLiteral==='string'?raw.decisionAboutId_XMLLiteral:'',comment=raw.comment?.en||'';
   const marker=symbol=>new RegExp('<symbol\\b[^>]*\\bhref=[\"\'][^\"\']*/'+symbol+'[\"\'][^>]*>').test(xml);
   const split=full.filter(id=>/-SPLIT-\d+-\d+$/.test(id)).map(id=>Number(id.split('-').at(-1)));
@@ -68,7 +71,7 @@ export function ballotContext(day,amendments=[],derive=deriveVoteEvidence) {
     if(ids(result.executed).some(item=>agendaDocuments.has(item)&&!agendaDocuments.get(item).includes(document)))continue;
     byDocument.set(document,day.decisions.filter(decision=>{
       const owners=ids(decision.inverse_consists_of),parts=[...ids(decision.decided_on_a_realization_of,'doc'),...ids(decision.decided_on_a_part_of_a_realization_of,'doc')];
-      return owners.length===1&&owners[0]===id&&parts.every(part=>part===document||part.startsWith(document+'-AM-')||/-SPLIT-\d+-\d+$/.test(part));
+      return owners.length===1&&owners[0]===id&&parts.every(part=>part===document||part.startsWith(document+'-AM-')||part.startsWith(id+'-SPLIT-'));
     }));
   }
   return {derived,byAgenda,byDocument,amendmentsById:new Map(amendments.map(a=>[a.id,a]))};
@@ -100,7 +103,7 @@ export function assembleBallot({document,agendaItemId,day={decisions:[],results:
     return {...row,fallsIf,key,documentId:document,revision:votingList?.revision?.sha256||null,status,amendmentRows:attached,partText:scheme?.parts.find(p=>p.index===row.part)?.text||null,decisionId:raw?.activity_id||null,decisionOrder:raw?Number(raw.activity_order):null,outcome:raw?term(raw.decision_outcome):null,binding:raw?'matched':'unbound'};
   }).filter(Boolean);
   // Persisted rows contain only stable identity, never voting-list text or revisions.
-  for(const saved of retained)if(!result.some(r=>r.key===saved.key)) {const raw=decisions.find(d=>d.activity_id===saved.decisionId);const numbers=/\:am:([\d+]+)/.exec(saved.key)?.[1]?.split('+').map(Number)||[];result.push({...saved,kind:numbers.length?'amendment':saved.key.includes(':text:')?'text':saved.key.includes(':motion:')?'motion':saved.key.includes(':procedural:')?'procedural':'final',documentId:document,revision:null,part:Number(/:part(\d+)$/.exec(saved.key)?.[1])||null,decisionOrder:raw?Number(raw.activity_order):null,amendments:numbers.map(number=>({number,cp:Number(/:cp(\d+)/.exec(saved.key)?.[1])||null})),amendmentRows:[],subject:saved.key.includes(':text:')?[saved.key.split(':text:')[1].replace(/:part\d+$/,'')]:[],outcome:raw?term(raw.decision_outcome):null,binding:raw?'matched':'unbound'});}
+  for(const saved of retained)if(!result.some(r=>r.key===saved.key)) {const raw=decisions.find(d=>d.activity_id===saved.decisionId&&!namesAnotherDocument(d,document));const numbers=/\:am:([\d+]+)/.exec(saved.key)?.[1]?.split('+').map(Number)||[];result.push({...saved,decisionId:decisions.some(d=>d.activity_id===saved.decisionId&&namesAnotherDocument(d,document))?null:saved.decisionId,kind:numbers.length?'amendment':saved.key.includes(':text:')?'text':saved.key.includes(':motion:')?'motion':saved.key.includes(':procedural:')?'procedural':'final',documentId:document,revision:null,part:Number(/:part(\d+)$/.exec(saved.key)?.[1])||null,decisionOrder:raw?Number(raw.activity_order):null,amendments:numbers.map(number=>({number,cp:Number(/:cp(\d+)/.exec(saved.key)?.[1])||null})),amendmentRows:[],subject:saved.key.includes(':text:')?[saved.key.split(':text:')[1].replace(/:part\d+$/,'')]:[],outcome:raw?term(raw.decision_outcome):null,binding:raw?'matched':'unbound'});}
   const counts=new Map();for(const row of result)if(row.decisionId)counts.set(row.decisionId,(counts.get(row.decisionId)||0)+1);
   for(const row of result)if(counts.get(row.decisionId)>1){row.decisionId=null;row.outcome=null;row.binding='unbound';}
   const keys=new Set();for(let i=result.length-1;i>=0;i--)if(keys.has(result[i].key))result.splice(i,1);else keys.add(result[i].key);

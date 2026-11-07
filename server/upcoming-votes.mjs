@@ -97,7 +97,7 @@ export async function upcomingVotes(query,{store=null,inputs=ballotInputs,cache=
   for(const binding of bindings) {
     if(!binding.document||items.some(item=>item.documentId===binding.document))continue;
     const work=data.documentOf?.(binding.document),titles=work?.title_dcterms||{},language=titles[query.language]?query.language:'en';
-    const retained=bindings.filter(b=>b.document===binding.document&&b.agenda===binding.agenda).map(({key,decisionId})=>({key,decisionId}));
+    const retained=bindings.filter(b=>b.document===binding.document).map(({key,decisionId})=>({key,decisionId}));
     items.push({id:binding.agenda,documentId:binding.document,sittingId:query.sitting,title:titles[language]||'',titleLanguage:titles[language]?language:null,procedureIds:documentProcedures(work),source:'retained',partial:false,...assembleBallot({document:binding.document,agendaItemId:binding.agenda,day:data.day,amendments,retained,context,withoutVoteItem:true})});
   }
   const result={version:UPCOMING_VOTES_VERSION,sittingId:query.sitting,items};if(key)cache?.set(key,result);return result;
