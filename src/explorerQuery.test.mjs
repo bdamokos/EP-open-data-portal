@@ -9,6 +9,14 @@ test('speech summary categories belong to the selected member only',()=>{
   assert.equal(explorerParams(query,'questions',42).has('mep-speech-category'),false);
 });
 
+test('the voting-record preview flag belongs to the selected member and only means 1',()=>{
+  const query=new URLSearchParams('member=42&module=votes&record-preview=1');
+  assert.equal(explorerParams(query,null,42).get('record-preview'),'1');
+  assert.equal(explorerParams(query,null,43).has('record-preview'),false);
+  assert.equal(explorerParams(query,'questions',42).has('record-preview'),false);
+  assert.equal(explorerParams(new URLSearchParams('member=42&record-preview=0'),null,42).has('record-preview'),false);
+});
+
 test('legacy and scoped Greek links migrate only into their owning explorer',()=>{
   for(const code of ['GR','EL']){
     const question=new URLSearchParams({view:'questions',country:code,'hot-country':'IT'});

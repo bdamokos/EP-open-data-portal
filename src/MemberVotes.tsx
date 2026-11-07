@@ -32,12 +32,15 @@ export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:st
 export type MemberVotesState={
   week:string;sittingId:string|null;positions:'recorded'|'all';alignment:'all'|'with'|'against'|'abstained';offset:number;
   decisionId:string|null;snapshotId:string|null;expandedSubjectIds:string[];context:MemberVotesContext|null;
+  recordScope?:'all'|'final';recordTag?:string;recordOffset?:number;
 };
 export type MemberVotesContextRequest=MemberVotesContext&{onBack:()=>void;backLabel:string;summary:ReactNode};
 export type MemberVotesProps={
   memberId:number;memberName:string;language:string;state:MemberVotesState;
   onStateChange:(next:MemberVotesState,options?:{replace?:boolean})=>void;
   renderContext:(request:MemberVotesContextRequest)=>ReactNode;
+  // The voting record sits above the weeks, so the weeks are named for what they are.
+  recordShown?:boolean;
 };
 export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null};
 
@@ -159,7 +162,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
   </article>;
 }
 
-export function MemberVotes({memberId,memberName,language,state,onStateChange,renderContext}:MemberVotesProps) {
+export function MemberVotes({memberId,memberName,language,state,onStateChange,renderContext,recordShown=false}:MemberVotesProps) {
   const ui = useUiI18n();
   const listRef=useRef<HTMLDivElement>(null),detailRef=useRef<HTMLDivElement>(null);
   const alignmentFocus=useRef<MemberVotesState['alignment']|null>(null);
@@ -292,7 +295,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const noRecordedPositions=data?.pagination.recordedTotal===0&&(data.pagination.observedTotal>0||(data.pagination.omittedWhileChairingTotal??0)>0);
   const contextAllowed=Boolean(state.context&&selected&&['document','adopted'].includes(state.context.view)&&(state.context.amendmentId ? exactAmendmentTargets(selected).some(target=>target.documentId===state.context?.documentId&&target.amendmentId===state.context?.amendmentId) : topLevelVoteDocuments(selected).includes(state.context.documentId)));
   return <section className="member-votes" lang={ui.language} aria-label={ui.t("membervotes.tsx.membername.votes", {memberName: String(memberName)})}>
-    <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2 ref={listHeadingRef} tabIndex={-1}><UiMessage id="membervotes.tsx.voting.records"/></h2><p>{periodLabel(data,state, ui)}</p></div><VotePeriodNavigation state={state} resolvedWeek={data?.period.week} language={language} sittingCoverage={data?.coverage.sittings} onPeriod={periodChange}/></div>
+    <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2 ref={listHeadingRef} tabIndex={-1}><UiMessage id={recordShown?"membervoterecord.votesByWeek":"membervotes.tsx.voting.records"}/></h2><p>{periodLabel(data,state, ui)}</p></div><VotePeriodNavigation state={state} resolvedWeek={data?.period.week} language={language} sittingCoverage={data?.coverage.sittings} onPeriod={periodChange}/></div>
     {data&&!request.error&&!state.decisionId&&!state.context&&<AttendanceLine data={attendance} loading={attendanceRequest.loading} attempted={attendanceRoute!==null} onRetry={attendanceRequest.retry}/>}
     {(request.loading||findingLatest&&!rejected)&&!data&&!request.error&&<p role="status">{findingLatest ? <UiMessage id="membervotes.tsx.finding.latest.recorded.votes"/> : <UiMessage id="membervotes.tsx.loading.voting.records"/>}</p>}
     {expired ? <div className="member-votes-notice" role="alert"><p><UiMessage id="membervotes.tsx.this.page.is.out.of.date.refresh.to.load.the.votes"/></p></div> : (request.error ? <div className="member-votes-notice" role="alert"><p><UiMessage id="membervotes.tsx.voting.records.could.not.be.loaded.try.again"/></p></div> : (rejected ? <div className="member-votes-notice" role="alert"><p><UiMessage id="membervotes.tsx.these.voting.records.are.unavailable"/></p></div> : null))}

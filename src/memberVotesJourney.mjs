@@ -1,7 +1,7 @@
 import {memberVotesRoute} from './memberVotesPresentation.mjs';
 
 // Browser fields belong to the selected member and are separate from API keys.
-const fields={week:'week',sitting:'sittingId',positions:'positions',alignment:'alignment',offset:'offset',decision:'decisionId',snapshot:'snapshotId',expanded:'expandedSubjectIds',document:'documentId',amendment:'amendmentId',list:'listId','wording-lang':'wordingLanguage',view:'view',adopted:'adoptedId',invalid:'invalid'};
+const fields={week:'week',sitting:'sittingId',positions:'positions',alignment:'alignment',offset:'offset',decision:'decisionId',snapshot:'snapshotId',expanded:'expandedSubjectIds',document:'documentId',amendment:'amendmentId',list:'listId','wording-lang':'wordingLanguage',view:'view',adopted:'adoptedId','record-tag':'recordTag','record-scope':'recordScope','record-offset':'recordOffset',invalid:'invalid'};
 const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/.test(value);
 const documentId=value=>/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(value);
 const defaults=()=>({week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null});
@@ -23,6 +23,9 @@ export function readMemberVotesJourney(query,memberId) {
   if([...query.keys()].some(key=>key.startsWith('mv-'))&&!Object.hasOwn(values,'mv-positions'))state.positions='recorded';
   for(const key of ['week','sitting','positions','alignment','decision','snapshot'])if(get(key)!==null)state[fields[key]]=get(key);
   if(get('offset')!==null){if(!/^(?:0|[1-9]\d{0,4})$/.test(get('offset')))result.invalid=true;else state.offset=Number(get('offset'));}
+  if(get('record-scope')!==null){if(!['all','final'].includes(get('record-scope')))result.invalid=true;else state.recordScope=get('record-scope');}
+  if(get('record-tag')!==null){if(!/^(?:topic:\d{1,8}|country:[A-Z0-9_]{2,8})$/.test(get('record-tag')))result.invalid=true;else state.recordTag=get('record-tag');}
+  if(get('record-offset')!==null){const value=get('record-offset');if(!/^(?:0|[1-9]\d{0,4})$/.test(value)||Number(value)>10000)result.invalid=true;else state.recordOffset=Number(value);}
   if(get('expanded')!==null)try {
     const ids=JSON.parse(get('expanded'));
     if(!Array.isArray(ids)||ids.length>50||!ids.every(identifier)||new Set(ids).size!==ids.length)result.invalid=true;
@@ -54,6 +57,9 @@ export function memberVotesJourneyParams(journey) {
   put('positions',state.positions);
   if(state.alignment&&state.alignment!=='all')put('alignment',state.alignment);
   if(state.offset)put('offset',state.offset);
+  if(state.recordScope&&state.recordScope!=='all')put('record-scope',state.recordScope);
+  if(state.recordTag)put('record-tag',state.recordTag);
+  if(state.recordOffset)put('record-offset',state.recordOffset);
   put('decision',state.decisionId);put('snapshot',state.snapshotId);
   if(state.expandedSubjectIds.length)put('expanded',JSON.stringify(state.expandedSubjectIds));
   if(state.context){put('document',state.context.documentId);put('view',state.context.view);put('amendment',state.context.amendmentId);put('list',state.context.listId);put('adopted',journey.adoptedId);if(Object.hasOwn(state.context,'wordingLanguage'))put('wording-lang',state.context.wordingLanguage??'unknown');}
@@ -61,7 +67,7 @@ export function memberVotesJourneyParams(journey) {
 }
 
 export function memberVotesHistoryMode(previous,next,requestedReplace=false) {
-  const stable=state=>JSON.stringify([state.sittingId,state.positions,state.alignment??'all',state.offset,state.decisionId,state.expandedSubjectIds,contextKey(state.context)]);
+  const stable=state=>JSON.stringify([state.sittingId,state.positions,state.alignment??'all',state.offset,state.decisionId,state.expandedSubjectIds,contextKey(state.context),state.recordScope??'all',state.recordTag??null,state.recordOffset??0]);
   return requestedReplace&&stable(previous)===stable(next)&&(previous.week===next.week||previous.week==='latest')?'replace':'push';
 }
 
@@ -69,7 +75,7 @@ const contextKey=context=>context?[context.documentId,context.view,context.amend
 
 export function memberVotesScrollKey(journey) {
   const state=journey.state;
-  return JSON.stringify([journey.memberId,state.week,state.sittingId,state.positions,state.alignment??'all',state.offset,state.decisionId,contextKey(state.context),journey.adoptedId]);
+  return JSON.stringify([journey.memberId,state.week,state.sittingId,state.positions,state.alignment??'all',state.offset,state.decisionId,contextKey(state.context),journey.adoptedId,state.recordScope??'all',state.recordTag??null,state.recordOffset??0]);
 }
 
 const scrollSelectors=['main.explorer','.explorer-profile-body','.member-votes','.member-votes-pane:not([hidden])'];

@@ -90,10 +90,12 @@ import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAutho
 import {selectLanguageText} from './language.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
 import {useMemberVotesJourney} from './useMemberVotesJourney';
+import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import {useMemberMotionJourney} from './useMemberMotionJourney';
 import {motionJourneyParams} from './motionJourney.mjs';
 import type {MemberMotionReaderProps} from './MemberMotionReader';
 
+const MemberVoteRecord=lazyView(()=>import('./MemberVoteRecord').then(module=>({default:module.MemberVoteRecord})));
 const MemberVotes=lazyView(()=>import('./MemberVotes').then(module=>({default:module.MemberVotes})));
 if(typeof window!=='undefined'){const legacy=legacyReaderRedirect(window.location.search);if(legacy)openFromOrigin(legacy.origin,legacy.read);}
 const ReadView=lazyView(()=>import('./ReadPage').then(module=>({default:module.ReadView})));
@@ -489,6 +491,9 @@ export default function App() {
   const [initial] = useState(() => new URLSearchParams(location.search));
   const [restoration,setRestoration]=useState(0);
   const [plenaryMode]=useExplorerParam<PlenaryMode>('pl-mode','agenda',plenaryModes);
+  // The voting record on the Votes tab: live after the flip, before it only at ?record-preview=1.
+  const [recordPreview]=useExplorerParam<string>('record-preview','',['','1']);
+  const recordShown=PLENARY_REDESIGN_LIVE||recordPreview==='1';
   const [lang, setLang] = useState(() => queryLanguage(initial));
   const ui = uiForLocale(lang);
   usePlenaryUiLanguage(lang);
@@ -874,12 +879,19 @@ export default function App() {
                   lang={lang}
                   initialSpeech={speechLink}
                   onOpen={setSpeechLink}
-                /> : ((tab==='votes') ? (votes.journey.invalid ? <section lang={ui.language} role="alert"><h2><UiMessage id="app.invalid_voting_records_link"/></h2><p><UiMessage id="membervotes.tsx.these.voting.records.are.unavailable"/></p></section> : <Suspense fallback={<p className="member-votes-loading" role="status" lang={ui.language}><UiMessage id="membervotes.tsx.loading.voting.records"/></p>}>
-                    <MemberVotes key={member} memberId={member} memberName={memberName} language={lang} state={votes.journey.state} onStateChange={votes.onStateChange}
+                /> : ((tab==='votes') ? <>
+                  {recordShown&&<Suspense fallback={null}><MemberVoteRecord memberId={member} language={lang} scope={votes.journey.state.recordScope??'all'} offset={votes.journey.state.recordOffset??0} tag={votes.journey.state.recordTag??null}
+                    onScopeChange={recordScope=>votes.onStateChange({...votes.journey.state,recordScope,recordOffset:0})}
+                    onTagChange={recordTag=>votes.onStateChange({...votes.journey.state,recordTag:recordTag??undefined,recordOffset:0})}
+                    onOffset={recordOffset=>votes.onStateChange({...votes.journey.state,recordOffset})}
+                    onOpenDecision={item=>votes.onStateChange({...votes.journey.state,sittingId:item.sittingId,decisionId:item.decisionId,snapshotId:null,context:null,offset:0})}/></Suspense>}
+                  {votes.journey.invalid ? <section lang={ui.language} role="alert"><h2><UiMessage id="app.invalid_voting_records_link"/></h2><p><UiMessage id="membervotes.tsx.these.voting.records.are.unavailable"/></p></section> : <Suspense fallback={<p className="member-votes-loading" role="status" lang={ui.language}><UiMessage id="membervotes.tsx.loading.voting.records"/></p>}>
+                    <MemberVotes key={member} memberId={member} memberName={memberName} language={lang} state={votes.journey.state} onStateChange={votes.onStateChange} recordShown={recordShown}
                       renderContext={request=><Suspense fallback={<p className="member-votes-loading" role="status" lang={ui.language}><UiMessage id="app.loading_document_context"/></p>}>
                         <DocumentContextReader request={request} language={lang} selectedDocumentId={votes.journey.adoptedId} onSelectedDocumentIdChange={votes.onSelectedDocumentIdChange}/>
                       </Suspense>}/>
-                  </Suspense>) : ((publicAmendmentsEnabled && (tab === "amendments")) ? <Amendments key={member} member={member} language={lang} onMember={openInsightMember} heading={ui.t("app.amendments_tabled")}/> : ((tab === "activities") ? <Activities id={member} lang={lang} memberName={memberName} initialActivity={activityLink} onOpen={changeActivity} category={activityCategory} onCategory={changeActivityCategory} offset={activityOffset} onOffset={changeActivityOffset} motionQuery={motions.query} onMotionChange={motions.onJourneyChange} preserveScroll={motions.hasSavedScroll||dossierJourneyRestoring()} /> : <>
+                  </Suspense>}
+                </> : ((publicAmendmentsEnabled && (tab === "amendments")) ? <Amendments key={member} member={member} language={lang} onMember={openInsightMember} heading={ui.t("app.amendments_tabled")}/> : ((tab === "activities") ? <Activities id={member} lang={lang} memberName={memberName} initialActivity={activityLink} onOpen={changeActivity} category={activityCategory} onCategory={changeActivityCategory} offset={activityOffset} onOffset={changeActivityOffset} motionQuery={motions.query} onMotionChange={motions.onJourneyChange} preserveScroll={motions.hasSavedScroll||dossierJourneyRestoring()} /> : <>
                   {profile.loading && <p role="status" lang={ui.language}><UiMessage id="app.loading_profile"/></p>}
                   {profile.error && <ErrorView message={profile.error} retry={profile.retry} />}{" "}
                   {profile.data && <>
