@@ -67,6 +67,8 @@ export function voteOutcomeWord(vote,ui=defaultUi) {
   if(vote.outcome==='LAPSED')return ui.t('votepage.word.lapsed');
   return vote.ballotStatus==='not-conducted'?ui.t('votepage.no_vote_held'):null;
 }
+// A reference that names a place in the text reads inside a sentence; other labels stand before it.
+const provisionLabel=/^(?:§\s*\d|(?:Recital|Citation|Article)\s+\S)/u;
 /** The page's sentence: one fixed template per case. `{n}` and `{p}` come from exact amendment
  * and part references. Referral comes only from the server's exact same-date procedure event,
  * never from wording. A rejection's template puts the larger number first. */
@@ -83,6 +85,8 @@ export function voteSentence(vote,{mainVoteId=null,procedureReferral=false,langu
   }
   const outcome=vote.outcome==='ADOPTED'?'adopted':vote.outcome==='REJECTED'?'rejected':null;
   if(!outcome)return {id:'votepage.no_result',values:{},noNames:false};
+  const provision=vote.id!==mainVoteId&&!kind&&!vote.context?.amendmentIds?.length&&provisionLabel.test(vote.referenceTexts?.en??'');
+  if(provision)return {id:'votepage.provision.'+outcome+'.'+form,values:{label:label(),...tally},noNames};
   if(vote.id===mainVoteId) {
     const referred=procedureReferral&&outcome==='adopted'&&form!=='plain';
     return {id:'votepage.main.'+(referred?'position':outcome)+'.'+form,values:{...tally,date:longDate(vote.date,language)},noNames};
@@ -195,6 +199,27 @@ export function itemVoteSections(votes,mainVoteId=null) {
     else (vote.method==='VOTE_HAND'?hands:noCount).push(vote);
   }
   return [{key:'counted',votes:counted},{key:'hands',votes:hands},{key:'no_count',votes:noCount},{key:'lapsed',votes:lapsed},{key:'not_held',votes:notHeld}].filter(section=>section.votes.length);
+}
+const provisionForms=[[/^§\s*(\d+[a-z]*)$/u,match=>'paragraph:'+match[1]],[/^§\s*(\d+[a-z]*), point ([a-z]+)$/u,match=>'point:'+match[1]+':'+match[2]],[/^Recital ([A-Z]{1,3})$/u,match=>'recital:'+match[1]],[/^Citation (\d+)$/u,match=>'citation:'+match[1]]];
+/** The provision of a report or motion this vote is on, from its exact reference and its one
+ * document. A vote on an amendment to the provision has the amendment's wording instead. */
+export function voteProvision(vote,subject=null) {
+  if(!['split-part','unclassified'].includes(vote.scope?.kind)||vote.context?.amendmentIds?.length)return null;
+  const reference=vote.referenceTexts?.en?.trim()??'',form=provisionForms.map(([pattern,build])=>{const match=pattern.exec(reference);return match&&build(match);}).find(Boolean);
+  const documentId=form?voteDocument(vote,subject):null;
+  return documentId?{documentId,provision:form}:null;
+}
+// The vote's title names its document when it can; a joint motion stands for the motions it replaced.
+function voteDocument(vote,subject) {
+  const documents=unique([...(vote.context?.documentIds||[]),...(subject?.documentIds||[])]).filter(id=>/^(?:A|B|RC)-\d+-\d{4}-\d{4,6}$/u.test(id));
+  const named=/^(RC-)?([AB])(\d+)-(\d{4,6})\/(\d{4})\b/u.exec(vote.title||''),titled=named?(named[1]?'RC':named[2])+'-'+named[3]+'-'+named[5]+'-'+named[4]:null;
+  if(titled&&documents.includes(titled))return titled;
+  const joint=documents.filter(id=>id.startsWith('RC-'));
+  return joint.length===1?joint[0]:documents.length===1?documents[0]:null;
+}
+/** A vote's place in the text, for the heading over its wording or parts. */
+export function voteReferenceLabel(vote,language='en') {
+  return referenceText(vote,language)?.replace(/\s[–—-]\s*Am [\d/]+$/u,'')||null;
 }
 /** Previous and next follow the order the Votes on this item fold shows. */
 export function voteSteps(votes,mainVoteId,id) {

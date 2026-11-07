@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {agendaItemHref,agendaVoteRedirect,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,itemVoteSections,longDate,memberBackHref,memberVoteLine,membersByGroup,shortDate,dayDate,voteAmendmentWording,voteCentre,voteHref,voteOutcomeWord,voteRowLabel,voteSentence,voteSteps,wayLine} from './votePagePresentation.mjs';
+import {agendaItemHref,agendaVoteRedirect,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,itemVoteSections,longDate,memberBackHref,memberVoteLine,membersByGroup,shortDate,dayDate,voteAmendmentWording,voteCentre,voteHref,voteOutcomeWord,voteProvision,voteRowLabel,voteSentence,voteSteps,wayLine} from './votePagePresentation.mjs';
 import {splitVoteRequests} from './memberVotesPresentation.mjs';
 import {readExplorerParam,explorerParams} from './explorerQuery.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -249,4 +249,35 @@ test('the member the reader came from leads their own group in the differs list'
  assert.deepEqual(led[1],plain[1],'other groups keep their order');
  const peers=[{id:'k',name:'K Aaa',group:'PPE',position:'for'},{id:'m',name:'M Zzz',group:'PPE',position:'for'}];
  assert.deepEqual(differingByGroup(peers,new Set(['k','m']),['PPE'],'m')[0].positions[0].people.map(person=>person.id),['m','k']);
+});
+test('a vote on a named place in the text reads as Parliament\'s sentence; other labels keep theirs',()=>{
+ const vote={id:'x',ballotStatus:'conducted',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:377,against:163,abstaining:70},scope:{kind:'split-part'},context:{amendmentIds:[]},referenceTexts:{en:'§ 10'},parts:[{number:'2'}]};
+ const say=(fields,language='en')=>{const s=voteSentence({...vote,...fields},{mainVoteId:'main',language});return [s.id,s.values.label];};
+ assert.deepEqual(say({}),['votepage.provision.adopted.tally','§ 10, part 2']);
+ assert.equal(say({outcome:'REJECTED'})[0],'votepage.provision.rejected.tally');
+ assert.equal(say({method:'VOTE_HAND',totals:{for:null,against:null,abstaining:null}})[0],'votepage.provision.adopted.hands');
+ assert.equal(say({method:null,totals:{for:null,against:null,abstaining:null}})[0],'votepage.provision.adopted.plain');
+ assert.equal(say({referenceTexts:{en:'Recital A'},parts:[]})[0],'votepage.provision.adopted.tally');
+ assert.equal(say({referenceTexts:{en:'After § 5'},parts:[]})[0],'votepage.other.adopted.tally','"Parliament adopted After § 5" is no sentence');
+ assert.equal(say({referenceTexts:{en:'Request for referral back to committee'},parts:[]})[0],'votepage.other.adopted.tally');
+ assert.equal(say({context:{amendmentIds:['A-10-2026-0001-AM-1','A-10-2026-0001-AM-2']}})[0],'votepage.other.adopted.tally','a block of amendments on that paragraph');
+ assert.equal(voteSentence({...vote,id:'main',date:'2026-03-11'},{mainVoteId:'main'}).id,'votepage.main.adopted.tally','the final vote keeps its own');
+});
+test('a vote maps to a provision only from its exact reference and one document',()=>{
+ const vote=fields=>({scope:{kind:'split-part'},title:'A10-0021/2026 – § 10/2',referenceTexts:{en:'§ 10'},context:{documentIds:['A-10-2026-0021','PV-10-2026-03-11-RCV-ITM-016'],amendmentIds:[]},...fields});
+ assert.deepEqual(voteProvision(vote({})),{documentId:'A-10-2026-0021',provision:'paragraph:10'});
+ assert.equal(voteProvision(vote({referenceTexts:{en:'§ 15, point f'}})).provision,'point:15:f');
+ assert.equal(voteProvision(vote({referenceTexts:{en:'Recital AB'}})).provision,'recital:AB');
+ assert.equal(voteProvision(vote({referenceTexts:{en:'Citation 3'}})).provision,'citation:3');
+ for(const en of ['After § 5','Article 1, § 1','§ 10/2','Motion for a resolution (as a whole)','07 02 01','Recital 3'])assert.equal(voteProvision(vote({referenceTexts:{en}})),null,en);
+ assert.equal(voteProvision(vote({referenceTexts:{hu:'10. bek.'}})),null,'the exact form is the English reference');
+ assert.equal(voteProvision(vote({context:{documentIds:['A-10-2026-0021'],amendmentIds:['A-10-2026-0021-AM-3']}})),null,'an amendment to it has its own wording');
+ assert.equal(voteProvision(vote({scope:{kind:'amendment'}})),null);
+ assert.equal(voteProvision(vote({scope:{kind:'whole-text'}})),null);
+ const motions=['B-10-2026-0485','B-10-2026-0476'];
+ assert.equal(voteProvision(vote({title:'§ 5',context:{documentIds:motions,amendmentIds:[]}})),null,'several motions and nothing to choose by');
+ assert.equal(voteProvision(vote({title:'§ 5',context:{documentIds:[...motions,'RC-10-2026-0476'],amendmentIds:[]}})).documentId,'RC-10-2026-0476','a joint motion replaces them');
+ assert.equal(voteProvision(vote({title:'B10-0485/2026 – § 5',context:{documentIds:[...motions,'RC-10-2026-0476'],amendmentIds:[]}})).documentId,'B-10-2026-0485','the title names the exact one');
+ assert.equal(voteProvision(vote({title:'RC-B10-0476/2026 – § 1/1',context:{documentIds:[...motions,'RC-10-2026-0476'],amendmentIds:[]}})).documentId,'RC-10-2026-0476');
+ assert.equal(voteProvision(vote({title:null,context:{documentIds:[],amendmentIds:[]}}),{documentIds:['A-10-2026-0021']}).documentId,'A-10-2026-0021','the item\'s one document');
 });

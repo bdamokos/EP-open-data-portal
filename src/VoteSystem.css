@@ -14,7 +14,8 @@
 :is(.explorer-insights,.explorer-profile-body) .vs h1:focus { outline:none; }
 .vs .say { margin-top:var(--s2); font:400 var(--t-say)/1.3 var(--font-serif); text-wrap:pretty; max-width:46em; }
 .vs .member-line { margin-top:var(--s2); font:400 var(--t-row)/1.35 var(--font-serif); text-wrap:pretty; max-width:46em; }
-.vs .member-line b { font-weight:600; }
+.vs .member-line { color:var(--ink-muted); }
+.vs .member-line b { color:var(--ink); font-weight:500; }
 .vs .meta,.vs .sub { font-size:var(--t-meta); line-height:1.35; color:var(--ink-muted); }
 .vs .kicker { display:flex; flex-wrap:wrap; align-items:baseline; gap:0 var(--s3); font:400 var(--t-row)/1.35 var(--font-serif); padding:var(--s1) 0; }
 .vs .kicker .meta { font-family:var(--font-sans); }
@@ -149,7 +150,7 @@
 /* An amendment's wording, read in place. */
 .vs .clause { margin-top:var(--s4); padding-top:var(--s3); border-top:2px solid var(--ink); }
 :is(.explorer-insights,.explorer-profile-body) .vs .clause h3 { padding-bottom:var(--s3); }
-.vs .clause-text { font:400 var(--t-row)/1.6 var(--font-serif); max-width:40em; text-wrap:pretty; }
+.vs .clause-text { font:400 var(--t-row)/1.6 var(--font-serif); max-width:40em; text-wrap:pretty; white-space:pre-line; }
 /* Marked text: on a part's own page its words are dark and bold against a quieter text. The brackets stay strong; an overview stresses nothing. */
 .vs .clause-text.marked { color:var(--ink-muted); }
 .vs .run-on { color:var(--ink); font-weight:700; }
@@ -159,7 +160,7 @@
 .vs .close-br { white-space:nowrap; }
 .vs .clause-key { padding:var(--s3) 0; border-bottom:1px solid var(--line); font-size:var(--t-meta); line-height:1.45; color:var(--ink-muted); }
 .vs .clause-key b { font-weight:600; }
-.vs .clause-part.this { color:var(--ink); }
+.vs .clause-part.this { color:var(--ink); font-weight:600; }
 
 /* The text in its place: label in the gutter, wording beside it. */
 .explorer-insights .vs h2.section { padding-top:var(--s6); font:700 var(--t-h2)/1.16 var(--font-serif); }

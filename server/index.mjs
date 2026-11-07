@@ -38,7 +38,7 @@ import {memberVoteRecordQuery,memberVoteRecordLanguage} from './member-vote-reco
 import {memberVoteRecordService} from './member-vote-record-reader.mjs';
 import {documentPages} from './document-pages.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
-import {documentPassageQuery,documentPassageReply,wantsDocumentPassage} from './document-context-passage.mjs';
+import {documentPassageQuery,documentPassageReply,documentProvisionQuery,documentProvisionReply,wantsDocumentPassage,wantsDocumentProvision} from './document-context-passage.mjs';
 import {amendmentNeighbours,amendmentNeighboursQuery} from './amendment-neighbours.mjs';
 import {provisionalAgreement,provisionalAgreementQuery} from './provisional-agreement.mjs';
 import amendmentFinalText from './amendment-final-text.mjs';
@@ -255,10 +255,11 @@ async function handleApi(request,response,url,apiPrefix){
       result=await memberVoteExplanations.query(positiveId(segments[1]),memberVoteExplanationsQuery(url.searchParams));
     }
     else if(segments[0]==='document-context'&&segments.length===2) {
-      const passage=wantsDocumentPassage(url.searchParams);
-      const query=passage?documentPassageQuery(segments[1],url.searchParams):documentContextQuery(segments[1],url.searchParams);
+      const passage=wantsDocumentPassage(url.searchParams),single=wantsDocumentProvision(url.searchParams);
+      const {provision,...query}=single?documentProvisionQuery(segments[1],url.searchParams):passage?documentPassageQuery(segments[1],url.searchParams):documentContextQuery(segments[1],url.searchParams);
       result=await (query.finalText?amendmentFinalText:documentContext).query(query,{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
-      if(passage)result=documentPassageReply(result);
+      if(single)result=documentProvisionReply(result,provision);
+      else if(passage)result=documentPassageReply(result);
     }
     else if(segments[0]==='amendment-neighbours'&&segments.length===1) {
       const query=amendmentNeighboursQuery(url.searchParams);

@@ -1,5 +1,2 @@
 .vote-page { --mv-ink:var(--ink); --mv-muted:var(--ink-muted); --mv-line:var(--line); --mv-for:var(--vote-for); --mv-against:var(--vote-against); --mv-abstain:var(--vote-abstain); }
 .vote-page-placeholder { color:var(--ink-muted); }
-.vote-page .member-votes-part { margin:var(--s4) 0 0; }
-.vote-page .member-votes-part h3 { margin:0 0 var(--s1); font-size:var(--t-meta); }
-.vote-page .member-votes-part p { margin:0 0 var(--s1); font-size:var(--t-meta); }

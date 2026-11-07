@@ -4,7 +4,7 @@ import {useData} from './data';
 import {dossierLinkClick} from './dossierJourney';
 import {selectLanguageText} from './language.mjs';
 import {exactAmendmentTargets,splitVoteRequests} from './memberVotesPresentation.mjs';
-import {voteAmendmentWording,voteHref,voteNumbers} from './votePagePresentation.mjs';
+import {voteAmendmentWording,voteHref,voteNumbers,voteProvision,voteReferenceLabel} from './votePagePresentation.mjs';
 import {publicUrl} from './publicUrl';
 import {readHref} from './readRoute.mjs';
 import {partsInLanguage,splitRuns} from './splitRuns.mjs';
@@ -18,6 +18,7 @@ type PassageResponse={documentId:string;requestedLanguage:string;baseline:{kind:
 type Vote=NonNullable<DecisionVotesResponse['decision']>;
 type Context={vote:Vote;siblings:DecisionVoteSibling[];language:string;member?:string|null};
 type Target={documentId:string;amendmentId:string};
+type ProvisionResponse={documentId:string;requestedLanguage:string;provision:string;text:string|null;language:string|null};
 
 function useWording({documentId,amendmentId}:Target,language:string) {
   const query=new URLSearchParams({amendment:amendmentId,lang:language,body:'0'});
@@ -26,11 +27,15 @@ function useWording({documentId,amendmentId}:Target,language:string) {
   return {data,loading:response.loading};
 }
 /** The request a part vote belongs to, with each part's own vote among the item's votes. */
-function partRows({vote,siblings}:Context) {
-  const requests=splitVoteRequests(vote.parts.map(({componentId,number,requestUri,contentByLanguage,contextComponents})=>({componentId,number,requestUri,contentByLanguage,contextComponents})));
-  if(requests.length!==1)return [];
-  const requestId=vote.parts[0].requestId;
-  return requests[0].parts.map(part=>({...part,decision:siblings.find(row=>row.parts.some(entry=>entry.requestId===requestId&&String(entry.number)===String(part.number)))??null}));
+function requestRows({vote,siblings}:Context) {
+  return splitVoteRequests(vote.parts.map(({componentId,number,requestUri,contentByLanguage,contextComponents})=>({componentId,number,requestUri,contentByLanguage,contextComponents}))).map(request=>{
+    const requestId=vote.parts.find(part=>part.requestUri===request.requestUri)?.requestId;
+    return request.parts.map(part=>({...part,decision:siblings.find(row=>row.parts.some(entry=>entry.requestId===requestId&&String(entry.number)===String(part.number)))??null}));
+  });
+}
+function partRows(context:Context) {
+  const requests=requestRows(context);
+  return requests.length===1?requests[0]:[];
 }
 function PartsKey({context,rows,match,wordingLanguage}:{context:Context;rows:ReturnType<typeof partRows>;match:ReturnType<typeof splitRuns>;wordingLanguage:string|null}) {
   const held=wordingLanguage?partsInLanguage(rows,wordingLanguage):null;
@@ -59,9 +64,30 @@ function Wording({context,target}:{context:Context;target:Target}) {
     {rows.length>0&&<PartsKey context={context} rows={rows} match={match} wordingLanguage={wording.language}/>}
   </section>;
 }
-export function VoteAmendmentText({vote,siblings,language,member=null}:Context) {
-  const targets=exactAmendmentTargets(vote);
-  return targets.length===1?<Wording context={{vote,siblings,language,member}} target={targets[0]}/>:null;
+// A provision of the report or motion, read by its exact number. Its parts are marked when the words
+// are found exactly; without wording the key alone says which part this vote is.
+function ProvisionText({context,target,heading}:{context:Context;target:{documentId:string;provision:string};heading:string|null}) {
+  const {language}=context,rows=partRows(context);
+  const query=new URLSearchParams({provision:target.provision,lang:language});
+  const response=useData<ProvisionResponse>('document-context/'+encodeURIComponent(target.documentId)+'?'+query,{unavailable:'error.wording'});
+  const reply=response.data?.documentId===target.documentId&&response.data.provision===target.provision&&response.data.requestedLanguage===language?response.data:null;
+  const text=reply?.text??null,textLanguage=reply?.language??'';
+  if(!text&&!rows.length)return null;
+  const descriptions=text?partsInLanguage(rows,textLanguage):null,match=text&&descriptions?splitRuns(text,descriptions):null;
+  const current=rows.filter(part=>part.current).map(part=>String(part.number));
+  return <section className="clause">
+    {heading&&<h3 lang="">{heading}</h3>}
+    {text&&(match?<SplitText runs={match.runs} language={textLanguage} emphasis="part" current={current}/>:<p className="clause-text plain" lang={textLanguage}>{text}</p>)}
+    {rows.length>0&&<PartsKey context={context} rows={rows} match={match} wordingLanguage={match?textLanguage:null}/>}
+  </section>;
+}
+/** What the vote is on: an amendment's wording, a provision's wording, or the parts alone. */
+export function VoteText({vote,siblings,language,member=null,amendmentPage,subject}:Context&{amendmentPage:boolean;subject:{documentIds?:string[]}|null}) {
+  const context={vote,siblings,language,member},targets=exactAmendmentTargets(vote);
+  if(amendmentPage&&targets.length===1)return <Wording context={context} target={targets[0]}/>;
+  const provision=voteProvision(vote,subject),heading=voteReferenceLabel(vote,language);
+  if(provision)return <ProvisionText key={provision.documentId+provision.provision} context={context} target={provision} heading={heading}/>;
+  return <>{requestRows(context).map((rows,index)=><section className="clause" key={index}>{heading&&<h3 lang="">{heading}</h3>}<PartsKey context={context} rows={rows} match={null} wordingLanguage={null}/></section>)}</>;
 }
 
 // A deep provision's label would break mid-word in the usual gutter.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {documentPassageQuery,documentPassageReply,wantsDocumentPassage} from './document-context-passage.mjs';
+import {documentPassageQuery,documentPassageReply,documentProvisionQuery,documentProvisionReply,wantsDocumentPassage,wantsDocumentProvision} from './document-context-passage.mjs';
 import {DOCUMENT_CONTEXT_VERSION} from './document-context.mjs';
 
 const documentId='A-10-2026-0257',amendment=documentId+'-AM-4';
@@ -39,4 +39,31 @@ test('a report\'s own text gives paragraph rows',()=>{
   const reply=documentPassageReply(context({baseline:null,proposal:null,document:{selectedText:{paragraphs:['1.\tOne','2.\tTwo','3.\tThree'],tables:[]}}}));
   assert.equal(reply.baseline,null);
   assert.deepEqual(reply.passage.after,{label:{kind:null,value:null,prefix:'3.'},text:'Three'});
+});
+
+const motionText=paragraphs=>({status:'available',textLanguage:'en',structureStatus:'extracted',paragraphs,paragraphSources:paragraphs.map((_,index)=>({path:'p'+index,ordinal:index,container:'body',containerPath:'/body',segment:0,complete:true})),paragraphFormats:paragraphs.map(()=>({}))});
+const motion=['The European Parliament,','– having regard to the Treaty,','A. whereas one;','B. whereas two;','1. Calls on the Commission;','2. Stresses the following:','(a) the first point;','(b) the second point;','3. Instructs its President to forward this resolution;'];
+const provisionContext=text=>({version:DOCUMENT_CONTEXT_VERSION,documentId,requestedLanguage:'en',document:{selectedText:text}});
+test('provision asks for one exact provision of a report or motion, and nothing else',()=>{
+  assert.equal(wantsDocumentProvision(params('provision=paragraph:10')),true);
+  assert.equal(wantsDocumentProvision(params('body=0')),false);
+  const query=documentProvisionQuery(documentId,params('provision=paragraph:10&lang=fr'));
+  assert.equal(query.provision,'paragraph:10');assert.equal(query.language,'fr');assert.equal(query.heldMetadata,true);
+  for(const value of ['provision=paragraph:10','provision=point:10:a','provision=recital:AB','provision=citation:3','provision=paragraph:10a'])assert.equal(documentProvisionQuery(documentId,params(value)).provision,value.slice(10));
+  for(const value of ['provision=','provision=paragraph:','provision=paragraph:0','provision=paragraph:1&provision=paragraph:2','provision=article:3','provision=paragraph:10&amendment='+amendment,'provision=paragraph:10&body=0','provision=paragraph:10&adopted=1'])assert.throws(()=>documentProvisionQuery(documentId,params(value)),error=>error.status===400,value);
+  assert.throws(()=>documentProvisionQuery('TA-10-2026-0342',params('provision=paragraph:1')),error=>error.status===400,'adopted texts are read elsewhere');
+});
+test('the provision reply holds its exact wording only, without the number',()=>{
+  const reply=provision=>documentProvisionReply(provisionContext(motionText(motion)),provision);
+  assert.deepEqual(Object.keys(reply('paragraph:1')),['version','documentId','requestedLanguage','provision','text','language']);
+  assert.equal(reply('paragraph:1').text,'Calls on the Commission;');assert.equal(reply('paragraph:1').language,'en');
+  assert.equal(reply('paragraph:2').text,'Stresses the following:\n(a) the first point;\n(b) the second point;','a paragraph holds its points');
+  assert.equal(reply('point:2:b').text,'the second point;');
+  assert.equal(reply('recital:B').text,'whereas two;');
+  assert.equal(reply('paragraph:99').text,null);assert.equal(reply('paragraph:99').language,null);
+  assert.equal(reply('point:1:a').text,null);
+  assert.equal(documentProvisionReply(provisionContext(null),'paragraph:1').text,null,'no body read');
+  assert.equal(documentProvisionReply(provisionContext(motionText(['The European Parliament,','1. One;','1. The same number again;','2. Two;'])),'paragraph:1').text,null,'a repeated number has no single text');
+  const broken=motionText(motion);broken.paragraphSources[4]={...broken.paragraphSources[4],complete:false};
+  assert.equal(documentProvisionReply(provisionContext(broken),'paragraph:1').text,null,'an incomplete row has no text');
 });
