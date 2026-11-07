@@ -108,3 +108,13 @@ test('topic journeys wait for the exact restored content before restoring focus'
   delete content.dataset.topicsPending;await h.frames();await h.frames();
   assert.equal(h.journey.dossierJourneyRestoring(),false);assert.equal(document.activeElement.id,'topic-origin');
 });
+
+test('a step after a reload keeps the return address the history entry saved',async t=>{
+  const h=await harness(t),record='http://localhost/?member=113523&module=votes&mv-record-offset=20';
+  history.replaceState({dossierOrigin:record},'','/?view=legislation&pl-mode=vote&pl-vote=MTG-PL-2026-03-11-DEC-188831&vote-member=113523');
+  assert.equal(h.journey.dossierBackHref(),null,'a reload starts with nothing in memory');
+  await act(async()=>{h.journey.navigateDossier('/?view=legislation&pl-mode=vote&pl-vote=MTG-PL-2026-03-11-DEC-188830&vote-member=113523');});
+  assert.equal(new URL(location.href).searchParams.get('pl-vote'),'MTG-PL-2026-03-11-DEC-188830');
+  assert.equal(history.state.dossierOrigin,record);
+  assert.equal(h.journey.dossierBackHref(),record);
+});
