@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ballotGroups,summarizeVotes,sessionDateRange} from './yourVoteSummary.mjs';
+import {ballotGroups,ballotSittings,summarizeVotes,sessionDateRange} from './yourVoteSummary.mjs';
 test('contiguous subjects form groups without merging a later repeated subject',()=>{
  const rows=['Recital 3','Recital 3','§ 13','Recital 3'].map((subject,i)=>({subject:[subject],key:String(i)}));
  assert.deepEqual(ballotGroups(rows).map(g=>g.rows.map(r=>r.key)),[['0','1'],['2'],['3']]);
@@ -17,4 +17,11 @@ test('part-session dates use localized ranges rather than ISO keys',()=>{
 });
 test('ballot admission uses the Brussels date across midnight',async()=>{
  const {ballotVisible,brusselsToday}=await import('./yourVoteSummary.mjs');const now=Date.parse('2026-11-02T23:30:00Z');assert.equal(brusselsToday(now),'2026-11-03');assert.equal(ballotVisible('MTG-PL-2026-11-02','tabled',now),false);assert.equal(ballotVisible('MTG-PL-2026-11-03','tabled',now),true);assert.equal(ballotVisible('MTG-PL-2026-09-15','retained',now),true);
+});
+test('ballots for a debate item come from its sitting and the rest of the part-session',()=>{
+ const sittings=[['2026-11-11'],['2026-11-12'],['2026-11-23']].map(([date])=>({id:'MTG-PL-'+date,date}));
+ const now=Date.parse('2026-11-07');
+ assert.deepEqual(ballotSittings('MTG-PL-2026-11-11',sittings,now),['MTG-PL-2026-11-11','MTG-PL-2026-11-12']);
+ assert.deepEqual(ballotSittings('MTG-PL-2026-11-12',sittings,now),['MTG-PL-2026-11-12']);
+ assert.deepEqual(ballotSittings('MTG-PL-2026-09-15',[{id:'MTG-PL-2026-09-15',date:'2026-09-15'}],now),[]);
 });

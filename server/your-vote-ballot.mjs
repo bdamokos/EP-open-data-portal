@@ -1,6 +1,7 @@
 import {persistBallotBindings} from './ballot-bindings-store.mjs';
 export {prepareBallotBindings,persistBallotBindings,readBallotBindings} from './ballot-bindings-store.mjs';
 import {ballotScheduledFor} from './ballot-source-adapter.mjs';
+import {heldDocument,placeVotingLists} from './ballot-placement.mjs';
 import {references,identifier,deriveVoteEvidence} from './vote-evidence.mjs';
 import {isWholeProposalVote} from './vote-scope.mjs';
 // The voteScope final-label family; binding deliberately requires exact case.
@@ -10,6 +11,7 @@ const PROCEDURAL_BALLOT_LABELS=new Set(['Request for referral back to committee'
 const array=x=>x==null?[]:Array.isArray(x)?x:[x];
 const ids=(x,kind='event')=>references(x,kind).map(identifier);
 const term=x=>String(x||'').split('/').at(-1);
+const targetDocument=/^(?:A|B|RC)-\d+-\d{4}-\d+$/;
 export function ballotKey(documentId,row) {
   let suffix;
   if(row.amendments?.length) {
@@ -50,11 +52,26 @@ function matches(row,doc,raw,derived) {
   return false;
 }
 export function ballotContext(day,amendments=[],derive=deriveVoteEvidence) {
-  const derived=derive(day,{includeBindingEvidence:true}),byAgenda=new Map(),parents=new Map();
+  const derived=derive(day,{includeBindingEvidence:true}),byAgenda=new Map(),parents=new Map(),byDocument=new Map();
   const conflicting=new Set((day.conflictingResults||[]).map(r=>r.activity_id||identifier(r.id)));
   for(const result of day.results){const id=result.activity_id||identifier(result.id);if(!conflicting.has(id))parents.set(id,[...new Set(ids(result.executed))]);}
   for(const decision of day.decisions){const owners=ids(decision.inverse_consists_of);if(owners.length!==1)continue;for(const agenda of parents.get(owners[0])||[]){const rows=byAgenda.get(agenda)||[];rows.push(decision);byAgenda.set(agenda,rows);}}
-  return {derived,byAgenda,amendmentsById:new Map(amendments.map(a=>[a.id,a]))};
+  // For a report with no vote item: one vote record naming that report and no
+  // other, executing nothing the agenda gives to another document. Decisions
+  // naming another document stay out; every contradiction leaves rows unbound.
+  const agendaDocuments=new Map((day.agenda||[]).filter(n=>term(n.had_activity_type)==='PLENARY_VOTE').map(n=>[n.activity_id||identifier(n.id),ids(n.based_on_a_realization_of,'doc').filter(id=>targetDocument.test(id))]));
+  const namedBy=new Map();
+  for(const result of day.results)for(const document of ids(result.based_on_a_realization_of,'doc').filter(id=>targetDocument.test(id)))namedBy.set(document,[...(namedBy.get(document)||[]),result]);
+  for(const [document,results] of namedBy) {
+    const [result]=results,id=result.activity_id||identifier(result.id);
+    if(results.length!==1||conflicting.has(id)||ids(result.based_on_a_realization_of,'doc').filter(x=>targetDocument.test(x)).length!==1)continue;
+    if(ids(result.executed).some(item=>agendaDocuments.has(item)&&!agendaDocuments.get(item).includes(document)))continue;
+    byDocument.set(document,day.decisions.filter(decision=>{
+      const owners=ids(decision.inverse_consists_of),parts=[...ids(decision.decided_on_a_realization_of,'doc'),...ids(decision.decided_on_a_part_of_a_realization_of,'doc')];
+      return owners.length===1&&owners[0]===id&&parts.every(part=>part===document||part.startsWith(document+'-AM-')||/-SPLIT-\d+-\d+$/.test(part));
+    }));
+  }
+  return {derived,byAgenda,byDocument,amendmentsById:new Map(amendments.map(a=>[a.id,a]))};
 }
 function decisionKind(raw,derived) {
   const components=[...ids(raw.decided_on_a_realization_of,'doc'),...ids(raw.decided_on_a_part_of_a_realization_of,'doc')];
@@ -67,8 +84,8 @@ function decisionKind(raw,derived) {
   if(/oral amendment/i.test(label))return 'oral';
   return null;
 }
-export function assembleBallot({document,agendaItemId,day={decisions:[],results:[],requests:[]},amendments=[],votingList=null,retained=[],context=ballotContext(day,amendments)}) {
-  const {derived,amendmentsById}=context,decisions=context.byAgenda.get(agendaItemId)||[];
+export function assembleBallot({document,agendaItemId,day={decisions:[],results:[],requests:[]},amendments=[],votingList=null,retained=[],context=ballotContext(day,amendments),withoutVoteItem=votingList?.placement==='debate'}) {
+  const {derived,amendmentsById}=context,decisions=(withoutVoteItem?context.byDocument?.get(document):context.byAgenda.get(agendaItemId))||[];
   const withdrawn=new Set(votingList?.notes?.withdrawn||[]),inadmissible=new Set(votingList?.notes?.inadmissible||[]);
   const rows=votingList?[...votingList.rows]:amendments.filter(a=>ballotScheduledFor(a,agendaItemId,day.sittingId)).sort((a,b)=>a.number-b.number).map((a,index)=>({row:index+1,kind:'amendment',subject:[a.targetLabel||a.label||''],subjectLanguage:a.targetLabelLanguage||null,amendments:[{number:Number(a.id.match(/-AM-(\d+)$/)?.[1]),cp:null}],authors:[...new Set([...(a.authors||[]).map(author=>author.displayName||author.name).filter(Boolean),...(a.committeeProposer?[a.committeeProposer]:[]),...array(a.onBehalfOf)])],part:null,parentRow:null}));
   if(votingList)for(const number of [...withdrawn,...inadmissible])if(!rows.some(r=>r.amendments?.some(a=>a.number===number)))rows.push({row:0,kind:'amendment',subject:[],amendments:[{number,cp:null}],part:null});
@@ -103,7 +120,7 @@ export function groupMajorities(voters) {
 export function retainSittingBallotBindings(store,day,lists) {
   store.assertWriter();
   const context=ballotContext(day);
-  for(const votingList of lists) {
+  for(const votingList of placeVotingLists(lists,day.agenda||[],id=>heldDocument(store,id))) {
     if(!votingList.documentId||!votingList.agendaItemId)continue;
     const ballot=assembleBallot({document:votingList.documentId,agendaItemId:votingList.agendaItemId,day,votingList,context});
     persistBallotBindings(store.db,{sitting:day.sittingId,agenda:votingList.agendaItemId,document:votingList.documentId,bindings:ballot.bindings});

@@ -1,12 +1,10 @@
 import {useEffect,useMemo,useState,type ReactNode} from 'react';
 import {useData} from './data';
 import {UiMessage,useUiI18n} from './UiI18nReact';
-import type {MemberVoteRecordBreakdownList,MemberVoteRecordDeparture,MemberVoteRecordResponse} from './MemberVoteRecordTypes';
+import type {MemberVoteRecordBreakdownList,MemberVoteRecordResponse} from './MemberVoteRecordTypes';
 import {MEMBER_VOTE_RECORD_LIMIT,memberVoteRecordRoute,recordShare,recordView,validateMemberVoteRecordResponse} from './MemberVoteRecordModel.mjs';
-import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
-import {dossierLinkClick} from './dossierJourney';
+import {dossierLinkClick,useDossierReaderState} from './dossierJourney';
 import {voteHref} from './votePagePresentation.mjs';
-import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import {FoldRow} from './FoldRow';
 import {VoteMark} from './VoteMark';
 import {VoteRow} from './VoteRow';
@@ -37,17 +35,6 @@ function usePhone() {
   return phone;
 }
 
-// Before the flip a title opens the member's own decision page, kept in the Votes tab. After it, the vote page.
-const decisionHref=(memberId:number,item:MemberVoteRecordDeparture)=>{
-  if(typeof window==='undefined')return null;
-  const url=new URL(window.location.href);
-  for(const key of [...url.searchParams.keys()])if(key.startsWith('mv-'))url.searchParams.delete(key);
-  url.searchParams.set('member',String(memberId));url.searchParams.set('module','votes');
-  const journey={memberId:Number(memberId),state:{week:'latest',sittingId:item.sittingId,positions:'all' as const,alignment:'all' as const,offset:0,decisionId:item.decisionId,snapshotId:null,expandedSubjectIds:[],context:null},adoptedId:null,invalid:false};
-  for(const [key,value] of memberVotesJourneyParams(journey))url.searchParams.set(key,value);
-  return url.href;
-};
-
 const positionName=(position:VotePosition,ui:ReturnType<typeof useUiI18n>)=>ui.t('votegroups.position.'+position);
 // A mark and its word; a position the record doesn't hold is a dash.
 const positionLine=(position:VotePosition|null,ui:ReturnType<typeof useUiI18n>):ReactNode=>position?<><VoteMark position={position}/>{positionName(position,ui)}</>:ui.t('membervoterecord.noValue');
@@ -75,23 +62,20 @@ function useRestoreFocus(ready:boolean) {
 }
 
 // One page of departures, fetched on its own so a reload restores every page already shown.
-// It reports once its rows are in, and says so when it fails.
-function DeparturePage({memberId,language,scope,tag,offset,onOpenDecision,onLoaded}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;offset:number;onOpenDecision:(item:MemberVoteRecordDeparture)=>void;onLoaded:()=>void}) {
+// It reports once its rows are in, and says so when it fails. Coming back from a vote page,
+// data-record-pending holds the scroll and focus restore until the rows are in or a page has failed.
+function DeparturePage({memberId,language,scope,tag,offset,onLoaded,onFailed}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;offset:number;onLoaded:()=>void;onFailed:()=>void}) {
   const ui=useUiI18n();
   const route=useMemo(()=>memberVoteRecordRoute(memberId,{language,scope,limit:PAGE,offset,tag}),[memberId,language,scope,tag,offset]);
   const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
   const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
   useEffect(()=>{if(data)onLoaded();},[data,onLoaded]);
+  useEffect(()=>{if(!data&&(request.error||!request.loading))onFailed();},[data,request.error,request.loading,onFailed]);
   if(!data)return request.error||!request.loading?<p className="mvr-more" role="status"><span className="muted"><UiMessage id="membervoterecord.unavailable"/></span><button type="button" className="c word" onClick={request.retry}><UiMessage id="week.retry"/></button></p>:null;
   return <>{data.departures.items.map(item=>{
     const primary=item.subject?.text??item.text,primaryLanguage=item.subject?.text?item.subject.language:item.language;
     const label=item.subject?.text&&item.text?<span className="blk" lang={markLanguage(item.language,ui)}>{item.text}</span>:null;
-    const href=PLENARY_REDESIGN_LIVE?voteHref(item.decisionId,ui.language):decisionHref(memberId,item);
-    const title=<a className="t" href={href??undefined} lang={markLanguage(primaryLanguage,ui)} onClick={event=>{
-      if(PLENARY_REDESIGN_LIVE){dossierLinkClick(event);return;}
-      if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
-      event.preventDefault();onOpenDecision(item);
-    }}>{primary||ui.t('membervoterecord.departures.untitled')}</a>;
+    const title=<a className="t" href={voteHref(item.decisionId,ui.language)} lang={markLanguage(primaryLanguage,ui)} onClick={dossierLinkClick}>{primary||ui.t('membervoterecord.departures.untitled')}</a>;
     const sub=<>{label}{dateLabel(item.date,ui.locale)} · <UiMessage id="membervoterecord.departures.line" values={{position:positionLine(item.position,ui),line:positionLine(item.line,ui)}}/></>;
     return <VoteRow key={item.decisionId+item.sittingId} tight title={title} sub={sub}/>;
   })}</>;
@@ -99,16 +83,17 @@ function DeparturePage({memberId,language,scope,tag,offset,onOpenDecision,onLoad
 
 // The pages up to the URL offset, never past the last one. They load one after the other, so a
 // saved link with a large offset can't start more than one read at a time.
-function DeparturePages({memberId,language,scope,tag,total,offset,onOpenDecision,onOffset}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;total:number;offset:number;onOpenDecision:(item:MemberVoteRecordDeparture)=>void;onOffset:(offset:number)=>void}) {
+function DeparturePages({memberId,language,scope,tag,total,offset,onOffset}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;total:number;offset:number;onOffset:(offset:number)=>void}) {
   const pages=Math.min(Math.floor(offset/PAGE)+1,Math.max(1,Math.ceil(total/PAGE)));
   const [reached,setReached]=useState(0);
+  const [failed,setFailed]=useState(false);
   useRestoreFocus(true);
   // Back to an earlier offset drops the later pages; what has loaded never counts past what is shown.
   const loaded=Math.min(reached,pages);
   const mounted=Math.min(pages,loaded+1);
   const shown=Math.min(loaded*PAGE,total);
   return <>
-    <div className="mvr-rows">{Array.from({length:mounted},(_,page)=><DeparturePage key={page} memberId={memberId} language={language} scope={scope} tag={tag} offset={page*PAGE} onOpenDecision={onOpenDecision} onLoaded={()=>setReached(count=>Math.max(count,page+1))}/>)}</div>
+    <div className="mvr-rows" data-record-pending={!failed&&loaded<pages?'true':undefined}>{Array.from({length:mounted},(_,page)=><DeparturePage key={page} memberId={memberId} language={language} scope={scope} tag={tag} offset={page*PAGE} onLoaded={()=>setReached(count=>Math.max(count,page+1))} onFailed={()=>setFailed(true)}/>)}</div>
     {loaded===pages&&shown<total&&<p className="mvr-more">
       <span className="meta"><UiMessage id="membervoterecord.departures.range" values={{start:1,end:shown,total}}/></span>
       <button type="button" className="c word" onClick={()=>{armFocus({row:pages*PAGE});onOffset(pages*PAGE);}}><UiMessage id="membervoterecord.departures.more"/></button>
@@ -116,7 +101,7 @@ function DeparturePages({memberId,language,scope,tag,total,offset,onOpenDecision
   </>;
 }
 
-function Departures({data,memberId,language,scope,tag,offset,onOffset,onTagChange,onOpenDecision}:{data:MemberVoteRecordResponse;memberId:number;language:string;scope:'all'|'final';tag:string|null;offset:number;onOffset:(offset:number)=>void;onTagChange:(tag:string|null)=>void;onOpenDecision:(item:MemberVoteRecordDeparture)=>void}) {
+function Departures({data,memberId,language,scope,tag,offset,onOffset,onTagChange}:{data:MemberVoteRecordResponse;memberId:number;language:string;scope:'all'|'final';tag:string|null;offset:number;onOffset:(offset:number)=>void;onTagChange:(tag:string|null)=>void}) {
   const ui=useUiI18n();
   const total=data.departures.total;
   return <>
@@ -125,7 +110,7 @@ function Departures({data,memberId,language,scope,tag,offset,onOffset,onTagChang
       <button type="button" className="c word" onClick={()=>onTagChange(null)}><UiMessage id="membervoterecord.filter.clear"/></button>
     </p>}
     {!total&&<p className="muted mvr-none"><UiMessage id="membervoterecord.departures.empty"/></p>}
-    {Boolean(total)&&<DeparturePages key={memberId+scope+(tag??'')+total} memberId={memberId} language={language} scope={scope} tag={tag} total={total} offset={offset} onOpenDecision={onOpenDecision} onOffset={onOffset}/>}
+    {Boolean(total)&&<DeparturePages key={memberId+scope+(tag??'')+total} memberId={memberId} language={language} scope={scope} tag={tag} total={total} offset={offset} onOffset={onOffset}/>}
   </>;
 }
 
@@ -134,11 +119,12 @@ const capitalise=(text:string,language:string)=>text.charAt(0).toLocaleUpperCase
 function BreakdownList({heading,list,tag,onTag}:{heading:string;list:MemberVoteRecordBreakdownList;tag:string|null;onTag:(tag:string|null)=>void}) {
   const ui=useUiI18n();
   return <div className="mvr-list">
-    <div className="heads static"><h4 className="main">{heading}</h4><span className="n hd sh"><UiMessage id="membervoterecord.breakdown.share"/></span><span className="n hd ct"><UiMessage id="membervoterecord.breakdown.count"/></span></div>
+    <div className="heads static"><h4 className="main">{heading}</h4><span className="n hd sh"><UiMessage id="membervoterecord.breakdown.differs"/></span><span className="n hd ct"><UiMessage id="membervoterecord.breakdown.count"/></span></div>
     <ul>{list.rows.map(row=>{
       // EuroVoc labels are lower case in the source; capitalised for display only.
       const label=row.key.startsWith('topic:')?capitalise(row.label,row.language):row.label;
-      const share=ui.t('membervoterecord.percent',{value:Math.round(row.share*100)}),count=num(ui,row.comparable);
+      // Votes that differed out of the row's comparable votes, the complement of the server's with-group share.
+      const share=row.comparable?ui.t('membervoterecord.percent',{value:Math.round((row.comparable-row.withGroup)*100/row.comparable)}):ui.t('membervoterecord.noValue'),count=num(ui,row.comparable);
       return <li key={row.key} className="row tight">
         <span className="main"><button type="button" className="t pick" data-pick={row.key} aria-pressed={tag===row.key} aria-label={ui.t('membervoterecord.breakdown.row',{label,share,count})} lang={markLanguage(row.language,ui)} onClick={()=>onTag(tag===row.key?null:row.key)}>{label}</button></span>
         <span className="n sh">{share}</span>
@@ -165,9 +151,9 @@ function Breakdown({data,tag,onTag}:{data:MemberVoteRecordResponse;tag:string|nu
   </section>;
 }
 
-export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChange,onTagChange,onOffset,onOpenDecision}:{
+export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChange,onTagChange,onOffset}:{
   memberId:number;language:string;scope:'all'|'final';offset:number;tag:string|null;
-  onScopeChange:(scope:'all'|'final')=>void;onTagChange:(tag:string|null)=>void;onOffset:(offset:number)=>void;onOpenDecision:(item:MemberVoteRecordDeparture)=>void;
+  onScopeChange:(scope:'all'|'final')=>void;onTagChange:(tag:string|null)=>void;onOffset:(offset:number)=>void;
 }) {
   const ui=useUiI18n();
   const phone=usePhone();
@@ -175,13 +161,13 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
   const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
   const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
   // On a phone the list is a fold; a tag opens it so the way back to all is in view.
-  const [listOpen,setListOpen]=useState(tag!==null);
+  const [listOpen,setListOpen]=useDossierReaderState('record-list-open',tag!==null);
   useEffect(()=>{if(tag!==null)setListOpen(true);},[tag]);
   // Selecting or clearing a filter replaces the panel while it loads; focus goes back to the row that was pressed.
   const changeTag=(next:string|null)=>{armFocus({pick:next??tag});onTagChange(next);};
   useRestoreFocus(data!==null&&recordView(data,scope).state==='record');
   useEffect(()=>cancelFocus,[memberId,scope]);
-  const status=(id:string)=><section className="vs mvr" lang={ui.language} aria-label={ui.t('membervoterecord.heading')}><p className="muted" role="status"><UiMessage id={id}/></p></section>;
+  const status=(id:string)=><section className="vs mvr" lang={ui.language} aria-label={ui.t('membervoterecord.heading')} data-record-pending={id==='membervoterecord.loading'?'true':undefined}><p className="muted" role="status"><UiMessage id={id}/></p></section>;
   if(!data)return status(request.error||!request.loading?'membervoterecord.unavailable':'membervoterecord.loading');
   const view=recordView(data,scope);
   // Before the first projection there is nothing to count, and zeros would read as real figures.
@@ -190,10 +176,10 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
   const {ballots,coverage}=data;
   const departures=view.list&&(phone
     ? <div className="frows"><FoldRow title={<UiMessage id="membervoterecord.votedDifferently"/>} value={num(ui,data.departures.total)} open={listOpen} onOpenChange={setListOpen}>
-        <Departures data={data} memberId={memberId} language={language} scope={scope} tag={tag} offset={offset} onOffset={onOffset} onTagChange={changeTag} onOpenDecision={onOpenDecision}/>
+        <Departures data={data} memberId={memberId} language={language} scope={scope} tag={tag} offset={offset} onOffset={onOffset} onTagChange={changeTag}/>
       </FoldRow></div>
     : <section className="mvr-section"><h3><UiMessage id="membervoterecord.votedDifferently"/></h3>
-        <Departures data={data} memberId={memberId} language={language} scope={scope} tag={tag} offset={offset} onOffset={onOffset} onTagChange={changeTag} onOpenDecision={onOpenDecision}/>
+        <Departures data={data} memberId={memberId} language={language} scope={scope} tag={tag} offset={offset} onOffset={onOffset} onTagChange={changeTag}/>
       </section>);
   return <section className="vs mvr" lang={ui.language} aria-labelledby="member-vote-record-heading">
     <header className="mvr-head">

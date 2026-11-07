@@ -10,9 +10,12 @@ export function upcomingAgenda(store,generation) {return upcomingSource(store,ge
 export function scheduledVotes(work,list,items,{number=null,votingLists=[],today=brusselsDay()}={}) {
   const id=work?.identifier||tail(work?.id);
   const candidates=items.filter(item=>agendaNamesDocument(item,id)&&item.date>=today);
-  // No matching upcoming agenda item is a known empty scope, even when
-  // earlier plenary history has not been observed.
-  if(!candidates.length)return [];
+  // Without a vote item only the official voting list establishes scope; no
+  // list either is a known empty scope, even without earlier plenary history.
+  if(!candidates.length) {
+    const numbers=new Set(number===null?(list?.extraction?.amendments||[]).map(a=>a.number):[number]);
+    return votingLists.filter(v=>v.documentId===id&&v.sittingId?.slice(7)>=today&&v.rows?.some(row=>row.amendments?.some(a=>numbers.has(a.number)))).map(v=>({sittingId:v.sittingId,agendaItemId:v.agendaItemId||null,basis:'voting-list'}));
+  }
   const ballotFor=item=>votingLists.find(v=>v.sittingId==='MTG-PL-'+item.date&&v.agendaItemId===item.id&&v.documentId===id);
   // Held projections predate the history-observed flag. Their array alone
   // cannot prove there was no earlier vote; only an exact ballot can classify.

@@ -200,3 +200,10 @@ test('absence from the observed upcoming agenda is known without plenary history
  const row={scope:'plenary',targetDocumentId:id,listId:'fixture-list',number:1},context={agenda:{items:[item]},items:[item],votingLists:[],sources:new Map([['/plenary-documents/'+id,null],['amendment:list:fixture-list',null]]),today:'2026-11-03'};
  assert.equal(withScheduledVotes({},1,row,context).scheduledVotes,null);assert.deepEqual(withScheduledVotes({},1,row,{...context,items:[]}).scheduledVotes,[]);
 });
+test('a voting list establishes scope for a report without a vote item',()=>{
+ const work={identifier:'A-10-2026-0271'},lists=[{documentId:'A-10-2026-0271',sittingId:'MTG-PL-2026-11-12',agendaItemId:null,rows:[{amendments:[{number:5}]}]}];
+ assert.deepEqual(scheduledVotes(work,{},[],{number:5,today:'2026-11-07',votingLists:lists}),[{sittingId:'MTG-PL-2026-11-12',agendaItemId:null,basis:'voting-list'}]);
+ assert.deepEqual(scheduledVotes(work,{},[],{number:6,today:'2026-11-07',votingLists:lists}),[]);
+ assert.deepEqual(scheduledVotes(work,{},[],{number:5,today:'2026-11-13',votingLists:lists}),[]);
+ assert.deepEqual(scheduledVotes(work,{},[],{number:5,today:'2026-11-07',votingLists:[]}),[]);
+});

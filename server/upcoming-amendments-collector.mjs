@@ -38,7 +38,9 @@ export async function collectUpcomingAmendments(worker,{window=upcomingWindow(wo
   }
   const extract=store.db.prepare("SELECT * FROM amendment_jobs WHERE generation=? AND kind IN ('amendment-extract','amendment-list-detail') AND done=0 AND retry_at<=? AND json_extract(body,'$.upcoming')=1 ORDER BY priority DESC,key LIMIT 1").get(generation,now);
   if(extract){const task={...extract,body:JSON.parse(extract.body),amendmentJob:true};worker.upcomingDocument=task.body.targetDocumentId;worker.upcomingUntil=task.body.upcomingUntil;try{await amendmentTask(worker,task);}catch(error){if(!failAmendmentTask(worker,task,error))store.failTask(task,error);}finally{delete worker.upcomingDocument;delete worker.upcomingUntil;}return true;}
-  const documents=[...new Set(state.items.flatMap(item=>item.documentIds).filter(id=>/^(?:A|B|RC)-(?:9|10)-\d{4}-\d{4,6}$/.test(id)))];
+  // A report can be on a voting list before the agenda gives it a vote item.
+  const listed=window.sittingIds.flatMap(id=>store.votingListsForSitting?.(id)||[]).map(v=>v.documentId);
+  const documents=[...new Set([...state.items.flatMap(item=>item.documentIds),...listed].filter(id=>/^(?:A|B|RC)-(?:9|10)-\d{4}-\d{4,6}$/.test(id)))];
   for(const id of documents){
     const key='/plenary-documents/'+id,source=store.source(generation,key);
     if(source&&now-Date.parse(source.fetchedAt)<HOUR)continue;

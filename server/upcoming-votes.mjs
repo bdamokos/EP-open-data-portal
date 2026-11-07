@@ -12,7 +12,8 @@ import {assembleBallot,ballotContext,groupMajorities} from './your-vote-ballot.m
 import {decisionVotesContext,projectDecisionVotes} from './decision-votes.mjs';
 import {amendmentTarget} from './amendments.mjs';
 import {legacyAmendmentDocument} from './upcoming-amendments.mjs';
-export const UPCOMING_VOTES_VERSION=5;
+import {documentProcedures,heldDocument,placeVotingLists} from './ballot-placement.mjs';
+export const UPCOMING_VOTES_VERSION=6;
 export const BALLOT_COMPARISON_VERSION=2;
 const tail=x=>String(x?.id||x||'').split('/').at(-1);
 const list=x=>x==null?[]:Array.isArray(x)?x:[x];
@@ -49,32 +50,55 @@ export async function ballotInputs(query,{store,request=odp,reader=memberVotes,l
     sourceRevision=revisionBefore===revisionAfter&&!records.some(r=>r.stale||r.refreshInProgress||r.refreshError)?revisionAfter:null;
   }
   if(!day)throw new HttpError(503,'ballot_unavailable','Ballot unavailable.');
+  const votingLists=placeVotingLists(lists?await lists(query.sitting):ballotVotingLists(store,query.sitting),day.agenda,id=>heldDocument(store,id));
   let amendmentData;
   const loadAmendments=()=>{
     if(amendmentData)return amendmentData;
-    const documents=[...new Set(day.agenda.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE').flatMap(n=>list(n.based_on_a_realization_of).map(tail).filter(ballotDocument)))];
+    const documents=[...new Set([...day.agenda.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE').flatMap(n=>list(n.based_on_a_realization_of).map(tail).filter(ballotDocument)),...votingLists.filter(v=>v.agendaItemId).map(v=>v.documentId)])];
     const amendmentPages=documents.map(document=>({document,page:amendmentsPage(store,{document,limit:1000,language:query.language})}));
     const amendments=amendmentPages.flatMap(({page})=>page.items),partialDocuments=amendmentPages.filter(({page})=>page.items.length<page.total||page.scheduledLists===null||page.items.some(row=>row.scheduledVotes===null)||!page.items.length&&!page.coverage.observationComplete).map(({document})=>document);
     return amendmentData={amendments,partialDocuments};
   };
-  const votingLists=lists?await lists(query.sitting):ballotVotingLists(store,query.sitting),bindings=readSittingBallotBindings(store.db,query.sitting);
-  const revision=sourceRevision?createHash('sha256').update(JSON.stringify([sourceRevision,store.status().servingGeneration,store.get('amendmentMutationRevision'),votingLists.map(v=>[v.documentId,v.agendaItemId,v.revision?.sha256]),bindings])).digest('hex'):null;
-  return {day,loadAmendments,lists:votingLists,bindings,revision};
+  const bindings=readSittingBallotBindings(store.db,query.sitting);
+  const revision=sourceRevision?createHash('sha256').update(JSON.stringify([sourceRevision,store.status().servingGeneration,store.get('amendmentMutationRevision'),votingLists.map(v=>[v.documentId,v.agendaItemId,v.alsoOn,v.revision?.sha256]),bindings])).digest('hex'):null;
+  return {day,loadAmendments,lists:votingLists,bindings,revision,documentOf:id=>heldDocument(store,id)};
+}
+// Bindings keep their exact vote item. They follow the report only from an item
+// that is no longer a vote item, to the one vote item that now names it.
+function retainedFor(bindings,agendaItemId,document,voteItems) {
+  const pick=rows=>rows.map(({key,decisionId})=>({key,decisionId}));
+  const exact=bindings.filter(b=>b.agenda===agendaItemId&&b.document===document);
+  if(exact.length||!document)return pick(exact);
+  const naming=[...voteItems.values()].filter(documents=>documents.includes(document)).length;
+  return naming>1?[]:pick(bindings.filter(b=>b.document===document&&!voteItems.has(b.agenda)));
 }
 export async function upcomingVotes(query,{store=null,inputs=ballotInputs,cache=ballotResponseCache(store),makeContext=ballotContext,...options}={}) {
   const data=await inputs(query,{store,...options}),key=data.revision?JSON.stringify([UPCOMING_VOTES_VERSION,query.sitting,query.language,data.revision]):null;
   const old=key&&cache?.get(key);if(old)return old;
   const {amendments,partialDocuments}=data.loadAmendments?data.loadAmendments():data;
-  const items=[],context=makeContext(data.day,amendments);
+  const items=[],context=makeContext(data.day,amendments),bindings=data.bindings||[];
+  const voteItems=new Map(data.day.agenda.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE').map(n=>[n.activity_id||tail(n.id),list(n.based_on_a_realization_of).map(tail)]));
   for(const agenda of data.day.agenda.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE')) {
     const agendaItemId=agenda.activity_id||tail(agenda.id);
-    const documents=list(agenda.based_on_a_realization_of).map(tail).filter(ballotDocument);
+    const named=list(agenda.based_on_a_realization_of).map(tail).filter(ballotDocument);
+    const documents=named.length?named:data.lists.filter(v=>v.placement==='procedure'&&v.agendaItemId===agendaItemId).map(v=>v.documentId);
     for(const document of documents.length?documents:[null]) {
       const votingList=data.lists.find(v=>v.documentId===document&&v.agendaItemId===agendaItemId);
-      const retained=(data.bindings||[]).filter(b=>b.agenda===agendaItemId&&b.document===document).map(({key,decisionId})=>({key,decisionId}));
+      const retained=retainedFor(bindings,agendaItemId,document,voteItems);
       const ballot=document?assembleBallot({document,agendaItemId,day:data.day,amendments,votingList,retained,context}):{rows:[],added:[],bindings:[]};
       items.push({id:agendaItemId,documentId:document,sittingId:query.sitting,title:agenda.activity_label?.[query.language]||agenda.activity_label?.en||'',titleLanguage:agenda.activity_label?.[query.language]?query.language:agenda.activity_label?.en?'en':null,procedureIds:list(agenda.inverse_was_scheduled_in).map(tail),source:votingList?'voting-list':retained.length?'retained':'tabled',partial:partialDocuments?.includes(document)||false,...ballot});
     }
+  }
+  for(const votingList of data.lists.filter(v=>v.placement==='debate')) {
+    const document=votingList.documentId,retained=retainedFor(bindings,votingList.agendaItemId,document,voteItems);
+    items.push({id:votingList.agendaItemId,alsoOn:votingList.alsoOn,documentId:document,sittingId:query.sitting,title:votingList.heading?.title||'',titleLanguage:votingList.heading?.title?'en':null,procedureIds:votingList.procedureIds,source:'voting-list',partial:partialDocuments?.includes(document)||false,...assembleBallot({document,agendaItemId:votingList.agendaItemId,day:data.day,amendments,votingList,retained,context})});
+  }
+  // After the purge a report that never got a vote item keeps its results.
+  for(const binding of bindings) {
+    if(!binding.document||items.some(item=>item.documentId===binding.document))continue;
+    const work=data.documentOf?.(binding.document),titles=work?.title_dcterms||{},language=titles[query.language]?query.language:'en';
+    const retained=bindings.filter(b=>b.document===binding.document&&b.agenda===binding.agenda).map(({key,decisionId})=>({key,decisionId}));
+    items.push({id:binding.agenda,documentId:binding.document,sittingId:query.sitting,title:titles[language]||'',titleLanguage:titles[language]?language:null,procedureIds:documentProcedures(work),source:'retained',partial:false,...assembleBallot({document:binding.document,agendaItemId:binding.agenda,day:data.day,amendments,retained,context,withoutVoteItem:true})});
   }
   const result={version:UPCOMING_VOTES_VERSION,sittingId:query.sitting,items};if(key)cache?.set(key,result);return result;
 }
