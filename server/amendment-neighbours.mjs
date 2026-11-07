@@ -1,4 +1,5 @@
 import {amendmentReference} from './amendments.mjs';
+import {descriptionText} from './amendment-splits.mjs';
 import {amendmentById,amendmentGeneration} from './amendments-store.mjs';
 import {committeeAmendmentReference,committeeScopeKey} from './committee-amendments.mjs';
 import {fastReadsReady} from './fast-read-projections.mjs';
@@ -20,8 +21,13 @@ const inList=(row,listId)=>row?.listId===listId||Array.isArray(row?.variants)&&r
 const listRange=listId=>{const match=listId.match(/-AM-(\d{1,5})-(\d{1,5})$/);return match?[Number(match[1]),Number(match[2])]:[1,Number.MAX_SAFE_INTEGER];};
 
 // Parliament's descriptions of each part. Older rows hold one language; a row may hold all of them.
+const heldDescription=text=>{try{return descriptionText(text);}catch{return null;}};
 const partDescriptions=part=>{
-  const held=Object.entries(part.sourceDescriptions||{}).filter(([,text])=>typeof text==='string'&&text.trim());
+  // Stored as raw source XML; a value that can't be read is left out.
+  const held=Object.entries(part.sourceDescriptions||{}).flatMap(([language,text])=>{
+    const read=typeof text==='string'&&text.trim()?heldDescription(text):null;
+    return read?.trim()?[[language,read]]:[];
+  });
   return Object.fromEntries(held.length?held:typeof part.description==='string'&&part.language?[[part.language,part.description]]:[]);
 };
 export const amendmentSplitFields=row=>{

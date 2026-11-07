@@ -18,7 +18,7 @@ function decodeEntities(value) {
   });
 }
 
-function descriptionText(raw) {
+export function descriptionText(raw) {
   if (typeof raw !== 'string' || !raw.trim()) fail('missing_description', 'The requested language has no split description.');
   if (Buffer.byteLength(raw,'utf8') > MAX_DESCRIPTION_BYTES) fail('description_too_large', 'The split description exceeds the parser size limit.');
   let xml = raw.trim();

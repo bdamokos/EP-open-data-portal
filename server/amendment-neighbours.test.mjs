@@ -57,7 +57,7 @@ test('the line reads who tabled it and a known outcome, and nothing of a list',t
 });
 
 test('a split amendment reads its parts and each part\'s decision, by part number or exact part ID',()=>{
-  const reply=amendmentSplitFields({splitParts:[{id:'p/1',number:1,description:'Text as a whole without the words: ‘x’',language:'en'},{id:'p/2',number:2,sourceDescriptions:{en:'those words',fr:'ces termes'},description:'those words',language:'en'},{id:'p/3',number:3,description:null}],decisions:[
+  const reply=amendmentSplitFields({splitParts:[{id:'p/1',number:1,description:'Text as a whole without the words: ‘x’',language:'en'},{id:'p/2',number:2,sourceDescriptions:{en:'<partValue>those words</partValue>',fr:'<partValue>ces termes</partValue>'},description:'those words',language:'en'},{id:'p/3',number:3,description:null}],decisions:[
     {id:'DEC-1',partId:'p/1',outcome:'ADOPTED',method:'VOTE_HAND',totals:{for:null,against:null,abstaining:null},date,source},
     {id:'DEC-2',partNumber:2,outcome:'REJECTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:1,against:2,abstaining:3}},
   ]});
@@ -67,6 +67,8 @@ test('a split amendment reads its parts and each part\'s decision, by part numbe
     {id:'DEC-2',partNumber:2,outcome:'REJECTED',method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:null,totals:{for:1,against:2,abstaining:3}},
   ]);
   assert.deepEqual(amendmentSplitFields({}),{splitParts:[],decisions:[]});
+  const xml=amendmentSplitFields({splitParts:[{id:'p/1',number:1,sourceDescriptions:{fr:'<partValue>Texte &#171;politique&#187;</partValue>',de:'<partValue><broken>',el:' '}}]});
+  assert.deepEqual(xml.splitParts,[{number:1,descriptions:{fr:'Texte «politique»'}}],'source XML is decoded; unreadable values are left out');
 });
 test('every reply carries the version and split fields, empty when not voted in parts',t=>{
   const {store}=setup(t,[amendment(1,first)]);
