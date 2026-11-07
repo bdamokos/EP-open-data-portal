@@ -95,7 +95,10 @@ export function foldFacts(item,topic,topics) {
   };
 }
 /** The week-item contract. Anything else shows the links alone. */
-export const validWeekItem=data=>object(data)&&[data.procedures,data.rapporteurs,data.committees,data.standing,data.documents].every(Array.isArray)&&data.documents.every(row=>typeof row?.id==='string')&&(data.press===null||typeof data.press?.url==='string'&&typeof data.press.title==='string');
+const namedRow=row=>typeof row?.id==='string'||typeof row?.id==='number';
+const validStanding=line=>namedRow(line)&&(line.values==null||object(line.values)&&(line.values.committees==null||Array.isArray(line.values.committees)&&line.values.committees.every(row=>typeof row?.name==='string')));
+/** The reply's rows are read as they render, so a row that can't render fails the whole reply and the fold keeps its links. */
+export const validWeekItem=data=>object(data)&&[data.procedures,data.rapporteurs,data.committees,data.standing,data.documents].every(Array.isArray)&&data.documents.every(row=>typeof row?.id==='string')&&data.procedures.every(namedRow)&&data.rapporteurs.every(namedRow)&&data.standing.every(validStanding)&&(data.press===null||typeof data.press?.url==='string'&&typeof data.press.title==='string');
 
 export function tallyWords(summary,ui=defaultUi) {
   return ['adopted','rejected','lapsed','unknown'].filter(key=>summary[key]>0).map(key=>ui.t('week.tally_words.'+key,{n:summary[key]})).join(', ');

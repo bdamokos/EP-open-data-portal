@@ -73,9 +73,8 @@ test('every language renders its three column heads and the column fits the wide
 test('plural families carry every category their language needs',async()=>{
   const pairs=await json('./ui-locales/plural-pairs.json');
   const forms=await json('./ui-locales/plural-forms.json');
-  // New week-fold families fall back to English until they are translated.
-  const newFamilies=pairs.map(pair=>pair.other).filter(id=>/^(votepage|week)\.(?!fold\.)/.test(id));
-  assert.equal(newFamilies.length,9);
+  const newFamilies=pairs.map(pair=>pair.other).filter(id=>/^(votepage|week)\./.test(id));
+  assert.equal(newFamilies.length,11);
   for(const language of languages) {
     const needed=new Intl.PluralRules(language).resolvedOptions().pluralCategories;
     for(const id of newFamilies) {

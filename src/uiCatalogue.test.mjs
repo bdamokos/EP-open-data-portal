@@ -153,8 +153,6 @@ test('all reachable messages have translated values in each supported language',
       // Topics messages use the documented per-message English fallback.
       if(id.startsWith('topics.')&&!Object.hasOwn(catalogue,id))continue;
       if(id.startsWith('speechpanel.')&&!Object.hasOwn(catalogue,id))continue;
-      // New week-fold messages fall back to English until they are translated.
-      if((id.startsWith('week.fold.')||id.startsWith('week.kind.'))&&!Object.hasOwn(catalogue,id))continue;
       assert.equal(typeof catalogue[id],'string',language+': '+id);
       assert(catalogue[id].trim(),language+': '+id);
     }
