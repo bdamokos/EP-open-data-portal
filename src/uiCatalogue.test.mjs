@@ -47,34 +47,16 @@ test('every explicit static application message points to a real catalogue entry
 // first vote page; P4 and P12 replace or remove them, and the allowlist shrinks with them.
 const bannedWording=/against (their|the|own) group|rebel|defect|loyal|names on record|not put to a vote|tabling deadline/i;
 const liveBannedWording=new Set([
-  'activityvote.not_put_to_a_vote',
-  'amendmentnamedvotes.tsx.not.put.to.a.vote',
   'membervotespresentation.not_individually_recorded',
   'membervotespresentation.positions_none_count_not_individually_recorded.9fd0f5',
-  'membervotespresentation.positions_not_conducted',
-  'membervotespresentation.positions_not_conducted_no_record',
-  'membervotespresentation.positions_not_conducted_no_record_unavailable',
-  'membervotespresentation.positions_not_conducted_unavailable',
   'membervotespresentation.positions_positions_count_not_individually_recorded',
-  'membervotespresentation.positions_recorded_not_conducted',
-  'membervotespresentation.positions_recorded_not_conducted_no_record',
-  'membervotespresentation.positions_recorded_not_conducted_no_record_unavailable',
-  'membervotespresentation.positions_recorded_not_conducted_unavailable',
   'membervotespresentation.positions_recorded_unnamed',
   'membervotespresentation.positions_recorded_unnamed_no_record',
   'membervotespresentation.positions_recorded_unnamed_no_record_unavailable',
-  'membervotespresentation.positions_recorded_unnamed_not_conducted',
-  'membervotespresentation.positions_recorded_unnamed_not_conducted_no_record',
-  'membervotespresentation.positions_recorded_unnamed_not_conducted_no_record_unavailable',
-  'membervotespresentation.positions_recorded_unnamed_not_conducted_unavailable',
   'membervotespresentation.positions_recorded_unnamed_unavailable',
   'membervotespresentation.positions_unnamed',
   'membervotespresentation.positions_unnamed_no_record',
   'membervotespresentation.positions_unnamed_no_record_unavailable',
-  'membervotespresentation.positions_unnamed_not_conducted',
-  'membervotespresentation.positions_unnamed_not_conducted_no_record',
-  'membervotespresentation.positions_unnamed_not_conducted_no_record_unavailable',
-  'membervotespresentation.positions_unnamed_not_conducted_unavailable',
   'membervotespresentation.positions_unnamed_unavailable',
   'weekSummary.countNotPut',
   'weekSummary.countPastNamed',
@@ -82,8 +64,6 @@ const liveBannedWording=new Set([
 ]);
 const firstVotePageBannedWording=new Set([
   'votepage.no_names',
-  'votepage.amendment.not_voted',
-  'votepage.part.not_voted',
 ]);
 test('English messages avoid the banned wording except strings the redesign still has to replace',()=>{
   const allowed=new Set([...liveBannedWording,...firstVotePageBannedWording]);

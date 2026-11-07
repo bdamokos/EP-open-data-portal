@@ -11,6 +11,7 @@ import {groupLabel,groupLabelLanguage} from './groupLabels';
 import {knownVoteMethodLabel} from './voteMethod.mjs';
 import type {Amendment,AmendmentDecision} from './AmendmentTypes';
 import type {DecisionVoter,DecisionVotesResponse} from './DecisionVotesTypes';
+import {notHeldLabel} from './memberVotesPresentation.mjs';
 import {amendmentVoteBinding,authorVotePosition,decisionVotesRoute,validateDecisionVotes} from './decisionVotesPresentation.mjs';
 import './AmendmentNamedVotes.css';
 
@@ -35,7 +36,7 @@ function NamedVoteRead({item,decision,language}:{item:Amendment;decision:Amendme
   if(request.loading)return <p role="status"><UiMessage id="amendmentnamedvotes.tsx.loading.named.votes"/></p>;
   if(!data||data.status!=='found')return <p><UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/> </p>;
   if(!bound)return <p><UiMessage id="amendmentnamedvotes.tsx.vote.record.does.not.match.this.amendment"/></p>;
-  if(data.decision!.ballotStatus==='not-conducted')return <p><UiMessage id="amendmentnamedvotes.tsx.not.put.to.a.vote"/></p>;
+  if(data.decision!.ballotStatus==='not-conducted')return <p>{notHeldLabel(data.decision!,ui)}</p>;
   if(data.decision!.method!=='VOTE_ELECTRONIC_ROLLCALL')return <p>{knownVoteMethodLabel(data.decision!.method, ui) ? <UiMessage id="amendmentnamedvotes.tsx.not.individually.recorded"/> : <UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/>}</p>;
   if(data.integrity==='unavailable'||data.integrity==='conflicting')return <p><UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/> </p>;
   const groups=[...new Map(data.voters.map(voter=>[keyOf(voter),voter.group?.code??null])).entries()].sort(([a,ac],[b,bc])=>(a==='unavailable') ? 1 : ((b==='unavailable') ? (-1) : ((ac??'').localeCompare(bc??'')||a.localeCompare(b))));
@@ -67,7 +68,7 @@ export function AmendmentNamedVotes(props:{item:Amendment;decision:AmendmentDeci
   const ui = useUiI18n();
   const {decision,language}=props;
   if(['LAPSED','WITHDRAWN'].includes(decision.outcome??''))return null;
-  if(['CANCELLED','CANCELED','NOT_HELD'].includes(decision.outcome??''))return <p className="explorer-amendment-secondary"><UiMessage id="amendmentnamedvotes.tsx.not.put.to.a.vote"/></p>;
+  if(['CANCELLED','CANCELED','NOT_HELD'].includes(decision.outcome??''))return <p className="explorer-amendment-secondary">{notHeldLabel(decision,ui)}</p>;
   if(decision.method!=='VOTE_ELECTRONIC_ROLLCALL')return <p className="explorer-amendment-secondary">{knownVoteMethodLabel(decision.method, ui) ? <UiMessage id="amendmentnamedvotes.tsx.not.individually.recorded"/> : <UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/>}</p>;
   if(['unverified','unresolved-collective'].includes(decision.componentBinding??'')||decision.partNumber!=null&&!decision.partId||decision.partId&&decision.componentBinding!=='single-amendment')return null;
   if(!decisionVotesRoute(decision.id,language))return null;

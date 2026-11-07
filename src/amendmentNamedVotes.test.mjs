@@ -31,7 +31,7 @@ test('member Amendments retains indexed result and shows author positions with r
 });
 test('non-named, unheld and unverified components do not start reads',async t=>{
  const h=await mount(t,()=>{throw Error('Unexpected read');});
- for(const [patch,label] of [[{method:'VOTE_HAND'},'Not individually recorded'],[{method:'VOTE_ELECTRONIC'},'Not individually recorded'],[{method:'VOTE_SECRET'},'Not individually recorded'],[{method:'VOTE_SECRET_BALLOT'},'Not individually recorded'],[{method:'UNKNOWN'},'Named votes unavailable'],[{method:null},'Named votes unavailable'],[{outcome:'CANCELLED'},'Not put to a vote']]){await h.render({decision:{...decision,...patch}});assert.match(h.container.textContent,new RegExp(label));assert.equal(h.container.querySelector('details'),null);}
+ for(const [patch,label] of [[{method:'VOTE_HAND'},'Not individually recorded'],[{method:'VOTE_ELECTRONIC'},'Not individually recorded'],[{method:'VOTE_SECRET'},'Not individually recorded'],[{method:'VOTE_SECRET_BALLOT'},'Not individually recorded'],[{method:'UNKNOWN'},'Named votes unavailable'],[{method:null},'Named votes unavailable'],[{outcome:'CANCELLED'},'No vote held']]){await h.render({decision:{...decision,...patch}});assert.match(h.container.textContent,new RegExp(label));assert.equal(h.container.querySelector('details'),null);}
  for(const patch of [{outcome:'LAPSED'},{outcome:'WITHDRAWN'},{componentBinding:'unverified'},{componentBinding:'unresolved-collective'},{partNumber:2},{partId:'part',partNumber:2}]){await h.render({decision:{...decision,...patch}});assert.equal(h.container.querySelector('details'),null);}
  assert.equal(h.calls.length,0);
 });
