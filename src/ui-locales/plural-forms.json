@@ -2593,12 +2593,12 @@
       "other": "{count} Reden"
     },
     "week.reason.blue": {
-      "one": "{count} Wortmeldung mit Blauer Karte",
-      "other": "{count} Wortmeldungen mit Blauer Karte"
+      "one": "{count} Wortmeldung mit blauer Karte",
+      "other": "{count} Wortmeldungen mit blauer Karte"
     },
     "week.speakers": {
-      "one": "{count} Redner/in",
-      "other": "{count} Redner/innen"
+      "one": "{count} sprechende Person",
+      "other": "{count} sprechende Personen"
     }
   },
   "el": {
@@ -10945,18 +10945,18 @@
       "many": "{count}-il vot mitfugħ"
     },
     "votepage.votes_on_item": {
-      "one": "{count} vot dwar dan il-punt",
-      "other": "{count} vot dwar dan il-punt",
-      "two": "{count} voti dwar dan il-punt",
-      "few": "{count} voti dwar dan il-punt",
-      "many": "{count}-il vot dwar dan il-punt"
+      "one": "{count} votazzjoni dwar dan il-punt",
+      "other": "{count} votazzjoni dwar dan il-punt",
+      "two": "{count} votazzjonijiet dwar dan il-punt",
+      "few": "{count} votazzjonijiet dwar dan il-punt",
+      "many": "{count}-il votazzjoni dwar dan il-punt"
     },
     "votepage.votes_short": {
-      "one": "{count} vot",
-      "other": "{count} vot",
-      "two": "{count} voti",
-      "few": "{count} voti",
-      "many": "{count}-il vot"
+      "one": "{count} votazzjoni",
+      "other": "{count} votazzjoni",
+      "two": "{count} votazzjonijiet",
+      "few": "{count} votazzjonijiet",
+      "many": "{count}-il votazzjoni"
     },
     "votepage.meps": {
       "one": "{count} MPE",
@@ -10973,11 +10973,11 @@
       "many": "{count}-il dibattitu u punt ieħor."
     },
     "week.reason.differs": {
-      "one": "Għadd ta’ MPE li vvutaw b’mod differenti mill-grupp tagħhom: {count}",
-      "other": "Għadd ta’ MPE li vvutaw b’mod differenti mill-grupp tagħhom: {count}",
-      "two": "Għadd ta’ MPE li vvutaw b’mod differenti mill-grupp tagħhom: {count}",
-      "few": "Għadd ta’ MPE li vvutaw b’mod differenti mill-grupp tagħhom: {count}",
-      "many": "Għadd ta’ MPE li vvutaw b’mod differenti mill-grupp tagħhom: {count}"
+      "one": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}",
+      "other": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}",
+      "two": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}",
+      "few": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}",
+      "many": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}"
     },
     "week.reason.speeches": {
       "one": "{count} diskors",
