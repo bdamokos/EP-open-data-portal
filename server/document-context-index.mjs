@@ -21,7 +21,7 @@ export function retainedDocumentContext(store,query,{adoptedCandidates,metadataB
   const exactAmendment=typeof query.amendmentId==='string'&&(amendment?.targetDocumentId===query.id||amendment?.scope==='committee'&&amendment.listId===query.id)&&
     (amendment.id===query.amendmentId||array(amendment.officialIds).some(value=>canonicalEPReference(value)==='eli/dl/doc/'+query.amendmentId))&&
     selected.length>0&&selected.every(variant=>variant.language===query.language);
-  if(!store?.readSnapshot||!store.db||!query.adopted&&!query.id.startsWith('TA-')&&!exactAmendment)return null;
+  if(!store?.readSnapshot||!store.db||!query.adopted&&!query.id.startsWith('TA-')&&!exactAmendment&&!query.heldMetadata)return null;
   return store.readSnapshot(()=>{
     const generations=[...new Set([store.get('working')?.generation,amendmentGeneration(store),store.get('active')].filter(Number.isInteger))];
     const endpoint=committeeDocumentEndpoint(query.id)||(query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;

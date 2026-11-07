@@ -29,7 +29,7 @@ export function SplitKey({parts,match}:{parts:SplitKeyRow[];match:SplitMatch|nul
     const description:ReactNode=short?<UiMessage id="votepage.key.words_in_part" values={{description:<span lang={part.language}>{short.lead}</span>,n:short.other}}/>:part.description?<span lang={part.language}>{part.description.replace(sentenceEnd,'')}</span>:null;
     const name=<b>{part.href&&!part.current?<a href={part.href} onClick={dossierLinkClick}>{label}</a>:label}</b>;
     return <p key={number+':'+index} className={part.current?'clause-part this':'clause-part'}>
-      {description?<UiMessage id="votepage.key.line" values={{part:name,description}}/>:<UiMessage id="votepage.key.line_bare" values={{part:name}}/>}
+      {part.number===null?description:description?<UiMessage id="votepage.key.line" values={{part:name,description}}/>:<UiMessage id="votepage.key.line_bare" values={{part:name}}/>}
       {result&&<> <UiMessage id={result.id} values={result.values}/></>}
       {part.current&&<> <b><UiMessage id="votepage.key.this_vote"/></b></>}
       {part.seeVote&&<> <a href={part.seeVote} onClick={dossierLinkClick}><UiMessage id="votepage.see_the_vote"/></a></>}

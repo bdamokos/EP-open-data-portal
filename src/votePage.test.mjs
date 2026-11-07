@@ -244,7 +244,7 @@ test('a vote page with a member says how they voted and leads back to them',asyn
  data.mainVoteId=null;
  const h=await mount(t,serve(data),{members:named,member:'197481'});
  const line=h.container.querySelector('.member-line');
- assert.equal(line.textContent,'Ann Against voted Against, differently from Parliament’s outcome. France: 1 of 3 MEPs voted this way.');
+ assert.equal(line.textContent,'Ann Against voted against, unlike the outcome. France: 1 of 3 MEPs voted this way.');
  assert(line.querySelector('svg.mk'),'next to its mark');
  const back=h.container.querySelector('.strip a');
  assert.match(back.textContent,/Ann Against/);
@@ -300,4 +300,86 @@ test('after a reload the back link still goes to the exact place in the record',
  const data=await voteFixture().read(),record='http://localhost/?member=197481&module=votes&mv-record-offset=20&lang=en';
  const h=await mount(t,serve(data),{members:named,member:'197481',historyState:{dossierOrigin:record}});
  assert.equal(h.container.querySelector('.strip a').getAttribute('href'),record);
+});
+
+// A vote on § 10, part 2 of a report: no amendment, so its wording comes from the report by number.
+const paragraphVote=async ()=>{
+ const f=voteFixture();
+ const data=await f.read(),{decision}=data,request='MTG-PL-2026-03-11-VOT-ITM-986171-SPLIT-1',uri='eli/dl/event/'+request;
+ const component=(number,text)=>({componentId:request+'-'+number,number:String(number),requestUri:uri,contentByLanguage:{en:{sourceLiteral:text,text}}});
+ const one=component(1,'Text as a whole without the words: ‘including access to free, safe and legal abortion’'),two=component(2,'those words');
+ const label=number=>({number:String(number),requestUri:uri,requestId:request,requestScopeByLanguage:{en:'§ 10'}});
+ const base={scope:{kind:'split-part',basis:'exact-component-reference'},referenceTexts:{en:'§ 10'},context:{amendmentIds:[]},namedVotersAvailable:true};
+ const main={...base,scope:{kind:'whole-text',basis:'english-reference-label'},referenceTexts:{en:'Motion for a resolution (as a whole)'},id:'MTG-PL-2026-10-07-DEC-9',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:'conducted',totals:{for:500,against:50,abstaining:5},parts:[]};
+ const other={...base,id:'MTG-PL-2026-10-07-DEC-8',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:'conducted',totals:{for:449,against:139,abstaining:39},parts:[label(1)]};
+ const self={...base,id:decisionId,outcome:decision.outcome,method:decision.method,ballotStatus:decision.ballotStatus,totals:decision.totals,parts:[label(2)]};
+ data.decision={...decision,scope:base.scope,title:'A10-0021/2026 – § 10/2',referenceTexts:{en:'§ 10'},context:{documentIds:['A-10-2026-0021','PV-10-2026-03-11'],amendmentIds:[]},amendmentIds:[],parts:[{...two,...label(2),contextComponents:[one,two]}]};
+ data.siblings=[main,other,self];data.mainVoteId=main.id;data.subject={...(data.subject||{}),id:'item',title:'Gender pay gap',titleLanguage:'en',titles:{en:'Gender pay gap'},agendaItemIds:[],documentIds:['A-10-2026-0021'],procedureIds:[],procedures:[],debates:[]};
+ return data;
+};
+const provisionReply=text=>({version:113,documentId:'A-10-2026-0021',requestedLanguage:'en',provision:'paragraph:10',text,language:text?'en':null});
+const withProvision=(data,text,seen=[])=>async target=>{if(target.pathname.includes('document-context')){seen.push(target.search);return Response.json(provisionReply(text));}return serve(data)(target);};
+const paragraph='Calls on the EU to provide healthcare, including access to free, safe and legal abortion;';
+test('a part of a report paragraph shows the wording with its words bracketed, and no box',async t=>{
+ const data=await paragraphVote(),seen=[];
+ const h=await mount(t,withProvision(data,paragraph,seen));
+ assert.equal(seen.length,1);
+ assert.match(seen[0],/^\?provision=paragraph%3A10&lang=en/);
+ assert.equal(text(h.container.querySelector('.say')),'Parliament adopted § 10, part 2 by 2 to 1, with 1 abstaining.');
+ const clause=h.container.querySelector('.clause');
+ assert.equal(clause.querySelector('h3').textContent,'§ 10');
+ assert.equal(text(clause.querySelector('.clause-text.marked')),'Calls on the EU to provide healthcare, [including access to free, safe and legal abortion]Part 2;');
+ assert.equal(clause.querySelector('.run-on').textContent.replace('Part 2',''),'[including access to free, safe and legal abortion]');
+ const key=[...clause.querySelectorAll('.clause-part')];
+ assert.match(text(key[0]),/^Part 1: Text as a whole without the words in part 2\. Adopted by 449 to 139, with 39 abstaining\.$/);
+ assert.match(text(key[1]),/^Part 2: those words\..*This vote\.$/);
+ assert(key[1].classList.contains('this'));
+ assert.equal(h.container.querySelector('.member-votes-part'),null,'the boxed block is gone');
+ assert(!/Split vote/.test(h.container.textContent));
+});
+test('a vote with no document of its own asks for no wording, whatever its item holds',async t=>{
+ const data=await paragraphVote(),seen=[];
+ const unlinked={...data,decision:{...data.decision,title:'§ 10',context:{...data.decision.context,documentIds:[]}}};
+ const h=await mount(t,withProvision(unlinked,paragraph,seen));
+ assert.deepEqual(seen,[]);
+ assert.equal(h.container.querySelector('.clause-text'),null);
+ assert.match(text(h.container.querySelector('.clause-part.this')),/^Part 2: those words\..*This vote\.$/);
+});
+test('without wording the key alone says which part this vote is, with no note',async t=>{
+ const data=await paragraphVote();
+ const h=await mount(t,withProvision(data,null));
+ const clause=h.container.querySelector('.clause');
+ assert.equal(clause.querySelector('.clause-text'),null);
+ assert.match(text(clause.querySelector('.clause-part.this')),/^Part 2: those words\..*This vote\.$/);
+ assert(/‘including access to free, safe and legal abortion’/.test(clause.textContent),'the other part keeps its quote when nothing shortens it');
+ assert.equal(h.container.querySelector('.member-votes-part'),null);
+});
+test('coming from a member, the text comes before the way line; otherwise the approved order stays',async t=>{
+ const data=await paragraphVote();
+ const order=container=>[...container.querySelector('[data-vote-page]').children].map(node=>node.classList.contains('say')?'say':node.classList.contains('member-line')?'member':node.classList.contains('clause')?'text':node.classList.contains('way')?'way':node.classList.contains('split')?'chart':null).filter(Boolean);
+ await t.test('with a member',async sub=>{
+  const h=await mount(sub,withProvision(data,paragraph),{members:named,member:'197481'});
+  assert.deepEqual(order(h.container),['say','member','text','way','chart']);
+ });
+ await t.test('without one',async sub=>{
+  const h=await mount(sub,withProvision(data,paragraph));
+  assert.deepEqual(order(h.container),['say','way','text','chart']);
+ });
+});
+test('a final vote asks for no provision and shows no text block',async t=>{
+ const data=await paragraphVote(),seen=[];
+ const final={...data,mainVoteId:decisionId,decision:{...data.decision,scope:{kind:'whole-text',basis:'english-reference-label'},referenceTexts:{en:'Motion for a resolution (as a whole)'},parts:[]},siblings:data.siblings.map(row=>row.id===decisionId?{...row,parts:[]}:row)};
+ const h=await mount(t,withProvision(final,paragraph,seen));
+ assert.deepEqual(seen,[]);
+ assert.equal(h.container.querySelector('.clause'),null);
+});
+test('a paragraph voted in two split requests keeps both keys under its wording',async t=>{
+ const data=await paragraphVote(),other='MTG-PL-2026-03-11-VOT-ITM-986171-SPLIT-2',uri='eli/dl/event/'+other,text2='Second request words';
+ const part=data.decision.parts[0],second={...part,componentId:other+'-1',number:'1',requestUri:uri,requestId:other,contentByLanguage:{en:{sourceLiteral:text2,text:text2}},contextComponents:[]};
+ data.decision={...data.decision,parts:[part,second]};
+ const h=await mount(t,withProvision(data,paragraph));
+ const clause=h.container.querySelector('.clause');
+ assert.equal(text(clause.querySelector('.clause-text.plain')),paragraph,'no one request can mark it');
+ assert.equal(clause.querySelectorAll('.clause-key').length,2);
+ assert.match(clause.textContent,/Second request words/);
 });

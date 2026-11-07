@@ -1,20 +1,19 @@
 import {lazy,Suspense,useMemo,useRef,useState} from 'react';
 import {UiMessage,useUiI18n} from './UiI18nReact';
-import {VotePartDescriptions} from './MemberVoteSummary';
 import {insightMemberHref} from './InsightShared';
 import {useDirectoryMembers,usePersonName} from './PersonName';
 import {useData} from './data';
 import {dossierBackHref,dossierLinkClick} from './dossierJourney';
 import {dossierHref} from './followDossiers.mjs';
 import {decisionVotesRoute,validateDecisionVotes} from './decisionVotesPresentation.mjs';
-import {displayVoteTitle,exactAmendmentTargets,memberVoteTotals} from './memberVotesPresentation.mjs';
+import {displayVoteTitle,memberVoteTotals} from './memberVotesPresentation.mjs';
 import {publicUrl} from './publicUrl';
 import {selectLanguageText} from './language.mjs';
 import {documentReferenceLabel,readableDocument,readHref} from './readRoute.mjs';
 import {agendaItemHref,clockTime,dayDate,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,groupCountsOf,groupLead,itemVoteSections,memberBackHref,memberVoteLine,membersByGroup,shortDate,type MemberVoteLine,sittingHref,voteCentre,voteHref,voteNumbers,voteOutcomeWord,voteRowLabel,voteSentence,voteSteps,wayLine} from './votePagePresentation.mjs';
 import {FoldLink,FoldRow} from './FoldRow';
 import {PageStrip,StripLink} from './PageStrip';
-import {InItsPlace,VoteAmendmentText} from './VoteAmendmentText';
+import {InItsPlace,VoteText} from './VoteAmendmentText';
 import {VoteMark} from './VoteMark';
 import {TallyHeads,TallyNumbers,TotalFigure,TotalsFigures,VoteRow} from './VoteRow';
 import {groupLabel,groupLabelLanguage} from './groupLabels';
@@ -94,9 +93,9 @@ function DifferBlock({entries,language}:{entries:ReturnType<typeof differingByGr
 }
 // How the member the reader came from voted, right under the page's sentence.
 function MemberLine({line,name,language}:{line:MemberVoteLine;name:string;language:string}) {
-  const ui=useUiI18n(),words=usePositionWords(),who=<span lang="">{name}</span>;
+  const ui=useUiI18n(),who=<span lang="">{name}</span>;
   if(line.state==='no_record')return <p className="member-line"><UiMessage id="votepage.member.no_record" values={{name:who}}/></p>;
-  return <p className="member-line"><VoteMark position={line.position}/><b><UiMessage id={line.id} values={{name:who,position:words(line.position),...(line.group?{group:<span lang={groupLabelLanguage(line.group,ui)}>{groupName(line.group,ui)}</span>}:{})}}/></b>{line.country&&<> <UiMessage id="votepage.member.country" values={{count:line.country.count,total:line.country.total,country:<span lang={language}>{countryName(line.country.code,language)}</span>}} counts={{count:line.country.count}}/></>}</p>;
+  return <p className="member-line"><VoteMark position={line.position}/><b><UiMessage id={line.id} values={{name:who,...(line.position==='abstaining'?{}:{position:ui.t('votepage.member.position.'+line.position)}),...(line.group?{group:<span lang={groupLabelLanguage(line.group,ui)}>{groupName(line.group,ui)}</span>}:{})}}/></b>{line.country&&<> <UiMessage id="votepage.member.country" values={{count:line.country.count,total:line.country.total,country:<span lang={language}>{countryName(line.country.code,language)}</span>}} counts={{count:line.country.count}}/></>}</p>;
 }
 // Every vote on the item, complete, main vote first. The agenda item uses the same rows.
 export function ItemVotes({votes,current,mainVoteId,language,mainByLabel=false,member=null}:{votes:DecisionItemVote[];current?:string;mainVoteId:string|null;language:string;mainByLabel?:boolean;member?:string|null}) {
@@ -183,7 +182,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry,member=
   const documents=subject?.documentIds??[];
   const corrections=data.corrections?votePositionKeys.flatMap(position=>data.corrections![position].map(id=>({id,position,name:data.people?.[id]?.name??(displayName(id)||null)}))):[];
   const referenceDossier=data.procedureReferral&&!partPage?subject?.procedures[0]??null:null;
-  const exactTarget=exactAmendmentTargets(vote).length===1&&amendmentPage;
+  const voteText=<VoteText key={decisionId+':'+language} vote={vote} siblings={siblings} language={language} member={member} amendmentPage={amendmentPage}/>;
   const requesters=vote.rollCallRequesters.filter(row=>row.binding==='exact-decision-was_motivated_by').map(row=>selectLanguageText(row.organizationLabels,language)).filter(label=>label.text);
   return page(<>
     <PageStrip back={back}>
@@ -201,9 +200,9 @@ export function VotePage({decisionId,language,onMember,country,onCountry,member=
       <p className="say">{say}</p>
     </>}
     {memberLine&&memberName&&<MemberLine line={memberLine} name={memberName} language={language}/>}
+    {member&&voteText}
     {named&&<WayLine rows={rows} order={tableOrder}/>}
-    {vote.parts.length>0&&!exactTarget&&<VotePartDescriptions vote={vote} language={language} grouped/>}
-    {amendmentPage&&<VoteAmendmentText key={decisionId+':'+language} vote={vote} siblings={siblings} language={language} member={member}/>}
+    {!member&&voteText}
     {named&&<div className="split">
       {planState.error&&!plan?<NoChart/>:plan?<Suspense fallback={<figure className="seats"><div className="stage stage-empty"/></figure>}><VoteArc voters={rows} order={seatOrder} word={centre.word} small={centre.small} smallLanguage={centre.smallLanguage} noRecord={data.noRecord?data.noRecord.ids.length:null} picked={picked} marked={member} onPick={setPicked} dimmedGroup={dimmed} language={language} onMember={onMember?(id:number)=>onMember(id):undefined} positionWord={words}/></Suspense>:<figure className="seats"><div className="stage stage-empty"/></figure>}
       <GroupTable rows={rows} order={tableOrder} totals={totals} official={vote.totals} onDim={setDimmed}/>

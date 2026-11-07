@@ -441,6 +441,30 @@ function motionStructure(text, language) {
 export function segmentMotionUnits(text, language) {
   return motionStructure(text, language).units;
 }
+/** One provision's wording by its exact label, without its number. Null unless the parser
+ * places exactly one complete unit: a duplicate, a broken extent or an uncertain end has no text.
+ * A report whose texts restart at 1 can't say which text a bare number means. A citation's number
+ * is its count from the opening, so every row before it must be a complete citation. */
+export function motionProvisionText(text, language, provision) {
+  const [kind, label, point] = String(provision).split(':'), structure = motionStructure(text, language);
+  if (structure.selection?.multipleOpenings) return null;
+  const owners = structure.units.filter(unit => unit.kind === (kind === 'point' ? 'paragraph' : kind) && unit.label === label);
+  if (owners.length !== 1 || (kind !== 'citation' && structure.incompleteLabels.has(label))) return null;
+  const units = kind === 'point' ? structure.units.filter(unit => unit.kind === 'point' && unit.label === point && unit.parent === owners[0].start) : owners;
+  if (units.length !== 1) return null;
+  const unit = units[0], rows = sourceStructure(text);
+  if (!rows || !Number.isInteger(unit.end) || unit.end < unit.start || unit.end > structure.end || structure.invalid.has(unit.start) || structure.uncertain.has(unit.start)) return null;
+  const selected = rows.slice(unit.start, unit.end + 1);
+  if (selected.some(row => !row.complete || row.source.container !== 'body')) return null;
+  if (kind === 'citation') {
+    const citations = new Set(structure.units.filter(item => item.kind === 'citation' && item.start === item.end).map(item => item.start));
+    for (let index = structure.start + 1; index <= unit.start; index++) {
+      if (!citations.has(index) || !rows[index].complete || rows[index].source.container !== 'body' || !consecutive(rows[index - 1], rows[index])) return null;
+    }
+  }
+  const wording = selected.map(row => row.value.trim()).join('\n').replace(/^(?:[1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3}|[\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+|^\(?[\p{Ll}]{1,4}\)\s+|^[–—−\-•]\s*/u, '');
+  return wording.trim() ? wording : null;
+}
 
 // Only the first (proposal-level) target line selects a provision. Underlying-act
 // lines are deliberately excluded, including their '(new)' annotations.
