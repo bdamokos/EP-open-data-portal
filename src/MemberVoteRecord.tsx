@@ -56,15 +56,21 @@ const PAGE=MEMBER_VOTE_RECORD_LIMIT;
 
 // A control that is replaced while its data loads gives the keyboard back to the page. The click names
 // what to focus once it is there: a breakdown row by key, or the first row of an appended page.
+// The wish ends when the reader moves focus or points elsewhere, and when the record changes or unmounts.
 type FocusTarget={pick:string|null}|{row:number};
 let focusAfterLoad:FocusTarget|null=null;
+const cancelFocus=()=>{focusAfterLoad=null;document.removeEventListener('focusin',cancelFocus,true);document.removeEventListener('pointerdown',cancelFocus,true);};
+const armFocus=(target:FocusTarget)=>{
+  cancelFocus();focusAfterLoad=target;
+  document.addEventListener('focusin',cancelFocus,true);document.addEventListener('pointerdown',cancelFocus,true);
+};
 function useRestoreFocus(ready:boolean) {
   useEffect(()=>{
     const target=focusAfterLoad;
     if(!target||!ready)return;
     const found='row' in target?document.querySelectorAll<HTMLElement>('.mvr-rows a.t')[target.row]:target.pick?document.querySelector<HTMLElement>('[data-pick="'+target.pick+'"]'):null;
-    if(found){found.focus();focusAfterLoad=null;}
-    else if('pick' in target)focusAfterLoad=null;
+    if(found){cancelFocus();found.focus();}
+    else if('pick' in target)cancelFocus();
   });
 }
 
@@ -105,7 +111,7 @@ function DeparturePages({memberId,language,scope,tag,total,offset,onOpenDecision
     <div className="mvr-rows">{Array.from({length:mounted},(_,page)=><DeparturePage key={page} memberId={memberId} language={language} scope={scope} tag={tag} offset={page*PAGE} onOpenDecision={onOpenDecision} onLoaded={()=>setReached(count=>Math.max(count,page+1))}/>)}</div>
     {loaded===pages&&shown<total&&<p className="mvr-more">
       <span className="meta"><UiMessage id="membervoterecord.departures.range" values={{start:1,end:shown,total}}/></span>
-      <button type="button" className="c word" onClick={()=>{focusAfterLoad={row:pages*PAGE};onOffset(pages*PAGE);}}><UiMessage id="membervoterecord.departures.more"/></button>
+      <button type="button" className="c word" onClick={()=>{armFocus({row:pages*PAGE});onOffset(pages*PAGE);}}><UiMessage id="membervoterecord.departures.more"/></button>
     </p>}
   </>;
 }
@@ -172,8 +178,9 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
   const [listOpen,setListOpen]=useState(tag!==null);
   useEffect(()=>{if(tag!==null)setListOpen(true);},[tag]);
   // Selecting or clearing a filter replaces the panel while it loads; focus goes back to the row that was pressed.
-  const changeTag=(next:string|null)=>{focusAfterLoad={pick:next??tag};onTagChange(next);};
+  const changeTag=(next:string|null)=>{armFocus({pick:next??tag});onTagChange(next);};
   useRestoreFocus(data!==null&&recordView(data,scope).state==='record');
+  useEffect(()=>cancelFocus,[memberId,scope]);
   const status=(id:string)=><section className="vs mvr" lang={ui.language} aria-label={ui.t('membervoterecord.heading')}><p className="muted" role="status"><UiMessage id={id}/></p></section>;
   if(!data)return status(request.error||!request.loading?'membervoterecord.unavailable':'membervoterecord.loading');
   const view=recordView(data,scope);

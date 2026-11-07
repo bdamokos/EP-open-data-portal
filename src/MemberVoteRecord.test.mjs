@@ -30,7 +30,7 @@ function response(patch={}) {
   };
 }
 
-async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',offset=0,tag=null,matches=false,live=false,failWhen=null}={}) {
+async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',offset=0,tag=null,matches=false,live=false,failWhen=null,hold=null}={}) {
   const window=new Window({url:'http://localhost/?member='+MEMBER+'&module=votes'});
   window.matchMedia=query=>({matches:matches&&query.includes('max-width'),media:query,addEventListener(){},removeEventListener(){}});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
@@ -43,6 +43,7 @@ async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',o
     const url_=new URL(String(url),'http://localhost');
     if(status!==200)return new Response('',{status});
     if(failWhen?.(url_))return new Response('',{status:503});
+    await hold?.(url_);
     return Response.json(typeof data==='function'?data(url_):data);
   });
   load=await freshLoader({configFile:false,plugins:live?[rolloutLive]:undefined,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
@@ -412,4 +413,26 @@ test('after Show more, focus moves to the first appended row',async t=>{
   await act(async()=>button(view.container,'Show more').click());
   await view.render({offset:5});
   assert.equal(view.window.document.activeElement,links(view.container)[5]);
+});
+
+test('a delayed page does not take focus after the reader has moved on',async t=>{
+  let release;const gate=new Promise(resolve=>{release=resolve;});
+  const view=await mount(t,{data:pagesOf(12),hold:url=>url.searchParams.get('offset')==='5'?gate:null});
+  const other=view.window.document.createElement('input');view.window.document.body.append(other);
+  await act(async()=>button(view.container,'Show more').click());
+  await view.render({offset:5});
+  other.focus();
+  await act(async()=>{release();await gate;});
+  assert.equal(links(view.container).length,10);
+  assert.equal(view.window.document.activeElement,other,'focus stays where the reader put it');
+});
+
+test('a delayed page does not take focus after the record changes',async t=>{
+  let release;const gate=new Promise(resolve=>{release=resolve;});
+  const view=await mount(t,{data:pagesOf(12),hold:url=>url.searchParams.get('offset')==='5'?gate:null});
+  await act(async()=>button(view.container,'Show more').click());
+  await view.render({offset:5});
+  await view.render({scope:'final',offset:0});
+  await act(async()=>{release();await gate;});
+  assert.notEqual(links(view.container).includes(view.window.document.activeElement),true);
 });
