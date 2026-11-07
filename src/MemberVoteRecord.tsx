@@ -3,7 +3,7 @@ import {useData} from './data';
 import {UiMessage,useUiI18n} from './UiI18nReact';
 import type {MemberVoteRecordBreakdownList,MemberVoteRecordResponse} from './MemberVoteRecordTypes';
 import {MEMBER_VOTE_RECORD_LIMIT,memberVoteRecordRoute,recordShare,recordView,validateMemberVoteRecordResponse} from './MemberVoteRecordModel.mjs';
-import {dossierLinkClick} from './dossierJourney';
+import {dossierLinkClick,useDossierReaderState} from './dossierJourney';
 import {voteHref} from './votePagePresentation.mjs';
 import {FoldRow} from './FoldRow';
 import {VoteMark} from './VoteMark';
@@ -62,13 +62,15 @@ function useRestoreFocus(ready:boolean) {
 }
 
 // One page of departures, fetched on its own so a reload restores every page already shown.
-// It reports once its rows are in, and says so when it fails.
-function DeparturePage({memberId,language,scope,tag,offset,onLoaded}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;offset:number;onLoaded:()=>void}) {
+// It reports once its rows are in, and says so when it fails. Coming back from a vote page,
+// data-record-pending holds the scroll and focus restore until the rows are in or a page has failed.
+function DeparturePage({memberId,language,scope,tag,offset,onLoaded,onFailed}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;offset:number;onLoaded:()=>void;onFailed:()=>void}) {
   const ui=useUiI18n();
   const route=useMemo(()=>memberVoteRecordRoute(memberId,{language,scope,limit:PAGE,offset,tag}),[memberId,language,scope,tag,offset]);
   const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
   const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
   useEffect(()=>{if(data)onLoaded();},[data,onLoaded]);
+  useEffect(()=>{if(!data&&request.error)onFailed();},[data,request.error,onFailed]);
   if(!data)return request.error||!request.loading?<p className="mvr-more" role="status"><span className="muted"><UiMessage id="membervoterecord.unavailable"/></span><button type="button" className="c word" onClick={request.retry}><UiMessage id="week.retry"/></button></p>:null;
   return <>{data.departures.items.map(item=>{
     const primary=item.subject?.text??item.text,primaryLanguage=item.subject?.text?item.subject.language:item.language;
@@ -84,13 +86,14 @@ function DeparturePage({memberId,language,scope,tag,offset,onLoaded}:{memberId:n
 function DeparturePages({memberId,language,scope,tag,total,offset,onOffset}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;total:number;offset:number;onOffset:(offset:number)=>void}) {
   const pages=Math.min(Math.floor(offset/PAGE)+1,Math.max(1,Math.ceil(total/PAGE)));
   const [reached,setReached]=useState(0);
+  const [failed,setFailed]=useState(false);
   useRestoreFocus(true);
   // Back to an earlier offset drops the later pages; what has loaded never counts past what is shown.
   const loaded=Math.min(reached,pages);
   const mounted=Math.min(pages,loaded+1);
   const shown=Math.min(loaded*PAGE,total);
   return <>
-    <div className="mvr-rows">{Array.from({length:mounted},(_,page)=><DeparturePage key={page} memberId={memberId} language={language} scope={scope} tag={tag} offset={page*PAGE} onLoaded={()=>setReached(count=>Math.max(count,page+1))}/>)}</div>
+    <div className="mvr-rows" data-record-pending={!failed&&loaded<pages?'true':undefined}>{Array.from({length:mounted},(_,page)=><DeparturePage key={page} memberId={memberId} language={language} scope={scope} tag={tag} offset={page*PAGE} onLoaded={()=>setReached(count=>Math.max(count,page+1))} onFailed={()=>setFailed(true)}/>)}</div>
     {loaded===pages&&shown<total&&<p className="mvr-more">
       <span className="meta"><UiMessage id="membervoterecord.departures.range" values={{start:1,end:shown,total}}/></span>
       <button type="button" className="c word" onClick={()=>{armFocus({row:pages*PAGE});onOffset(pages*PAGE);}}><UiMessage id="membervoterecord.departures.more"/></button>
@@ -158,13 +161,13 @@ export function MemberVoteRecord({memberId,language,scope,offset,tag,onScopeChan
   const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
   const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
   // On a phone the list is a fold; a tag opens it so the way back to all is in view.
-  const [listOpen,setListOpen]=useState(tag!==null);
+  const [listOpen,setListOpen]=useDossierReaderState('record-list-open',tag!==null);
   useEffect(()=>{if(tag!==null)setListOpen(true);},[tag]);
   // Selecting or clearing a filter replaces the panel while it loads; focus goes back to the row that was pressed.
   const changeTag=(next:string|null)=>{armFocus({pick:next??tag});onTagChange(next);};
   useRestoreFocus(data!==null&&recordView(data,scope).state==='record');
   useEffect(()=>cancelFocus,[memberId,scope]);
-  const status=(id:string)=><section className="vs mvr" lang={ui.language} aria-label={ui.t('membervoterecord.heading')}><p className="muted" role="status"><UiMessage id={id}/></p></section>;
+  const status=(id:string)=><section className="vs mvr" lang={ui.language} aria-label={ui.t('membervoterecord.heading')} data-record-pending={id==='membervoterecord.loading'?'true':undefined}><p className="muted" role="status"><UiMessage id={id}/></p></section>;
   if(!data)return status(request.error||!request.loading?'membervoterecord.unavailable':'membervoterecord.loading');
   const view=recordView(data,scope);
   // Before the first projection there is nothing to count, and zeros would read as real figures.

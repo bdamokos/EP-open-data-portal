@@ -382,6 +382,35 @@ test('a saved offset never mounts pages past the last one, and pages load one af
   assert.equal(links(view.container).length,6);
 });
 
+test('the record holds the journey back until its first read and every restored page are in',async t=>{
+  let release;const gate=new Promise(resolve=>{release=resolve;});
+  const seen=[];
+  const pending=view=>view.container.querySelector('[data-record-pending="true"]');
+  const view=await mount(t,{offset:5,data:pagesOf(12),hold:url=>url.searchParams.get('offset')==='5'?gate:null});
+  seen.push(Boolean(pending(view)),links(view.container).length);
+  await act(async()=>{release();await gate;});
+  seen.push(Boolean(pending(view)),links(view.container).length);
+  assert.deepEqual(seen,[true,5,false,10]);
+});
+
+test('a page that fails ends the hold, so the journey back does not wait on it',async t=>{
+  const view=await mount(t,{offset:5,data:pagesOf(6),failWhen:url=>url.searchParams.get('offset')==='5'});
+  await exhaustAutomaticRetries(t);
+  assert.equal(links(view.container).length,5);
+  assert.equal(view.container.querySelector('[data-record-pending="true"]'),null);
+});
+
+test('the first read holds the journey back as well',async t=>{
+  let release;const gate=new Promise(resolve=>{release=resolve;});
+  const view=await mount(t,{hold:()=>gate});
+  assert.equal(view.container.querySelector('section.mvr').getAttribute('data-record-pending'),'true');
+  const journey=readFileSync(new URL('./dossierJourney.ts',import.meta.url),'utf8');
+  assert.match(journey,/\[data-record-pending="true"\]/,'the journey waits on the mark');
+  assert.match(journey,/attributeFilter:\[[^\]]*'data-record-pending'/,'and looks again when it clears');
+  await act(async()=>{release();await gate;});
+  assert.equal(view.container.querySelector('[data-record-pending="true"]'),null);
+});
+
 test('a page that fails says so and offers a retry instead of looking complete',async t=>{
   let broken=true;
   const view=await mount(t,{offset:5,data:pagesOf(6),failWhen:url=>broken&&url.searchParams.get('offset')==='5'});
