@@ -88,8 +88,9 @@ function Place({context,target}:{context:Context;target:Target}) {
   const passage=reply?.placement?.status==='placed'?reply.passage:null;
   if(!passage||!data)return null;
   const wording=voteAmendmentWording(data.amendment!.variants,vote,ui);
-  if(wording.state!=='text'||!wording.provision||!wording.sourceLabel)return null;
-  const operation=reply!.placement!.operation,textLanguage=reply!.baseline?.language||wording.language;
+  const operation=reply!.placement!.operation;
+  if(wording.state==='versions'||!wording.provision||!wording.sourceLabel||(wording.state!=='text'&&operation!=='delete'))return null;
+  const textLanguage=reply!.baseline?.language||(wording.state==='text'?wording.language:'');
   const adopted=vote.outcome==='ADOPTED'||siblings.some(row=>row.outcome==='ADOPTED'&&row.context.amendmentIds.includes(target.amendmentId));
   const source=<span lang={wording.labelLanguage??''}>{wording.sourceLabel}</span>;
   return <>
@@ -97,7 +98,7 @@ function Place({context,target}:{context:Context;target:Target}) {
     <section className={wording.sourceLabel.length>longLabel?'verses long':'verses'}>
       {passage.before&&<NearRow row={passage.before} language={textLanguage}/>}
       {operation!=='insert'&&passage.original&&<Verse kind="old" language={textLanguage} label={<UiMessage id={reply!.baseline?.kind==='commission-proposal'?'votepage.place.commission':'votepage.place.original'} values={{provision:source}}/>}>{adopted?<del>{passage.original.text}</del>:passage.original.text}</Verse>}
-      {operation!=='delete'&&<Verse kind="new" language={wording.language} label={<UiMessage id="votepage.place.amendment" values={{provision:source,n:n??''}}/>}>{wording.text}</Verse>}
+      {operation!=='delete'&&wording.state==='text'&&<Verse kind="new" language={wording.language} label={<UiMessage id="votepage.place.amendment" values={{provision:source,n:n??''}}/>}>{wording.text}</Verse>}
       {passage.after&&<NearRow row={passage.after} language={textLanguage}/>}
     </section>
     <p className="place-more"><a className="c" href={publicUrl(readHref({documentId:target.documentId,amendmentId:target.amendmentId,language}))} onClick={dossierLinkClick}><UiMessage id="votepage.place.read_full"/></a></p>

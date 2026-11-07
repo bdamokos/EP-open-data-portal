@@ -52,7 +52,7 @@ const partData=async ({outcome='ADOPTED',wording='full',extra={}}={})=>{
  const passage={before:{label:{kind:'recital',value:'2',prefix:'(2)'},text:'The recital before.'},original:{label:{kind:'recital',value:'3',prefix:'(3)'},text:'The old text.'},after:{label:{kind:'point',value:'a',prefix:'(a)'},text:'The point after.'}};
  return {data,handler:async target=>{
   const body=target.searchParams.get('body');
-  if(target.pathname.includes('document-context'))return body==='passage'?Response.json({version:112,documentId:'B-10-2026-0424',requestedLanguage:'en',baseline:{kind:'commission-proposal',language:'en'},placement:{operation:'replace',status:'placed',...extra.placement},passage:extra.passage===undefined?passage:extra.passage}):Response.json({version:112,documentId:'B-10-2026-0424',requestedLanguage:'en',amendment:{id:amendmentId,variants:wording==='full'?[variant]:[]},placement:null});
+  if(target.pathname.includes('document-context'))return body==='passage'?Response.json({version:112,documentId:'B-10-2026-0424',requestedLanguage:'en',baseline:{kind:'commission-proposal',language:'en'},placement:{operation:'replace',status:'placed',...extra.placement},passage:extra.passage===undefined?passage:extra.passage}):Response.json({version:112,documentId:'B-10-2026-0424',requestedLanguage:'en',amendment:{id:amendmentId,variants:wording==='full'?[variant]:wording==='blank'?[{...variant,proposedText:''}]:[]},placement:null});
   return serve(data)(target);
  }};
 };
@@ -107,6 +107,13 @@ test('a delete has no amendment row; a rejected amendment keeps the original uns
  const h=await mount(t,removal.handler);
  assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, Commission','(a)']);
  assert.equal(h.container.querySelector('.verse.old del'),null);
+});
+test('a deletion with no wording of its own still shows the original in its place',async t=>{
+ const removal=await partData({wording:'blank',extra:{placement:{operation:'delete'}}});
+ const h=await mount(t,removal.handler);
+ assert.equal(text(h.container.querySelector('h2.section')),'In its place: recital 3');
+ assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, Commission','(a)']);
+ assert(h.container.querySelector('.verse.old del'));
 });
 test('no placement or no rows: no section and no note',async t=>{
  const unplaced=await partData({extra:{placement:{status:'unresolved'}}});

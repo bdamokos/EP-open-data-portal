@@ -100,9 +100,9 @@ const placeTexts=['Having regard to x','(1)\tFirst recital','(2)\tSecond recital
 const place={paragraphs:placeTexts.map((text,index)=>({index,text})),units:[
   {kind:'preamble',extent:{start:0,end:4},content:[],children:[{kind:'citation',extent:{start:0,end:1},content:[0],children:[]},labelled('recital','1',1,2),labelled('recital','2',2,3),labelled('recital','3',3,4)]},
   {kind:'body',extent:{start:4,end:16},content:[],children:[
-    {...labelled('article','1',4,11,[{kind:'title',extent:{start:5,end:6},content:[5],children:[]},labelled('paragraph','1',6,8,[{kind:'subparagraph',extent:{start:7,end:8},content:[7],children:[]}]),labelled('paragraph','2',8,11,[labelled('point','a',9,10),labelled('point','b',10,11)])]),label:{kind:'article',value:'1',prefix:null}},
-    {...labelled('article','2',11,14,[{kind:'title',extent:{start:12,end:13},content:[12],children:[]},{kind:'paragraph',extent:{start:13,end:14},content:[13],children:[]}]),label:{kind:'article',value:'2',prefix:null}},
-    {...labelled('article','3',14,16,[{kind:'paragraph',extent:{start:15,end:16},content:[15],children:[]}]),label:{kind:'article',value:'3',prefix:null}},
+    {id:'p/article:1',...labelled('article','1',4,11,[{kind:'title',extent:{start:5,end:6},content:[5],children:[]},labelled('paragraph','1',6,8,[{kind:'subparagraph',extent:{start:7,end:8},content:[7],children:[]}]),labelled('paragraph','2',8,11,[labelled('point','a',9,10),labelled('point','b',10,11)])]),label:{kind:'article',value:'1',prefix:null}},
+    {id:'p/article:2',...labelled('article','2',11,14,[{kind:'title',extent:{start:12,end:13},content:[12],children:[]},{kind:'paragraph',extent:{start:13,end:14},content:[13],children:[]}]),label:{kind:'article',value:'2',prefix:null}},
+    {id:'p/article:3',...labelled('article','3',14,16,[{kind:'paragraph',extent:{start:15,end:16},content:[15],children:[]}]),label:{kind:'article',value:'3',prefix:null}},
   ]},
 ]};
 const brief=row=>row&&[row.label?.kind??row.label?.prefix??null,row.label?.value??null,row.text];
@@ -141,6 +141,21 @@ test('an insertion has no original; a deletion keeps it',()=>{
   const gone=proposalPassageRows(place,{operation:'delete',span:{start:9,end:9}});
   assert.deepEqual(brief(gone.original),['point','a','point a']);
   assert.equal(proposalPassageRows(place,{operation:'replace'}),null,'no span, no rows');
+});
+test('new text at the end of an article stays inside it unless the placement names the article',()=>{
+  const point={operation:'insert',insertAfter:10,insertBefore:11,evidence:[{basis:'preceding-sibling-subtree',anchor:'p/article:1/paragraph:2/point:b'}]};
+  assert.deepEqual(brief(proposalPassageRows(place,point).before),['point','b','point b']);
+  assert.equal(proposalPassageRows(place,point).after,null,'a new point borders no article');
+  assert.deepEqual(brief(proposalPassageRows(place,{operation:'insert',insertAfter:10,insertBefore:11}).before),['point','b','point b'],'no anchor: stays inside');
+  const article={operation:'insert',insertAfter:10,insertBefore:11,evidence:[{basis:'proposal-target-path',label:'Article 1 a (new)'},{basis:'preceding-sibling-subtree',anchor:'p/article:1'}]};
+  assert.equal(proposalPassageRows(place,article).before.label.kind,'article');
+  assert.deepEqual(brief(proposalPassageRows(place,article).after),['article','2','Applies']);
+});
+test('a sole paragraph placed by its own address has no article neighbours; the article itself has',()=>{
+  const paragraph=proposalPassageRows(place,{operation:'replace',span:{start:13,end:13},evidence:[{anchor:'p/article:2/paragraph:1'}]});
+  assert.equal(paragraph.before,null);assert.equal(paragraph.after,null);
+  const article=proposalPassageRows(place,{operation:'replace',span:{start:13,end:13},evidence:[{anchor:'p/article:2'}]});
+  assert.equal(article.before.label.kind,'article');assert.deepEqual(brief(article.after),['article','3','Ends']);
 });
 test('a neighbour inside a table is left out',()=>{
   const withTable=structuredClone(place);
