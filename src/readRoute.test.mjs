@@ -154,6 +154,8 @@ test('new text at the end of an article stays inside it unless the placement nam
 test('a sole paragraph placed by its own address has no article neighbours; the article itself has',()=>{
   const paragraph=proposalPassageRows(place,{operation:'replace',span:{start:13,end:13},evidence:[{anchor:'p/article:2/paragraph:1'}]});
   assert.equal(paragraph.before,null);assert.equal(paragraph.after,null);
+  const unanchored=proposalPassageRows(place,{operation:'replace',span:{start:13,end:13},evidence:[{basis:'ordinal-unnumbered-paragraph'}]});
+  assert.equal(unanchored.before,null,'an unanchored placement inside the article stays inside');assert.equal(unanchored.after,null);
   const article=proposalPassageRows(place,{operation:'replace',span:{start:13,end:13},evidence:[{anchor:'p/article:2'}]});
   assert.equal(article.before.label.kind,'article');assert.deepEqual(brief(article.after),['article','3','Ends']);
 });

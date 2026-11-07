@@ -81,8 +81,9 @@ export function proposalPassageRows(proposal,placement) {
   // The placement names the unit it placed against, which tells a new article after Article 1 from a
   // new point at its end. Without that, new text at the end of a structured provision stays inside it.
   const anchor=placement.evidence?.find(item=>typeof item?.anchor==='string')?.anchor,deeper=Boolean(anchor&&holder.id&&anchor.startsWith(holder.id+'/'));
-  // Whole provisions: the amended text covers everything but the provision's own number and title.
-  const whole=!deeper&&(insert?holder.extent.end-1===target.last&&(anchor===holder.id||parts.length<=1):parts.every(part=>own.includes(part)));
+  // Whole provisions: the amended text covers all its words and starts at its number, or is placed against it.
+  const named=anchor===holder.id;
+  const whole=!deeper&&(insert?holder.extent.end-1===target.last&&(named||parts.length<=1):parts.every(part=>own.includes(part))&&(named||target.first===holder.extent.start));
   if(whole) {
     const side=unit=>unit?.kind===holder.kind?rowFromUnit(unit,texts,ranges):null;
     return {before:insert?rowFromUnit(holder,texts,ranges):side(list[from-1]),original:originalRow(placement,target,texts,labelOf(holder,null)),after:side(list[from+1])};
