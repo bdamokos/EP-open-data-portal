@@ -8,7 +8,7 @@ import {votePositionKeys,type VotePosition} from './votePositions';
 import {groupArcLayout,nearestDot,wedgeLabels,type ArcDot} from './voteSeatsModel.mjs';
 
 export type ArcVoter={id:string;name:string|null;group:string;position:VotePosition;country:string|null};
-type Props={voters:ArcVoter[];order:string[];word:string|null;small:string|null;smallLanguage?:string;noRecord:number|null;picked:string|null;onPick:(id:string|null)=>void;dimmedGroup:string|null;language:string;onMember?:(id:number)=>void;positionWord:(position:VotePosition)=>string};
+type Props={voters:ArcVoter[];order:string[];word:string|null;small:string|null;smallLanguage?:string;noRecord:number|null;picked:string|null;marked?:string|null;onPick:(id:string|null)=>void;dimmedGroup:string|null;language:string;onMember?:(id:number)=>void;positionWord:(position:VotePosition)=>string};
 const WIDTH=760,PAD=58,TOP=30;
 const radius=WIDTH/2-PAD;
 
@@ -21,7 +21,7 @@ function Mark({dot,r,tabbable,selected,dim,label}:{dot:ArcDot;r:number;tabbable:
 const MemoMark=memo(Mark);
 
 // The fan of wedges: one per group in seating order, every ballot a mark, the answer in its own centre.
-export function VoteArc({voters,order,word,small,smallLanguage,noRecord,picked,onPick,dimmedGroup,language,onMember,positionWord}:Props) {
+export function VoteArc({voters,order,word,small,smallLanguage,noRecord,picked,marked=null,onPick,dimmedGroup,language,onMember,positionWord}:Props) {
   const ui=useUiI18n(),svg=useRef<SVGSVGElement>(null);
   const [hovered,setHovered]=useState<number|null>(null),[focused,setFocused]=useState(0);
   const words=useMemo(()=>Object.fromEntries(votePositionKeys.map(position=>[position,positionWord(position)])) as Record<VotePosition,string>,[ui]);
@@ -63,7 +63,7 @@ export function VoteArc({voters,order,word,small,smallLanguage,noRecord,picked,o
     onPick(dots[next].id);
   };
   const over=(event:ReactPointerEvent<SVGSVGElement>)=>{if(event.pointerType==='mouse'){const index=indexOf(event.target);if(index!==null)setHovered(index);}};
-  const marks=useMemo(()=>dots.map(dot=><MemoMark key={dot.index} dot={dot} r={layout.dotRadius} tabbable={dot.index===focused} selected={dot.index===pickedIndex} dim={Boolean(dimmedGroup)&&dot.group!==dimmedGroup} label={describe(dot.id)+': '+words[dot.position]}/>),[dots,layout.dotRadius,focused,pickedIndex,dimmedGroup,describe,words]);
+  const marks=useMemo(()=>dots.map(dot=><MemoMark key={dot.index} dot={dot} r={layout.dotRadius} tabbable={dot.index===focused} selected={dot.index===pickedIndex||dot.id===marked} dim={Boolean(dimmedGroup)&&dot.group!==dimmedGroup} label={describe(dot.id)+': '+words[dot.position]}/>),[dots,layout.dotRadius,focused,pickedIndex,marked,dimmedGroup,describe,words]);
   return <figure className="seats">
     <div className="stage" style={{aspectRatio:`${WIDTH}/${Math.round(height)}`}}>
       <svg ref={svg} viewBox={`${-WIDTH/2} ${-(TOP+radius)} ${WIDTH} ${height}`} role="group" aria-label={ui.t('votegroups.seats.chart')} onClick={click} onKeyDown={key} onPointerOver={over} onPointerLeave={()=>setHovered(null)}>{marks}</svg>

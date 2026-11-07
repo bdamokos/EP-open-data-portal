@@ -47,6 +47,8 @@ export function navigateDossier(href:string) {
   const url=new URL(href,window.location.href);if(url.origin!==window.location.origin)return false;
   const leaving=rememberDossierOrigin();
   const from=journeyMode(leaving.href),to=journeyMode(url.href);
+  // A reload clears this memory but not the history entry's; the journey carries on from there.
+  if(!origin&&from)origin=history.state?.dossierOrigin||null;
   // Going back to the origin gives that page its own back link again, so a
   // dossier and a page opened from it cannot send a reader round in a loop.
   if(origin&&routeKey(origin)===routeKey(url.href)&&from)origin=returnOrigins.get(routeKey(url.href))??null;

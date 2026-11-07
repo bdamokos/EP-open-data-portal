@@ -194,3 +194,13 @@ test('a conflicting decision keeps the item around it on its own page, with no r
  const main=await decisionVotes({...other.query,decision:'MTG-PL-2026-10-07-DEC-1'},{reader:other.reader,store:other.store});
  assert.equal(main.mainVoteId,'MTG-PL-2026-10-07-DEC-1');assert(main.siblings.some(row=>row.id===decisionId),'the row is on its neighbours too');
 });
+
+test('the vote page reply names an exact roll-call request, in the reader\'s language, and only that',async()=>{
+  const f=voteFixture(),parent=f.day.results.find(node=>node.id===f.raw.inverse_consists_of[0]),request='eli/dl/event/MTG-PL-2026-10-07-VOT-ITM-993151-RCV-9';
+  assert.deepEqual((await f.read()).decision.rollCallRequesters,[]);
+  parent.was_motivated_by=[...(parent.was_motivated_by||[]),{id:request,type:'Activity',activity_id:'MTG-PL-2026-10-07-VOT-ITM-993151-RCV-9',activity_label:{en:'Amendment 114'},had_activity_type:'def/ep-activities/REQUEST_VOTE_ROLLCALL',responsible_organization_label:{en:'S&D',fr:'S&D (fr)',hu:'S&D (hu)'}}];
+  f.raw.was_motivated_by=[request];
+  const data=await f.read();
+  assert.deepEqual(data.decision.rollCallRequesters,[{id:'MTG-PL-2026-10-07-VOT-ITM-993151-RCV-9',binding:'exact-decision-was_motivated_by',organizationLabels:{en:'S&D'}}]);
+  assert.equal(data.version,9);
+});

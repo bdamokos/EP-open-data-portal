@@ -150,3 +150,11 @@ test('the vote page keeps its country sort; other views drop it',()=>{
   assert.equal(explorerParams(query,'legislation').get('vote-country-sort'),'for-desc');
   assert.equal(explorerParams(query,'questions').has('vote-country-sort'),false);
 });
+
+test('the vote page keeps a well-formed member through the address rewrite',()=>{
+  const query=new URLSearchParams('view=legislation&pl-mode=vote&pl-vote=MTG-PL-2026-03-11-DEC-188831&vote-member=113523');
+  assert.equal(readExplorerParam(query,'vote-member',null),'113523');
+  assert.equal(explorerParams(query,'legislation').get('vote-member'),'113523');
+  assert.equal(explorerParams(query,'questions').has('vote-member'),false);
+  for(const value of ['0','abc','-1','1e5','12345678901234'])assert.equal(readExplorerParam(new URLSearchParams({'vote-member':value}),'vote-member',null),null,value);
+});

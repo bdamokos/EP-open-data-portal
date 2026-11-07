@@ -16,7 +16,7 @@ const DossierVoteText=lazy(()=>import('./DossierVoteText'));
 type WordingResponse={documentId:string;requestedLanguage:string;amendment:null|{id:string;variants:unknown[]}};
 type PassageResponse={documentId:string;requestedLanguage:string;baseline:{kind:string;language:string}|null;placement:{operation:string|null;status:string}|null;passage:PassageRows|null};
 type Vote=NonNullable<DecisionVotesResponse['decision']>;
-type Context={vote:Vote;siblings:DecisionVoteSibling[];language:string};
+type Context={vote:Vote;siblings:DecisionVoteSibling[];language:string;member?:string|null};
 type Target={documentId:string;amendmentId:string};
 
 function useWording({documentId,amendmentId}:Target,language:string) {
@@ -36,7 +36,7 @@ function PartsKey({context,rows,match,wordingLanguage}:{context:Context;rows:Ret
   const held=wordingLanguage?partsInLanguage(rows,wordingLanguage):null;
   const parts=rows.map((part,index):SplitKeyRow=>{
     const chosen=held&&wordingLanguage?{text:held[index].description,language:wordingLanguage}:selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),context.language);
-    return {number:part.number,description:chosen.text??null,language:chosen.language??'',result:part.decision,href:part.decision?voteHref(part.decision.id,context.language):null,current:part.current};
+    return {number:part.number,description:chosen.text??null,language:chosen.language??'',result:part.decision,href:part.decision?voteHref(part.decision.id,context.language,context.member):null,current:part.current};
   });
   return <SplitKey parts={parts} match={match}/>;
 }
@@ -59,9 +59,9 @@ function Wording({context,target}:{context:Context;target:Target}) {
     {rows.length>0&&<PartsKey context={context} rows={rows} match={match} wordingLanguage={wording.language}/>}
   </section>;
 }
-export function VoteAmendmentText({vote,siblings,language}:Context) {
+export function VoteAmendmentText({vote,siblings,language,member=null}:Context) {
   const targets=exactAmendmentTargets(vote);
-  return targets.length===1?<Wording context={{vote,siblings,language}} target={targets[0]}/>:null;
+  return targets.length===1?<Wording context={{vote,siblings,language,member}} target={targets[0]}/>:null;
 }
 
 // A deep provision's label would break mid-word in the usual gutter.
