@@ -2684,6 +2684,7 @@
   "membervoterecord.scope.final": "Final votes",
   "membervoterecord.coverage.partial": "Partial · missing sittings: {missing}",
   "membervoterecord.coverage.partialVotes": "Partial · missing votes: {count}",
+  "membervoterecord.coverage.partialBoth": "Partial · missing sittings: {missing}, votes: {count}",
   "membervoterecord.withGroup": "With their group",
   "membervoterecord.differsFromGroup": "Differs from group",
   "membervoterecord.medians": "Group median {group}",
