@@ -10,9 +10,10 @@ import {cachedAgendaRequest} from './parliament-search.mjs';
 import {procedureSteps} from './procedure-steps.mjs';
 import {procedureClassification} from './procedure-types.mjs';
 import {PressStore} from './press-releases.mjs';
+import {pressExcerpt} from './press-releases-model.mjs';
 import {isLocalRequestFailure} from './request-budget.mjs';
 
-export const WEEK_ITEM_VERSION=1;
+export const WEEK_ITEM_VERSION=2;
 const LIMITS=Object.freeze({procedures:2,documents:6,sittings:5});
 const reportId=/^(?:A|B|RC)-\d{1,2}-\d{4}-\d{4,6}$/;
 const sittingId=/^MTG-PL-\d{4}-\d{2}-\d{2}$/;
@@ -55,9 +56,6 @@ export function rapporteurIds(report,work,leadCodes=[]) {
   const latest=Math.max(0,...rows.map(term));
   return [...new Set(rows.filter(part=>term(part)===latest).flatMap(personIds))];
 }
-/** Lines of the official list a reader votes on: its section headings are not votes. */
-export const votingListRows=list=>array(list?.rows).filter(row=>row.kind!=='heading').length;
-
 /** Where the item stands before this week. Only ordinary legislation has steps; other files have their committee report or adopted vote. */
 export function standingLines({family,steps,stage,indexEvents,committees,vote,councilApproval=null}) {
   const slots={committees,mainVote:vote};
@@ -102,7 +100,7 @@ export async function weekItem(query,{store,activity,status,groupOn=()=>'unavail
     let amendments=null;
     try {amendments=amendmentsPage(store,{document:id,limit:1,language:query.language}).total||null;}
     catch(error){if(isLocalRequestFailure(error))throw error;}
-    return {id,amendments,votingList:found?{sittingId:found.sitting,rows:votingListRows(found.list)}:null};
+    return {id,amendments,voteSitting:found?.sitting||null};
   });
   let standing=[],debated=null;
   if(primary) {
@@ -111,17 +109,18 @@ export async function weekItem(query,{store,activity,status,groupOn=()=>'unavail
     standing=standingLines({family,steps,stage:family==='COD'?derived:resolutionStage(vote),indexEvents,committees,vote,councilApproval});
     debated=indexEvents.filter(event=>event.had_activity_type==='PLENARY_DEBATE'&&event.activity_date&&event.activity_date<=asOf).map(event=>event.activity_date).sort().at(-1)||null;
   }
-  // The newest release that names this file by its exact reference.
+  // The newest release that names this file by its exact reference, in its own words. With no lead held there is nothing to show.
   const directory=pressStore?null:absolutePathFromEnvironment('ACTIVITY_INDEX_DIR');
   const ownedPress=directory?new PressStore(directory,{readOnly:true}):null,releases=pressStore||ownedPress;
   let press=null;
   try {
     const newest=works.flatMap(({procedure})=>releases?.mentions(procedure.reference,{},1).items||[]).sort((a,b)=>String(b.body.publishedAt||'').localeCompare(String(a.body.publishedAt||'')))[0];
-    if(newest)press={url:newest.body.url,title:newest.body.title,publishedAt:newest.body.publishedAt||null};
+    const {lead,second}=pressExcerpt(newest?.body);
+    if(lead)press={url:newest.body.url,publishedAt:newest.body.publishedAt||null,lead,second};
   }finally{ownedPress?.close();}
   return {
     version:WEEK_ITEM_VERSION,
-    procedures:works.map(({work,procedure})=>{const type=procedureClassification(work);return {id:procedure.id,reference:procedure.reference,code:type.status==='known'?type.code:null};}),
-    rapporteurs,committees,standing,debated,documents:rows,press,
+    procedures:works.map(({work,procedure})=>{const type=procedureClassification(work);return {id:procedure.id,code:type.status==='known'?type.code:null};}),
+    rapporteurs,standing,debated,documents:rows,press,
   };
 }

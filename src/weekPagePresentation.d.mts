@@ -11,7 +11,7 @@ export function weekRoute(week:string,language?:string):string;
 export function weekStoryRoute(week:string,language?:string):string;
 export function rowAnchor(id:string):string;
 export function weekItemRoute(topic:AgendaTopic,sittingIds:string[],language?:string):string|null;
-export type FoldFacts={voteDate:string|null;debateDate:string|null;amendments:number|null;amendmentTarget:{document:string}|{procedure:string}|null;listRows:number|null};
+export type FoldFacts={voteDate:string|null;debateDate:string|null;amendments:number|null};
 export function foldFacts(item:WeekItemResponse|null,topic:AgendaTopic,topics:AgendaTopic[]):FoldFacts;
 export function itemHasFacts(topic:AgendaTopic):boolean;
 export function validWeekItem(data:unknown):data is WeekItemResponse;
