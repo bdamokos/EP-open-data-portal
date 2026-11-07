@@ -1122,7 +1122,7 @@ export async function odpSpeeches(id, language, offset, {request=odp,readCorpusP
     "person-id": id,
     "parliamentary-term": 10,
     "activity-type": "PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT",
-    "sort-by": "sitting-date:desc",
+    "sort-by": "sitting-date:desc,numbering:desc",
     limit: 50,
     offset,
   });}catch(error){
