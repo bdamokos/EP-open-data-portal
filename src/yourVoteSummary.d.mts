@@ -7,4 +7,5 @@ export function summarizeVotes(entries:ComparisonEntry[],comparisons:Record<stri
 export function sessionDateRange(dates:string[],language:string):string;
 
 export function brusselsToday(now?:number):string;
+export function ballotSittings(sitting:string,sittings:{id:string;date:string}[],now?:number):string[];
 export function ballotVisible(sitting:string,source:string,now?:number):boolean;
