@@ -31,7 +31,7 @@ function sitting(decisions,{complete=true,chairing}={}) {
     delete item.had_voter_intended_favor;delete item.had_voter_intended_against;delete item.had_voter_intended_abstention;
     for(const [position,field] of [['for','had_voter_favor'],['against','had_voter_against'],['abstaining','had_voter_abstention']]) {
       item[field]=(decision[position]||[]).map(value=>'person/'+value);
-      item['number_of_votes_'+position]=(decision[position]||[]).length;
+      item['number_of_votes_'+field.slice('had_voter_'.length)]=(decision[position]||[]).length;
     }
     const resultId='MTG-PL-2026-10-07-VOT-ITM-'+(900+index);
     item.inverse_consists_of=['eli/dl/event/'+resultId];
@@ -222,4 +222,27 @@ test('scheduled votes remain missing after empty censuses and a 204 results read
   assert.equal(voteSittingStatus(noVotes).status,'empty','the nine verified no-vote sittings remain empty');
   day.coverage.results={state:'complete',rows:0,stopReason:'not-found'};day.coverage.completeness.votingRecordsComplete=true;
   assert.equal(voteSittingStatus(day).status,'excluded','even a settled scheduled-but-unpublished sitting remains an explicit gap');
+});
+
+test('inconsistent named ballots are gaps and cannot supply a group line or departure',()=>{
+  const people=groupsOf({1:'S&D',2:'S&D',3:'S&D'});
+  const changes=[
+    raw=>{raw.number_of_votes_favor=3;},
+    raw=>{raw.had_voter_favor.push('person/not-a-person');},
+    raw=>{raw.had_voter_against.push('person/1');},
+    raw=>{delete raw.number_of_votes_abstention;raw.number_of_votes_against=2;},
+    raw=>{delete raw.number_of_votes_abstention;raw.had_voter_favor.push('broken');},
+    raw=>{delete raw.number_of_votes_abstention;raw.had_voter_against.push('person/1');},
+  ];
+  for(const change of changes){
+    const f=sitting([{for:[1,2],against:[3]},{for:[1,2],against:[3]}]);change(f.day.decisions[0]);
+    const result=summariseVoteSitting(f.day,createGroupOn(people));
+    assert.equal(result.sitting.unprojected,1);assert.equal(result.sitting.named,1);
+    assert.deepEqual(Object.keys(result.sitting.decisions),['MTG-PL-2026-10-07-DEC-901']);
+    assert.equal(result.members.get('3').vector,'A');
+    assert.equal(result.members.get('3').departures.length,1);
+    assert.equal(result.members.get('3').departures[0].decisionId,'MTG-PL-2026-10-07-DEC-901');
+  }
+  const noTally=sitting([{for:[1,2],against:[3]}]);delete noTally.day.decisions[0].number_of_votes_abstention;
+  assert.equal(summariseVoteSitting(noTally.day,createGroupOn(people)).sitting.named,1,'an unknown tally alone does not invalidate a complete named census');
 });

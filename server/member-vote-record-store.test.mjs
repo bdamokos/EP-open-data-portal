@@ -29,7 +29,7 @@ test('one sitting write replaces member rows and adjusts term totals by the diff
   assert.equal(store.db.prepare("SELECT group_generation AS generation FROM member_vote_record_sittings").get().generation,'g1');
 
   const changed=structuredClone(fixture.day),raw=changed.decisions[0];
-  raw.had_voter_favor=['person/124846'];raw.had_voter_against=['person/197481'];raw.had_voter_abstention=['person/197591'];
+  raw.had_voter_favor=['person/124846'];raw.had_voter_against=['person/197481'];raw.had_voter_abstention=['person/197591'];raw.number_of_votes_favor=1;
   writeMemberVoteRecord(store,changed,{groupOn,groupGeneration:'g1',snapshotVersion:7});
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,3,'the sitting is replaced, never duplicated');
   // A lone abstention is now the group's own line, so it counts as with the group.
@@ -141,7 +141,7 @@ test('startup preparation adds the record tables to an existing schema-1 databas
   prepareIndexes({activityDirectory:directory,log:()=>{}});
   const upgraded=new ActivityStore(directory);
   try {
-    assert.equal(upgraded.get('sittingSnapshotSchema'),3);
+    assert.equal(upgraded.get('sittingSnapshotSchema'),4);
     for(const name of ['sittings','tags','members','totals'])assert(upgraded.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get('member_vote_record_'+name));
     assert(upgraded.acquire());
     writeMemberVoteRecord(upgraded,recordsComplete(voteFixture().day));
@@ -203,4 +203,22 @@ test('a lease takeover during summarisation cannot enter the projection write tr
   assert.throws(()=>writeMemberVoteRecord(store,f.day,{groupOn,snapshotVersion:7}),/writer lease was lost/);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM member_vote_record_sittings').get().n,0);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM member_vote_record_members').get().n,0);
+});
+
+test('a schema-3 held projection is rebuilt once for the ballot-integrity projection version',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'member-record-version-'));
+  t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  let store=new ActivityStore(directory);assert(store.acquire());
+  const f=recordsComplete(voteFixture().day);snapshotRow(store,{id:f.sittingId});retainMemberVoteRecord(store,f,7);
+  store.db.exec('ALTER TABLE member_vote_record_sittings DROP COLUMN projection_version');
+  store.set('sittingSnapshotSchema',3);store.close();
+  const {prepareIndexes}=await import('./migrate-indexes.mjs');prepareIndexes({activityDirectory:directory,log:()=>{}});
+  store=new ActivityStore(directory);assert(store.acquire());
+  try{
+    const key=memberVoteRecordHistory(store).key;
+    assert.equal(missingMemberVoteRecord(store,7,key),f.sittingId);
+    assert.equal(memberVoteRecordNeedsOnlyTags(store,f.sittingId,7,key(f.date)),false,'old projections need a full rebuild, not retagging');
+    retainMemberVoteRecord(store,f,7);
+    assert.equal(missingMemberVoteRecord(store,7,key),null,'the upgraded projection is no longer stale');
+  }finally{store.close();}
 });

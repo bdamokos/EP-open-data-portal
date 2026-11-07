@@ -4,13 +4,16 @@ import {groupHistorySnapshot} from './group-history.mjs';
 import {summariseVoteSitting,voteSittingStatus,memberVoteRecordRevision} from './member-vote-record-model.mjs';
 import {topicsGeneration,decisionTags} from './member-vote-record-topics.mjs';
 
+// Increment when projection semantics change; held snapshots then rebuild once.
+export const MEMBER_VOTE_RECORD_PROJECTION_VERSION=1;
+
 // Projection tables live beside sitting_snapshots in the activity index. Only
 // the leased index writer writes them; readers open the same file read-only.
 export function prepareMemberVoteRecord(store) {
   store.assertWriter();
   store.db.exec(`CREATE TABLE IF NOT EXISTS member_vote_record_sittings (
     sitting_id TEXT PRIMARY KEY, revision TEXT NOT NULL, date TEXT NOT NULL,
-    group_generation TEXT, snapshot_version INTEGER NOT NULL, snapshot_checked_at INTEGER,
+    group_generation TEXT, snapshot_version INTEGER NOT NULL, snapshot_checked_at INTEGER, projection_version INTEGER NOT NULL DEFAULT 0,
     named INTEGER NOT NULL, complete INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'projected', reason TEXT,
     unprojected INTEGER NOT NULL DEFAULT 0, decisions TEXT NOT NULL, subjects TEXT NOT NULL DEFAULT '{}');
     -- Tags stay out of the sitting row: SQLite reads past the large wording column to reach a later one.
@@ -23,7 +26,7 @@ export function prepareMemberVoteRecord(store) {
     CREATE TABLE IF NOT EXISTS member_vote_record_totals (
     member_id TEXT NOT NULL, snapshot_version INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY(member_id,snapshot_version));`);
   const columns=new Set(store.db.prepare('PRAGMA table_info(member_vote_record_sittings)').all().map(row=>row.name));
-  for(const [name,type] of [['snapshot_checked_at','INTEGER'],['unprojected','INTEGER NOT NULL DEFAULT 0']])if(!columns.has(name))store.db.exec('ALTER TABLE member_vote_record_sittings ADD COLUMN '+name+' '+type);
+  for(const [name,type] of [['projection_version','INTEGER NOT NULL DEFAULT 0'],['snapshot_checked_at','INTEGER'],['unprojected','INTEGER NOT NULL DEFAULT 0']])if(!columns.has(name))store.db.exec('ALTER TABLE member_vote_record_sittings ADD COLUMN '+name+' '+type);
   if(!store.db.prepare('PRAGMA table_info(member_vote_record_totals)').all().some(row=>row.name==='snapshot_version')) {
     store.db.exec(`ALTER TABLE member_vote_record_totals RENAME TO member_vote_record_old_totals;
       CREATE TABLE member_vote_record_totals(member_id TEXT NOT NULL,snapshot_version INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(member_id,snapshot_version));
@@ -71,11 +74,11 @@ export function writeMemberVoteRecord(store,day,{groupOn=null,groupGeneration=nu
       insert.run(memberId,summary.sittingId,JSON.stringify(record));
       putTotal.run(memberId,snapshotVersion,JSON.stringify(shift(readTotal(db,memberId,snapshotVersion),record.bySitting,1)));
     }
-    db.prepare(`INSERT INTO member_vote_record_sittings(sitting_id,revision,date,group_generation,snapshot_version,named,decisions,complete,status,reason,subjects,snapshot_checked_at,unprojected)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(sitting_id) DO UPDATE SET revision=excluded.revision,date=excluded.date,
+    db.prepare(`INSERT INTO member_vote_record_sittings(sitting_id,revision,date,group_generation,snapshot_version,named,decisions,complete,status,reason,subjects,snapshot_checked_at,unprojected,projection_version)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(sitting_id) DO UPDATE SET revision=excluded.revision,date=excluded.date,
       group_generation=excluded.group_generation,snapshot_version=excluded.snapshot_version,named=excluded.named,
-      decisions=excluded.decisions,complete=excluded.complete,status=excluded.status,reason=excluded.reason,subjects=excluded.subjects,snapshot_checked_at=excluded.snapshot_checked_at,unprojected=excluded.unprojected`)
-      .run(summary.sittingId,summary.revision,summary.date,groupGeneration,snapshotVersion,summary.sitting.named,JSON.stringify(summary.sitting.decisions),Number(summary.sitting.complete),status,reason,JSON.stringify(summary.sitting.subjects),snapshotCheckedAt,summary.sitting.unprojected||0);
+      decisions=excluded.decisions,complete=excluded.complete,status=excluded.status,reason=excluded.reason,subjects=excluded.subjects,snapshot_checked_at=excluded.snapshot_checked_at,unprojected=excluded.unprojected,projection_version=excluded.projection_version`)
+      .run(summary.sittingId,summary.revision,summary.date,groupGeneration,snapshotVersion,summary.sitting.named,JSON.stringify(summary.sitting.decisions),Number(summary.sitting.complete),status,reason,JSON.stringify(summary.sitting.subjects),snapshotCheckedAt,summary.sitting.unprojected||0,MEMBER_VOTE_RECORD_PROJECTION_VERSION);
     db.prepare('INSERT INTO member_vote_record_tags(sitting_id,topics_generation,tags) VALUES(?,?,?) ON CONFLICT(sitting_id) DO UPDATE SET topics_generation=excluded.topics_generation,tags=excluded.tags')
       .run(summary.sittingId,topicGeneration,sittingTags(db,topicGeneration,summary.sitting.decisions));
   });
@@ -89,11 +92,11 @@ export function missingMemberVoteRecord(store,version,groupGeneration,skip=[],to
   if(!store?.db)return null;
   const skipped=new Set(skip);
   try {
-    const rows=store.db.prepare(`SELECT s.id,s.checked_at,r.snapshot_checked_at,r.snapshot_version,r.group_generation,r.status,t.topics_generation
+    const rows=store.db.prepare(`SELECT s.id,s.checked_at,r.snapshot_checked_at,r.snapshot_version,r.projection_version,r.group_generation,r.status,t.topics_generation
       FROM sitting_snapshots s LEFT JOIN member_vote_record_sittings r ON r.sitting_id=s.id
       LEFT JOIN member_vote_record_tags t ON t.sitting_id=s.id
       WHERE s.kind='votes' AND s.version=? AND s.body IS NOT NULL ORDER BY s.id DESC`).all(version);
-    return rows.find(row=>!skipped.has(row.id)&&(row.snapshot_version!==version||row.snapshot_checked_at!==row.checked_at||
+    return rows.find(row=>!skipped.has(row.id)&&(row.projection_version!==MEMBER_VOTE_RECORD_PROJECTION_VERSION||row.snapshot_version!==version||row.snapshot_checked_at!==row.checked_at||
       row.group_generation!==(typeof groupGeneration==='function'?groupGeneration(row.id.slice(7,17)):groupGeneration??null)||
       row.status==='projected'&&row.topics_generation!==(topicGeneration??null)))?.id||null;
   }catch{return null;}
@@ -137,7 +140,7 @@ export function retagMemberVoteRecord(store,sittingId,topicGeneration=topicsGene
 }
 // Whether the stored projection of a sitting is current apart from its topics.
 export function memberVoteRecordNeedsOnlyTags(store,sittingId,version,groupGeneration) {
-  const row=store.db.prepare('SELECT snapshot_version,group_generation,snapshot_checked_at,status FROM member_vote_record_sittings WHERE sitting_id=?').get(sittingId);
+  const row=store.db.prepare('SELECT snapshot_version,projection_version,group_generation,snapshot_checked_at,status FROM member_vote_record_sittings WHERE sitting_id=?').get(sittingId);
   const checked=store.db.prepare("SELECT checked_at FROM sitting_snapshots WHERE kind='votes' AND version=? AND id=?").get(version,sittingId)?.checked_at??null;
-  return Boolean(row&&row.snapshot_checked_at===checked&&row.status==='projected'&&row.snapshot_version===version&&row.group_generation===(groupGeneration??null));
+  return Boolean(row&&row.projection_version===MEMBER_VOTE_RECORD_PROJECTION_VERSION&&row.snapshot_checked_at===checked&&row.status==='projected'&&row.snapshot_version===version&&row.group_generation===(groupGeneration??null));
 }

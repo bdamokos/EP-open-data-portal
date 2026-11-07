@@ -97,7 +97,12 @@ export function summariseVoteSitting(day,groupOn,{groupGeneration=null}={}) {
   }
   for(const raw of list(day.decisions)) {
     const item=projectMemberDecision(raw,day,'0','en',derived),actual=voterGroups(raw,'had_voter_');
-    const available=item.ballotStatus==='conducted'&&item.method==='VOTE_ELECTRONIC_ROLLCALL'&&Object.values(actual.supplied).every(Boolean);
+    // A group line needs an intact named census. Compare each published tally
+    // separately: totalsMatch can be unknown when just one tally is absent.
+    const namedVoters=item.namedVoters;
+    const available=item.ballotStatus==='conducted'&&item.method==='VOTE_ELECTRONIC_ROLLCALL'&&namedVoters.available&&
+      namedVoters.malformedReferences===0&&!namedVoters.conflictingPersonIds.length&&
+      positions.every(position=>item.totals[position]===null||namedVoters.counts[position]===item.totals[position]);
     if(!available){if(item.ballotStatus!=='not-conducted'&&item.method==='VOTE_ELECTRONIC_ROLLCALL')unprojected++;continue;}
     const conflicts=new Set([...actual.byPerson].filter(([,values])=>values.length>1).map(([id])=>id));
     const wholeText=item.scope?.kind==='whole-text';

@@ -4,13 +4,22 @@ import {sittingSnapshots} from './sitting-snapshot-store.mjs';
 import {MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
 import {createGroupOn} from './group-attribution.mjs';
 import {pickTitle} from './member-vote-record-model.mjs';
+import {MEMBER_VOTE_RECORD_PROJECTION_VERSION} from './member-vote-record-store.mjs';
 import {memberBreakdown} from './member-vote-record-breakdown.mjs';
 import {topicLabel,countryLabel} from './member-vote-record-topics.mjs';
 
-export const MEMBER_VOTE_RECORD_VERSION=4;
+export const MEMBER_VOTE_RECORD_VERSION=5;
 const tagPattern=/^(?:topic:\d{1,8}|country:[A-Z0-9_]{2,8})$/;
 export const MEMBER_VOTE_RECORD_LIMITS=Object.freeze({departures:50,maxOffset:10000});
 const emptyAlignment=()=>({with:0,against:0,abstained:0,notComparable:0});
+const temporarySqliteRead=error=>['SQLITE_BUSY','SQLITE_LOCKED'].includes(error?.code)||Number.isInteger(error?.errcode)&&[5,6].includes(error.errcode&255);
+export function memberVoteRecordReadFailure(error) {
+  if(error instanceof HttpError)return error;
+  return temporarySqliteRead(error)
+    ?Object.assign(new HttpError(503,'busy','Voting records are temporarily unavailable.'),{retryAfter:1})
+    :new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.');
+}
+
 
 export function memberVoteRecordQuery(search) {
   const allowed=['lang','scope','limit','offset','tag'];
@@ -42,7 +51,7 @@ const readGroupOn=(db,generation)=>{
   try {
     const row=db.prepare('SELECT body FROM group_history_snapshots WHERE generation=?').get(generation);
     return row?createGroupOn(JSON.parse(row.body)):null;
-  }catch{return null;}
+  }catch(error){if(temporarySqliteRead(error))throw error;return null;}
 };
 
 function pendingRecord(id,query) {
@@ -58,14 +67,14 @@ export class MemberVoteRecordReader {
   query(memberId,query) {
     const id=String(memberId);
     if(!/^[1-9]\d*$/.test(id)||!Number.isSafeInteger(Number(id)))throw new HttpError(400,'invalid_id','Use a positive person identifier.');
-    const db=this.snapshots.connection();
-    if(!db)throw new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.');
     try {
+      const db=this.snapshots.connection();
+      if(!db)throw new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.');
       // Before the projection exists the answer is a pending record, not an error to retry.
       if(!db.prepare("SELECT 1 FROM sqlite_master WHERE name='member_vote_record_sittings'").get())return pendingRecord(id,query);
       const today=brusselsDay(this.clock());
       let generation=null;
-      try{generation=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='active'").get()?.value??'null');}catch{}
+      try{generation=JSON.parse(db.prepare("SELECT value FROM meta WHERE key='active'").get()?.value??'null');}catch(error){if(temporarySqliteRead(error))throw error;}
       const groupOn=readGroupOn(db,generation);
       const current=groupOn?groupOn(id,today):'unavailable';
       const group=typeof current==='object'
@@ -73,7 +82,7 @@ export class MemberVoteRecordReader {
         :{code:null,status:current==='not-serving'?'not-serving':'unavailable'};
       const rows=db.prepare(`SELECT m.body AS body,s.sitting_id AS sittingId,s.date AS date
         FROM member_vote_record_members m JOIN member_vote_record_sittings s ON s.sitting_id=m.sitting_id
-        WHERE m.member_id=? AND s.snapshot_version=? ORDER BY s.date DESC,s.sitting_id DESC`).all(id,MEMBER_VOTE_SNAPSHOT_VERSION);
+        WHERE m.member_id=? AND s.snapshot_version=? AND s.projection_version=? ORDER BY s.date DESC,s.sitting_id DESC`).all(id,MEMBER_VOTE_SNAPSHOT_VERSION,MEMBER_VOTE_RECORD_PROJECTION_VERSION);
       const alignment={all:emptyAlignment(),wholeText:emptyAlignment()};
       const ballots={chaired:0};
       const departures=[],vectors=[];
@@ -91,12 +100,12 @@ export class MemberVoteRecordReader {
         }
       }
       const termFirst='MTG-PL-'+CURRENT_TERM_START;
-      const sittings=db.prepare('SELECT date FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=? AND status=\'projected\'').all(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst);
+      const sittings=db.prepare('SELECT date FROM member_vote_record_sittings WHERE snapshot_version=? AND projection_version=? AND sitting_id>=? AND status=\'projected\'').all(MEMBER_VOTE_SNAPSHOT_VERSION,MEMBER_VOTE_RECORD_PROJECTION_VERSION,termFirst);
       // Every stored votes sitting counts except those that held no decisions. One that is not
       // examined yet, or whose voting records are incomplete or conflicting, is missing.
       const stored=db.prepare("SELECT COUNT(*) AS n FROM sitting_snapshots WHERE kind='votes' AND version=? AND id>=?").get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
-      const examined=db.prepare("SELECT status,COUNT(*) AS n FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=? GROUP BY status").all(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst);
-      const unprojected=db.prepare('SELECT COALESCE(SUM(unprojected),0) n FROM member_vote_record_sittings WHERE snapshot_version=? AND sitting_id>=?').get(MEMBER_VOTE_SNAPSHOT_VERSION,termFirst).n;
+      const examined=db.prepare("SELECT status,COUNT(*) AS n FROM member_vote_record_sittings WHERE snapshot_version=? AND projection_version=? AND sitting_id>=? GROUP BY status").all(MEMBER_VOTE_SNAPSHOT_VERSION,MEMBER_VOTE_RECORD_PROJECTION_VERSION,termFirst);
+      const unprojected=db.prepare('SELECT COALESCE(SUM(unprojected),0) n FROM member_vote_record_sittings WHERE snapshot_version=? AND projection_version=? AND sitting_id>=?').get(MEMBER_VOTE_SNAPSHOT_VERSION,MEMBER_VOTE_RECORD_PROJECTION_VERSION,termFirst).n;
       const count=status=>examined.find(row=>row.status===status)?.n||0;
       const included=sittings.length;
       const missing=Math.max(0,stored-count('empty')-included);
@@ -107,7 +116,9 @@ export class MemberVoteRecordReader {
       // Every member's totals cover the same projected sittings, so medians stay
       // comparable with a member's own figures while some sittings are missing.
       let comparison=null;
-      if(group.status==='attached'&&groupOn&&included>0) {
+      // Until old projections have rebuilt, stored totals include old semantics.
+      const staleProjection=db.prepare('SELECT 1 FROM member_vote_record_sittings WHERE snapshot_version=? AND projection_version<>? LIMIT 1').get(MEMBER_VOTE_SNAPSHOT_VERSION,MEMBER_VOTE_RECORD_PROJECTION_VERSION);
+      if(!staleProjection&&group.status==='attached'&&groupOn&&included>0) {
         // The group median is taken over the other current members of the same group.
         const shares={all:[],final:[]};
         for(const row of db.prepare('SELECT member_id,body FROM member_vote_record_totals WHERE snapshot_version=?').all(MEMBER_VOTE_SNAPSHOT_VERSION)) {
@@ -126,13 +137,13 @@ export class MemberVoteRecordReader {
       }
       // The breakdown reads only this member's marks and the tags kept on the sittings.
       let breakdown=null,decisionTags=new Map();
-      if((group.status==='attached'||group.status==='not-serving')&&vectors.length) {
+      if(vectors.length) {
         const tagRows=new Map(db.prepare('SELECT t.sitting_id,t.tags FROM member_vote_record_tags t JOIN member_vote_record_members m ON m.sitting_id=t.sitting_id WHERE m.member_id=?').all(id).map(row=>[row.sitting_id,row.tags]));
         const calculated=memberBreakdown(vectors.map(({sittingId,vector})=>({vector,tags:JSON.parse(tagRows.get(sittingId)||'[]')})),query.scope);
         decisionTags=calculated.decisionTags;
         const named=(list,label)=>list.rows.flatMap(row=>{const text=label(row.key.slice(row.key.indexOf(':')+1),query.language);return text?[{key:row.key,label:text.text,language:text.language,comparable:row.comparable,withGroup:row.withGroup,share:row.share}]:[];});
         const topics=named(calculated.topics,topicLabel),countries=named(calculated.countries,countryLabel);
-        if(calculated.topics.eligible+calculated.countries.eligible>0)breakdown={overall:calculated.overall,topics:{eligible:calculated.topics.eligible,rows:topics},countries:{eligible:calculated.countries.eligible,rows:countries}};
+        if((group.status==='attached'||group.status==='not-serving')&&calculated.topics.eligible+calculated.countries.eligible>0)breakdown={overall:calculated.overall,topics:{eligible:calculated.topics.eligible,rows:topics},countries:{eligible:calculated.countries.eligible,rows:countries}};
       }
       const sorted=departures.sort((a,b)=>(b.wholeText?1:0)-(a.wholeText?1:0)||b.date.localeCompare(a.date)||b.decisionId.localeCompare(a.decisionId))
         .filter(item=>query.scope==='all'||item.wholeText)
@@ -154,7 +165,7 @@ export class MemberVoteRecordReader {
       return {version:MEMBER_VOTE_RECORD_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id},period,coverage,group,
         alignment:included>0&&(group.status==='attached'||group.status==='not-serving'&&rows.length)?alignment:null,ballots,breakdown,departures:{scope:query.scope,tag:query.tag?{key:query.tag,label:filterLabel?.text??null,language:filterLabel?.language??null}:null,offset:query.offset,limit:query.limit,total:sorted.length,items,nextOffset},
         comparison,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
-    }catch(error){if(error instanceof HttpError)throw error;throw new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.');}
+    }catch(error){throw memberVoteRecordReadFailure(error);}
   }
 }
 export const memberVoteRecord=new MemberVoteRecordReader();

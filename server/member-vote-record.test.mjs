@@ -24,7 +24,7 @@ function database({includeC=true,generation=3,groupSnapshot=history,totals=[{mem
     sitting_id TEXT PRIMARY KEY, revision TEXT NOT NULL, date TEXT NOT NULL,
     group_generation INTEGER, snapshot_version INTEGER NOT NULL,
     named INTEGER NOT NULL, decisions TEXT NOT NULL, complete INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'projected', reason TEXT, subjects TEXT NOT NULL DEFAULT '{}',unprojected INTEGER NOT NULL DEFAULT 0);
+    status TEXT NOT NULL DEFAULT 'projected', reason TEXT, subjects TEXT NOT NULL DEFAULT '{}',unprojected INTEGER NOT NULL DEFAULT 0,projection_version INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE member_vote_record_tags (sitting_id TEXT PRIMARY KEY, topics_generation INTEGER, tags TEXT NOT NULL);
     CREATE TABLE member_vote_record_members (member_id TEXT NOT NULL, sitting_id TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(member_id,sitting_id));
     CREATE TABLE member_vote_record_totals (member_id TEXT NOT NULL,snapshot_version INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(member_id,snapshot_version));
@@ -303,4 +303,36 @@ test('an attached member has no alignment observations while every sitting is st
   const data=new MemberVoteRecordReader({snapshots:{connection:()=>db},clock:()=>Date.parse('2026-10-08T12:00Z')}).query(MEP,{...query(),language:'en'});
   assert.equal(data.group.status,'attached');assert.equal(data.coverage.included,0);assert.equal(data.coverage.status,'pending');
   assert.equal(data.alignment,null);assert.equal(data.comparison,null);assert.equal(data.breakdown,null);
+});
+
+test('a current NI member retains historical topic and country departure filters and pagination',()=>{
+  const reader=readerFor(breakdownDatabase({group:'NI'}));
+  const all=reader.query(MEP,{...query(),language:'en'});
+  assert.equal(all.departures.total,15);assert.equal(all.breakdown,null);assert.equal(all.alignment,null);
+  for(const tag of ['topic:100195','country:FRA']){
+    const first=reader.query(MEP,{...query({tag,limit:'5'}),language:'en'});
+    assert.equal(first.departures.total,15);assert.equal(first.departures.items.length,5);assert.equal(first.departures.nextOffset,5);
+    assert.equal(first.breakdown,null);assert.equal(first.alignment,null);
+    const last=reader.query(MEP,{...query({tag,offset:'10',limit:'5'}),language:'en'});
+    assert.equal(last.departures.total,15);assert.equal(last.departures.items.length,5);assert.equal(last.departures.nextOffset,null);
+  }
+  assert.equal(reader.query(MEP,{...query({tag:'country:DEU'}),language:'en'}).departures.total,0);
+});
+
+test('temporary SQLite read errors stay retryable rather than becoming an unavailable observation',()=>{
+  for(const errcode of [5,6,517]){
+    const reader=new MemberVoteRecordReader({snapshots:{connection:()=>({prepare:()=>{throw Object.assign(new Error('database is locked'),{code:'ERR_SQLITE_ERROR',errcode});}})}});
+    assert.throws(()=>reader.query(MEP,{...query(),language:'en'}),error=>error.status===503&&error.code==='busy'&&error.retryAfter===1);
+  }
+});
+
+
+test('held rows with older projection semantics stay pending until rebuilt',()=>{
+  const db=fullDatabase({complete:true});db.prepare('UPDATE member_vote_record_sittings SET projection_version=0 WHERE sitting_id=?').run(A);
+  const reader=readerFor(db),partial=reader.query(MEP,{...query(),language:'en'});
+  assert.equal(partial.coverage.status,'partial');assert.equal(partial.coverage.included,1);assert.equal(partial.coverage.missing,1);
+  assert.equal(partial.alignment.all.with,2);assert.equal(partial.departures.total,2);assert.equal(partial.comparison,null,'old totals must not enter the new group median');
+  db.prepare('UPDATE member_vote_record_sittings SET projection_version=0').run();
+  const pending=reader.query(MEP,{...query(),language:'en'});
+  assert.equal(pending.coverage.status,'pending');assert.equal(pending.alignment,null);assert.equal(pending.departures.total,0);
 });

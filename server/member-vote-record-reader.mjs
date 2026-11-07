@@ -1,6 +1,7 @@
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
-import {MemberVoteRecordReader} from './member-vote-record.mjs';
-import {SittingSnapshotReader} from './sitting-snapshot-store.mjs';
+import {DatabaseSync} from 'node:sqlite';
+import path from 'node:path';
+import {MemberVoteRecordReader,memberVoteRecordReadFailure} from './member-vote-record.mjs';
 import {HttpError} from './http-utils.mjs';
 import {absolutePathFromEnvironment} from './config.mjs';
 import {requestSignal} from './request-budget.mjs';
@@ -19,16 +20,21 @@ export class MemberVoteRecordService {
       return await new Promise((resolve,reject)=>{
         timer=setTimeout(()=>reject(Object.assign(new HttpError(503,'request_timeout','Voting records are temporarily unavailable.'),{retryAfter:1})),this.timeoutMs);
         abort=()=>reject(signal.reason);signal?.addEventListener('abort',abort,{once:true});
-        worker.once('message',message=>message.error?reject(new HttpError(message.status||503,message.code||'member_vote_record_unavailable',message.error)):resolve(message.result));
+        worker.once('message',message=>message.error?reject(Object.assign(new HttpError(message.status||503,message.code||'member_vote_record_unavailable',message.error),Number.isFinite(message.retryAfter)?{retryAfter:message.retryAfter}:{})):resolve(message.result));
         worker.once('error',()=>reject(Object.assign(new HttpError(503,'busy','Voting records are temporarily unavailable.'),{retryAfter:1})));worker.once('exit',()=>reject(new HttpError(503,'member_vote_record_unavailable','Voting records are temporarily unavailable.')));
       });
     }finally{clearTimeout(timer);if(abort)signal?.removeEventListener('abort',abort);await worker?.terminate();this.busy=false;}
   }
 }
 if(!isMainThread&&workerData?.type==='member-vote-record') {
-  const snapshots=new SittingSnapshotReader({directory:workerData.directory});
-  try{snapshots.connection()?.exec('BEGIN');parentPort.postMessage({result:new MemberVoteRecordReader({snapshots}).query(workerData.id,workerData.query)});}
-  catch(error){parentPort.postMessage({error:error.message,status:error.status,code:error.code});}
-  finally{snapshots.db?.exec('ROLLBACK');snapshots.close();}
+  let db,began=false;
+  try{
+    // Open here so lock errors during connection setup reach the same retry
+    // classification as query errors, rather than becoming a missing database.
+    if(workerData.directory)db=new DatabaseSync(path.join(workerData.directory,'activities-v1.sqlite'),{readOnly:true});
+    db?.exec('PRAGMA busy_timeout=250; BEGIN');began=Boolean(db);
+    parentPort.postMessage({result:new MemberVoteRecordReader({snapshots:{connection:()=>db}}).query(workerData.id,workerData.query)});
+  }catch(error){const failure=memberVoteRecordReadFailure(error);parentPort.postMessage({error:failure.message,status:failure.status,code:failure.code,retryAfter:failure.retryAfter});}
+  finally{if(db){if(began)db.exec('ROLLBACK');db.close();}}
 }
 export const memberVoteRecordService=new MemberVoteRecordService();

@@ -6,7 +6,7 @@ import {absolutePathFromEnvironment,integerFromEnvironment} from './config.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
 import {prepareMemberVoteRecord} from './member-vote-record-store.mjs';
 
-export const SITTING_SNAPSHOT_SCHEMA=3, SITTING_CALENDAR_VERSION=1;
+export const SITTING_SNAPSHOT_SCHEMA=4, SITTING_CALENDAR_VERSION=1;
 export const SNAPSHOT_MAX_BYTES=32*1024*1024;
 export const SITTING_HINT_LIMIT=512;
 export const snapshotDiskLimit=()=>integerFromEnvironment('SITTING_SNAPSHOT_MAX_DISK_MIB',256,16,2048)*1024*1024;
