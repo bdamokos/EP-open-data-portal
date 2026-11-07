@@ -3,6 +3,8 @@ import {useEffect,useRef,useState,type Dispatch,type SetStateAction} from 'react
 import type {MouseEvent} from 'react';
 
 type SavedNode={path:string;top:number;left:number;open?:boolean;value?:string};
+// Pages with a top strip keep it on screen: it holds the way back.
+export const journeyScrollTarget=(heading:HTMLElement):Element=>heading.closest('.vs')?.querySelector('.strip')??heading;
 type Snapshot={href:string;nodes:SavedNode[];focus:string|null};
 const snapshots=new Map<string,Snapshot>();
 let pending:Snapshot|null=null;
@@ -139,7 +141,7 @@ export function useDossierJourney() {
         }else{
           const person=new URLSearchParams(window.location.search).get('dossier-person');
           const heading=(person?document.querySelector<HTMLElement>('[data-dossier-reference] h3'):null)||document.querySelector<HTMLElement>('.insight-dossier-title h2')||document.querySelector<HTMLElement>('[data-dossier-reference] h3')||document.querySelector<HTMLElement>('main h1');
-          if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}
+          if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});journeyScrollTarget(heading).scrollIntoView({block:'start'});}
         }
         pending=null;destination=null;
       });
