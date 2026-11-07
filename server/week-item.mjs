@@ -85,7 +85,7 @@ function person(store,activity,generation,groupOn,id,asOf) {
 /**
  * What a reader wants to know about a coming agenda item, on one small reply.
  * Saved procedures, documents, amendments, voting lists and press releases only:
- * a read asks Parliament for nothing and writes nothing.
+ * a read asks Parliament for nothing. The route's view cache keeps the reply as a small derived file.
  */
 export async function weekItem(query,{store,activity,status,groupOn=()=>'unavailable',request=cachedAgendaRequest,pressStore=null,clock=Date.now}) {
   const generation=store.status().servingGeneration,asOf=brusselsDay(clock());
