@@ -488,5 +488,30 @@
     "one": "votepage.meps.one",
     "other": "votepage.meps",
     "count": "count"
+  },
+  {
+    "one": "week.coming.others.one",
+    "other": "week.coming.others",
+    "count": "count"
+  },
+  {
+    "one": "week.reason.differs.one",
+    "other": "week.reason.differs",
+    "count": "count"
+  },
+  {
+    "one": "week.reason.speeches.one",
+    "other": "week.reason.speeches",
+    "count": "count"
+  },
+  {
+    "one": "week.reason.blue.one",
+    "other": "week.reason.blue",
+    "count": "count"
+  },
+  {
+    "one": "week.speakers.one",
+    "other": "week.speakers",
+    "count": "count"
   }
 ]

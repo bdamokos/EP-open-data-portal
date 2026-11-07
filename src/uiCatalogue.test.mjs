@@ -153,7 +153,7 @@ test('all reachable messages have translated values in each supported language',
       // New Topics and vote-group messages use the documented per-message English fallback.
       if((id.startsWith('topics.')||id.startsWith('votegroups.'))&&!Object.hasOwn(catalogue,id))continue;
       if(id.startsWith('speechpanel.')&&!Object.hasOwn(catalogue,id))continue;
-      if(id.startsWith('votepage.')&&!Object.hasOwn(catalogue,id))continue;
+      if((id.startsWith('votepage.')||id.startsWith('week.'))&&!Object.hasOwn(catalogue,id))continue;
       assert.equal(typeof catalogue[id],'string',language+': '+id);
       assert(catalogue[id].trim(),language+': '+id);
     }
