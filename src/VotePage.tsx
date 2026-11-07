@@ -182,7 +182,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry,member=
   const documents=subject?.documentIds??[];
   const corrections=data.corrections?votePositionKeys.flatMap(position=>data.corrections![position].map(id=>({id,position,name:data.people?.[id]?.name??(displayName(id)||null)}))):[];
   const referenceDossier=data.procedureReferral&&!partPage?subject?.procedures[0]??null:null;
-  const voteText=<VoteText key={decisionId+':'+language} vote={vote} siblings={siblings} language={language} member={member} amendmentPage={amendmentPage} subject={subject}/>;
+  const voteText=<VoteText key={decisionId+':'+language} vote={vote} siblings={siblings} language={language} member={member} amendmentPage={amendmentPage}/>;
   const requesters=vote.rollCallRequesters.filter(row=>row.binding==='exact-decision-was_motivated_by').map(row=>selectLanguageText(row.organizationLabels,language)).filter(label=>label.text);
   return page(<>
     <PageStrip back={back}>

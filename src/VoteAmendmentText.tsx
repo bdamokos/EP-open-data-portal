@@ -82,10 +82,10 @@ function ProvisionText({context,target,heading}:{context:Context;target:{documen
   </section>;
 }
 /** What the vote is on: an amendment's wording, a provision's wording, or the parts alone. */
-export function VoteText({vote,siblings,language,member=null,amendmentPage,subject}:Context&{amendmentPage:boolean;subject:{documentIds?:string[]}|null}) {
+export function VoteText({vote,siblings,language,member=null,amendmentPage}:Context&{amendmentPage:boolean}) {
   const context={vote,siblings,language,member},targets=exactAmendmentTargets(vote);
   if(amendmentPage&&targets.length===1)return <Wording context={context} target={targets[0]}/>;
-  const provision=voteProvision(vote,subject),heading=voteReferenceLabel(vote,language);
+  const provision=voteProvision(vote),heading=voteReferenceLabel(vote,language);
   if(provision)return <ProvisionText key={provision.documentId+provision.provision} context={context} target={provision} heading={heading}/>;
   return <>{requestRows(context).map((rows,index)=><section className="clause" key={index}>{heading&&<h3 lang="">{heading}</h3>}<PartsKey context={context} rows={rows} match={null} wordingLanguage={null}/></section>)}</>;
 }

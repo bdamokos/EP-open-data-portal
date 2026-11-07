@@ -274,10 +274,13 @@ test('a vote maps to a provision only from its exact reference and one document'
  assert.equal(voteProvision(vote({context:{documentIds:['A-10-2026-0021'],amendmentIds:['A-10-2026-0021-AM-3']}})),null,'an amendment to it has its own wording');
  assert.equal(voteProvision(vote({scope:{kind:'amendment'}})),null);
  assert.equal(voteProvision(vote({scope:{kind:'whole-text'}})),null);
- const motions=['B-10-2026-0485','B-10-2026-0476'];
+ const motions=['B-10-2026-0485','B-10-2026-0476'],joint='RC-10-2026-0476';
  assert.equal(voteProvision(vote({title:'§ 5',context:{documentIds:motions,amendmentIds:[]}})),null,'several motions and nothing to choose by');
- assert.equal(voteProvision(vote({title:'§ 5',context:{documentIds:[...motions,'RC-10-2026-0476'],amendmentIds:[]}})).documentId,'RC-10-2026-0476','a joint motion replaces them');
- assert.equal(voteProvision(vote({title:'B10-0485/2026 – § 5',context:{documentIds:[...motions,'RC-10-2026-0476'],amendmentIds:[]}})).documentId,'B-10-2026-0485','the title names the exact one');
- assert.equal(voteProvision(vote({title:'RC-B10-0476/2026 – § 1/1',context:{documentIds:[...motions,'RC-10-2026-0476'],amendmentIds:[]}})).documentId,'RC-10-2026-0476');
- assert.equal(voteProvision(vote({title:null,context:{documentIds:[],amendmentIds:[]}}),{documentIds:['A-10-2026-0021']}).documentId,'A-10-2026-0021','the item\'s one document');
+ assert.equal(voteProvision(vote({title:'§ 5',context:{documentIds:[...motions,joint],amendmentIds:[]}})),null,'nor does a joint motion among them say which');
+ assert.equal(voteProvision(vote({title:'B10-0485/2026 – § 5',context:{documentIds:[...motions,joint],amendmentIds:[]}})).documentId,'B-10-2026-0485','the title names the exact one');
+ assert.equal(voteProvision(vote({title:'RC-B10-0476/2026 – § 1/1',context:{documentIds:[...motions,joint],amendmentIds:[]}})).documentId,joint);
+ assert.equal(voteProvision(vote({title:'A10-0099/2026 – § 10/2'})),null,'a title that disagrees with the vote\'s link');
+ assert.equal(voteProvision(vote({title:null,context:{documentIds:[joint],amendmentIds:[]}})).documentId,joint,'its own one document needs no title');
+ assert.equal(voteProvision(vote({title:null,context:{documentIds:[],amendmentIds:[]}})),null,'a vote with no document of its own has no text');
+ assert.equal(voteProvision(vote({title:null,context:{documentIds:['PV-10-2026-03-11-RCV-ITM-016'],amendmentIds:[]}})),null);
 });

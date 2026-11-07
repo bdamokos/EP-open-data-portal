@@ -68,3 +68,28 @@ test('the provision reply holds its exact wording only, without the number',()=>
   const broken=motionText(motion);broken.paragraphSources[4]={...broken.paragraphSources[4],complete:false};
   assert.equal(documentProvisionReply(provisionContext(broken),'paragraph:1').text,null,'an incomplete row has no text');
 });
+test('a report whose texts restart at 1 has no text for a bare number',()=>{
+  const reply=paragraphs=>documentProvisionReply(provisionContext(motionText(paragraphs)),'paragraph:1').text;
+  // The shape of public discharge reports A-10-2026-0050 and 0085: decisions, then the resolution.
+  const decision=['PROPOSAL FOR A EUROPEAN PARLIAMENT DECISION','The European Parliament,','– having regard to the accounts,','1. Grants discharge;'];
+  const resolution=['MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION','The European Parliament,','– having regard to its decision,','1. Notes the accounts;'];
+  assert.equal(reply(resolution),'Notes the accounts;','one text says which');
+  assert.equal(reply([...decision,...resolution]),null);
+  assert.equal(reply([...resolution,...decision]),null);
+});
+test('a citation counts from the opening, so any doubt before it means no text',()=>{
+  const citations=['The European Parliament,','– having regard to the first,','– having regard to the second,','– having regard to the third,','A. whereas one;','1. Calls on the Commission;','2. Stresses;'];
+  const reply=(text,provision)=>documentProvisionReply(provisionContext(text),provision).text;
+  assert.equal(reply(motionText(citations),'citation:1'),'having regard to the first,');
+  assert.equal(reply(motionText(citations),'citation:3'),'having regard to the third,');
+  const incomplete=(index,paragraphs=citations)=>{const text=motionText(paragraphs);text.paragraphSources[index]={...text.paragraphSources[index],complete:false};return text;};
+  assert.equal(reply(incomplete(1),'citation:1'),null,'an incomplete first citation would shift the second into its number');
+  assert.equal(reply(incomplete(2),'citation:2'),null);
+  assert.equal(reply(incomplete(3),'citation:1'),'having regard to the first,','a later break casts no doubt on what came well before');
+  assert.equal(reply(incomplete(3),'citation:2'),null,'the row just before a break has no certain end');
+  const undashed=['The European Parliament,','– having regard to the first,','Having regard to an undashed one,','– having regard to the third,','A. whereas one;','1. Calls;'];
+  assert.equal(reply(motionText(undashed),'citation:2'),null,'a row the count skips shifts what follows');
+  assert.equal(reply(incomplete(5),'citation:1'),'having regard to the first,','an incomplete paragraph 1 does not hide citation 1');
+  assert.equal(reply(incomplete(5),'paragraph:1'),null);
+});
+

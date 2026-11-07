@@ -16,7 +16,7 @@ export function fullDate(value:string,language?:string):string;
 export function dayDate(value:string,language?:string):string;
 export function shortDate(value:string,language?:string):string;
 export function clockTime(value:string,language?:string):string;
-export function voteProvision(vote:Pick<DecisionVoteSibling,'scope'|'referenceTexts'>&{title?:string|null;context?:{amendmentIds?:string[];documentIds?:string[]}},subject?:{documentIds?:string[]}|null):{documentId:string;provision:string}|null;
+export function voteProvision(vote:Pick<DecisionVoteSibling,'scope'|'referenceTexts'>&{title?:string|null;context?:{amendmentIds?:string[];documentIds?:string[]}}):{documentId:string;provision:string}|null;
 export function voteReferenceLabel(vote:Pick<DecisionVoteSibling,'referenceTexts'>,language?:string):string|null;
 export function voteNumbers(vote:Pick<DecisionVoteSibling,'context'|'parts'>):{n:string|null;p:string|null};
 export function voteRowLabel(vote:RowVote,language?:string,ui?:Formatter,options?:{mainVoteId?:string|null}):string;

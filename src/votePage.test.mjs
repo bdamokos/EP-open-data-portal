@@ -337,6 +337,14 @@ test('a part of a report paragraph shows the wording with its words bracketed, a
  assert.equal(h.container.querySelector('.member-votes-part'),null,'the boxed block is gone');
  assert(!/Split vote/.test(h.container.textContent));
 });
+test('a vote with no document of its own asks for no wording, whatever its item holds',async t=>{
+ const data=await paragraphVote(),seen=[];
+ const unlinked={...data,decision:{...data.decision,title:'§ 10',context:{...data.decision.context,documentIds:[]}}};
+ const h=await mount(t,withProvision(unlinked,paragraph,seen));
+ assert.deepEqual(seen,[]);
+ assert.equal(h.container.querySelector('.clause-text'),null);
+ assert.match(text(h.container.querySelector('.clause-part.this')),/^Part 2: those words\..*This vote\.$/);
+});
 test('without wording the key alone says which part this vote is, with no note',async t=>{
  const data=await paragraphVote();
  const h=await mount(t,withProvision(data,null));

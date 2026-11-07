@@ -201,21 +201,21 @@ export function itemVoteSections(votes,mainVoteId=null) {
   return [{key:'counted',votes:counted},{key:'hands',votes:hands},{key:'no_count',votes:noCount},{key:'lapsed',votes:lapsed},{key:'not_held',votes:notHeld}].filter(section=>section.votes.length);
 }
 const provisionForms=[[/^§\s*([1-9]\d{0,4}[a-z]{0,3})$/u,match=>'paragraph:'+match[1]],[/^§\s*([1-9]\d{0,4}[a-z]{0,3}), point ([a-z]{1,4})$/u,match=>'point:'+match[1]+':'+match[2]],[/^Recital ([A-Z]{1,3})$/u,match=>'recital:'+match[1]],[/^Citation ([1-9]\d{0,4})$/u,match=>'citation:'+match[1]]];
-/** The provision of a report or motion this vote is on, from its exact reference and its one
+/** The provision of a report or motion this vote is on, from its exact reference and its own one
  * document. A vote on an amendment to the provision has the amendment's wording instead. */
-export function voteProvision(vote,subject=null) {
+export function voteProvision(vote) {
   if(!['split-part','unclassified'].includes(vote.scope?.kind)||vote.context?.amendmentIds?.length)return null;
   const reference=vote.referenceTexts?.en?.trim()??'',form=provisionForms.map(([pattern,build])=>{const match=pattern.exec(reference);return match&&build(match);}).find(Boolean);
-  const documentId=form?voteDocument(vote,subject):null;
+  const documentId=form?voteDocument(vote):null;
   return documentId?{documentId,provision:form}:null;
 }
-// The vote's title names its document when it can; a joint motion stands for the motions it replaced.
-function voteDocument(vote,subject) {
-  const documents=unique([...(vote.context?.documentIds||[]),...(subject?.documentIds||[])]).filter(id=>/^(?:A|B|RC)-\d+-\d{4}-\d{4,6}$/u.test(id));
+// Only the vote's own links count. Its title decides among several and must agree with them;
+// several documents and no name in the title could mean any of them.
+function voteDocument(vote) {
+  const documents=unique(vote.context?.documentIds||[]).filter(id=>/^(?:A|B|RC)-\d+-\d{4}-\d{4,6}$/u.test(id));
   const named=/^(RC-)?([AB])(\d+)-(\d{4,6})\/(\d{4})\b/u.exec(vote.title||''),titled=named?(named[1]?'RC':named[2])+'-'+named[3]+'-'+named[5]+'-'+named[4]:null;
-  if(titled&&documents.includes(titled))return titled;
-  const joint=documents.filter(id=>id.startsWith('RC-'));
-  return joint.length===1?joint[0]:documents.length===1?documents[0]:null;
+  if(titled)return documents.includes(titled)?titled:null;
+  return documents.length===1?documents[0]:null;
 }
 /** A vote's place in the text, for the heading over its wording or parts. */
 export function voteReferenceLabel(vote,language='en') {
