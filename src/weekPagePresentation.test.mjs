@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createAppUiI18n} from './uiCatalogues.mjs';
-import {agendaOpensWeekPage,comingSlots,comingSummary,debateDateFor,highlightCells,itemCells,pastCounts,pressDate,reasonLine,resultRows,sittingRangeLabel,slotTime,storyText,tallyWords,validWeekPageResults,validWeekStory,voteDateFor,weekNeighbours} from './weekPagePresentation.mjs';
+import {agendaOpensWeekPage,foldFacts,weekItemRoute,comingSlots,comingSummary,debateDateFor,highlightCells,itemCells,pastCounts,pressDate,reasonLine,resultRows,sittingRangeLabel,slotTime,storyText,tallyWords,validWeekPageResults,validWeekStory,voteDateFor,weekNeighbours} from './weekPagePresentation.mjs';
 
 const ui=createAppUiI18n().forLocale('en');
 const topic=(id,kind,extra={})=>({id,kind,title:id,titleLanguage:'en',date:id.slice(7,17),sittingId:id.slice(0,17),order:0,documentIds:[],procedureIds:[],evidence:{containerId:id.slice(0,17)+'-TF-1100'},...extra});
@@ -160,4 +160,24 @@ test('contract checks turn a malformed reply into no stories rather than a crash
  assert.equal(validWeekStory(null),false);
  assert.equal(validWeekPageResults({items:[],unlinked:[]}),true);
  assert.equal(validWeekPageResults({items:[]}),false,'an older reply has no unlinked list');
+});
+
+test('a fold\'s dates and counts come only from the reply and the agenda, and unknown stays null',()=>{
+ const row=(id,kind,extra={})=>({id,kind,date:id.slice(7,17),sittingId:id.slice(0,17),documentIds:[],procedureIds:['2025-0223'],agendaCreatorIds:[],...extra});
+ const debate=row('MTG-PL-2026-11-11-OJ-ITM-D-1','PLENARY_DEBATE'),vote=row('MTG-PL-2026-11-12-OJ-ITM-V-1','PLENARY_VOTE');
+ const reply={procedures:[{id:'2025-0223'}],documents:[{id:'A-10-2026-0271',amendments:366,votingList:{sittingId:'MTG-PL-2026-11-12',rows:51}}],debated:null};
+ assert.deepEqual(foldFacts(reply,debate,[debate]),{voteDate:'2026-11-12',debateDate:null,amendments:366,amendmentTarget:{document:'A-10-2026-0271'},listRows:51},'the voting list dates the vote of a debate with no vote row');
+ assert.equal(foldFacts({...reply,documents:[]},debate,[debate,vote]).voteDate,'2026-11-12','an agenda vote on the same procedure');
+ assert.equal(foldFacts(reply,vote,[debate,vote]).voteDate,null,'a vote row sits in its own slot');
+ assert.equal(foldFacts(reply,vote,[debate,vote]).debateDate,'2026-11-11');
+ assert.equal(foldFacts({...reply,debated:'2026-10-20'},vote,[vote]).debateDate,'2026-10-20','a debate at an earlier session');
+ const two={procedures:[{id:'2025-0223'}],documents:[{id:'A-10-2026-0271',amendments:2,votingList:null},{id:'A-10-2026-0272',amendments:null,votingList:null}],debated:null};
+ assert.deepEqual(foldFacts(two,debate,[debate]),{voteDate:null,debateDate:null,amendments:2,amendmentTarget:{procedure:'2025-0223'},listRows:null},'several reports link the procedure\'s amendments');
+ assert.deepEqual(foldFacts(null,debate,[debate]),{voteDate:null,debateDate:null,amendments:null,amendmentTarget:null,listRows:null});
+});
+test('the fold route carries exact identifiers and reports alone, and there is none without any',()=>{
+ const topic=(procedureIds,documentIds)=>({procedureIds,documentIds});
+ const query=new URL(weekItemRoute(topic(['2025-0223'],['C-10-2025-0174','A-10-2026-0271']),['MTG-PL-2026-11-12','MTG-PL-2026-11-11'],'fr'),'http://x').searchParams;
+ assert.deepEqual(Object.fromEntries(query),{procedures:'2025-0223',documents:'A-10-2026-0271',sittings:'MTG-PL-2026-11-11,MTG-PL-2026-11-12',lang:'fr'});
+ assert.equal(weekItemRoute(topic([],['C-10-2025-0174']),[]),null);
 });

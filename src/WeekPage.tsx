@@ -1,23 +1,25 @@
 import type {MouseEvent,ReactNode} from 'react';
+import {amendmentHref} from './amendmentModel.mjs';
 import {FoldRow} from './FoldRow';
+import {groupLabel} from './groupLabels';
 import {useInsightData} from './InsightData';
 import {useData} from './data';
 import {dossierLinkClick} from './dossierJourney';
 import {dossierHref} from './followDossiers.mjs';
 import {PageStrip,StripLink} from './PageStrip';
+import {PersonName} from './PersonName';
 import {validateVotePeriods,type VotePeriodsResponse} from './plenaryPeriods.mjs';
 import {documentReferenceLabel,readableDocument,readHref} from './readRoute.mjs';
 import {UiMessage,useUiI18n} from './UiI18nReact';
 import {TallyHeads,TotalsFigures,VoteRow} from './VoteRow';
 import {agendaItemHref,dayDate,longDate,voteHref} from './votePagePresentation.mjs';
-import {procedureReferences,validWeekResults,weekResultsRoute} from './weekSummaryPresentation.mjs';
-import {comingSlots,comingSummary,counted,highlightCells,pastCounts,pressDate,reasonLine,resultRows,rowAnchor,storyText,validWeekPageResults,validWeekStory,voteDateFor,weekHref,weekNeighbours,weekRoute,weekStoryRoute,type WeekDay} from './weekPagePresentation.mjs';
-import type {AgendaTopic,LegislationNavigationResponse,LegislationResponse,WeekResultsResponse,WeekStoryResponse,WeekStoryStory} from './LegislationTypes';
+import {validWeekResults,weekResultsRoute} from './weekSummaryPresentation.mjs';
+import {comingSlots,comingSummary,counted,foldFacts,highlightCells,itemHasFacts,pastCounts,pressDate,pressFullDate,reasonLine,resultRows,rowAnchor,storyText,validWeekItem,validWeekPageResults,validWeekStory,voteDateFor,weekHref,weekItemRoute,weekNeighbours,weekRoute,weekStoryRoute,type WeekDay} from './weekPagePresentation.mjs';
+import type {AgendaTopic,LegislationNavigationResponse,LegislationResponse,WeekItemLine,WeekItemResponse,WeekResultsResponse,WeekStoryResponse,WeekStoryStory} from './LegislationTypes';
 import './VoteSystem.css';
 import './WeekPage.css';
 
 type Day=NonNullable<LegislationResponse['agendaSittings']>[number];
-const fullReference=/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/;
 const VOTE_BLOCK='week-votes';
 
 function jump(event:MouseEvent<HTMLAnchorElement>,id:string) {
@@ -25,7 +27,6 @@ function jump(event:MouseEvent<HTMLAnchorElement>,id:string) {
   document.getElementById(id)?.scrollIntoView({block:'start'});
 }
 const withCommas=(parts:ReactNode[])=>parts.filter(Boolean).flatMap((part,index)=>index?[', ',part]:[part]);
-const agendaItemRoute=(topic:AgendaTopic,language:string)=>'insights/legislation?'+new URLSearchParams({lang:language,sitting:topic.sittingId||topic.id.slice(0,17),topic:topic.id});
 
 function PressLine({press,date,voteId,language}:{press:WeekStoryStory['press'];date:string|null;voteId?:string|null;language:string}) {
   return <p className="press">
@@ -104,31 +105,55 @@ function Debates({days,topics,language}:{days:Day[];topics:AgendaTopic[];languag
   </section>;
 }
 
-// The agenda names a procedure by year and number. The dossier route needs its
-// exact full reference, which only the item's own record holds, so it is read when the fold opens.
-function ItemReferences({topic,language}:{topic:AgendaTopic;language:string}) {
-  const item=useInsightData<LegislationResponse>(topic.procedureIds.length?agendaItemRoute(topic,language):null);
-  const procedures=item.data?.detail?.procedures||[];
-  return <>
-    <ul className="refs">
-      {procedureReferences(topic).map((short,index)=>{
-        const reference=procedures.find(row=>row.id===topic.procedureIds[index])?.reference;
-        return <li key={short}>{reference&&fullReference.test(reference)?<a href={dossierHref(reference,language)} onClick={dossierLinkClick}>{reference}</a>:short}</li>;
-      })}
-      {topic.documentIds.map(id=><li key={id}>{readableDocument(id)?<a href={readHref({documentId:id,language})} onClick={dossierLinkClick}>{documentReferenceLabel(id)}</a>:documentReferenceLabel(id)}</li>)}
-    </ul>
-    <p className="open-item"><a className="c" href={agendaItemHref(topic.id,language)} onClick={dossierLinkClick}><UiMessage id="week.open_item"/></a></p>
-  </>;
+function StandingLine({line,language}:{line:WeekItemLine;language:string}) {
+  const {date,tally,committees}=line.values||{},values:Record<string,ReactNode>={};
+  if(date)values.date=longDate(date,language);
+  if(tally)values.tally=<UiMessage id="dossierstatus.tally" values={{for:tally.for,against:tally.against,abstaining:tally.abstaining}}/>;
+  if(committees?.length)values.committee=<span lang={committees[0].language||language}>{new Intl.ListFormat(language,{style:'long',type:'conjunction'}).format(committees.map(row=>row.name===row.code?row.code:row.name+' ('+row.code+')'))}</span>;
+  // The shared sentence has one committee's report; a joint report is theirs.
+  return <p className="standing"><UiMessage id={line.id==='dossierstatus.reported'&&committees&&committees.length>1?'week.fold.reported_joint':line.id} values={values}/></p>;
 }
-function ComingDay({day,topics,language,voteBlockAt,retry}:{day:Day;topics:AgendaTopic[];language:string;voteBlockAt:string|null;retry:()=>void}) {
+// What a reader wants to know about a coming item, from a small reply read when the fold first opens.
+function ItemFacts({topic,topics,sittingIds,language}:{topic:AgendaTopic;topics:AgendaTopic[];sittingIds:string[];language:string}) {
+  const ui=useUiI18n(),route=weekItemRoute(topic,sittingIds,language),read=useInsightData<WeekItemResponse>(route);
+  const item=validWeekItem(read.data)?read.data:null,facts=foldFacts(item,topic,topics);
+  const documents=[...new Set([...topic.documentIds,...(item?.documents.map(row=>row.id)||[])])].filter(readableDocument);
+  const people=withCommas((item?.rapporteurs||[]).map(person=><span key={person.id}>{person.currentMep?<a href={'?'+new URLSearchParams({lang:language,member:person.id,module:'profile'})}><PersonName id={person.id} label={person.name} fallback={person.name}/></a>:<PersonName id={person.id} label={person.name} fallback={person.name}/>}{person.group&&<> ({groupLabel(person.group,ui)})</>}</span>));
+  const press=item?.press;
+  return <div className="facts">
+    {route&&read.loading&&!item&&<p role="status"><UiMessage id="insightshared.loading"/></p>}
+    {route&&!read.loading&&!item&&<p role="alert"><UiMessage id="week.fold.unavailable"/></p>}
+    {item?.procedures.map(procedure=><p key={procedure.id} className="kind">
+      {procedure.code&&<span><UiMessage id={'week.kind.'+procedure.code}/></span>}
+      <a href={dossierHref(procedure.reference,language)} onClick={dossierLinkClick}>{procedure.reference}</a>
+    </p>)}
+    {people.length>0&&<p className="rapporteurs"><UiMessage id={people.length===1?'week.fold.rapporteur':'week.fold.rapporteurs'} values={{names:<>{people}</>}}/></p>}
+    {item?.standing.map(line=><StandingLine key={line.id} line={line} language={language}/>)}
+    {(facts.voteDate||facts.debateDate||facts.amendments||facts.listRows)&&<ul className="refs">
+      {facts.voteDate&&<li><UiMessage id="week.debate.vote" values={{date:dayDate(facts.voteDate,language)}}/></li>}
+      {facts.debateDate&&<li><UiMessage id="week.fold.debate" values={{date:longDate(facts.debateDate,language)}}/></li>}
+      {facts.amendments&&<li>{facts.amendmentTarget?<a href={amendmentHref(window.location.pathname,{...facts.amendmentTarget,language})}><UiMessage id="week.fold.amendments" values={{count:facts.amendments}} counts={{count:facts.amendments}}/></a>:<UiMessage id="week.fold.amendments" values={{count:facts.amendments}} counts={{count:facts.amendments}}/>}</li>}
+      {facts.listRows&&<li><UiMessage id="week.fold.list_rows" values={{count:facts.listRows}} counts={{count:facts.listRows}}/></li>}
+    </ul>}
+    {press&&<p className="pressline">{(()=>{
+      const title=<a href={press.url} target="_blank" rel="noreferrer" lang="en">{press.title}</a>,date=pressFullDate(press.publishedAt,language);
+      return date?<UiMessage id="week.fold.press" values={{date,title}}/>:<UiMessage id="week.fold.press_undated" values={{title}}/>;
+    })()}</p>}
+    <ul className="refs item-links">
+      {documents.map(id=><li key={id}><a href={readHref({documentId:id,language})} onClick={dossierLinkClick}>{documentReferenceLabel(id)}</a></li>)}
+      <li className="open-item"><a className="c" href={agendaItemHref(topic.id,language)} onClick={dossierLinkClick}><UiMessage id="week.open_item"/></a></li>
+    </ul>
+  </div>;
+}
+function ComingDay({day,topics,sittingIds,language,voteBlockAt,retry}:{day:Day;topics:AgendaTopic[];sittingIds:string[];language:string;voteBlockAt:string|null;retry:()=>void}) {
   const own=topics.filter(topic=>topic.sittingId===day.id);
   return <section className="day coming" data-week-day={day.id}>
     <div className="heads static"><span className="main"><h3>{dayDate(day.date,language)}</h3></span></div>
     {day.agendaError?<AgendaFailed retry={retry}/>:!own.length&&<p className="note"><UiMessage id="legislation.agenda_not_yet_published.c9e27b"/></p>}
     {comingSlots(own).map(slot=><div key={slot.key}>
       <div className="slot" id={slot.key===voteBlockAt?VOTE_BLOCK:undefined}><span className="gut">{slot.time}</span><b><UiMessage id={slot.kind==='votes'?'week.slot.votes':'week.slot.debates'}/></b></div>
-      {slot.topics.map(topic=>topic.procedureIds.length||topic.documentIds.length
-        ?<FoldRow key={topic.id} id={rowAnchor(topic.id)} title={<span lang={topic.titleLanguage??''}>{topic.title}</span>}><ItemReferences topic={topic} language={language}/></FoldRow>
+      {slot.topics.map(topic=>itemHasFacts(topic)
+        ?<FoldRow key={topic.id} id={rowAnchor(topic.id)} title={<span lang={topic.titleLanguage??''}>{topic.title}</span>}><ItemFacts topic={topic} topics={topics} sittingIds={sittingIds} language={language}/></FoldRow>
         :<div className="itemrow" key={topic.id} id={rowAnchor(topic.id)}><span className="t" lang={topic.titleLanguage??''}>{topic.title}</span></div>)}
     </div>)}
   </section>;
@@ -205,7 +230,7 @@ export function WeekPage({week,language}:{week:string|null;language:string}) {
       {resultsFailed&&<p className="note"><UiMessage id="weekSummary.resultsUnavailable"/></p>}
       {past.map(day=><ResultDay key={day.id} day={day} topics={topics} results={results} language={language} pressUrls={story?.press??{}} retry={agenda.retry}/>)}
     </section>}
-    {ahead.map(day=><ComingDay key={day.id} day={day} topics={aheadTopics} language={language} voteBlockAt={voteBlockAt} retry={agenda.retry}/>)}
+    {ahead.map(day=><ComingDay key={day.id} day={day} topics={topics} sittingIds={ahead.map(row=>row.id)} language={language} voteBlockAt={voteBlockAt} retry={agenda.retry}/>)}
     <Debates days={past} topics={topics} language={language}/>
   </>);
 }
