@@ -16,7 +16,7 @@ export function dataTimeoutFor(route) {
   if (path.startsWith('profile/')) return 40_000;
   if (path.startsWith('member-vote-explanations/')) return 35_000;
   if (/^(directory$|vote-periods$|speeches\/|activities\/|speech-statistics\/|speech\/|document\/|document-context\/|provisional-agreement\/|commission-followups\/|member-votes\/|decision-votes\/|member-attendance\/|speech-media\/|references$|reference-summary$|source-record$)/.test(path)) return 35_000;
-  if (/^insights\/(questions|speech-cloud|procedure-context|procedure-progress|press-releases|topic-trends|legislation|participation|week-results|dossier-activity|dossier-references)$/.test(path)) return 35_000;
+  if (/^insights\/(questions|speech-cloud|procedure-context|procedure-progress|press-releases|topic-trends|legislation|participation|week-results|week-story|dossier-activity|dossier-references)$/.test(path)) return 35_000;
   return 8_000;
 }
 

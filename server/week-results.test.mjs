@@ -31,7 +31,7 @@ test('the response stays small and keeps the sitting order of the snapshot',()=>
 test('a week with no snapshot has a place and no results',async()=>{
   const reads=[];
   const result=await weekResults({week:'2026-11-09'},{clock:()=>Date.parse('2026-11-06T10:00:00Z'),periods:{collect:async()=>({weeks:[{week:'2026-11-09',sittings:[{location:'Brussels'},{location:'Brussels'}]}]})},votes:{snapshot:async query=>{reads.push(query);}}});
-  assert.deepEqual(result,{version:1,week:'2026-11-09',location:'Brussels',days:[],items:[]});
+  assert.deepEqual(result,{version:2,week:'2026-11-09',location:'Brussels',days:[],items:[],unlinked:[]});
   assert.deepEqual(reads,[]);
 });
 
@@ -83,4 +83,24 @@ test('a sitting with partial records has unknown counts and contributes no items
   assert.deepEqual(result.days[0],{sittingId:'MTG-PL-2026-10-07',complete:false,voteCount:null,rollCallCount:null,notConducted:null});
   assert.equal(result.days[1].complete,true);
   assert.deepEqual(result.items,[]);
+});
+test('v2 exposes single-vote summaries and unlinked decisions without losing lapsed counts',()=>{
+ const result=projectWeekResults({week:'2026-10-05'},{days},null);
+ assert.equal(result.version,2);
+ const single=result.items.find(item=>!item.main&&item.voteCount===1);assert.equal(single.summary.kind,'single');assert.equal(typeof single.summary.vote.id,'string');
+ assert(result.unlinked.some(item=>item.sittingId==='MTG-PL-2026-10-05'));
+ const multiple=structuredClone(days),singleDay=multiple[0];
+ // Clone the single-vote item's decision to four non-main decisions, forcing
+ // outcome counts regardless of the one-counted-sibling exception.
+ const decision=singleDay.decisions.find(row=>row.activity_id===single.summary.vote.id);
+ assert(decision);
+ for(let i=1;i<=3;i++) {
+  const raw=structuredClone(decision);raw.activity_id+='-fixture'+i;
+  raw.id=raw.id.replace(/[^/]+$/,raw.activity_id);raw.decision_outcome='def/ep-statuses/LAPSED';
+  singleDay.decisions.push(raw);
+ }
+ const counts=projectWeekResults({week:'2026-10-05'},{days:multiple},null).items.find(item=>item.agendaItemId===single.agendaItemId);
+ assert.equal(counts.summary.kind,'counts');
+ assert.equal(counts.summary.lapsed,4);
+ assert.equal(counts.summary.adopted+counts.summary.rejected+counts.summary.lapsed+counts.summary.unknown,counts.voteCount);
 });

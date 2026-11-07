@@ -2,10 +2,11 @@ import {HttpError} from './http-utils.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
 import {memberVotes,memberVotesQuery} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
+import {itemVoteSummary} from './week-result-summary.mjs';
 import {mainVote} from './main-vote.mjs';
 import {votePeriods} from './vote-periods.mjs';
 
-export const WEEK_RESULTS_VERSION=1;
+export const WEEK_RESULTS_VERSION=2;
 // Nobody holds this identifier; the projection then never withholds a decision.
 const NO_MEMBER='0';
 const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
@@ -27,31 +28,35 @@ function weekLocation(calendar,week) {
 // Totals and main vote per agenda item, from the bounded sitting snapshot the
 // member records already read. Items join to subjects by exact identifier.
 export function projectWeekResults(query,snapshot,location) {
-  const days=[],items=new Map();
+  const days=[],items=new Map(),unlinked=[];
   for(const day of snapshot?.days||[]) {
     // A sitting whose records are partial or still pending gives no counts: a
     // surviving subset would read as the whole day.
     if(day.coverage?.state!=='complete'){days.push({sittingId:day.sittingId,complete:false,voteCount:null,rollCallCount:null,notConducted:null});continue;}
     const {items:decisions,subjects}=projectMemberSitting(day,NO_MEMBER);
+    for(const decision of decisions)if(!decision.context.agendaItemIds.length)unlinked.push({id:decision.id,sittingId:day.sittingId,titles:decision.titles,outcome:decision.outcome,method:decision.method,totals:decision.totals});
     const status=value=>decisions.filter(decision=>decision.ballotStatus===value).length;
     days.push({sittingId:day.sittingId,complete:true,voteCount:status('conducted'),rollCallCount:decisions.filter(decision=>decision.namedVoters.available).length,notConducted:status('not-conducted')});
     for(const subject of subjects) {
       const own=decisions.filter(decision=>decision.subjectId===subject.id);
       const main=mainVote(decisions,subject);
       for(const agendaItemId of own.length?subject.agendaItemIds:[]) {
-        const entry=items.get(agendaItemId)||{agendaItemId,voteCount:0,mains:new Map()};
+        const entry=items.get(agendaItemId)||{agendaItemId,voteCount:0,mains:new Map(),decisions:new Map()};
         entry.voteCount+=own.length;
+        for(const decision of own)entry.decisions.set(decision.id,decision);
         if(main)entry.mains.set(main.id,main);
         items.set(agendaItemId,entry);
       }
     }
   }
   return {
-    version:WEEK_RESULTS_VERSION,week:query.week,location,days,
+    version:WEEK_RESULTS_VERSION,week:query.week,location,days,unlinked,
     // Several subjects with different main votes leave the item without one.
-    items:[...items.values()].sort((a,b)=>a.agendaItemId.localeCompare(b.agendaItemId)).map(({agendaItemId,voteCount,mains})=>{
+    items:[...items.values()].sort((a,b)=>a.agendaItemId.localeCompare(b.agendaItemId)).map(({agendaItemId,voteCount,mains,decisions})=>{
       const main=mains.size===1?[...mains.values()][0]:null;
-      return {agendaItemId,voteCount,main:main&&{id:main.id,outcome:main.outcome,method:main.method,totals:main.totals}};
+      const rows=[...decisions.values()];
+      const summary=itemVoteSummary(rows,main);
+      return {agendaItemId,voteCount,summary,main:main&&{id:main.id,outcome:main.outcome,method:main.method,totals:main.totals}};
     }),
   };
 }
