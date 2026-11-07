@@ -756,3 +756,48 @@ test('parser upgrades immediately requeue never-collected rejections at every ag
   const c=cases[0];h.store.db.prepare("UPDATE sitting_snapshots SET next_check=? WHERE kind='debate' AND id=?").run(next,c.id);
   h.collector.admit();assert.equal(read.get(c.kind,c.id).next_check,next);
 });
+
+test('a failed refresh keeps a final sitting in the voting-record backfill and one unreadable sitting does not block the rest',async t=>{
+  const h=setup(t);await drain(h);
+  const clear=()=>h.store.db.exec('DELETE FROM member_vote_record_members;DELETE FROM member_vote_record_sittings;DELETE FROM member_vote_record_totals;');
+  clear();h.collector.projectionCheckAt=null;
+  h.store.db.prepare("UPDATE sitting_snapshots SET error='Exact sitting metadata unavailable.' WHERE kind='votes' AND id=?").run(SNAPSHOT_SITTING);
+  assert(h.collector.backfillProjection(),'the last good body is projected');
+  assert.equal(h.store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_sittings WHERE sitting_id=?').get(SNAPSHOT_SITTING).n,1);
+  assert.equal(h.collector.backfillProjection(),false,'nothing is left to project');
+
+  clear();h.collector.projectionCheckAt=null;
+  h.store.db.prepare("UPDATE sitting_snapshots SET body=x'00' WHERE kind='votes' AND id=?").run(SNAPSHOT_SITTING);
+  assert.equal(h.collector.backfillProjection(),false);
+  assert.equal(h.collector.projectionBacklog(),null,'the unreadable sitting is skipped, not retried at the head of the queue');
+  assert(!h.collector.due()||h.collector.projectionBacklog()===null,'a skipped sitting does not keep the worker busy');
+  h.advance(60*60_000+1);h.collector.projectionCheckAt=null;
+  assert.equal(h.collector.projectionBacklog(),SNAPSHOT_SITTING,'it is tried again after the cooldown');
+  assert.equal(h.collector.backfillProjection(),false);
+  h.advance(60*60_000+1);h.collector.projectionCheckAt=null;
+  assert.equal(h.collector.projectionBacklog(),null,'a second failure doubles the cooldown');
+  h.advance(60*60_000);h.collector.projectionCheckAt=null;
+  assert.equal(h.collector.projectionBacklog(),SNAPSHOT_SITTING);
+});
+
+test('a sitting that never became complete is projected from its stored voting records, and a due snapshot job does not hold projection back',async t=>{
+  const h=setup(t);await drain(h);
+  const projected=()=>h.store.db.prepare('SELECT status FROM member_vote_record_sittings WHERE sitting_id=?').get(SNAPSHOT_SITTING)?.status;
+  assert.equal(projected(),'projected');
+  const clear=()=>h.store.db.exec('DELETE FROM member_vote_record_members;DELETE FROM member_vote_record_sittings;DELETE FROM member_vote_record_totals;');
+  // Complete voting records with an unfinished agenda leave the snapshot incomplete.
+  clear();h.collector.projectionCheckAt=null;
+  h.store.db.prepare("UPDATE sitting_snapshots SET complete=0 WHERE kind='votes' AND id=?").run(SNAPSHOT_SITTING);
+  assert(h.collector.backfillProjection());
+  assert.equal(projected(),'projected');
+  // Another job is due, yet a worker loop still gives projection its turn.
+  clear();h.collector.projectionCheckAt=null;
+  h.store.db.prepare("UPDATE sitting_snapshots SET next_check=0 WHERE kind='agenda' AND id=?").run(SNAPSHOT_SITTING);
+  assert(h.collector.writer.hasDue(h.clock()),'a snapshot job is due');
+  assert.equal(h.collector.projectionTurn(),1);
+  assert.equal(projected(),'projected');
+  clear();h.collector.projectionCheckAt=null;
+  h.worker.budget=0;// no request allowance left: snapshot jobs cannot run, projection still does
+  await h.worker.run();
+  assert.equal(projected(),'projected','the worker loop projects before spending its turn on the due job');
+});

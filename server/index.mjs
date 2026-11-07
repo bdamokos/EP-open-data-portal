@@ -34,6 +34,7 @@ import {memberVotes,memberVotesQuery,MEMBER_VOTES_PERIOD_RESPONSE_BYTES} from '.
 import {decisionVotes,decisionVotesQuery} from './decision-votes.mjs';
 import {memberAttendance,memberAttendanceQuery} from './member-attendance.mjs';
 import {memberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
+import {memberVoteRecord,memberVoteRecordQuery,memberVoteRecordLanguage} from './member-vote-record.mjs';
 import {documentPages} from './document-pages.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
 import {amendmentNeighbours,amendmentNeighboursQuery} from './amendment-neighbours.mjs';
@@ -135,7 +136,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 
 // Browser transport for this app. The gateway admits the same finite route set.
 let diagnosticWindow=0,diagnosticCount=0;
-const apiEndpoints=new Set(['hemicycle','voting-lists','upcoming-votes','ballot-comparisons','client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','amendment-neighbours','provisional-agreement','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['hemicycle','voting-lists','upcoming-votes','ballot-comparisons','client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','amendment-neighbours','provisional-agreement','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','member-vote-record','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  if(!allowCrossOriginRead(request,response))assertSameOrigin(request);
@@ -231,6 +232,10 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments[0] === 'member-votes' && segments.length===2) {
       result=await memberVotes.query(positiveId(segments[1]),memberVotesQuery(url.searchParams));
+    }
+    else if (segments[0] === 'member-vote-record' && segments.length===2) {
+      const query={...memberVoteRecordQuery(url.searchParams),language:memberVoteRecordLanguage(url.searchParams)};
+      result=memberVoteRecord.query(positiveId(segments[1]),query);
     }
     else if (segments[0] === 'upcoming-votes' && segments.length===1) {
       result=await upcomingVotes(upcomingVotesQuery(url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});

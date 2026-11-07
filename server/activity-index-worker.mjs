@@ -927,6 +927,8 @@ export class ActivityWorker {
         await projectionYield(undefined,{signal:this.controller.signal});
       }
       await this.fillProjectionBatch();
+      // Voting-record projection needs no request, so it takes a turn here whatever else is due.
+      this.sittingSnapshots?.projectionTurn?.();
       // Persist the optional lane's share across one-request iterations.
       const bodyTurn=Number(this.store.get('documentBodyTurn')||0)+1;
       this.store.set('documentBodyTurn',bodyTurn);
@@ -1074,6 +1076,8 @@ export class ActivityWorker {
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           if(cycle&&this.store.get('working')){this.scheduleRecovery(generation);scheduleDeclaredDebateRecovery(this,generation);scheduleWebsiteRechecks(this.store,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
+          // One voting-record projection step per core task: it needs no request, so it neither spends budget nor waits for jobs.
+          this.sittingSnapshots?.projectionTurn?.(0);
           if(++sittingSnapshotTurn%8===0){await this.fillProjectionBatch();if(this.documentBodies.due())await this.documentBodies.step(this,{requestBudget:1});if(this.requests>=this.budget)break;}
           if(sittingSnapshotTurn%8===0&&this.officialContext?.due()&&this.requests<this.budget&&this.monotonic()<this.runDeadline)await this.officialContext.step(this);
           if(sittingSnapshotTurn%8===0&&this.sittingSnapshots?.due()){

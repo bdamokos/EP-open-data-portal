@@ -4,8 +4,9 @@ import path from 'node:path';
 import {gzipSync,gunzipSync} from 'node:zlib';
 import {absolutePathFromEnvironment,integerFromEnvironment} from './config.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
+import {prepareMemberVoteRecord} from './member-vote-record-store.mjs';
 
-export const SITTING_SNAPSHOT_SCHEMA=1, SITTING_CALENDAR_VERSION=1;
+export const SITTING_SNAPSHOT_SCHEMA=2, SITTING_CALENDAR_VERSION=1;
 export const SNAPSHOT_MAX_BYTES=32*1024*1024;
 export const SITTING_HINT_LIMIT=512;
 export const snapshotDiskLimit=()=>integerFromEnvironment('SITTING_SNAPSHOT_MAX_DISK_MIB',256,16,2048)*1024*1024;
@@ -28,6 +29,7 @@ export function prepareSittingSnapshots(store) {
     CREATE TABLE IF NOT EXISTS sitting_snapshot_staging (
     kind TEXT, version INTEGER, id TEXT, key TEXT, saved_at INTEGER, body BLOB,
     PRIMARY KEY(kind,version,id,key));`);
+  prepareMemberVoteRecord(store);
   store.set('sittingSnapshotSchema',SITTING_SNAPSHOT_SCHEMA);
 }
 
@@ -66,10 +68,11 @@ export class SittingSnapshotReader {
   }
   // retained: ignore the re-check time. lastGood: also keep a complete body whose
   // latest refresh failed, for readers of final records such as past votes.
-  read(kind,version,id,{retained=false,lastGood=false}={}){
+  // partial: with lastGood, also a body that never became complete (its voting records may be).
+  read(kind,version,id,{retained=false,lastGood=false,partial=false}={}){
     try {
       // Filter on metadata before reading or decompressing any payload.
-      const row=this.connection()?.prepare(`SELECT body FROM sitting_snapshots WHERE kind=? AND version=? AND id=? AND complete=1${lastGood?'':' AND error IS NULL AND next_check>?'}`).get(...[kind,version,id,...lastGood?[]:[retained?0:this.clock()]]);
+      const row=this.connection()?.prepare(`SELECT body FROM sitting_snapshots WHERE kind=? AND version=? AND id=?${lastGood&&partial?'':' AND complete=1'}${lastGood?'':' AND error IS NULL AND next_check>?'}`).get(...[kind,version,id,...lastGood?[]:[retained?0:this.clock()]]);
       if(row?.body)return decode(row.body);
     }catch{/* Unavailable/corrupt local evidence falls back to the public reader. */}
     return null;
