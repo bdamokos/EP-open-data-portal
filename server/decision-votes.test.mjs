@@ -156,6 +156,8 @@ test('no vote recorded comes from dated group history minus voters, and is absen
  const without=voteFixture();without.store.db.prepare=()=>({get:()=>undefined,all:()=>[]});
  assert.equal((await without.read()).noRecord,null);
  const hands=voteFixture();for(const key of ['had_voter_favor','had_voter_against','had_voter_abstention'])delete hands.raw[key];
+ const short=voteFixture();short.history.members['555']={...short.history.members['197481']};short.raw.number_of_votes_favor=Number(short.raw.number_of_votes_favor)+1;
+ const partial=await short.read();assert.equal(partial.integrity,'partial');assert.equal(partial.noRecord,null,'a list that disagrees with the totals cannot show absence');
  assert.equal((await hands.read()).noRecord,null,'no named list, nothing to subtract');
 });
 test('debates come from the held procedure, with time and agenda item from the held event, never upstream',async()=>{

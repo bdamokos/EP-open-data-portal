@@ -162,6 +162,12 @@ test('a shared release keeps vote-derived reasons attached to its displayed vote
  ]);
  assert(!story.reasons.some(reason=>reason.value===50));assert.deepEqual(story.keys,['a','b']);
 });
+test('a story keeps the debate row that shares its key with a vote',()=>{
+ const debate={key:'a',id:'debate-a',linked:true,speeches:50,titles:{en:'Debate'},agendaItemIds:['item-a']};
+ const {stories:[story]}=selectWeekStory(storyLists({votes:[vote('a')],speeches:[debate]}),{pressByKey:new Map([['a',{id:'p',url:'press'}]])});
+ assert.deepEqual(story.items.map(row=>row.id),['a','debate-a']);
+ assert.equal(story.vote.id,'a');assert(story.reasons.some(reason=>reason.list==='speeches'));
+});
 test('a story keeps other votes on its procedure and release visible',()=>{
  const main={...vote('a',0),id:'v1',totals:{for:100,against:99,abstaining:0}};
  const other={...vote('a',127),id:'v2',totals:{for:100,against:60,abstaining:0}};
