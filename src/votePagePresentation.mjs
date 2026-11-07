@@ -46,7 +46,9 @@ export function voteRowLabel(vote,language='en',ui=defaultUi,{mainVoteId=null}={
   const {n,p}=voteNumbers(vote),source=referenceText(vote,language),target=(n?source?.replace(/\s[–—-]\s*Am [\d/]+$/u,''):source)||null;
   if(n)return target&&!/^Amendments by/.test(target)?ui.t(p?'votepage.row.part':'votepage.row.amendment',{n,p,target}):ui.t(p?'votepage.centre.part_row':'votepage.centre.amendment',{n,p});
   if(p&&target&&!target.includes('/'))return ui.t('votepage.row.text_part',{target,p});
-  return target||memberVoteLabel(vote,language,ui);
+  if(target)return target;
+  // With no source label, the shared fallback would rebuild the whole amendment's name.
+  return vote.scope?.kind==='split-part'&&!p?ui.t('membervotespresentation.decision'):memberVoteLabel(vote,language,ui);
 }
 /** The word in a row or the chart's centre. Nothing when the record holds no result. */
 export function voteOutcomeWord(vote,ui=defaultUi) {

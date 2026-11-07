@@ -166,6 +166,9 @@ test('a part vote whose part cannot be named takes the source label, never the w
  const unnamed={...base,scope:{kind:'split-part',basis:'exact-component-reference'},parts:[],referenceTexts:{en:'Recital 3 – Am 4/2'}};
  assert.equal(render(voteSentence(unnamed,page)),'Recital 3 – Am 4/2: adopted by 423 to 125, with 32 abstaining.');
  assert.equal(voteRowLabel(unnamed,'en'),'Recital 3 – Am 4/2');
+ const noLabel={...unnamed,referenceTexts:{}};
+ assert.equal(voteRowLabel(noLabel,'en'),'Decision');
+ assert.equal(render(voteSentence(noLabel,page)),'Decision: adopted by 423 to 125, with 32 abstaining.');
  const several={...unnamed,parts:[part('1'),part('2')]};
  assert.equal(render(voteSentence(several,page)),'Recital 3 – Am 4/2: adopted by 423 to 125, with 32 abstaining.');
  assert.equal(render(voteSentence({...unnamed,parts:[part('2')]},page)),'Parliament adopted part 2 of amendment 4 by 423 to 125, with 32 abstaining.');
