@@ -20,8 +20,10 @@
 /* Breakdown: label, then two number columns on the row grid. */
 .mvr-lists { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--s5) var(--gutter); }
 .mvr-lists.single { grid-template-columns:minmax(0,calc(50% - var(--gutter) / 2)); }
+/* Both number columns grow to a head wider than the system column, the same way on every row. */
+.mvr-list { display:grid; grid-template-columns:minmax(0,1fr) repeat(2,minmax(var(--num),max-content)); column-gap:var(--s2); align-content:start; }
 .mvr-list ul { margin:0; padding:0; }
-.vs.mvr .mvr-list .heads,.vs.mvr .mvr-list .row { grid-template-columns:minmax(0,1fr) var(--num) var(--num); }
+.mvr-list ul,.vs.mvr .mvr-list .heads,.vs.mvr .mvr-list .row { display:grid; grid-column:1 / -1; grid-template-columns:subgrid; }
 .vs.mvr .mvr-list .heads { padding-top:var(--s2); }
 .vs.mvr .mvr-list .heads .main,.vs.mvr .mvr-list .row .main { grid-column:1; padding-right:var(--s4); padding-bottom:0; }
 .vs.mvr .mvr-list .n.sh { grid-column:2; grid-row:1; }

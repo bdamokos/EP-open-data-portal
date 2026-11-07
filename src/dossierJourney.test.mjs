@@ -6,7 +6,7 @@ import {freshLoader} from './test-support/viteRunner.mjs';
 
 const origin='/?member=257727&module=activities&lang=en&role=both&country=HU&activity-category=reports&activity-offset=20&activity=reports%3AA-10-2026-0010&ma-view=document&ma-text=A-10-2026-0010';
 const dossier='/?view=legislation&pl-mode=dossier&dossier-ref=2025%2F0176%28COD%29&dossier-person=257727&lang=en';
-async function harness(t) {
+async function harness(t,{pendingAttribute='data-context-pending'}={}) {
   const window=new Window({url:'http://localhost'+origin}),originals=new Map();
   for(const [key,value] of Object.entries({window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true})){
     originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
@@ -19,7 +19,7 @@ async function harness(t) {
     const [language,setLanguage]=journey.useDossierReaderState('source-language','en');latest={language,setLanguage};
     return createElement('main',{className:'explorer'},createElement('h1',null,'Member'),createElement('div',{className:'explorer-profile-body'},
       createElement('section',{className:'explorer-activities'},createElement('article',{id:'activity-row'},createElement('button',{className:'explorer-speech-toggle','aria-expanded':true},'Expanded report'),
-        createElement('section',{className:'document-context-reader','data-context-pending':readerPending?'true':undefined},createElement('p',null,'Exact source text'),createElement('p',{id:'selected-reader-language'},language),
+        createElement('section',{className:'document-context-reader',[pendingAttribute]:readerPending?'true':undefined},createElement('p',null,'Exact source text'),createElement('p',{id:'selected-reader-language'},language),
           createElement('details',{id:'wording-details'},createElement('summary',null,'Published wording'),createElement('p',null,'Original and proposed wording')),
           createElement('a',{id:'origin-link',href:dossier,onClick:journey.dossierLinkClick},'Work on this dossier'))))));
   }
@@ -53,6 +53,17 @@ test('dossier return restores complete URL, reader choice, expanded details, nes
   await h.pending(false);await h.frames();await h.frames();
   assert.equal(h.container.querySelector('main').scrollTop,340);assert.equal(h.container.querySelector('.explorer-profile-body').scrollTop,620);assert.equal(h.container.querySelector('.document-context-reader').scrollTop,95);
   assert.equal(h.container.querySelector('details').open,true);assert.equal(document.activeElement.id,'origin-link');assert.equal(h.journey.dossierJourneyRestoring(),false);
+});
+
+test('a voting record still loading holds the restore until its mark clears',async t=>{
+  const h=await harness(t,{pendingAttribute:'data-record-pending'});
+  h.container.querySelector('main').scrollTop=700;await h.click('#origin-link');await h.frames();
+  await h.pending(true);await h.pop(origin);await h.frames();
+  assert.equal(h.journey.dossierJourneyRestoring(),true);
+  assert.equal(h.container.querySelector('main').scrollTop,0);
+  await h.pending(false);await h.frames();await h.frames();
+  assert.equal(h.journey.dossierJourneyRestoring(),false);
+  assert.equal(h.container.querySelector('main').scrollTop,700);
 });
 
 test('native Back uses the saved origin and user interaction cancels delayed focus/scroll restoration',async t=>{
