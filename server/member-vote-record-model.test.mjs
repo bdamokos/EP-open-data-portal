@@ -1,0 +1,248 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {voteFixture} from './test-support/decision-votes.mjs';
+import {createGroupOn} from './group-attribution.mjs';
+import {memberVoteAlignment} from './member-votes-model.mjs';
+import {memberVoteRecordRevision,summariseVoteSitting,pickTitle,voteGroupLines} from './member-vote-record-model.mjs';
+
+const DATE='2026-10-07',DOCUMENT='PV-10-2026-10-07-VOT-ITM-007';
+
+function person(group,{end=null,groups=[],mandates=[{start:'2024-07-16',end:null}]}={}) {
+  const periods=groups.length?groups:[{code:group,org:'org/'+group,groupId:'org/'+group,start:'2024-07-16',end}];
+  return {coverage:'complete',mandateCoverage:'complete',mandates,ambiguous:[],groups:periods};
+}
+function history(people) {
+  return {members:Object.fromEntries(Object.entries(people).map(([id,value])=>[String(id),value])),catalogue:{sources:[],bodies:[]}};
+}
+const groupsOf=people=>history(Object.fromEntries(Object.entries(people).map(([id,group])=>[id,person(group)])));
+
+// Builds one or more synthetic decisions over the retained public fixture. The
+// raw voter arrays are the only observations the projection may read.
+function sitting(decisions,{complete=true,chairing}={}) {
+  const fixture=voteFixture(),base=structuredClone(fixture.raw),baseResult=structuredClone(fixture.day.results.find(node=>node.activity_id===base.inverse_consists_of[0].split('/').pop()));
+  const raw=[],results=[];
+  decisions.forEach((decision,index)=>{
+    const item=structuredClone(base),id='MTG-PL-2026-10-07-DEC-'+(900+index);
+    item.activity_id=id;item.id='eli/dl/event/'+id;
+    item.referenceText={en:decision.reference||'Motion for a resolution (as a whole)'};
+    item.activity_label={en:decision.reference||'Motion for a resolution (as a whole)'};
+    item.decision_outcome='def/ep-statuses/'+(decision.outcome||'ADOPTED');
+    delete item.decided_on_a_realization_of;
+    delete item.had_voter_intended_favor;delete item.had_voter_intended_against;delete item.had_voter_intended_abstention;
+    for(const [position,field] of [['for','had_voter_favor'],['against','had_voter_against'],['abstaining','had_voter_abstention']]) {
+      item[field]=(decision[position]||[]).map(value=>'person/'+value);
+      item['number_of_votes_'+field.slice('had_voter_'.length)]=(decision[position]||[]).length;
+    }
+    const resultId='MTG-PL-2026-10-07-VOT-ITM-'+(900+index);
+    item.inverse_consists_of=['eli/dl/event/'+resultId];
+    const result={...structuredClone(baseResult),id:'eli/dl/event/'+resultId,activity_id:resultId,consists_of:['eli/dl/event/'+id],recorded_in_a_realization_of:['eli/dl/doc/'+DOCUMENT]};
+    raw.push(item);results.push(result);
+  });
+  fixture.day.decisions=raw;fixture.day.results=results;
+  fixture.day.coverage={completeness:{complete,votingRecordsComplete:complete}};
+  if(chairing)fixture.day.chairing={status:'observed',byResultDocument:{[DOCUMENT]:String(chairing)},sources:[]};
+  return {day:fixture.day,groupOn:createGroupOn(fixture.history)};
+}
+
+test('alignment counts voters against the largest position within their own group',()=>{
+  const people=groupsOf({1:'S&D',2:'S&D',3:'S&D',4:'S&D',5:'Renew',6:'PPE',7:'NI'});
+  const day=sitting([{for:[1,2,5],against:[3,6],abstaining:[4,7]}]);
+  const summary=summariseVoteSitting(day.day,createGroupOn(people),{groupGeneration:'g1'});
+  const member=id=>summary.members.get(String(id));
+  // S&D has two for, one against and one abstention: its line is "for".
+  assert.deepEqual(member(1).alignment,{with:1,against:0,abstained:0,notComparable:0});
+  assert.deepEqual(member(1).bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:1,comparable:1,finalWithGroup:1,finalComparable:1});
+  assert.deepEqual(member(3).alignment,{with:0,against:1,abstained:0,notComparable:0});
+  assert.deepEqual(member(3).departures,[{decisionId:'MTG-PL-2026-10-07-DEC-900',date:DATE,wholeText:true,position:'against',line:'for'}]);
+  assert.deepEqual(member(4).alignment,{with:0,against:0,abstained:1,notComparable:0});
+  // A single-voter group makes that voter's position the line.
+  assert.deepEqual(member(6).alignment,{with:1,against:0,abstained:0,notComparable:0});
+  assert.equal(summary.sitting.named,1);
+  assert.equal(member(1).ballots.named,1);
+});
+
+test('whole-text counts split from all comparable votes while all-vote counts stay whole',()=>{
+  const people=groupsOf({1:'S&D',2:'S&D',3:'S&D'});
+  const day=sitting([{for:[1,2],against:[3]},{reference:'Amendment 4',for:[1,2],against:[3]}]);
+  const summary=summariseVoteSitting(day.day,createGroupOn(people),{groupGeneration:'g1'});
+  const member=summary.members.get('3');
+  assert.deepEqual(member.alignment,{with:0,against:2,abstained:0,notComparable:0});
+  assert.deepEqual(member.wholeText,{with:0,against:1,abstained:0,notComparable:0});
+  assert.deepEqual(member.departures.map(item=>item.wholeText),[true,false]);
+  assert.equal(summary.sitting.decisions['MTG-PL-2026-10-07-DEC-901'].scope,'amendment');
+  assert.equal(summary.sitting.decisions['MTG-PL-2026-10-07-DEC-900'].scope,'whole-text');
+});
+
+test('non-attached members record ballots without a group line or departure',()=>{
+  const people=groupsOf({1:'S&D',7:'NI'}),day=sitting([{for:[1],against:[7]}]);
+  const member=summariseVoteSitting(day.day,createGroupOn(people),{groupGeneration:'g1'}).members.get('7');
+  assert.equal(member.groupCode,null);
+  assert.deepEqual(member.alignment,{with:0,against:0,abstained:0,notComparable:1});
+  assert.deepEqual(member.bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null});
+  assert.deepEqual(member.departures,[]);
+  assert.equal(member.ballots.recorded,1);
+});
+
+test('a tied group position has no line, so no voter departs from it',()=>{
+  assert.deepEqual(voteGroupLines([{position:'for',status:'recorded',group:{code:'S&D'}},{position:'against',status:'recorded',group:{code:'S&D'}}]),new Map([['S&D',null]]));
+  const people=groupsOf({1:'S&D',2:'S&D'}),day=sitting([{for:[1],against:[2]}]);
+  const summary=summariseVoteSitting(day.day,createGroupOn(people),{groupGeneration:'g1'});
+  for(const id of ['1','2']) {
+    const member=summary.members.get(id);
+    assert.deepEqual(member.alignment,{with:0,against:0,abstained:0,notComparable:1});
+    assert.deepEqual(member.bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null});
+    assert.deepEqual(member.departures,[]);
+  }
+});
+
+test('a chairing member gains a chaired ballot without being counted absent',()=>{
+  const people=groupsOf({1:'S&D',2:'S&D',999:'S&D'}),day=sitting([{for:[1],against:[2]}],{chairing:999});
+  const member=summariseVoteSitting(day.day,createGroupOn(people),{groupGeneration:'g1'}).members.get('999');
+  assert.deepEqual(member.ballots,{recorded:0,named:1,chaired:1});
+  assert.deepEqual(member.bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null});
+  assert.deepEqual(member.alignment,{with:0,against:0,abstained:0,notComparable:0});
+});
+
+test('mid-term entry dates attach a member and a finished mandate stays distinct from non-attachment',()=>{
+  const people=history({
+    1:person('S&D'),
+    9:person('S&D',{mandates:[{start:'2026-10-07',end:null}]}),
+    10:person('S&D',{mandates:[{start:'2024-07-16',end:'2026-10-06'}]}),
+  });
+  const day=sitting([{for:[1,9],against:[10]}]);
+  const summary=summariseVoteSitting(day.day,createGroupOn(people),{groupGeneration:'g1'});
+  assert.equal(summary.members.get('9').groupCode,'S&D');
+  assert.equal(summary.members.get('9').bySitting.withGroup,1);
+  // A recorded ballot after the mandate ended is not a zero; it has no line.
+  assert.equal(summary.members.get('10').groupCode,null);
+  assert.deepEqual(summary.members.get('10').bySitting,{sittingId:'MTG-PL-2026-10-07',date:DATE,withGroup:null,comparable:null,finalWithGroup:null,finalComparable:null});
+  assert.equal(summary.members.get('10').alignment.notComparable,1);
+});
+
+test('a mid-term group switch resolves at the sitting date and overlapping groups stay ambiguous',()=>{
+  const people=history({
+    2:person('Renew'),
+    11:person('Renew',{groups:[
+      {code:'S&D',org:'org/S&D',groupId:'org/S&D',start:'2024-07-16',end:'2026-09-30'},
+      {code:'Renew',org:'org/Renew',groupId:'org/Renew',start:'2026-10-01',end:null},
+    ]}),
+    12:person('S&D',{groups:[
+      {code:'S&D',org:'org/S&D',groupId:'org/S&D',start:'2024-07-16',end:null},
+      {code:'Renew',org:'org/Renew',groupId:'org/Renew',start:'2026-10-01',end:null},
+    ]}),
+  });
+  const day=sitting([{for:[11,2],against:[12]}]);
+  const summary=summariseVoteSitting(day.day,createGroupOn(people),{groupGeneration:'g1'});
+  assert.equal(summary.members.get('11').groupCode,'Renew');
+  // Renew's line is "for": the switched member is with it, not against S&D.
+  assert.deepEqual(summary.members.get('11').alignment,{with:1,against:0,abstained:0,notComparable:0});
+  assert.deepEqual(summary.members.get('11').departures,[]);
+  assert.equal(summary.members.get('12').groupCode,null);
+  assert.deepEqual(summary.members.get('12').alignment,{with:0,against:0,abstained:0,notComparable:1});
+});
+
+test('an empty or unrecorded sitting stores no member rows',()=>{
+  const day=sitting([]);
+  const summary=summariseVoteSitting(day.day,createGroupOn(groupsOf({1:'S&D'})),{groupGeneration:'g1'});
+  assert.equal(summary.members.size,0);
+  assert.equal(summary.sitting.named,0);
+  assert.deepEqual(summary.sitting.decisions,{});
+  assert.equal(summary.sitting.complete,true);
+});
+
+test('the projection revision changes only with the sitting content, completeness or group generation',()=>{
+  const day=sitting([{for:[1],against:[2]}]),groupOn=createGroupOn(groupsOf({1:'S&D',2:'S&D'}));
+  const first=summariseVoteSitting(day.day,groupOn,{groupGeneration:'g1'});
+  assert.equal(first.revision,memberVoteRecordRevision(day.day,'g1'));
+  assert.equal(first.revision,summariseVoteSitting(structuredClone(day.day),groupOn,{groupGeneration:'g1'}).revision);
+  assert.notEqual(first.revision,memberVoteRecordRevision(day.day,'g2'));
+  assert.notEqual(first.revision,memberVoteRecordRevision({...structuredClone(day.day),date:'2026-10-08'},'g1'));
+  assert.notEqual(first.revision,memberVoteRecordRevision({...structuredClone(day.day),coverage:{completeness:{complete:false,votingRecordsComplete:false}}},'g1'));
+  day.day.decisions[0].had_voter_abstention=['person/3'];
+  assert.notEqual(first.revision,memberVoteRecordRevision(day.day,'g1'));
+});
+
+test('titles prefer the requested language, then English, then any available text',()=>{
+  assert.deepEqual(pickTitle({fr:'Texte',en:'Text'},{fr:'Réf'},'fr'),{text:'Texte',language:'fr'});
+  assert.deepEqual(pickTitle({fr:'Texte'},{},'hu'),{text:'Texte',language:'fr'});
+  assert.deepEqual(pickTitle({},{en:'Reference'},'hu'),{text:'Reference',language:'en'});
+  assert.deepEqual(pickTitle({fr:'  '},{},'hu'),{text:null,language:null});
+  assert.deepEqual(pickTitle({hu:'Szöveg',mul:'A-1 - § 4 - Am 4',fr:'A-1 - § 4 - Am 4'},{en:'§ 4'},'en'),{text:'A-1 - § 4 - Am 4',language:'mul'},'the language-neutral label beats an arbitrary translation');
+  assert.deepEqual(pickTitle({hu:'Szöveg'},{en:'§ 4'},'en'),{text:'Szöveg',language:'hu'},'a title in any language still comes before reference wording');
+});
+
+test('an abstention is with the group when the group line is to abstain, and a departure otherwise',()=>{
+  const people=groupsOf({1:'S&D',2:'S&D',3:'S&D',4:'PPE'});
+  const summary=summariseVoteSitting(sitting([{for:[3],abstaining:[1,2,4]}]).day,createGroupOn(people),{groupGeneration:'g1'});
+  const member=id=>summary.members.get(String(id));
+  assert.deepEqual(member(1).alignment,{with:1,against:0,abstained:0,notComparable:0});
+  assert.deepEqual(member(3).alignment,{with:0,against:1,abstained:0,notComparable:0});
+  assert.equal(member(3).departures[0].line,'abstaining');
+  assert.equal(memberVoteAlignment({ballotStatus:'conducted',actualPosition:{status:'recorded',position:'abstaining'}},'for'),'abstained');
+});
+
+test('unavailable empty reads are excluded and omitted named arrays remain explicit gaps',async()=>{
+  const {voteSittingStatus}=await import('./member-vote-record-model.mjs');
+  const unavailable={decisions:[],coverage:{state:'unavailable',decisions:{state:'unavailable',error:{status:503}},namedDecisions:{state:'unavailable'},results:{state:'unavailable'},completeness:{declaredDecisionCount:0,votingRecordsComplete:false}}};
+  assert.deepEqual(voteSittingStatus(unavailable),{status:'excluded',reason:'records-incomplete'});
+  const verified=structuredClone(unavailable);for(const key of ['decisions','namedDecisions','results'])verified.coverage[key]={state:'complete'};
+  assert.equal(voteSittingStatus(verified).status,'empty');
+  verified.coverage.results={state:'unavailable',error:{code:'odp_no_content'}};
+  verified.coverage.decisions.rows=0;
+  assert.equal(voteSittingStatus(verified).status,'empty','a verified empty decision census does not require an empty results response');
+  verified.coverage.decisions.rows=1;
+  assert.equal(voteSittingStatus(verified).status,'excluded','rejected census nodes cannot imply zero decisions');
+  const f=sitting([{for:[1],against:[2]}]);delete f.day.decisions[0].had_voter_abstention;
+  const result=summariseVoteSitting(f.day,createGroupOn(groupsOf({1:'S&D',2:'S&D'})));
+  assert.equal(result.sitting.unprojected,1);assert.equal(result.sitting.named,0);
+});
+
+test('a final empty census cannot hide a failed named read or contradictory result evidence',async()=>{
+  const {voteSittingStatus}=await import('./member-vote-record-model.mjs');
+  const empty={decisions:[],results:[],coverage:{decisions:{state:'complete',rows:0,stopReason:'not-found'},namedDecisions:{state:'complete',rows:0,stopReason:'not-found'},results:{state:'unavailable',rows:0},completeness:{declaredDecisionCount:0,declaredResultCount:0,votingRecordsComplete:false}}};
+  assert.equal(voteSittingStatus(empty).status,'empty');
+  const failedNamed=structuredClone(empty);failedNamed.coverage.namedDecisions={state:'unavailable',error:{status:503}};
+  assert.deepEqual(voteSittingStatus(failedNamed),{status:'excluded',reason:'records-incomplete'});
+  const results=structuredClone(empty);results.coverage.results.rows=3;results.coverage.completeness.undeclaredChildResultIds=['result-1'];
+  assert.equal(voteSittingStatus(results).status,'excluded');
+  const unresolved=structuredClone(empty);unresolved.coverage.completeness.undeclaredChildResultIds=['result-1'];
+  assert.equal(voteSittingStatus(unresolved).status,'excluded');
+  const provisional=structuredClone(empty);provisional.coverage.decisions.state='partial';provisional.coverage.agenda={state:'unavailable'};
+  assert.equal(voteSittingStatus(provisional).status,'excluded','a provisional same-day 404 cannot establish no votes');
+});
+
+test('scheduled votes remain missing after empty censuses and a 204 results read',async()=>{
+  const {voteSittingStatus}=await import('./member-vote-record-model.mjs');
+  // The real reader leaves pendingVotes null when a 204 carries a coverage error.
+  const day={date:'2026-10-19',decisions:[],results:[],agenda:[{had_activity_type:'def/ep-activities/PLENARY_VOTE'},{had_activity_type:'https://data.europarl.europa.eu/def/ep-activities/PLENARY_VOTE'}],coverage:{pendingVotes:null,
+    decisions:{state:'complete',rows:0,stopReason:'not-found'},namedDecisions:{state:'complete',rows:0,stopReason:'not-found'},results:{state:'unavailable',rows:0,error:{code:'odp_no_content'}},
+    completeness:{declaredDecisionCount:0,declaredResultCount:0,votingRecordsComplete:false}}};
+  assert.deepEqual(voteSittingStatus(day),{status:'excluded',reason:'records-incomplete'});
+  const noVotes=structuredClone(day);noVotes.agenda=[];
+  assert.equal(voteSittingStatus(noVotes).status,'empty','the nine verified no-vote sittings remain empty');
+  day.coverage.results={state:'complete',rows:0,stopReason:'not-found'};day.coverage.completeness.votingRecordsComplete=true;
+  assert.equal(voteSittingStatus(day).status,'excluded','even a settled scheduled-but-unpublished sitting remains an explicit gap');
+});
+
+test('inconsistent named ballots are gaps and cannot supply a group line or departure',()=>{
+  const people=groupsOf({1:'S&D',2:'S&D',3:'S&D'});
+  const changes=[
+    raw=>{raw.number_of_votes_favor=3;},
+    raw=>{raw.had_voter_favor.push('person/not-a-person');},
+    raw=>{raw.had_voter_against.push('person/1');},
+    raw=>{delete raw.number_of_votes_abstention;raw.number_of_votes_against=2;},
+    raw=>{delete raw.number_of_votes_abstention;raw.had_voter_favor.push('broken');},
+    raw=>{delete raw.number_of_votes_abstention;raw.had_voter_against.push('person/1');},
+  ];
+  for(const change of changes){
+    const f=sitting([{for:[1,2],against:[3]},{for:[1,2],against:[3]}]);change(f.day.decisions[0]);
+    const result=summariseVoteSitting(f.day,createGroupOn(people));
+    assert.equal(result.sitting.unprojected,1);assert.equal(result.sitting.named,1);
+    assert.deepEqual(Object.keys(result.sitting.decisions),['MTG-PL-2026-10-07-DEC-901']);
+    assert.equal(result.members.get('3').vector,'A');
+    assert.equal(result.members.get('3').departures.length,1);
+    assert.equal(result.members.get('3').departures[0].decisionId,'MTG-PL-2026-10-07-DEC-901');
+  }
+  const noTally=sitting([{for:[1,2],against:[3]}]);delete noTally.day.decisions[0].number_of_votes_abstention;
+  assert.equal(summariseVoteSitting(noTally.day,createGroupOn(people)).sitting.named,1,'an unknown tally alone does not invalidate a complete named census');
+});

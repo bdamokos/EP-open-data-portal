@@ -4,6 +4,7 @@ import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 import {odp} from './odp.mjs';
 import {array,tail} from './activity-index-model.mjs';
 import {SittingSnapshotReader} from './sitting-snapshot-store.mjs';
+import {setImmediate as yieldProjection} from 'node:timers/promises';
 import {statSync} from 'node:fs';
 import {MemberVotes,MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
 import {MemberAttendance,MEMBER_ATTENDANCE_VERSION} from './member-attendance.mjs';
@@ -15,6 +16,8 @@ import {missingSourceDelay,sourceMissing,transientSourceDelay,confirmSourceRejec
 import {requestTimeout,runWithRequestSignal} from './request-budget.mjs';
 import {collectVoteChairs} from './vote-chairs.mjs';
 import {SittingSnapshotWriter,sittingSnapshotHints,SITTING_CALENDAR_VERSION,SITTING_SNAPSHOT_SCHEMA,SNAPSHOT_MAX_BYTES} from './sitting-snapshot-store.mjs';
+import {retainMemberVoteRecord,missingMemberVoteRecord,retagMemberVoteRecord,memberVoteRecordNeedsOnlyTags,memberVoteRecordHistory} from './member-vote-record-store.mjs';
+import {topicsGeneration} from './member-vote-record-topics.mjs';
 
 const SIX_HOURS=6*60*60_000;
 const agendaEndpoint=id=>'/meetings/'+id.slice(0,17)+'/foreseen-activities';
@@ -83,10 +86,51 @@ export const completeAttendanceSnapshot=value=>['observed','not-published'].incl
 export class SittingSnapshotCollector {
   constructor(store,{hints=sittingSnapshotHints,readChairs=collectVoteChairs,diskLimit,readCached=(endpoint,params)=>odp(endpoint,params,{cachedOnly:true,ttl:Infinity})}={}){
     this.store=store;this.writer=new SittingSnapshotWriter(store,{diskLimit});this.hints=hints;this.readChairs=readChairs;this.readCached=readCached;
+    this.diskLimit=Infinity;this.projectionCheckAt=null;this.projectionCheckId=null;this.projectionFailed=new Map();
   }
   due(){
     const now=this.store.clock();
-    return this.store.get('sittingDebateParser')!==debateParserVersion||this.store.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA||this.hints.size>0||this.store.get('sittingSnapshotDiscovery')!==discoveryKey(now)||this.writer.hasDue(now);
+    return this.store.get('sittingDebateParser')!==debateParserVersion||this.store.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA||this.hints.size>0||this.store.get('sittingSnapshotDiscovery')!==discoveryKey(now)||this.writer.hasDue(now)||Boolean(this.projectionBacklog());
+  }
+  projectionBacklog(){
+    const now=this.store.clock();
+    if(this.projectionCheckAt!==null&&now-this.projectionCheckAt<5000)return this.projectionCheckId;
+    const id=missingMemberVoteRecord(this.store,MEMBER_VOTE_SNAPSHOT_VERSION,memberVoteRecordHistory(this.store).key,[...this.projectionFailed].filter(([,failure])=>failure.until>now).map(([id])=>id),topicsGeneration(this.store));
+    this.projectionCheckAt=now;this.projectionCheckId=id;
+    return id;
+  }
+  // A retained sitting already carries every source observation. Projecting one
+  // per step is bounded and needs no request allowance.
+  backfillProjection(){
+    const bytes=['','-wal','-shm'].reduce((sum,suffix)=>{try{return sum+statSync(this.store.filename+suffix).size;}catch{return sum;}},0);
+    if(bytes>=this.diskLimit)return false;
+    const id=this.projectionBacklog();
+    if(!id)return false;
+    this.projectionCheckAt=null;
+    // Only the topics changed: re-tag from the row, without reading the snapshot.
+    if(memberVoteRecordNeedsOnlyTags(this.store,id,MEMBER_VOTE_SNAPSHOT_VERSION,memberVoteRecordHistory(this.store).key(id.slice(7,17)))) {
+      try{retagMemberVoteRecord(this.store,id);}catch{this.projectionFailure(id);return false;}
+      this.projectionFailed.delete(id);
+      return true;
+    }
+    const saved=new SittingSnapshotReader({db:this.store.db,clock:this.store.clock}).read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,id,{lastGood:true,partial:true});
+    if(!saved?.day||saved.day.sittingId!==id){this.projectionFailure(id);return false;}
+    try{retainMemberVoteRecord(this.store,saved.day,MEMBER_VOTE_SNAPSHOT_VERSION);}catch{this.projectionFailure(id);return false;}
+    this.projectionFailed.delete(id);
+    return true;
+  }
+  // The worker gives projection a turn in every loop, even while snapshot jobs or core tasks are
+  // due, so a first deploy never waits for them: one sitting at least, then more while under the time limit.
+  projectionTurn(limitMs=1000,now=()=>performance.now()) {
+    const started=now();let steps=0;
+    do {if(!this.backfillProjection())break;steps++;}while(now()-started<limitMs);
+    return steps;
+  }
+  // A sitting that cannot be projected backs off (1 h, doubling to 24 h) so it never blocks the older ones.
+  projectionFailure(id){
+    const attempts=(this.projectionFailed.get(id)?.attempts||0)+1;
+    this.projectionFailed.set(id,{attempts,until:this.store.clock()+Math.min(24,2**(attempts-1))*60*60_000});
+    this.projectionCheckAt=null;
   }
   discoverSittings(nodes){
     for(const node of nodes){
@@ -128,9 +172,11 @@ export class SittingSnapshotCollector {
     for(const hint of this.hints.drain())if(readerVersions[hint.kind]===hint.version)this.writer.enqueue(hint.kind,hint.version,hint.id,100,hint);
   }
   async step(worker,{requestBudget=Infinity}={}){
+    this.diskLimit=worker.diskLimit??Infinity;
+    await yieldProjection(undefined,{signal:worker.controller?.signal});
     this.store.assertWriter();this.admit();
     const now=this.store.clock(),job=this.writer.due(now);
-    if(!job)return false;
+    if(!job)return this.backfillProjection();
     const diskBytes=['','-wal','-shm'].reduce((sum,suffix)=>{try{return sum+statSync(this.store.filename+suffix).size;}catch{return sum;}},0);
     if(diskBytes>=worker.diskLimit){this.writer.fail(job,new Error('Activity index reached its configured disk limit.'),now+60*60_000);return false;}
     let deferred=false,retryAfter=0,failure=null,readerObservation=null;
@@ -274,6 +320,11 @@ export class SittingSnapshotCollector {
         else this.store.db.prepare('DELETE FROM meta WHERE key=?').run(rejectionKey);
         this.writer.retain(job,value,{complete,now,next,preserveStage:!complete&&['calendar','agenda','debate'].includes(job.kind)});
         if(job.kind==='votes'&&complete)retainSittingBallotBindings(this.store,value.day,ballotVotingLists(this.store,job.id));
+        // A sitting is examined from what was stored, complete or not: its voting records may be complete without its agenda.
+        if(job.kind==='votes'&&value?.day?.sittingId===job.id) {
+          try{retainMemberVoteRecord(this.store,value.day,job.version);}catch{/* The stored snapshot remains, so the next step retries its projection. */}
+          this.projectionCheckAt=null;
+        }
         if(['agenda','debate'].includes(job.kind))this.store.set('availabilityRevision',Number(this.store.get('availabilityRevision')||0)+1);
         return true;
       });

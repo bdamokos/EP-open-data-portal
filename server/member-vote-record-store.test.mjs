@@ -1,0 +1,224 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,rmSync} from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {ActivityStore} from './activity-index-store.mjs';
+import {createGroupOn} from './group-attribution.mjs';
+import {groupHistorySchema} from './group-history.mjs';
+import {voteFixture} from './test-support/decision-votes.mjs';
+import {writeMemberVoteRecord,missingMemberVoteRecord,retainMemberVoteRecord,retagMemberVoteRecord,memberVoteRecordNeedsOnlyTags,memberVoteRecordHistory} from './member-vote-record-store.mjs';
+
+const recordsComplete=day=>{day.coverage={...day.coverage,completeness:{...day.coverage?.completeness,complete:false,votingRecordsComplete:true}};return day;};
+function setup(t) {
+  const directory=mkdtempSync(path.join(os.tmpdir(),'member-vote-record-'));
+  const store=new ActivityStore(directory,{clock:()=>Date.parse('2026-10-08T12:00:00Z')});
+  assert(store.acquire());
+  t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
+  return store;
+}
+const snapshotRow=(store,{id,version=7,complete=1,error=null,kind='votes',body=Buffer.from('x')})=>store.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,complete,error,body) VALUES(?,?,?,?,?,?)').run(kind,version,id,complete,error,body);
+
+test('one sitting write replaces member rows and adjusts term totals by the difference',async t=>{
+  const store=setup(t),fixture=voteFixture(),groupOn=createGroupOn(fixture.history);recordsComplete(fixture.day);
+  writeMemberVoteRecord(store,fixture.day,{groupOn,groupGeneration:'g1',snapshotVersion:7});
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_sittings').get().n,1);
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,4);
+  assert.deepEqual(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_totals WHERE member_id='197591'").get().body),{withGroup:1,comparable:1,finalWithGroup:0,finalComparable:0});
+  assert.equal(store.db.prepare("SELECT snapshot_version AS version,group_generation AS generation,complete FROM member_vote_record_sittings").get().version,7);
+  assert.equal(store.db.prepare("SELECT group_generation AS generation FROM member_vote_record_sittings").get().generation,'g1');
+
+  const changed=structuredClone(fixture.day),raw=changed.decisions[0];
+  raw.had_voter_favor=['person/124846'];raw.had_voter_against=['person/197481'];raw.had_voter_abstention=['person/197591'];raw.number_of_votes_favor=1;
+  writeMemberVoteRecord(store,changed,{groupOn,groupGeneration:'g1',snapshotVersion:7});
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,3,'the sitting is replaced, never duplicated');
+  // A lone abstention is now the group's own line, so it counts as with the group.
+  assert.deepEqual(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_totals WHERE member_id='197591'").get().body),{withGroup:1,comparable:1,finalWithGroup:0,finalComparable:0});
+  assert.deepEqual(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_members WHERE member_id='197591'").get().body).bySitting,
+    {sittingId:'MTG-PL-2026-10-07',date:'2026-10-07',withGroup:1,comparable:1,finalWithGroup:null,finalComparable:null});
+});
+
+test('a complete votes snapshot without a current projection becomes one bounded backfill unit',async t=>{
+  const store=setup(t),fixture=voteFixture(),id=fixture.day.sittingId;recordsComplete(fixture.day);
+  snapshotRow(store,{id});
+  assert.equal(missingMemberVoteRecord(store,7,'g1'),id);
+  writeMemberVoteRecord(store,fixture.day,{groupOn:createGroupOn(fixture.history),groupGeneration:'g1',snapshotVersion:7});
+  assert.equal(missingMemberVoteRecord(store,7,'g1'),null,'a current projection is not due again');
+  assert.equal(missingMemberVoteRecord(store,8,'g1'),null,'another snapshot version is not this projection');
+  assert.equal(missingMemberVoteRecord(store,7,'g2'),id,'a new group generation makes the projection stale');
+  snapshotRow(store,{id:'MTG-PL-2026-10-08',version:7,complete:0});
+  snapshotRow(store,{id:'MTG-PL-2026-10-09',version:7,complete:1,error:'source unavailable'});
+  assert.equal(missingMemberVoteRecord(store,7,'g1'),'MTG-PL-2026-10-09','a failed refresh does not take a complete sitting out of the backfill');
+  assert.equal(missingMemberVoteRecord(store,7,'g1',['MTG-PL-2026-10-09']),'MTG-PL-2026-10-08','a sitting that never became complete is examined too: its voting records may be');
+  assert.equal(missingMemberVoteRecord(store,7,'g1',['MTG-PL-2026-10-09','MTG-PL-2026-10-08']),null);
+  snapshotRow(store,{id:'MTG-PL-2026-10-10',version:7,complete:0,body:null});
+  assert.equal(missingMemberVoteRecord(store,7,'g1',['MTG-PL-2026-10-09','MTG-PL-2026-10-08']),null,'a row never collected has nothing to examine');
+  assert.equal(missingMemberVoteRecord(store,7,'g2',['MTG-PL-2026-10-09','MTG-PL-2026-10-08']),id,'a skipped sitting does not block older ones');
+});
+
+test('retaining a sitting records the active group generation only when its history exists',async t=>{
+  const store=setup(t),fixture=voteFixture();recordsComplete(fixture.day);groupHistorySchema(store.db);
+  store.set('active',3);
+  retainMemberVoteRecord(store,fixture.day,7);
+  assert.equal(store.db.prepare('SELECT group_generation AS generation FROM member_vote_record_sittings').get().generation,null,
+    'missing group history must stay unavailable rather than invent a generation');
+  store.db.prepare('INSERT INTO group_history_snapshots(generation,body) VALUES(?,?)').run(3,JSON.stringify(fixture.history));
+  retainMemberVoteRecord(store,fixture.day,7);
+  assert.match(store.db.prepare('SELECT group_generation AS generation FROM member_vote_record_sittings').get().generation,/^[a-f0-9]{64}$/);
+  assert.equal(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_members WHERE member_id='197591'").get().body).groupCode,'S&D');
+});
+
+test('a sitting is projected on complete voting records even with an unfinished agenda; no decisions is empty; conflicts are excluded',async t=>{
+  const store=setup(t),fixture=voteFixture(),groupOn=createGroupOn(fixture.history);
+  const status=(day)=>{writeMemberVoteRecord(store,day,{groupOn,groupGeneration:'g1',snapshotVersion:7});return store.db.prepare('SELECT status,reason,named FROM member_vote_record_sittings WHERE sitting_id=?').get(day.sittingId);};
+  const agendaOpen=structuredClone(fixture.day);
+  agendaOpen.coverage={completeness:{complete:false,votingRecordsComplete:true,unresolvedAgendaItemIds:['eli/dl/event/x'],conflictingDecisionIds:[]}};
+  assert.deepEqual({...status(agendaOpen)},{status:'projected',reason:null,named:1});
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,4);
+  const noDecisions=structuredClone(fixture.day);noDecisions.decisions=[];noDecisions.results=[];noDecisions.agenda=[];
+  noDecisions.coverage={decisions:{state:'complete'},namedDecisions:{state:'complete'},results:{state:'complete'},completeness:{complete:false,votingRecordsComplete:false,declaredDecisionCount:0}};
+  assert.deepEqual({...status(noDecisions)},{status:'empty',reason:null,named:0});
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM member_vote_record_members').get().n,0,'a later empty read replaces the earlier rows');
+  assert.deepEqual(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_totals WHERE member_id='197591'").get().body),{withGroup:0,comparable:0,finalWithGroup:0,finalComparable:0});
+  const conflicting=structuredClone(fixture.day);
+  conflicting.coverage={completeness:{complete:false,votingRecordsComplete:false,conflictingDecisionIds:['eli/dl/event/y']}};
+  assert.deepEqual({...status(conflicting)},{status:'excluded',reason:'conflicting-decisions',named:0});
+  const unread=structuredClone(fixture.day);
+  unread.coverage={completeness:{complete:false,votingRecordsComplete:false,declaredDecisionCount:3,conflictingDecisionIds:[]}};
+  assert.equal(status(unread).reason,'records-incomplete');
+});
+
+function topicRecords(store,generation,assignments,procedures=['2025-2117']) {
+  store.db.exec('CREATE TABLE IF NOT EXISTS record_topic_records(generation INTEGER,id TEXT,kind TEXT,date TEXT,group_key TEXT,group_kind TEXT,body TEXT,PRIMARY KEY(generation,id))');
+  store.db.prepare("INSERT OR REPLACE INTO record_topic_records(generation,id,kind,body) VALUES(?,?,'document',?)").run(generation,'A-10-2026-0237',JSON.stringify({procedureIds:procedures,assignments}));
+}
+const keywords=[{key:'eurovoc:08133',role:'keyword'},{key:'place:FRA',role:'place'},{key:'oeil:6.40.08',role:'topic'},{key:'subject-matter:EXT',role:'hidden'}];
+
+test('each member row keeps one mark per named decision, and the sitting row keeps exact tags for them',async t=>{
+  const store=setup(t),fixture=voteFixture(),groupOn=createGroupOn(fixture.history);recordsComplete(fixture.day);
+  topicRecords(store,7,keywords);
+  writeMemberVoteRecord(store,fixture.day,{groupOn,groupGeneration:'g1',snapshotVersion:7,topicGeneration:7});
+  const row=store.db.prepare('SELECT tags,topics_generation FROM member_vote_record_tags').get();
+  assert.equal(row.topics_generation,7);
+  // Only the microthesaurus of a keyword and a place are tags; OEIL subjects and hidden keys are not.
+  assert.deepEqual(JSON.parse(row.tags),[[fixture.raw.id?.split('/').pop()||JSON.parse(row.tags)[0][0],['2025-2117'],['100195'],['FRA']]]);
+  assert.equal(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_members WHERE member_id='197591'").get().body).vector,'w');
+  assert.equal(JSON.parse(store.db.prepare("SELECT body FROM member_vote_record_members WHERE member_id='256852'").get().body).vector,'n','a non-attached vote is recorded but not comparable');
+});
+
+test('a sitting that is current except for its topics is re-tagged without touching the vectors',async t=>{
+  const store=setup(t),fixture=voteFixture(),groupOn=createGroupOn(fixture.history),id=fixture.day.sittingId;recordsComplete(fixture.day);
+  snapshotRow(store,{id});topicRecords(store,7,keywords);
+  writeMemberVoteRecord(store,fixture.day,{groupOn,groupGeneration:'g1',snapshotVersion:7,topicGeneration:7});
+  assert.equal(missingMemberVoteRecord(store,7,'g1',[],7),null,'current');
+  assert.equal(missingMemberVoteRecord(store,7,'g1',[],8),id,'a new topics generation makes the sitting stale');
+  assert.equal(memberVoteRecordNeedsOnlyTags(store,id,7,'g1'),true);
+  assert.equal(memberVoteRecordNeedsOnlyTags(store,id,7,'g2'),false,'a stale group generation still needs the full projection');
+  const vectors=store.db.prepare('SELECT body FROM member_vote_record_members ORDER BY member_id').all().map(row=>row.body);
+  // The pending procedure topics arrive: same documents, more concepts.
+  topicRecords(store,8,[...keywords,{key:'place:DEU',role:'place'}]);
+  assert.equal(retagMemberVoteRecord(store,id,8),true);
+  assert.deepEqual(JSON.parse(store.db.prepare('SELECT tags FROM member_vote_record_tags').get().tags)[0].slice(1),[['2025-2117'],['100195'],['DEU','FRA']]);
+  assert.equal(store.db.prepare('SELECT topics_generation AS g FROM member_vote_record_tags').get().g,8);
+  assert.equal(missingMemberVoteRecord(store,7,'g1',[],8),null);
+  assert.deepEqual(store.db.prepare('SELECT body FROM member_vote_record_members ORDER BY member_id').all().map(row=>row.body),vectors);
+  // Without a topics index the tags are empty, never invented.
+  assert.equal(retagMemberVoteRecord(store,id,null),true);
+  assert.deepEqual(JSON.parse(store.db.prepare('SELECT tags FROM member_vote_record_tags').get().tags)[0].slice(1),[[],[],[]]);
+});
+
+test('startup preparation adds the record tables to an existing schema-1 database',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'member-record-upgrade-'));
+  t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  const store=new ActivityStore(directory);
+  assert(store.acquire());
+  store.db.exec('DROP TABLE member_vote_record_sittings; DROP TABLE member_vote_record_tags; DROP TABLE member_vote_record_members; DROP TABLE member_vote_record_totals;');
+  store.set('sittingSnapshotSchema',1);
+  store.close();
+  // A normal reader must refuse unprepared data; startup migration owns DDL.
+  assert.throws(()=>new ActivityStore(directory),/need preparation/);
+  const {prepareIndexes}=await import('./migrate-indexes.mjs');
+  prepareIndexes({activityDirectory:directory,log:()=>{}});
+  const upgraded=new ActivityStore(directory);
+  try {
+    assert.equal(upgraded.get('sittingSnapshotSchema'),4);
+    for(const name of ['sittings','tags','members','totals'])assert(upgraded.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get('member_vote_record_'+name));
+    assert(upgraded.acquire());
+    writeMemberVoteRecord(upgraded,recordsComplete(voteFixture().day));
+    assert.equal(upgraded.db.prepare('SELECT COUNT(*) n FROM member_vote_record_sittings').get().n,1);
+  }finally{upgraded.close();}
+});
+
+test('backfill uses sitting-date group answers, observes late history and changed snapshot timestamps',t=>{
+  const store=setup(t),f=voteFixture();recordsComplete(f.day);groupHistorySchema(store.db);
+  store.set('active',3);snapshotRow(store,{id:f.day.sittingId});
+  retainMemberVoteRecord(store,f.day,7);
+  assert.equal(missingMemberVoteRecord(store,7,memberVoteRecordHistory(store).key),null,'missing history reaches a stable projection');
+  store.db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(3,JSON.stringify(f.history));
+  assert.equal(missingMemberVoteRecord(store,7,memberVoteRecordHistory(store).key),f.day.sittingId,'same-generation late history is observed');
+  retainMemberVoteRecord(store,f.day,7);
+  const next=structuredClone(f.history);next.publication={asOf:'2026-10-09'};
+  for(const member of Object.values(next.members)) {member.retrievedAt='new timestamp';member.stale=true;for(const p of [...member.mandates,...member.groups])p.end='2026-10-09';}
+  store.db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(4,JSON.stringify(next));store.set('active',4);
+  assert.equal(missingMemberVoteRecord(store,7,memberVoteRecordHistory(store).key),null,'publishing equivalent history does not rewrite the term');
+  store.db.prepare("UPDATE sitting_snapshots SET checked_at=1 WHERE kind='votes'").run();
+  assert.equal(missingMemberVoteRecord(store,7,memberVoteRecordHistory(store).key),f.day.sittingId,'a changed body remains due even if the inline projection failed');
+  assert.equal(memberVoteRecordNeedsOnlyTags(store,f.day.sittingId,7,memberVoteRecordHistory(store).key(f.day.date)),false,'a changed snapshot cannot be repaired by retagging');
+  retainMemberVoteRecord(store,f.day,7);
+  assert.equal(missingMemberVoteRecord(store,7,memberVoteRecordHistory(store).key),null);
+  next.members['197591'].groups[0].code='EPP';store.db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(5,JSON.stringify(next));store.set('active',5);
+  assert.equal(missingMemberVoteRecord(store,7,memberVoteRecordHistory(store).key),f.day.sittingId,'real historical attribution changes still invalidate');
+});
+
+test('sitting replacement uses an index and totals stay isolated across snapshot versions',t=>{
+  const store=setup(t),f=voteFixture();recordsComplete(f.day);
+  for(const sql of ['SELECT member_id,body FROM member_vote_record_members WHERE sitting_id=?','DELETE FROM member_vote_record_members WHERE sitting_id=?'])
+    assert.match(store.db.prepare('EXPLAIN QUERY PLAN '+sql).all(f.day.sittingId).map(r=>r.detail).join(' '),/SEARCH.*member_vote_record_member_sitting/);
+  const groupOn=createGroupOn(f.history);
+  writeMemberVoteRecord(store,f.day,{groupOn,snapshotVersion:7});
+  writeMemberVoteRecord(store,f.day,{groupOn,snapshotVersion:8});
+  const totals=store.db.prepare("SELECT snapshot_version,body FROM member_vote_record_totals WHERE member_id='197591' ORDER BY snapshot_version").all();
+  assert.equal(JSON.parse(totals[0].body).comparable,0);
+  assert.equal(JSON.parse(totals[1].body).comparable,1);
+});
+
+test('new people outside a sitting and irrelevant history metadata do not invalidate its projection',t=>{
+  const store=setup(t),f=voteFixture();groupHistorySchema(store.db);store.set('active',31);
+  const before=structuredClone(f.history);
+  before.members['9991']={coverage:'unavailable'};
+  store.db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(31,JSON.stringify(before));
+  const key=memberVoteRecordHistory(store).key(f.day.date);
+  const after=structuredClone(f.history),future=structuredClone(after.members['197591']);
+  future.mandates=[{start:'2026-11-01',end:null}];future.groups=future.groups.map(group=>({...group,start:'2026-11-01'}));
+  after.members['9991']=structuredClone(future);after.members['9992']=future;
+  for(const person of Object.values(after.members))for(const group of person.groups||[]){group.org+='-new-metadata';group.groupId+='-new-metadata';}
+  store.db.prepare('INSERT INTO group_history_snapshots VALUES (?,?)').run(32,JSON.stringify(after));store.set('active',32);
+  assert.equal(memberVoteRecordHistory(store).key(f.day.date),key,'only attached member IDs and group codes affect the historical projection');
+});
+
+test('a lease takeover during summarisation cannot enter the projection write transaction',t=>{
+  const store=setup(t),f=voteFixture();recordsComplete(f.day);
+  const resolve=createGroupOn(f.history);
+  const groupOn=(...args)=>{store.db.prepare("UPDATE lease SET owner='other-fixture-writer' WHERE id=1").run();return resolve(...args);};
+  assert.throws(()=>writeMemberVoteRecord(store,f.day,{groupOn,snapshotVersion:7}),/writer lease was lost/);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM member_vote_record_sittings').get().n,0);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM member_vote_record_members').get().n,0);
+});
+
+test('a schema-3 held projection is rebuilt once for the ballot-integrity projection version',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'member-record-version-'));
+  t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  let store=new ActivityStore(directory);assert(store.acquire());
+  const f=recordsComplete(voteFixture().day);snapshotRow(store,{id:f.sittingId});retainMemberVoteRecord(store,f,7);
+  store.db.exec('ALTER TABLE member_vote_record_sittings DROP COLUMN projection_version');
+  store.set('sittingSnapshotSchema',3);store.close();
+  const {prepareIndexes}=await import('./migrate-indexes.mjs');prepareIndexes({activityDirectory:directory,log:()=>{}});
+  store=new ActivityStore(directory);assert(store.acquire());
+  try{
+    const key=memberVoteRecordHistory(store).key;
+    assert.equal(missingMemberVoteRecord(store,7,key),f.sittingId);
+    assert.equal(memberVoteRecordNeedsOnlyTags(store,f.sittingId,7,key(f.date)),false,'old projections need a full rebuild, not retagging');
+    retainMemberVoteRecord(store,f,7);
+    assert.equal(missingMemberVoteRecord(store,7,key),null,'the upgraded projection is no longer stale');
+  }finally{store.close();}
+});

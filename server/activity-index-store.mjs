@@ -153,17 +153,18 @@ export class ActivityStore {
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion,initializeLinks=this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion;
       if(!this.initializeIndexes&&ACTIVITY_SCHEMA_GATES.some(gate=>gate.writerGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
+      // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
+      // Refresh against the current clock before commit; elapsed build time must
+      // never roll back a completed build solely because its old TTL expired.
+      const refresh=()=>{if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner).changes!==1)throw new Error('Activity-index writer lease was lost.');};
       initializeAvailabilityHistory(this);speechSourceGapSchema(this.db);
       if(this.get('ballotBindingSchema')!==1){prepareBallotBindingStore(this);initialized=true;}
       if(this.get('votingListSchema')!==1){prepareVotingLists(this);initialized=true;}
       if(this.get('hemicycleSchema')!==1){prepareHemicycle(this);initialized=true;}
       if(this.get('baseBackfillSchema')!==1){prepareBaseBackfill(this);initialized=true;}
       if(this.get('documentBodySchema')!==1){prepareDocumentBodies(this);initialized=true;}
-      if(this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA){prepareSittingSnapshots(this);initialized=true;}
-      // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
-      // Refresh against the current clock before commit; elapsed build time must
-      // never roll back a completed build solely because its old TTL expired.
-      const refresh=()=>{if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner).changes!==1)throw new Error('Activity-index writer lease was lost.');};
+      if(this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA){prepareSittingSnapshots(this);initialized=true;refresh();}
+
       if(initialize){this.initializeResourceIndexes();initialized=true;refresh();}
       if(initializeProofs){amendmentReadIndexes(this.db);this.set('amendmentReadVersion',amendmentReadVersion);initialized=true;refresh();}
       if(this.get('committeeAmendmentIndexVersion')!==committeeAmendmentIndexVersion){prepareCommitteeAmendmentIndexes(this.db);this.set('committeeAmendmentIndexVersion',committeeAmendmentIndexVersion);initialized=true;refresh();}
