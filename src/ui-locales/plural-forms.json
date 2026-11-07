@@ -565,10 +565,6 @@
       "one": "{count} внесено изменение",
       "other": "{count} внесени изменения"
     },
-    "week.fold.list_rows": {
-      "one": "{count} ред в списъка за гласуване",
-      "other": "{count} реда в списъка за гласуване"
-    },
     "week.reason.differs": {
       "one": "{count} евродепутат гласува различно от групата си",
       "other": "{count} евродепутати гласуваха различно от групата си"
@@ -1388,12 +1384,6 @@
       "many": "{count} předloženého pozměňovacího návrhu",
       "other": "{count} předložených pozměňovacích návrhů"
     },
-    "week.fold.list_rows": {
-      "one": "{count} řádek v hlasovacím seznamu",
-      "few": "{count} řádky v hlasovacím seznamu",
-      "many": "{count} řádku v hlasovacím seznamu",
-      "other": "{count} řádků v hlasovacím seznamu"
-    },
     "week.reason.differs": {
       "one": "{count} poslanec hlasoval jinak než jeho skupina",
       "few": "{count} poslanci hlasovali jinak než jejich skupina",
@@ -2016,10 +2006,6 @@
       "one": "{count} fremsat ændringsforslag",
       "other": "{count} fremsatte ændringsforslag"
     },
-    "week.fold.list_rows": {
-      "one": "{count} række på afstemningslisten",
-      "other": "{count} rækker på afstemningslisten"
-    },
     "week.reason.differs": {
       "one": "{count} medlem stemte anderledes end sin gruppe",
       "other": "{count} medlemmer stemte anderledes end deres gruppe"
@@ -2634,10 +2620,6 @@
       "one": "{count} eingereichter Änderungsantrag",
       "other": "{count} eingereichte Änderungsanträge"
     },
-    "week.fold.list_rows": {
-      "one": "{count} Zeile in der Abstimmungsliste",
-      "other": "{count} Zeilen in der Abstimmungsliste"
-    },
     "week.reason.differs": {
       "one": "{count} Parlamentsmitglied stimmte anders als die eigene Fraktion",
       "other": "{count} Abgeordnete stimmten anders als ihre Fraktion"
@@ -3219,10 +3201,6 @@
     "week.fold.amendments": {
       "one": "{count} κατατεθείσα τροπολογία",
       "other": "{count} κατατεθείσες τροπολογίες"
-    },
-    "week.fold.list_rows": {
-      "one": "{count} γραμμή στον κατάλογο ψηφοφορίας",
-      "other": "{count} γραμμές στον κατάλογο ψηφοφορίας"
     },
     "week.reason.differs": {
       "one": "{count} ευρωβουλευτής ψήφισε διαφορετικά από την ομάδα του",
@@ -3919,11 +3897,6 @@
       "many": "{count} de enmiendas presentadas",
       "other": "{count} enmiendas presentadas"
     },
-    "week.fold.list_rows": {
-      "one": "{count} fila en la lista de votaciones",
-      "many": "{count} de filas en la lista de votaciones",
-      "other": "{count} filas en la lista de votaciones"
-    },
     "week.reason.differs": {
       "one": "{count} eurodiputado votó de forma distinta a su grupo",
       "many": "{count} de eurodiputados votaron de forma distinta a su grupo",
@@ -4510,10 +4483,6 @@
     "week.fold.amendments": {
       "one": "{count} esitatud muudatusettepanek",
       "other": "{count} esitatud muudatusettepanekut"
-    },
-    "week.fold.list_rows": {
-      "one": "{count} rida hääletusnimekirjas",
-      "other": "{count} rida hääletusnimekirjas"
     },
     "week.reason.differs": {
       "one": "{count} parlamendiliige hääletas oma fraktsioonist erinevalt",
@@ -5128,10 +5097,6 @@
     "week.fold.amendments": {
       "one": "{count} jätetty tarkistus",
       "other": "{count} jätettyä tarkistusta"
-    },
-    "week.fold.list_rows": {
-      "one": "{count} rivi äänestysluettelossa",
-      "other": "{count} riviä äänestysluettelossa"
     },
     "week.reason.differs": {
       "one": "{count} meppi äänesti eri tavalla kuin oma ryhmänsä",
@@ -5827,11 +5792,6 @@
       "one": "{count} amendement déposé",
       "many": "{count} d’amendements déposés",
       "other": "{count} amendements déposés"
-    },
-    "week.fold.list_rows": {
-      "one": "{count} ligne dans la liste de vote",
-      "many": "{count} de lignes dans la liste de vote",
-      "other": "{count} lignes dans la liste de vote"
     },
     "week.reason.differs": {
       "one": "{count} député a voté différemment de son groupe",
@@ -6755,13 +6715,6 @@
       "many": "Leasuithe arna gcur síos: {count}",
       "other": "Leasuithe arna gcur síos: {count}"
     },
-    "week.fold.list_rows": {
-      "one": "{count} líne ar an liosta vótála",
-      "two": "Línte ar an liosta vótála: {count}",
-      "few": "Línte ar an liosta vótála: {count}",
-      "many": "Línte ar an liosta vótála: {count}",
-      "other": "Línte ar an liosta vótála: {count}"
-    },
     "week.reason.differs": {
       "one": "Líon na bhFeisirí a vótáil ar bhealach éagsúil lena ngrúpa: {count}",
       "other": "Líon na bhFeisirí a vótáil ar bhealach éagsúil lena ngrúpa: {count}",
@@ -7467,11 +7420,6 @@
       "few": "{count} podnesena amandmana",
       "other": "{count} podnesenih amandmana"
     },
-    "week.fold.list_rows": {
-      "one": "{count} redak na popisu za glasovanje",
-      "few": "{count} retka na popisu za glasovanje",
-      "other": "{count} redaka na popisu za glasovanje"
-    },
     "week.reason.differs": {
       "one": "{count} zastupnik glasovao je drukčije od svojeg kluba",
       "few": "{count} zastupnika glasovala su drukčije od svojeg kluba",
@@ -8054,10 +8002,6 @@
     "week.fold.amendments": {
       "one": "{count} benyújtott módosítás",
       "other": "{count} benyújtott módosítás"
-    },
-    "week.fold.list_rows": {
-      "one": "{count} sor a szavazólistán",
-      "other": "{count} sor a szavazólistán"
     },
     "week.reason.differs": {
       "one": "{count} EP-képviselő a képviselőcsoportjától eltérően szavazott",
@@ -8753,11 +8697,6 @@
       "one": "{count} emendamento presentato",
       "many": "{count} di emendamenti presentati",
       "other": "{count} emendamenti presentati"
-    },
-    "week.fold.list_rows": {
-      "one": "{count} riga nell’elenco delle votazioni",
-      "many": "{count} di righe nell’elenco delle votazioni",
-      "other": "{count} righe nell’elenco delle votazioni"
     },
     "week.reason.differs": {
       "one": "{count} deputato ha votato diversamente dal proprio gruppo",
@@ -9569,12 +9508,6 @@
       "many": "{count} pateikto pakeitimo",
       "other": "{count} pateiktų pakeitimų"
     },
-    "week.fold.list_rows": {
-      "one": "{count} eilutė balsavimo sąraše",
-      "few": "{count} eilutės balsavimo sąraše",
-      "many": "{count} eilutės balsavimo sąraše",
-      "other": "{count} eilučių balsavimo sąraše"
-    },
     "week.reason.differs": {
       "one": "{count} EP narys balsavo kitaip nei jo frakcija",
       "other": "{count} EP narių balsavo kitaip nei jų frakcija",
@@ -10274,11 +10207,6 @@
       "zero": "{count} iesniegtu grozījumu",
       "one": "{count} iesniegts grozījums",
       "other": "{count} iesniegti grozījumi"
-    },
-    "week.fold.list_rows": {
-      "zero": "{count} rindu balsošanas sarakstā",
-      "one": "{count} rinda balsošanas sarakstā",
-      "other": "{count} rindas balsošanas sarakstā"
     },
     "week.reason.differs": {
       "one": "{count} EP deputāts balsoja citādi nekā sava grupa",
@@ -11202,13 +11130,6 @@
       "many": "{count}-il emenda mressqa",
       "other": "{count} emenda mressqa"
     },
-    "week.fold.list_rows": {
-      "one": "{count} ringiela fil-lista tal-votazzjoni",
-      "two": "{count} ringieli fil-lista tal-votazzjoni",
-      "few": "{count} ringieli fil-lista tal-votazzjoni",
-      "many": "{count}-il ringiela fil-lista tal-votazzjoni",
-      "other": "{count} ringiela fil-lista tal-votazzjoni"
-    },
     "week.reason.differs": {
       "one": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}",
       "other": "Għadd ta’ MPE li vvotaw b’mod differenti mill-grupp tagħhom: {count}",
@@ -11834,10 +11755,6 @@
     "week.fold.amendments": {
       "one": "{count} ingediend amendement",
       "other": "{count} ingediende amendementen"
-    },
-    "week.fold.list_rows": {
-      "one": "{count} regel op de stemlijst",
-      "other": "{count} regels op de stemlijst"
     },
     "week.reason.differs": {
       "one": "{count} EP-lid stemde anders dan de eigen fractie",
@@ -12646,12 +12563,6 @@
       "many": "{count} złożonych poprawek",
       "other": "{count} złożonej poprawki"
     },
-    "week.fold.list_rows": {
-      "one": "{count} wiersz na liście do głosowania",
-      "few": "{count} wiersze na liście do głosowania",
-      "many": "{count} wierszy na liście do głosowania",
-      "other": "{count} wiersza na liście do głosowania"
-    },
     "week.reason.differs": {
       "one": "{count} poseł do PE zagłosował inaczej niż jego grupa",
       "few": "{count} posłów do PE zagłosowało inaczej niż ich grupa",
@@ -13355,11 +13266,6 @@
       "many": "{count} de alterações apresentadas",
       "other": "{count} alterações apresentadas"
     },
-    "week.fold.list_rows": {
-      "one": "{count} linha na lista de votação",
-      "many": "{count} de linhas na lista de votação",
-      "other": "{count} linhas na lista de votação"
-    },
     "week.reason.differs": {
       "one": "{count} deputado votou de forma diferente do seu grupo",
       "many": "{count} de deputados votaram de forma diferente do seu grupo",
@@ -14058,11 +13964,6 @@
       "one": "{count} amendament depus",
       "few": "{count} amendamente depuse",
       "other": "{count} de amendamente depuse"
-    },
-    "week.fold.list_rows": {
-      "one": "{count} rând în lista de vot",
-      "few": "{count} rânduri în lista de vot",
-      "other": "{count} de rânduri în lista de vot"
     },
     "week.reason.differs": {
       "one": "{count} eurodeputat a votat diferit față de grupul său",
@@ -14886,12 +14787,6 @@
       "few": "{count} predložené pozmeňujúce návrhy",
       "many": "{count} predloženého pozmeňujúceho návrhu",
       "other": "{count} predložených pozmeňujúcich návrhov"
-    },
-    "week.fold.list_rows": {
-      "one": "{count} riadok v hlasovacom zozname",
-      "few": "{count} riadky v hlasovacom zozname",
-      "many": "{count} riadka v hlasovacom zozname",
-      "other": "{count} riadkov v hlasovacom zozname"
     },
     "week.reason.differs": {
       "one": "{count} poslanec EP hlasoval inak než jeho skupina",
@@ -15720,12 +15615,6 @@
       "few": "{count} vloženi predlogi sprememb",
       "other": "{count} vloženih predlogov sprememb"
     },
-    "week.fold.list_rows": {
-      "one": "{count} vrstica na glasovalnem seznamu",
-      "two": "{count} vrstici na glasovalnem seznamu",
-      "few": "{count} vrstice na glasovalnem seznamu",
-      "other": "{count} vrstic na glasovalnem seznamu"
-    },
     "week.reason.differs": {
       "one": "{count} poslanec EP je glasoval drugače kot njegova skupina",
       "two": "{count} poslanca EP sta glasovala drugače kot njuna skupina",
@@ -16347,10 +16236,6 @@
     "week.fold.amendments": {
       "one": "{count} framlagt ändringsförslag",
       "other": "{count} framlagda ändringsförslag"
-    },
-    "week.fold.list_rows": {
-      "one": "{count} rad i omröstningslistan",
-      "other": "{count} rader i omröstningslistan"
     },
     "week.reason.differs": {
       "one": "{count} ledamot röstade annorlunda än sin grupp",

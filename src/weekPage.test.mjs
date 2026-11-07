@@ -36,12 +36,12 @@ const story={version:1,week:WEEK,status:'complete',press:{'MTG-PL-2026-10-22-OJ-
   {id:'MTG-PL-2026-10-21-PVCRE-ITM-1',key:'b',list:'speeches',lists:['speeches'],titles:{en:'Conclusions of the European Council meeting of 15-16 October 2026'},agendaItemIds:['MTG-PL-2026-10-21-OJ-ITM-D-5'],speeches:113,speakers:92,blueCards:11},
   {id:'MTG-PL-2026-10-20-PVCRE-ITM-2',key:'c',list:'blueCards',lists:['blueCards'],titles:{en:'France, Italy and Belgium: Latest anti-democratic violence by radical far-left groups, implications on public safety'},agendaItemIds:[],speeches:30,speakers:20,blueCards:24},
  ]};
-const weekItemReply={version:1,procedures:[{id:'2025-2139',reference:'2025/2139(INI)',code:'INI'}],
+const foldPress={url:'https://www.europarl.europa.eu/news/en/press-room/20260928IPR47808/',publishedAt:'2026-09-28T10:00:00.000Z',lead:'Public health committee MEPs want dedicated funding.',second:'On Monday they adopted a resolution.'};
+const weekItemReply={version:2,procedures:[{id:'2025-2139',code:'INI'}],
  rapporteurs:[{id:'257112',name:'Vlad VASILE-VOICULESCU',currentMep:true,group:'Renew'},{id:'9',name:'Former MEMBER',currentMep:false,group:null}],
- committees:[{code:'SANT',name:'Committee on Public Health',language:'en'}],
  standing:[{id:'dossierstatus.reported',values:{date:'2026-09-28',committees:[{code:'SANT',name:'Committee on Public Health',language:'en'}]}}],debated:null,
- documents:[{id:'A-10-2026-0261',amendments:20,votingList:{sittingId:'MTG-PL-2026-11-12',rows:21}}],
- press:{url:'https://www.europarl.europa.eu/news/en/press-room/20260928IPR47821/',title:'Cancer plan: a press title',publishedAt:'2026-09-28T10:00:00.000Z'}};
+ documents:[{id:'A-10-2026-0261',amendments:20,voteSitting:'MTG-PL-2026-11-12'}],
+ press:foldPress};
 const coming=agenda(NEXT,[day('2026-11-11','upcoming'),day('2026-11-12','upcoming')],[
  topic('MTG-PL-2026-11-11-OJ-ITM-D-1','PLENARY_DEBATE','Resumption of session and order of business',{order:1,evidence:{containerId:'MTG-PL-2026-11-11-TF-1500'}}),
  topic('MTG-PL-2026-11-11-OJ-ITM-D-2','PLENARY_DEBATE','Europe’s Beating Cancer Plan',{order:2,procedureIds:['2025-2139'],documentIds:['A-10-2026-0261','C-10-2025-0174'],evidence:{containerId:'MTG-PL-2026-11-11-TF-1500'}}),
@@ -291,18 +291,23 @@ test('a coming week has slots, references in folds, no results, deadlines or arc
  assert.equal(new URL(read[0],'http://x').searchParams.get('documents'),'A-10-2026-0261','only documents that can hold amendments');
  assert.equal(new URL(read[0],'http://x').searchParams.get('sittings'),'MTG-PL-2026-11-11,MTG-PL-2026-11-12');
  assert(!h.calls.some(path=>path.includes('topic=')),'the heavy item record stays unread');
- assert.equal(fold.querySelector('.kind').textContent,'Own-initiative procedure2025/2139(INI)');
- assert.match(fold.querySelector('.kind a').getAttribute('href'),/pl-mode=dossier&dossier-ref=2025%2F2139%28INI%29/);
+ // It leads with the release, verbatim, then says whose file it is and where it stands.
+ assert.equal(fold.querySelector('.facts').firstElementChild.className,'fold-press');
+ assert.equal(fold.querySelector('.quote').textContent,foldPress.lead+' '+foldPress.second);
+ assert.equal(fold.querySelector('.quote').getAttribute('lang'),'en');
+ assert.match(fold.querySelector('.press').textContent,/^From Parliament’s press release of 28 September 2026\./);
+ assert.equal(fold.querySelector('.press a').textContent,'Read more');
+ assert.equal(fold.querySelector('.press a').href,foldPress.url);
+ assert.equal(fold.querySelector('.kind').textContent,'Own-initiative procedure');
  assert.equal(fold.querySelector('.rapporteurs').textContent,'Rapporteurs: Vlad VASILE-VOICULESCU (Renew), Former MEMBER');
  assert.match(fold.querySelector('.rapporteurs a').getAttribute('href'),/member=257112/);
  assert.equal(fold.querySelectorAll('.rapporteurs a').length,1,'only a current member has a page');
  assert.equal(fold.querySelector('.standing').textContent,'The Committee on Public Health (SANT) adopted its report on 28 September 2026.');
- assert.deepEqual([...fold.querySelectorAll('.refs:not(.item-links) li')].map(n=>n.textContent),['Vote: Thursday 12 November','20 amendments tabled','21 rows on the voting list']);
- assert.match(fold.querySelector('.refs:not(.item-links) a').getAttribute('href'),/view=amendments&am-document=A-10-2026-0261/);
- assert.equal(fold.querySelector('.pressline').textContent,'Press release of 28 September 2026: Cancer plan: a press title');
- assert.equal(fold.querySelector('.pressline a').getAttribute('lang'),'en');
- assert.deepEqual([...fold.querySelectorAll('.item-links li')].map(n=>n.textContent),['A10-0261/2026','Open this item'],'a document the reader cannot open is not listed');
- assert.match(fold.querySelector('.item-links a').getAttribute('href'),/pl-mode=read&read-doc=A-10-2026-0261/);
+ assert.deepEqual([...fold.querySelectorAll('.refs li')].map(n=>n.textContent),['Vote: Thursday 12 November','20 amendments tabled']);
+ assert.equal(fold.querySelector('.refs a'),null,'the count is plain text');
+ // Read more, the current rapporteur and the item: nothing else links out.
+ assert.deepEqual([...fold.querySelectorAll('.facts a')].map(n=>n.textContent),['Read more','Vlad VASILE-VOICULESCU','Open this item']);
+ assert.doesNotMatch(fold.textContent,/voting list|2025\/2139|A10-0261/);
  assert.match(fold.querySelector('.open-item a').getAttribute('href'),/agenda-topic=MTG-PL-2026-11-11-OJ-ITM-D-2/);
  assert.doesNotMatch(fold.textContent,banned);
 });
@@ -315,14 +320,14 @@ test('a row with no report or rapporteur on the agenda has no fold',()=>{
  assert.equal(presentation.itemHasFacts(row({agendaCreatorIds:['125068']})),true,'institutional aspects of AI: no document, a named rapporteur');
 });
 test('an unknown fact stays absent, and a failed read leaves the links',async t=>{
- const empty={version:1,procedures:[{id:'2026-2952',reference:'2026/2952(RSO)',code:'RSO'}],rapporteurs:[],committees:[],standing:[],debated:null,documents:[],press:null};
+ const empty={version:2,procedures:[{id:'2026-2952',code:'RSO'}],rapporteurs:[],standing:[],debated:null,documents:[],press:null};
  const base=serve();let fail=false;
  const h=await mount(t,async target=>target.pathname.includes('week-item')?fail?new Response('{}',{status:404}):new Response(JSON.stringify(empty),{headers:{'content-type':'application/json'}}):base(target),{id:NEXT});
  const [first,second]=h.container.querySelectorAll('details');
  first.open=true;await act(async()=>{first.dispatchEvent(new globalThis.window.Event('toggle'));await new Promise(resolve=>setTimeout(resolve,30));});
- assert.equal(first.querySelector('.kind').textContent,'Organisation of Parliament2026/2952(RSO)');
- assert.equal(first.querySelector('.rapporteurs'),null);assert.equal(first.querySelector('.standing'),null);assert.equal(first.querySelector('.pressline'),null);
- assert.equal(first.querySelector('.refs:not(.item-links)'),null);
+ assert.equal(first.querySelector('.kind').textContent,'Organisation of Parliament');
+ assert.equal(first.querySelector('.rapporteurs'),null);assert.equal(first.querySelector('.standing'),null);assert.equal(first.querySelector('.quote'),null);assert.equal(first.querySelector('.press'),null);
+ assert.equal(first.querySelector('.refs'),null);
  assert.doesNotMatch(first.textContent,/unavailable|unknown|not held|0 /i);
  fail=true;
  second.open=true;await act(async()=>{second.dispatchEvent(new globalThis.window.Event('toggle'));await new Promise(resolve=>setTimeout(resolve,30));});
@@ -339,7 +344,7 @@ test('a vote fold in a running week finds a debate already held that week, not a
  assert.equal(h.container.querySelector('[data-week-day="MTG-PL-2026-11-25"]').textContent.includes('A file'),true);
  assert.equal([...h.container.querySelectorAll('[data-week-day="MTG-PL-2026-11-25"] .frow,[data-week-day="MTG-PL-2026-11-25"] .itemrow')].filter(n=>n.textContent==='A file').length,1,'the held debate stays off the days ahead');
  fold.open=true;await act(async()=>{fold.dispatchEvent(new globalThis.window.Event('toggle'));await new Promise(resolve=>setTimeout(resolve,30));});
- assert.equal(fold.querySelector('.refs:not(.item-links) li').textContent,'Debate: 24 November 2026');
+ assert.equal(fold.querySelector('.refs li').textContent,'Debate: 24 November 2026');
 });
 
 test('a running week: past days as Results, days ahead as slots, both count lines, no stories',async t=>{

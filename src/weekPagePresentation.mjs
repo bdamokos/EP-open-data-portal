@@ -84,21 +84,19 @@ export const itemHasFacts=topic=>reports(topic).length>0||(topic.agendaCreatorId
 /** The dated and counted facts of an item's fold, none of them invented: an unknown one is null. */
 export function foldFacts(item,topic,topics) {
   const documents=item?.documents||[],vote=isVote(topic);
-  const listed=documents.map(row=>row.votingList?.sittingId).filter(Boolean).sort()[0];
+  const listed=documents.map(row=>row.voteSitting).filter(Boolean).sort()[0];
   return {
     // A vote row already sits in its slot, and its debate may be this week or earlier.
     voteDate:vote?null:voteDateFor(topic,topics)||listed?.slice(7)||null,
     debateDate:vote?debateDateFor(topic,topics)||item?.debated||null:null,
     amendments:sum(documents.map(row=>row.amendments)),
-    amendmentTarget:documents.length===1?{document:documents[0].id}:item?.procedures[0]?{procedure:item.procedures[0].id}:null,
-    listRows:sum(documents.map(row=>row.votingList?.rows)),
   };
 }
 /** The week-item contract. Anything else shows the links alone. */
 const namedRow=row=>typeof row?.id==='string'||typeof row?.id==='number';
 const validStanding=line=>namedRow(line)&&(line.values==null||object(line.values)&&(line.values.committees==null||Array.isArray(line.values.committees)&&line.values.committees.every(row=>typeof row?.name==='string')));
 /** The reply's rows are read as they render, so a row that can't render fails the whole reply and the fold keeps its links. */
-export const validWeekItem=data=>object(data)&&[data.procedures,data.rapporteurs,data.committees,data.standing,data.documents].every(Array.isArray)&&data.documents.every(row=>typeof row?.id==='string')&&data.procedures.every(namedRow)&&data.rapporteurs.every(namedRow)&&data.standing.every(validStanding)&&(data.press===null||typeof data.press?.url==='string'&&typeof data.press.title==='string');
+export const validWeekItem=data=>object(data)&&[data.procedures,data.rapporteurs,data.standing,data.documents].every(Array.isArray)&&data.documents.every(row=>typeof row?.id==='string')&&data.procedures.every(namedRow)&&data.rapporteurs.every(namedRow)&&data.standing.every(validStanding)&&(data.press===null||typeof data.press?.url==='string'&&typeof data.press.lead==='string');
 
 export function tallyWords(summary,ui=defaultUi) {
   return ['adopted','rejected','lapsed','unknown'].filter(key=>summary[key]>0).map(key=>ui.t('week.tally_words.'+key,{n:summary[key]})).join(', ');

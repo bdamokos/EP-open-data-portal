@@ -165,15 +165,15 @@ test('contract checks turn a malformed reply into no stories rather than a crash
 test('a fold\'s dates and counts come only from the reply and the agenda, and unknown stays null',()=>{
  const row=(id,kind,extra={})=>({id,kind,date:id.slice(7,17),sittingId:id.slice(0,17),documentIds:[],procedureIds:['2025-0223'],agendaCreatorIds:[],...extra});
  const debate=row('MTG-PL-2026-11-11-OJ-ITM-D-1','PLENARY_DEBATE'),vote=row('MTG-PL-2026-11-12-OJ-ITM-V-1','PLENARY_VOTE');
- const reply={procedures:[{id:'2025-0223'}],documents:[{id:'A-10-2026-0271',amendments:366,votingList:{sittingId:'MTG-PL-2026-11-12',rows:51}}],debated:null};
- assert.deepEqual(foldFacts(reply,debate,[debate]),{voteDate:'2026-11-12',debateDate:null,amendments:366,amendmentTarget:{document:'A-10-2026-0271'},listRows:51},'the voting list dates the vote of a debate with no vote row');
+ const reply={procedures:[{id:'2025-0223'}],documents:[{id:'A-10-2026-0271',amendments:366,voteSitting:'MTG-PL-2026-11-12'}],debated:null};
+ assert.deepEqual(foldFacts(reply,debate,[debate]),{voteDate:'2026-11-12',debateDate:null,amendments:366},'the voting list dates the vote of a debate with no vote row');
  assert.equal(foldFacts({...reply,documents:[]},debate,[debate,vote]).voteDate,'2026-11-12','an agenda vote on the same procedure');
  assert.equal(foldFacts(reply,vote,[debate,vote]).voteDate,null,'a vote row sits in its own slot');
  assert.equal(foldFacts(reply,vote,[debate,vote]).debateDate,'2026-11-11');
  assert.equal(foldFacts({...reply,debated:'2026-10-20'},vote,[vote]).debateDate,'2026-10-20','a debate at an earlier session');
- const two={procedures:[{id:'2025-0223'}],documents:[{id:'A-10-2026-0271',amendments:2,votingList:null},{id:'A-10-2026-0272',amendments:null,votingList:null}],debated:null};
- assert.deepEqual(foldFacts(two,debate,[debate]),{voteDate:null,debateDate:null,amendments:2,amendmentTarget:{procedure:'2025-0223'},listRows:null},'several reports link the procedure\'s amendments');
- assert.deepEqual(foldFacts(null,debate,[debate]),{voteDate:null,debateDate:null,amendments:null,amendmentTarget:null,listRows:null});
+ const two={procedures:[{id:'2025-0223'}],documents:[{id:'A-10-2026-0271',amendments:2,voteSitting:null},{id:'A-10-2026-0272',amendments:null,voteSitting:null}],debated:null};
+ assert.deepEqual(foldFacts(two,debate,[debate]),{voteDate:null,debateDate:null,amendments:2},'an unknown report adds nothing to the total');
+ assert.deepEqual(foldFacts(null,debate,[debate]),{voteDate:null,debateDate:null,amendments:null});
 });
 test('the fold route carries exact identifiers and reports alone, and there is none without any',()=>{
  const topic=(procedureIds,documentIds)=>({procedureIds,documentIds});
@@ -183,8 +183,10 @@ test('the fold route carries exact identifiers and reports alone, and there is n
 });
 
 test('a week-item reply with a row that cannot render is invalid, so the fold keeps its links',()=>{
- const good={procedures:[{id:'2025-2139'}],rapporteurs:[{id:'1'}],committees:[],standing:[{id:'dossierstatus.reported',values:{committees:[{name:'SANT',code:'SANT'}]}}],documents:[],press:null};
+ const good={procedures:[{id:'2025-2139'}],rapporteurs:[{id:'1'}],standing:[{id:'dossierstatus.reported',values:{committees:[{name:'SANT',code:'SANT'}]}}],documents:[],press:null};
  assert(validWeekItem(good));
+ assert(validWeekItem({...good,press:{url:'u',lead:'l',second:null,publishedAt:null}}));
+ assert(!validWeekItem({...good,press:{url:'u'}}));
  assert(!validWeekItem({...good,rapporteurs:[null]}));
  assert(!validWeekItem({...good,procedures:[{}]}));
  assert(!validWeekItem({...good,standing:[null]}));

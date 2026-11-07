@@ -1,15 +1,12 @@
 import type {MouseEvent,ReactNode} from 'react';
-import {amendmentHref} from './amendmentModel.mjs';
 import {FoldRow} from './FoldRow';
 import {groupLabel} from './groupLabels';
 import {useInsightData} from './InsightData';
 import {useData} from './data';
 import {dossierLinkClick} from './dossierJourney';
-import {dossierHref} from './followDossiers.mjs';
 import {PageStrip,StripLink} from './PageStrip';
 import {PersonName} from './PersonName';
 import {validateVotePeriods,type VotePeriodsResponse} from './plenaryPeriods.mjs';
-import {documentReferenceLabel,readableDocument,readHref} from './readRoute.mjs';
 import {UiMessage,useUiI18n} from './UiI18nReact';
 import {TallyHeads,TotalsFigures,VoteRow} from './VoteRow';
 import {agendaItemHref,dayDate,longDate,voteHref} from './votePagePresentation.mjs';
@@ -28,7 +25,7 @@ function jump(event:MouseEvent<HTMLAnchorElement>,id:string) {
 }
 const withCommas=(parts:ReactNode[])=>parts.filter(Boolean).flatMap((part,index)=>index?[', ',part]:[part]);
 
-function PressLine({press,date,voteId,language}:{press:WeekStoryStory['press'];date:string|null;voteId?:string|null;language:string}) {
+function PressLine({press,date,voteId,language}:{press:{url:string};date:string|null;voteId?:string|null;language:string}) {
   return <p className="press">
     {date&&<span className="muted"><UiMessage id="week.story.from" values={{date}}/></span>}
     <span className="press-links">
@@ -117,32 +114,24 @@ function StandingLine({line,language}:{line:WeekItemLine;language:string}) {
 function ItemFacts({topic,topics,sittingIds,language}:{topic:AgendaTopic;topics:AgendaTopic[];sittingIds:string[];language:string}) {
   const ui=useUiI18n(),route=weekItemRoute(topic,sittingIds,language),read=useInsightData<WeekItemResponse>(route);
   const item=validWeekItem(read.data)?read.data:null,facts=foldFacts(item,topic,topics);
-  const documents=[...new Set([...topic.documentIds,...(item?.documents.map(row=>row.id)||[])])].filter(readableDocument);
-  const people=withCommas((item?.rapporteurs||[]).map(person=><span key={person.id}>{person.currentMep?<a href={'?'+new URLSearchParams({lang:language,member:person.id,module:'profile'})}><PersonName id={person.id} label={person.name} fallback={person.name}/></a>:<PersonName id={person.id} label={person.name} fallback={person.name}/>}{person.group&&<> ({groupLabel(person.group,ui)})</>}</span>));
-  const press=item?.press;
+  const people=withCommas((item?.rapporteurs||[]).map(person=>{
+    const name=<PersonName id={person.id} label={person.name} fallback={person.name}/>;
+    return <span key={person.id}>{person.currentMep?<a href={'?'+new URLSearchParams({lang:language,member:person.id,module:'profile'})}>{name}</a>:name}{person.group&&<> ({groupLabel(person.group,ui)})</>}</span>;
+  }));
+  const press=item?.press,kinds=(item?.procedures||[]).filter(procedure=>procedure.code);
   return <div className="facts">
     {route&&read.loading&&!item&&<p role="status"><UiMessage id="insightshared.loading"/></p>}
     {route&&!read.loading&&!item&&<p role="alert"><UiMessage id="week.fold.unavailable"/></p>}
-    {item?.procedures.map(procedure=><p key={procedure.id} className="kind">
-      {procedure.code&&<span><UiMessage id={'week.kind.'+procedure.code}/></span>}
-      <a href={dossierHref(procedure.reference,language)} onClick={dossierLinkClick}>{procedure.reference}</a>
-    </p>)}
+    {press&&<div className="fold-press"><p className="quote" lang="en">{storyText(press)}</p><PressLine press={press} date={pressFullDate(press.publishedAt,language)} language={language}/></div>}
+    {kinds.map(procedure=><p key={procedure.id} className="kind"><UiMessage id={'week.kind.'+procedure.code}/></p>)}
     {people.length>0&&<p className="rapporteurs"><UiMessage id={people.length===1?'week.fold.rapporteur':'week.fold.rapporteurs'} values={{names:<>{people}</>}}/></p>}
     {item?.standing.map(line=><StandingLine key={line.id} line={line} language={language}/>)}
-    {(facts.voteDate||facts.debateDate||facts.amendments||facts.listRows)&&<ul className="refs">
+    {(facts.voteDate||facts.debateDate||facts.amendments)&&<ul className="refs">
       {facts.voteDate&&<li><UiMessage id="week.debate.vote" values={{date:dayDate(facts.voteDate,language)}}/></li>}
       {facts.debateDate&&<li><UiMessage id="week.fold.debate" values={{date:longDate(facts.debateDate,language)}}/></li>}
-      {facts.amendments&&<li>{facts.amendmentTarget?<a href={amendmentHref(window.location.pathname,{...facts.amendmentTarget,language})}><UiMessage id="week.fold.amendments" values={{count:facts.amendments}} counts={{count:facts.amendments}}/></a>:<UiMessage id="week.fold.amendments" values={{count:facts.amendments}} counts={{count:facts.amendments}}/>}</li>}
-      {facts.listRows&&<li><UiMessage id="week.fold.list_rows" values={{count:facts.listRows}} counts={{count:facts.listRows}}/></li>}
+      {facts.amendments&&<li><UiMessage id="week.fold.amendments" values={{count:facts.amendments}} counts={{count:facts.amendments}}/></li>}
     </ul>}
-    {press&&<p className="pressline">{(()=>{
-      const title=<a href={press.url} target="_blank" rel="noreferrer" lang="en">{press.title}</a>,date=pressFullDate(press.publishedAt,language);
-      return date?<UiMessage id="week.fold.press" values={{date,title}}/>:<UiMessage id="week.fold.press_undated" values={{title}}/>;
-    })()}</p>}
-    <ul className="refs item-links">
-      {documents.map(id=><li key={id}><a href={readHref({documentId:id,language})} onClick={dossierLinkClick}>{documentReferenceLabel(id)}</a></li>)}
-      <li className="open-item"><a className="c" href={agendaItemHref(topic.id,language)} onClick={dossierLinkClick}><UiMessage id="week.open_item"/></a></li>
-    </ul>
+    <p className="open-item"><a className="c" href={agendaItemHref(topic.id,language)} onClick={dossierLinkClick}><UiMessage id="week.open_item"/></a></p>
   </div>;
 }
 function ComingDay({day,topics,sittingIds,language,voteBlockAt,retry}:{day:Day;topics:AgendaTopic[];sittingIds:string[];language:string;voteBlockAt:string|null;retry:()=>void}) {
