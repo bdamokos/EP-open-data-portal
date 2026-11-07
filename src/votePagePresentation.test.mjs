@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {agendaItemHref,agendaVoteRedirect,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,itemVoteSections,longDate,membersByGroup,shortDate,dayDate,voteAmendmentWording,voteCentre,voteHref,voteOutcomeWord,voteRowLabel,voteSentence,voteSteps,wayLine} from './votePagePresentation.mjs';
+import {agendaItemHref,agendaVoteRedirect,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,itemVoteSections,longDate,memberBackHref,memberVoteLine,membersByGroup,shortDate,dayDate,voteAmendmentWording,voteCentre,voteHref,voteOutcomeWord,voteRowLabel,voteSentence,voteSteps,wayLine} from './votePagePresentation.mjs';
 import {splitVoteRequests} from './memberVotesPresentation.mjs';
 import {readExplorerParam,explorerParams} from './explorerQuery.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -172,4 +172,81 @@ test('a part vote whose part cannot be named takes the source label, never the w
  const several={...unnamed,parts:[part('1'),part('2')]};
  assert.equal(render(voteSentence(several,page)),'Recital 3 – Am 4/2: adopted by 423 to 125, with 32 abstaining.');
  assert.equal(render(voteSentence({...unnamed,parts:[part('2')]},page)),'Parliament adopted part 2 of amendment 4 by 423 to 125, with 32 abstaining.');
+});
+const lineData=(fields={})=>({integrity:'complete',noRecord:{ids:['absent'],groups:['PPE']},decision:{outcome:'ADOPTED',ballotStatus:'conducted'},...fields});
+const row=(id,group,position,country='MT')=>({id,name:id,group,position,country});
+const voters=[row('a','PPE','against'),row('b','PPE','for'),row('c','PPE','for'),row('d','S&D','for'),row('e','S&D','against'),row('n','NI','against','GR'),row('g','NI','for','EL'),row('x','NI','for','EL'),row('u','unavailable','for','DE'),row('l','ESN','for','DE'),row('q','ECR','abstaining',null),row('r','ECR','for','IE'),row('s','ECR','for','IE'),row('t','ECR','for','IE')];
+test('a member line states position, group, outcome and country from the reply alone',()=>{
+ assert.deepEqual(memberVoteLine(lineData(),voters,'a'),{state:'voted',position:'against',id:'votepage.member.voted.differs.differs',group:'PPE',country:{code:'MT',count:2,total:5}});
+ assert.equal(memberVoteLine(lineData(),voters,'b').id,'votepage.member.voted.with.with');
+ assert.equal(memberVoteLine(lineData({decision:{outcome:'REJECTED',ballotStatus:'conducted'}}),voters,'b').id,'votepage.member.voted.with.differs');
+ assert.equal(memberVoteLine(lineData({decision:{outcome:'REJECTED',ballotStatus:'conducted'}}),voters,'a').id,'votepage.member.voted.differs.with');
+ assert.equal(memberVoteLine(lineData({decision:{outcome:null,ballotStatus:'conducted'}}),voters,'b').id,'votepage.member.voted.with.none');
+ assert.equal(memberVoteLine(lineData({decision:{outcome:null,ballotStatus:'conducted'}}),voters,'a').id,'votepage.member.voted.differs.none');
+ const tied=memberVoteLine(lineData(),voters,'e');
+ assert.equal(tied.id,'votepage.member.voted.none.differs','a tied group never differs');
+ assert.equal(tied.group,null);
+ assert.equal(memberVoteLine(lineData(),voters,'n').id,'votepage.member.voted.none.differs','non-attached has no group clause');
+ assert.equal(memberVoteLine(lineData(),voters,'u').id,'votepage.member.voted.none.with','no group history: position and outcome');
+ assert.equal(memberVoteLine(lineData(),voters,'l').id,'votepage.member.voted.none.with','alone in a group: no group clause');
+ assert.equal(memberVoteLine(lineData({decision:{outcome:null,ballotStatus:'conducted'}}),voters,'u').id,'votepage.member.voted.none.none');
+});
+test('an abstention is neither with nor against the outcome',()=>{
+ const line=memberVoteLine(lineData(),voters,'q');
+ assert.equal(line.id,'votepage.member.abstained.differs');
+ assert.equal(line.country,null,'country unknown: no count');
+ assert.equal(memberVoteLine(lineData(),[row('z','PPE','abstaining'),row('y','PPE','abstaining')],'z').id,'votepage.member.abstained.with');
+ assert.equal(memberVoteLine(lineData(),[row('z','NI','abstaining')],'z').id,'votepage.member.abstained.none');
+});
+test('the country count needs two other voters and matches GR with EL',()=>{
+ assert.deepEqual(memberVoteLine(lineData(),voters,'n').country,{code:'EL',count:1,total:3});
+ assert.deepEqual(memberVoteLine(lineData(),voters,'g').country,{code:'EL',count:2,total:3});
+ assert.equal(memberVoteLine(lineData(),voters,'u').country,null,'one other voter is not enough');
+ assert.deepEqual(memberVoteLine(lineData(),voters,'r').country,{code:'IE',count:3,total:3});
+});
+test('records that cannot support a line give less or none, never a zero',()=>{
+ const partial=memberVoteLine(lineData({integrity:'partial',noRecord:null}),voters,'a');
+ assert.deepEqual(partial,{state:'voted',position:'against',id:'votepage.member.voted.none.differs',group:null,country:null});
+ assert.equal(memberVoteLine(lineData({integrity:'partial',noRecord:null}),voters,'absent'),null,'a partial list cannot show who did not vote');
+ assert.equal(memberVoteLine(lineData({integrity:'conflicting'}),[],'a'),null);
+ assert.equal(memberVoteLine(lineData({integrity:'unavailable',noRecord:null,decision:{outcome:'ADOPTED',ballotStatus:'conducted',method:'VOTE_HAND'}}),[],'a'),null,'show of hands');
+ assert.equal(memberVoteLine(lineData({decision:{outcome:'LAPSED',ballotStatus:'not-conducted'}}),voters,'a'),null);
+ assert.equal(memberVoteLine(lineData({decision:{outcome:'LAPSED',ballotStatus:'conducted'}}),voters,'a'),null);
+ assert.deepEqual(memberVoteLine(lineData(),voters,'absent'),{state:'no_record'});
+ assert.equal(memberVoteLine(lineData(),voters,'stranger'),null,'not on this vote at all');
+ assert.equal(memberVoteLine(lineData(),voters,null),null);
+});
+test('every member-line message exists in all 24 catalogues with the same slots',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const read=async name=>JSON.parse(await readFile(new URL('./ui-locales/'+name+'.json',import.meta.url),'utf8'));
+ const clauses=['differs','with','none'];
+ const ids=['votepage.member.no_record','votepage.member.country','votepage.member.country.one',...clauses.flatMap(group=>[...clauses.map(outcome=>'votepage.member.voted.'+group+'.'+outcome),'votepage.member.abstained.'+group])];
+ const slots=text=>[...text.matchAll(/\{(\w+)\}/g)].map(match=>match[1]).sort();
+ const english=await read('en');
+ for(const language of 'en bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ')) {
+  const catalogue=await read(language);
+  for(const id of ids) {
+   assert.equal(typeof catalogue[id],'string',language+': '+id);
+   assert.deepEqual(slots(catalogue[id]),slots(english[id]),language+': '+id);
+  }
+ }
+});
+test('the member goes in the vote address only when given, and back returns to their record',()=>{
+ const id='MTG-PL-2026-03-11-DEC-188831';
+ assert.equal(voteHref(id,'en',113523),'?view=legislation&pl-mode=vote&pl-vote='+id+'&vote-member=113523&lang=en');
+ assert.equal(voteHref(id,'en',null),voteHref(id,'en'));
+ const record='http://localhost/?member=113523&module=votes&mv-record-offset=20&lang=en';
+ assert.equal(memberBackHref(record,'113523','en'),record,'the exact place the reader left');
+ assert.match(memberBackHref('http://localhost/?member=5&module=votes&lang=en','113523','de'),/^\?member=113523&module=votes&.*lang=de$/,'another member is not this one\'s way back');
+ assert.match(memberBackHref('http://localhost/?view=legislation&pl-mode=dossier&lang=en','113523','en'),/^\?member=113523&module=votes/);
+ assert.match(memberBackHref(null,'113523','en'),/^\?member=113523&module=votes/);
+});
+test('the member the reader came from leads their own group in the differs list',()=>{
+ const plain=differingByGroup(rows,new Set(['p0','p9','s2']),['PPE','S&D']);
+ assert.deepEqual(plain[0].positions.map(line=>[line.position,line.people.map(person=>person.id)]),[['for',['p0']],['against',['p9']]]);
+ const led=differingByGroup(rows,new Set(['p0','p9','s2']),['PPE','S&D'],'p9');
+ assert.deepEqual(led[0].positions.map(line=>[line.position,line.people.map(person=>person.id)]),[['against',['p9']],['for',['p0']]]);
+ assert.deepEqual(led[1],plain[1],'other groups keep their order');
+ const peers=[{id:'k',name:'K Aaa',group:'PPE',position:'for'},{id:'m',name:'M Zzz',group:'PPE',position:'for'}];
+ assert.deepEqual(differingByGroup(peers,new Set(['k','m']),['PPE'],'m')[0].positions[0].people.map(person=>person.id),['m','k']);
 });

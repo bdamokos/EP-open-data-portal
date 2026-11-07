@@ -1,5 +1,7 @@
 import {defaultUi} from './uiDefault.mjs';
 import {memberVoteLabel,memberVoteTotals} from './memberVotesPresentation.mjs';
+import {filterCountry,matchesCountry} from './countries.mjs';
+import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import {groupMajorities} from './voteGroupMetrics.mjs';
 import {amendmentNumber as readAmendmentNumber} from './readRoute.mjs';
 import {stripNumberPrefix} from './splitRuns.mjs';
@@ -8,7 +10,14 @@ const withoutNames=new Set(['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRE
 const positions=['for','against','abstaining'];
 const unique=values=>[...new Set(values)];
 
-export const voteHref=(id,language='en')=>'?'+new URLSearchParams({view:'legislation','pl-mode':'vote','pl-vote':id,lang:language});
+// `member` carries the MEP the reader came from; without it the page is the plain vote page.
+export const voteHref=(id,language='en',member=null)=>'?'+new URLSearchParams({view:'legislation','pl-mode':'vote','pl-vote':id,...(member?{'vote-member':String(member)}:{}),lang:language});
+/** Back to a member's voting record: the exact address the reader left when it is that member's
+ * record, so filters and pages return, otherwise the record itself for a shared link. */
+export function memberBackHref(origin,member,language='en') {
+  if(origin){const query=new URL(origin,'http://origin.invalid').searchParams;if(query.get('member')===String(member)&&!query.has('view')&&query.get('module')==='votes')return origin;}
+  return '?'+new URLSearchParams({member:String(member),module:'votes',...(PLENARY_REDESIGN_LIVE?{}:{'record-preview':'1'}),lang:language});
+}
 export function agendaItemHref(id,language='en') {
   const day=/^MTG-PL-\d{4}-\d{2}-\d{2}/.exec(id)?.[0];
   return '?'+new URLSearchParams({view:'legislation',...(day?{'agenda-period':'sitting:'+day}:{}),'agenda-topic':id,lang:language});
@@ -143,12 +152,33 @@ export function membersByGroup(rows,order) {
     return {code,positions:[...positions].sort((a,b)=>(a===lead)-(b===lead)||positions.indexOf(a)-positions.indexOf(b)).map(position=>({position,people:people.filter(row=>row.position===position).sort(byName)})).filter(entry=>entry.people.length)};
   });
 }
-/** Members who differ from their group, by group in table order, each position's names by surname. */
-export function differingByGroup(rows,differIds,order) {
+/** Members who differ from their group, by group in table order, each position's names by surname.
+ * `first` is a member the reader came from: in their own group their position and name lead. */
+export function differingByGroup(rows,differIds,order,first=null) {
   return order.flatMap(code=>{
     const people=rows.filter(row=>(row.group||'unavailable')===code&&differIds.has(String(row.id)));
-    return people.length?[{code,count:people.length,positions:positions.map(position=>({position,people:people.filter(row=>row.position===position).sort(byName)})).filter(entry=>entry.people.length)}]:[];
+    const lead=first===null?null:people.find(row=>String(row.id)===first)?.position??null;
+    const leading=row=>String(row.id)===first;
+    return people.length?[{code,count:people.length,positions:[...positions].sort((a,b)=>(b===lead)-(a===lead)).map(position=>({position,people:people.filter(row=>row.position===position).sort((a,b)=>leading(b)-leading(a)||byName(a,b))})).filter(entry=>entry.people.length)}]:[];
   });
+}
+/** What one member's line says, from this vote's reply alone, or null for no line. A group clause
+ * follows `groupMajorities`: NI, an unknown group and a tie have none, and neither does a voter
+ * alone in their group. An incomplete list supports neither the group nor the country. A country
+ * counts when it has two other voters; voters with no known country are in no country's count. */
+export function memberVoteLine(data,rows,member) {
+  const vote=data.decision;
+  if(!member||!vote||data.integrity==='conflicting'||vote.ballotStatus==='not-conducted'||vote.outcome==='LAPSED')return null;
+  const row=rows.find(entry=>entry.id===member);
+  if(!row)return data.noRecord?.ids.includes(member)?{state:'no_record'}:null;
+  const complete=data.integrity==='complete';
+  const group=complete?groupMajorities(rows).find(entry=>entry.code===row.group):null;
+  const groupClause=group?.majority&&group.voters>1?(row.position===group.majority?'with':'differs'):'none';
+  const line=vote.outcome==='ADOPTED'?'for':vote.outcome==='REJECTED'?'against':null;
+  const outcomeClause=!line||row.position==='abstaining'?'none':row.position===line?'with':'differs';
+  const peers=complete&&row.country?rows.filter(entry=>entry.country&&matchesCountry(row.country,entry.country)):[];
+  return {state:'voted',position:row.position,id:row.position==='abstaining'?'votepage.member.abstained.'+groupClause:'votepage.member.voted.'+groupClause+'.'+outcomeClause,group:groupClause==='none'?null:row.group,
+    country:peers.length>=3?{code:filterCountry(row.country),count:peers.filter(entry=>entry.position===row.position).length,total:peers.length}:null};
 }
 const hasCount=vote=>positions.every(position=>Number.isFinite(vote.totals?.[position]));
 /** Votes on an item in the page's sections, main vote first in its own section. A full count is
