@@ -30,7 +30,7 @@ function response(patch={}) {
   };
 }
 
-async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',offset=0,tag=null,matches=false,live=false}={}) {
+async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',offset=0,tag=null,matches=false,live=false,failWhen=null}={}) {
   const window=new Window({url:'http://localhost/?member='+MEMBER+'&module=votes'});
   window.matchMedia=query=>({matches:matches&&query.includes('max-width'),media:query,addEventListener(){},removeEventListener(){}});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
@@ -40,8 +40,9 @@ async function mount(t,{data=response(),status=200,memberId=MEMBER,scope='all',o
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   t.mock.method(globalThis,'fetch',async url=>{
     calls.push(String(url));
-    if(status!==200)return new Response('',{status});
     const url_=new URL(String(url),'http://localhost');
+    if(status!==200)return new Response('',{status});
+    if(failWhen?.(url_))return new Response('',{status:503});
     return Response.json(typeof data==='function'?data(url_):data);
   });
   load=await freshLoader({configFile:false,plugins:live?[rolloutLive]:undefined,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
@@ -361,4 +362,24 @@ test('after the flip a title opens the vote page and keeps the journey back',asy
   const [link]=links(view.container);
   assert.match(link.getAttribute('href'),/^\?view=legislation&pl-mode=vote&pl-vote=MTG-PL-2026-10-07-DEC-10&lang=en$/);
   assert.equal(view.opened.length,0);
+});
+
+test('a saved offset never mounts pages past the last one, and pages load one after the other',async t=>{
+  const view=await mount(t,{offset:10000,data:pagesOf(6)});
+  const offsets=view.calls.map(call=>Number(new URL(call,'http://localhost').searchParams.get('offset')));
+  assert.deepEqual([...new Set(offsets)].sort((a,b)=>a-b),[0,5],'six departures need two pages, no more');
+  assert.equal(links(view.container).length,6);
+});
+
+test('a page that fails says so and offers a retry instead of looking complete',async t=>{
+  let broken=true;
+  const view=await mount(t,{offset:5,data:pagesOf(6),failWhen:url=>broken&&url.searchParams.get('offset')==='5'});
+  await exhaustAutomaticRetries(t);
+  assert.equal(links(view.container).length,5);
+  assert.match(view.container.querySelector('.mvr-section').textContent,/Voting record unavailable\./);
+  assert.equal(button(view.container,'Show more'),undefined,'no claim that the list is whole');
+  assert.equal(/ of 6/.test(view.container.textContent),false);
+  broken=false;
+  await act(async()=>button(view.container,'Try again').click());
+  assert.equal(links(view.container).length,6);
 });

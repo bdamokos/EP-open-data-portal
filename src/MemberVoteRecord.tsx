@@ -55,12 +55,14 @@ const positionLine=(position:VotePosition|null,ui:ReturnType<typeof useUiI18n>):
 const PAGE=MEMBER_VOTE_RECORD_LIMIT;
 
 // One page of departures, fetched on its own so a reload restores every page already shown.
-function DeparturePage({memberId,language,scope,tag,offset,onOpenDecision}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;offset:number;onOpenDecision:(item:MemberVoteRecordDeparture)=>void}) {
+// It reports once its rows are in, and says so when it fails.
+function DeparturePage({memberId,language,scope,tag,offset,onOpenDecision,onLoaded}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;offset:number;onOpenDecision:(item:MemberVoteRecordDeparture)=>void;onLoaded:()=>void}) {
   const ui=useUiI18n();
   const route=useMemo(()=>memberVoteRecordRoute(memberId,{language,scope,limit:PAGE,offset,tag}),[memberId,language,scope,tag,offset]);
   const request=useData<MemberVoteRecordResponse>(route,{unavailable:'membervoterecord.unavailable'});
   const data=request.data&&validateMemberVoteRecordResponse(request.data,{memberId})?request.data:null;
-  if(!data)return null;
+  useEffect(()=>{if(data)onLoaded();},[data,onLoaded]);
+  if(!data)return request.error||!request.loading?<p className="mvr-more" role="status"><span className="muted"><UiMessage id="membervoterecord.unavailable"/></span><button type="button" className="c word" onClick={request.retry}><UiMessage id="week.retry"/></button></p>:null;
   return <>{data.departures.items.map(item=>{
     const primary=item.subject?.text??item.text,primaryLanguage=item.subject?.text?item.subject.language:item.language;
     const label=item.subject?.text&&item.text?<span className="blk" lang={markLanguage(item.language,ui)}>{item.text}</span>:null;
@@ -75,22 +77,32 @@ function DeparturePage({memberId,language,scope,tag,offset,onOpenDecision}:{memb
   })}</>;
 }
 
+// The pages up to the URL offset, never past the last one. They load one after the other, so a
+// saved link with a large offset can't start more than one read at a time.
+function DeparturePages({memberId,language,scope,tag,total,offset,onOpenDecision,onOffset}:{memberId:number;language:string;scope:'all'|'final';tag:string|null;total:number;offset:number;onOpenDecision:(item:MemberVoteRecordDeparture)=>void;onOffset:(offset:number)=>void}) {
+  const pages=Math.min(Math.floor(offset/PAGE)+1,Math.max(1,Math.ceil(total/PAGE)));
+  const [loaded,setLoaded]=useState(0);
+  const mounted=Math.min(pages,loaded+1);
+  const shown=Math.min(loaded*PAGE,total);
+  return <>
+    <div className="mvr-rows">{Array.from({length:mounted},(_,page)=><DeparturePage key={page} memberId={memberId} language={language} scope={scope} tag={tag} offset={page*PAGE} onOpenDecision={onOpenDecision} onLoaded={()=>setLoaded(count=>Math.max(count,page+1))}/>)}</div>
+    {loaded===pages&&shown<total&&<p className="mvr-more">
+      <span className="meta"><UiMessage id="membervoterecord.departures.range" values={{start:1,end:shown,total}}/></span>
+      <button type="button" className="c word" onClick={()=>onOffset(pages*PAGE)}><UiMessage id="membervoterecord.departures.more"/></button>
+    </p>}
+  </>;
+}
+
 function Departures({data,memberId,language,scope,tag,offset,onOffset,onTagChange,onOpenDecision}:{data:MemberVoteRecordResponse;memberId:number;language:string;scope:'all'|'final';tag:string|null;offset:number;onOffset:(offset:number)=>void;onTagChange:(tag:string|null)=>void;onOpenDecision:(item:MemberVoteRecordDeparture)=>void}) {
   const ui=useUiI18n();
   const total=data.departures.total;
-  // The URL offset is the last page shown; every page up to it is rendered, in order.
-  const pages=Math.floor(offset/PAGE)+1,shown=Math.min(pages*PAGE,total);
   return <>
     {tag&&<p className="mvr-filter">
       <span><UiMessage id="membervoterecord.filter.on" values={{label:<span lang={markLanguage(data.departures.tag?.language,ui)}>{data.departures.tag?.label??''}</span>}}/></span>
       <button type="button" className="c word" onClick={()=>onTagChange(null)}><UiMessage id="membervoterecord.filter.clear"/></button>
     </p>}
     {!total&&<p className="muted mvr-none"><UiMessage id="membervoterecord.departures.empty"/></p>}
-    {Boolean(total)&&<div className="mvr-rows">{Array.from({length:pages},(_,page)=><DeparturePage key={scope+(tag??'')+page} memberId={memberId} language={language} scope={scope} tag={tag} offset={page*PAGE} onOpenDecision={onOpenDecision}/>)}</div>}
-    {shown<total&&<p className="mvr-more">
-      <span className="meta"><UiMessage id="membervoterecord.departures.range" values={{start:1,end:shown,total}}/></span>
-      <button type="button" className="c word" onClick={()=>onOffset(pages*PAGE)}><UiMessage id="membervoterecord.departures.more"/></button>
-    </p>}
+    {Boolean(total)&&<DeparturePages key={memberId+scope+(tag??'')+total} memberId={memberId} language={language} scope={scope} tag={tag} total={total} offset={offset} onOpenDecision={onOpenDecision} onOffset={onOffset}/>}
   </>;
 }
 
