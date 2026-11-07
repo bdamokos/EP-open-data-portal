@@ -9,6 +9,6 @@ export function createYourVotesStore(storage,notify=()=>{},clock=Date.now) {
 }
 // A star follows its report when the agenda moves it between items; one agenda
 // item can also hold several reports. Stars without a document match by item.
-export const starMatches=(star,ballot)=>star.sittingId===ballot.sittingId&&(star.documentId&&(ballot.documentId??null)!==null?star.documentId===ballot.documentId:star.id===ballot.id);
+export const starMatches=(star,ballot)=>star.sittingId===ballot.sittingId&&(star.documentId?star.documentId===ballot.documentId:star.id===ballot.id);
 export const choiceAgreement=(choice,position)=>choice&&position?choice===position:null;
 export const outcomePosition=outcome=>outcome==='ADOPTED'?'for':outcome==='REJECTED'?'against':null;

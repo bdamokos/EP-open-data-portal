@@ -8,4 +8,5 @@ export function sessionDateRange(dates:string[],language:string):string;
 
 export function brusselsToday(now?:number):string;
 export function ballotSittings(sitting:string,sittings:{id:string;date:string}[],now?:number):string[];
+export function debateBallots<T extends {id:string;alsoOn?:string[]}>(ids:string[],results:PromiseSettledResult<{items:T[]}>[],agendaItemId:string,applicable:boolean,now?:number):{items:T[];failed:boolean};
 export function ballotVisible(sitting:string,source:string,now?:number):boolean;

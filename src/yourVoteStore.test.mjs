@@ -19,4 +19,6 @@ test('a star follows its report across agenda items and stays separate on a shar
  store.toggleStar({...civil,id:sittingId+'-OJ-ITM-V-37'});assert.deepEqual(store.snapshot().stars,[cancer]);
  // Ballots and stars without a document keep matching by agenda item.
  assert(starMatches({id:'item',sittingId},{id:'item',sittingId,documentId:'A-10-2026-0271'}));assert(starMatches({id:'item',sittingId,documentId:null},{id:'item',sittingId,documentId:null}));
+ // A ballot without a document is not a report's, so toggling it leaves report stars alone.
+ store.toggleStar({id:shared,sittingId,documentId:null});assert.equal(store.snapshot().stars.length,2);
 });

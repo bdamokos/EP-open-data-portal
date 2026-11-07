@@ -29,6 +29,8 @@ function matches(row,doc,raw,derived) {
   if(raw._conflictingSourceObservations)return false;
   const full=ids(raw.decided_on_a_realization_of,'doc'),partial=ids(raw.decided_on_a_part_of_a_realization_of,'doc'),all=[...full,...partial];
   if(array(raw.decided_on_a_realization_of).length!==full.length||array(raw.decided_on_a_part_of_a_realization_of).length!==partial.length)return false;
+  // A decision explicitly naming another report or motion is never this ballot's.
+  if(all.map(id=>id.replace(/-AM-\d+$/,'')).some(id=>targetDocument.test(id)&&id!==doc))return false;
   const xml=typeof raw.decisionAboutId_XMLLiteral==='string'?raw.decisionAboutId_XMLLiteral:'',comment=raw.comment?.en||'';
   const marker=symbol=>new RegExp('<symbol\\b[^>]*\\bhref=[\"\'][^\"\']*/'+symbol+'[\"\'][^>]*>').test(xml);
   const split=full.filter(id=>/-SPLIT-\d+-\d+$/.test(id)).map(id=>Number(id.split('-').at(-1)));
@@ -68,7 +70,7 @@ export function ballotContext(day,amendments=[],derive=deriveVoteEvidence) {
     if(ids(result.executed).some(item=>agendaDocuments.has(item)&&!agendaDocuments.get(item).includes(document)))continue;
     byDocument.set(document,day.decisions.filter(decision=>{
       const owners=ids(decision.inverse_consists_of),parts=[...ids(decision.decided_on_a_realization_of,'doc'),...ids(decision.decided_on_a_part_of_a_realization_of,'doc')];
-      return owners.length===1&&owners[0]===id&&parts.every(part=>part===document||part.startsWith(document+'-AM-')||/-SPLIT-\d+-\d+$/.test(part));
+      return owners.length===1&&owners[0]===id&&parts.every(part=>part===document||part.startsWith(document+'-AM-')||part.startsWith(id+'-SPLIT-'));
     }));
   }
   return {derived,byAgenda,byDocument,amendmentsById:new Map(amendments.map(a=>[a.id,a]))};

@@ -75,3 +75,14 @@ test('verified whole-proposal scope remains a final binding path at its exact po
  const day=JSON.parse(readFileSync(new URL('./fixtures/whole-proposal-votes.json',import.meta.url))).snapshot,raw=day.decisions.find(r=>r.activity_id.endsWith('199470')),parent=day.results.find(r=>r.id===raw.inverse_consists_of[0]),agendaItemId=String(parent.executed[0]?.id||parent.executed[0]).split('/').at(-1),final={kind:'final',amendments:[],subject:[],part:null,row:Number(raw.activity_order)};
  const run=(r,state=day)=>assembleBallot({document:'A-10-2026-0276',agendaItemId,day:state,votingList:{rows:[r],notes:{}}});assert.equal(run(final).rows[0].decisionId,raw.activity_id);assert.equal(run({...final,row:final.row+1}).rows[0].decisionId,null);assert.equal(run(final,{...day,results:[]}).rows[0].decisionId,null);
 });
+test('a decision naming another report or a foreign split never binds',()=>{
+ const final={kind:'final',row:1,subject:[],amendments:[],part:null},id='MTG-PL-2026-11-12-DEC-1',base={activity_id:id,id:'eli/dl/event/'+id,activity_order:'1.0',referenceText:{en:'Motion for a resolution (as a whole)'},decision_outcome:'def/ep-statuses/ADOPTED',inverse_consists_of:['eli/dl/event/'+parent]};
+ assert.equal(ballot([final],[base]).rows[0].outcome,'ADOPTED');
+ assert.equal(ballot([final],[{...base,decided_on_a_realization_of:['eli/dl/doc/A-10-2026-0261']}]).rows[0].outcome,null);
+ assert.equal(ballot([final],[{...base,decided_on_a_realization_of:['eli/dl/doc/A-10-2026-0261-AM-3']}]).rows[0].outcome,null);
+ const day={sittingId:'MTG-PL-2026-09-15',agenda:[],requests:[],results:[{activity_id:parent,id:'eli/dl/event/'+parent,based_on_a_realization_of:['eli/dl/doc/'+doc],executed:[]}]};
+ const list=(decisions,part)=>assembleBallot({document:doc,agendaItemId:agenda,day:{...day,decisions},votingList:{placement:'debate',rows:[{...final,part}],notes:{},revision:{sha256:'x'}}}).rows[0].outcome;
+ const split=record=>({...base,comment:{en:'1'},decided_on_a_realization_of:['eli/dl/doc/'+record+'-SPLIT-1-1']});
+ assert.equal(list([split(parent)],1),'ADOPTED');
+ assert.equal(list([split('MTG-PL-2026-09-15-VOT-ITM-999')],1),null);
+});

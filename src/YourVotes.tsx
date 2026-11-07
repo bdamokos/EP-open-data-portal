@@ -3,7 +3,7 @@ import {useUiI18n} from './UiI18nReact';
 import {api} from './data';
 import {humanDate} from './InsightShared';
 import {plenaryMonday,type VotePeriodsResponse} from './plenaryPeriods.mjs';
-import {ballotGroups,ballotSittings,ballotVisible,brusselsToday,summarizeVotes,sessionDateRange,type ComparisonData,type ComparisonEntry,type Person} from './yourVoteSummary.mjs';
+import {ballotGroups,ballotSittings,ballotVisible,debateBallots,brusselsToday,summarizeVotes,sessionDateRange,type ComparisonData,type ComparisonEntry,type Person} from './yourVoteSummary.mjs';
 const DocumentContextReader=lazy(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
 import {createYourVotesStore,YOUR_VOTES_KEY,choiceAgreement,outcomePosition,starMatches,type Choice} from './yourVoteStore.mjs';
 import {useSaved} from './SavedControls';
@@ -72,9 +72,13 @@ export function BallotCard({ballot,language,deadlines=[],showTitle=false}:{ballo
     {context&&<Suspense fallback={<p>{label('loading')}</p>}><DocumentContextReader language={language} request={{...context,view:'document',onBack:()=>setContext(null)}}/></Suspense>}
   </section>;
 }
-export function AgendaBallot({sitting,agendaItemId,language,deadlines,quiet=false}:{sitting:string;agendaItemId:string;language:string;deadlines?:AgendaTopic['deadlines'];quiet?:boolean}) {const {data,error}=useBallots(sitting,language),ui=useUiI18n();const items=data?.items.filter(b=>b.id===agendaItemId||b.alsoOn?.includes(agendaItemId))||[];const past=sitting.slice(7)<brusselsToday();return error?past?null:<p>{ui.t('yourVote.error')}</p>:data&&!items.length?quiet||past?null:<p>{ui.t('yourVote.error')}</p>:<>{items.map(b=><BallotCard key={b.documentId} ballot={b} language={language} deadlines={deadlines} showTitle={b.id!==agendaItemId}/>)}</>;}
+export function AgendaBallot({sitting,agendaItemId,language,deadlines}:{sitting:string;agendaItemId:string;language:string;deadlines?:AgendaTopic['deadlines']}) {const {data,error}=useBallots(sitting,language),ui=useUiI18n();const items=data?.items.filter(b=>b.id===agendaItemId||b.alsoOn?.includes(agendaItemId))||[];return error||data&&!items.length?sitting.slice(7)<brusselsToday()?null:<p>{ui.t('yourVote.error')}</p>:<>{items.map(b=><BallotCard key={b.documentId} ballot={b} language={language} deadlines={deadlines} showTitle={b.id!==agendaItemId}/>)}</>;}
 // Votes on a report debated this part-session can have no vote item yet.
-export function DebateBallots({sitting,sittings,agendaItemId,language}:{sitting:string;sittings:{id:string;date:string}[];agendaItemId:string;language:string}) {return <>{ballotSittings(sitting,sittings).map(id=><AgendaBallot key={id} sitting={id} agendaItemId={agendaItemId} language={language} quiet/>)}</>;}
+export function DebateBallots({sitting,sittings,agendaItemId,language,applicable}:{sitting:string;sittings:{id:string;date:string}[];agendaItemId:string;language:string;applicable:boolean}) {
+  const ui=useUiI18n(),ids=ballotSittings(sitting,sittings),request=ids.join(','),[state,setState]=useState<{items:Ballot[];failed:boolean}>({items:[],failed:false});
+  useEffect(()=>{const abort=new AbortController();setState({items:[],failed:false});Promise.allSettled(ids.map(id=>api<Ballots>('upcoming-votes?'+new URLSearchParams({sitting:id,lang:language}),abort.signal))).then(results=>{if(!abort.signal.aborted)setState(debateBallots(ids,results,agendaItemId,applicable));});return()=>abort.abort();},[request,language,agendaItemId,applicable]);
+  return state.failed?<p>{ui.t('yourVote.error')}</p>:<>{state.items.map(b=><BallotCard key={b.documentId} ballot={b} language={language} showTitle={b.id!==agendaItemId}/>)}</>;
+}
 function ComparisonSummary({entries,comparisons,people}:{entries:ComparisonEntry[];comparisons:Record<string,ComparisonData>;people:Person[]}) {
   const ui=useUiI18n(),summary=summarizeVotes(entries,comparisons,people);
   if(!summary.result.total&&!summary.groups.length&&!summary.members.length)return null;
@@ -96,7 +100,7 @@ function FollowingSession({sittings,dates,language,people,dossiers}:{sittings:st
     const worker=async()=>{while(cursor<ids.length){const sitting=ids[cursor++];try{const value=await api<{items:(ComparisonData&{decisionId:string})[]}>('ballot-comparisons?'+new URLSearchParams({sitting,lang:language}),abort.signal);if(!Array.isArray(value.items))throw Error();if(!abort.signal.aborted)setComparisons(previous=>({...previous,...Object.fromEntries(value.items.map(item=>[item.decisionId,item]))}));}catch{if(!abort.signal.aborted)setComparisonFailed(true);}}};
     Promise.all(Array.from({length:Math.min(4,ids.length)},worker));return()=>abort.abort();
   },[comparisonSittings,language]);
-  const missing=Boolean(data&&state.stars.some(star=>sittings.includes(star.sittingId)&&!data.some(b=>starMatches(star,b)))||data&&state.choices.some(choice=>sittings.includes(choice.sittingId)&&!data.some(b=>b.id===choice.agendaItemId||b.documentId===choice.documentId)));
+  const missing=Boolean(data&&state.stars.some(star=>sittings.includes(star.sittingId)&&!data.some(b=>starMatches(star,b)))||data&&state.choices.some(choice=>sittings.includes(choice.sittingId)&&!data.some(b=>b.id===choice.agendaItemId&&b.documentId===choice.documentId||b.rows.some(r=>r.key===choice.key))));
   if(data&&!eligible.length&&!failed&&!missing)return null;
   return <section className="your-votes-session"><h3 lang={ui.language}>{sessionDateRange(dates,ui.language)}</h3><ComparisonSummary entries={entries(eligible)} comparisons={comparisons} people={people}/>{(failed||missing)&&<p>{ui.t('yourVote.error')}</p>}{comparisonFailed&&<p>{ui.t('yourVote.comparisonUnavailable')}</p>}{!data&&<p>{ui.t('insightshared.loading')}</p>}
     {eligible.map(b=>{const count=b.rows.filter(r=>state.choices.some(c=>c.key===r.key)).length,starred=state.stars.some(s=>starMatches(s,b));return <article className="your-votes-summary-card" key={b.id+':'+b.documentId}><header><h4 lang={b.titleLanguage||''}>{b.title}</h4>{starred&&<button className="insight-text-button" onClick={()=>yourVotesStore.toggleStar({id:b.id,sittingId:b.sittingId,documentId:b.documentId})}>{ui.t('yourVote.unfollow')}</button>}</header><time dateTime={b.sittingId.slice(7)} lang={ui.language}>{humanDate(b.sittingId.slice(7),ui.language)}</time><p>{count?ui.t('yourVote.choiceCount',{count,total:b.rows.length}):ui.t('yourVote.noChoices')}</p><ComparisonSummary entries={entries([b])} comparisons={comparisons} people={people}/><a className="your-votes-open" href={'?'+new URLSearchParams({view:'legislation',lang:language,'agenda-period':'sitting:'+b.id.slice(0,17),'agenda-topic':b.id})}>{ui.t('yourVote.open')}</a></article>;})}
