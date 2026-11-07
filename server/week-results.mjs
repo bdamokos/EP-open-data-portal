@@ -6,7 +6,7 @@ import {itemVoteSummary} from './week-result-summary.mjs';
 import {mainVote} from './main-vote.mjs';
 import {votePeriods} from './vote-periods.mjs';
 
-export const WEEK_RESULTS_VERSION=2;
+export const WEEK_RESULTS_VERSION=3;
 // Nobody holds this identifier; the projection then never withholds a decision.
 const NO_MEMBER='0';
 const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
@@ -34,7 +34,7 @@ export function projectWeekResults(query,snapshot,location) {
     // surviving subset would read as the whole day.
     if(day.coverage?.state!=='complete'){days.push({sittingId:day.sittingId,complete:false,voteCount:null,rollCallCount:null,notConducted:null});continue;}
     const {items:decisions,subjects}=projectMemberSitting(day,NO_MEMBER);
-    for(const decision of decisions)if(!decision.context.agendaItemIds.length)unlinked.push({id:decision.id,sittingId:day.sittingId,titles:decision.titles,outcome:decision.outcome,method:decision.method,totals:decision.totals});
+    for(const decision of decisions)if(!decision.context.agendaItemIds.length)unlinked.push({id:decision.id,sittingId:day.sittingId,titles:Object.keys(decision.titles).length?decision.titles:decision.referenceTexts,outcome:decision.outcome,method:decision.method,totals:decision.totals});
     const status=value=>decisions.filter(decision=>decision.ballotStatus===value).length;
     days.push({sittingId:day.sittingId,complete:true,voteCount:status('conducted'),rollCallCount:decisions.filter(decision=>decision.namedVoters.available).length,notConducted:status('not-conducted')});
     for(const subject of subjects) {

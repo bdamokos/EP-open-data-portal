@@ -16,11 +16,13 @@ export function TallyNumbers({totals,bold=null}:{totals:Tally;bold?:VotePosition
 }
 export const headMessageId=(position:VotePosition)=>headId[position];
 // The one row: title with sub-line, result word, three numbers. The only way a tally appears in a list.
-export function VoteRow({title,sub,word,rejected=false,totals,tight=false,className=''}:{title:ReactNode;sub?:ReactNode;word?:ReactNode;rejected?:boolean;totals?:Tally|null;tight?:boolean;className?:string}) {
+// `across` takes the number columns where there is no count: "Show of hands", or the tally in words.
+export function VoteRow({title,sub,word,rejected=false,totals,across,tight=false,className=''}:{title:ReactNode;sub?:ReactNode;word?:ReactNode;rejected?:boolean;totals?:Tally|null;across?:ReactNode;tight?:boolean;className?:string}) {
   return <div className={['row',tight?'tight':'',className].filter(Boolean).join(' ')}>
     <span className="main">{title}{sub&&<span className="sub">{sub}</span>}</span>
     {word&&<span className={rejected?'w no':'w'}>{word}</span>}
     {totals&&<TallyNumbers totals={totals}/>}
+    {!totals&&across&&<span className={word?'span':'span wordy'}>{across}</span>}
   </div>;
 }
 // A mark and head word above the number columns: the chart's legend.
