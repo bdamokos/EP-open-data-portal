@@ -13,7 +13,7 @@ import {ipcPort} from './ipc-port.mjs';
 import {ApiSupervisor} from './api-supervisor.mjs';
 import {createProxyAgent,proxyRequest} from './reverse-proxy.mjs';
 import {serveUpstreamPort} from './upstream-rpc.mjs';
-import {upstreamPortServices,startOdpMonitoring} from './upstream-services.mjs';
+import {defaultUpstreamServices} from './upstream-services.mjs';
 import {serveRetention,sendRetention} from './base-source-rpc.mjs';
 import {acceptOfficialHints} from './official-context-hints.mjs';
 import {acceptDocumentBodyHints} from './document-body-hints-rpc.mjs';
@@ -42,7 +42,7 @@ function forkApi() {
 // What the API process asks of the front: admission to the shared upstream queue,
 // retention of fetched sources, writer hints and error log entries.
 function serveApiLink(child) {
-  const upstream=serveUpstreamPort(ipcPort(child,'upstream'),upstreamPortServices(),{foreground:true});
+  const upstream=serveUpstreamPort(ipcPort(child,'upstream'),defaultUpstreamServices().upstreamPortServices(),{foreground:true});
   child.once('exit',upstream);
   serveRetention(ipcPort(child,'retention'),(observation,body,{directory})=>sendRetention({observation,body,directory}));
   const hints=ipcPort(child,'hints');
@@ -148,7 +148,7 @@ export function startFront() {
   process.on('SIGINT',()=>shutDown('SIGINT'));
   process.on('SIGTERM',()=>shutDown('SIGTERM'));
   server.once('listening',()=>{
-    stopMonitoring=startOdpMonitoring();
+    stopMonitoring=defaultUpstreamServices().startOdpMonitoring();
     stopWriters=startSourceWriters({onPublication:message=>supervisor.publish(message)});
   });
   server.listen(config.port,config.host,()=>{
