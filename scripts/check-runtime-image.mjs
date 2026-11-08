@@ -30,6 +30,8 @@ try{
   const probe=`
     import assert from 'node:assert/strict';
     import {API_VERSION} from './server/api-version.mjs';
+    import {contractDigest} from './scripts/api-contract.mjs';
+    import {existsSync} from 'node:fs';
     import {readdir,readFile} from 'node:fs/promises';
     import {brotliCompressSync,brotliDecompressSync,createBrotliDecompress} from 'node:zlib';
     assert.equal(process.versions.node,${JSON.stringify(nodeVersion)},'Runtime Node must match .nvmrc.');
@@ -56,6 +58,8 @@ try{
     assert.equal(health.ok,true);assert.equal(health.service,'parliament-explorer');
     assert.equal(health.apiVersion,API_VERSION);
     assert.match(API_VERSION,/^[a-f0-9]{12}$/);
+    assert(existsSync('./server/api-contract.json'),'The image must carry its build-time contract stamp.');
+    assert.equal(API_VERSION,contractDigest('/app').digest.slice(0,12),'The contract stamp must match the runtime sources.');
     const scripts=await Promise.all((await readdir('./dist/assets')).filter(name=>name.endsWith('.js')).map(name=>readFile('./dist/assets/'+name,'utf8')));
     assert(scripts.some(source=>source.includes(API_VERSION)),'Built client must contain the runtime contract version.');
     assert.equal((await fetch(base+'/healthz?v='+API_VERSION)).status,200);
