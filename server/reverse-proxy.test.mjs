@@ -143,3 +143,28 @@ test('a pooled connection the upstream closed is retried once for a bodyless GET
   const second=await call(port,{path:'/api/b'});
   assert.equal(second.body,'ok');assert.equal(count,2);
 });
+
+test('capture sees a complete 200 body and a 304, and nothing else, without changing the reply',loopback,async t=>{
+  const upstream=await listen((request,response)=>{
+    if(request.url==='/ok'){response.setHeader('ETag','"e"');response.end('{"a":1}\n');}
+    else if(request.url==='/same'){response.setHeader('ETag','"e"');response.statusCode=304;response.end();}
+    else if(request.url==='/big')response.end('x'.repeat(100));
+    else if(request.url==='/chunked'){response.write('abc');response.end('def');}
+    else if(request.url==='/broken'){response.writeHead(200,{'Content-Length':'100'});response.write('abc');setTimeout(()=>request.socket.destroy(),20);}
+    else {response.statusCode=500;response.end('{"error":1}');}
+  });
+  const agent=createProxyAgent(),captured=[];
+  const front=await listen((request,response)=>proxyRequest(request,response,{port:upstream.address().port,agent,requestId:'id',capture:{maxBytes:50,done:reply=>captured.push([request.url,reply])}}));
+  t.after(()=>{agent.destroy();front.closeAllConnections();upstream.closeAllConnections();front.close();upstream.close();});
+  const port=front.address().port;
+  const ok=await call(port,{path:'/ok'});
+  assert.equal(ok.body,'{"a":1}\n');assert.equal(ok.response.headers.etag,'"e"');
+  assert.equal((await call(port,{path:'/same'})).response.statusCode,304);
+  assert.equal((await call(port,{path:'/big'})).body.length,100);
+  assert.equal((await call(port,{path:'/chunked'})).body,'abcdef');
+  assert.equal((await call(port,{path:'/err'})).response.statusCode,500);
+  await call(port,{path:'/broken'}).catch(()=>{});
+  await delay(50);
+  assert.deepEqual(captured.map(([url,reply])=>[url,reply.status,reply.body?.toString()??null]),[['/ok',200,'{"a":1}\n'],['/same',304,null]]);
+  assert.ok(captured[0][1].rawHeaders.includes('ETag'));
+});

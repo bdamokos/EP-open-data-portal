@@ -26,7 +26,10 @@ function responseHeaders(raw) {
 //    process sees as a closed socket and aborts the work.
 //  - An API process that fails before the response starts yields 503; after the
 //    response starts the client connection is destroyed, as a direct failure would.
-export function proxyRequest(request,response,{port,agent,host='127.0.0.1',requestId}) {
+//  - `capture.done({status,rawHeaders,body})` is called after a complete 200 whose body
+//    is at most `capture.maxBytes` (declared by Content-Length), or after a 304
+//    without body. The body is copied as it streams; the client is not delayed.
+export function proxyRequest(request,response,{port,agent,host='127.0.0.1',requestId,capture}) {
   return new Promise(resolve=>{
     let upstream,reply,done=false,retried=false;
     const bodyless=!request.headers['transfer-encoding']&&!Number(request.headers['content-length']);
@@ -38,6 +41,14 @@ export function proxyRequest(request,response,{port,agent,host='127.0.0.1',reque
       sendError(request,response,Object.assign(new HttpError(503,'api_unavailable','The service is temporarily unavailable. Please try again shortly.'),{retryAfter:1}));
       finish();
     };
+    const watch=reply=>{
+      if(reply.statusCode===304){reply.once('end',()=>capture.done({status:304,rawHeaders:reply.rawHeaders}));return;}
+      const length=Number(reply.headers['content-length']);
+      if(reply.statusCode!==200||!Number.isSafeInteger(length)||length>capture.maxBytes)return;
+      const chunks=[];let size=0;
+      reply.on('data',chunk=>{size+=chunk.length;if(size<=length)chunks.push(chunk);});
+      reply.once('end',()=>{if(reply.complete&&size===length)capture.done({status:200,rawHeaders:reply.rawHeaders,body:Buffer.concat(chunks)});});
+    };
     const send=()=>{
       upstream=http.request({host,port,agent,method:request.method,path:request.url,headers:requestHeaders(request.headers)});
       const attempt=upstream;
@@ -47,6 +58,7 @@ export function proxyRequest(request,response,{port,agent,host='127.0.0.1',reque
         reply.once('error',()=>{response.destroy();finish();});
         // An API process that dies mid-body ends the stream without 'end'.
         reply.once('aborted',()=>{response.destroy();finish();});
+        if(capture&&attempt===upstream)watch(reply);
         reply.pipe(response);
         reply.once('end',finish);
       });
