@@ -43,8 +43,8 @@ test('stale admitted progress reaches a settled result, keeping the timeline and
   assert.match(h.container.querySelector('h3').textContent,/Procedure progress/);
   assert.equal(h.container.querySelector('.procedure-progress-latest .procedure-progress-institutions'),null,'OEIL event text does not infer an institution in the compact overview');
   await h.click('Show timeline');assert.equal(h.container.querySelectorAll('.procedure-progress-timeline>li').length,1);
-  assert.equal(h.container.querySelector('.procedure-progress-timeline .procedure-progress-institutions').textContent,'Institution unavailable');
-  assert.equal(h.container.querySelector('.procedure-progress-filters select'),null,'the OEIL fallback retains its optional institution filter');
+  assert.equal(h.container.querySelector('.procedure-progress-timeline .procedure-progress-institutions').textContent,'');
+  assert.equal(h.container.querySelector('.procedure-progress-filters select'),null,'a timeline with fewer than two institutions has no institution filter');
   assert.equal(h.requests.length,2,'opening a timeline does not load documents');
   await h.render({reference:'2025/0223(COD)'});
   const cellarEvent=event({id:'cellar:1',works:['cellar:work'],institutions:[{id:'EP',code:'EP',label:'European Parliament',language:'en'}]});
@@ -146,4 +146,16 @@ test('a valid empty OEIL observation clears saved completion even when Cellar ha
   await h.tick(500);
   await h.finish(progress({state:'unmapped',status:null,events:[],coverage:{limited:false,invalidRows:0,incompleteEvents:0,timeline:'available'},sources:[{url:'https://publications.europa.eu/webapi/rdf/sparql',stale:true,refreshError:'Cellar failed'},progress().source]}));
   assert.doesNotMatch(h.container.textContent,/Procedure completed|End of procedure/);assert.match(h.container.textContent,/Unavailable/);
+});
+test('a refresh that leaves fewer than two institutions drops the hidden institution choice',async t=>{
+  const h=await harness(t),term=code=>({id:code,code,label:null,language:null});
+  const parliament=event({id:'oeil:ep',institutions:[term('EP')],label:'Vote in committee'}),council=event({id:'oeil:council',institutions:[term('CONSIL')],label:'Debate in Council'}),unattributed=event({id:'oeil:none',label:'Final act signed'});
+  await h.render();await h.finish(progress({events:[parliament,council,unattributed],source:pending().source}));
+  await h.click('Show timeline');
+  const filter=h.container.querySelector('.procedure-progress-filters select');
+  await act(async()=>{filter.value='CONSIL';filter.dispatchEvent(new window.Event('change',{bubbles:true}));});
+  assert.equal(h.container.querySelectorAll('.procedure-progress-timeline>li').length,1);
+  await h.tick(500);await h.finish(progress({events:[parliament,unattributed]}));
+  assert.equal(h.container.querySelector('.procedure-progress-filters select'),null);
+  assert.equal(h.container.querySelectorAll('.procedure-progress-timeline>li').length,2,'every event shows once the filter is gone');
 });

@@ -178,6 +178,89 @@ export function parseProcedurePage(html,reference,language='en') {
   return {reference,title,language,subjects,summaries:[...summaries.values()],documents};
 }
 
+// OEIL prints no actor per key event. A label attributes one only when it names
+// a single institution ("committee" is always a Parliament committee). Labels
+// naming several actors or none, such as signature, Official Journal
+// publication or a published proposal, stay unattributed.
+const keyEventInstitutions=new Map(Object.entries({
+  EP:[
+    'End of procedure in Parliament','Fin de la procédure au Parlement',
+    'Decision by Parliament','Décision du Parlement',
+    'Decision by Parliament, 1st reading','Décision du Parlement, 1ère lecture',
+    'Decision by Parliament, 2nd reading','Décision du Parlement, 2ème lecture',
+    'Decision by Parliament, 3rd reading','Décision du Parlement, 3ème lecture',
+    'Results of vote in Parliament','Résultat du vote au parlement',
+    'Debate in Parliament','Débat en plénière',
+    'Committee referral announced in Parliament','Annonce en plénière de la saisine de la commission',
+    'Committee referral announced in Parliament, 1st reading','Annonce en plénière de la saisine de la commission, 1ère lecture',
+    'Committee referral announced in Parliament, 2nd reading','Annonce en plénière de la saisine de la commission, 2ème lecture',
+    'Referral to associated committees announced in Parliament','Annonce en plénière de la saisine des commissions associées',
+    'Referral to joint committee announced in Parliament',"Annonce en plénière de la saisine d'une commission jointe",
+    'Vote in committee','Vote en commission',
+    'Vote in committee, 1st reading','Vote en commission,1ère lecture','Vote en commission, 1ère lecture',
+    'Vote in committee, 2nd reading','Vote en commission, 2ème lecture',
+    'Committee report tabled for plenary','Dépôt du rapport de la commission',
+    'Committee report tabled for plenary, 1st reading','Dépôt du rapport de la commission, 1ère lecture',
+    'Committee report tabled for plenary, 1st reading/single reading','Dépôt du rapport de la commission, 1ère lecture/lecture unique',
+    'Committee report tabled for plenary, reconsultation','Rapport déposé de la commission, reconsultation',
+    "Committee report tabled for plenary confirming Parliament's position",'Dépôt du rapport de la commission confirmant la position du Parlement',
+    'Committee recommendation tabled for plenary, 2nd reading','Dépôt de la recommandation de la commission, 2ème lecture',
+    'Budgetary report tabled for plenary','Dépôt du rapport budgétaire',
+    'Committee decision to open interinstitutional negotiations with report adopted in committee',"Décision de la commission parlementaire d'ouvrir des négociations interinstitutionnelles à travers d'un rapport adopté en commission",
+    'Committee decision to open interinstitutional negotiations after 1st reading in Parliament','Ouverture des négociations interinstitutionnelles après 1ère lecture par la commission parlementaire',
+    'Approval in committee of the text agreed at 1st reading interinstitutional negotiations','Approbation en commission du texte adopté en négociations interinstitutionnelles de la 1ère lecture',
+    'Approval in committee of the text agreed at early 2nd reading interinstitutional negotiations','Approbation en commission du texte accordé aux négociations interinstitutionnelles en 2ème lecture précoce',
+    'Matter referred back to the committee responsible for interinstitutional negotiations','Dossier renvoyé a la commission compétente aux fins de négociations interinstitutionnelles',
+    'Delegated act not objected by Parliament',"Pas d'opposition à l'acte délégué par le Parlement",
+    'Urgent procedure requested by a committee',"Procédure d'urgence demandée par une commission",
+    'Resumption of business from the previous parliamentary term','Reprise des questions en instance de la législature précédente',
+  ],
+  CONSIL:[
+    'Debate in Council','Débat au Conseil',
+    "Act adopted by Council after Parliament's 1st reading","Adoption de l'acte par le Conseil après la 1ère lecture du Parlement",
+    'Act adopted by Council after consultation of Parliament',"Adoption de l'acte par le Conseil suite à la consultation du Parlement",
+    'Act approved by Council, 2nd reading',"Approbation de l'acte par le Conseil, 2ème lecture",
+    'Draft budget approved by Council','Adoption du projet du budget par le Conseil',
+    'Resolution/conclusions adopted by Council','Adoption de résolution/conclusions par le Conseil',
+    'Delegated act not objected by Council',"Pas d'opposition à l'acte délégué par le Conseil",
+    'Council position published','Publication de la position du Conseil',
+    'Council position on draft budget published','Publication de la position du Conseil sur le projet de budget',
+    'Council draft budget published','Publication du projet de budget du Conseil',
+  ],
+  COM:[
+    'Proposal withdrawn by Commission','Proposition retirée par la Commission',
+    'Commission draft budget published','Publication du projet de budget de la Commission',
+    'Commission preliminary draft budget published',"Publication de l'avant-projet de budget de la Commission",
+  ],
+}).flatMap(([code,labels])=>labels.map(label=>[label,code])));
+// Rule numbers change between terms, so these Parliament labels are matched by pattern.
+const negotiationDecision=/^(?:Committee decision to enter into interinstitutional negotiations (?:announced in|confirmed by) plenary \(Rule \d+(?: - vote)?\)|Décision de la commission parlementaire d'engager des négociations interinstitutionnelles (?:annoncée en|confirmée par la) plénière \(Article \d+(?: - vote)?\))$/;
+const apostrophes=value=>value.replace(/[’‘]/g,"'");
+export function keyEventInstitution(label) {
+  const value=apostrophes(label||'');
+  return keyEventInstitutions.get(value)||(negotiationDecision.test(value)?'EP':null);
+}
+// The documentation gateway files each document under its institution. National
+// parliament rows cite the document they answer, and "other institutions" mixes
+// bodies, so only these three tables attribute a reference.
+const gatewayInstitutions={EP:'EP',EC:'COM',CSL:'CONSIL'};
+function gatewayReferences(all) {
+  const references=new Map();
+  for(const node of all) {
+    const code=gatewayInstitutions[String(node.attrs?.['@_id']||'').match(/^es_accordion-item-doc-gateway-([A-Z]+)$/)?.[1]];
+    if(node.tag!=='div'||!code)continue;
+    for(const table of nodes(node).filter(child=>child.tag==='table')) {
+      const headers=nodes(table).filter(child=>child.tag==='th'&&child.attrs?.['@_scope']==='col').map(text),column=headers.findIndex(value=>/^(Reference|Référence)$/.test(value));
+      if(column<0)continue;
+      for(const row of nodes(table).filter(child=>child.tag==='tr')) {
+        const cells=row.children.filter(child=>child.tag==='td'||(child.tag==='th'&&child.attrs?.['@_scope']==='row')),value=cells.length===headers.length?text(cells[column]):'';
+        if(value){if(!references.has(value))references.set(value,new Set());references.get(value).add(code);}
+      }
+    }
+  }
+  return references;
+}
+
 // OEIL's key-events table is separate from its document/summary tables. Read
 // only this explicitly labelled section after verifying the printed reference.
 export function parseProcedureProgressPage(html,reference,language='en',{limit=300}={}) {
@@ -203,15 +286,20 @@ export function parseProcedureProgressPage(html,reference,language='en',{limit=3
   if(!readable&&!statuses.size)throw new HttpError(502,'procedure_progress_shape','The procedure status and timeline could not be read.');
   const rows=readable?nodes(table).filter(node=>node.tag==='tr'&&node.children.some(child=>child.tag==='td')):[];
   const coverage={limited:rows.length>limit,invalidRows:statuses.size>1?1:0,incompleteEvents:0,timeline:readable?'available':'unavailable',status:statuses.size===1?'available':statuses.size?'ambiguous':'unavailable'};
+  const references=rows.length?gatewayReferences(all):new Map();
   const events=rows.slice(0,limit).map(row=>{
     const cells=row.children.filter(node=>node.tag==='td'),printedDate=cells[0]?text(cells[0]):'',label=cells[1]?text(cells[1]):'';
     const date=/^\d{2}\/\d{2}\/\d{4}$/.test(printedDate)?visibleDate(printedDate):null;
     const issues=[...(!date?['date']:[]),...(!label||label.length>1200?['label']:[])];
     if(cells.length!==4)coverage.invalidRows++;
     if(issues.length)coverage.incompleteEvents++;
+    // The event's exact document reference and its label must not disagree;
+    // a reference filed under several institutions attributes none.
+    const filed=references.get(cells[2]?text(cells[2]):''),named=label.length<=1200?keyEventInstitution(label):null;
+    const candidates=new Set([...(filed||[]),...(named?[named]:[])]);
     // The source supplies no event identifier or per-event status. Retain its
     // printed date/label; a future date never establishes a completed action.
-    return {date,printedDate,label:label&&label.length<=1200?label:null,language,issues};
+    return {date,printedDate,label:label&&label.length<=1200?label:null,language,institutions:candidates.size===1?[...candidates]:[],issues};
   });
   return {reference,language,status:statuses.size===1?{label:[...statuses][0],language}:null,events,coverage};
 }

@@ -25,7 +25,7 @@ function EventName({event}:{event:ProgressEvent}){
   const ui = useUiI18n();return <span lang={event.labelLanguage||'en'}>{eventLabel(event, ui)}</span>;}
 function EventDate({event,language}:{event:ProgressEvent;language:string}){return event.date ? <time dateTime={event.date} lang={language}>{humanDate(event.date,language)}</time> : null;}
 function EventInstitutions({event}:{event:ProgressEvent}){
-  const ui = useUiI18n();return <span className="procedure-progress-institutions">{event.institutions.length ? event.institutions.map(term=><span key={term.id} lang={term.language||'en'}>{institutionLabel(term, ui)}</span>) : <span className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.institution.unavailable.20"/></span>}</span>;}
+  const ui = useUiI18n();return <span className="procedure-progress-institutions">{event.institutions.length ? event.institutions.map(term=><span key={term.id} lang={term.language||'en'}>{institutionLabel(term, ui)}</span>) : null}</span>;}
 function Status({event,today}:{event:ProgressEvent;today:string}) {
   const ui = useUiI18n();
   if(event.status==='projected')return <span className="procedure-progress-tag"><UiMessage id="dossierCard.event.7"/></span>;
@@ -59,7 +59,9 @@ export function ProcedureProgress({reference,language,proposalDate,timeline=fals
   const options=[...new Map(events.flatMap(event=>event.institutions).map(term=>[term.id,term])).values()].sort((a,b)=>institutionLabel(a, ui).localeCompare(institutionLabel(b, ui)));
   const hasMilestones=events.some(event=>event.milestone||event.status==='projected');
   const hasOtherEvents=hasMilestones&&events.some(event=>!event.milestone&&event.status!=='projected');
-  const visible=events.filter(event=>(institution==='all'||event.institutions.some(term=>term.id===institution))&&(allEvents||!hasMilestones||event.milestone||event.status==='projected')).sort(dated);
+  // A saved choice applies only while the filter is shown and still offers it.
+  const selected=options.length>1&&options.some(term=>term.id===institution)?institution:'all';
+  const visible=events.filter(event=>(selected==='all'||event.institutions.some(term=>term.id===selected))&&(allEvents||!hasMilestones||event.milestone||event.status==='projected')).sort(dated);
   const freshness=progressSourceState(data),docFreshness=progressSourceState(documents.data);
   const savedFailure=Boolean(data&&(state.error||freshness.failed));
   const available=Boolean(data?.state==='mapped'&&(events.length||data.status));
@@ -88,7 +90,7 @@ export function ProcedureProgress({reference,language,proposalDate,timeline=fals
         {(!timeline||expanded)&&scheduled.some(event=>!event.date)&&<p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.scheduled.date.unavailable.74"/></p>}
         {(!timeline||expanded)&&scheduled.some(event=>event.date&&event.date<today)&&<p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.past.scheduled.dates.75"/></p>}
         {events.length>0&&expanded&&<div id={timelineId} className="procedure-progress-expanded">
-            {(options.length>0||hasOtherEvents)&&<div className="procedure-progress-filters">{options.length>0&&<label><UiMessage id="batch6.procedureprogress.institution.77"/><select value={institution} onChange={event=>setInstitution(event.target.value)}><option value="all"><UiMessage id="batch6.procedureprogress.all.institutions.77"/></option>{options.map(term=><option key={term.id} value={term.id} lang={term.language||'en'}>{institutionLabel(term, ui)}</option>)}</select></label>}{hasOtherEvents&&<button type="button" aria-pressed={allEvents} onClick={()=>setAllEvents(value=>!value)}>{allEvents ? <UiMessage id="batch6.procedureprogress.show.key.milestones.77"/> : <UiMessage id="batch6.procedureprogress.show.all.recorded.events.77"/>}</button>}</div>}
+            {(options.length>1||hasOtherEvents)&&<div className="procedure-progress-filters">{options.length>1&&<label><UiMessage id="batch6.procedureprogress.institution.77"/><select value={selected} onChange={event=>setInstitution(event.target.value)}><option value="all"><UiMessage id="batch6.procedureprogress.all.institutions.77"/></option>{options.map(term=><option key={term.id} value={term.id} lang={term.language||'en'}>{institutionLabel(term, ui)}</option>)}</select></label>}{hasOtherEvents&&<button type="button" aria-pressed={allEvents} onClick={()=>setAllEvents(value=>!value)}>{allEvents ? <UiMessage id="batch6.procedureprogress.show.key.milestones.77"/> : <UiMessage id="batch6.procedureprogress.show.all.recorded.events.77"/>}</button>}</div>}
             <p className="procedure-progress-muted" role="status"><UiMessage id={data.coverage.limited?'batch6.procedureprogress.count.events.in.this.selection.incomplete.78':'batch6.procedureprogress.count.events.in.this.selection.78'} values={{count:visible.length}}/></p>
             <ol className="procedure-progress-timeline">{visible.map(event=><li key={event.id} className={(event.status==='projected') ? 'procedure-progress-scheduled' : undefined}>
               <div className="procedure-progress-event-date">{event.date ? <EventDate event={event} language={language}/> : <span><UiMessage id="dossieractivity.date_unavailable"/></span>}</div><EventInstitutions event={event}/><div className="procedure-progress-event-detail"><Status event={event} today={today}/><h4><EventName event={event}/></h4>

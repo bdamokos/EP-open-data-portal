@@ -4,7 +4,8 @@ import {procedureReference,parseProcedureProgressPage} from './official-context.
 import {createHash} from 'node:crypto';
 import {eurLexUrl} from './legal-reference-text.mjs';
 
-export const PROCEDURE_PROGRESS_VERSION=4;
+export const PROCEDURE_PROGRESS_VERSION=5;
+const corporateBody='http://publications.europa.eu/resource/authority/corporate-body/';
 export const PROGRESS_LIMITS=Object.freeze({events:300,eventRows:1201,documentRows:2401,freshMs:3600_000});
 const endpoint='https://publications.europa.eu/webapi/rdf/sparql';
 const cellar='http://publications.europa.eu/resource/cellar/';
@@ -153,7 +154,7 @@ export class ProcedureProgress {
     try {
       const validate=record=>parseProcedureProgressPage(record.html,query.reference,language,{limit:PROGRESS_LIMITS.events});
       const record=await this.sources.get(page,{freshMs:PROGRESS_LIMITS.freshMs,cacheScope:'procedure-progress',includeRetryAt:true,validate,priority}),oeil=validate(record),oeilSource=progressSource(record,'European Parliament Legislative Observatory');
-      const events=oeil.events.map((event,sequence)=>({sequence,id:'oeil:'+createHash('sha256').update(JSON.stringify([query.reference,event.printedDate,event.label])).digest('hex'),date:event.date,dates:event.date?[event.date]:[],types:[],statuses:[],status:'recorded',institutions:[],works:[],label:event.label,labelLanguage:event.language,milestone:true,issues:event.issues}));
+      const events=oeil.events.map((event,sequence)=>({sequence,id:'oeil:'+createHash('sha256').update(JSON.stringify([query.reference,event.printedDate,event.label])).digest('hex'),date:event.date,dates:event.date?[event.date]:[],types:[],statuses:[],status:'recorded',institutions:event.institutions.map(code=>({id:corporateBody+code,code,label:null,language:null})),works:[],label:event.label,labelLanguage:event.language,milestone:true,issues:event.issues}));
       const coverage={...oeil.coverage,limited:oeil.coverage.limited||parsed.coverage.limited,invalidRows:oeil.coverage.invalidRows+parsed.coverage.invalidRows,incompleteEvents:oeil.coverage.incompleteEvents+parsed.coverage.incompleteEvents};
       return {...result,state:oeil.status||events.length?'mapped':parsed.state,basis:'oeil',status:oeil.status,events,coverage,source:oeilSource,sources:[cellarSource,oeilSource],cellar:{state:parsed.state,dossier:parsed.dossier,coverage:parsed.coverage}};
     }catch(error){

@@ -43,7 +43,7 @@ test('the actual insight dispatcher admits the independent finite route without 
   let calls=0;
   const service=createInsights(new Proxy({},{get(){throw new Error('Progress must not read the index');}}),{officialSources:{get:async(url,options)=>{calls++;assert.equal(new URL(url).hostname,'publications.europa.eu');assert.equal(options.freshMs,3600_000);return {url,fetchedAt:'2026-10-20T10:00:00Z',data:data([mapping,row()])};}}});
   const response=await service.query('procedure-progress',new URLSearchParams({reference:query.reference,lang:'en'}));
-  assert.equal(response.version,4);assert.equal(response.events.length,1);assert.equal(calls,1);
+  assert.equal(response.version,5);assert.equal(response.events.length,1);assert.equal(calls,1);
   for(const suffix of ['&reference=2025%2F0223(COD)','&detail=','&detail=all','&unknown=x'])await assert.rejects(service.query('procedure-progress',new URLSearchParams('reference=2025%2F0223(COD)'+suffix)),{status:400});
   assert.equal(calls,1,'invalid semantic queries never reach the source');
 });
@@ -59,6 +59,7 @@ test('exact public OEIL key events recover a non-legislative procedure without i
   assert.equal(result.cellar.state,'unmapped');assert.equal(result.status.label,'Procedure completed');
   assert.deepEqual(result.events.map(e=>[e.date,e.label]),[['2026-10-20','Debate in Parliament'],['2026-10-20','End of procedure in Parliament']]);
   assert(result.events.every(e=>e.labelLanguage==='en'&&e.works.length===0));
+  assert.deepEqual(result.events.map(e=>e.institutions),[[{id:'http://publications.europa.eu/resource/authority/corporate-body/EP',code:'EP',label:null,language:null}],[{id:'http://publications.europa.eu/resource/authority/corporate-body/EP',code:'EP',label:null,language:null}]]);
   assert.equal(result.sources.length,2);assert.equal(result.source.fetchedAt,'2026-10-27T12:10:00Z');
   assert.equal(new URL(calls[1]).searchParams.get('reference'),rsp.reference);
   const repeat=await new ProcedureProgress(sources).query({...rsp,language:'hu'});
@@ -82,6 +83,15 @@ test('OEIL parser isolates the key-events table and retains missing, capped and 
   assert.equal(parseProcedureProgressPage(oeilHtml,rsp.reference,'fr').language,'en','printed source language survives a website language fallback');
   const conflict=parseProcedureProgressPage(oeilHtml.replace('<p class="text-danger">Procedure completed</p>','<p class="text-danger">Procedure completed</p></div><div><p>Status</p><p>Awaiting decision</p>'),rsp.reference);
   assert.equal(conflict.status,null);assert.equal(conflict.coverage.status,'ambiguous');
+});
+test('OEIL key events take an institution from a single-institution label or the gateway table that files their exact reference',()=>{
+  const row=(label,reference='')=>'<tr><td>01/10/2026</td><td>'+label+'</td><td><a href="#">'+reference+'</a></td><td></td></tr>';
+  const gateway=(section,references)=>'<div id="es_accordion-item-doc-gateway-'+section+'" class="collapse"><table><thead><tr><th scope="col">Document type</th><th scope="col">Reference</th><th scope="col">Date</th></tr></thead><tbody>'+references.map(reference=>'<tr><th scope="row">Document</th><td>'+reference+'</td><td>01/10/2026</td></tr>').join('')+'</tbody></table></div>';
+  const rows=[row('Legislative proposal published','COM(2026)0001'),row('Legislative proposal published','05432/2026'),row('Non-legislative basic document published','COM(2026)0002'),row('Decision by Parliament','COM(2026)0003'),row('Final act published in Official Journal'),row('Final act signed'),row('Committee decision to enter into interinstitutional negotiations announced in plenary (Rule 74)'),row('Proposal withdrawn by Commission'),row('Unseen event label','COM(2026)0004')];
+  const html=oeilHtml.replace('</tbody>',rows.join('')+'</tbody>').replace('</main>',gateway('EC',['COM(2026)0001','COM(2026)0002','COM(2026)0003'])+gateway('CSL',['05432/2026'])+gateway('EP',['COM(2026)0002'])+gateway('NP',['COM(2026)0001'])+gateway('OTHER',['COM(2026)0004'])+'</main>');
+  assert.deepEqual(parseProcedureProgressPage(html,rsp.reference).events.map(e=>e.institutions),[['EP'],['EP'],['COM'],['CONSIL'],[],[],[],[],['EP'],['COM'],[]],'national-parliament and other-body tables, several filing institutions and a contradicting label attribute nothing');
+  const french=readFileSync(new URL('./fixtures/oeil-procedure-2026-2937-progress-fr.html',import.meta.url),'utf8');
+  assert.deepEqual(parseProcedureProgressPage(french,rsp.reference,'fr').events.map(e=>e.institutions),[['EP'],['EP']]);
 });
 test('OEIL cannot hide ambiguous Cellar identity, replace institutional events or substitute a different reference',async()=>{
   for(const rows of [[mapping,{...mapping,dossier:u(work)}],[mapping,row()]]){
