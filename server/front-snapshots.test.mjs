@@ -179,7 +179,7 @@ test('answers the API marks as incomplete or unfinished are not kept',loopback,a
   assert.equal(missing.snapshots.entries.size,0);
 });
 
-test('a directory answer without a CDN lifetime is not kept',()=>{
+test('a directory answer without a CDN lifetime is not kept',loopback,()=>{
   const snapshots=new FrontSnapshots({currentVersion:()=>V,clock:()=>DAY});
   const body=Buffer.from(directoryBody),headers=extra=>['Content-Type','application/json; charset=utf-8','ETag',etagOf(directoryBody),...extra];
   const candidate={key:`/api/directory?v=${V}`,route:'directory',version:V,sitting:null};
