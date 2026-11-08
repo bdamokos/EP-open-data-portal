@@ -33,15 +33,36 @@ jobs:
       - run: npm run check
       - run: npm run build
 
+  # Built natively on arm64, the production host's architecture. On main, the checked image is
+  # kept as an artifact so a release can load it instead of building the same commit again.
   runtime-image:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: docker build --build-arg APP_REVISION="$GITHUB_SHA" --tag parliament-explorer:ci .
       - run: node scripts/check-runtime-image.mjs parliament-explorer:ci "$GITHUB_SHA"
+      - name: Save the checked image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker tag parliament-explorer:ci "parliament-explorer:$GITHUB_SHA"
+          docker save "parliament-explorer:$GITHUB_SHA" | gzip -1 > "$RUNNER_TEMP/parliament-explorer-$GITHUB_SHA-arm64.tar.gz"
+          id=$(docker image inspect --format '{{.Id}}' "parliament-explorer:$GITHUB_SHA")
+          sum=$(sha256sum "$RUNNER_TEMP/parliament-explorer-$GITHUB_SHA-arm64.tar.gz" | cut -d' ' -f1)
+          printf 'Image `parliament-explorer:%s` (linux/arm64)\n\n- image ID: `%s`\n- archive sha256: `%s`\n' "$GITHUB_SHA" "$id" "$sum" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s  parliament-explorer-%s-arm64.tar.gz\n%s  image-id\n' "$sum" "$GITHUB_SHA" "$id" > "$RUNNER_TEMP/parliament-explorer-$GITHUB_SHA-arm64.sha256"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: runtime-image-${{ github.sha }}-arm64
+          path: |
+            ${{ runner.temp }}/parliament-explorer-${{ github.sha }}-arm64.tar.gz
+            ${{ runner.temp }}/parliament-explorer-${{ github.sha }}-arm64.sha256
+          retention-days: 14
+          compression-level: 0
+          if-no-files-found: error
 
   read-benchmarks:
     runs-on: ubuntu-latest
