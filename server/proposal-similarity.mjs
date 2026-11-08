@@ -111,20 +111,20 @@ const tokensOf=row=>{let tokens=rowTokens.get(row);if(!tokens){tokens=typoTokens
 function typoWindows(rows,size,slack) {
  const out=[];
  for(let i=0;i<rows.length;i++){
-  if(!/[\p{L}\p{N}]/u.test(rows[i].text))continue;
+  if(!tokensOf(rows[i]).length)continue;
   let length=0;
   for(let j=i;j<rows.length&&j<i+40;j++){
    if(rows[j].index!==rows[i].index+(j-i))break;
    length+=tokensOf(rows[j]).length;
    if(length>size+slack)break;
-   if(length>=size-slack&&/[\p{L}\p{N}]/u.test(rows[j].text))out.push({start:rows[i].index,end:rows[j].index,rows:rows.slice(i,j+1)});
+   if(length>=size-slack&&tokensOf(rows[j]).length)out.push({start:rows[i].index,end:rows[j].index,rows:rows.slice(i,j+1)});
   }
  }
  return out;
 }
 const windowTokens=window=>window.rows.flatMap(tokensOf);
 export function typoPassage(rows,allRows,original) {
- const key=typoTokens(original);if(key.length<5||key.length>4000)return null;
+ const key=typoTokens(original);if(key.length<5||key.length>2000)return null;
  const cap=TYPO_TOKENS*2+TYPO_MARGIN;
  const local=typoWindows(rows,key.length,cap).map(w=>({...w,distance:tokenDistance(key,windowTokens(w),cap)})).sort((x,y)=>x.distance-y.distance);
  const best=local[0];

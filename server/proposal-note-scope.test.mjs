@@ -51,3 +51,15 @@ test('a dropped note must be the same note, called only inside the replaced text
  const kept=deletion('fr','Considérant 2',{proposedText:'(2)\tGamma1 and Epsilon.\n_____\n1 Second citation',proposedFormatting:[{kind:'superscript',start:9,end:10}]});
  assert.equal(documentContextPlacement(kept).reason,'proposal_note_scope_unavailable');
 });
+// A-10-2026-0175 AM 3 fr: the list prints a plain apostrophe where the Council
+// XHTML has a typographic one, so only the note-scope path places it.
+test('a Council XHTML note numbered differently in the list falls with its deleted recital',async()=>{
+ const {parsePublicLegalXhtml}=await import('./public-legal-xhtml.mjs');
+ const council=(shared=false)=>parsePublicLegalXhtml(`<html><body><div id="rct_1"><p>(1) Alpha${shared?' <a href="#ntr8">(8)</a>':''} and Beta.</p></div><div id="rct_2"><p>(2) Gamma <a href="#ntr8">(8)</a> and Delta’s.</p></div><p class="oj-note"><a id="ntr8">(8)</a> Second citation.</p></body></html>`,{language:'fr'});
+ const input=deletion('fr','Considérant 2');input.items=[{kind:'act',proposal:council()}];
+ Object.assign(input.chosen,{baseline:'council-position',baselineSource:{category:'council-position',conflicted:false},originalText:"(2)\tGamma1 and Delta's.\n_____\n1 Second citation."});delete input.baseline;
+ const a=documentContextPlacement(input);
+ assert.equal(a.status,'placed');assert.equal(a.operation,'delete');assert.deepEqual(a.noteScope.sourceNotes,[{id:'ntr8',label:'1'}]);
+ input.chosen.originalText=input.chosen.originalText.replace('Second','Other');assert.equal(documentContextPlacement(input).reason,'proposal_note_scope_unavailable');
+ input.chosen.originalText=input.chosen.originalText.replace('Other','Second');input.items=[{kind:'act',proposal:council(true)}];assert.equal(documentContextPlacement(input).reason,'proposal_note_scope_unavailable');
+});

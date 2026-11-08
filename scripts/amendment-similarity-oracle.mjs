@@ -66,11 +66,11 @@ export function assertTypoRows(rows,original,span){
  const key=typoTokens(original);if(key.length<5)return false;
  const scores=[];
  for(let i=0;i<rows.length;i++){
-  if(!/[\p{L}\p{N}]/u.test(rows[i].text))continue;
+  if(!typoTokens(rows[i].text).length)continue;
   let text='';for(let j=i;j<rows.length&&j<i+40;j++){
    text+=(j===i?'':'\n')+rows[j].text;const length=typoTokens(text).length;
    if(length>key.length+8)break;
-   if(length>=key.length-8&&/[\p{L}\p{N}]/u.test(rows[j].text))scores.push({start:rows[i].index,end:rows[j].index,text});
+   if(length>=key.length-8&&typoTokens(rows[j].text).length)scores.push({start:rows[i].index,end:rows[j].index,text});
   }
  }
  const wanted=scores.find(row=>row.start===span.start&&row.end===span.end),distance=wanted&&oracleTypo(original,wanted.text);
