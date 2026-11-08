@@ -7,8 +7,8 @@
 import {readdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {setTimeout as delay} from 'node:timers/promises';
 
-const options={url:'http://127.0.0.1:8790',pid:1,mode:'single',label:'',out:'',settleS:30,cpuWindowS:300,rounds:5,idleWaitS:0,sitting:'',lang:'en',wakeTimeoutS:90};
-const flags=new Map([['--url','url'],['--pid','pid'],['--mode','mode'],['--label','label'],['--out','out'],['--settle-s','settleS'],['--cpu-window-s','cpuWindowS'],['--rounds','rounds'],['--idle-wait-s','idleWaitS'],['--sitting','sitting'],['--lang','lang'],['--wake-timeout-s','wakeTimeoutS']]);
+const options={url:'http://127.0.0.1:8790',pid:1,mode:'single',label:'',out:'',settleS:30,cpuWindowS:300,rounds:5,idleWaitS:0,sitting:'',lang:'en',wakeTimeoutS:90,cycles:0,cycleWaitS:75};
+const flags=new Map([['--url','url'],['--pid','pid'],['--mode','mode'],['--label','label'],['--out','out'],['--settle-s','settleS'],['--cpu-window-s','cpuWindowS'],['--rounds','rounds'],['--idle-wait-s','idleWaitS'],['--sitting','sitting'],['--lang','lang'],['--wake-timeout-s','wakeTimeoutS'],['--cycles','cycles'],['--cycle-wait-s','cycleWaitS']]);
 const args=process.argv.slice(2);
 if(args.includes('--help')){
   console.log(`Usage: node scripts/idle-benchmark.mjs [options]
@@ -21,6 +21,8 @@ if(args.includes('--help')){
   --rounds N           warm tour repetitions (default ${options.rounds})
   --idle-wait-s N      time to wait for the API process to exit after the tour (default 0: skip)
   --sitting ID         sitting for upcoming-votes (default: first upcoming sitting from vote-periods)
+  --cycles N           after the tour, N times: wait --cycle-wait-s, then wake again and time it (repeated idle-exit and wake)
+  --cycle-wait-s N     wait before each cycle (default ${options.cycleWaitS}; use more than the idle time to include an exit)
   --wake-timeout-s N   give up on a home API call after N seconds (default ${options.wakeTimeoutS})
   --out FILE           also write the JSON result here`);
   process.exit(0);
@@ -196,6 +198,15 @@ if(options.idleWaitS>0){
   // Opposite direction: the first request after the exit starts the API again.
   const again=await wake();
   result.rewake={htmlMs:again.htmlMs,allOkMs:again.allOkMs,storedOkMs:again.storedOkMs,calls:again.calls.map(({path,firstOkMs,attempts})=>({path,firstOkMs,attempts}))};
+}
+if(options.cycles>0){
+  result.cycles=[];
+  for(let i=0;i<options.cycles;i++) {
+    await delay(options.cycleWaitS*1000);
+    const before=tree(),again=await wake();
+    result.cycles.push({processesBefore:before.count,rssMiBBefore:before.rssMiB,htmlMs:again.htmlMs,allOkMs:again.allOkMs,storedOkMs:again.storedOkMs,
+      calls:again.calls.map(({path,firstOkMs,attempts})=>({path,firstOkMs,attempts}))});
+  }
 }
 const text=JSON.stringify(result,null,1);
 if(options.out)writeFileSync(options.out,text+'\n');
