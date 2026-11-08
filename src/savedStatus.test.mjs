@@ -320,7 +320,7 @@ test('Profile marks nothing; modified and middle clicks preserve href and mark o
 });
 test('one expiry timer drops the badge and moves expired entries to Earlier updates without a storage write',async t=>{
  const start=Date.now();
- const entry={...speech,discoveredAt:Date.now()-86_400_000+1500,readAt:null};
+ const entry={...speech,discoveredAt:start-86_400_000+1500,readAt:null};
  const h=await harness(t,[member({seen:{activity:6,answer:3},entries:[entry]})],true);const clock=installRetryClock(t);clock.pin(start);await h.render();assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
  const before=h.window.localStorage.getItem('ep.following.v2');
  clock.jump(1499);await h.tick(1499);assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');

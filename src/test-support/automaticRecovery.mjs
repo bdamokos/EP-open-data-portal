@@ -17,7 +17,7 @@ export function installRetryClock(t) {
  const mocked=Date.now,owned=()=>assert.equal(Date.now,mocked,'Date.now was mocked again after the retry clock was installed: use clock.pin() and clock.jump()');
  t.mock.method(globalThis,'setTimeout',(callback,delay,...args)=>{
   if(!new Error().stack?.includes('useAutomaticRetry.ts'))return realSetTimeout(callback,delay,...args);
-  const timer={};timers.set(timer,{callback,args,due:Date.now()+delay});return timer;
+  owned();const timer={};timers.set(timer,{callback,args,due:Date.now()+delay});return timer;
  });
  t.mock.method(globalThis,'clearTimeout',timer=>{if(timers.has(timer))timers.delete(timer);else realClearTimeout(timer);});
  const clock={timers,
