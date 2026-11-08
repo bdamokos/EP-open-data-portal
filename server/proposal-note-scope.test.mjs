@@ -28,3 +28,26 @@ test('proposed instructions with a plus marker stay in the note comparison',()=>
  const input={...setup(),chosen:chosen()};input.chosen.proposedText='(1) Changed1a+.\n_____\n1a New citation.\n+ OJ: Please complete the reference.';input.chosen.proposedFormatting=[{kind:'superscript',start:11,end:14}];assert.equal(documentContextPlacement(input).status,'placed');
  input.chosen.proposedText='(1) Changed.\n_____';input.chosen.proposedFormatting=[];assert.equal(documentContextPlacement(input).status,'placed');
 });
+
+// A-10-2025-0150 AM 29 deletes Article 30d; its only call-out of the
+// proposal's note 8 is printed as note 2 in the list, in every language.
+// A-10-2026-0175 AM 3 replaces Recital 65 and drops footnote 23 likewise.
+const twoRecitals=(shared=false)=>parseProposal(noteWord(`<w:p><w:r><w:t>(1)\tAlpha</w:t><w:footnoteReference w:id="7"/><w:t> and Beta</w:t>${shared?'<w:footnoteReference w:id="9"/>':''}<w:t>.</w:t></w:r></w:p><w:p><w:r><w:t>(2)\tGamma</w:t><w:footnoteReference w:id="9"/><w:t> and Delta.</w:t></w:r></w:p>`,{notes:noteDefinitions}));
+const deletion=(language,label,overrides={})=>({chosen:{baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false},language,targetLabelLanguage:language,targetLabel:label,originalText:'(2)\tGamma1 and Delta.\n_____\n1 Second citation',proposedText:language==='fr'?'supprimé':'deleted',originalFormatting:[{kind:'superscript',start:9,end:10}],proposedFormatting:[],...overrides},items:[{kind:'act',proposal:twoRecitals()}],baseline:{evidence:[{kind:'native-procedure',status:'verified',procedure:'2028/0045(NLE)'}]}});
+test('a note called only in deleted text falls with it in any language, whatever the list numbers it',()=>{
+ for(const [language,label] of [['en','Recital 2'],['fr','Considérant 2']]){
+  const a=documentContextPlacement(deletion(language,label));
+  assert.equal(a.status,'placed');assert.equal(a.operation,'delete');assert.deepEqual(a.span,{start:1,end:1});
+  assert.deepEqual(a.noteScope.sourceNotes,[{id:'9',label:'1'}]);assert.deepEqual(a.noteScope.proposedLabels,[]);
+ }
+});
+test('a dropped note must be the same note, called only inside the replaced text',()=>{
+ const changed=deletion('fr','Considérant 2',{originalText:'(2)\tGamma1 and Delta.\n_____\n1 Other citation'});
+ assert.equal(documentContextPlacement(changed).reason,'proposal_note_scope_unavailable');
+ const shared=deletion('fr','Considérant 2');shared.items[0].proposal=twoRecitals(true);
+ assert.equal(shared.items[0].proposal.anchors.filter(a=>a.note==='9').length,2);
+ assert.equal(documentContextPlacement(shared).reason,'proposal_note_scope_unavailable');
+ // Outside English, a note kept in the proposed column stays withheld.
+ const kept=deletion('fr','Considérant 2',{proposedText:'(2)\tGamma1 and Epsilon.\n_____\n1 Second citation',proposedFormatting:[{kind:'superscript',start:9,end:10}]});
+ assert.equal(documentContextPlacement(kept).reason,'proposal_note_scope_unavailable');
+});

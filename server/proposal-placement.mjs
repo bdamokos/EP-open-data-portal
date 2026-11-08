@@ -7,7 +7,7 @@ import {rejectionWordingScope} from './amendment-rejection.mjs';
 import {nativeInlineRowsComplete,nativeTitleRowsComplete} from './proposal-inline-guard.mjs';
 import {quotedSectionPointInsertion} from './proposal-quoted-section.mjs';
 import {wholeAnnexInstructionPlacement} from './proposal-whole-instruction.mjs';
-import {similarPassage,singleWordDifference} from './proposal-similarity.mjs';
+import {similarPassage,singleWordDifference,typoPassage} from './proposal-similarity.mjs';
 import {firstAnnexInsertion,sequentialAnnexInsertion} from './proposal-first-annex.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
@@ -783,6 +783,17 @@ function similarMatch(proposal,unit,original){
  return {span:{start,end},splice:{start:{paragraph:start,offset:0},end:{paragraph:end,offset:rows.at(-1).text.length}},originalText:rows.map(p=>p.text).join('\n'),whole:start===unit.extent.start&&end===unit.extent.end-1,similarity};
 }
 
+// A normal typo in the quoted original (maintainer ruling, 8 November 2026):
+// the label's own unit holds the near-identical passage and no other passage in
+// the document comes close. See typoPassage for the token rule and margin.
+function typoMatch(proposal,unit,original){
+ if(unit.pathConflict||unit.scope!=='proposal')return null;
+ const hit=typoPassage(proposal.paragraphs.slice(unit.extent.start,unit.extent.end),proposal.paragraphs,original);
+ if(!hit)return null;
+ const {start,end}=hit,rows=proposal.paragraphs.slice(start,end+1);
+ if(rows.some(p=>!p.complete||p.source?.complete!==true||p.source.container!=='body')||proposal.gaps.some(g=>g.code==='unclosed-quotation'&&g.paragraph>=start&&g.paragraph<=end))return null;
+ return {span:{start,end},splice:{start:{paragraph:start,offset:0},end:{paragraph:end,offset:rows.at(-1).text.length}},originalText:rows.map(p=>p.text).join('\n'),whole:start===unit.extent.start&&end===unit.extent.end-1,typo:hit.cost};
+}
 function singleWordMatch(proposal,unit,original) {
  if(unit.pathConflict||unit.scope!=='proposal'||unit.kind!=='point'||unit.path[0]?.kind!=='article'||unit.children.length||!completeBoundary(proposal,unit)||unit.extent.end!==unit.extent.start+1)return null;
  const row=proposal.paragraphs[unit.extent.start];
@@ -1331,7 +1342,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return originalText;
   };
   const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,adaptedOriginal(candidate))}));
-  for(const candidate of candidates.length===1?matches:[])if(!candidate.match.span){const tolerant=similarMatch(candidate.proposal,candidate.unit,originalText)??singleWordMatch(candidate.proposal,candidate.unit,originalText);if(tolerant)candidate.match=tolerant;}
+  for(const candidate of candidates.length===1?matches:[])if(!candidate.match.span){const tolerant=similarMatch(candidate.proposal,candidate.unit,originalText)??singleWordMatch(candidate.proposal,candidate.unit,originalText)??typoMatch(candidate.proposal,candidate.unit,originalText);if(tolerant)candidate.match=tolerant;}
   const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole||uniqueDocumentWording(candidate.proposal,originalText)));
   if(matching.length!==1&&candidates.length===1&&candidates[0].unit.instruction){
     const c=candidates[0],lead=originalText.split(/\r?\n/u)[0],row=c.proposal.paragraphs[c.unit.extent.start];
@@ -1348,7 +1359,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(wordDifferenceUnits.has(selected.unit))return placedMatch(selected,'one-alphabetic-word-original-difference');
   if(candidates.length===1&&selected.unit.pathConflict&&!uniqueDocumentWording(selected.proposal,originalText))return unresolved('multiple_published_targets');
   if(bound)return placedMatch(selected,'normalised-original-match');
-  evidence.push({basis:selected.match.singleWord?'single-word-original-difference':selected.match.similarity!==undefined?'unique-similar-original':candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id,...(selected.match.similarity!==undefined?{matchKind:'similar',similarity:selected.match.similarity}:{})});
+  evidence.push({basis:selected.match.typo!==undefined?'typo-original-difference':selected.match.singleWord?'single-word-original-difference':selected.match.similarity!==undefined?'unique-similar-original':candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id,...(selected.match.similarity!==undefined?{matchKind:'similar',similarity:selected.match.similarity}:{})});
   return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
 }
 

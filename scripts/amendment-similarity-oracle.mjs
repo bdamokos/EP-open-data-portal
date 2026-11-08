@@ -22,12 +22,66 @@ export function assertSimilarityRows(rows,original,span,{threshold=.95,margin=.0
  return scores[0]?.score>=threshold&&scores[0].score-(scores[1]?.score??0)>=margin&&scores[0].start===span.start&&scores[0].end===span.end;
 }
 
+// Independent typo assertion (maintainer ruling, 8 November 2026): full token
+// edit distance over the addressed raw rows. The placed span must be the
+// strict best; its differences total at most two words, or whitespace inside
+// a token run, and never touch a number or the label that follows one.
+const typoTokens=value=>normal(value.split('\n').map(line=>line.replace(/^\s*\(?([\p{L}\p{N}]{1,4})[.)](?=\s)/u,'$1)')).join('\n')).replace(/[\u2010\u2011]/gu,'-').replace(/[şŞţŢ]/gu,c=>({ş:'ș',Ş:'Ș',ţ:'ț',Ţ:'Ț'})[c]).match(/[\p{L}\p{N}]+|[^\s\p{L}\p{N}]/gu)||[];
+function tokenEdits(a,b){
+ const n=a.length,m=b.length;if(n*m>4_000_000)return null;
+ const d=Array.from({length:n+1},(_,i)=>{const row=new Uint32Array(m+1);row[0]=i;return row;});
+ for(let j=0;j<=m;j++)d[0][j]=j;
+ for(let i=1;i<=n;i++)for(let j=1;j<=m;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+ // Walk back into maximal differing runs.
+ const runs=[];let i=n,j=m,run=null;
+ const close=run=>({...run,atStart:[...a.slice(0,run.i),...b.slice(0,run.j)].every(t=>!/[\p{L}\p{N}]/u.test(t))});
+ while(i>0||j>0){
+  if(i>0&&j>0&&a[i-1]===b[j-1]&&d[i][j]===d[i-1][j-1]){if(run){runs.push(close(run));run=null;}i--;j--;continue;}
+  run??={left:[],right:[],before:null,atEnd:[...a.slice(i),...b.slice(j)].every(t=>!/[\p{L}\p{N}]/u.test(t))};
+  if(i>0&&j>0&&d[i][j]===d[i-1][j-1]+1){run.left.unshift(a[--i]);run.right.unshift(b[--j]);}
+  else if(i>0&&d[i][j]===d[i-1][j]+1)run.left.unshift(a[--i]);
+  else run.right.unshift(b[--j]);
+  run.before=[a[i-1],b[j-1]];run.i=i;run.j=j;
+ }
+ if(run)runs.push(close(run));
+ return {distance:d[n][m],runs};
+}
+export function oracleTypo(original,source){
+ const edits=tokenEdits(typoTokens(original),typoTokens(source));if(!edits)return null;
+ let words=0;
+ for(const run of edits.runs){
+  if(run.left.join('')===run.right.join('')||[...run.left,...run.right].every(t=>/^[.()]$/u.test(t)))continue;
+  if([...run.left,...run.right,...run.before].some(t=>/\p{N}/u.test(t??'')))return null;
+  if([run.left,run.right].some(list=>list.every(t=>!/[\p{L}\p{N}]/u.test(t)))&&(run.atEnd||run.atStart))return null;
+  const changed=Math.max(...[run.left,run.right].map(list=>list.filter(t=>/[\p{L}\p{N}]/u.test(t)).length));
+  if(!changed)return null;
+  words+=changed;
+ }
+ return words<=2?edits.distance:null;
+}
+export function assertTypoRows(rows,original,span){
+ const key=typoTokens(original);if(key.length<5)return false;
+ const scores=[];
+ for(let i=0;i<rows.length;i++){
+  if(!/[\p{L}\p{N}]/u.test(rows[i].text))continue;
+  let text='';for(let j=i;j<rows.length&&j<i+40;j++){
+   text+=(j===i?'':'\n')+rows[j].text;const length=typoTokens(text).length;
+   if(length>key.length+8)break;
+   if(length>=key.length-8&&/[\p{L}\p{N}]/u.test(rows[j].text))scores.push({start:rows[i].index,end:rows[j].index,text});
+  }
+ }
+ const wanted=scores.find(row=>row.start===span.start&&row.end===span.end),distance=wanted&&oracleTypo(original,wanted.text);
+ if(distance===null||distance===undefined)return false;
+ return scores.every(row=>row===wanted||(tokenEdits(key,typoTokens(row.text))?.distance??0)>distance);
+}
+
 export function assertSimilarPlacement({proposal,wording,placement,address}){
  if(address.status!=='verified'||!placement.span||!placement.splice||!address.rawSourceRows)return {status:'unverified',reason:'oracle-similarity-address-unavailable'};
  const [,start,end]=address.rawSourceRows,span=placement.span;
  const rows=proposal.paragraphs.slice(start,end);
  if(placement.splice.start.offset!==0||placement.splice.end.offset!==proposal.paragraphs[span.end]?.text.length)return {status:'unverified',reason:'oracle-similarity-partial-row'};
- return assertSimilarityRows(rows,wording.originalText,span)?{status:'verified',reason:'oracle-independent-unique-similarity'}:{status:'unverified',reason:'oracle-similarity-not-unique'};
+ if(assertSimilarityRows(rows,wording.originalText,span))return {status:'verified',reason:'oracle-independent-unique-similarity'};
+ return assertTypoRows(rows,wording.originalText,span)?{status:'verified',reason:'oracle-independent-typo-original'}:{status:'unverified',reason:'oracle-similarity-not-unique'};
 }
 
 // Resolution candidates are independently delimited raw provisions, rather than
