@@ -95,30 +95,52 @@ test('a document context built on the parse thread answers like the inline one a
   const inline=await context().query(query());
   const directory=await makeDirectory(),thread=spy(makeThread());
   const coldParser=parser(thread,directory),cold=await context({parser:coldParser}).query(query());
-  assert.deepEqual(cold,inline);assert.equal(thread.calls.length,1);
+  assert.deepEqual(cold,inline);assert.equal(JSON.stringify(cold),JSON.stringify(inline));assert.equal(thread.calls.length,1);
+  assert.equal(JSON.stringify(await context({parser:coldParser}).query(query())),JSON.stringify(inline),'a new context over the same parser');
   await settled(coldParser);
   const restarted=await context({parser:parser(thread,directory)}).query(query());
-  assert.deepEqual(restarted,inline);assert.equal(thread.calls.length,1,'the new instance reads the stored parse');
+  assert.equal(JSON.stringify(restarted),JSON.stringify(inline));assert.equal(thread.calls.length,1,'the new instance reads the stored parse');
 });
 
-test('a proposal projection through the parse thread matches the inline reader and is cached by content',async()=>{
+// A context whose Commission proposal is `buffer`, with everything else fixed.
+function proposalScenario(buffer) {
   const original='1. Original proposal sentence.',id='A-10-2026-0237',amendmentId=id+'-AM-40',listId=id+'-AM-037-046';
   const source={url:'https://data.europarl.europa.eu/distribution/doc/list_en.docx',fetchedAt:new Date(0).toISOString(),language:'en'};
   const variant={id:amendmentId,targetDocumentId:id,listId,language:'en',textIntegrity:'complete',authors:[],wordingSource:source,baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false},targetLabelLanguage:'en',targetLabel:'Article 1 – paragraph 1',originalText:original,proposedText:'1. Changed proposal sentence.'};
-  const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>Article 1</w:t></w:r></w:p><w:p><w:r><w:t>'+original+'</w:t></w:r></w:p><w:p><w:r><w:t>Article 2</w:t></w:r></w:p><w:p><w:r><w:t>Keep this source.</w:t></w:r></w:p></w:body></w:document>';
-  const buffer=archive(xml);
   const work={id:'eli/dl/doc/'+id,identifier:id,document_date:'2026-09-16',work_type:'def/ep-document-types/REPORT_PLENARY',title_dcterms:{en:'Report'},is_realized_by:[]};
   const at=Date.parse('2026-10-18T10:00:00Z');
   const context=extra=>new DocumentContext({request:async()=>({payload:{data:[work]},fetchedAt:at}),readText:async()=>({status:'available',paragraphs:['AO. Original wording'],textLanguage:'en',structureStatus:'extracted',paragraphSources:[{path:'w:p[0]',ordinal:0,container:'body',containerPath:'body',segment:0,complete:true}],sourceUrl:'https://data.europarl.europa.eu/distribution/doc/report_en.docx',fetchedAt:new Date(at).toISOString()}),clock:()=>at,findAmendment:()=>variant,
     readProposal:async()=>({status:'available',celex:'52025PC0087',workId:'exact-work',language:'en',gaps:[],evidence:[],items:[{kind:'act',index:1,itemId:'exact-item',expressionId:'exact-expression',buffer,source:{url:'https://publications.europa.eu/resource/celex/52025PC0087',sha256:'a'.repeat(64),fetchedAt:new Date(at).toISOString(),stale:false,refreshError:null}}]}),...extra});
-  const query=()=>documentContextQuery(id,new URLSearchParams({amendment:amendmentId,list:listId,'wording-lang':'en'}));
-  const inline=await context().query({...query(),amendmentId,listId,wordingLanguage:'en'},{store:{}});
-  const directory=await makeDirectory(),thread=spy(makeThread());
-  const shared=parser(thread,directory),run=extra=>context({parser:shared,...extra}).query({...query(),amendmentId,listId,wordingLanguage:'en'},{store:{}});
-  const cold=await run();
-  assert.deepEqual(cold,inline);assert.equal(inline.placement.status,'placed');assert.equal(thread.calls.length,1);
+  const query=()=>({...documentContextQuery(id,new URLSearchParams({amendment:amendmentId,list:listId,'wording-lang':'en'})),amendmentId,listId,wordingLanguage:'en'});
+  return {read:extra=>context(extra).query(query(),{store:{}})};
+}
+
+test('full replies through the parse thread are byte-identical to the inline reader on a cold read, a repeat and a new instance',async()=>{
+  const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>Article 1</w:t></w:r></w:p><w:p><w:r><w:t>1. Original proposal sentence.</w:t></w:r></w:p><w:p><w:r><w:t>Article 2</w:t></w:r></w:p><w:p><w:r><w:t>Keep this source.</w:t></w:r></w:p></w:body></w:document>';
+  const {read}=proposalScenario(archive(xml));
+  const inline=JSON.stringify(await read());
+  assert.equal(JSON.parse(inline).placement.status,'placed');
+  const directory=await makeDirectory(),thread=spy(makeThread()),shared=parser(thread,directory);
+  assert.equal(JSON.stringify(await read({parser:shared})),inline,'cold read');
+  assert.equal(thread.calls.length,1);
+  assert.equal(JSON.stringify(await read({parser:shared})),inline,'a new context over the same parser');
   await settled(shared);
-  assert.deepEqual(await context({parser:parser(thread,directory)}).query({...query(),amendmentId,listId,wordingLanguage:'en'},{store:{}}),inline);assert.equal(thread.calls.length,1,'the second context reads the stored parse');
+  assert.equal(JSON.stringify(await read({parser:parser(thread,directory)})),inline,'a new parser over the same directory');
+  assert.equal(thread.calls.length,1,'the repeats read the stored parse');
+});
+
+test('a proposal too large for a reply gives the same unavailable reply inline, cold and from the stored size',async()=>{
+  const {read}=proposalScenario(archive(paragraphs(4000)));
+  const inline=JSON.stringify(await read());
+  const reply=JSON.parse(inline);
+  assert.equal(reply.baseline.status,'unavailable');assert.ok(reply.baseline.gaps.includes('proposal-projection-unavailable'));assert.equal(reply.proposal,null);
+  const directory=await makeDirectory(),thread=spy(makeThread()),shared=parser(thread,directory);
+  assert.equal(JSON.stringify(await read({parser:shared})),inline,'cold read');
+  await settled(shared);
+  assert.equal(JSON.stringify(await read({parser:parser(thread,directory)})),inline,'a new parser over the same directory');
+  assert.equal(JSON.stringify(await read({parser:shared})),inline,'a new context over the same parser');
+  assert.equal(thread.calls.length,1,'the oversize result is parsed once');
+  assert.equal((await files(directory)).length,1);
 });
 
 test('a result over the reply limit is remembered on disk and in memory, and parsed again only when the content or the limit changes',async()=>{
@@ -154,6 +176,10 @@ test('changing a parser version, the record version or the source bytes invalida
   await fresh(list);await fresh(list,{amendments:'next'});
   assert.equal(thread.calls.length,6);
   await fresh(list);assert.equal(thread.calls.length,6);
+  const council=JSON.parse(readFileSync(new URL('./fixtures/council-position-excerpts.json',import.meta.url),'utf8')),xhtmlRead=instance=>instance.proposal('xhtml',Buffer.from(council.xhtml),{language:council.language,sourceUrl:council.sourceUrl,identity:{celex:council.celex},coverage:council.coverage},{limitBytes:LIMIT});
+  await fresh(xhtmlRead);const afterXhtml=thread.calls.length;
+  await fresh(xhtmlRead);assert.equal(thread.calls.length,afterXhtml,'a stored XHTML parse is reused');
+  await fresh(xhtmlRead,{xhtml:'next'});assert.equal(thread.calls.length,afterXhtml+1,'a new XHTML parser version parses again');
 });
 
 test('a damaged stored parse is replaced by a fresh one',async()=>{
