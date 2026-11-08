@@ -7,7 +7,7 @@ import {config,integerFromEnvironment} from './config.mjs';
 import {HttpError,sendError,sendJson} from './http-utils.mjs';
 import {parseRequestTarget,apiPrefixOf,requestBudgetMs} from './request-target.mjs';
 import {serveStatic} from './static-files.mjs';
-import {API_VERSION} from './api-version.mjs';
+import {stampedDigest} from './api-version-stamp.mjs';
 import {errorLog,serverErrorEvent} from './error-log.mjs';
 import {ipcPort} from './ipc-port.mjs';
 import {ApiSupervisor} from './api-supervisor.mjs';
@@ -25,6 +25,9 @@ import {startSourceWriters} from './source-writers.mjs';
 // budget, the source writer thread and the error log. Everything else is a
 // reverse proxy to the API process, which this file starts on demand. It must not
 // import the API module graph (see front.test.mjs).
+// Production images carry the stamp; elsewhere the version is derived once, on the first health check.
+let apiVersionPromise;
+const apiVersion=()=>apiVersionPromise??=Promise.resolve(stampedDigest()?.slice(0,12)??import('./api-version.mjs').then(module=>module.API_VERSION));
 const apiEntry=fileURLToPath(new URL('./api-child.mjs',import.meta.url));
 
 function forkApi() {
@@ -69,7 +72,7 @@ export function createFront({supervisor,agent=createProxyAgent(),log=console.war
       const health=['GET','HEAD'].includes(request.method)&&!request.headers.origin&&!url.search&&(url.pathname==='/healthz'||url.pathname==='/api/healthz');
       if(health){
         response.setHeader('X-Request-Id',requestId);
-        sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:API_VERSION,time:new Date().toISOString()});
+        sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:await apiVersion(),time:new Date().toISOString()});
         return;
       }
       if(apiPrefix){
