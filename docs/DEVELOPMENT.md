@@ -102,6 +102,7 @@ When one of these budgets is full, collection pauses until it is raised; retaine
 | `[odp-throttle]` | An upstream 429/503 and the pause applied |
 | `[odp-monitor]` | Per-minute request summary: status counts, route families, quota headroom |
 | `[event-loop-delay]` | HTTP thread delay over 100 ms (p99) or 250 ms (max) |
+| `[request-slow]` | An API request that took 1 s or more: route (no query), status, elapsed time, main-thread CPU and memory change |
 | `[sqlite-slow]` | A main-thread SQLite statement that took 250 ms or more |
 | `[base-source-backfill]` | Progress of the optional base-document collection |
 
