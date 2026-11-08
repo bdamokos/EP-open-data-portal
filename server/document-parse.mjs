@@ -70,6 +70,8 @@ export class OffThreadDocumentParser {
     try {if(await writeCacheFile(path.join(folder,name),text,{signal:null}))await this.budget(folder).saved(name,size);}
     catch {/* The result is still served; the next reader parses again. */}
   }
+  // Thread options for a job that outlives its readers once it is running.
+  start(job) {return {signal:job.controller.signal,abortRunning:false,onStart:()=>{job.running=true;}};}
   fail(key,error) {
     this.failures.delete(key);this.failures.set(key,{until:this.clock()+this.limits.failureTtlMs,message:error.message,code:error.code});
     while(this.failures.size>this.limits.failureEntries)this.failures.delete(this.failures.keys().next().value);
@@ -83,9 +85,11 @@ export class OffThreadDocumentParser {
     if(failed&&failed.until>this.clock())throw Object.assign(new Error(failed.message),{code:failed.code});
     const id=refresh?key+':refresh':key;
     let job=this.inflight.get(id);
+    // A job dropped from the queue after its last reader left cannot be joined; a running one can.
+    if(job?.controller.signal.aborted&&!job.running)job=undefined;
     if(!job) {
       const controller=new AbortController();
-      job={controller,waiters:0};
+      job={controller,waiters:0,running:false};
       const produced=(async()=>{
         if(!refresh){
           const saved=await this.read(key);
@@ -94,7 +98,7 @@ export class OffThreadDocumentParser {
         // Dropped only while queued; a parse already running finishes for the store.
         controller.signal.throwIfAborted();
         let text;
-        try {text=await compute(controller.signal);}
+        try {text=await compute(job);}
         catch(error) {
           if(retriable(error))this.fail(key,error);
           throw error;
@@ -125,7 +129,7 @@ export class OffThreadDocumentParser {
     const {fetchedAt=null,...stable}=options,placeholder=typeof fetchedAt==='string';
     if(!placeholder&&fetchedAt!==null)return this.thread.run('amendments',{buffer:new Uint8Array(buffer),options},{signal});
     const key=digest(['amendments',this.versions.amendments,this.versions.record,digest(buffer),stable,placeholder]);
-    const compute=job=>this.thread.run('amendments-json',{buffer:new Uint8Array(buffer),options:{...stable,fetchedAt:placeholder?FETCHED_AT:null}},{signal:job,abortRunning:false})
+    const compute=job=>this.thread.run('amendments-json',{buffer:new Uint8Array(buffer),options:{...stable,fetchedAt:placeholder?FETCHED_AT:null}},this.start(job))
       .then(({json})=>'{"v":'+DOCUMENT_PARSE_VERSION+',"extraction":'+json+'}');
     const decode=text=>{
       const record=JSON.parse(placeholder?text.replaceAll('"'+FETCHED_AT+'"',()=>JSON.stringify(fetchedAt)):text);
@@ -144,7 +148,7 @@ export class OffThreadDocumentParser {
     const key=digest(['proposal',parser,this.versions[parser==='xhtml'?'xhtml':'proposal'],this.versions.record,digest(bytes),options,limitBytes]);
     if(this.markers.has(key))throw budgetError();
     const payload={parser,input:input instanceof Uint8Array?new Uint8Array(input):input,options,limitBytes};
-    const compute=job=>this.thread.run('proposal-json',payload,{signal:job,abortRunning:false})
+    const compute=job=>this.thread.run('proposal-json',payload,this.start(job))
       .then(({rawBytes,describedBytes,json})=>'{"v":'+DOCUMENT_PARSE_VERSION+',"rawBytes":'+rawBytes+',"describedBytes":'+describedBytes+(json===undefined?'':',"parsed":'+json)+'}');
     const decode=text=>{
       const record=JSON.parse(text);

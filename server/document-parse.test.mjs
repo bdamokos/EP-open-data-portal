@@ -199,6 +199,23 @@ test('a parse whose readers all left still finishes and is stored, but a queued 
   assert.equal(thread.calls.length,calls,'a later reader finds the finished parse');
 });
 
+test('a reader that arrives after the last one left joins a running parse but starts a new one for a dropped parse',{timeout:60_000},async()=>{
+  const directory=await makeDirectory(),thread=spy(makeThread()),instance=parser(thread,directory);
+  const big=archive(paragraphs(1500)),small=archive(paragraphs(2));
+  const leavingBig=new AbortController(),leavingSmall=new AbortController();
+  const first=instance.proposal('proposal',big,proposalOptions,{limitBytes:LIMIT,signal:leavingBig.signal});
+  const second=instance.proposal('proposal',small,proposalOptions,{limitBytes:LIMIT,signal:leavingSmall.signal});
+  while(![...instance.inflight.values()].some(job=>job.running))await sleep(5);
+  leavingBig.abort(new Error('closed'));leavingSmall.abort(new Error('closed'));
+  await assert.rejects(first,/closed/);await assert.rejects(second,/closed/);
+  const started=thread.calls.length;
+  const joined=instance.proposal('proposal',big,proposalOptions,{limitBytes:LIMIT});
+  const again=instance.proposal('proposal',small,proposalOptions,{limitBytes:LIMIT});
+  await sleep(10);
+  assert.equal(thread.calls.length,started+1,'only the dropped parse was submitted again');
+  assert.equal((await joined).paragraphs.length,3000);assert.equal((await again).paragraphs.length,4);
+});
+
 test('a request that has already ended starts no parse',async()=>{
   const directory=await makeDirectory(),instance=parser(makeThread(),directory),buffer=archive(paragraphs(2));
   const budget=createRequestBudget(30_000);

@@ -18,7 +18,8 @@ export const DOCUMENT_PARSE_THREAD=Object.freeze({idleMs:15_000,timeoutMs:180_00
 
 const stopped=message=>Object.assign(new Error(message),{code:'document_parse_stopped'});
 
-// `run(task,payload,{signal,abortRunning})` resolves with the task's result.
+// `run(task,payload,{signal,abortRunning,onStart})` resolves with the task's result;
+// `onStart` is called when the job reaches the thread.
 // Aborting the signal drops a queued job. A running job is stopped when
 // `abortRunning` is set (the default) and otherwise finishes in the background.
 export function createParseThread({idleMs,timeoutMs,maxHeapMiB,maxQueued=Infinity,workerUrl=new URL(import.meta.url)}) {
@@ -73,15 +74,16 @@ export function createParseThread({idleMs,timeoutMs,maxHeapMiB,maxQueued=Infinit
       current=null;stopWorker();
       settle(job,'reject',Object.assign(new Error('Document parsing exceeded its time limit.'),{code:'document_parse_timeout'}));pump();
     },timeoutMs);
+    job.onStart?.();
     worker.postMessage({id:job.id,task:job.task,payload:job.payload});
   }
 
   return {
-    run(task,payload,{signal,abortRunning=true}={}) {
+    run(task,payload,{signal,abortRunning=true,onStart}={}) {
       if(signal?.aborted)return Promise.reject(signal.reason);
       if(queue.length>=maxQueued)return Promise.reject(Object.assign(new Error('Document parsing is busy.'),{code:'document_parse_busy'}));
       return new Promise((resolve,reject)=>{
-        const job={id:++sequence,task,payload,timer:null,waiter:null},waiter={resolve,reject,signal};
+        const job={id:++sequence,task,payload,onStart,timer:null,waiter:null},waiter={resolve,reject,signal};
         waiter.abort=()=>{
           if(job.waiter!==waiter)return;
           const queued=queue.indexOf(job);
