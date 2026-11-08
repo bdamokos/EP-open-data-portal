@@ -145,10 +145,9 @@ test('the reader keeps its temporary overview preview address, and no other view
   assert.equal(explorerParams(query,'questions').has('split-preview'),false);
 });
 
-test('the vote page keeps its country sort; other views drop it',()=>{
+test('an old country-sort address is dropped: the country list has one order',()=>{
   const query=new URLSearchParams({view:'legislation','pl-mode':'vote','vote-country-sort':'for-desc'});
-  assert.equal(explorerParams(query,'legislation').get('vote-country-sort'),'for-desc');
-  assert.equal(explorerParams(query,'questions').has('vote-country-sort'),false);
+  assert.equal(explorerParams(query,'legislation').has('vote-country-sort'),false);
 });
 
 test('the vote page keeps a well-formed member through the address rewrite',()=>{
