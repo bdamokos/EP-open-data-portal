@@ -109,7 +109,8 @@ function Verse({label,kind,language,children,struck=false}:{label:ReactNode;kind
 }
 // The amendment reader's own marks: removed words struck, added words underlined, each named for screen readers.
 function Marked({kind,label,language,segments,side,struck=false}:{kind:'old'|'new'|'gone';label:ReactNode;language:string;segments:TextDiffSegment[];side:'original'|'proposed';struck?:boolean}) {
-  return <div className={'verse '+kind+(struck?' struck':'')}><span className="gut">{label}</span><div className="wording-diff"><Passage language={language} side={side} segments={segments.filter(segment=>segment.type!==(side==='original'?'insert':'delete'))}/></div></div>;
+  const marked=<div className="wording-diff"><Passage language={language} side={side} segments={segments.filter(segment=>segment.type!==(side==='original'?'insert':'delete'))}/></div>;
+  return <div className={'verse '+kind}><span className="gut">{label}</span>{struck?<del className="struck">{marked}</del>:marked}</div>;
 }
 function Place({context,target}:{context:Context;target:Target}) {
   const ui=useUiI18n(),{vote,siblings,language}=context,{n}=voteNumbers(vote);
@@ -125,11 +126,11 @@ function Place({context,target}:{context:Context;target:Target}) {
   const textLanguage=reply!.baseline?.language||(wording.state==='text'?wording.language:'');
   const adopted=vote.outcome==='ADOPTED'||siblings.some(row=>row.outcome==='ADOPTED'&&row.context.amendmentIds.includes(target.amendmentId));
   const source=<span lang={wording.labelLanguage??''}>{wording.sourceLabel}</span>;
-  const said=placeOperation(operation,Boolean(passage.part)),original=operation!=='insert'?passage.original:null;
+  const said=placeOperation(operation),original=operation!=='insert'?passage.original:null;
   const proposed=operation!=='delete'&&wording.state==='text'?wording:null;
   // The marks say what the amendment proposes, whatever the outcome. An adopted replacement also strikes
   // the original row as a whole, as before; its removed words keep their marks inside it.
-  const marks=original&&proposed&&textLanguage===proposed.language?placeRedline(original.text,proposed.text,proposed.language):null;
+  const marks=original&&proposed?placeRedline(original.text,proposed.text,proposed.language,textLanguage):null;
   const originalLabel=<UiMessage id={reply!.baseline?.kind==='commission-proposal'?'votepage.place.commission':'votepage.place.original'} values={{provision:source}}/>;
   const amendmentLabel=<UiMessage id="votepage.place.amendment" values={{provision:source,n:n??''}}/>;
   return <>

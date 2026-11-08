@@ -4,7 +4,7 @@ export function paragraphPassage(placement:NonNullable<import('./DocumentContext
 export function documentContents(paragraphs:string[],formats:{heading?:number}[],start?:number):{paragraph:number;level:number;label:string}[];
 export type PassageLabel={kind:string|null;value:string|null;prefix:string|null};
 export type PassageRow={label:PassageLabel|null;text:string};
-export type PassageRows={before:PassageRow|null;original:PassageRow|null;after:PassageRow|null;part?:boolean};
+export type PassageRows={before:PassageRow|null;original:PassageRow|null;after:PassageRow|null};
 export function proposalPassageRows(proposal:import('./proposalTypes').ProposalDocument,placement:NonNullable<import('./DocumentContextTypes').DocumentContextResponse['placement']>):PassageRows|null;
 export function paragraphPassageRows(placement:NonNullable<import('./DocumentContextTypes').DocumentContextResponse['placement']>,document:{paragraphs:string[];tables?:import('./DocumentFormatting').DocumentTable[]}):PassageRows|null;
 export function inPassage(range:PassageRange|null|undefined,index:number):boolean;

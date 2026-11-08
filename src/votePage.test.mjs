@@ -71,7 +71,7 @@ test('a part page marks its words, keys both parts, shows the amendment in its p
  assert.equal(key[1],'Part 2: those words. Adopted by 2 to 1, with 1 abstaining. This vote.');
  assert.match(clause.querySelector('.clause-part a').getAttribute('href'),/pl-vote=MTG-PL-2026-10-07-DEC-8/,'the other part links to its vote');
  assert.equal(text(h.container.querySelector('h2.section')),'In its place: recital 3');
- assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: new wording for the whole provision.');
+ assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: new wording for the text shown.');
  assert.equal(h.container.querySelector('.verse ins'),null,'a rewrite shows both texts whole, unmarked');
  const rows=[...h.container.querySelectorAll('.verse')].map(row=>[text(row.querySelector('.gut')),text(row.querySelector('p'))]);
  assert.deepEqual(rows,[['Recital 2','The recital before.'],['Recital 3, Commission','The old text.'],['Recital 3, amendment 114','The words before bracketed words and after.'],['(a)','The point after.']]);
@@ -109,7 +109,7 @@ test('a deletion says the provision is removed and marks it so, whatever the out
  const removal=await partData({extra:{placement:{operation:'delete'}}});
  removal.data.decision.outcome='REJECTED';removal.data.siblings.forEach(row=>{row.outcome='REJECTED';});
  const h=await mount(t,removal.handler);
- assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: deletion of the whole provision.');
+ assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: deletion of the text shown.');
  assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, removed in amendment 114','(a)']);
  assert.match(text(h.container.querySelector('.verse.gone del')),/The old text\./,'struck with the reader\'s mark, named for screen readers');
  assert.equal(h.container.querySelector('.verse.old'),null);
@@ -124,14 +124,9 @@ for(const outcome of ['REJECTED','ADOPTED'])test('a replacement that keeps most 
   assert.equal(original.querySelector('ins'),null);
   assert.match(text(amendment.querySelector('ins')),/bracketed/,outcome);
   assert.equal(amendment.querySelector('del'),null);
-  assert.equal(original.classList.contains('struck'),outcome==='ADOPTED','an adopted replacement also strikes the original row');
+  assert.equal(Boolean(original.querySelector('del.struck')),outcome==='ADOPTED','an adopted replacement also strikes the original row, announced as deleted');
   assert.equal(text(amendment.querySelector('.gut')),'Recital 3, amendment 114');
  }
-});
-test('part of a provision says so',async t=>{
- const part=await partData({extra:{passage:{before:null,original:{label:null,text:'The old text.'},after:null,part:true}}});
- const h=await mount(t,part.handler);
- assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: new wording for part of the provision.');
 });
 test('a deletion with no wording of its own still shows the original in its place',async t=>{
  const removal=await partData({wording:'blank',extra:{placement:{operation:'delete'}}});
