@@ -169,6 +169,19 @@ test('contributor continuation and source mutation revision survive a prepared r
   try {assert.equal(reopened.get('committeeAmendmentIndexVersion'),committeeAmendmentIndexVersion);assert.equal(reopened.get('amendmentReadVersion'),amendmentReadVersion);assert.equal(amendmentContributors(reopened,{procedures:['2024-0318']}).items.length,2);assert.equal(reopened.db.prepare('SELECT COUNT(*) n FROM amendment_read_flags').get().n,2);}finally{reopened.close();}
 });
 
+test('dossier contributors are read by procedure, not by scanning the generation',t=>{
+  const x=setup(t);roster(x);seed(x);
+  const plans=[],prepare=x.store.db.prepare.bind(x.store.db);
+  t.mock.method(x.store.db,'prepare',sql=>{
+    if(sql.includes('FROM amendment_contributors contributor')){const count=Math.max(...[...sql.matchAll(/\?(\d+)/g)].map(m=>Number(m[1])));plans.push(prepare('EXPLAIN QUERY PLAN '+sql).all(...[x.generation,JSON.stringify(['2024-0318']),2,0,'CJ61'].slice(0,count)).map(row=>row.detail).join('; '));}
+    return prepare(sql);
+  });
+  assert.equal(amendmentContributors(x.store,{procedures:['2024-0318']}).items.length,1);
+  amendmentContributors(x.store,{procedures:['2024-0318'],committee:'CJ61'});
+  assert.equal(plans.length,2);
+  for(const plan of plans){assert.match(plan,/SEARCH contributor USING (?:COVERING )?INDEX \S+ \(generation=\? AND procedure_id=\?/);assert.doesNotMatch(plan,/amendment_contributor_identity/);}
+});
+
 test('existing indexes gain the contributor identity index without replaying amendments',t=>{
   const x=setup(t);roster(x);seed(x);
   const plan=store=>store.db.prepare("EXPLAIN QUERY PLAN DELETE FROM amendment_contributors WHERE generation=1 AND amendment_id='x'").all().map(row=>row.detail).join(' ');
