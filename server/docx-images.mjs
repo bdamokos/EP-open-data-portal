@@ -114,3 +114,11 @@ export function documentImages(record){
     result[id]={...info,sha256:id,data:asset.data};
   }return result;
 }
+// The public form of a document image: its description and owner, without the bytes.
+export const imageDescriptor=({data,...descriptor},sourceHash)=>({...descriptor,sourceHash});
+export function documentImageDescriptors(record){
+  const descriptors={};
+  if(typeof record?.sourceHash!=='string'||!/^[a-f0-9]{64}$/.test(record.sourceHash))return descriptors;
+  for(const [id,asset] of Object.entries(documentImages(record)))descriptors[id]=imageDescriptor(asset,record.sourceHash);
+  return descriptors;
+}
