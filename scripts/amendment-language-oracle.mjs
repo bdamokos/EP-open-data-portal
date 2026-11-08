@@ -1,6 +1,6 @@
 import {assertPointArticleParagraph} from './amendment-point-article-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
-import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity} from './amendment-similarity-oracle.mjs';
+import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity,oracleTypo} from './amendment-similarity-oracle.mjs';
 import {languageQuotedSibling} from './amendment-language-quoted-oracle.mjs';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -16,6 +16,36 @@ export const rawDocument=buffer=>JSON.parse(execFileSync('python3',[fileURLToPat
 // or proposal trees. Unsupported addresses remain explicitly unverified.
 export const rawNormal=oracleFold;
 const strip=value=>String(value).split(/\r?\n/u).map(line=>rawNormal(line).replace(/^["']\s*/u,'').replace(/^(?:\([\p{L}\d]{1,6}\)\s*|\d+[\p{L}]{0,3}[.)]\s*|(?:[\p{Lu}]{1,3}|\p{Ll})[.)]\s+)/u,'').replace(/[.;"'\s]+$/u,'').trim()).join(' ').replace(/\s+/gu,' ').trim();
+
+// A placed note scope splices only the provision body. The published column
+// prints the body, a rule and the notes, with each call-out as a digit label
+// fused to the text. Accept the body only when deleting each note label once,
+// in order, yields the spliced source; otherwise keep the full original.
+export function calloutFreeOriginal(original,splice) {
+  const cut=/\n_{3,}[ \t]*\n/u.exec(original??'');
+  if(!cut||/\n_{3,}[ \t]*\n/u.test(original.slice(cut.index+cut[0].length)))return null;
+  const body=original.slice(0,cut.index),labels=[];
+  for(const line of original.slice(cut.index+cut[0].length).split('\n')){const m=/^\s*(\d+[a-z]{0,3})\s+\S/u.exec(line);if(m)labels.push(m[1]);}
+  if(!labels.length||new Set(labels).size!==labels.length)return null;
+  const fold=value=>value.normalize('NFC').replace(/[\s‘’“”«»„"']/gu,'');
+  const kept=[];for(const [index,char] of [...body.normalize('NFC')].entries())if(fold(char))kept.push(index);
+  const chars=[...body.normalize('NFC')],compact=kept.map(i=>chars[i]).join(''),target=fold(splice??'');
+  if(compact.length!==kept.length||compact.length!==target.length+labels.join('').length)return null;
+  // Depth-first over label positions; the compared prefix bounds each search.
+  const place=(k,at,out)=>{
+    if(k===labels.length)return compact.slice(at)===target.slice(out)?[]:null;
+    for(let p=compact.indexOf(labels[k],at);p>=0;p=compact.indexOf(labels[k],p+1)){
+      if(compact.slice(at,p)!==target.slice(out,out+p-at))return null;
+      const rest=place(k+1,p+labels[k].length,out+p-at);
+      if(rest)return [[kept[p],kept[p+labels[k].length-1]+1],...rest];
+    }
+    return null;
+  };
+  const cuts=place(0,0,0);
+  if(!cuts)return null;
+  let result='',from=0;for(const [start,end] of cuts){result+=chars.slice(from,start).join('');from=end;}
+  return result+chars.slice(from).join('');
+}
 
 const ref=value=>{
   let m=/^(\d+[\p{Ll}]{0,3})[.)]\s*/u.exec(value);
@@ -178,6 +208,7 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
       ||span.start===span.end&&end.offset<start.offset)return failed('raw-invalid-splice');
     splicedSource=observed.slice(span.start,span.end+1).map((row,i,rows)=>row.text.slice(i===0?start.offset:0,i===rows.length-1?end.offset:row.text.length)).join('\n');
   }
+  if(proposal&&placement.noteScope){const body=calloutFreeOriginal(expected.originalText,splicedSource);if(!body)return unknown('raw-note-scope-unverified');expected={...expected,originalText:body};}
   const selected=observed.slice(span.start,span.end+1),rawSelected=selected.map(p=>sourceRows.find(r=>r.path===p.path));
   if(rawSelected.some((p,i)=>!p||p.uncertain||p.automatic||rawNormal(p.text)!==rawNormal(selected[i].text)))return unknown('raw-span-projection-unverified');
   if(proposal) {
@@ -188,7 +219,7 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
         if(address.status==='verified'&&address.rawSourceRows?.[1]===span.start)return {...address,reason:'raw-exact-instruction-anchor'};
       }
       if(strip(splicedSource)!==strip(expected.originalText)){
-        if(oracleSimilarity(splicedSource,expected.originalText)<.95)return failed('raw-original-splice-mismatch');
+        if(oracleSimilarity(splicedSource,expected.originalText)<.95&&oracleTypo(expected.originalText,splicedSource)===null)return failed('raw-original-splice-mismatch');
         const address=rawProposal();if(address.status!=='verified')return address;
         const rows=observed.map((p,index)=>{const r=sourceRows.find(row=>row.path===p.path);return {index,text:r?.text??''};});
         const similar=assertSimilarPlacement({proposal:{paragraphs:rows},wording:expected,placement,address});
@@ -204,7 +235,12 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
     // 77 correct proposal splices in the language sample cover that full row.
     const {start,end}=placement.splice;
     if(start.offset!==0||end.offset!==selected[0].text.length)return failed('raw-proposal-recital-splice-mismatch');
-    if(strip(splicedSource)!==strip(expected.originalText))return failed('raw-original-splice-mismatch',{sourcePaths:rawSelected.map(p=>p.path)});
+    // The address alone selects this recital; a normal typo in the quote
+    // (independent token check) does not make it another provision.
+    if(strip(splicedSource)!==strip(expected.originalText)){
+      if(oracleTypo(expected.originalText,splicedSource)===null)return failed('raw-original-splice-mismatch',{sourcePaths:rawSelected.map(p=>p.path)});
+      return {status:'verified',reason:'raw-proposal-recital-typo',location:{section:'proposal-recitals',kind:'recital',value:address.value,scope:'proposal'}};
+    }
     return {status:'verified',reason:'raw-proposal-recital-span',location:{section:'proposal-recitals',kind:'recital',value:address.value,scope:'proposal'}};
   }
   const sameOriginal=strip(rawSelected.map(p=>p.text).join('\n'))===strip(expected.originalText);

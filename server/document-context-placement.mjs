@@ -199,9 +199,14 @@ function initialRecital(items,chosen) {
 }
 function resolveProposalNoteScope(items,chosen) {
   const withheld=()=>({operation:chosen.originalText?.trim()?'replace':'insert',status:'unresolved',reason:'proposal_note_scope_unavailable',evidence:[]});
-  if(chosen.language!=='en')return withheld();
   const original=comparisonColumn(chosen.originalText,chosen.originalFormatting),proposed=comparisonColumn(chosen.proposedText,chosen.proposedFormatting);
   if(!original||!proposed||!(original.notes.length||proposed.notes.length)||original.notes.length!==original.references.length)return withheld();
+  // A note whose only call-outs lie in the replaced text falls with it when the
+  // proposed column keeps no notes. This holds in every language and source
+  // format. Lists number notes per amendment, so the source label may differ;
+  // the call-out position and the note text must still match.
+  const dropped=original.notes.length>0&&!proposed.notes.length;
+  if(chosen.language!=='en'&&!dropped)return withheld();
   // Word anchors have no text characters. Removing their comparison markers
   // can leave whitespace inside empty parentheses; the source proof below
   // still requires the complete paragraph and every original note.
@@ -209,7 +214,12 @@ function resolveProposalNoteScope(items,chosen) {
   const usual=resolveProposalPlacement(items,body),placement=usual.status==='placed'?usual:initialRecital(items,body)||usual;
   if(placement.status!=='placed')return placement;
   const proposal=items[placement.itemIndex]?.proposal;
-  if(proposal?.sourceKind!=='docx')return withheld();
+  if(proposal?.sourceKind!=='docx'&&!(dropped&&proposal?.sourceKind==='xhtml'))return withheld();
+  // A dropped note only has to be the same note: ignore its final full stop.
+  // Quoted texts in other languages print typographic apostrophes and
+  // non-breaking hyphens where the source has plain ones.
+  const bodyKey=value=>dropped?textKey(value).replace(/[‘’ʼ]/gu,"'").replace(/[“”„«»]/gu,'"').replace(/[\u2010\u2011]/gu,'-'):textKey(value);
+  const noteKey=value=>dropped?bodyKey(value).replace(/[.;]$/u,''):textKey(value);
   const sourceNotes=[];
   if(placement.operation==='insert'){
     if(original.body.trim()||original.notes.length)return withheld();
@@ -217,13 +227,14 @@ function resolveProposalNoteScope(items,chosen) {
     const {span,splice}=placement;
     if(!span||!splice||splice.start.paragraph!==span.start||splice.end.paragraph!==span.end||splice.start.offset!==0)return withheld();
     const rows=proposal.paragraphs.filter(row=>row.index>=span.start&&row.index<=span.end);
-    if(!rows.length||rows[0].index!==span.start||rows.at(-1).index!==span.end||splice.end.offset!==rows.at(-1).text.length||rows.some(row=>!row.complete||row.source?.complete!==true)||textKey(rows.map(row=>row.text).join('\n'))!==textKey(original.clean))return withheld();
+    if(!rows.length||rows[0].index!==span.start||rows.at(-1).index!==span.end||splice.end.offset!==rows.at(-1).text.length||rows.some(row=>!row.complete||row.source?.complete!==true)||bodyKey(rows.map(row=>row.text).join('\n'))!==bodyKey(original.clean))return withheld();
     const anchors=(proposal.anchors||[]).filter(a=>a.paragraph>=span.start&&a.paragraph<=span.end).sort((a,b)=>a.paragraph-b.paragraph||a.offset-b.offset);
     if(anchors.length!==original.references.length)return withheld();
     for(const [index,anchor] of anchors.entries()){
       const note=proposal.notes?.find(note=>note.id===anchor.note),reference=original.references[index],payload=original.notes[index],row=rows.find(row=>row.index===anchor.paragraph);
       const prefix=rows.filter(row=>row.index<anchor.paragraph).map(row=>row.text).join('\n')+'\n'+row.text.slice(0,anchor.offset);
-      if(!note?.complete||anchor.label!==reference.label||payload.label!==reference.label||textKey(note.text)!==textKey(payload.text)||textKey(prefix)!==textKey(reference.prefix))return withheld();
+      if(!note?.complete||anchor.label!==reference.label&&!dropped||payload.label!==reference.label||noteKey(note.text)!==noteKey(payload.text)||bodyKey(prefix)!==bodyKey(reference.prefix))return withheld();
+      if(dropped&&(proposal.anchors||[]).some(other=>other.note===note.id&&(other.paragraph<span.start||other.paragraph>span.end)))return withheld();
       sourceNotes.push({id:note.id,label:reference.label});
     }
   }

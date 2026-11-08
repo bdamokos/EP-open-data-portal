@@ -25,7 +25,7 @@ import {assertWordingNumbering} from './amendment-numbering-oracle.mjs';
 import {assertBareAnnexInsertion,assertNumberedAnnexInsertion} from './amendment-annex-oracle.mjs';
 import {assertResolutionNumberingDrift} from './amendment-numbering-drift-oracle.mjs';
 import {assertResolutionPointSimilarity} from './amendment-resolution-point-similarity-oracle.mjs';
-import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity,oracleSingleWord} from './amendment-similarity-oracle.mjs';
+import {assertSimilarPlacement,oracleSimilarity,assertResolutionSimilarity,oracleSingleWord,oracleTypo} from './amendment-similarity-oracle.mjs';
 import {assertChapterTitle} from './amendment-chapter-title-oracle.mjs';
 import {assertStandaloneQuote} from './amendment-standalone-quote-oracle.mjs';
 import {assertArticleNotes} from './amendment-article-notes-oracle.mjs';
@@ -813,7 +813,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, vo
         const address=rawProposalAssertion({proposal,wording,placement}),bounds=address.rawSourceRows;
         if(address.status==='verified'&&bounds&&bounds[1]===placement.span.start&&bounds[2]===placement.span.end+1&&placement.splice.start.offset===0&&placement.splice.end.offset===source.length)return verified('oracle-single-word-addressed-unit');
       }
-      if(proposal&&oracleSimilarity(source,wording.originalText)>=.95)return assertSimilarPlacement({proposal,wording,placement,address:rawProposalAssertion({proposal,wording,placement})});
+      if(proposal&&(oracleSimilarity(source,wording.originalText)>=.95||oracleTypo(wording.originalText,source)!==null))return assertSimilarPlacement({proposal,wording,placement,address:rawProposalAssertion({proposal,wording,placement})});
       if(!proposal&&target.complete&&target.segments.length===1&&['paragraph','recital'].includes(target.segments[0].kind)) {
         const raw=rawResolutionUnits(text,wording.language),part=target.segments[0];
         const candidates=[...raw.units,...(raw.incomplete||[])].filter(unit=>unit.kind===part.kind).map(unit=>({...unit,text:oracleNormal(text.paragraphs.slice(unit.start,unit.end+1).join(' '),[...labels,{value:unit.label}])}));
