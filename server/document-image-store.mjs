@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {readFile,stat} from 'node:fs/promises';
 import path from 'node:path';
-import {documentImages,imageInfo,imageDescriptor,IMAGE_LIMITS} from './docx-images.mjs';
+import {documentImages,imageInfo,IMAGE_LIMITS} from './docx-images.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {writeCacheFile} from './cache-publication.mjs';
 import {requestSignal} from './request-budget.mjs';
@@ -25,7 +25,7 @@ export class DocumentImageStore {
       // A cache failure must not make the source text unavailable. Memory can
       // still serve this request; eviction gives an explicit unavailable image.
       if(folder)try{if(await writeCacheFile(path.join(folder,key),body))await this.budget(folder).saved(key,body.length);}catch{requestSignal()?.throwIfAborted();}
-      descriptors[id]=imageDescriptor(asset,record.sourceHash);
+      const {data,...descriptor}=asset;descriptors[id]={...descriptor,sourceHash:record.sourceHash};
     }return descriptors;
   }
   async read(sourceHash,imageHash,{directory=process.env.ODP_CACHE_DIR}={}){

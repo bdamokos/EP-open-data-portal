@@ -20,7 +20,7 @@ test('the standalone adapter exposes only read-only explorer routes',loopback,as
 });
 test('configuration has no credential-dependent upstreams or alternate API mounts',()=>{
  assert.deepEqual(apiPrefixes,['/api']);
- assert.deepEqual(Object.keys(config).sort(),['appRevision','distDirectory','documentParseMaxDiskBytes','documentTextMaxDiskBytes','host','jsonResponseLimitBytes','port','serveStatic','trustProxy','apiReadOrigin'].sort());
+ assert.deepEqual(Object.keys(config).sort(),['appRevision','distDirectory','documentTextMaxDiskBytes','host','jsonResponseLimitBytes','port','serveStatic','trustProxy','apiReadOrigin'].sort());
 });
 test('runtime source cannot reintroduce authenticated data adapters',()=>{
  const sourceFiles=readdirSync(new URL('.',import.meta.url)).filter(name=>name.endsWith('.mjs')&&!name.endsWith('.test.mjs'));
