@@ -1,5 +1,5 @@
 import path from 'node:path';
-import {commitEvaluation,hasDueList,hasOpenFailures,dueLists,recordEvaluationFailure,reopenForEvaluator} from './placement-log-store.mjs';
+import {commitEvaluation,hasDueList,hasOpenFailures,dueLists,listFingerprint,recordEvaluationFailure,reopenForEvaluator} from './placement-log-store.mjs';
 import {evaluateOffThread} from './placement-log-thread.mjs';
 
 // Records what a reader would see for amendments on lists first held after the
@@ -29,28 +29,29 @@ export class PlacementLog {
       this.evaluatorChecked=true;
       const listId=dueLists(this.store,this.clock());
       if(!listId)return false;
-      this.start({kind:'list',listId,indexDirectory:this.indexDirectory,cacheDirectory:this.cacheDirectory},listId);
+      this.start({kind:'list',listId,indexDirectory:this.indexDirectory,cacheDirectory:this.cacheDirectory},listId,listFingerprint(this.store,listId));
       return true;
     }catch(error){this.log({error:String(error?.code||error?.message).slice(0,120)});return false;}
   }
-  start(job,listId) {
+  start(job,listId,fingerprint) {
     const startedAt=this.monotonic();
-    this.running=this.evaluate(job,{signal:this.controller.signal}).then(result=>{this.finished={job,listId,result,startedAt};},error=>{this.finished={job,listId,error,startedAt};}).finally(()=>{this.running=null;});
+    this.running=this.evaluate(job,{signal:this.controller.signal}).then(result=>{this.finished={job,listId,fingerprint,result,startedAt};},error=>{this.finished={job,listId,fingerprint,error,startedAt};}).finally(()=>{this.running=null;});
   }
   commit() {
-    const {job,listId,result,error,startedAt}=this.finished;this.finished=null;
+    const {job,listId,fingerprint,result,error,startedAt}=this.finished;this.finished=null;
     // At most half of one core: the next list waits as long as this one took.
     const elapsed=this.monotonic()-startedAt;this.nextStartAt=this.monotonic()+elapsed;
     if(error) {
       if(this.stopped)return;
-      if(!listId){this.evaluatorChecked=true;return;}
+      // Retried after the same pause; a new evaluator must not be missed.
+      if(!listId)return;
       const failed=recordEvaluationFailure(this.store,listId,error.code||error.name||'evaluation-error',{now:this.clock()});
       this.log({list:listId,evaluation:failed?'failed':'will-retry',code:error.code||error.name||'evaluation-error'});
       return;
     }
     if(job.kind==='evaluator'){reopenForEvaluator(this.store,result.evaluator,{now:this.clock()});this.evaluatorChecked=true;return;}
     if(result.unavailable){recordEvaluationFailure(this.store,listId,result.unavailable,{now:this.clock()});return;}
-    const {counts,added,reasons,dropped}=commitEvaluation(this.store,result,{evaluator:result.evaluator,now:this.clock()});
+    const {counts,added,reasons,dropped}=commitEvaluation(this.store,result,{evaluator:result.evaluator,fingerprint,now:this.clock()});
     if(this.store.get('placementLogEvaluator')!==result.evaluator)this.store.set('placementLogEvaluator',result.evaluator);
     // Exact identifiers and counts only. Wording never reaches a log.
     if(added||dropped)this.log({list:result.listId,document:result.documentId,amendments:counts.amendments,placed:counts.placed,unplaced:counts['withheld-pipeline'],new:added,reasons,...(dropped?{dropped}:{}),ms:Math.round(elapsed)});

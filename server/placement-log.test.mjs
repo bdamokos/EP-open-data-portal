@@ -421,3 +421,39 @@ test('the response budget check agrees with JSON.stringify around its limit',()=
   assert.equal(jsonBytesOver(value,size),false);
   assert.equal(jsonBytesOver(value,size-1),true);
 });
+
+test('an amendment failing on two lists stays open on the one that still fails',t=>{
+  const {store}=fixture(t);
+  const other='A-10-2026-0001-AM-004-004';
+  notePlacementLists(store,[row('A-10-2026-0001-AM-1',list),row('A-10-2026-0001-AM-1',other)]);
+  commitEvaluation(store,result(list,[['A-10-2026-0001-AM-1','withheld-pipeline','target_not_found']]));
+  commitEvaluation(store,result(other,[['A-10-2026-0001-AM-1','withheld-pipeline','target_not_found']]));
+  commitEvaluation(store,result(list,[['A-10-2026-0001-AM-1','placed','placed']]));
+  assert.deepEqual(failures(store).map(row=>[row.list_id,row.stopped_outcome]),[[list,'placed'],[other,null]]);
+});
+
+test('rows saved while a list was being read make it due again',t=>{
+  const {store}=fixture(t);
+  notePlacementLists(store,[row('A-10-2026-0001-AM-1',list)]);
+  const read=listRow(store).fingerprint;
+  notePlacementLists(store,[row('A-10-2026-0001-AM-1',list,{wordingSource:{contentHash:'c'.repeat(64)}})]);
+  commitEvaluation(store,result(list,[['A-10-2026-0001-AM-1','placed','placed']]),{fingerprint:read});
+  assert.equal(listRow(store).next_check,store.clock());
+  commitEvaluation(store,result(list,[['A-10-2026-0001-AM-1','placed','placed']]),{fingerprint:listRow(store).fingerprint});
+  assert.equal(listRow(store).next_check,null);
+});
+
+test('a failed evaluator check is tried again after the pause',async t=>{
+  let calls=0;
+  const {store,lane,tick}=laneFixture(t,{evaluate:async()=>{calls++;if(calls===1)throw new Error('thread exited');return {evaluator:'v2'};}});
+  notePlacementLists(store,[row('A-10-2026-0001-AM-1',list)]);
+  commitEvaluation(store,result(list,[['A-10-2026-0001-AM-1','withheld-pipeline','target_not_found']]),{evaluator:'v1'});
+  store.set('placementLogEvaluator','v1');
+  for(let turn=0;turn<4&&store.get('placementLogEvaluator')!=='v2';turn++){tick(1);lane.step();await settle();await settle();}
+  assert.equal(calls,2);
+  assert.equal(store.get('placementLogEvaluator'),'v2');
+});
+
+test('the evaluator identity covers the placement rule files',()=>{
+  assert.match(JSON.parse(placementEvaluator()).rules,/^[a-f0-9]{64}$/);
+});

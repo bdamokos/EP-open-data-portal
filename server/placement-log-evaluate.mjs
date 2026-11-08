@@ -1,4 +1,5 @@
 import {readFile} from 'node:fs/promises';
+import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {setImmediate as turn} from 'node:timers/promises';
@@ -25,6 +26,8 @@ import {documentText,docxContent,allowedDownload} from './document-text.mjs';
 import {parsePublicLegalXhtml,PUBLIC_LEGAL_XHTML_VERSION} from './public-legal-xhtml.mjs';
 import {parseProposal,PROPOSAL_PARSER_VERSION} from './proposal-structure.mjs';
 import {array} from './activity-index-model.mjs';
+import {amendmentLanguagePreference} from './language-order.mjs';
+import {publishDocumentImages} from './document-image-store.mjs';
 import {ODP_BASE,odp} from './odp.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 
@@ -32,8 +35,11 @@ export const SOURCE_NOT_HELD='source-not-held';
 const notHeld=()=>Object.assign(new Error('The source is not held.'),{code:SOURCE_NOT_HELD});
 const sha256=value=>createHash('sha256').update(value).digest('hex');
 const STRUCTURED_RESPONSE_BYTES=3*1024*1024;
-// When any of these changes, a failure may have been fixed.
-export const placementEvaluator=()=>JSON.stringify({documentContext:DOCUMENT_CONTEXT_VERSION,extraction:AMENDMENT_EXTRACTION_VERSION,docx:DOCX_EXTRACTION_VERSION,proposal:PROPOSAL_PARSER_VERSION,legal:PUBLIC_LEGAL_XHTML_VERSION});
+// When any of these changes, a failure may have been fixed. The placement rules
+// carry no version of their own, so their files count too.
+const PLACEMENT_RULES=['document-context.mjs','document-context-model.mjs','document-context-placement.mjs','proposal-placement.mjs','existing-law-placement.mjs'];
+const rulesDigest=()=>{const hash=createHash('sha256');for(const file of PLACEMENT_RULES)hash.update(readFileSync(new URL('./'+file,import.meta.url)));return hash.digest('hex');};
+export const placementEvaluator=()=>JSON.stringify({rules:rulesDigest(),documentContext:DOCUMENT_CONTEXT_VERSION,extraction:AMENDMENT_EXTRACTION_VERSION,docx:DOCX_EXTRACTION_VERSION,proposal:PROPOSAL_PARSER_VERSION,legal:PUBLIC_LEGAL_XHTML_VERSION});
 
 // The vocabulary and order of scripts/amendment-benchmark-model.mjs classify(),
 // without its oracle stages: this log reports what the reader would show, so
@@ -86,16 +92,21 @@ export function heldSourceClients({store,generation,directory=process.env.ODP_CA
   // Holding is the backfill's work; this reader never stores anything. It also
   // skips the origin queues, whose spacing only protects a real request.
   documents.retainResponse=async()=>{};
+  documents.save=async(key,record)=>{documents.remember(key,record);return record;};
   documents.request=async(input,{accept,language}={})=>{
     const found=await held({url:cellarTransportUrl(input),accept,language});
     if(!found)refuse();
     return {status:200,url:found.record.resolvedSourceUrl||found.record.url,accept:found.record.request?.accept||accept,contentType:found.record.headers?.['content-type'],buffer:found.buffer};
   };
-  const readOfficial=sources.get.bind(sources);
+  // Saved records only, served here: the source's own read would try to retain
+  // what it serves, which this reader must not do.
   sources.get=async(input,options={})=>{
     const url=officialSourceUrl(input).href,key=['official-context-v1',url,...(options.cacheScope?[options.cacheScope]:[])];
-    if(!await sources.cache.stored(sources.cache.key(key))&&!(url.includes('/webapi/')&&await held({url,accept:'application/sparql-results+json'})))refuse();
-    return readOfficial(input,options);
+    const found=url.includes('/webapi/')?await held({url,accept:'application/sparql-results+json'}):null;
+    const record=found?{url,fetchedAt:found.record.fetchedAt,data:JSON.parse(found.buffer)}:(await sources.cache.stored(sources.cache.key(key)))?.value;
+    if(!record)refuse();
+    options.validate?.(record);
+    return record;
   };
   const request=async(endpoint,params={},options={})=>{
     // The index projection drops alternative titles, which carry a report's
@@ -153,11 +164,15 @@ export function jsonBytesOver(value,limit) {
   walk(value);
   return bytes>limit;
 }
-const parseItems=(source,options,{legal})=>{
+// The reader's own response budget, which leaves the same amendment unplaced. It
+// measures the main baseline with image descriptors and the frame with sources.
+const parseItems=async(source,options,{legal,frame=false})=>{
   const items=[];
-  for(const item of source?.items||[])items.push({kind:item.kind,index:item.index,source:item.source,proposal:(item.format==='PDF'||!legal?parseProposal:parsePublicLegalXhtml)(item.projection??item.buffer,{...options,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,...(legal?{celex:source.celex}:{})}})});
-  // The reader's own response budget, which leaves the same amendment unplaced.
-  if(jsonBytesOver(items.map(({source:_,...item})=>item),STRUCTURED_RESPONSE_BYTES))throw new RangeError('proposal-response-budget');
+  for(const item of source?.items||[]) {
+    const proposal=(item.format==='PDF'||!legal?parseProposal:parsePublicLegalXhtml)(item.projection??item.buffer,{...options,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,...(legal?{celex:source.celex}:{})}});
+    items.push({kind:item.kind,index:item.index,source:item.source,proposal:frame?proposal:{...proposal,imageAssets:await publishDocumentImages(proposal)}});
+  }
+  if(jsonBytesOver(frame?items:items.map(({source:_,...item})=>item),STRUCTURED_RESPONSE_BYTES))throw new RangeError('proposal-response-budget');
   return items;
 };
 
@@ -170,7 +185,9 @@ export async function evaluateAmendment({id,listId,documentId,indexed,work,rootS
   const query={id:documentId,amendmentId:id,listId,language:null};
   const selected=(indexed.variants?.length?indexed.variants:[indexed]).filter(row=>row.listId===listId);
   if(!selected.length)return {language:null,...fail('acquisition-wording-not-held')};
-  query.language=selected[0].language??'en';query.wordingLanguage=selected[0].language??null;
+  // The edition a reader opens by default: English first, then the list's others.
+  const edition=amendmentLanguagePreference(selected.map(row=>row.language).filter(Boolean),'en')[0]??null;
+  query.language=edition??'en';query.wordingLanguage=edition;
   const reads=new Map();
   const read=async endpoint=>{
     if(reads.has(endpoint))return reads.get(endpoint);
@@ -181,12 +198,12 @@ export async function evaluateAmendment({id,listId,documentId,indexed,work,rootS
   };
   const amendment=await context.amendment(query,indexed,work,[],read,rootSource,new Map());
   let candidates=amendment.variants.filter(variant=>variant.listId===listId&&variant.language===query.wordingLanguage);
-  const language=candidates[0]?.language??selected[0].language??null;
+  const language=candidates[0]?.language??edition;
   const outcome=value=>({language,...value});
   if(candidates.length!==1)return outcome(fail('acquisition-wording-not-held'));
   let chosen=candidates[0];
   if(chosen.wordingStatus!=='available') {
-    const row=selected[0];
+    const row=selected.find(variant=>variant.language===edition)||selected[0];
     // Text the parser lost is ours; a row with no wording yet is not.
     if(row.conflicted)return outcome(fail('wording-conflicted'));
     // Withheld until the parser upgrade reaches this list; the next pass decides.
@@ -241,12 +258,13 @@ export async function evaluateAmendment({id,listId,documentId,indexed,work,rootS
       const nativeReferencePair=nle&&eligible?await context.readNleReferences(query,chosen,work,read,[],new Map(),rootSource):undefined;
       const source=existingKind?await clients.readExistingLaw(chosen):councilKind?(typeof chosen.language==='string'&&reportBaseline?await clients.readCouncil({reportId:documentId,language:chosen.language,documentReferences}):null):eligible?await clients.readProposal({...(reportBaseline?{reportId:documentId}:{celex:explicit[0]}),language:chosen.language,documentReferences,...(nle?{nativeReferencePair}:{})}):null;
       const saved={source,before:clients.misses()-before};
-      try {saved.items=parseItems(source,{language:chosen.language},{legal:councilKind||existingKind});}
+      try {saved.items=await parseItems(source,{language:chosen.language},{legal:councilKind||existingKind});}
       catch{saved.unavailable=true;}
       memo.set(key,saved);
     }
     const saved=memo.get(key),source=saved.source;
-    missedRead=saved.before>0;
+    // A refusal can also come back from a client's own short failure memory.
+    missedRead=saved.before>0||array(source?.gaps).some(gap=>[SOURCE_NOT_HELD,'odp_cache_miss'].includes(gap?.code??gap));
     baseline={actLabel:existingKind?chosen.targetPath?.underlying?.[0]?.document??null:null,productionWorkId:source?.productionWorkId??null,productionVersion:source?.productionVersion??null,productionExpressionId:source?.productionExpressionId??null,baseCelex:source?.baseCelex??null,consolidationDate:source?.date??null,amendmentDate:source?.amendmentDate??null,selectionBasis:source?.selectionBasis??null,kind:existingKind?'existing-act':councilKind?'council-position':'commission-proposal',celex:source?.celex??null,workId:source?.workId??null,language:chosen.language,status:source?.status??'unresolved',items:[],gaps:source?.gaps??['proposal-identity-unavailable'],evidence:source?.evidence??[]};
     if(saved.unavailable) {
       baseline.status='unavailable';baseline.gaps=[...baseline.gaps,'proposal-projection-unavailable'];
@@ -260,7 +278,7 @@ export async function evaluateAmendment({id,listId,documentId,indexed,work,rootS
       const frameKey=JSON.stringify(['frame',chosen.language,documentReferences]);
       if(!memo.has(frameKey)) {
         const frame=await clients.readProposal({reportId:documentId,language:chosen.language,documentReferences}).catch(()=>null);
-        let frameItems=null;try{frameItems=parseItems(frame,{language:chosen.language},{legal:false});}catch{/* The reader also leaves the first placement in place. */}
+        let frameItems=null;try{frameItems=await parseItems(frame,{language:chosen.language},{legal:false,frame:true});}catch{/* The reader also leaves the first placement in place. */}
         memo.set(frameKey,{frame,frameItems});
       }
       const {frame,frameItems}=memo.get(frameKey);
