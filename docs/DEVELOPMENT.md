@@ -27,6 +27,7 @@ The unfinished amendment catalogue is hidden by `publicAmendmentsEnabled` in `sr
 - The frontend (`src/main.tsx`) is a single page; navigation uses query parameters at the root. The server serves only the root page, `index.html` and `assets/`, plus flat JSON routes under `/api/`.
 - The HTTP thread answers visitors from read-only SQLite connections and bounded caches. It owns the shared upstream request queue.
 - One worker thread hosts the source writers: the activity-index writer, the corpus writer when enabled, and the background collectors (documents, official context, sitting snapshots, press, topics). Each writer holds a lease in its database, so a second process can’t write by accident. Requests from visitors never write.
+- The context endpoint parses amendment lists and Commission or Council texts on a memory-limited thread that starts on demand and exits when idle, so a large document does not block the HTTP thread. Parsed results are stored by source hash and parser version in `document-parse-v1` under `ODP_CACHE_DIR`; a result too large for a reply is remembered by size. Bump the parser version constant whenever a parser's output changes.
 - The index is published in generations: the writer builds a working generation and switches readers to it atomically.
 - Follows and reading state stay in browser storage (`ep.following.*`). The server sees only which MEPs, questions or dossiers a tab checks for updates.
 - Data lives in `activities-v1.sqlite` and `press-v1.sqlite` (index directory), `corpus-v1.sqlite` (corpus directory) and file caches under `ODP_CACHE_DIR`. All of it stays outside Git.
@@ -85,6 +86,7 @@ Disk budgets (MiB unless stated):
 | `OFFICIAL_CONTEXT_MAX_DISK_MIB` | 32768 | OEIL and Publications Office pages; collection pauses at 90% |
 | `AMENDMENT_SOURCE_MAX_DISK_MIB` | 512 | Term-10 amendment-list DOCX; about 80 MiB now, a few MiB per plenary week |
 | `DOCUMENT_TEXT_MAX_DISK_MIB` | 256 | Extracted document texts |
+| `DOCUMENT_PARSE_MAX_DISK_MIB` | 256 | Parsed amendment lists and proposals for the context endpoint; least recently read are evicted |
 | `SITTING_SNAPSHOT_MAX_DISK_MIB` | 256 | Compressed vote and attendance snapshots, inside the activity budget |
 | `BASE_SOURCE_MAX_DISK_MIB` | 128 | Native base documents; set 4096 (with `BASE_SOURCE_MAX_BINDINGS=65536`) for a one-time `BASE_SOURCE_BACKFILL=1` collection |
 

@@ -65,6 +65,7 @@ import {ProcedureContext,procedureContextQuery,REFERENCE_SUMMARY_ORDER} from './
 import {LegalReferences,referencesQuery} from './legal-references.mjs';
 import {ProcedureProgress,procedureProgressQuery} from './procedure-progress.mjs';
 import {PressMentions,pressMentionsQuery} from './press-releases.mjs';
+import {collectAfterBurst} from './memory-release.mjs';
 const interventions=new SpeechInterventions();
 let stopWriters=()=>Promise.resolve();let stopBodyWarmup=()=>{};let stopMonitoring=()=>{};let stopPlenaryWarmup=()=>{};let insightService,pressMentions;
 // One owner per official-source cache directory, shared by insights and reading-time references.
@@ -428,6 +429,7 @@ function logSlowRequest(response,route,started,cpuStart,memoryStart) {
   const elapsedMs=Math.round(performance.now()-started);
   if(elapsedMs<SLOW_REQUEST_MS)return;
   const cpu=threadCpu(cpuStart||undefined),memory=process.memoryUsage();
+  collectAfterBurst({heapGrowth:memory.heapUsed-memoryStart.heapUsed,rssGrowth:memory.rss-memoryStart.rss});
   console.warn('[request-slow]',JSON.stringify({route,status:response.headersSent?response.statusCode:null,elapsedMs,mainCpuMs:cpu?Math.round((cpu.user+cpu.system)/1000):null,rssDeltaMiB:Math.round((memory.rss-memoryStart.rss)/MIB),heapDeltaMiB:Math.round((memory.heapUsed-memoryStart.heapUsed)/MIB)}));
 }
 export async function handleRequest(request, response) {
