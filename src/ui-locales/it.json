@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Mostra il testo completo",
   "votegroups.seats.unknownGroup": "Gruppo sconosciuto",
   "votegroups.seats.chart": "Disposizione dei seggi",
+  "votegroups.countries.country_row": "{country}: {for} a favore, {against} contrari, astenuti: {abstaining}",
   "votegroups.countries.short.greens": "Verdi",
   "votegroups.countries.short.left": "Sinistra",
   "votegroups.countries.short.ni": "NI",

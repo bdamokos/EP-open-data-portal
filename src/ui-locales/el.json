@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Εμφάνιση ολόκληρου του κειμένου",
   "votegroups.seats.unknownGroup": "Άγνωστη ομάδα",
   "votegroups.seats.chart": "Διάταξη εδράνων",
+  "votegroups.countries.country_row": "{country}: {for} υπέρ, {against} κατά, αποχές: {abstaining}",
   "votegroups.countries.short.greens": "Πράσινοι",
   "votegroups.countries.short.left": "Αριστερά",
   "votegroups.countries.short.ni": "NI",

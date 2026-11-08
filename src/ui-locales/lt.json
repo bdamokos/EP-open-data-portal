@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Rodyti visą tekstą",
   "votegroups.seats.unknownGroup": "Frakcija nežinoma",
   "votegroups.seats.chart": "Vietų schema",
+  "votegroups.countries.country_row": "{country}: {for} už, {against} prieš, {abstaining} susilaikė",
   "votegroups.countries.short.greens": "Žalieji",
   "votegroups.countries.short.left": "Kairieji",
   "votegroups.countries.short.ni": "NI",

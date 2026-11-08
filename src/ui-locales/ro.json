@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Afișați întregul text",
   "votegroups.seats.unknownGroup": "Grup necunoscut",
   "votegroups.seats.chart": "Planul sălii",
+  "votegroups.countries.country_row": "{country}: {for} pentru, {against} împotrivă, abțineri: {abstaining}",
   "votegroups.countries.short.greens": "Greens",
   "votegroups.countries.short.left": "Left",
   "votegroups.countries.short.ni": "NI",

@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "A teljes szöveg megjelenítése",
   "votegroups.seats.unknownGroup": "Ismeretlen képviselőcsoport",
   "votegroups.seats.chart": "Ülésrend",
+  "votegroups.countries.country_row": "{country}: {for} mellette, {against} ellene, {abstaining} tartózkodott",
   "votegroups.countries.short.greens": "Zöldek",
   "votegroups.countries.short.left": "Baloldal",
   "votegroups.countries.short.ni": "NI",

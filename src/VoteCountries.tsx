@@ -16,6 +16,7 @@ function SplitBar({counts}:{counts:Record<VotePosition,number>}) {
 }
 
 // One row per country of election, A to Z in the page language, on the group table's three columns.
+// The country button speaks the row, numbers included; the visible numbers are not read twice.
 // A country opens Members filtered to it; pressing the chosen country again clears the filter.
 export function VoteCountries({rows,language,country,onChoose}:Props) {
   const ui=useUiI18n();
@@ -24,9 +25,9 @@ export function VoteCountries({rows,language,country,onChoose}:Props) {
   return <div className="countries" lang={ui.language}>
     <TallyHeads heading={null}/>
     {tallies.map(tally=><div key={tally.country} className="row tight crow">
-      <span className="main"><button type="button" className="t" lang={language} aria-pressed={country===tally.country} onClick={()=>onChoose(country===tally.country?null:tally.country)}>{countryName(tally.country,language)}</button></span>
+      <span className="main"><button type="button" className="t" aria-label={ui.t('votegroups.countries.country_row',{country:countryName(tally.country,language),for:String(tally.counts.for),against:String(tally.counts.against),abstaining:String(tally.counts.abstaining)})} aria-pressed={country===tally.country} onClick={()=>onChoose(country===tally.country?null:tally.country)}><span lang={language}>{countryName(tally.country,language)}</span></button></span>
       <SplitBar counts={tally.counts}/>
-      <TallyNumbers totals={tally.counts} bold={groupLead(tally.counts)}/>
+      <TallyNumbers totals={tally.counts} bold={groupLead(tally.counts)} hidden/>
     </div>)}
   </div>;
 }

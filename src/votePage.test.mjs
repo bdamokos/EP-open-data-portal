@@ -242,6 +242,8 @@ test('a country row filters Members and pressing it again clears the filter',asy
  assert.equal(fold.querySelector('.crow .sbar').getAttribute('aria-hidden'),'true','the numbers, not the bar, carry the values');
  const shown=['for','against','abstaining'].filter(position=>fold.querySelector('.crow .n.'+{for:'f',against:'a',abstaining:'x'}[position]).textContent!=='0');
  assert.deepEqual([...fold.querySelectorAll('.crow .sbar i')].map(node=>node.className),shown.map(position=>'b-'+position),'segments follow the columns and skip zeros');
+ assert.match(france().getAttribute('aria-label'),/^France: \d+ for, \d+ against, \d+ abstaining$/,'the button speaks the row');
+ assert.ok([...fold.querySelectorAll('.crow .n')].every(node=>node.getAttribute('aria-hidden')==='true'),'the numbers are not read twice');
  assert.equal(france().getAttribute('aria-pressed'),'false');
  await act(async()=>{france().click();});
  assert.equal(france().getAttribute('aria-pressed'),'true');

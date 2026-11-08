@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Zobrazit celý text",
   "votegroups.seats.unknownGroup": "Skupina neznámá",
   "votegroups.seats.chart": "Zasedací pořádek",
+  "votegroups.countries.country_row": "{country}: {for} pro, {against} proti, {abstaining} se zdrželo",
   "votegroups.countries.short.greens": "Greens",
   "votegroups.countries.short.left": "Left",
   "votegroups.countries.short.ni": "NI",

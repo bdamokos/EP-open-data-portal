@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Gesamten Text anzeigen",
   "votegroups.seats.unknownGroup": "Fraktion unbekannt",
   "votegroups.seats.chart": "Sitzplan",
+  "votegroups.countries.country_row": "{country}: {for} dafür, {against} dagegen, {abstaining} enthalten",
   "votegroups.countries.short.greens": "Grüne",
   "votegroups.countries.short.left": "Linke",
   "votegroups.countries.short.ni": "NI",

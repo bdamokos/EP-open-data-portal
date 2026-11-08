@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Visa hela texten",
   "votegroups.seats.unknownGroup": "Okänd grupp",
   "votegroups.seats.chart": "Placeringsplan",
+  "votegroups.countries.country_row": "{country}: {for} för, {against} emot, {abstaining} avstod",
   "votegroups.countries.short.greens": "De gröna",
   "votegroups.countries.short.left": "Vänstern",
   "votegroups.countries.short.ni": "NI",

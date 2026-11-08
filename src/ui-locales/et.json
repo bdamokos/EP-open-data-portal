@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Näita kogu teksti",
   "votegroups.seats.unknownGroup": "Fraktsioon teadmata",
   "votegroups.seats.chart": "Istekohtade plaan",
+  "votegroups.countries.country_row": "{country}: {for} poolt, {against} vastu, {abstaining} erapooletut",
   "votegroups.countries.short.greens": "Rohelised",
   "votegroups.countries.short.left": "Vasakpoolsed",
   "votegroups.countries.short.ni": "NI",

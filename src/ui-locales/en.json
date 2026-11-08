@@ -2231,6 +2231,7 @@
   "votegroups.line.split": "Split: {groups}",
   "votegroups.seats.unknownGroup": "Group unknown",
   "votegroups.seats.chart": "Seat chart",
+  "votegroups.countries.country_row": "{country}: {for} for, {against} against, {abstaining} abstaining",
   "votegroups.countries.short.greens": "Greens",
   "votegroups.countries.short.left": "Left",
   "votegroups.countries.short.ni": "NI",

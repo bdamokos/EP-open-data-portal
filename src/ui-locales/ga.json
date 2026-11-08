@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Taispeáin an téacs iomlán",
   "votegroups.seats.unknownGroup": "Grúpa anaithnid",
   "votegroups.seats.chart": "Cairt na suíochán",
+  "votegroups.countries.country_row": "{country}: {for} ina fhabhar, {against} ina aghaidh, staonadh: {abstaining}",
   "votegroups.countries.short.greens": "Greens",
   "votegroups.countries.short.left": "Left",
   "votegroups.countries.short.ni": "NI",

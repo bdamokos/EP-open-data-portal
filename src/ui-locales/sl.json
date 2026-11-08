@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Pokaži celotno besedilo",
   "votegroups.seats.unknownGroup": "Neznana skupina",
   "votegroups.seats.chart": "Razpored sedežev",
+  "votegroups.countries.country_row": "{country}: {for} za, {against} proti, {abstaining} vzdržanih",
   "votegroups.countries.short.greens": "Greens/EFA",
   "votegroups.countries.short.left": "The Left",
   "votegroups.countries.short.ni": "NI",

@@ -2521,6 +2521,7 @@
   "reader.show_whole_text": "Vis hele teksten",
   "votegroups.seats.unknownGroup": "Gruppe ukendt",
   "votegroups.seats.chart": "Siddeplan",
+  "votegroups.countries.country_row": "{country}: {for} for, {against} imod, {abstaining} undlod at stemme",
   "votegroups.countries.short.greens": "Grønne",
   "votegroups.countries.short.left": "Venstrefløjen",
   "votegroups.countries.short.ni": "NI",
