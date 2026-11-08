@@ -179,7 +179,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry,member=
   const say=<>
     <UiMessage id={sentence.id} values={sentence.values.label?{...sentence.values,label:<span lang="">{sentence.values.label}</span>}:sentence.values}/>{sentence.noNames&&<> <UiMessage id="votepage.no_names"/></>}
   </>;
-  const chooseCountry=(next:string)=>{setChosenCountry(next);setMembersOpen(true);requestAnimationFrame(()=>document.getElementById('members')?.scrollIntoView({block:'start'}));};
+  const chooseCountry=(next:string|null)=>{if(next===null){clearFilter();return;}setChosenCountry(next);setMembersOpen(true);requestAnimationFrame(()=>document.getElementById('members')?.scrollIntoView({block:'start'}));};
   const clearFilter=()=>{setChosenCountry(null);if(country)onCountry(null);};
   const documents=subject?.documentIds??[];
   const corrections=data.corrections?votePositionKeys.flatMap(position=>data.corrections![position].map(id=>({id,position,name:data.people?.[id]?.name??(displayName(id)||null)}))):[];
@@ -222,7 +222,7 @@ export function VotePage({decisionId,language,onMember,country,onCountry,member=
         <PeopleBlock entries={memberEntries} language={language}/>
       </FoldRow>}
       {named&&<FoldRow title={<UiMessage id="votepage.countries"/>} value={new Set(rows.flatMap(row=>row.country?[filterCountry(row.country)]:[])).size}>
-        <Suspense fallback={<p role="status"><UiMessage id="insightshared.loading"/></p>}><VoteCountries rows={rows} language={language} country={chosenCountry} onChoose={chooseCountry}/></Suspense>
+        <Suspense fallback={<p role="status"><UiMessage id="insightshared.loading"/></p>}><VoteCountries rows={rows} language={language} country={activeCountry} onChoose={chooseCountry}/></Suspense>
         {breaks.length>0&&<><h3 className="breaks"><UiMessage id="votegroups.delegations.differs_heading"/></h3><ul className="break-list">{breaks.map(row=><li key={row.group+row.country}><UiMessage id="votegroups.delegation.differs_row" values={{country:<span lang={language}>{countryName(row.country,language)}</span>,group:groupName(row.group,ui),for:row.counts.for,against:row.counts.against,abstaining:row.counts.abstaining,restFor:row.rest.for,restAgainst:row.rest.against,restAbstaining:row.rest.abstaining}}/></li>)}</ul></>}
       </FoldRow>}
       {count>1&&<FoldRow id="votes" title={<UiMessage id="votepage.votes_fold"/>} value={count} open={votesOpen??hands} onOpenChange={setVotesOpen}><ItemVotes votes={siblings} current={decisionId} mainVoteId={mainVoteId} language={language} mainByLabel={partPage} member={member}/></FoldRow>}

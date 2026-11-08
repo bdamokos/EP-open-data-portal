@@ -226,15 +226,34 @@ test('the shared row shows a dash for unknown, a zero for zero and a bold reject
  assert.match(control,/aria-pressed="true"[^>]*>A</);assert.match(control,/aria-pressed="false"[^>]*>B</);
 });
 
-test('choosing all countries clears a country that came from the address',async t=>{
- const f=voteFixture(),data=await f.read(),cleared=[];
+const openCountries=async(t,{country=null,onCountry=()=>{}}={})=>{
+ if(!globalThis.requestAnimationFrame){globalThis.requestAnimationFrame=callback=>setTimeout(callback,0);t.after(()=>{delete globalThis.requestAnimationFrame;});}
+ const f=voteFixture(),data=await f.read();
  for(const voter of data.voters)data.people[voter.personId]={...data.people[voter.personId],name:'Member '+voter.personId,country:'FR'};
- const h=await mount(t,serve(data),{country:'FR',onCountry:value=>cleared.push(value)});
+ const h=await mount(t,serve(data),{country,onCountry});
  const fold=[...h.container.querySelectorAll('details')].find(node=>/Countries/.test(node.querySelector('summary').textContent));
  fold.open=true;await act(async()=>{fold.dispatchEvent(new globalThis.window.Event('toggle'));});
- for(let i=0;i<100&&!fold.querySelector('button');i++)await act(async()=>{await new Promise(resolve=>setTimeout(resolve,50));});
- const all=[...fold.querySelectorAll('button')].find(button=>/All countries/.test(button.textContent));
- await act(async()=>{all.click();});
+ for(let i=0;i<100&&!fold.querySelector('.crow button');i++)await act(async()=>{await new Promise(resolve=>setTimeout(resolve,50));});
+ return {h,fold,france:()=>[...fold.querySelectorAll('.crow button')].find(button=>button.textContent==='France')};
+};
+test('a country row filters Members and pressing it again clears the filter',async t=>{
+ const {h,fold,france}=await openCountries(t);
+ assert.equal(fold.querySelectorAll('.crow').length,1,'one row per country with a ballot');
+ assert.equal(fold.querySelector('.crow .sbar').getAttribute('aria-hidden'),'true','the numbers, not the bar, carry the values');
+ const shown=['for','against','abstaining'].filter(position=>fold.querySelector('.crow .n.'+{for:'f',against:'a',abstaining:'x'}[position]).textContent!=='0');
+ assert.deepEqual([...fold.querySelectorAll('.crow .sbar i')].map(node=>node.className),shown.map(position=>'b-'+position),'segments follow the columns and skip zeros');
+ assert.equal(france().getAttribute('aria-pressed'),'false');
+ await act(async()=>{france().click();});
+ assert.equal(france().getAttribute('aria-pressed'),'true');
+ assert.match(h.container.querySelector('#members .chip').textContent,/France/);
+ await act(async()=>{france().click();});
+ assert.equal(france().getAttribute('aria-pressed'),'false');
+ assert.equal(h.container.querySelector('#members .chip'),null);
+});
+test('pressing the country that came from the address clears it',async t=>{
+ const cleared=[],{france}=await openCountries(t,{country:'FR',onCountry:value=>cleared.push(value)});
+ assert.equal(france().getAttribute('aria-pressed'),'true','the address country reads as chosen');
+ await act(async()=>{france().click();});
  assert.deepEqual(cleared,[null]);
 });
 

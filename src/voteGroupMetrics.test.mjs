@@ -40,3 +40,8 @@ test('a delegation differs when more than half of its voters left the group majo
   assert.deepEqual(greece,{group:'PPE',country:'EL',counts:{for:0,against:0,abstaining:7},rest:{for:30,against:2,abstaining:1},majority:'for'},'the rest is the same group from every other country');
   assert.deepEqual(delegationsDiffering([]),[]);
 });
+test('exactly half differing is not enough, and an against majority works the same way',()=>{
+  const voters=[...rows('ECR','PL',0,18,0),...rows('ECR','CZ',1,1,0),...rows('ECR','SE',2,0,1),...rows('ECR','LV',0,1,0)];
+  assert.deepEqual(delegationsDiffering(voters).map(row=>row.country),['SE'],'Czechia 1 of 2 against is half, not more; Sweden 3 of 3 left an against majority');
+  assert.deepEqual(delegationsDiffering(voters)[0].rest,{for:1,against:20,abstaining:0});
+});
