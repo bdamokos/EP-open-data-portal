@@ -5,7 +5,9 @@ const aborted=()=>new DOMException('Source worker stopped.','AbortError');
 
 // The HTTP isolate owns every admission and observation. Bodies stay with the
 // worker, and its grant stays held through body consumption, just like run().
-export function serveUpstreamPort(port,{queueFor,observations}) {
+// A writer thread's traffic is all background. A port with `foreground` serves a
+// visitor-facing process: requests keep their priority, owner and yield hook.
+export function serveUpstreamPort(port,{queueFor,observations},{foreground=false}={}) {
   const requests=new Map(),headers=new Map();let closed=false;
   const send=message=>{if(!closed)port.postMessage(message);};
   const cancel=id=>{const request=requests.get(id);if(!request)return;requests.delete(id);request.controller.abort(aborted());request.release?.();};
@@ -13,11 +15,14 @@ export function serveUpstreamPort(port,{queueFor,observations}) {
   const receive=async message=>{
     const {type,id}=message||{};
     if(type==='acquire') {
-      const controller=new AbortController(),request={controller};requests.set(id,request);
+      const controller=new AbortController(),request={controller,source:message.source};requests.set(id,request);
+      if(foreground&&message.owner)request.owner={backgroundOwner:Boolean(message.backgroundOwner)};
       try {
         // A source-writer dependency's default priority cannot borrow readers'
-        // foreground reserve. All traffic on this port has a background owner.
-        const release=await queueFor(message.source,{backgroundRank:message.backgroundRank||0}).acquire('background',{signal:controller.signal,backgroundRank:message.backgroundRank||0});
+        // foreground reserve, so its port treats all traffic as background.
+        const priority=foreground&&message.priority!=='background'?'interactive':'background';
+        const owned=request.owner?{owner:request.owner,backgroundOwner:request.owner.backgroundOwner,yieldBackground:()=>send({type:'yield',id})}:{};
+        const release=await queueFor(message.source,{backgroundRank:message.backgroundRank||0}).acquire(priority,{signal:controller.signal,backgroundRank:message.backgroundRank||0,...owned});
         if(closed||controller.signal.aborted){release();return;}
         request.release=release;send({type:'grant',id});
       }catch(error){requests.delete(id);send({type:'rejected',id,error:{message:error.message,code:error.code,retryAfter:error.retryAfter}});}
@@ -28,6 +33,10 @@ export function serveUpstreamPort(port,{queueFor,observations}) {
         if([429,503].includes(result.status))queueFor(message.source||'odp').backoff(result.retryAfter);
       }
       cancel(id);
+    }
+    else if(type==='reprioritize'){
+      const request=requests.get(id);
+      if(request?.owner){request.owner.backgroundOwner=Boolean(message.backgroundOwner);queueFor(request.source).reprioritize(request.owner,message.priority==='background'?'background':'interactive');}
     }
     else if(type==='response-status')queueFor(message.source).recordResponse(message.status);
     else if(type==='backoff')queueFor(message.source).backoff(message.seconds);
@@ -50,9 +59,12 @@ export function serveUpstreamPort(port,{queueFor,observations}) {
 }
 
 export class UpstreamRpcClient {
-  constructor(port) {
-    this.port=port;this.sequence=0;this.pending=new Map();this.grants=new Map();this.context=new AsyncLocalStorage();this.closed=false;
+  // `defaultPriority` applies when a caller names none: a writer thread is all background, a visitor-facing process is interactive.
+  constructor(port,{defaultPriority='background'}={}) {
+    this.port=port;this.defaultPriority=defaultPriority;this.sequence=0;this.pending=new Map();this.grants=new Map();this.context=new AsyncLocalStorage();this.closed=false;
+    this.owners=new Map();this.yields=new Map();
     port.on('message',message=>{
+      if(message.type==='yield'){this.yields.get(message.id)?.();return;}
       const request=this.pending.get(message.id);
       if(!request){if(message.type==='grant')this.send({type:'release',id:message.id});return;}
       this.pending.delete(message.id);request.cleanup();
@@ -62,16 +74,27 @@ export class UpstreamRpcClient {
     port.once('close',()=>this.close());
   }
   send(message){if(!this.closed)this.port.postMessage(message);}
-  acquire(priority='background',route='/other',{source='odp',signal,backgroundRank=0}={}) {
+  // The returned promise carries the request `id` so an owner can be reprioritized while it still waits.
+  acquire(priority=this.defaultPriority,route='/other',{source='odp',signal,backgroundRank=0,owner,backgroundOwner=false,yieldBackground}={}) {
     if(this.closed||signal?.aborted)return Promise.reject(signal?.reason||aborted());
     const id=++this.sequence;
-    return new Promise((resolve,reject)=>{
-      const abort=()=>{this.pending.delete(id);signal.removeEventListener('abort',abort);this.send({type:'cancel',id});reject(signal.reason);};
-      this.pending.set(id,{resolve,reject,cleanup:()=>signal?.removeEventListener('abort',abort)});
-      signal?.addEventListener('abort',abort,{once:true});this.send({type:'acquire',id,priority,route,source,backgroundRank});
+    if(owner){let ids=this.owners.get(owner);if(!ids)this.owners.set(owner,ids=new Set());ids.add(id);}
+    if(yieldBackground)this.yields.set(id,yieldBackground);
+    const forget=()=>{
+      this.yields.delete(id);
+      if(owner){const ids=this.owners.get(owner);ids?.delete(id);if(!ids?.size)this.owners.delete(owner);}
+    };
+    const promise=new Promise((resolve,reject)=>{
+      const abort=()=>{this.pending.delete(id);signal.removeEventListener('abort',abort);this.send({type:'cancel',id});forget();reject(signal.reason);};
+      this.pending.set(id,{resolve,reject:error=>{forget();reject(error);},cleanup:()=>signal?.removeEventListener('abort',abort)});
+      signal?.addEventListener('abort',abort,{once:true});this.send({type:'acquire',id,priority,route,source,backgroundRank,owner:Boolean(owner),backgroundOwner});
     });
+    promise.id=id;promise.forget=forget;return promise;
   }
   release(id,result=this.grants.get(id)){if(this.grants.delete(id))this.send({type:'release',id,result});}
+  reprioritize(owner,priority) {
+    for(const id of this.owners.get(owner)||[])this.send({type:'reprioritize',id,priority,backgroundOwner:Boolean(owner.backgroundOwner)});
+  }
   queue(source) {
     const client=this;
     return {
@@ -80,16 +103,16 @@ export class UpstreamRpcClient {
         try {signal?.throwIfAborted();return await client.context.run(id,()=>operation(signal));}
         finally {client.release(id);}
       },
-      async runHeld(operation,{priority,signal,backgroundRank=0}={}) {
-        const id=await client.acquire(priority,'/other',{source,signal,backgroundRank});
-        const release=()=>client.release(id);
+      async runHeld(operation,{priority,signal,backgroundRank=0,owner,backgroundOwner,yieldBackground}={}) {
+        const acquisition=client.acquire(priority,'/other',{source,signal,backgroundRank,owner,backgroundOwner,yieldBackground}),id=await acquisition;
+        const release=()=>{client.release(id);acquisition.forget();};
         try {signal?.throwIfAborted();return await client.context.run(id,()=>operation(release,signal));}
         catch(error){release();throw error;}
       },
       recordResponse:status=>client.send({type:'response-status',source,status}),
       backoff:seconds=>client.send({type:'backoff',source,seconds}),
-      // The writer isolate has no foreground subscribers to promote.
-      reprioritize:()=>{},joinBackground:promise=>promise,
+      // The writer isolate has no foreground subscribers to promote; a visitor-facing process does.
+      reprioritize:(owner,priority)=>client.reprioritize(owner,priority),joinBackground:promise=>promise,
     };
   }
   async fetch(url,options) {
@@ -110,7 +133,7 @@ export class UpstreamRpcClient {
   close() {
     if(this.closed)return;
     for(const [id,request] of this.pending){request.cleanup();request.reject(aborted());this.send({type:'cancel',id});}
-    this.pending.clear();for(const id of this.grants.keys())this.release(id);
+    this.pending.clear();for(const id of this.grants.keys())this.release(id);this.owners.clear();this.yields.clear();
     this.closed=true;this.port.close();
   }
 }

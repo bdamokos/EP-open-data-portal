@@ -11,6 +11,7 @@ export const slow = [
   {file: 'scripts/error-summary.test.mjs', reason: 'Spawns Node to verify diagnostic summary grouping across rotated logs.'},
   {file: 'server/base-source-worker.test.mjs', reason: 'Starts the production source-writer thread to verify fixture-only retention routing.'},
   {file: 'scripts/amendment-benchmark-retained.test.mjs', reason: 'Spawns SQLite and CLI processes to verify read-only retained-source acquisition and offline replay.'},
+  {file: 'server/front-process.test.mjs', reason: 'Starts the split front process and its API process to verify on-demand start, log forwarding, crash recovery and shutdown.'},
   {file: 'server/source-writers.test.mjs', reason: 'Spawns the production server to verify HTTP isolation during a blocking activity writer iteration.'},
   {file: 'scripts/read-benchmark.test.mjs', reason: 'Spawns SQLite to verify read metrics and an actual lost-index regression.'},
   {file: 'scripts/runtime-shared-modules.test.mjs', reason: 'Spawns a clean Node process to import the runtime image shared-module file set.'},

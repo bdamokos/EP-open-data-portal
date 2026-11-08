@@ -13,8 +13,8 @@ import { createHash,randomUUID } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
 import { transcriptLanguage } from "./transcript-language.mjs";
 import { speechWebsite, languageCode } from "./ep-links.mjs";
-import { UpstreamQueue, retryAfterSeconds } from './upstream-queue.mjs';
-import {OdpObservations,odpPacing} from './odp-observability.mjs';
+import {retryAfterSeconds} from './upstream-queue.mjs';
+import {ODP_RATE_LIMIT,observations,localSourceQueue,assertUpstreamSource,upstreamPortServices,upstreamStatus,odpObservations,odpHeaderStatus,startOdpMonitoring} from './upstream-services.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
@@ -52,40 +52,15 @@ function rememberOrganizationBody(key,record) {
 }
 let cacheBytes = 0;
 const pending = new Map();
-// The published 500/5min endpoint ceiling is conservatively shared across ALL
-// API v2 paths/IDs/queries. Reserve 100 starts (20%) for readers and other foreground work.
-export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:100});
-const pacing=odpPacing(process.env.ODP_REQUEST_MODE||'normal');
-const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing,backgroundPacing:pacing.mode==='backfill'});
-const observations=new OdpObservations({queue:()=>({...upstreamQueue.quotaSnapshot(),mode:pacing.mode}),onResponse:status=>upstreamQueue.recordResponse(status)});
+export {ODP_RATE_LIMIT,upstreamPortServices,upstreamStatus,odpObservations,odpHeaderStatus,startOdpMonitoring};
 let upstreamBridge;
 export function setUpstreamBridge(bridge){upstreamBridge=bridge;}
 export const observedOdpFetch=(url,options)=>(upstreamBridge||observations).fetch(url,options);
-export const odpObservations=()=>observations.snapshot();
-export const odpHeaderStatus=()=>observations.headerSnapshot();
-export function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
-  const report=()=>log('[odp-monitor]',JSON.stringify(odpObservations()));
-  report();const timer=setInterval(report,intervalMs);timer.unref();
-  return ()=>{clearInterval(timer);report();};
+function sourceQueue(source,options) {
+  if(!upstreamBridge)return localSourceQueue(source,options);
+  assertUpstreamSource(source);
+  return upstreamBridge.queue(source);
 }
-const sourceQueues=new Map([['odp',upstreamQueue]]);
-let sourceWakeQueued=false;
-function wireCollectorAdmission(queue){
- queue.lowBackgroundAllowed=()=>![...sourceQueues.values()].some(q=>[...q.admitted].some(w=>w.priority!=='background')||q.waiters.some(w=>w.priority!=='background'));
- queue.onActivity=()=>{if(sourceWakeQueued)return;sourceWakeQueued=true;queueMicrotask(()=>{sourceWakeQueued=false;for(const q of sourceQueues.values())q.drain();});};
- return queue;
-}
-wireCollectorAdmission(upstreamQueue);
-function sourceQueue(source,{backgroundRank=0}={}) {
-  if(!['wikidata','odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu','https://data.consilium.europa.eu'].includes(source))throw new Error('Unknown upstream source.');
-  if(upstreamBridge)return upstreamBridge.queue(source);
-  if(!sourceQueues.has(source))sourceQueues.set(source,wireCollectorAdmission(new UpstreamQueue(source==='wikidata'?{interval:1000,maximum:1,backgroundMaximum:1}:source==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:source==='https://publications.europa.eu'?{rateLimit:{maximum:500,windowMs:300_000,foregroundReserve:100},interval:750,adaptive:true,backgroundPacing:true}:{})));
-  const queue=sourceQueues.get(source);
-  if(source==='odp'&&backgroundRank>0&&!queue.adaptive){const mode=odpPacing('backfill');Object.assign(pacing,mode);queue.adaptive=true;queue.backgroundPacing=true;queue.interval=Math.max(queue.interval,mode.interval);queue.minimumInterval=queue.interval;}
-  return queue;
-}
-export const upstreamPortServices=()=>({queueFor:sourceQueue,observations});
-export const upstreamStatus=()=>upstreamQueue.snapshot();
 const refreshFailures = new Map();
 const cacheDir = process.env.ODP_CACHE_DIR;
 // Agenda warming must not grow the general source directory indefinitely.
