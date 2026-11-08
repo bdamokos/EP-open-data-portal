@@ -383,3 +383,12 @@ test('a paragraph voted in two split requests keeps both keys under its wording'
  assert.equal(clause.querySelectorAll('.clause-key').length,2);
  assert.match(clause.textContent,/Second request words/);
 });
+test('a delegation that broke with its group reads as one plain sentence after the member line',async t=>{
+ const data=await voteFixture().read();
+ // Two French EPP voters against, the EPP's majority for: two Dutch EPP voters for are added to make it.
+ data.voters=[...data.voters,{personId:'500',position:'against',status:'recorded',group:{code:'PPE',orgId:'org/7018',groupId:'org/PPE'},groupStatus:'verified',groupSource:null},...['501','502','503'].map(personId=>({personId,position:'for',status:'recorded',group:{code:'PPE',orgId:'org/7018',groupId:'org/PPE'},groupStatus:'verified',groupSource:null}))];
+ data.decision={...data.decision,totals:{for:5,against:2,abstaining:1},namedVoters:{...data.decision.namedVoters,counts:{for:5,against:2,abstaining:1}}};
+ const members=[...named,{id:500,firstName:'Bea',lastName:'Second',countryCode:'FR'},...[501,502,503].map(id=>({id,firstName:'Dutch',lastName:String(id),countryCode:'NL'}))];
+ const h=await mount(t,serve(data),{members,member:'197481'});
+ assert.equal(h.container.querySelector('.member-line').textContent,'Ann Against voted against, unlike their group (EPP) and the outcome. France: both EPP MEPs voted against, unlike their group.');
+});

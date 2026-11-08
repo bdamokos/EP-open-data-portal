@@ -221,7 +221,7 @@ test('every member-line message exists in all 24 catalogues with the same slots'
  const {readFile}=await import('node:fs/promises');
  const read=async name=>JSON.parse(await readFile(new URL('./ui-locales/'+name+'.json',import.meta.url),'utf8'));
  const clauses=['differs','with','none'];
- const ids=['votepage.member.no_record',...['delegation','country'].flatMap(kind=>['all','most'].flatMap(size=>['for','against','abstaining'].map(position=>'votepage.country.'+kind+'.'+size+'.'+position))),...clauses.flatMap(group=>[...clauses.map(outcome=>'votepage.member.voted.'+group+'.'+outcome),'votepage.member.abstained.'+group])];
+ const ids=['votepage.member.no_record',...['votepage.country.delegation.both.for','votepage.country.delegation.both.against','votepage.country.delegation.both.abstaining'],...['delegation','country'].flatMap(kind=>['all','most'].flatMap(size=>['for','against','abstaining'].map(position=>'votepage.country.'+kind+'.'+size+'.'+position))),...clauses.flatMap(group=>[...clauses.map(outcome=>'votepage.member.voted.'+group+'.'+outcome),'votepage.member.abstained.'+group])];
  const slots=text=>[...text.matchAll(/\{(\w+)\}/g)].map(match=>match[1]).sort();
  const english=await read('en');
  for(const language of 'en bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ')) {
