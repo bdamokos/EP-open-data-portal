@@ -13,8 +13,7 @@ import {HttpError} from './http-utils.mjs';
 import {documentSummary} from './activities.mjs';
 import {array,tail,documentFiles} from './activity-index-model.mjs';
 import {documentText,docxParts,downloadDocxBuffer,allowedDownload} from './document-text.mjs';
-import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
-import {inlineDocumentParser,OffThreadDocumentParser} from './document-parse.mjs';
+import {extractAmendments,AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {amendmentReference,amendmentTextLosses,canonicalEPReference,sameDocxDescriptor} from './amendments.mjs';
 import * as amendmentStore from './amendments-store.mjs';
 import {sharedRequest,waitForRequest,isLocalRequestFailure,requestSignal} from './request-budget.mjs';
@@ -23,6 +22,8 @@ import {languageCode} from './ep-links.mjs';
 import {proposalBaseline} from './proposal-baseline.mjs';
 import {existingLawBaseline} from './existing-law-baseline.mjs';
 import {councilPositionBaseline} from './council-position-baseline.mjs';
+import {parsePublicLegalXhtml} from './public-legal-xhtml.mjs';
+import {parseProposal} from './proposal-structure.mjs';
 import {documentContextPlacement,proposalInstructionTarget} from './document-context-placement.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
 import {commissionReferences,commissionProcedures} from './commission-proposal-identity.mjs';
@@ -32,8 +33,6 @@ import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
 export const DOCUMENT_CONTEXT_VERSION=113;
-// The largest projected Commission or Council text a reply carries.
-const PROPOSAL_RESPONSE_BYTES=3*1024*1024;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 // A plenary amendment list is readable as a document only for the provisional agreement it publishes.
 const plenaryListId=id=>/^A-10-\d{4}-\d{4,6}-AM-\d{1,5}-\d{1,5}$/.test(id);
@@ -88,8 +87,8 @@ export function documentContextQuery(id,params) {
 // This reader discovers only exact linked records for the document being opened.
 // It never enqueues indexing or turns missing indexed wording into an empty list.
 export class DocumentContext {
-  constructor({request=odp,readText=documentText,readProposal=proposalBaseline,readCouncil=councilPositionBaseline,readExistingLaw=existingLawBaseline,download=url=>boundedUpstream(()=>downloadDocxBuffer(url),{source:'documents'}),findAmendment=(store,query)=>amendmentStore.amendmentById?.(store,query)||null,clock=Date.now,limits={},parser=inlineDocumentParser}={}) {
-    Object.assign(this,{request,readText,readProposal,readCouncil,readExistingLaw,download,findAmendment,clock,parser});this.limits={...DOCUMENT_CONTEXT_LIMITS,...limits};this.pending=new Map();this.cache=new Map();this.bytes=0;this.extractions=new Map();this.extractionPending=new Map();this.extractionBytes=0;
+  constructor({request=odp,readText=documentText,readProposal=proposalBaseline,readCouncil=councilPositionBaseline,readExistingLaw=existingLawBaseline,download=url=>boundedUpstream(()=>downloadDocxBuffer(url),{source:'documents'}),findAmendment=(store,query)=>amendmentStore.amendmentById?.(store,query)||null,clock=Date.now,limits={}}={}) {
+    Object.assign(this,{request,readText,readProposal,readCouncil,readExistingLaw,download,findAmendment,clock});this.limits={...DOCUMENT_CONTEXT_LIMITS,...limits};this.pending=new Map();this.cache=new Map();this.bytes=0;this.extractions=new Map();this.extractionPending=new Map();this.extractionBytes=0;
   }
   async query(query,{store=null}={}) {
     requestSignal()?.throwIfAborted();
@@ -132,7 +131,7 @@ export class DocumentContext {
         const declaration=declarations.length===1?{documentId:listId,...declarations[0]}:null;
         const kind=listId===targetDocumentId?'report':'list';
         const nativeReference=file.language==='en'&&/^A-\d+-\d{4}-\d{4,6}$/.test(targetDocumentId)?nativeNleReferencePair({[kind]:{reportId:targetDocumentId,listId,buffer,source:{...source,sha256:source.contentHash,declaration}}},{reportId:targetDocumentId,language:file.language})[kind]:null;
-        const extraction=await this.parser.amendments(buffer,{listId,targetDocumentId,...(committeeListId(listId)?{scope:'committee',sourceKind:'amendment-list'}:{}),language:file.language,sourceUrl:file.url,fetchedAt:source.fetchedAt}),value={extraction,source,nativeReference},bytes=Buffer.byteLength(JSON.stringify(value));
+        const extraction=extractAmendments(buffer,{listId,targetDocumentId,...(committeeListId(listId)?{scope:'committee',sourceKind:'amendment-list'}:{}),language:file.language,sourceUrl:file.url,fetchedAt:source.fetchedAt}),value={extraction,source,nativeReference},bytes=Buffer.byteLength(JSON.stringify(value));
         signal.throwIfAborted();
         if(bytes<=this.limits.extractionBytes) {
           while(this.extractions.size&&(this.extractions.size>=this.limits.extractionEntries||this.extractionBytes+bytes>this.limits.extractionBytes)){const oldest=this.extractions.keys().next().value;this.extractionBytes-=this.extractions.get(oldest).bytes;this.extractions.delete(oldest);}
@@ -260,12 +259,12 @@ export class DocumentContext {
       try {
         for(const item of source?.items||[]) {
           requestSignal()?.throwIfAborted();
-          const parsed=await this.parser.proposal(item.format==='PDF'?'proposal':councilKind||existingKind?'xhtml':'proposal',item.projection??item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,...(councilKind||existingKind?{celex:source.celex}:{})}},{limitBytes:PROPOSAL_RESPONSE_BYTES});
+          const parsed=(item.format==='PDF'?parseProposal:councilKind||existingKind?parsePublicLegalXhtml:parseProposal)(item.projection??item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,...(councilKind||existingKind?{celex:source.celex}:{})}});
           items.push({kind:item.kind,index:item.index,proposal:{...parsed,imageAssets:await publishDocumentImages(parsed)}});
           baseline.items.push({kind:item.kind,index:item.index,source:item.source});
         }
         // Bound the public projection as well as the binary and parser caches.
-        if(Buffer.byteLength(JSON.stringify(items))>PROPOSAL_RESPONSE_BYTES)throw new RangeError('proposal-response-budget');
+        if(Buffer.byteLength(JSON.stringify(items))>3*1024*1024)throw new RangeError('proposal-response-budget');
         if(items.length)proposal={items};
         placement=documentContextPlacement({...placementOptions,...(councilKind?{chosen:{...chosen,baseline:'council-position',baselineSource:{...chosen.baselineSource,category:'council-position'}}}:{}),baseline,items:proposal?items:null,nativeProposalInputs:source?.items?.map(item=>item.buffer)});
       }catch(error) {
@@ -281,10 +280,10 @@ export class DocumentContext {
           const frame=await this.readProposal({reportId:query.id,language:chosen.language,documentReferences}),frameItems=[];
           for(const item of frame?.items||[]) {
             requestSignal()?.throwIfAborted();
-            const parsed=await this.parser.proposal('proposal',item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:frame.workId,expression:item.expressionId,item:item.itemId}},{limitBytes:PROPOSAL_RESPONSE_BYTES});
+            const parsed=parseProposal(item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:frame.workId,expression:item.expressionId,item:item.itemId}});
             frameItems.push({kind:item.kind,index:item.index,source:item.source,proposal:parsed});
           }
-          if(Buffer.byteLength(JSON.stringify(frameItems))>PROPOSAL_RESPONSE_BYTES)throw new RangeError('proposal-response-budget');
+          if(Buffer.byteLength(JSON.stringify(frameItems))>3*1024*1024)throw new RangeError('proposal-response-budget');
           const framed=frame?.language===chosen.language&&frameItems.length?documentContextPlacement({...placementOptions,baseline,items:proposal?.items??null,proposalItems:frameItems}):null;
           if(framed?.frame==='commission-proposal') {
             const items=[];
@@ -420,4 +419,4 @@ export class DocumentContext {
     return {...base,status:base.variants.some(variant=>variant.wordingStatus==='available')?'available':'unavailable',basis:base.variants.length?'published-list':null,gaps:[...new Set(base.gaps)]};
   }
 }
-export const documentContext=new DocumentContext({parser:new OffThreadDocumentParser()});
+export const documentContext=new DocumentContext();
