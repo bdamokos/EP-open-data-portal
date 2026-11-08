@@ -5,16 +5,18 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {voteFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
 
-async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCountry=()=>{},member=null,historyState=null}={}) {
+async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCountry=()=>{},member=null,historyState=null,language='en'}={}) {
  const window=new Window({url:url||'http://localhost/?view=legislation&pl-mode=vote&pl-vote='+id+'&lang=en'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map();
  for(const [key,value] of Object.entries(globals)){old.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});}
  if(historyState)window.history.replaceState(historyState,'',window.location.href);
  const calls=[];t.mock.method(globalThis,'fetch',async input=>{const target=new URL(input,window.location.href);calls.push(target.pathname);return handler(target);});
  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
- const {VotePage}=await load('/src/VotePage.tsx'),{PersonNamesProvider}=await load('/src/PersonName.tsx'),{createRoot}=await import('react-dom/client');
+ const {VotePage}=await load('/src/VotePage.tsx'),{PersonNamesProvider}=await load('/src/PersonName.tsx'),{UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createRoot}=await import('react-dom/client');
+ const {createAppUiI18n}=await import('./uiCatalogues.mjs'),catalogues=language==='en'?null:{[language]:(await import('./ui-locales/'+language+'.json',{with:{type:'json'}})).default};
  const container=window.document.createElement('div');window.document.body.append(container);const root=createRoot(container);
  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
- await act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(VotePage,{decisionId:id,language:'en',country,onCountry,member}))));
+ const page=createElement(PersonNamesProvider,{members},createElement(VotePage,{decisionId:id,language,country,onCountry,member}));
+ await act(async()=>root.render(language==='en'?page:createElement(UiI18nProvider,{i18n:createAppUiI18n(catalogues),language},page)));
  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
  return {container,calls};
 }
@@ -34,6 +36,11 @@ test('a roll-call vote page shows the sentence, table and way line with real tab
  assert(!h.calls.some(path=>path.includes('member-votes')));
  assert.equal(h.container.querySelector('.member-votes-position'),null,'no member frame');
  assert.deepEqual([...h.container.querySelectorAll('.frow .t')].map(node=>node.textContent),['Members','Countries','Corrections','Documents'],'folds in order, each only with content');
+});
+test('French group labels keep the interface language while literal group codes stay neutral',async t=>{
+ const data=await voteFixture().read(),h=await mount(t,serve(data),{language:'fr'});
+ const rows=[...h.container.querySelectorAll('.ledger tbody th[scope=row] .t')];
+ assert.deepEqual(rows.map(node=>[node.textContent,node.lang]),[['PPE','fr'],['S&D',''],['Renew',''],['Non-inscrits','fr']]);
 });
 const partData=async ({outcome='ADOPTED',wording='full',extra={}}={})=>{
  const f=voteFixture();f.raw.referenceText={en:'Amendment 114/2'};

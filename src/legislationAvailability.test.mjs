@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {withRolloutOff} from './test-support/rolloutOff.mjs';
+// Pinned to the switch off: tests the agenda item's inline vote availability lines (TopicVotes); keep the debate half at P12, which P12 deletes.
 
 test('agenda availability distinguishes scheduled items, waits, gaps, source errors and filters',async t=>{
   installRetryClock(t).pin(Date.parse('2026-10-20T00:30:00Z'));
@@ -29,7 +31,7 @@ test('agenda availability distinguishes scheduled items, waits, gaps, source err
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected request: '+url);
     return Response.json(response(url.searchParams));
   });
-  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader(...withRolloutOff({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}}));
   const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);
