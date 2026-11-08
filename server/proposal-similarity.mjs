@@ -48,8 +48,8 @@ export function singleWordDifference(left,right) {
 // from the quote, and no overlapping passage may tie it.
 export const TYPO_TOKENS=2, TYPO_MARGIN=3;
 // Line-start labels become one token ("(a)", "a)" and "a." read "§a)"); an
-// apostrophe stays inside its word.
-const typoTokens=value=>similarityNormal(value.replace(/^[ \t]*\(?([\p{L}\p{N}]{1,4})[.)](?=\s)/gmu,'§$1)')).replace(/[‐‑]/gu,'-').replace(/[şŞţŢ]/gu,c=>({ş:'ș',Ş:'Ș',ţ:'ț',Ţ:'Ț'})[c]).match(/§[\p{L}\p{N}]{1,4}\)|[\p{L}\p{N}]+(?:'[\p{L}\p{N}]*)*|[^\s\p{L}\p{N}]/gu)||[];
+// elided article keeps its apostrophe ("l'").
+const typoTokens=value=>similarityNormal(value.replace(/^[ \t]*\(?([\p{L}\p{N}]{1,4})[.)](?=\s)/gmu,'§$1)')).replace(/[‐‑]/gu,'-').replace(/[şŞţŢ]/gu,c=>({ş:'ș',Ş:'Ș',ţ:'ț',Ţ:'Ț'})[c]).match(/§[\p{L}\p{N}]{1,4}\)|[\p{L}\p{N}]+'?|[^\s\p{L}\p{N}]/gu)||[];
 // Banded token edit distance; returns cap+1 once the band is exceeded.
 function tokenDistance(a,b,cap) {
  const n=a.length,m=b.length;if(Math.abs(n-m)>cap)return cap+1;
@@ -85,6 +85,10 @@ function tokenRegions(a,b) {
  return regions;
 }
 const numeric=token=>/\p{N}/u.test(token??'');
+// Labels compare by their characters only: Cyrillic and Latin look-alikes,
+// brackets and full stops do not change a label.
+const homoglyphs={'а':'a','е':'e','о':'o','р':'p','с':'c','х':'x','і':'i','А':'A','Е':'E','О':'O','Р':'P','С':'C','Х':'X','І':'I'};
+const labelKey=list=>list.join('').replace(/[§().]/gu,'').replace(/[аеорсхіАЕОРСХІ]/gu,c=>homoglyphs[c]);
 function typoCost(regions,a,b) {
  let cost=0;
  const words=list=>list.filter(token=>/^[\p{L}\p{N}]/u.test(token)).length,marks=list=>list.filter(token=>!/^[\p{L}\p{N}§]/u.test(token)).length;
@@ -92,7 +96,7 @@ function typoCost(regions,a,b) {
   const tokens=[...region.left,...region.right];
   // Spacing inside a label ("37 b" for "37b"), or one full stop or bracket right
   // after a number ("30a." for "30a"), is formatting.
-  if(region.left.join('')===region.right.join(''))continue;
+  if(region.left.join('')===region.right.join('')||tokens.some(token=>token.startsWith('§'))&&labelKey(region.left)===labelKey(region.right))continue;
   if(tokens.every(token=>/^[.()]$/u.test(token))&&Math.max(region.left.length,region.right.length)===1&&(numeric(a[region.i-1])||numeric(b[region.j-1])))continue;
   if(tokens.some(token=>numeric(token)||token.startsWith('§')||/^[-–—•·*]$/u.test(token))||numeric(a[region.i-1])||numeric(b[region.j-1]))return null;
   // Words added or dropped at either end move the passage boundary instead.

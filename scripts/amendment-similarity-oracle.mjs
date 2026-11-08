@@ -27,7 +27,7 @@ export function assertSimilarityRows(rows,original,span,{threshold=.95,margin=.0
 // strict best; its differences total at most two words and punctuation marks,
 // ignoring label formatting, and never touch a number, a list label, the word
 // after a number, a list marker or either end of the quote.
-const typoTokens=value=>normal(value.split('\n').map(line=>line.replace(/^\s*\(?([\p{L}\p{N}]{1,4})[.)](?=\s)/u,'§$1)')).join('\n')).replace(/[‐‑]/gu,'-').replace(/[şŞţŢ]/gu,c=>({ş:'ș',Ş:'Ș',ţ:'ț',Ţ:'Ț'})[c]).match(/§[\p{L}\p{N}]{1,4}\)|[\p{L}\p{N}]+(?:'[\p{L}\p{N}]*)*|[^\s\p{L}\p{N}]/gu)||[];
+const typoTokens=value=>normal(value.split('\n').map(line=>line.replace(/^\s*\(?([\p{L}\p{N}]{1,4})[.)](?=\s)/u,'§$1)')).join('\n')).replace(/[‐‑]/gu,'-').replace(/[şŞţŢ]/gu,c=>({ş:'ș',Ş:'Ș',ţ:'ț',Ţ:'Ț'})[c]).match(/§[\p{L}\p{N}]{1,4}\)|[\p{L}\p{N}]+'?|[^\s\p{L}\p{N}]/gu)||[];
 function tokenEdits(a,b){
  const n=a.length,m=b.length;if(n*m>4_000_000)return null;
  const d=Array.from({length:n+1},(_,i)=>{const row=new Uint32Array(m+1);row[0]=i;return row;});
@@ -53,7 +53,8 @@ export function oracleTypo(original,source){
  const isWord=t=>/^[\p{L}\p{N}]/u.test(t),isMark=t=>!/^[\p{L}\p{N}§]/u.test(t),digit=t=>/\p{N}/u.test(t??'');
  for(const run of edits.runs){
   const all=[...run.left,...run.right];
-  if(run.left.join('')===run.right.join(''))continue;
+  const key=list=>list.join('').replace(/[§().]/gu,'').replace(/[аеорсхі]/giu,c=>({а:'a',е:'e',о:'o',р:'p',с:'c',х:'x',і:'i'})[c.toLowerCase()]??c);
+  if(run.left.join('')===run.right.join('')||all.some(t=>t.startsWith('§'))&&key(run.left)===key(run.right))continue;
   if(all.every(t=>/^[.()]$/u.test(t))&&Math.max(run.left.length,run.right.length)===1&&run.before.some(digit))continue;
   if(all.some(t=>digit(t)||t.startsWith('§')||/^[-–—•·*]$/u.test(t))||run.before.some(digit))return null;
   if([run.left,run.right].some(list=>list.every(isMark))&&(run.atEnd||run.atStart))return null;

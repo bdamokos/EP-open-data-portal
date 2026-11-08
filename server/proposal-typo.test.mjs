@@ -37,3 +37,11 @@ test('a near-identical passage elsewhere blocks the match',()=>{
  assert.equal(typoPassage(point17,rows,typo)?.cost,1);
  assert.equal(typoPassage(point17,near,typo),null);
 });
+test('label look-alikes and elided articles are compared as the act prints them',()=>{
+ // AM 34 bg prints a Cyrillic "а)" where the act has a Latin "a)"; AM 27 fr
+ // prints "un organisme" for "l'organisme".
+ const base=quote(article('30d','Article 3(1) of Regulation (EC) No 1005/2008'));
+ assert.equal(typoPassage(point17,rows,base.replace('(a)\t','(а)\t').replace('interference','interferance'))?.cost,1);
+ const elided=rows.map(row=>row.index===4?{...row,text:"(b)\tinterference with l'system; and"}:row);
+ assert.equal(typoPassage(elided.slice(0,6),elided,base.replace('with satellite monitoring system','with un system'))?.cost,1);
+});
