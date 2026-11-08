@@ -24,7 +24,7 @@ const widest={
   et:["Poolt|Vastu|Erapooletu",73.7],
   fi:["Puolesta|Vastaan|Tyhjää",61.4],
   fr:["Pour|Contre|Abstention",73.8],
-  ga:["Ina fhabhar|Ina aghaidh|Staonadh",77.8],
+  ga:["Ar son|I gcoinne|Staonadh",66.4],
   hr:["Za|Protiv|Suzdržani",68.5],
   hu:["Mellette|Ellene|Tartózkodás",81.5],
   it:["A favore|Contrari|Astensione",75.1],
