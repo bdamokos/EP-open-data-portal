@@ -71,7 +71,7 @@ export function councilCalibration(file,{snapshotSha256,expectedAssertionsSha256
 export function acceptedHold(calibration,assertion) {
   const row=calibration?.get(assertion.key);
   if(!row)return false;
-  insist(row.expectedAssertionSha256===digest(JSON.stringify(assertion))&&row.fromState===assertion.state&&row.acceptedPlacement.operation===assertion.operation&&row.acceptedPlacement.nativePath===assertion.native?.path,'Council calibration does not match the sealed assertion for '+assertion.key);
+  insist(assertion.state==='typed-note-equivalence-held'&&row.expectedAssertionSha256===digest(JSON.stringify(assertion))&&row.fromState===assertion.state&&row.acceptedPlacement.operation===assertion.operation&&row.acceptedPlacement.nativePath===assertion.native?.path,'Council calibration does not match the sealed assertion for '+assertion.key);
   return true;
 }
 export function assessPlacement(placement,assertion,proposal,accepted=false) {

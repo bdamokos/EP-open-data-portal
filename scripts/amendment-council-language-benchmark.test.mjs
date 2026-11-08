@@ -137,6 +137,8 @@ test('a maintainer calibration lifts one exact typed-note hold but keeps native 
   assert.equal(assessPlacement({...placed,span:{start:75,end:76}},held,proposal,true).outcome,'false-placement');
   assert.equal(acceptedHold(calibration,{...held,key:'L:3:fr'}),false);
   assert.throws(()=>acceptedHold(calibration,{...held,state:'other'}),/does not match/);
+  const verified={...held,state:'native-correspondence-verified'};
+  assert.throws(()=>acceptedHold(councilCalibration({...seal,rows:[{...row,expectedAssertionSha256:digest(JSON.stringify(verified)),fromState:verified.state}]},seal),verified),/does not match/);
   assert.throws(()=>acceptedHold(councilCalibration({...seal,rows:[{...row,acceptedPlacement:{operation:'replace',nativePath:'/h:div[70]'}}]},seal),held),/does not match/);
   assert.throws(()=>councilCalibration({...seal,rows:[row]},{...seal,snapshotSha256:'other'}),/another snapshot/);
   assert.throws(()=>councilCalibration({...seal,rows:[row,row]},seal),/Duplicate/);
