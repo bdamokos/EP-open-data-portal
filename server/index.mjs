@@ -517,7 +517,6 @@ function shutDown(signal) {
     // The IPC channel of a split API process would keep it alive.
     if(process.connected)process.disconnect();
   });
-  server.closeIdleConnections();
 }
 
 // Publications arrive from the writer: in this process in single mode, over IPC from the front in split mode.
