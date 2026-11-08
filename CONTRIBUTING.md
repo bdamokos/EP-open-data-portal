@@ -79,6 +79,8 @@ Benchmark caches, snapshots and results stay outside Git and out of CI artifacts
 - Whole-document operations, including rejections, Rule 188(3) alternative motions and provisional agreements, remain in placement and vote denominators. Independently source-verified operations count as correct at document scope; unverified operations stay withheld. Reasons remain distinct in reports.
 - Frozen replay records an absent exact request as `frozen-input-absent`, with URL, Accept and snapshot identity in affected rows and result diagnostics. These derived acquisition gaps never enter the sealed manifest or input cache. Listed inputs with corrupt bytes, missing files or invalid metadata still abort replay; unsealed acquisition is unchanged.
 
+**Idle benchmark** (`scripts/idle-benchmark.mjs`) measures one running server, in either process mode, from inside its PID namespace (for example `docker exec`): process-tree memory (PSS and RSS), wake latency of the home page's API calls, a warm tour's p50/p95, memory after the API process exits and idle CPU per hour. Run `--help` for the options. Results stay outside Git.
+
 **Agenda benchmark** (`npm run bench:agenda`) times agenda assembly. Capture once with `--fetch --api-base ORIGIN --cache-dir DIR --week latest`, then replay offline with `--latency zero|recorded` and compare with `--baseline FILE`.
 
 ### Adopted-text calibration
