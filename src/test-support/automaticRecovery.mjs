@@ -38,6 +38,9 @@ export function installRetryClock(t) {
   elapsed+=Math.max(0,until-Date.now());
   await act(async()=>{});
  }};
+ // Each recorded Date.now call keeps an Error stack that pins this test's whole
+ // Vite module graph, and node:test keeps finished test contexts until the file ends.
+ t.after(()=>{mocked.mock.resetCalls();clocks.delete(t);});
  clocks.set(t,clock);return clock;
 }
 /** Run the next timer actually scheduled by the production backoff policy. */
