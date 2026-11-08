@@ -1,7 +1,7 @@
 // Colour scheme preference: follow the system, or a light/dark override kept on this device.
 export const COLOUR_SCHEME_KEY='ep.colour-scheme.v1';
 export const colourSchemes=['system','light','dark'];
-const browserBars={light:'#f6f5f1',dark:'#141618'};
+const browserBars={light:'#ffffff',dark:'#141618'};
 const appliedSchemes=new WeakMap();
 
 function storage(){try{return window.localStorage;}catch{return null;}}

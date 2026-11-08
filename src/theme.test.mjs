@@ -106,6 +106,22 @@ test('the type, space and grid scale ships with phone values under 768 px',()=>{
   }
 });
 
+test('the reading serif ships only regular, bold and italic faces, each with its file and licence',async()=>{
+  const css=await readFile(new URL('theme.css',import.meta.url),'utf8');
+  const faces=css.match(/@font-face\s*{[^}]*}/g)||[];
+  assert(faces.length>0,'theme.css declares the serif faces');
+  for(const face of faces) {
+    const weight=face.match(/font-weight:\s*(\d+)/)?.[1],style=face.match(/font-style:\s*(\w+)/)?.[1];
+    // A 500 or 600 face would change text that Charter rendered at 400 or 700.
+    assert(['400 normal','700 normal','400 italic'].includes(weight+' '+style),`unexpected face ${weight} ${style}`);
+    assert.match(face,/font-display:\s*swap/);
+    const file=face.match(/url\(([^)]+\.woff2)\)/)?.[1];
+    assert(file,'each face loads a woff2 file');
+    await readFile(new URL(file,import.meta.url));
+  }
+  assert.match(await readFile(new URL('assets/fonts/piazzolla/OFL.txt',import.meta.url),'utf8'),/SIL Open Font License/);
+});
+
 test('the legacy Parliament palette variables are gone',async()=>{
   for(const file of [...await stylesheets(),'theme.css']) {
     const css=await readFile(new URL(file,import.meta.url),'utf8');
@@ -116,7 +132,7 @@ test('the legacy Parliament palette variables are gone',async()=>{
 function schemeWindow(t,stored) {
   const window=new Window({url:'http://localhost/'});
   t.after(()=>window.happyDOM.close());
-  window.document.head.innerHTML='<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f5f1"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141618">';
+  window.document.head.innerHTML='<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141618">';
   if(stored)window.localStorage.setItem('ep.colour-scheme.v1',stored);
   const original=Object.getOwnPropertyDescriptor(globalThis,'window'),originalDocument=Object.getOwnPropertyDescriptor(globalThis,'document');
   Object.defineProperty(globalThis,'window',{value:window,configurable:true,writable:true});
@@ -135,7 +151,7 @@ test('the colour scheme follows the system until a light or dark choice is saved
   assert.equal(readColourScheme(),'system');
   applyColourScheme('system');
   assert.equal(root.dataset.theme,undefined);
-  assert.deepEqual(bars(),['#f6f5f1','#141618']);
+  assert.deepEqual(bars(),['#ffffff','#141618']);
   assert.deepEqual(['system','dark','light'].map(scheme=>nextColourScheme(scheme,'light')),['dark','light','system'],'a light system switches to dark first');
   assert.deepEqual(['system','light','dark'].map(scheme=>nextColourScheme(scheme,'dark')),['light','dark','system'],'a dark system switches to light first');
   saveColourScheme('dark');
@@ -146,7 +162,7 @@ test('the colour scheme follows the system until a light or dark choice is saved
   saveColourScheme('system');
   assert.equal(window.localStorage.getItem(COLOUR_SCHEME_KEY),null);
   assert.equal(root.dataset.theme,undefined);
-  assert.deepEqual(bars(),['#f6f5f1','#141618']);
+  assert.deepEqual(bars(),['#ffffff','#141618']);
 });
 
 test('an unknown stored colour scheme falls back to the system setting',async t=>{
@@ -174,7 +190,7 @@ test('the first-paint script applies a saved override exactly like the app, befo
   for(const stored of ['light','dark','sepia',null]) {
     const bootstrap=new Window({url:'http://localhost/'}),app=new Window({url:'http://localhost/'});
     t.after(()=>{bootstrap.happyDOM.close();app.happyDOM.close();});
-    for(const window of [bootstrap,app])window.document.head.innerHTML='<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f5f1"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141618">';
+    for(const window of [bootstrap,app])window.document.head.innerHTML='<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141618">';
     if(stored)bootstrap.localStorage.setItem(COLOUR_SCHEME_KEY,stored);
     new bootstrap.Function(script)();
     applyColourScheme(stored==='light'||stored==='dark'?stored:'system',app.document);
