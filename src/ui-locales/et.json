@@ -2471,7 +2471,7 @@
   "membervotespresentation.positions_unnamed_no_record_unavailable": "Seisukohad: {noNames} ilma registreeritud nimedeta · {noRecord} ilma registreeritud seisukohata · {unavailable} ilma kättesaadava seisukohata",
   "membervotespresentation.positions_unnamed_unavailable": "Seisukohad: {noNames} ilma registreeritud nimedeta · {unavailable} ilma kättesaadava seisukohata",
   "searchreference.agendas_not_searched": "{count} päevakorda ei otsitud.",
-  "searchreference.agendas_not_searched_one": "{count} päevakord ei otsitud.",
+  "searchreference.agendas_not_searched_one": "{count} päevakorda ei otsitud.",
   "searchreference.document": "Dokument",
   "searchreference.dossier": "Toimik",
   "searchreference.filters": "Filtrid",

@@ -4553,7 +4553,7 @@
       "other": "{count} isikut: {roles} rolliga toimikus, {others} sõnavõttude või muudatusettepanekutega."
     },
     "searchreference.agendas_not_searched": {
-      "one": "{count} päevakord ei otsitud.",
+      "one": "{count} päevakorda ei otsitud.",
       "other": "{count} päevakorda ei otsitud."
     },
     "weekSummary.agendaItems": {
