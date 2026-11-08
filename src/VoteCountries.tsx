@@ -27,10 +27,17 @@ function SplitBar({counts}:{counts:Record<VotePosition,number>}) {
 export function VoteCountries({rows,language,country,outcome,onChoose}:Props) {
   const ui=useUiI18n();
   const [raw,setRaw]=useExplorerParam<string>('vote-country-order','');
-  const order=decodeCountryOrder(raw),winning=outcome==='REJECTED'?'against':'for';
-  const tallies=useMemo(()=>orderCountries(countryTallies(rows),decodeCountryOrder(raw),{winning,nameOf:code=>countryName(code,language),locale:language}),[rows,raw,winning,language]);
+  const order=decodeCountryOrder(raw),counted=useMemo(()=>countryTallies(rows),[rows]);
+  // The side that won: Parliament's outcome, else the named ballots overall; on a tie neither side won and no rule is drawn.
+  const winner=useMemo(()=>{
+    if(outcome==='ADOPTED')return 'for';
+    if(outcome==='REJECTED')return 'against';
+    const total=counted.reduce((sum,tally)=>sum+tally.counts.for-tally.counts.against,0);
+    return total>0?'for':total<0?'against':null;
+  },[outcome,counted]),winning=winner??'for';
+  const tallies=useMemo(()=>orderCountries(counted,decodeCountryOrder(raw),{winning,nameOf:code=>countryName(code,language),locale:language}),[counted,raw,winning,language]);
   if(!tallies.length)return null;
-  const turn=order.key==='share'?sideTurn(tallies,winning):-1;
+  const turn=order.key==='share'&&winner?sideTurn(tallies,winning):-1;
   const sorted=(key:CountryOrderKey)=>order.key!==key?'none':order.reversed?(natural(key)==='ascending'?'descending':'ascending'):natural(key);
   const sortBy=(key:CountryOrderKey)=>setRaw(encodeCountryOrder({key,reversed:order.key===key&&!order.reversed}));
   const head=(key:CountryOrderKey,label:ReactNode,className:string)=>{

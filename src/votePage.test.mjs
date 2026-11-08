@@ -226,9 +226,10 @@ test('the shared row shows a dash for unknown, a zero for zero and a bold reject
  assert.match(control,/aria-pressed="true"[^>]*>A</);assert.match(control,/aria-pressed="false"[^>]*>B</);
 });
 
-const openCountries=async(t,{country=null,onCountry=()=>{},countries=['FR']}={})=>{
+const openCountries=async(t,{country=null,onCountry=()=>{},countries=['FR'],outcome=null}={})=>{
  if(!globalThis.requestAnimationFrame){globalThis.requestAnimationFrame=callback=>setTimeout(callback,0);t.after(()=>{delete globalThis.requestAnimationFrame;});}
  const f=voteFixture(),data=await f.read();
+ if(outcome)data.decision.outcome=outcome;
  data.voters.forEach((voter,index)=>{data.people[voter.personId]={...data.people[voter.personId],name:'Member '+voter.personId,country:countries[index%countries.length]};});
  const h=await mount(t,serve(data),{country,onCountry});
  const fold=[...h.container.querySelectorAll('details')].find(node=>/Countries/.test(node.querySelector('summary').textContent));
@@ -408,7 +409,7 @@ test('every head sorts the countries and keeps the order in the address',async t
  const {h,fold}=await openCountries(t,{countries:['FR','DE','IE','AT']});
  const heads=()=>Object.fromEntries([...fold.querySelectorAll('[role=columnheader]')].map(node=>[node.querySelector('button').textContent.replace(/[↑↓]/g,'').trim(),node.getAttribute('aria-sort')]));
  const names=()=>[...fold.querySelectorAll('.crow button')].map(button=>button.textContent);
- const press=async label=>{const head=[...fold.querySelectorAll('[role=columnheader] button')].find(button=>button.textContent.replace(/[↑↓]/g,'').trim()===label);await act(async()=>{head.click();});};
+ const press=async label=>{const head=[...fold.querySelectorAll('[role=columnheader] button')].find(button=>button.textContent.replace(/[↑↓]/g,'').trim()===label);await act(async()=>{head.click();});await act(async()=>{});};
  assert.equal(heads().Share,'descending','the winning side leads by default');
  assert.equal(globalThis.location.search.includes('vote-country-order'),false,'the default leaves the address clean');
  await press('Country');
@@ -425,4 +426,14 @@ test('every head sorts the countries and keeps the order in the address',async t
  assert.deepEqual(counts,[...counts].sort((a,b)=>b-a));
  assert.equal(fold.querySelectorAll('.crow.turn').length,0,'the rule belongs to the share order only');
  void h;
+});
+const sideOrder=async(t,outcome)=>{
+ const {fold}=await openCountries(t,{countries:['FR','DE','IE','AT','EL','MT'],outcome});
+ const rows=[...fold.querySelectorAll('.crow')].map(row=>({f:Number(row.querySelector('.n.f').textContent),a:Number(row.querySelector('.n.a').textContent),turn:row.classList.contains('turn')}));
+ return rows;
+};
+for(const [outcome,win] of [['ADOPTED',row=>row.f>row.a],['REJECTED',row=>row.a>row.f]])test('in the default order the side that won leads and the rule follows its last country: '+outcome,async t=>{
+ const rows=await sideOrder(t,outcome),lead=rows.filter(win).length;
+ assert.ok(rows.slice(0,lead).every(win),'every country with a majority for the winning side comes first');
+ assert.deepEqual(rows.map((row,index)=>row.turn?index:-1).filter(index=>index>=0),lead&&lead<rows.length?[lead-1]:[],'one rule, after the last of them, only when both kinds are present');
 });
