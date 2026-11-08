@@ -52,14 +52,16 @@ jobs:
           id=$(docker image inspect --format '{{.Id}}' "parliament-explorer:$GITHUB_SHA")
           sum=$(sha256sum "$RUNNER_TEMP/parliament-explorer-$GITHUB_SHA-arm64.tar.gz" | cut -d' ' -f1)
           printf 'Image `parliament-explorer:%s` (linux/arm64)\n\n- image ID: `%s`\n- archive sha256: `%s`\n' "$GITHUB_SHA" "$id" "$sum" >> "$GITHUB_STEP_SUMMARY"
-          printf '%s  parliament-explorer-%s-arm64.tar.gz\n%s  image-id\n' "$sum" "$GITHUB_SHA" "$id" > "$RUNNER_TEMP/parliament-explorer-$GITHUB_SHA-arm64.sha256"
+          (cd "$RUNNER_TEMP" && sha256sum "parliament-explorer-$GITHUB_SHA-arm64.tar.gz" > "parliament-explorer-$GITHUB_SHA-arm64.tar.gz.sha256")
+          printf '%s\n' "$id" > "$RUNNER_TEMP/parliament-explorer-$GITHUB_SHA-arm64.image-id"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: runtime-image-${{ github.sha }}-arm64
           path: |
             ${{ runner.temp }}/parliament-explorer-${{ github.sha }}-arm64.tar.gz
-            ${{ runner.temp }}/parliament-explorer-${{ github.sha }}-arm64.sha256
+            ${{ runner.temp }}/parliament-explorer-${{ github.sha }}-arm64.tar.gz.sha256
+            ${{ runner.temp }}/parliament-explorer-${{ github.sha }}-arm64.image-id
           retention-days: 14
           compression-level: 0
           if-no-files-found: error
