@@ -16,6 +16,7 @@ import { parseSplitRequest, SPLIT_PARSER_VERSION } from './amendment-splits.mjs'
 import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentReference, amendmentSittings, amendmentDecision, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, validAmendmentDate, hasDecisionReferenceSet, targetMetadata, normalizedDocxDescriptor, sameDocxDescriptor, docxRetrievedAfterIssue, distributionEvidenceFor, currentDocxDescriptor, listWordingFreshness, checkedAggregateAttribution } from './amendments.mjs';
 import { amendmentDependenciesReady, recordSplitResults, saveAmendmentRows, enqueueAmendment, amendmentParserUpgradeKey as parserUpgradeKey, amendmentParserSourceRevisionKey } from './amendments-store.mjs';
 import {reconcileAmendmentDocumentGap} from './document-route-recovery.mjs';
+import {notePlacementLists} from './placement-log-store.mjs';
 import {sanitizeFreshDocument} from './document-detail-routing.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 import { runAmendmentWorkSlice } from './amendment-work-slices.mjs';
@@ -835,6 +836,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   if([...rows.values()].some(row=>row.gaps.some(gap=>gap!=='Split descriptions are parsed as selection plans; exact wording spans have not been validated.')))gaps.push('Some amendment records have incomplete text, authorship, identity or outcome evidence.');
   const uniqueGaps=[...new Set(gaps)];
   saveAmendmentRows(store,generation,target,[...rows.values()],{complete:!uniqueGaps.length&&rows.size>0,gaps:uniqueGaps,lastUpdated:new Date(worker.clock()).toISOString(),parserVersion:SPLIT_PARSER_VERSION},{observedDecisionIds:[...observed],freshSplitParts:[...freshSplitParts.values()],invalidatedTextListIds,textParserVersion:AMENDMENT_EXTRACTION_VERSION,textParserVersions,currentListIds,listRelationshipsKnown:relationshipsKnown});
+  notePlacementLists(store,rows.values(),{now:worker.clock()});
 }
 async function downloadVotingXml(url,{signal}={}) {
   signal?.throwIfAborted();

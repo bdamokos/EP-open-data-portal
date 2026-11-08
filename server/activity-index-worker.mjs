@@ -905,9 +905,9 @@ export class ActivityWorker {
     const votingListsDue=Boolean(this.votingLists?.due())||Boolean(this.hemicycle?.due());
     const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
     const officialDue=Boolean(this.officialContext?.due());
-    const documentBodiesDue=this.documentBodies.due(),baseBackfillDue=this.baseBackfill?.due();
+    const documentBodiesDue=this.documentBodies.due(),baseBackfillDue=this.baseBackfill?.due(),placementLogDue=this.placementLog?.due();
     const projectionDue=this.projectionGenerations().length>0||this.questionFileGenerations().length>0;
-    if(!votingListsDue&&!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!officialDue&&!documentBodiesDue&&!baseBackfillDue || !this.store.acquire())return;
+    if(!votingListsDue&&!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!officialDue&&!documentBodiesDue&&!baseBackfillDue&&!placementLogDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
     this.controller=new AbortController();
@@ -922,6 +922,8 @@ export class ActivityWorker {
         if(this.stopped)return;
         this.controller.signal.throwIfAborted();
       }
+      // Commits a finished list and starts the next on its own thread; never waits.
+      this.placementLog?.step();
       for(const generation of this.questionFileGenerations()) {
         backfillQuestionFiles(this.store,generation);
         await projectionYield(undefined,{signal:this.controller.signal});
@@ -1129,7 +1131,7 @@ export class ActivityWorker {
       if(!this.stopped&&cycle&&this.store.get('working'))publishMissingHistory(this.store,generation);
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }
-  stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
+  stop(){this.stopped=true;this.controller.abort();this.placementLog?.stop();if(!this.running)this.store.release();}
 }
 let service,readerMode=false;
 export function useActivityIndexReader(){if(service)throw new Error('Activity service already opened.');readerMode=true;}

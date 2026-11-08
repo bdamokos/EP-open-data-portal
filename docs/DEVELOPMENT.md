@@ -92,6 +92,7 @@ When one of these budgets is full, collection pauses until it is raised; retaine
 
 ## Operations
 
+- `node server/placement-log-report.mjs --since YYYY-MM-DD` prints, from the index on this host, amendments on newly held lists that could not be placed, by reason and list, and placed against unplaced by week. It needs `ACTIVITY_INDEX_DIR` or `--index-dir`; set `PLACEMENT_LOG_ENABLED=false` to stop the logging.
 - `npm run data:audit -- --reconcile` inventories queues, recorded gaps and missing question/answer files without starting a writer. Save the JSON and pass `--baseline FILE` later to see what was resolved and what is newly missing. Keep reports outside Git.
 - Errors are logged as JSONL in `ERROR_LOG_DIR` (default `var/diagnostics`), with failed index tasks under `activity-index/`. Each directory keeps about 20 MiB and must have one writing process. `node scripts/error-summary.mjs DIR` groups them. Browser reports arrive through `POST /api/client-errors` and exclude free text, page URLs, cookies, IP addresses and user agents.
 - Service log prefixes:

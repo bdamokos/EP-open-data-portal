@@ -36,6 +36,7 @@ import {generationPruneSchemaVersion,prepareGenerationPrune} from './generation-
 import {copyProjectedGenerationRows,prepareGenerationCopy,generationCopySchemaVersion} from './generation-copy.mjs';
 import {speechSourceGapSchema} from './speech-source-gaps.mjs';
 import {beginGenerationInBatches,discardGenerationBegin} from './generation-begin.mjs';
+import {preparePlacementLog} from './placement-log-store.mjs';
 
 // Defaults gate both normal construction and writer acquisition. The explicit
 // exceptions preserve preparations historically allowed during normal acquire().
@@ -205,6 +206,7 @@ export class ActivityStore {
       if(initialized||this.get('generationPruneSchemaVersion')!==generationPruneSchemaVersion){prepareGenerationPrune(this.db);this.set('generationPruneSchemaVersion',generationPruneSchemaVersion);}
       if(initialized||this.get('generationCopySchemaVersion')!==generationCopySchemaVersion){prepareGenerationCopy(this.db);this.set('generationCopySchemaVersion',generationCopySchemaVersion);}
       if(gatesBefore&&(initialized||gatesBefore!==schemaGateState(this)))discardGenerationBegin(this);
+      preparePlacementLog(this);
       refresh();
       return true;
     });
