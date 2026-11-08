@@ -7,3 +7,5 @@ export function allGroupsAgree(groups:GroupMajority[]):boolean;
 export function fisherExactTwoSided(a:number,b:number,c:number,d:number):number;
 export type DelegationBreak={group:string;country:string;for:number;against:number;restFor:number;restAgainst:number;size:number;p:number};
 export function delegationBreaks(rows:VoteMetricRow[],options?:{minVoting?:number;alpha?:number}):DelegationBreak[];
+export type DelegationDiffering={group:string;country:string;counts:Record<Position,number>;rest:Record<Position,number>;majority:Position};
+export function delegationsDiffering(rows:VoteMetricRow[]):DelegationDiffering[];
