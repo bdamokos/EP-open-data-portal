@@ -20,6 +20,10 @@ function approvedPath(pathname) {
   return resource === 'outside' && (item === 'directory' || /^[1-9]\d*$/.test(item));
 }
 
+// The member directory alone holds about 30,000 objects (5 MB); JSON_RESPONSE_LIMIT_BYTES
+// bounds every reply, so this cap only guards against unexpectedly dense envelopes.
+const TRANSIENT_WALK_LIMIT = 250_000;
+
 function transientState(payload) {
   const pending = [payload], seen = new Set();
   let visited = 0;
@@ -27,7 +31,7 @@ function transientState(payload) {
     const value = pending.pop();
     if (!value || typeof value !== 'object' || seen.has(value)) continue;
     // Unexpectedly complex envelopes fail closed without an unbounded walk.
-    if (++visited > 20_000) return true;
+    if (++visited > TRANSIENT_WALK_LIMIT) return true;
     seen.add(value);
     for (const [key, child] of Object.entries(value)) {
       if ((key === 'stale' || key === 'refreshInProgress' || key === 'loading') && child === true) return true;
@@ -61,6 +65,8 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   // Memberships are assembled after a process restart. Polls must reach the
   // origin until that work finishes instead of retaining its first snapshot.
   if (url.pathname === '/api/directory' && (payload?.index?.complete !== true || payload?.committeeDetails?.complete === false)) return noStore;
+  // Membership changes are rare and dated; a day-old roster never changes what the list shows today.
+  if (url.pathname === '/api/directory') return publicPolicy(DAY);
   // Held dates change at Brussels midnight; a CDN lifetime must not hide the new day.
   if (url.pathname === '/api/vote-periods') return noStore;
   if (url.pathname.includes('/speech-media/') && payload?.available === false) return noStore;
