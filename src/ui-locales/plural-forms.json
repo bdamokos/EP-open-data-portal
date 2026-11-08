@@ -553,10 +553,6 @@
       "one": "{count} евродепутат",
       "other": "{count} евродепутати"
     },
-    "votepage.member.country": {
-      "one": "{country}: {count} от {total} евродепутати гласува така.",
-      "other": "{country}: {count} от {total} евродепутати гласуваха така."
-    },
     "week.coming.others": {
       "one": "{count} разискване или друга точка.",
       "other": "{count} разисквания и други точки."
@@ -1382,12 +1378,6 @@
       "many": "{count} poslance EP",
       "other": "{count} poslanců EP"
     },
-    "votepage.member.country": {
-      "one": "{country}: stejný hlas – {count} z {total} poslanců EP.",
-      "few": "{country}: stejný hlas – {count} z {total} poslanců EP.",
-      "many": "{country}: stejný hlas – {count} z {total} poslanců EP.",
-      "other": "{country}: stejný hlas – {count} z {total} poslanců EP."
-    },
     "week.coming.others": {
       "one": "{count} rozprava nebo jiný bod.",
       "few": "{count} rozpravy a jiné body.",
@@ -2034,10 +2024,6 @@
       "one": "{count} medlem",
       "other": "{count} medlemmer"
     },
-    "votepage.member.country": {
-      "one": "{country}: {count} af {total} medlemmer stemte sådan.",
-      "other": "{country}: {count} af {total} medlemmer stemte sådan."
-    },
     "week.coming.others": {
       "one": "{count} debat eller andet punkt.",
       "other": "{count} debatter og andre punkter."
@@ -2664,10 +2650,6 @@
       "one": "{count} Parlamentsmitglied",
       "other": "{count} Abgeordnete"
     },
-    "votepage.member.country": {
-      "one": "{country}: {count} von {total} Abgeordneten stimmte so.",
-      "other": "{country}: {count} von {total} Abgeordneten stimmten so."
-    },
     "week.coming.others": {
       "one": "{count} Debatte oder anderer Punkt.",
       "other": "{count} Debatten und andere Punkte."
@@ -3261,10 +3243,6 @@
     "votepage.meps": {
       "one": "{count} ευρωβουλευτής",
       "other": "{count} ευρωβουλευτές"
-    },
-    "votepage.member.country": {
-      "one": "{country}: {count} από {total} ευρωβουλευτές ψήφισε έτσι.",
-      "other": "{country}: {count} από {total} ευρωβουλευτές ψήφισαν έτσι."
     },
     "week.coming.others": {
       "one": "{count} συζήτηση ή άλλο θέμα.",
@@ -3970,11 +3948,6 @@
       "many": "{count} de eurodiputados",
       "other": "{count} eurodiputados"
     },
-    "votepage.member.country": {
-      "one": "{country}: {count} eurodiputado de {total} votó así.",
-      "many": "{country}: {count} eurodiputados de {total} votaron así.",
-      "other": "{country}: {count} eurodiputados de {total} votaron así."
-    },
     "week.coming.others": {
       "one": "{count} debate u otro punto.",
       "many": "{count} de debates y otros puntos.",
@@ -4579,10 +4552,6 @@
     "votepage.meps": {
       "one": "{count} parlamendiliige",
       "other": "{count} parlamendiliiget"
-    },
-    "votepage.member.country": {
-      "one": "{country}: {total} parlamendiliikmest hääletas nii {count}.",
-      "other": "{country}: {total} parlamendiliikmest hääletas nii {count}."
     },
     "week.coming.others": {
       "one": "{count} arutelu või muu punkt.",
@@ -5209,10 +5178,6 @@
     "votepage.meps": {
       "one": "{count} meppi",
       "other": "{count} meppiä"
-    },
-    "votepage.member.country": {
-      "one": "{country}: {total} mepistä {count} äänesti näin.",
-      "other": "{country}: {total} mepistä {count} äänesti näin."
     },
     "week.coming.others": {
       "one": "{count} keskustelu tai muu asia.",
@@ -5917,11 +5882,6 @@
       "one": "{count} député",
       "other": "{count} députés",
       "many": "{count} de députés"
-    },
-    "votepage.member.country": {
-      "one": "{country} : {count} député sur {total} a voté ainsi.",
-      "many": "{country} : {count} députés sur {total} ont voté ainsi.",
-      "other": "{country} : {count} députés sur {total} ont voté ainsi."
     },
     "week.coming.others": {
       "one": "{count} débat ou autre point.",
@@ -6854,13 +6814,6 @@
       "few": "{count} FPE",
       "many": "{count} FPE"
     },
-    "votepage.member.country": {
-      "one": "{country}: an vóta céanna – {count} as {total} FPE.",
-      "two": "{country}: an vóta céanna – {count} as {total} FPE.",
-      "few": "{country}: an vóta céanna – {count} as {total} FPE.",
-      "many": "{country}: an vóta céanna – {count} as {total} FPE.",
-      "other": "{country}: an vóta céanna – {count} as {total} FPE."
-    },
     "week.coming.others": {
       "one": "{count} díospóireacht nó mír eile.",
       "other": "Díospóireachtaí agus míreanna eile: {count}.",
@@ -7593,11 +7546,6 @@
       "few": "{count} zastupnika",
       "other": "{count} zastupnika"
     },
-    "votepage.member.country": {
-      "one": "{country}: isti glas – {count} od {total} zastupnika.",
-      "few": "{country}: isti glas – {count} od {total} zastupnika.",
-      "other": "{country}: isti glas – {count} od {total} zastupnika."
-    },
     "week.coming.others": {
       "one": "{count} rasprava ili druga točka.",
       "few": "{count} rasprave i druge točke.",
@@ -8198,10 +8146,6 @@
     "votepage.meps": {
       "one": "{count} EP-képviselő",
       "other": "{count} EP-képviselő"
-    },
-    "votepage.member.country": {
-      "one": "{country}: {total} EP-képviselőből {count} így szavazott.",
-      "other": "{country}: {total} EP-képviselőből {count} így szavazott."
     },
     "week.coming.others": {
       "one": "{count} vita vagy egyéb pont.",
@@ -8906,11 +8850,6 @@
       "one": "{count} deputato",
       "many": "{count} di deputati",
       "other": "{count} deputati"
-    },
-    "votepage.member.country": {
-      "one": "{country}: {count} deputato su {total} ha votato così.",
-      "many": "{country}: {count} deputati su {total} hanno votato così.",
-      "other": "{country}: {count} deputati su {total} hanno votato così."
     },
     "week.coming.others": {
       "one": "{count} dibattito o altro punto.",
@@ -9734,12 +9673,6 @@
       "few": "{count} EP nariai",
       "many": "EP narių skaičius: {count}"
     },
-    "votepage.member.country": {
-      "one": "{country} (EP nariai): taip balsavo {count} iš {total}.",
-      "few": "{country} (EP nariai): taip balsavo {count} iš {total}.",
-      "many": "{country} (EP nariai): taip balsavo {count} iš {total}.",
-      "other": "{country} (EP nariai): taip balsavo {count} iš {total}."
-    },
     "week.coming.others": {
       "one": "{count} diskusija ar kitas punktas.",
       "other": "{count} diskusijų ir kitų punktų.",
@@ -10460,11 +10393,6 @@
       "one": "{count} EP deputāts",
       "other": "{count} EP deputāti",
       "zero": "{count} EP deputātu"
-    },
-    "votepage.member.country": {
-      "zero": "{country} (EP deputāti): tā balsoja {count} no {total}.",
-      "one": "{country} (EP deputāti): tā balsoja {count} no {total}.",
-      "other": "{country} (EP deputāti): tā balsoja {count} no {total}."
     },
     "week.coming.others": {
       "one": "{count} debates vai cits punkts.",
@@ -11397,13 +11325,6 @@
       "few": "{count} MPE",
       "many": "{count} MPE"
     },
-    "votepage.member.country": {
-      "one": "{country}: l-istess vot – {count} minn {total} MPE.",
-      "two": "{country}: l-istess vot – {count} minn {total} MPE.",
-      "few": "{country}: l-istess vot – {count} minn {total} MPE.",
-      "many": "{country}: l-istess vot – {count} minn {total} MPE.",
-      "other": "{country}: l-istess vot – {count} minn {total} MPE."
-    },
     "week.coming.others": {
       "one": "{count} dibattitu jew punt ieħor.",
       "other": "{count} dibattitu u punt ieħor.",
@@ -12059,10 +11980,6 @@
     "votepage.meps": {
       "one": "{count} EP-lid",
       "other": "{count} EP-leden"
-    },
-    "votepage.member.country": {
-      "one": "{country}: {count} van de {total} EP-leden stemde zo.",
-      "other": "{country}: {count} van de {total} EP-leden stemden zo."
     },
     "week.coming.others": {
       "one": "{count} debat of ander punt.",
@@ -12877,12 +12794,6 @@
       "many": "{count} posłów do PE",
       "other": "{count} posła do PE"
     },
-    "votepage.member.country": {
-      "one": "{country}: taki sam głos – {count} z {total} posłów do PE.",
-      "few": "{country}: taki sam głos – {count} z {total} posłów do PE.",
-      "many": "{country}: taki sam głos – {count} z {total} posłów do PE.",
-      "other": "{country}: taki sam głos – {count} z {total} posłów do PE."
-    },
     "week.coming.others": {
       "one": "{count} debata lub inny punkt.",
       "few": "{count} debaty i inne punkty.",
@@ -13607,11 +13518,6 @@
       "many": "{count} de deputados",
       "other": "{count} deputados"
     },
-    "votepage.member.country": {
-      "one": "{country}: {count} deputado em {total} votou assim.",
-      "many": "{country}: {count} deputados em {total} votaram assim.",
-      "other": "{country}: {count} deputados em {total} votaram assim."
-    },
     "week.coming.others": {
       "one": "{count} debate ou outro ponto.",
       "many": "{count} de debates e outros pontos.",
@@ -14325,11 +14231,6 @@
       "one": "{count} deputat",
       "few": "{count} deputați",
       "other": "{count} de deputați"
-    },
-    "votepage.member.country": {
-      "one": "{country} (deputați): a votat astfel {count} din {total}.",
-      "few": "{country} (deputați): au votat astfel {count} din {total}.",
-      "other": "{country} (deputați): au votat astfel {count} din {total}."
     },
     "week.coming.others": {
       "one": "{count} dezbatere sau alt punct.",
@@ -15165,12 +15066,6 @@
       "few": "{count} poslanci EP",
       "many": "{count} poslanca EP",
       "other": "{count} poslancov EP"
-    },
-    "votepage.member.country": {
-      "one": "{country}: rovnaký hlas – {count} z {total} poslancov EP.",
-      "few": "{country}: rovnaký hlas – {count} z {total} poslancov EP.",
-      "many": "{country}: rovnaký hlas – {count} z {total} poslancov EP.",
-      "other": "{country}: rovnaký hlas – {count} z {total} poslancov EP."
     },
     "week.coming.others": {
       "one": "{count} rozprava alebo iná položka.",
@@ -16017,12 +15912,6 @@
       "few": "{count} poslanci EP",
       "other": "{count} poslancev EP"
     },
-    "votepage.member.country": {
-      "one": "{country}: enak glas – {count} od {total} poslancev EP.",
-      "two": "{country}: enak glas – {count} od {total} poslancev EP.",
-      "few": "{country}: enak glas – {count} od {total} poslancev EP.",
-      "other": "{country}: enak glas – {count} od {total} poslancev EP."
-    },
     "week.coming.others": {
       "one": "{count} razprava ali druga točka.",
       "two": "{count} razpravi ali drugi točki.",
@@ -16668,10 +16557,6 @@
     "votepage.meps": {
       "one": "{count} ledamot",
       "other": "{count} ledamöter"
-    },
-    "votepage.member.country": {
-      "one": "{country}: {count} av {total} ledamöter röstade så.",
-      "other": "{country}: {count} av {total} ledamöter röstade så."
     },
     "week.coming.others": {
       "one": "{count} debatt eller annan punkt.",

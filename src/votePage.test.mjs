@@ -244,7 +244,7 @@ test('a vote page with a member says how they voted and leads back to them',asyn
  data.mainVoteId=null;
  const h=await mount(t,serve(data),{members:named,member:'197481'});
  const line=h.container.querySelector('.member-line');
- assert.equal(line.textContent,'Ann Against voted against, unlike the outcome. France: 1 of 3 MEPs voted this way.');
+ assert.equal(line.textContent,'Ann Against voted against, unlike the outcome.');
  assert(line.querySelector('svg.mk'),'next to its mark');
  const back=h.container.querySelector('.strip a');
  assert.match(back.textContent,/Ann Against/);
