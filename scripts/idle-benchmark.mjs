@@ -108,7 +108,8 @@ async function wake() {
   const periods=firstOk(api('vote-periods'),t0,timeout);
   const calls=[firstOk(api(`directory?lang=${options.lang}`),t0,timeout),firstOk(api('plenary-live'),t0,timeout),periods];
   const sitting=options.sitting||await periods.then(result=>{
-    try {const data=JSON.parse(result.body);return (data.upcoming?.[0]?.sittingId||data.upcoming?.[0]?.id||data.weeks?.[0]?.sittingId||'').toString();}catch{return '';}
+    // Ballots for a past sitting come from held snapshots; a future one needs the live source.
+    try {const data=JSON.parse(result.body),week=data.weeks?.[0]?.sittings||[];return String(week[Math.min(1,week.length-1)]?.sittingId||'');}catch{return '';}
   });
   if(/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(sitting))calls.push(firstOk(api(`upcoming-votes?sitting=${sitting}&lang=${options.lang}`),t0,timeout));
   const results=(await Promise.all(calls)).map(({body,...rest})=>({...rest,bytes:body?.length??0}));
@@ -126,7 +127,7 @@ async function tourTargets(sitting) {
   try {members=JSON.parse(directory.body).members?.map(member=>member.id).filter(Boolean)??[];}catch{/* the tour uses the fixed routes only */}
   const mep=(index)=>members[Math.min(index,members.length-1)];
   const routes=[`directory?lang=${options.lang}`,'plenary-live','vote-periods','activity-index/status?lang=en'];
-  if(sitting)routes.push(`upcoming-votes?sitting=${sitting}&lang=${options.lang}`,`ballot-comparisons?sitting=${sitting}&lang=${options.lang}`);
+  if(sitting)routes.push(`upcoming-votes?sitting=${sitting}&lang=${options.lang}`);
   for(const index of [0,Math.floor(members.length/3),Math.floor(members.length*2/3)])if(mep(index)){
     routes.push(`profile/${mep(index)}`,`latest-activities/${mep(index)}?lang=${options.lang}&limit=10`,`member-votes/${mep(index)}?lang=${options.lang}`);
   }
@@ -134,20 +135,29 @@ async function tourTargets(sitting) {
   return routes;
 }
 async function tour(sitting) {
-  const routes=await tourTargets(sitting),samples=[],byStatus={},memory=[];
+  let routes=await tourTargets(sitting);
+  const samples=[],byStatus={},failures={},memory=[];
+  // Round 0 warms caches and drops routes the offline data cannot answer, so both modes tour the same set.
+  const dropped=[];
+  for(const route of [...routes]) {
+    let status;
+    try {status=(await timed(api(route),{headers:{Accept:'application/json'}})).status;}catch{status='error';}
+    if(status!==200){dropped.push({route,status});routes=routes.filter(value=>value!==route);}
+  }
   const sampler=setInterval(()=>{const now=tree();memory.push({rssMiB:now.rssMiB,pssMiB:now.pssMiB,count:now.count});},1000);
   const started=performance.now();
-  for(let round=0;round<options.rounds;round++)for(const route of routes) {
+  for(let round=1;round<=options.rounds;round++)for(const route of routes) {
     try {
       const result=await timed(api(route),{headers:{Accept:'application/json'}});
       byStatus[result.status]=(byStatus[result.status]||0)+1;
-      // Only successful answers describe warm latency; the first round warms caches.
-      if(result.status===200&&round>0)samples.push(result.ms);
+      if(result.status!==200)failures[route]=result.status;
+      // Only successful answers describe warm latency.
+      if(result.status===200)samples.push(result.ms);
     } catch {byStatus.error=(byStatus.error||0)+1;}
   }
   clearInterval(sampler);
   const peak=key=>memory.length?Math.max(...memory.map(m=>m[key]??0)):null;
-  return {routes,rounds:options.rounds,wallS:round((performance.now()-started)/1000),status:byStatus,latencyMs:{...summarize(samples),n:samples.length},
+  return {routes,droppedRoutes:dropped,rounds:options.rounds,wallS:round((performance.now()-started)/1000),status:byStatus,failedRoutes:failures,latencyMs:{...summarize(samples),n:samples.length},
     peakRssMiB:peak('rssMiB'),peakPssMiB:peak('pssMiB'),
     meanRssMiB:memory.length?round(memory.reduce((total,m)=>total+m.rssMiB,0)/memory.length):null};
 }
