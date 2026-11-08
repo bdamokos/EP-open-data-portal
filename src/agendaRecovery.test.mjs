@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {withRolloutOff} from './test-support/rolloutOff.mjs';
+// Pinned to the switch off: tests the agenda's day view, which P12 deletes.
 import {dataTimeoutFor} from './client.mjs';
 
 const sittings=['2026-10-05','2026-10-07','2026-10-19'].map(date=>({id:'MTG-PL-'+date,date,phase:date==='2026-10-19'?'upcoming':'past'}));
@@ -25,7 +27,7 @@ async function harness(t,query='',width=1440) {
     return new Promise(resolve=>requests.push({url,signal:options.signal,resolve}));
   });
   t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const r of requests)r.resolve(Response.json({}));});if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader(...withRolloutOff({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}}));
   const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);

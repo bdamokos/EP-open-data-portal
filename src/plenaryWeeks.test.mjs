@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {withRolloutOff} from './test-support/rolloutOff.mjs';
+// Pinned to the switch off: tests the agenda's day view and period select, which P12 deletes.
 
 test('all plenary defaults use weeks while exact item links, single days and history keep their scope',async t=>{
   const window=new Window({url:'http://localhost/?view=legislation&pl-mode=cloud&pl-sitting=MTG-PL-2026-10-07'});
@@ -26,7 +28,7 @@ test('all plenary defaults use weeks while exact item links, single days and his
     if(url.pathname.endsWith('/insights/participation'))return Response.json({topics:[],series:[],window:{start:'2026-10-05',end:'2026-10-11'},coverage:{gaps:[]}});
     throw new Error('Unexpected request: '+url);
   });
-  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader(...withRolloutOff({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}}));
   const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);

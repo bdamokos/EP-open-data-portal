@@ -180,7 +180,8 @@ export function WeekPage({week,language}:{week:string|null;language:string}) {
   const calendar=useData<VotePeriodsResponse>('vote-periods',{unavailable:'error.records'});
   const steps=shown&&validateVotePeriods(calendar.data)?weekNeighbours(calendar.data,shown,language):{previous:null,next:null};
 
-  const heading=shown?<UiMessage id="weekSummary.weekOf" values={{date:longDate(shown,language)}}/>:null;
+  // Until a week is known (calendar pending, or latest failed) the page keeps the view's title.
+  const heading=shown?<UiMessage id="weekSummary.weekOf" values={{date:longDate(shown,language)}}/>:<UiMessage id="plenarymodes.plenary_agenda"/>;
   const stepLink=(target:{week:string;label:string|null},arrow:'previous'|'next')=>{
     const body=arrow==='previous'?<>‹ {target.label}</>:<>{target.label} ›</>;
     return <StripLink href={weekHref(target.week,language)} onClick={dossierLinkClick} wide={body} narrow={body}/>;
