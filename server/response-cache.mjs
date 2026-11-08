@@ -1,4 +1,5 @@
-import {agendaViewFreshMs} from './plenary-cache-policy.mjs';
+import {agendaViewFreshMs,brusselsMidnight} from './plenary-cache-policy.mjs';
+import {brusselsDay} from './analysis-period.mjs';
 const HOUR = 3600;
 const DAY = 24 * HOUR;
 const noStore = Object.freeze({cacheControl: 'no-store', cdnCacheControl: 'no-store'});
@@ -47,6 +48,11 @@ function transientState(payload) {
   return false;
 }
 
+function untilNextBrusselsDay(now) {
+  const next = new Date(Date.parse(brusselsDay(now) + 'T12:00:00Z') + DAY * 1000).toISOString().slice(0, 10);
+  return Math.min(DAY + HOUR, Math.max(60, Math.ceil((brusselsMidnight(next) - now) / 1000) + 60));
+}
+
 function publicPolicy(seconds, browserSeconds = 0) {
   return {
     cacheControl: `public, max-age=${browserSeconds}`,
@@ -65,8 +71,9 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   // Memberships are assembled after a process restart. Polls must reach the
   // origin until that work finishes instead of retaining its first snapshot.
   if (url.pathname === '/api/directory' && (payload?.index?.complete !== true || payload?.committeeDetails?.complete === false)) return noStore;
-  // Membership changes are rare and dated; a day-old roster never changes what the list shows today.
-  if (url.pathname === '/api/directory') return publicPolicy(DAY);
+  // Memberships are rare and dated, but each reply marks them current for one Brussels day.
+  // Expire a minute after the next midnight, when the server recomputes them.
+  if (url.pathname === '/api/directory') return publicPolicy(untilNextBrusselsDay(now));
   // Held dates change at Brussels midnight; a CDN lifetime must not hide the new day.
   if (url.pathname === '/api/vote-periods') return noStore;
   if (url.pathname.includes('/speech-media/') && payload?.available === false) return noStore;

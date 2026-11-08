@@ -5,7 +5,7 @@ export const PLENARY_REFRESH_MS=60*60_000;
 const brusselsHour=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Brussels',hour:'2-digit',hourCycle:'h23'});
 const pastWeek=(date,now)=>date<calendarMonday(brusselsDay(now));
 const agendaDate=endpoint=>endpoint.match(/^\/meetings\/MTG-PL-(\d{4}-\d{2}-\d{2})\/foreseen-activities$/)?.[1];
-const brusselsMidnight=date=>{
+export const brusselsMidnight=date=>{
   const utc=Date.parse(date+'T00:00:00Z');
   return utc-Number(brusselsHour.format(utc))*PLENARY_REFRESH_MS;
 };
