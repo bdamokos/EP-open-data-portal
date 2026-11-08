@@ -63,5 +63,5 @@ test('directory polling and conditional reads cannot retain a loading membership
   assert.equal(loaded.index.complete, true);
   assert.equal(loaded.index.loaded, 1);
   assert.deepEqual(loaded.members[0].memberships, []);
-  assert.equal(response.headers.get('cdn-cache-control'), 'public, max-age=21600, stale-if-error=0');
+  assert.match(response.headers.get('cdn-cache-control'), /^public, max-age=([6-9]\d|\d{3,5}), stale-if-error=0$/);
 });

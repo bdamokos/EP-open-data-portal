@@ -1,4 +1,5 @@
-import {agendaViewFreshMs} from './plenary-cache-policy.mjs';
+import {agendaViewFreshMs,brusselsMidnight} from './plenary-cache-policy.mjs';
+import {brusselsDay} from './analysis-period.mjs';
 const HOUR = 3600;
 const DAY = 24 * HOUR;
 const noStore = Object.freeze({cacheControl: 'no-store', cdnCacheControl: 'no-store'});
@@ -20,6 +21,10 @@ function approvedPath(pathname) {
   return resource === 'outside' && (item === 'directory' || /^[1-9]\d*$/.test(item));
 }
 
+// The member directory alone holds about 30,000 objects (5 MB); JSON_RESPONSE_LIMIT_BYTES
+// bounds every reply, so this cap only guards against unexpectedly dense envelopes.
+const TRANSIENT_WALK_LIMIT = 250_000;
+
 function transientState(payload) {
   const pending = [payload], seen = new Set();
   let visited = 0;
@@ -27,7 +32,7 @@ function transientState(payload) {
     const value = pending.pop();
     if (!value || typeof value !== 'object' || seen.has(value)) continue;
     // Unexpectedly complex envelopes fail closed without an unbounded walk.
-    if (++visited > 20_000) return true;
+    if (++visited > TRANSIENT_WALK_LIMIT) return true;
     seen.add(value);
     for (const [key, child] of Object.entries(value)) {
       if ((key === 'stale' || key === 'refreshInProgress' || key === 'loading') && child === true) return true;
@@ -41,6 +46,11 @@ function transientState(payload) {
     }
   }
   return false;
+}
+
+function untilNextBrusselsDay(now) {
+  const next = new Date(Date.parse(brusselsDay(now) + 'T12:00:00Z') + DAY * 1000).toISOString().slice(0, 10);
+  return Math.min(DAY + HOUR, Math.max(60, Math.ceil((brusselsMidnight(next) - now) / 1000) + 60));
 }
 
 function publicPolicy(seconds, browserSeconds = 0) {
@@ -61,6 +71,9 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   // Memberships are assembled after a process restart. Polls must reach the
   // origin until that work finishes instead of retaining its first snapshot.
   if (url.pathname === '/api/directory' && (payload?.index?.complete !== true || payload?.committeeDetails?.complete === false)) return noStore;
+  // Memberships are rare and dated, but each reply marks them current for one Brussels day.
+  // Expire a minute after the next midnight, when the server recomputes them.
+  if (url.pathname === '/api/directory') return publicPolicy(untilNextBrusselsDay(now));
   // Held dates change at Brussels midnight; a CDN lifetime must not hide the new day.
   if (url.pathname === '/api/vote-periods') return noStore;
   if (url.pathname.includes('/speech-media/') && payload?.available === false) return noStore;

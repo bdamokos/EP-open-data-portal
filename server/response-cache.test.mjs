@@ -34,7 +34,7 @@ test('incomplete or stale profile committee history cannot acquire a public cach
 });
 
 test('ordinary public reads use six hours and recent lists one hour without changing browser freshness', () => {
-  for (const path of ['/api/directory', '/api/profile/43?lang=hu', '/api/insights/questions?lang=en', '/api/corpus/search?lang=hu&q=water', '/api/amendments', '/api/outside/directory']) {
+  for (const path of ['/api/profile/43?lang=hu', '/api/insights/questions?lang=en', '/api/corpus/search?lang=hu&q=water', '/api/amendments', '/api/outside/directory']) {
     const value = {index: {complete: true}, coverage: {complete: false, authoritativeComplete: false}, fetchedAt: '2026-10-16T00:00:00Z'};
     assert.equal(seconds(policy(path, value)), 21600, path);
     assert.equal(policy(path, value).cacheControl, 'public, max-age=0');
@@ -45,15 +45,35 @@ test('ordinary public reads use six hours and recent lists one hour without chan
   assert.equal(seconds(policy('/api/profile/43', {}, {method: 'HEAD'})), 21600);
 });
 
-test('directory membership progress is never stored while completed snapshots retain their public lifetime', () => {
+test('directory membership progress is never stored while completed snapshots last until the next Brussels day', () => {
   for (const index of [undefined, {}, {complete: false, loaded: 0, total: 719, failed: 0, error: null}, {complete: false, loaded: 300, total: 719, failed: 0, error: null}, {complete: false, loaded: 718, total: 719, failed: 1, error: null}]) {
     for (const method of ['GET', 'HEAD']) {
       assert.deepEqual(policy('/api/directory', {index}, {method}), {cacheControl: 'no-store', cdnCacheControl: 'no-store'});
     }
   }
-  assert.equal(seconds(policy('/api/directory', {index: {complete: true, loaded: 719, total: 719, failed: 0, error: null}})), 21600);
-  assert.equal(seconds(policy('/api/directory', {index: {complete: true, loaded: 0, total: 0, failed: 0, error: null}})), 21600);
+  assert.equal(seconds(policy('/api/directory', {index: {complete: true, loaded: 719, total: 719, failed: 0, error: null}})), 36060);
+  assert.equal(seconds(policy('/api/directory', {index: {complete: true, loaded: 0, total: 0, failed: 0, error: null}})), 36060);
+  assert.equal(policy('/api/directory', {index: {complete: true}}).cacheControl, 'public, max-age=0');
   assert.deepEqual(policy('/api/directory', {index:{complete:true},committeeDetails:{complete:false,loaded:0,total:26,failed:0,error:null}}), {cacheControl:'no-store',cdnCacheControl:'no-store'});
+});
+
+test('the directory expires a minute after the next Brussels midnight, across DST changes', () => {
+  const at = iso => seconds(apiCachePolicy(request, new URL('https://example.test/api/directory'), {index: {complete: true}}, {now: Date.parse(iso)}));
+  assert.equal(at('2026-10-17T21:59:50Z'), 70, 'ten seconds before CEST midnight');
+  assert.equal(at('2026-10-17T22:00:30Z'), 86400 + 30, 'just after midnight: the whole next day');
+  assert.equal(at('2026-10-24T22:30:00Z'), 24.5 * 3600 + 60, 'the 25-hour day when clocks go back');
+  assert.equal(at('2026-03-28T23:00:00Z'), 23 * 3600 + 60, 'the 23-hour day when clocks go forward');
+});
+
+test('a full term directory is walked completely and still fails closed on transient members', () => {
+  // About 30,000 objects in production: more than the earlier 20,000-object walk cap.
+  const members = Array.from({length: 720}, (_, id) => ({id, memberships: Array.from({length: 12}, (_, n) => ({id: n, organization: {id: n, label: {en: 'Body'}}, period: {start: '2024-07-16', end: null}}))}));
+  const value = {index: {complete: true}, committeeDetails: {complete: true}, directoryCache: {stale: false, refreshInProgress: false, refreshError: null}, members};
+  assert.equal(seconds(policy('/api/directory', value)), 36060);
+  members[719].memberships[11].organization.refreshInProgress = true;
+  assert.equal(policy('/api/directory', value).cdnCacheControl, 'no-store');
+  const dense = {index: {complete: true}, members: Array.from({length: 260_000}, () => ({}))};
+  assert.equal(policy('/api/directory', dense).cdnCacheControl, 'no-store', 'unexpectedly dense envelopes still fail closed');
 });
 
 test('only established positive speech and document reads use a day; unanswered questions remain mutable', () => {
@@ -84,7 +104,7 @@ test('flat transport preserves the finite cache allowlist and excludes retired n
       'speech-words', 'procedure-context', 'group-voices'].map(view => 'insights/' + view)];
   for (const suffix of paths) {
     const payload = {index: {complete: true}, xml: '<speech>Retained text</speech>'};
-    const expected = suffix==='insights/legislation'?60:/^(activities|speeches|latest-activities)\//.test(suffix) ? 3600 : 21600;
+    const expected = suffix==='insights/legislation'?60:suffix==='directory'?36060:/^(activities|speeches|latest-activities)\//.test(suffix) ? 3600 : 21600;
     assert.equal(seconds(policy('/api/' + suffix, payload)), expected, suffix);
     for (const prefix of ['/api/poc/', '/api/explorer/']) {
       assert.deepEqual(policy(prefix + suffix, payload), {cacheControl: 'no-store', cdnCacheControl: 'no-store'}, prefix + suffix);
