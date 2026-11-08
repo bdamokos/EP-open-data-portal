@@ -30,10 +30,10 @@ const names={AT:'Austria',BE:'Belgium',CZ:'Czechia',DE:'Germany',EL:'Greece',IE:
 const nameOf=code=>names[code];
 // From DEC-198357 (adopted 434 to 203) plus two made-up edge rows: a 1–1 split and an abstain-only delegation.
 const sample=[tally('AT',12,6,0),tally('BE',15,3,4),tally('CZ',5,15,0),tally('EL',10,3,7),tally('IE',9,0,1),tally('LU',5,0,0),tally('MT',0,4,1),tally('SK',1,1,0),tally('DE',0,0,2)];
-test('the share leaves abstentions out and a split or abstain-only country sits between the sides',()=>{
+test('the share leaves abstentions out; a split sits between the sides and abstentions alone are abstaining',()=>{
   assert.equal(winningShare({for:10,against:3,abstaining:7},'for'),10/13,'abstentions do not count, as in Parliament');
   assert.equal(winningShare({for:0,against:0,abstaining:2},'for'),null);
-  assert.deepEqual(['EL','MT','SK','DE'].map(code=>countrySide(sample.find(row=>row.country===code).counts,'for')),['win','lose','split','split']);
+  assert.deepEqual(['EL','MT','SK','DE'].map(code=>countrySide(sample.find(row=>row.country===code).counts,'for')),['win','lose','split','abstain']);
   assert.equal(countrySide({for:3,against:1,abstaining:0},'against'),'lose','the side follows the outcome');
 });
 test('by default the winning side leads, with the rule where the majority turns',()=>{
@@ -121,4 +121,15 @@ test('a press picks the closest mark within reach',()=>{
   const dot=dots[40];
   assert.equal(nearestDot(dots,dot.x+dotRadius,dot.y,dotRadius*1.2)?.index,40);
   assert.equal(nearestDot(dots,dot.x+500,dot.y+500,10),null);
+});
+test('a country where abstentions outnumber both sides is a block of its own, after the splits',()=>{
+  const rows=[tally('AT',6,2,0),tally('BG',2,1,5),tally('HR',1,0,3),tally('PT',3,0,3),tally('SK',2,2,1),tally('LV',0,1,4),tally('CZ',1,5,0)];
+  const names2={AT:'Austria',BG:'Bulgaria',HR:'Croatia',PT:'Portugal',SK:'Slovakia',LV:'Latvia',CZ:'Czechia'};
+  assert.equal(countrySide({for:2,against:1,abstaining:5},'for'),'abstain','even with more for than against');
+  assert.equal(countrySide({for:3,against:0,abstaining:3},'for'),'win','a tie with the larger side is not abstaining');
+  assert.equal(countrySide({for:0,against:0,abstaining:2},'against'),'abstain');
+  const ordered=orderCountries(rows,decodeCountryOrder(''),{winning:'for',nameOf:code=>names2[code],locale:'en'});
+  assert.deepEqual(ordered.map(row=>row.country),['AT','PT','SK','LV','HR','BG','CZ'],'winning side, split, abstaining by abstention share (80%, 75%, 63%), the other side');
+  assert.equal(sideTurn(ordered,'for'),2,'the rule stays after the last country with a majority for the winning side');
+  assert.deepEqual(orderCountries(rows,decodeCountryOrder('share-rev'),{winning:'for',nameOf:code=>names2[code],locale:'en'}).map(row=>row.country),['CZ','BG','HR','LV','SK','PT','AT'],'reversed runs the same blocks backwards');
 });

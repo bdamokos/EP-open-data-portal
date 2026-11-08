@@ -40,17 +40,20 @@ export function winningShare(counts,winning) {
   const decided=counts.for+counts.against;
   return decided?counts[winning]/decided:null;
 }
-// 'win': more of the country's ballots for the winning side than against it; 'lose': the other way;
-// 'split': as many on each side, or abstentions only.
+// 'abstain': abstentions outnumber both For and Against, a result of its own (a tie with the larger side is not);
+// otherwise 'win': more of the country's ballots for the winning side than against it; 'lose': the other way;
+// 'split': as many on each side.
 export function countrySide(counts,winning) {
+  if(counts.abstaining>counts.for&&counts.abstaining>counts.against)return 'abstain';
   const share=winningShare(counts,winning);
   return share===null||share===.5?'split':share>.5?'win':'lose';
 }
 const countColumn={for:'for',against:'against',abstain:'abstaining'};
-const sideRank={win:0,split:1,lose:2};
-// The list in the chosen order. Share order groups the countries by side (winning majority, split, the other
-// way), then follows the bars: the winning colour shrinks down to the rule and the other colour grows after it.
-// Ties keep the larger delegation first, then the name A to Z.
+const sideRank={win:0,split:1,abstain:2,lose:3};
+// The list in the chosen order. Share order groups the countries by side (winning majority, split, abstaining,
+// the other way), then follows the bars: the winning colour shrinks down to the rule, abstaining countries run
+// from the largest abstention share, and the other colour grows at the end. Ties keep the larger delegation
+// first, then the name A to Z.
 export function orderCountries(tallies,order,{winning,nameOf,locale}) {
   const byName=(a,b)=>nameOf(a.country).localeCompare(nameOf(b.country),locale)||a.country.localeCompare(b.country);
   const dir=order.reversed?-1:1,losing=winning==='for'?'against':'for';
@@ -58,7 +61,7 @@ export function orderCountries(tallies,order,{winning,nameOf,locale}) {
   const byShare=(a,b)=>{
     const side=countrySide(a.counts,winning);
     return sideRank[side]-sideRank[countrySide(b.counts,winning)]
-      ||(side==='lose'?part(a,losing)-part(b,losing):part(b,winning)-part(a,winning))
+      ||(side==='lose'?part(a,losing)-part(b,losing):side==='abstain'?part(b,'abstaining')-part(a,'abstaining'):part(b,winning)-part(a,winning))
       ||b.ballots-a.ballots;
   };
   const compare=order.key==='name'?(a,b)=>dir*byName(a,b)

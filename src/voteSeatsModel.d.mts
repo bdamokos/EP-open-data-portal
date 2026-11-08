@@ -9,7 +9,7 @@ export const countryOrderKeys:readonly CountryOrderKey[];
 export function decodeCountryOrder(raw:string|null|undefined):CountryOrder;
 export function encodeCountryOrder(order:CountryOrder):string;
 export function winningShare(counts:PositionCounts,winning:'for'|'against'):number|null;
-export function countrySide(counts:PositionCounts,winning:'for'|'against'):'win'|'lose'|'split';
+export function countrySide(counts:PositionCounts,winning:'for'|'against'):'win'|'lose'|'split'|'abstain';
 export function orderCountries(tallies:CountryTally[],order:CountryOrder,options:{winning:'for'|'against';nameOf:(code:string)=>string;locale?:string}):CountryTally[];
 export function sideTurn(ordered:CountryTally[],winning:'for'|'against'):number;
 export type SeatBounds={minX:number;minY:number;maxX:number;maxY:number;width:number;height:number};
