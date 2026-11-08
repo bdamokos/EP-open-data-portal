@@ -1021,7 +1021,7 @@ test('amendment context reuses loaded split ballots and reload restores each exa
       await h.respond(summaryBallot(decision.id,index===0?'for':'against',decision.outcome),{request});
     }
     if(!reload){
-      const now=Date.now();t.mock.method(Date,'now',()=>now+60_000);
+      const clock=installRetryClock(t);clock.pin();clock.jump(60_000);
       await h.click('Read in context');
     }
     const summary=h.container.querySelector('[aria-label="Votes on this amendment"]');assert(summary);

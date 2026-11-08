@@ -142,8 +142,8 @@ test('Following affiliations use exact roster IDs, retain saved titles and omit 
 });
 
 test('navigation checks before Following opens, then waits four hours for a prepared snapshot',async t=>{
- let now=Date.now();t.mock.method(Date,'now',()=>now);
- const h=await harness(t,[member({seen:{activity:5,answer:3}}),member({id:'43',seen:{activity:5,answer:3}}),{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1,baseline:{revision:'one',answerIds:[]},current:{revision:'one',answerIds:[]}}],true);
+ const start=Date.now();
+ const h=await harness(t,[member({seen:{activity:5,answer:3}}),member({id:'43',seen:{activity:5,answer:3}}),{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1,baseline:{revision:'one',answerIds:[]},current:{revision:'one',answerIds:[]}}],true);const clock=installRetryClock(t);clock.pin(start);
  h.setStatus({epoch:'11111111-1111-1111-1111-111111111111',membershipReady:true,groupsReady:true});
  await h.render('en',true,false);await settle();
  assert.equal(h.container.textContent,'Following','total follows are not a notification');
@@ -151,9 +151,9 @@ test('navigation checks before Following opens, then waits four hours for a prep
  assert(!h.requests.some(x=>x.route==='following-member'),'badge checks need no activity details');
  h.setStatus({generation:6});h.setQuestionAnswers([{id:'new-answer'}]);
  const initial=h.requests.filter(x=>x.route==='following-status').length;
- now+=60_000;await h.tick(60_000);await settle();
+ clock.jump(60_000);await h.tick(60_000);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,initial,'prepared data is not polled every minute');
- now+=4*60*60_000-60_000;await h.tick(4*60*60_000-60_000);await settle();
+ clock.jump(4*60*60_000-60_000);await h.tick(4*60*60_000-60_000);await settle();
  assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'3 new');
  assert.equal(h.container.querySelector('.explorer-saved-count').title,'3 followed items have new updates');
  assert(!h.container.querySelector('.explorer-saved-view'));
@@ -161,16 +161,16 @@ test('navigation checks before Following opens, then waits four hours for a prep
  const count=h.requests.filter(x=>x.route==='following-status').length;
  await act(async()=>h.window.dispatchEvent(new h.window.Event('focus')));
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count,'focus shares the polling throttle');
- await h.clear();now+=4*60*60_000;await h.tick(4*60*60_000);
+ await h.clear();clock.jump(4*60*60_000);await h.tick(4*60*60_000);
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count,'unmount cleans up polling');
 });
 test('background polling waits while hidden and refreshes on returning without opening Following',async t=>{
- let now=Date.now();t.mock.method(Date,'now',()=>now);
- const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ const start=Date.now();
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);const clock=installRetryClock(t);clock.pin(start);
  await h.render('en',false,false);await settle();
  const count=h.requests.filter(x=>x.route==='following-status').length;
  Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
- h.setStatus({generation:6});now+=4*60*60_000;await h.tick(4*60*60_000);
+ h.setStatus({generation:6});clock.jump(4*60*60_000);await h.tick(4*60*60_000);
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
  Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
  await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
@@ -178,25 +178,25 @@ test('background polling waits while hidden and refreshes on returning without o
  assert.equal(h.container.querySelector('.explorer-saved-count').title,'1 followed item has new updates');
 });
 test('unprepared data retries until ready and then backs off; a failed manifest retries sooner',async t=>{
- let now=Date.now();t.mock.method(Date,'now',()=>now);
- const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ const start=Date.now();
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);const clock=installRetryClock(t);clock.pin(start);
  h.setStatus({marksReady:false});await h.render('en',false,false);await settle();
  assert(!h.requests.some(x=>x.route==='following-manifest'));
  h.setStatus({marksReady:true,generation:6});h.fail('following-manifest');
- now+=60_000;await h.tick(60_000);await settle();
+ clock.jump(60_000);await h.tick(60_000);await settle();
  assert.equal(h.controls.savedStore.snapshot().checkState,'error');
  h.fail('');await automaticRecovery(t);await settle();
  assert.equal(h.controls.savedStore.snapshot().checkState,'available');
  assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
  const count=h.requests.filter(x=>x.route==='following-status').length;
- now+=60_000;await h.tick(60_000);await settle();
+ clock.jump(60_000);await h.tick(60_000);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
 });
 test('a manual failure replaces the prepared deadline with a one-minute retry',async t=>{
- let now=Date.now();t.mock.method(Date,'now',()=>now);
- const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ const start=Date.now();
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);const clock=installRetryClock(t);clock.pin(start);
  await h.render('en',false,false);await settle();
- now+=120_000;h.fail('following-status');await h.background(true);
+ clock.jump(120_000);h.fail('following-status');await h.background(true);
  assert.equal(h.controls.savedStore.snapshot().checkState,'error');
  const count=h.requests.filter(x=>x.route==='following-status').length;
  h.fail('');h.setStatus({generation:6});await automaticRecovery(t);await settle();
@@ -204,10 +204,10 @@ test('a manual failure replaces the prepared deadline with a one-minute retry',a
  assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
 });
 test('question-only status failures recover on schedule despite a cached prepared status',async t=>{
- let now=Date.now();t.mock.method(Date,'now',()=>now);
- const h=await harness(t,[{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1,baseline:{revision:'one',answerIds:[]},current:{revision:'one',answerIds:[]}}],true);
+ const start=Date.now();
+ const h=await harness(t,[{kind:'question',id:'E-10-2026-003031',title:'Question',savedAt:1,baseline:{revision:'one',answerIds:[]},current:{revision:'one',answerIds:[]}}],true);const clock=installRetryClock(t);clock.pin(start);
  await h.render('en',false,false);await settle();h.fail('following-status');
- now+=4*60*60_000;await h.tick(4*60*60_000);await settle();
+ clock.jump(4*60*60_000);await h.tick(4*60*60_000);await settle();
  assert.equal(h.controls.savedStore.snapshot().questionCheckState,'available');
  const count=h.requests.filter(x=>x.route==='following-status').length;
  h.fail('');h.setStatus({generation:6});h.setQuestionAnswers([{id:'new-answer'}]);
@@ -216,22 +216,22 @@ test('question-only status failures recover on schedule despite a cached prepare
  assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
 });
 test('membership and group snapshots must be prepared before checks back off',async t=>{
- let now=Date.now();t.mock.method(Date,'now',()=>now);
- const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ const start=Date.now();
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);const clock=installRetryClock(t);clock.pin(start);
  h.setStatus({epoch:'11111111-1111-1111-1111-111111111111',membershipReady:false,groupsReady:false});
  await h.render('en',false,false);await settle();
- h.setStatus({membershipReady:true});now+=60_000;await h.tick(60_000);await settle();
+ h.setStatus({membershipReady:true});clock.jump(60_000);await h.tick(60_000);await settle();
  assert(h.requests.some(x=>x.route==='following-membership'));
  assert(!h.requests.some(x=>x.route==='following-groups'));
- h.setStatus({groupsReady:true});now+=60_000;await h.tick(60_000);await settle();
+ h.setStatus({groupsReady:true});clock.jump(60_000);await h.tick(60_000);await settle();
  assert(h.requests.some(x=>x.route==='following-groups'));
  const count=h.requests.filter(x=>x.route==='following-status').length;
- now+=60_000;await h.tick(60_000);await settle();
+ clock.jump(60_000);await h.tick(60_000);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-status').length,count);
 });
 test('hidden follow and language changes receive their pending initial check on visibility',async t=>{
- let now=Date.now();t.mock.method(Date,'now',()=>now);
- const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);
+ const start=Date.now();
+ const h=await harness(t,[member({seen:{activity:5,answer:3}})],true);const clock=installRetryClock(t);clock.pin(start);
  await h.render('en',false,false);await settle();
  Object.defineProperty(h.window.document,'visibilityState',{value:'hidden',configurable:true});
  const stored=JSON.parse(h.window.localStorage.getItem('ep.following.v2'));
@@ -240,7 +240,7 @@ test('hidden follow and language changes receive their pending initial check on 
    h.window.localStorage.setItem('ep.following.v2',JSON.stringify(stored));
    h.window.dispatchEvent(new h.window.StorageEvent('storage',{key:'ep.following.v2'}));
  });
- await h.render('fr',false,false);now+=120_000;await h.tick(120_000);
+ await h.render('fr',false,false);clock.jump(120_000);await h.tick(120_000);
  assert(!h.requests.some(x=>x.route==='saved'),'no hidden request');
  Object.defineProperty(h.window.document,'visibilityState',{value:'visible',configurable:true});
  await act(async()=>h.window.document.dispatchEvent(new h.window.Event('visibilitychange')));await settle();
@@ -292,14 +292,14 @@ test('a queued language change waits for visibility before starting its request'
  assert.deepEqual(languages(),['en','fr']);
 });
 test('failed initial checks and follows without a save timestamp retain the normal deadlines',async t=>{
- let now=Date.now();t.mock.method(Date,'now',()=>now);
- const h=await harness(t,[member({savedAt:undefined,seen:{activity:5,answer:3}})],true);
+ const start=Date.now();
+ const h=await harness(t,[member({savedAt:undefined,seen:{activity:5,answer:3}})],true);const clock=installRetryClock(t);clock.pin(start);
  h.fail('following-status');await h.render('en',false,false);await settle();
  const count=()=>h.requests.filter(x=>x.route==='following-status').length;
- assert.equal(count(),1);now+=1000;await h.tick(1000);await settle();assert.equal(count(),1);
+ assert.equal(count(),1);clock.jump(1000);await h.tick(1000);await settle();assert.equal(count(),1);
  h.fail('');await automaticRecovery(t);await settle();assert.equal(count(),2);
  const manifests=h.requests.filter(x=>x.route==='following-manifest').length;
- now+=1000;await h.tick(1000);await settle();
+ clock.jump(1000);await h.tick(1000);await settle();
  assert.equal(h.requests.filter(x=>x.route==='following-manifest').length,manifests);
 });
 
@@ -319,13 +319,13 @@ test('Profile marks nothing; modified and middle clicks preserve href and mark o
  const other=rows(cards(h)[1])[0];const middle=await dispatch(h,other,{button:1},'auxclick');assert.equal(middle.defaultPrevented,false);assert(Number.isFinite(h.controls.savedStore.snapshot().items[1].entries[0].readAt));
 });
 test('one expiry timer drops the badge and moves expired entries to Earlier updates without a storage write',async t=>{
- let now=Date.now();t.mock.method(Date,'now',()=>now);
- const entry={...speech,discoveredAt:now-86_400_000+1500,readAt:null};
- const h=await harness(t,[member({seen:{activity:6,answer:3},entries:[entry]})],true);await h.render();assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ const start=Date.now();
+ const entry={...speech,discoveredAt:Date.now()-86_400_000+1500,readAt:null};
+ const h=await harness(t,[member({seen:{activity:6,answer:3},entries:[entry]})],true);const clock=installRetryClock(t);clock.pin(start);await h.render();assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
  const before=h.window.localStorage.getItem('ep.following.v2');
- now+=1499;await h.tick(1499);assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
+ clock.jump(1499);await h.tick(1499);assert.equal(h.container.querySelector('.explorer-saved-count').textContent,'1 new');
  assert.equal(h.window.localStorage.getItem('ep.following.v2'),before);
- now+=1;await h.tick(1);
+ clock.jump(1);await h.tick(1);
  assert(!h.container.querySelector('.explorer-saved-count'));assert.equal(cards(h)[0].querySelector('summary').textContent,'Earlier updates (1)');assert(!cards(h)[0].querySelector('.explorer-saved-new'));assert.equal(h.window.localStorage.getItem('ep.following.v2'),before);
 });
 test('history shows five expandable entries and a full-profile link; Mark all read retains recent history',async t=>{
@@ -517,7 +517,7 @@ for(const status of [404,429])test('member resolution foreground events honour f
  if(status===429){const timer=[...installRetryClock(t).timers.values()][0];assert(timer);}
  // Move the legacy one-minute throttle without firing policy timers. Neither
  // event may bypass a permanent failure or an advertised server deadline.
- const now=Date.now;t.mock.method(Date,'now',()=>now()+60_001);
+ installRetryClock(t).jump(60_001);
  await act(async()=>{h.window.dispatchEvent(new h.window.Event('focus'));h.window.document.dispatchEvent(new h.window.Event('visibilitychange'));});await settle();
  assert.equal(count(),before);assert.equal(cards(h)[0].querySelector('[role=alert] button'),null);
 });
