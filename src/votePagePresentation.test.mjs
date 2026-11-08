@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {agendaItemHref,agendaVoteRedirect,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,itemVoteSections,longDate,memberBackHref,memberVoteLine,membersByGroup,shortDate,dayDate,voteAmendmentWording,voteCentre,voteHref,voteOutcomeWord,voteProvision,voteRowLabel,voteSentence,voteSteps,wayLine,placeOperation,placeRedline,REDLINE_MIN_SIMILARITY} from './votePagePresentation.mjs';
+import {agendaItemHref,agendaVoteRedirect,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,itemVoteSections,longDate,countryStory,memberBackHref,memberVoteLine,membersByGroup,shortDate,dayDate,voteAmendmentWording,voteCentre,voteHref,voteOutcomeWord,voteProvision,voteRowLabel,voteSentence,voteSteps,wayLine,placeOperation,placeRedline,REDLINE_MIN_SIMILARITY} from './votePagePresentation.mjs';
 import {splitVoteRequests} from './memberVotesPresentation.mjs';
 import {readExplorerParam,explorerParams} from './explorerQuery.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -177,7 +177,7 @@ const lineData=(fields={})=>({integrity:'complete',noRecord:{ids:['absent'],grou
 const row=(id,group,position,country='MT')=>({id,name:id,group,position,country});
 const voters=[row('a','PPE','against'),row('b','PPE','for'),row('c','PPE','for'),row('d','S&D','for'),row('e','S&D','against'),row('n','NI','against','GR'),row('g','NI','for','EL'),row('x','NI','for','EL'),row('u','unavailable','for','DE'),row('l','ESN','for','DE'),row('q','ECR','abstaining',null),row('r','ECR','for','IE'),row('s','ECR','for','IE'),row('t','ECR','for','IE')];
 test('a member line states position, group, outcome and country from the reply alone',()=>{
- assert.deepEqual(memberVoteLine(lineData(),voters,'a'),{state:'voted',position:'against',id:'votepage.member.voted.differs.differs',group:'PPE',country:{code:'MT',count:2,total:5}});
+ assert.deepEqual(memberVoteLine(lineData(),voters,'a'),{state:'voted',position:'against',id:'votepage.member.voted.differs.differs',group:'PPE',country:null},'Malta splits 3 to 2: no story');
  assert.equal(memberVoteLine(lineData(),voters,'b').id,'votepage.member.voted.with.with');
  assert.equal(memberVoteLine(lineData({decision:{outcome:'REJECTED',ballotStatus:'conducted'}}),voters,'b').id,'votepage.member.voted.with.differs');
  assert.equal(memberVoteLine(lineData({decision:{outcome:'REJECTED',ballotStatus:'conducted'}}),voters,'a').id,'votepage.member.voted.differs.with');
@@ -194,15 +194,16 @@ test('a member line states position, group, outcome and country from the reply a
 test('an abstention is neither with nor against the outcome',()=>{
  const line=memberVoteLine(lineData(),voters,'q');
  assert.equal(line.id,'votepage.member.abstained.differs');
- assert.equal(line.country,null,'country unknown: no count');
+ assert.equal(line.country,null,'country unknown: no sentence');
  assert.equal(memberVoteLine(lineData(),[row('z','PPE','abstaining'),row('y','PPE','abstaining')],'z').id,'votepage.member.abstained.with');
  assert.equal(memberVoteLine(lineData(),[row('z','NI','abstaining')],'z').id,'votepage.member.abstained.none');
 });
-test('the country count needs two other voters and matches GR with EL',()=>{
- assert.deepEqual(memberVoteLine(lineData(),voters,'n').country,{code:'EL',count:1,total:3});
- assert.deepEqual(memberVoteLine(lineData(),voters,'g').country,{code:'EL',count:2,total:3});
- assert.equal(memberVoteLine(lineData(),voters,'u').country,null,'one other voter is not enough');
- assert.deepEqual(memberVoteLine(lineData(),voters,'r').country,{code:'IE',count:3,total:3});
+test('a member line carries the country story when there is one',()=>{
+ assert.equal(memberVoteLine(lineData(),voters,'r').country,null,'the Irish ECR voters voted with the ECR');
+ const broke=[...voters.filter(row=>row.group!=='ECR'),row('q','ECR','abstaining','FR'),row('w','ECR','abstaining','FR'),row('r','ECR','for','IE'),row('s','ECR','for','IE'),row('t','ECR','for','IE'),row('v','ECR','abstaining','FR'),row('z','ECR','abstaining','FR')];
+ assert.deepEqual(memberVoteLine(lineData(),broke,'r').country,{kind:'delegation',all:true,position:'for',count:3,total:3,code:'IE',group:'ECR'},'the Irish ECR voters broke with the ECR\'s abstention');
+ assert.equal(memberVoteLine(lineData(),voters,'g').country,null,'NI in Greece: no group line, and 2 of 3 is under 75%');
+ assert.equal(memberVoteLine(lineData({integrity:'partial',noRecord:null}),voters,'r').country,null,'an incomplete list supports no country sentence');
 });
 test('records that cannot support a line give less or none, never a zero',()=>{
  const partial=memberVoteLine(lineData({integrity:'partial',noRecord:null}),voters,'a');
@@ -220,7 +221,7 @@ test('every member-line message exists in all 24 catalogues with the same slots'
  const {readFile}=await import('node:fs/promises');
  const read=async name=>JSON.parse(await readFile(new URL('./ui-locales/'+name+'.json',import.meta.url),'utf8'));
  const clauses=['differs','with','none'];
- const ids=['votepage.member.no_record','votepage.member.country','votepage.member.country.one',...clauses.flatMap(group=>[...clauses.map(outcome=>'votepage.member.voted.'+group+'.'+outcome),'votepage.member.abstained.'+group])];
+ const ids=['votepage.member.no_record',...['votepage.country.delegation.both.for','votepage.country.delegation.both.against','votepage.country.delegation.both.abstaining'],...['delegation','country'].flatMap(kind=>['all','most'].flatMap(size=>['for','against','abstaining'].map(position=>'votepage.country.'+kind+'.'+size+'.'+position))),...clauses.flatMap(group=>[...clauses.map(outcome=>'votepage.member.voted.'+group+'.'+outcome),'votepage.member.abstained.'+group])];
  const slots=text=>[...text.matchAll(/\{(\w+)\}/g)].map(match=>match[1]).sort();
  const english=await read('en');
  for(const language of 'en bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ')) {
@@ -283,6 +284,52 @@ test('a vote maps to a provision only from its exact reference and one document'
  assert.equal(voteProvision(vote({title:null,context:{documentIds:[joint],amendmentIds:[]}})).documentId,joint,'its own one document needs no title');
  assert.equal(voteProvision(vote({title:null,context:{documentIds:[],amendmentIds:[]}})),null,'a vote with no document of its own has no text');
  assert.equal(voteProvision(vote({title:null,context:{documentIds:['PV-10-2026-03-11-RCV-ITM-016'],amendmentIds:[]}})),null);
+});
+const people=(prefix,group,country,list)=>list.map((position,index)=>({id:prefix+index,name:prefix+index,group,country,position}));
+test('a national delegation that broke with its group is the story, at 75% and from 2 voters',()=>{
+ const epp=[...people('e','PPE','DE',Array(10).fill('for')),...people('m','PPE','MT',['against','against','against'])];
+ assert.deepEqual(countryStory(epp,epp.find(row=>row.id==='m0')),{kind:'delegation',all:true,position:'against',count:3,total:3,code:'MT',group:'PPE'});
+ const most=[...people('e','PPE','DE',Array(10).fill('for')),...people('p','PPE','PL',['against','against','against','for'])];
+ assert.deepEqual(countryStory(most,most.find(row=>row.id==='p3')),{kind:'delegation',all:false,position:'against',count:3,total:4,code:'PL',group:'PPE'},'the member need not be in the lead');
+ const split=[...people('e','PPE','DE',Array(10).fill('for')),...people('p','PPE','PL',['against','against','for','for'])];
+ assert.equal(countryStory(split,split.find(row=>row.id==='p0')),null,'half and half is no story');
+ const alone=[...people('e','PPE','DE',Array(10).fill('for')),...people('m','PPE','MT',['against'])];
+ assert.equal(countryStory(alone,alone.at(-1)),null,'one voter is no delegation');
+ const loyal=[...people('e','PPE','DE',Array(10).fill('for')),...people('m','PPE','MT',['for','for'])];
+ assert.equal(countryStory(loyal,loyal.at(-1)),null,'with the group is no story');
+ const ni=[...people('n','NI','HU',['for','for','for']),...people('x','NI','DE',['against','against','against','against'])];
+ assert.equal(countryStory(ni,ni[0]),null,'NI has no group line to break with');
+});
+test('a country voting together across groups whose lines differ is the story',()=>{
+ const rows=[...people('a','PPE','DE',Array(6).fill('for')),...people('b','S&D','DE',Array(6).fill('against')),...people('p','PPE','PL',Array(5).fill('for')),...people('q','S&D','PL',['for','for','for','for','against'])];
+ assert.deepEqual(countryStory(rows,rows.find(row=>row.id==='q0')),{kind:'delegation',all:false,position:'for',count:4,total:5,code:'PL',group:'S&D'},'4 of 5 Polish S&D voters is 80%: the delegation comes first');
+ assert.deepEqual(countryStory(rows,rows.find(row=>row.id==='p0')),{kind:'country',all:false,position:'for',count:9,total:10,code:'PL',group:null},'for a Polish EPP voter, who voted with the EPP, the country is the story');
+ const together=[...people('a','PPE','DE',Array(6).fill('for')),...people('b','S&D','DE',Array(6).fill('against')),...people('p','PPE','PL',Array(5).fill('for')),...people('q','S&D','PL',Array(4).fill('for'))];
+ const story=countryStory(together,together.find(row=>row.id==='p0'));
+ assert.deepEqual(story,{kind:'country',all:true,position:'for',count:9,total:9,code:'PL',group:null});
+ const sameLine=[...people('a','PPE','DE',Array(6).fill('for')),...people('b','Renew','DE',Array(6).fill('for')),...people('p','PPE','PL',Array(3).fill('for')),...people('q','Renew','PL',Array(3).fill('for'))];
+ assert.equal(countryStory(sameLine,sameLine.find(row=>row.id==='p0')),null,'groups that agree tell nothing about the country');
+ const lopsided=[...people('a','PPE','DE',Array(20).fill('for')),...people('b','S&D','DE',Array(20).fill('for')),...people('c','ESN','DE',Array(10).fill('against')),...people('d','ESN','FR',Array(4).fill('against')),...people('e','PPE','FR',Array(3).fill('for'))];
+ assert.equal(countryStory(lopsided,lopsided[0]),null,'Germany is 80% for only because its groups were: its ESN voters stayed with the ESN');
+ const one=[...lopsided.slice(0,49),{...lopsided[49],position:'for'}];
+ assert.equal(countryStory(one,one[0]),null,'one ESN voter crossing is not the country voting together');
+ const small=[...people('a','PPE','DE',Array(6).fill('for')),...people('b','S&D','DE',Array(6).fill('against')),...people('c','PPE','CY',['for']),...people('d','S&D','CY',['for'])];
+ assert.equal(countryStory(small,small.find(row=>row.id==='c0')),null,'two voters are too few for a country');
+ const greece=[...people('a','PPE','DE',Array(6).fill('for')),...people('b','S&D','DE',Array(6).fill('against')),...people('g','PPE','GR',['for','for']),...people('h','S&D','EL',['for','for'])];
+ assert.equal(countryStory(greece,greece.find(row=>row.id==='g0')).total,4,'GR and EL are one country');
+});
+test('voting with the country must be at least half of those whose group went the other way',()=>{
+ // Polish EPP voters vote with the EPP, so the delegation rule stays silent for p0 and the country rule decides.
+ const base=[...people('a','PPE','DE',Array(10).fill('for')),...people('b','S&D','DE',Array(10).fill('against')),...people('p','PPE','PL',Array(10).fill('for'))];
+ const fewer=[...base,...people('q','S&D','PL',['for','for','against','against','against'])];
+ assert.equal(countryStory(fewer,fewer.find(row=>row.id==='p0')),null,'Poland is 12 of 15 for, but only 2 of its 5 S&D voters crossed the S&D line');
+ const half=[...base,...people('q','S&D','PL',['for','for','against','against'])];
+ assert.deepEqual(countryStory(half,half.find(row=>row.id==='p0')),{kind:'country',all:false,position:'for',count:12,total:14,code:'PL',group:null},'2 of 4 crossing is exactly half');
+});
+test('the delegation test wins over the country test',()=>{
+ const rows=[...people('a','PPE','DE',Array(6).fill('for')),...people('b','S&D','DE',Array(6).fill('for')),...people('c','ECR','DE',Array(6).fill('against')),...people('m','PPE','MT',['against','against']),...people('n','ECR','MT',['against'])];
+ assert.equal(countryStory(rows,rows.find(row=>row.id==='m0')).kind,'delegation');
+ assert.equal(countryStory(rows,rows.find(row=>row.id==='n0')).kind,'country','the ECR Maltese voted with their group, but Malta voted together across groups');
 });
 test('In its place says what the amendment does only for operations the placement knows',()=>{
   assert.equal(placeOperation('replace'),'votepage.place.op.replace');

@@ -17,6 +17,7 @@ import {InItsPlace,VoteText} from './VoteAmendmentText';
 import {VoteMark} from './VoteMark';
 import {TallyHeads,TallyNumbers,TotalFigure,TotalsFigures,VoteRow} from './VoteRow';
 import {groupLabel,groupLabelLanguage} from './groupLabels';
+import {groupShortLabel} from './groupShort';
 import {voteCountryName as countryName} from './voteCountryName';
 import {filterCountry,matchesCountry} from './countries.mjs';
 import {delegationsDiffering} from './voteGroupMetrics.mjs';
@@ -94,7 +95,7 @@ function DifferBlock({entries,language}:{entries:ReturnType<typeof differingByGr
 function MemberLine({line,name,language}:{line:MemberVoteLine;name:string;language:string}) {
   const ui=useUiI18n(),who=<span lang="">{name}</span>;
   if(line.state==='no_record')return <p className="member-line"><UiMessage id="votepage.member.no_record" values={{name:who}}/></p>;
-  return <p className="member-line"><VoteMark position={line.position}/><b><UiMessage id={line.id} values={{name:who,...(line.position==='abstaining'?{}:{position:ui.t('votepage.member.position.'+line.position)}),...(line.group?{group:<span lang={groupLabelLanguage(line.group,ui)}>{groupName(line.group,ui)}</span>}:{})}}/></b>{line.country&&<> <UiMessage id="votepage.member.country" values={{count:line.country.count,total:line.country.total,country:<span lang={language}>{countryName(line.country.code,language)}</span>}} counts={{count:line.country.count}}/></>}</p>;
+  return <p className="member-line"><VoteMark position={line.position}/><b><UiMessage id={line.id} values={{name:who,...(line.position==='abstaining'?{}:{position:ui.t('votepage.member.position.'+line.position)}),...(line.group?{group:<span lang={groupLabelLanguage(line.group,ui)}>{groupName(line.group,ui)}</span>}:{})}}/></b>{line.country&&<> <UiMessage id={'votepage.country.'+line.country.kind+'.'+(!line.country.all?'most':line.country.kind==='delegation'&&line.country.total===2?'both':'all')+'.'+line.country.position} values={{count:line.country.count,total:line.country.total,country:<span lang={language}>{countryName(line.country.code,language)}</span>,...(line.country.group?{group:<span lang={groupLabelLanguage(line.country.group,ui)}>{groupShortLabel(line.country.group,ui)}</span>}:{})}}/></>}</p>;
 }
 // Every vote on the item, complete, main vote first. The agenda item uses the same rows.
 export function ItemVotes({votes,current,mainVoteId,language,mainByLabel=false,member=null}:{votes:DecisionItemVote[];current?:string;mainVoteId:string|null;language:string;mainByLabel?:boolean;member?:string|null}) {
