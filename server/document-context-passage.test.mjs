@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {documentPassageQuery,documentPassageReply,documentProvisionQuery,documentProvisionReply,wantsDocumentPassage,wantsDocumentProvision} from './document-context-passage.mjs';
+import {partOfProvision,documentPassageQuery,documentPassageReply,documentProvisionQuery,documentProvisionReply,wantsDocumentPassage,wantsDocumentProvision} from './document-context-passage.mjs';
 import {DOCUMENT_CONTEXT_VERSION} from './document-context.mjs';
 
 const documentId='A-10-2026-0257',amendment=documentId+'-AM-4';
@@ -91,5 +91,17 @@ test('a citation counts from the opening, so any doubt before it means no text',
   assert.equal(reply(motionText(undashed),'citation:2'),null,'a row the count skips shifts what follows');
   assert.equal(reply(incomplete(5),'citation:1'),'having regard to the first,','an incomplete paragraph 1 does not hide citation 1');
   assert.equal(reply(incomplete(5),'paragraph:1'),null);
+});
+test('a splice inside a paragraph is part of the provision; one from its number to its end is all of it',()=>{
+  const texts=['21.\tStresses that unanimity remains a principle; calls for reform.  '];
+  const splice=(start,end)=>({start:{paragraph:0,offset:start},end:{paragraph:0,offset:end}});
+  assert.equal(partOfProvision({operation:'replace',splice:splice(0,texts[0].length)},texts),false);
+  assert.equal(partOfProvision({operation:'replace',splice:splice(4,texts[0].trimEnd().length)},texts),false,'after the number is still the whole text');
+  assert.equal(partOfProvision({operation:'replace',splice:splice(4,40)},texts),true);
+  assert.equal(partOfProvision({operation:'delete',splice:splice(20,texts[0].length)},texts),true);
+  assert.equal(partOfProvision({operation:'insert',splice:splice(20,20)},texts),false);
+  assert.equal(partOfProvision({operation:'replace'},texts),false,'no splice: the placement covers whole paragraphs');
+  const reply=documentPassageReply(context({placement:{operation:'replace',status:'placed',itemIndex:0,span:{start:1,end:1},splice:{start:{paragraph:1,offset:6},end:{paragraph:1,offset:7}},originalText:'(2)\tTwo',evidence:[]}}));
+  assert.equal(reply.passage.part,true);
 });
 

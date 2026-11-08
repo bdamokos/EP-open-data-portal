@@ -5,6 +5,7 @@ import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import {groupMajorities} from './voteGroupMetrics.mjs';
 import {amendmentNumber as readAmendmentNumber} from './readRoute.mjs';
 import {stripNumberPrefix} from './splitRuns.mjs';
+import {textDiff} from './textDiff.mjs';
 
 const withoutNames=new Set(['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']);
 const positions=['for','against','abstaining'];
@@ -246,4 +247,18 @@ export function voteAmendmentWording(variants,vote,ui=defaultUi) {
   if(new Set(held.map(variant=>variant.language+'\n'+variant.proposedText)).size>1)return {state:'versions'};
   const variant=held[0],{n}=voteNumbers(vote),fields=provisionFields(variant);
   return {state:'text',language:variant.language||'',text:stripNumberPrefix(variant.proposedText),heading:fields.provision?ui.t('votepage.amendment_provision',{n,provision:fields.provision}):ui.t('votepage.centre.amendment',{n}),...fields};
+}
+/** What an amendment does to its provision, as one sentence for any outcome. Only operations the
+ * placement knows exactly have one. */
+export function placeOperation(operation,part=false) {
+  if(operation==='replace'||operation==='delete')return 'votepage.place.op.'+operation+(part?'_part':'');
+  return operation==='insert'?'votepage.place.op.insert':null;
+}
+// Word marks only where most words stay: below half shared, as in a rewrite, the marks would read as noise.
+export const REDLINE_MIN_SIMILARITY=0.5;
+/** The same token diff the amendment reader marks, or null when the texts don't align well enough. */
+export function placeRedline(original,proposed,language) {
+  if(!original||!proposed)return null;
+  const diff=textDiff(original,proposed,language);
+  return diff.status==='ok'&&diff.similarity>=REDLINE_MIN_SIMILARITY&&diff.segments.some(segment=>segment.type!=='equal')?diff.segments:null;
 }

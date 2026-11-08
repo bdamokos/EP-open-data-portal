@@ -10,12 +10,22 @@ export function documentPassageQuery(id,params) {
   const rest=new URLSearchParams(params);rest.delete('body');
   return documentContextQuery(id,rest);
 }
+// A splice that starts after a paragraph's number or stops before its end changes only part of it.
+export function partOfProvision(placement,texts) {
+  const splice=placement?.splice;
+  if(!['replace','delete'].includes(placement?.operation)||!splice)return false;
+  const first=texts[splice.start.paragraph],last=texts[splice.end.paragraph];
+  if(typeof first!=='string'||typeof last!=='string')return false;
+  const number=/^[^\t]{0,12}\t/u.exec(first)?.[0].length??0;
+  return splice.start.offset>number||splice.end.offset<last.trimEnd().length;
+}
 // The reader's own read runs unchanged, so this placement can't differ from the one it shows.
 export function documentPassageReply(context) {
   const {finalPlacementCheck:_check,...placement}=context.placement||{};
   const item=context.proposal?.items?.[placement.itemIndex??0]?.proposal,text=context.document?.selectedText;
   const placed=placement.status==='placed';
-  const passage=!placed?null:item?proposalPassageRows(item,placement):text?.paragraphs?.length?paragraphPassageRows(placement,{paragraphs:text.paragraphs,tables:text.tables}):null;
+  const rows=!placed?null:item?proposalPassageRows(item,placement):text?.paragraphs?.length?paragraphPassageRows(placement,{paragraphs:text.paragraphs,tables:text.tables}):null;
+  const passage=rows&&{...rows,part:partOfProvision(placement,item?item.paragraphs.map(paragraph=>paragraph.text):text?.paragraphs||[])};
   return {version:DOCUMENT_CONTEXT_VERSION,documentId:context.documentId,requestedLanguage:context.requestedLanguage,baseline:context.baseline?{kind:context.baseline.kind,language:context.baseline.language}:null,placement:context.placement?placement:null,passage};
 }
 

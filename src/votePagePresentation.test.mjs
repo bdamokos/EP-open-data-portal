@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {agendaItemHref,agendaVoteRedirect,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,itemVoteSections,longDate,memberBackHref,memberVoteLine,membersByGroup,shortDate,dayDate,voteAmendmentWording,voteCentre,voteHref,voteOutcomeWord,voteProvision,voteRowLabel,voteSentence,voteSteps,wayLine} from './votePagePresentation.mjs';
+import {agendaItemHref,agendaVoteRedirect,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,itemVoteSections,longDate,memberBackHref,memberVoteLine,membersByGroup,shortDate,dayDate,voteAmendmentWording,voteCentre,voteHref,voteOutcomeWord,voteProvision,voteRowLabel,voteSentence,voteSteps,wayLine,placeOperation,placeRedline,REDLINE_MIN_SIMILARITY} from './votePagePresentation.mjs';
 import {splitVoteRequests} from './memberVotesPresentation.mjs';
 import {readExplorerParam,explorerParams} from './explorerQuery.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -284,3 +284,21 @@ test('a vote maps to a provision only from its exact reference and one document'
  assert.equal(voteProvision(vote({title:null,context:{documentIds:[],amendmentIds:[]}})),null,'a vote with no document of its own has no text');
  assert.equal(voteProvision(vote({title:null,context:{documentIds:['PV-10-2026-03-11-RCV-ITM-016'],amendmentIds:[]}})),null);
 });
+test('In its place says what the amendment does only for operations the placement knows',()=>{
+  assert.equal(placeOperation('replace'),'votepage.place.op.replace');
+  assert.equal(placeOperation('replace',true),'votepage.place.op.replace_part');
+  assert.equal(placeOperation('delete'),'votepage.place.op.delete');
+  assert.equal(placeOperation('delete',true),'votepage.place.op.delete_part');
+  assert.equal(placeOperation('insert',true),'votepage.place.op.insert');
+  for(const operation of [null,undefined,'reject','alternative-motion'])assert.equal(placeOperation(operation),null);
+});
+test('word marks need most words to stay; a rewrite gets none',()=>{
+  const close=placeRedline('The Programme shall support learning mobility.','The Programme shall support learning and mobility.','en');
+  assert.deepEqual(close.filter(segment=>segment.type!=='equal'),[{type:'insert',text:'and '}]);
+  assert.equal(close.map(segment=>segment.type==='insert'?'':segment.text).join(''),'The Programme shall support learning mobility.','the original side is exact');
+  assert.equal(placeRedline('Stresses that unanimity is a core principle; calls for Treaty reform.','Stresses that recourse to it is a legitimate expression of accountability by governments.','en'),null);
+  assert.equal(placeRedline('Same.','Same.','en'),null,'nothing to mark');
+  assert.equal(placeRedline('','New.','en'),null);
+  assert.equal(REDLINE_MIN_SIMILARITY,0.5);
+});
+

@@ -4,7 +4,9 @@ import {useData} from './data';
 import {dossierLinkClick} from './dossierJourney';
 import {selectLanguageText} from './language.mjs';
 import {exactAmendmentTargets,splitVoteRequests} from './memberVotesPresentation.mjs';
-import {voteAmendmentWording,voteHref,voteNumbers,voteProvision,voteReferenceLabel} from './votePagePresentation.mjs';
+import {placeOperation,placeRedline,voteAmendmentWording,voteHref,voteNumbers,voteProvision,voteReferenceLabel} from './votePagePresentation.mjs';
+import {Passage} from './components/WordingDiff';
+import type {TextDiffSegment} from './textDiff.mjs';
 import {publicUrl} from './publicUrl';
 import {readHref} from './readRoute.mjs';
 import {partsInLanguage,splitRuns} from './splitRuns.mjs';
@@ -102,8 +104,12 @@ function NearRow({row,language}:{row:PassageRow;language:string}) {
   const ui=useUiI18n(),[open,setOpen]=useState(false);
   return <div className={open?'verse near open':'verse near'}><span className="gut">{placeLabel(row.label,ui)}</span><p lang={language}><button type="button" className="near-text" aria-expanded={open} onClick={()=>setOpen(!open)}>{row.text}</button></p></div>;
 }
-function Verse({label,kind,language,children}:{label:ReactNode;kind:'old'|'new';language:string;children:ReactNode}) {
-  return <div className={'verse '+kind}><span className="gut">{label}</span><p lang={language}>{children}</p></div>;
+function Verse({label,kind,language,children,struck=false}:{label:ReactNode;kind:'old'|'new'|'gone';language:string;children:ReactNode;struck?:boolean}) {
+  return <div className={'verse '+kind+(struck?' struck':'')}><span className="gut">{label}</span><p lang={language}>{children}</p></div>;
+}
+// The amendment reader's own marks: removed words struck, added words underlined, each named for screen readers.
+function Marked({kind,label,language,segments,side,struck=false}:{kind:'old'|'new'|'gone';label:ReactNode;language:string;segments:TextDiffSegment[];side:'original'|'proposed';struck?:boolean}) {
+  return <div className={'verse '+kind+(struck?' struck':'')}><span className="gut">{label}</span><div className="wording-diff"><Passage language={language} side={side} segments={segments.filter(segment=>segment.type!==(side==='original'?'insert':'delete'))}/></div></div>;
 }
 function Place({context,target}:{context:Context;target:Target}) {
   const ui=useUiI18n(),{vote,siblings,language}=context,{n}=voteNumbers(vote);
@@ -119,12 +125,23 @@ function Place({context,target}:{context:Context;target:Target}) {
   const textLanguage=reply!.baseline?.language||(wording.state==='text'?wording.language:'');
   const adopted=vote.outcome==='ADOPTED'||siblings.some(row=>row.outcome==='ADOPTED'&&row.context.amendmentIds.includes(target.amendmentId));
   const source=<span lang={wording.labelLanguage??''}>{wording.sourceLabel}</span>;
+  const said=placeOperation(operation,Boolean(passage.part)),original=operation!=='insert'?passage.original:null;
+  const proposed=operation!=='delete'&&wording.state==='text'?wording:null;
+  // The marks say what the amendment proposes, whatever the outcome. An adopted replacement also strikes
+  // the original row as a whole, as before; its removed words keep their marks inside it.
+  const marks=original&&proposed&&textLanguage===proposed.language?placeRedline(original.text,proposed.text,proposed.language):null;
+  const originalLabel=<UiMessage id={reply!.baseline?.kind==='commission-proposal'?'votepage.place.commission':'votepage.place.original'} values={{provision:source}}/>;
+  const amendmentLabel=<UiMessage id="votepage.place.amendment" values={{provision:source,n:n??''}}/>;
   return <>
     <h2 className="section" id="place"><UiMessage id="votepage.place.heading" values={{provision:<span lang={wording.labelLanguage??''}>{wording.provision}</span>}}/></h2>
+    {said&&<p className="place-op"><UiMessage id={said} values={{n:n??''}}/></p>}
     <section className={wording.sourceLabel.length>longLabel?'verses long':'verses'}>
       {passage.before&&<NearRow row={passage.before} language={textLanguage}/>}
-      {operation!=='insert'&&passage.original&&<Verse kind="old" language={textLanguage} label={<UiMessage id={reply!.baseline?.kind==='commission-proposal'?'votepage.place.commission':'votepage.place.original'} values={{provision:source}}/>}>{adopted?<del>{passage.original.text}</del>:passage.original.text}</Verse>}
-      {operation!=='delete'&&wording.state==='text'&&<Verse kind="new" language={wording.language} label={<UiMessage id="votepage.place.amendment" values={{provision:source,n:n??''}}/>}>{wording.text}</Verse>}
+      {original&&(operation==='delete'?<Marked kind="gone" language={textLanguage} side="original" segments={[{type:'delete',text:original.text}]} label={<UiMessage id="votepage.place.removed" values={{provision:source,n:n??''}}/>}/>
+        :marks?<Marked kind="old" language={textLanguage} side="original" segments={marks} label={originalLabel} struck={adopted}/>
+        :<Verse kind="old" language={textLanguage} label={originalLabel}>{adopted?<del>{original.text}</del>:original.text}</Verse>)}
+      {proposed&&(marks?<Marked kind="new" language={proposed.language} side="proposed" segments={marks} label={amendmentLabel}/>
+        :<Verse kind="new" language={proposed.language} label={operation==='insert'?<UiMessage id="votepage.place.new" values={{n:n??''}}/>:amendmentLabel}>{proposed.text}</Verse>)}
       {passage.after&&<NearRow row={passage.after} language={textLanguage}/>}
     </section>
     <p className="place-more"><a className="c" href={publicUrl(readHref({documentId:target.documentId,amendmentId:target.amendmentId,language}))} onClick={dossierLinkClick}><UiMessage id="votepage.place.read_full"/></a></p>

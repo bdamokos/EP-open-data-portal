@@ -71,6 +71,8 @@ test('a part page marks its words, keys both parts, shows the amendment in its p
  assert.equal(key[1],'Part 2: those words. Adopted by 2 to 1, with 1 abstaining. This vote.');
  assert.match(clause.querySelector('.clause-part a').getAttribute('href'),/pl-vote=MTG-PL-2026-10-07-DEC-8/,'the other part links to its vote');
  assert.equal(text(h.container.querySelector('h2.section')),'In its place: recital 3');
+ assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: new wording for the whole provision.');
+ assert.equal(h.container.querySelector('.verse ins'),null,'a rewrite shows both texts whole, unmarked');
  const rows=[...h.container.querySelectorAll('.verse')].map(row=>[text(row.querySelector('.gut')),text(row.querySelector('p'))]);
  assert.deepEqual(rows,[['Recital 2','The recital before.'],['Recital 3, Commission','The old text.'],['Recital 3, amendment 114','The words before bracketed words and after.'],['(a)','The point after.']]);
  assert(h.container.querySelector('.verse.old del'),'struck: the part was adopted');
@@ -100,27 +102,50 @@ test('the wrong language or shape falls back to the full text and published desc
 test('In its place follows the operation, and a failed placement is silent',async t=>{
  const insert=await partData({extra:{placement:{operation:'insert'},passage:{before:null,original:null,after:{label:null,text:'After.'}}}});
  let h=await mount(t,insert.handler);
- assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 3, amendment 114','']);
+ assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: a new provision.');
+ assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['New in amendment 114','']);
 });
-test('a delete has no amendment row; a rejected amendment keeps the original unstruck',async t=>{
+test('a deletion says the provision is removed and marks it so, whatever the outcome',async t=>{
  const removal=await partData({extra:{placement:{operation:'delete'}}});
  removal.data.decision.outcome='REJECTED';removal.data.siblings.forEach(row=>{row.outcome='REJECTED';});
  const h=await mount(t,removal.handler);
- assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, Commission','(a)']);
- assert.equal(h.container.querySelector('.verse.old del'),null);
+ assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: deletion of the whole provision.');
+ assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, removed in amendment 114','(a)']);
+ assert.match(text(h.container.querySelector('.verse.gone del')),/The old text\./,'struck with the reader\'s mark, named for screen readers');
+ assert.equal(h.container.querySelector('.verse.old'),null);
+});
+for(const outcome of ['REJECTED','ADOPTED'])test('a replacement that keeps most words marks what it removes and adds: '+outcome,async t=>{
+ {
+  const close=await partData({extra:{passage:{before:null,original:{label:null,text:'The words before old words and after.'},after:null}}});
+  close.data.decision.outcome=outcome;close.data.siblings.forEach(row=>{row.outcome=outcome;});
+  const h=await mount(t,close.handler);
+  const [original,amendment]=h.container.querySelectorAll('.verse');
+  assert.match(text(original.querySelector('del')),/old/,outcome);
+  assert.equal(original.querySelector('ins'),null);
+  assert.match(text(amendment.querySelector('ins')),/bracketed/,outcome);
+  assert.equal(amendment.querySelector('del'),null);
+  assert.equal(original.classList.contains('struck'),outcome==='ADOPTED','an adopted replacement also strikes the original row');
+  assert.equal(text(amendment.querySelector('.gut')),'Recital 3, amendment 114');
+ }
+});
+test('part of a provision says so',async t=>{
+ const part=await partData({extra:{passage:{before:null,original:{label:null,text:'The old text.'},after:null,part:true}}});
+ const h=await mount(t,part.handler);
+ assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: new wording for part of the provision.');
 });
 test('a deletion with no wording of its own still shows the original in its place',async t=>{
  const removal=await partData({wording:'blank',extra:{placement:{operation:'delete'}}});
  const h=await mount(t,removal.handler);
  assert.equal(text(h.container.querySelector('h2.section')),'In its place: recital 3');
- assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, Commission','(a)']);
- assert(h.container.querySelector('.verse.old del'));
+ assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, removed in amendment 114','(a)']);
+ assert(h.container.querySelector('.verse.gone del'));
 });
 test('no placement or no rows: no section and no note',async t=>{
  const unplaced=await partData({extra:{placement:{status:'unresolved'}}});
  const h=await mount(t,unplaced.handler);
  assert.equal(h.container.querySelector('h2.section'),null);
  assert.equal(h.container.querySelector('.verses'),null);
+ assert.equal(h.container.querySelector('.place-op'),null);
  assert.match(text(h.container.querySelector('.clause-part')),/Part 1:/,'the key still shows');
 });
 test('corrections name a current member from the directory',async t=>{
