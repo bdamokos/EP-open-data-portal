@@ -3,5 +3,10 @@
 // The mode is decided before either graph loads, so the front never loads the API.
 import {EXPLORER_PROCESS_MODE} from './process-mode.mjs';
 
-if(EXPLORER_PROCESS_MODE==='split')(await import('./front.mjs')).startFront();
-else (await import('./index.mjs')).runServer();
+const start=EXPLORER_PROCESS_MODE==='split'
+  ?import('./front.mjs').then(module=>module.startFront())
+  :import('./index.mjs').then(module=>module.runServer());
+start.catch(error=>{
+  console.error('[parliament-explorer] startup failed:',error);
+  process.exit(1);
+});
