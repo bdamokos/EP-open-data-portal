@@ -6,6 +6,7 @@ import path from 'node:path';
 import {Writable} from 'node:stream';
 import {once} from 'node:events';
 import {performance} from 'node:perf_hooks';
+import {cancelCollection,collectionPending} from './memory-release.mjs';
 
 const directory=await mkdtemp(path.join(tmpdir(),'request-slow-'));
 after(()=>rm(directory,{recursive:true,force:true}));
@@ -68,4 +69,15 @@ test('a slow failing API request logs the error status',async()=>{
 test('fast API requests and slow static requests log nothing',async()=>{
   assert.equal((await send('/api/healthz',0)).slow.length,0);
   assert.equal((await send('/',1000)).slow.length,0);
+});
+
+test('a slow request that grew the heap schedules one collection, and a flat one does not',async()=>{
+  const heap=mock.method(process,'memoryUsage',(()=>{let calls=0;return ()=>({rss:0,heapTotal:0,heapUsed:calls++===0?0:200*1024*1024,external:0,arrayBuffers:0});})());
+  try {
+    cancelCollection();
+    await send('/api/healthz',1000);
+    assert.equal(collectionPending(),true);
+  } finally {heap.mock.restore();cancelCollection();}
+  await send('/api/healthz',1000);
+  assert.equal(collectionPending(),false);
 });

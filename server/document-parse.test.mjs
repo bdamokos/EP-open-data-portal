@@ -313,6 +313,28 @@ test('the parse thread exists only while there is work and starts again on deman
   assert.ok((await job()).json,'a later job starts a new thread');
 });
 
+test('an idle thread that exits reports it once, and a busy one does not',{timeout:10_000},async()=>{
+  let idle=0;
+  const thread=makeThread({idleMs:50,onIdle:()=>{idle++;}});
+  const job=()=>thread.run('proposal-json',{parser:'proposal',input:new Uint8Array(archive(paragraphs(1))),options:proposalOptions,limitBytes:LIMIT});
+  await job();await job();
+  assert.equal(idle,0);
+  for(let waited=0;thread.active&&waited<5000;waited+=20)await sleep(20);
+  assert.equal(thread.active,false);
+  assert.equal(idle,1);
+});
+
+test('a payload that cannot be posted fails its own job at once and leaves the thread free',{timeout:10_000},async()=>{
+  const thread=makeThread({idleMs:50,timeoutMs:5000}),input=()=>new Uint8Array(archive(paragraphs(1)));
+  const started=Date.now();
+  // A function cannot be structured-cloned, so the post throws before the job reaches the thread.
+  await assert.rejects(thread.run('proposal-json',{parser:'proposal',input:input(),options:{...proposalOptions,callback(){}},limitBytes:LIMIT}),error=>error.name==='DataCloneError');
+  assert.ok((await thread.run('proposal-json',{parser:'proposal',input:input(),options:proposalOptions,limitBytes:LIMIT})).json,'the next job runs');
+  assert.ok(Date.now()-started<2500,'the next job did not wait for the failed one\'s time limit');
+  for(let waited=0;thread.active&&waited<5000;waited+=20)await sleep(20);
+  assert.equal(thread.active,false,'the thread still exits when idle');
+});
+
 test('stopping a running job rejects it, starts the next on a new thread and leaves no listener behind',async()=>{
   const thread=makeThread(),controller=new AbortController(),input=new Uint8Array(archive(paragraphs(4000)));
   const running=thread.run('proposal-json',{parser:'proposal',input,options:proposalOptions,limitBytes:LIMIT},{signal:controller.signal});

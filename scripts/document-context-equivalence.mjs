@@ -19,7 +19,7 @@ import {createHash} from 'node:crypto';
 import {InputCache} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,replaySourceClients,sourceReplay} from './amendment-benchmark-replay.mjs';
 import {OffThreadDocumentParser} from '../server/document-parse.mjs';
-import {createParseThread} from '../server/amendment-extraction-thread.mjs';
+import {createParseThread,DOCUMENT_PARSE_THREAD} from '../server/amendment-extraction-thread.mjs';
 import {documentContextQuery} from '../server/document-context.mjs';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
@@ -77,7 +77,7 @@ async function main() {
       findAmendment:()=>null,clock:()=>Date.parse(snapshot.sample.asOf+'T12:00:00Z'),...(parser?{parser}:{})});
   };
 
-  const thread=createParseThread({idleMs:1000,timeoutMs:300_000,maxHeapMiB:384});
+  const thread=createParseThread({...DOCUMENT_PARSE_THREAD,idleMs:1000,timeoutMs:300_000});
   const counted=thread=>{const spy={jobs:0,tasks:{},run:(task,...args)=>{spy.jobs++;spy.tasks[task]=(spy.tasks[task]??0)+1;return thread.run(task,...args);}};return spy;};
   const results=[];
   let failures=0;

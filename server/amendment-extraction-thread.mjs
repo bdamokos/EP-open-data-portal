@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {performance} from 'node:perf_hooks';
 import {setTimeout as sleep} from 'node:timers/promises';
+import {scheduleCollection} from './memory-release.mjs';
 
 // Document parsing is synchronous CPU work: a few milliseconds for most
 // amendment lists, seconds for the largest lists and Commission proposals. It
@@ -11,10 +12,11 @@ import {setTimeout as sleep} from 'node:timers/promises';
 // limit ends only that job: the thread is replaced and queued jobs still run.
 export const AMENDMENT_EXTRACTION_THREAD=Object.freeze({idleMs:15_000,timeoutMs:60_000,maxHeapMiB:256});
 // Visitor requests. The heaviest measured parse (the A-10-2026-0105 body, 8.6 MB
-// of XML) fails below 150 MiB and runs without GC pressure from 192 MiB; the
-// 384 MiB limit leaves twice that. The time limit covers a slow host; a job
+// of XML) fails below 150 MiB and runs without GC pressure from 192 MiB; 256 MiB
+// leaves a third more. A heavier document exhausts the heap, which ends that job
+// alone with ERR_WORKER_OUT_OF_MEMORY. The time limit covers a slow host; a job
 // that outlives its request still fills the cache.
-export const DOCUMENT_PARSE_THREAD=Object.freeze({idleMs:15_000,timeoutMs:180_000,maxHeapMiB:384,maxQueued:16});
+export const DOCUMENT_PARSE_THREAD=Object.freeze({idleMs:15_000,timeoutMs:180_000,maxHeapMiB:256,maxQueued:16});
 
 const stopped=message=>Object.assign(new Error(message),{code:'document_parse_stopped'});
 
@@ -22,7 +24,8 @@ const stopped=message=>Object.assign(new Error(message),{code:'document_parse_st
 // `onStart` is called when the job reaches the thread.
 // Aborting the signal drops a queued job. A running job is stopped when
 // `abortRunning` is set (the default) and otherwise finishes in the background.
-export function createParseThread({idleMs,timeoutMs,maxHeapMiB,maxQueued=Infinity,workerUrl=new URL(import.meta.url)}) {
+// `onIdle` is called after an idle thread has been stopped.
+export function createParseThread({idleMs,timeoutMs,maxHeapMiB,maxQueued=Infinity,workerUrl=new URL(import.meta.url),onIdle}) {
   let worker=null,idleTimer=null,current=null,sequence=0;
   const queue=[];
 
@@ -62,7 +65,7 @@ export function createParseThread({idleMs,timeoutMs,maxHeapMiB,maxQueued=Infinit
     const job=queue.shift();
     if(!job) {
       if(worker&&!idleTimer){
-        const target=worker;idleTimer=setTimeout(()=>{idleTimer=null;if(worker===target&&!current)stopWorker();},idleMs);idleTimer.unref();
+        const target=worker;idleTimer=setTimeout(()=>{idleTimer=null;if(worker===target&&!current){stopWorker();onIdle?.();}},idleMs);idleTimer.unref();
       }
       return;
     }
@@ -74,8 +77,14 @@ export function createParseThread({idleMs,timeoutMs,maxHeapMiB,maxQueued=Infinit
       current=null;stopWorker();
       settle(job,'reject',Object.assign(new Error('Document parsing exceeded its time limit.'),{code:'document_parse_timeout'}));pump();
     },timeoutMs);
+    // A payload that cannot be cloned fails only its own job; the next one runs.
+    try {worker.postMessage({id:job.id,task:job.task,payload:job.payload});}
+    catch(error) {
+      clearTimeout(job.timer);current=null;
+      settle(job,'reject',error);pump();
+      return;
+    }
     job.onStart?.();
-    worker.postMessage({id:job.id,task:job.task,payload:job.payload});
   }
 
   return {
@@ -118,7 +127,7 @@ export function extractAmendmentsOffThread(buffer,options,{signal}={}) {
 let documentThread=null;
 // The thread behind visitor-facing document parsing; started on first use.
 export const documentParseThread={
-  run:(...args)=>(documentThread??=createParseThread(DOCUMENT_PARSE_THREAD)).run(...args),
+  run:(...args)=>(documentThread??=createParseThread({...DOCUMENT_PARSE_THREAD,onIdle:()=>scheduleCollection()})).run(...args),
   get active() {return documentThread?.active??false;},
   close() {documentThread?.close();documentThread=null;},
 };
