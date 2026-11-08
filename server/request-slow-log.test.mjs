@@ -45,6 +45,12 @@ test('a slow API request logs one line with its route, status, time, main-thread
   assert.ok(line.mainCpuMs>=0);
 });
 
+test('the root /healthz alias is logged like the API route',async()=>{
+  const {slow}=await send('/healthz',1000);
+  assert.equal(slow.length,1);
+  assert.equal(JSON.parse(slow[0][1]).route,'/healthz');
+});
+
 test('the query string never appears in the log line',async()=>{
   const {slow}=await send('/api/not-an-endpoint?member=PRIVATE-QUERY&q=1',1000);
   assert.equal(slow.length,1);

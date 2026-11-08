@@ -456,6 +456,7 @@ export async function handleRequest(request, response) {
     }
 
     if (url.pathname === "/healthz") {
+      cpuStart=process.threadCpuUsage();memoryStart=process.memoryUsage();
       url.pathname = `${apiPrefixes.at(-1)}/healthz`;
       await handleApi(request, response, url, apiPrefixes.at(-1));
       return;
