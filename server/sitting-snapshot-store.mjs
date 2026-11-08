@@ -1,3 +1,4 @@
+import {SittingSnapshotHints,sittingSnapshotHints,SITTING_HINT_LIMIT} from './sitting-snapshot-hints.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {existsSync} from 'node:fs';
 import path from 'node:path';
@@ -8,7 +9,6 @@ import {prepareMemberVoteRecord} from './member-vote-record-store.mjs';
 
 export const SITTING_SNAPSHOT_SCHEMA=4, SITTING_CALENDAR_VERSION=1;
 export const SNAPSHOT_MAX_BYTES=32*1024*1024;
-export const SITTING_HINT_LIMIT=512;
 export const snapshotDiskLimit=()=>integerFromEnvironment('SITTING_SNAPSHOT_MAX_DISK_MIB',256,16,2048)*1024*1024;
 const encode=value=>{
   const json=JSON.stringify(value);
@@ -33,22 +33,7 @@ export function prepareSittingSnapshots(store) {
   store.set('sittingSnapshotSchema',SITTING_SNAPSHOT_SCHEMA);
 }
 
-// Foreground readers submit IDs only. The leased index writer drains these
-// bounded hints; normal calendar discovery also recovers them after a restart.
-export class SittingSnapshotHints {
-  constructor(){this.ids=new Map();this.listeners=new Set();}
-  enqueue(kind,version,id,{changedDeclarations=false}={}){
-    const key=JSON.stringify([kind,version,id]);
-    if(this.ids.has(key)||this.ids.size<SITTING_HINT_LIMIT){
-      this.ids.set(key,{kind,version,id,changedDeclarations:changedDeclarations||Boolean(this.ids.get(key)?.changedDeclarations)});
-      for(const listener of this.listeners)listener();
-    }
-  }
-  subscribe(listener){this.listeners.add(listener);return ()=>this.listeners.delete(listener);}
-  drain(){const hints=[...this.ids.values()];this.ids.clear();return hints;}
-  get size(){return this.ids.size;}
-}
-export const sittingSnapshotHints=new SittingSnapshotHints();
+export {SittingSnapshotHints,sittingSnapshotHints,SITTING_HINT_LIMIT};
 
 export class SittingSnapshotReader {
   constructor({db=null,directory=()=>absolutePathFromEnvironment('ACTIVITY_INDEX_DIR'),clock=Date.now,hints=sittingSnapshotHints}={}){this.db=db;this.directory=directory;this.clock=clock;this.hints=hints;this.owned=false;}

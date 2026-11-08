@@ -17,7 +17,7 @@
     "test:server": "node scripts/run-tests.mjs --server",
     "test:frontend": "node scripts/run-tests.mjs --frontend",
     "preview": "vite preview --host 127.0.0.1",
-    "start": "node server/index.mjs",
+    "start": "node server/main.mjs",
     "test:fast": "node scripts/run-tests.mjs --fast",
     "test:slow": "node scripts/run-tests.mjs --slow"
   },

@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {Worker,MessageChannel} from 'node:worker_threads';
 import {booleanFromEnvironment} from './config.mjs';
-import {upstreamPortServices} from './odp.mjs';
+import {upstreamPortServices} from './upstream-services.mjs';
 import {serveUpstreamPort} from './upstream-rpc.mjs';
 import {forwardSittingSnapshotHints} from './sitting-snapshot-hints-rpc.mjs';
 

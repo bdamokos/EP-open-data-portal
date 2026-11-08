@@ -1,4 +1,4 @@
-import {sittingSnapshotHints,SITTING_HINT_LIMIT} from './sitting-snapshot-store.mjs';
+import {sittingSnapshotHints,SITTING_HINT_LIMIT} from './sitting-snapshot-hints.mjs';
 
 // Coalesce IDs and allow only one bounded batch in flight, even while SQLite
 // blocks the writer. Retain an unacknowledged batch across worker restarts.

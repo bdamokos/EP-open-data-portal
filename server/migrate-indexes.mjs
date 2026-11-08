@@ -75,7 +75,10 @@ export function prepareIndexes({activityDirectory,corpusDirectory,activityLimitM
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href) {
-  try {prepareIndexes({
+  // --startup applies the server's own rules (enabled services only), for a front process that must not load the stores itself.
+  if(process.argv.includes('--startup')){
+    try {prepareStartupIndexes();} catch(error){console.error('[index-prepare]',error.message);process.exitCode=1;}
+  } else try {prepareIndexes({
     activityDirectory:absolutePathFromEnvironment('ACTIVITY_INDEX_DIR'),corpusDirectory:absolutePathFromEnvironment('CORPUS_DIR'),
     activityLimitMiB:integerFromEnvironment('ACTIVITY_INDEX_MAX_DISK_MIB',8192,64,131072),
     corpusLimitMiB:integerFromEnvironment('CORPUS_MAX_DISK_MIB',2048,64,131072),

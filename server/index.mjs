@@ -20,6 +20,7 @@ import {pathToFileURL} from 'node:url';
 import {apiPrefixes,config,booleanFromEnvironment} from './config.mjs';
 import {allowCrossOriginRead,assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
 import {serveStatic} from './static-files.mjs';
+import {parseRequestTarget,apiPrefixOf,requestBudgetMs} from './request-target.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {API_VERSION} from './api-version.mjs';
 import {plenaryLive} from './plenary-live.mjs';
@@ -47,6 +48,13 @@ import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,useActivityIndexReader} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
 import {startSourceWriters} from './source-writers.mjs';
+import {ipcPort} from './ipc-port.mjs';
+import {setUpstreamBridge} from './odp.mjs';
+import {UpstreamRpcClient} from './upstream-rpc.mjs';
+import {retentionClient,setRetentionForwarder} from './base-source-rpc.mjs';
+import {forwardOfficialHints} from './official-context-hints.mjs';
+import {forwardDocumentBodyHints} from './document-body-hints-rpc.mjs';
+import {forwardSittingSnapshotHints} from './sitting-snapshot-hints-rpc.mjs';
 import {startPlenaryWarmup} from './plenary-warmup.mjs';
 import { amendmentQuery } from './amendments.mjs';
 import { amendmentsPage, amendmentFailures } from './amendments-store.mjs';
@@ -438,20 +446,12 @@ export async function handleRequest(request, response) {
   response.setHeader('X-Request-Id',requestId);
   response.explorerStartedAt=started;
   try {
-    const target = request.url || "/";
-    // Accept origin-form paths only, before URL parsing can reinterpret an authority.
-    if (!target.startsWith("/") || target.startsWith("//") || target.split("?", 1)[0].includes("\\") || /[\u0000-\u0020\u007f]/u.test(target)) {
-      throw new HttpError(400, "invalid_path", "The request path is invalid");
-    }
-    const url = new URL(target, "http://localhost");
+    const url = parseRequestTarget(request);
     route=url.pathname;
-    const apiPrefix = apiPrefixes.find(
-      (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
-    );
+    const apiPrefix = apiPrefixOf(url);
     if (apiPrefix) {
       cpuStart=threadCpu();memoryStart=process.memoryUsage();
-      const extended=/^\/(?:speech-context|motion-comparison)\//.test(url.pathname.slice(apiPrefix.length));
-      const budget=createRequestBudget(extended?50_000:30_000);
+      const budget=createRequestBudget(requestBudgetMs(url,apiPrefix));
       const closed=()=>{if(!response.writableEnded)budget.abort(cancelledRequest());};
       response.once('close',closed);
       try {await runWithRequestSignal(budget.signal,()=>waitForRequest(handleApi(request,response,url,apiPrefix)));}
@@ -499,7 +499,10 @@ export function startServer() {
   });
 }
 
+let shuttingDown=false;
 function shutDown(signal) {
+  if(shuttingDown)return;
+  shuttingDown=true;
   void stopWriters().catch(error=>console.error('[source-writers]',error.message));
   stopBodyWarmup();
   stopPlenaryWarmup();
@@ -513,11 +516,35 @@ function shutDown(signal) {
   server.close((error) => {
     clearTimeout(forceTimer);
     process.exitCode = error ? 1 : 0;
+    // The IPC channel of a split API process would keep it alive.
+    if(process.connected)process.disconnect();
+  });
+  server.closeIdleConnections();
+}
+
+// Publications arrive from the writer: in this process in single mode, over IPC from the front in split mode.
+let publishedGeneration;
+function handlePublication(message) {
+  // Cache keys and Following/amendment readiness are read from committed
+  // WAL snapshots. A new generation also wakes the existing warm-up hook.
+  if(message.source==='activity')warmTopicOverviews(activityIndex().store);
+  if(message.source==='activity'&&message.revision.active!==publishedGeneration){
+    publishedGeneration=message.revision.active;
+    if(publishedGeneration)stopPlenaryWarmup.wake?.();
+  }
+}
+function startWarmups() {
+  if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))warmTopicOverviews(activityIndex().store);
+}
+function startBackgroundWarmups() {
+  stopBodyWarmup = startCorporateBodyWarmup();
+  stopPlenaryWarmup = startPlenaryWarmup(async()=>{
+    insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
+    return insightService.warmPlenary();
   });
 }
 
-const isEntryPoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
-if (isEntryPoint) {
+export function runServer() {
   useActivityIndexReader();useCorpusReader();
   try {prepareStartupIndexes();}
   catch(error){console.error('[index-prepare]',error.message);process.exit(1);}
@@ -529,22 +556,46 @@ if (isEntryPoint) {
   process.on("SIGTERM", () => shutDown("SIGTERM"));
   server.once('listening',()=>{
     stopMonitoring=startOdpMonitoring();
-    if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))warmTopicOverviews(activityIndex().store);
-    let publishedGeneration;
-    stopWriters = startSourceWriters({onPublication:message=>{
-      // Cache keys and Following/amendment readiness are read from committed
-      // WAL snapshots. A new generation also wakes the existing warm-up hook.
-      if(message.source==='activity')warmTopicOverviews(activityIndex().store);
-      if(message.source==='activity'&&message.revision.active!==publishedGeneration){
-        publishedGeneration=message.revision.active;
-        if(publishedGeneration)stopPlenaryWarmup.wake?.();
-      }
-    }});
-    stopBodyWarmup = startCorporateBodyWarmup();
-    stopPlenaryWarmup = startPlenaryWarmup(async()=>{
-      insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
-      return insightService.warmPlenary();
-    });
+    startWarmups();
+    stopWriters = startSourceWriters({onPublication:handlePublication});
+    startBackgroundWarmups();
   });
   startServer();
 }
+
+// The API process of a split deployment (see front.mjs). It serves visitors from
+// read-only stores. Upstream admission, source retention, writer hints and the
+// error log go over IPC to the front, which owns the queue, the writer and the log.
+export function runApiProcess() {
+  const control=ipcPort(process,'control');
+  setUpstreamBridge(new UpstreamRpcClient(ipcPort(process,'upstream'),{defaultPriority:'interactive'}));
+  setRetentionForwarder(retentionClient(ipcPort(process,'retention')).send);
+  errorLog.write=event=>control.postMessage({type:'error-event',event})||true;
+  useActivityIndexReader();useCorpusReader();
+  if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED')||booleanFromEnvironment('CORPUS_ENABLED')){
+    const hints=ipcPort(process,'hints');
+    forwardSittingSnapshotHints(hints);forwardOfficialHints(hints);forwardDocumentBodyHints(hints);
+  }
+  control.on('message',message=>{
+    if(message?.type==='publication')handlePublication(message.message);
+    else if(message?.type==='shutdown')shutDown('shutdown');
+  });
+  server.on('error',error=>{
+    console.error(`[parliament-explorer] api server error: ${error.message}`);
+    process.exit(1);
+  });
+  process.on('SIGINT',()=>shutDown('SIGINT'));
+  process.on('SIGTERM',()=>shutDown('SIGTERM'));
+  // The front is the only client; without it this process has no purpose.
+  process.on('disconnect',()=>shutDown('disconnect'));
+  server.once('listening',()=>{
+    startWarmups();startBackgroundWarmups();
+    control.postMessage({type:'listening',port:server.address().port});
+  });
+  eventLoopDelay ??= measureEventLoopDelay();
+  server.once('close',()=>{eventLoopDelay?.stop();eventLoopDelay=undefined;});
+  server.listen(0,'127.0.0.1');
+}
+
+const isEntryPoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isEntryPoint) runServer();
