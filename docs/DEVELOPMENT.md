@@ -31,6 +31,18 @@ The unfinished amendment catalogue is hidden by `publicAmendmentsEnabled` in `sr
 - Follows and reading state stay in browser storage (`ep.following.*`). The server sees only which MEPs, questions or dossiers a tab checks for updates.
 - Data lives in `activities-v1.sqlite` and `press-v1.sqlite` (index directory), `corpus-v1.sqlite` (corpus directory) and file caches under `ODP_CACHE_DIR`. All of it stays outside Git.
 
+## Process modes
+
+`EXPLORER_PROCESS_MODE=single` (default) runs the HTTP API and the source-writer thread in one process. `split` runs a small always-on front (`server/front.mjs`) and starts the API process (`server/api-child.mjs`) when a visitor needs it:
+
+- The front owns static files, `/healthz` and `/api/healthz`, the upstream queue and rate budget, the writer thread and the error log. It proxies every other `/api` request to the API process on a private loopback port. It never loads the API modules.
+- The API process starts on the first proxied request, or when a browser loads the root page, and exits after `EXPLORER_API_IDLE_MINUTES` (default 20; 0 keeps it running) without proxied requests. Health checks and static files do not count. Memory returns to the system only when a process exits, so idle means exit.
+- Requests wait for a starting process within their normal 30 s (50 s for long routes) budget. While it is unavailable, or backing off after a crash, the front answers 503 with `Retry-After`.
+- The API process sends upstream admission, retained sources, writer hints and error entries to the front over IPC; the front sends it new publications. It opens the stores read-only.
+- The plenary warm-up runs while the API process is alive. After a long idle the first visit therefore starts it cold.
+
+Start with `node server/main.mjs` (the Docker `CMD`); `node server/index.mjs` always runs single mode. `scripts/idle-benchmark.mjs` measures a running server in either mode.
+
 ## Upstream requests
 
 The Open Data API allows 500 requests per five minutes. The server enforces this as one rolling window for the whole API, reserving 20% for visitors. `ODP_REQUEST_MODE` sets background pacing:
