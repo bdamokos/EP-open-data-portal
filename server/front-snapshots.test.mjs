@@ -315,3 +315,15 @@ test('writes are throttled: a body already on disk is not rewritten within the h
   assert.ok(statSync(file).mtimeMs>first,'older than an hour: written again');
   assert.equal(readdirSync(directory).filter(name=>name.includes('.tmp')).length,0);
 });
+
+test('a copy replaced by the same body is still read back from disk',loopback,async t=>{
+  const clock=clockAt(DAY),directory=path.join(root,'replaced'),f=await fixture(t,{clock,directory});
+  await warm(f,`/api/directory?v=${V}`);await f.snapshots.flush();
+  f.state.ready=true;clock.now+=10*60_000;await f.get(`/api/directory?v=${V}`);await f.snapshots.flush();
+  const entry=f.snapshots.entries.get(`/api/directory?v=${V}`);
+  assert.equal(entry.body,null,'the body is on disk only');
+  f.state.ready=false;clock.now+=60_000;
+  const {response,body}=await f.get(`/api/directory?v=${V}`);
+  assert.equal(body,directoryBody);assert.equal(response.headers[SNAPSHOT_HEADER.toLowerCase()],'stored; age=60');
+  assert.equal(f.calls.acquire,2);
+});
