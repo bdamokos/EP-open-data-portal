@@ -15,7 +15,7 @@ type Props={
   renderOriginal?:(text:string,start:number)=>ReactNode;
   labels?:{original?:string;proposed?:string;emptyOriginal?:string;emptyProposed?:string};
 };
-function Passage({segments,language,renderOriginal,originalFormatting=[],proposedFormatting=[],side='original'}:{segments:TextDiffSegment[];language:string|null;renderOriginal?:Props['renderOriginal'];originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];side?:'original'|'proposed'}) {
+export function Passage({segments,language,renderOriginal,originalFormatting=[],proposedFormatting=[],side='original'}:{segments:TextDiffSegment[];language:string|null;renderOriginal?:Props['renderOriginal'];originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];side?:'original'|'proposed'}) {
   const ui = useUiI18n();
   let originalOffset=0,proposedOffset=0;
   return <p className="wording-diff__passage" lang={language||''}>{segments.map((segment,index)=>{
