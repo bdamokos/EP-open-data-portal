@@ -28,16 +28,22 @@ export function preparePlacementLog(store) {
 }
 
 const variantsOf=row=>row.variants?.length?row.variants:[row];
+const array=value=>Array.isArray(value)?value:[];
 const hasWording=row=>['originalText','proposedText'].some(key=>typeof row[key]==='string');
 // Content identity for one list, from rows this rebuild already holds in memory.
 // A parser version counts only where it makes withheld wording readable; otherwise
-// a new parser re-checks open failures instead of every list.
+// a new parser re-checks open failures instead of every list. Vote references
+// count: the reader uses them to locate resolution amendments.
 export function placementListFingerprints(rows) {
   const lists=new Map();
   for(const row of rows)for(const variant of variantsOf(row)) {
     if(typeof variant.listId!=='string')continue;
     const list=lists.get(variant.listId)||{entries:[],wording:false};lists.set(variant.listId,list);
-    list.entries.push(JSON.stringify([row.id,variant.language??null,variant.textIntegrity??null,variant.wordingSource?.contentHash??variant.wordingSource?.sha256??variant.wordingSource?.url??null,hasWording(variant),displayableAmendmentVersion(variant.textParserVersion)]));
+    // The placement inputs themselves: a corrected DOCX at the same URL changes
+    // these, and a retrieval date alone does not.
+    list.entries.push(JSON.stringify([row.id,variant.language??null,variant.textIntegrity??null,displayableAmendmentVersion(variant.textParserVersion),variant.conflicted??null,
+      ...['originalText','proposedText','targetLabel','targetLabelLanguage','baseline','baselineSource','documentReferences','targetPath','originalFormatting','proposedFormatting'].map(key=>variant[key]??null),
+      variant.wordingSource?.url??null,array(row.decisions).map(decision=>[decision.id??null,decision.reference??null,array(decision.amendmentIds)])]));
     list.wording||=hasWording(variant);
   }
   return new Map([...lists].filter(([,list])=>list.wording).map(([id,list])=>[id,createHash('sha256').update(list.entries.sort().join('\n')).digest('hex')]));
@@ -74,7 +80,9 @@ export function dueLists(store,now=store.clock()) {
   return store.db.prepare('SELECT list_id FROM placement_log_lists WHERE next_check IS NOT NULL AND next_check<=? ORDER BY next_check,list_id LIMIT 1').get(now)?.list_id||null;
 }
 export const hasDueList=(store,now=store.clock())=>Boolean(dueLists(store,now));
-export const hasOpenFailures=store=>store.get('placementLogSchema')===1&&Boolean(store.db.prepare('SELECT 1 FROM placement_log_failures WHERE stopped_at IS NULL LIMIT 1').get());
+// Read once per writer start. A list that could not be evaluated has no failure
+// rows, so it is named here too, or a fix would never retry it.
+export const hasOpenFailures=store=>store.get('placementLogSchema')===1&&Boolean(store.db.prepare('SELECT 1 FROM placement_log_failures WHERE stopped_at IS NULL LIMIT 1').get()||store.db.prepare("SELECT 1 FROM placement_log_lists WHERE state='failed' LIMIT 1").get());
 
 // New placement code can only change a failure, so only lists with an open one
 // are read again. A list that placed cleanly is not re-read on every release.

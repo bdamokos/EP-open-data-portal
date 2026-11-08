@@ -36,8 +36,9 @@ const notHeld=()=>Object.assign(new Error('The source is not held.'),{code:SOURC
 const sha256=value=>createHash('sha256').update(value).digest('hex');
 const STRUCTURED_RESPONSE_BYTES=3*1024*1024;
 // When any of these changes, a failure may have been fixed. The placement rules
-// carry no version of their own, so their files count too.
-const PLACEMENT_RULES=['document-context.mjs','document-context-model.mjs','document-context-placement.mjs','proposal-placement.mjs','existing-law-placement.mjs'];
+// carry no version of their own, so their files count too, and so does this
+// evaluator: a fix to it retries lists that could not be evaluated.
+const PLACEMENT_RULES=['document-context.mjs','document-context-model.mjs','document-context-placement.mjs','proposal-placement.mjs','existing-law-placement.mjs','amendment-provisional.mjs','placement-log-evaluate.mjs'];
 const rulesDigest=()=>{const hash=createHash('sha256');for(const file of PLACEMENT_RULES)hash.update(readFileSync(new URL('./'+file,import.meta.url)));return hash.digest('hex');};
 export const placementEvaluator=()=>JSON.stringify({rules:rulesDigest(),documentContext:DOCUMENT_CONTEXT_VERSION,extraction:AMENDMENT_EXTRACTION_VERSION,docx:DOCX_EXTRACTION_VERSION,proposal:PROPOSAL_PARSER_VERSION,legal:PUBLIC_LEGAL_XHTML_VERSION});
 
@@ -202,16 +203,27 @@ export async function evaluateAmendment({id,listId,documentId,indexed,work,rootS
   const outcome=value=>({language,...value});
   if(candidates.length!==1)return outcome(fail('acquisition-wording-not-held'));
   let chosen=candidates[0];
+  // A provisional agreement places the whole document from the exact source,
+  // with or without comparison columns, as the reader does.
+  const provisional=async()=>{
+    const url=candidates[0].source?.url;
+    if(!provisionalDecision(indexed.decisions,id)||!allowedDownload(url))return null;
+    try {
+      const downloaded=await clients.download(url);
+      return amendmentProvisional({amendmentId:id,documentId,listId:candidates[0].listId,decisions:indexed.decisions,buffer:downloaded.buffer,source:{url,language:candidates[0].language,fetchedAt:downloaded.fetchedAt}});
+    }catch{return null;/* A reader falls back to the existing result too. */}
+  };
+  const whole=async reason=>{const operation=await provisional();return outcome(operation?placementOutcome({wording:{status:'passed'},placement:operation}):fail(reason));};
   if(chosen.wordingStatus!=='available') {
     const row=selected.find(variant=>variant.language===edition)||selected[0];
     // Text the parser lost is ours; a row with no wording yet is not.
-    if(row.conflicted)return outcome(fail('wording-conflicted'));
+    if(row.conflicted)return whole('wording-conflicted');
     // Withheld until the parser upgrade reaches this list; the next pass decides.
-    if(!displayableAmendmentVersion(row.textParserVersion))return outcome(fail('acquisition-wording-awaiting-reparse'));
-    if(row.textIntegrity==='incomplete')return outcome(fail('wording-incomplete'));
-    return outcome(fail('acquisition-wording-not-held'));
+    if(!displayableAmendmentVersion(row.textParserVersion))return whole('acquisition-wording-awaiting-reparse');
+    if(row.textIntegrity==='incomplete')return whole('wording-incomplete');
+    return whole('acquisition-wording-not-held');
   }
-  if(!chosen.originalText.trim()&&!chosen.proposedText.trim())return outcome(fail('source-wording-empty'));
+  if(!chosen.originalText.trim()&&!chosen.proposedText.trim())return whole('source-wording-empty');
   const wording={status:'passed'};
   const textKey=JSON.stringify(['text',language]);
   if(!memo.has(textKey))memo.set(textKey,await clients.readText(work,language));
@@ -294,13 +306,8 @@ export async function evaluateAmendment({id,listId,documentId,indexed,work,rootS
       placement=reportCouncilQuotation(downloaded.buffer,{...chosen,number:Number(id.match(/-AM-(\d+)$/u)?.[1])},{operation:amendmentOperation(chosen),reportId:documentId,sourceUrl:text.sourceUrl,fetchedAt:downloaded.fetchedAt})??placement;
     }catch{/* A reader falls back to the existing result too. */}
   }
-  if(provisionalDecision(indexed.decisions,id)&&allowedDownload(chosen.source?.url)) {
-    try {
-      const downloaded=await clients.download(chosen.source.url);
-      const operation=amendmentProvisional({amendmentId:id,documentId,listId:chosen.listId,decisions:indexed.decisions,buffer:downloaded.buffer,source:{url:chosen.source.url,language:chosen.language,fetchedAt:downloaded.fetchedAt}});
-      if(operation)placement=operation;
-    }catch{/* A reader falls back to the existing result too. */}
-  }
+  const operation=await provisional();
+  if(operation)placement=operation;
   const matching=language&&(existingKind||proposalKind||councilKind?baseline?.language===chosen.language&&Boolean(structured?.length):!differentLanguage&&text?.textLanguage===chosen.language&&Boolean(text?.paragraphs?.length));
   let sourceReason;
   if(!matching) {

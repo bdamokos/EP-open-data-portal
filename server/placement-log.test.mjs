@@ -17,6 +17,7 @@ import {PlacementLog} from './placement-log.mjs';
 import {placementLogReport,reportOptions} from './placement-log-report.mjs';
 import {evaluateOffThread} from './placement-log-thread.mjs';
 import {word,p} from './test-support/nle-native-fixture.mjs';
+import {provisionalFixture} from './test-support/provisionalFixture.mjs';
 
 const at=Date.parse('2026-11-09T10:00:00Z');
 function fixture(t,{lists=[]}={}) {
@@ -75,8 +76,13 @@ test('wording that becomes held makes a new list due; older lists and unchanged 
   assert.equal(hasDueList(store),false,'the same content is not evaluated again');
   notePlacementLists(store,[row('A-10-2026-0002-AM-2',fresh),row('A-10-2026-0002-AM-1',fresh,{textParserVersion:'26'})]);
   assert.equal(hasDueList(store),false,'a parser version alone is not new content');
-  notePlacementLists(store,[row('A-10-2026-0002-AM-1',fresh),row('A-10-2026-0002-AM-2',fresh,{wordingSource:{contentHash:'b'.repeat(64)}})]);
-  assert.equal(hasDueList(store),true,'a republished list is');
+  notePlacementLists(store,[row('A-10-2026-0002-AM-1',fresh),row('A-10-2026-0002-AM-2',fresh,{wordingSource:{contentHash:'a'.repeat(64),fetchedAt:'2026-11-10T00:00:00Z'}})]);
+  assert.equal(hasDueList(store),false,'a later retrieval of the same wording is not new content');
+  notePlacementLists(store,[row('A-10-2026-0002-AM-1',fresh),row('A-10-2026-0002-AM-2',fresh,{proposedText:'corrected'})]);
+  assert.equal(hasDueList(store),true,'wording corrected at the same URL is');
+  commitEvaluation(store,result(fresh,[['A-10-2026-0002-AM-1','placed','placed'],['A-10-2026-0002-AM-2','placed','placed']]));
+  notePlacementLists(store,[row('A-10-2026-0002-AM-1',fresh,{decisions:[{id:'decision-1',reference:'§ 2',amendmentIds:['A-10-2026-0002-AM-1']}]}),row('A-10-2026-0002-AM-2',fresh,{proposedText:'corrected'})]);
+  assert.equal(hasDueList(store),true,'a vote reference is a placement input');
 });
 
 test('the log records first sightings, last seen and when a failure stopped, and loses nothing',t=>{
@@ -436,7 +442,7 @@ test('rows saved while a list was being read make it due again',t=>{
   const {store}=fixture(t);
   notePlacementLists(store,[row('A-10-2026-0001-AM-1',list)]);
   const read=listRow(store).fingerprint;
-  notePlacementLists(store,[row('A-10-2026-0001-AM-1',list,{wordingSource:{contentHash:'c'.repeat(64)}})]);
+  notePlacementLists(store,[row('A-10-2026-0001-AM-1',list,{proposedText:'re-saved'})]);
   commitEvaluation(store,result(list,[['A-10-2026-0001-AM-1','placed','placed']]),{fingerprint:read});
   assert.equal(listRow(store).next_check,store.clock());
   commitEvaluation(store,result(list,[['A-10-2026-0001-AM-1','placed','placed']]),{fingerprint:listRow(store).fingerprint});
@@ -456,4 +462,38 @@ test('a failed evaluator check is tried again after the pause',async t=>{
 
 test('the evaluator identity covers the placement rule files',()=>{
   assert.match(JSON.parse(placementEvaluator()).rules,/^[a-f0-9]{64}$/);
+});
+
+test('a provisional agreement is placed whole even without comparison wording, as the reader places it',async t=>{
+  const {store,generation,cacheDirectory}=document(t);
+  const input=provisionalFixture();
+  const sha256=createHash('sha256').update(input.buffer).digest('hex'),request={accept:'*/*',language:'en'},key=baseSourceKey(input.source.url,request);
+  writeFileSync(path.join(cacheDirectory,'base-sources-v1',sha256+'.blob'),input.buffer);
+  writeFileSync(path.join(cacheDirectory,'base-sources-v1',key+'.json'),JSON.stringify({schemaVersion:1,key,url:input.source.url,request,status:200,fetchedAt:input.source.fetchedAt,sha256,bytes:input.buffer.length}));
+  store.db.prepare("INSERT INTO sources(generation,key,kind,body,fetched_at) VALUES (?,?,'amendment-list',?,?)").run(generation,'amendment:list:'+input.listId,JSON.stringify({targetDocumentId:input.documentId,itemNumberBegin:3,itemNumberEnd:3}),new Date(at).toISOString());
+  const saved=JSON.parse(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,input.id).body);
+  store.db.prepare('UPDATE amendments SET body=? WHERE generation=? AND id=?').run(JSON.stringify({...saved,listId:input.listId,wordingSource:input.source,decisions:input.decisions}),generation,input.id);
+  const evaluated=await evaluateList({store,listId:input.listId,directory:cacheDirectory});
+  assert.deepEqual(evaluated.amendments.map(row=>[row.id,row.outcome,row.reason]),[[input.id,'placed','document-operation']]);
+  const clients=heldSourceClients({store,generation,directory:cacheDirectory});
+  const context=new DocumentContext({request:clients.request,readText:clients.readText,readProposal:clients.readProposal,readCouncil:clients.readCouncil,readExistingLaw:clients.readExistingLaw,download:clients.download});
+  const read=await clients.run(()=>context.collect({id:input.documentId,amendmentId:input.id,listId:input.listId,language:'en',wordingLanguage:'en',includeBody:true},amendmentById(store,{document:input.documentId,id:input.id,language:'en'}),null));
+  assert.equal(read.placement.status,'document-operation');
+  assert.equal(read.placement.scope,'whole-document');
+});
+
+test('a list that could not be evaluated is retried when the evaluator changes, with no other failure open',async t=>{
+  const jobs=[];
+  const {store,lane}=laneFixture(t,{evaluate:async job=>{jobs.push(job.kind);throw new Error('thread exited');}});
+  notePlacementLists(store,[row('A-10-2026-0001-AM-1',list)]);
+  store.set('placementLogEvaluator','v1');
+  store.db.prepare("UPDATE placement_log_lists SET state='failed',next_check=NULL,attempts=3,error='thread exited'").run();
+  assert.equal(failures(store).length,0);
+  assert.equal(hasDueList(store),false);
+  const restarted=new PlacementLog(store,{evaluate:async job=>{jobs.push(job.kind);return {evaluator:'v2'};},log:()=>{},monotonic:()=>0,indexDirectory:'/nowhere',cacheDirectory:'/nowhere'});
+  assert.equal(restarted.due(),true);
+  restarted.step();await settle();await settle();restarted.step();
+  assert.deepEqual(jobs,['evaluator','list'],'the failed list is read again at once');
+  assert.equal(listRow(store).state,'pending');
+  restarted.stop();lane.stop();
 });
