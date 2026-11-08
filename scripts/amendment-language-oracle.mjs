@@ -219,7 +219,7 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
         if(address.status==='verified'&&address.rawSourceRows?.[1]===span.start)return {...address,reason:'raw-exact-instruction-anchor'};
       }
       if(strip(splicedSource)!==strip(expected.originalText)){
-        if(oracleSimilarity(splicedSource,expected.originalText)<.95)return failed('raw-original-splice-mismatch');
+        if(oracleSimilarity(splicedSource,expected.originalText)<.95&&oracleTypo(expected.originalText,splicedSource)===null)return failed('raw-original-splice-mismatch');
         const address=rawProposal();if(address.status!=='verified')return address;
         const rows=observed.map((p,index)=>{const r=sourceRows.find(row=>row.path===p.path);return {index,text:r?.text??''};});
         const similar=assertSimilarPlacement({proposal:{paragraphs:rows},wording:expected,placement,address});

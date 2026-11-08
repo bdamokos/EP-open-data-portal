@@ -22,6 +22,13 @@ test('a different number or article label is never a typo',()=>{
  assert.equal(typoPassage(point17,rows,quote(article('30d','Article 3(2) of Regulation (EC) No 1005/2008'))),null);
  assert.equal(typoPassage(point17,rows,quote(article('31d','Article 3(1) of Regulation (EC) No 1005/2008'))),null);
  assert.equal(typoPassage(point17,rows,quote(article('30d','Article 3(1) of Regulation (EC) No 1005/2008')).replace('(c)\toperating','(c)\t–operating')),null);
+ // A different list label is another provision, not a typo.
+ assert.equal(typoPassage(point17,rows,quote(article('30d','Article 3(1) of Regulation (EC) No 1005/2008')).replace('(b)\tinterference','(d)\tinterference')),null);
+});
+test('punctuation counts toward the limit outside label formatting',()=>{
+ const base=quote(article('30d','Article 3(1) of Regulation (EC) No 1005/2008'));
+ assert.equal(typoPassage(point17,rows,base.replace('Infringements','Infringements,'))?.cost,1);
+ assert.equal(typoPassage(point17,rows,base.replace('interference with satellite monitoring system','interference, with satellite; monitoring: system')),null);
 });
 test('a near-identical passage elsewhere blocks the match',()=>{
  // Genuine duplicates: the closest competitor is within one or two words.

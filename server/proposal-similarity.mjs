@@ -39,15 +39,17 @@ export function singleWordDifference(left,right) {
 }
 
 // A quoted original can carry a normal typo (maintainer ruling, 8 November
-// 2026): at most TYPO_TOKENS changes, each a word or a punctuation mark.
-// Whitespace or punctuation inside a label ("37 b" for "37b", "1." for "1)") is
-// formatting, not a change. A number, a word right after one or a list marker
-// never differs: another cross-reference or label is not a typo, and neither
-// are words added at either end of the quote. Every passage that
+// 2026): at most TYPO_TOKENS changed words and punctuation marks. Label
+// formatting ("37 b" for "37b", "1." or "(1)" for "1)") is not a change. A
+// number, a list label, a word right after a number or a list marker never
+// differs: another cross-reference or label is not a typo, and neither are
+// words added at either end of the quote. Every passage that
 // does not overlap the best one must be at least TYPO_MARGIN tokens further
 // from the quote, and no overlapping passage may tie it.
 export const TYPO_TOKENS=2, TYPO_MARGIN=3;
-const typoTokens=value=>similarityNormal(value.replace(/^[ \t]*\(?([\p{L}\p{N}]{1,4})[.)](?=\s)/gmu,'$1)')).replace(/[‐‑]/gu,'-').replace(/[şŞţŢ]/gu,c=>({ş:'ș',Ş:'Ș',ţ:'ț',Ţ:'Ț'})[c]).match(/[\p{L}\p{N}]+|[^\s\p{L}\p{N}]/gu)||[];
+// Line-start labels become one token ("(a)", "a)" and "a." read "§a)"); an
+// apostrophe stays inside its word.
+const typoTokens=value=>similarityNormal(value.replace(/^[ \t]*\(?([\p{L}\p{N}]{1,4})[.)](?=\s)/gmu,'§$1)')).replace(/[‐‑]/gu,'-').replace(/[şŞţŢ]/gu,c=>({ş:'ș',Ş:'Ș',ţ:'ț',Ţ:'Ț'})[c]).match(/§[\p{L}\p{N}]{1,4}\)|[\p{L}\p{N}]+(?:'[\p{L}\p{N}]*)*|[^\s\p{L}\p{N}]/gu)||[];
 // Banded token edit distance; returns cap+1 once the band is exceeded.
 function tokenDistance(a,b,cap) {
  const n=a.length,m=b.length;if(Math.abs(n-m)>cap)return cap+1;
@@ -85,16 +87,18 @@ function tokenRegions(a,b) {
 const numeric=token=>/\p{N}/u.test(token??'');
 function typoCost(regions,a,b) {
  let cost=0;
+ const words=list=>list.filter(token=>/^[\p{L}\p{N}]/u.test(token)).length,marks=list=>list.filter(token=>!/^[\p{L}\p{N}§]/u.test(token)).length;
  for(const region of regions){
-  if(region.left.join('')===region.right.join('')||[...region.left,...region.right].every(token=>/^[.()]$/u.test(token)))continue;
-  if([...region.left,...region.right].some(numeric)||numeric(a[region.i-1])||numeric(b[region.j-1]))return null;
+  const tokens=[...region.left,...region.right];
+  // Spacing inside a label ("37 b" for "37b"), or one full stop or bracket right
+  // after a number ("30a." for "30a"), is formatting.
+  if(region.left.join('')===region.right.join(''))continue;
+  if(tokens.every(token=>/^[.()]$/u.test(token))&&Math.max(region.left.length,region.right.length)===1&&(numeric(a[region.i-1])||numeric(b[region.j-1])))continue;
+  if(tokens.some(token=>numeric(token)||token.startsWith('§')||/^[-–—•·*]$/u.test(token))||numeric(a[region.i-1])||numeric(b[region.j-1]))return null;
   // Words added or dropped at either end move the passage boundary instead.
   const mark=list=>list.every(token=>!/[\p{L}\p{N}]/u.test(token));
   if((mark(region.left)||mark(region.right))&&(mark(a.slice(0,region.i))&&mark(b.slice(0,region.j))||mark(a.slice(region.i+region.left.length))&&mark(b.slice(region.j+region.right.length))))return null;
-  // List markers (dashes, bullets) label indents; they never count as typos.
-  if([...region.left,...region.right].some(token=>/^[-–—•·*]$/u.test(token)))return null;
-  const words=list=>list.filter(token=>/[\p{L}\p{N}]/u.test(token)).length;
-  cost+=Math.max(1,words(region.left),words(region.right));
+  cost+=Math.max(words(region.left),words(region.right))+Math.max(marks(region.left),marks(region.right));
  }
  return cost;
 }
