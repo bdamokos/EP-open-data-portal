@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {differingVoterIds,countryGroupBreakdown,allCountriesBreakdown,sortCountryRows,pluralityPosition,encodeMatrixSort,decodeMatrixSort} from './voteSeatsModel.mjs';
+import {differingVoterIds,countryTallies,sortCountriesByName} from './voteSeatsModel.mjs';
 import {differentFromMajority} from './voteGroupMetrics.mjs';
 
 test('differing voter IDs follow the delegation rule and match differentFromMajority',()=>{
@@ -15,73 +15,21 @@ test('differing voter IDs follow the delegation rule and match differentFromMajo
   assert.deepEqual([...ids].sort(),['a4','a5'],'only voters outside their group majority differ');
 });
 
-test('country aggregation keeps empty cells distinct from zero and normalises Greece',()=>{
-  const rows=[
-    {group:'PPE',country:'ES',position:'for'},
-    {group:'PPE',country:'ES',position:'for'},
-    {group:'S&D',country:'ES',position:'against'},
-    {group:'PPE',country:'GR',position:'for'},
-    {group:'S&D',country:'DE',position:'abstaining'},
-    {group:'PPE',country:'DE',position:'for'},
-  ];
-  const breakdown=countryGroupBreakdown(rows),byCountry=new Map(breakdown.map(row=>[row.country,row]));
-  const es=byCountry.get('ES'),el=byCountry.get('EL');
-  assert.ok(es&&el,'Greece uses the EU identifier EL');
-  assert.deepEqual(es.counts,{for:2,against:1,abstaining:0});
-  assert.deepEqual(es.cells.get('PPE'),{position:'for',count:2,tied:null,total:2,other:0,counts:{for:2,against:0,abstaining:0}});
-  assert.deepEqual(es.cells.get('S&D'),{position:'against',count:1,tied:null,total:1,other:0,counts:{for:0,against:1,abstaining:0}});
-  const tie=countryGroupBreakdown([{group:'PPE',country:'FR',position:'for'},{group:'PPE',country:'FR',position:'against'}])[0];
-  assert.deepEqual(tie.cells.get('PPE'),{position:null,count:1,tied:['for','against'],total:2,other:1,counts:{for:1,against:1,abstaining:0}},'a tied most common position keeps its tied counts');
-  // A group with no ballots from a country has no cell there, never 0.
-  assert.ok(!es.cells.has('ZZZ'));
-});
-
-test('matrix sort state round-trips through a single URL value and refuses malformed input',()=>{
-  assert.equal(encodeMatrixSort({kind:'total',dir:'desc'}),'');
-  assert.equal(encodeMatrixSort({kind:'country',dir:'asc'}),'country:asc');
-  assert.equal(encodeMatrixSort({kind:'country',dir:'desc'}),'country:desc');
-  assert.equal(encodeMatrixSort({kind:'total',dir:'asc'}),'total:asc');
-  assert.equal(encodeMatrixSort({kind:'majority',dir:'desc'}),'majority:desc');
-  assert.equal(encodeMatrixSort({kind:'group',key:'S&D',dir:'desc'}),'group:S&D');
-  assert.equal(encodeMatrixSort({kind:'group',key:'S&D',dir:'asc'}),'group:S&D:asc');
-  assert.deepEqual(decodeMatrixSort(''),{kind:'total',dir:'desc'},'the default is most ballots first');
-  assert.deepEqual(decodeMatrixSort('country:asc'),{kind:'country',dir:'asc'});
-  assert.deepEqual(decodeMatrixSort('country:desc'),{kind:'country',dir:'desc'});
-  assert.deepEqual(decodeMatrixSort('total:asc'),{kind:'total',dir:'asc'});
-  assert.deepEqual(decodeMatrixSort('majority:desc'),{kind:'majority',dir:'desc'});
-  assert.deepEqual(decodeMatrixSort('group:S&D'),{kind:'group',key:'S&D',dir:'desc'});
-  assert.deepEqual(decodeMatrixSort('group:S&D:asc'),{kind:'group',key:'S&D',dir:'asc'});
-  assert.equal(decodeMatrixSort('country'),null);
-  assert.equal(decodeMatrixSort('group:'),null);
-  assert.equal(decodeMatrixSort('country:sideways'),null);
-  assert.equal(decodeMatrixSort('majority'),null);
-});
-
 const ballot=(country,group,position,count)=>Array.from({length:count},()=>({country,group,position}));
-test('cells keep splits visible: count of the most common position plus the other ballots',()=>{
-  const rows=[...ballot('DE','PPE','for',26),...ballot('DE','PPE','against',3),...ballot('DE','PPE','abstaining',1),...ballot('FR','S&D','for',2),...ballot('FR','S&D','against',2),...ballot('FR','S&D','abstaining',1)];
-  const [de,fr]=['DE','FR'].map(code=>countryGroupBreakdown(rows).find(row=>row.country===code));
-  assert.deepEqual([de.cells.get('PPE').count,de.cells.get('PPE').other,de.cells.get('PPE').position],[26,4,'for']);
-  assert.deepEqual([fr.cells.get('S&D').count,fr.cells.get('S&D').other,fr.cells.get('S&D').position],[2,3,null],'a tie keeps its count and counts the rest');
-  assert.deepEqual(de.cells.get('PPE').counts,{for:26,against:3,abstaining:1},'the full split stays available for the label');
+test('country tallies count every ballot, normalise Greece and leave countries without ballots out',()=>{
+  const rows=[...ballot('ES','PPE','for',2),...ballot('ES','S&D','against',1),...ballot('GR','PPE','abstaining',7),...ballot('DE','unavailable','for',1),...ballot(null,'PPE','for',4),{country:'FR',group:'PPE',position:null}];
+  const byCountry=new Map(countryTallies(rows).map(row=>[row.country,row]));
+  assert.deepEqual([...byCountry.keys()].sort(),['DE','EL','ES'],'no country without a ballot, and no row for an unknown country');
+  assert.deepEqual(byCountry.get('ES'),{country:'ES',counts:{for:2,against:1,abstaining:0},ballots:3},'zero stays a counted zero');
+  assert.deepEqual(byCountry.get('EL').counts,{for:0,against:0,abstaining:7},'Greece uses the EU identifier EL');
+  assert.equal(byCountry.get('DE').ballots,1,'a ballot without a known group still counts for its country');
+  assert.deepEqual(countryTallies([]),[]);
 });
-test('country majority is the position with strictly the most ballots, otherwise split',()=>{
-  assert.equal(pluralityPosition({for:11,against:6,abstaining:0}),'for');
-  assert.equal(pluralityPosition({for:33,against:0,abstaining:36}),'abstaining');
-  assert.equal(pluralityPosition({for:2,against:2,abstaining:0}),null);
-  assert.equal(pluralityPosition({for:0,against:0,abstaining:0}),null,'no ballots is not a majority');
-});
-test('the all-countries row sums every country and group, and rows sort by ballots by default',()=>{
-  const rows=[...ballot('DE','PPE','for',3),...ballot('DE','NI','against',1),...ballot('FR','PPE','for',1),...ballot('FR','PPE','against',1),...ballot('MT','PPE','abstaining',1)];
-  const all=allCountriesBreakdown(rows);
-  assert.equal(all.country,null);assert.deepEqual(all.counts,{for:4,against:2,abstaining:1});assert.equal(all.ballots,7);assert.equal(all.majority,'for');
-  assert.deepEqual([all.cells.get('PPE').count,all.cells.get('PPE').other],[4,2]);
-  assert.equal(allCountriesBreakdown([]),null);
-  const table=countryGroupBreakdown(rows),name=row=>row.country;
-  assert.deepEqual(sortCountryRows(table,{kind:'total',dir:'desc'},name).map(row=>row.country),['DE','FR','MT'],'most ballots first');
-  assert.deepEqual(sortCountryRows(table,{kind:'country',dir:'asc'},name).map(row=>row.country),['DE','FR','MT']);
-  assert.deepEqual(sortCountryRows(table,{kind:'majority',dir:'desc'},name).map(row=>row.majority),[null,'abstaining','for'],'majority order is for, against, abstained, split; descending reverses it');
-  assert.deepEqual(sortCountryRows(table,{kind:'group',key:'NI',dir:'desc'},name).map(row=>row.country),['DE','FR','MT'],'countries without ballots for the group sort last, by name');
+test('countries sort A to Z by their name in the page language',()=>{
+  const tallies=countryTallies([...ballot('DE','PPE','for',90),...ballot('AT','PPE','for',1),...ballot('EL','PPE','for',5),...ballot('ES','PPE','for',40)]);
+  const en={DE:'Germany',AT:'Austria',EL:'Greece',ES:'Spain'},de={DE:'Deutschland',AT:'Österreich',EL:'Griechenland',ES:'Spanien'};
+  assert.deepEqual(sortCountriesByName(tallies,code=>en[code],'en').map(row=>row.country),['AT','DE','EL','ES'],'size does not order the list');
+  assert.deepEqual(sortCountriesByName(tallies,code=>de[code],'de').map(row=>row.country),['DE','EL','AT','ES'],'Österreich sorts with O in German');
 });
 
 import {seatBounds} from './voteSeatsModel.mjs';
@@ -91,16 +39,6 @@ const plan=[...ring('A',170,125),...ring('B',115,65),...ring('C',55,10)].map((se
 test('seat bounds hug the drawn seats',()=>{
   const bounds=seatBounds(plan);
   assert(bounds.width<460&&bounds.width>430);assert(bounds.height<230);assert.equal(seatBounds([]),null);
-});
-import {countryFilterPressed} from './voteSeatsModel.mjs';
-test('a country filter reads as pressed only while the list shows it, and a cell only for its own position',()=>{
-  const open={country:'DE',group:'ESN',position:'against'};
-  assert.equal(countryFilterPressed(open,{country:'DE',group:'ESN',position:'against'}),true);
-  assert.equal(countryFilterPressed({...open,position:'for'},{country:'DE',group:'ESN',position:'against'}),false,'list switched to another position');
-  assert.equal(countryFilterPressed({...open,position:'for'},{country:'DE',group:'ESN'}),true,'row buttons do not depend on position');
-  assert.equal(countryFilterPressed({...open,position:null},{country:'DE',group:'ESN'}),false,'list hidden');
-  assert.equal(countryFilterPressed(open,{country:'FR',group:'ESN'}),false);
-  assert.equal(countryFilterPressed({country:'DE',group:null,position:'for'},{country:'DE',group:null}),true);
 });
 import {planGroupOrder,groupArcLayout,nearestDot,tableGroupOrder,wedgeLabels} from './voteSeatsModel.mjs';
 import {groupCounts} from './hemicycleModel.mjs';

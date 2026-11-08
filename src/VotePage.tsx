@@ -19,7 +19,7 @@ import {TallyHeads,TallyNumbers,TotalFigure,TotalsFigures,VoteRow} from './VoteR
 import {groupLabel,groupLabelLanguage} from './groupLabels';
 import {voteCountryName as countryName} from './voteCountryName';
 import {filterCountry,matchesCountry} from './countries.mjs';
-import {delegationBreaks} from './voteGroupMetrics.mjs';
+import {delegationsDiffering} from './voteGroupMetrics.mjs';
 import {differingVoterIds,planGroupOrder,tableGroupOrder} from './voteSeatsModel.mjs';
 import {panelVoters} from './voterPanelModel.mjs';
 import {groupCounts,type HemicycleSeat} from './hemicycleModel.mjs';
@@ -38,7 +38,6 @@ const chamberFor=(location:string|null|undefined)=>location==='Brussels'?'bru':'
 const column={for:'f',against:'a',abstaining:'x'} as const;
 type Row={id:string;name:string|null;country:string|null;group:string;position:VotePosition};
 type HemicyclePlan={chamber:string;seats:HemicycleSeat[]};
-type Filter={country:string|null;group:string|null;position:VotePosition|null};
 
 function usePositionWords() {
   const ui=useUiI18n();
@@ -140,17 +139,20 @@ export function VotePage({decisionId,language,onMember,country,onCountry,member=
   const differing=useMemo(()=>differingByGroup(rows,differIds,tableOrder,member),[rows,differIds,tableOrder,member]);
   const people=useMemo(()=>data?findableMembers(rows,data.noRecord,data,directory,displayName):[],[data,rows,directory,displayName]);
   const [picked,setPicked]=useState<string|null>(null),[dimmed,setDimmed]=useState<string|null>(null);
-  const [filter,setFilter]=useState<Filter>({country:null,group:null,position:null});
+  const [chosenCountry,setChosenCountry]=useState<string|null>(null);
   const [membersOpen,setMembersOpen]=useState(false);
   const [votesOpen,setVotesOpen]=useState<boolean|null>(typeof location!=='undefined'&&location.hash==='#votes'?true:null);
-  const activeCountry=filter.country??country;
+  const activeCountry=chosenCountry??country;
   const filtered=useMemo(()=>{
     const positions=Object.fromEntries(votePositionKeys.map(position=>[position,rows.filter(row=>row.position===position)]));
     const groups=new Map(rows.map(row=>[row.id,row.group]));
-    return panelVoters(positions,{groupOf:(id:string)=>groups.get(String(id))??null,matchesCountry:(code:string|null|undefined)=>matchesCountry(activeCountry,code??''),group:filter.group}).rows as Row[];
-  },[rows,activeCountry,filter.group]);
+    return panelVoters(positions,{groupOf:(id:string)=>groups.get(String(id))??null,matchesCountry:(code:string|null|undefined)=>matchesCountry(activeCountry,code??'')}).rows as Row[];
+  },[rows,activeCountry]);
   const memberEntries=useMemo(()=>membersByGroup(filtered,tableOrder),[filtered,tableOrder]);
-  const breaks=useMemo(()=>rows.length?delegationBreaks(rows):[],[rows]);
+  const breaks=useMemo(()=>{
+    const rank=new Map(tableOrder.map((code,index)=>[code,index]));
+    return delegationsDiffering(rows).sort((a,b)=>countryName(a.country,language).localeCompare(countryName(b.country,language),language)||(rank.get(a.group)??rank.size)-(rank.get(b.group)??rank.size));
+  },[rows,tableOrder,language]);
   const loading=Boolean(route&&request.loading&&!data);
   const stripDate=/^MTG-PL-(\d{4}-\d{2}-\d{2})/.exec(decisionId)?.[1]??null;
   const dayBack=stripDate?<StripLink href={sittingHref(decisionId.slice(0,17),language)} onClick={dossierLinkClick} wide={<>‹ {dayDate(stripDate,language)}</>} narrow={<>‹ {shortDate(stripDate,language)}</>}/>:<span/>;
@@ -177,8 +179,8 @@ export function VotePage({decisionId,language,onMember,country,onCountry,member=
   const say=<>
     <UiMessage id={sentence.id} values={sentence.values.label?{...sentence.values,label:<span lang="">{sentence.values.label}</span>}:sentence.values}/>{sentence.noNames&&<> <UiMessage id="votepage.no_names"/></>}
   </>;
-  const chooseCountry=(next:string|null,group:string|null,position:VotePosition)=>{if(next===null&&country)onCountry(null);setFilter({country:next,group,position});setMembersOpen(true);requestAnimationFrame(()=>document.getElementById('members')?.scrollIntoView({block:'start'}));};
-  const clearFilter=()=>{setFilter({country:null,group:null,position:null});if(country)onCountry(null);};
+  const chooseCountry=(next:string)=>{setChosenCountry(next);setMembersOpen(true);requestAnimationFrame(()=>document.getElementById('members')?.scrollIntoView({block:'start'}));};
+  const clearFilter=()=>{setChosenCountry(null);if(country)onCountry(null);};
   const documents=subject?.documentIds??[];
   const corrections=data.corrections?votePositionKeys.flatMap(position=>data.corrections![position].map(id=>({id,position,name:data.people?.[id]?.name??(displayName(id)||null)}))):[];
   const referenceDossier=data.procedureReferral&&!partPage?subject?.procedures[0]??null:null;
@@ -216,12 +218,12 @@ export function VotePage({decisionId,language,onMember,country,onCountry,member=
     <div className="frows">
       {differing.length>0&&<FoldRow title={<UiMessage id="votepage.differs"/>} value={<UiMessage id="votepage.meps" values={{count:differIds.size}} counts={{count:differIds.size}}/>}><DifferBlock entries={differing} language={language}/></FoldRow>}
       {named&&<FoldRow id="members" title={<UiMessage id="votepage.members"/>} value={rows.length} open={membersOpen} onOpenChange={setMembersOpen}>
-        {(activeCountry||filter.group)&&<p className="chip"><button type="button" className="word" onClick={clearFilter}>{filter.group&&<><span lang={groupLabelLanguage(filter.group,ui)}>{groupName(filter.group,ui)}</span>{activeCountry?' · ':''}</>}{activeCountry&&<UiMessage id="legislation.meps_elected_in_countryname.9c4b7d" values={{country:<span lang={language}>{countryName(activeCountry,language)}</span>}}/>}</button></p>}
+        {activeCountry&&<p className="chip"><button type="button" className="word" onClick={clearFilter}><UiMessage id="legislation.meps_elected_in_countryname.9c4b7d" values={{country:<span lang={language}>{countryName(activeCountry,language)}</span>}}/></button></p>}
         <PeopleBlock entries={memberEntries} language={language}/>
       </FoldRow>}
       {named&&<FoldRow title={<UiMessage id="votepage.countries"/>} value={new Set(rows.flatMap(row=>row.country?[filterCountry(row.country)]:[])).size}>
-        <Suspense fallback={<p role="status"><UiMessage id="insightshared.loading"/></p>}><VoteCountries rows={rows} language={language} country={filter.country} group={filter.group} position={filter.position} onChoose={chooseCountry}/></Suspense>
-        {breaks.length>0&&<><h3 className="breaks"><UiMessage id="votegroups.delegations.heading"/></h3><ul className="break-list">{breaks.map(row=><li key={row.group+row.country}><UiMessage id="votegroups.delegation.row" values={{country:countryName(row.country,language),group:groupLabel(row.group,ui),for:row.for,against:row.against,restFor:row.restFor,restAgainst:row.restAgainst}}/></li>)}</ul></>}
+        <Suspense fallback={<p role="status"><UiMessage id="insightshared.loading"/></p>}><VoteCountries rows={rows} language={language} country={chosenCountry} onChoose={chooseCountry}/></Suspense>
+        {breaks.length>0&&<><h3 className="breaks"><UiMessage id="votegroups.delegations.differs_heading"/></h3><ul className="break-list">{breaks.map(row=><li key={row.group+row.country}><UiMessage id="votegroups.delegation.differs_row" values={{country:<span lang={language}>{countryName(row.country,language)}</span>,group:groupName(row.group,ui),for:row.counts.for,against:row.counts.against,abstaining:row.counts.abstaining,restFor:row.rest.for,restAgainst:row.rest.against,restAbstaining:row.rest.abstaining}}/></li>)}</ul></>}
       </FoldRow>}
       {count>1&&<FoldRow id="votes" title={<UiMessage id="votepage.votes_fold"/>} value={count} open={votesOpen??hands} onOpenChange={setVotesOpen}><ItemVotes votes={siblings} current={decisionId} mainVoteId={mainVoteId} language={language} mainByLabel={partPage} member={member}/></FoldRow>}
       {referenceDossier&&<FoldRow title={<UiMessage id="votepage.the_file"/>} value={referenceDossier.reference}><Suspense fallback={<p role="status"><UiMessage id="insightshared.loading"/></p>}><DossierStatus reference={referenceDossier.reference} language={language}/></Suspense></FoldRow>}

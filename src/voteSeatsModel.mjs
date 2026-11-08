@@ -13,82 +13,20 @@ export function differingVoterIds(rows) {
   return ids;
 }
 
-// Countries as rows and political groups as columns. Each cell holds the count
-// of the group's most common position in that country plus how many other ballots
-// the group cast there (`other`), so a split is never hidden; a tied most common
-// position keeps its tied counts so a shaded single position is never invented.
-// A country or group with no ballots stays present with a null cell, never 0.
-const rank=counts=>[...positions].sort((a,b)=>counts[b]-counts[a]);
-// The position with strictly the most ballots; a tie for first has no majority.
-export function pluralityPosition(counts) {
-  const ranked=rank(counts);
-  if(!counts[ranked[0]]||counts[ranked[0]]===counts[ranked[1]])return null;
-  return ranked[0];
-}
-const cellOf=counts=>{
-  const ranked=rank(counts),total=positions.reduce((sum,position)=>sum+counts[position],0);
-  if(!total)return {position:null,count:0,tied:null,total:0,other:0,counts};
-  if(counts[ranked[0]]===counts[ranked[1]])return {position:null,count:counts[ranked[0]],tied:ranked.filter(position=>counts[position]===counts[ranked[0]]),total,other:total-counts[ranked[0]],counts};
-  return {position:ranked[0],count:counts[ranked[0]],tied:null,total,other:total-counts[ranked[0]],counts};
-};
-function breakdownBy(rows,keyOf) {
-  const keys=new Map();
+// One tally per country of election, every recorded ballot counted. Greece uses the EU identifier EL.
+// A country appears only when one of its members cast a ballot, so a missing country is never a row of zeros.
+export function countryTallies(rows) {
+  const tallies=new Map();
   for(const row of rows) {
-    if(!row.country||!positions.includes(row.position)||!row.group)continue;
-    const code=keyOf(filterCountry(row.country));
-    if(!keys.has(code))keys.set(code,{country:code,counts:{for:0,against:0,abstaining:0},groups:new Map()});
-    const entry=keys.get(code);
-    entry.counts[row.position]++;
-    if(!entry.groups.has(row.group))entry.groups.set(row.group,{for:0,against:0,abstaining:0});
-    entry.groups.get(row.group)[row.position]++;
+    if(!row.country||!positions.includes(row.position))continue;
+    const code=filterCountry(row.country);
+    if(!tallies.has(code))tallies.set(code,{country:code,counts:{for:0,against:0,abstaining:0},ballots:0});
+    const entry=tallies.get(code);entry.counts[row.position]++;entry.ballots++;
   }
-  return [...keys.values()].map(entry=>{
-    const cells=new Map();
-    for(const [group,counts] of entry.groups)cells.set(group,cellOf(counts));
-    return {...entry,cells,ballots:positions.reduce((sum,position)=>sum+entry.counts[position],0),majority:pluralityPosition(entry.counts)};
-  });
+  return [...tallies.values()];
 }
-export const countryGroupBreakdown=rows=>breakdownBy(rows,code=>code);
-// The same measures across every country: the table's first row. Its country is null.
-export const allCountriesBreakdown=rows=>breakdownBy(rows,()=>null)[0]||null;
-
-const majorityOrder=[...positions,null];
-// Rows by the chosen column. Countries without ballots for a chosen group sort last.
-export function sortCountryRows(rows,sort,nameOf,locale) {
-  const by=(a,b)=>nameOf(a).localeCompare(nameOf(b),locale);
-  const dir=sort.dir==='asc'?1:-1;
-  const compare=sort.kind==='country'?(a,b)=>dir*by(a,b)
-    :sort.kind==='total'?(a,b)=>dir*(a.ballots-b.ballots)||by(a,b)
-    :sort.kind==='majority'?(a,b)=>dir*(majorityOrder.indexOf(a.majority)-majorityOrder.indexOf(b.majority))||b.ballots-a.ballots||by(a,b)
-    :(a,b)=>{
-      const x=a.cells.get(sort.key)?.count||0,y=b.cells.get(sort.key)?.count||0;
-      if(!x||!y)return (x?0:1)-(y?0:1)||by(a,b);
-      return dir*(x-y)||by(a,b);
-    };
-  return [...rows].sort(compare);
-}
-
-// One URL parameter carries the table sort: '' is the default (most ballots first),
-// otherwise `country:asc|desc`, `total:asc|desc`, `majority:asc|desc`, `group:CODE` or
-// `group:CODE:asc`. Unknown values decode to null and the interface falls back to the default.
-export const defaultMatrixSort=Object.freeze({kind:'total',dir:'desc'});
-export function encodeMatrixSort(sort) {
-  if(!sort||sort.kind==='total'&&sort.dir==='desc')return '';
-  const dir=sort.dir==='asc'?'asc':'desc';
-  if(['country','total','majority'].includes(sort.kind))return sort.kind+':'+dir;
-  if(sort.kind==='group'&&sort.key)return 'group:'+sort.key+(dir==='asc'?':asc':'');
-  return '';
-}
-export function decodeMatrixSort(raw) {
-  if(!raw)return {...defaultMatrixSort};
-  const parts=String(raw).split(':');
-  if(['country','total','majority'].includes(parts[0])&&parts.length===2&&(parts[1]==='asc'||parts[1]==='desc'))return {kind:parts[0],dir:parts[1]};
-  if(parts[0]==='group'&&parts.length>=2&&parts[1]) {
-    if(parts.length===2)return {kind:'group',key:parts[1],dir:'desc'};
-    if(parts.length===3&&(parts[2]==='asc'||parts[2]==='desc'))return {kind:'group',key:parts[1],dir:parts[2]};
-  }
-  return null;
-}
+// Countries A to Z by their name in the page language, so a reader finds their own and the order never moves between votes.
+export const sortCountriesByName=(tallies,nameOf,locale)=>[...tallies].sort((a,b)=>nameOf(a.country).localeCompare(nameOf(b.country),locale)||a.country.localeCompare(b.country));
 
 // Tight bounds of the drawn seats, so the chart has no empty margin of its own.
 export function seatBounds(seats) {
@@ -99,14 +37,6 @@ export function seatBounds(seats) {
     minY=Math.min(minY,seat.y-seat.r);maxY=Math.max(maxY,seat.y+seat.r);
   }
   return {minX,minY,maxX,maxY,width:maxX-minX,height:maxY-minY};
-}
-
-// A country, group or cell reads as pressed only while the voter list is showing that filter:
-// the list shown (position not null), the same country and group, and for a cell the same position.
-export function countryFilterPressed(selection,target) {
-  if(selection.position===null)return false;
-  if(selection.country!==target.country||selection.group!==target.group)return false;
-  return target.position===undefined||selection.position===target.position;
 }
 
 // The Parliament's left-to-right group order, read from the seat plan: groups sorted by the mean direction

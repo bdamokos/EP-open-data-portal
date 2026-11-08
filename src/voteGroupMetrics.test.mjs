@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {groupMajorities,differentFromMajority,allGroupsAgree,fisherExactTwoSided,delegationBreaks} from './voteGroupMetrics.mjs';
+import {groupMajorities,differentFromMajority,allGroupsAgree,fisherExactTwoSided,delegationBreaks,delegationsDiffering} from './voteGroupMetrics.mjs';
 const rows=(group,country,f,a,ab=0)=>['for','against','abstaining'].flatMap((position,i)=>Array.from({length:[f,a,ab][i]},()=>({group,country,position})));
 test('plurality, abstentions, ties and exclusions',()=>{
  for(const [counts,majority] of [[[2,1,0],'for'],[[1,2,0],'against'],[[1,2,3],'abstaining'],[[2,2,1],null],[[12,13,13],null]])assert.equal(groupMajorities(rows('PPE','FR',...counts))[0].majority,majority);
@@ -27,4 +27,16 @@ test('delegation threshold, opposite rest, abstentions and unavailable countries
 test('metrics have no country-filter input',()=>{
  const voters=[...rows('PPE','PL',21,0),...rows('PPE','FR',20,132)];
  const before=groupMajorities(voters);delegationBreaks(voters).filter(r=>r.country==='PL');assert.deepEqual(groupMajorities(voters),before);assert.equal(differentFromMajority(voters),41);
+});
+
+test('a delegation differs when more than half of its voters left the group majority, abstaining included',()=>{
+  // DEC-198357 (21 Oct 2026): all seven Greek EPP members abstained while EPP voted for.
+  const voters=[...rows('PPE','GR',0,0,7),...rows('PPE','DE',28,0,0),...rows('PPE','HR',2,1,0),...rows('PPE','MT',0,1,1),
+    ...rows('ECR','BE',0,0,3),...rows('ECR','IT',0,21,0),...rows('NI','DE',1,5,2),...rows('The Left','BE',1,0,1),...rows('The Left','FR',9,0,0),
+    ...rows('Renew','FR',2,2,0),...rows('Renew','DE',2,2,0)];
+  const found=delegationsDiffering(voters).map(row=>row.country+' '+row.group).sort();
+  assert.deepEqual(found,['BE ECR','EL PPE','MT PPE'],'Croatia (1 of 3), a 1–1 split, NI and a group without a majority are left out');
+  const greece=delegationsDiffering(voters).find(row=>row.country==='EL');
+  assert.deepEqual(greece,{group:'PPE',country:'EL',counts:{for:0,against:0,abstaining:7},rest:{for:30,against:2,abstaining:1},majority:'for'},'the rest is the same group from every other country');
+  assert.deepEqual(delegationsDiffering([]),[]);
 });
