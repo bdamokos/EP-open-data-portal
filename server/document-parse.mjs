@@ -34,6 +34,12 @@ class StoredParseError extends Error {}
 // file read. A parse that outlives its readers still finishes and fills the
 // store. The HTTP thread publishes each file atomically, like the other
 // request-path caches; the parse thread never writes.
+function deepFreeze(value) {
+  const pending=[value],seen=new WeakSet();
+  while(pending.length){const current=pending.pop();if(!current||typeof current!=='object'||seen.has(current))continue;seen.add(current);pending.push(...Object.values(current).filter(item=>item&&typeof item==='object'));Object.freeze(current);}
+  return value;
+}
+
 export class OffThreadDocumentParser {
   constructor({thread=documentParseThread,directory=()=>process.env.ODP_CACHE_DIR,maxBytes=config.documentParseMaxDiskBytes,limits={},clock=Date.now,versions={}}={}) {
     Object.assign(this,{thread,directory,maxBytes,clock});
@@ -119,7 +125,7 @@ export class OffThreadDocumentParser {
   async decoded(key,compute,decode,signal) {
     try {return decode(await this.record(key,compute,{signal}));}
     catch(error) {
-      if(!(error instanceof StoredParseError||error instanceof SyntaxError))throw error;
+      if(!(error instanceof StoredParseError||error instanceof SyntaxError||error instanceof RangeError))throw error;
       return decode(await this.record(key,compute,{signal,refresh:true}));
     }
   }
@@ -161,6 +167,7 @@ export class OffThreadDocumentParser {
       while(this.markers.size>this.limits.markerEntries)this.markers.delete(this.markers.values().next().value);
       throw budgetError();
     }
-    return record.parsed;
+    // parseProposal returns a frozen tree; keep a stored copy just as immutable.
+    return parser==='xhtml'?record.parsed:deepFreeze(record.parsed);
   }
 }
