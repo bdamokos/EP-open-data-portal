@@ -226,10 +226,10 @@ test('the shared row shows a dash for unknown, a zero for zero and a bold reject
  assert.match(control,/aria-pressed="true"[^>]*>A</);assert.match(control,/aria-pressed="false"[^>]*>B</);
 });
 
-const openCountries=async(t,{country=null,onCountry=()=>{}}={})=>{
+const openCountries=async(t,{country=null,onCountry=()=>{},countries=['FR']}={})=>{
  if(!globalThis.requestAnimationFrame){globalThis.requestAnimationFrame=callback=>setTimeout(callback,0);t.after(()=>{delete globalThis.requestAnimationFrame;});}
  const f=voteFixture(),data=await f.read();
- for(const voter of data.voters)data.people[voter.personId]={...data.people[voter.personId],name:'Member '+voter.personId,country:'FR'};
+ data.voters.forEach((voter,index)=>{data.people[voter.personId]={...data.people[voter.personId],name:'Member '+voter.personId,country:countries[index%countries.length]};});
  const h=await mount(t,serve(data),{country,onCountry});
  const fold=[...h.container.querySelectorAll('details')].find(node=>/Countries/.test(node.querySelector('summary').textContent));
  fold.open=true;await act(async()=>{fold.dispatchEvent(new globalThis.window.Event('toggle'));});
@@ -242,8 +242,8 @@ test('a country row filters Members and pressing it again clears the filter',asy
  assert.equal(fold.querySelector('.crow .sbar').getAttribute('aria-hidden'),'true','the numbers, not the bar, carry the values');
  const shown=['for','against','abstaining'].filter(position=>fold.querySelector('.crow .n.'+{for:'f',against:'a',abstaining:'x'}[position]).textContent!=='0');
  assert.deepEqual([...fold.querySelectorAll('.crow .sbar i')].map(node=>node.className),shown.map(position=>'b-'+position),'segments follow the columns and skip zeros');
- assert.match(france().getAttribute('aria-label'),/^France: \d+ for, \d+ against, \d+ abstaining$/,'the button speaks the row');
- assert.ok([...fold.querySelectorAll('.crow .n')].every(node=>node.getAttribute('aria-hidden')==='true'),'the numbers are not read twice');
+ assert.equal(fold.querySelector('.countries').getAttribute('role'),'table');
+ assert.deepEqual([...fold.querySelectorAll('.crow [role]')].map(node=>node.getAttribute('role')),['rowheader','cell','cell','cell','cell'],'each number is a cell under its own head');
  assert.equal(france().getAttribute('aria-pressed'),'false');
  await act(async()=>{france().click();});
  assert.equal(france().getAttribute('aria-pressed'),'true');
@@ -403,4 +403,26 @@ test('a paragraph voted in two split requests keeps both keys under its wording'
  assert.equal(text(clause.querySelector('.clause-text.plain')),paragraph,'no one request can mark it');
  assert.equal(clause.querySelectorAll('.clause-key').length,2);
  assert.match(clause.textContent,/Second request words/);
+});
+test('every head sorts the countries and keeps the order in the address',async t=>{
+ const {h,fold}=await openCountries(t,{countries:['FR','DE','IE','AT']});
+ const heads=()=>Object.fromEntries([...fold.querySelectorAll('[role=columnheader]')].map(node=>[node.querySelector('button').textContent.replace(/[↑↓]/g,'').trim(),node.getAttribute('aria-sort')]));
+ const names=()=>[...fold.querySelectorAll('.crow button')].map(button=>button.textContent);
+ const press=async label=>{const head=[...fold.querySelectorAll('[role=columnheader] button')].find(button=>button.textContent.replace(/[↑↓]/g,'').trim()===label);await act(async()=>{head.click();});};
+ assert.equal(heads().Share,'descending','the winning side leads by default');
+ assert.equal(globalThis.location.search.includes('vote-country-order'),false,'the default leaves the address clean');
+ await press('Country');
+ assert.equal(heads().Country,'ascending');assert.equal(heads().Share,'none');
+ assert.deepEqual(names(),['Austria','France','Germany','Ireland']);
+ assert.match(globalThis.location.search,/vote-country-order=name(&|$)/);
+ await press('Country');
+ assert.equal(heads().Country,'descending');
+ assert.deepEqual(names(),['Ireland','Germany','France','Austria']);
+ assert.match(globalThis.location.search,/vote-country-order=name-rev/);
+ await press('For');
+ assert.equal(heads().For,'descending','counts start largest first');
+ const counts=[...fold.querySelectorAll('.crow .n.f')].map(node=>Number(node.textContent));
+ assert.deepEqual(counts,[...counts].sort((a,b)=>b-a));
+ assert.equal(fold.querySelectorAll('.crow.turn').length,0,'the rule belongs to the share order only');
+ void h;
 });

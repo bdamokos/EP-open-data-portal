@@ -25,8 +25,56 @@ export function countryTallies(rows) {
   }
   return [...tallies.values()];
 }
-// Countries A to Z by their name in the page language, so a reader finds their own and the order never moves between votes.
-export const sortCountriesByName=(tallies,nameOf,locale)=>[...tallies].sort((a,b)=>nameOf(a.country).localeCompare(nameOf(b.country),locale)||a.country.localeCompare(b.country));
+// The country list's orders. The default ('' in the address) is `share`: countries by the winning side's share,
+// so the side that won leads. Each order has a natural direction (share: winners first; name: A to Z; counts:
+// most first); `-rev` reverses it, so the address holds `for`, `against-rev`, `name` and so on.
+export const countryOrderKeys=Object.freeze(['share','name','for','against','abstain']);
+export function decodeCountryOrder(raw) {
+  const match=/^(share|name|for|against|abstain)(-rev)?$/.exec(String(raw||''));
+  return match?{key:match[1],reversed:Boolean(match[2])}:{key:'share',reversed:false};
+}
+export const encodeCountryOrder=order=>order.key==='share'&&!order.reversed?'':order.key+(order.reversed?'-rev':'');
+// The winning side's share of the ballots that took a side. Abstentions do not count, as in Parliament's own
+// count, where a text passes when For outnumbers Against. Null when nobody from the country took a side.
+export function winningShare(counts,winning) {
+  const decided=counts.for+counts.against;
+  return decided?counts[winning]/decided:null;
+}
+// 'win': more of the country's ballots for the winning side than against it; 'lose': the other way;
+// 'split': as many on each side, or abstentions only.
+export function countrySide(counts,winning) {
+  const share=winningShare(counts,winning);
+  return share===null||share===.5?'split':share>.5?'win':'lose';
+}
+const countColumn={for:'for',against:'against',abstain:'abstaining'};
+const sideRank={win:0,split:1,lose:2};
+// The list in the chosen order. Share order groups the countries by side (winning majority, split, the other
+// way), then follows the bars: the winning colour shrinks down to the rule and the other colour grows after it.
+// Ties keep the larger delegation first, then the name A to Z.
+export function orderCountries(tallies,order,{winning,nameOf,locale}) {
+  const byName=(a,b)=>nameOf(a.country).localeCompare(nameOf(b.country),locale)||a.country.localeCompare(b.country);
+  const dir=order.reversed?-1:1,losing=winning==='for'?'against':'for';
+  const part=(tally,position)=>tally.ballots?tally.counts[position]/tally.ballots:0;
+  const byShare=(a,b)=>{
+    const side=countrySide(a.counts,winning);
+    return sideRank[side]-sideRank[countrySide(b.counts,winning)]
+      ||(side==='lose'?part(a,losing)-part(b,losing):part(b,winning)-part(a,winning))
+      ||b.ballots-a.ballots;
+  };
+  const compare=order.key==='name'?(a,b)=>dir*byName(a,b)
+    :order.key==='share'?(a,b)=>dir*byShare(a,b)||byName(a,b)
+    :(a,b)=>dir*(b.counts[countColumn[order.key]]-a.counts[countColumn[order.key]])||byName(a,b);
+  return [...tallies].sort(compare);
+}
+// In share order, the index of the first row past the countries whose majority went the winning way
+// (or, reversed, the first row of them): where the dashed rule goes. -1 when every country is on one side.
+export function sideTurn(ordered,winning) {
+  for(let index=1;index<ordered.length;index++) {
+    const before=countrySide(ordered[index-1].counts,winning)==='win',after=countrySide(ordered[index].counts,winning)==='win';
+    if(before!==after)return index;
+  }
+  return -1;
+}
 
 // Tight bounds of the drawn seats, so the chart has no empty margin of its own.
 export function seatBounds(seats) {

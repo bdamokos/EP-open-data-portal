@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {differingVoterIds,countryTallies,sortCountriesByName} from './voteSeatsModel.mjs';
+import {differingVoterIds,countryTallies,orderCountries,sideTurn,countrySide,winningShare,decodeCountryOrder,encodeCountryOrder} from './voteSeatsModel.mjs';
 import {differentFromMajority} from './voteGroupMetrics.mjs';
 
 test('differing voter IDs follow the delegation rule and match differentFromMajority',()=>{
@@ -25,11 +25,45 @@ test('country tallies count every ballot, normalise Greece and leave countries w
   assert.equal(byCountry.get('DE').ballots,1,'a ballot without a known group still counts for its country');
   assert.deepEqual(countryTallies([]),[]);
 });
-test('countries sort A to Z by their name in the page language',()=>{
-  const tallies=countryTallies([...ballot('DE','PPE','for',90),...ballot('AT','PPE','for',1),...ballot('EL','PPE','for',5),...ballot('ES','PPE','for',40)]);
-  const en={DE:'Germany',AT:'Austria',EL:'Greece',ES:'Spain'},de={DE:'Deutschland',AT:'Österreich',EL:'Griechenland',ES:'Spanien'};
-  assert.deepEqual(sortCountriesByName(tallies,code=>en[code],'en').map(row=>row.country),['AT','DE','EL','ES'],'size does not order the list');
-  assert.deepEqual(sortCountriesByName(tallies,code=>de[code],'de').map(row=>row.country),['DE','EL','AT','ES'],'Österreich sorts with O in German');
+const tally=(country,f,a,x)=>({country,counts:{for:f,against:a,abstaining:x},ballots:f+a+x});
+const names={AT:'Austria',BE:'Belgium',CZ:'Czechia',DE:'Germany',EL:'Greece',IE:'Ireland',LU:'Luxembourg',MT:'Malta',SK:'Slovakia'};
+const nameOf=code=>names[code];
+// From DEC-198357 (adopted 434 to 203) plus two made-up edge rows: a 1–1 split and an abstain-only delegation.
+const sample=[tally('AT',12,6,0),tally('BE',15,3,4),tally('CZ',5,15,0),tally('EL',10,3,7),tally('IE',9,0,1),tally('LU',5,0,0),tally('MT',0,4,1),tally('SK',1,1,0),tally('DE',0,0,2)];
+test('the share leaves abstentions out and a split or abstain-only country sits between the sides',()=>{
+  assert.equal(winningShare({for:10,against:3,abstaining:7},'for'),10/13,'abstentions do not count, as in Parliament');
+  assert.equal(winningShare({for:0,against:0,abstaining:2},'for'),null);
+  assert.deepEqual(['EL','MT','SK','DE'].map(code=>countrySide(sample.find(row=>row.country===code).counts,'for')),['win','lose','split','split']);
+  assert.equal(countrySide({for:3,against:1,abstaining:0},'against'),'lose','the side follows the outcome');
+});
+test('by default the winning side leads, with the rule where the majority turns',()=>{
+  const adopted=orderCountries(sample,decodeCountryOrder(''),{winning:'for',nameOf,locale:'en'});
+  assert.deepEqual(adopted.map(row=>row.country),['LU','IE','BE','AT','EL','SK','DE','CZ','MT'],'the green bar shrinks to the rule, then splits, then the red bar grows');
+  assert.equal(sideTurn(adopted,'for'),5,'the rule falls after the last country with a majority for');
+  const rejected=orderCountries(sample,decodeCountryOrder(''),{winning:'against',nameOf,locale:'en'});
+  assert.deepEqual(rejected.map(row=>row.country).slice(0,2),['MT','CZ'],'on a rejection the most opposed lead');
+  assert.equal(sideTurn(rejected,'against'),2);
+  const reversed=orderCountries(sample,decodeCountryOrder('share-rev'),{winning:'for',nameOf,locale:'en'});
+  assert.deepEqual(reversed.map(row=>row.country).slice(0,2),['MT','CZ']);
+  assert.equal(sideTurn(reversed,'for'),4,'reversed, the rule falls before the first country with a majority for');
+  assert.equal(sideTurn([tally('AT',3,0,0),tally('BE',2,1,0)],'for'),-1,'no rule when every country is on one side');
+});
+test('every head sorts, with name A to Z in the page language and counts largest first',()=>{
+  const order=raw=>orderCountries(sample,decodeCountryOrder(raw),{winning:'for',nameOf,locale:'en'}).map(row=>row.country);
+  assert.deepEqual(order('name').slice(0,3),['AT','BE','CZ']);
+  assert.deepEqual(order('name-rev').slice(0,2),['SK','MT']);
+  assert.deepEqual(order('for').slice(0,3),['BE','AT','EL']);
+  assert.deepEqual(order('against').slice(0,2),['CZ','AT']);
+  assert.deepEqual(order('abstain').slice(0,2),['EL','BE']);
+  assert.deepEqual(order('for-rev').slice(0,3),['DE','MT','SK'],'reversed counts run smallest first, ties by name');
+  const de={AT:'Österreich',DE:'Deutschland',EL:'Griechenland'};
+  assert.deepEqual(orderCountries([tally('AT',1,0,0),tally('DE',1,0,0),tally('EL',1,0,0)],decodeCountryOrder('name'),{winning:'for',nameOf:code=>de[code],locale:'de'}).map(row=>row.country),['DE','EL','AT'],'Österreich sorts with O in German');
+});
+test('the order round-trips through one short address value and refuses anything else',()=>{
+  for(const raw of ['','share-rev','name','name-rev','for','for-rev','against','against-rev','abstain','abstain-rev'])assert.equal(encodeCountryOrder(decodeCountryOrder(raw)),raw);
+  assert.deepEqual(decodeCountryOrder('share'),{key:'share',reversed:false});
+  assert.equal(encodeCountryOrder({key:'share',reversed:false}),'','the default leaves the address clean');
+  for(const raw of ['country:asc','total','for-asc','abstaining','sideways',null])assert.deepEqual(decodeCountryOrder(raw),{key:'share',reversed:false});
 });
 
 import {seatBounds} from './voteSeatsModel.mjs';

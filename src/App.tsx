@@ -719,7 +719,7 @@ export default function App() {
     if(next===view){
       const url=new URL(location.href);
       // The vote and week pages have no mode tabs, so the highlighted tab is the way back to the agenda.
-      if(next==='legislation'&&['vote','week'].includes(url.searchParams.get('pl-mode')||'')){for(const key of ['pl-mode','pl-vote','pl-week','agenda-country','vote-country-sort','vote-member'])url.searchParams.delete(key);url.hash='';navigateDossier(url.pathname+url.search);return;}
+      if(next==='legislation'&&['vote','week'].includes(url.searchParams.get('pl-mode')||'')){for(const key of ['pl-mode','pl-vote','pl-week','agenda-country','vote-country-sort','vote-country-order','vote-member'])url.searchParams.delete(key);url.hash='';navigateDossier(url.pathname+url.search);return;}
       if(!['legislation','geopolitics'].includes(next||'')||!['topic','place','t-record','t-records'].some(key=>url.searchParams.has(key)))return;
       for(const key of [...url.searchParams.keys()])if(key==='topic'||key==='place'||key.startsWith('t-'))url.searchParams.delete(key);
       if(next==='legislation')url.searchParams.set('pl-mode','topics');
