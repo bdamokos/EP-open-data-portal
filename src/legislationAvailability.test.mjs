@@ -6,7 +6,7 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
 test('agenda availability distinguishes scheduled items, waits, gaps, source errors and filters',async t=>{
-  t.mock.method(Date,'now',()=>Date.parse('2026-10-20T00:30:00Z'));
+  installRetryClock(t).pin(Date.parse('2026-10-20T00:30:00Z'));
   const window=new Window({url:'http://localhost/?view=legislation'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,requestAnimationFrame:callback=>{callback();return 0;},innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));

@@ -628,7 +628,7 @@ test('revalidating a cached list preserves the parent-restored scroll on its exi
     if(++reads===1)return Response.json(responseFor(url));
     return new Promise(resolve=>{finish=()=>resolve(Response.json(responseFor(url,{subjects:[subject([vote(1)],{title:'Revalidated subject',titles:{en:'Revalidated subject'}})]})));});
   }});
-  const now=Date.now();t.mock.method(Date,'now',()=>now+31_000);
+  const clock=installRetryClock(t);clock.pin();clock.jump(31_000);
   await h.remount();
   assert.equal(reads,2,'returning to an expired cached view revalidates its response');
   const list=visiblePane(h.container);
