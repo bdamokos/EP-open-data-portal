@@ -45,6 +45,9 @@ test('the missing ordinal dot is confined to the addressed article heading',asyn
  }
  const historical=xml.replace(p(note),p(note).replace('<w:p>','<w:p><w:pPr><w:pPrChange w:id="999"><w:pPr><w:rPr><w:ins w:id="998"/></w:rPr></w:pPr></w:pPrChange></w:pPr>'));
  assert.equal(assertHorizontalInstruction({wording,nativeQuoted:{number:17,amendmentBuffer:zip(historical)}}).status,'verified','historical revision markers are not current paragraph-mark changes');
- assert.equal(resolveProposalPlacement(items,{...wording,documentReferences:[]}).status,'unresolved');
+ // Without the note, the missing dot is still a normal typo in the addressed
+ // heading (maintainer ruling, 8 November 2026): same span, typo evidence.
+ const typo=resolveProposalPlacement(items,{...wording,documentReferences:[]});
+ assert.equal(typo.status,'placed');assert.deepEqual(typo.span,placement.span);assert(typo.evidence.some(e=>e.basis==='typo-original-difference'));
  assert.equal(resolveProposalPlacement(items,{...wording,originalText:wording.originalText.replace('1542','1543')}).status,'unresolved');
 });
