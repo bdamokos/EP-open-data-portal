@@ -58,7 +58,7 @@ async function main() {
   await mkdir(workDir,{recursive:true});
   // The cache is read through a private directory that links the snapshot inputs.
   const inputs=path.join(workDir,'inputs');
-  await symlink(path.join(opts.snapshot,'inputs'),inputs,'dir').catch(error=>{if(error.code!=='EEXIST')throw error;});
+  await symlink(path.resolve(opts.snapshot,'inputs'),inputs,'dir').catch(error=>{if(error.code!=='EEXIST')throw error;});
   const cache=new InputCache(inputs,{apiBase:snapshot.apiBase,cap:0,fetchMissing:false});
   // Each read gets its own source clients: their caches and clocks carry state
   // from one read to the next, which would otherwise show up as a difference.
@@ -109,7 +109,10 @@ async function main() {
         inlineMs:Math.round(inline.ms),coldMs:Math.round(cold.ms),warmMs:Math.round(warmFresh.ms),sha256:createHash('sha256').update(inline.reply).digest('hex').slice(0,16)};
       // Two inline reads must agree before a difference is blamed on the parse thread.
       if(!row.cold)row.inlineRepeatable=(await read(undefined)).reply===inline.reply;
-      if(!row.cold)row.firstDifference=firstDifference(JSON.parse(inline.reply),JSON.parse(cold.reply));
+      // A failed read is reported as its error text; only JSON replies are diffed.
+      if(!row.cold)row.firstDifference=inline.reply.startsWith('error:')||cold.reply.startsWith('error:')
+        ?{path:'$',inline:inline.reply,offThread:cold.reply}
+        :firstDifference(JSON.parse(inline.reply),JSON.parse(cold.reply));
       row.ok=row.cold&&row.warmSameParser&&row.warmNewParserSameDirectory&&row.parseJobsAfterWarm===0;
       if(!row.ok)failures++;
       results.push(row);
