@@ -14,7 +14,7 @@ import { XMLParser } from "fast-xml-parser";
 import { transcriptLanguage } from "./transcript-language.mjs";
 import { speechWebsite, languageCode } from "./ep-links.mjs";
 import {retryAfterSeconds} from './upstream-queue.mjs';
-import {ODP_RATE_LIMIT,observations,localSourceQueue,assertUpstreamSource,upstreamPortServices,upstreamStatus,odpObservations,odpHeaderStatus,startOdpMonitoring} from './upstream-services.mjs';
+import {ODP_RATE_LIMIT,createUpstreamServices,adoptUpstreamServices} from './upstream-services.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
@@ -52,6 +52,7 @@ function rememberOrganizationBody(key,record) {
 }
 let cacheBytes = 0;
 const pending = new Map();
+const {observations,localSourceQueue,assertUpstreamSource,upstreamPortServices,upstreamStatus,odpObservations,odpHeaderStatus,startOdpMonitoring}=adoptUpstreamServices(createUpstreamServices());
 export {ODP_RATE_LIMIT,upstreamPortServices,upstreamStatus,odpObservations,odpHeaderStatus,startOdpMonitoring};
 let upstreamBridge;
 export function setUpstreamBridge(bridge){upstreamBridge=bridge;}
