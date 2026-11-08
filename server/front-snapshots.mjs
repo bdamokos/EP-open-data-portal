@@ -168,9 +168,11 @@ export class FrontSnapshots {
     for(const [other,entry] of [...this.entries])if(entry.meta.version!==version)this.#drop(other);
     const headers=[];
     for(let i=0;i<rawHeaders.length;i+=2)if(!notReplayed.has(rawHeaders[i].toLowerCase()))headers.push([rawHeaders[i],rawHeaders[i+1]]);
-    const meta={key,route,version,storedAt:now,expiresAt,etag,bytes:body.length,headers,headerBytes:0};
+    // The file on disk already holds this exact body when its checksum matches; keep its header length to read it back.
+    const previous=this.entries.get(key),onDisk=previous?.persisted?.etag===etag;
+    const meta={key,route,version,storedAt:now,expiresAt,etag,bytes:body.length,headers,headerBytes:onDisk?previous.meta.headerBytes:0};
     const file=this.directory&&path.join(this.directory,createHash('sha256').update(key).digest('hex').slice(0,32)+'.snap');
-    this.entries.set(key,{meta,file,size:body.length+1024,body,persisted:this.entries.get(key)?.persisted??null});
+    this.entries.set(key,{meta,file,size:onDisk?previous.size:body.length+1024,body,persisted:previous?.persisted??null});
     this.#evict(key);
     this.stored++;
     this.#schedule();
