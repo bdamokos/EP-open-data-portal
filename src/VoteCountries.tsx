@@ -32,9 +32,9 @@ export function VoteCountries({rows,language,country,outcome,onChoose}:Props) {
   const winner=useMemo(()=>{
     if(outcome==='ADOPTED')return 'for';
     if(outcome==='REJECTED')return 'against';
-    const total=counted.reduce((sum,tally)=>sum+tally.counts.for-tally.counts.against,0);
+    const total=rows.reduce((sum,row)=>sum+(row.position==='for'?1:row.position==='against'?-1:0),0);
     return total>0?'for':total<0?'against':null;
-  },[outcome,counted]),winning=winner??'for';
+  },[outcome,rows]),winning=winner??'for';
   const tallies=useMemo(()=>orderCountries(counted,decodeCountryOrder(raw),{winning,nameOf:code=>countryName(code,language),locale:language}),[counted,raw,winning,language]);
   if(!tallies.length)return null;
   const turn=order.key==='share'&&winner?sideTurn(tallies,winning):-1;
