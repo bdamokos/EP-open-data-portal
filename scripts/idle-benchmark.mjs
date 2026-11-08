@@ -116,7 +116,9 @@ async function wake() {
   const ok=results.map(result=>result.firstOkMs).filter(value=>value!==null);
   return {
     htmlMs:round(htmlMs),assetsMs:round(assetsMs),calls:results,
-    allOkMs:ok.length===results.length?Math.max(...ok):null,sitting:sitting||null,treeBefore:{count:before.count,rssMiB:before.rssMiB,pssMiB:before.pssMiB},
+    allOkMs:ok.length===results.length?Math.max(...ok):null,
+    // plenary-live reads three live sources; without network it waits on DNS, so the stored-data calls are also reported alone.
+    storedOkMs:(()=>{const stored=results.filter(result=>result.path!=='/api/plenary-live');return stored.every(result=>result.firstOkMs!==null)?Math.max(...stored.map(result=>result.firstOkMs)):null;})(),sitting:sitting||null,treeBefore:{count:before.count,rssMiB:before.rssMiB,pssMiB:before.pssMiB},
   };
 }
 
@@ -193,7 +195,7 @@ if(options.idleWaitS>0){
   result.afterIdleExit={...tree(),waitedS:round((Date.now()-waitStarted)/1000),apiExitedAfterS:exitedAfterS};
   // Opposite direction: the first request after the exit starts the API again.
   const again=await wake();
-  result.rewake={htmlMs:again.htmlMs,allOkMs:again.allOkMs,calls:again.calls.map(({path,firstOkMs,attempts})=>({path,firstOkMs,attempts}))};
+  result.rewake={htmlMs:again.htmlMs,allOkMs:again.allOkMs,storedOkMs:again.storedOkMs,calls:again.calls.map(({path,firstOkMs,attempts})=>({path,firstOkMs,attempts}))};
 }
 const text=JSON.stringify(result,null,1);
 if(options.out)writeFileSync(options.out,text+'\n');
