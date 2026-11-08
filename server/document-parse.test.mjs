@@ -274,6 +274,17 @@ test('the parse thread ends a job at its time limit and runs the queued jobs on 
   assert.ok(done.json);
 });
 
+test('the parse thread exists only while there is work and starts again on demand',async()=>{
+  const thread=makeThread({idleMs:50}),input=()=>new Uint8Array(archive(paragraphs(1)));
+  assert.equal(thread.active,false,'nothing starts at construction');
+  const job=()=>thread.run('proposal-json',{parser:'proposal',input:input(),options:proposalOptions,limitBytes:LIMIT});
+  assert.ok((await job()).json);
+  assert.equal(thread.active,true);
+  for(let waited=0;thread.active&&waited<5000;waited+=20)await sleep(20);
+  assert.equal(thread.active,false,'the idle thread exits');
+  assert.ok((await job()).json,'a later job starts a new thread');
+});
+
 test('stopping a running job rejects it, starts the next on a new thread and leaves no listener behind',async()=>{
   const thread=makeThread(),controller=new AbortController(),input=new Uint8Array(archive(paragraphs(4000)));
   const running=thread.run('proposal-json',{parser:'proposal',input,options:proposalOptions,limitBytes:LIMIT},{signal:controller.signal});
