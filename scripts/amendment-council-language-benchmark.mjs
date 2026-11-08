@@ -15,7 +15,7 @@ const normal=s=>s.normalize('NFC').replace(/\s+/gu,' ').trim();
 const insist=(condition,reason)=>{if(!condition)throw new Error(reason);};
 export function options(args) {
   const opts={};
-  const flags={'--snapshot':'snapshot','--runtime-root':'runtimeRoot','--output-dir':'output','--baseline':'baseline','--request-cap':'cap'};
+  const flags={'--snapshot':'snapshot','--runtime-root':'runtimeRoot','--output-dir':'output','--baseline':'baseline','--request-cap':'cap','--calibration':'calibration'};
   for(let i=0;i<args.length;i++) {
     if(args[i]==='--help'){opts.help=true;continue;}
     const field=flags[args[i]];insist(field&&args[i+1]&&!args[i+1].startsWith('--'),'Unknown or missing option: '+args[i]);insist(!Object.hasOwn(opts,field),'Repeated option: '+args[i]);opts[field]=args[++i];
@@ -55,12 +55,31 @@ export function correspondence(expected,proposal,rootPath) {
   if(matched.some((p,i)=>i&&p.index!==matched[i-1].index+1))return {supported:false,reason:'native-row-continuity-mismatch'};
   return {supported:true,rows:matched.map(p=>({index:p.index,text:p.text,path:p.source.path}))};
 }
-export function assessPlacement(placement,assertion,proposal) {
+// A maintainer calibration lifts a sealed hold for one exact assertion; the
+// placement still has to pass the ordinary native verification below.
+const SOURCE_URL=/^https:\/\/(?:data\.europarl\.europa\.eu|publications\.europa\.eu|redmapl3\.europarl\.europa\.eu)\//u;
+export function councilCalibration(file,{snapshotSha256,expectedAssertionsSha256}) {
+  insist(file?.snapshotSha256===snapshotSha256&&file.expectedAssertionsSha256===expectedAssertionsSha256&&Array.isArray(file.rows),'Council calibration is bound to another snapshot or expectation seal.');
+  const rows=new Map();
+  for(const row of file.rows) {
+    insist(!rows.has(row.key),'Duplicate Council calibration row: '+row.key);
+    insist(/^[a-f0-9]{64}$/u.test(row.expectedAssertionSha256)&&row.fromState&&row.acceptedOutcome==='legal-correct'&&row.acceptedPlacement?.operation&&row.acceptedPlacement.nativePath&&row.checkedBy&&(row.note||row.noteRuling)&&row.sources?.length&&row.sources.every(source=>SOURCE_URL.test(source.url)&&/^[a-f0-9]{64}$/u.test(source.sha256)&&source.paths?.length&&Number.isFinite(Date.parse(source.retrievedAt))),'Council calibration source evidence incomplete for '+row.key);
+    rows.set(row.key,row);
+  }
+  return rows;
+}
+export function acceptedHold(calibration,assertion) {
+  const row=calibration?.get(assertion.key);
+  if(!row)return false;
+  insist(row.expectedAssertionSha256===digest(JSON.stringify(assertion))&&row.fromState===assertion.state&&row.acceptedPlacement.operation===assertion.operation&&row.acceptedPlacement.nativePath===assertion.native?.path,'Council calibration does not match the sealed assertion for '+assertion.key);
+  return true;
+}
+export function assessPlacement(placement,assertion,proposal,accepted=false) {
   const unresolved=placement?.status!=='placed';
   if(placement?.operation!==assertion.operation)return {outcome:unresolved?'withheld':'false-placement',reason:'native-operation-mismatch'};
   if(unresolved)return {outcome:'withheld',reason:placement?.reason||'placement-unavailable'};
   if(placement.itemIndex!==0)return {outcome:'false-placement',reason:'wrong-source-item'};
-  if(assertion.state==='typed-note-equivalence-held')return {outcome:'placed-unverified',reason:'typed-note-equivalence-held',gateFailure:true};
+  if(assertion.state==='typed-note-equivalence-held'&&!accepted)return {outcome:'placed-unverified',reason:'typed-note-equivalence-held',gateFailure:true};
   if(assertion.state==='source-orthography-conflict')return {outcome:'false-placement',reason:'source-orthography-conflict'};
   if(assertion.operation==='replace') {
     const mapping=correspondence(assertion.contentRows,proposal,assertion.native.numericPath);
@@ -116,7 +135,7 @@ async function snapshotInputs(snapshot) {
   return {research,records};
 }
 // Missing replay inputs do not remove observations or relax native assertions.
-export async function evaluateCouncilEditions({editions,native,cache,runtime,replay=sourceReplay(cache,runtime)}) {
+export async function evaluateCouncilEditions({editions,native,cache,runtime,replay=sourceReplay(cache,runtime),calibration}) {
   const rows=[];
   for(const edition of editions) {
     const language=edition.language,assertions=native.editions.find(e=>e.language===language).rows;
@@ -151,8 +170,8 @@ export async function evaluateCouncilEditions({editions,native,cache,runtime,rep
       const bound=edition.binding,item=source.baseline.items?.[0];
       insist(source.baseline.workId===bound.workId&&source.baseline.celex==='52026AG0006(01)'&&source.baseline.language===language&&source.items.length===1&&item?.itemId===bound.items[0].itemId&&item.expressionId===bound.items[0].expressionId&&item.manifestationId===bound.items[0].manifestationId&&item.source.sha256===edition.xhtml.sha256&&item.source.language===bound.items[0].languageUri&&item.source.url===bound.items[0].itemId.replace(/^http:/u,'https:'),'Runtime selected another Council identity/language/source.');
       const placement=runtime.documentContextPlacement({chosen:{...chosen,targetLabelLanguage:language},items:source.items,baseline:source.baseline,resolutionDocument:true});
-      const assessment=assessPlacement(placement,assertion,source.items[0].proposal);
-      rows.push({key:assertion.key,number:chosen.number,language,identity:{documentId:DOCUMENT,listId:LIST,number:chosen.number,language,wording:{url:files[0].url,resolvedSourceUrl:input.resolvedSourceUrl||input.url,sha256:input.sha256,fetchedAt:input.fetchedAt},council:{workId:source.baseline.workId,celex:source.baseline.celex,itemId:item.itemId,expressionId:item.expressionId,manifestationId:item.manifestationId,source:item.source}},expectedAssertionSha256:digest(JSON.stringify(assertion)),nativeState:assertion.state,nativeAssertionStatus:assertion.state==='typed-note-equivalence-held'?'unsupported':'verified',wording:{parserVersion:runtime.AMENDMENT_EXTRACTION_VERSION,status:'complete',baseline:chosen.baseline,targetLabel:chosen.targetLabel,originalSha256:digest(chosen.originalText),proposedSha256:digest(chosen.proposedText)},placement,...assessment,baseline:{status:source.baseline.status,gaps:source.baseline.gaps,evidence:source.baseline.evidence,projection:{parserVersion:source.items[0].proposal.parserVersion,sourceHash:source.items[0].proposal.sourceHash,complete:source.items[0].proposal.complete,gaps:source.items[0].proposal.gaps}}});
+      const accepted=acceptedHold(calibration,assertion),assessment=assessPlacement(placement,assertion,source.items[0].proposal,accepted);
+      rows.push({key:assertion.key,number:chosen.number,language,identity:{documentId:DOCUMENT,listId:LIST,number:chosen.number,language,wording:{url:files[0].url,resolvedSourceUrl:input.resolvedSourceUrl||input.url,sha256:input.sha256,fetchedAt:input.fetchedAt},council:{workId:source.baseline.workId,celex:source.baseline.celex,itemId:item.itemId,expressionId:item.expressionId,manifestationId:item.manifestationId,source:item.source}},expectedAssertionSha256:digest(JSON.stringify(assertion)),nativeState:assertion.state,nativeAssertionStatus:assertion.state==='typed-note-equivalence-held'?'unsupported':'verified',...(accepted?{calibratedHold:assertion.state}:{}),wording:{parserVersion:runtime.AMENDMENT_EXTRACTION_VERSION,status:'complete',baseline:chosen.baseline,targetLabel:chosen.targetLabel,originalSha256:digest(chosen.originalText),proposedSha256:digest(chosen.proposedText)},placement,...assessment,baseline:{status:source.baseline.status,gaps:source.baseline.gaps,evidence:source.baseline.evidence,projection:{parserVersion:source.items[0].proposal.parserVersion,sourceHash:source.items[0].proposal.sourceHash,complete:source.items[0].proposal.complete,gaps:source.items[0].proposal.gaps}}});
     }
   }
   return rows;
@@ -160,7 +179,7 @@ export async function evaluateCouncilEditions({editions,native,cache,runtime,rep
 
 export async function main(args=process.argv.slice(2)) {
   const opts=options(args);
-  if(opts.help){process.stdout.write('Offline controlled Council language gate: --snapshot FILE --runtime-root CHECKOUT --output-dir DIRECTORY --request-cap 0 [--baseline REPORT]\n');return;}
+  if(opts.help){process.stdout.write('Offline controlled Council language gate: --snapshot FILE --runtime-root CHECKOUT --output-dir DIRECTORY --request-cap 0 [--baseline REPORT] [--calibration FILE]\nA calibration lifts a sealed hold only for the exact assertions it names; the placement must still pass native verification.\n');return;}
   const snapshotBytes=await readFile(opts.snapshot),snapshot=JSON.parse(snapshotBytes),snapshotSha256=digest(snapshotBytes);
   insist(snapshot.schemaVersion===1&&snapshot.documentId===DOCUMENT&&snapshot.listId===LIST,'Unsupported controlled Council snapshot');
   insist(JSON.stringify(snapshot.editions.map(e=>e.language))===JSON.stringify(LANGUAGES),'Controlled editions must be EN/FR/HU/PL/GA.');
@@ -168,9 +187,11 @@ export async function main(args=process.argv.slice(2)) {
   const runtimeIdentity=await identity(root),harness=await harnessIdentity();
   insist(!runtimeIdentity.dirty,'Measured checkout must be clean.');
   const {records}=await snapshotInputs(snapshot);
+  const calibrationBytes=opts.calibration?await readFile(opts.calibration):null,calibration=calibrationBytes?councilCalibration(JSON.parse(calibrationBytes),{snapshotSha256,expectedAssertionsSha256:snapshot.expected.sha256}):undefined;
   const expectedBytes=await checked(snapshot.expected.path,snapshot.expected.sha256),expected=JSON.parse(expectedBytes);
   const native=JSON.parse(execFileSync('python3',[fileURLToPath(new URL('amendment-council-language-native.py',import.meta.url))],{input:JSON.stringify({editions:snapshot.editions}),encoding:'utf8',maxBuffer:32*1024*1024,timeout:60_000}));
   insist(JSON.stringify(native)===JSON.stringify(expected),'Native assertions differ from the sealed expected assertions.');
+  for(const key of calibration?.keys()||[]){const assertion=native.editions.flatMap(e=>e.rows).find(r=>r.key===key);insist(assertion&&acceptedHold(calibration,assertion),'Council calibration names no sealed assertion: '+key);}
   const temporary=await mkdtemp(path.join(os.tmpdir(),'council-language-replay-')),restoreNetwork=blockNetwork();
   try {
     const manifest=[...records.values()].map(r=>r.meta).sort((a,b)=>a.url.localeCompare(b.url,'en')||JSON.stringify(a.request||{}).localeCompare(JSON.stringify(b.request||{}),'en'));
@@ -179,13 +200,13 @@ export async function main(args=process.argv.slice(2)) {
     const calls=[],get=cache.get.bind(cache);cache.get=async(url,options={})=>{calls.push({url,request:options.accept?{accept:options.accept,...(options.language?{language:options.language}:{})}:null});return get(url,options);};
     const runtime=await replayRuntime(root),rows=[];
     const replay=sourceReplay(cache,runtime);
-    rows.push(...await evaluateCouncilEditions({editions:snapshot.editions,native,cache,runtime,replay}));
+    rows.push(...await evaluateCouncilEditions({editions:snapshot.editions,native,cache,runtime,replay,calibration}));
     cache.assertHealthy();insist(rows.length===40&&new Set(rows.map(r=>r.key)).size===40,'Controlled observation set differs.');
     insist(JSON.stringify(runtimeIdentity)===JSON.stringify(await identity(root))&&JSON.stringify(harness)===JSON.stringify(await harnessIdentity()),'Runtime or harness changed during replay.');
     const canonicalOracleFiles=['amendment-language-oracle.mjs','amendment-language-raw.py','amendment-language-vocabulary.mjs','amendment-benchmark-operation-oracle.mjs','amendment-benchmark-scope-oracle.mjs','fixtures/amendment-language-scope-oracle.json','amendment-oracle-grammar.mjs','amendment-benchmark-proposal-oracle.mjs'];
     const canonicalOracleFingerprint=digest(Buffer.concat(await Promise.all(canonicalOracleFiles.map(f=>readFile(path.join(root,'scripts',f))))));
     const counts=Object.fromEntries(['legal-correct','placed-unverified','withheld','false-placement','acquisition-unavailable'].map(status=>[status,rows.filter(r=>r.outcome===status).length]));
-    const result={schemaVersion:1,scope:'additive-controlled-council-languages',snapshotSha256,expectedAssertionsSha256:snapshot.expected.sha256,canonicalOracleFingerprint,oracleFingerprint:digest(await readFile(new URL('amendment-council-language-native.py',import.meta.url))),harness,runtime:runtimeIdentity,acquisition:{requests:cache.requests,requestCap:0,...(cache.frozenInputGaps.size?{frozenInputGaps:cache.frozenObservations()}: {})},observations:40,newLanguageObservations:32,retainedEnglishControls:8,distinctAmendments:8,noChangeOutcomes:0,nativeAssertions:{verified:rows.filter(r=>r.nativeAssertionStatus==='verified').length,unsupported:rows.filter(r=>r.nativeAssertionStatus==='unsupported').length},counts,rows,requests:calls};
+    const result={schemaVersion:1,scope:'additive-controlled-council-languages',snapshotSha256,expectedAssertionsSha256:snapshot.expected.sha256,canonicalOracleFingerprint,oracleFingerprint:digest(await readFile(new URL('amendment-council-language-native.py',import.meta.url))),harness,runtime:runtimeIdentity,acquisition:{requests:cache.requests,requestCap:0,...(cache.frozenInputGaps.size?{frozenInputGaps:cache.frozenObservations()}: {})},observations:40,newLanguageObservations:32,retainedEnglishControls:8,distinctAmendments:8,noChangeOutcomes:0,nativeAssertions:{verified:rows.filter(r=>r.nativeAssertionStatus==='verified').length,unsupported:rows.filter(r=>r.nativeAssertionStatus==='unsupported').length},counts,...(calibrationBytes?{calibrationSha256:digest(calibrationBytes),calibratedHolds:rows.filter(r=>r.calibratedHold).map(r=>r.key)}:{}),rows,requests:calls};
     if(opts.baseline)result.comparison=compare(result,await json(opts.baseline));
     const file=path.join(output,'council-languages-'+runtimeIdentity.head+'-'+snapshotSha256.slice(0,12)+'.json');await writeFile(file,JSON.stringify(result,null,2)+'\n',{flag:'wx'});
     process.stdout.write(JSON.stringify({file,head:runtimeIdentity.head,counts,comparison:result.comparison,acquisition:result.acquisition})+'\n');

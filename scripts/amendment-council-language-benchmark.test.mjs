@@ -5,7 +5,7 @@ import {readFile,writeFile,mkdtemp,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {InputCache,digest} from './amendment-benchmark-cache.mjs';
-import {options,assessPlacement,compare,evaluateCouncilEditions} from './amendment-council-language-benchmark.mjs';
+import {options,assessPlacement,compare,evaluateCouncilEditions,councilCalibration,acceptedHold} from './amendment-council-language-benchmark.mjs';
 
 const p=(index,text,path,complete=true)=>({index,text,source:{path,complete},complete,objects:[]});
 const predecessor=[{numericPath:'/1/2/4/1',text:'(d) the complete provision'},{numericPath:'/1/2/4/2',text:'(i) first condition'},{numericPath:'/1/2/4/3',text:'(ii) second condition'}];
@@ -122,4 +122,24 @@ test('native verifier preserves exact Word characters without importing runtime 
   assert.doesNotMatch(source,/proposal.structure|parseTarget|normaliseForMatching|amendment.language.oracle/);
   const program=`import importlib.util,json,sys\nsys.dont_write_bytecode=True\ns=importlib.util.spec_from_file_location('native',sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m)\nassert m.fold('n\\u2011áireofaí') != m.fold('n áireofaí')\nassert m.fold('l’édition') != m.fold(\"l'édition\")\nfor value in [b'<!ENTITY x SYSTEM \\\"file:///invalid\\\"><a/>',b'<!DOCTYPE a SYSTEM \\\"https://example.org/\\\"><a/>']:\n try:m.parse_xml(value)\n except ValueError:pass\n else:raise AssertionError('external declaration accepted')\nprint('native character and declaration checks passed')`;
   assert.match(execFileSync('python3',['-c',program,new URL('./amendment-council-language-native.py',import.meta.url).pathname],{encoding:'utf8'}),/passed/);
+});
+
+test('a maintainer calibration lifts one exact typed-note hold but keeps native verification',()=>{
+  const held={key:'L:3:en',operation:'replace',state:'typed-note-equivalence-held',native:{path:'/h:div[71]',numericPath:'/1/2/7'},contentRows:[{numericPath:'/1/2/7/1',text:'(65) Whole recital.'}]};
+  const proposal={paragraphs:[p(75,'(64) Previous.','/1/2/6/1'),p(76,'(65) Whole recital.','/1/2/7/1')]};
+  const placed={operation:'replace',status:'placed',itemIndex:0,span:{start:76,end:76},splice:{start:{paragraph:76,offset:0},end:{paragraph:76,offset:19}}};
+  const source={url:'https://publications.europa.eu/resource/cellar/x/DOC_1',sha256:'a'.repeat(64),paths:['/h:div[71]'],retrievedAt:'2026-10-27T00:00:00Z'};
+  const row={key:held.key,expectedAssertionSha256:digest(JSON.stringify(held)),fromState:held.state,acceptedOutcome:'legal-correct',acceptedPlacement:{operation:'replace',nativePath:'/h:div[71]'},noteRuling:'The note falls with the recital.',checkedBy:'maintainer ruling',sources:[source]};
+  const seal={snapshotSha256:'s',expectedAssertionsSha256:'e'},calibration=councilCalibration({...seal,rows:[row]},seal);
+  assert.equal(assessPlacement(placed,held,proposal).outcome,'placed-unverified');
+  assert.equal(acceptedHold(calibration,held),true);
+  assert.equal(assessPlacement(placed,held,proposal,true).outcome,'legal-correct');
+  assert.equal(assessPlacement({...placed,span:{start:75,end:76}},held,proposal,true).outcome,'false-placement');
+  assert.equal(acceptedHold(calibration,{...held,key:'L:3:fr'}),false);
+  assert.throws(()=>acceptedHold(calibration,{...held,state:'other'}),/does not match/);
+  assert.throws(()=>acceptedHold(councilCalibration({...seal,rows:[{...row,acceptedPlacement:{operation:'replace',nativePath:'/h:div[70]'}}]},seal),held),/does not match/);
+  assert.throws(()=>councilCalibration({...seal,rows:[row]},{...seal,snapshotSha256:'other'}),/another snapshot/);
+  assert.throws(()=>councilCalibration({...seal,rows:[row,row]},seal),/Duplicate/);
+  for(const broken of [{checkedBy:''},{acceptedOutcome:'withheld'},{sources:[]},{sources:[{...source,url:'https://example.org/x'}]},{sources:[{...source,retrievedAt:'never'}]}])assert.throws(()=>councilCalibration({...seal,rows:[{...row,...broken}]},seal),/evidence incomplete/);
+  assert.equal(options(['--snapshot','/s','--runtime-root','/r','--output-dir','/o','--request-cap','0','--calibration','/c.json']).calibration,'/c.json');
 });
