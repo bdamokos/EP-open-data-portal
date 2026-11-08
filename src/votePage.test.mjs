@@ -392,3 +392,19 @@ test('a delegation that broke with its group reads as one plain sentence after t
  const h=await mount(t,serve(data),{members,member:'197481'});
  assert.equal(h.container.querySelector('.member-line').textContent,'Ann Against voted against, unlike their group (EPP) and the outcome. France: both EPP MEPs voted against, unlike their group.');
 });
+test('a country voting together across groups reads as one plain sentence',async t=>{
+ const data=await voteFixture().read(),voter=(personId,position,code,groupId)=>({personId,position,status:'recorded',group:{code,orgId:'org/'+groupId,groupId:'org/'+code},groupStatus:'verified',groupSource:null});
+ // France votes against, all 4: its two S&D voters cross the S&D majority for, its EPP voter stays with the EPP.
+ data.voters=[voter('197481','against','PPE','7018'),voter('197591','against','S&D','7038'),voter('124846','against','Renew','7035'),voter('256852','abstaining','NI','6561'),voter('600','against','S&D','7038'),...['601','602','603'].map(id=>voter(id,'for','S&D','7038')),...['604','605'].map(id=>voter(id,'against','PPE','7018')),voter('606','against','Renew','7035'),voter('607','for','Renew','7035'),voter('608','for','Renew','7035')];
+ const counts={for:5,against:7,abstaining:1};
+ data.decision={...data.decision,outcome:'REJECTED',totals:counts,namedVoters:{...data.decision.namedVoters,counts}};
+ const members=[...named,{id:600,firstName:'Cy',lastName:'Crossed',countryCode:'FR'},...[601,602,603,604,605,606,607,608].map(id=>({id,firstName:'Other',lastName:String(id),countryCode:'DE'}))];
+ await t.test('a member whose own delegation stayed with its group',async sub=>{
+  const h=await mount(sub,serve(data),{members,member:'197481'});
+  assert.equal(h.container.querySelector('.member-line').textContent,'Ann Against voted against, with their group (EPP) and the outcome. France: all 4 MEPs voted against, whatever their group.');
+ });
+ await t.test('a member whose delegation broke with its group hears that first',async sub=>{
+  const h=await mount(sub,serve(data),{members,member:'197591'});
+  assert.equal(h.container.querySelector('.member-line').textContent,'Sam Socialist voted against, unlike their group (S&D) but with the outcome. France: both S&D MEPs voted against, unlike their group.');
+ });
+});
