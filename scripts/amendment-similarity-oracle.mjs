@@ -24,8 +24,9 @@ export function assertSimilarityRows(rows,original,span,{threshold=.95,margin=.0
 
 // Independent typo assertion (maintainer ruling, 8 November 2026): full token
 // edit distance over the addressed raw rows. The placed span must be the
-// strict best; its differences total at most two words, or whitespace inside
-// a token run, and never touch a number or the label that follows one.
+// strict best; its differences total at most two words or punctuation marks,
+// ignoring whitespace and label punctuation, and never touch a number, the
+// label that follows one, a list marker or either end of the quote.
 const typoTokens=value=>normal(value.split('\n').map(line=>line.replace(/^\s*\(?([\p{L}\p{N}]{1,4})[.)](?=\s)/u,'$1)')).join('\n')).replace(/[\u2010\u2011]/gu,'-').replace(/[şŞţŢ]/gu,c=>({ş:'ș',Ş:'Ș',ţ:'ț',Ţ:'Ț'})[c]).match(/[\p{L}\p{N}]+|[^\s\p{L}\p{N}]/gu)||[];
 function tokenEdits(a,b){
  const n=a.length,m=b.length;if(n*m>4_000_000)return null;
@@ -53,9 +54,8 @@ export function oracleTypo(original,source){
   if(run.left.join('')===run.right.join('')||[...run.left,...run.right].every(t=>/^[.()]$/u.test(t)))continue;
   if([...run.left,...run.right,...run.before].some(t=>/\p{N}/u.test(t??'')))return null;
   if([run.left,run.right].some(list=>list.every(t=>!/[\p{L}\p{N}]/u.test(t)))&&(run.atEnd||run.atStart))return null;
-  const changed=Math.max(...[run.left,run.right].map(list=>list.filter(t=>/[\p{L}\p{N}]/u.test(t)).length));
-  if(!changed)return null;
-  words+=changed;
+  if([...run.left,...run.right].some(t=>/^[-–—•·*]$/u.test(t)))return null;
+  words+=Math.max(1,...[run.left,run.right].map(list=>list.filter(t=>/[\p{L}\p{N}]/u.test(t)).length));
  }
  return words<=2?edits.distance:null;
 }

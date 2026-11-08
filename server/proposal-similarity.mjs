@@ -39,11 +39,11 @@ export function singleWordDifference(left,right) {
 }
 
 // A quoted original can carry a normal typo (maintainer ruling, 8 November
-// 2026): at most TYPO_TOKENS changed words. Whitespace or punctuation inside a
-// label ("37 b" for "37b", "1." for "1)") is formatting, not a change. A number,
-// or a word right after one, never differs: another cross-reference or label
-// is not a typo, and neither is a punctuation-only change or words added at
-// either end of the quote. Every passage that
+// 2026): at most TYPO_TOKENS changes, each a word or a punctuation mark.
+// Whitespace or punctuation inside a label ("37 b" for "37b", "1." for "1)") is
+// formatting, not a change. A number, a word right after one or a list marker
+// never differs: another cross-reference or label is not a typo, and neither
+// are words added at either end of the quote. Every passage that
 // does not overlap the best one must be at least TYPO_MARGIN tokens further
 // from the quote, and no overlapping passage may tie it.
 export const TYPO_TOKENS=2, TYPO_MARGIN=3;
@@ -91,9 +91,10 @@ function typoCost(regions,a,b) {
   // Words added or dropped at either end move the passage boundary instead.
   const mark=list=>list.every(token=>!/[\p{L}\p{N}]/u.test(token));
   if((mark(region.left)||mark(region.right))&&(mark(a.slice(0,region.i))&&mark(b.slice(0,region.j))||mark(a.slice(region.i+region.left.length))&&mark(b.slice(region.j+region.right.length))))return null;
-  const words=list=>list.filter(token=>/[\p{L}\p{N}]/u.test(token)).length,changed=Math.max(words(region.left),words(region.right));
-  if(!changed)return null;
-  cost+=changed;
+  // List markers (dashes, bullets) label indents; they never count as typos.
+  if([...region.left,...region.right].some(token=>/^[-–—•·*]$/u.test(token)))return null;
+  const words=list=>list.filter(token=>/[\p{L}\p{N}]/u.test(token)).length;
+  cost+=Math.max(1,words(region.left),words(region.right));
  }
  return cost;
 }
