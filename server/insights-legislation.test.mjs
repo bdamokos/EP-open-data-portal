@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {documentRows,projectDocument,speechRows} from './activity-index-model.mjs';
-import {agendaCreatorIds,agendaTopics,namedVote,topicVotes,voteScope,finalVotePatterns,topicRoles,classifyProcedure} from './insights-legislation-model.mjs';
+import {agendaCreatorIds,agendaTopics,voteScope,topicRoles,classifyProcedure} from './insights-legislation-model.mjs';
 import {LegislationInsights} from './insights-legislation.mjs';
 import {insightQuery} from './insights-store.mjs';
 import {createInsights} from './insights.mjs';
@@ -104,28 +104,10 @@ test('actual agenda contains 18 topics through supplied meeting-part child refs,
   const rogue={...fixture.foreseen.payload.data.find(n=>n.activity_id.endsWith('-V-48')),id:'eli/dl/event/unlinked',activity_id:'unlinked'};
   assert.equal(agendaTopics(meeting,{...fixture.foreseen,payload:{data:[...fixture.foreseen.payload.data,rogue]}}).length,18);
 });
-test('real final-resolution roll-call has 454/86/110 actual named voters; intended corrections never move the actual person',()=>{
-  const raw=fixture.decisions.payload.data[0],v=namedVote(raw,fixture.decisions,members,metadata,'2026-10-07');
-  assert.equal(v.scope,'final-text');assert.equal(v.uniqueNamedVoters,650);assert.deepEqual(v.namedCounts,{for:454,against:86,abstaining:110});assert(v.totalsMatchNamed);
-  assert.equal(v.intendedCorrections.abstaining.length,1);assert.equal(v.intendedCorrections.abstaining[0].id,'197591');
-  const actual=Object.keys(v.groups).filter(k=>v.groups[k].some(p=>p.id==='197591'));
-  assert.deepEqual(actual,['for']);assert.equal(v.groups.abstaining.some(p=>p.id==='197591'),false);
+test('vote scope reads amendments and unknown subjects from the exact reference',()=>{
+  assert.equal(voteScope(fixture.decisions.payload.data[0]),'final-text');
   assert.equal(voteScope(fixture.decisions.payload.data[2]),'amendment');
   assert.equal(voteScope({referenceText:{en:'Unknown subject'}}),'unclassified');
-});
-test('named votes join only exact result.executed and decision parents, not similar labels or matching report text',()=>{
-  const t=topics.find(t=>t.id.endsWith('-V-48'));
-  const votes=topicVotes(t,fixture.results,fixture.decisions,members,metadata,'2026-10-07');
-  assert.equal(votes.length,1);assert.equal(votes[0].id,'MTG-PL-2026-10-07-DEC-197457');assert.deepEqual(votes[0].associations[0].procedureIds,['2025-2117']);
-  assert.equal(topicVotes({...t,uri:'eli/dl/event/unlinked'},fixture.results,fixture.decisions,members,metadata,'2026-10-07').length,0);
-  const patterns=finalVotePatterns(votes,members,metadata);assert.equal(patterns.voteCount,1);assert.equal(patterns.uniqueNamedPeople,650);assert.equal(patterns.groups.for.length,454);
-});
-test('aggregate-only and conflicting voter sources remain explicit; absent records are not abstention',()=>{
-  const raw=fixture.decisions.payload.data[0],aggregate={...raw};delete aggregate.had_voter_favor;
-  const v=namedVote(aggregate,fixture.decisions,members,metadata,'2026-10-07');assert.equal(v.groups,null);assert.equal(v.uniqueNamedVoters,null);assert.equal(v.currentRosterWithoutNamedRecord,null);
-  const conflicting={...raw,had_voter_against:[...raw.had_voter_against,raw.had_voter_favor[0]]};
-  const c=namedVote(conflicting,fixture.decisions,members,metadata,'2026-10-07');assert.equal(c.conflictingVoterIds.length,1);assert.equal(c.totalsMatchNamed,false);assert.equal(c.namedCounts.for,453);
-  const extra=new Map([...members,['999999',{id:'999999',name:'No record'}]]);assert.equal(namedVote(raw,fixture.decisions,extra,metadata,'2026-10-07').namedCounts.abstaining,110);
 });
 test('real report role keeps exact source person, role and participation date; missing procedure classification stays unknown',()=>{
   const work=fixture.report.payload.data[0],topic=topics.find(t=>t.id.endsWith('-V-48'));
@@ -155,7 +137,8 @@ test('read-only service uses exact parent/child speech join, bounded requests an
     assert.equal(actual.detail.coverage.speechAssociations.exactChildReferences,70);
     await assert.rejects(service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-06-PVCRE-ITM-4')),e=>e.status===404);
     const count=calls.length;await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-D-69'));assert.equal(calls.length,count);
-    const vote=await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-V-48'));assert.equal(vote.detail.selectedVote.namedCounts.for,454);
+    const vote=await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-V-48'));assert.equal(vote.detail.kind,'PLENARY_VOTE');assert(!('votes' in vote.detail)&&!('selectedVote' in vote.detail));
+    assert(!calls.some(([ep])=>/vote-results|decisions/.test(ep)),'the agenda item reads its votes from the held snapshot only');
     assert(!calls.some(([ep])=>ep.endsWith('/activities')||ep.endsWith('/events')));
     const mismatchService=new LegislationInsights(store,{clock,loadMetadata:async()=>metadata,request:yearCatalogue(async(ep,params)=>ep.startsWith('/speeches/') ? {...fixture.speech,payload:{data:[{...s,id:'eli/dl/event/unrelated-record'}]}} : request(ep,params))});
     const mismatch=await mismatchService.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-D-69'));
@@ -164,23 +147,20 @@ test('read-only service uses exact parent/child speech join, bounded requests an
   }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});}
 });
 
-test('sitting, speech and vote display titles follow the shared order without changing exact source joins',async()=>{
+test('sitting and speech display titles follow the shared order without changing exact source joins',async()=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'insights-title-language-')),store=new ActivityStore(directory);
   const labels={bg:'Bulgarian display title',de:'German display title',es:'Spanish display title',fr:'French display title'};
   try {
     store.acquire();const {generation}=store.beginCycle();store.setMembers([...members.values()]);
     const speech=structuredClone(fixture.speech),s=speech.payload.data[0];s.activity_label=labels;
     store.putSource(generation,'/speeches/'+s.activity_id,'speech',{id:s.activity_id},new Date(speech.fetchedAt).toISOString(),speechRows(s,new Date(speech.fetchedAt).toISOString()));
-    const meetings=structuredClone(fixture.meetings),decisions=structuredClone(fixture.decisions);
+    const meetings=structuredClone(fixture.meetings);
     for(const sitting of meetings.payload.data)sitting.activity_label=labels;
-    for(const decision of decisions.payload.data){decision.activity_label=labels;decision.referenceText=labels;}
     const request=async(ep,params)=>{
       if(ep==='/meetings')return params.offset===0?meetings:{...meetings,payload:{data:[]}};
       if(ep.endsWith('/foreseen-activities'))return fixture.foreseen;
       if(ep.startsWith('/speeches/'))return speech;
       if(ep==='/events/'+fixture.speechParent.payload.data[0].activity_id)return fixture.speechParent;
-      if(ep.endsWith('/vote-results'))return fixture.results;
-      if(ep.endsWith('/decisions'))return decisions;
       if(ep.startsWith('/plenary-documents/'))return fixture.report;
       throw new Error('Unexpected source: '+ep);
     };
@@ -191,9 +171,6 @@ test('sitting, speech and vote display titles follow the shared order without ch
       const debate=await service.query(query('D-69'));
       assert.equal(debate.sitting.title,expected);assert(debate.sittings.every(sitting=>sitting.title===expected));
       assert.equal(debate.detail.speeches[0].title,expected);assert.equal(debate.detail.speeches[0].sourceId,s.activity_id);
-      const vote=await service.query(query('V-48'));
-      assert.equal(vote.detail.votes[0].title,expected);assert.equal(vote.detail.votes[0].subject,expected);
-      assert.equal(vote.detail.selectedVote.id,'MTG-PL-2026-10-07-DEC-197457');
     }
   }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});}
 });
@@ -211,10 +188,9 @@ test('upcoming sittings skip unheld votes, retain exact previous procedure debat
     const clock=()=>Date.parse('2026-10-06T18:00:00Z'),service=new LegislationInsights(store,{request:yearCatalogue(request),clock,loadMetadata:async()=>metadata});
     const query=s=>insightQuery(new URLSearchParams(s),{kind:'legislation',now:clock()});
     const result=await service.query(query('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-V-48'));
-    assert.equal(result.sitting.phase,'upcoming');assert.equal(result.detail.phase,'upcoming');assert.equal(result.detail.votes.length,0);assert.equal(result.detail.selectedVote,null);assert(!calls.some(ep=>/decisions|vote-results/.test(ep)));
+    assert.equal(result.sitting.phase,'upcoming');assert.equal(result.detail.phase,'upcoming');assert.equal(result.detail.itemVotes,null);assert(!calls.some(ep=>/decisions|vote-results/.test(ep)));
     assert.equal(result.detail.coverage.speechAssociations.context,'previous-debates');assert.equal(result.detail.speeches.length,1);assert.equal(result.detail.speeches[0].date,'2026-10-06');
     assert(result.detail.procedures[0].websiteUrl.endsWith('reference=2025%2F2117(INI)'));assert.equal(result.detail.committeeWork[0].kind,'COMMITTEE_TABLING_REPORT');
-    await assert.rejects(service.query(query('sitting=MTG-PL-2026-10-07&vote=MTG-PL-2026-10-07-DEC-197457')),e=>e.status===400);
     const gapService=new LegislationInsights(store,{clock,loadMetadata:async()=>metadata,request:yearCatalogue(async(ep,params)=>ep.endsWith('/foreseen-activities')?Promise.reject(new Error('upstream unavailable')):request(ep,params))});
     const gap=await gapService.query(query('sitting=MTG-PL-2026-10-07'));assert.equal(gap.coverage.agendaError,'upstream unavailable');assert.equal(gap.coverage.agendaComplete,false);assert.equal(gap.topics.length,0);
   }finally{store.close();rmSync(directory,{recursive:true,force:true});}
@@ -267,8 +243,6 @@ function actualEventHarness(t,change={},options={}) {
   if(ep==='/events/'+event.activity_id)return {url:'https://data.europarl.europa.eu/api/v2'+ep,fetchedAt:fixture.speechParent.fetchedAt,payload:{data:[event]}};
   if(ep.startsWith('/procedures/')){const id=ep.split('/').at(-1);return {url:'https://data.europarl.europa.eu/api/v2'+ep,fetchedAt:fixture.procedure.fetchedAt,payload:{data:[{id:'eli/dl/proc/'+id,consists_of:options.procedureEvents?[event]:[]}]}};}
   if(ep.startsWith('/meps/')&&options.formerMembers?.[ep.split('/').at(-1)]){const id=ep.split('/').at(-1);return {url:'https://data.europarl.europa.eu/api/v2'+ep,fetchedAt:fixture.speech.fetchedAt,payload:{data:[{id:'person/'+id,identifier:id,label:options.formerMembers[id]}]}};}
-  if(ep.endsWith('/vote-results'))return {...fixture.results,payload:{data:[]}};
-  if(ep.endsWith('/decisions'))return {...fixture.decisions,payload:{data:[]}};
   throw Error('Unexpected fixture source: '+ep);
  }});
  const query=(topic=event.activity_id)=>service.query({language:'en',sitting,topic},catalogue);
@@ -286,10 +260,10 @@ test('topical debates without executed and actual debate sub-items resolve by ex
 });
 test('actual vote sub-items open only their exact scheduled vote item',async t=>{
  const h=actualEventHarness(t,{activity_id:'MTG-PL-2026-10-07-PVCRE-ITM-9-6',id:'eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-9-6',had_activity_type:'def/ep-activities/PLENARY_VOTE',executed:['eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-94']});
- const r=await h.query();assert.equal(r.detail.id,h.vote.activity_id);assert.equal(r.detail.kind,'PLENARY_VOTE');assert(h.calls.some(([ep])=>ep.endsWith('/vote-results')));
+ const r=await h.query();assert.equal(r.detail.id,h.vote.activity_id);assert.equal(r.detail.kind,'PLENARY_VOTE');
 });
 for(const change of [{had_activity_type:'def/ep-activities/PROCEEDING_ACTIVITY'},{activity_date:'2026-10-06'},{had_activity_type:'def/ep-activities/PLENARY_VOTE',executed:undefined},{had_activity_type:'def/ep-activities/PLENARY_VOTE',executed:['eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-D-1']}])test('actual event route rejects unrelated type, date or vote context '+JSON.stringify(change),async t=>{
- const h=actualEventHarness(t,change);await assert.rejects(h.query(),e=>e.status===404);assert(!h.calls.some(([ep])=>ep.endsWith('/vote-results')));
+ const h=actualEventHarness(t,change);await assert.rejects(h.query(),e=>e.status===404);
 });
 test('malformed actual topic IDs are rejected before any upstream request; OTH IDs are not agenda aliases',async t=>{
  const h=actualEventHarness(t);

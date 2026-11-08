@@ -1,7 +1,6 @@
 import {defaultUi} from './uiDefault.mjs';
 import {memberVoteLabel,memberVoteTotals} from './memberVotesPresentation.mjs';
 import {filterCountry,matchesCountry} from './countries.mjs';
-import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import {groupMajorities} from './voteGroupMetrics.mjs';
 import {amendmentNumber as readAmendmentNumber} from './readRoute.mjs';
 import {stripNumberPrefix} from './splitRuns.mjs';
@@ -17,7 +16,7 @@ export const voteHref=(id,language='en',member=null)=>'?'+new URLSearchParams({v
  * record, so filters and pages return, otherwise the record itself for a shared link. */
 export function memberBackHref(origin,member,language='en') {
   if(origin){const query=new URL(origin,'http://origin.invalid').searchParams;if(query.get('member')===String(member)&&!query.has('view')&&query.get('module')==='votes')return origin;}
-  return '?'+new URLSearchParams({member:String(member),module:'votes',...(PLENARY_REDESIGN_LIVE?{}:{'record-preview':'1'}),lang:language});
+  return '?'+new URLSearchParams({member:String(member),module:'votes',lang:language});
 }
 export function agendaItemHref(id,language='en') {
   const day=/^MTG-PL-\d{4}-\d{2}-\d{2}/.exec(id)?.[0];

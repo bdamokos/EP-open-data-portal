@@ -6,7 +6,7 @@ export type WeekNeighbour={week:string;label:string|null};
 export type ResultCells={word?:string|null;rejected?:boolean;totals?:VoteTally;hands?:boolean;label?:string|null;words?:string};
 export type ResultRow={key:string;anchor:string|null;text:string;language:string;href:string|null;cells:ResultCells;votes:number|null;debated:string|null;agendaItemId?:string};
 export type HighlightCell={key:string;label:string;text:string;language:string;href:string|null;totals?:VoteTally;value?:string};
-export function weekHref(week:string,language?:string):string;
+export {weekHref} from './weekAddress.mjs';
 export function weekRoute(week:string,language?:string):string;
 export function weekStoryRoute(week:string,language?:string):string;
 export function rowAnchor(id:string):string;
@@ -15,7 +15,7 @@ export type FoldFacts={voteDate:string|null;debateDate:string|null;amendments:nu
 export function foldFacts(item:WeekItemResponse|null,topic:AgendaTopic,topics:AgendaTopic[]):FoldFacts;
 export function itemHasFacts(topic:AgendaTopic):boolean;
 export function validWeekItem(data:unknown):data is WeekItemResponse;
-export function agendaOpensWeekPage(state:{live:boolean;mode:string;topic:string;sitting:string;agendaPeriod:string}):boolean;
+export function agendaOpensWeekPage(state:{mode:string;topic:string;sitting:string;agendaPeriod:string}):boolean;
 export function counted(totals:VoteTally|null|undefined):totals is Record<keyof VoteTally,number>;
 export function sittingRangeLabel(dates:string[],language?:string):string|null;
 export function weekNeighbours(calendar:{weeks?:VotePeriodWeek[];upcoming?:VotePeriodWeek[]}|null|undefined,week:string,language?:string):{previous:WeekNeighbour|null;next:WeekNeighbour|null};

@@ -22,8 +22,7 @@ test('agenda procedure types preserve exact references and vote denominators wit
       const service=new LegislationInsights(store,{clock,loadMetadata:async()=>new Map(),request:yearCatalogue(async(endpoint,params)=>{
         calls.push(endpoint);
         const record=endpoint==='/meetings'?params.offset===0?fixture.meetings:{...fixture.meetings,payload:{data:[]}}:
-          endpoint.endsWith('/foreseen-activities')?fixture.foreseen:endpoint.endsWith('/vote-results')?fixture.results:
-          endpoint.endsWith('/decisions')?fixture.decisions:endpoint==='/procedures/2025-2117'?procedure:
+          endpoint.endsWith('/foreseen-activities')?fixture.foreseen:endpoint==='/procedures/2025-2117'?procedure:
           endpoint.startsWith('/plenary-documents/')?fixture.report:null;
         if(!record)throw new Error('Fixture observation unavailable: '+endpoint);
         return record;
@@ -33,8 +32,8 @@ test('agenda procedure types preserve exact references and vote denominators wit
       assert.equal(row.reference,'2025/2117('+code+')');assert.equal(new URL(row.websiteUrl).searchParams.get('reference'),row.reference);
       assert.equal(row.apiUrl,procedure.url);assert.equal(row.fetchedAt,new Date(procedure.fetchedAt).toISOString());
       assert.equal(row.declarations[0].value,procedure.payload.data[0].process_type);
-      const observed={topics:result.topics,votes:result.detail.votes,patterns:result.detail.finalVotePatterns,people:result.detail.people};
-      baseline??=observed;assert.deepEqual(observed,baseline,'changing procedure family must not change named vote scope, totals or people');
+      const observed={topics:result.topics,people:result.detail.people};
+      baseline??=observed;assert.deepEqual(observed,baseline,'changing procedure family must not change the agenda or people');
     }
     assert(!calls.some(endpoint=>/ep-procedure-types|vocab|authority/.test(endpoint)));
   }finally{store.close();rmSync(directory,{recursive:true,force:true});}
@@ -50,8 +49,6 @@ test('conflicting procedure fields or suffixes withhold agenda dossier links whi
         if(endpoint==='/meetings')return params.offset===0?fixture.meetings:{...fixture.meetings,payload:{data:[]}};
         if(endpoint.endsWith('/foreseen-activities'))return fixture.foreseen;
         if(endpoint==='/procedures/2025-2117')return procedure;
-        if(endpoint.endsWith('/vote-results'))return fixture.results;
-        if(endpoint.endsWith('/decisions'))return fixture.decisions;
         throw new Error('Unavailable fixture source');
       })});
       const result=await service.query(insightQuery(new URLSearchParams('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-V-48'),{kind:'legislation',now:clock()}));

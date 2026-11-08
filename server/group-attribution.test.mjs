@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createGroupOn,generationGroupOn,datedPerson} from './group-attribution.mjs';
-import {namedVote,topicRoles} from './insights-legislation-model.mjs';
-import {finalVotePatterns} from './insights-legislation-model.mjs';
+import {topicRoles} from './insights-legislation-model.mjs';
 
 const group=(code,org,start,end=null)=>({code,org:'org/'+org,groupId:'org/'+code,start,end});
 const person=(groups,end=null)=>({coverage:'complete',mandateCoverage:'complete',mandates:[{start:'2024-07-16',end}],groups,ambiguous:[]});
@@ -47,12 +46,8 @@ test('generation is captured once, indexed once and retained while the serving s
   let traversals=0;const once=new Proxy(members,{ownKeys(target){traversals++;return Reflect.ownKeys(target);}});
   const indexed=createGroupOn({members:once});for(let n=0;n<1000;n++)indexed('124846','2026-06-16');assert.equal(traversals,1);
 });
-test('dated named voters, intended corrections and document roles preserve roster fields separately from contribution groups',()=>{
+test('document roles preserve roster fields separately from contribution groups',()=>{
   const roster=new Map([['124846',{name:'Pina Picierno',groupCode:'Renew'}]]),metadata=new Map();
-  const source={url:'https://data.europarl.europa.eu/api/v2/decisions/example',fetchedAt:'2026-06-16T12:00:00Z'};
-  const vote=namedVote({id:'eli/dl/event/test',activity_date:'2026-06-16',referenceText:{en:'Motion for a resolution (as a whole)'},had_voter_favor:['person/124846'],had_voter_against:[],had_voter_abstention:[],had_voter_intended_against:['person/124846']},source,roster,metadata,'2026-06-16',groupOn);
-  assert.equal(vote.groups.for[0].affiliationGroup,'S&D');assert.equal(vote.groups.for[0].group,'Renew');assert.equal(vote.intendedCorrections.against[0].affiliationGroup,'S&D');
-  assert.equal(finalVotePatterns([vote],roster,metadata,groupOn).groups.for[0].contributionGroup,'S&D');
   const roles=topicRoles({documentIds:['Q']},[{sourceId:'Q',mepId:'124846',date:'2026-06-16',provenance:{role:'AUTHOR'}}],[],roster,metadata,groupOn);
   assert.equal(roles[0].affiliationGroup,'S&D');assert.equal(roles[0].date,'2026-06-16');
 });

@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {withRolloutOff} from './test-support/rolloutOff.mjs';
 
 // Empty lang is an explicit unknown boundary, not permission to keep climbing.
 function effectiveLanguage(node) {
@@ -15,7 +14,7 @@ const date=(value,language)=>new Intl.DateTimeFormat(language,{day:'numeric',mon
 const stats={uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:'2026-10-07',dimensions:{country:[],group:[],gender:[],age:[]}};
 const sitting={id:'MTG-PL-2026-10-07',date:'2026-10-07',phase:'past'};
 
-async function harness(t,language,query='',{rolloutOff=false}={}) {
+async function harness(t,language,query='') {
   const window=new Window({url:'http://localhost/'+query});
   window.document.documentElement.lang=language;
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,
@@ -30,7 +29,7 @@ async function harness(t,language,query='',{rolloutOff=false}={}) {
   const calls=[];
   t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;const url=new URL(input,window.location.href);calls.push(url);return Response.json(await respond(url));});
   const loaderOptions={configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}};
-  loadModule=await freshLoader(...(rolloutOff?withRolloutOff(loaderOptions):[loaderOptions]));
+  loadModule=await freshLoader(loaderOptions);
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const load=async(path,name)=>(await loadModule('/src/'+path+'.tsx'))[name];
@@ -145,44 +144,6 @@ test('participation preserves exact source language and restores UI language aft
   });
 });
 
-// Pinned to the switch off: the agenda item's inline vote picker (VoteView), which P12 deletes.
-test('named vote headings prefer language first, then the subject within that language',async t=>{
-  const language='hu',h=await harness(t,language,'?view=legislation&pl-sitting='+sitting.id+'&agenda-topic=exact-topic',{rolloutOff:true});
-  const cases=[
-    {subjects:{hu:'Magyar tárgy',en:'English subject'},titles:{hu:'Magyar cím'},text:'Magyar tárgy',lang:'hu'},
-    {subjects:{en:'English subject'},titles:{hu:'Magyar cím'},text:'Magyar cím',lang:'hu'},
-    {subjects:{fr:'Sujet non sélectionné'},titles:{hu:'Magyar cím',en:'English title'},text:'Magyar cím',lang:'hu'},
-    {subjects:{},titles:{en:'English title'},text:'English title',lang:'en'},
-    {subjects:{bg:'Bulgarian subject',fr:'Sujet français'},titles:{fr:'Titre français'},text:'Sujet français',lang:'fr'},
-    {subjects:{hu:'  '},titles:{hu:'Magyar cím'},text:'Magyar cím',lang:'hu'},
-    {subjects:{},titles:{},text:'Szavazás',lang:'hu'},
-  ];
-  const votes=cases.map((fixture,index)=>({id:'exact-vote-'+index,date:sitting.date,scope:'final-text',outcome:'ADOPTED',subjects:fixture.subjects,titles:fixture.titles,aggregateTotals:{for:2,against:0,abstaining:0},namedVotersAvailable:false,intendedCorrections:{for:[],against:[],abstaining:[]}}));
-  const topic={id:'exact-topic',title:'Source français',titleLanguage:'fr',date:sitting.date,kind:'PLENARY_VOTE',documentIds:[]};
-  h.respond(url=>{assert(url.pathname.endsWith('/insights/legislation'));return {view:'legislation',sitting,sittings:[sitting],topics:[topic],coverage:{agendaError:null},detail:url.searchParams.has('topic')?{...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[],stats,speeches:[],votes:votes.map(vote=>({...vote,title:'Exact summary',subject:null})),selectedVote:votes.find(vote=>vote.id===url.searchParams.get('vote'))||votes[0],voteCoverage:{truncated:false},coverage:{roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}}:null};});
-  const Legislation=await h.load('Legislation','Legislation');
-  await h.render(createElement(Legislation,{language,onBack(){}}));
-  assert.equal(effectiveLanguage(h.container.querySelector('.insight-topic-detail h2')),'fr');
-  assert.equal(effectiveLanguage(h.container.querySelector('.insight-agenda strong')),'fr');
-  assert.equal(effectiveLanguage(h.container.querySelector('.insight-eyebrow span')),'hu');
-  assert.equal(h.container.querySelector('.insight-eyebrow span').textContent,'Szavazás');
-  const agendaOption=h.container.querySelector('.insight-agenda-select option[value="exact-topic"]');
-  assert.equal(agendaOption.textContent,'Szavazás · Source français');assert.equal(effectiveLanguage(agendaOption),'','UI translation does not relabel a French fallback title');
-  const scopeOption=h.container.querySelector('.insight-vote-select option');
-  assert.equal(scopeOption.textContent,'Végleges szöveg · Exact summary');assert.equal(effectiveLanguage(scopeOption),'','vote previews still lack source-title language metadata');
-  assert.equal(effectiveLanguage(h.container.querySelector('.insight-mode-nav button')),'en');
-  for(const [index,fixture] of cases.entries()) {
-    if(index)await act(async()=>{const select=h.container.querySelector('.insight-vote-select select');select.value=votes[index].id;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
-    const title=h.container.querySelector('.insight-vote-detail h3');
-    assert.equal(title.textContent,fixture.text);
-    assert.equal(effectiveLanguage(title),fixture.lang);
-    assert.equal(effectiveLanguage(h.container.querySelector('.insight-vote-totals h3')),'en');
-    const scope=h.container.querySelector('.insight-vote-detail .insight-record-meta span');
-    assert.equal(scope.textContent,'Végleges szöveg');assert.equal(effectiveLanguage(scope),'hu');
-    assert.equal(h.container.querySelector('.insight-topic-detail h2').textContent,'Source français');
-  }
-});
-
 test('insight cards use exact directory names, retain source labels and keep missing-name fallbacks',async t=>{
   const h=await harness(t,'en');
   const Provider=await h.load('PersonName','PersonNamesProvider');
@@ -221,10 +182,9 @@ test('French question controls keep recognised English subjects and complete add
  assert(!scope.includes('toCommission'));assert.equal(data.questions[0].subjects[0].label,'United States');
 });
 
-// Pinned to the switch off: the second half reads the inline vote picker (VoteView), which P12 deletes;
-// keep the first half then. The vote page's French group labels are covered in votePage.test.mjs.
-test('French group labels and voter controls keep UI language while literal group codes stay neutral',async t=>{
- const h=await harness(t,'fr','?view=legislation&pl-sitting='+sitting.id+'&agenda-topic=exact-topic',{rolloutOff:true});
+// The vote page's French group labels are covered in votePage.test.mjs.
+test('French group labels keep UI language while literal group codes stay neutral',async t=>{
+ const h=await harness(t,'fr');
  const UiI18nProvider=await h.load('UiI18nReact','UiI18nProvider'),People=await h.load('InsightShared','InsightPeople'),Affiliation=await h.load('components/MemberAffiliation','MemberAffiliation');
  const {createAppUiI18n}=await import('./uiCatalogues.mjs'),{default:fr}=await import('./ui-locales/fr.json',{with:{type:'json'}});
  const i18n=createAppUiI18n({fr}),ui=i18n.forLocale('fr'),codes=['NI','TheLeft','Verts/ALE','PPE','SOURCE_GROUP'];
@@ -235,13 +195,4 @@ test('French group labels and voter controls keep UI language while literal grou
   for(const [i,node] of nodes.entries())assert.equal(node.lang,codes[i]==='SOURCE_GROUP'?'':'fr');
   assert.equal(nodes[0].textContent,ui.t('grouplabels.ts.non.attached'));assert.equal(nodes.at(-1).textContent,'SOURCE_GROUP');
  }
- const person={id:'1',name:'Source name',group:'NI',country:'FR',currentMep:false},positions={for:[person],against:[],abstaining:[]};
- const vote={id:'exact-vote',date:sitting.date,scope:'final-text',outcome:'ADOPTED',subjects:{en:'Source subject'},titles:{},aggregateTotals:{for:1,against:0,abstaining:0},namedVotersAvailable:true,totalsMatchNamed:true,groups:positions,politicalGroups:[{code:'NI',positions}],intendedCorrections:{for:[],against:[],abstaining:[]}};
- const topic={id:'exact-topic',title:'Source topic',titleLanguage:'en',date:sitting.date,kind:'PLENARY_VOTE',documentIds:[]};
- h.respond(()=>({view:'legislation',sitting,sittings:[sitting],topics:[topic],coverage:{agendaError:null},detail:{...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[],stats,speeches:[],votes:[{...vote,title:'Source summary',subject:null}],selectedVote:vote,voteCoverage:{truncated:false},coverage:{roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}}}));
- const Legislation=await h.load('Legislation','Legislation');await h.render(wrap(createElement(Legislation,{language:'fr',onBack(){}})));
- const row=h.container.querySelector('.insight-vote-group-row');assert(row);assert.equal(effectiveLanguage(row.firstElementChild),'fr');
- for(const button of row.querySelectorAll('button'))assert.equal(effectiveLanguage(button),'fr');
- await act(async()=>row.querySelector('button').click());
- const selectedGroup=h.container.querySelector('.insight-voter-list h3 span');assert(selectedGroup);assert.equal(effectiveLanguage(selectedGroup),'fr');assert.equal(selectedGroup.textContent,ui.t('grouplabels.ts.non.attached'));
 });

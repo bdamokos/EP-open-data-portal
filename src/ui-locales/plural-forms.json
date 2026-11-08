@@ -24,10 +24,6 @@
       "one": "{count} следван елемент има новости",
       "other": "{count} следвани елемента имат новости"
     },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} член на ЕП",
-      "other": "{group}, {position}: {count} членове на ЕП"
-    },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} участие",
       "other": "{count} участия"
@@ -509,10 +505,6 @@
       "one": "{count} изказване",
       "other": "{count} изказвания"
     },
-    "weekSummary.debates": {
-      "one": "{count} разискване",
-      "other": "{count} разисквания"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Пълна хронология ({count} събитие)",
       "other": "Пълна хронология ({count} събития)"
@@ -634,12 +626,6 @@
       "few": "Počet sledovaných položek s novými aktualizacemi: {count}",
       "many": "Počet sledovaných položek s novými aktualizacemi: {count}",
       "other": "Počet sledovaných položek s novými aktualizacemi: {count}"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} poslanec EP",
-      "few": "{group}, {position}: počet poslanců EP: {count}",
-      "many": "{group}, {position}: počet poslanců EP: {count}",
-      "other": "{group}, {position}: počet poslanců EP: {count}"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} příspěvek",
@@ -1316,12 +1302,6 @@
       "many": "Počet projevů: {count}",
       "other": "Počet projevů: {count}"
     },
-    "weekSummary.debates": {
-      "one": "{count} rozprava",
-      "few": "{count} rozpravy",
-      "many": "{count} rozpravy",
-      "other": "{count} rozprav"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Celá časová osa (počet událostí: {count})",
       "few": "Celá časová osa (počet událostí: {count})",
@@ -1473,10 +1453,6 @@
     "savedcontrols.count.followed.items.have.new.updates": {
       "one": "{count} fulgt element har nye opdateringer",
       "other": "{count} fulgte elementer har nye opdateringer"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} medlem",
-      "other": "{group}, {position}: {count} medlemmer"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} bidrag",
@@ -1990,10 +1966,6 @@
       "one": "{count} tale",
       "other": "{count} taler"
     },
-    "weekSummary.debates": {
-      "one": "{count} debat",
-      "other": "{count} debatter"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Fuld tidslinje ({count} begivenhed)",
       "other": "Fuld tidslinje ({count} begivenheder)"
@@ -2103,10 +2075,6 @@
     "savedcontrols.count.followed.items.have.new.updates": {
       "one": "{count} gefolgter Eintrag hat neue Aktualisierungen",
       "other": "{count} gefolgte Einträge haben neue Aktualisierungen"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} Mitglied",
-      "other": "{group}, {position}: {count} Abgeordnete"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} Beitrag",
@@ -2620,10 +2588,6 @@
       "one": "{count} Rede",
       "other": "{count} Reden"
     },
-    "weekSummary.debates": {
-      "one": "{count} Debatte",
-      "other": "{count} Debatten"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Gesamter Verlauf ({count} Ereignis)",
       "other": "Gesamter Verlauf ({count} Ereignisse)"
@@ -2733,10 +2697,6 @@
     "savedcontrols.count.followed.items.have.new.updates": {
       "one": "{count} στοιχείο που παρακολουθείτε έχει νέες ενημερώσεις",
       "other": "{count} στοιχεία που παρακολουθείτε έχουν νέες ενημερώσεις"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} ευρωβουλευτής",
-      "other": "{group}, {position}: {count} ευρωβουλευτές"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} παρέμβαση",
@@ -3218,10 +3178,6 @@
       "one": "{count} ομιλία",
       "other": "{count} ομιλίες"
     },
-    "weekSummary.debates": {
-      "one": "{count} συζήτηση",
-      "other": "{count} συζητήσεις"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Πλήρες χρονολόγιο ({count} γεγονός)",
       "other": "Πλήρες χρονολόγιο ({count} γεγονότα)"
@@ -3337,11 +3293,6 @@
       "one": "{count} elemento seguido tiene novedades",
       "many": "{count} elementos seguidos tienen novedades",
       "other": "{count} elementos seguidos tienen novedades"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} eurodiputado",
-      "many": "{group}, {position}: {count} eurodiputados",
-      "other": "{group}, {position}: {count} eurodiputados"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} intervención",
@@ -3915,11 +3866,6 @@
       "many": "{count} discursos",
       "other": "{count} discursos"
     },
-    "weekSummary.debates": {
-      "one": "{count} debate",
-      "other": "{count} debates",
-      "many": "{count} de debates"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Cronología completa ({count} evento)",
       "many": "Cronología completa ({count} de eventos)",
@@ -4050,10 +3996,6 @@
     "savedcontrols.count.followed.items.have.new.updates": {
       "one": "{count} jälgitaval üksusel on uusi uuendusi",
       "other": "{count} jälgitaval üksusel on uusi uuendusi"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} parlamendiliige",
-      "other": "{group}, {position}: {count} parlamendiliiget"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} kaastöö",
@@ -4536,10 +4478,6 @@
       "one": "{count} sõnavõtt",
       "other": "{count} sõnavõttu"
     },
-    "weekSummary.debates": {
-      "one": "{count} arutelu",
-      "other": "{count} arutelu"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Täielik ajajoon ({count} sündmus)",
       "other": "Täielik ajajoon ({count} sündmust)"
@@ -4649,10 +4587,6 @@
     "savedcontrols.count.followed.items.have.new.updates": {
       "one": "{count} seuratussa kohteessa on uusia päivityksiä",
       "other": "{count} seuratussa kohteessa on uusia päivityksiä"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} jäsen",
-      "other": "{group}, {position}: {count} jäsentä"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} puheenvuoro",
@@ -5166,10 +5100,6 @@
       "one": "{count} puhe",
       "other": "{count} puhetta"
     },
-    "weekSummary.debates": {
-      "one": "{count} keskustelu",
-      "other": "{count} keskustelua"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Koko aikajana ({count} tapahtuma)",
       "other": "Koko aikajana ({count} tapahtumaa)"
@@ -5290,11 +5220,6 @@
       "one": "{count} élément suivi a de nouvelles mises à jour",
       "many": "{count} éléments suivis ont de nouvelles mises à jour",
       "other": "{count} éléments suivis ont de nouvelles mises à jour"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position} : {count} député",
-      "many": "{group}, {position} : {count} députés",
-      "other": "{group}, {position} : {count} députés"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} contribution",
@@ -5863,11 +5788,6 @@
       "many": "{count} discours",
       "other": "{count} discours"
     },
-    "weekSummary.debates": {
-      "one": "{count} débat",
-      "other": "{count} débats",
-      "many": "{count} de débats"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Chronologie complète ({count} événement)",
       "other": "Chronologie complète ({count} événements)",
@@ -6016,13 +5936,6 @@
       "two": "Tá nuashonruithe nua ar mhíreanna a leanann tú: {count}",
       "few": "Tá nuashonruithe nua ar mhíreanna a leanann tú: {count}",
       "many": "Tá nuashonruithe nua ar mhíreanna a leanann tú: {count}"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: líon Feisirí: {count}",
-      "other": "{group}, {position}: líon Feisirí: {count}",
-      "two": "{group}, {position}: líon Feisirí: {count}",
-      "few": "{group}, {position}: líon Feisirí: {count}",
-      "many": "{group}, {position}: líon Feisirí: {count}"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "Líon rannchuidithe: {count}",
@@ -6777,13 +6690,6 @@
       "few": "Líon óráidí: {count}",
       "many": "Líon óráidí: {count}"
     },
-    "weekSummary.debates": {
-      "one": "{count} díospóireacht",
-      "other": "{count} de dhíospóireachtaí",
-      "two": "{count} dhíospóireacht",
-      "few": "{count} dhíospóireacht",
-      "many": "{count} ndíospóireacht"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Amlíne iomlán (líon imeachtaí: {count})",
       "other": "Amlíne iomlán (líon imeachtaí: {count})",
@@ -6962,11 +6868,6 @@
       "one": "Broj praćenih stavki s novostima: {count}",
       "few": "Broj praćenih stavki s novostima: {count}",
       "other": "Broj praćenih stavki s novostima: {count}"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: broj zastupnika: {count}",
-      "few": "{group}, {position}: broj zastupnika: {count}",
-      "other": "{group}, {position}: broj zastupnika: {count}"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "Broj doprinosa: {count}",
@@ -7538,11 +7439,6 @@
       "few": "Broj govora: {count}",
       "other": "Broj govora: {count}"
     },
-    "weekSummary.debates": {
-      "one": "{count} rasprava",
-      "few": "{count} rasprave",
-      "other": "{count} rasprava"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Cijela vremenska crta (broj događaja: {count})",
       "few": "Cijela vremenska crta (broj događaja: {count})",
@@ -7673,10 +7569,6 @@
     "savedcontrols.count.followed.items.have.new.updates": {
       "one": "{count} követett elemnél van új frissítés",
       "other": "{count} követett elemnél van új frissítés"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} EP-képviselő",
-      "other": "{group}, {position}: {count} EP-képviselő"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} felszólalás",
@@ -8155,10 +8047,6 @@
       "one": "{count} beszéd",
       "other": "{count} beszéd"
     },
-    "weekSummary.debates": {
-      "one": "{count} vita",
-      "other": "{count} vita"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Teljes idővonal ({count} esemény)",
       "other": "Teljes idővonal ({count} esemény)"
@@ -8274,11 +8162,6 @@
       "one": "{count} elemento seguito ha nuovi aggiornamenti",
       "many": "{count} elementi seguiti hanno nuovi aggiornamenti",
       "other": "{count} elementi seguiti hanno nuovi aggiornamenti"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} deputato",
-      "many": "{group}, {position}: {count} deputati",
-      "other": "{group}, {position}: {count} deputati"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} contributo",
@@ -8852,11 +8735,6 @@
       "many": "{count} interventi",
       "other": "{count} interventi"
     },
-    "weekSummary.debates": {
-      "one": "{count} dibattito",
-      "other": "{count} dibattiti",
-      "many": "{count} di dibattiti"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Cronologia completa ({count} evento)",
       "many": "Cronologia completa ({count} di eventi)",
@@ -8999,12 +8877,6 @@
       "other": "{count} sekamų elementų turi naujų naujinių",
       "few": "{count} sekami elementai turi naujų naujinių",
       "many": "Sekamų elementų su naujais naujiniais skaičius: {count}"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} EP narys",
-      "other": "{group}, {position}: {count} EP narių",
-      "few": "{group}, {position}: {count} EP nariai",
-      "many": "{group}, {position}: EP narių skaičius: {count}"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} pasisakymas",
@@ -9668,12 +9540,6 @@
       "few": "{count} kalbos",
       "many": "Kalbų skaičius: {count}"
     },
-    "weekSummary.debates": {
-      "one": "{count} diskusija",
-      "other": "{count} diskusijų",
-      "few": "{count} diskusijos",
-      "many": "{count} diskusijos"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Visa laiko juosta (įvykių skaičius: {count})",
       "other": "Visa laiko juosta (įvykių skaičius: {count})",
@@ -9831,11 +9697,6 @@
       "one": "{count} izsekotam vienumam ir jauni jaunumi",
       "other": "{count} izsekotiem vienumiem ir jauni jaunumi",
       "zero": "Sekoto vienumu ar jauniem jaunumiem skaits: {count}"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} EP deputāts",
-      "other": "{group}, {position}: {count} EP deputāti",
-      "zero": "{group}, {position}: {count} EP deputātu"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} uzstāšanās",
@@ -10406,11 +10267,6 @@
       "other": "{count} runas",
       "zero": "{count} runu"
     },
-    "weekSummary.debates": {
-      "one": "{count} debates",
-      "other": "{count} debates",
-      "zero": "{count} debašu"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Pilna hronoloģija ({count} notikums)",
       "other": "Pilna hronoloģija ({count} notikumi)",
@@ -10559,13 +10415,6 @@
       "two": "Għadd ta’ elementi segwiti b’aġġornamenti ġodda: {count}",
       "few": "Għadd ta’ elementi segwiti b’aġġornamenti ġodda: {count}",
       "many": "Għadd ta’ elementi segwiti b’aġġornamenti ġodda: {count}"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: għadd ta’ Membri tal-PE: {count}",
-      "other": "{group}, {position}: għadd ta’ Membri tal-PE: {count}",
-      "two": "{group}, {position}: għadd ta’ Membri tal-PE: {count}",
-      "few": "{group}, {position}: għadd ta’ Membri tal-PE: {count}",
-      "many": "{group}, {position}: għadd ta’ Membri tal-PE: {count}"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "Għadd ta’ kontribuzzjonijiet: {count}",
@@ -11320,13 +11169,6 @@
       "few": "Għadd ta’ diskorsi: {count}",
       "many": "Għadd ta’ diskorsi: {count}"
     },
-    "weekSummary.debates": {
-      "one": "{count} dibattitu",
-      "other": "{count} dibattitu",
-      "two": "{count} dibattiti",
-      "few": "{count} dibattiti",
-      "many": "{count}-il dibattitu"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Kronoloġija sħiħa (għadd ta’ avvenimenti: {count})",
       "other": "Kronoloġija sħiħa (għadd ta’ avvenimenti: {count})",
@@ -11499,10 +11341,6 @@
     "savedcontrols.count.followed.items.have.new.updates": {
       "one": "{count} gevolgd item heeft nieuwe updates",
       "other": "{count} gevolgde items hebben nieuwe updates"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} EP-lid",
-      "other": "{group}, {position}: {count} EP-leden"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} bijdrage",
@@ -12016,10 +11854,6 @@
       "one": "{count} toespraak",
       "other": "{count} toespraken"
     },
-    "weekSummary.debates": {
-      "one": "{count} debat",
-      "other": "{count} debatten"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Volledige tijdlijn ({count} gebeurtenis)",
       "other": "Volledige tijdlijn ({count} gebeurtenissen)"
@@ -12141,12 +11975,6 @@
       "few": "Obserwowane elementy z nowymi aktualizacjami: {count}",
       "many": "Obserwowane elementy z nowymi aktualizacjami: {count}",
       "other": "Obserwowane elementy z nowymi aktualizacjami: {count}"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: liczba posłów: {count}",
-      "few": "{group}, {position}: liczba posłów: {count}",
-      "many": "{group}, {position}: liczba posłów: {count}",
-      "other": "{group}, {position}: liczba posłów: {count}"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "Liczba wystąpień: {count}",
@@ -12811,12 +12639,6 @@
       "many": "Liczba wystąpień: {count}",
       "other": "Liczba wystąpień: {count}"
     },
-    "weekSummary.debates": {
-      "one": "{count} debata",
-      "few": "{count} debaty",
-      "many": "{count} debat",
-      "other": "{count} debaty"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Pełna oś czasu (liczba zdarzeń: {count})",
       "few": "Pełna oś czasu (liczba zdarzeń: {count})",
@@ -12974,11 +12796,6 @@
       "one": "{count} item seguido tem novas atualizações",
       "many": "{count} itens seguidos têm novas atualizações",
       "other": "{count} itens seguidos têm novas atualizações"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} deputado",
-      "many": "{group}, {position}: {count} deputados",
-      "other": "{group}, {position}: {count} deputados"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} intervenção",
@@ -13552,11 +13369,6 @@
       "many": "{count} discursos",
       "other": "{count} discursos"
     },
-    "weekSummary.debates": {
-      "one": "{count} debate",
-      "other": "{count} debates",
-      "many": "{count} de debates"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Cronologia completa ({count} evento)",
       "many": "Cronologia completa ({count} de eventos)",
@@ -13693,11 +13505,6 @@
       "one": "{count} element urmărit are actualizări noi",
       "few": "{count} elemente urmărite au actualizări noi",
       "other": "{count} de elemente urmărite au actualizări noi"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} deputat",
-      "few": "{group}, {position}: {count} deputați",
-      "other": "{group}, {position}: {count} de deputați"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} intervenție",
@@ -14271,11 +14078,6 @@
       "few": "{count} discursuri",
       "other": "{count} de discursuri"
     },
-    "weekSummary.debates": {
-      "one": "{count} dezbatere",
-      "other": "{count} de dezbateri",
-      "few": "{count} dezbateri"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Cronologie completă ({count} eveniment)",
       "few": "Cronologie completă ({count} evenimente)",
@@ -14418,12 +14220,6 @@
       "few": "Počet sledovaných položiek s novými aktualizáciami: {count}",
       "many": "Počet sledovaných položiek s novými aktualizáciami: {count}",
       "other": "Počet sledovaných položiek s novými aktualizáciami: {count}"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} poslanec EP",
-      "few": "{group}, {position}: počet poslancov EP: {count}",
-      "many": "{group}, {position}: počet poslancov EP: {count}",
-      "other": "{group}, {position}: počet poslancov EP: {count}"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} príspevok",
@@ -15100,12 +14896,6 @@
       "many": "Počet prejavov: {count}",
       "other": "Počet prejavov: {count}"
     },
-    "weekSummary.debates": {
-      "one": "{count} rozprava",
-      "few": "{count} rozpravy",
-      "many": "{count} rozpravy",
-      "other": "{count} rozpráv"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Celá časová os (počet udalostí: {count})",
       "few": "Celá časová os (počet udalostí: {count})",
@@ -15269,12 +15059,6 @@
       "two": "Število spremljanih postavk z novostmi: {count}",
       "few": "Število spremljanih postavk z novostmi: {count}",
       "other": "Število spremljanih postavk z novostmi: {count}"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} poslanec EP",
-      "two": "{group}, {position}: število poslancev EP: {count}",
-      "few": "{group}, {position}: število poslancev EP: {count}",
-      "other": "{group}, {position}: število poslancev EP: {count}"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} prispevek",
@@ -15951,12 +15735,6 @@
       "few": "Število govorov: {count}",
       "other": "Število govorov: {count}"
     },
-    "weekSummary.debates": {
-      "one": "{count} razprava",
-      "two": "{count} razpravi",
-      "few": "{count} razprave",
-      "other": "{count} razprav"
-    },
     "batch6.procedureprogress.full_timeline": {
       "one": "Celotna časovnica (število dogodkov: {count})",
       "two": "Celotna časovnica (število dogodkov: {count})",
@@ -16108,10 +15886,6 @@
     "savedcontrols.count.followed.items.have.new.updates": {
       "one": "{count} följt objekt har nya uppdateringar",
       "other": "{count} följda objekt har nya uppdateringar"
-    },
-    "legislation.grouplabel_position_count_meps.f476b0": {
-      "one": "{group}, {position}: {count} ledamot",
-      "other": "{group}, {position}: {count} ledamöter"
     },
     "batch4.insightcharts.tsx.count.contributions": {
       "one": "{count} bidrag",
@@ -16624,10 +16398,6 @@
     "dossierpeople.speeches": {
       "one": "{count} tal",
       "other": "{count} tal"
-    },
-    "weekSummary.debates": {
-      "one": "{count} debatt",
-      "other": "{count} debatter"
     },
     "batch6.procedureprogress.full_timeline": {
       "one": "Hela tidslinjen ({count} händelse)",

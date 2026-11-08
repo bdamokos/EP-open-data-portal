@@ -73,7 +73,7 @@ export function createInsights(store,options={}) {
   };
   const cached=async(query,catalogue,reader,background=false)=>{
     const cache=query.topic?details:views,key=await viewKey('legislation',query,catalogue);
-    const value=await cache.get(key,()=>reader.query(query,catalogue),{background,persist:()=>agendaCacheRevisionIsDurable(key.at(-1)),...(!query.topic&&!query.vote?{freshMs:value=>agendaViewFreshMs(value,clock())}:{})});
+    const value=await cache.get(key,()=>reader.query(query,catalogue),{background,persist:()=>agendaCacheRevisionIsDurable(key.at(-1)),...(!query.topic?{freshMs:value=>agendaViewFreshMs(value,clock())}:{})});
     return {cache,key,value};
   };
   const warmView=async(query,catalogue)=>{

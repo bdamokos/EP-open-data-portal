@@ -13,7 +13,6 @@ import {plenaryModeTitlesUi} from './plenaryModes';
 import {publicUrl} from './publicUrl';
 import {amendmentNumber,documentReferenceLabel,provisionLabel,readHref,readRoute} from './readRoute.mjs';
 import {selectLanguageText} from './language.mjs';
-import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import {splitRuns} from './splitRuns.mjs';
 import {SplitKey,SplitText,type SplitKeyRow} from './SplitText';
 import {voteHref} from './votePagePresentation.mjs';
@@ -101,19 +100,16 @@ function DocumentLead({info,language}:{info:DocumentReaderLeadInfo;language:stri
 export function ReadPage({language}:{language:string}) {
   const ui=useUiI18n();
   const [documentId]=useExplorerParam<string>('read-doc',''),[amendmentId]=useExplorerParam<string>('read-amendment','');
-  const [splitPreview]=useExplorerParam<string>('split-preview','');
   const [listId]=useExplorerParam<string>('read-list',''),[textLanguage,setTextLanguage]=useExplorerParam<string>('read-lang','');
   const route=readRoute(new URLSearchParams({'read-doc':documentId,'read-amendment':amendmentId,'read-list':listId,'read-lang':textLanguage}));
   if(!route)return <section className="read-page" data-read-page={documentId+':'+amendmentId} lang={ui.language}><h1 tabIndex={-1}><UiMessage id="batch6.documentcontextreader.document.unavailable.here.171"/></h1></section>;
   const {documentId:id,amendmentId:amendment,listId:list,wordingLanguage}=route;
-  // Hidden behind its preview address until the redesign goes live.
-  const overview=amendment&&(PLENARY_REDESIGN_LIVE||splitPreview==='1');
   const request={documentId:id,view:'document' as const,onBack:()=>{},...(amendment?{amendmentId:amendment}:{}),...(list?{listId:list}:{}),...(wordingLanguage!==undefined?{wordingLanguage}:{})};
   return <div className="read-page" data-read-page={documentId+':'+amendmentId}>
     {route.staleAmendment&&<p className="document-context-notice" role="status" lang={ui.language}><UiMessage id="reader.amendment_not_found"/></p>}
     <DocumentContextReader request={request} language={language} showBackButton={false} passageFirst textLanguage={amendment?undefined:route.textLanguage} onTextLanguageChange={amendment?undefined:setTextLanguage}
       lead={info=>info.amendmentId?<AmendmentLead info={info} language={language} listId={list} wordingLanguage={wordingLanguage}/>:<DocumentLead info={info} language={language}/>}
-      amendmentFooter={overview?variant=><VotedInParts amendmentId={amendment} listId={list} variant={variant} language={language}/>:undefined}/>
+      amendmentFooter={amendment?variant=><VotedInParts amendmentId={amendment} listId={list} variant={variant} language={language}/>:undefined}/>
     {!amendment&&<RecordTopics id={id} full language={language}/>}
   </div>;
 }

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createAppUiI18n} from './uiCatalogues.mjs';
+import {weekHref,weekModeRedirect} from './weekAddress.mjs';
 import {validWeekItem,agendaOpensWeekPage,foldFacts,weekItemRoute,comingSlots,comingSummary,debateDateFor,highlightCells,itemCells,pastCounts,pressDate,reasonLine,resultRows,sittingRangeLabel,slotTime,storyText,tallyWords,validWeekPageResults,validWeekStory,voteDateFor,weekNeighbours} from './weekPagePresentation.mjs';
 
 const ui=createAppUiI18n().forLocale('en');
@@ -142,15 +143,25 @@ test('a debate leading two lists gets a cell for each; a debate with no label sh
  assert.deepEqual(highlightCells([{...council,titles:{},list:'speeches',lists:['speeches']}],'en',ui),[]);
 });
 
-test('the agenda opens the week page only at the flip and only with no sitting or item chosen',()=>{
- const state={live:true,mode:'agenda',topic:'',sitting:'',agendaPeriod:''};
+test('the agenda opens the week page only with no sitting or item chosen',()=>{
+ const state={mode:'agenda',topic:'',sitting:'',agendaPeriod:''};
  assert.equal(agendaOpensWeekPage(state),true);
  assert.equal(agendaOpensWeekPage({...state,agendaPeriod:'week:2026-10-19'}),true);
- assert.equal(agendaOpensWeekPage({...state,live:false}),false,'the agenda stays as it is until the flip');
  assert.equal(agendaOpensWeekPage({...state,topic:'x'}),false);
  assert.equal(agendaOpensWeekPage({...state,sitting:'MTG-PL-2026-10-19'}),false);
  assert.equal(agendaOpensWeekPage({...state,agendaPeriod:'sitting:MTG-PL-2026-10-19'}),false);
  assert.equal(agendaOpensWeekPage({...state,mode:'cloud'}),false);
+});
+
+test('an old week address opens the same week on the agenda',()=>{
+ const redirect=search=>weekModeRedirect(new URLSearchParams(search));
+ assert.equal(redirect('view=legislation&pl-mode=week&pl-week=2026-10-19&lang=fr'),'?view=legislation&lang=fr&agenda-period=week%3A2026-10-19');
+ assert.equal(redirect('view=legislation&pl-mode=week&lang=en'),'?view=legislation&lang=en','no week opens the default week');
+ assert.equal(redirect('view=legislation&pl-mode=week&pl-week=2026-10-20'),'?view=legislation','a day that is not a Monday is dropped');
+ assert.equal(redirect('view=legislation&pl-mode=week&pl-week=2026-02-30'),'?view=legislation');
+ assert.equal(redirect('view=legislation&agenda-period=week%3A2026-10-19'),null);
+ assert.equal(redirect('pl-mode=week&pl-week=2026-10-19'),null,'only the plenary view');
+ assert.equal(weekHref('2026-10-19','fr'),'?view=legislation&agenda-period=week%3A2026-10-19&lang=fr');
 });
 
 test('contract checks turn a malformed reply into no stories rather than a crash',()=>{

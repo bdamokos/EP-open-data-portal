@@ -1,8 +1,9 @@
 import {publicationRetry} from './publicationRetry';
 import {TopicBatch,RecordTopics,OfficialTitle} from './RecordTopics';
-const emptyDossierUrl=emptyDossierRedirect(new URLSearchParams(location.search));
+const emptyDossierUrl=emptyDossierRedirect(new URLSearchParams(location.search))||weekModeRedirect(new URLSearchParams(location.search));
 if(emptyDossierUrl)history.replaceState(history.state,'',emptyDossierUrl+location.hash);
 import {emptyDossierRedirect,agendaTitle} from './topicPresentation.mjs';
+import {weekModeRedirect} from './weekAddress.mjs';
 const Topics=lazyView(()=>import('./Topics').then(m=>({default:m.Topics})));
 import {usePlenaryUiLanguage} from './PlenaryLive';
 import {defaultUi} from './uiDefault.mjs';
@@ -90,7 +91,6 @@ import { coAuthorSegments, linkedCoAuthors, coAuthorProfileUrl } from './coAutho
 import {selectLanguageText} from './language.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
 import {useMemberVotesJourney} from './useMemberVotesJourney';
-import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import {useMemberMotionJourney} from './useMemberMotionJourney';
 import {motionJourneyParams} from './motionJourney.mjs';
 import type {MemberMotionReaderProps} from './MemberMotionReader';
@@ -491,9 +491,6 @@ export default function App() {
   const [initial] = useState(() => new URLSearchParams(location.search));
   const [restoration,setRestoration]=useState(0);
   const [plenaryMode]=useExplorerParam<PlenaryMode>('pl-mode','agenda',plenaryModes);
-  // The voting record on the Votes tab: live after the flip, before it only at ?record-preview=1.
-  const [recordPreview]=useExplorerParam<string>('record-preview','',['','1']);
-  const recordShown=PLENARY_REDESIGN_LIVE||recordPreview==='1';
   const [lang, setLang] = useState(() => queryLanguage(initial));
   const ui = uiForLocale(lang);
   usePlenaryUiLanguage(lang);
@@ -718,8 +715,9 @@ export default function App() {
     next=publicExplorerView(next);
     if(next===view){
       const url=new URL(location.href);
-      // The vote and week pages have no mode tabs, so the highlighted tab is the way back to the agenda.
-      if(next==='legislation'&&['vote','week'].includes(url.searchParams.get('pl-mode')||'')){for(const key of ['pl-mode','pl-vote','pl-week','agenda-country','vote-country-sort','vote-country-order','vote-member'])url.searchParams.delete(key);url.hash='';navigateDossier(url.pathname+url.search);return;}
+      // The highlighted tab is the way back to the agenda from a vote page or another week.
+      const mode=url.searchParams.get('pl-mode')||'agenda',otherWeek=mode==='agenda'&&url.searchParams.get('agenda-period')?.startsWith('week:')&&!url.searchParams.has('agenda-topic');
+      if(next==='legislation'&&(mode==='vote'||otherWeek)){for(const key of ['pl-mode','pl-vote','agenda-period','agenda-country','vote-country-sort','vote-country-order','vote-member'])url.searchParams.delete(key);url.hash='';navigateDossier(url.pathname+url.search);return;}
       if(!['legislation','geopolitics'].includes(next||'')||!['topic','place','t-record','t-records'].some(key=>url.searchParams.has(key)))return;
       for(const key of [...url.searchParams.keys()])if(key==='topic'||key==='place'||key.startsWith('t-'))url.searchParams.delete(key);
       if(next==='legislation')url.searchParams.set('pl-mode','topics');
@@ -740,7 +738,7 @@ export default function App() {
   }
   useEffect(()=>{
     const restore=()=>{
-      const redirect=emptyDossierRedirect(new URLSearchParams(location.search));if(redirect)history.replaceState(history.state,'',redirect+location.hash);
+      const redirect=emptyDossierRedirect(new URLSearchParams(location.search))||weekModeRedirect(new URLSearchParams(location.search));if(redirect)history.replaceState(history.state,'',redirect+location.hash);
       pendingDestination.current=null;
       setRestoration(value=>value+1);
       const query=new URLSearchParams(location.search),next=query.get('view');
@@ -880,12 +878,12 @@ export default function App() {
                   initialSpeech={speechLink}
                   onOpen={setSpeechLink}
                 /> : ((tab==='votes') ? <>
-                  {recordShown&&<Suspense fallback={null}><MemberVoteRecord memberId={member} language={lang} scope={votes.journey.state.recordScope??'all'} offset={votes.journey.state.recordOffset??0} tag={votes.journey.state.recordTag??null}
+                  <Suspense fallback={null}><MemberVoteRecord memberId={member} language={lang} scope={votes.journey.state.recordScope??'all'} offset={votes.journey.state.recordOffset??0} tag={votes.journey.state.recordTag??null}
                     onScopeChange={recordScope=>votes.onStateChange({...votes.journey.state,recordScope,recordOffset:0})}
                     onTagChange={recordTag=>votes.onStateChange({...votes.journey.state,recordTag:recordTag??undefined,recordOffset:0})}
-                    onOffset={recordOffset=>votes.onStateChange({...votes.journey.state,recordOffset})}/></Suspense>}
+                    onOffset={recordOffset=>votes.onStateChange({...votes.journey.state,recordOffset})}/></Suspense>
                   {votes.journey.invalid ? <section lang={ui.language} role="alert"><h2><UiMessage id="app.invalid_voting_records_link"/></h2><p><UiMessage id="membervotes.tsx.these.voting.records.are.unavailable"/></p></section> : <Suspense fallback={<p className="member-votes-loading" role="status" lang={ui.language}><UiMessage id="membervotes.tsx.loading.voting.records"/></p>}>
-                    <MemberVotes key={member} memberId={member} memberName={memberName} language={lang} state={votes.journey.state} onStateChange={votes.onStateChange} recordShown={recordShown}
+                    <MemberVotes key={member} memberId={member} memberName={memberName} language={lang} state={votes.journey.state} onStateChange={votes.onStateChange}
                       renderContext={request=><Suspense fallback={<p className="member-votes-loading" role="status" lang={ui.language}><UiMessage id="app.loading_document_context"/></p>}>
                         <DocumentContextReader request={request} language={lang} selectedDocumentId={votes.journey.adoptedId} onSelectedDocumentIdChange={votes.onSelectedDocumentIdChange}/>
                       </Suspense>}/>

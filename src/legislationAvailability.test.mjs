@@ -1,13 +1,11 @@
-import {automaticRecovery,installRetryClock,exhaustAutomaticRetries} from './test-support/automaticRecovery.mjs';
+import {installRetryClock} from './test-support/automaticRecovery.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {withRolloutOff} from './test-support/rolloutOff.mjs';
-// Pinned to the switch off: tests the agenda item's inline vote availability lines (TopicVotes); keep the debate half at P12, which P12 deletes.
 
-test('agenda availability distinguishes scheduled items, waits, gaps, source errors and filters',async t=>{
+test('debate availability distinguishes scheduled items, waits, gaps, source errors and filters',async t=>{
   installRetryClock(t).pin(Date.parse('2026-10-20T00:30:00Z'));
   const window=new Window({url:'http://localhost/?view=legislation'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,requestAnimationFrame:callback=>{callback();return 0;},innerWidth:1440,IS_REACT_ACT_ENVIRONMENT:true};
@@ -18,20 +16,20 @@ test('agenda availability distinguishes scheduled items, waits, gaps, source err
   const calls=[];
   let recover=false;
   const dates={future:'2026-10-21',today:'2026-10-20',recent:'2026-10-19',old:'2026-10-07',error:'2026-10-20',filter:'2026-10-20'};
-  const topics=Object.entries(dates).flatMap(([state,date])=>['debate','vote'].map(kind=>({id:state+'-'+kind,title:state+' '+kind,date,kind:kind==='vote'?'PLENARY_VOTE':'PLENARY_DEBATE',documentIds:[],procedureIds:[]})));
+  const topics=Object.entries(dates).map(([state,date])=>({id:state+'-debate',title:state+' debate',date,kind:'PLENARY_DEBATE',documentIds:[],procedureIds:[]}));
   function response(params) {
     const item=topics.find(item=>item.id===params.get('topic'));
     const empty={uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:item?.date,dimensions:{country:[],group:[],gender:[],age:[]}};
     const failure=item?.id.startsWith('error')&&!recover;
     const person={id:'1',name:'Speaker',country:'BE',currentMep:false};
-    return {sitting:{id:'MTG-PL-2026-10-20',phase:'past',date:'2026-10-20'},sittings:[{id:'MTG-PL-2026-10-20',phase:'past',date:'2026-10-20'}],topics,coverage:{agendaError:null},detail:item?{...item,phase:'past',procedures:[],committeeWork:[],roles:[],people:[],stats:empty,speeches:item.id==='filter-debate'?[{sourceId:'test-speech',date:item.date,kind:'PLENARY_DEBATE_SPEECH',start:null,people:[person]}]:[],votes:[],selectedVote:null,voteCoverage:{error:failure?'timeout':null,truncated:false},coverage:{roleRowsTruncated:false,gaps:failure?[{source:'actual debate event',message:'timeout'}]:[],speechAssociations:{sources:[],truncated:false}}}:null};
+    return {sitting:{id:'MTG-PL-2026-10-20',phase:'past',date:'2026-10-20'},sittings:[{id:'MTG-PL-2026-10-20',phase:'past',date:'2026-10-20'}],topics,coverage:{agendaError:null},detail:item?{...item,phase:'past',procedures:[],committeeWork:[],roles:[],people:[],stats:empty,speeches:item.id==='filter-debate'?[{sourceId:'test-speech',date:item.date,kind:'PLENARY_DEBATE_SPEECH',start:null,people:[person]}]:[],coverage:{roleRowsTruncated:false,gaps:failure?[{source:'actual debate event',message:'timeout'}]:[],speechAssociations:{sources:[],truncated:false}}}:null};
   }
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);calls.push(url);
     assert(url.pathname.endsWith('/insights/legislation'),'Unexpected request: '+url);
     return Response.json(response(url.searchParams));
   });
-  loadModule=await freshLoader(...withRolloutOff({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}}));
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);
@@ -43,23 +41,18 @@ test('agenda availability distinguishes scheduled items, waits, gaps, source err
     assert(container.querySelector('.insight-topic-detail h2')?.textContent.includes(id.replace('-',' ')));
     return container.querySelector('.insight-topic-detail').textContent;
   }
-  for(const kind of ['debate','vote']) {
-    assert.match(await show('future-'+kind),/scheduled\./i);
-    assert.equal(container.querySelector('[role="alert"]'),null);
-    assert.match(await show('today-'+kind),/scheduled today/);
-    assert.equal(container.querySelector('[role="alert"]'),null);
-    assert.match(await show('recent-'+kind),/No (?:speeches available|roll-call results)/);
-    assert.match(await show('old-'+kind),/No (?:speeches available|roll-call results)/);
-    assert.match(await show('error-'+kind),/could not be loaded/);
-    assert(container.querySelector('[role="alert"]'));
-  }
+  assert.match(await show('future-debate'),/scheduled\./i);
+  assert.equal(container.querySelector('[role="alert"]'),null);
+  assert.match(await show('today-debate'),/scheduled today/);
+  assert.equal(container.querySelector('[role="alert"]'),null);
+  assert.match(await show('recent-debate'),/No speeches available/);
+  assert.match(await show('old-debate'),/No speeches available/);
+  assert.match(await show('error-debate'),/could not be loaded/);
+  assert(container.querySelector('[role="alert"]'));
   recover=true;
-  assert.equal(container.querySelector('[role=alert] button'),null);assert.equal(installRetryClock(t).timers.size,0,'a bare vote-source error is not a promise of transient progress');await show('recent-vote');await installRetryClock(t).advance(300_001);await show('error-vote');
+  assert.equal(container.querySelector('[role=alert] button'),null);assert.equal(installRetryClock(t).timers.size,0,'a bare source error is not a promise of transient progress');await show('recent-debate');await installRetryClock(t).advance(300_001);await show('error-debate');
   assert.equal(container.querySelector('[role="alert"]'),null);
   assert.match(container.querySelector('.insight-topic-detail').textContent,/scheduled today/);
   assert.match(await show('filter-debate','&agenda-country=HU'),/No listed speeches match this country filter/);
   assert(!container.querySelector('.insight-topic-detail').textContent.includes('Allow a few days'));
-  const before=calls.length;
-  await show('future-vote','&agenda-vote=stale-vote');
-  assert(calls.slice(before).every(url=>!url.searchParams.has('vote')),'Do not request an unheld named vote');
 });

@@ -71,7 +71,7 @@ const serve=(overrides={})=>async target=>{
  return json({},404);
 };
 async function mount(t,handler,{id=WEEK,language='en',wait=20}={}) {
- const window=new Window({url:'http://localhost/?view=legislation&pl-mode=week&pl-week='+id+'&lang='+language}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map();
+ const window=new Window({url:'http://localhost/?view=legislation&agenda-period=week%3A'+id+'&lang='+language}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map();
  for(const [key,value] of Object.entries(globals)){old.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});}
  const calls=[];t.mock.method(globalThis,'fetch',async input=>{const target=new URL(input,window.location.href);calls.push(target.pathname+target.search);return handler(target);});
  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
@@ -90,7 +90,7 @@ test('a past week tells its stories, highlights, results and debates',async t=>{
  assert.equal(c.querySelector('h1').textContent,'Week of 19 October 2026');
  assert.equal(c.querySelector('.say').textContent.trim(),'Strasbourg. 211 votes on 3 agenda items.');
  assert.deepEqual([...c.querySelectorAll('.strip a .on-wide')].map(link=>link.textContent),['‹ 5–8 October','11–12 November ›']);
- assert.match(c.querySelector('.strip a').getAttribute('href'),/pl-mode=week&pl-week=2026-10-05/);
+ assert.equal(c.querySelector('.strip a').getAttribute('href'),'?view=legislation&agenda-period=week%3A2026-10-05&lang=en');
  // Stories: lead first, the reason line by best rank, verbatim English, its press line.
  const lead=c.querySelector('.lead');
  assert.equal(lead.querySelector('.reason').textContent,'91 speeches, 74 MEPs voted differently from their group, 9 blue-card speeches');
