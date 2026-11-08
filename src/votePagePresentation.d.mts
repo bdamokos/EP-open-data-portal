@@ -40,3 +40,6 @@ export function itemVoteSections<T extends {id:string;totals:Record<Position,num
 export function voteSteps(votes:{id:string;totals:Record<Position,number|null>;ballotStatus:string;outcome:string|null;method?:string|null}[],mainVoteId:string|null,id:string):{previous:string|null;next:string|null};
 export function agendaVoteRedirect(search:string):string|null;
 export function voteAmendmentWording(variants:unknown[],vote:Pick<DecisionVoteSibling,'context'|'parts'>,ui?:Formatter):{state:'versions'}|{state:'none';provision?:string;sourceLabel?:string;labelLanguage?:string|null}|{state:'text';language:string;text:string;heading:string;provision:string;sourceLabel:string;labelLanguage:string|null};
+export function placeOperation(operation:string|null|undefined):string|null;
+export const REDLINE_MIN_SIMILARITY:number;
+export function placeRedline(original:string|null|undefined,proposed:string|null|undefined,language?:string|null,originalLanguage?:string|null):import('./textDiff.mjs').TextDiffSegment[]|null;

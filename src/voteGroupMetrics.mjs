@@ -47,14 +47,14 @@ export function delegationBreaks(rows,{minVoting=3,alpha=0.001}={}) {
       if(a+b<minVoting||a===b||c===d||(a-b)*(c-d)>=0)continue;
       if((a>b?'for':'against')===group.majority)continue;
       const p=fisherExactTwoSided(a,b,c,d);
-      if(p<alpha)result.push({group:group.code,country,for:a,against:b,restFor:c,restAgainst:d,size:a+b,p});
+      if(p<alpha)result.push({group:group.code,country,for:a,against:b,restFor:c,restAgainst:d,groupFor:group.counts.for,groupAgainst:group.counts.against,size:a+b,p});
     }
   }
   return result.sort((a,b)=>a.p-b.p||b.size-a.size||countryOrder.indexOf(a.country)-countryOrder.indexOf(b.country)||a.country.localeCompare(b.country)||a.group.localeCompare(b.group));
 }
 // National delegations where more than half of the members who voted chose a position other than their group's majority.
 // Every position counts, abstaining included; NI, Group unknown and groups without a majority never differ.
-// `rest` is the rest of the group, the same group's ballots from every other country.
+// `overall` is the whole group's ballots, this delegation included.
 export function delegationsDiffering(rows) {
   const majorities=new Map(groupMajorities(rows).filter(group=>group.majority).map(group=>[group.code,group]));
   const delegations=new Map();
@@ -67,7 +67,6 @@ export function delegationsDiffering(rows) {
   return [...delegations.values()].flatMap(entry=>{
     const group=majorities.get(entry.group),differing=entry.voters-entry.counts[group.majority];
     if(differing*2<=entry.voters)return [];
-    const rest=Object.fromEntries(positions.map(position=>[position,group.counts[position]-entry.counts[position]]));
-    return [{group:entry.group,country:entry.country,counts:entry.counts,rest,majority:group.majority}];
+    return [{group:entry.group,country:entry.country,counts:entry.counts,overall:{...group.counts},majority:group.majority}];
   });
 }

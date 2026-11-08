@@ -416,8 +416,22 @@ async function handleApi(request,response,url,apiPrefix){
     sendJson(request, response, 200, result, {...policy,...(segments[0]==='member-votes'&&result?.pagination?.mode==='period'?{responseLimitBytes:MEMBER_VOTES_PERIOD_RESPONSE_BYTES}:{}),...(!currentVersion?{cdnCacheControl:'no-store'}:{})});
     return;
 }
+const SLOW_REQUEST_MS=1000,MIB=1024*1024;
+// One line per API request that took SLOW_REQUEST_MS or more, written after the response is sent or failed.
+// It complements [request-budget], which fires only for timeouts and adds upstream and event-loop state;
+// a timed-out request appears in both, and this line alone gives the full count of slow requests.
+// mainCpuMs covers this thread only (process.cpuUsage() would include the writer threads); memory deltas are
+// process-wide. Both include any requests served concurrently. status is null when no response was sent.
+// Older Node 22 and 24 releases that package.json admits lack process.threadCpuUsage; mainCpuMs is null there.
+const threadCpu=typeof process.threadCpuUsage==='function'?previous=>process.threadCpuUsage(previous):()=>null;
+function logSlowRequest(response,route,started,cpuStart,memoryStart) {
+  const elapsedMs=Math.round(performance.now()-started);
+  if(elapsedMs<SLOW_REQUEST_MS)return;
+  const cpu=threadCpu(cpuStart||undefined),memory=process.memoryUsage();
+  console.warn('[request-slow]',JSON.stringify({route,status:response.headersSent?response.statusCode:null,elapsedMs,mainCpuMs:cpu?Math.round((cpu.user+cpu.system)/1000):null,rssDeltaMiB:Math.round((memory.rss-memoryStart.rss)/MIB),heapDeltaMiB:Math.round((memory.heapUsed-memoryStart.heapUsed)/MIB)}));
+}
 export async function handleRequest(request, response) {
-  const started=performance.now(),eventLoop=performance.eventLoopUtilization();let route='/';
+  const started=performance.now(),eventLoop=performance.eventLoopUtilization();let route='/',cpuStart=null,memoryStart=null;
   const requestId=randomUUID();
   response.setHeader('X-Request-Id',requestId);
   response.explorerStartedAt=started;
@@ -433,6 +447,7 @@ export async function handleRequest(request, response) {
       (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
     );
     if (apiPrefix) {
+      cpuStart=threadCpu();memoryStart=process.memoryUsage();
       const extended=/^\/(?:speech-context|motion-comparison)\//.test(url.pathname.slice(apiPrefix.length));
       const budget=createRequestBudget(extended?50_000:30_000);
       const closed=()=>{if(!response.writableEnded)budget.abort(cancelledRequest());};
@@ -443,6 +458,7 @@ export async function handleRequest(request, response) {
     }
 
     if (url.pathname === "/healthz") {
+      cpuStart=threadCpu();memoryStart=process.memoryUsage();
       url.pathname = `${apiPrefixes.at(-1)}/healthz`;
       await handleApi(request, response, url, apiPrefixes.at(-1));
       return;
@@ -461,6 +477,8 @@ export async function handleRequest(request, response) {
     } else if (!response.writableEnded) {
       response.destroy();
     }
+  } finally {
+    if(memoryStart)logSlowRequest(response,route,started,cpuStart,memoryStart);
   }
 }
 

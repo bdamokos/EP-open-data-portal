@@ -5,6 +5,9 @@ import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {rolloutLive} from './test-support/rolloutLive.mjs';
+import {withRolloutOff} from './test-support/rolloutOff.mjs';
+// Tests without {live:true} exercise the agenda's day view, hover preloading and topic
+// navigation with the switch off; P12 deletes them with that view.
 
 const days=['2026-10-06','2026-10-07','2026-09-17'].map(date=>({id:'MTG-PL-'+date,date,phase:'past',title:'Plenary'}));
 const topics=days.slice(0,2).flatMap((day,index)=>[0,1].map(n=>({id:day.id+'-ITM-'+n,sittingId:day.id,date:day.date,title:'Agenda '+index+' '+n,titleLanguage:'en',kind:'PLENARY_DEBATE',documentIds:[],procedureIds:[]})));
@@ -36,7 +39,8 @@ async function harness(t,width=1440,query='',{live=false}={}) {
     t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  loadModule=await freshLoader({configFile:false,plugins:live?[rolloutLive]:undefined,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const loaderOptions={configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}};
+  loadModule=await freshLoader(...(live?[{...loaderOptions,plugins:[rolloutLive]}]:withRolloutOff(loaderOptions)));
   const {Legislation}=await loadModule('/src/Legislation.tsx'),{createRoot}=await import('react-dom/client');
   // Module loading uses real timers; only mounted application deadlines are advanced.
   t.mock.timers.enable({apis:['setTimeout']});

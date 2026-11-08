@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {withRolloutOff} from './test-support/rolloutOff.mjs';
 
 // Empty lang is an explicit unknown boundary, not permission to keep climbing.
 function effectiveLanguage(node) {
@@ -14,7 +15,7 @@ const date=(value,language)=>new Intl.DateTimeFormat(language,{day:'numeric',mon
 const stats={uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:'2026-10-07',dimensions:{country:[],group:[],gender:[],age:[]}};
 const sitting={id:'MTG-PL-2026-10-07',date:'2026-10-07',phase:'past'};
 
-async function harness(t,language,query='') {
+async function harness(t,language,query='',{rolloutOff=false}={}) {
   const window=new Window({url:'http://localhost/'+query});
   window.document.documentElement.lang=language;
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,
@@ -28,7 +29,8 @@ async function harness(t,language,query='') {
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const calls=[];
   t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;const url=new URL(input,window.location.href);calls.push(url);return Response.json(await respond(url));});
-  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const loaderOptions={configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}};
+  loadModule=await freshLoader(...(rolloutOff?withRolloutOff(loaderOptions):[loaderOptions]));
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const load=async(path,name)=>(await loadModule('/src/'+path+'.tsx'))[name];
@@ -143,8 +145,9 @@ test('participation preserves exact source language and restores UI language aft
   });
 });
 
+// Pinned to the switch off: the agenda item's inline vote picker (VoteView), which P12 deletes.
 test('named vote headings prefer language first, then the subject within that language',async t=>{
-  const language='hu',h=await harness(t,language,'?view=legislation&pl-sitting='+sitting.id+'&agenda-topic=exact-topic');
+  const language='hu',h=await harness(t,language,'?view=legislation&pl-sitting='+sitting.id+'&agenda-topic=exact-topic',{rolloutOff:true});
   const cases=[
     {subjects:{hu:'Magyar tárgy',en:'English subject'},titles:{hu:'Magyar cím'},text:'Magyar tárgy',lang:'hu'},
     {subjects:{en:'English subject'},titles:{hu:'Magyar cím'},text:'Magyar cím',lang:'hu'},
@@ -218,8 +221,10 @@ test('French question controls keep recognised English subjects and complete add
  assert(!scope.includes('toCommission'));assert.equal(data.questions[0].subjects[0].label,'United States');
 });
 
+// Pinned to the switch off: the second half reads the inline vote picker (VoteView), which P12 deletes;
+// keep the first half then. The vote page's French group labels are covered in votePage.test.mjs.
 test('French group labels and voter controls keep UI language while literal group codes stay neutral',async t=>{
- const h=await harness(t,'fr','?view=legislation&pl-sitting='+sitting.id+'&agenda-topic=exact-topic');
+ const h=await harness(t,'fr','?view=legislation&pl-sitting='+sitting.id+'&agenda-topic=exact-topic',{rolloutOff:true});
  const UiI18nProvider=await h.load('UiI18nReact','UiI18nProvider'),People=await h.load('InsightShared','InsightPeople'),Affiliation=await h.load('components/MemberAffiliation','MemberAffiliation');
  const {createAppUiI18n}=await import('./uiCatalogues.mjs'),{default:fr}=await import('./ui-locales/fr.json',{with:{type:'json'}});
  const i18n=createAppUiI18n({fr}),ui=i18n.forLocale('fr'),codes=['NI','TheLeft','Verts/ALE','PPE','SOURCE_GROUP'];

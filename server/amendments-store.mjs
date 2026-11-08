@@ -152,16 +152,22 @@ export function amendmentProcedureTargets(store,procedure,{scope='all',committee
 
 export function amendmentContributors(store,{procedures,asOf=null,member=null,scope='all',committee=null,limit=2000,offset=0}={}) {
   if(!procedures?.length)return {items:[],next:null,truncated:false};
-  const generation=amendmentGeneration(store),where=['contributor.generation=?','contributor.procedure_id IN (SELECT value FROM json_each(?))'],args=[generation,JSON.stringify(procedures)];
-  if(asOf){where.push('contributor.contribution_date<=?');args.push(asOf);}
-  if(member){where.push('contributor.person_id=?');args.push(member);}
-  if(scope!=='all'){where.push('contributor.scope=?');args.push(scope);}
-  if(committee){where.push("EXISTS(SELECT 1 FROM json_each(amendment.body,'$.committees') c WHERE json_extract(c.value,'$.code')=?)");args.push(committee);}
-  const rows=store.db.prepare(`SELECT DISTINCT contributor.amendment_id id,contributor.person_id personId,contributor.scope,contributor.proposer_date date,
-      contributor.list_id listId,json_extract(amendment.body,'$.targetDocumentId') targetDocumentId,COALESCE(json_extract(amendment.body,'$.countConflict'),0) countConflict,
-      contributor.source source,json_extract(amendment.body,'$.procedureIds') procedureIds
-    FROM amendment_contributors contributor JOIN amendments amendment ON amendment.generation=contributor.generation AND amendment.id=contributor.amendment_id
-    WHERE ${where.join(' AND ')} ORDER BY contributor.amendment_id,contributor.person_id,contributor.proposer_date LIMIT ? OFFSET ?`).all(...args,limit+1,offset);
+  const generation=amendmentGeneration(store),where=['contributor.generation=?1','contributor.procedure_id IN (SELECT value FROM json_each(?2))'],args=[generation,JSON.stringify(procedures),limit+1,offset];
+  if(asOf){args.push(asOf);where.push(`contributor.contribution_date<=?${args.length}`);}
+  if(member){args.push(member);where.push(`contributor.person_id=?${args.length}`);}
+  if(scope!=='all'){args.push(scope);where.push(`contributor.scope=?${args.length}`);}
+  // Page the contributor rows first and read amendment bodies only for that page. The unary +
+  // keeps SQLite on the procedure key: ordering by the identity index scanned the whole generation.
+  // Amendment fields depend on the amendment alone, so DISTINCT over contributor columns is unchanged.
+  const amendment=committee?(args.push(committee),`SELECT 1 FROM amendments amendment WHERE amendment.generation=contributor.generation AND amendment.id=contributor.amendment_id
+        AND EXISTS(SELECT 1 FROM json_each(amendment.body,'$.committees') c WHERE json_extract(c.value,'$.code')=?${args.length})`)
+    :'SELECT 1 FROM amendments amendment WHERE amendment.generation=contributor.generation AND amendment.id=contributor.amendment_id';
+  const rows=store.db.prepare(`SELECT page.id,page.personId,page.scope,page.date,page.listId,json_extract(amendment.body,'$.targetDocumentId') targetDocumentId,
+      COALESCE(json_extract(amendment.body,'$.countConflict'),0) countConflict,page.source,json_extract(amendment.body,'$.procedureIds') procedureIds
+    FROM (SELECT DISTINCT contributor.amendment_id id,contributor.person_id personId,contributor.scope,contributor.proposer_date date,contributor.list_id listId,contributor.source source
+      FROM amendment_contributors contributor WHERE ${where.join(' AND ')} AND EXISTS(${amendment})
+      ORDER BY +contributor.amendment_id,contributor.person_id,contributor.proposer_date LIMIT ?3 OFFSET ?4) page
+    JOIN amendments amendment ON amendment.generation=?1 AND amendment.id=page.id ORDER BY page.id,page.personId,page.date`).all(...args);
   const truncated=rows.length>limit;
   return {items:rows.slice(0,limit).map(row=>({...row,source:row.source?parse(row.source):null,procedureIds:row.procedureIds?parse(row.procedureIds):[]})),next:truncated?offset+limit:null,truncated};
 }

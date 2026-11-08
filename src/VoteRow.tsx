@@ -7,11 +7,11 @@ type Tally=Partial<Record<VotePosition,number|null>>;
 const column={for:'f',against:'a',abstaining:'x'} as const;
 const headId={for:'votepage.head.for',against:'votepage.head.against',abstaining:'votepage.head.abstain'} as const;
 
-// Three numbers on three columns. Unknown is a dash, zero is zero. `hidden` when a label nearby already speaks them.
-export function TallyNumbers({totals,bold=null,hidden=false}:{totals:Tally;bold?:VotePosition|null;hidden?:boolean}) {
+// Three numbers on three columns. Unknown is a dash, zero is zero. `cells` when they sit in an ARIA table row.
+export function TallyNumbers({totals,bold=null,cells=false}:{totals:Tally;bold?:VotePosition|null;cells?:boolean}) {
   return <>{votePositionKeys.map(position=>{
     const value=totals[position];
-    return <span key={position} aria-hidden={hidden||undefined} className={['n',column[position],value===null||value===undefined?'unk':'',value===0?'zero':'',bold===position?'maj':''].filter(Boolean).join(' ')}>{value===null||value===undefined?'–':value}</span>;
+    return <span key={position} role={cells?'cell':undefined} className={['n',column[position],value===null||value===undefined?'unk':'',value===0?'zero':'',bold===position?'maj':''].filter(Boolean).join(' ')}>{value===null||value===undefined?'–':value}</span>;
   })}</>;
 }
 export const headMessageId=(position:VotePosition)=>headId[position];

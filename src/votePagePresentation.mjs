@@ -5,6 +5,7 @@ import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import {groupMajorities} from './voteGroupMetrics.mjs';
 import {amendmentNumber as readAmendmentNumber} from './readRoute.mjs';
 import {stripNumberPrefix} from './splitRuns.mjs';
+import {textDiff} from './textDiff.mjs';
 
 const withoutNames=new Set(['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']);
 const positions=['for','against','abstaining'];
@@ -275,4 +276,19 @@ export function voteAmendmentWording(variants,vote,ui=defaultUi) {
   if(new Set(held.map(variant=>variant.language+'\n'+variant.proposedText)).size>1)return {state:'versions'};
   const variant=held[0],{n}=voteNumbers(vote),fields=provisionFields(variant);
   return {state:'text',language:variant.language||'',text:stripNumberPrefix(variant.proposedText),heading:fields.provision?ui.t('votepage.amendment_provision',{n,provision:fields.provision}):ui.t('votepage.centre.amendment',{n}),...fields};
+}
+/** What an amendment does, as one sentence for any outcome, for the operations the placement knows
+ * exactly. The placement doesn't record whether the text shown is a whole provision or part of one,
+ * so the sentence names the text shown rather than claim either. */
+export function placeOperation(operation) {
+  return ['replace','delete','insert'].includes(operation)?'votepage.place.op.'+operation:null;
+}
+// Word marks only where most words stay: below half shared, as in a rewrite, the marks would read as noise.
+export const REDLINE_MIN_SIMILARITY=0.5;
+/** The same token diff the amendment reader marks, or null when the texts don't align well enough
+ * or aren't in one language. */
+export function placeRedline(original,proposed,language,originalLanguage=language) {
+  if(!original||!proposed||originalLanguage!==language)return null;
+  const diff=textDiff(original,proposed,language);
+  return diff.status==='ok'&&diff.similarity>=REDLINE_MIN_SIMILARITY&&diff.segments.some(segment=>segment.type!=='equal')?diff.segments:null;
 }

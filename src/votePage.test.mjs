@@ -5,16 +5,18 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {voteFixture,decisionId,amendmentId} from '../server/test-support/decision-votes.mjs';
 
-async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCountry=()=>{},member=null,historyState=null}={}) {
+async function mount(t,handler,{id=decisionId,url,members=[],country=null,onCountry=()=>{},member=null,historyState=null,language='en'}={}) {
  const window=new Window({url:url||'http://localhost/?view=legislation&pl-mode=vote&pl-vote='+id+'&lang=en'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map();
  for(const [key,value] of Object.entries(globals)){old.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});}
  if(historyState)window.history.replaceState(historyState,'',window.location.href);
  const calls=[];t.mock.method(globalThis,'fetch',async input=>{const target=new URL(input,window.location.href);calls.push(target.pathname);return handler(target);});
  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
- const {VotePage}=await load('/src/VotePage.tsx'),{PersonNamesProvider}=await load('/src/PersonName.tsx'),{createRoot}=await import('react-dom/client');
+ const {VotePage}=await load('/src/VotePage.tsx'),{PersonNamesProvider}=await load('/src/PersonName.tsx'),{UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createRoot}=await import('react-dom/client');
+ const {createAppUiI18n}=await import('./uiCatalogues.mjs'),catalogues=language==='en'?null:{[language]:(await import('./ui-locales/'+language+'.json',{with:{type:'json'}})).default};
  const container=window.document.createElement('div');window.document.body.append(container);const root=createRoot(container);
  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
- await act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(VotePage,{decisionId:id,language:'en',country,onCountry,member}))));
+ const page=createElement(PersonNamesProvider,{members},createElement(VotePage,{decisionId:id,language,country,onCountry,member}));
+ await act(async()=>root.render(language==='en'?page:createElement(UiI18nProvider,{i18n:createAppUiI18n(catalogues),language},page)));
  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
  return {container,calls};
 }
@@ -34,6 +36,11 @@ test('a roll-call vote page shows the sentence, table and way line with real tab
  assert(!h.calls.some(path=>path.includes('member-votes')));
  assert.equal(h.container.querySelector('.member-votes-position'),null,'no member frame');
  assert.deepEqual([...h.container.querySelectorAll('.frow .t')].map(node=>node.textContent),['Members','Countries','Corrections','Documents'],'folds in order, each only with content');
+});
+test('French group labels keep the interface language while literal group codes stay neutral',async t=>{
+ const data=await voteFixture().read(),h=await mount(t,serve(data),{language:'fr'});
+ const rows=[...h.container.querySelectorAll('.ledger tbody th[scope=row] .t')];
+ assert.deepEqual(rows.map(node=>[node.textContent,node.lang]),[['PPE','fr'],['S&D',''],['Renew',''],['Non-inscrits','fr']]);
 });
 const partData=async ({outcome='ADOPTED',wording='full',extra={}}={})=>{
  const f=voteFixture();f.raw.referenceText={en:'Amendment 114/2'};
@@ -71,6 +78,8 @@ test('a part page marks its words, keys both parts, shows the amendment in its p
  assert.equal(key[1],'Part 2: those words. Adopted by 2 to 1, with 1 abstaining. This vote.');
  assert.match(clause.querySelector('.clause-part a').getAttribute('href'),/pl-vote=MTG-PL-2026-10-07-DEC-8/,'the other part links to its vote');
  assert.equal(text(h.container.querySelector('h2.section')),'In its place: recital 3');
+ assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: new wording for the text shown.');
+ assert.equal(h.container.querySelector('.verse ins'),null,'a rewrite shows both texts whole, unmarked');
  const rows=[...h.container.querySelectorAll('.verse')].map(row=>[text(row.querySelector('.gut')),text(row.querySelector('p'))]);
  assert.deepEqual(rows,[['Recital 2','The recital before.'],['Recital 3, Commission','The old text.'],['Recital 3, amendment 114','The words before bracketed words and after.'],['(a)','The point after.']]);
  assert(h.container.querySelector('.verse.old del'),'struck: the part was adopted');
@@ -100,27 +109,45 @@ test('the wrong language or shape falls back to the full text and published desc
 test('In its place follows the operation, and a failed placement is silent',async t=>{
  const insert=await partData({extra:{placement:{operation:'insert'},passage:{before:null,original:null,after:{label:null,text:'After.'}}}});
  let h=await mount(t,insert.handler);
- assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 3, amendment 114','']);
+ assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: a new provision.');
+ assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['New in amendment 114','']);
 });
-test('a delete has no amendment row; a rejected amendment keeps the original unstruck',async t=>{
+test('a deletion says the provision is removed and marks it so, whatever the outcome',async t=>{
  const removal=await partData({extra:{placement:{operation:'delete'}}});
  removal.data.decision.outcome='REJECTED';removal.data.siblings.forEach(row=>{row.outcome='REJECTED';});
  const h=await mount(t,removal.handler);
- assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, Commission','(a)']);
- assert.equal(h.container.querySelector('.verse.old del'),null);
+ assert.equal(text(h.container.querySelector('.place-op')),'Amendment 114: deletion of the text shown.');
+ assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, removed in amendment 114','(a)']);
+ assert.match(text(h.container.querySelector('.verse.gone del')),/The old text\./,'struck with the reader\'s mark, named for screen readers');
+ assert.equal(h.container.querySelector('.verse.old'),null);
+});
+for(const outcome of ['REJECTED','ADOPTED'])test('a replacement that keeps most words marks what it removes and adds: '+outcome,async t=>{
+ {
+  const close=await partData({extra:{passage:{before:null,original:{label:null,text:'The words before old words and after.'},after:null}}});
+  close.data.decision.outcome=outcome;close.data.siblings.forEach(row=>{row.outcome=outcome;});
+  const h=await mount(t,close.handler);
+  const [original,amendment]=h.container.querySelectorAll('.verse');
+  assert.match(text(original.querySelector('del')),/old/,outcome);
+  assert.equal(original.querySelector('ins'),null);
+  assert.match(text(amendment.querySelector('ins')),/bracketed/,outcome);
+  assert.equal(amendment.querySelector('del'),null);
+  assert.equal(Boolean(original.querySelector('del.struck')),outcome==='ADOPTED','an adopted replacement also strikes the original row, announced as deleted');
+  assert.equal(text(amendment.querySelector('.gut')),'Recital 3, amendment 114');
+ }
 });
 test('a deletion with no wording of its own still shows the original in its place',async t=>{
  const removal=await partData({wording:'blank',extra:{placement:{operation:'delete'}}});
  const h=await mount(t,removal.handler);
  assert.equal(text(h.container.querySelector('h2.section')),'In its place: recital 3');
- assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, Commission','(a)']);
- assert(h.container.querySelector('.verse.old del'));
+ assert.deepEqual([...h.container.querySelectorAll('.verse .gut')].map(text),['Recital 2','Recital 3, removed in amendment 114','(a)']);
+ assert(h.container.querySelector('.verse.gone del'));
 });
 test('no placement or no rows: no section and no note',async t=>{
  const unplaced=await partData({extra:{placement:{status:'unresolved'}}});
  const h=await mount(t,unplaced.handler);
  assert.equal(h.container.querySelector('h2.section'),null);
  assert.equal(h.container.querySelector('.verses'),null);
+ assert.equal(h.container.querySelector('.place-op'),null);
  assert.match(text(h.container.querySelector('.clause-part')),/Part 1:/,'the key still shows');
 });
 test('corrections name a current member from the directory',async t=>{
@@ -226,10 +253,11 @@ test('the shared row shows a dash for unknown, a zero for zero and a bold reject
  assert.match(control,/aria-pressed="true"[^>]*>A</);assert.match(control,/aria-pressed="false"[^>]*>B</);
 });
 
-const openCountries=async(t,{country=null,onCountry=()=>{}}={})=>{
+const openCountries=async(t,{country=null,onCountry=()=>{},countries=['FR'],outcome=null}={})=>{
  if(!globalThis.requestAnimationFrame){globalThis.requestAnimationFrame=callback=>setTimeout(callback,0);t.after(()=>{delete globalThis.requestAnimationFrame;});}
  const f=voteFixture(),data=await f.read();
- for(const voter of data.voters)data.people[voter.personId]={...data.people[voter.personId],name:'Member '+voter.personId,country:'FR'};
+ if(outcome)data.decision.outcome=outcome;
+ data.voters.forEach((voter,index)=>{data.people[voter.personId]={...data.people[voter.personId],name:'Member '+voter.personId,country:countries[index%countries.length]};});
  const h=await mount(t,serve(data),{country,onCountry});
  const fold=[...h.container.querySelectorAll('details')].find(node=>/Countries/.test(node.querySelector('summary').textContent));
  fold.open=true;await act(async()=>{fold.dispatchEvent(new globalThis.window.Event('toggle'));});
@@ -242,8 +270,8 @@ test('a country row filters Members and pressing it again clears the filter',asy
  assert.equal(fold.querySelector('.crow .sbar').getAttribute('aria-hidden'),'true','the numbers, not the bar, carry the values');
  const shown=['for','against','abstaining'].filter(position=>fold.querySelector('.crow .n.'+{for:'f',against:'a',abstaining:'x'}[position]).textContent!=='0');
  assert.deepEqual([...fold.querySelectorAll('.crow .sbar i')].map(node=>node.className),shown.map(position=>'b-'+position),'segments follow the columns and skip zeros');
- assert.match(france().getAttribute('aria-label'),/^France: \d+ for, \d+ against, \d+ abstaining$/,'the button speaks the row');
- assert.ok([...fold.querySelectorAll('.crow .n')].every(node=>node.getAttribute('aria-hidden')==='true'),'the numbers are not read twice');
+ assert.equal(fold.querySelector('.countries').getAttribute('role'),'table');
+ assert.deepEqual([...fold.querySelectorAll('.crow [role]')].map(node=>node.getAttribute('role')),['rowheader','cell','cell','cell','cell'],'each number is a cell under its own head');
  assert.equal(france().getAttribute('aria-pressed'),'false');
  await act(async()=>{france().click();});
  assert.equal(france().getAttribute('aria-pressed'),'true');
@@ -428,4 +456,36 @@ test('a country voting together across groups reads as one plain sentence',async
   const h=await mount(sub,serve(data),{members,member:'197591'});
   assert.equal(h.container.querySelector('.member-line').textContent,'Sam Socialist voted against, unlike their group (S&D) but with the outcome. France: both S&D MEPs voted against, unlike their group.');
  });
+});
+test('every head sorts the countries and keeps the order in the address',async t=>{
+ const {h,fold}=await openCountries(t,{countries:['FR','DE','IE','AT']});
+ const heads=()=>Object.fromEntries([...fold.querySelectorAll('[role=columnheader]')].map(node=>[node.querySelector('button').textContent.replace(/[↑↓]/g,'').trim(),node.getAttribute('aria-sort')]));
+ const names=()=>[...fold.querySelectorAll('.crow button')].map(button=>button.textContent);
+ const press=async label=>{const head=[...fold.querySelectorAll('[role=columnheader] button')].find(button=>button.textContent.replace(/[↑↓]/g,'').trim()===label);await act(async()=>{head.click();});await act(async()=>{});};
+ assert.equal(heads().Share,'descending','the winning side leads by default');
+ assert.equal(globalThis.location.search.includes('vote-country-order'),false,'the default leaves the address clean');
+ await press('Country');
+ assert.equal(heads().Country,'ascending');assert.equal(heads().Share,'none');
+ assert.deepEqual(names(),['Austria','France','Germany','Ireland']);
+ assert.match(globalThis.location.search,/vote-country-order=name(&|$)/);
+ await press('Country');
+ assert.equal(heads().Country,'descending');
+ assert.deepEqual(names(),['Ireland','Germany','France','Austria']);
+ assert.match(globalThis.location.search,/vote-country-order=name-rev/);
+ await press('For');
+ assert.equal(heads().For,'descending','counts start largest first');
+ const counts=[...fold.querySelectorAll('.crow .n.f')].map(node=>Number(node.textContent));
+ assert.deepEqual(counts,[...counts].sort((a,b)=>b-a));
+ assert.equal(fold.querySelectorAll('.crow.turn').length,0,'the rule belongs to the share order only');
+ void h;
+});
+const sideOrder=async(t,outcome)=>{
+ const {fold}=await openCountries(t,{countries:['FR','DE','IE','AT','EL','MT'],outcome});
+ const rows=[...fold.querySelectorAll('.crow')].map(row=>({f:Number(row.querySelector('.n.f').textContent),a:Number(row.querySelector('.n.a').textContent),turn:row.classList.contains('turn')}));
+ return rows;
+};
+for(const [outcome,win] of [['ADOPTED',row=>row.f>row.a],['REJECTED',row=>row.a>row.f]])test('in the default order the side that won leads and the rule follows its last country: '+outcome,async t=>{
+ const rows=await sideOrder(t,outcome),lead=rows.filter(win).length;
+ assert.ok(rows.slice(0,lead).every(win),'every country with a majority for the winning side comes first');
+ assert.deepEqual(rows.map((row,index)=>row.turn?index:-1).filter(index=>index>=0),lead&&lead<rows.length?[lead-1]:[],'one rule, after the last of them, only when both kinds are present');
 });

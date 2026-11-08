@@ -23,3 +23,4 @@ index/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+server/api-contract.json

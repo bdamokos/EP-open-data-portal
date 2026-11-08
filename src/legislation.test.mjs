@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {withRolloutOff} from './test-support/rolloutOff.mjs';
+// Pinned to the switch off: tests the agenda item's inline vote picker (VoteView), which P12 deletes.
 
 const people=Array.from({length:8},(_,i)=>({id:String(i+1),name:'Contributor '+(i+1),currentMep:false}));
 const stats={uniquePeople:8,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:8,denominator:0,referenceDate:'2026-10-07',dimensions:{country:[],group:[],gender:[],age:[]}};
@@ -41,7 +43,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
     throw new Error('Unexpected request: '+url);
   });
   // Use the existing TSX pipeline without a listening server or external data.
-  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  loadModule=await freshLoader(...withRolloutOff({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}}));
   const {Legislation}=await loadModule('/src/Legislation.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);

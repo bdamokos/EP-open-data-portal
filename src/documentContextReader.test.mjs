@@ -410,7 +410,7 @@ test('retained readable text does not become pending while its expired client ca
   const request={documentId:report,view:'document',onBack:()=>{}};
   await h.render({request,language:'en'});
   await h.render({request:{...request,documentId:original},language:'en'});
-  const now=Date.now();t.mock.method(Date,'now',()=>now+31_000);
+  const clock=installRetryClock(t);clock.pin();clock.jump(31_000);
   await h.render({request,language:'en'},false);
   assert.equal(calls,2,'the expired cache starts a real client revalidation');
   assert(h.container.querySelector('.document-context-text').textContent.includes('Readable saved body.'));

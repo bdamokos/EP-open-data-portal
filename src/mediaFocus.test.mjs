@@ -61,10 +61,10 @@ test('a failed metadata request retries with focus on the retained opener',async
 });
 
 test('a refresh error keeps the retained clip and Try video again refreshes it with focus on the opener',async t=>{
-  let now=Date.now();t.mock.method(Date,'now',()=>now);
+  const clock=installRetryClock(t);clock.pin();
   const h=await harness(t);await h.render(h.player());
   const toggle=await h.click('Video');await h.finish('en');await h.click('Close video');
-  now+=31_000;await h.click('Video');await h.finish('en',true);
+  clock.jump(31_000);await h.click('Video');await h.finish('en',true);
   const frame=h.container.querySelector('iframe');assert(frame,'the retained matched clip remains available after refresh failure');
   assert.equal(h.container.querySelector('.explorer-notice button'),null);await automaticRecovery(t);assert.equal(document.activeElement,toggle);
   assert.equal(h.requests.length,3,'Try video again explicitly refreshes failed metadata');

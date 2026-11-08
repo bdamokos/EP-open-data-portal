@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {agendaItemHref,agendaVoteRedirect,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,itemVoteSections,longDate,countryStory,memberBackHref,memberVoteLine,membersByGroup,shortDate,dayDate,voteAmendmentWording,voteCentre,voteHref,voteOutcomeWord,voteProvision,voteRowLabel,voteSentence,voteSteps,wayLine} from './votePagePresentation.mjs';
+import {agendaItemHref,agendaVoteRedirect,decisionVoterRows,differingByGroup,findMember,findableMembers,fullDate,itemVoteSections,longDate,countryStory,memberBackHref,memberVoteLine,membersByGroup,shortDate,dayDate,voteAmendmentWording,voteCentre,voteHref,voteOutcomeWord,voteProvision,voteRowLabel,voteSentence,voteSteps,wayLine,placeOperation,placeRedline,REDLINE_MIN_SIMILARITY} from './votePagePresentation.mjs';
 import {splitVoteRequests} from './memberVotesPresentation.mjs';
 import {readExplorerParam,explorerParams} from './explorerQuery.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -318,8 +318,36 @@ test('a country voting together across groups whose lines differ is the story',(
  const greece=[...people('a','PPE','DE',Array(6).fill('for')),...people('b','S&D','DE',Array(6).fill('against')),...people('g','PPE','GR',['for','for']),...people('h','S&D','EL',['for','for'])];
  assert.equal(countryStory(greece,greece.find(row=>row.id==='g0')).total,4,'GR and EL are one country');
 });
+test('voting with the country must be at least half of those whose group went the other way',()=>{
+ // Polish EPP voters vote with the EPP, so the delegation rule stays silent for p0 and the country rule decides.
+ const base=[...people('a','PPE','DE',Array(10).fill('for')),...people('b','S&D','DE',Array(10).fill('against')),...people('p','PPE','PL',Array(10).fill('for'))];
+ const fewer=[...base,...people('q','S&D','PL',['for','for','against','against','against'])];
+ assert.equal(countryStory(fewer,fewer.find(row=>row.id==='p0')),null,'Poland is 12 of 15 for, but only 2 of its 5 S&D voters crossed the S&D line');
+ const half=[...base,...people('q','S&D','PL',['for','for','against','against'])];
+ assert.deepEqual(countryStory(half,half.find(row=>row.id==='p0')),{kind:'country',all:false,position:'for',count:12,total:14,code:'PL',group:null},'2 of 4 crossing is exactly half');
+});
 test('the delegation test wins over the country test',()=>{
  const rows=[...people('a','PPE','DE',Array(6).fill('for')),...people('b','S&D','DE',Array(6).fill('for')),...people('c','ECR','DE',Array(6).fill('against')),...people('m','PPE','MT',['against','against']),...people('n','ECR','MT',['against'])];
  assert.equal(countryStory(rows,rows.find(row=>row.id==='m0')).kind,'delegation');
  assert.equal(countryStory(rows,rows.find(row=>row.id==='n0')).kind,'country','the ECR Maltese voted with their group, but Malta voted together across groups');
 });
+test('In its place says what the amendment does only for operations the placement knows',()=>{
+  assert.equal(placeOperation('replace'),'votepage.place.op.replace');
+  assert.equal(placeOperation('delete'),'votepage.place.op.delete');
+  assert.equal(placeOperation('insert'),'votepage.place.op.insert');
+  for(const operation of [null,undefined,'reject','alternative-motion'])assert.equal(placeOperation(operation),null);
+});
+test('word marks need most words to stay; a rewrite gets none',()=>{
+  const close=placeRedline('The Programme shall support learning mobility.','The Programme shall support learning and mobility.','en');
+  assert.deepEqual(close.filter(segment=>segment.type!=='equal'),[{type:'insert',text:'and '}]);
+  assert.equal(close.map(segment=>segment.type==='insert'?'':segment.text).join(''),'The Programme shall support learning mobility.','the original side is exact');
+  assert.equal(placeRedline('Stresses that unanimity is a core principle; calls for Treaty reform.','Stresses that recourse to it is a legitimate expression of accountability by governments.','en'),null);
+  assert.equal(placeRedline('Same.','Same.','en'),null,'nothing to mark');
+  assert.equal(placeRedline('','New.','en'),null);
+  assert.equal(placeRedline('The Programme shall support learning mobility.','The Programme shall support learning and mobility.','en','de'),null,'never across languages');
+  assert.equal(REDLINE_MIN_SIMILARITY,0.5);
+  // Either side of the line: four words of eight kept, then three of eight.
+  assert(placeRedline('aa bb cc dd','aa bb ee ff','en'),'half the text shared is enough');
+  assert.equal(placeRedline('aa bb cc dd','aa ee ff gg','en'),null,'less than half is not');
+});
+
