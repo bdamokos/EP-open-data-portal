@@ -211,6 +211,8 @@ test('a parse whose readers all left still finishes and is stored, but a queued 
   const big=archive(paragraphs(1500)),small=archive(paragraphs(2));
   const running=new AbortController(),queued=new AbortController();
   const first=instance.proposal('proposal',big,proposalOptions,{limitBytes:LIMIT,signal:running.signal});
+  // Each job checks the disk cache first, so start the second only once the first is running.
+  while(![...instance.inflight.values()].some(job=>job.running))await sleep(5);
   const second=instance.proposal('proposal',small,proposalOptions,{limitBytes:LIMIT,signal:queued.signal});
   await sleep(5);
   running.abort(new Error('closed'));queued.abort(new Error('closed'));
