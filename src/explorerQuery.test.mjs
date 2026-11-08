@@ -145,6 +145,12 @@ test('the reader keeps its temporary overview preview address, and no other view
   assert.equal(explorerParams(query,'questions').has('split-preview'),false);
 });
 
+test('the vote page keeps its country order; other views drop it',()=>{
+  const query=new URLSearchParams({view:'legislation','pl-mode':'vote','vote-country-order':'against-rev'});
+  assert.equal(explorerParams(query,'legislation').get('vote-country-order'),'against-rev');
+  assert.equal(explorerParams(query,'questions').has('vote-country-order'),false);
+});
+
 test('an old country-sort address is dropped: the country list has one order',()=>{
   const query=new URLSearchParams({view:'legislation','pl-mode':'vote','vote-country-sort':'for-desc'});
   assert.equal(explorerParams(query,'legislation').has('vote-country-sort'),false);

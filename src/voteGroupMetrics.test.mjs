@@ -18,7 +18,7 @@ test('delegation threshold, opposite rest, abstentions and unavailable countries
  const voters=[...rows('PPE','PL',4,0,50),...rows('PPE','FR',4,117),...rows('PPE',null,40,0),...rows('NI','PL',30,0),...rows('NI','FR',0,100)];
  // Abstention is a group-majority position, so use fewer abstentions for this case.
  const actual=voters.filter(v=>v.position!=='abstaining');
- const breaks=delegationBreaks(actual);assert.equal(breaks.length,1);assert.equal(breaks[0].country,'PL');assert.equal(breaks[0].restFor,4);assert.equal(breaks[0].restAgainst,117);
+ const breaks=delegationBreaks(actual);assert.equal(breaks.length,1);assert.equal(breaks[0].country,'PL');assert.equal(breaks[0].restFor,4);assert.equal(breaks[0].restAgainst,117);const whole=groupMajorities(actual).find(group=>group.code===breaks[0].group).counts;assert.deepEqual([breaks[0].groupFor,breaks[0].groupAgainst],[whole.for,whole.against],'the group overall includes the delegation and voters without a country');assert.ok(breaks[0].groupFor>=breaks[0].for+breaks[0].restFor);
  assert.deepEqual(delegationBreaks([...rows('PPE','PL',2,0),...rows('PPE','FR',0,150)]),[]);
  assert.deepEqual(delegationBreaks([...rows('PPE','PL',2,2),...rows('PPE','FR',0,150)]),[]);
  assert.deepEqual(delegationBreaks([...rows('PPE','PL',3,0),...rows('PPE','FR',0,10)]),[]);
@@ -37,11 +37,11 @@ test('a delegation differs when more than half of its voters left the group majo
   const found=delegationsDiffering(voters).map(row=>row.country+' '+row.group).sort();
   assert.deepEqual(found,['BE ECR','EL PPE','MT PPE'],'Croatia (1 of 3), a 1–1 split, NI and a group without a majority are left out');
   const greece=delegationsDiffering(voters).find(row=>row.country==='EL');
-  assert.deepEqual(greece,{group:'PPE',country:'EL',counts:{for:0,against:0,abstaining:7},rest:{for:30,against:2,abstaining:1},majority:'for'},'the rest is the same group from every other country');
+  assert.deepEqual(greece,{group:'PPE',country:'EL',counts:{for:0,against:0,abstaining:7},overall:{for:30,against:2,abstaining:8},majority:'for'},'the group overall includes the delegation itself');
   assert.deepEqual(delegationsDiffering([]),[]);
 });
 test('exactly half differing is not enough, and an against majority works the same way',()=>{
   const voters=[...rows('ECR','PL',0,18,0),...rows('ECR','CZ',1,1,0),...rows('ECR','SE',2,0,1),...rows('ECR','LV',0,1,0)];
   assert.deepEqual(delegationsDiffering(voters).map(row=>row.country),['SE'],'Czechia 1 of 2 against is half, not more; Sweden 3 of 3 left an against majority');
-  assert.deepEqual(delegationsDiffering(voters)[0].rest,{for:1,against:20,abstaining:0});
+  assert.deepEqual(delegationsDiffering(voters)[0].overall,{for:3,against:20,abstaining:1});
 });
