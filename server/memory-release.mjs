@@ -5,8 +5,11 @@ import vm from 'node:vm';
 // collects it when allocation pressure returns, and an idle process has none,
 // so the memory would stay resident until the next heavy request. One full
 // collection shortly after such a burst returns it. The collector is reached
-// without a process flag: --expose-gc is switched on for new contexts only.
-export const MEMORY_RELEASE=Object.freeze({heapBytes:48*1024*1024,rssBytes:128*1024*1024,delayMs:2000});
+// without a process flag. V8 reads --expose-gc only when it creates a context,
+// so setting it at run time affects just the one context made here, whose gc()
+// collects the whole isolate. A full collection pauses the HTTP thread, so at
+// most one runs per `minIntervalMs`.
+export const MEMORY_RELEASE=Object.freeze({heapBytes:48*1024*1024,rssBytes:128*1024*1024,delayMs:2000,minIntervalMs:60_000});
 
 function exposedCollector() {
   if(typeof globalThis.gc==='function')return globalThis.gc;
@@ -16,18 +19,26 @@ function exposedCollector() {
   } catch {return null;}
 }
 
-let timer=null,collector;
-// Collect once, `delayMs` after the last call. The timer never keeps the process alive.
-export function scheduleCollection({delayMs=MEMORY_RELEASE.delayMs,collect}={}) {
+let timer=null,collector,lastRun=-Infinity;
+// Collect once, `delayMs` after the last call and no sooner than `minIntervalMs`
+// after the previous collection. The timer never keeps the process alive.
+export function scheduleCollection({delayMs=MEMORY_RELEASE.delayMs,minIntervalMs=MEMORY_RELEASE.minIntervalMs,collect,now=()=>performance.now()}={}) {
   clearTimeout(timer);
-  timer=setTimeout(()=>{
-    timer=null;
-    const run=collect??(collector===undefined?(collector=exposedCollector()):collector);
-    try {run?.();} catch {/* A failed collection only leaves the memory for V8 to reclaim later. */}
-  },delayMs);
-  timer.unref();
+  const arm=wait=>{
+    timer=setTimeout(()=>{
+      const early=lastRun+minIntervalMs-now();
+      if(early>0){arm(early);return;}
+      timer=null;lastRun=now();
+      const run=collect??(collector===undefined?(collector=exposedCollector()):collector);
+      try {run?.();} catch {/* A failed collection only leaves the memory for V8 to reclaim later. */}
+    },wait);
+    timer.unref();
+  };
+  arm(delayMs);
 }
 export function cancelCollection() {clearTimeout(timer);timer=null;}
+// For tests: forget when the last collection ran.
+export function resetCollectionInterval() {lastRun=-Infinity;}
 // Whether a collection is waiting to run, for tests and diagnostics.
 export const collectionPending=()=>timer!==null;
 
