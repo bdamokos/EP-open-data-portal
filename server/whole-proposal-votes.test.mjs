@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {projectMemberDecision,projectMemberSitting} from './member-votes-model.mjs';
 import {deriveVoteEvidence} from './vote-evidence.mjs';
-import {voteScope,topicVotes,finalVotePatterns} from './insights-legislation-model.mjs';
+import {voteScope} from './insights-legislation-model.mjs';
 import {explanationVoteContext} from './member-vote-explanations-model.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/whole-proposal-votes.json',import.meta.url)));
@@ -41,15 +41,7 @@ test('native 199470 covers the whole Commission proposal at this reading with it
   assert.equal(general(referral),'procedural');
 });
 
-test('native agenda projection recognises the proposal while missing agenda coverage withholds the explanation anchor',()=>{
-  const result=snapshot.results[0],topic={id:result.executed[0].split('/').at(-1),uri:result.executed[0]};
-  const records={url:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-22/decisions',fetchedAt:null,payload:{data:snapshot.decisions}};
-  const votes=topicVotes(topic,{payload:{data:snapshot.results}},records,new Map(),new Map(),'2026-10-22');
-  const proposal=votes.find(vote=>vote.id===raw.activity_id);
-  assert.equal(proposal.scope,'final-text');
-  assert.deepEqual(proposal.associations[0].documentIds,['A-10-2026-0276']);
-  assert.deepEqual(proposal.associations[0].procedureIds,['2026-0211']);
-  assert.deepEqual(finalVotePatterns(votes,new Map(),new Map()).finalTextVoteIds,[raw.activity_id]);
+test('missing agenda coverage withholds the explanation anchor',()=>{
   const context=explanationVoteContext(snapshot,member,referral.activity_id,'en');
   assert.equal(context.anchor,null);
   assert(context.gaps.some(gap=>gap.code==='vote-agenda-incomplete'));

@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createGroupOn,generationGroupOn} from './group-attribution.mjs';
 import {groupContributions,questionGroupMetrics,activityAffiliation} from './group-aggregation.mjs';
-import {namedVote,finalVotePatterns} from './insights-legislation-model.mjs';
 import {participationRows} from './insights-participation.mjs';
 const interval=(code,start,end=null)=>({code,start,end,org:'org/'+code,groupId:'group/'+code});
 const person=groups=>({coverage:'complete',mandateCoverage:'complete',mandates:[{start:'2024-07-16',end:null}],groups});
@@ -36,15 +35,6 @@ test('generation-bound contributions retain captured history after a new publica
   const store={db:{prepare:()=>({get:g=>({body:JSON.stringify(g===1?snapshot:{members:{124846:person([interval('NI','2024-07-16')])}})})})}};
   const first=generationGroupOn(store,1),second=generationGroupOn(store,2),rows=[{id:'124846',date:'2026-06-16'}];
   assert.equal(groupContributions(rows,first).rows[0].label,'S&D');assert.equal(groupContributions(rows,second).rows[0].label,'NI');
-});
-test('named votes and final patterns split a switcher by vote date, with exact contribution totals',()=>{
-  const roster=new Map([['124846',{name:'Pina Picierno',groupCode:'Renew'}]]),metadata=new Map();
-  const make=(date,position)=>namedVote({activity_id:date,activity_date:date,referenceText:{en:'Motion for a resolution (as a whole)'},had_voter_favor:position==='for'?['person/124846']:[],had_voter_against:position==='against'?['person/124846']:[],had_voter_abstention:[]},{url:'https://data.europarl.europa.eu/api/v2/test'},roster,metadata,date,resolve);
-  const before=make('2026-06-16','for'),after=make('2026-06-17','against');
-  assert.equal(before.groups.for[0].contributionGroup,'S&D');assert.equal(before.politicalGroups[0].code,'S&D');assert.equal(after.groups.against[0].contributionGroup,'Renew');
-  const patterns=finalVotePatterns([before,after],roster,metadata,resolve);
-  assert.equal(patterns.uniqueNamedPeople,1);assert.equal(patterns.groupContributions.total,2);assert.equal(patterns.groups.mixed.length,0);
-  assert.equal(patterns.groups.for[0].contributionGroup,'S&D');assert.equal(patterns.groups.against[0].contributionGroup,'Renew');
 });
 test('participation groups use actual speech dates rather than the agenda topic date',()=>{
   const topics=[{id:'topic',uri:'eli/dl/event/topic',date:'2026-06-20'}];

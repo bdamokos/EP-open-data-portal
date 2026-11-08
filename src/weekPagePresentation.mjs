@@ -11,7 +11,7 @@ const count=value=>Number.isSafeInteger(value)&&value>=0;
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const byOrder=(a,b)=>(a.order??0)-(b.order??0)||a.id.localeCompare(b.id);
 
-export const weekHref=(week,language='en')=>'?'+new URLSearchParams({view:'legislation','pl-mode':'week','pl-week':week,lang:language});
+export {weekHref} from './weekAddress.mjs';
 // The agenda's own route, so the two views share one cached response.
 export const weekRoute=(week,language='en')=>'insights/legislation?'+new URLSearchParams({lang:language,week});
 export const weekStoryRoute=(week,language='en')=>'insights/week-story?'+new URLSearchParams({week,lang:language});
@@ -23,8 +23,8 @@ export function weekItemRoute(topic,sittingIds,language='en') {
   return 'insights/week-item?'+new URLSearchParams({...(procedures.length?{procedures:procedures.join(',')}:{}),...(documents.length?{documents:documents.join(',')}:{}),...(sittingIds.length?{sittings:[...sittingIds].sort().slice(0,5).join(',')}:{}),lang:language});
 }
 
-/** At the flip the agenda opens on the week page unless a sitting or an item was chosen. */
-export const agendaOpensWeekPage=({live,mode,topic,sitting,agendaPeriod})=>Boolean(live&&mode==='agenda'&&!topic&&!sitting&&!agendaPeriod.startsWith('sitting:'));
+/** The agenda opens on the week page unless a sitting or an item was chosen. */
+export const agendaOpensWeekPage=({mode,topic,sitting,agendaPeriod})=>Boolean(mode==='agenda'&&!topic&&!sitting&&!agendaPeriod.startsWith('sitting:'));
 
 export const counted=totals=>positions.every(key=>count(totals?.[key]));
 const anyCount=totals=>positions.some(key=>count(totals?.[key]));

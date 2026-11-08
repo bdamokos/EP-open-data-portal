@@ -9,7 +9,6 @@ import {memberAttendanceRoute,validateMemberAttendanceResponse} from './memberAt
 import {voteMethodLabel} from './voteMethod.mjs';
 import {PersonName} from './PersonName';
 import {voteHref} from './votePagePresentation.mjs';
-import {PLENARY_REDESIGN_LIVE} from './plenaryRollout.mjs';
 import {Result,Position,VotePartDescriptions} from './MemberVoteSummary';
 import {OutcomeAlignmentFilter} from './OutcomeAlignmentFilter';
 import {VotePeriodNavigation} from './VotePeriodNavigation';
@@ -40,7 +39,6 @@ export type MemberVotesProps={
   onStateChange:(next:MemberVotesState,options?:{replace?:boolean})=>void;
   renderContext:(request:MemberVotesContextRequest)=>ReactNode;
   // The voting record sits above the weeks, so the weeks are named for what they are.
-  recordShown?:boolean;
 };
 export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:null,positions:'all',alignment:'all',offset:0,decisionId:null,snapshotId:null,expandedSubjectIds:[],context:null};
 
@@ -144,7 +142,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
   const contexts=vote.parts.flatMap(part=>[...part.contextComponents,part].sort((a,b)=>(/^\d+$/.test(String(a.number)) && /^\d+$/.test(String(b.number))) ? (Number(a.number)-Number(b.number)) : 0)).filter((component,index,all)=>all.findIndex(other=>other.componentId===component.componentId)===index);
   return <article className="member-votes-detail">
     <header><p className="member-votes-eyebrow">{dateLabel(vote.date,ui.locale)}</p>{subject&&<VoteSubjectTitle subject={subject} vote={vote} language={language}/>}<h2 tabIndex={-1}>{memberVoteLabel(vote,language, ui)}</h2></header>
-    <section className="member-votes-strip" aria-label={ui.t("activityvote.member_position_and_parliament_result")}><Position vote={vote} memberName={memberName}/><Result vote={vote}/>{PLENARY_REDESIGN_LIVE&&<a className="member-votes-open" href={voteHref(vote.id,language)} onClick={dossierLinkClick}><UiMessage id="votepage.open"/></a>}
+    <section className="member-votes-strip" aria-label={ui.t("activityvote.member_position_and_parliament_result")}><Position vote={vote} memberName={memberName}/><Result vote={vote}/><a className="member-votes-open" href={voteHref(vote.id,language,data.member.id)} onClick={dossierLinkClick}><UiMessage id="votepage.open"/></a>
       {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention"><UiMessage id="activityvote.declared_intention_positions_declared_afterwards_result_unchanged" values={{positions: <strong>{vote.intention.positions.map(position=>({for:ui.t("membervotespresentation.for"),against:ui.t("membervotespresentation.against"),abstaining:ui.t("activityvote.abstain")}[position])).join(', ')}</strong>}}/></p>}
     </section>
     <VotePartDescriptions vote={vote} language={language}/>
@@ -162,7 +160,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
   </article>;
 }
 
-export function MemberVotes({memberId,memberName,language,state,onStateChange,renderContext,recordShown=false}:MemberVotesProps) {
+export function MemberVotes({memberId,memberName,language,state,onStateChange,renderContext}:MemberVotesProps) {
   const ui = useUiI18n();
   const listRef=useRef<HTMLDivElement>(null),detailRef=useRef<HTMLDivElement>(null);
   const alignmentFocus=useRef<MemberVotesState['alignment']|null>(null);
@@ -295,7 +293,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const noRecordedPositions=data?.pagination.recordedTotal===0&&(data.pagination.observedTotal>0||(data.pagination.omittedWhileChairingTotal??0)>0);
   const contextAllowed=Boolean(state.context&&selected&&['document','adopted'].includes(state.context.view)&&(state.context.amendmentId ? exactAmendmentTargets(selected).some(target=>target.documentId===state.context?.documentId&&target.amendmentId===state.context?.amendmentId) : topLevelVoteDocuments(selected).includes(state.context.documentId)));
   return <section className="member-votes" lang={ui.language} aria-label={ui.t("membervotes.tsx.membername.votes", {memberName: String(memberName)})}>
-    <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2 ref={listHeadingRef} tabIndex={-1}><UiMessage id={recordShown?"membervoterecord.votesByWeek":"membervotes.tsx.voting.records"}/></h2><p>{periodLabel(data,state, ui)}</p></div><VotePeriodNavigation state={state} resolvedWeek={data?.period.week} language={language} sittingCoverage={data?.coverage.sittings} onPeriod={periodChange}/></div>
+    <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2 ref={listHeadingRef} tabIndex={-1}><UiMessage id="membervoterecord.votesByWeek"/></h2><p>{periodLabel(data,state, ui)}</p></div><VotePeriodNavigation state={state} resolvedWeek={data?.period.week} language={language} sittingCoverage={data?.coverage.sittings} onPeriod={periodChange}/></div>
     {data&&!request.error&&!state.decisionId&&!state.context&&<AttendanceLine data={attendance} loading={attendanceRequest.loading} attempted={attendanceRoute!==null} onRetry={attendanceRequest.retry}/>}
     {(request.loading||findingLatest&&!rejected)&&!data&&!request.error&&<p role="status">{findingLatest ? <UiMessage id="membervotes.tsx.finding.latest.recorded.votes"/> : <UiMessage id="membervotes.tsx.loading.voting.records"/>}</p>}
     {expired ? <div className="member-votes-notice" role="alert"><p><UiMessage id="membervotes.tsx.this.page.is.out.of.date.refresh.to.load.the.votes"/></p></div> : (request.error ? <div className="member-votes-notice" role="alert"><p><UiMessage id="membervotes.tsx.voting.records.could.not.be.loaded.try.again"/></p></div> : (rejected ? <div className="member-votes-notice" role="alert"><p><UiMessage id="membervotes.tsx.these.voting.records.are.unavailable"/></p></div> : null))}

@@ -30,11 +30,6 @@
     "count": "count"
   },
   {
-    "one": "legislation.grouplabel_position_count_mep.c3a210",
-    "other": "legislation.grouplabel_position_count_meps.f476b0",
-    "count": "count"
-  },
-  {
     "one": "batch4.insightcharts.tsx.count.contribution",
     "other": "batch4.insightcharts.tsx.count.contributions",
     "count": "count"
@@ -452,11 +447,6 @@
   {
     "one": "weekSummary.agendaItemsOne",
     "other": "weekSummary.agendaItems",
-    "count": "count"
-  },
-  {
-    "one": "weekSummary.debatesOne",
-    "other": "weekSummary.debates",
     "count": "count"
   },
   {

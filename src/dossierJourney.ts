@@ -99,8 +99,6 @@ function destinationMounted() {
     if((panel.dataset.dossierStage||'all')!==(query.get('dossier-stage')||'all')||(panel.dataset.dossierCommittee||'')!==(query.get('dossier-committee')||''))return false;
   }else if(query.get('view')==='legislation'&&query.get('pl-mode')==='vote'){
     if(document.querySelector<HTMLElement>('[data-vote-page]')?.dataset.votePage!==query.get('pl-vote'))return false;
-  }else if(query.get('view')==='legislation'&&query.get('pl-mode')==='week'){
-    if(document.querySelector<HTMLElement>('[data-week-page]')?.dataset.weekPage!==(query.get('pl-week')||'latest'))return false;
   }else if(query.get('view')==='legislation'&&query.get('pl-mode')==='read'){
     if(document.querySelector<HTMLElement>('[data-read-page]')?.dataset.readPage!==(query.get('read-doc')||'')+':'+(query.get('read-amendment')||''))return false;
   }else if(query.get('view')==='legislation'&&(!query.get('pl-mode')||query.get('pl-mode')==='agenda')){

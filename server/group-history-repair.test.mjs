@@ -8,7 +8,6 @@ import {ActivityWorker} from './activity-index-worker.mjs';
 import {projectGroupHistory,groupHistorySnapshot} from './group-history.mjs';
 import {groupHistoryRepairDue,scheduleGroupHistoryRepair} from './group-history-repair.mjs';
 import {createGroupOn} from './group-attribution.mjs';
-import {namedVote} from './insights-legislation-model.mjs';
 
 const at='2026-10-27T12:00:00.000Z',old='2026-10-27T00:02:13.889Z',clock=()=>Date.parse(at);
 // Reduced public membership identities; no production cache is used.
@@ -57,11 +56,6 @@ test('startup admits the repair once and fresh history moves the vote into EPP o
   store.publish(generation);
   const snapshot=groupHistorySnapshot(store,generation);
   assert.equal(createGroupOn(snapshot)(id,'2026-10-20').code,'PPE');
-  const raw={activity_id:'MTG-PL-2026-10-20-DEC-198425',activity_date:'2026-10-20',had_voter_favor:['person/'+id],had_voter_against:[],had_voter_abstention:[],number_of_votes_favor:1,number_of_votes_against:0,number_of_votes_abstention:0};
-  const members=new Map([[id,{id,name:'Vangelis MEIMARAKIS'}]]),record={url:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-20/decisions',fetchedAt:at};
-  const vote=namedVote(raw,record,members,new Map(),'2026-10-20',createGroupOn(snapshot));
-  assert.deepEqual(vote.politicalGroups.map(row=>row.code),['PPE']);assert.equal(vote.politicalGroups[0].positions.for[0].id,id);
-  assert.equal(vote.aggregateTotals.for,1);assert.equal(vote.totalsMatchNamed,true);
   assert.equal(worker.coreDue(),false);
   assert.deepEqual(groupHistorySnapshot(store,serving),before);
 });

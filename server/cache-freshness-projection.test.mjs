@@ -58,8 +58,6 @@ for(const [name,endpoint,flags,topic] of [
   ['procedure',procedureEndpoint,{refreshError:'Synthetic refresh failure'},debateId],
   ['document association',documentEndpoint,{stale:true},debateId],
   ['debate event',eventEndpoint,{stale:true},debateId],
-  ['vote results',resultsEndpoint,{refreshInProgress:true},voteId],
-  ['decisions',decisionsEndpoint,{refreshError:'Synthetic refresh failure'},voteId],
 ])test('legislation retains '+name+' freshness inside a fresh assembled view',async()=>{
   const {legislation}=fixture({flags:{[endpoint]:flags}});
   const value=await new InsightViewCache({directory:null,clock}).get(['synthetic',name],()=>legislation.query(legislationQuery(topic)));
@@ -180,8 +178,6 @@ for(const [name,endpoint,topic] of [
   ['procedure',procedureEndpoint,debateId],
   ['document association',documentEndpoint,debateId],
   ['debate event',eventEndpoint,debateId],
-  ['vote results',resultsEndpoint,voteId],
-  ['decisions',decisionsEndpoint,voteId],
 ])test('legislation retains a caught '+name+' failure as an uncached operational gap',async()=>{
   const {legislation}=fixture({fail:endpoint});
   const value=await legislation.query(legislationQuery(topic));
@@ -336,13 +332,6 @@ test('participation preserves transient memory evidence when its timestamp canno
   const value=await participation(legislation,store,participantQuery(),{clock,readEvent:async()=>record});
   assert(value.coverage.sources.some(source=>source.url===record.url&&source.stale));
   assert.equal(policy('participation',value).cdnCacheControl,'no-store');
-});
-
-test('cold demographic metadata keeps an otherwise fresh legislation snapshot uncacheable',async()=>{
- const {legislation}=fixture({metadata:new Map()});
- const value=await legislation.query(legislationQuery(voteId));
- assert.equal(value.detail.selectedVote.stats.demographicEvidence['1'].bday.status,'missing_acquisition');
- assert.equal(policy('legislation',value).cdnCacheControl,'no-store');
 });
 
 test('participation retains country acquisition states through the public cache boundary and recovers without profile reads',async()=>{

@@ -10,11 +10,10 @@ import assert from 'node:assert/strict';
 import {createElement,act,useEffect,useState,Fragment} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {withRolloutOff} from './test-support/rolloutOff.mjs';
 
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};
 
-async function harness(t,path,component,query,respond,props={},withJourney=false,rolloutOff=false) {
+async function harness(t,path,component,query,respond,props={},withJourney=false) {
   const window=new Window({url:'http://localhost/'+query});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,
     HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:class {observe(){} disconnect(){}},
@@ -26,7 +25,7 @@ async function harness(t,path,component,query,respond,props={},withJourney=false
   const calls=[];
   t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;const url=new URL(input,window.location.href);calls.push(url);const result=await respond(url);return result instanceof Response?result:Response.json(result);});
   const loaderOptions={configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}};
-  loadModule=await freshLoader(...(rolloutOff?withRolloutOff(loaderOptions):[loaderOptions]));
+  loadModule=await freshLoader(loaderOptions);
   const Component=(await loadModule(path))[component],{createRoot}=await import('react-dom/client');
   const journey=withJourney?await loadModule('/src/dossierJourney.ts'):null,origin=location.href;
   function JourneyShell() {
@@ -58,7 +57,7 @@ function agendaFixture() {
   const topic={id:sitting.id+'-OJ-ITM-V-27',sittingId:sitting.id,title:'Protection of adults',titleLanguage:'en',date:sitting.date,kind:'PLENARY_VOTE',documentIds:['A-10-2025-0128'],procedureIds:[]};
   const base={view:'legislation',week:'2026-10-19',sitting,sittings:[sitting],agendaSittings:[sitting],topics:[topic],detail:null,coverage:{agendaComplete:true,agendaError:null,latestAvailable:true}};
   const publication={selectedDocumentId:topic.documentIds[0],selectedText:{status:'available',textLanguage:'en',availableTextLanguages:['en'],paragraphs:['Useful cached document text.']},files:[],answers:[]};
-  const detail={...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[{id:'1',name:'Known member',currentMep:true,country:'FR',group:'PPE',demographics:{country:'FR',group:'PPE',gender:'Unknown',age:'Unknown'}}],stats:{uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:sitting.date,dimensions:{country:[],group:[],gender:[],age:[]}},speeches:[],votes:[],selectedVote:null,voteCoverage:{available:false,truncated:false},coverage:{missingDocumentIds:[],roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}};
+  const detail={...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[{id:'1',name:'Known member',currentMep:true,country:'FR',group:'PPE',demographics:{country:'FR',group:'PPE',gender:'Unknown',age:'Unknown'}}],stats:{uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:sitting.date,dimensions:{country:[],group:[],gender:[],age:[]}},speeches:[],coverage:{missingDocumentIds:[],roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}};
   return {topic,base,publication,detail};
 }
 
@@ -319,16 +318,6 @@ for(const mode of ['participation','cloud'])test(mode+' keeps explicit saved sit
  assert(h.calls.some(url=>url.pathname.endsWith('/insights/'+(mode==='cloud'?'speech-cloud':'participation'))&&url.searchParams.get('sitting')===id));
  assert(h.container.querySelector('select'));assert(!h.container.textContent.includes('Latest week unavailable'));
 });
-// Pinned to the switch off: the agenda's day view and period select, which P12 deletes.
-test('unknown latest keeps known Agenda dates selectable on a fresh visit',async t=>{
- const h=await harness(t,'/src/Legislation.tsx','Legislation','',incompleteCalendarApi(),{},false,true);
- await h.tick();assert.match(h.container.textContent,/Latest week unavailable/);
- const select=h.container.querySelector('.insight-controls select');assert([...select.options].some(option=>option.value==='sitting:MTG-PL-2025-12-18'));
- assert(!h.container.textContent.includes('0 agenda items'));
- await act(async()=>{select.value='sitting:MTG-PL-2025-12-18';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});await h.tick();
- assert(h.calls.some(url=>url.pathname.endsWith('/insights/legislation')&&url.searchParams.get('sitting')==='MTG-PL-2025-12-18'));assert(!h.container.textContent.includes('Latest week unavailable'));
-});
-
 test('a recovered trend cannot leak rows into a changed period after a retry',async t=>{
  let fail=true;const next=deferred();
  const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',url=>url.searchParams.get('days')==='180'?next.promise:fail?Response.json({error:{message:'Busy'}},{status:503}):trends([trend(91)]));

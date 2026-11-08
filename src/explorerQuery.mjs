@@ -39,8 +39,8 @@ export function readExplorerParam(query,key,fallback,allowed) {
 export function explorerParams(query,view,member) {
   const result=new URLSearchParams();
   const ownsMember=member===undefined||Boolean(member&&query.get('member')===String(member));
-  const prefix=view==='geopolitics'?/^(topic$|place$|t-)/:view==='questions'?/^q-/:view==='legislation'?(query.get('pl-mode')==='topics'?/^(topic$|t-|(?:pl|agenda|hot|cloud|dossier|trend)-)/:/^(?:vote-country-order$|vote-member$|split-preview$|(?:pl|agenda|hot|cloud|dossier|trend|read)-)/):view==='outside'?/^ov-/:view==='hemicycle'?/^hc-/:view==='amendments'?/^am-/:view==='groups'?/^gv-/:view===null&&ownsMember?/^mep-(speech|activity)-fts-/:null;
-  for(const [key,value] of query)if(/^global-fts-(search|text-lang|page|offset|catalog-offset|from|to|read|kind|sort|closed)$/.test(key)||prefix?.test(key)||view===null&&ownsMember&&(key==='mep-speech-category'||isMemberVotesParam(key)||key.startsWith('ma-')||key==='record-preview'&&value==='1')){
+  const prefix=view==='geopolitics'?/^(topic$|place$|t-)/:view==='questions'?/^q-/:view==='legislation'?(query.get('pl-mode')==='topics'?/^(topic$|t-|(?:pl|agenda|hot|cloud|dossier|trend)-)/:/^(?:vote-country-order$|vote-member$|(?:pl|agenda|hot|cloud|dossier|trend|read)-)/):view==='outside'?/^ov-/:view==='hemicycle'?/^hc-/:view==='amendments'?/^am-/:view==='groups'?/^gv-/:view===null&&ownsMember?/^mep-(speech|activity)-fts-/:null;
+  for(const [key,value] of query)if(key!=='agenda-show'&&(/^global-fts-(search|text-lang|page|offset|catalog-offset|from|to|read|kind|sort|closed)$/.test(key)||prefix?.test(key)||view===null&&ownsMember&&(key==='mep-speech-category'||isMemberVotesParam(key)||key.startsWith('ma-')))){
     if(key.endsWith('-country')){const country=readExplorerParam(query,key,null);if(country)result.set(key,country);}
     else result.set(key,value);
   }
