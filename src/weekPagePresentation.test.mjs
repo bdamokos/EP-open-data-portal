@@ -159,6 +159,7 @@ test('an old week address opens the same week on the agenda',()=>{
  assert.equal(redirect('view=legislation&pl-mode=week&lang=en'),'?view=legislation&lang=en','no week opens the default week');
  assert.equal(redirect('view=legislation&pl-mode=week&pl-week=2026-10-20'),'?view=legislation','a day that is not a Monday is dropped');
  assert.equal(redirect('view=legislation&pl-mode=week&pl-week=2026-02-30'),'?view=legislation');
+ for(const week of ['2026-13-01','2026-00-05','2026-10-32'])assert.equal(redirect('view=legislation&pl-mode=week&pl-week='+week),'?view=legislation','an impossible date opens the default week');
  assert.equal(redirect('view=legislation&agenda-period=week%3A2026-10-19'),null);
  assert.equal(redirect('pl-mode=week&pl-week=2026-10-19'),null,'only the plenary view');
  assert.equal(weekHref('2026-10-19','fr'),'?view=legislation&agenda-period=week%3A2026-10-19&lang=fr');
