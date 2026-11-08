@@ -140,7 +140,7 @@ async function tourTargets(sitting) {
 }
 async function tour(sitting) {
   let routes=await tourTargets(sitting);
-  const samples=[],byStatus={},failures={},memory=[];
+  const samples=[],byStatus={},failures={},memory=[],perRoute={};
   // Round 0 warms caches and drops routes the offline data cannot answer, so both modes tour the same set.
   const dropped=[];
   for(const route of [...routes]) {
@@ -156,12 +156,13 @@ async function tour(sitting) {
       byStatus[result.status]=(byStatus[result.status]||0)+1;
       if(result.status!==200)failures[route]=result.status;
       // Only successful answers describe warm latency.
-      if(result.status===200)samples.push(result.ms);
+      if(result.status===200){samples.push(result.ms);(perRoute[route.split('?')[0]]??=[]).push(result.ms);}
     } catch {byStatus.error=(byStatus.error||0)+1;}
   }
   clearInterval(sampler);
   const peak=key=>memory.length?Math.max(...memory.map(m=>m[key]??0)):null;
   return {routes,droppedRoutes:dropped,rounds:options.rounds,wallS:round((performance.now()-started)/1000),status:byStatus,failedRoutes:failures,latencyMs:{...summarize(samples),n:samples.length},
+    perRouteP50Ms:Object.fromEntries(Object.entries(perRoute).map(([route,values])=>[route,round(summarize(values).p50,2)])),
     peakRssMiB:peak('rssMiB'),peakPssMiB:peak('pssMiB'),
     meanRssMiB:memory.length?round(memory.reduce((total,m)=>total+m.rssMiB,0)/memory.length):null};
 }
