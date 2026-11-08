@@ -49,7 +49,7 @@ test('progress is independent, preserves exact selection and lazy readable docum
   const joint=[...container.querySelectorAll('.procedure-progress-timeline>li')].find(row=>row.textContent.includes('Joint signing'));
   assert.match(joint.textContent,/European Parliament/);assert.equal(joint.querySelector('[lang="fr"]').textContent,'Conseil de l’Union européenne');
   const undated=[...container.querySelectorAll('.procedure-progress-timeline>li')].find(row=>row.textContent.includes('Undated action'));
-  assert.match(undated.textContent,/Date unavailable/);assert.match(undated.textContent,/Institution unavailable/);
+  assert.match(undated.textContent,/Date unavailable/);assert.equal(undated.querySelector('.procedure-progress-institutions').textContent,'','an unattributed event shows no institution');
   const filter=container.querySelector('.procedure-progress-filters select');filter.focus();
   await act(async()=>{filter.value='EP';filter.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.equal(document.activeElement,filter);

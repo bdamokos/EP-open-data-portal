@@ -35,7 +35,6 @@
 .procedure-progress-timeline>li>* {min-width:0;}
 .procedure-progress-event-date {font-size:14px;line-height:1.6;color:var(--ink-muted);}
 .procedure-progress-institutions {display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:1.6;font-weight:600;overflow-wrap:anywhere;}
-.procedure-progress-institutions>.procedure-progress-muted {font-weight:400;}
 .procedure-progress-timeline h4 {font-size:17px;font-weight:600;line-height:1.5;margin:0 0 6px;overflow-wrap:anywhere;}
 .procedure-progress-timeline p {margin:6px 0;}
 .procedure-progress-scheduled>.procedure-progress-event-detail {border-left:2px dashed var(--accent);padding-left:14px;}
@@ -43,8 +42,8 @@
 .procedure-progress-documents ul {padding-left:20px;}
 .procedure-progress-documents li {padding:4px 0;overflow-wrap:anywhere;}
 .procedure-progress-documents a {display:inline-block;min-height:44px;padding:8px 0;font-size:15px;}
-@container(max-width:680px){.procedure-progress-timeline>li{grid-template-columns:1fr;gap:6px;}}
-@media(max-width:680px){.procedure-progress-timeline>li{grid-template-columns:1fr;gap:6px;}.procedure-progress-filters{align-items:start;}.procedure-progress-filters label{width:100%;}.procedure-progress-latest{gap:2px 12px;}}
+@container(max-width:680px){.procedure-progress-timeline>li{grid-template-columns:1fr;gap:6px;}.procedure-progress-timeline>li>.procedure-progress-institutions:empty{display:none;}}
+@media(max-width:680px){.procedure-progress-timeline>li{grid-template-columns:1fr;gap:6px;}.procedure-progress-timeline>li>.procedure-progress-institutions:empty{display:none;}.procedure-progress-filters{align-items:start;}.procedure-progress-filters label{width:100%;}.procedure-progress-latest{gap:2px 12px;}}
 .insight-dossier-title {margin-bottom:24px;max-width:80ch;}
 .insight-dossier-title h2 {font-size:24px;line-height:1.4;margin:0 0 4px;}
 .dossier-identity-row {display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;}

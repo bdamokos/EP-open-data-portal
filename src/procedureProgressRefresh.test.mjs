@@ -43,8 +43,8 @@ test('stale admitted progress reaches a settled result, keeping the timeline and
   assert.match(h.container.querySelector('h3').textContent,/Procedure progress/);
   assert.equal(h.container.querySelector('.procedure-progress-latest .procedure-progress-institutions'),null,'OEIL event text does not infer an institution in the compact overview');
   await h.click('Show timeline');assert.equal(h.container.querySelectorAll('.procedure-progress-timeline>li').length,1);
-  assert.equal(h.container.querySelector('.procedure-progress-timeline .procedure-progress-institutions').textContent,'Institution unavailable');
-  assert.equal(h.container.querySelector('.procedure-progress-filters select'),null,'the OEIL fallback retains its optional institution filter');
+  assert.equal(h.container.querySelector('.procedure-progress-timeline .procedure-progress-institutions').textContent,'');
+  assert.equal(h.container.querySelector('.procedure-progress-filters select'),null,'a timeline with fewer than two institutions has no institution filter');
   assert.equal(h.requests.length,2,'opening a timeline does not load documents');
   await h.render({reference:'2025/0223(COD)'});
   const cellarEvent=event({id:'cellar:1',works:['cellar:work'],institutions:[{id:'EP',code:'EP',label:'European Parliament',language:'en'}]});

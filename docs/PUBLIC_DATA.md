@@ -148,7 +148,7 @@ Outside-speaker stories use CRE role/debate agreement first, then a [Wikidata](h
 ### OEIL
 
 - Procedure files and document summaries are parsed from visible HTML, reached through exact procedure references from the API. Final-act summaries are preferred over proposal summaries.
-- Procedure progress reads the printed status and the Key events table. OEIL events have no identifiers, so they’re keyed by procedure, date and label.
+- Procedure progress reads the printed status and the Key events table. OEIL events have no identifiers, so they’re keyed by procedure, date and label. They also have no actor: an event’s institution comes from the documentation gateway table (Parliament, Commission or Council) that files its exact reference, or from a label that names one institution. Other events show none.
 - Policy areas (topics) come only from OEIL procedure pages.
 - Policy-area names: `server/oeil-subjects.json` holds the official English and French labels and hierarchy (450 codes), taken from the subject filter of the [English](https://oeil.europarl.europa.eu/oeil/en/search) and [French](https://oeil.europarl.europa.eu/oeil/fr/search) search pages, with its retrieval date. The list grows each year: budget and discharge subjects get annual codes with irregular suffixes, so their translations use templates that substitute only a year stated in the official label.
 - The explorer's own translations for other languages live in `server/oeil-subject-translations.json`, each marked `explorer-translation`; they never override English or French. Missing names follow the shared text-language preference order. The site notice says these translations are the explorer's own.
