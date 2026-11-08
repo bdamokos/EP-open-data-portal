@@ -293,7 +293,7 @@ test('a vote page with a member says how they voted and leads back to them',asyn
  data.mainVoteId=null;
  const h=await mount(t,serve(data),{members:named,member:'197481'});
  const line=h.container.querySelector('.member-line');
- assert.equal(line.textContent,'Ann Against voted against, unlike the outcome. France: 1 of 3 MEPs voted this way.');
+ assert.equal(line.textContent,'Ann Against voted against, unlike the outcome.');
  assert(line.querySelector('svg.mk'),'next to its mark');
  const back=h.container.querySelector('.strip a');
  assert.match(back.textContent,/Ann Against/);
@@ -431,6 +431,31 @@ test('a paragraph voted in two split requests keeps both keys under its wording'
  assert.equal(text(clause.querySelector('.clause-text.plain')),paragraph,'no one request can mark it');
  assert.equal(clause.querySelectorAll('.clause-key').length,2);
  assert.match(clause.textContent,/Second request words/);
+});
+test('a delegation that broke with its group reads as one plain sentence after the member line',async t=>{
+ const data=await voteFixture().read();
+ // Two French EPP voters against, the EPP's majority for: two Dutch EPP voters for are added to make it.
+ data.voters=[...data.voters,{personId:'500',position:'against',status:'recorded',group:{code:'PPE',orgId:'org/7018',groupId:'org/PPE'},groupStatus:'verified',groupSource:null},...['501','502','503'].map(personId=>({personId,position:'for',status:'recorded',group:{code:'PPE',orgId:'org/7018',groupId:'org/PPE'},groupStatus:'verified',groupSource:null}))];
+ data.decision={...data.decision,totals:{for:5,against:2,abstaining:1},namedVoters:{...data.decision.namedVoters,counts:{for:5,against:2,abstaining:1}}};
+ const members=[...named,{id:500,firstName:'Bea',lastName:'Second',countryCode:'FR'},...[501,502,503].map(id=>({id,firstName:'Dutch',lastName:String(id),countryCode:'NL'}))];
+ const h=await mount(t,serve(data),{members,member:'197481'});
+ assert.equal(h.container.querySelector('.member-line').textContent,'Ann Against voted against, unlike their group (EPP) and the outcome. France: both EPP MEPs voted against, unlike their group.');
+});
+test('a country voting together across groups reads as one plain sentence',async t=>{
+ const data=await voteFixture().read(),voter=(personId,position,code,groupId)=>({personId,position,status:'recorded',group:{code,orgId:'org/'+groupId,groupId:'org/'+code},groupStatus:'verified',groupSource:null});
+ // France votes against, all 4: its two S&D voters cross the S&D majority for, its EPP voter stays with the EPP.
+ data.voters=[voter('197481','against','PPE','7018'),voter('197591','against','S&D','7038'),voter('124846','against','Renew','7035'),voter('256852','abstaining','NI','6561'),voter('600','against','S&D','7038'),...['601','602','603'].map(id=>voter(id,'for','S&D','7038')),...['604','605'].map(id=>voter(id,'against','PPE','7018')),voter('606','against','Renew','7035'),voter('607','for','Renew','7035'),voter('608','for','Renew','7035')];
+ const counts={for:5,against:7,abstaining:1};
+ data.decision={...data.decision,outcome:'REJECTED',totals:counts,namedVoters:{...data.decision.namedVoters,counts}};
+ const members=[...named,{id:600,firstName:'Cy',lastName:'Crossed',countryCode:'FR'},...[601,602,603,604,605,606,607,608].map(id=>({id,firstName:'Other',lastName:String(id),countryCode:'DE'}))];
+ await t.test('a member whose own delegation stayed with its group',async sub=>{
+  const h=await mount(sub,serve(data),{members,member:'197481'});
+  assert.equal(h.container.querySelector('.member-line').textContent,'Ann Against voted against, with their group (EPP) and the outcome. France: all 4 MEPs voted against, whatever their group.');
+ });
+ await t.test('a member whose delegation broke with its group hears that first',async sub=>{
+  const h=await mount(sub,serve(data),{members,member:'197591'});
+  assert.equal(h.container.querySelector('.member-line').textContent,'Sam Socialist voted against, unlike their group (S&D) but with the outcome. France: both S&D MEPs voted against, unlike their group.');
+ });
 });
 test('every head sorts the countries and keeps the order in the address',async t=>{
  const {h,fold}=await openCountries(t,{countries:['FR','DE','IE','AT']});

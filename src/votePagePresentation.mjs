@@ -166,10 +166,40 @@ export function differingByGroup(rows,differIds,order,first=null) {
     return people.length?[{code,count:people.length,positions:[...positions].sort((a,b)=>(b===lead)-(a===lead)).map(position=>({position,people:people.filter(row=>row.position===position).sort((a,b)=>leading(b)-leading(a)||byName(a,b))})).filter(entry=>entry.people.length)}]:[];
   });
 }
+// A country tells a story when at least this share of its voters took one position.
+export const COUNTRY_STORY_SHARE=0.75;
+const leadOf=rows=>{
+  const counts=positions.map(position=>[position,rows.filter(row=>row.position===position).length]).sort((a,b)=>b[1]-a[1]);
+  return {position:counts[0][0],count:counts[0][1],total:rows.length};
+};
+const story=(kind,lead,code,group=null)=>({kind,all:lead.count===lead.total,position:lead.position,count:lead.count,total:lead.total,code,group});
+/** One sentence about the member's country, or null when it tells no story. Two stated tests, the
+ * first that holds wins; counts are named voters with a known country, never estimates:
+ * 1. The member's own national delegation in their group: at least 2 voters, at least 75% of them
+ *    took one position, and that differs from the group's majority (`groupMajorities`: NI, unknown
+ *    groups and ties have none).
+ * 2. The whole country: at least 3 voters, at least 75% of them took one position, and its voters
+ *    in groups whose majority took another position mostly took it too: at least 2 of them, and at
+ *    least half. A lopsided vote that every country follows with its groups tells no story. */
+export function countryStory(rows,row) {
+  if(!row.country)return null;
+  const code=filterCountry(row.country),country=rows.filter(entry=>entry.country&&matchesCountry(code,entry.country));
+  const majorities=new Map(groupMajorities(rows).map(group=>[group.code,group.majority]));
+  const delegation=country.filter(entry=>entry.group===row.group),groupMajority=majorities.get(row.group)??null;
+  if(groupMajority&&delegation.length>=2) {
+    const lead=leadOf(delegation);
+    if(lead.count>=COUNTRY_STORY_SHARE*lead.total&&lead.position!==groupMajority)return story('delegation',lead,code,row.group);
+  }
+  if(country.length>=3) {
+    const lead=leadOf(country),against=country.filter(entry=>majorities.get(entry.group)&&majorities.get(entry.group)!==lead.position);
+    const crossed=against.filter(entry=>entry.position===lead.position).length;
+    if(lead.count>=COUNTRY_STORY_SHARE*lead.total&&crossed>=2&&crossed*2>=against.length)return story('country',lead,code);
+  }
+  return null;
+}
 /** What one member's line says, from this vote's reply alone, or null for no line. A group clause
  * follows `groupMajorities`: NI, an unknown group and a tie have none, and neither does a voter
- * alone in their group. An incomplete list supports neither the group nor the country. A country
- * counts when it has two other voters; voters with no known country are in no country's count. */
+ * alone in their group. An incomplete list supports neither the group nor the country. */
 export function memberVoteLine(data,rows,member) {
   const vote=data.decision;
   if(!member||!vote||data.integrity==='conflicting'||vote.ballotStatus==='not-conducted'||vote.outcome==='LAPSED')return null;
@@ -180,9 +210,8 @@ export function memberVoteLine(data,rows,member) {
   const groupClause=group?.majority&&group.voters>1?(row.position===group.majority?'with':'differs'):'none';
   const line=vote.outcome==='ADOPTED'?'for':vote.outcome==='REJECTED'?'against':null;
   const outcomeClause=!line||row.position==='abstaining'?'none':row.position===line?'with':'differs';
-  const peers=complete&&row.country?rows.filter(entry=>entry.country&&matchesCountry(row.country,entry.country)):[];
   return {state:'voted',position:row.position,id:row.position==='abstaining'?'votepage.member.abstained.'+groupClause:'votepage.member.voted.'+groupClause+'.'+outcomeClause,group:groupClause==='none'?null:row.group,
-    country:peers.length>=3?{code:filterCountry(row.country),count:peers.filter(entry=>entry.position===row.position).length,total:peers.length}:null};
+    country:complete?countryStory(rows,row):null};
 }
 const hasCount=vote=>positions.every(position=>Number.isFinite(vote.totals?.[position]));
 /** Votes on an item in the page's sections, main vote first in its own section. A full count is

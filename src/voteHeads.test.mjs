@@ -24,7 +24,7 @@ const widest={
   et:["Poolt|Vastu|Erapooletu",73.7],
   fi:["Puolesta|Vastaan|Tyhjää",61.4],
   fr:["Pour|Contre|Abstention",73.8],
-  ga:["Ina fhabhar|Ina aghaidh|Staonadh",77.8],
+  ga:["Ar son|I gcoinne|Staonadh",66.4],
   hr:["Za|Protiv|Suzdržani",68.5],
   hu:["Mellette|Ellene|Tartózkodás",81.5],
   it:["A favore|Contrari|Astensione",75.1],
@@ -74,7 +74,7 @@ test('plural families carry every category their language needs',async()=>{
   const pairs=await json('./ui-locales/plural-pairs.json');
   const forms=await json('./ui-locales/plural-forms.json');
   const newFamilies=pairs.map(pair=>pair.other).filter(id=>/^(votepage|week)\.|^dossierstatus\.voting_list\./.test(id));
-  assert.equal(newFamilies.length,15);
+  assert.equal(newFamilies.length,14);
   for(const language of languages) {
     const needed=new Intl.PluralRules(language).resolvedOptions().pluralCategories;
     for(const id of newFamilies) {
