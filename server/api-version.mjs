@@ -2,9 +2,10 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {contractDigest} from '../scripts/api-contract.mjs';
 
-// Release images stamp the digest at build time (scripts/stage-runtime.mjs);
-// a source checkout has no stamp and derives it from the endpoint modules.
+// Release images stamp the digest at build time (scripts/stage-runtime.mjs).
+// Everywhere else, including the image's build stage, derive it from the sources.
 function stampedDigest() {
+  if (process.env.NODE_ENV !== 'production') return null;
   try {return JSON.parse(readFileSync(new URL('./api-contract.json', import.meta.url), 'utf8')).digest;}
   catch (error) {if (error.code === 'ENOENT') return null;throw error;}
 }
