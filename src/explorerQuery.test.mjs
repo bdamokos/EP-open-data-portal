@@ -9,12 +9,13 @@ test('speech summary categories belong to the selected member only',()=>{
   assert.equal(explorerParams(query,'questions',42).has('mep-speech-category'),false);
 });
 
-test('old preview addresses keep their page and lose the flag',()=>{
+test('old preview and filter addresses keep their page and lose the dead parameter',()=>{
   const record=new URLSearchParams('member=42&module=votes&record-preview=1');
   assert.equal(explorerParams(record,null,42).has('record-preview'),false);
   const reader=new URLSearchParams('pl-mode=read&read-doc=A-10-2026-0257&split-preview=1');
   assert.equal(explorerParams(reader,'legislation').has('split-preview'),false);
   assert.equal(explorerParams(reader,'legislation').get('read-doc'),'A-10-2026-0257');
+  assert.equal(explorerParams(new URLSearchParams('agenda-show=votes&agenda-topic=x'),'legislation').has('agenda-show'),false);
 });
 
 test('legacy and scoped Greek links migrate only into their owning explorer',()=>{

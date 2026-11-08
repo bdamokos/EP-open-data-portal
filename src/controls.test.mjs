@@ -11,7 +11,7 @@ const directory={day:'2026-10-16',members:[member],committees:[],index:{complete
 const activities={categories:{},categoryGroups:[],categoryCoverage:{},items:[],selectedItems:[],indexedTotal:0,nextOffset:null,cache:{complete:true}};
 const stats={denominator:0,dimensions:{country:[],group:[],gender:[],age:[]}};
 const topic={id:'test-topic',title:'Agenda fixture',date:'2026-10-07',kind:'PLENARY_DEBATE',documentIds:['A-10-2026-0237','B-10-2026-0001']};
-const legislation={sitting:{id:'MTG-PL-2026-10-07',date:'2026-10-07',phase:'past'},sittings:[{id:'MTG-PL-2026-10-07',date:'2026-10-07',phase:'past'}],topics:[topic],coverage:{agendaError:null},detail:{...topic,phase:'past',procedures:[],committeeWork:[1,2].map(n=>({id:'event/'+n,date:'2026-10-01',kind:'COMMITTEE_TABLING_REPORT',documentIds:[topic.documentIds[0]]})),people:[],roles:[],speeches:[],stats,votes:[],voteCoverage:{},coverage:{gaps:[],speechAssociations:{sources:[]}}}};
+const legislation={sitting:{id:'MTG-PL-2026-10-07',date:'2026-10-07',phase:'past'},sittings:[{id:'MTG-PL-2026-10-07',date:'2026-10-07',phase:'past'}],topics:[topic],coverage:{agendaError:null},detail:{...topic,phase:'past',procedures:[],committeeWork:[1,2].map(n=>({id:'event/'+n,date:'2026-10-01',kind:'COMMITTEE_TABLING_REPORT',documentIds:[topic.documentIds[0]]})),people:[],roles:[],speeches:[],stats,coverage:{gaps:[],speechAssociations:{sources:[]}}}};
 function fixture(url) {
   const route=url.pathname.split('/api/')[1];
   if(route==='directory')return directory;

@@ -16,7 +16,7 @@ const activityPage={categories:{reports:'Reports'},categoryGroups:[],categoryCov
 const topic={id:'exact-agenda',title:'Official agenda title',date:'2026-09-15',kind:'PLENARY_DEBATE',documentIds:[documentId]};
 const person={id:'257727',name:'Named Member',currentMep:true,personUri:'person/257727',country:'HU',group:'PPE'};
 const sitting={id:'MTG-PL-2026-09-15',date:'2026-09-15',phase:'past'};
-const legislation={sitting,sittings:[sitting],topics:[topic],coverage:{agendaError:null,catalogueComplete:true},detail:{...topic,phase:'past',procedures:[{...procedure,label:ref,websiteUrl:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference='+ref,apiUrl:source.url}],committeeWork:[],people:[person],roles:[{...person,role:'RAPPORTEUR'}],speeches:[],stats:{denominator:0,dimensions:{country:[],group:[],gender:[],age:[]}},votes:[],voteCoverage:{},coverage:{gaps:[],speechAssociations:{sources:[]}}}};
+const legislation={sitting,sittings:[sitting],topics:[topic],coverage:{agendaError:null,catalogueComplete:true},detail:{...topic,phase:'past',procedures:[{...procedure,label:ref,websiteUrl:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference='+ref,apiUrl:source.url}],committeeWork:[],people:[person],roles:[{...person,role:'RAPPORTEUR'}],speeches:[],stats:{denominator:0,dimensions:{country:[],group:[],gender:[],age:[]}},coverage:{gaps:[],speechAssociations:{sources:[]}}}};
 
 async function harness(t,url,respond) {
   const window=new Window({url:'http://localhost/'+url}),originals=new Map(),calls=[];

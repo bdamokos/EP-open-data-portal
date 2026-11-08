@@ -46,7 +46,11 @@ async function harness(t,width=1440,query='') {
   const container=document.createElement('div');document.body.append(container);installRetryClock(t);root=createRoot(container);
   const render=language=>act(async()=>root.render(createElement(Legislation,{language,onBack(){}})));
   await render('en');
-  return {agendaRequests};
+  return {requests,agendaRequests,container,window,tick,
+    item:index=>container.querySelectorAll('.insight-agenda button')[index],
+    hover:node=>act(async()=>node.dispatchEvent(new window.PointerEvent('pointerover',{bubbles:true,pointerType:'mouse'}))),
+    leave:node=>act(async()=>node.dispatchEvent(new window.PointerEvent('pointerout',{bubbles:true,pointerType:'mouse'}))),
+    finish:request=>act(async()=>{request.settled=true;request.resolve(Response.json(response(request.url.searchParams)));})};
 }
 
 const coverage={status:'complete',years:[]};
@@ -60,3 +64,13 @@ for(const [name,calendar,expected] of [
   assert.deepEqual(h.agendaRequests.map(url=>url.searchParams.get('week')),[expected]);
 });
 
+test('hovering a day agenda row preloads its detail once and a click joins that read',async t=>{
+  const h=await harness(t,1440,'&agenda-period=sitting%3AMTG-PL-2026-10-07'),{requests}=h;
+  assert.equal(requests.length,0,'rendering the day does not preload every agenda item');
+  await h.hover(h.item(2));await h.tick(149);assert.equal(requests.length,0,'intent must settle before speculation');
+  await h.tick(1);assert.equal(requests.length,1);
+  assert.equal(requests[0].priority,'low');assert.equal(requests[0].url.searchParams.get('sitting'),days[1].id);assert.equal(requests[0].url.searchParams.get('topic'),topics[2].id);
+  await h.leave(h.item(2));await act(async()=>h.item(2).click());
+  assert.equal(requests.length,1,'click joins the in-flight hover request');
+  await h.finish(requests[0]);assert.equal(h.container.querySelector('.insight-topic-detail h2').textContent,topics[2].title);
+});
