@@ -24,6 +24,10 @@ WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8790 APP_REVISION=${APP_REVISION} \
     ODP_CACHE_DIR=/data/cache ACTIVITY_INDEX_DIR=/data/index ERROR_LOG_DIR=/data/diagnostics \
     ACTIVITY_INDEX_ENABLED=false
+# Fewer glibc malloc pools per thread: the worker threads otherwise each keep
+# freed memory in their own pool. Measured 40-65 MiB less resident memory for
+# the full process, with no extra CPU.
+ENV MALLOC_ARENA_MAX=2
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/package.json /app/package-lock.json ./
 COPY --from=build /runtime-server ./server
