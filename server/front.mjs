@@ -2,6 +2,7 @@ import http from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {fork,spawnSync} from 'node:child_process';
+import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {config,integerFromEnvironment} from './config.mjs';
 import {HttpError,sendError,sendJson} from './http-utils.mjs';
@@ -12,6 +13,7 @@ import {errorLog,serverErrorEvent} from './error-log.mjs';
 import {ipcPort} from './ipc-port.mjs';
 import {ApiSupervisor} from './api-supervisor.mjs';
 import {createProxyAgent,proxyRequest} from './reverse-proxy.mjs';
+import {FrontSnapshots,sendSnapshot} from './front-snapshots.mjs';
 import {serveUpstreamPort} from './upstream-rpc.mjs';
 import {defaultUpstreamServices} from './upstream-services.mjs';
 import {serveRetention,sendRetention} from './base-source-rpc.mjs';
@@ -58,7 +60,7 @@ function wantsHtmlPage(request,url) {
   return request.method==='GET'&&(url.pathname==='/'||url.pathname==='/index.html')&&String(request.headers.accept||'').includes('text/html');
 }
 
-export function createFront({supervisor,agent=createProxyAgent(),log=console.warn}={}) {
+export function createFront({supervisor,agent=createProxyAgent(),snapshots=null,log=console.warn}={}) {
   const handler=async(request,response)=>{
     const started=performance.now(),requestId=randomUUID();
     response.explorerStartedAt=started;
@@ -77,6 +79,16 @@ export function createFront({supervisor,agent=createProxyAgent(),log=console.war
       }
       if(apiPrefix){
         proxied=true;
+        // A few anonymous reads may be answered from the last good copy while the API process starts.
+        const candidate=snapshots?await snapshots.candidate(request,url,apiPrefix):null;
+        if(candidate&&!supervisor.ready){
+          const hit=await snapshots.lookup(candidate);
+          if(hit){
+            supervisor.wake();
+            sendSnapshot(request,response,hit,{requestId});
+            return;
+          }
+        }
         const closed=()=>{if(!response.writableEnded)controller.abort(new HttpError(499,'request_cancelled','The request was cancelled.'));};
         response.once('close',closed);
         let lease;
@@ -88,7 +100,7 @@ export function createFront({supervisor,agent=createProxyAgent(),log=console.war
           sendError(request,response,error);
           return;
         }
-        try {await proxyRequest(request,response,{port:lease.port,agent,requestId});}
+        try {await proxyRequest(request,response,{port:lease.port,agent,requestId,capture:candidate&&{maxBytes:snapshots.maxEntryBytes,done:reply=>snapshots.record(candidate,reply)}});}
         finally {lease.release();response.removeListener('close',closed);}
         return;
       }
@@ -128,7 +140,13 @@ export function startFront() {
   supervisor.on('message',message=>{
     if(message?.type==='error-event'&&message.event&&typeof message.event==='object')errorLog.write(message.event);
   });
-  const {server,agent}=createFront({supervisor});
+  // Last good copies of the home page's API answers, kept under ODP_CACHE_DIR (off without it, or with EXPLORER_FRONT_SNAPSHOT_MB=0).
+  const cacheDir=process.env.ODP_CACHE_DIR;
+  const snapshots=new FrontSnapshots({directory:cacheDir&&path.join(cacheDir,'front-snapshots-v1'),currentVersion:apiVersion,
+    maxBytes:cacheDir?integerFromEnvironment('EXPLORER_FRONT_SNAPSHOT_MB',16,0,256)*1024*1024:0});
+  snapshots.load(stampedDigest()?.slice(0,12)??null);
+  supervisor.on('stopped',()=>{void snapshots.flush();});
+  const {server,agent}=createFront({supervisor,snapshots});
   let stopWriters=()=>Promise.resolve(),stopMonitoring=()=>{},shuttingDown=false;
   server.on('error',error=>{console.error(`[parliament-explorer] server error: ${error.message}`);process.exitCode=1;});
   const shutDown=signal=>{
@@ -141,6 +159,7 @@ export function startFront() {
     server.closeIdleConnections();
     void (async()=>{
       await supervisor.close();agent.destroy();
+      await snapshots.close();
       await stopWriters();
       await errorLog.flush();
     })().catch(error=>console.error('[shutdown]',error.message));

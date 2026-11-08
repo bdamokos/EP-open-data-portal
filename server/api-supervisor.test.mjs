@@ -155,3 +155,15 @@ test('publications reach a running process only, and close stops it',async t=>{
   assert.equal(api.spawned[0].shutdowns,1);
   await assert.rejects(instance.acquire(),error=>error.status===503);
 });
+
+test('a wake while the process is stopping starts it again once it has gone',async t=>{
+  const {api,instance}=supervisor();t.after(()=>instance.close());
+  const lease=instance.acquire();api.spawned[0].ready();(await lease).release();
+  // The process was told to stop but has not gone yet.
+  instance.state='stopping';
+  instance.wake();
+  assert.equal(instance.ready,false);
+  api.spawned[0].exit(0);
+  await delay(10);
+  assert.equal(api.spawned.length,2,'the wake restarted the process after the exit');
+});

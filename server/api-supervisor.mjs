@@ -23,9 +23,11 @@ export class ApiSupervisor extends EventEmitter {
   // Starts the process for a page load without taking a request.
   wake() {
     this.touch();
+    if(this.state==='stopping'&&!this.shutDown)this.respawn=true;
     if(this.shutDown||this.state!=='idle'||this.clock()<this.nextSpawnAt)return;
     this.#start();
   }
+  get ready() {return this.state==='ready';}
   touch() {
     this.lastActivity=this.clock();
     if(this.state==='ready')this.#armIdle();

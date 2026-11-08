@@ -41,6 +41,7 @@ The unfinished amendment catalogue is hidden by `publicAmendmentsEnabled` in `sr
 - Requests wait for a starting process within their normal 30 s (50 s for long routes) budget. While it is unavailable, or backing off after a crash, the front answers 503 with `Retry-After`.
 - The API process sends upstream admission, retained sources, writer hints and error entries to the front over IPC; the front sends it new publications. It opens the stores read-only.
 - The plenary warm-up runs while the API process is alive. After a long idle the first visit therefore starts it cold.
+- The front keeps the last good answer of `directory`, `vote-periods`, `plenary-live` and `upcoming-votes` (a sitting before today) in `front-snapshots-v1` under `ODP_CACHE_DIR`, up to `EXPLORER_FRONT_SNAPSHOT_MB` (default 16; 0 turns it off). While the API process is not running, an anonymous read of one of these with the current `v` is answered from its copy and the process is started; the reply carries `X-Explorer-Snapshot` and `no-store`. A copy is used for the lifetime the API sent (`directory`), the Brussels day it was stored on, at most 6 h (`vote-periods`), until its own `validUntil` (`plenary-live`) or 1 h (`upcoming-votes`); otherwise the request waits for the process. Requests with credentials, an `Origin` or a `Range`, and any other route or query, never use a copy. Only the front writes the files.
 
 Start with `node server/main.mjs` (the Docker `CMD`); `node server/index.mjs` always runs single mode. `scripts/idle-benchmark.mjs` measures a running server in either mode.
 

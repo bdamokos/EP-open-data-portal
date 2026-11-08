@@ -86,7 +86,7 @@ async function firstOk(path,t0,timeoutMs) {
     try {
       const result=await timed(path,{headers:{Accept:'application/json'}});
       last=result.status;
-      if(result.status===200)return {path:path.split('?')[0],firstOkMs:round(performance.now()-t0),attempts,body:result.body};
+      if(result.status===200)return {path:path.split('?')[0],target:path,firstOkMs:round(performance.now()-t0),attempts,stored:result.headers.has('x-explorer-snapshot'),body:result.body};
       const wait=Math.max(250,Number(result.headers.get('retry-after')||0)*1000);
       if(performance.now()-t0+wait>timeoutMs)return {path:path.split('?')[0],firstOkMs:null,attempts,lastStatus:last};
       await delay(wait);
@@ -114,10 +114,25 @@ async function wake() {
     try {const data=JSON.parse(result.body),week=data.weeks?.[0]?.sittings||[];return String(week[Math.min(1,week.length-1)]?.sittingId||'');}catch{return '';}
   });
   if(/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(sitting))calls.push(firstOk(api(`upcoming-votes?sitting=${sitting}&lang=${options.lang}`),t0,timeout));
-  const results=(await Promise.all(calls)).map(({body,...rest})=>({...rest,bytes:body?.length??0}));
+  const answered=await Promise.all(calls);
+  // A reply from the front's stored copy marks itself; the same call is repeated until the API process itself answers.
+  const live=await Promise.all(answered.map(async result=>{
+    if(!result.stored)return result.firstOkMs;
+    for(;;){
+      if(performance.now()-t0>timeout)return null;
+      const again=await timed(result.target,{headers:{Accept:'application/json'}}).catch(()=>null);
+      if(again?.status===200&&!again.headers.has('x-explorer-snapshot'))return round(performance.now()-t0);
+      await delay(100);
+    }
+  }));
+  const results=answered.map(({body,target,...rest},index)=>({...rest,liveOkMs:live[index],bytes:body?.length??0}));
   const ok=results.map(result=>result.firstOkMs).filter(value=>value!==null);
   return {
     htmlMs:round(htmlMs),assetsMs:round(assetsMs),calls:results,
+    // The visitor's first data, and when the API process itself had answered every call.
+    firstOkMs:ok.length?Math.min(...ok):null,
+    liveAllMs:live.every(value=>value!==null)?Math.max(...live):null,
+    storedCalls:results.filter(result=>result.stored).length,
     allOkMs:ok.length===results.length?Math.max(...ok):null,
     // plenary-live reads three live sources; without network it waits on DNS, so the stored-data calls are also reported alone.
     storedOkMs:(()=>{const stored=results.filter(result=>result.path!=='/api/plenary-live');return stored.every(result=>result.firstOkMs!==null)?Math.max(...stored.map(result=>result.firstOkMs)):null;})(),sitting:sitting||null,treeBefore:{count:before.count,rssMiB:before.rssMiB,pssMiB:before.pssMiB},
@@ -198,15 +213,15 @@ if(options.idleWaitS>0){
   result.afterIdleExit={...tree(),waitedS:round((Date.now()-waitStarted)/1000),apiExitedAfterS:exitedAfterS};
   // Opposite direction: the first request after the exit starts the API again.
   const again=await wake();
-  result.rewake={htmlMs:again.htmlMs,allOkMs:again.allOkMs,storedOkMs:again.storedOkMs,calls:again.calls.map(({path,firstOkMs,attempts})=>({path,firstOkMs,attempts}))};
+  result.rewake={htmlMs:again.htmlMs,firstOkMs:again.firstOkMs,allOkMs:again.allOkMs,storedOkMs:again.storedOkMs,liveAllMs:again.liveAllMs,calls:again.calls.map(({path,firstOkMs,attempts,stored,liveOkMs})=>({path,firstOkMs,attempts,stored,liveOkMs}))};
 }
 if(options.cycles>0){
   result.cycles=[];
   for(let i=0;i<options.cycles;i++) {
     await delay(options.cycleWaitS*1000);
     const before=tree(),again=await wake();
-    result.cycles.push({processesBefore:before.count,rssMiBBefore:before.rssMiB,htmlMs:again.htmlMs,allOkMs:again.allOkMs,storedOkMs:again.storedOkMs,
-      calls:again.calls.map(({path,firstOkMs,attempts})=>({path,firstOkMs,attempts}))});
+    result.cycles.push({processesBefore:before.count,rssMiBBefore:before.rssMiB,htmlMs:again.htmlMs,firstOkMs:again.firstOkMs,allOkMs:again.allOkMs,storedOkMs:again.storedOkMs,liveAllMs:again.liveAllMs,
+      calls:again.calls.map(({path,firstOkMs,attempts,stored,liveOkMs})=>({path,firstOkMs,attempts,stored,liveOkMs}))});
   }
 }
 const text=JSON.stringify(result,null,1);
