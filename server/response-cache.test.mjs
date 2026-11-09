@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {apiCachePolicy, portraitCachePolicy} from './response-cache.mjs';
+import {apiCachePolicy, documentImageCachePolicy, portraitCachePolicy} from './response-cache.mjs';
 import {activityDocument} from './activities.mjs';
 import {SpeakerIdentities} from './speaker-identity.mjs';
 
@@ -34,7 +34,7 @@ test('incomplete or stale profile committee history cannot acquire a public cach
 });
 
 test('ordinary public reads use six hours and recent lists one hour without changing browser freshness', () => {
-  for (const path of ['/api/profile/43?lang=hu', '/api/insights/questions?lang=en', '/api/corpus/search?lang=hu&q=water', '/api/amendments', '/api/outside/directory']) {
+  for (const path of ['/api/insights/questions?lang=en', '/api/corpus/search?lang=hu&q=water', '/api/amendments', '/api/outside/directory']) {
     const value = {index: {complete: true}, coverage: {complete: false, authoritativeComplete: false}, fetchedAt: '2026-10-16T00:00:00Z'};
     assert.equal(seconds(policy(path, value)), 21600, path);
     assert.equal(policy(path, value).cacheControl, 'public, max-age=0');
@@ -264,4 +264,11 @@ test('stale copies are allowed only where an expired answer is still true; day-b
     // The gateway's bounds: browsers revalidate (portraits up to a day) and no directive exceeds a week.
     for (const [, number] of value.cdnCacheControl.matchAll(/=(\d+)/g)) assert(Number(number) <= 7 * 86400);
   }
+});
+
+test('profiles and unanswered questions keep six hours without stale copies; authorised image reads are not shared', () => {
+  assert.equal(policy('/api/profile/43', {memberships: [{current: true}]}).cdnCacheControl, 'public, max-age=21600, stale-if-error=0', 'current flags change at midnight');
+  assert.equal(policy('/api/document/E-10-2026-000001', {date: '2026-09-01', answers: []}).cdnCacheControl, 'public, max-age=21600, stale-if-error=0', 'an answer can arrive at any time');
+  assert.deepEqual(documentImageCachePolicy({headers: {authorization: 'Bearer x'}}), {cacheControl: 'no-store', cdnCacheControl: 'no-store'});
+  assert.equal(documentImageCachePolicy({headers: {}}).cdnCacheControl, 'public, max-age=31536000, immutable');
 });

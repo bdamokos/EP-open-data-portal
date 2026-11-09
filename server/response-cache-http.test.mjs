@@ -51,7 +51,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   const first = await get('/api/profile/43?lang=en');
   assert.equal(first.status, 200);
   assert.equal(first.headers.get('cache-control'), 'public, max-age=0');
-  assert.equal(first.headers.get('cdn-cache-control'), 'public, max-age=21600, stale-while-revalidate=3600, stale-if-error=604800');
+  assert.equal(first.headers.get('cdn-cache-control'), 'public, max-age=21600, stale-if-error=0');
   assert.equal(first.headers.get('vary'), 'Origin');
   const body = await first.json();
   assert.equal(body.id, 43);

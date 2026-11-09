@@ -104,7 +104,10 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   const time = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? Date.parse(date) : NaN;
   const settledReading = Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === date && now - time >= 14 * DAY * 1000;
   const unanswered = resource === 'document' && /^[EOP]-\d+-\d{4}-\d+$/.test(url.pathname.split('/').at(-1)) && !payload?.answers?.length;
-  return reading && settledReading && !unanswered ? publicPolicy(DAY, 0, established) : publicPolicy(6 * HOUR, 0, settled);
+  if (reading && settledReading && !unanswered) return publicPolicy(DAY, 0, established);
+  // Profiles mark memberships current for one Brussels day, and an unanswered
+  // question can gain its answer at any time: neither keeps a stale copy.
+  return resource === 'profile' || unanswered ? publicPolicy(6 * HOUR) : publicPolicy(6 * HOUR, 0, settled);
 }
 
 export function portraitCachePolicy(image, {now = Date.now()} = {}) {
