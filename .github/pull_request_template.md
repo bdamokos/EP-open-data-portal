@@ -2,7 +2,6 @@
 
 Describe the problem and resulting behaviour.
 
-
 ## HTTP routes and URLs
 
 - [ ] This PR adds, removes or changes an HTTP endpoint or browser URL structure
