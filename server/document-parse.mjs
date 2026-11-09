@@ -9,6 +9,10 @@ import {documentParseThread} from './amendment-extraction-thread.mjs';
 import {extractAmendments,AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {parseProposal,PROPOSAL_PARSER_VERSION} from './proposal-structure.mjs';
 import {parsePublicLegalXhtml,PUBLIC_LEGAL_XHTML_VERSION} from './public-legal-xhtml.mjs';
+import {docxContent,DOCUMENT_TEXT_VERSION} from './document-text.mjs';
+import {DOCX_EXTRACTION_VERSION} from './docx-source-structure.mjs';
+import {DOCX_FORMATTING_VERSION} from './docx-formatting.mjs';
+import {DOCUMENT_IMAGES_VERSION} from './docx-images.mjs';
 
 // Bump to discard every stored parse, for a change to this file's record format.
 export const DOCUMENT_PARSE_VERSION=1;
@@ -19,6 +23,7 @@ export const DOCUMENT_PARSE_LIMITS=Object.freeze({recordBytes:24*1024*1024,entri
 export const inlineDocumentParser=Object.freeze({
   async amendments(buffer,options) {return extractAmendments(buffer,options);},
   async proposal(parser,input,options) {return (parser==='xhtml'?parsePublicLegalXhtml:parseProposal)(input,options);},
+  async docx(buffer) {return docxContent(buffer,{includeNoteObjects:true});},
 });
 
 // The download time is the one per-request value in an amendment list's
@@ -44,7 +49,8 @@ export class OffThreadDocumentParser {
   constructor({thread=documentParseThread,directory=()=>process.env.ODP_CACHE_DIR,maxBytes=config.documentParseMaxDiskBytes,limits={},clock=Date.now,versions={}}={}) {
     Object.assign(this,{thread,directory,maxBytes,clock});
     // Source-format versions are part of every stored key.
-    this.versions={record:DOCUMENT_PARSE_VERSION,amendments:AMENDMENT_EXTRACTION_VERSION,proposal:PROPOSAL_PARSER_VERSION,xhtml:PUBLIC_LEGAL_XHTML_VERSION,...versions};
+    this.versions={record:DOCUMENT_PARSE_VERSION,amendments:AMENDMENT_EXTRACTION_VERSION,proposal:PROPOSAL_PARSER_VERSION,xhtml:PUBLIC_LEGAL_XHTML_VERSION,
+      docx:[DOCUMENT_TEXT_VERSION,DOCX_EXTRACTION_VERSION,DOCX_FORMATTING_VERSION,DOCUMENT_IMAGES_VERSION].join(':'),...versions};
     this.limits={...DOCUMENT_PARSE_LIMITS,...limits};
     this.inflight=new Map();this.failures=new Map();this.markers=new Set();this.budgets=new Map();
   }
@@ -145,6 +151,20 @@ export class OffThreadDocumentParser {
     return this.decoded(key,compute,decode,signal);
   }
 
+  // Same result as docxContent(buffer, {includeNoteObjects: true}), the text a
+  // visitor's document download is read with, after a JSON round trip.
+  async docx(buffer,{signal=requestSignal()}={}) {
+    const key=digest(['docx',this.versions.docx,this.versions.record,digest(buffer)]);
+    const compute=job=>this.thread.run('docx-json',{buffer:new Uint8Array(buffer)},this.start(job))
+      .then(({json})=>'{"v":'+DOCUMENT_PARSE_VERSION+',"content":'+json+'}');
+    const decode=text=>{
+      const record=JSON.parse(text);
+      if(record?.v!==DOCUMENT_PARSE_VERSION||!Array.isArray(record.content?.paragraphs))throw new StoredParseError('Stored parse is unusable.');
+      return record.content;
+    };
+    return this.decoded(key,compute,decode,signal);
+  }
+
   // Same result as parseProposal / parsePublicLegalXhtml (input, options). A
   // result larger than `limitBytes` in both of the reader's projections is
   // remembered by size alone and raises the reader's response-budget error.
@@ -171,3 +191,7 @@ export class OffThreadDocumentParser {
     return parser==='xhtml'?record.parsed:deepFreeze(record.parsed);
   }
 }
+
+let shared=null;
+// The one parser behind visitor requests, so readers share jobs and one disk budget.
+export const documentParser=()=>shared??=new OffThreadDocumentParser();
