@@ -96,7 +96,7 @@ export function assembleBallot({document,agendaItemId,day={decisions:[],results:
     const key=ballotKey(document,row);if(!key)return null;
     const candidates=decisions.filter(raw=>matches(row,document,raw,derived));
     const raw=candidates.length===1?candidates[0]:null;
-    const attached=(row.amendments||[]).map(a=>amendmentsById.get(document+'-AM-'+a.number)).filter(Boolean).map(item=>Object.fromEntries(['id','number','listId','targetLabel','originalText','proposedText','language'].map(key=>[key,item[key]])));
+    const attached=(row.amendments||[]).map(a=>amendmentsById.get(document+'-AM-'+a.number)).filter(Boolean).map(item=>Object.fromEntries(['id','number','listId','targetLabel','originalText','proposedText','originalFormatting','proposedFormatting','language'].map(key=>[key,item[key]])));
     const status=row.amendments?.some(a=>withdrawn.has(a.number))?'withdrawn':row.amendments?.some(a=>inadmissible.has(a.number))?'inadmissible':null;
     const scheme=votingList?.notes?.votingScheme?.find(s=>row.amendments?.some(a=>s.target.amendment===a.number&&(s.target.cp??null)===(a.cp??null))||row.kind==='text'&&s.target.text===row.subject.join(' / '));
     const fallsIf=rows.filter(r=>r.falls?.amendments.some(target=>row.amendments.some(a=>a.number===target.number&&(a.cp??null)===(target.cp??null)))||row.motion&&r.falls?.motions?.includes(row.motion)).map(r=>({key:ballotKey(document,r),amendments:r.amendments.map(a=>a.number),motion:r.motion||null}));

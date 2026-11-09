@@ -63,8 +63,10 @@ export function setUpstreamBridge(bridge){upstreamBridge=bridge;}
 export const observedOdpFetch=(url,options)=>(upstreamBridge||observations).fetch(url,options);
 export const odpObservations=()=>observations.snapshot();
 export const odpHeaderStatus=()=>observations.headerSnapshot();
+// Each thread that loads this module has its own memory cache.
+export const odpCacheStatus=()=>({entries:cache.size,bytes:cacheBytes});
 export function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
-  const report=()=>log('[odp-monitor]',JSON.stringify(odpObservations()));
+  const report=()=>log('[odp-monitor]',JSON.stringify({...odpObservations(),cache:odpCacheStatus()}));
   report();const timer=setInterval(report,intervalMs);timer.unref();
   return ()=>{clearInterval(timer);report();};
 }

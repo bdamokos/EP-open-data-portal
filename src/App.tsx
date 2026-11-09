@@ -621,7 +621,8 @@ export default function App() {
   useEffect(() => {
     if(directoryState.retrying||directoryState.error||directoryState.status||directory?.index.error||directory?.committeeDetails?.error)return;
     const settled=directory?.index.complete && directory?.committeeDetails?.complete!==false;
-    const timer=window.setInterval(directoryState.retry,settled ? 60_000 : 10_000);
+    // A settled directory changes at most daily; a reload or retry reads it sooner.
+    const timer=window.setInterval(directoryState.retry,settled ? 30*60_000 : 10_000);
     return ()=>window.clearInterval(timer);
   }, [directory?.index.complete,directory?.committeeDetails?.complete,directoryState.retry,directoryState.retrying,directoryState.error,directoryState.status]);
   useEffect(() => {

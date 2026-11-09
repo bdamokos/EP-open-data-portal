@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {HemicycleCollector,clearHemicycleCache,diffPlans,fetchHemicyclePlan,hemicycleResponse,normalizePlan,parseGeometry,prepareHemicycle} from './hemicycle.mjs';
+import {HemicycleCollector,clearHemicycleCache,hemicycleCachePolicy,diffPlans,fetchHemicyclePlan,hemicycleResponse,normalizePlan,parseGeometry,prepareHemicycle} from './hemicycle.mjs';
 import {dispatchCollector} from './collector-dispatch.mjs';
 import {backoffUpstream} from './odp.mjs';
 
@@ -155,4 +155,9 @@ test('a stalled body and a paused queue both release the reader at the deadline'
   await assert.rejects(fetchHemicyclePlan('str',{timeoutMs:30}),error=>error.name==='TimeoutError');
   assert(performance.now()-started<900,'the wait ends before the pause does');
   assert.equal(admitted,0,'a paused queue admits nothing');
+});
+
+test('versioned public plans reach the CDN for one check interval; other reads are never shared',()=>{
+  assert.deepEqual(hemicycleCachePolicy({versioned:true,authorised:false}),{cacheControl:'public, max-age=0',cdnCacheControl:'public, max-age=21600, stale-if-error=0'});
+  for(const read of [{versioned:false,authorised:false},{versioned:true,authorised:true}])assert.deepEqual(hemicycleCachePolicy(read),{cacheControl:'no-store',cdnCacheControl:'no-store'});
 });
