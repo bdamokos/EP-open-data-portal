@@ -66,6 +66,6 @@ test('a summary with no Legislative Observatory file settles at once without a l
   await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
   assert.doesNotMatch(container.textContent,/Loading summary|Legislative Observatory/);
   assert.match(container.textContent,/Summary unavailable\./);
-  assert.equal(container.querySelector('a[href*="oeil.europarl"]'),null);
+  assert.ok(!container.querySelector('a[href*="oeil.europarl"]'));
   assert.equal(contextReads,1);
 });

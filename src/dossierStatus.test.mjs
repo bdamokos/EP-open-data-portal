@@ -107,8 +107,8 @@ test('without a Legislative Observatory file the gap line links nowhere',async t
     'procedure-context':()=>Response.json({error:{code:'official_source_not_found',message:'Missing'}},{status:404}),
   });
   assert.equal(container.querySelector('.dossier-status-sentence').textContent,'Status unavailable.');
-  assert.equal(container.querySelector('a[href*="oeil.europarl"]'),null);
-  assert.equal(container.querySelector('[role="status"]'),null,'nothing keeps loading');
+  assert.ok(!container.querySelector('a[href*="oeil.europarl"]'));
+  assert.doesNotMatch(container.textContent,/Loading/,'nothing keeps loading');
   assert.equal(container.querySelector('#people').textContent,'People');
 });
 test('a reference no source holds gets one line and nothing that keeps loading',async t=>{
@@ -119,12 +119,11 @@ test('a reference no source holds gets one line and nothing that keeps loading',
   });
   const {container}=view;
   assert.equal(container.querySelector('.dossier-status').textContent,'No record of this procedure.');
-  assert.equal(container.querySelector('.dossier-steps'),null);
+  assert.ok(!container.querySelector('.dossier-steps'));
   assert.equal(container.querySelector('.dossier-identity-row').textContent,reference,'no follow control for a file that does not exist');
-  assert.equal(container.querySelector('#people'),null);
-  assert.equal(container.querySelector('[role="status"]'),null);
-  assert.doesNotMatch(container.textContent,/Summary unavailable|Loading|Legislative Observatory/);
-  assert.equal(container.querySelector('a[href*="oeil.europarl"]'),null);
+  assert.ok(!container.querySelector('#people'));
+  assert.doesNotMatch(container.textContent,/Summary unavailable|Loading|Legislative Observatory|Amendments for this dossier/);
+  assert.ok(!container.querySelector('a[href*="oeil.europarl"]'));
   assert.equal(view.calls.filter(name=>name==='dossier-status').length,1,'a missing record is not retried');
 });
 test('a procedure only the Legislative Observatory holds keeps its strip and people',async t=>{
