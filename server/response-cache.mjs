@@ -66,7 +66,8 @@ function publicPolicy(seconds, browserSeconds = 0, {revalidate = 0, ifError = 0}
 const settled = {revalidate: HOUR, ifError: 7 * DAY};
 // Records whose content does not depend on today's date. Views that mark
 // sittings upcoming, current or held, or pick the latest period, are not here.
-const staleSafe = new Set(['references', 'reference-summary', 'source-record', 'amendments', 'amendment-neighbours', 'speech', 'speech-context', 'speech-media', 'document', 'motion-comparison', 'corpus']);
+// Amendment pages add today's scheduled votes, and corpus search reports coverage up to today.
+const staleSafe = new Set(['references', 'source-record', 'amendment-neighbours', 'speech', 'speech-context', 'speech-media', 'document', 'motion-comparison', 'corpus/text']);
 const established = {revalidate: DAY, ifError: 7 * DAY};
 
 export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
@@ -110,7 +111,8 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   if (reading && settledReading && !unanswered) return publicPolicy(DAY, 0, established);
   // An unanswered question can gain its answer at any time; date-bound views
   // (profiles, insights, outside speakers) keep no stale copy either.
-  return staleSafe.has(resource) && !unanswered ? publicPolicy(6 * HOUR, 0, settled) : publicPolicy(6 * HOUR);
+  const record = resource === 'corpus' ? 'corpus/' + url.pathname.split('/')[3] : resource;
+  return staleSafe.has(record) && !unanswered ? publicPolicy(6 * HOUR, 0, settled) : publicPolicy(6 * HOUR);
 }
 
 export function portraitCachePolicy(image, {now = Date.now()} = {}) {
