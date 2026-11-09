@@ -16,7 +16,7 @@ writeFileSync(path.join(root,'dist','assets','app.js'),'export {};');
 process.env.EXPLORER_DIST_DIR=path.join(root,'dist');
 process.env.ERROR_LOG_DIR=path.join(root,'diagnostics');
 // The config module reads the environment once, so load the server modules after setting it.
-const {createFront}=await import('./front.mjs');
+const {createFront,stopFrontServices}=await import('./front.mjs');
 const {HttpError}=await import('./http-utils.mjs');
 test.after(()=>rmSync(root,{recursive:true,force:true}));
 
@@ -112,4 +112,15 @@ test('the front does not load the API module graph',loopback,() => {
   const api=moduleClosure(fileURLToPath(new URL('./index.mjs',import.meta.url))).files.length;
   assert.ok(api>200,'the comparison needs the API closure to stay large');
   assert.ok(names.length*5<api);
+});
+
+test('at shutdown the writer starts draining before the API process has stopped',loopback,async()=>{
+  const steps=[];
+  await stopFrontServices({
+    supervisor:{close:()=>{steps.push('api-stop');return new Promise(resolve=>{setTimeout(()=>{steps.push('api-gone');resolve();},20);});}},
+    agent:{destroy:()=>{}},snapshots:{close:async()=>{}},
+    stopWriters:()=>{steps.push('writer-stop');return Promise.resolve();},
+    errorLog:{flush:async()=>{steps.push('log');}},
+  });
+  assert.deepEqual(steps,['writer-stop','api-stop','api-gone','log']);
 });
