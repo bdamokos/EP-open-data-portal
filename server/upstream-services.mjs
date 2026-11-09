@@ -17,8 +17,9 @@ export function createUpstreamServices() {
   const observations=new OdpObservations({queue:()=>({...upstreamQueue.quotaSnapshot(),mode:pacing.mode}),onResponse:status=>upstreamQueue.recordResponse(status)});
   const odpObservations=()=>observations.snapshot();
   const odpHeaderStatus=()=>observations.headerSnapshot();
-  function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
-    const report=()=>log('[odp-monitor]',JSON.stringify(odpObservations()));
+  // `details` adds the caller's own figures, such as odp.mjs's response cache.
+  function startOdpMonitoring({log=console.warn,intervalMs=60_000,details=()=>({})}={}) {
+    const report=()=>log('[odp-monitor]',JSON.stringify({...odpObservations(),...details()}));
     report();const timer=setInterval(report,intervalMs);timer.unref();
     return ()=>{clearInterval(timer);report();};
   }

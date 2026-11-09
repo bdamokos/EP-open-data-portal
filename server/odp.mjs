@@ -52,7 +52,9 @@ function rememberOrganizationBody(key,record) {
 }
 let cacheBytes = 0;
 const pending = new Map();
-const {observations,localSourceQueue,assertUpstreamSource,upstreamPortServices,upstreamStatus,odpObservations,odpHeaderStatus,startOdpMonitoring}=adoptUpstreamServices(createUpstreamServices());
+const {observations,localSourceQueue,assertUpstreamSource,upstreamPortServices,upstreamStatus,odpObservations,odpHeaderStatus,startOdpMonitoring:startUpstreamMonitoring}=adoptUpstreamServices(createUpstreamServices());
+// The HTTP thread's monitor also reports this thread's response cache (a split front has none).
+const startOdpMonitoring=options=>startUpstreamMonitoring({...options,details:()=>({cache:odpCacheStatus()})});
 export {ODP_RATE_LIMIT,upstreamPortServices,upstreamStatus,odpObservations,odpHeaderStatus,startOdpMonitoring};
 let upstreamBridge;
 export function setUpstreamBridge(bridge){upstreamBridge=bridge;}
