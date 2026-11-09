@@ -91,10 +91,12 @@ export class OfficialContextSources {
               this.queues.get(source.origin)?.backoff(retryAfter);backoffUpstream(retryAfter,{source:source.origin});await response.body?.cancel();
               throw Object.assign(new HttpError(503,'official_source_limited','The official source is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:this.clock()+retryAfter*1000,sourceStatus:response.status});
             }
-            // A missing page is an answer, not an outage: the reader shows a gap at once.
-            if(response.status===404||response.status===410){await response.body?.cancel();throw Object.assign(new HttpError(404,'official_source_not_found','The official source has no page for this request.'),{sourceStatus:response.status,cause:{status:response.status}});}
+            const json=url.includes('/webapi/');
+            // A missing Observatory page is an answer, not an outage: the reader shows a gap at once.
+            // SPARQL reports no rows as an empty 200, so a 404 there stays a source failure.
+            if(!json&&(response.status===404||response.status===410)){await response.body?.cancel();throw Object.assign(new HttpError(404,'official_source_not_found','The official source has no page for this request.'),{sourceStatus:response.status,cause:{status:response.status}});}
             if(!response.ok||response.status===202)throw Object.assign(new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.'),{sourceStatus:response.status,cause:{status:response.status}});
-            const json=url.includes('/webapi/'),type=response.headers.get('content-type')||'';
+            const type=response.headers.get('content-type')||'';
             if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
             const text=await limitedText(response,json?3*1024*1024:1024*1024);
             if(json)await retainBaseObservation({url,resolvedSourceUrl:target,status:200,fetchedAt:new Date(this.clock()).toISOString(),request:{accept:'application/sparql-results+json'},headers:{'content-type':type}},Buffer.from(text),{directory:this.directory&&path.dirname(this.directory)});

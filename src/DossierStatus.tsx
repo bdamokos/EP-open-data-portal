@@ -1,4 +1,4 @@
-import {useEffect,type ReactNode} from 'react';
+import {useLayoutEffect,type ReactNode} from 'react';
 import {UiMessage,useUiI18n} from './UiI18nReact';
 import {useInsightData} from './InsightData';
 import {humanDate} from './InsightCharts';
@@ -54,7 +54,8 @@ export function DossierStatus({reference,language,summaries,votingList=false,off
   const settled=!state.loading&&!progress.loading;
   const failed=settled&&(!sentence||!known);
   const missing=procedureNotFound(state);
-  useEffect(()=>{onMissing?.(missing);},[missing,onMissing]);
+  // Before paint, so a missing file never flashes the full page first.
+  useLayoutEffect(()=>{onMissing?.(missing);},[missing,onMissing]);
   if(missing&&officialMissing&&!cellarEvents.length)return <section className="dossier-status" lang={ui.language} aria-label={ui.t('dossierstatus.heading')}>
     <div className="dossier-status-lines"><p className="dossier-status-sentence"><UiMessage id="dossierstatus.not_found"/></p></div>
   </section>;

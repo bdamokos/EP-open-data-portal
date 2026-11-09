@@ -29,7 +29,7 @@ const stage=value=>{const values=[...new Set(refs(value).map(tail))];return valu
 const unique=items=>[...new Map(items.map(item=>[item.id,item])).values()];
 const eventRef=value=>{const id=tail(value);return /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id)?'eli/dl/event/'+id:canonical(value);};
 const uniqueSources=sources=>[...new Map(sources.map(s=>[JSON.stringify([s.url,s.fetchedAt,s.contentHash||null]),s])).values()];
-const errorGap=error=>({code:error?.code||'source_unavailable',message:'Source unavailable.'});
+const errorGap=error=>({code:error?.code||'source_unavailable',message:error?.code==='procedure_not_found'?'No record.':'Source unavailable.'});
 
 export function dossierActivityQuery(search) {
   const allowed=['reference','member','section','lang','offset','target-offset','limit','stage','committee','participant-offset'];

@@ -20,7 +20,7 @@ test('a procedure Parliament answers 404 for is a missing record on dossier acti
   await assert.rejects(status.query({reference:'2026/0030(COD)',language:'en'}),error=>error.status===404&&error.code==='procedure_not_found');
   assert.deepEqual(calls,['/procedures/2026-0030','/procedures/2026-0030']);
   const references=await activity.references({ids:['2026-0030'],language:'en'});
-  assert.deepEqual(references.items,[]);assert.equal(references.coverage.gaps[0].code,'procedure_not_found');
+  assert.deepEqual(references.items,[]);assert.equal(references.coverage.gaps[0].code,'procedure_not_found');assert.equal(references.coverage.gaps[0].message,'No record.');
 });
 test('other Parliament failures keep their status',async()=>{
   for(const failure of [Object.assign(new HttpError(502,'odp_unavailable','Parliament data is unavailable (500). Please try again.'),{upstreamStatus:500}),new HttpError(503,'odp_rate_limited','Busy.')]) {
@@ -38,6 +38,9 @@ test('an official page that does not exist answers 404 without a retry pause',as
   }
   const sources=new OfficialContextSources({directory:null,fetchSource:async()=>new Response('',{status:403,headers:{'content-type':'text/html'}})});
   await assert.rejects(sources.get('https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2026%2F0031(COD)'),error=>error.status===502&&error.code==='official_source_unavailable');
+  // SPARQL answers no rows with an empty 200; a 404 there is a source failure.
+  const sparql=new OfficialContextSources({directory:null,fetchSource:async()=>new Response('',{status:404,headers:{'content-type':'application/sparql-results+json'}})});
+  await assert.rejects(sparql.get('https://publications.europa.eu/webapi/rdf/sparql?query=missing'),error=>error.status===502&&error.code==='official_source_unavailable'&&error.sourceStatus===404);
 });
 test('a missing summary page leaves the procedure file standing',async()=>{
   const procedureHtml=readFileSync(new URL('./fixtures/oeil-procedure-2025-0407.html',import.meta.url),'utf8'),reads=[];
