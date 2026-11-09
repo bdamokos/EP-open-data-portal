@@ -138,8 +138,9 @@ export class ApiSupervisor extends EventEmitter {
     const child=this.child;
     this.killTimer=setTimeout(()=>child.kill('SIGKILL'),this.stopGraceMs);this.killTimer.unref();
   }
-  // A stopped process reads the stores afresh when it starts; a starting one gets
-  // the latest publication of each source once it listens.
+  // The writer commits before it publishes, so a process that is stopping or
+  // stopped loses nothing: the next one reads the stores afresh. A starting one
+  // gets the latest publication of each source once it listens.
   publish(message) {
     if(this.state==='ready')this.control.postMessage({type:'publication',message});
     else if(this.state==='starting')this.pending.set(message?.source,message);
