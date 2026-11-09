@@ -7,7 +7,7 @@ import {api} from './data';
 import {selectLanguageText} from './language.mjs';
 import './PlenaryLive.css';
 
-export type LiveState={status:'live'|'off-air'|'unavailable';checkedAt:string;validUntil:string;current:{id:string;title:string;language:string;updatedAt:string;sourceUrl:string}|null;broadcast:{id:string;channel:string;title:string;embedUrl:string;websiteUrl:string;languages:string[]}|null;agenda:{state:'presumed'|'ambiguous'|'none'|'unavailable';sittingId?:string;items:{id:string;titles:Record<string,string>;kind:string}[]};sources:{url:string;fetchedAt:string;available:boolean}[]};
+export type LiveState={status:'live'|'off-air'|'unavailable';checkedAt:string;validUntil:string;nextCheckAt?:string;current:{id:string;title:string;language:string;updatedAt:string;sourceUrl:string}|null;broadcast:{id:string;channel:string;title:string;embedUrl:string;websiteUrl:string;languages:string[]}|null;agenda:{state:'presumed'|'ambiguous'|'none'|'unavailable';sittingId?:string;items:{id:string;titles:Record<string,string>;kind:string}[]};sources:{url:string;fetchedAt:string;available:boolean}[]};
 type LiveContextValue={data:LiveState|null;fresh:boolean;open:()=>void;opened:boolean;setUiLanguage?:(language:string)=>void};
 const LiveContext=createContext<LiveContextValue>({data:null,fresh:false,open:()=>{},opened:false});
 export const usePlenaryLive=()=>useContext(LiveContext);
@@ -17,6 +17,13 @@ const EBS_PLUS_EMBED='https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN
 // tolerates a late check instead of unmounting mid-debate. A fresh off-air
 // answer still stops it at once.
 const PLAYER_GRACE=120_000;
+const CHECK_MS=30_000,MAX_WAIT=24*3600_000;
+// The server names when its answer can next change: every 30 seconds on a
+// sitting day, the next Brussels day otherwise.
+export const nextLiveCheck=(value:Pick<LiveState,'nextCheckAt'>|null,now=Date.now())=>{
+  const wait=Date.parse(value?.nextCheckAt||'')-now;
+  return Number.isFinite(wait)?Math.min(MAX_WAIT,Math.max(CHECK_MS,wait)):CHECK_MS;
+};
 const clockText=(value:string)=>new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Brussels',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value));
 export function liveAgendaHref(data:LiveState,id?:string) {
   const url=new URL(location.href),language=url.searchParams.get('lang')||'en';
@@ -45,9 +52,10 @@ export function PlenaryLiveProvider({children}:{children:ReactNode}) {
     async function refresh(){
       clearTimeout(timer);if(!active||document.hidden&&!openedRef.current)return;
       controller?.abort();controller=new AbortController();
-      try{const value=await api<LiveState>('plenary-live',controller.signal, undefined, ui);if(active){setData(value);setNow(Date.now());}}
+      let wait=CHECK_MS;
+      try{const value=await api<LiveState>('plenary-live',controller.signal, undefined, ui);if(active){setData(value);setNow(Date.now());wait=nextLiveCheck(value);}}
       catch{/* A failed read never renews the last successful snapshot. */}
-      finally{if(active)timer=setTimeout(refresh,30_000);}
+      finally{if(active)timer=setTimeout(refresh,wait);}
     }
     // An open player keeps checking in the background: audio continues there.
     const visible=()=>{if(!document.hidden)void refresh();else if(!openedRef.current){clearTimeout(timer);controller?.abort();}};

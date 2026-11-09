@@ -17,6 +17,12 @@ test('live playback survives browsing and minimising, expires safely, and closes
   t.mock.method(globalThis,'fetch',async url=>{assert(new URL(url,location.href).pathname.endsWith('/plenary-live'));return Response.json(payload);});
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {PlenaryLiveProvider,PlenaryLiveBanner,ScheduledNow}=await loadModule('/src/PlenaryLive.tsx');
+  const {nextLiveCheck}=await loadModule('/src/PlenaryLive.tsx');
+  assert.equal(nextLiveCheck(null,now),30_000);
+  assert.equal(nextLiveCheck({nextCheckAt:new Date(now+5_000).toISOString()},now),30_000,'A sitting day never polls faster than every 30 seconds');
+  assert.equal(nextLiveCheck({nextCheckAt:new Date(now+6*3600_000).toISOString()},now),6*3600_000,'A quiet day waits for the next Brussels day');
+  assert.equal(nextLiveCheck({nextCheckAt:new Date(now+9*86400_000).toISOString()},now),86400_000);
+  assert.equal(nextLiveCheck({nextCheckAt:'invalid'},now),30_000);
   const originalInterval=globalThis.setInterval;
 const timers=[],originalTimeout=globalThis.setTimeout;
   t.mock.method(globalThis,'setTimeout',(callback,ms,...args)=>{if(ms===30_000)timers.push(callback);return originalTimeout(callback,ms,...args);});
