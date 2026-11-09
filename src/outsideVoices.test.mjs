@@ -36,6 +36,9 @@ function speaker(id,name,rows,classifications={}) {
   return {person,contributions,agendas,coSpeakers:[],coverage};
 }
 
+// Without a window the timeline ends today, which moves the marker bins with the
+// date. Tests that assert clustering use this fixed window.
+const windowed={...coverage,window:{start:'2024-07-16',end:'2026-10-31'}};
 async function harness(t,details,query='?view=outside',sourceData=null,readSpeech=null,directoryCoverage=coverage) {
   const window=new Window({url:'http://localhost/'+query});
   class ReaderDOMParser extends window.DOMParser {
@@ -198,8 +201,7 @@ test('clustered days only show legends for the resulting marker symbols',async t
   const detail=speaker('42','Mixed guest',[
     speech('2026-10-07','01',[debateId]),speech('2026-10-08','02',[specialId]),
   ],{[specialId]:{kind:'PLENARY_ACTIVITY'}});
-  // Without a window the timeline ends today, which moves the marker bins with the date.
-  const {container,change}=await harness(t,[detail],'?view=outside',null,null,{...coverage,window:{start:'2024-07-16',end:'2026-10-31'}});
+  const {container,change}=await harness(t,[detail],'?view=outside',null,null,windowed);
   assert.equal(container.querySelectorAll('.ov-mark').length,1);
   assert(container.querySelector('.ov-mark.ov-special'));
   assert.equal(container.querySelector('.ov-legend').textContent,'◇ Special event');
@@ -306,7 +308,7 @@ test('timeline names and visible legislative cues follow all classifications, fi
   const clustered=speaker('48','Clustered guest',[
     speech('2025-01-20','6',[item('2025-01-20',1)]),speech('2025-01-21','7',[item('2025-01-21',1)]),speech('2026-10-01','8',[item('2026-10-01',1)]),
   ],{[item('2025-01-20',1)]:{kind:special},[item('2025-01-21',1)]:{legislative:true}});
-  const {container,change}=await harness(t,[ordinary,formal,law,both,clustered],'?view=outside&ov-term=all');
+  const {container,change}=await harness(t,[ordinary,formal,law,both,clustered],'?view=outside&ov-term=all',null,null,windowed);
   const row=name=>[...container.querySelectorAll('.ov-person-row')].find(r=>r.querySelector('.ov-person-name button').textContent===name);
   const mark=name=>{const node=row(name)?.querySelector('.ov-mark');assert(node,'Missing marker for '+name);return node;};
   assert.equal(mark('Ordinary guest').getAttribute('aria-label'),'Ordinary guest, 15 Jan 2025: Agenda items: 1');
@@ -343,7 +345,7 @@ test('a special timeline marker reveals its exact agenda item and keeps every cl
     speech(first,'1',[item(first,1)]),speech(last,'2',[item(last,2)]),speech(last,'3',[special]),
     speech('2026-10-07','4',[item('2026-10-07',4)]),
   ],{[special]:{kind:'PLENARY_ACTIVITY'}});
-  const {window,container,click}=await harness(t,[detail]);
+  const {window,container,click}=await harness(t,[detail],'?view=outside',null,null,windowed);
   const scrolls=[];
   window.HTMLElement.prototype.scrollTo=function(options){scrolls.push({element:this,options});};
   window.HTMLElement.prototype.getBoundingClientRect=function(){return {top:this.matches('h3')?900:100};};
