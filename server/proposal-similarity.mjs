@@ -41,8 +41,8 @@ export function singleWordDifference(left,right) {
 // A quoted original can carry a normal typo (maintainer ruling, 8 November
 // 2026): at most TYPO_TOKENS changed words and punctuation marks. Label
 // formatting ("37 b" for "37b", "1." or "(1)" for "1)") is not a change. A
-// number, a list label, a word right after a number or a list marker never
-// differs: another cross-reference or label is not a typo, and neither are
+// number, a list or letter reference ("(b)", "Annex II"), a word right after a
+// number or a list marker never differs: another cross-reference or label is not a typo, and neither are
 // words added at either end of the quote. Every passage that
 // does not overlap the best one must be at least TYPO_MARGIN tokens further
 // from the quote, and no overlapping passage may tie it.
@@ -99,6 +99,9 @@ function typoCost(regions,a,b) {
   if(region.left.join('')===region.right.join('')||tokens.some(token=>token.startsWith('§'))&&labelKey(region.left)===labelKey(region.right))continue;
   if(tokens.every(token=>/^[.()]$/u.test(token))&&Math.max(region.left.length,region.right.length)===1&&(numeric(a[region.i-1])||numeric(b[region.j-1])))continue;
   if(tokens.some(token=>numeric(token)||token.startsWith('§')||/^[-–—•·*]$/u.test(token))||numeric(a[region.i-1])||numeric(b[region.j-1]))return null;
+  // Letter references are labels too: "point (a)", "(ii)", "Annex II".
+  const reference=(list,at,length)=>Array.from({length},(_,k)=>at+k).some(index=>/^[IVXLC]+$/u.test(list[index])||list[index-1]==='('&&list[index+1]===')'&&/^[\p{L}]{1,4}$/u.test(list[index]));
+  if(reference(a,region.i,region.left.length)||reference(b,region.j,region.right.length))return null;
   // Words added or dropped at either end move the passage boundary instead.
   const mark=list=>list.every(token=>!/[\p{L}\p{N}]/u.test(token));
   if((mark(region.left)||mark(region.right))&&(mark(a.slice(0,region.i))&&mark(b.slice(0,region.j))||mark(a.slice(region.i+region.left.length))&&mark(b.slice(region.j+region.right.length))))return null;
