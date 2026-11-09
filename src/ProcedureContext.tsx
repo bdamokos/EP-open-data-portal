@@ -23,9 +23,9 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
   const [summary,setSummary]=useState(initialSummary),[expanded,setExpanded]=useState(false),summaryText=useRef<HTMLDivElement>(null);
   useEffect(()=>{setSummary(initialSummary);setExpanded(false);},[reference,initialSummary]);
   const params=new URLSearchParams({reference,lang:language});if(summary)params.set('summary',summary);
-  const {data,loading,error,status}=useInsightData<Context>('insights/procedure-context?'+params);
+  const {data,loading,error,status,code}=useInsightData<Context>('insights/procedure-context?'+params);
   // The Legislative Observatory has no file under this reference: no link leads there.
-  const officialMissing=!data&&!loading&&status===404;
+  const officialMissing=!data&&!loading&&status===404&&code==='official_source_not_found';
   // Parliament's own procedure record is missing too, so nothing on the page can describe the file.
   const [recordMissing,setRecordMissing]=useState(false);
   const unknown=officialMissing&&recordMissing&&!fallbackTitle;

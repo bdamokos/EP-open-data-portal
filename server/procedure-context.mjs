@@ -16,7 +16,10 @@ export class ProcedureContext {
     const selected=summary?procedure.summaries.find(s=>s.id===summary):order.map(stage=>procedure.summaries.find(s=>s.stage===stage)).find(Boolean);
     if(summary&&!selected)throw new HttpError(400,'summary_not_linked','This summary is not linked to the procedure.');
     let text=null;
-    if(selected){const body=await this.sources.get(selected.url,{priority}),parsed=parseSummaryPage(body.html,reference);if(selected.date&&parsed.date!==selected.date)throw new HttpError(502,'summary_date','The summary date does not match the procedure.');text={...selected,...parsed,source:{url:body.url,fetchedAt:body.fetchedAt,stale:Boolean(body.viewCache?.stale)}};}
+    // A summary page the Observatory no longer serves leaves the procedure file
+    // standing: the context answers with no summary rather than as missing.
+    const body=selected?await this.sources.get(selected.url,{priority}).catch(error=>{if(error?.code==='official_source_not_found')return null;throw error;}):null;
+    if(body){const parsed=parseSummaryPage(body.html,reference);if(selected.date&&parsed.date!==selected.date)throw new HttpError(502,'summary_date','The summary date does not match the procedure.');text={...selected,...parsed,source:{url:body.url,fetchedAt:body.fetchedAt,stale:Boolean(body.viewCache?.stale)}};}
     const id=reference.match(/^(\d{4})\/(\d{4}[A-Z]?)/).slice(1).join('-');let topics=null,topicError=false;
     try{const known=await this.catalog.known([id],language);topics=known.get(id);if(!topics||topics.stale)topics=(await this.catalog.load([id],language,{priority})).get(id);if(topics.reference!==reference)topics={...topics,state:'ambiguous',concepts:[]};}catch{topicError=true;}
     return {view:'procedure-context',reference,title:procedure.title,language:sourceLanguage,summaries:procedure.summaries,summary:text,subjects:procedure.subjects,topics:topics?.concepts||[],topicState:topics?.state||'unavailable',topicError,topicSource:topics?.source?{...topics.source,stale:Boolean(topics.stale||topics.source.stale)}:null,source:{url:page.url,fetchedAt:page.fetchedAt,stale:Boolean(page.viewCache?.stale)}};

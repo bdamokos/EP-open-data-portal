@@ -1,4 +1,5 @@
 import {test} from 'node:test';
+import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {HttpError} from './http-utils.mjs';
 import {DossierActivity} from './dossier-activity.mjs';
@@ -37,4 +38,12 @@ test('an official page that does not exist answers 404 without a retry pause',as
   }
   const sources=new OfficialContextSources({directory:null,fetchSource:async()=>new Response('',{status:403,headers:{'content-type':'text/html'}})});
   await assert.rejects(sources.get('https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2026%2F0031(COD)'),error=>error.status===502&&error.code==='official_source_unavailable');
+});
+test('a missing summary page leaves the procedure file standing',async()=>{
+  const procedureHtml=readFileSync(new URL('./fixtures/oeil-procedure-2025-0407.html',import.meta.url),'utf8'),reads=[];
+  const sources=new OfficialContextSources({directory:null,fetchSource:async url=>{reads.push(String(url));return String(url).includes('procedure-file')?new Response(procedureHtml,{status:200,headers:{'content-type':'text/html'}}):new Response('',{status:404,headers:{'content-type':'text/html'}});}});
+  const result=await new ProcedureContext(sources,{known:async()=>new Map(),load:async()=>new Map()}).query({reference:'2025/0407(COD)',language:'en'});
+  assert.equal(result.reference,'2025/0407(COD)');assert.ok(result.title);assert.ok(result.summaries.length);
+  assert.equal(result.summary,null);
+  assert.deepEqual(reads.map(url=>url.includes('procedure-file')?'file':'summary'),['file','summary']);
 });
