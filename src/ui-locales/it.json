@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Negoziati",
   "dossierstatus.steps": "Fasi della procedura",
   "dossierstatus.tally": "{for} a favore, {against} contro, {abstaining} astenuti",
+  "dossierstatus.not_found": "Nessuna registrazione di questa procedura.",
   "dossierstatus.unavailable": "Stato non disponibile.",
   "dossierstatus.voting_list.block_then": "Nell’elenco delle votazioni: {block}, poi {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Nell’elenco delle votazioni: {block}, poi {individual}, {identical}.",

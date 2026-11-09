@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Tárgyalások",
   "dossierstatus.steps": "Az eljárás lépései",
   "dossierstatus.tally": "{for} igen, {against} nem, {abstaining} tartózkodás",
+  "dossierstatus.not_found": "Erről az eljárásról nincs adat.",
   "dossierstatus.unavailable": "Az állapot nem érhető el.",
   "dossierstatus.voting_list.block_then": "A szavazólistán: {block}, majd {individual}.",
   "dossierstatus.voting_list.block_then_identical": "A szavazólistán: {block}, majd {individual}, {identical}.",

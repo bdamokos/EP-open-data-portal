@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Förhandlingar",
   "dossierstatus.steps": "Förfarandets steg",
   "dossierstatus.tally": "{for} för, {against} mot, {abstaining} avstod",
+  "dossierstatus.not_found": "Det finns ingen uppgift om detta förfarande.",
   "dossierstatus.unavailable": "Status inte tillgänglig.",
   "dossierstatus.voting_list.block_then": "På omröstningslistan: {block}, därefter {individual}.",
   "dossierstatus.voting_list.block_then_identical": "På omröstningslistan: {block}, därefter {individual}, {identical}.",

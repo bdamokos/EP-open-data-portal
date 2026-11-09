@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Negocieri",
   "dossierstatus.steps": "Etapele procedurii",
   "dossierstatus.tally": "{for} pentru, {against} împotrivă, {abstaining} abțineri",
+  "dossierstatus.not_found": "Nu există nicio înregistrare a acestei proceduri.",
   "dossierstatus.unavailable": "Stadiul nu este disponibil.",
   "dossierstatus.voting_list.block_then": "Pe lista de vot: {block}, apoi {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Pe lista de vot: {block}, apoi {individual}, {identical}.",

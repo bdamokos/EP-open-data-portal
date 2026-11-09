@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Caibidlíocht",
   "dossierstatus.steps": "Céimeanna an nós imeachta",
   "dossierstatus.tally": "{for} ar son, {against} i gcoinne, {abstaining} staonadh",
+  "dossierstatus.not_found": "Níl aon taifead den nós imeachta seo.",
   "dossierstatus.unavailable": "Níl an stádas ar fáil.",
   "dossierstatus.voting_list.block_then": "Ar an liosta vótála: {block}, ansin {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Ar an liosta vótála: {block}, ansin {individual}, {identical}.",

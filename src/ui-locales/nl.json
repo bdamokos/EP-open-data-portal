@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Onderhandelingen",
   "dossierstatus.steps": "Procedurestappen",
   "dossierstatus.tally": "{for} voor, {against} tegen, {abstaining} onthoudingen",
+  "dossierstatus.not_found": "Geen gegevens over deze procedure.",
   "dossierstatus.unavailable": "Status niet beschikbaar.",
   "dossierstatus.voting_list.block_then": "Op de stemlijst: {block}, daarna {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Op de stemlijst: {block}, daarna {individual}, {identical}.",

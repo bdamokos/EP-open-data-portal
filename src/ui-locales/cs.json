@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Jednání",
   "dossierstatus.steps": "Kroky řízení",
   "dossierstatus.tally": "{for} pro, {against} proti, {abstaining} se zdrželo",
+  "dossierstatus.not_found": "O tomto postupu není žádný záznam.",
   "dossierstatus.unavailable": "Stav není k dispozici.",
   "dossierstatus.voting_list.block_then": "Na hlasovacím seznamu: {block}, poté {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Na hlasovacím seznamu: {block}, poté {individual}, {identical}.",

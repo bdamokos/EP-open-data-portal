@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Läbirääkimised",
   "dossierstatus.steps": "Menetlusetapid",
   "dossierstatus.tally": "{for} poolt, {against} vastu, {abstaining} erapooletut",
+  "dossierstatus.not_found": "Selle menetluse kohta kirje puudub.",
   "dossierstatus.unavailable": "Olek pole saadaval.",
   "dossierstatus.voting_list.block_then": "Hääletusnimekirjas: {block}, seejärel {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Hääletusnimekirjas: {block}, seejärel {individual}, {identical}.",

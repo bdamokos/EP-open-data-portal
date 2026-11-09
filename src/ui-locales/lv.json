@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Sarunas",
   "dossierstatus.steps": "Procedūras posmi",
   "dossierstatus.tally": "{for} par, {against} pret, {abstaining} atturējās",
+  "dossierstatus.not_found": "Par šo procedūru ieraksta nav.",
   "dossierstatus.unavailable": "Statuss nav pieejams.",
   "dossierstatus.voting_list.block_then": "Balsojumu sarakstā: {block}, pēc tam {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Balsojumu sarakstā: {block}, pēc tam {individual}, {identical}.",

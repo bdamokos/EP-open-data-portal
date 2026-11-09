@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Pregovori",
   "dossierstatus.steps": "Koraci postupka",
   "dossierstatus.tally": "{for} za, {against} protiv, {abstaining} suzdržanih",
+  "dossierstatus.not_found": "Nema zapisa o ovom postupku.",
   "dossierstatus.unavailable": "Stanje nije dostupno.",
   "dossierstatus.voting_list.block_then": "Na popisu za glasovanje: {block}, zatim {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Na popisu za glasovanje: {block}, zatim {individual}, {identical}.",

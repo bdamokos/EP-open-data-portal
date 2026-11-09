@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Neuvottelut",
   "dossierstatus.steps": "Menettelyn vaiheet",
   "dossierstatus.tally": "{for} puolesta, {against} vastaan, {abstaining} tyhjää",
+  "dossierstatus.not_found": "Tästä menettelystä ei ole merkintää.",
   "dossierstatus.unavailable": "Tila ei ole saatavilla.",
   "dossierstatus.voting_list.block_then": "Äänestysluettelossa: {block}, sitten {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Äänestysluettelossa: {block}, sitten {individual}, {identical}.",

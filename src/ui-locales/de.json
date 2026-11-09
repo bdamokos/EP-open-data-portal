@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Verhandlungen",
   "dossierstatus.steps": "Verfahrensschritte",
   "dossierstatus.tally": "{for} dafür, {against} dagegen, {abstaining} Enthaltungen",
+  "dossierstatus.not_found": "Zu diesem Verfahren liegt kein Eintrag vor.",
   "dossierstatus.unavailable": "Status nicht verfügbar.",
   "dossierstatus.voting_list.block_then": "Auf der Abstimmungsliste: {block}, danach {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Auf der Abstimmungsliste: {block}, danach {individual}, {identical}.",

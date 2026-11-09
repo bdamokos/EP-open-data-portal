@@ -935,6 +935,7 @@
   "dossierstatus.step_talks": "Negotiations",
   "dossierstatus.steps": "Procedure steps",
   "dossierstatus.tally": "{for} for, {against} against, {abstaining} abstaining",
+  "dossierstatus.not_found": "No record of this procedure.",
   "dossierstatus.unavailable": "Status unavailable.",
   "dossierstatus.voting_list.block_then": "On the voting list: {block}, then {individual}.",
   "dossierstatus.voting_list.block_then_identical": "On the voting list: {block}, then {individual}, {identical}.",

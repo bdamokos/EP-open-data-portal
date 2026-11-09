@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Derybos",
   "dossierstatus.steps": "Procedūros etapai",
   "dossierstatus.tally": "{for} už, {against} prieš, {abstaining} susilaikė",
+  "dossierstatus.not_found": "Apie šią procedūrą įrašų nėra.",
   "dossierstatus.unavailable": "Būklė nepasiekiama.",
   "dossierstatus.voting_list.block_then": "Balsavimo sąraše: {block}, tada {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Balsavimo sąraše: {block}, tada {individual}, {identical}.",

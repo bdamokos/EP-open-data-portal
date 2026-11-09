@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Διαπραγματεύσεις",
   "dossierstatus.steps": "Στάδια της διαδικασίας",
   "dossierstatus.tally": "{for} υπέρ, {against} κατά, {abstaining} αποχές",
+  "dossierstatus.not_found": "Δεν υπάρχει καταχώριση για αυτή τη διαδικασία.",
   "dossierstatus.unavailable": "Η κατάσταση δεν είναι διαθέσιμη.",
   "dossierstatus.voting_list.block_then": "Στον κατάλογο ψηφοφορίας: {block}, στη συνέχεια {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Στον κατάλογο ψηφοφορίας: {block}, στη συνέχεια {individual}, {identical}.",

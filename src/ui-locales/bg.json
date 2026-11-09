@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Преговори",
   "dossierstatus.steps": "Етапи на процедурата",
   "dossierstatus.tally": "{for} за, {against} против, {abstaining} въздържали се",
+  "dossierstatus.not_found": "Няма запис за тази процедура.",
   "dossierstatus.unavailable": "Статусът не е наличен.",
   "dossierstatus.voting_list.block_then": "В списъка за гласуване: {block}, след това {individual}.",
   "dossierstatus.voting_list.block_then_identical": "В списъка за гласуване: {block}, след това {individual}, {identical}.",

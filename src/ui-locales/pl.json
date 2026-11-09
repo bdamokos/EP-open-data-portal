@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Negocjacje",
   "dossierstatus.steps": "Etapy procedury",
   "dossierstatus.tally": "{for} za, {against} przeciw, {abstaining} wstrzymujących się",
+  "dossierstatus.not_found": "Brak danych o tej procedurze.",
   "dossierstatus.unavailable": "Stan niedostępny.",
   "dossierstatus.voting_list.block_then": "Na liście do głosowania: {block}, następnie {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Na liście do głosowania: {block}, następnie {individual}, {identical}.",

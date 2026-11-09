@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Negozjati",
   "dossierstatus.steps": "Passi tal-proċedura",
   "dossierstatus.tally": "{for} favur, {against} kontra, {abstaining} astensjonijiet",
+  "dossierstatus.not_found": "M’hemm l-ebda rekord ta’ din il-proċedura.",
   "dossierstatus.unavailable": "L-istatus mhux disponibbli.",
   "dossierstatus.voting_list.block_then": "Fil-lista tal-votazzjoni: {block}, imbagħad {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Fil-lista tal-votazzjoni: {block}, imbagħad {individual}, {identical}.",

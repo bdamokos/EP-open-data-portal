@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Forhandlinger",
   "dossierstatus.steps": "Procedurens trin",
   "dossierstatus.tally": "{for} for, {against} imod, {abstaining} undlod at stemme",
+  "dossierstatus.not_found": "Ingen registrering af denne procedure.",
   "dossierstatus.unavailable": "Status ikke tilgængelig.",
   "dossierstatus.voting_list.block_then": "På afstemningslisten: {block}, derefter {individual}.",
   "dossierstatus.voting_list.block_then_identical": "På afstemningslisten: {block}, derefter {individual}, {identical}.",

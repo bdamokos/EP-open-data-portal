@@ -2414,6 +2414,7 @@
   "dossierstatus.step_talks": "Rokovania",
   "dossierstatus.steps": "Kroky konania",
   "dossierstatus.tally": "{for} za, {against} proti, {abstaining} sa zdržalo",
+  "dossierstatus.not_found": "O tomto postupe neexistuje žiadny záznam.",
   "dossierstatus.unavailable": "Stav nie je k dispozícii.",
   "dossierstatus.voting_list.block_then": "Na hlasovacom zozname: {block}, potom {individual}.",
   "dossierstatus.voting_list.block_then_identical": "Na hlasovacom zozname: {block}, potom {individual}, {identical}.",
