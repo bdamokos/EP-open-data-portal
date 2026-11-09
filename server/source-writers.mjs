@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {Worker,MessageChannel} from 'node:worker_threads';
 import {booleanFromEnvironment} from './config.mjs';
-import {upstreamPortServices} from './odp.mjs';
+import {defaultUpstreamServices} from './upstream-services.mjs';
 import {serveUpstreamPort} from './upstream-rpc.mjs';
 import {forwardSittingSnapshotHints} from './sitting-snapshot-hints-rpc.mjs';
 
@@ -15,7 +15,7 @@ export function startSourceWriters({
   enabled=booleanFromEnvironment('ACTIVITY_INDEX_ENABLED')||booleanFromEnvironment('CORPUS_ENABLED'),
   createWorker=(url,options)=>new Worker(url,options),
   workerUrl=new URL('./source-writers-thread.mjs',import.meta.url),workerData={},
-  services=upstreamPortServices(),onPublication=()=>{},log=console.error,
+  services=defaultUpstreamServices().upstreamPortServices(),onPublication=()=>{},log=console.error,
   restartMs=1000,maxRestartMs=60_000,drainMs=8_000,
 }={}) {
   let worker,disposeRetention,disposePort,restartTimer,stopping=false,attempt=0,exited=Promise.resolve();

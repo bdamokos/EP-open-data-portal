@@ -32,6 +32,19 @@ The unfinished amendment catalogue is hidden by `publicAmendmentsEnabled` in `sr
 - Follows and reading state stay in browser storage (`ep.following.*`). The server sees only which MEPs, questions or dossiers a tab checks for updates.
 - Data lives in `activities-v1.sqlite` and `press-v1.sqlite` (index directory), `corpus-v1.sqlite` (corpus directory) and file caches under `ODP_CACHE_DIR`. All of it stays outside Git.
 
+## Process modes
+
+`EXPLORER_PROCESS_MODE=single` (default) runs the HTTP API and the source-writer thread in one process. `split` runs a small always-on front (`server/front.mjs`) and starts the API process (`server/api-child.mjs`) when a visitor needs it:
+
+- The front owns static files, plain `GET`/`HEAD` of `/healthz` and `/api/healthz`, the upstream queue and rate budget, the writer thread and the error log. It proxies every other `/api` request to the API process on a private loopback port. It never loads the API modules.
+- The API process starts on the first proxied request, or when a browser loads the root page, and exits after `EXPLORER_API_IDLE_MINUTES` (default 20; 0 keeps it running) without proxied requests. Plain health checks and static files do not count; a health check with a query or an `Origin` is proxied and counts. Memory returns to the system only when a process exits, so idle means exit.
+- Requests wait for a starting process within their normal 30 s (50 s for long routes) budget. While it is unavailable, or backing off after a crash, the front answers 503 with `Retry-After`.
+- The API process sends upstream admission, retained sources, writer hints and error entries to the front over IPC; the front sends it new publications. It opens the stores read-only.
+- The plenary warm-up runs while the API process is alive. After a long idle the first visit therefore starts it cold.
+- The front keeps the last good answer of `directory`, `vote-periods`, `plenary-live` and `upcoming-votes` (a sitting before today) in `front-snapshots-v1` under `ODP_CACHE_DIR`, up to `EXPLORER_FRONT_SNAPSHOT_MB` (default 16; 0 turns it off). While the API process is not running, an anonymous read of one of these with the current `v` is answered from its copy and the process is started; the reply carries `X-Explorer-Snapshot` and `no-store`. A copy is used for the lifetime the API sent (`directory`), the Brussels day it was stored on, at most 6 h (`vote-periods`), until its own `validUntil` (`plenary-live`) or 1 h (`upcoming-votes`); otherwise the request waits for the process. Requests with credentials, an `Origin` or a `Range`, and any other route or query, never use a copy. Only the front writes the files.
+
+Start with `node server/main.mjs` (the Docker `CMD`); `node server/index.mjs` always runs single mode. `scripts/idle-benchmark.mjs` measures a running server in either mode.
+
 ## Upstream requests
 
 The Open Data API allows 500 requests per five minutes. The server enforces this as one rolling window for the whole API, reserving 20% for visitors. `ODP_REQUEST_MODE` sets background pacing:
