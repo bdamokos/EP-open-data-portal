@@ -472,7 +472,7 @@ export async function handleRequest(request, response) {
     throw new HttpError(404, "not_found", "The requested resource does not exist");
   } catch (error) {
     if(!request.url?.startsWith('/api/client-errors')&&error.code!=='request_cancelled')errorLog.write(serverErrorEvent(request,error,{requestId,elapsedMs:Math.round(performance.now()-started)}));
-    if(error.code==='request_timeout')console.warn('[request-budget]',JSON.stringify({code:error.code,route,elapsedMs:Math.round(performance.now()-started),upstream:upstreamStatus(),odpHeaders:odpHeaderStatus(),eventLoopDelay:eventLoopDelay?.snapshot(),eventLoopUtilization:performance.eventLoopUtilization(eventLoop).utilization}));
+    if(error.code==='request_timeout')console.warn('[request-budget]',JSON.stringify({code:error.code,route,elapsedMs:Math.round(performance.now()-started),...(process.env.EXPLORER_PROCESS_ROLE==='api'?{role:'api'}:{upstream:upstreamStatus(),odpHeaders:odpHeaderStatus()}),eventLoopDelay:eventLoopDelay?.snapshot(),eventLoopUtilization:performance.eventLoopUtilization(eventLoop).utilization}));
     if(response.destroyed||response.writableEnded)return;
     if (!response.headersSent) {
       sendError(request, response, error);

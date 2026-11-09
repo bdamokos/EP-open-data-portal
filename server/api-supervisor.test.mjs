@@ -167,3 +167,24 @@ test('a wake while the process is stopping starts it again once it has gone',asy
   await delay(10);
   assert.equal(api.spawned.length,2,'the wake restarted the process after the exit');
 });
+
+test('a starting process receives the latest publication of each source once it listens',async t=>{
+  const {api,instance}=supervisor();t.after(()=>instance.close());
+  const pending=instance.acquire();
+  const received=[];api.spawned[0].control.on('message',message=>received.push(message));
+  instance.publish({source:'activity',revision:{active:1}});
+  instance.publish({source:'corpus',revision:{speechReadRevision:4}});
+  instance.publish({source:'activity',revision:{active:2}});
+  api.spawned[0].ready();(await pending).release();
+  await delay(10);
+  assert.deepEqual(received.map(message=>message.message),[{source:'activity',revision:{active:2}},{source:'corpus',revision:{speechReadRevision:4}}]);
+});
+
+test('closing while the process starts is not counted as a crash',async()=>{
+  const {api,instance}=supervisor();
+  instance.wake();
+  assert.equal(api.spawned.length,1);
+  await instance.close();
+  assert.equal(instance.snapshot().crashes,0);
+  assert.equal(instance.snapshot().failures,0);
+});

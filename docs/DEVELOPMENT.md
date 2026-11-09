@@ -36,8 +36,8 @@ The unfinished amendment catalogue is hidden by `publicAmendmentsEnabled` in `sr
 
 `EXPLORER_PROCESS_MODE=single` (default) runs the HTTP API and the source-writer thread in one process. `split` runs a small always-on front (`server/front.mjs`) and starts the API process (`server/api-child.mjs`) when a visitor needs it:
 
-- The front owns static files, `/healthz` and `/api/healthz`, the upstream queue and rate budget, the writer thread and the error log. It proxies every other `/api` request to the API process on a private loopback port. It never loads the API modules.
-- The API process starts on the first proxied request, or when a browser loads the root page, and exits after `EXPLORER_API_IDLE_MINUTES` (default 20; 0 keeps it running) without proxied requests. Health checks and static files do not count. Memory returns to the system only when a process exits, so idle means exit.
+- The front owns static files, plain `GET`/`HEAD` of `/healthz` and `/api/healthz`, the upstream queue and rate budget, the writer thread and the error log. It proxies every other `/api` request to the API process on a private loopback port. It never loads the API modules.
+- The API process starts on the first proxied request, or when a browser loads the root page, and exits after `EXPLORER_API_IDLE_MINUTES` (default 20; 0 keeps it running) without proxied requests. Plain health checks and static files do not count; a health check with a query or an `Origin` is proxied and counts. Memory returns to the system only when a process exits, so idle means exit.
 - Requests wait for a starting process within their normal 30 s (50 s for long routes) budget. While it is unavailable, or backing off after a crash, the front answers 503 with `Retry-After`.
 - The API process sends upstream admission, retained sources, writer hints and error entries to the front over IPC; the front sends it new publications. It opens the stores read-only.
 - The plenary warm-up runs while the API process is alive. After a long idle the first visit therefore starts it cold.

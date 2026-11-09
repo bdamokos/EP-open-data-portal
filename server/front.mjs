@@ -4,7 +4,7 @@ import {performance} from 'node:perf_hooks';
 import {fork,spawnSync} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {config,integerFromEnvironment} from './config.mjs';
+import {apiPrefixes,config,integerFromEnvironment} from './config.mjs';
 import {HttpError,sendError,sendJson} from './http-utils.mjs';
 import {parseRequestTarget,apiPrefixOf,requestBudgetMs} from './request-target.mjs';
 import {serveStatic} from './static-files.mjs';
@@ -68,7 +68,7 @@ export function createFront({supervisor,agent=createProxyAgent(),snapshots=null,
     let proxied=false;
     try {
       const url=parseRequestTarget(request);
-      const apiPrefix=apiPrefixOf(url);
+      let apiPrefix=apiPrefixOf(url);
       // Probes never wake the API process: the front answers them. A request with
       // an Origin header or a query takes the API's own checks instead.
       const health=['GET','HEAD'].includes(request.method)&&!request.headers.origin&&!url.search&&(url.pathname==='/healthz'||url.pathname==='/api/healthz');
@@ -76,6 +76,12 @@ export function createFront({supervisor,agent=createProxyAgent(),snapshots=null,
         response.setHeader('X-Request-Id',requestId);
         sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:await apiVersion(),time:new Date().toISOString()});
         return;
+      }
+      // As in single mode, /healthz is an alias of the API's own health check.
+      if(url.pathname==='/healthz'){
+        url.pathname=`${apiPrefixes.at(-1)}/healthz`;
+        request.url=url.pathname+url.search;
+        apiPrefix=apiPrefixes.at(-1);
       }
       if(apiPrefix){
         proxied=true;

@@ -75,6 +75,9 @@ test('a health probe with an origin or a query takes the API checks instead',loo
   assert.equal(withQuery.body,'api');assert.equal(supervisor.calls.acquire,1);assert.equal(supervisor.calls.release,1);
   assert.deepEqual(seen,['/api/healthz?v=abc']);
   assert.equal((await get(port,'/api/healthz',{Origin:'http://elsewhere.test'})).body,'api');
+  // As in single mode, /healthz stands for the API's health check.
+  assert.equal((await get(port,'/healthz?v=abc')).body,'api');
+  assert.equal(seen.at(-1),'/api/healthz?v=abc');
 });
 
 test('API routes answer 503 with Retry-After while the process is unavailable',loopback,async t=>{

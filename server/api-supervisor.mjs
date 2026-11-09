@@ -15,7 +15,7 @@ export class ApiSupervisor extends EventEmitter {
     this.state='idle';this.child=null;this.control=null;this.port=null;this.readyAt=0;
     this.waiters=new Set();this.active=0;this.lastActivity=clock();
     this.failures=0;this.nextSpawnAt=0;this.respawn=false;this.idleTimer=null;this.startTimer=null;this.killTimer=null;
-    this.shutDown=false;this.starts=0;this.idleExits=0;this.crashes=0;
+    this.pending=new Map();this.shutDown=false;this.starts=0;this.idleExits=0;this.crashes=0;
   }
   snapshot() {
     return {state:this.state,active:this.active,waiting:this.waiters.size,starts:this.starts,idleExits:this.idleExits,crashes:this.crashes,failures:this.failures,pid:this.child?.pid??null};
@@ -92,6 +92,9 @@ export class ApiSupervisor extends EventEmitter {
     clearTimeout(this.startTimer);
     this.port=port;this.state='ready';this.readyAt=this.clock();
     this.lastActivity=this.clock();this.#armIdle();
+    // Publications that arrived after the process began reading its stores.
+    for(const message of this.pending.values())this.control.postMessage({type:'publication',message});
+    this.pending.clear();
     for(const waiter of [...this.waiters])waiter.resolve(this.#lease());
   }
   #exited(child,code,signal) {
@@ -99,7 +102,7 @@ export class ApiSupervisor extends EventEmitter {
     clearTimeout(this.startTimer);clearTimeout(this.killTimer);clearTimeout(this.idleTimer);
     const expected=this.state==='stopping';
     const stable=this.state==='ready'&&this.clock()-this.readyAt>=this.stableMs;
-    this.child=null;this.control=null;this.port=null;this.state='idle';
+    this.child=null;this.control=null;this.port=null;this.state='idle';this.pending.clear();
     if(expected){
       this.failures=0;
       if(this.respawn||this.waiters.size){this.respawn=false;if(!this.shutDown)this.#start();}
@@ -135,8 +138,11 @@ export class ApiSupervisor extends EventEmitter {
     const child=this.child;
     this.killTimer=setTimeout(()=>child.kill('SIGKILL'),this.stopGraceMs);this.killTimer.unref();
   }
+  // A stopped process reads the stores afresh when it starts; a starting one gets
+  // the latest publication of each source once it listens.
   publish(message) {
     if(this.state==='ready')this.control.postMessage({type:'publication',message});
+    else if(this.state==='starting')this.pending.set(message?.source,message);
   }
   // Stops the process and refuses new work.
   async close() {
@@ -145,7 +151,7 @@ export class ApiSupervisor extends EventEmitter {
     const child=this.child;
     if(!child)return;
     const exited=new Promise(resolve=>child.once('exit',resolve));
-    if(this.state==='starting'){child.kill('SIGTERM');}
+    if(this.state==='starting'){clearTimeout(this.startTimer);this.state='stopping';child.kill('SIGTERM');}
     else if(this.state!=='stopping')this.#stop();
     await exited;
   }
