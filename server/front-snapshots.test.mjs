@@ -327,3 +327,18 @@ test('a copy replaced by the same body is still read back from disk',loopback,as
   assert.equal(body,directoryBody);assert.equal(response.headers[SNAPSHOT_HEADER.toLowerCase()],'stored; age=60');
   assert.equal(f.calls.acquire,2);
 });
+
+test('a copy dropped while it is being written leaves no file behind',loopback,async t=>{
+  const clock=clockAt(DAY),directory=path.join(root,'dropped'),f=await fixture(t,{clock,directory,options:{maxEntries:1}});
+  for(let round=0;round<20;round++) {
+    clock.now+=1000;
+    await warm(f,`/api/upcoming-votes?sitting=MTG-PL-2026-10-0${round%2+1}&v=${V}`);
+    const writing=f.snapshots.flush();
+    // Evict that copy while its file is being written.
+    await new Promise(resolve=>setImmediate(resolve));
+    clock.now+=1000;
+    await warm(f,`/api/directory?v=${V}`);
+    await writing;await f.snapshots.flush();
+    assert.equal(readdirSync(directory).filter(name=>name.endsWith('.snap')).length,f.snapshots.entries.size,`round ${round}`);
+  }
+});

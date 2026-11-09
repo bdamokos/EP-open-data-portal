@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {apiPrefixes,config,integerFromEnvironment} from './config.mjs';
 import {HttpError,sendError,sendJson} from './http-utils.mjs';
 import {parseRequestTarget,apiPrefixOf,requestBudgetMs} from './request-target.mjs';
+import {requestTimeout} from './request-budget.mjs';
 import {serveStatic} from './static-files.mjs';
 import {stampedDigest} from './api-version-stamp.mjs';
 import {errorLog,serverErrorEvent} from './error-log.mjs';
@@ -97,17 +98,23 @@ export function createFront({supervisor,agent=createProxyAgent(),snapshots=null,
         }
         const closed=()=>{if(!response.writableEnded)controller.abort(new HttpError(499,'request_cancelled','The request was cancelled.'));};
         response.once('close',closed);
+        // One budget covers the wait for the API process and the wait for its answer, as in single mode.
+        const budgetMs=requestBudgetMs(url,apiPrefix),deadline=setTimeout(()=>controller.abort(requestTimeout()),Math.max(0,started+budgetMs-performance.now()));
         let lease;
-        try {lease=await supervisor.acquire({budgetMs:requestBudgetMs(url,apiPrefix),signal:controller.signal});}
-        catch(error){
-          response.removeListener('close',closed);
-          if(controller.signal.aborted||response.destroyed)return;
-          response.setHeader('X-Request-Id',requestId);
-          sendError(request,response,error);
-          return;
-        }
-        try {await proxyRequest(request,response,{port:lease.port,agent,requestId,capture:candidate&&{maxBytes:snapshots.maxEntryBytes,done:reply=>snapshots.record(candidate,reply)}});}
-        finally {lease.release();response.removeListener('close',closed);}
+        try {
+          try {lease=await supervisor.acquire({budgetMs:Math.max(1,started+budgetMs-performance.now()),signal:controller.signal});}
+          catch(error){
+            if(response.destroyed||controller.signal.reason?.code==='request_cancelled')return;
+            response.setHeader('X-Request-Id',requestId);
+            sendError(request,response,error);
+            return;
+          }
+          try {
+            const expired=await proxyRequest(request,response,{port:lease.port,agent,requestId,signal:controller.signal,capture:candidate&&{maxBytes:snapshots.maxEntryBytes,done:reply=>snapshots.record(candidate,reply)}});
+            if(expired&&controller.signal.reason?.code==='request_timeout')errorLog.write(serverErrorEvent(request,controller.signal.reason,{requestId,elapsedMs:Math.round(performance.now()-started)}));
+          }
+          finally {lease.release();}
+        } finally {clearTimeout(deadline);response.removeListener('close',closed);}
         return;
       }
       response.setHeader('X-Request-Id',requestId);

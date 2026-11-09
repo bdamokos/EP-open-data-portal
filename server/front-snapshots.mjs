@@ -215,6 +215,8 @@ export class FrontSnapshots {
           const temporary=`${entry.file}.${process.pid}.tmp`;
           await writeFile(temporary,Buffer.concat([head,body]),{mode:0o600});
           await rename(temporary,entry.file);
+          // Dropped while it was being written: #drop saw no file to remove, so remove it here.
+          if(this.entries.get(key)!==entry){if(!this.entries.has(key))await unlink(entry.file).catch(()=>{});continue;}
           meta.headerBytes=head.length;entry.size=head.length+body.length;entry.persisted={etag:meta.etag,storedAt:meta.storedAt};
         } catch(error) {this.#warn('Could not write a response copy:',error.message);}
       }

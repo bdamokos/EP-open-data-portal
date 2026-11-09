@@ -86,3 +86,32 @@ test('ports ignore other channels and close with the link',async()=>{
   a.disconnect();await tick();assert.equal(closed,1);
   one.postMessage({x:2});
 });
+
+test('a busy queue answers the API process with the same 503 and retry hint as in-process',async t=>{
+  const {HttpError}=await import('./http-utils.mjs');
+  const {queue,connect}=fixture();
+  const api=connect({foreground:true,defaultPriority:'interactive'});t.after(()=>api.client.close());
+  queue.backoff(5);
+  await assert.rejects(api.client.acquire(),error=>error instanceof HttpError&&error.status===503&&error.code==='upstream_busy'&&error.retryAfter>=1);
+});
+
+test('a reader joining a background fetch over the link stops at a pause or after the wait, as in-process',async t=>{
+  const {queue,connect}=fixture({maximum:5,interactiveWaitMs:60});
+  const api=connect({foreground:true,defaultPriority:'interactive'}),writer=connect({foreground:false,defaultPriority:'background'});
+  t.after(()=>{api.client.close();writer.client.close();});
+  const never=new Promise(()=>{});
+  // The wait is bounded.
+  await assert.rejects(api.client.queue('odp').joinBackground(never),error=>error.status===503&&error.code==='upstream_busy');
+  // A pause that starts while the reader waits ends its wait.
+  const joined=api.client.queue('odp').joinBackground(never);
+  await tick();queue.interactiveWaitMs=10_000;queue.backoff(5);
+  await assert.rejects(joined,error=>error.status===503);
+  // During a pause a reader does not wait at all, and its own signal still ends the wait.
+  await assert.rejects(api.client.queue('odp').joinBackground(never),error=>error.status===503);
+  // A finished background fetch reaches the reader; the writer link keeps the promise as it is.
+  const fresh=fixture({maximum:5}),other=fresh.connect({foreground:true,defaultPriority:'interactive'});t.after(()=>other.client.close());
+  assert.equal(await other.client.queue('odp').joinBackground(Promise.resolve('body')),'body');
+  const controller=new AbortController(),cancelled=other.client.queue('odp').joinBackground(never,{signal:controller.signal});
+  controller.abort(new Error('gone'));await assert.rejects(cancelled,/gone/);
+  assert.equal(writer.client.queue('odp').joinBackground(never),never);
+});

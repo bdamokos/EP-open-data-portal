@@ -168,3 +168,23 @@ test('capture sees a complete 200 body and a 304, and nothing else, without chan
   assert.deepEqual(captured.map(([url,reply])=>[url,reply.status,reply.body?.toString()??null]),[['/ok',200,'{"a":1}\n'],['/same',304,null]]);
   assert.ok(captured[0][1].rawHeaders.includes('ETag'));
 });
+
+test('a deadline answers a request still waiting for the upstream, and leaves a started reply alone',loopback,async t=>{
+  const {requestTimeout}=await import('./request-budget.mjs');
+  const upstream=await listen((request,response)=>{
+    if(request.url==='/slow')return;// never answers
+    response.writeHead(200,{'Content-Type':'text/plain'});response.write('part ');setTimeout(()=>response.end('rest'),80);
+  });
+  const agent=createProxyAgent(),results=[];
+  const front=await listen(async(request,response)=>{
+    const controller=new AbortController();setTimeout(()=>controller.abort(requestTimeout()),40);
+    results.push(await proxyRequest(request,response,{port:upstream.address().port,agent,requestId:'front-id',signal:controller.signal}));
+  });
+  t.after(()=>{agent.destroy();front.closeAllConnections();upstream.closeAllConnections();front.close();upstream.close();});
+  const slow=await call(front.address().port,{path:'/slow'});
+  assert.equal(slow.response.statusCode,503);assert.equal(JSON.parse(slow.body).error.code,'request_timeout');
+  assert.equal(slow.response.headers['x-request-id'],'front-id');
+  const started=await call(front.address().port,{path:'/stream'});
+  assert.equal(started.response.statusCode,200);assert.equal(started.body,'part rest');
+  assert.deepEqual(results,[true,false]);
+});

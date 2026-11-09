@@ -26,14 +26,24 @@ function responseHeaders(raw) {
 //    process sees as a closed socket and aborts the work.
 //  - An API process that fails before the response starts yields 503; after the
 //    response starts the client connection is destroyed, as a direct failure would.
+//  - `signal` ends a wait for the response (including a wait for a pooled socket):
+//    the client gets its reason as an error. A response already streaming is left alone.
+//    Resolves true when the signal ended the exchange.
 //  - `capture.done({status,rawHeaders,body})` is called after a complete 200 whose body
 //    is at most `capture.maxBytes` (declared by Content-Length), or after a 304
 //    without body. The body is copied as it streams; the client is not delayed.
-export function proxyRequest(request,response,{port,agent,host='127.0.0.1',requestId,capture}) {
+export function proxyRequest(request,response,{port,agent,host='127.0.0.1',requestId,capture,signal}) {
   return new Promise(resolve=>{
     let upstream,reply,done=false,retried=false;
     const bodyless=!request.headers['transfer-encoding']&&!Number(request.headers['content-length']);
-    const finish=()=>{if(done)return;done=true;resolve();};
+    const finish=(expired=false)=>{if(done)return;done=true;signal?.removeEventListener('abort',expire);resolve(expired);};
+    const expire=()=>{
+      if(done||reply)return;
+      upstream.destroy();
+      if(response.headersSent||response.destroyed)response.destroy();
+      else {if(requestId)response.setHeader('X-Request-Id',requestId);sendError(request,response,signal.reason);}
+      finish(true);
+    };
     const unavailable=()=>{
       if(done)return;
       if(response.headersSent||response.destroyed){response.destroy();finish();return;}
@@ -73,6 +83,8 @@ export function proxyRequest(request,response,{port,agent,host='127.0.0.1',reque
     send();
     // The body streams straight through; a GET has none.
     request.pipe(upstream);
+    if(signal?.aborted){expire();return;}
+    signal?.addEventListener('abort',expire,{once:true});
     const gone=()=>{
       if(done)return;
       upstream.destroy();reply?.destroy();finish();
