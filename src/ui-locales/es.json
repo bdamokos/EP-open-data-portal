@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Siguiente paso: votación en el Pleno el {date}.",
   "dossierstatus.next_signature": "Siguiente paso: firma.",
   "dossierstatus.next_talks": "Siguiente paso: negociaciones con el Consejo.",
+  "dossierstatus.not_found": "No consta ningún registro de este procedimiento.",
   "dossierstatus.partial": "parcial",
   "dossierstatus.position": "El Parlamento adoptó su posición en primera lectura el {date}: {tally}.",
   "dossierstatus.position_no_tally": "El Parlamento adoptó su posición en primera lectura el {date}.",

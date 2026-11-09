@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Następny krok: głosowanie na posiedzeniu plenarnym dnia {date}.",
   "dossierstatus.next_signature": "Następny krok: podpisanie.",
   "dossierstatus.next_talks": "Następny krok: negocjacje z Radą.",
+  "dossierstatus.not_found": "Brak danych o tej procedurze.",
   "dossierstatus.partial": "częściowo",
   "dossierstatus.position": "Parlament przyjął stanowisko w pierwszym czytaniu dnia {date}: {tally}.",
   "dossierstatus.position_no_tally": "Parlament przyjął stanowisko w pierwszym czytaniu dnia {date}.",

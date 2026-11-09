@@ -40,3 +40,32 @@ test('dossier summary loading and failure do not expose the unfinished amendment
   assert.doesNotMatch(container.textContent,/Loading summary/);
   assert.equal(container.querySelector('.explorer-save-button').getAttribute('aria-label'),'Follow dossier 2025/0407(COD)','source failure keeps following available');
 });
+test('a summary with no Legislative Observatory file settles at once without a link there',async t=>{
+  const window=new Window({url:'http://localhost/?view=legislation'});
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let loadModule,root,contextReads=0;
+  t.after(async()=>{
+    if(root)await act(async()=>root.unmount());
+    if(loadModule)await loadModule.close();
+    await window.happyDOM.close();
+    for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
+  });
+  t.mock.method(globalThis,'fetch',async input=>{
+    const url=new URL(input,window.location.href);
+    if(url.pathname.endsWith('/insights/procedure-progress'))return Response.json({reference:'2026/0030(COD)',state:'unmapped',events:[],coverage:{limited:false,invalidRows:0,incompleteEvents:0},source:{fetchedAt:'2026-11-09T10:00:00Z',stale:false,refreshInProgress:false,refreshError:null}});
+    if(url.pathname.endsWith('/insights/procedure-context')){contextReads++;return Response.json({error:{code:'official_source_not_found',message:'Missing'}},{status:404});}
+    return Response.json({error:{code:'absent',message:'Absent'}},{status:404});
+  });
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx');
+  const {createRoot}=await import('react-dom/client');
+  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  await act(async()=>root.render(createElement(ProcedureContext,{reference:'2026/0030(COD)',language:'en'})));
+  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
+  assert.doesNotMatch(container.textContent,/Loading summary|Legislative Observatory/);
+  assert.match(container.textContent,/Summary unavailable\./);
+  assert.ok(!container.querySelector('a[href*="oeil.europarl"]'));
+  assert.equal(contextReads,1);
+});

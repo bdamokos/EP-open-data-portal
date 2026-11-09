@@ -23,11 +23,16 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
   const [summary,setSummary]=useState(initialSummary),[expanded,setExpanded]=useState(false),summaryText=useRef<HTMLDivElement>(null);
   useEffect(()=>{setSummary(initialSummary);setExpanded(false);},[reference,initialSummary]);
   const params=new URLSearchParams({reference,lang:language});if(summary)params.set('summary',summary);
-  const {data,loading,error}=useInsightData<Context>('insights/procedure-context?'+params);
+  const {data,loading,error,status,code}=useInsightData<Context>('insights/procedure-context?'+params);
+  // The Legislative Observatory has no file under this reference: no link leads there.
+  const officialMissing=!data&&!loading&&status===404&&code==='official_source_not_found';
+  // Parliament's own procedure record is missing too, so nothing on the page can describe the file.
+  const [recordMissing,setRecordMissing]=useState(false);
+  const unknown=officialMissing&&recordMissing&&!fallbackTitle;
   const title=data ? ({title:data.title,titleLanguage:data.language}) : fallbackTitle;
   const identity=showIdentity&&<div className="insight-dossier-title">
     {showTitle&&title&&<h2 lang={title.titleLanguage??''}>{title.title}</h2>}
-    <div className="dossier-identity-row"><p lang="">{reference}</p>{(!showTitle||!loading)&&<FollowDossierButton reference={reference} title={title?.title} titleLanguage={title?.titleLanguage}/>}</div>
+    <div className="dossier-identity-row"><p lang="">{reference}</p>{(!showTitle||!loading)&&!unknown&&<FollowDossierButton reference={reference} title={title?.title} titleLanguage={title?.titleLanguage}/>}</div>
   </div>;
   const press=<PressMentions key={'press:'+reference+':'+language} reference={reference} language={language} limit={showTitle ? 5 : 3}/>;
   const amendmentLink=<AmendmentTrailLink procedure={reference} language={language}><UiMessage id="batch5.procedurecontext.tsx.27.68"/></AmendmentTrailLink>;
@@ -44,19 +49,19 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
   </>;
   // The dossier page answers first and keeps one tree, so nothing remounts when the context arrives.
   if(showTitle&&children)return <section lang={ui.language} className="insight-procedure-context" data-procedure-context-pending={(!data && loading && (!fallbackTitle)) ? "true" : undefined}>
-    {identity}{recordTopics}{amendmentLink}
-    <DossierStatus reference={reference} language={language} summaries={data?.summaries} votingList/>
+    {identity}{recordTopics}{!unknown&&amendmentLink}
+    <DossierStatus reference={reference} language={language} summaries={data?.summaries} votingList officialMissing={officialMissing} onMissing={setRecordMissing}/>
     {summaryBlock}
     {data&&!data.summary&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
     {!data&&loading&&<p role="status"><UiMessage id="batch5.procedurecontext.tsx.28.69"/></p>}
-    {!data&&!loading&&error&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
+    {!data&&!loading&&error&&!unknown&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
     <ProcedureProgress key={reference+':'+language} reference={reference} language={language} proposalDate={proposalDate} timeline/>
-    {children}
+    {!unknown&&children}
     {press}
     {classification}
     {data&&!data.summary&&!data.topics.length&&!data.subjects.length&&<a href={data.source.url} target="_blank" rel="noreferrer"><UiMessage id="procedurecontext.open_procedure_file.41bcb5"/></a>}
   </section>;
-  if(!data)return <section lang={ui.language} className="insight-procedure-context insight-procedure-fallback" data-procedure-context-pending={(loading && (!fallbackTitle)) ? "true" : undefined}>{identity}{amendmentLink}{children}<ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>{loading&&<p role="status"><UiMessage id="batch5.procedurecontext.tsx.28.69"/></p>}{press}{!loading&&error&&<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.28.70"/></a></p>}</section>;
+  if(!data)return <section lang={ui.language} className="insight-procedure-context insight-procedure-fallback" data-procedure-context-pending={(loading && (!fallbackTitle)) ? "true" : undefined}>{identity}{amendmentLink}{children}<ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>{loading&&<p role="status"><UiMessage id="batch5.procedurecontext.tsx.28.69"/></p>}{press}{!loading&&error&&<p>{officialMissing ? <UiMessage id="procedurecontext.summary_unavailable.9f4198"/> : <a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.28.70"/></a>}</p>}</section>;
   return <section lang={ui.language} className="insight-procedure-context">{recordTopics}
     {identity}{amendmentLink}{children}
     <ProcedureProgress key={reference+':'+language} reference={reference} language={language} proposalDate={proposalDate}/>

@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Επόμενο βήμα: ψηφοφορία στην Ολομέλεια στις {date}.",
   "dossierstatus.next_signature": "Επόμενο βήμα: υπογραφή.",
   "dossierstatus.next_talks": "Επόμενο βήμα: διαπραγματεύσεις με το Συμβούλιο.",
+  "dossierstatus.not_found": "Δεν υπάρχει καταχώριση για αυτή τη διαδικασία.",
   "dossierstatus.partial": "μερικό",
   "dossierstatus.position": "Το Κοινοβούλιο υιοθέτησε τη θέση του σε πρώτη ανάγνωση στις {date}: {tally}.",
   "dossierstatus.position_no_tally": "Το Κοινοβούλιο υιοθέτησε τη θέση του σε πρώτη ανάγνωση στις {date}.",

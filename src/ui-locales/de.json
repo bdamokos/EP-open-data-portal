@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Nächster Schritt: Abstimmung im Plenum am {date}.",
   "dossierstatus.next_signature": "Nächster Schritt: Unterzeichnung.",
   "dossierstatus.next_talks": "Nächster Schritt: Verhandlungen mit dem Rat.",
+  "dossierstatus.not_found": "Zu diesem Verfahren liegt kein Eintrag vor.",
   "dossierstatus.partial": "teilweise",
   "dossierstatus.position": "Das Parlament hat am {date} seinen Standpunkt in erster Lesung angenommen: {tally}.",
   "dossierstatus.position_no_tally": "Das Parlament hat am {date} seinen Standpunkt in erster Lesung angenommen.",

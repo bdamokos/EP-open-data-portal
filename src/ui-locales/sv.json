@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Nästa steg: omröstning i plenum den {date}.",
   "dossierstatus.next_signature": "Nästa steg: undertecknande.",
   "dossierstatus.next_talks": "Nästa steg: förhandlingar med rådet.",
+  "dossierstatus.not_found": "Det finns ingen uppgift om detta förfarande.",
   "dossierstatus.partial": "delvis",
   "dossierstatus.position": "Parlamentet antog sin ståndpunkt vid första behandlingen den {date}: {tally}.",
   "dossierstatus.position_no_tally": "Parlamentet antog sin ståndpunkt vid första behandlingen den {date}.",

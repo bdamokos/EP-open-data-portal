@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Næste trin: afstemning i plenarmødet den {date}.",
   "dossierstatus.next_signature": "Næste trin: underskrift.",
   "dossierstatus.next_talks": "Næste trin: forhandlinger med Rådet.",
+  "dossierstatus.not_found": "Ingen registrering af denne procedure.",
   "dossierstatus.partial": "delvis",
   "dossierstatus.position": "Parlamentet vedtog sin førstebehandlingsholdning den {date}: {tally}.",
   "dossierstatus.position_no_tally": "Parlamentet vedtog sin førstebehandlingsholdning den {date}.",

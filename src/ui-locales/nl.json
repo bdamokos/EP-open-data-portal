@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Volgende stap: stemming in de plenaire vergadering op {date}.",
   "dossierstatus.next_signature": "Volgende stap: ondertekening.",
   "dossierstatus.next_talks": "Volgende stap: onderhandelingen met de Raad.",
+  "dossierstatus.not_found": "Geen gegevens over deze procedure.",
   "dossierstatus.partial": "gedeeltelijk",
   "dossierstatus.position": "Het Parlement nam op {date} zijn standpunt in eerste lezing aan: {tally}.",
   "dossierstatus.position_no_tally": "Het Parlement nam op {date} zijn standpunt in eerste lezing aan.",

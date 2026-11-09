@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Il-pass li jmiss: vot fil-plenarja ({date}).",
   "dossierstatus.next_signature": "Il-pass li jmiss: iffirmar.",
   "dossierstatus.next_talks": "Il-pass li jmiss: negozjati mal-Kunsill.",
+  "dossierstatus.not_found": "M’hemm l-ebda rekord ta’ din il-proċedura.",
   "dossierstatus.partial": "parzjali",
   "dossierstatus.position": "Il-Parlament adotta l-pożizzjoni tiegħu fl-ewwel qari ({date}): {tally}.",
   "dossierstatus.position_no_tally": "Il-Parlament adotta l-pożizzjoni tiegħu fl-ewwel qari ({date}).",

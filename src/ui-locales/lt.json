@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Kitas veiksmas: balsavimas plenariniame posėdyje {date}.",
   "dossierstatus.next_signature": "Kitas veiksmas: pasirašymas.",
   "dossierstatus.next_talks": "Kitas veiksmas: derybos su Taryba.",
+  "dossierstatus.not_found": "Apie šią procedūrą įrašų nėra.",
   "dossierstatus.partial": "iš dalies",
   "dossierstatus.position": "Parlamentas priėmė savo poziciją pirmojo svarstymo metu {date}: {tally}.",
   "dossierstatus.position_no_tally": "Parlamentas priėmė savo poziciją pirmojo svarstymo metu {date}.",

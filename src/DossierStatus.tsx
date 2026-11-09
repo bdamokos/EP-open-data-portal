@@ -1,4 +1,4 @@
-import type {ReactNode} from 'react';
+import {useLayoutEffect,type ReactNode} from 'react';
 import {UiMessage,useUiI18n} from './UiI18nReact';
 import {useInsightData} from './InsightData';
 import {humanDate} from './InsightCharts';
@@ -32,10 +32,15 @@ function VotingListLine({counts}:{counts:DossierVotingList}) {
   return <p className="dossier-status-next dossier-status-voting-list"><UiMessage id={id} values={{block,individual,identical}}/></p>;
 }
 
+/** Parliament answered that it holds no procedure under this reference. */
+export const procedureNotFound=(state:{status?:number;code?:string;loading:boolean})=>!state.loading&&state.status===404&&state.code==='procedure_not_found';
+
 /** The first answer on a dossier: where the file stands and what comes next.
  * The strip's rows exist from the first render, so later reads only fill them in.
+ * A reference neither Parliament nor the Legislative Observatory holds gets one
+ * line and no strip; `officialMissing` says the Observatory has no file for it.
  */
-export function DossierStatus({reference,language,summaries,votingList=false}:{reference:string;language:string;summaries?:ProcedureSummary[];votingList?:boolean}) {
+export function DossierStatus({reference,language,summaries,votingList=false,officialMissing=false,onMissing}:{reference:string;language:string;summaries?:ProcedureSummary[];votingList?:boolean;officialMissing?:boolean;onMissing?:(missing:boolean)=>void}) {
   const ui = useUiI18n();
   const state=useInsightData<DossierStatusResponse>('insights/dossier-status?'+new URLSearchParams({reference,lang:language}));
   const progress=useProcedureProgress(reference,language);
@@ -48,12 +53,18 @@ export function DossierStatus({reference,language,summaries,votingList=false}:{r
   const known=Boolean(status||cellarEvents.length);
   const settled=!state.loading&&!progress.loading;
   const failed=settled&&(!sentence||!known);
+  const missing=procedureNotFound(state);
+  // Before paint, so a missing file never flashes the full page first.
+  useLayoutEffect(()=>{onMissing?.(missing);},[missing,onMissing]);
+  if(missing&&officialMissing&&!cellarEvents.length)return <section className="dossier-status" lang={ui.language} aria-label={ui.t('dossierstatus.heading')}>
+    <div className="dossier-status-lines"><p className="dossier-status-sentence"><UiMessage id="dossierstatus.not_found"/></p></div>
+  </section>;
   return <section className="dossier-status" lang={ui.language} aria-label={ui.t('dossierstatus.heading')}>
     <div className="dossier-status-lines">
       {known&&sentence ? <>
         <p className="dossier-status-sentence"><Line line={sentence} language={language}/></p>
         {next&&<p className="dossier-status-next"><Line line={next} language={language}/></p>}
-      </> : failed&&<p className="dossier-status-sentence"><UiMessage id="dossierstatus.unavailable"/> <a href={fileUrl(reference)} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.28.70"/></a></p>}
+      </> : failed&&<p className="dossier-status-sentence"><UiMessage id="dossierstatus.unavailable"/>{!officialMissing&&<> <a href={fileUrl(reference)} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.28.70"/></a></>}</p>}
       {votingList&&status?.slots?.votingList&&<VotingListLine counts={status.slots.votingList}/>}
     </div>
     {steps.length>0&&<ol className="dossier-steps" aria-label={ui.t('dossierstatus.steps')} style={{'--dossier-step-count':steps.length} as React.CSSProperties}>{steps.map(step=><li key={step.key} data-state={step.state} aria-current={(step.state==='current') ? 'step' : undefined}>

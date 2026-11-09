@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Nākamais solis: balsojums plenārsēdē ({date}).",
   "dossierstatus.next_signature": "Nākamais solis: parakstīšana.",
   "dossierstatus.next_talks": "Nākamais solis: sarunas ar Padomi.",
+  "dossierstatus.not_found": "Par šo procedūru ieraksta nav.",
   "dossierstatus.partial": "daļēji",
   "dossierstatus.position": "Parlaments pieņēma savu nostāju pirmajā lasījumā ({date}): {tally}.",
   "dossierstatus.position_no_tally": "Parlaments pieņēma savu nostāju pirmajā lasījumā ({date}).",

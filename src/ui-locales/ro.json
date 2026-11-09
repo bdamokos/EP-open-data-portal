@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Pasul următor: votul în plen la {date}.",
   "dossierstatus.next_signature": "Pasul următor: semnarea.",
   "dossierstatus.next_talks": "Pasul următor: negocieri cu Consiliul.",
+  "dossierstatus.not_found": "Nu există nicio înregistrare a acestei proceduri.",
   "dossierstatus.partial": "parțial",
   "dossierstatus.position": "Parlamentul și-a adoptat poziția în primă lectură la {date}: {tally}.",
   "dossierstatus.position_no_tally": "Parlamentul și-a adoptat poziția în primă lectură la {date}.",

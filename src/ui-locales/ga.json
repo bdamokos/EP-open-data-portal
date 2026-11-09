@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "An chéad chéim eile: vóta iomlánach ar {date}.",
   "dossierstatus.next_signature": "An chéad chéim eile: síniú.",
   "dossierstatus.next_talks": "An chéad chéim eile: caibidlíocht leis an gComhairle.",
+  "dossierstatus.not_found": "Níl aon taifead den nós imeachta seo.",
   "dossierstatus.partial": "páirteach",
   "dossierstatus.position": "Ghlac an Pharlaimint a seasamh sa chéad léamh ar {date}: {tally}.",
   "dossierstatus.position_no_tally": "Ghlac an Pharlaimint a seasamh sa chéad léamh ar {date}.",

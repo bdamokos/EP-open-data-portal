@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Prochaine étape : vote en plénière le {date}.",
   "dossierstatus.next_signature": "Prochaine étape : signature.",
   "dossierstatus.next_talks": "Prochaine étape : négociations avec le Conseil.",
+  "dossierstatus.not_found": "Aucun enregistrement pour cette procédure.",
   "dossierstatus.partial": "partiel",
   "dossierstatus.position": "Le Parlement a adopté sa position en première lecture le {date} : {tally}.",
   "dossierstatus.position_no_tally": "Le Parlement a adopté sa position en première lecture le {date}.",

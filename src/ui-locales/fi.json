@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Seuraava vaihe: täysistunnon äänestys {date}.",
   "dossierstatus.next_signature": "Seuraava vaihe: allekirjoitus.",
   "dossierstatus.next_talks": "Seuraava vaihe: neuvottelut neuvoston kanssa.",
+  "dossierstatus.not_found": "Tästä menettelystä ei ole merkintää.",
   "dossierstatus.partial": "osittain",
   "dossierstatus.position": "Parlamentti hyväksyi ensimmäisen käsittelyn kantansa {date}: {tally}.",
   "dossierstatus.position_no_tally": "Parlamentti hyväksyi ensimmäisen käsittelyn kantansa {date}.",

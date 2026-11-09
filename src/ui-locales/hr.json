@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Sljedeći korak: glasovanje na plenarnoj sjednici ({date}).",
   "dossierstatus.next_signature": "Sljedeći korak: potpisivanje.",
   "dossierstatus.next_talks": "Sljedeći korak: pregovori s Vijećem.",
+  "dossierstatus.not_found": "Nema zapisa o ovom postupku.",
   "dossierstatus.partial": "djelomično",
   "dossierstatus.position": "Dana {date} Parlament je usvojio svoje stajalište u prvom čitanju: {tally}.",
   "dossierstatus.position_no_tally": "Dana {date} Parlament je usvojio svoje stajalište u prvom čitanju.",

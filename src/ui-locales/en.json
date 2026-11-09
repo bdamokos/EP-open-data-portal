@@ -909,6 +909,7 @@
   "dossierstatus.next_plenary_vote_on": "Next step: plenary vote on {date}.",
   "dossierstatus.next_signature": "Next step: signature.",
   "dossierstatus.next_talks": "Next step: talks with the Council.",
+  "dossierstatus.not_found": "No record of this procedure.",
   "dossierstatus.partial": "partial",
   "dossierstatus.position": "Parliament adopted its first-reading position on {date}: {tally}.",
   "dossierstatus.position_no_tally": "Parliament adopted its first-reading position on {date}.",

@@ -29,7 +29,7 @@ const stage=value=>{const values=[...new Set(refs(value).map(tail))];return valu
 const unique=items=>[...new Map(items.map(item=>[item.id,item])).values()];
 const eventRef=value=>{const id=tail(value);return /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id)?'eli/dl/event/'+id:canonical(value);};
 const uniqueSources=sources=>[...new Map(sources.map(s=>[JSON.stringify([s.url,s.fetchedAt,s.contentHash||null]),s])).values()];
-const errorGap=error=>({code:error?.code||'source_unavailable',message:'Source unavailable.'});
+const errorGap=error=>({code:error?.code||'source_unavailable',message:error?.code==='procedure_not_found'?'No record.':'Source unavailable.'});
 
 export function dossierActivityQuery(search) {
   const allowed=['reference','member','section','lang','offset','target-offset','limit','stage','committee','participant-offset'];
@@ -85,7 +85,15 @@ export class DossierActivity {
     this.store=store;this.reader=reader||new LegislationInsights(store,options);this.votes=votes;this.readAmendments=readAmendments;
   }
   async procedure(id,language,reference=null) {
-    return this.identified(await this.reader.record('/procedures/'+id),id,language,reference);
+    let record;
+    try{record=await this.reader.record('/procedures/'+id);}
+    catch(error){
+      // Parliament answers 404 for a reference it has no procedure for. That is
+      // a missing record, not a gateway failure, and no retry will change it.
+      if(error?.code==='odp_unavailable'&&error.upstreamStatus===404)throw Object.assign(new HttpError(404,'procedure_not_found','Parliament has no record of this procedure.'),{upstreamStatus:404,source:error.source});
+      throw error;
+    }
+    return this.identified(record,id,language,reference);
   }
   // The saved procedure only: a missing one is not read from Parliament.
   heldProcedure(id,language) {

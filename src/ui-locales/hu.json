@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Következő lépés: plenáris szavazás ({date}).",
   "dossierstatus.next_signature": "Következő lépés: aláírás.",
   "dossierstatus.next_talks": "Következő lépés: tárgyalások a Tanáccsal.",
+  "dossierstatus.not_found": "Erről az eljárásról nincs adat.",
   "dossierstatus.partial": "részleges",
   "dossierstatus.position": "A Parlament elfogadta első olvasatban kialakított álláspontját ({date}): {tally}.",
   "dossierstatus.position_no_tally": "A Parlament elfogadta első olvasatban kialakított álláspontját ({date}).",

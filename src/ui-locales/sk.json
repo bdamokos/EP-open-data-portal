@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Ďalší krok: hlasovanie v pléne dňa {date}.",
   "dossierstatus.next_signature": "Ďalší krok: podpis.",
   "dossierstatus.next_talks": "Ďalší krok: rokovania s Radou.",
+  "dossierstatus.not_found": "O tomto postupe neexistuje žiadny záznam.",
   "dossierstatus.partial": "čiastočne",
   "dossierstatus.position": "Parlament prijal svoju pozíciu v prvom čítaní dňa {date}: {tally}.",
   "dossierstatus.position_no_tally": "Parlament prijal svoju pozíciu v prvom čítaní dňa {date}.",

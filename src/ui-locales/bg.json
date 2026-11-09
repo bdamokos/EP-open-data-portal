@@ -2388,6 +2388,7 @@
   "dossierstatus.next_plenary_vote_on": "Следваща стъпка: на {date} – гласуване в пленарна зала.",
   "dossierstatus.next_signature": "Следваща стъпка: подписване.",
   "dossierstatus.next_talks": "Следваща стъпка: преговори със Съвета.",
+  "dossierstatus.not_found": "Няма запис за тази процедура.",
   "dossierstatus.partial": "частично",
   "dossierstatus.position": "На {date} Парламентът прие позицията си на първо четене: {tally}.",
   "dossierstatus.position_no_tally": "На {date} Парламентът прие позицията си на първо четене.",
