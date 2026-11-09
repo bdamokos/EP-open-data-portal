@@ -76,6 +76,10 @@ test('a day the complete calendar lists no sitting stays valid until just after 
     assert.equal(value.nextCheckAt,new Date(at+30_000).toISOString(),label);assert.equal(value.validUntil,new Date(at+75_000).toISOString(),label);
     assert.deepEqual(plenaryLiveCachePolicy(value,at),{cacheControl:'no-store',cdnCacheControl:'no-store'},label);
   }
+  const noFeed=await new PlenaryLive({clock:()=>at,read:async url=>{if(url.includes('getSpeaker'))throw new Error('no feed without a sitting');return offAir;},readAgenda:async()=>{throw new Error('no agenda');},sittingDates:()=>new Set()}).snapshot();
+  assert.equal(noFeed.nextCheckAt,quiet.nextCheckAt,'the debate feed has no answer on days without a sitting');
+  const sittingWithoutFeed=await new PlenaryLive({clock:()=>now,read:async url=>{if(url.includes('getSpeaker'))throw new Error('feed down');return programme;},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set()}).snapshot();
+  assert.equal(sittingWithoutFeed.status,'live');assert.deepEqual(plenaryLiveCachePolicy(sittingWithoutFeed,now).cdnCacheControl,'no-store','a broadcast sitting is never quiet, even without the feed');
   const outage=await new PlenaryLive({clock:()=>at,read:async()=>{throw new Error('timeout');},readAgenda:async()=>{throw new Error('no agenda');},sittingDates:()=>new Set()}).snapshot();
   assert.equal(outage.status,'unavailable');assert.equal(outage.nextCheckAt,new Date(at+30_000).toISOString(),'A failed source read is not kept until midnight');
   assert.deepEqual(plenaryLiveCachePolicy({...outage,nextCheckAt:quiet.nextCheckAt},at).cdnCacheControl,'no-store');

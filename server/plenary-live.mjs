@@ -142,7 +142,9 @@ export class PlenaryLive {
     const current=currentDebate(saved.feed,day,this.clock()),broadcast=liveBroadcast(saved.programme,day,this.clock());
     let sittings=null;try{sittings=this.sittingDates(Number(day.slice(0,4)));}catch{/* No calendar: check as on a sitting day. */}
     // Only an observed off-air programme is quiet: a live broadcast or debate
-    // outweighs the calendar, and a failed source read is never kept.
+    // outweighs the calendar, and a failed programme read is never kept. The
+    // debate feed has no answer on days without a sitting, so its gap does not
+    // count; a sitting in progress still shows as an EbS+ plenary broadcast.
     const quiet=Boolean(saved.programme)&&!broadcast&&!current&&sittings?.has(day)===false;
     const nextCheck=quiet?nextBrusselsMidnight(day)+60_000:saved.at+CHECK_MS;
     return {status:broadcast?'live':saved.programme?'off-air':'unavailable',checkedAt:stamp(saved.at),validUntil:stamp(quiet?nextCheck:saved.at+75_000),nextCheckAt:stamp(nextCheck),current,broadcast,agenda:scheduledAgenda(saved.rows,day,this.clock()),sources:saved.sources};
