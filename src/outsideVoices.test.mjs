@@ -36,7 +36,7 @@ function speaker(id,name,rows,classifications={}) {
   return {person,contributions,agendas,coSpeakers:[],coverage};
 }
 
-async function harness(t,details,query='?view=outside',sourceData=null,readSpeech=null) {
+async function harness(t,details,query='?view=outside',sourceData=null,readSpeech=null,directoryCoverage=coverage) {
   const window=new Window({url:'http://localhost/'+query});
   class ReaderDOMParser extends window.DOMParser {
     parseFromString(...args) {
@@ -67,7 +67,7 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
       return Response.json({id,speakers:[],xml:'<speech><p>Transcript for '+id+'</p></speech>',textLanguage:url.searchParams.get('lang'),availableTextLanguages:['en'],translationType:'original'});
     }
     if(url.pathname==='/api/source-record'&&sourceData)return Response.json(sourceData);
-    if(url.pathname==='/api/outside/directory')return Response.json({term:url.searchParams.get('term'),people:details.map(d=>d.person),coverage});
+    if(url.pathname==='/api/outside/directory')return Response.json({term:url.searchParams.get('term'),people:details.map(d=>d.person),coverage:directoryCoverage});
     const detail=details.find(d=>url.pathname==='/api/outside/'+d.person.id);
     if(detail)return Response.json(detail);
     throw new Error('Unexpected request: '+url);
@@ -198,7 +198,8 @@ test('clustered days only show legends for the resulting marker symbols',async t
   const detail=speaker('42','Mixed guest',[
     speech('2026-10-07','01',[debateId]),speech('2026-10-08','02',[specialId]),
   ],{[specialId]:{kind:'PLENARY_ACTIVITY'}});
-  const {container,change}=await harness(t,[detail]);
+  // Without a window the timeline ends today, which moves the marker bins with the date.
+  const {container,change}=await harness(t,[detail],'?view=outside',null,null,{...coverage,window:{start:'2024-07-16',end:'2026-10-31'}});
   assert.equal(container.querySelectorAll('.ov-mark').length,1);
   assert(container.querySelector('.ov-mark.ov-special'));
   assert.equal(container.querySelector('.ov-legend').textContent,'◇ Special event');
