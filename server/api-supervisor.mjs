@@ -156,7 +156,11 @@ export class ApiSupervisor extends EventEmitter {
     const child=this.child;
     if(!child)return;
     const exited=new Promise(resolve=>child.once('exit',resolve));
-    if(this.state==='starting'){clearTimeout(this.startTimer);this.state='stopping';child.kill('SIGTERM');}
+    if(this.state==='starting'){
+      clearTimeout(this.startTimer);this.state='stopping';child.kill('SIGTERM');
+      // A process wedged during start may never handle SIGTERM.
+      this.killTimer=setTimeout(()=>child.kill('SIGKILL'),this.stopGraceMs);this.killTimer.unref();
+    }
     else if(this.state!=='stopping')this.#stop();
     await exited;
   }

@@ -105,6 +105,8 @@ export function createFront({supervisor,agent=createProxyAgent(),snapshots=null,
           try {lease=await supervisor.acquire({budgetMs:Math.max(1,started+budgetMs-performance.now()),signal:controller.signal});}
           catch(error){
             if(response.destroyed||controller.signal.reason?.code==='request_cancelled')return;
+            // As in single mode, a request that ran out of time is logged.
+            if(error?.code==='request_timeout')errorLog.write(serverErrorEvent(request,error,{requestId,elapsedMs:Math.round(performance.now()-started)}));
             response.setHeader('X-Request-Id',requestId);
             sendError(request,response,error);
             return;

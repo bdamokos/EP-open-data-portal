@@ -443,15 +443,25 @@ test('without a cache directory parsing still works and a repeated oversize resu
   assert.deepEqual(await instance.amendments(listBuffer,listOptions('2026-11-08T10:00:00.000Z')),extractAmendments(listBuffer,listOptions('2026-11-08T10:00:00.000Z')));
 });
 
-test('a busy parse thread is not remembered as a failure of the document',async t=>{
+test('a busy parse thread holds back a document only briefly, a timed-out parse for the parser\'s memory',async t=>{
   serve(t,()=>reportBuffer);
-  const url=reportUrl.replaceAll('9999','9998');
-  const work={identifier:'A-10-2026-9998',document_date:'2026-01-01',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
-  let calls=0;
-  const download=(source,options)=>{calls++;if(calls===1)throw Object.assign(new Error('Document parsing is busy.'),{code:'document_parse_busy'});return downloadDocx(source,options);};
-  const first=await documentText(work,'en',{directory:null,enqueue:false,download});
-  assert.equal(first.status,'error');
-  const second=await documentText(work,'en',{directory:null,enqueue:false,download});
-  assert.equal(second.status,'available','the next reader tries again at once');
-  assert.equal(calls,2);
+  const work=id=>({identifier:id,document_date:'2026-01-01',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:reportUrl.replaceAll('A-10-2026-9999',id)}]}]});
+  const clock=()=>clock.now;clock.now=Date.parse('2026-11-09T12:00:00Z');
+  const failing=code=>{let calls=0;const download=(source,options)=>{calls++;if(calls===1)throw Object.assign(new Error('Document parsing failed.'),{code});return downloadDocx(source,options);};download.calls=()=>calls;return download;};
+  const busy=failing('document_parse_busy'),busyWork=work('A-10-2026-9998');
+  assert.equal((await documentText(busyWork,'en',{directory:null,enqueue:false,clock,download:busy})).status,'error');
+  const held=await documentText(busyWork,'en',{directory:null,enqueue:false,clock,download:busy});
+  assert.equal(held.status,'error');assert.equal(busy.calls(),1,'no download per reader while the thread is saturated');
+  assert.equal(held.nextRetryAt,new Date(clock.now+2_000).toISOString());
+  clock.now+=2_001;
+  assert.equal((await documentText(busyWork,'en',{directory:null,enqueue:false,clock,download:busy})).status,'available','two seconds later the next reader tries again');
+  assert.equal(busy.calls(),2);
+  const slow=failing('document_parse_timeout'),slowWork=work('A-10-2026-9997');
+  await documentText(slowWork,'en',{directory:null,enqueue:false,clock,download:slow});
+  assert.equal((await documentText(slowWork,'en',{directory:null,enqueue:false,clock,download:slow})).nextRetryAt,new Date(clock.now+10*60_000).toISOString(),'the parser remembers a timeout for ten minutes');
+  assert.equal(slow.calls(),1);
+  // A parser module that failed to load is a capacity failure too.
+  const missing=failing('document_parse_unavailable'),missingWork=work('A-10-2026-9996');
+  await documentText(missingWork,'en',{directory:null,enqueue:false,clock,download:missing});
+  assert.equal((await documentText(missingWork,'en',{directory:null,enqueue:false,clock,download:missing})).nextRetryAt,new Date(clock.now+2_000).toISOString());
 });

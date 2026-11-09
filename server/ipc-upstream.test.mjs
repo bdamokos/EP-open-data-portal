@@ -115,3 +115,13 @@ test('a reader joining a background fetch over the link stops at a pause or afte
   controller.abort(new Error('gone'));await assert.rejects(cancelled,/gone/);
   assert.equal(writer.client.queue('odp').joinBackground(never),never);
 });
+
+test('a join for an unknown source is refused over the link instead of throwing in the front',async t=>{
+  const queue=new UpstreamQueue({maximum:5}),observations=new OdpObservations({onResponse:()=>{},log:()=>{}});
+  const services={queueFor:source=>{if(source!=='odp')throw new Error('Unknown upstream source.');return queue;},observations};
+  const [front,child]=memoryLink();
+  const close=serveUpstreamPort(ipcPort(front,'upstream'),services,{foreground:true});
+  const client=new UpstreamRpcClient(ipcPort(child,'upstream'),{defaultPriority:'interactive'});
+  t.after(()=>{client.close();close();});
+  await assert.rejects(client.joinBackground('elsewhere',new Promise(()=>{})),/Unknown upstream source/);
+});

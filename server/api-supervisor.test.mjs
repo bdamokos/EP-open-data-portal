@@ -206,3 +206,29 @@ test('a process that fails to start backs off and the next request starts anothe
   api.spawned[0].ready();(await next).release();
   assert.equal(attempts,2);
 });
+
+test('closing while a wedged process starts kills it after the grace period',async()=>{
+  const signals=[];
+  const {instance}=supervisor({stopGraceMs:30,spawn:()=>{
+    const [child]=memoryLink();child.pid=4242;
+    child.kill=signal=>{signals.push(signal);if(signal==='SIGKILL')queueMicrotask(()=>child.emit('exit',null,signal));return true;};
+    return child;
+  }});
+  instance.wake();
+  await instance.close();
+  assert.deepEqual(signals,['SIGTERM','SIGKILL']);
+  assert.equal(instance.snapshot().crashes,0);
+});
+
+test('a starting process that stops on SIGTERM is not killed afterwards',async()=>{
+  const signals=[];
+  const {instance}=supervisor({stopGraceMs:30,spawn:()=>{
+    const [child]=memoryLink();child.pid=4243;
+    child.kill=signal=>{signals.push(signal);queueMicrotask(()=>child.emit('exit',null,signal));return true;};
+    return child;
+  }});
+  instance.wake();
+  await instance.close();
+  await delay(60);
+  assert.deepEqual(signals,['SIGTERM'],'the grace timer is cleared by the exit');
+});
