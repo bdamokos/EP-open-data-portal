@@ -81,7 +81,11 @@ export class ApiSupervisor extends EventEmitter {
       else this.emit('message',message);
     });
     child.once('exit',(code,signal)=>this.#exited(child,code,signal));
-    child.once('error',error=>this.log('[api-supervisor]',error.message));
+    child.on('error',error=>{
+      this.log('[api-supervisor]',error.message);
+      // A process that never started (no memory, no process slots) emits no 'exit'.
+      if(child.pid===undefined)this.#exited(child,null,error.code||'spawn-error');
+    });
     this.startTimer=setTimeout(()=>{
       this.log('[api-supervisor]','API process did not start in time; stopping it.');
       child.kill('SIGKILL');

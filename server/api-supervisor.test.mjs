@@ -188,3 +188,21 @@ test('closing while the process starts is not counted as a crash',async()=>{
   assert.equal(instance.snapshot().crashes,0);
   assert.equal(instance.snapshot().failures,0);
 });
+
+test('a process that fails to start backs off and the next request starts another',async t=>{
+  let attempts=0;
+  const {api,instance}=supervisor({backoffBaseMs:20,spawn:()=>{
+    attempts++;
+    if(attempts>1)return api.spawn();
+    const [child]=memoryLink();child.kill=()=>false;
+    queueMicrotask(()=>child.emit('error',Object.assign(new Error('spawn ENOMEM'),{code:'ENOMEM'})));
+    return child;
+  }});
+  t.after(()=>instance.close());
+  await assert.rejects(instance.acquire({budgetMs:300}),error=>error.status===503&&error.code==='api_unavailable');
+  assert.equal(instance.state,'idle');assert.equal(instance.snapshot().crashes,1);
+  await delay(30);
+  const next=instance.acquire();await delay(5);
+  api.spawned[0].ready();(await next).release();
+  assert.equal(attempts,2);
+});
