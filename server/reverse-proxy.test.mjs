@@ -188,3 +188,25 @@ test('a deadline answers a request still waiting for the upstream, and leaves a 
   assert.equal(started.response.statusCode,200);assert.equal(started.body,'part rest');
   assert.deepEqual(results,[true,false]);
 });
+
+test('a deadline on a pooled connection ends the exchange without a second upstream request',loopback,async t=>{
+  const {requestTimeout}=await import('./request-budget.mjs');
+  const hits={slow:0};
+  const upstream=await listen((request,response)=>{
+    if(request.url==='/slow'){hits.slow++;return;}// never answers
+    response.end('ok');
+  });
+  const agent=createProxyAgent({maxSockets:1}),results=[];
+  const front=await listen(async(request,response)=>{
+    const controller=new AbortController();setTimeout(()=>controller.abort(requestTimeout()),40);
+    results.push(await proxyRequest(request,response,{port:upstream.address().port,agent,requestId:'front-id',signal:controller.signal}));
+  });
+  t.after(()=>{agent.destroy();front.closeAllConnections();upstream.closeAllConnections();front.close();upstream.close();});
+  // The first exchange leaves a pooled socket; the slow one reuses it.
+  assert.equal((await call(front.address().port,{path:'/warm'})).body,'ok');
+  const slow=await call(front.address().port,{path:'/slow'});
+  assert.equal(slow.response.statusCode,503);assert.equal(JSON.parse(slow.body).error.code,'request_timeout');
+  await delay(100);
+  assert.equal(hits.slow,1,'the destroyed request is not retried');
+  assert.deepEqual(results,[false,true]);
+});

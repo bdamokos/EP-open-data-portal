@@ -63,6 +63,8 @@ export function proxyRequest(request,response,{port,agent,host='127.0.0.1',reque
       upstream=http.request({host,port,agent,method:request.method,path:request.url,headers:requestHeaders(request.headers)});
       const attempt=upstream;
       attempt.once('response',value=>{
+        // Over already (deadline or a client that left): nothing may reach the client now.
+        if(done){value.resume();return;}
         reply=value;
         response.writeHead(reply.statusCode,reply.statusMessage,responseHeaders(reply.rawHeaders));
         reply.once('error',()=>{response.destroy();finish();});
@@ -73,7 +75,8 @@ export function proxyRequest(request,response,{port,agent,host='127.0.0.1',reque
         reply.once('end',finish);
       });
       attempt.once('error',error=>{
-        if(attempt!==upstream||reply&&reply.complete)return;
+        // A request this proxy destroyed itself (deadline, client gone) is not retried.
+        if(done||attempt!==upstream||reply&&reply.complete)return;
         // A pooled socket the API process closed a moment ago fails before any response byte.
         if(!retried&&!reply&&attempt.reusedSocket&&['GET','HEAD'].includes(request.method)&&bodyless&&['ECONNRESET','EPIPE'].includes(error.code)){retried=true;send().end();return;}
         unavailable();
