@@ -30,7 +30,7 @@ const nextBrusselsMidnight=day=>brusselsMidnight(new Date(Date.parse(day+'T12:00
 // that long, and clients wait for nextCheckAt. Sitting days are never cached.
 export function plenaryLiveCachePolicy(value,now=Date.now()) {
   const seconds=Math.floor((Date.parse(value?.nextCheckAt)-now)/1000);
-  if(value?.status==='live'||value?.current||!(seconds>=120))return {cacheControl:'no-store',cdnCacheControl:'no-store'};
+  if(value?.status!=='off-air'||value.current||!(seconds>=120))return {cacheControl:'no-store',cdnCacheControl:'no-store'};
   return {cacheControl:'public, max-age=0',cdnCacheControl:`public, max-age=${seconds}, stale-if-error=0`};
 }
 
@@ -141,8 +141,9 @@ export class PlenaryLive {
     if(saved.day!==brusselsDay(this.clock()))return {status:'unavailable',checkedAt:stamp(now),validUntil:stamp(now),nextCheckAt:stamp(now+CHECK_MS),current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]};
     const current=currentDebate(saved.feed,day,this.clock()),broadcast=liveBroadcast(saved.programme,day,this.clock());
     let sittings=null;try{sittings=this.sittingDates(Number(day.slice(0,4)));}catch{/* No calendar: check as on a sitting day. */}
-    // A live broadcast or debate outweighs the calendar.
-    const quiet=!broadcast&&!current&&sittings?.has(day)===false;
+    // Only an observed off-air programme is quiet: a live broadcast or debate
+    // outweighs the calendar, and a failed source read is never kept.
+    const quiet=Boolean(saved.programme)&&!broadcast&&!current&&sittings?.has(day)===false;
     const nextCheck=quiet?nextBrusselsMidnight(day)+60_000:saved.at+CHECK_MS;
     return {status:broadcast?'live':saved.programme?'off-air':'unavailable',checkedAt:stamp(saved.at),validUntil:stamp(quiet?nextCheck:saved.at+75_000),nextCheckAt:stamp(nextCheck),current,broadcast,agenda:scheduledAgenda(saved.rows,day,this.clock()),sources:saved.sources};
   }

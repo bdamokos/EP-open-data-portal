@@ -76,6 +76,9 @@ test('a day the complete calendar lists no sitting stays valid until just after 
     assert.equal(value.nextCheckAt,new Date(at+30_000).toISOString(),label);assert.equal(value.validUntil,new Date(at+75_000).toISOString(),label);
     assert.deepEqual(plenaryLiveCachePolicy(value,at),{cacheControl:'no-store',cdnCacheControl:'no-store'},label);
   }
+  const outage=await new PlenaryLive({clock:()=>at,read:async()=>{throw new Error('timeout');},readAgenda:async()=>{throw new Error('no agenda');},sittingDates:()=>new Set()}).snapshot();
+  assert.equal(outage.status,'unavailable');assert.equal(outage.nextCheckAt,new Date(at+30_000).toISOString(),'A failed source read is not kept until midnight');
+  assert.deepEqual(plenaryLiveCachePolicy({...outage,nextCheckAt:quiet.nextCheckAt},at).cdnCacheControl,'no-store');
   const unexpected=await new PlenaryLive({clock:()=>now,read:async url=>url.includes('getSpeaker')?feed:programme,readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set()}).snapshot();
   assert.equal(unexpected.status,'live');assert.equal(unexpected.nextCheckAt,new Date(now+30_000).toISOString(),'A live broadcast outweighs the calendar');
   assert.deepEqual(plenaryLiveCachePolicy(unexpected,now).cdnCacheControl,'no-store');

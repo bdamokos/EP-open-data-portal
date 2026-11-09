@@ -23,7 +23,7 @@ import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {API_VERSION} from './api-version.mjs';
 import {plenaryLive,plenaryLiveCachePolicy} from './plenary-live.mjs';
-import {hemicycleResponse} from './hemicycle.mjs';
+import {hemicycleCachePolicy,hemicycleResponse} from './hemicycle.mjs';
 import {odpDirectory,odpProfileWithMemberships,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,startCorporateBodyWarmup,upstreamStatus,odpHeaderStatus,startOdpMonitoring} from './odp.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
@@ -284,9 +284,7 @@ async function handleApi(request,response,url,apiPrefix){
       requireQuery(url.searchParams,[]);
       let store=null;try{store=activityIndex().store;}catch{/* Without the index the source is read directly. */}
       result=await hemicycleResponse(segments[1],{store});
-      // Seat plans change between sessions at most; browsers revalidate with the CDN.
-      const shared=currentVersion&&!request.headers.authorization;
-      sendJson(request,response,200,result,shared?{cacheControl:'public, max-age=0',cdnCacheControl:'public, max-age=21600, stale-if-error=0'}:{});
+      sendJson(request,response,200,result,hemicycleCachePolicy({versioned:currentVersion,authorised:Boolean(request.headers.authorization)}));
       return;
     }
     else if (segments.length === 1 && segments[0] === 'voting-lists') {
