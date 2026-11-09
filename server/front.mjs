@@ -144,6 +144,8 @@ export function createFront({supervisor,agent=createProxyAgent(),snapshots=null,
 // leaves the lease to block the next writer until it expires.
 export async function stopFrontServices({supervisor,agent,snapshots,stopWriters,errorLog}) {
   const writers=stopWriters();
+  // Handled again below; this only keeps a failure from crashing the process meanwhile.
+  writers.catch(()=>{});
   await supervisor.close();agent.destroy();
   await snapshots.close();
   await writers;
