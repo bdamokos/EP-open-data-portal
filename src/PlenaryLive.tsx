@@ -48,19 +48,20 @@ export function PlenaryLiveProvider({children}:{children:ReactNode}) {
   useEffect(()=>{openedRef.current=opened;},[opened]);
   useEffect(()=>{if(!opened&&restoreFocus.current){restoreFocus.current=false;if(opener.current?.isConnected)opener.current.focus();else launcher.current?.focus();}},[opened]);
   useEffect(()=>{
-    let active=true,timer:ReturnType<typeof setTimeout>|undefined,controller:AbortController|undefined;
+    let active=true,timer:ReturnType<typeof setTimeout>|undefined,controller:AbortController|undefined,due=Infinity;
     async function refresh(){
-      clearTimeout(timer);if(!active||document.hidden&&!openedRef.current)return;
+      clearTimeout(timer);due=Infinity;if(!active||document.hidden&&!openedRef.current)return;
       controller?.abort();controller=new AbortController();
       let wait=CHECK_MS;
       try{const value=await api<LiveState>('plenary-live',controller.signal, undefined, ui);if(active){setData(value);setNow(Date.now());wait=nextLiveCheck(value);}}
       catch{/* A failed read never renews the last successful snapshot. */}
-      finally{if(active)timer=setTimeout(refresh,wait);}
+      finally{if(active){timer=setTimeout(refresh,wait);due=Date.now()+wait;}}
     }
     // An open player keeps checking in the background: audio continues there.
     const visible=()=>{if(!document.hidden)void refresh();else if(!openedRef.current){clearTimeout(timer);controller?.abort();}};
     void refresh();document.addEventListener('visibilitychange',visible);
-    const tick=setInterval(()=>setNow(Date.now()),1000);
+    // A suspended machine can hold a long timer past its time; the wall clock decides.
+    const tick=setInterval(()=>{const at=Date.now();setNow(at);if(at>due+5_000)void refresh();},1000);
     return()=>{active=false;clearTimeout(timer);clearInterval(tick);controller?.abort();document.removeEventListener('visibilitychange',visible);};
   },[]);
   const fresh=Boolean(data&&Date.parse(data.validUntil)>now&&Date.parse(data.checkedAt)<=now+60_000);

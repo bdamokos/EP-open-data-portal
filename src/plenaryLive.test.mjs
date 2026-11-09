@@ -81,3 +81,28 @@ const timers=[],originalTimeout=globalThis.setTimeout;
   assert.equal(popup.location.href,'https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN');
   assert.equal(container.querySelector('.plenary-live-player'),null,'The popup takes over playback from the inline player');
 });
+
+test('a quiet-day wait ends by the wall clock, even when a suspended machine holds the timer',async t=>{
+  const window=new Window({url:'http://localhost/?lang=en'}),initial=Date.parse('2026-10-24T18:00:00Z');let now=initial,tick,reads=0;
+  t.mock.method(Date,'now',()=>now);
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>{callback();return 0;},IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let root,loadModule;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,d] of originals)d?Object.defineProperty(globalThis,key,d):delete globalThis[key];});
+  const nextCheckAt=new Date(initial+4*3600_000).toISOString();
+  t.mock.method(globalThis,'fetch',async()=>{reads++;return Response.json({status:'off-air',checkedAt:new Date(now).toISOString(),validUntil:nextCheckAt,nextCheckAt,current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]});});
+  const originalInterval=globalThis.setInterval;
+  t.mock.method(globalThis,'setInterval',(callback,ms,...args)=>{if(ms===1000)tick=callback;return originalInterval(callback,ms,...args);});
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null,ws:false},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {PlenaryLiveProvider}=await loadModule('/src/PlenaryLive.tsx');
+  const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  await act(async()=>root.render(createElement(PlenaryLiveProvider,null,createElement('main'))));
+  assert.equal(reads,1);
+  now+=3600_000;await act(async()=>tick());
+  assert.equal(reads,1,'no read before the next check');
+  // The machine slept: the four-hour timer has not fired, but the clock has moved past it.
+  now=Date.parse(nextCheckAt)+10_000;await act(async()=>tick());
+  assert.equal(reads,2,'the next tick after the check time reads again');
+  await act(async()=>tick());assert.equal(reads,2,'one read, not one per tick');
+});

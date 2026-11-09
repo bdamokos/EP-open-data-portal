@@ -64,10 +64,12 @@ function publicPolicy(seconds, browserSeconds = 0, {revalidate = 0, ifError = 0}
   };
 }
 const settled = {revalidate: HOUR, ifError: 7 * DAY};
-// Records whose content does not depend on today's date. Views that mark
-// sittings upcoming, current or held, or pick the latest period, are not here.
-// Amendment pages add today's scheduled votes, and corpus search reports coverage up to today.
-const staleSafe = new Set(['references', 'source-record', 'amendment-neighbours', 'speech', 'speech-context', 'speech-media', 'document', 'motion-comparison', 'corpus/text']);
+// Single records whose content does not depend on today's date or a running
+// sitting. Not here: views that mark sittings upcoming, current or held or pick
+// the latest period; amendment pages and neighbours (today's votes and
+// outcomes); speech context (a debate still in progress); source records
+// (collections and current rosters); references (unresolved until published).
+const staleSafe = new Set(['speech', 'speech-media', 'document', 'motion-comparison', 'corpus/text']);
 const established = {revalidate: DAY, ifError: 7 * DAY};
 
 export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
