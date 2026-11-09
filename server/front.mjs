@@ -139,6 +139,17 @@ export function createFront({supervisor,agent=createProxyAgent(),snapshots=null,
   return {server,handler,agent};
 }
 
+// The writer drains at once, alongside the API process: it holds the database
+// lease, and a container stop that kills the front before the writer has exited
+// leaves the lease to block the next writer until it expires.
+export async function stopFrontServices({supervisor,agent,snapshots,stopWriters,errorLog}) {
+  const writers=stopWriters();
+  await supervisor.close();agent.destroy();
+  await snapshots.close();
+  await writers;
+  await errorLog.flush();
+}
+
 // Prepares the SQLite indexes in a short-lived process, so the schema code
 // never loads here and its memory returns to the system when it exits.
 function prepareIndexes() {
@@ -172,12 +183,7 @@ export function startFront() {
     stopMonitoring();
     server.close(()=>clearTimeout(force));
     server.closeIdleConnections();
-    void (async()=>{
-      await supervisor.close();agent.destroy();
-      await snapshots.close();
-      await stopWriters();
-      await errorLog.flush();
-    })().catch(error=>console.error('[shutdown]',error.message));
+    void stopFrontServices({supervisor,agent,snapshots,stopWriters,errorLog}).catch(error=>console.error('[shutdown]',error.message));
   };
   process.on('SIGINT',()=>shutDown('SIGINT'));
   process.on('SIGTERM',()=>shutDown('SIGTERM'));
