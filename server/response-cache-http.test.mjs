@@ -130,7 +130,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   assert.equal(portrait.status, 200);
   assert.equal(portrait.headers.get('cache-control'), 'public, max-age=86400');
   assert.equal(portrait.headers.get('vary'), 'Origin');
-  assert.match(portrait.headers.get('cdn-cache-control'), /^public, max-age=604\d{3}, stale-if-error=0$/);
+  assert.match(portrait.headers.get('cdn-cache-control'), /^public, max-age=604\d{3}, stale-while-revalidate=86400, stale-if-error=604800$/);
   assert.deepEqual(Buffer.from(await portrait.arrayBuffer()), originalPortrait);
   const sameImage = await get('/api/portrait/43', {headers: {'If-None-Match': portrait.headers.get('etag')}});
   assert.equal(sameImage.status, 304);

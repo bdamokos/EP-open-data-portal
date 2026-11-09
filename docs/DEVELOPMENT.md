@@ -66,14 +66,15 @@ Older speech months are re-checked less often: metadata every 30 days at 4–12 
 The server sends separate `Cache-Control` and `CDN-Cache-Control` headers. A gateway or CDN in front of it must:
 
 - overwrite forwarded headers before `TRUST_PROXY=true` is enabled;
-- keep the full query string and `Origin` in the cache key, and respect origin `no-store`;
+- keep the full query string in the cache key, and respect origin `no-store`. `Origin` need not be in the key: every read carries the same `Access-Control-Allow-Origin`, and rejected requests are `no-store`;
+- forward `stale-while-revalidate` and `stale-if-error` in `CDN-Cache-Control` (up to a week). Cloudflare ignores both while Always Online is on;
 - treat JSON and the extensionless portrait route as cacheable;
-- require the `v` parameter on API GETs. The frontend sends `v=<API_VERSION>` (portraits use `PORTRAIT_VERSION`). Without `v` responses are CDN `no-store`; a different version returns HTTP 409 `api_version_mismatch`, and the app shows a reload notice;
+- require the `v` parameter on API GETs. The frontend sends `v=<API_VERSION>` (portraits use `PORTRAIT_VERSION`). Without `v` responses are CDN `no-store`, except document images, which are addressed by hash; a different version returns HTTP 409 `api_version_mismatch`, and the app shows a reload notice;
 - admit `POST /api/client-errors` without caching it.
 
 The API rejects requests from other sites. `API_READ_ORIGIN` names one exact origin that may read it with GET and HEAD, for a separately hosted client such as the media station; writes stay same-origin.
 
-Fingerprinted assets are immutable for a year. HTML and source maps revalidate. Site routing, access control, host configuration and credentials belong outside this repository.
+Fingerprinted assets and content-addressed document images are immutable for a year. HTML and source maps revalidate. Site routing, access control, host configuration and credentials belong outside this repository.
 
 ## Container and deployment
 
