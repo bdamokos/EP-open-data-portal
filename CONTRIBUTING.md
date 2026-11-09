@@ -78,7 +78,7 @@ Benchmark caches, snapshots and results stay outside Git and out of CI artifacts
 - Gates: a PR may not turn a previously correct row into anything else, and false placements must stay at zero. The hold-out snapshot is measure-only: never tune against it. The language snapshot (`--languages`) is a separate gate with its own ledger.
 - Whole-document operations (rejections, Rule 188(3) alternative motions, provisional agreements) stay in the placement and vote denominators; only independently source-verified ones count as correct.
 
-**Adopted-text calibration.** `--adopted-text-snapshot DIR --request-cap 0` on the amendment benchmark compares placements with Parliament’s adopted texts and writes a separate `adopted-calibration-*.json` report for maintainer review; it never changes scores or the ratchet. Acquire the sealed input once with `node scripts/amendment-adopted-snapshot.mjs BENCHMARK.json NEW_DIR`.
+**Adopted-text calibration.** `--adopted-text-snapshot DIR --request-cap 0` on the amendment benchmark compares placements with Parliament’s adopted texts and writes a separate `adopted-calibration-*.json` report for maintainer review; it never changes scores or the ratchet. Acquire the sealed input once with `node scripts/amendment-adopted-snapshot.mjs BENCHMARK.json NEW_DIR`; it makes sequential requests at least two seconds apart and stops after a 429.
 
 **Idle benchmark** (`scripts/idle-benchmark.mjs`) measures a running server, in either process mode, from inside its container (for example with `docker exec`): memory, wake latency of the home page, a warm tour and idle CPU.
 

@@ -38,7 +38,7 @@ The unfinished amendment catalogue is hidden by `publicAmendmentsEnabled` in `sr
 
 - The API process exits after `EXPLORER_API_IDLE_MINUTES` (default 20; 0 keeps it running) without API requests. Memory returns to the system only when a process exits. Plain `/healthz` checks don’t count, but a health check with a query or an `Origin` header is passed to the API and keeps it alive.
 - Requests wait for a starting process within their normal time budget; while it can’t start, the front answers 503 with `Retry-After`.
-- The plenary warm-up runs only while the API process is alive, so the first visit after a long idle starts cold. To soften that, the front answers a few home-page reads from its last good copies (`EXPLORER_FRONT_SNAPSHOT_MB`, default 16; 0 turns it off) while the API starts.
+- The plenary warm-up runs only while the API process is alive, so the first visit after a long idle starts cold. To soften that, the front answers a few home-page reads from its last good copies (`EXPLORER_FRONT_SNAPSHOT_MB`, default 16; 0 turns it off; off without `ODP_CACHE_DIR`) while the API starts.
 
 Start with `node server/main.mjs` (the Docker `CMD`); `node server/index.mjs` always runs single mode.
 

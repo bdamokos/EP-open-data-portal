@@ -15,7 +15,7 @@ This page lists the external sources the application uses, what each provides, a
 | [Hemicycle seating plans](https://www.europarl.europa.eu/plenary/en/hemicycle.html) | Allocated seat, political group and country of each Member, and seat positions, for the Strasbourg and Brussels chambers | Undocumented JSON and SVG files behind the public interactive plan |
 | [Plenary live status](https://www.europarl.europa.eu/plenary/en/home.html) | Current debate title and update time, in English | Anonymous JSON behind the plenary homepage |
 | [European Commission EbS+](https://audiovisual.ec.europa.eu/en/ebs/grid?ebs=no&ebsplus=yes) | Current broadcast metadata and live video | Anonymous JSON and the broadcaster’s official iframe |
-| [Wikidata](https://www.wikidata.org/wiki/Wikidata:Data_access) | Countries of outside speakers, when the verbatim report doesn’t give one | Anonymous `wikidata.org/w/api.php` and `query.wikidata.org/sparql` reads |
+| [Wikidata](https://www.wikidata.org/wiki/Wikidata:Data_access) | Countries of outside speakers, when the verbatim report doesn’t give one | Anonymous `wikidata.org/w/api.php` and `query.wikidata.org/sparql` reads with a descriptive User-Agent, one request per second |
 | [EUR-Lex](https://eur-lex.europa.eu/), DOCEO and other official pages | Reader links | Outbound links only; never fetched |
 
 Bundled data: committee labels from the corporate-bodies API, country labels from the Publications Office authority scheme, Parliament’s [procedure-type taxonomy](https://data.europarl.europa.eu/def/ep-procedure-types.ttl) (`server/procedure-types.mjs`), Natural Earth map geometry and stopword lists. See [Third-party notices](../THIRD_PARTY_NOTICES.md).
@@ -85,7 +85,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 ### Outside-speaker countries
 
-The verbatim report (CRE) names an outside speaker’s role, which usually gives the country. Otherwise the country comes from Wikidata, only when the exact name matches one politician or office-holder, using a dated office or a single citizenship.
+The verbatim report (CRE) names an outside speaker’s role. A leader’s country comes from the role only when it also appears in the debate’s places. Otherwise it comes from Wikidata: the exact name must match exactly one human, who must be a politician or office-holder, and the country comes from a dated office or a single citizenship.
 
 ### Speeches and debates
 
@@ -122,7 +122,7 @@ The verbatim report (CRE) names an outside speaker’s role, which usually gives
 - Amendment lists hang off `/plenary-documents/{id}` through `inverse_foresees_change_of`, and each list must point back with `foresees_change_of`. List detail uses `/documents/{id}`. Committee lists come from the procedure’s `COMMITTEE_TABLING_REPORT`, `_OPINION` and `_AMENDMENT` links, with draft detail from `/committee-documents/{id}`.
 - Each list’s DOCX supplies amendment numbers, proposers (`<Members>` bylines), target provisions and the original/proposed columns. List number ranges don’t prove that every number exists.
 - Committee amendment numbers are local to their list; the internal identity `committee:{list-id}:{number}` is never an official URI.
-- An omitted distribution isn’t an unpublished file. B-10-2026-0435 and B-10-2026-0436 have public English DOCX files on the website, but their API records omit `is_realized_by`. For a list or motion record without any files, the collectors try the standard `distribution/reds_iPlRp[_Amd]`, `reds_iPlRe[_Amd]` or `reds_iPlRc[_Amd]` DOCX route for that exact identifier, and accept the text only when the document itself proves its identity and complete amendment range.
+- An omitted distribution isn’t an unpublished file. B-10-2026-0435 and B-10-2026-0436 have public English DOCX files on the website, but their API records omit `is_realized_by`. For an amendment-list or motion record without any files, the collectors try the standard DOCX route for that exact identifier (`distribution/reds_iPlRp_Amd`, `reds_iPlRe_Amd` or `reds_iPlRc_Amd` for lists; `reds_iPlRe` or `reds_iPlRc` for motions), and accept the text only when the document proves its identifier and document class and, for a list, its complete amendment range.
 - Greek and Cyrillic bylines are linked to members through the same amendment in a Latin-script edition of the same list, never by transliteration.
 - Comparison column headings identify the baseline (Commission proposal, present text, Council position, motion text) and are language-specific.
 
@@ -138,7 +138,7 @@ The verbatim report (CRE) names an outside speaker’s role, which usually gives
 ### OEIL
 
 - Procedure files and document summaries are parsed from visible HTML, reached through exact procedure references from the API. Final-act summaries are preferred over proposal summaries.
-- Procedure progress reads the printed status and the Key events table. OEIL events have no identifiers, so they’re keyed by procedure, date and label. They also have no actor; the documentation gateway table (Parliament, Commission or Council) that files an event’s reference names its institution.
+- Procedure progress reads the printed status and the Key events table. OEIL events have no identifiers, so they’re keyed by procedure, date and label. They also have no actor. An event’s institution comes from the documentation gateway table (Parliament, Commission or Council) that files its reference, or from a label that names one institution; if these disagree or neither applies, none is shown.
 - Policy areas (topics) come only from OEIL procedure pages.
 - `server/oeil-subjects.json` holds the official English and French policy-area labels and hierarchy, taken from the subject filter of the [English](https://oeil.europarl.europa.eu/oeil/en/search) and [French](https://oeil.europarl.europa.eu/oeil/fr/search) search pages. Budget and discharge subjects get new codes each year. Other languages are the explorer’s own translations (`server/oeil-subject-translations.json`), and the site notice says so.
 
