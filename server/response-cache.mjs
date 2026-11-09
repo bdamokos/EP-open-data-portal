@@ -64,6 +64,9 @@ function publicPolicy(seconds, browserSeconds = 0, {revalidate = 0, ifError = 0}
   };
 }
 const settled = {revalidate: HOUR, ifError: 7 * DAY};
+// Records whose content does not depend on today's date. Views that mark
+// sittings upcoming, current or held, or pick the latest period, are not here.
+const staleSafe = new Set(['references', 'reference-summary', 'source-record', 'amendments', 'amendment-neighbours', 'speech', 'speech-context', 'speech-media', 'document', 'motion-comparison', 'corpus']);
 const established = {revalidate: DAY, ifError: 7 * DAY};
 
 export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
@@ -90,7 +93,7 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   if (url.pathname.includes('/speech-media/') && payload?.available === false) return noStore;
   const resource = url.pathname.split('/')[2];
   if (resource === 'speech' && !payload?.xml) return noStore;
-  if (['activities', 'latest-activities', 'speeches'].includes(resource)) return publicPolicy(HOUR, 0, {ifError: DAY});
+  if (['activities', 'latest-activities', 'speeches'].includes(resource)) return publicPolicy(HOUR);
   if(url.pathname==='/api/insights/legislation'&&!payload?.detail){
     const freshness=agendaViewFreshMs(payload,now);
     if(Number.isFinite(freshness))return publicPolicy(freshness/1000);
@@ -105,9 +108,9 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   const settledReading = Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === date && now - time >= 14 * DAY * 1000;
   const unanswered = resource === 'document' && /^[EOP]-\d+-\d{4}-\d+$/.test(url.pathname.split('/').at(-1)) && !payload?.answers?.length;
   if (reading && settledReading && !unanswered) return publicPolicy(DAY, 0, established);
-  // Profiles mark memberships current for one Brussels day, and an unanswered
-  // question can gain its answer at any time: neither keeps a stale copy.
-  return resource === 'profile' || unanswered ? publicPolicy(6 * HOUR) : publicPolicy(6 * HOUR, 0, settled);
+  // An unanswered question can gain its answer at any time; date-bound views
+  // (profiles, insights, outside speakers) keep no stale copy either.
+  return staleSafe.has(resource) && !unanswered ? publicPolicy(6 * HOUR, 0, settled) : publicPolicy(6 * HOUR);
 }
 
 export function portraitCachePolicy(image, {now = Date.now()} = {}) {

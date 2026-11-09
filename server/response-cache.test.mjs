@@ -34,14 +34,14 @@ test('incomplete or stale profile committee history cannot acquire a public cach
 });
 
 test('ordinary public reads use six hours and recent lists one hour without changing browser freshness', () => {
-  for (const path of ['/api/insights/questions?lang=en', '/api/corpus/search?lang=hu&q=water', '/api/amendments', '/api/outside/directory']) {
+  for (const path of ['/api/corpus/search?lang=hu&q=water', '/api/amendments', '/api/references']) {
     const value = {index: {complete: true}, coverage: {complete: false, authoritativeComplete: false}, fetchedAt: '2026-10-16T00:00:00Z'};
     assert.equal(seconds(policy(path, value)), 21600, path);
     assert.equal(policy(path, value).cacheControl, 'public, max-age=0');
     assert.equal(policy(path, value).cdnCacheControl, 'public, max-age=21600, stale-while-revalidate=3600, stale-if-error=604800', path);
     assert.equal(value.coverage.complete, false);
   }
-  for (const path of ['/api/activities/43', '/api/latest-activities/43', '/api/speeches/43?offset=20']) assert.equal(policy(path).cdnCacheControl, 'public, max-age=3600, stale-if-error=86400', path);
+  for (const path of ['/api/activities/43', '/api/latest-activities/43', '/api/speeches/43?offset=20']) assert.equal(policy(path).cdnCacheControl, 'public, max-age=3600, stale-if-error=0', path);
   assert.equal(seconds(policy('/api/profile/43', {}, {method: 'HEAD'})), 21600);
 });
 
@@ -271,4 +271,9 @@ test('profiles and unanswered questions keep six hours without stale copies; aut
   assert.equal(policy('/api/document/E-10-2026-000001', {date: '2026-09-01', answers: []}).cdnCacheControl, 'public, max-age=21600, stale-if-error=0', 'an answer can arrive at any time');
   assert.deepEqual(documentImageCachePolicy({headers: {authorization: 'Bearer x'}}), {cacheControl: 'no-store', cdnCacheControl: 'no-store'});
   assert.equal(documentImageCachePolicy({headers: {}}).cdnCacheControl, 'public, max-age=31536000, immutable');
+});
+
+test('date-bound views keep their lifetime without stale copies', () => {
+  for (const path of ['/api/insights/participation?sitting=MTG-PL-2026-11-12', '/api/insights/legislation?procedure=2025/0001(COD)', '/api/insights/questions', '/api/insights/procedure-context', '/api/outside/directory', '/api/outside/42', '/api/profile/43'])
+    assert.equal(policy(path, {detail: {}, upcoming: true}).cdnCacheControl, 'public, max-age=21600, stale-if-error=0', path);
 });
