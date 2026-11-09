@@ -7,7 +7,9 @@ import {readableRecordTopicState} from './topic-projection-state.mjs';
 // authority country. No title or text is read.
 const read=name=>JSON.parse(readFileSync(new URL('./'+name,import.meta.url),'utf8'));
 let concepts,labels,countries;
-const conceptIndex=()=>concepts??=read('topic-eurovoc-metadata.json').concepts;
+// Only each concept's microthesauri are used here. The full catalogue (6 MB of
+// JSON, about 21 MiB once parsed) is dropped after this projection is built.
+const conceptIndex=()=>concepts??=new Map(Object.entries(read('topic-eurovoc-metadata.json').concepts).map(([uri,concept])=>[uri,Array.isArray(concept?.microthesauri)?concept.microthesauri.map(String):[]]));
 const labelIndex=()=>labels??=read('topic-eurovoc-labels.json').labels;
 const countryIndex=()=>countries??=read('topic-country-labels.json').labels;
 const microId=uri=>String(uri).replace(/^http:\/\/eurovoc\.europa\.eu\//,'');
@@ -29,7 +31,7 @@ export function decisionTags(db,generation,documents) {
     for(const procedure of body.procedureIds||[])tags.p.add(String(procedure));
     for(const assignment of body.assignments||[]) {
       if(assignment.role==='keyword'&&assignment.key?.startsWith('eurovoc:'))
-        for(const micro of conceptIndex()['http://eurovoc.europa.eu/'+assignment.key.slice(8)]?.microthesauri||[])tags.m.add(microId(micro));
+        for(const micro of conceptIndex().get('http://eurovoc.europa.eu/'+assignment.key.slice(8))||[])tags.m.add(microId(micro));
       else if(assignment.role==='place'&&assignment.key?.startsWith('place:'))tags.c.add(assignment.key.slice(6));
     }
   }
