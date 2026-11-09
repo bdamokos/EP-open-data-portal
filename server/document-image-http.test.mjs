@@ -18,12 +18,13 @@ test('image HTTP reads serve exact source-associated bytes with GET and HEAD and
  t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));store.db.exec('PRAGMA query_only=OFF');store.close();await rm(directory,{recursive:true,force:true});delete process.env.ACTIVITY_INDEX_ENABLED;delete process.env.ACTIVITY_INDEX_DIR;});
  const body=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR1cAAAAASUVORK5CYII=','base64'),imageHash=createHash('sha256').update(body).digest('hex'),sourceHash='a'.repeat(64);
  await publishDocumentImages({sourceHash,imageAssets:{[imageHash]:{data:body.toString('base64'),sha256:imageHash,mime:'image/png',width:1,height:1}}},{directory});
- const read=(route,method='GET')=>new Promise((resolve,reject)=>{http.get({hostname:'127.0.0.1',port:server.address().port,path:route,method},response=>{const chunks=[];response.on('data',chunk=>chunks.push(chunk));response.on('end',()=>resolve({status:response.statusCode,headers:response.headers,body:Buffer.concat(chunks)}));}).on('error',reject);});
+ const read=(route,method='GET',headers={})=>new Promise((resolve,reject)=>{http.get({hostname:'127.0.0.1',port:server.address().port,path:route,method,headers},response=>{const chunks=[];response.on('data',chunk=>chunks.push(chunk));response.on('end',()=>resolve({status:response.statusCode,headers:response.headers,body:Buffer.concat(chunks)}));}).on('error',reject);});
  const route='/api/document-image/'+sourceHash+'/'+imageHash,result=await read(route);
  assert.equal(result.status,200);assert.deepEqual(result.body,body);assert.equal(result.headers['content-type'],'image/png');assert.equal(result.headers['x-document-sha256'],sourceHash);assert.equal(result.headers['x-image-sha256'],imageHash);assert.equal(result.headers['x-content-type-options'],'nosniff');assert.equal(result.headers['cache-control'],'public, max-age=31536000, immutable');assert.equal(result.headers['cdn-cache-control'],'public, max-age=31536000, immutable');
  const head=await read(route,'HEAD');assert.equal(head.status,200);assert.equal(Number(head.headers['content-length']),body.length);assert.equal(head.body.length,0);
  assert.equal((await read(route+'?url=https://example.com/a.png')).status,400);
  assert.equal((await read('/api/document-image/not-a-hash/'+imageHash)).status,400);
- assert.equal((await read('/api/document-image/'+ 'b'.repeat(64)+'/'+imageHash)).status,404);
+ const authorised=await read(route,'GET',{authorization:'Bearer x'});assert.equal(authorised.status,200);assert.equal(authorised.headers['cache-control'],'no-store');assert.equal(authorised.headers['cdn-cache-control'],'no-store');
+ const evicted=await read('/api/document-image/'+ 'b'.repeat(64)+'/'+imageHash);assert.equal(evicted.status,404);assert.equal(evicted.headers['cdn-cache-control'],'no-store');
  assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);
 });
