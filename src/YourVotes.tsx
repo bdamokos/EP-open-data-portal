@@ -10,6 +10,8 @@ import {useSaved} from './SavedControls';
 import {useDossiers} from './DossierControls';
 import type {Directory} from './explorerTypes';
 import type {AgendaTopic} from './LegislationTypes';
+import {WordingDiff} from './components/WordingDiff';
+import type {WordingFormat} from './components/WordingFormatting';
 import './YourVotes.css';
 const listeners=new Set<()=>void>();let storage:Storage|null=null;try{storage=window.localStorage;}catch{}
 export const yourVotesStore=createYourVotesStore(storage,()=>listeners.forEach(fn=>fn()));
@@ -17,7 +19,7 @@ const subscribe=(fn:()=>void)=>{listeners.add(fn);return()=>{listeners.delete(fn
 function useYourVotes(){return useSyncExternalStore(subscribe,yourVotesStore.snapshot);}
 export function useHasSavedVotes(){const state=useYourVotes();return state.choices.length>0||state.stars.length>0;}
 window.addEventListener('storage',event=>{if(event.key===YOUR_VOTES_KEY||event.key===null)yourVotesStore.reload();});
-type Amendment={id:string;listId?:string;originalText?:string;proposedText?:string;language?:string|null};
+type Amendment={id:string;listId?:string;originalText?:string|null;proposedText?:string|null;originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];language?:string|null};
 type Row={key:string;documentId:string;revision:string|null;kind:string;motion?:string|null;amendments:{number:number;cp:number|null;deleting?:boolean}[];authors?:string[];subject:string[];subjectLanguage?:string|null;part?:number;partText?:string;vote?:{rollCall?:boolean};status?:string;outcome:string|null;decisionId:string|null;amendmentRows:Amendment[];falls?:{amendments:{number:number;cp?:number|null}[];motions?:string[];replacesMotions?:boolean;text?:string};fallsIf?:{key:string;amendments:number[];motion?:string|null}[]};
 type Ballot={id:string;alsoOn?:string[];title:string;titleLanguage?:string|null;sittingId:string;documentId:string|null;source:string;partial?:boolean;rows:Row[];added:{decisionId:string;label:string;outcome:string}[];procedureIds:string[]};
 type Ballots={items:Ballot[]};
@@ -48,8 +50,13 @@ function BallotRow({row,ballot,onContext}:{row:Row;ballot:Ballot;onContext:(a:Am
   </article>;
 }
 function AmendmentWording({amendments,onContext}:{amendments:Amendment[];onContext:(a:Amendment)=>void}) {
-  const ui=useUiI18n(),label=(key:string)=>ui.t('yourVote.'+key);
-  return <>{amendments.map(a=><div className="your-votes-wording" key={a.id}><details><summary>{label('wording')}{amendments.length>1?' · '+ui.t('yourVote.am',{number:a.id.split('-').at(-1)||''}):''}</summary>{a.proposedText&&<div><h6>{label('proposed')}</h6><p lang={a.language||''}>{a.proposedText}</p></div>}{a.originalText&&<div><h6>{label('original')}</h6><p lang={a.language||''}>{a.originalText}</p></div>}{!a.proposedText&&!a.originalText&&<p>{label('wordingUnavailable')}</p>}</details><button className="insight-text-button" onClick={()=>onContext(a)}>{label('context')}</button></div>)}</>;
+  return <>{amendments.map(a=><AmendmentText key={a.id} amendment={a} numbered={amendments.length>1} onContext={onContext}/>)}</>;
+}
+// The comparison mounts on open so long lists diff only what is read.
+function AmendmentText({amendment:a,numbered,onContext}:{amendment:Amendment;numbered:boolean;onContext:(a:Amendment)=>void}) {
+  const ui=useUiI18n(),[open,setOpen]=useState(false),label=(key:string)=>ui.t('yourVote.'+key);
+  const original=typeof a.originalText==='string'?a.originalText:null,proposed=typeof a.proposedText==='string'?a.proposedText:null;
+  return <div className="your-votes-wording"><details onToggle={event=>setOpen(event.currentTarget.open)}><summary>{label('wording')}{numbered?' · '+ui.t('yourVote.am',{number:a.id.split('-').at(-1)||''}):''}</summary>{open&&(original===null&&proposed===null?<p>{label('wordingUnavailable')}</p>:<WordingDiff original={original} proposed={proposed} originalFormatting={a.originalFormatting} proposedFormatting={a.proposedFormatting} language={a.language??null} emptySemantics="insertion-deletion"/>)}</details><button className="insight-text-button" onClick={()=>onContext(a)}>{label('context')}</button></div>;
 }
 // A block can hold hundreds of amendments: one toggle, mounted only when opened,
 // keeps the vote buttons in reach.

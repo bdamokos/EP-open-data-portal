@@ -13,7 +13,7 @@ import {decisionVotesContext,projectDecisionVotes} from './decision-votes.mjs';
 import {amendmentTarget} from './amendments.mjs';
 import {legacyAmendmentDocument} from './upcoming-amendments.mjs';
 import {documentProcedures,heldDocument,placeVotingLists} from './ballot-placement.mjs';
-export const UPCOMING_VOTES_VERSION=6;
+export const UPCOMING_VOTES_VERSION=7;
 export const BALLOT_COMPARISON_VERSION=2;
 const tail=x=>String(x?.id||x||'').split('/').at(-1);
 const list=x=>x==null?[]:Array.isArray(x)?x:[x];
