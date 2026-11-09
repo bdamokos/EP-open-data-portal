@@ -47,8 +47,9 @@ export function serveUpstreamPort(port,{queueFor,observations},{foreground=false
       // A reader joining a background fetch waits as it would in-process: it stops
       // at an upstream pause or after the queue's interactive wait.
       const controller=new AbortController();joins.set(id,controller);
-      queueFor(message.source).joinBackground(new Promise(()=>{}),{signal:controller.signal})
-        .catch(error=>{if(joins.delete(id)&&!controller.signal.aborted)send({type:'join-failed',id,error:wireError(error)});});
+      const failed=error=>{if(joins.delete(id)&&!controller.signal.aborted)send({type:'join-failed',id,error:wireError(error)});};
+      try {queueFor(message.source).joinBackground(new Promise(()=>{}),{signal:controller.signal}).catch(failed);}
+      catch(error){failed(error);}
     }
     else if(type==='join-end'){joins.get(id)?.abort();joins.delete(id);}
     else if(type==='response-status')queueFor(message.source).recordResponse(message.status);
