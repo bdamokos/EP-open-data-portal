@@ -442,3 +442,16 @@ test('without a cache directory parsing still works and a repeated oversize resu
   assert.equal(thread.calls.length,1);
   assert.deepEqual(await instance.amendments(listBuffer,listOptions('2026-11-08T10:00:00.000Z')),extractAmendments(listBuffer,listOptions('2026-11-08T10:00:00.000Z')));
 });
+
+test('a busy parse thread is not remembered as a failure of the document',async t=>{
+  serve(t,()=>reportBuffer);
+  const url=reportUrl.replaceAll('9999','9998');
+  const work={identifier:'A-10-2026-9998',document_date:'2026-01-01',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
+  let calls=0;
+  const download=(source,options)=>{calls++;if(calls===1)throw Object.assign(new Error('Document parsing is busy.'),{code:'document_parse_busy'});return downloadDocx(source,options);};
+  const first=await documentText(work,'en',{directory:null,enqueue:false,download});
+  assert.equal(first.status,'error');
+  const second=await documentText(work,'en',{directory:null,enqueue:false,download});
+  assert.equal(second.status,'available','the next reader tries again at once');
+  assert.equal(calls,2);
+});

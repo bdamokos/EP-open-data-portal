@@ -468,11 +468,13 @@ export async function downloadDocx(sourceUrl,options={}) {
     throw Object.assign(invalidDocx(error),{sourceHash});
   }
 }
-const parseThreadFailure=error=>['document_parse_busy','document_parse_timeout','document_parse_stopped','ERR_WORKER_OUT_OF_MEMORY'].includes(error?.code)||isLocalRequestFailure(error);
+// A busy, slow or stopped parse thread says nothing about the document: the next reader tries again at once.
+const parseCapacityFailure=error=>['document_parse_busy','document_parse_timeout','document_parse_stopped'].includes(error?.code);
+const parseThreadFailure=error=>parseCapacityFailure(error)||error?.code==='ERR_WORKER_OUT_OF_MEMORY'||isLocalRequestFailure(error);
 // A visitor's download is parsed on the document parse thread, which keeps the
 // result by source hash. The source writer parses inline on its own thread.
 let visitorParser;
-const visitorDocxParser=()=>visitorParser??=import('./document-parse.mjs').then(({documentParser})=>documentParser());
+const visitorDocxParser=()=>visitorParser??=import('./document-parse.mjs').then(({documentParser})=>documentParser(),error=>{visitorParser=null;throw error;});
 
 const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);
 export function documentNotes(record) {
@@ -527,7 +529,7 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
       }
       signal.throwIfAborted();
       failures.delete(key);return record;
-    },{source:'documents',priority,signal})).catch(error=>{if(!collector&&!isLocalRequestFailure(error))failures.set(key,{source:descriptor,retryAt:Math.max(clock()+30000,clock()+Number(error.retryAfter||0)*1000),message:String(error.message).slice(0,250),code:error.code,status:error.status});throw error;}).finally(()=>pending.delete(pendingKey));
+    },{source:'documents',priority,signal})).catch(error=>{if(!collector&&!isLocalRequestFailure(error)&&!parseCapacityFailure(error))failures.set(key,{source:descriptor,retryAt:Math.max(clock()+30000,clock()+Number(error.retryAfter||0)*1000),message:String(error.message).slice(0,250),code:error.code,status:error.status});throw error;}).finally(()=>pending.delete(pendingKey));
     pending.set(pendingKey,job);return job;
   };
   // The URL can be reused for a republished edition. Its predecessor's failed
