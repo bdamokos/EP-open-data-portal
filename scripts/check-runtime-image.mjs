@@ -35,6 +35,8 @@ try{
     import {readdir,readFile} from 'node:fs/promises';
     import {brotliCompressSync,brotliDecompressSync,createBrotliDecompress} from 'node:zlib';
     assert.equal(process.versions.node,${JSON.stringify(nodeVersion)},'Runtime Node must match .nvmrc.');
+    // The malloc settings below only take effect with glibc (musl ignores them).
+    assert.ok(process.report.getReport().header.glibcVersionRuntime,'The runtime image uses glibc.');
     assert.equal(process.env.MALLOC_ARENA_MAX,'2','The runtime image limits glibc to two malloc arenas.');
     assert.equal(process.env.MALLOC_MMAP_THRESHOLD_,'131072','The runtime image maps large blocks separately.');
     assert.equal(process.env.MALLOC_TRIM_THRESHOLD_,'262144','The runtime image trims free pool space above 256 KiB.');
