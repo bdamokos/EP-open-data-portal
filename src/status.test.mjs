@@ -139,7 +139,7 @@ test('completed memberships keep polling promptly until optional committee names
     if(url.pathname.endsWith('/insights/saved'))return {members:[],questions:[]};
     throw Error('Unexpected fixture request: '+url);
   });
-  const polling=[];t.mock.method(h.window,'setInterval',(callback,delay)=>{if(delay===10_000||delay===60_000)polling.push({callback,delay});return 1;});t.mock.method(h.window,'clearInterval',()=>{});
+  const polling=[];t.mock.method(h.window,'setInterval',(callback,delay)=>{if(delay===10_000||delay===30*60_000)polling.push({callback,delay});return 1;});t.mock.method(h.window,'clearInterval',()=>{});
   const {default:App}=await h.load('/src/App.tsx');await h.render(createElement(App));await wait();
   assert.match(h.container.querySelector('option[value="ENVI"]').textContent,/Name unavailable/);
   assert.equal(polling.at(-1).delay,10_000,'finishing the profile index must not delay incomplete committee names for a minute');
@@ -147,5 +147,5 @@ test('completed memberships keep polling promptly until optional committee names
   await act(async()=>polling.at(-1).callback());await wait();
   assert.match(h.container.querySelector('option[value="ENVI"]').textContent,/Environment/);
   assert.doesNotMatch(h.container.textContent,/Loading committee names/);
-  assert.equal(polling.at(-1).delay,60_000,'settled names and memberships use the normal refresh interval');
+  assert.equal(polling.at(-1).delay,30*60_000,'settled names and memberships refresh every half hour');
 });

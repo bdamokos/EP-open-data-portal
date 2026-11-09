@@ -226,6 +226,10 @@ async function livePlan(chamber,{clock,fetchPlan}) {
 }
 export const clearHemicycleCache=()=>live.clear();
 
+// The collector checks the plan every six hours; browsers revalidate with the CDN.
+// Unversioned or authorised reads are never shared.
+export const hemicycleCachePolicy=({versioned,authorised})=>versioned&&!authorised?{cacheControl:'public, max-age=0',cdnCacheControl:'public, max-age=21600, stale-if-error=0'}:{cacheControl:'no-store',cdnCacheControl:'no-store'};
+
 export async function hemicycleResponse(chamber,{store=null,clock=Date.now,fetchPlan=fetchHemicyclePlan}={}) {
   if(!validChamber(chamber))throw new HttpError(404,'not_found','Choose a chamber.');
   // One snapshot, so a concurrent check cannot pair a plan with a newer plan's changes.

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {PlenaryLive,currentDebate,liveBroadcast,scheduledAgenda,brusselsTime,EBS_PLUS_CHANNEL} from './plenary-live.mjs';
+import {PlenaryLive,currentDebate,liveBroadcast,scheduledAgenda,brusselsTime,EBS_PLUS_CHANNEL,plenaryLiveCachePolicy,retainedSittingDates} from './plenary-live.mjs';
 
 const day='2026-10-20',now=Date.parse(day+'T07:10:00Z'),sitting='MTG-PL-'+day;
 const feed={currentDate:'20-10-2026',lastUpdate:'20-10-2026 - 09:10',type:'DEB',debateId:'D27530',currentTitle:'A published debate',plenaryMessages:null};
@@ -59,4 +59,40 @@ test('midnight cannot reuse the previous sitting or a stale live programme',asyn
   let clock=Date.parse('2026-10-20T21:59:50Z');
   const service=new PlenaryLive({clock:()=>clock,read:async()=>programme,readAgenda:async()=>({payload:{data:[]}})});
   await service.snapshot();clock+=20_000;const next=await service.snapshot();assert.equal(next.broadcast,null);assert.equal(next.current,null);assert.equal(next.agenda.sittingId,'MTG-PL-2026-10-21');
+});
+
+test('a day the complete calendar lists no sitting stays valid until just after the next Brussels midnight',async()=>{
+  const saturday='2026-10-24',at=Date.parse(saturday+'T10:00:00Z'),offAir={...programme,broadcastStatus:'RECORDED'};
+  const reader=dates=>({read:async url=>url.includes('getSpeaker')?{...feed,currentDate:'23-10-2026'}:offAir,readAgenda:async()=>{throw new Error('no agenda');},sittingDates:()=>dates});
+  const quiet=await new PlenaryLive({clock:()=>at,...reader(new Set(['2026-10-19','2026-10-22']))}).snapshot();
+  // 25 October is the CEST to CET change; its midnight is still 22:00 UTC.
+  assert.equal(quiet.nextCheckAt,'2026-10-24T22:01:00.000Z');assert.equal(quiet.validUntil,quiet.nextCheckAt);assert.equal(quiet.status,'off-air');
+  assert.deepEqual(plenaryLiveCachePolicy(quiet,at),{cacheControl:'public, max-age=0',cdnCacheControl:'public, max-age=43260, stale-if-error=0'});
+  assert.deepEqual(plenaryLiveCachePolicy(quiet,Date.parse('2026-10-24T21:59:30Z')),{cacheControl:'no-store',cdnCacheControl:'no-store'},'Too close to the boundary to cache');
+  for(const [dates,label] of [[new Set([saturday]),'sitting day'],[null,'no complete calendar'],[()=>{throw new Error('locked');},'unreadable calendar']]){
+    const service=new PlenaryLive({clock:()=>at,...reader(dates)});
+    if(typeof dates==='function')service.sittingDates=dates;
+    const value=await service.snapshot();
+    assert.equal(value.nextCheckAt,new Date(at+30_000).toISOString(),label);assert.equal(value.validUntil,new Date(at+75_000).toISOString(),label);
+    assert.deepEqual(plenaryLiveCachePolicy(value,at),{cacheControl:'no-store',cdnCacheControl:'no-store'},label);
+  }
+  const noFeed=await new PlenaryLive({clock:()=>at,read:async url=>{if(url.includes('getSpeaker'))throw new Error('no feed without a sitting');return offAir;},readAgenda:async()=>{throw new Error('no agenda');},sittingDates:()=>new Set()}).snapshot();
+  assert.equal(noFeed.nextCheckAt,quiet.nextCheckAt,'the debate feed has no answer on days without a sitting');
+  const sittingWithoutFeed=await new PlenaryLive({clock:()=>now,read:async url=>{if(url.includes('getSpeaker'))throw new Error('feed down');return programme;},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set()}).snapshot();
+  assert.equal(sittingWithoutFeed.status,'live');assert.deepEqual(plenaryLiveCachePolicy(sittingWithoutFeed,now).cdnCacheControl,'no-store','a broadcast sitting is never quiet, even without the feed');
+  const outage=await new PlenaryLive({clock:()=>at,read:async()=>{throw new Error('timeout');},readAgenda:async()=>{throw new Error('no agenda');},sittingDates:()=>new Set()}).snapshot();
+  assert.equal(outage.status,'unavailable');assert.equal(outage.nextCheckAt,new Date(at+30_000).toISOString(),'A failed source read is not kept until midnight');
+  assert.deepEqual(plenaryLiveCachePolicy({...outage,nextCheckAt:quiet.nextCheckAt},at).cdnCacheControl,'no-store');
+  const unexpected=await new PlenaryLive({clock:()=>now,read:async url=>url.includes('getSpeaker')?feed:programme,readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set()}).snapshot();
+  assert.equal(unexpected.status,'live');assert.equal(unexpected.nextCheckAt,new Date(now+30_000).toISOString(),'A live broadcast outweighs the calendar');
+  assert.deepEqual(plenaryLiveCachePolicy(unexpected,now).cdnCacheControl,'no-store');
+  assert.deepEqual(plenaryLiveCachePolicy({status:'unavailable'},now).cdnCacheControl,'no-store');
+});
+
+test('retained sitting dates need a complete calendar and exact sitting identities',()=>{
+  const sittingNode=date=>({id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'});
+  const reader=value=>({read:(kind,version,id,options)=>{assert.equal(kind,'calendar');assert.equal(id,'2026');assert.deepEqual(options,{retained:true});return value;}});
+  assert.equal(retainedSittingDates(2026,reader(null)),null);
+  assert.equal(retainedSittingDates(2026,reader({coverage:{state:'partial'},nodes:[sittingNode('2026-10-19')]})),null);
+  assert.deepEqual([...retainedSittingDates(2026,reader({coverage:{state:'complete'},nodes:[sittingNode('2026-10-19'),{...sittingNode('2026-10-20'),activity_id:'MTG-PL-2026-10-21'}]}))],['2026-10-19']);
 });

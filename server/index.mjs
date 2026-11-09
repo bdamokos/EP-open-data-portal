@@ -22,8 +22,8 @@ import {allowCrossOriginRead,assertSameOrigin,HttpError,sendError,sendJson,setCo
 import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {API_VERSION} from './api-version.mjs';
-import {plenaryLive} from './plenary-live.mjs';
-import {hemicycleResponse} from './hemicycle.mjs';
+import {plenaryLive,plenaryLiveCachePolicy} from './plenary-live.mjs';
+import {hemicycleCachePolicy,hemicycleResponse} from './hemicycle.mjs';
 import {odpDirectory,odpProfileWithMemberships,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,startCorporateBodyWarmup,upstreamStatus,odpHeaderStatus,startOdpMonitoring} from './odp.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
@@ -174,7 +174,7 @@ async function handleApi(request,response,url,apiPrefix){
  if(request.method==='OPTIONS'){setCommonSecurityHeaders(response);response.statusCode=204;response.setHeader('Allow',allowsPost?'GET, HEAD, POST, OPTIONS':'GET, HEAD, OPTIONS');response.setHeader('Cache-Control','no-store');response.setHeader('CDN-Cache-Control','no-store');response.setHeader('Vary','Origin');response.end();return;}
  requireMethod(request,allowsPost?['GET','HEAD','POST']:['GET','HEAD']);
  if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:API_VERSION,...(!endpoint?{endpoints:[...apiEndpoints]}:{}),time:new Date().toISOString()});return;}
- if(endpoint==='plenary-live'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,await plenaryLive.snapshot());return;}
+ if(endpoint==='plenary-live'&&segments.length===1){requireQuery(url.searchParams,[]);const live=await plenaryLive.snapshot();sendJson(request,response,200,live,currentVersion&&!request.headers.authorization?plenaryLiveCachePolicy(live):undefined);return;}
     const queryKeys={directory:['lang','retry'],profile:['lang'],portrait:['lang'],speeches:['lang','offset','catalogue','revision'],activities:['lang'],document:['lang','member'],speech:['lang'],'speech-transcript':['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
     if(Object.hasOwn(queryKeys,segments[0]))requireQuery(url.searchParams,queryKeys[segments[0]]);
     const language = odpLanguage(url.searchParams.get("lang") || "en");
@@ -284,8 +284,7 @@ async function handleApi(request,response,url,apiPrefix){
       requireQuery(url.searchParams,[]);
       let store=null;try{store=activityIndex().store;}catch{/* Without the index the source is read directly. */}
       result=await hemicycleResponse(segments[1],{store});
-      const cacheControl=request.headers.authorization?'no-store':'public, max-age=3600';
-      sendJson(request,response,200,result,{cacheControl,cdnCacheControl:currentVersion?cacheControl:'no-store'});
+      sendJson(request,response,200,result,hemicycleCachePolicy({versioned:currentVersion,authorised:Boolean(request.headers.authorization)}));
       return;
     }
     else if (segments.length === 1 && segments[0] === 'voting-lists') {

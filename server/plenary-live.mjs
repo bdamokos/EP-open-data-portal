@@ -2,9 +2,12 @@ import {XMLParser} from 'fast-xml-parser';
 import {boundedUpstream,odp,upstreamResponseError} from './odp.mjs';
 import {sharedRequest,waitForRequest} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
+import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
+import {identifiedPlenarySitting} from './plenary-calendar.mjs';
+import {brusselsMidnight} from './plenary-cache-policy.mjs';
 
 export const EBS_PLUS_URL='https://8hwk2cyeyb.execute-api.eu-west-1.amazonaws.com/parrotfish-prod/ebs/live/EBSPLUS';
-export const PLENARY_LIVE_VERSION='plenary-live-v1';
+export const PLENARY_LIVE_VERSION='plenary-live-v2';
 export const EBS_PLUS_CHANNEL='6082c9bb97ad8b2acf7fcc98';
 export const EBS_PLUS_EMBED='https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN';
 export const liveDebateUrl=day=>'https://www.europarl.europa.eu/plenary/en/getSpeakerListAndPlenaryMessages.html?dateSys='+day.replaceAll('-','');
@@ -12,6 +15,24 @@ export const brusselsDay=time=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe
 const stamp=time=>new Date(time).toISOString();
 const list=value=>Array.isArray(value)?value:value==null?[]:[value];
 const tail=value=>String(value||'').split('/').at(-1);
+const CHECK_MS=30_000;
+
+// Sitting dates from a complete retained calendar, or null without one.
+// Every day counts as a sitting day until the calendar says otherwise.
+export function retainedSittingDates(year,reader=sittingSnapshots) {
+  const value=reader.read('calendar',SITTING_CALENDAR_VERSION,String(year),{retained:true});
+  if(value?.coverage?.state!=='complete'||!Array.isArray(value.nodes))return null;
+  return new Set(value.nodes.filter(identifiedPlenarySitting).map(node=>node.activity_date));
+}
+const nextBrusselsMidnight=day=>brusselsMidnight(new Date(Date.parse(day+'T12:00:00Z')+86400_000).toISOString().slice(0,10));
+
+// A quiet answer stays true until the next Brussels day: the CDN may keep it
+// that long, and clients wait for nextCheckAt. Sitting days are never cached.
+export function plenaryLiveCachePolicy(value,now=Date.now()) {
+  const seconds=Math.floor((Date.parse(value?.nextCheckAt)-now)/1000);
+  if(value?.status!=='off-air'||value.current||!(seconds>=120))return {cacheControl:'no-store',cdnCacheControl:'no-store'};
+  return {cacheControl:'public, max-age=0',cdnCacheControl:`public, max-age=${seconds}, stale-if-error=0`};
+}
 
 // The feed supplies Brussels wall-clock times, including its last update.
 export function brusselsTime(day,time) {
@@ -84,10 +105,10 @@ async function readJson(url,signal) {
 }
 
 export class PlenaryLive {
-  constructor({clock=Date.now,read=readJson,readAgenda=odp}={}){this.clock=clock;this.read=read;this.readAgenda=readAgenda;this.saved=null;this.pending=null;}
+  constructor({clock=Date.now,read=readJson,readAgenda=odp,sittingDates=retainedSittingDates}={}){this.clock=clock;this.read=read;this.readAgenda=readAgenda;this.sittingDates=sittingDates;this.saved=null;this.pending=null;}
   async snapshot() {
     const now=this.clock(),day=brusselsDay(now);
-    if(!this.saved||this.saved.day!==day||now-this.saved.at>=30_000){
+    if(!this.saved||this.saved.day!==day||now-this.saved.at>=CHECK_MS){
       if(!this.pending)this.pending=sharedRequest(async signal=>{
         const sources=[];
         const collect=async(url,operation)=>{try{const value=await operation();sources.push({url,fetchedAt:stamp(this.clock()),available:true});return value;}catch{sources.push({url,fetchedAt:stamp(this.clock()),available:false});return null;}};
@@ -113,13 +134,20 @@ export class PlenaryLive {
         signal.throwIfAborted();
         this.saved={day,at:this.clock(),feed,programme,rows,sources};
       },12_000).finally(()=>{this.pending=null;});
-      try{await waitForRequest(this.pending);}catch{return {status:'unavailable',checkedAt:stamp(now),validUntil:stamp(now),current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]};}
+      try{await waitForRequest(this.pending);}catch{return {status:'unavailable',checkedAt:stamp(now),validUntil:stamp(now),nextCheckAt:stamp(now+CHECK_MS),current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]};}
     }
     const saved=this.saved;
     // Never carry a previous day's response across midnight or a slow refresh.
-    if(saved.day!==brusselsDay(this.clock()))return {status:'unavailable',checkedAt:stamp(now),validUntil:stamp(now),current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]};
+    if(saved.day!==brusselsDay(this.clock()))return {status:'unavailable',checkedAt:stamp(now),validUntil:stamp(now),nextCheckAt:stamp(now+CHECK_MS),current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]};
     const current=currentDebate(saved.feed,day,this.clock()),broadcast=liveBroadcast(saved.programme,day,this.clock());
-    return {status:broadcast?'live':saved.programme?'off-air':'unavailable',checkedAt:stamp(saved.at),validUntil:stamp(saved.at+75_000),current,broadcast,agenda:scheduledAgenda(saved.rows,day,this.clock()),sources:saved.sources};
+    let sittings=null;try{sittings=this.sittingDates(Number(day.slice(0,4)));}catch{/* No calendar: check as on a sitting day. */}
+    // Only an observed off-air programme is quiet: a live broadcast or debate
+    // outweighs the calendar, and a failed programme read is never kept. The
+    // debate feed has no answer on days without a sitting, so its gap does not
+    // count; a sitting in progress still shows as an EbS+ plenary broadcast.
+    const quiet=Boolean(saved.programme)&&!broadcast&&!current&&sittings?.has(day)===false;
+    const nextCheck=quiet?nextBrusselsMidnight(day)+60_000:saved.at+CHECK_MS;
+    return {status:broadcast?'live':saved.programme?'off-air':'unavailable',checkedAt:stamp(saved.at),validUntil:stamp(quiet?nextCheck:saved.at+75_000),nextCheckAt:stamp(nextCheck),current,broadcast,agenda:scheduledAgenda(saved.rows,day,this.clock()),sources:saved.sources};
   }
 }
 

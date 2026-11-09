@@ -16,3 +16,15 @@ test('live HTTP reads are no-store and reject caller-selected source queries',lo
   for(const query of ['?url=https://example.com','?date=2026-10-19','?lang=en&lang=hu'])assert.equal((await fetch(base+query)).status,400);
   assert.equal((await fetch(base,{method:'POST'})).status,405);assert.equal(calls,2);
 });
+
+test('a quiet day reaches the CDN until the next check, browsers revalidate and unversioned reads stay uncached',loopback,async t=>{
+  const nextCheckAt=new Date(Date.now()+6*3600_000).toISOString();
+  t.mock.method(plenaryLive,'snapshot',async()=>({status:'off-air',checkedAt:new Date().toISOString(),validUntil:nextCheckAt,nextCheckAt,current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]}));
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));});
+  const base='http://127.0.0.1:'+server.address().port+'/api/plenary-live';
+  const quiet=await fetch(base+'?v='+API_VERSION);
+  assert.equal(quiet.headers.get('cache-control'),'public, max-age=0');
+  assert.match(quiet.headers.get('cdn-cache-control'),/^public, max-age=(2159\d|21600), stale-if-error=0$/);
+  for(const response of [await fetch(base),await fetch(base+'?v='+API_VERSION,{headers:{authorization:'Bearer x'}})]){assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(response.headers.get('cdn-cache-control'),'no-store');}
+});
