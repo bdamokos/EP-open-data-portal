@@ -54,3 +54,13 @@ test('unavailable historical agenda reads leave the existing results section alo
 test('an unbound past list row has a neutral result label even without a local choice',async t=>{
  const h=await harness(t);await h.render(h.BallotCard,{ballot:ballot([row(17)]),language:'en'});assert(h.node.textContent.includes('Result not matched'));assert(!h.node.textContent.includes('Added in plenary'));
 });
+test('opened wording compares original and proposed text with the shared diff',async t=>{
+ const h=await harness(t),amendment={id:documentId+'-AM-20',listId:'list',originalText:'Reaffirms the goal of 2040;',proposedText:'Stresses the goal of 2040;',originalFormatting:[],proposedFormatting:[{start:0,end:8,bold:true,italic:true}],language:'en'};
+ await h.render(h.BallotCard,{ballot:ballot([row(20,['§ 20'],{amendmentRows:[amendment]}),row(21,['§ 21'],{amendmentRows:[{id:documentId+'-AM-21'}]})]),language:'en'});
+ assert(!h.node.querySelector('.wording-diff'),'closed wording mounts no comparison');
+ const [first,second]=h.node.querySelectorAll('.your-votes-wording details');
+ await act(async()=>{first.open=true;first.dispatchEvent(new Event('toggle'));});
+ const columns=[...first.querySelectorAll('.wording-diff__columns h5')].map(n=>n.textContent);assert.deepEqual(columns,['Original text','Proposed text']);
+ assert.equal(first.querySelector('del').textContent.replace(/\s+/g,' ').includes('Reaffirms'),true);assert.equal(first.querySelector('ins').textContent.includes('Stresses'),true);
+ await act(async()=>{second.open=true;second.dispatchEvent(new Event('toggle'));});assert(second.textContent.includes('Wording unavailable.'));assert(!second.querySelector('.wording-diff'));
+});
