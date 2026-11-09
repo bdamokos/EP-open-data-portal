@@ -19,10 +19,12 @@ setUpstreamBridge(rpc);
 let stopActivity=()=>{},stopCorpus=()=>{},closing=false;
 // The writer's own share of memory, which the process-wide figures hide.
 const MIB=1024*1024;
-const memoryTimer=setInterval(()=>{
+const logMemory=()=>{
   const {heapUsed,heapTotal,external,arrayBuffers}=process.memoryUsage();
   console.warn('[writer-memory]',JSON.stringify({odpCache:odpCacheStatus(),heapUsedMiB:Math.round(heapUsed/MIB),heapTotalMiB:Math.round(heapTotal/MIB),externalMiB:Math.round(external/MIB),arrayBuffersMiB:Math.round(arrayBuffers/MIB)}));
-},10*60_000);
+};
+logMemory();
+const memoryTimer=setInterval(logMemory,10*60_000);
 memoryTimer.unref();
 const stores=[];
 const unobserve=[];

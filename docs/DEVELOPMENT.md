@@ -103,7 +103,7 @@ When one of these budgets is full, collection pauses until it is raised; retaine
 | --- | --- |
 | `[odp-throttle]` | An upstream 429/503 and the pause applied |
 | `[odp-monitor]` | Per-minute request summary: status counts, route families, quota headroom, the HTTP thread's response cache |
-| `[writer-memory]` | Every 10 minutes: the writer thread's heap and response cache |
+| `[writer-memory]` | At start and every 10 minutes: the writer thread's own heap (not its nested threads) and response cache |
 | `[event-loop-delay]` | HTTP thread delay over 100 ms (p99) or 250 ms (max) |
 | `[request-slow]` | An API request that took 1 s or more: route (no query), status, elapsed time, main-thread CPU and memory change |
 | `[sqlite-slow]` | A main-thread SQLite statement that took 250 ms or more |
