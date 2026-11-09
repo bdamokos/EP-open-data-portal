@@ -460,4 +460,8 @@ test('a busy parse thread holds back a document only briefly, a timed-out parse 
   await documentText(slowWork,'en',{directory:null,enqueue:false,clock,download:slow});
   assert.equal((await documentText(slowWork,'en',{directory:null,enqueue:false,clock,download:slow})).nextRetryAt,new Date(clock.now+10*60_000).toISOString(),'the parser remembers a timeout for ten minutes');
   assert.equal(slow.calls(),1);
+  // A parser module that failed to load is a capacity failure too.
+  const missing=failing('document_parse_unavailable'),missingWork=work('A-10-2026-9996');
+  await documentText(missingWork,'en',{directory:null,enqueue:false,clock,download:missing});
+  assert.equal((await documentText(missingWork,'en',{directory:null,enqueue:false,clock,download:missing})).nextRetryAt,new Date(clock.now+2_000).toISOString());
 });
