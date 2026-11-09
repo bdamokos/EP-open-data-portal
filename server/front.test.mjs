@@ -114,7 +114,7 @@ test('the front does not load the API module graph',loopback,() => {
   assert.ok(names.length*5<api);
 });
 
-test('at shutdown the writer starts draining before the API process has stopped',async()=>{
+test('at shutdown the writer starts draining before the API process has stopped',loopback,async()=>{
   const steps=[];
   await stopFrontServices({
     supervisor:{close:()=>{steps.push('api-stop');return new Promise(resolve=>{setTimeout(()=>{steps.push('api-gone');resolve();},20);});}},
