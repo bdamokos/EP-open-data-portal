@@ -8,6 +8,7 @@ import {
   parseFeed,
   memberSummary,
   activeCommittee,
+  startOdpMonitoring,
 } from "./odp.mjs";
 
 test("current committee membership excludes expired and future roles, includes the final day", () => {
@@ -217,4 +218,15 @@ test('speech timestamp ties retain hits order or graph order when hits are absen
   for (const [hasGender, expected] of [[base+'MALE','m'],[base+'FEMALE','f'],[base+'NKN','other'],[[base+'OP'],'other'],[undefined,null],[null,null],['',null],[[],null],['malformed',null],[[base+'MALE',base+'FEMALE'],null]]) {
     assert.equal(memberSummary({identifier:'42',hasGender}).gender, expected, JSON.stringify(hasGender));
   }
+});
+
+test("the request monitor reports the size of this thread's response cache", () => {
+  const lines = [];
+  const stop = startOdpMonitoring({ log: (...parts) => lines.push(parts), intervalMs: 3_600_000 });
+  stop();
+  assert.equal(lines.length, 2);
+  assert.equal(lines[0][0], "[odp-monitor]");
+  const { cache } = JSON.parse(lines[0][1]);
+  assert.ok(Number.isInteger(cache.entries) && cache.entries >= 0);
+  assert.ok(Number.isInteger(cache.bytes) && cache.bytes >= 0);
 });

@@ -5,7 +5,7 @@ import {retainBaseObservation} from './base-source-store.mjs';
 import {acceptOfficialHints} from './official-context-hints.mjs';
 import {acceptDocumentBodyHints} from './document-body-hints-rpc.mjs';
 import {parentPort,workerData} from 'node:worker_threads';
-import {setUpstreamBridge} from './odp.mjs';
+import {odpCacheStatus,setUpstreamBridge} from './odp.mjs';
 import {UpstreamRpcClient} from './upstream-rpc.mjs';
 import {activityIndex,startActivityIndex} from './activity-index-worker.mjs';
 import {corpus,startCorpus} from './corpus-worker.mjs';
@@ -17,6 +17,13 @@ const stopRetention=serveRetention(workerData.retentionPort,retainBaseObservatio
 const rpc=new UpstreamRpcClient(workerData.upstreamPort);
 setUpstreamBridge(rpc);
 let stopActivity=()=>{},stopCorpus=()=>{},closing=false;
+// The writer's own share of memory, which the process-wide figures hide.
+const MIB=1024*1024;
+const memoryTimer=setInterval(()=>{
+  const {heapUsed,heapTotal,external,arrayBuffers}=process.memoryUsage();
+  console.warn('[writer-memory]',JSON.stringify({odpCache:odpCacheStatus(),heapUsedMiB:Math.round(heapUsed/MIB),heapTotalMiB:Math.round(heapTotal/MIB),externalMiB:Math.round(external/MIB),arrayBuffersMiB:Math.round(arrayBuffers/MIB)}));
+},10*60_000);
+memoryTimer.unref();
 const stores=[];
 const unobserve=[];
 function identifyLease(service,source) {
@@ -30,7 +37,7 @@ parentPort.on('message',message=>{
     parentPort.postMessage({type:'sitting-hints-received'});return;
   }
   if(message?.type!=='shutdown'||closing)return;
-  closing=true;
+  closing=true;clearInterval(memoryTimer);
   void (async()=>{
     await Promise.all([stopActivity(),stopCorpus()]);
     await stopRetention();
