@@ -14,7 +14,7 @@ import {documentSummary} from './activities.mjs';
 import {array,tail,documentFiles} from './activity-index-model.mjs';
 import {documentText,docxParts,downloadDocxBuffer,allowedDownload} from './document-text.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
-import {inlineDocumentParser,OffThreadDocumentParser} from './document-parse.mjs';
+import {inlineDocumentParser,documentParser} from './document-parse.mjs';
 import {amendmentReference,amendmentTextLosses,canonicalEPReference,sameDocxDescriptor} from './amendments.mjs';
 import * as amendmentStore from './amendments-store.mjs';
 import {sharedRequest,waitForRequest,isLocalRequestFailure,requestSignal} from './request-budget.mjs';
@@ -420,4 +420,4 @@ export class DocumentContext {
     return {...base,status:base.variants.some(variant=>variant.wordingStatus==='available')?'available':'unavailable',basis:base.variants.length?'published-list':null,gaps:[...new Set(base.gaps)]};
   }
 }
-export const documentContext=new DocumentContext({parser:new OffThreadDocumentParser()});
+export const documentContext=new DocumentContext({parser:documentParser()});

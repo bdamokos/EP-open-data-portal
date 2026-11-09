@@ -163,6 +163,10 @@ const tasks={
     const {extractAmendments}=await import('./amendment-documents.mjs');
     return {json:JSON.stringify(extractAmendments(asBuffer(buffer),options))};
   },
+  async 'docx-json'({buffer}) {
+    const {docxContent}=await import('./document-text.mjs');
+    return {json:JSON.stringify(docxContent(asBuffer(buffer),{includeNoteObjects:true}))};
+  },
   // Sizes follow the reader's two projections: the record as parsed, and with
   // its image bytes replaced by descriptors. A record over the limit in both is
   // reported by size alone; the caller could not serve it.

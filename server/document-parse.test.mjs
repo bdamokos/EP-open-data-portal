@@ -2,12 +2,17 @@ import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,readdir,readFile,writeFile,rm} from 'node:fs/promises';
 import {readFileSync} from 'node:fs';
+import https from 'node:https';
+import {EventEmitter} from 'node:events';
+import {Readable} from 'node:stream';
+import {createHash} from 'node:crypto';
 import {deflateRawSync} from 'node:zlib';
 import os from 'node:os';
 import path from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
-import {createParseThread} from './amendment-extraction-thread.mjs';
-import {OffThreadDocumentParser,inlineDocumentParser,DOCUMENT_PARSE_LIMITS} from './document-parse.mjs';
+import {createParseThread,documentParseThread} from './amendment-extraction-thread.mjs';
+import {OffThreadDocumentParser,inlineDocumentParser,documentParser,DOCUMENT_PARSE_LIMITS} from './document-parse.mjs';
+import {documentText,downloadDocx} from './document-text.mjs';
 import {DocumentContext,documentContextQuery} from './document-context.mjs';
 import {parseProposal} from './proposal-structure.mjs';
 import {extractAmendments} from './amendment-documents.mjs';
@@ -161,6 +166,53 @@ test('a result over the reply limit is remembered on disk and in memory, and par
   assert.equal(thread.calls.length,2);
   const parsed=await call(parser(thread,directory),buffer,LIMIT);
   assert.equal(thread.calls.length,3);assert.equal(parsed.paragraphs.length,400);
+});
+
+// A body table between two paragraphs, so the table continuation check runs.
+const reportBuffer=archive('<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>1. Before the table.</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>2. After the table.</w:t></w:r></w:p></w:body></w:document>');
+const reportUrl='https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-9999/A-10-2026-9999_en.docx';
+const serve=(t,body,onGet=()=>{})=>t.mock.method(https,'get',(_url,_options,callback)=>{
+  onGet();const request=new EventEmitter();
+  queueMicrotask(()=>callback(Object.assign(Readable.from([body()]),{statusCode:200,headers:{'content-type':'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}})));
+  return request;
+});
+
+test('a document text parse on the thread matches the inline one and is stored until an extraction version changes',async()=>{
+  const directory=await makeDirectory(),thread=spy(makeThread()),first=parser(thread,directory);
+  const inline=JSON.stringify(await inlineDocumentParser.docx(reportBuffer));
+  assert.equal(JSON.stringify(await first.docx(reportBuffer)),inline);
+  await settled(first);
+  assert.equal(JSON.stringify(await parser(thread,directory).docx(reportBuffer)),inline,'a new parser reads the stored parse');
+  assert.equal(thread.calls.length,1);
+  assert.equal(JSON.stringify(await parser(thread,directory,{versions:{docx:'next'}}).docx(reportBuffer)),inline);
+  assert.equal(thread.calls.length,2,'a new extraction version parses again');
+});
+
+test('a download parsed on the thread reports a bad file as before and a parse that could not run as itself',async t=>{
+  let body=reportBuffer;serve(t,()=>body);
+  const thread=makeThread(),off=parser(thread,await makeDirectory());
+  assert.equal(JSON.stringify(await downloadDocx(reportUrl,{parser:off})),JSON.stringify(await downloadDocx(reportUrl)));
+  body=Buffer.from('not an archive');
+  const inline=await downloadDocx(reportUrl).catch(error=>error),threaded=await downloadDocx(reportUrl,{parser:off}).catch(error=>error);
+  assert.equal(inline.code,'invalid_docx');assert.equal(threaded.code,'invalid_docx');
+  assert.equal(threaded.message,inline.message);assert.equal(threaded.sourceHash,createHash('sha256').update(body).digest('hex'));
+  body=reportBuffer;
+  const busy=Object.assign(new Error('Document parsing is busy.'),{code:'document_parse_busy'});
+  await assert.rejects(downloadDocx(reportUrl,{parser:{docx:async()=>{throw busy;}}}),error=>error===busy);
+});
+
+test('a visitor\'s document text is parsed on the parse thread and kept by source hash, while the source writer parses inline',async t=>{
+  const directory=await makeDirectory(),previous=process.env.ODP_CACHE_DIR;process.env.ODP_CACHE_DIR=directory;
+  t.after(()=>{if(previous===undefined)delete process.env.ODP_CACHE_DIR;else process.env.ODP_CACHE_DIR=previous;documentParseThread.close();});
+  let downloads=0;serve(t,()=>reportBuffer,()=>downloads++);
+  const work={identifier:'A-10-2026-9999',document_date:'2026-01-01',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:reportUrl}]}]};
+  const visitor=await documentText(work,'en',{directory:null,enqueue:false});
+  assert.equal(visitor.status,'available');assert.equal(downloads,1);
+  await settled(documentParser());
+  assert.equal((await files(directory)).length,1,'the visitor\'s parse is stored');
+  const writer=await documentText(work,'en',{directory,collector:true});
+  assert.equal((await files(directory)).length,1,'the writer stores the text record, not a parse');
+  for(const field of ['paragraphs','paragraphSources','documentObjects','paragraphFormats','tables','notesStatus','sourceHash'])assert.deepEqual(visitor[field],writer[field],field);
 });
 
 test('changing a parser version, the record version or the source bytes invalidates a stored parse',async()=>{

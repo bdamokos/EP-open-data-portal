@@ -6,6 +6,7 @@ import {publishDocumentImages} from './document-image-store.mjs';
 import {docxImages} from './docx-images.mjs';
 import {languagePreference} from './language-order.mjs';
 import { inflateRawSync } from 'node:zlib';
+import {isMainThread} from 'node:worker_threads';
 import { createHash } from 'node:crypto';
 import {readFile,stat} from 'node:fs/promises';
 import {writeCacheFile} from './cache-publication.mjs';
@@ -242,6 +243,8 @@ function templateText(nodes) {
 }
 function paragraphsOf(nodes,context) {
   context.sourceIndex??=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0,blankStart=null;
+  // Rows by source path, caught up with the append-only result before each table.
+  const byPath=new Map();let indexed=0;
   // A body table is a continuation only when every native cell paragraph
   // survives extraction. The paths identify its literal body neighbours; blank
   // body rows may be omitted, while hidden or unsupported content stays a gap.
@@ -255,7 +258,8 @@ function paragraphsOf(nodes,context) {
     const next=siblings[after];if(!next?.['w:p'])return null;
     const text=JSON.stringify(node);
     if(/"w:(?:ins|del|moveFrom|moveTo|tblPrChange|trPrChange|tcPrChange)"/u.test(text))return null;
-    const byPath=new Map(result.map(row=>[row.source.path,row]));let complete=true;
+    for(;indexed<result.length;indexed++)byPath.set(result[indexed].source.path,result[indexed]);
+    let complete=true;
     function cells(nodes) {
       for(const item of nodes)for(const [key,value] of Object.entries(item)) {
         if(key===':@')continue;
@@ -457,9 +461,18 @@ export async function downloadDocx(sourceUrl,options={}) {
   if(options.retainedDescriptor)await retainBaseObservation({url:sourceUrl,resolvedSourceUrl,fetchedAt,status:200,request:{accept:'*/*',language:options.retainedDescriptor.language},headers:{'content-type':requests.at(-1)?.response.contentType},descriptor:options.retainedDescriptor},buffer,{directory:options.directory});
   const sourceHash=createHash('sha256').update(buffer).digest('hex');
   if(sourceHash===options?.rejectedHash)throw Object.assign(invalidDocx(Error('Unchanged rejected DOCX bytes.')),{sourceHash});
-  try{if(options.distributionIdentity)requireDistributionIdentity([nativeDistributionText(docxParts(buffer).get('word/document.xml'))],options.distributionIdentity);return {...docxContent(buffer,{includeNoteObjects:true}),resolvedSourceUrl,...(options.distributionIdentity?{distributionIdentity:options.distributionIdentity}:{})};}
-  catch(error){throw Object.assign(invalidDocx(error),{sourceHash:createHash('sha256').update(buffer).digest('hex')});}
+  try{if(options.distributionIdentity)requireDistributionIdentity([nativeDistributionText(docxParts(buffer).get('word/document.xml'))],options.distributionIdentity);return {...await (options.parser?.docx(buffer,{signal:options.signal})??docxContent(buffer,{includeNoteObjects:true})),resolvedSourceUrl,...(options.distributionIdentity?{distributionIdentity:options.distributionIdentity}:{})};}
+  catch(error){
+    // A parse that could not run says nothing about the file.
+    if(parseThreadFailure(error)||options.signal?.aborted)throw error;
+    throw Object.assign(invalidDocx(error),{sourceHash});
+  }
 }
+const parseThreadFailure=error=>['document_parse_busy','document_parse_timeout','document_parse_stopped','ERR_WORKER_OUT_OF_MEMORY'].includes(error?.code)||isLocalRequestFailure(error);
+// A visitor's download is parsed on the document parse thread, which keeps the
+// result by source hash. The source writer parses inline on its own thread.
+let visitorParser;
+const visitorDocxParser=()=>visitorParser??=import('./document-parse.mjs').then(({documentParser})=>documentParser());
 
 const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);
 export function documentNotes(record) {
@@ -500,7 +513,7 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
   const refresh=priority=> {
     if(pending.has(pendingKey))return pending.get(pendingKey);
     const job=sharedRequest(signal=>boundedUpstream(async()=>{
-      const result=await download(sourceUrl,{signal,priority,directory,...(candidate?{distributionIdentity:candidate.documentId}:{}),retainedDescriptor:{...descriptor,url:sourceUrl,language:chosen.language,sourceId,format}});signal.throwIfAborted();if(candidate&&result.distributionIdentity!==candidate.documentId)throw new Error('Standard distribution identity proof is unavailable.');if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document',sourceHash:result.sourceHash});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
+      const result=await download(sourceUrl,{signal,priority,directory,...(download===downloadDocx&&!collector&&isMainThread?{parser:await visitorDocxParser()}:{}),...(candidate?{distributionIdentity:candidate.documentId}:{}),retainedDescriptor:{...descriptor,url:sourceUrl,language:chosen.language,sourceId,format}});signal.throwIfAborted();if(candidate&&result.distributionIdentity!==candidate.documentId)throw new Error('Standard distribution identity proof is unavailable.');if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document',sourceHash:result.sourceHash});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
       const serialized=JSON.stringify(record);
       if(file&&collector){
         const size=Buffer.byteLength(serialized);
