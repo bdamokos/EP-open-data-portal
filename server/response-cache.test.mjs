@@ -38,10 +38,10 @@ test('ordinary public reads use six hours and recent lists one hour without chan
     const value = {index: {complete: true}, coverage: {complete: false, authoritativeComplete: false}, fetchedAt: '2026-10-16T00:00:00Z'};
     assert.equal(seconds(policy(path, value)), 21600, path);
     assert.equal(policy(path, value).cacheControl, 'public, max-age=0');
-    assert.match(policy(path, value).cdnCacheControl, /stale-if-error=0/);
+    assert.equal(policy(path, value).cdnCacheControl, 'public, max-age=21600, stale-while-revalidate=3600, stale-if-error=604800', path);
     assert.equal(value.coverage.complete, false);
   }
-  for (const path of ['/api/activities/43', '/api/latest-activities/43', '/api/speeches/43?offset=20']) assert.equal(seconds(policy(path)), 3600, path);
+  for (const path of ['/api/activities/43', '/api/latest-activities/43', '/api/speeches/43?offset=20']) assert.equal(policy(path).cdnCacheControl, 'public, max-age=3600, stale-if-error=86400', path);
   assert.equal(seconds(policy('/api/profile/43', {}, {method: 'HEAD'})), 21600);
 });
 
@@ -238,10 +238,10 @@ test('portrait cache expires with its retained source and never re-caches an exp
   for (const fetchedAt of [undefined, now - 7 * 86400_000, now - 8 * 86400_000]) assert.equal(portraitCachePolicy({fetchedAt}, {now}).cdnCacheControl, 'no-store');
 });
 
-test('vote-period calendar is admitted while stale, failed and unavailable source evidence remains no-store',()=>{
+test('a complete vote-period calendar lasts until a minute after Brussels midnight; stale, failed, partial and unavailable evidence remains no-store',()=>{
  const payload={version:1,weeks:[],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[{stale:false,refreshInProgress:false,refreshError:null}]}]}};
- assert.equal(policy('/api/vote-periods',payload).cdnCacheControl,'no-store');
- assert.equal(policy('/api/vote-periods',payload).cacheControl,'no-store');
+ assert.deepEqual(policy('/api/vote-periods',payload),{cacheControl:'public, max-age=0',cdnCacheControl:'public, max-age=36060, stale-if-error=0'},'held dates move at midnight: no stale copies');
+ for(const coverage of [{status:'partial',years:payload.coverage.years},{status:'complete',years:[{...payload.coverage.years[0],state:'partial'}]},{status:'complete',years:[{...payload.coverage.years[0],sources:'none'}]},{status:'complete'}])assert.equal(policy('/api/vote-periods',{...payload,coverage}).cdnCacheControl,'no-store');
  for(const state of [{stale:true},{refreshInProgress:true},{refreshError:{message:'Failed refresh'}}]){const value=structuredClone(payload);Object.assign(value.coverage.years[0].sources[0],state);assert.equal(policy('/api/vote-periods',value).cdnCacheControl,'no-store');}
  assert.equal(policy('/api/vote-periods',{coverage:{status:'unavailable'}}).cdnCacheControl,'no-store');
 });
@@ -252,4 +252,16 @@ test('demographic acquisition gaps and failed refreshes reach the origin while o
   for(const field of [{status:'missing_acquisition'},{status:'fetch_failed'},{status:'available',lastAttempt:{status:'fetch_failed'}}])assert.equal(policy(path,payload(field)).cdnCacheControl,'no-store');
   assert.equal(seconds(policy(path,payload({status:'source_omission',lastAttempt:{status:'success'}}))),21600);
  }
+});
+
+test('stale copies are allowed only where an expired answer is still true; day-bound and agenda answers keep none', () => {
+  assert.equal(policy('/api/speech/MTG-PL-2026-09-01-INT-1', {date: '2026-09-01', xml: '<speech>Text</speech>'}).cdnCacheControl, 'public, max-age=86400, stale-while-revalidate=86400, stale-if-error=604800');
+  assert.equal(policy('/api/directory', {index: {complete: true}}).cdnCacheControl, 'public, max-age=36060, stale-if-error=0');
+  const agenda = {detail: null, agendaSittings: [{date: '2026-10-14'}], coverage: {agendaComplete: true, sources: []}};
+  assert.equal(policy('/api/insights/legislation?week=latest', agenda).cdnCacheControl, 'public, max-age=3600, stale-if-error=0');
+  assert.equal(portraitCachePolicy({fetchedAt: now - 1000}, {now}).cdnCacheControl, 'public, max-age=604799, stale-while-revalidate=86400, stale-if-error=604800');
+  for (const value of Object.values({profile: policy('/api/profile/43'), speech: policy('/api/speech/x', {date: '2026-09-01', xml: '<speech/>'}), portrait: portraitCachePolicy({fetchedAt: now}, {now})})) {
+    // The gateway's bounds: browsers revalidate (portraits up to a day) and no directive exceeds a week.
+    for (const [, number] of value.cdnCacheControl.matchAll(/=(\d+)/g)) assert(Number(number) <= 7 * 86400);
+  }
 });

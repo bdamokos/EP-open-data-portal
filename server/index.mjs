@@ -20,7 +20,7 @@ import {pathToFileURL} from 'node:url';
 import {apiPrefixes,config,booleanFromEnvironment} from './config.mjs';
 import {allowCrossOriginRead,assertSameOrigin,HttpError,sendError,sendJson,setCommonSecurityHeaders} from './http-utils.mjs';
 import {serveStatic} from './static-files.mjs';
-import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
+import {apiCachePolicy,documentImageCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {API_VERSION} from './api-version.mjs';
 import {plenaryLive} from './plenary-live.mjs';
 import {hemicycleResponse} from './hemicycle.mjs';
@@ -204,7 +204,7 @@ async function handleApi(request,response,url,apiPrefix){
       requireQuery(url.searchParams,[]);
       const image=await documentImage(segments[1],segments[2]);
       setCommonSecurityHeaders(response);response.setHeader('Content-Type',image.mime);
-      response.setHeader('Cache-Control','private, no-store');response.setHeader('CDN-Cache-Control','no-store');
+      const imagePolicy=documentImageCachePolicy(request);response.setHeader('Cache-Control',imagePolicy.cacheControl);response.setHeader('CDN-Cache-Control',imagePolicy.cdnCacheControl);
       response.setHeader('Content-Length',image.body.length);response.setHeader('ETag','"'+segments[2]+'"');
       response.setHeader('X-Document-SHA256',segments[1]);response.setHeader('X-Image-SHA256',segments[2]);
       response.end(request.method==='HEAD'?undefined:image.body);return;
