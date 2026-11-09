@@ -468,13 +468,23 @@ export async function downloadDocx(sourceUrl,options={}) {
     throw Object.assign(invalidDocx(error),{sourceHash});
   }
 }
-// A busy, slow or stopped parse thread says nothing about the document: the next reader tries again at once.
-const parseCapacityFailure=error=>['document_parse_busy','document_parse_timeout','document_parse_stopped'].includes(error?.code);
-const parseThreadFailure=error=>parseCapacityFailure(error)||error?.code==='ERR_WORKER_OUT_OF_MEMORY'||isLocalRequestFailure(error);
+// A busy, stopped or unavailable parse thread says nothing about the document;
+// a timeout or out-of-memory parse is remembered by the parser for these bytes.
+const parseCapacityFailure=error=>['document_parse_busy','document_parse_stopped','document_parse_unavailable'].includes(error?.code);
+const parseRememberedFailure=error=>['document_parse_timeout','ERR_WORKER_OUT_OF_MEMORY'].includes(error?.code);
+const parseThreadFailure=error=>parseCapacityFailure(error)||parseRememberedFailure(error)||isLocalRequestFailure(error);
+// How long a failed read of one document is not repeated. A short wait after a
+// capacity failure keeps a saturated thread from causing a download per reader.
+const failureRetryMs=error=>parseCapacityFailure(error)?2_000:parseRememberedFailure(error)?DOCUMENT_PARSE_FAILURE_TTL_MS:Math.max(30_000,Number(error.retryAfter||0)*1000);
+// Same as DOCUMENT_PARSE_LIMITS.failureTtlMs (document-parse.mjs imports this module).
+const DOCUMENT_PARSE_FAILURE_TTL_MS=10*60_000;
 // A visitor's download is parsed on the document parse thread, which keeps the
 // result by source hash. The source writer parses inline on its own thread.
 let visitorParser;
-const visitorDocxParser=()=>visitorParser??=import('./document-parse.mjs').then(({documentParser})=>documentParser(),error=>{visitorParser=null;throw error;});
+const visitorDocxParser=()=>visitorParser??=import('./document-parse.mjs').then(({documentParser})=>documentParser(),error=>{
+  visitorParser=null;
+  throw Object.assign(new Error('Document parsing is unavailable.',{cause:error}),{code:'document_parse_unavailable'});
+});
 
 const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);
 export function documentNotes(record) {
@@ -529,7 +539,7 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
       }
       signal.throwIfAborted();
       failures.delete(key);return record;
-    },{source:'documents',priority,signal})).catch(error=>{if(!collector&&!isLocalRequestFailure(error)&&!parseCapacityFailure(error))failures.set(key,{source:descriptor,retryAt:Math.max(clock()+30000,clock()+Number(error.retryAfter||0)*1000),message:String(error.message).slice(0,250),code:error.code,status:error.status});throw error;}).finally(()=>pending.delete(pendingKey));
+    },{source:'documents',priority,signal})).catch(error=>{if(!collector&&!isLocalRequestFailure(error))failures.set(key,{source:descriptor,retryAt:clock()+failureRetryMs(error),message:String(error.message).slice(0,250),code:error.code,status:error.status});throw error;}).finally(()=>pending.delete(pendingKey));
     pending.set(pendingKey,job);return job;
   };
   // The URL can be reused for a republished edition. Its predecessor's failed
