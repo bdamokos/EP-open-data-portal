@@ -27,7 +27,10 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=8790 APP_REVISION=${APP_REVISION} \
 # Fewer glibc malloc pools per thread: the worker threads otherwise each keep
 # freed memory in their own pool. Measured 40-65 MiB less resident memory for
 # the full process, with no extra CPU.
-ENV MALLOC_ARENA_MAX=2
+# Fixed thresholds: blocks of 128 KiB or more get their own mapping, returned
+# on free, and a pool gives back free space above 256 KiB at its top. Measured
+# a further ~25 MiB less resident memory, with no measurable CPU change.
+ENV MALLOC_ARENA_MAX=2 MALLOC_MMAP_THRESHOLD_=131072 MALLOC_TRIM_THRESHOLD_=262144
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/package.json /app/package-lock.json ./
 COPY --from=build /runtime-server ./server

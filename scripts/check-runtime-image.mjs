@@ -36,6 +36,8 @@ try{
     import {brotliCompressSync,brotliDecompressSync,createBrotliDecompress} from 'node:zlib';
     assert.equal(process.versions.node,${JSON.stringify(nodeVersion)},'Runtime Node must match .nvmrc.');
     assert.equal(process.env.MALLOC_ARENA_MAX,'2','The runtime image limits glibc to two malloc arenas.');
+    assert.equal(process.env.MALLOC_MMAP_THRESHOLD_,'131072','The runtime image maps large blocks separately.');
+    assert.equal(process.env.MALLOC_TRIM_THRESHOLD_,'262144','The runtime image trims free pool space above 256 KiB.');
     const plain=Buffer.from('Parliament source response');
     assert.deepEqual(brotliDecompressSync(brotliCompressSync(plain)),plain);
     // Upstream CVE-2026-111497 regression: nodejs/node commit 03923858417da6a87670cf4c099993dbcc6d8361.
