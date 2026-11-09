@@ -32,7 +32,7 @@ Keep `.nvmrc` and the Dockerfile’s Node version aligned, and pin `NODE_IMAGE` 
 
 ## API versions
 
-For an API response contract change, including a change of meaning, bump the affected endpoint `*_VERSION`. The client build and server startup derive the same 12-character version from the contract digest; no other version update is needed.
+For an API response contract change, including a change of meaning, bump the affected endpoint `*_VERSION`. The client and server derive the API version from the contract digest; no other version update is needed.
 
 ## Interface
 
@@ -45,8 +45,8 @@ For an API response contract change, including a change of meaning, bump the aff
 Write for readers: plain, brief and free of disclaimers, hedges and robotic phrasing. Before adding a sentence, ask whether a reader would miss it. Report uncertainty, gaps and limits to the maintainer in full in the PR, review replies or chat instead.
 
 - The site notice (`src/components/DataNotice.tsx`) says once that the site is independent, its counts may be incomplete and readers should check the original. Don’t repeat it inline.
+- General sourcing and translation notes belong in the site notice. Show a source link in the page only when it replaces something we couldn’t parse and the public page holds that exact information, or when the information is useful and we deliberately don’t parse it.
 - Link only to human-readable public pages (`sourcePageUrl` and `SourceLink` in `src/SourceLink.tsx`). Never show API, JSON-LD, SPARQL or concept URLs, request URLs, retrieval timestamps or record IDs as evidence. Without a public page, show no link and no note.
-- Keep in-page disclaimers and source links to a minimum. General sourcing and translation notes belong in the site notice. Show a source link in the page only when it replaces something we couldn't parse and that public page holds the exact information, or when the information is useful and we deliberately don't parse it.
 - Use “Partial” only for a concrete missing record, failed read or bounded omission in the displayed selection, and name it briefly. A recent date or an unrelated archive gap is not a gap. Keep unknown values distinct from zero.
 - Don’t explain methods or say what the app doesn’t infer. Add one line only where it changes how a number reads, such as “Shared questions count once per country”.
 - Keep pipeline terms out of public views: generations, parsers, source variants, load states, what an API returned.
@@ -76,22 +76,10 @@ Benchmark caches, snapshots and results stay outside Git and out of CI artifacts
 - Replay offline: `--cache-dir DIR [--output-dir DIR]`.
 - Compare: `--baseline FILE` (`--placement-only` is the same gate). Keep an append-only `ratchet.md` and `baseline-current.json` in the snapshot’s output directory.
 - Gates: a PR may not turn a previously correct row into anything else, and false placements must stay at zero. The hold-out snapshot is measure-only: never tune against it. The language snapshot (`--languages`) is a separate gate with its own ledger.
-- Whole-document operations, including rejections, Rule 188(3) alternative motions and provisional agreements, remain in placement and vote denominators. Independently source-verified operations count as correct at document scope; unverified operations stay withheld. Reasons remain distinct in reports.
-- Frozen replay records an absent exact request as `frozen-input-absent`, with URL, Accept and snapshot identity in affected rows and result diagnostics. These derived acquisition gaps never enter the sealed manifest or input cache. Listed inputs with corrupt bytes, missing files or invalid metadata still abort replay; unsealed acquisition is unchanged.
+- Whole-document operations (rejections, Rule 188(3) alternative motions, provisional agreements) stay in the placement and vote denominators; only independently source-verified ones count as correct.
 
-**Idle benchmark** (`scripts/idle-benchmark.mjs`) measures one running server, in either process mode, from inside its PID namespace (for example `docker exec`): process-tree memory (PSS and RSS), wake latency of the home page's API calls, a warm tour's p50/p95, memory after the API process exits and idle CPU per hour. Run `--help` for the options. Results stay outside Git.
+**Adopted-text calibration.** `--adopted-text-snapshot DIR --request-cap 0` on the amendment benchmark compares placements with Parliament’s adopted texts and writes a separate `adopted-calibration-*.json` report for maintainer review; it never changes scores or the ratchet. Acquire the sealed input once with `node scripts/amendment-adopted-snapshot.mjs BENCHMARK.json NEW_DIR`.
+
+**Idle benchmark** (`scripts/idle-benchmark.mjs`) measures a running server, in either process mode, from inside its container (for example with `docker exec`): memory, wake latency of the home page, a warm tour and idle CPU.
 
 **Agenda benchmark** (`npm run bench:agenda`) times agenda assembly. Capture once with `--fetch --api-base ORIGIN --cache-dir DIR --week latest`, then replay offline with `--latency zero|recorded` and compare with `--baseline FILE`.
-
-### Adopted-text calibration
-
-The optional `--adopted-text-snapshot DIRECTORY --request-cap 0` amendment replay
-writes a separate `adopted-calibration-*.json` report. It does not affect placement,
-verification, scores or the ratchet. Acquire a new sealed TA directory once with
-`node scripts/amendment-adopted-snapshot.mjs BENCHMARK.json NEW_DIRECTORY` outside
-Git. Acquisition reads public ODP adopted-text listings and their declared English
-XML manifestations sequentially, at least two seconds apart; a 429 pauses three
-minutes and stops. Replay verifies every input hash and makes no source requests.
-
-Use the sidecar's `placedDisagreements` list for maintainer review. Calibration
-results never change the benchmark's existing score or verifier.

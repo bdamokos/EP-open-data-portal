@@ -27,23 +27,20 @@ The unfinished amendment catalogue is hidden by `publicAmendmentsEnabled` in `sr
 - The frontend (`src/main.tsx`) is a single page; navigation uses query parameters at the root. The server serves only the root page, `index.html` and `assets/`, plus flat JSON routes under `/api/`.
 - The HTTP thread answers visitors from read-only SQLite connections and bounded caches. It owns the shared upstream request queue.
 - One worker thread hosts the source writers: the activity-index writer, the corpus writer when enabled, and the background collectors (documents, official context, sitting snapshots, press, topics). Each writer holds a lease in its database, so a second process can’t write by accident. Requests from visitors never write.
-- Visitor requests parse amendment lists, Commission or Council texts and downloaded document bodies on a memory-limited thread that starts on demand and exits when idle, so a large document does not block the HTTP thread. The source writer parses on its own thread. Parsed results are stored by source hash and parser version in `document-parse-v1` under `ODP_CACHE_DIR`; a result too large for a reply is remembered by size. Bump the parser version constant whenever a parser's output changes.
+- Documents (amendment lists, Commission and Council texts, document bodies) are parsed off the HTTP thread, and the results are cached by source hash and parser version in `document-parse-v1` under `ODP_CACHE_DIR`. Bump the parser version whenever a parser’s output changes.
 - The index is published in generations: the writer builds a working generation and switches readers to it atomically.
 - Follows and reading state stay in browser storage (`ep.following.*`). The server sees only which MEPs, questions or dossiers a tab checks for updates.
 - Data lives in `activities-v1.sqlite` and `press-v1.sqlite` (index directory), `corpus-v1.sqlite` (corpus directory) and file caches under `ODP_CACHE_DIR`. All of it stays outside Git.
 
 ## Process modes
 
-`EXPLORER_PROCESS_MODE=single` (default) runs the HTTP API and the source-writer thread in one process. `split` runs a small always-on front (`server/front.mjs`) and starts the API process (`server/api-child.mjs`) when a visitor needs it:
+`EXPLORER_PROCESS_MODE=single` (default) runs everything in one process. `split` keeps a small always-on front (`server/front.mjs`) that serves static files and health checks, owns the upstream queue, the writer thread and the error log, and starts the API process (`server/api-child.mjs`) only when a visitor needs it:
 
-- The front owns static files, plain `GET`/`HEAD` of `/healthz` and `/api/healthz`, the upstream queue and rate budget, the writer thread and the error log. It proxies every other `/api` request to the API process on a private loopback port. It never loads the API modules.
-- The API process starts on the first proxied request, or when a browser loads the root page, and exits after `EXPLORER_API_IDLE_MINUTES` (default 20; 0 keeps it running) without proxied requests. Plain health checks and static files do not count; a health check with a query or an `Origin` is proxied and counts. Memory returns to the system only when a process exits, so idle means exit.
-- Requests wait for a starting process within their normal 30 s (50 s for long routes) budget. While it is unavailable, or backing off after a crash, the front answers 503 with `Retry-After`.
-- The API process sends upstream admission, retained sources, writer hints and error entries to the front over IPC; the front sends it new publications. It opens the stores read-only.
-- The plenary warm-up runs while the API process is alive. After a long idle the first visit therefore starts it cold.
-- The front keeps the last good answer of `directory`, `vote-periods`, `plenary-live` and `upcoming-votes` (a sitting before today) in `front-snapshots-v1` under `ODP_CACHE_DIR`, up to `EXPLORER_FRONT_SNAPSHOT_MB` (default 16; 0 turns it off). While the API process is not running, an anonymous read of one of these with the current `v` is answered from its copy and the process is started; the reply carries `X-Explorer-Snapshot` and `no-store`. A copy is used for the lifetime the API sent (`directory`), the Brussels day it was stored on, at most 6 h (`vote-periods`), until its own `validUntil` (`plenary-live`) or 1 h (`upcoming-votes`); otherwise the request waits for the process. Requests with credentials, an `Origin` or a `Range`, and any other route or query, never use a copy. Only the front writes the files.
+- The API process exits after `EXPLORER_API_IDLE_MINUTES` (default 20; 0 keeps it running) without API requests. Memory returns to the system only when a process exits. Plain `/healthz` checks don’t count, but a health check with a query or an `Origin` header is passed to the API and keeps it alive.
+- Requests wait for a starting process within their normal time budget; while it can’t start, the front answers 503 with `Retry-After`.
+- The plenary warm-up runs only while the API process is alive, so the first visit after a long idle starts cold. To soften that, the front answers a few home-page reads from its last good copies (`EXPLORER_FRONT_SNAPSHOT_MB`, default 16; 0 turns it off) while the API starts.
 
-Start with `node server/main.mjs` (the Docker `CMD`); `node server/index.mjs` always runs single mode. `scripts/idle-benchmark.mjs` measures a running server in either mode.
+Start with `node server/main.mjs` (the Docker `CMD`); `node server/index.mjs` always runs single mode.
 
 ## Upstream requests
 
@@ -55,7 +52,7 @@ The Open Data API allows 500 requests per five minutes. The server enforces this
 | `steady` | At least 1.5 s between background starts, for periodic updates |
 | `backfill` | At least 750 ms between starts (80% of the published rate), slowing after 429/503 |
 
-`ACTIVITY_INDEX_RECOVERY_MODE=backfill` lets the writer work through recorded source gaps and overdue document refreshes between daily refreshes, within the same limits.
+`ACTIVITY_INDEX_RECOVERY_MODE=backfill` lets the writer work through recorded source gaps and overdue document refreshes between daily refreshes, within the same limits, starting a recovery generation at most every `ACTIVITY_INDEX_RECOVERY_BEGIN_INTERVAL_HOURS` (default 6).
 
 Other origins (website files, OEIL, Publications Office, Multimedia Centre) have their own small pools. `OFFICIAL_CONTEXT_DAILY_ORIGIN_LIMIT` limits context warming to 2,000 requests per origin per Brussels day by default. Topic collection uses the writer’s request budget instead. A cold procedure needs about 72 Publications Office requests across 24 languages, so warming a full term takes weeks.
 
@@ -83,7 +80,7 @@ docker run --rm -p 127.0.0.1:8790:8790 parliament-explorer
 node scripts/check-runtime-image.mjs parliament-explorer "$(git rev-parse HEAD)"
 ```
 
-The image runs as UID 1000 with production dependencies and built assets only. Mount persistent directories at `/data/cache`, `/data/index` and `/data/diagnostics`, owned by UID 1000, and set `ACTIVITY_INDEX_ENABLED=true`. To enable the corpus, also mount a persistent directory owned by UID 1000 at `/data/corpus` and set `CORPUS_ENABLED=true CORPUS_DIR=/data/corpus`. Outside-speaker title enrichment is disabled and logged once when `CORPUS_DIR` is unset; missing titles use country names. The activity process must receive `CORPUS_DIR` to reuse held headers and collect missing titles. `NODE_IMAGE` pins the base image; keep it aligned with `.nvmrc`.
+The image runs as UID 1000 with production dependencies and built assets only. Mount persistent directories at `/data/cache`, `/data/index` and `/data/diagnostics`, owned by UID 1000, and set `ACTIVITY_INDEX_ENABLED=true`. To enable the corpus, also mount a persistent directory owned by UID 1000 at `/data/corpus` and set `CORPUS_ENABLED=true CORPUS_DIR=/data/corpus`. Outside-speaker titles also need `CORPUS_DIR`; without it they fall back to country names. `NODE_IMAGE` pins the base image; keep it aligned with `.nvmrc`.
 
 - **Stop the old container before starting the new one.** Two writers on the same directories are not allowed.
 - **Startup preparation:** before listening, the server prepares SQLite indexes and projections for the enabled services. It makes no upstream requests and skips completed work, but after schema changes it can take 20–30 minutes or more on a slow disk. The image allows a 60-minute health-check start period; deployment readiness deadlines must allow for it. `node server/migrate-indexes.mjs` runs the same preparation for maintenance.
@@ -94,12 +91,11 @@ Disk budgets (MiB unless stated):
 | Setting | Default | Notes |
 | --- | --- | --- |
 | `ACTIVITY_INDEX_MAX_DISK_MIB` | 8192 | Includes retained generations and WAL |
-| `ACTIVITY_INDEX_RECOVERY_BEGIN_INTERVAL_HOURS` | 6 | Minimum hours between recovery generation starts (1–24); daily refreshes and hard rebuilds bypass it |
 | `CORPUS_MAX_DISK_MIB` | 2048 | A full term in all languages needs about 10–15 GB |
 | `OFFICIAL_CONTEXT_MAX_DISK_MIB` | 32768 | OEIL and Publications Office pages; collection pauses at 90% |
 | `AMENDMENT_SOURCE_MAX_DISK_MIB` | 512 | Term-10 amendment-list DOCX; about 80 MiB now, a few MiB per plenary week |
 | `DOCUMENT_TEXT_MAX_DISK_MIB` | 256 | Extracted document texts |
-| `DOCUMENT_PARSE_MAX_DISK_MIB` | 256 | Parsed amendment lists and proposals for the context endpoint; least recently read are evicted |
+| `DOCUMENT_PARSE_MAX_DISK_MIB` | 256 | Parsed documents; the least recently read are evicted |
 | `SITTING_SNAPSHOT_MAX_DISK_MIB` | 256 | Compressed vote and attendance snapshots, inside the activity budget |
 | `BASE_SOURCE_MAX_DISK_MIB` | 128 | Native base documents; set 4096 (with `BASE_SOURCE_MAX_BINDINGS=65536`) for a one-time `BASE_SOURCE_BACKFILL=1` collection |
 
@@ -107,7 +103,8 @@ When one of these budgets is full, collection pauses until it is raised; retaine
 
 ## Operations
 
-- `node server/placement-log-report.mjs --since YYYY-MM-DD` prints, from the index on this host, amendments on newly held lists that could not be placed, by reason and list, and placed against unplaced by week. It needs `ACTIVITY_INDEX_DIR` or `--index-dir`; set `PLACEMENT_LOG_ENABLED=false` to stop the logging.
+- `node server/placement-log-report.mjs --since YYYY-MM-DD` lists amendments on newly held lists that could not be placed, by reason and week. It reads `ACTIVITY_INDEX_DIR` (or `--index-dir`); `PLACEMENT_LOG_ENABLED=false` stops the logging.
+- When the API lists a speech that has no record, the writer logs `[speech-source-gap]` and the data audit lists it under `speechSourceGaps`. A maintainer can load such a speech from website XML captured outside the app with `server/import-speech-record-xml.mjs`; the record gives way to any later API record.
 - `npm run data:audit -- --reconcile` inventories queues, recorded gaps and missing question/answer files without starting a writer. Save the JSON and pass `--baseline FILE` later to see what was resolved and what is newly missing. Keep reports outside Git.
 - Errors are logged as JSONL in `ERROR_LOG_DIR` (default `var/diagnostics`), with failed index tasks under `activity-index/`. Each directory keeps about 20 MiB and must have one writing process. `node scripts/error-summary.mjs DIR` groups them. Browser reports arrive through `POST /api/client-errors` and exclude free text, page URLs, cookies, IP addresses and user agents.
 - Service log prefixes:
