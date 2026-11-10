@@ -45,3 +45,13 @@ test('label look-alikes and elided articles are compared as the act prints them'
  const elided=rows.map(row=>row.index===4?{...row,text:"(b)\tinterference with l'system; and"}:row);
  assert.equal(typoPassage(elided.slice(0,6),elided,base.replace('with satellite monitoring system','with un system'))?.cost,1);
 });
+
+test('a letter reference inside the text is a label, not a typo',()=>{
+ // Independent review of #808: "point (a)" for "point (b)", "Annex I" for "Annex II".
+ const text=['Member States shall ensure that the activities referred to in point (a) of Article 3(1) are supervised by the competent authority.','The measures listed in Annex II shall apply to every vessel flying their flag.','Other text that does not compare at all with either sentence.'].map((text,index)=>({text,index}));
+ assert.equal(typoPassage(text.slice(0,1),text,text[0].text.replace('point (a)','point (b)')),null);
+ assert.equal(typoPassage(text.slice(1,2),text,text[1].text.replace('Annex II','Annex I')),null);
+ assert.equal(typoPassage(text.slice(0,1),text,text[0].text.replace('(a)','(ii)')),null);
+ // An ordinary word change in the same sentence still places.
+ assert.equal(typoPassage(text.slice(0,1),text,text[0].text.replace('supervised','supervized'))?.cost,1);
+});
