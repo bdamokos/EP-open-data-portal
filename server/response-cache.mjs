@@ -35,17 +35,20 @@ function gatedRoutePolicy(url, p, now) {
   const gate = ok => ok ? six : noStore;
   if (resource === 'document-context' && item) {
     // Only the plain document; amendment, passage, provision and final-text replies drop or lack their evidence.
-    return gate(only('lang') && (p?.baseline == null || p.baseline.status === 'available') && !p?.amendment && !p?.related?.gaps?.length && p?.related?.status !== 'partial');
+    return gate(only('lang') && p?.document != null && p.related?.status === 'not-requested' && !p.related.gaps?.length && p.amendment == null
+      && (p.baseline == null || p.baseline.status === 'available'));
   }
   if (resource === 'decision-votes' && item) {
     const day = item.slice(7, 17);
     return gate(calendarDay(day) && day < today && p?.status === 'found' && p.coverage === 'complete' && p.integrity === 'complete'
-      && p.decision?.ballotStatus === 'conducted' && Array.isArray(p.decision.evidenceGaps) && !p.decision.evidenceGaps.length && !p.decision.sourceConflicts && p.groupHistory != null);
+      && p.decision?.ballotStatus === 'conducted' && Array.isArray(p.decision.evidenceGaps) && !p.decision.evidenceGaps.length && !p.decision.sourceConflicts && p.groupHistory != null
+      // A group history older than the vote attributes no group; that lag is not a final answer.
+      && Array.isArray(p.voters) && p.voters.every(voter => voter?.groupStatus !== 'unavailable'));
   }
-  if (resource === 'insights' && (item === 'week-results' || item === 'week-story')) {
-    const week = q.get('week'), finished = calendarDay(week) && addDays(week, 6) < today;
-    if (item === 'week-results') return gate(finished && Array.isArray(p?.days) && p.days.length > 0 && p.days.every(day => day?.complete === true));
-    return gate(finished && p?.status === 'complete');
+  // week-results is not admitted: a sitting missing from a partial calendar read leaves the other days complete.
+  if (resource === 'insights' && item === 'week-story') {
+    const week = q.get('week');
+    return gate(calendarDay(week) && addDays(week, 6) < today && p?.status === 'complete');
   }
   if (resource === 'topics' && ['search', 'overview', 'detail'].includes(item)) {
     // The current quarter and the overview turn over with the Brussels day. Records whose
@@ -56,13 +59,14 @@ function gatedRoutePolicy(url, p, now) {
   if (resource === 'voting-lists' && item === undefined) {
     // Lists are re-read through the session and purged after 30 days; only a settled week-old sitting is kept.
     const day = (q.get('sitting') || '').slice(7);
-    return gate(calendarDay(day) && addDays(day, 7) <= today && Array.isArray(p?.gaps) && !p.gaps.length
+    return gate(only('sitting') && calendarDay(day) && addDays(day, 7) <= today && Array.isArray(p?.gaps) && !p.gaps.length
       && Array.isArray(p.documents) && p.documents.length > 0 && p.documents.every(document => document?.documentId && !document.gaps?.length));
   }
   if (resource === 'member-votes' && item) {
-    const selected = q.get('sitting') || (q.get('week') && q.get('week') !== 'latest');
+    // An explicit sitting, or a finished week: a current week still omits its later sittings.
+    const week = q.get('week'), selected = q.get('sitting') || (calendarDay(week) && addDays(week, 6) < today);
     const sittings = p?.coverage?.sittings;
-    return gate(Boolean(selected) && p.coverage.status === 'complete' && p.coverage.collectionComplete === true && Array.isArray(sittings) && sittings.length > 0
+    return gate(Boolean(selected) && p?.coverage?.status === 'complete' && p.coverage.collectionComplete === true && Array.isArray(sittings) && sittings.length > 0
       && sittings.every(sitting => sitting?.state === 'complete' && sitting.completeness?.complete === true && !sitting.pendingVotes && calendarDay(sitting.date) && sitting.date < today));
   }
   if (resource === 'member-vote-record' && item) {
@@ -73,10 +77,11 @@ function gatedRoutePolicy(url, p, now) {
   if (resource === 'motion-amendments' && item) {
     const c = p?.coverage;
     return gate(c?.complete === true && c.indexStatus === 'indexed' && ['records', 'observed-empty'].includes(c.resultState) && c.backgroundPending === false
-      && Array.isArray(c.gaps) && !c.gaps.length && p.text?.status === 'indexed' && p.text.outcome?.totalsStatus === 'available');
+      && Array.isArray(c.gaps) && !c.gaps.length && p.text?.status === 'indexed' && p.text?.outcome?.totalsStatus === 'available');
   }
   if (resource === 'speech-transcript' && item) {
-    if (!(p?.available === true && typeof p.xml === 'string' && p.xml && p.metadataUnavailable !== true)) return noStore;
+    // Transcripts read before the metadata backfill have no speaker header yet.
+    if (!(p?.available === true && typeof p.xml === 'string' && p.xml && p.metadataUnavailable !== true && p.metadata && typeof p.metadata === 'object')) return noStore;
     const day = item.slice(7, 17);
     return calendarDay(day) && Date.parse(day) <= now - 14 * DAY * 1000 ? publicPolicy(DAY) : six;
   }
