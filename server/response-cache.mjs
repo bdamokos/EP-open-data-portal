@@ -21,6 +21,68 @@ function approvedPath(pathname) {
   return resource === 'outside' && (item === 'directory' || /^[1-9]\d*$/.test(item));
 }
 
+const addDays = (date, days) => new Date(Date.parse(date + 'T12:00:00Z') + days * DAY * 1000).toISOString().slice(0, 10);
+const calendarDay = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + 'T12:00:00Z')) && addDays(value, 0) === value;
+
+// Routes added after 17 October. Each is cached only behind its own completeness
+// gate, because their partial and pending shapes are not caught by transientState.
+// None keeps a stale copy. Undefined means the route is not one of these.
+function gatedRoutePolicy(url, p, now) {
+  const [, , resource, item, extra] = url.pathname.split('/');
+  if (extra !== undefined) return undefined;
+  const q = url.searchParams, today = brusselsDay(now), six = publicPolicy(6 * HOUR);
+  const only = (...keys) => [...q.keys()].every(key => keys.includes(key));
+  const gate = ok => ok ? six : noStore;
+  if (resource === 'document-context' && item) {
+    // Only the plain document; amendment, passage, provision and final-text replies drop or lack their evidence.
+    return gate(only('lang') && (p?.baseline == null || p.baseline.status === 'available') && !p?.amendment && !p?.related?.gaps?.length && p?.related?.status !== 'partial');
+  }
+  if (resource === 'decision-votes' && item) {
+    const day = item.slice(7, 17);
+    return gate(calendarDay(day) && day < today && p?.status === 'found' && p.coverage === 'complete' && p.integrity === 'complete'
+      && p.decision?.ballotStatus === 'conducted' && Array.isArray(p.decision.evidenceGaps) && !p.decision.evidenceGaps.length && !p.decision.sourceConflicts && p.groupHistory != null);
+  }
+  if (resource === 'insights' && (item === 'week-results' || item === 'week-story')) {
+    const week = q.get('week'), finished = calendarDay(week) && addDays(week, 6) < today;
+    if (item === 'week-results') return gate(finished && Array.isArray(p?.days) && p.days.length > 0 && p.days.every(day => day?.complete === true));
+    return gate(finished && p?.status === 'complete');
+  }
+  if (resource === 'topics' && ['search', 'overview', 'detail'].includes(item)) {
+    // The current quarter and the overview turn over with the Brussels day. Records whose
+    // subject read is unavailable stay counted as such; only pending reads are transient.
+    const ok = p?.ready === true && p.coverage?.pending === 0;
+    return ok ? publicPolicy(Math.min(6 * HOUR, untilNextBrusselsDay(now))) : noStore;
+  }
+  if (resource === 'voting-lists' && item === undefined) {
+    // Lists are re-read through the session and purged after 30 days; only a settled week-old sitting is kept.
+    const day = (q.get('sitting') || '').slice(7);
+    return gate(calendarDay(day) && addDays(day, 7) <= today && Array.isArray(p?.gaps) && !p.gaps.length
+      && Array.isArray(p.documents) && p.documents.length > 0 && p.documents.every(document => document?.documentId && !document.gaps?.length));
+  }
+  if (resource === 'member-votes' && item) {
+    const selected = q.get('sitting') || (q.get('week') && q.get('week') !== 'latest');
+    const sittings = p?.coverage?.sittings;
+    return gate(Boolean(selected) && p.coverage.status === 'complete' && p.coverage.collectionComplete === true && Array.isArray(sittings) && sittings.length > 0
+      && sittings.every(sitting => sitting?.state === 'complete' && sitting.completeness?.complete === true && !sitting.pendingVotes && calendarDay(sitting.date) && sitting.date < today));
+  }
+  if (resource === 'member-vote-record' && item) {
+    // The record grows with every vote day and attributes the group as of today: a short lifetime.
+    const ok = p?.coverage?.status === 'complete' && p.coverage.missing === 0 && p.coverage.unprojectedDecisions === 0 && p.period?.to != null;
+    return ok ? publicPolicy(15 * 60) : noStore;
+  }
+  if (resource === 'motion-amendments' && item) {
+    const c = p?.coverage;
+    return gate(c?.complete === true && c.indexStatus === 'indexed' && ['records', 'observed-empty'].includes(c.resultState) && c.backgroundPending === false
+      && Array.isArray(c.gaps) && !c.gaps.length && p.text?.status === 'indexed' && p.text.outcome?.totalsStatus === 'available');
+  }
+  if (resource === 'speech-transcript' && item) {
+    if (!(p?.available === true && typeof p.xml === 'string' && p.xml && p.metadataUnavailable !== true)) return noStore;
+    const day = item.slice(7, 17);
+    return calendarDay(day) && Date.parse(day) <= now - 14 * DAY * 1000 ? publicPolicy(DAY) : six;
+  }
+  return undefined;
+}
+
 // The member directory alone holds about 30,000 objects (5 MB); JSON_RESPONSE_LIMIT_BYTES
 // bounds every reply, so this cap only guards against unexpectedly dense envelopes.
 const TRANSIENT_WALK_LIMIT = 250_000;
@@ -73,7 +135,10 @@ const staleSafe = new Set(['speech', 'speech-media', 'document', 'motion-compari
 const established = {revalidate: DAY, ifError: 7 * DAY};
 
 export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
-  if (!['GET', 'HEAD'].includes(request.method) || request.headers?.authorization || !approvedPath(url.pathname) || transientState(payload)) return noStore;
+  if (!['GET', 'HEAD'].includes(request.method) || request.headers?.authorization || transientState(payload)) return noStore;
+  const gated = gatedRoutePolicy(url, payload, now);
+  if (gated) return gated;
+  if (!approvedPath(url.pathname)) return noStore;
   if(url.pathname==='/api/insights/procedure-progress') {
     if(!['mapped','unmapped'].includes(payload?.state)||!payload?.coverage||payload.coverage.limited||payload.coverage.invalidRows||payload.coverage.incompleteEvents||payload.coverage.timeline==='unavailable')return noStore;
     return publicPolicy(5*60);

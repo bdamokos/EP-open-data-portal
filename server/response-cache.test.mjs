@@ -277,3 +277,59 @@ test('date-bound views keep their lifetime without stale copies', () => {
   for (const path of ['/api/insights/participation?sitting=MTG-PL-2026-11-12', '/api/insights/legislation?procedure=2025/0001(COD)', '/api/insights/questions', '/api/insights/procedure-context', '/api/outside/directory', '/api/outside/42', '/api/profile/43', '/api/amendments', '/api/corpus/search?q=water', '/api/reference-summary', '/api/amendment-neighbours', '/api/references', '/api/source-record?url=x', '/api/speech-context/MTG-PL-2026-10-07-INT-1'])
     assert.equal(policy(path, {detail: {}, upcoming: true}).cdnCacheControl, 'public, max-age=21600, stale-if-error=0', path);
 });
+
+test('routes added after 17 October are cached only behind their own completeness gates, without stale copies', () => {
+  const six = 'public, max-age=21600, stale-if-error=0', no = 'no-store';
+  const cdn = (path, value) => policy(path, value).cdnCacheControl;
+  // document-context: the plain document only.
+  const doc = {document: {id: 'A-10-2026-0001'}, baseline: {status: 'available'}, related: {status: 'complete', gaps: []}};
+  assert.equal(cdn('/api/document-context/A-10-2026-0001?lang=en', doc), six);
+  for (const query of ['amendment=12', 'body=passage', 'provision=art1', 'final-text=1', 'adopted=1']) assert.equal(cdn('/api/document-context/A-10-2026-0001?lang=en&' + query, doc), no, query);
+  for (const change of [{baseline: {status: 'unresolved'}}, {related: {status: 'partial', gaps: []}}, {related: {status: 'complete', gaps: [{code: 'x'}]}}]) assert.equal(cdn('/api/document-context/A-10-2026-0001', {...doc, ...change}), no);
+  // decision-votes: a complete, conducted vote from a sitting before today.
+  const vote = {status: 'found', coverage: 'complete', integrity: 'complete', groupHistory: {}, decision: {ballotStatus: 'conducted', evidenceGaps: [], sourceConflicts: false}};
+  assert.equal(cdn('/api/decision-votes/MTG-PL-2026-10-07-DEC-1', vote), six);
+  assert.equal(cdn('/api/decision-votes/MTG-PL-2026-10-17-DEC-1', vote), no, 'a vote day is still settling');
+  for (const change of [{coverage: 'partial'}, {integrity: 'conflicting'}, {groupHistory: null}, {decision: {...vote.decision, ballotStatus: 'unknown'}}, {decision: {...vote.decision, evidenceGaps: ['x']}}]) assert.equal(cdn('/api/decision-votes/MTG-PL-2026-10-07-DEC-1', {...vote, ...change}), no);
+  // week views: a finished week with complete days or a complete story.
+  assert.equal(cdn('/api/insights/week-results?week=2026-10-05', {days: [{complete: true}, {complete: true}]}), six);
+  assert.equal(cdn('/api/insights/week-results?week=2026-10-05', {days: [{complete: true}, {complete: false}]}), no);
+  assert.equal(cdn('/api/insights/week-results?week=2026-10-12', {days: [{complete: true}]}), no, 'the current week is not finished');
+  assert.equal(cdn('/api/insights/week-results?week=2026-10-05', {days: []}), no);
+  assert.equal(cdn('/api/insights/week-story?week=2026-10-05', {status: 'complete'}), six);
+  assert.equal(cdn('/api/insights/week-story?week=2026-10-05', {status: 'partial'}), no);
+  assert.equal(cdn('/api/insights/week-item?procedures=x', {}), no);
+  // topics: a ready projection with nothing pending, ending at the next Brussels midnight.
+  const topics = {ready: true, coverage: {pending: 0, unavailable: 0}};
+  assert.equal(cdn('/api/topics/overview', topics), six);
+  assert.equal(apiCachePolicy(request, new URL('https://example.test/api/topics/search?q=x'), topics, {now: Date.parse('2026-10-17T20:00:00Z')}).cdnCacheControl, 'public, max-age=7260, stale-if-error=0');
+  for (const value of [{ready: false}, {ready: true, coverage: {pending: 2, unavailable: 0}}, {ready: true}]) assert.equal(cdn('/api/topics/detail?key=x', value), no);
+  assert.equal(cdn('/api/topics/detail?key=x', {ready: true, coverage: {pending: 0, unavailable: 776}}), six, 'unavailable subject reads are a settled count');
+  assert.equal(cdn('/api/topics/story-facts?scope=x', topics), no);
+  // voting lists: a settled week-old sitting without gaps.
+  const lists = {gaps: [], documents: [{documentId: 'A-10-2026-0001', gaps: []}]};
+  assert.equal(cdn('/api/voting-lists?sitting=MTG-PL-2026-10-07', lists), six);
+  assert.equal(cdn('/api/voting-lists?sitting=MTG-PL-2026-10-14', lists), no, 'still within a week of the sitting');
+  for (const value of [{gaps: [{code: 'page-unavailable'}], documents: lists.documents}, {gaps: [], documents: []}, {gaps: [], documents: [{documentId: null}]}]) assert.equal(cdn('/api/voting-lists?sitting=MTG-PL-2026-10-07', value), no);
+  // member votes: an explicit, complete selection of past sittings.
+  const sitting = {state: 'complete', date: '2026-10-07', pendingVotes: null, completeness: {complete: true}};
+  const memberVotes = {coverage: {status: 'complete', collectionComplete: true, sittings: [sitting]}};
+  assert.equal(cdn('/api/member-votes/43?week=2026-10-05', memberVotes), six);
+  for (const path of ['/api/member-votes/43', '/api/member-votes/43?week=latest']) assert.equal(cdn(path, memberVotes), no, path);
+  for (const change of [{state: 'partial'}, {completeness: {complete: false}}, {pendingVotes: {scheduledVoteCount: 3}}, {date: '2026-10-17'}]) assert.equal(cdn('/api/member-votes/43?sitting=MTG-PL-2026-10-07', {coverage: {...memberVotes.coverage, sittings: [{...sitting, ...change}]}}), no);
+  assert.equal(cdn('/api/member-votes/43?week=2026-10-05', {coverage: {status: 'complete', collectionComplete: true, sittings: []}}), no);
+  // member vote record: complete, briefly.
+  assert.equal(cdn('/api/member-vote-record/43', {coverage: {status: 'complete', missing: 0, unprojectedDecisions: 0}, period: {to: '2026-10-08'}}), 'public, max-age=900, stale-if-error=0');
+  assert.equal(cdn('/api/member-vote-record/43', {coverage: {status: 'partial', missing: 2, unprojectedDecisions: 0}, period: {to: '2026-10-08'}}), no);
+  // motion amendments: fully indexed with available totals.
+  const motion = {coverage: {complete: true, indexStatus: 'indexed', resultState: 'records', backgroundPending: false, gaps: []}, text: {status: 'indexed', outcome: {status: 'adopted', totalsStatus: 'available'}}};
+  assert.equal(cdn('/api/motion-amendments/B-10-2026-0001', motion), six);
+  for (const change of [{coverage: {...motion.coverage, backgroundPending: true}}, {coverage: {...motion.coverage, resultState: 'not-indexed'}}, {text: {status: 'indexed', outcome: {status: 'adopted', totalsStatus: 'partial'}}}]) assert.equal(cdn('/api/motion-amendments/B-10-2026-0001', {...motion, ...change}), no);
+  // speech transcripts: available text, a day once settled.
+  assert.equal(cdn('/api/speech-transcript/MTG-PL-2026-09-01-INT-1', {available: true, xml: '<speech/>'}), 'public, max-age=86400, stale-if-error=0');
+  assert.equal(cdn('/api/speech-transcript/MTG-PL-2026-10-15-INT-1', {available: true, xml: '<speech/>'}), six);
+  for (const value of [{available: false}, {available: true, xml: '<speech/>', metadataUnavailable: true}]) assert.equal(cdn('/api/speech-transcript/MTG-PL-2026-09-01-INT-1', value), no);
+  // Not admitted: no reliable completeness signal.
+  for (const path of ['/api/upcoming-votes?sitting=MTG-PL-2026-10-07', '/api/ballot-comparisons?sitting=MTG-PL-2026-10-07', '/api/commission-followups/TA-10-2026-0001', '/api/provisional-agreement/A-10-2026-0001', '/api/insights/record-topics?ids=x']) assert.equal(cdn(path, {status: 'available'}), no, path);
+  assert.equal(policy('/api/decision-votes/MTG-PL-2026-10-07-DEC-1', vote, {headers: {authorization: 'Bearer x'}}).cdnCacheControl, no);
+});
