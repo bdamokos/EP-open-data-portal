@@ -17,7 +17,7 @@ import {brusselsDay} from './analysis-period.mjs';
 import {calendarMonday} from './plenary-calendar.mjs';
 import {isLocalRequestFailure,requestSignal} from './request-budget.mjs';
 
-export const DOSSIER_STATUS_VERSION=2;
+export const DOSSIER_STATUS_VERSION=3;
 // Held sittings only: a page view neither requests a source nor queues collection.
 // Chairs are downloaded separately from the request client, and a main vote needs none.
 export const heldVotes=new MemberVotes({request:cachedAgendaRequest,readChairs:async()=>null,limits:{cacheEntries:1},snapshots:{read:(kind,version,id)=>sittingSnapshots.read(kind,version,id,{retained:true}),enqueue(){}}});
@@ -117,7 +117,7 @@ export class DossierStatus {
   }
   async query({reference,language}) {
     const id=reference.split('(')[0].replace('/','-'),asOf=brusselsDay(this.clock());
-    const {work}=await this.activity.procedure(id,language,reference);
+    const {work,procedure}=await this.activity.procedure(id,language,reference);
     const indexEvents=statusIndexEvents(work);
     const {family,steps,stage:derived}=procedureSteps({reference,indexEvents,asOf});
     const relevant=mainVoteEvents({indexEvents,family,steps,asOf});
@@ -125,6 +125,7 @@ export class DossierStatus {
     const stage=family==='COD'?derived:resolutionStage(vote);
     const plenaryDate=stage==='reported'?await this.plenaryDate(id,asOf):null;
     requestSignal()?.throwIfAborted();
-    return {version:DOSSIER_STATUS_VERSION,reference,family,steps,stage,indexEvents,slots:{committees:leadCommittees(work,language),mainVote:vote,plenaryDate,votingList:this.votingList(work,asOf)}};
+    // Parliament's own title in the reader's language, so the page heading needs no second source.
+    return {version:DOSSIER_STATUS_VERSION,reference,title:procedure?.title??null,titleLanguage:procedure?.titleLanguage??null,family,steps,stage,indexEvents,slots:{committees:leadCommittees(work,language),mainVote:vote,plenaryDate,votingList:this.votingList(work,asOf)}};
   }
 }

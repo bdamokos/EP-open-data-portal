@@ -110,3 +110,13 @@ test('held index negotiation endorsement establishes talks; committee agreement 
   assert.equal(step(voted,'final').state,'done');assert.equal(step(voted,'final').date,'2026-09-16');
   assert.equal(step(voted,'parliament').date,'2026-01-21');assert.equal(step(voted,'signed').state,'current');
 });
+test('completed steps read in the order they happened; steps not reached keep their place',()=>{
+  // 2025/0207(COD): Council's mandate (10 Dec 2025) came before Parliament's committee vote and position.
+  const indexEvents=[{had_activity_type:'COMMITTEE_ADOPTING_REPORT',activity_date:'2026-04-15'},{had_activity_type:'PLENARY_REFER_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS',activity_date:'2026-04-29'},{had_activity_type:'COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT',activity_date:'2026-09-10'}];
+  const council={status:'recorded',date:'2025-12-10',types:[{code:'ADP_MAND_NGT_INST_COREPER_byCONSIL'}]};
+  const row=({steps})=>steps.map(step=>step.key+':'+step.state);
+  assert.deepEqual(row(procedureSteps({reference:'2025/0207(COD)',indexEvents,asOf:'2026-11-11'})),['proposal:open','committee:done','parliament:done','council:open','talks:done','deal:done','final:current','signed:open','journal:open'],'an undated proposal keeps its place');
+  assert.deepEqual(row(procedureSteps({reference:'2025/0207(COD)',indexEvents,cellarEvents:[council],asOf:'2026-11-11'})),['proposal:open','council:done','committee:done','parliament:done','talks:done','deal:done','final:current','signed:open','journal:open'],'undated talks stay just before the deal');
+  const before=procedureSteps({reference:'2025/0207(COD)',indexEvents:indexEvents.slice(0,1),cellarEvents:[council],asOf:'2026-11-11'});
+  assert.deepEqual(row(before),['proposal:open','council:done','committee:done','parliament:current','talks:open','deal:open','final:open','signed:open','journal:open']);
+});

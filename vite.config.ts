@@ -41,6 +41,28 @@ export default defineConfig({
     generateBundle() {
       for (const asset of startupAssets) this.emitFile({type: 'asset', name: `${asset.name}.js`, originalFileName: `public/assets/${asset.name}.js`, fileName: asset.fileName, source: asset.source});
     },
+  },{
+    // The plenary views share one lazy chunk group. Name it in the page so the
+    // startup script can fetch it with the entry, instead of after the entry runs.
+    name: 'view-preload',
+    apply: 'build',
+    transformIndexHtml: {order: 'post', handler(html, context) {
+      const chunks = Object.values(context.bundle || {}).filter(item => item.type === 'chunk');
+      const byFile = new Map(chunks.map(chunk => [chunk.fileName, chunk]));
+      const closure = (start: string) => {
+        const seen = new Set<string>();
+        const walk = (file: string) => {if (seen.has(file)) return; seen.add(file); for (const next of byFile.get(file)?.imports || []) walk(next);};
+        walk(start);
+        return seen;
+      };
+      const entry = chunks.find(chunk => chunk.isEntry), view = chunks.find(chunk => chunk.facadeModuleId?.endsWith('/src/Legislation.tsx'));
+      if (!entry || !view) throw new Error('view-preload: the entry or the Legislation chunk is missing.');
+      const loaded = closure(entry.fileName), files = [...closure(view.fileName)].filter(file => !loaded.has(file));
+      const css = (file: string): string[] => [...(byFile.get(file)?.viteMetadata?.importedCss || [])];
+      const loadedCss = new Set([...loaded].flatMap(css)), styles = [...new Set(files.flatMap(css))].filter(file => !loadedCss.has(file));
+      const hrefs = [...files, ...styles].map(file => './' + file).join(' ');
+      return html.replace('</head>', `<meta name="view-preload" data-view="legislation" content="${hrefs}"></head>`);
+    }},
   },{name:'pdf-reader-assets',generateBundle(){
     for(const directory of ['cmaps','standard_fonts','wasm'])for(const name of readdirSync(new URL('./node_modules/pdfjs-dist/'+directory+'/',import.meta.url))){
       this.emitFile({type:'asset',fileName:'assets/pdfjs-6.5.438/'+directory+'/'+name,source:readFileSync(new URL('./node_modules/pdfjs-dist/'+directory+'/'+name,import.meta.url))});

@@ -47,7 +47,9 @@ test('the dossier answers first: status, strip, summary, closed timeline, people
   assert.equal(container.querySelector('.dossier-status-next').textContent,'Next step: talks with the Council.');
   assert.deepEqual(steps().map(row=>row[0]),['done','done','done','done','current','open','open','open','open']);
   assert.equal(container.querySelector('.dossier-steps [aria-current="step"]').textContent,'Negotiations');
-  assert.match(steps()[3][1],/May 11, 2026 · partial/);
+  // Council's partial mandate came before the committee vote, so its step comes first.
+  assert.deepEqual(steps().slice(0,4).map(row=>row[1].replace(/[A-Z][a-z]{2} \d+, \d{4}.*$/,'')),['Commission proposes','Council sets position','Committee reports','Parliament sets position']);
+  assert.match(steps()[1][1],/May 11, 2026 · partial/);
   assert.match(steps()[0][1],/Jul 16, 2025/,'the OEIL proposal date, not the 17 July registration');
   const [status,summary,timeline,people,topics]=['.dossier-status','.insight-official-summary','.procedure-progress','#people','.insight-official-topics'].map(selector=>container.querySelector(selector));
   assert(before(status,summary));assert(before(summary,timeline));assert(before(timeline,people));assert(before(people,topics));
@@ -80,6 +82,26 @@ test('the strip renders at once, Cellar steps fill in, and nothing says Checking
   assert.equal(council[0],'done');assert.match(council[1],/Sep 29, 2026 · partial/,'cancelled rows of 22 June and 28 September do not count');
   assert.equal(steps().find(row=>row[1].startsWith('Committee'))[0],'current');
   assert.equal(steps().find(row=>row[1]==='Negotiations')[0],'open');
+});
+test('the title comes with the status, and late sources rewrite neither the title nor the sentence',async t=>{
+  let progress,context;const progressRead=new Promise(resolve=>{progress=resolve;}),contextRead=new Promise(resolve=>{context=resolve;});
+  // A signature only the Publications Office holds would move the file on to "signed".
+  const signed={...progressFor(erasmus)};signed.events=[...signed.events,{id:'sign',dates:['2026-11-01'],date:'2026-11-01',status:'recorded',types:[{id:'SIGN_byEP_CONSIL',code:'SIGN_byEP_CONSIL',label:null,language:null}],label:'Signature',labelLanguage:'en',statuses:[],institutions:[],works:[],milestone:false,issues:[]}];
+  const view=await mount(t,erasmus.reference,{
+    'dossier-status':()=>Response.json(statusFor(erasmus,{},{stage:'position-talks',title:'Erasmus+ from the procedure record',titleLanguage:'en'})),
+    'procedure-progress':()=>progressRead.then(()=>Response.json(signed)),
+    'procedure-context':()=>contextRead.then(()=>Response.json(contextFor(erasmus))),
+  });
+  const {container,steps,settle}=view;
+  const heading=()=>container.querySelector('.insight-dossier-title h2')?.textContent;
+  assert.equal(heading(),'Erasmus+ from the procedure record','no wait for the Legislative Observatory');
+  const sentence=container.querySelector('.dossier-status-sentence').textContent;
+  assert.match(sentence,/^Parliament set its position on Oct 22, 2026/);
+  await act(async()=>{progress();context();});await settle();
+  assert.equal(steps().find(row=>row[1].startsWith('Signed')||row[1].startsWith('Sign'))?.[0],'done','the late signature fills its step');
+  assert.equal(container.querySelector('.dossier-status-sentence').textContent,sentence,'and leaves the sentence as shown');
+  assert.equal(heading(),'Erasmus+ from the procedure record','the Observatory title does not replace it');
+  assert.equal(view.calls.filter(name=>name==='dossier-status').length,1,'title and status share one read');
 });
 test('a failed Cellar read leaves the index steps with no message',async t=>{
   const {container,steps}=await mount(t,erasmus.reference,{
