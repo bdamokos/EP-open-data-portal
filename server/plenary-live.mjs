@@ -155,6 +155,7 @@ export class PlenaryLive {
     const bridged=saved.programme&&!saved.programme.id&&this.lastLive?.day===day&&saved.at-this.lastLive.at<=120_000;
     const current=currentDebate(saved.feed,day,this.clock()),broadcast=liveBroadcast(bridged?this.lastLive.programme:saved.programme,day,this.clock());
     if(broadcast&&!bridged)this.lastLive={day,at:saved.at,programme:saved.programme};
+    else if(saved.programme?.id&&!broadcast)this.lastLive=null; // EbS+ named another programme: coverage ended.
     let sittings=null;try{sittings=this.sittingDates(Number(day.slice(0,4)));}catch{/* No calendar: check as on a sitting day. */}
     // Only an observed off-air programme is quiet: a live broadcast or debate
     // outweighs the calendar, and a failed programme read is never kept. The

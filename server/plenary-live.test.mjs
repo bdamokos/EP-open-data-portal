@@ -81,6 +81,9 @@ test('an empty EbS+ reply is off-air, bridged for two minutes after a live plena
   clock+=91_000;r=await service.snapshot();assert.equal(r.status,'off-air','The bridge ends two minutes after the last live answer');assert.equal(r.broadcast,null);
   answer=programme;clock+=31_000;assert.equal((await service.snapshot()).status,'live');
   answer=new Error('offline');clock+=31_000;assert.equal((await service.snapshot()).status,'unavailable','A failed read is never bridged');
+  answer=programme;clock+=31_000;assert.equal((await service.snapshot()).status,'live');
+  answer={...programme,id:'6acf44004cda7d4921da4b99',broadcastStatus:'RECORDED'};clock+=31_000;assert.equal((await service.snapshot()).status,'off-air');
+  answer={};clock+=31_000;assert.equal((await service.snapshot()).status,'off-air','Coverage that EbS+ ended is not bridged back');
   const fresh=new PlenaryLive({clock:()=>now,read:async url=>url.includes('getSpeaker')?feed:{},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])});
   r=await fresh.snapshot();assert.equal(r.status,'off-air');assert.equal(r.current.id,'D27530','The debate feed still shows the sitting');
 });
