@@ -107,7 +107,11 @@ export class DossierActivity {
     const nodes=record.payload.data.filter(node=>canonical(node.id)==='eli/dl/proc/'+id);
     if(nodes.length!==1)throw new HttpError(502,'dossier_identity','The exact procedure source is unavailable.');
     const work=nodes[0],label=work.label,classification=classifyProcedure(work),code=classification.code;
-    if(classification.status==='conflicting'||typeof label!=='string'||!/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(label)||label.split('(')[0]!==id.replace('-','/')||reference&&label!==reference||code&&label!==id.replace('-','/')+'('+code+')')throw new HttpError(502,'dossier_reference','The procedure reference does not match its source.');
+    if(classification.status==='conflicting'||typeof label!=='string'||!/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(label)||label.split('(')[0]!==id.replace('-','/')||code&&label!==id.replace('-','/')+'('+code+')')throw new HttpError(502,'dossier_reference','The procedure reference does not match its source.');
+    // Parliament keys procedures by year and number only, so 2025/0264(NLE) reads
+    // the record of 2025/0264(CNS). A consistent record under another type means
+    // Parliament holds no procedure under the requested one.
+    if(reference&&label!==reference)throw Object.assign(new HttpError(404,'procedure_not_found','Parliament has no record of this procedure.'),{heldReference:label});
     return {work,procedure:{id,reference:label,...pick(work.process_title,language,label),source:source(record)}};
   }
   async references({ids,language}) {
