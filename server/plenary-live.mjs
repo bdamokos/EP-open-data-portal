@@ -1,7 +1,7 @@
 import {XMLParser} from 'fast-xml-parser';
 import {boundedUpstream,odp,upstreamResponseError} from './odp.mjs';
 import {sharedRequest,waitForRequest} from './request-budget.mjs';
-import {userAgent} from './user-agent.mjs';
+import {browserCompatibleUserAgent,userAgent} from './user-agent.mjs';
 import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
 import {identifiedPlenarySitting} from './plenary-calendar.mjs';
 import {brusselsMidnight} from './plenary-cache-policy.mjs';
@@ -49,7 +49,12 @@ export function currentDebate(feed,day,now) {
   const date=day.split('-').reverse().join('-');
   const update=typeof feed?.lastUpdate==='string'&&feed.lastUpdate.match(/^(\d{2})-(\d{2})-(\d{4}) - (\d{2}:\d{2})$/);
   const updated=update?brusselsTime(`${update[3]}-${update[2]}-${update[1]}`,update[4]):NaN;
-  if(feed?.currentDate!==date||!Number.isFinite(updated)||now-updated>180_000||updated-now>60_000||feed.plenaryMessages||!['DEB','VOT','EXP'].includes(feed.type)||!/^D\d{1,10}$/.test(feed.debateId||'')||typeof feed.currentTitle!=='string'||!feed.currentTitle.trim()||feed.currentTitle.length>3000)return null;
+  // The feed updates when the speaker changes, so a long speech or a vote keeps
+  // an old update time. The item's and speaker's scheduled ends extend it, up
+  // to two hours after the last update; a frozen feed still expires.
+  const ends=[feed?.currentEndTime,feed?.currentMepSpeaker?.end,feed?.currentNoMepSpeaker?.end].filter(time=>typeof time==='string'&&/^\d{2}:\d{2}:\d{2}$/.test(time)).map(time=>brusselsTime(day,time)).filter(end=>end>updated&&end-updated<=7200_000);
+  const holds=Math.max(updated,...ends)+180_000;
+  if(feed?.currentDate!==date||!Number.isFinite(updated)||now>holds||updated-now>60_000||feed.plenaryMessages||!['DEB','VOT','EXP'].includes(feed.type)||!/^D\d{1,10}$/.test(feed.debateId||'')||typeof feed.currentTitle!=='string'||!feed.currentTitle.trim()||feed.currentTitle.length>3000)return null;
   // This is the source's current debate, not an inferred ODP agenda identity.
   return {id:feed.debateId,title:feed.currentTitle,language:'en',updatedAt:stamp(updated),sourceUrl:liveDebateUrl(day)};
 }
@@ -65,7 +70,8 @@ export function liveBroadcast(programme,day,now) {
   // An explicit broadcaster programme classification, never a title join to ODP.
   if(typeof paragraphs[0]!=='string'||paragraphs[0].trim()!=='EP Plenary Session')return null;
   const transmissions=list(programme.transmissions);
-  if(!transmissions.length||transmissions.some(t=>t?.status!=='PUBLISHED'||t.media?.status!=='PUBLISHED'||t.media?.locked!==false||!list(t.media?.institutions).some(i=>i?.id==='2618')))return null;
+  // Brussels sittings are published without transmissions; any that are listed must be the EP's own.
+  if(transmissions.some(t=>t?.status!=='PUBLISHED'||t.media?.status!=='PUBLISHED'||t.media?.locked!==false||!list(t.media?.institutions).some(i=>i?.id==='2618')))return null;
   const languages=list(programme.languages).filter(l=>typeof l==='string'&&/^[A-Z]{2,3}$/.test(l)).slice(0,30);
   if(!languages.includes('EN'))return null;
   return {id:programme.id,channel:'EbS+',title:paragraphs.filter(p=>typeof p==='string').map(p=>p.trim()).join(' — '),language:'en',languages,start:stamp(start),embedUrl:EBS_PLUS_EMBED,websiteUrl:'https://audiovisual.ec.europa.eu/en/ebs/grid?ebs=no&ebsplus=yes',sourceUrl:EBS_PLUS_URL};
@@ -91,21 +97,25 @@ export function scheduledAgenda(rows,day,now) {
   return {state:unique?'presumed':blocks.length?'ambiguous':'none',sittingId:sitting,items,blocks:blocks.map(({items,...block})=>block)};
 }
 
+// www.europarl.europa.eu answers 403 to other agent forms (see user-agent.mjs).
+export const liveSourceAgent=url=>new URL(url).hostname==='www.europarl.europa.eu'?browserCompatibleUserAgent('live plenary metadata'):userAgent('live plenary metadata');
 async function readJson(url,signal) {
   return boundedUpstream(async()=>{
-    const response=await fetch(url,{headers:{Accept:'application/json','User-Agent':userAgent('live plenary metadata')},redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(8000)])});
+    const response=await fetch(url,{headers:{Accept:'application/json','User-Agent':liveSourceAgent(url)},redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(8000)])});
     const limited=upstreamResponseError(response,{source:'website'});
     if(limited){await response.body?.cancel();throw limited;}
     if(!response.ok||!/^application\/(?:[\w.+-]*\+)?json\b/i.test(response.headers.get('content-type')||'')){await response.body?.cancel();throw new Error('Live source unavailable.');}
     const reader=response.body.getReader();let bytes=0;const chunks=[];
     try {for(;;){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>512*1024)throw new Error('Live source exceeds its size limit.');chunks.push(value);}}
     finally {await reader.cancel().catch(()=>{});}
+    // EbS+ answers an empty body when it lists no current programme.
+    if(!bytes)return {};
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
   },{source:'website',signal});
 }
 
 export class PlenaryLive {
-  constructor({clock=Date.now,read=readJson,readAgenda=odp,sittingDates=retainedSittingDates}={}){this.clock=clock;this.read=read;this.readAgenda=readAgenda;this.sittingDates=sittingDates;this.saved=null;this.pending=null;}
+  constructor({clock=Date.now,read=readJson,readAgenda=odp,sittingDates=retainedSittingDates}={}){this.clock=clock;this.read=read;this.readAgenda=readAgenda;this.sittingDates=sittingDates;this.saved=null;this.pending=null;this.lastLive=null;}
   async snapshot() {
     const now=this.clock(),day=brusselsDay(now);
     if(!this.saved||this.saved.day!==day||now-this.saved.at>=CHECK_MS){
@@ -139,7 +149,13 @@ export class PlenaryLive {
     const saved=this.saved;
     // Never carry a previous day's response across midnight or a slow refresh.
     if(saved.day!==brusselsDay(this.clock()))return {status:'unavailable',checkedAt:stamp(now),validUntil:stamp(now),nextCheckAt:stamp(now+CHECK_MS),current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]};
-    const current=currentDebate(saved.feed,day,this.clock()),broadcast=liveBroadcast(saved.programme,day,this.clock());
+    // EbS+ sometimes lists no programme for a minute or two mid-broadcast. Bridge
+    // such a gap from a plenary seen live in the last two minutes; a failed read
+    // or a different programme is never bridged.
+    const bridged=saved.programme&&!saved.programme.id&&this.lastLive?.day===day&&saved.at-this.lastLive.at<=120_000;
+    const current=currentDebate(saved.feed,day,this.clock()),broadcast=liveBroadcast(bridged?this.lastLive.programme:saved.programme,day,this.clock());
+    if(broadcast&&!bridged)this.lastLive={day,at:saved.at,programme:saved.programme};
+    else if(saved.programme?.id&&!broadcast)this.lastLive=null; // EbS+ named another programme: coverage ended.
     let sittings=null;try{sittings=this.sittingDates(Number(day.slice(0,4)));}catch{/* No calendar: check as on a sitting day. */}
     // Only an observed off-air programme is quiet: a live broadcast or debate
     // outweighs the calendar, and a failed programme read is never kept. The

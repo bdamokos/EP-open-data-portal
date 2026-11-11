@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {PlenaryLive,currentDebate,liveBroadcast,scheduledAgenda,brusselsTime,EBS_PLUS_CHANNEL,plenaryLiveCachePolicy,retainedSittingDates} from './plenary-live.mjs';
+import {PlenaryLive,liveSourceAgent,EBS_PLUS_URL,liveDebateUrl,currentDebate,liveBroadcast,scheduledAgenda,brusselsTime,EBS_PLUS_CHANNEL,plenaryLiveCachePolicy,retainedSittingDates} from './plenary-live.mjs';
 
 const day='2026-10-20',now=Date.parse(day+'T07:10:00Z'),sitting='MTG-PL-'+day;
 const feed={currentDate:'20-10-2026',lastUpdate:'20-10-2026 - 09:10',type:'DEB',debateId:'D27530',currentTitle:'A published debate',plenaryMessages:null};
@@ -16,17 +16,34 @@ test('retained public JSON responses support automatic classification without a 
   assert.equal(liveBroadcast(fixture.programme,day,at).id,fixture.programme.id);
 });
 
-test('current debate uses fresh Brussels source updates, not projected end times or ODP identity',()=>{
+test('current debate uses fresh Brussels source updates and scheduled ends, not ODP identity',()=>{
   assert.equal(brusselsTime(day,'09:10'),now);
   assert.equal(brusselsTime('2026-12-01','09:10'),Date.parse('2026-12-01T08:10:00Z'));
   assert(Number.isNaN(brusselsTime(day,'28:00')));
   assert.equal(currentDebate({...feed,currentEndTime:'09:01:00'},day,now).id,'D27530');
+  // The feed changes only with the speaker: a long slot keeps an old update time.
+  assert.equal(currentDebate({...feed,lastUpdate:'20-10-2026 - 09:00',currentEndTime:'09:30:00'},day,now).id,'D27530');
+  assert.equal(currentDebate({...feed,lastUpdate:'20-10-2026 - 09:00',currentNoMepSpeaker:{name:'CATCH THE EYE',start:'09:01:00',end:'09:08:00'}},day,now).id,'D27530','Three minutes past the speaker slot still holds');
+  for(const change of [{currentEndTime:'09:06:59'},{currentEndTime:'11:01:00'},{currentEndTime:'9:30'},{currentMepSpeaker:{end:'09:06:00'}}])assert.equal(currentDebate({...feed,lastUpdate:'20-10-2026 - 09:00',...change},day,now),null,JSON.stringify(change));
   for(const change of [{lastUpdate:'20-10-2026 - 09:00'},{lastUpdate:'20-10-2026 - 09:20'},{currentDate:'19-10-2026'},{plenaryMessages:['Sitting suspended']},{debateId:'MTG-PL-'+day},{type:'unknown'},{currentTitle:''}])assert.equal(currentDebate({...feed,...change},day,now),null);
 });
 
 test('broadcast requires an exact channel and published EP plenary classification, not generic EP content',()=>{
   assert.equal(liveBroadcast(programme,day,now).channel,'EbS+');
   for(const change of [{channelId:'60771dc55de36aa6eb4759c6'},{status:'DRAFT'},{broadcastStatus:'RECORDED'},{startDatetime:day+'T09:00:00Z'},{languages:['INT']},{titles:[{language:'EN',content:'<p>EP Political Groups Press Briefings</p>'}]},{titles:{}},{transmissions:[{status:'PUBLISHED',media:{status:'PUBLISHED',locked:false,institutions:[{id:'2620'}]}}]}])assert.equal(liveBroadcast({...programme,...change},day,now),null);
+});
+
+test('a Brussels plenary programme lists no transmissions and still plays',()=>{
+  // EbS+ on 11 Nov 2026, Brussels: LIVE, EP Plenary Session, transmissions empty.
+  const brussels={...programme,transmissions:[],titles:[{language:'EN',content:'<p>EP Plenary Session </p><p> Cyber resilience protecting critical infrastructure and essential supply chains</p>'}]};
+  assert.equal(liveBroadcast(brussels,day,now).title,'EP Plenary Session — Cyber resilience protecting critical infrastructure and essential supply chains');
+  assert.equal(liveBroadcast({...brussels,transmissions:undefined},day,now).channel,'EbS+');
+  assert.equal(liveBroadcast({...brussels,transmissions:[programme.transmissions[0],{status:'PUBLISHED',media:{status:'PUBLISHED',locked:true,institutions:[{id:'2618'}]}}]},day,now),null);
+});
+
+test('the Parliament website gets the agent form it accepts; EbS+ keeps the plain one',()=>{
+  assert.match(liveSourceAgent(liveDebateUrl(day)),/^Mozilla\/5\.0 \(compatible; EP-OpenData-Explorer\//);
+  assert.match(liveSourceAgent(EBS_PLUS_URL),/^EP-OpenData-Explorer\//);
 });
 
 test('scheduled markers require one timed container and one exact agenda child; ambiguity is preserved',()=>{
@@ -53,6 +70,22 @@ test('snapshots share bounded work, keep independent source gaps and do not rene
   const failed=await service.snapshot();assert.equal(failed.status,'unavailable');assert.equal(failed.broadcast,null);assert.equal(failed.current,null);assert(failed.sources.some(s=>!s.available));assert.equal(failed.agenda.state,'presumed');
   const partial=new PlenaryLive({clock:()=>now,read:async url=>{if(url.includes('getSpeaker'))throw new Error('missing debate feed');return programme;},readAgenda:async()=>{throw new Error('missing agenda');}});
   const p=await partial.snapshot();assert.equal(p.status,'live');assert.equal(p.current,null);assert.equal(p.agenda.state,'unavailable');
+});
+
+test('an empty EbS+ reply is off-air, bridged for two minutes after a live plenary',async()=>{
+  let clock=now,answer=programme;
+  const service=new PlenaryLive({clock:()=>clock,read:async url=>{if(url.includes('getSpeaker'))return feed;if(answer instanceof Error)throw answer;return answer;},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])});
+  assert.equal((await service.snapshot()).status,'live');
+  answer={};clock+=31_000;
+  let r=await service.snapshot();assert.equal(r.status,'live','A gap right after a live plenary is bridged');assert.equal(r.broadcast.id,programme.id);
+  clock+=91_000;r=await service.snapshot();assert.equal(r.status,'off-air','The bridge ends two minutes after the last live answer');assert.equal(r.broadcast,null);
+  answer=programme;clock+=31_000;assert.equal((await service.snapshot()).status,'live');
+  answer=new Error('offline');clock+=31_000;assert.equal((await service.snapshot()).status,'unavailable','A failed read is never bridged');
+  answer=programme;clock+=31_000;assert.equal((await service.snapshot()).status,'live');
+  answer={...programme,id:'6acf44004cda7d4921da4b99',broadcastStatus:'RECORDED'};clock+=31_000;assert.equal((await service.snapshot()).status,'off-air');
+  answer={};clock+=31_000;assert.equal((await service.snapshot()).status,'off-air','Coverage that EbS+ ended is not bridged back');
+  const fresh=new PlenaryLive({clock:()=>now,read:async url=>url.includes('getSpeaker')?feed:{},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])});
+  r=await fresh.snapshot();assert.equal(r.status,'off-air');assert.equal(r.current.id,'D27530','The debate feed still shows the sitting');
 });
 
 test('midnight cannot reuse the previous sitting or a stale live programme',async()=>{
