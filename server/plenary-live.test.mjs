@@ -72,6 +72,19 @@ test('snapshots share bounded work, keep independent source gaps and do not rene
   const p=await partial.snapshot();assert.equal(p.status,'live');assert.equal(p.current,null);assert.equal(p.agenda.state,'unavailable');
 });
 
+test('an empty EbS+ reply is off-air, bridged for two minutes after a live plenary',async()=>{
+  let clock=now,answer=programme;
+  const service=new PlenaryLive({clock:()=>clock,read:async url=>{if(url.includes('getSpeaker'))return feed;if(answer instanceof Error)throw answer;return answer;},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])});
+  assert.equal((await service.snapshot()).status,'live');
+  answer={};clock+=31_000;
+  let r=await service.snapshot();assert.equal(r.status,'live','A gap right after a live plenary is bridged');assert.equal(r.broadcast.id,programme.id);
+  clock+=91_000;r=await service.snapshot();assert.equal(r.status,'off-air','The bridge ends two minutes after the last live answer');assert.equal(r.broadcast,null);
+  answer=programme;clock+=31_000;assert.equal((await service.snapshot()).status,'live');
+  answer=new Error('offline');clock+=31_000;assert.equal((await service.snapshot()).status,'unavailable','A failed read is never bridged');
+  const fresh=new PlenaryLive({clock:()=>now,read:async url=>url.includes('getSpeaker')?feed:{},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])});
+  r=await fresh.snapshot();assert.equal(r.status,'off-air');assert.equal(r.current.id,'D27530','The debate feed still shows the sitting');
+});
+
 test('midnight cannot reuse the previous sitting or a stale live programme',async()=>{
   let clock=Date.parse('2026-10-20T21:59:50Z');
   const service=new PlenaryLive({clock:()=>clock,read:async()=>programme,readAgenda:async()=>({payload:{data:[]}})});

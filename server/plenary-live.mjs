@@ -108,12 +108,14 @@ async function readJson(url,signal) {
     const reader=response.body.getReader();let bytes=0;const chunks=[];
     try {for(;;){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>512*1024)throw new Error('Live source exceeds its size limit.');chunks.push(value);}}
     finally {await reader.cancel().catch(()=>{});}
+    // EbS+ answers an empty body when it lists no current programme.
+    if(!bytes)return {};
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
   },{source:'website',signal});
 }
 
 export class PlenaryLive {
-  constructor({clock=Date.now,read=readJson,readAgenda=odp,sittingDates=retainedSittingDates}={}){this.clock=clock;this.read=read;this.readAgenda=readAgenda;this.sittingDates=sittingDates;this.saved=null;this.pending=null;}
+  constructor({clock=Date.now,read=readJson,readAgenda=odp,sittingDates=retainedSittingDates}={}){this.clock=clock;this.read=read;this.readAgenda=readAgenda;this.sittingDates=sittingDates;this.saved=null;this.pending=null;this.lastLive=null;}
   async snapshot() {
     const now=this.clock(),day=brusselsDay(now);
     if(!this.saved||this.saved.day!==day||now-this.saved.at>=CHECK_MS){
@@ -147,7 +149,12 @@ export class PlenaryLive {
     const saved=this.saved;
     // Never carry a previous day's response across midnight or a slow refresh.
     if(saved.day!==brusselsDay(this.clock()))return {status:'unavailable',checkedAt:stamp(now),validUntil:stamp(now),nextCheckAt:stamp(now+CHECK_MS),current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]};
-    const current=currentDebate(saved.feed,day,this.clock()),broadcast=liveBroadcast(saved.programme,day,this.clock());
+    // EbS+ sometimes lists no programme for a minute or two mid-broadcast. Bridge
+    // such a gap from a plenary seen live in the last two minutes; a failed read
+    // or a different programme is never bridged.
+    const bridged=saved.programme&&!saved.programme.id&&this.lastLive?.day===day&&saved.at-this.lastLive.at<=120_000;
+    const current=currentDebate(saved.feed,day,this.clock()),broadcast=liveBroadcast(bridged?this.lastLive.programme:saved.programme,day,this.clock());
+    if(broadcast&&!bridged)this.lastLive={day,at:saved.at,programme:saved.programme};
     let sittings=null;try{sittings=this.sittingDates(Number(day.slice(0,4)));}catch{/* No calendar: check as on a sitting day. */}
     // Only an observed off-air programme is quiet: a live broadcast or debate
     // outweighs the calendar, and a failed programme read is never kept. The
