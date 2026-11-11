@@ -177,7 +177,7 @@ The page is checked about hourly around part-sessions. No raw DOCX is kept, and 
 
 - `GET /api/plenary-live` reads the [plenary JSON feed](https://www.europarl.europa.eu/plenary/en/getSpeakerListAndPlenaryMessages.html?dateSys=20261020) (`dateSys=YYYYMMDD`), today’s `/meetings/{sitting}/foreseen-activities` and the [EbS+ current-programme JSON](https://8hwk2cyeyb.execute-api.eu-west-1.amazonaws.com/parrotfish-prod/ebs/live/EBSPLUS). Both website JSON interfaces are undocumented.
 - A timed `MEETING_PART` in the agenda says what is scheduled, not what is being debated.
-- EbS+ plenary coverage is recognised from the programme metadata: `PUBLISHED`, `LIVE`, EbS+ channel `6082c9bb97ad8b2acf7fcc98`, institution `2618` (European Parliament) and the first title paragraph `EP Plenary Session`. The player is the broadcaster’s embed `https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN`. Its timestamp is an editorial update, not a heartbeat.
+- EbS+ plenary coverage is recognised from the programme metadata: `PUBLISHED`, `LIVE`, EbS+ channel `6082c9bb97ad8b2acf7fcc98`, the first title paragraph `EP Plenary Session` and, for each listed transmission, institution `2618` (European Parliament). Brussels sittings list no transmissions. The player is the broadcaster’s embed `https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN`. Its timestamp is an editorial update, not a heartbeat.
 
 ### Multimedia Centre and player
 
