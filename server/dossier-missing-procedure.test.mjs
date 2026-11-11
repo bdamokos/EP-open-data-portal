@@ -22,6 +22,19 @@ test('a procedure Parliament answers 404 for is a missing record on dossier acti
   const references=await activity.references({ids:['2026-0030'],language:'en'});
   assert.deepEqual(references.items,[]);assert.equal(references.coverage.gaps[0].code,'procedure_not_found');assert.equal(references.coverage.gaps[0].message,'No record.');
 });
+// Parliament keys procedures by year and number, so a reference under another
+// type reads a real record. That is a missing procedure, not a gateway failure.
+const heldRecord=(label,type)=>({url:'https://data.europarl.europa.eu/api/v2/procedures/2025-0264',fetchedAt:Date.now(),payload:{data:[{id:'eli/dl/proc/2025-0264',label,process_type:'def/ep-procedure-types/'+type,process_title:{en:'Agreement'}}]}});
+test('a reference Parliament holds only under another type is a missing record',async()=>{
+  const activity=new DossierActivity(store,{reader:{record:async()=>heldRecord('2025/0264(CNS)','CNS')}});
+  await assert.rejects(activity.procedure('2025-0264','en','2025/0264(NLE)'),error=>error.status===404&&error.code==='procedure_not_found'&&error.heldReference==='2025/0264(CNS)');
+  const status=new DossierStatus({activity,calendar:{catalogue:async()=>({nodes:[]})},votes:{snapshot:async()=>{throw Error('not read');}}});
+  await assert.rejects(status.query({reference:'2025/0264(NLE)',language:'en'}),error=>error.status===404&&error.code==='procedure_not_found');
+  assert.equal((await activity.procedure('2025-0264','en','2025/0264(CNS)')).procedure.reference,'2025/0264(CNS)');
+  // A record whose own label and type disagree is still a source failure.
+  const conflicting=new DossierActivity(store,{reader:{record:async()=>heldRecord('2025/0264(CNS)','NLE')}});
+  await assert.rejects(conflicting.procedure('2025-0264','en','2025/0264(NLE)'),error=>error.status===502&&error.code==='dossier_reference');
+});
 test('other Parliament failures keep their status',async()=>{
   for(const failure of [Object.assign(new HttpError(502,'odp_unavailable','Parliament data is unavailable (500). Please try again.'),{upstreamStatus:500}),new HttpError(503,'odp_rate_limited','Busy.')]) {
     const activity=new DossierActivity(store,{reader:{record:async()=>{throw failure;}}});

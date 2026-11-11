@@ -50,7 +50,7 @@ test('strict query identity and resolver never infer procedure type',async t=>{
   for(const text of ['reference='+REF+'&member=0','reference='+REF+'&section=votes','reference='+REF+'&member=1&member=2','reference='+REF+'&offset=-1','reference='+REF+'&other=1'])assert.throws(()=>dossierActivityQuery(new URLSearchParams(text)),e=>e.status===400);
   for(const text of ['procedures=2025-0176,https://example.test','procedures=2025-0176,2025-0176','procedures='])assert.throws(()=>dossierReferencesQuery(new URLSearchParams(text)),e=>e.status===400);
   assert.equal((await x.service.references({ids:[PID],language:'en'})).items[0].reference,REF);
-  await assert.rejects(x.service.query({...x.q(),reference:'2025/0176(NLE)'}),e=>e.code==='dossier_reference');
+  await assert.rejects(x.service.query({...x.q(),reference:'2025/0176(NLE)'}),e=>e.status===404&&e.code==='procedure_not_found');
   x.records.get('/procedures/'+PID).payload.data[0].label=null;
   assert.equal((await x.service.references({ids:[PID],language:'en'})).items.length,0);
 });
@@ -95,7 +95,7 @@ test('dossier identity preserves absent-type fallback, unknown codes and every p
     assert.equal((await x.service.procedure(PID,'en',reference)).procedure.reference,reference);
     assert.equal((await x.service.query({...x.q('roles'),reference})).procedure.reference,reference);
     assert.equal((await x.service.references({ids:[PID],language:'en'})).items[0].reference,reference);
-    await assert.rejects(x.service.procedure(PID,'en',reference.replace(/\([^)]+\)/,'(ZZZ)')),e=>e.code==='dossier_reference');
+    await assert.rejects(x.service.procedure(PID,'en',reference.replace(/\([^)]+\)/,'(ZZZ)')),e=>e.status===404&&e.code==='procedure_not_found');
   }
 });
 test('roles retain person identity, recorded dates and document-only observations without mutations',async t=>{
