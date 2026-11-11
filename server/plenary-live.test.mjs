@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {PlenaryLive,currentDebate,liveBroadcast,scheduledAgenda,brusselsTime,EBS_PLUS_CHANNEL,plenaryLiveCachePolicy,retainedSittingDates} from './plenary-live.mjs';
+import {PlenaryLive,liveSourceAgent,EBS_PLUS_URL,liveDebateUrl,currentDebate,liveBroadcast,scheduledAgenda,brusselsTime,EBS_PLUS_CHANNEL,plenaryLiveCachePolicy,retainedSittingDates} from './plenary-live.mjs';
 
 const day='2026-10-20',now=Date.parse(day+'T07:10:00Z'),sitting='MTG-PL-'+day;
 const feed={currentDate:'20-10-2026',lastUpdate:'20-10-2026 - 09:10',type:'DEB',debateId:'D27530',currentTitle:'A published debate',plenaryMessages:null};
@@ -16,17 +16,34 @@ test('retained public JSON responses support automatic classification without a 
   assert.equal(liveBroadcast(fixture.programme,day,at).id,fixture.programme.id);
 });
 
-test('current debate uses fresh Brussels source updates, not projected end times or ODP identity',()=>{
+test('current debate uses fresh Brussels source updates and scheduled ends, not ODP identity',()=>{
   assert.equal(brusselsTime(day,'09:10'),now);
   assert.equal(brusselsTime('2026-12-01','09:10'),Date.parse('2026-12-01T08:10:00Z'));
   assert(Number.isNaN(brusselsTime(day,'28:00')));
   assert.equal(currentDebate({...feed,currentEndTime:'09:01:00'},day,now).id,'D27530');
+  // The feed changes only with the speaker: a long slot keeps an old update time.
+  assert.equal(currentDebate({...feed,lastUpdate:'20-10-2026 - 09:00',currentEndTime:'09:30:00'},day,now).id,'D27530');
+  assert.equal(currentDebate({...feed,lastUpdate:'20-10-2026 - 09:00',currentNoMepSpeaker:{name:'CATCH THE EYE',start:'09:01:00',end:'09:08:00'}},day,now).id,'D27530','Three minutes past the speaker slot still holds');
+  for(const change of [{currentEndTime:'09:06:59'},{currentEndTime:'11:01:00'},{currentEndTime:'9:30'},{currentMepSpeaker:{end:'09:06:00'}}])assert.equal(currentDebate({...feed,lastUpdate:'20-10-2026 - 09:00',...change},day,now),null,JSON.stringify(change));
   for(const change of [{lastUpdate:'20-10-2026 - 09:00'},{lastUpdate:'20-10-2026 - 09:20'},{currentDate:'19-10-2026'},{plenaryMessages:['Sitting suspended']},{debateId:'MTG-PL-'+day},{type:'unknown'},{currentTitle:''}])assert.equal(currentDebate({...feed,...change},day,now),null);
 });
 
 test('broadcast requires an exact channel and published EP plenary classification, not generic EP content',()=>{
   assert.equal(liveBroadcast(programme,day,now).channel,'EbS+');
   for(const change of [{channelId:'60771dc55de36aa6eb4759c6'},{status:'DRAFT'},{broadcastStatus:'RECORDED'},{startDatetime:day+'T09:00:00Z'},{languages:['INT']},{titles:[{language:'EN',content:'<p>EP Political Groups Press Briefings</p>'}]},{titles:{}},{transmissions:[{status:'PUBLISHED',media:{status:'PUBLISHED',locked:false,institutions:[{id:'2620'}]}}]}])assert.equal(liveBroadcast({...programme,...change},day,now),null);
+});
+
+test('a Brussels plenary programme lists no transmissions and still plays',()=>{
+  // EbS+ on 11 Nov 2026, Brussels: LIVE, EP Plenary Session, transmissions empty.
+  const brussels={...programme,transmissions:[],titles:[{language:'EN',content:'<p>EP Plenary Session </p><p> Cyber resilience protecting critical infrastructure and essential supply chains</p>'}]};
+  assert.equal(liveBroadcast(brussels,day,now).title,'EP Plenary Session — Cyber resilience protecting critical infrastructure and essential supply chains');
+  assert.equal(liveBroadcast({...brussels,transmissions:undefined},day,now).channel,'EbS+');
+  assert.equal(liveBroadcast({...brussels,transmissions:[programme.transmissions[0],{status:'PUBLISHED',media:{status:'PUBLISHED',locked:true,institutions:[{id:'2618'}]}}]},day,now),null);
+});
+
+test('the Parliament website gets the agent form it accepts; EbS+ keeps the plain one',()=>{
+  assert.match(liveSourceAgent(liveDebateUrl(day)),/^Mozilla\/5\.0 \(compatible; EP-OpenData-Explorer\//);
+  assert.match(liveSourceAgent(EBS_PLUS_URL),/^EP-OpenData-Explorer\//);
 });
 
 test('scheduled markers require one timed container and one exact agenda child; ambiguity is preserved',()=>{

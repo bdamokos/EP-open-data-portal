@@ -24,6 +24,9 @@ export const nextLiveCheck=(value:Pick<LiveState,'nextCheckAt'>|null,now=Date.no
   const wait=Date.parse(value?.nextCheckAt||'')-now;
   return Number.isFinite(wait)?Math.min(MAX_WAIT,Math.max(CHECK_MS,wait)):CHECK_MS;
 };
+// An unavailable answer means a source read failed, as during EbS+'s brief
+// empty replies. It counts as a failed check, so an open player keeps its grace.
+export const keepLiveThroughGap=(previous:LiveState|null,value:LiveState)=>(value.status==='unavailable'&&previous?.status==='live') ? previous : value;
 const clockText=(value:string)=>new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Brussels',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value));
 export function liveAgendaHref(data:LiveState,id?:string) {
   const url=new URL(location.href),language=url.searchParams.get('lang')||'en';
@@ -53,7 +56,7 @@ export function PlenaryLiveProvider({children}:{children:ReactNode}) {
       clearTimeout(timer);due=Infinity;if(!active||document.hidden&&!openedRef.current)return;
       controller?.abort();controller=new AbortController();
       let wait=CHECK_MS;
-      try{const value=await api<LiveState>('plenary-live',controller.signal, undefined, ui);if(active){setData(value);setNow(Date.now());wait=nextLiveCheck(value);}}
+      try{const value=await api<LiveState>('plenary-live',controller.signal, undefined, ui);if(active){setData(previous=>keepLiveThroughGap(previous,value));setNow(Date.now());wait=nextLiveCheck(value);}}
       catch{/* A failed read never renews the last successful snapshot. */}
       finally{if(active){timer=setTimeout(refresh,wait);due=Date.now()+wait;}}
     }
