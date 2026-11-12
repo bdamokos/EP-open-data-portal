@@ -8,7 +8,7 @@ COPY THIRD_PARTY_JAVASCRIPT_LICENSES.txt ./
 COPY src ./src
 COPY public ./public
 COPY server ./server
-COPY scripts/stage-runtime.mjs scripts/api-contract.mjs ./scripts/
+COPY scripts/stage-runtime.mjs scripts/api-contract.mjs scripts/browser-notices.mjs scripts/browser-notices.d.mts ./scripts/
 RUN npm run build && node scripts/stage-runtime.mjs /runtime-server
 
 FROM ${NODE_IMAGE} AS dependencies
