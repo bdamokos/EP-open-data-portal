@@ -5,7 +5,8 @@ import react from "@vitejs/plugin-react";
 import {fileURLToPath} from "node:url";
 import {API_VERSION, versionedApiUrl} from "./server/api-version.mjs";
 
-const thirdPartyNotices = readFileSync(new URL("./THIRD_PARTY_JAVASCRIPT_LICENSES.txt", import.meta.url), "utf8").trim().replaceAll("*/", "* /");
+import {browserNotices} from "./scripts/browser-notices.mjs";
+let thirdPartyNotices = "";
 const startupAssets = ['colour-scheme', 'interface-language', 'initial-shell'].map(name => {
   const source = readFileSync(new URL(`./public/assets/${name}.js`, import.meta.url), 'utf8');
   const hash = createHash('sha256').update(source).digest('hex').slice(0, 12);
@@ -15,6 +16,14 @@ const startupAssets = ['colour-scheme', 'interface-language', 'initial-shell'].m
 export default defineConfig({
   base: "./",
   plugins: [{
+    name: "browser-dependency-notices",
+    renderStart() {
+      thirdPartyNotices = browserNotices(this.getModuleIds(), fileURLToPath(new URL("./", import.meta.url))).trim();
+    },
+    generateBundle() {
+      this.emitFile({type: "asset", fileName: "THIRD_PARTY_JAVASCRIPT_LICENSES.txt", source: thirdPartyNotices + "\n"});
+    },
+  },{
     name: 'api-contract-version',
     enforce: 'pre',
     load(id) {
@@ -54,7 +63,7 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         // postBanner preserves the full notices after minification and adjusts source maps.
-        postBanner: `/*!\n${thirdPartyNotices}\n*/`,
+        postBanner: () => `/*!\n${thirdPartyNotices}\n*/`,
       },
     },
   },

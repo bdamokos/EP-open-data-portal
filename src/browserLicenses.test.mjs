@@ -14,7 +14,7 @@ test('production JavaScript retains full notices for every bundled dependency', 
     build: {write: false, license: {fileName: 'licenses.json'}},
   });
   const inventory = JSON.parse(result.output.find(file => file.fileName === 'licenses.json').source);
-  const notices = await readFile(new URL('../THIRD_PARTY_JAVASCRIPT_LICENSES.txt', import.meta.url), 'utf8');
+  const notices = result.output.find(file => file.fileName === 'THIRD_PARTY_JAVASCRIPT_LICENSES.txt').source;
   assert.ok(!notices.includes('*/'), 'notice text must not terminate the JavaScript comment');
   const banner = `/*!\n${notices.trim()}\n*/`;
   const normalizedBanner = normalize(banner);
