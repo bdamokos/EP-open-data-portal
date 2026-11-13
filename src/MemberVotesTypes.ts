@@ -107,7 +107,7 @@ export type MemberVoteRow = Pick<MemberVote,'id'|'sittingId'|'date'|'scope'|'met
 export type MemberVoteSubjectSummary = Pick<MemberVoteSubject,'id'|'uri'|'title'|'titleLanguage'|'titles'|'documentIds'|'agendaItemIds'|'counts'|'wholeTextDecisions'>;
 
 export type MemberVotesResponse = {
-  version:14;
+  version:15;
   member:{id:string;uri:string;mandateStatus:'not-assessed';historicalGroupStatus:'not-collected'};
   period:{kind:'week'|'sitting';week:string|null;sittingId:string|null;from:string|null;to:string|null};
   snapshotId:string;
