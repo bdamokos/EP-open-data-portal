@@ -10,7 +10,7 @@ import {buildTopics} from './topics-project.mjs';
 import {RecordTopics,writeTopicProjection} from './topics-store.mjs';
 import {storyTables,stageStoryInput,queueStoryRead,storyInput,storyEventType,adoptHeldEventSnapshots} from './story-facts-storage.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
-import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,votingItem,votingDebate,voteActivity} from './story-facts-model.mjs';
+import {storyDecision,storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,votingItem,votingDebate,voteActivity} from './story-facts-model.mjs';
 import {collectStorySource,STORY_PAGE_SIZE} from './story-facts-collector.mjs';
 import {eurovocCountries} from './topic-roles.mjs';
 const stamp='2026-11-01T12:00:00Z',source={url:'https://data.europarl.europa.eu/api/v2/events/example',fetchedAt:stamp};
@@ -66,6 +66,21 @@ test('a document re-parsed under a new parser revision replaces its staged input
  const id3='RC-10-2026-0112',w3={...w,identifier:id3},flagged={...storyDocument(w3,source),groups:['ECR'],conflicted:true};delete flagged.parser;
  store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('document',id3,JSON.stringify({...flagged,source:undefined}),JSON.stringify(source),stamp,1);
  stageStoryInput(store,w3,source);assert.equal(storyInput(store,'document',id3).conflicted,true,'an earlier conflict survives a parser upgrade');
+});
+test('a decision re-staged under the counts parser fills a proven zero without a conflict',async t=>{
+ const {store}=await fixture(t),id='MTG-PL-2026-11-12-DEC-199981';
+ // MTG-PL-2026-11-12-DEC-199981: ODP leaves out the zero abstention count.
+ const w={activity_id:id,activity_date:'2026-11-12',decision_outcome:'def/ep-statuses/ADOPTED',decision_method:'def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL',number_of_votes_favor:613,number_of_votes_against:3,number_of_attendees:616,activity_label:{fr:'A10-0211/2026 - Accord provisoire - Am 36'}};
+ const stage=(key,row)=>store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('decision',key,JSON.stringify({...row,source:undefined}),JSON.stringify(source),stamp,1);
+ const legacy=(work,fields={})=>{const row={...storyDecision(work,source),abstentions:null,...fields};delete row.parser;return row;};
+ stage(id,legacy(w));
+ stageStoryInput(store,w,source);let d=storyInput(store,'decision',id);
+ assert.equal(d.conflicted,undefined);assert.equal(d.abstentions,0);assert.equal(d.for,613);
+ // Only unknown → 0 migrates: a changed published count, or an earlier conflict, still conflicts.
+ const id2=id.replace(/\d+$/,'199982'),w2={...w,activity_id:id2};stage(id2,legacy(w2,{for:600}));
+ stageStoryInput(store,w2,source);assert.equal(storyInput(store,'decision',id2).conflicted,true);
+ const id3=id.replace(/\d+$/,'199983'),w3={...w,activity_id:id3};stage(id3,legacy(w3,{conflicted:true}));
+ stageStoryInput(store,w3,source);assert.equal(storyInput(store,'decision',id3).conflicted,true);
 });
 test('vote items are classified by the verbatim item own label, never a speech copy that disagrees',()=>{
  assert.equal(votingDebate({titles:{en:'Iran (vote)'}},['Iran']),true);
