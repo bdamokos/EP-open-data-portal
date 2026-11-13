@@ -12,7 +12,7 @@ const projection=projectMemberSitting(fixture.snapshots[0],String(memberId),'en'
 const clone=value=>structuredClone(value);
 function response(overrides={}) {
   const items=projection.items.filter(item=>item.actualPosition.status==='recorded');
-  return {version:14,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
+  return {version:15,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
 }
 const state={week:'latest',sittingId,positions:'recorded',offset:0,decisionId:null,snapshotId:null};
 const accepts=(data,requestState=state)=>validateMemberVotesResponse(data,{memberId,state:requestState});
@@ -285,7 +285,7 @@ test('compact period validation requires row labels and full selected detail',()
 test('real week compact rows preserve every label and stay below the transport target',{skip:!process.env.MEMBER_VOTES_WEEK_FIXTURE},()=>{
   const data=JSON.parse(readFileSync(process.env.MEMBER_VOTES_WEEK_FIXTURE));
   for(const language of 'bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ')){
-    const compact={...data,version:14,pagination:{...data.pagination,limit:50},items:data.items.map(item=>memberVotePeriodRow(item,language)),subjects:data.subjects.map(subject=>memberVotePeriodSubject(subject,language))};
+    const compact={...data,version:15,pagination:{...data.pagination,limit:50},items:data.items.map(item=>memberVotePeriodRow(item,language)),subjects:data.subjects.map(subject=>memberVotePeriodSubject(subject,language))};
     assert(Buffer.byteLength(JSON.stringify(compact))<1_200_000);
     assert(validateMemberVotesResponse(compact,{memberId:data.member.id,state:{week:data.period.week}}));
     for(let index=0;index<data.items.length;index++)assert.equal(memberVoteLabel(compact.items[index],language),memberVoteLabel(data.items[index],language));

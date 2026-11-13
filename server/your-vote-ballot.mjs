@@ -1,3 +1,4 @@
+import {englishVoteLabel} from './vote-labels.mjs';
 import {persistBallotBindings} from './ballot-bindings-store.mjs';
 export {prepareBallotBindings,persistBallotBindings,readBallotBindings} from './ballot-bindings-store.mjs';
 import {ballotScheduledFor} from './ballot-source-adapter.mjs';
@@ -32,7 +33,7 @@ function matches(row,doc,raw,derived) {
   const full=ids(raw.decided_on_a_realization_of,'doc'),partial=ids(raw.decided_on_a_part_of_a_realization_of,'doc'),all=[...full,...partial];
   if(array(raw.decided_on_a_realization_of).length!==full.length||array(raw.decided_on_a_part_of_a_realization_of).length!==partial.length)return false;
   if(namesAnotherDocument(raw,doc))return false;
-  const xml=typeof raw.decisionAboutId_XMLLiteral==='string'?raw.decisionAboutId_XMLLiteral:'',comment=raw.comment?.en||'';
+  const xml=typeof raw.decisionAboutId_XMLLiteral==='string'?raw.decisionAboutId_XMLLiteral:'',comment=raw.comment?.en||raw.comment?.fr||'',reference=englishVoteLabel(raw.referenceText)?.trim()||'';
   const marker=symbol=>new RegExp('<symbol\\b[^>]*\\bhref=[\"\'][^\"\']*/'+symbol+'[\"\'][^>]*>').test(xml);
   const split=full.filter(id=>/-SPLIT-\d+-\d+$/.test(id)).map(id=>Number(id.split('-').at(-1)));
   const commentPart=/^(\d+)(?:\/|$)/.exec(comment)?.[1];
@@ -47,10 +48,10 @@ function matches(row,doc,raw,derived) {
     if(cp!==null&&!partial.length)return false;
     return !all.some(id=>!/-AM-\d+$/.test(id)&&!/-SPLIT-\d+-\d+$/.test(id));
   }
-  if(row.kind==='text')return marker('§')&&row.subject.join(' / ')===raw.referenceText?.en&&Number(raw.activity_order)===row.row;
-  if(row.kind==='motion')return /^B\d+-\d+\/\d{4}$/.test(raw.referenceText?.en||'')&&raw.referenceText.en.replace(/^B(\d+)-(\d+)\/(\d{4})$/,'B-$1-$3-$2')===row.motion;
-  if(row.kind==='final')return Number(raw.activity_order)===row.row&&(FINAL_BALLOT_LABELS.has(raw.referenceText?.en?.trim())||isWholeProposalVote(raw,derived));
-  if(row.kind==='procedural')return Number(raw.activity_order)===row.row&&PROCEDURAL_BALLOT_LABELS.has(raw.referenceText?.en?.trim());
+  if(row.kind==='text')return marker('§')&&row.subject.join(' / ')===reference&&Number(raw.activity_order)===row.row;
+  if(row.kind==='motion')return /^B\d+-\d+\/\d{4}$/.test(reference)&&reference.replace(/^B(\d+)-(\d+)\/(\d{4})$/,'B-$1-$3-$2')===row.motion;
+  if(row.kind==='final')return Number(raw.activity_order)===row.row&&(FINAL_BALLOT_LABELS.has(reference)||isWholeProposalVote(raw,derived));
+  if(row.kind==='procedural')return Number(raw.activity_order)===row.row&&PROCEDURAL_BALLOT_LABELS.has(reference);
   // Other procedural labels do not establish identity.
   return false;
 }
@@ -80,7 +81,7 @@ function decisionKind(raw,derived) {
   const components=[...ids(raw.decided_on_a_realization_of,'doc'),...ids(raw.decided_on_a_part_of_a_realization_of,'doc')];
   if(components.some(id=>/-AM-\d+$/.test(id)))return 'amendment';
   if(/<symbol\b[^>]*\bhref=["'][^"']*\/§["']/.test(raw.decisionAboutId_XMLLiteral||''))return 'text';
-  const label=raw.referenceText?.en?.trim()||'';
+  const label=englishVoteLabel(raw.referenceText)?.trim()||'';
   if(FINAL_BALLOT_LABELS.has(label)||isWholeProposalVote(raw,derived))return 'final';
   if(/^B\d+-\d+\/\d{4}$/.test(label))return 'motion';
   if(/^(?:Request|Referral|Motion to refer|Postponement|Closure|Adjournment)\b/.test(label))return 'procedural';
@@ -112,7 +113,7 @@ export function assembleBallot({document,agendaItemId,day={decisions:[],results:
   const kinds=new Set(rows.map(row=>row.kind==='block'?'amendment':row.kind));
   // Unbound is not evidence of an addition: a same-kind list row remains a
   // possible counterpart, even when exact identity or position disagrees.
-  return {rows:result,added:decisions.filter(d=>votingList&&!bound.has(d.activity_id)&&decisionKind(d,derived)&&!kinds.has(decisionKind(d,derived))).map(d=>({decisionId:d.activity_id,label:d.referenceText?.en||'',outcome:term(d.decision_outcome)})),bindings:result.filter(r=>r.decisionId).map(r=>({key:r.key,decisionId:r.decisionId}))};
+  return {rows:result,added:decisions.filter(d=>votingList&&!bound.has(d.activity_id)&&decisionKind(d,derived)&&!kinds.has(decisionKind(d,derived))).map(d=>({decisionId:d.activity_id,label:d.referenceText?.en||d.referenceText?.fr||'',outcome:term(d.decision_outcome)})),bindings:result.filter(r=>r.decisionId).map(r=>({key:r.key,decisionId:r.decisionId}))};
 }
 // Largest of For, Against and Abstain; a top tie has no majority. Exclude
 // non-attached members and members without verified, dated group membership.

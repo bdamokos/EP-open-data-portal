@@ -1,3 +1,4 @@
+import {englishVoteLabel} from './vote-labels.mjs';
 import {mainVote} from './main-vote.mjs';
 import {projectMemberDecision,voteRowFields} from './member-votes-model.mjs';
 import {referredForTalksOn} from './procedure-referral.mjs';
@@ -48,7 +49,7 @@ export function classifyProcedure(work) {
 export function voteScope(vote,derived) {
   const explicit=explicitVoteScope(vote);
   if(explicit)return explicit.kind==='unclassified'?'unclassified':'amendment';
-  const reference=typeof vote.referenceText?.en==='string'?vote.referenceText.en:'';
+  const reference=englishVoteLabel(vote.referenceText)||'';
   if(isWholeProposalVote(vote,derived))return 'final-text';
   if (/^(?:Motion for a resolution|Draft legislative resolution|Legislative resolution) \(as a whole\)$/i.test(reference.trim()))return 'final-text';
   if(vote.decisionAboutId || /\b(?:Am(?:endment)?s?\s*\d|oral amendment|provisional agreement)\b/i.test(reference))return 'amendment';

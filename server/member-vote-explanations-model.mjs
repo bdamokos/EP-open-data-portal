@@ -1,3 +1,4 @@
+import {englishVoteLabel} from './vote-labels.mjs';
 import {list,exactReference,references,eventUri,identifier,term} from './vote-evidence.mjs';
 import {interventionMetadata,speechPeople} from './speech-interventions.mjs';
 import {speechSummary} from './odp.mjs';
@@ -7,7 +8,7 @@ const validRefs=(value,kind='event')=>list(value).every(value=>exactReference(va
 const sameDay=(node,day)=>eventUri(node)&&node.activity_id===identifier(eventUri(node))&&node.activity_date===day.date&&node.activity_id.startsWith(day.sittingId+'-');
 const whole=vote=>vote.ballotStatus==='conducted'&&!vote.sourceConflicts&&vote.scope.basis!=='invalid-component-reference'&&!['amendment','split-part','partial-text','procedural'].includes(vote.scope.kind)&&
   !vote.context.amendmentIds.length&&!vote.context.componentIds.length&&!vote.context.partialReferenceIds.length&&
-  (vote.scope.kind==='whole-text'||vote.referenceTexts.en?.trim()==='Text as a whole');
+  (vote.scope.kind==='whole-text'||englishVoteLabel(vote.referenceTexts)?.trim()==='Text as a whole');
 
 function graphGaps(day) {
   const gaps=[],complete=day.coverage?.completeness;

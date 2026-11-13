@@ -1,3 +1,5 @@
+import { voteCountFields } from './vote-counts.mjs';
+import { englishVoteLabel } from './vote-labels.mjs';
 import { array, tail } from './activity-index-model.mjs';
 
 const API = 'https://data.europarl.europa.eu/api/v2';
@@ -7,9 +9,9 @@ const canonical = value => {
   return /^eli\/dl\/(?:doc|event)\/[A-Z0-9-]+$/.test(ref) ? ref : null;
 };
 const refs = value => [...new Set(array(value).map(canonical).filter(Boolean))];
-const english = value => typeof value?.en === 'string' ? { en:value.en.slice(0,2000) } : {};
+// English, plus the French (or 'mul') label ODP publishes alone on the vote day.
+const voteLabels = value => Object.fromEntries(['en','fr','mul'].filter(language => typeof value?.[language] === 'string').map(language => [language,value[language].slice(0,2000)]));
 const date = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value ? value : null;
-const count = value => (typeof value === 'number' || typeof value === 'string' && /^\d+$/.test(value)) && Number.isSafeInteger(Number(value)) && Number(value) >= 0 ? Number(value) : null;
 
 export const isMotion = work => ['RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].includes(tail(work?.work_type));
 export const motionSourceKey = sittingId => 'motion-outcomes:' + sittingId;
@@ -37,8 +39,8 @@ export function projectMotionResults(nodes,sittingId) {
 export function projectMotionDecisions(nodes,sittingId) {
   return nodes.filter(node => tail(node.had_activity_type) === 'PLENARY_OUTCOME' && canonical(node.id)?.startsWith('eli/dl/event/'+sittingId+'-DEC-')).map(node => ({
     id:canonical(node.id), activity_date:date(node.activity_date), decision_outcome:node.decision_outcome, decision_method:node.decision_method,
-    inverse_consists_of:refs(node.inverse_consists_of), headingLabel:english(node.headingLabel), referenceText:english(node.referenceText), activity_label:english(node.activity_label),
-    number_of_votes_favor:count(node.number_of_votes_favor), number_of_votes_against:count(node.number_of_votes_against), number_of_votes_abstention:count(node.number_of_votes_abstention),
+    inverse_consists_of:refs(node.inverse_consists_of), headingLabel:voteLabels(node.headingLabel), referenceText:voteLabels(node.referenceText), activity_label:voteLabels(node.activity_label),
+    ...voteCountFields(node),
   }));
 }
 export function motionVoteCoverage(results,decisions) {
@@ -70,11 +72,11 @@ export function motionOutcome(work,documentFetchedAt,sourceForSitting) {
       if (!parent.consists_of.length || parent.consists_of.some(child => !byId.has(child))) { incomplete = true; continue; }
       for (const decision of decisions) {
         if (!decision.inverse_consists_of.includes(parent.id) || !parent.consists_of.includes(decision.id)) continue;
-        const subject = decision.referenceText?.en?.trim() || '';
+        const subject = englishVoteLabel(decision.referenceText)?.trim() || '';
         const whole = /^Motion for a resolution(?: \(as a whole\))?$/i.test(subject);
         const standalone = /^(?:RC-)?B10-\d{4,6}\/\d{4}$/.test(subject);
         if (!whole && !standalone) continue;
-        const exactIds = [...new Set(documentReferences(standalone ? subject : [decision.headingLabel?.en,decision.activity_label?.en].join('\n')))];
+        const exactIds = [...new Set(documentReferences(standalone ? subject : [englishVoteLabel(decision.headingLabel),englishVoteLabel(decision.activity_label)].join('\n')))];
         if (exactIds.length !== 1 || exactIds[0] !== id || decision.activity_date!==parent.activity_date) continue;
         const status = STATUSES[tail(decision.decision_outcome)];
         if (!status) continue;

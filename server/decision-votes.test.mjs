@@ -202,5 +202,5 @@ test('the vote page reply names an exact roll-call request, in the reader\'s lan
   f.raw.was_motivated_by=[request];
   const data=await f.read();
   assert.deepEqual(data.decision.rollCallRequesters,[{id:'MTG-PL-2026-10-07-VOT-ITM-993151-RCV-9',binding:'exact-decision-was_motivated_by',organizationLabels:{en:'S&D'}}]);
-  assert.equal(data.version,9);
+  assert.equal(data.version,10);
 });

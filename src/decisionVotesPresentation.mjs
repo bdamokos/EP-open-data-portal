@@ -20,7 +20,7 @@ export function decisionVotesRoute(id,language) {
   return 'decision-votes/'+id+'?'+new URLSearchParams({lang:language});
 }
 export function validateDecisionVotes(data,id) {
-  if(!object(data)||data.version!==9||data.decisionId!==id||data.sittingId!==id.slice(0,17)||! /^[a-f0-9]{64}$/.test(data.snapshotId)||!['complete','partial','unavailable'].includes(data.coverage)||!['found','unavailable'].includes(data.status)||!['complete','partial','conflicting','unavailable'].includes(data.integrity)||!Array.isArray(data.voters))return false;
+  if(!object(data)||data.version!==10||data.decisionId!==id||data.sittingId!==id.slice(0,17)||! /^[a-f0-9]{64}$/.test(data.snapshotId)||!['complete','partial','unavailable'].includes(data.coverage)||!['found','unavailable'].includes(data.status)||!['complete','partial','conflicting','unavailable'].includes(data.integrity)||!Array.isArray(data.voters))return false;
   if(!Array.isArray(data.siblings)||typeof data.procedureReferral!=='boolean'||!noRecordShape(data.noRecord)||!object(data.people)||data.mainVoteId!==null&&typeof data.mainVoteId!=='string'||data.subject!==null&&!subjectShape(data.subject)||!data.siblings.every(sibling=>votePartsShape(sibling)&&typeof sibling.id==='string'&&object(sibling.totals)&&object(sibling.referenceTexts)&&object(sibling.scope)&&refs(sibling.context?.amendmentIds)))return false;
   if(data.status==='unavailable')return data.decision===null&&data.voters.length===0&&data.integrity==='unavailable';
   const vote=data.decision;

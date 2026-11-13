@@ -378,3 +378,25 @@ test('agenda main vote matches the vote page on labels, ballots and the exact re
  assert.equal(conflicted.itemVotes.find(row=>row.id.endsWith('-2')).ballotStatus,'unknown');
  assert.equal(main([raw(2,'Commission proposal'),raw(4,'Motion for a resolution',{inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-2']})]),null,'two subjects name different main votes');
 });
+test('on the vote day the French-only labels choose the same main vote',async()=>{
+ const {agendaVotes}=await import('./insights-legislation-model.mjs');
+ const topic={uri:'eli/dl/event/MTG-PL-2026-11-12-OJ-ITM-V-1'};
+ // ODP publishes only French labels on the day of the vote (12 November 2026).
+ const raw=(id,label,fields={})=>({id:'eli/dl/event/MTG-PL-2026-11-12-DEC-'+id,activity_id:'MTG-PL-2026-11-12-DEC-'+id,type:'Vote',activity_date:'2026-11-12',decision_method:'def/ep-entities/VOTE_ELECTRONIC_ROLLCALL',decision_outcome:'def/ep-statuses/ADOPTED',referenceText:{fr:label},had_voter_favor:['person/1'],had_voter_against:[],had_voter_abstention:[],number_of_votes_favor:1,number_of_attendees:1,inverse_consists_of:['eli/dl/event/MTG-PL-2026-11-12-VOT-ITM-1'],...fields});
+ const day=rows=>({sittingId:'MTG-PL-2026-11-12',date:'2026-11-12',coverage:{state:'complete'},decisions:rows,results:[{id:'eli/dl/event/MTG-PL-2026-11-12-VOT-ITM-1',activity_id:'MTG-PL-2026-11-12-VOT-ITM-1',had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',executed:[topic.uri],consists_of:rows.map(row=>row.id)}]});
+ const votes=rows=>agendaVotes(topic,day(rows),[],'en');
+ const whole=votes([raw(1,'§ 2'),raw(2,'Proposition de résolution (ensemble du texte)')]);
+ assert.equal(whole.mainVote.id,'MTG-PL-2026-11-12-DEC-2');
+ assert.deepEqual(whole.itemVotes[0].scope,{kind:'whole-text',basis:'french-reference-label'});
+ assert.deepEqual(whole.itemVotes[0].referenceTexts,{fr:'Proposition de résolution (ensemble du texte)'},'the published label and language are kept');
+ assert.deepEqual(whole.mainVote.totals,{for:1,against:0,abstaining:0},'counts ODP leaves out are zero when the attendance proves it');
+ assert.equal(votes([raw(3,'Proposition de la Commission'),raw(4,'Demande de renvoi en commission')]).mainVote.id,'MTG-PL-2026-11-12-DEC-3');
+ assert.equal(votes([raw(4,'Demande de renvoi en commission')]).itemVotes[0].scope.kind,'procedural');
+ assert.equal(votes([raw(5,'Accord provisoire')]).mainVote.id,'MTG-PL-2026-11-12-DEC-5');
+ assert.equal(votes([raw(6,'Proposition de décision',{decision_method:'def/ep-entities/VOTE_HAND'})]).mainVote.id,'MTG-PL-2026-11-12-DEC-6');
+ assert.equal(votes([raw(7,'Projet de règlement du Parlement')]).mainVote,null,'a French label outside the table is not guessed');
+ const zeroAgainst=raw(8,'Accord provisoire',{number_of_votes_favor:2,number_of_attendees:2,had_voter_favor:['person/1','person/2']});delete zeroAgainst.had_voter_against;delete zeroAgainst.had_voter_abstention;
+ const agreement=votes([zeroAgainst]);
+ assert.equal(agreement.mainVote?.id,'MTG-PL-2026-11-12-DEC-8','ODP drops the empty voter lists with their zero counts');
+ assert.equal(agreement.mainVote.ballotStatus,'conducted');assert.deepEqual(agreement.mainVote.totals,{for:2,against:0,abstaining:0});
+});

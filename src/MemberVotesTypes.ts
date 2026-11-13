@@ -35,7 +35,7 @@ export type MemberVote = {
   ballotStatus:'conducted'|'not-conducted'|'unknown';
   scope:{
     kind:'whole-text'|'amendment'|'split-part'|'partial-text'|'procedural'|'unclassified';
-    basis:'exact-component-reference'|'exact-part-reference'|'english-reference-label'|'english-proposal-label'|'invalid-component-reference'|'unclassified';
+    basis:'exact-component-reference'|'exact-part-reference'|'english-reference-label'|'english-proposal-label'|'french-reference-label'|'french-proposal-label'|'invalid-component-reference'|'unclassified';
   };
   actualPosition:{
     status:'recorded'|'no-record'|'not-individually-recorded'|'unavailable'|'conflicting'|'not-conducted';
@@ -107,7 +107,7 @@ export type MemberVoteRow = Pick<MemberVote,'id'|'sittingId'|'date'|'scope'|'met
 export type MemberVoteSubjectSummary = Pick<MemberVoteSubject,'id'|'uri'|'title'|'titleLanguage'|'titles'|'documentIds'|'agendaItemIds'|'counts'|'wholeTextDecisions'>;
 
 export type MemberVotesResponse = {
-  version:14;
+  version:15;
   member:{id:string;uri:string;mandateStatus:'not-assessed';historicalGroupStatus:'not-collected'};
   period:{kind:'week'|'sitting';week:string|null;sittingId:string|null;from:string|null;to:string|null};
   snapshotId:string;

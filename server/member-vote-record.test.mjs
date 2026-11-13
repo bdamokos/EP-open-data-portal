@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {HttpError} from './http-utils.mjs';
 import {MEMBER_VOTE_SNAPSHOT_VERSION} from './member-votes.mjs';
+import {MEMBER_VOTE_RECORD_PROJECTION_VERSION} from './member-vote-record-store.mjs';
 import {MemberVoteRecordReader,memberVoteRecordQuery,memberVoteRecordLanguage,MEMBER_VOTE_RECORD_VERSION} from './member-vote-record.mjs';
 
 const MEP='1',VERSION=MEMBER_VOTE_SNAPSHOT_VERSION;
@@ -24,7 +25,7 @@ function database({includeC=true,generation=3,groupSnapshot=history,totals=[{mem
     sitting_id TEXT PRIMARY KEY, revision TEXT NOT NULL, date TEXT NOT NULL,
     group_generation INTEGER, snapshot_version INTEGER NOT NULL,
     named INTEGER NOT NULL, decisions TEXT NOT NULL, complete INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'projected', reason TEXT, subjects TEXT NOT NULL DEFAULT '{}',unprojected INTEGER NOT NULL DEFAULT 0,projection_version INTEGER NOT NULL DEFAULT 1);
+    status TEXT NOT NULL DEFAULT 'projected', reason TEXT, subjects TEXT NOT NULL DEFAULT '{}',unprojected INTEGER NOT NULL DEFAULT 0,projection_version INTEGER NOT NULL DEFAULT ${MEMBER_VOTE_RECORD_PROJECTION_VERSION});
     CREATE TABLE member_vote_record_tags (sitting_id TEXT PRIMARY KEY, topics_generation INTEGER, tags TEXT NOT NULL);
     CREATE TABLE member_vote_record_members (member_id TEXT NOT NULL, sitting_id TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(member_id,sitting_id));
     CREATE TABLE member_vote_record_totals (member_id TEXT NOT NULL,snapshot_version INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(member_id,snapshot_version));

@@ -1,3 +1,5 @@
+import {namedVoters,voteCounts} from './vote-counts.mjs';
+import {englishVoteLabel} from './vote-labels.mjs';
 import {languagePreference} from './language-order.mjs';
 import {personId} from './insights-model.mjs';
 import {decodeCharacterReferences} from './character-references.mjs';
@@ -14,18 +16,10 @@ function referenceText(value) {
   return decodeCharacterReferences(value,'vote-reference');
 }
 
-function count(value) {
-  // Null, missing, empty strings and booleans are not observations of zero.
-  if(typeof value==='number')return Number.isSafeInteger(value)&&value>=0?value:null;
-  if(typeof value==='string'&&/^\d+$/.test(value)) {
-    const parsed=Number(value);return Number.isSafeInteger(parsed)?parsed:null;
-  }
-  return null;
-}
 export function voterGroups(raw,prefix) {
   const groups={},supplied={},byPerson=new Map();let malformedReferences=0;
   for(const [position,suffix] of Object.entries(positions)) {
-    const field=prefix+suffix,values=raw[field];supplied[position]=Array.isArray(values);
+    const field=prefix+suffix,values=prefix==='had_voter_'?namedVoters(raw,position):raw[field];supplied[position]=Array.isArray(values);
     if(values!==undefined&&!Array.isArray(values))malformedReferences++;
     const ids=unique((Array.isArray(values)?values:[]).flatMap(value=>{
       const id=personId(value);if(!id){malformedReferences++;return [];}return [id];
@@ -37,11 +31,11 @@ export function voterGroups(raw,prefix) {
 }
 function scope(raw,derived) {
   const explicit=explicitVoteScope(raw);if(explicit)return explicit;
-  const referenceLabel=typeof raw.referenceText?.en==='string'?raw.referenceText.en.trim():'';
-  if(isWholeProposalVote(raw,derived))return {kind:'whole-text',basis:'english-proposal-label'};
-  if(/^(?:Motion for a resolution|Draft legislative resolution|Legislative resolution) \(as a whole\)$/i.test(referenceLabel))return {kind:'whole-text',basis:'english-reference-label'};
-  if(/\b(?:Am(?:endment)?s?\s*\d|oral amendment|provisional agreement)\b/i.test(referenceLabel))return {kind:'amendment',basis:'english-reference-label'};
-  if(/^(?:Request|Referral|Motion to refer|Postponement|Closure|Adjournment)\b/i.test(referenceLabel))return {kind:'procedural',basis:'english-reference-label'};
+  const referenceLabel=englishVoteLabel(raw.referenceText)?.trim()||'',labelBasis=typeof raw.referenceText?.en==='string'?'english':'french';
+  if(isWholeProposalVote(raw,derived))return {kind:'whole-text',basis:labelBasis+'-proposal-label'};
+  if(/^(?:Motion for a resolution|Draft legislative resolution|Legislative resolution) \(as a whole\)$/i.test(referenceLabel))return {kind:'whole-text',basis:labelBasis+'-reference-label'};
+  if(/\b(?:Am(?:endment)?s?\s*\d|oral amendment|provisional agreement)\b/i.test(referenceLabel))return {kind:'amendment',basis:labelBasis+'-reference-label'};
+  if(/^(?:Request|Referral|Motion to refer|Postponement|Closure|Adjournment)\b/i.test(referenceLabel))return {kind:'procedural',basis:labelBasis+'-reference-label'};
   return {kind:'unclassified',basis:'unclassified'};
 }
 
@@ -57,7 +51,7 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
   const conflictingPersonIds=[...actual.byPerson].filter(([,values])=>values.length>1).map(([id])=>id).sort((a,b)=>Number(a)-Number(b));
   const conflicts=new Set(conflictingPersonIds);
   const counts=available?Object.fromEntries(Object.entries(actual.groups).map(([position,ids])=>[position,ids.filter(id=>!conflicts.has(id)).length])):null;
-  const totals=Object.fromEntries(Object.entries(positions).map(([position,suffix])=>[position,count(raw['number_of_votes_'+suffix])]));
+  const totals=voteCounts(raw);
   const totalsMatch=!available||Object.values(totals).some(value=>value===null)?null:actual.malformedReferences>0||conflicts.size>0?false:Object.keys(positions).every(position=>counts[position]===totals[position]);
   const memberPositions=actual.byPerson.get(String(memberId))||[];
   let actualPosition={status:'unavailable',position:null};
