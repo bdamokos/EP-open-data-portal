@@ -5,7 +5,7 @@ import {summariseVoteSitting,voteSittingStatus,memberVoteRecordRevision} from '.
 import {topicsGeneration,decisionTags} from './member-vote-record-topics.mjs';
 
 // Increment when projection semantics change; held snapshots then rebuild once.
-export const MEMBER_VOTE_RECORD_PROJECTION_VERSION=1;
+export const MEMBER_VOTE_RECORD_PROJECTION_VERSION=2;
 
 // Projection tables live beside sitting_snapshots in the activity index. Only
 // the leased index writer writes them; readers open the same file read-only.
