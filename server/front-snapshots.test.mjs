@@ -43,7 +43,9 @@ async function fixture(t,{answers={},clock,directory,options={}}={}) {
     seen.push({url:request.url,headers:request.headers});
     const pathname=request.url.split('?')[0];
     if(bodies[pathname]===undefined){jsonReply(request,response,404,'{"error":{"code":"not_found"}}\n');return;}
-    jsonReply(request,response,200,bodies[pathname],{cdn:pathname==='/api/directory'?'public, max-age=21600, stale-if-error=0':'no-store'});
+    // As the API: the directory and a complete calendar carry a CDN lifetime.
+    const cdn={'/api/directory':'public, max-age=21600, stale-if-error=0','/api/vote-periods':'public, max-age=54000, stale-if-error=0'}[pathname]||'no-store';
+    jsonReply(request,response,200,bodies[pathname],{cdn});
   });
   api.listen(0,'127.0.0.1');await once(api,'listening');
   const calls={acquire:0,wake:0,release:0},state={ready:true,port:api.address().port};
@@ -149,7 +151,10 @@ test('each route follows its own bound',loopback,async t=>{
   // upcoming-votes: one hour.
   clock.now+=HOUR;
   assert.equal((await f.get(routes[2])).response.headers[SNAPSHOT_HEADER.toLowerCase()],undefined);
-  // vote-periods: the Brussels day it was stored on (UTC+1 in November).
+  // vote-periods: the API's CDN lifetime, here 15 h, past the old 6 h cap...
+  clock.now=Date.parse('2026-11-04T15:00:00Z');
+  assert.ok((await f.get(routes[0])).response.headers[SNAPSHOT_HEADER.toLowerCase()],'7 h after it was stored');
+  // ...but never past the Brussels day it was stored on (UTC+1 in November).
   clock.now=Date.parse('2026-11-04T22:30:00Z');
   assert.ok((await warm(f,routes[0])).response.headers);
   clock.now=Date.parse('2026-11-04T22:59:00Z');

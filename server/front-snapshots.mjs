@@ -11,8 +11,9 @@ import path from 'node:path';
 // route has its own staleness bound taken from how the API treats that answer:
 //  - directory: the CDN lifetime the API itself sent with the response (it sends
 //    none for an incomplete directory, which is therefore never kept).
-//  - vote-periods: the API sends no-store because held dates change at Brussels
-//    midnight; a copy is used on the Brussels day it was stored, for 6 h at most.
+//  - vote-periods: the CDN lifetime the API sent (a complete calendar until just
+//    after the next Brussels midnight, none otherwise), and never past the
+//    Brussels day it was stored on.
 //  - plenary-live: the answer's own validUntil. The client treats a snapshot past
 //    it as out of date and polls again only after 30 s, so an expired copy would
 //    delay the real answer.
@@ -147,7 +148,7 @@ export class FrontSnapshots {
   #expiry({route,sitting},rawHeaders,body,now) {
     const json=()=>{try {return JSON.parse(body.toString('utf8'));}catch{return null;}};
     if(route==='directory')return cdnMaxAgeMs(rawHeaders)?now+cdnMaxAgeMs(rawHeaders):0;
-    if(route==='vote-periods')return json()?.coverage?.status==='complete'?now+6*HOUR:0;
+    if(route==='vote-periods')return json()?.coverage?.status==='complete'&&cdnMaxAgeMs(rawHeaders)?now+cdnMaxAgeMs(rawHeaders):0;
     if(route==='plenary-live') {
       const until=Date.parse(json()?.validUntil);
       return Number.isFinite(until)&&until>now?until:0;
@@ -158,7 +159,7 @@ export class FrontSnapshots {
   #renew({key,route,version,sitting},rawHeaders,now) {
     const entry=this.entries.get(key);
     if(!entry||route==='plenary-live'||entry.meta.version!==version||headerValue(rawHeaders,'etag')!==entry.meta.etag||!this.#fresh(entry.meta,now))return;
-    const expiresAt=route==='directory'?cdnMaxAgeMs(rawHeaders)&&now+cdnMaxAgeMs(rawHeaders):route==='vote-periods'?now+6*HOUR:this.#expiry({route,sitting},rawHeaders,null,now);
+    const expiresAt=['directory','vote-periods'].includes(route)?cdnMaxAgeMs(rawHeaders)&&now+cdnMaxAgeMs(rawHeaders):this.#expiry({route,sitting},rawHeaders,null,now);
     if(!expiresAt)return;
     Object.assign(entry.meta,{storedAt:now,expiresAt});
     this.#schedule();
