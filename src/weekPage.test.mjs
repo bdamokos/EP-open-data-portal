@@ -19,7 +19,7 @@ const past=agenda(WEEK,[day('2026-10-19','past'),day('2026-10-21','past'),day('2
  topic('MTG-PL-2026-10-22-OJ-ITM-V-2','PLENARY_VOTE','A vote by hands',{order:4}),
  topic('MTG-PL-2026-10-22-OJ-ITM-V-3','PLENARY_VOTE','Budget draft with many votes',{order:5}),
 ]);
-const results={version:3,week:WEEK,location:'Strasbourg',days:[{sittingId:'MTG-PL-2026-10-19',complete:true,voteCount:1,rollCallCount:1,notConducted:0},{sittingId:'MTG-PL-2026-10-21',complete:true,voteCount:0,rollCallCount:0,notConducted:0},{sittingId:'MTG-PL-2026-10-22',complete:true,voteCount:210,rollCallCount:0,notConducted:0}],
+const results={version:4,week:WEEK,location:'Strasbourg',days:[{sittingId:'MTG-PL-2026-10-19',complete:true,voteCount:1,rollCallCount:1,notConducted:0},{sittingId:'MTG-PL-2026-10-21',complete:true,voteCount:0,rollCallCount:0,notConducted:0},{sittingId:'MTG-PL-2026-10-22',complete:true,voteCount:210,rollCallCount:0,notConducted:0}],
  unlinked:[{id:'MTG-PL-2026-10-19-DEC-1',sittingId:'MTG-PL-2026-10-19',titles:{en:'Monday’s agenda – Request'},outcome:'REJECTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:totals(115,317,12)}],
  items:[
   {agendaItemId:'MTG-PL-2026-10-22-OJ-ITM-V-1',voteCount:35,summary:null,main:{id:'MTG-PL-2026-10-22-DEC-198405',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:totals(454,34,93)}},
@@ -54,7 +54,7 @@ const running=agenda(MIXED,[day('2026-11-23','past'),day('2026-11-24','today'),d
  topic('MTG-PL-2026-11-25-OJ-ITM-V-1','PLENARY_VOTE','Wednesday vote',{order:3,evidence:{containerId:'MTG-PL-2026-11-25-TF-1200'}}),
  topic('MTG-PL-2026-11-25-OJ-ITM-D-1','PLENARY_DEBATE','Wednesday debate',{order:4,evidence:{containerId:'MTG-PL-2026-11-25-TF-1500'}}),
 ]);
-const runningResults={version:3,week:MIXED,location:'Strasbourg',unlinked:[],days:[{sittingId:'MTG-PL-2026-11-23',complete:true,voteCount:3,rollCallCount:3,notConducted:0},{sittingId:'MTG-PL-2026-11-24',complete:false,voteCount:null,rollCallCount:null,notConducted:null}],items:[{agendaItemId:'MTG-PL-2026-11-23-OJ-ITM-V-1',voteCount:3,summary:null,main:{id:'MTG-PL-2026-11-23-DEC-1',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:totals(10,2,0)}}]};
+const runningResults={version:4,week:MIXED,location:'Strasbourg',unlinked:[],days:[{sittingId:'MTG-PL-2026-11-23',complete:true,voteCount:3,rollCallCount:3,notConducted:0},{sittingId:'MTG-PL-2026-11-24',complete:false,voteCount:null,rollCallCount:null,notConducted:null}],items:[{agendaItemId:'MTG-PL-2026-11-23-OJ-ITM-V-1',voteCount:3,summary:null,main:{id:'MTG-PL-2026-11-23-DEC-1',outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:totals(10,2,0)}}]};
 const week=(id,...dates)=>({week:id,sittings:dates.map(date=>({sittingId:'MTG-PL-'+date,date,location:'Strasbourg'}))});
 const periods={version:4,coverage:{status:'complete',years:[]},upcoming:[week(MIXED,'2026-11-23','2026-11-25'),week(NEXT,'2026-11-11','2026-11-12')],weeks:[week(WEEK,'2026-10-19','2026-10-21','2026-10-22'),week('2026-10-05','2026-10-05','2026-10-08')]};
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});

@@ -18,8 +18,10 @@ export function storyTables(db){db.exec(`
  CREATE TABLE IF NOT EXISTS story_parents(generation INTEGER,parent TEXT,speech TEXT,PRIMARY KEY(generation,parent,speech));
  CREATE INDEX IF NOT EXISTS story_parent_speech ON story_parents(generation,speech,parent);
  `);}
-// Fields whose values depend on the parser revision (STORY_DOCUMENT_PARSER).
-const PARSER_DERIVED={document:['groups']};
+// Fields whose values depend on the parser revision (STORY_DOCUMENT_PARSER, STORY_DECISION_PARSER).
+const PARSER_DERIVED={document:['groups'],decision:['for','against','abstentions']};
+// A decision count may only go from unknown to a proven 0; any other change is a conflict.
+const parserMigrates=(kind,key,prior,next)=>kind!=='decision'||prior===null&&next===0;
 const statements=new WeakMap();
 function prepared(db){let p=statements.get(db);if(!p){p={queue:db.prepare('INSERT OR IGNORE INTO story_jobs(key,kind,id,state,next_read,error) VALUES (?,?,?,?,?,?)'),input:db.prepare('SELECT body,source FROM story_inputs WHERE kind=? AND id=?'),get:db.prepare('SELECT body,source,fetched_at,rank FROM story_inputs WHERE kind=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO story_inputs VALUES (?,?,?,?,?,?)')};statements.set(db,p);}return p;}
 export function stageStoryInput(store,w,source,{rank=1}={}){
@@ -52,7 +54,7 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
   // date, title and relationships, and holds no type of its own.
   const ignored=kind==='event'?['type']:[];
   if(kind==='event'&&Object.hasOwn(prior,'type')&&prior.type!==value.type)value={...value,type:null};
-  if(prior.conflicted||Object.entries(prior).some(([key,v])=>key!=='conflicted'&&key!=='parser'&&!derived.includes(key)&&!ignored.includes(key)&&JSON.stringify(v)!==JSON.stringify(value[key])))value={...value,conflicted:true};}
+  if(prior.conflicted||Object.entries(prior).some(([key,v])=>key!=='conflicted'&&key!=='parser'&&!(derived.includes(key)&&parserMigrates(kind,key,v,value[key]))&&!ignored.includes(key)&&JSON.stringify(v)!==JSON.stringify(value[key])))value={...value,conflicted:true};}
  const saved=JSON.stringify({...value,source:undefined}),encodedSource=JSON.stringify(source);
  if(old&&old.fetched_at===at&&old.rank===rank&&old.body===saved&&old.source===encodedSource)return;
  p.put.run(kind,value.id,saved,encodedSource,at,rank);return !old||old.body!==saved;

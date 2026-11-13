@@ -9,6 +9,9 @@ export const STORY_FACTS_VERSION=18;
 // Parser revision of staged document inputs. A re-parse of retained bytes under a
 // newer revision replaces the staged input instead of reading as a source conflict.
 export const STORY_DOCUMENT_PARSER=2;
+// Parser revision of staged decisions. Revision 1 reads an omitted count as 0 when the
+// published counts add up to number_of_attendees; earlier rows hold null there.
+export const STORY_DECISION_PARSER=1;
 export const array=v=>v==null?[]:Array.isArray(v)?v:[v];
 export const tail=v=>String(v?.id||v||'').split('/').at(-1);
 export const unique=v=>[...new Set(v)];
@@ -33,8 +36,7 @@ export function storyAgenda(w,source){
 export function storyDecision(w,source){
  const id=w.activity_id||tail(w.id);if(!id)return null;
  const code=value=>{const all=refs(value);return all.length===1?all[0]:null;};
- const count=v=>Number.isSafeInteger(Number(v))&&v!==null&&v!==undefined&&v!==''&&Number(v)>=0?Number(v):null;
- return {id,date:w.activity_date||null,outcome:code(w.decision_outcome),decisionMethod:code(w.decision_method),...(({for:votesFor,against,abstaining})=>({for:votesFor,against,abstentions:abstaining}))(voteCounts(w)),labels:titles(w.activity_label),headings:titles(w.headingLabel),references:titles(w.referenceText),on:refs(w.decided_on_a_realization_of),results:refs(w.inverse_consists_of),source};
+ return {id,parser:STORY_DECISION_PARSER,date:w.activity_date||null,outcome:code(w.decision_outcome),decisionMethod:code(w.decision_method),...(({for:votesFor,against,abstaining})=>({for:votesFor,against,abstentions:abstaining}))(voteCounts(w)),labels:titles(w.activity_label),headings:titles(w.headingLabel),references:titles(w.referenceText),on:refs(w.decided_on_a_realization_of),results:refs(w.inverse_consists_of),source};
 }
 const escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 export function wholeTextOutcome(doc,candidates){
