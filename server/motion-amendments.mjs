@@ -1,3 +1,4 @@
+import {englishVoteLabel} from './vote-labels.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {odpLanguage} from './odp.mjs';
@@ -67,10 +68,10 @@ function checkedOutcomeSource(record,id) {
     if(previous&&bindingFields.some(field=>stable(previous[field])!==stable(decision[field])))invalidDecisions.add(key);
     const direct=array(decision.decided_on_a_realization_of).map(canonicalEPReference).filter(ref=>/^eli\/dl\/doc\/(?:B|RC)-10-\d{4}-\d{4,6}$/.test(ref || ''));
     // A formal heading cannot override a contradictory exact subject URI.
-    const subject=decision.referenceText?.en?.trim() || '';
+    const subject=englishVoteLabel(decision.referenceText)?.trim() || '';
     const whole=/^Motion for a resolution(?: \(as a whole\))?$/i.test(subject);
     const standalone=/^(?:RC-)?B10-\d{4,6}\/\d{4}$/.test(subject);
-    const formal=[...(standalone?subject:[decision.headingLabel?.en,decision.activity_label?.en].join('\n')).matchAll(/\b(RC-)?B10-(\d{4,6})\/(\d{4})\b/g)]
+    const formal=[...(standalone?subject:[englishVoteLabel(decision.headingLabel),englishVoteLabel(decision.activity_label)].join('\n')).matchAll(/\b(RC-)?B10-(\d{4,6})\/(\d{4})\b/g)]
       .map(([,joint,number,year])=>`${joint?'RC':'B'}-10-${year}-${number}`);
     if((whole||standalone)&&formal.includes(id)&&direct.length&&(!direct.includes('eli/dl/doc/'+id)||new Set(direct).size!==1))invalidDecisions.add(key);
     if((whole||standalone)&&formal.includes(id)&&array(decision.decided_on_a_realization_of).some(ref=>amendmentReference(ref)))invalidDecisions.add(key);

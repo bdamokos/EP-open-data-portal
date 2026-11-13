@@ -1,3 +1,5 @@
+import {namedVoters} from './vote-counts.mjs';
+import {englishVoteLabel} from './vote-labels.mjs';
 import {list,exactReference,references,eventUri,identifier,term} from './vote-evidence.mjs';
 
 const componentFields=['decided_on_a_realization_of','decided_on_a_part_of_a_realization_of'];
@@ -16,10 +18,10 @@ export function explicitVoteScope(raw) {
 // This exact English label family means the whole proposal at this reading.
 // Labels supply scope only; identity and context require the retained graph.
 export function isWholeProposalVote(raw,derived) {
-  if(typeof raw.referenceText?.en!=='string'||raw.referenceText.en.trim()!=='Commission proposal'||typeof raw.headingLabel?.en!=='string'||raw.headingLabel.en.trim()!=='Draft legislative act')return false;
+  if(englishVoteLabel(raw.referenceText)?.trim()!=='Commission proposal'||englishVoteLabel(raw.headingLabel)?.trim()!=='Draft legislative act')return false;
   if(componentFields.some(field=>list(raw[field]).length)||['decisionAboutId','decisionAboutId_XMLLiteral','decisionAboutId_Lang'].some(field=>list(raw[field]).length)||raw._conflictingSourceObservations)return false;
   if(term(raw.type||raw['@type'])!=='Vote'||!['ADOPTED','REJECTED'].includes(term(raw.decision_outcome)))return false;
-  const namedArrays=['had_voter_favor','had_voter_against','had_voter_abstention'].every(field=>Array.isArray(raw[field]));
+  const namedArrays=['for','against','abstaining'].every(position=>Array.isArray(namedVoters(raw,position)));
   if(!namedArrays&&!['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(term(raw.decision_method)))return false;
   const evidence=derived?.decisions.get(eventUri(raw));
   if(!evidence?.subjectId||!['consistent','single-direction'].includes(evidence.resultRelationship.binding))return false;

@@ -1,3 +1,5 @@
+import {voteCounts} from './vote-counts.mjs';
+import {standardVoteLabel} from './vote-labels.mjs';
 import {distributionCandidate} from './ep-distribution-route.mjs';
 import {legacyAmendmentDocument,agendaNamesDocument} from './upcoming-amendments.mjs';
 import {committeeListId,committeeDraftId,committeeCode} from './committee-amendments.mjs';
@@ -158,11 +160,11 @@ export function projectAmendmentSplits(nodes,sittingId) {
   }]:[]);
 }
 export function amendmentDecision(node,sittingId,source) {
-  const outcome=tail(node.decision_outcome), number=value=>Number.isSafeInteger(Number(value))&&Number(value)>=0?Number(value):null;
+  const outcome=tail(node.decision_outcome);
   const amendmentIds=[...new Set(array(node.decided_on_a_realization_of).map(amendmentReference).filter(Boolean).map(ref=>ref.id))];
   return {id:tail(node.id),amendmentIds,collective:amendmentIds.length>1,sittingId,date:node.activity_date || sittingId.slice(7),outcome:['ADOPTED','REJECTED','LAPSED','WITHDRAWN'].includes(outcome)?outcome:'unavailable',method:tail(node.decision_method)||null,
-    reference:node.referenceText?.en || node.activity_label?.en || null,
-    totals:[node.number_of_votes_favor,node.number_of_votes_against,node.number_of_votes_abstention].every(value=>value==null)?null:{for:node.number_of_votes_favor==null?null:number(node.number_of_votes_favor),against:node.number_of_votes_against==null?null:number(node.number_of_votes_against),abstaining:node.number_of_votes_abstention==null?null:number(node.number_of_votes_abstention)},source};
+    reference:node.referenceText?.en || node.activity_label?.en || standardVoteLabel(node.referenceText) || null,
+    totals:[node.number_of_votes_favor,node.number_of_votes_against,node.number_of_votes_abstention].every(value=>value==null)?null:voteCounts(node),source};
 }
 export function amendmentOutcome(decisions) {
   const outcomes=[...new Set(decisions.map(decision=>decision.outcome))];

@@ -6,7 +6,7 @@ import {itemVoteSummary} from './week-result-summary.mjs';
 import {mainVote} from './main-vote.mjs';
 import {votePeriods} from './vote-periods.mjs';
 
-export const WEEK_RESULTS_VERSION=3;
+export const WEEK_RESULTS_VERSION=4;
 // Nobody holds this identifier; the projection then never withholds a decision.
 const NO_MEMBER='0';
 const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;

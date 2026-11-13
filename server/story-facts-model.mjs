@@ -1,9 +1,11 @@
+import {voteCounts} from './vote-counts.mjs';
+import {englishVoteLabel} from './vote-labels.mjs';
 import {suppliedTitles} from './insights-model.mjs';
 import {countryIdentity} from './topic-country-identity.mjs';
 import {countryConcepts,eurovocCountries} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 import {GROUP_VOICE_GROUPS} from '../src/groupVoiceTerms.mjs';
-export const STORY_FACTS_VERSION=17;
+export const STORY_FACTS_VERSION=18;
 // Parser revision of staged document inputs. A re-parse of retained bytes under a
 // newer revision replaces the staged input instead of reading as a source conflict.
 export const STORY_DOCUMENT_PARSER=2;
@@ -32,16 +34,16 @@ export function storyDecision(w,source){
  const id=w.activity_id||tail(w.id);if(!id)return null;
  const code=value=>{const all=refs(value);return all.length===1?all[0]:null;};
  const count=v=>Number.isSafeInteger(Number(v))&&v!==null&&v!==undefined&&v!==''&&Number(v)>=0?Number(v):null;
- return {id,date:w.activity_date||null,outcome:code(w.decision_outcome),decisionMethod:code(w.decision_method),for:count(w.number_of_votes_favor),against:count(w.number_of_votes_against),abstentions:count(w.number_of_votes_abstention),labels:titles(w.activity_label),headings:titles(w.headingLabel),references:titles(w.referenceText),on:refs(w.decided_on_a_realization_of),results:refs(w.inverse_consists_of),source};
+ return {id,date:w.activity_date||null,outcome:code(w.decision_outcome),decisionMethod:code(w.decision_method),...(({for:votesFor,against,abstaining})=>({for:votesFor,against,abstentions:abstaining}))(voteCounts(w)),labels:titles(w.activity_label),headings:titles(w.headingLabel),references:titles(w.referenceText),on:refs(w.decided_on_a_realization_of),results:refs(w.inverse_consists_of),source};
 }
 const escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 export function wholeTextOutcome(doc,candidates){
  if(!doc.reference)return {outcome:null,outcomeStatus:'unknown'};
- const whole=new RegExp('^'+escape(doc.reference)+' [–—-] (?:.* [–—-] )?(Motion for a resolution(?: \\(as a whole\\))?|Single vote|Proposal for a decision|Draft legislative resolution|Provisional agreement [–—-] Am \\d+|Motion for a decision)$');
+ const whole=new RegExp('^'+escape(doc.reference)+' [–—-] (?:.* [–—-] )?(Motion for a resolution(?: \\((?:text )?as a whole\\))?|Single vote|Proposal for a decision(?: \\(as a whole\\))?|Draft legislative resolution|Provisional agreement [–—-] Am \\d+|Motion for a decision)$');
  const heading=new RegExp('^(Joint motion|Motion) for a resolution '+escape(doc.reference)+'(?:\\s|$)');
  const ranked=[];for(const d of new Map(candidates.map(d=>[d.id,d])).values()){
   if(d.conflicted||!['ADOPTED','REJECTED','LAPSED'].includes(d.outcome))continue;
-  const label=d.labels?.en||'',ref=d.references?.en||'',head=d.headings?.en||'';
+  const label=englishVoteLabel(d.labels)||'',ref=englishVoteLabel(d.references)||'',head=englishVoteLabel(d.headings)||'';
   if(!whole.test(label)&&!(label===''&&heading.test(head)&&/^(Motion for a resolution(?: \(as a whole\))?|Single vote)$/.test(ref)))continue;
   const stage=label||ref,am=stage.match(/Provisional agreement [–—-] Am (\d+)$/);
   if(am&&!d.on.includes(doc.id+'-AM-'+am[1]))continue;

@@ -152,7 +152,7 @@ export function memberVoteParentLabel(vote,language='en',ui=defaultUi) {
   return scopes.length===1?scopes[0]:sourceLabel(vote.referenceTexts,language);
 }
 export function memberVoteLabel(vote,language='en', ui = defaultUi) {
-  if(vote.scope?.basis==='english-proposal-label')return sourceLabel(vote.referenceTexts,language)||ui.t("membervotespresentation.decision");
+  if(['english-proposal-label','french-proposal-label'].includes(vote.scope?.basis))return sourceLabel(vote.referenceTexts,language)||ui.t("membervotespresentation.decision");
   if(vote.scope?.kind==='whole-text')return ui.t("membervotespresentation.final_vote");
   const parts=unique((vote.parts||[]).map(part=>part.number).filter(value=>typeof value==='string'&&value.trim()||typeof value==='number'&&Number.isFinite(value)).map(String));
   const label=[];

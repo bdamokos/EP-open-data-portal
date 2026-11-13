@@ -11,7 +11,7 @@ import {referredForTalksOn} from './procedure-referral.mjs';
 import {odp} from './odp.mjs';
 import {cachedEvent} from './insights-participation.mjs';
 
-export const DECISION_VOTES_VERSION=9;
+export const DECISION_VOTES_VERSION=10;
 
 export function decisionVotesQuery(id,search,options) {
   if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(id))throw new HttpError(400,'invalid_decision','Use an exact decision identifier.');

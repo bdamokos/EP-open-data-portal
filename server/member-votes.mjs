@@ -13,7 +13,7 @@ import {collectVoteChairs} from './vote-chairs.mjs';
 import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
 import {sittingConfirmationDay} from './refresh-policy.mjs';
 
-export const MEMBER_VOTES_VERSION=14;
+export const MEMBER_VOTES_VERSION=15;
 // Saved sitting days stay readable across additive response changes.
 export const MEMBER_VOTE_SNAPSHOT_VERSION=11;
 export const VOTE_SNAPSHOT_VERSION=1;
