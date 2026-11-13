@@ -16,7 +16,9 @@ test('French-only vote-day labels map to the English ODP publishes later',()=>{
   assert.equal(englishVoteLabel({mul:'A10-0211/2026 - Dainius Žalimas - Accord provisoire - Am 36'}),'A10-0211/2026 – Dainius Žalimas – Provisional agreement – Am 36');
   assert.equal(englishVoteLabel({fr:'Proposition de résolution commune RC-B10-0497/2026 \n(PPE, S&D, ECR, Renew, Verts/ALE, députés)'}),'Joint motion for a resolution RC-B10-0497/2026 (PPE, S&D, ECR, Renew, Verts/ALE, députés)');
   assert.equal(englishVoteLabel({fr:'§ 4'}),'§ 4','references pass unchanged');
-  assert.equal(englishVoteLabel({fr:'Article 5, alinéa 1, point b'}),'Article 5, alinéa 1, point b','unknown wording is not translated');
+  assert.equal(englishVoteLabel({mul:'RC-B10-0497/2026 - § 1'}),'RC-B10-0497/2026 - § 1');
+  assert.equal(englishVoteLabel({fr:'Article 5, alinéa 1, point b'}),null,'unknown wording is not translated');
+  assert.equal(englishVoteLabel({fr:'Commission proposal'}),null,'French-keyed text is never read as English');
 });
 
 test('standard labels never return French text',()=>{

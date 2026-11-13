@@ -33,7 +33,7 @@ function matches(row,doc,raw,derived) {
   const full=ids(raw.decided_on_a_realization_of,'doc'),partial=ids(raw.decided_on_a_part_of_a_realization_of,'doc'),all=[...full,...partial];
   if(array(raw.decided_on_a_realization_of).length!==full.length||array(raw.decided_on_a_part_of_a_realization_of).length!==partial.length)return false;
   if(namesAnotherDocument(raw,doc))return false;
-  const xml=typeof raw.decisionAboutId_XMLLiteral==='string'?raw.decisionAboutId_XMLLiteral:'',comment=englishVoteLabel(raw.comment)||'',reference=englishVoteLabel(raw.referenceText)?.trim()||'';
+  const xml=typeof raw.decisionAboutId_XMLLiteral==='string'?raw.decisionAboutId_XMLLiteral:'',comment=raw.comment?.en||raw.comment?.fr||'',reference=englishVoteLabel(raw.referenceText)?.trim()||'';
   const marker=symbol=>new RegExp('<symbol\\b[^>]*\\bhref=[\"\'][^\"\']*/'+symbol+'[\"\'][^>]*>').test(xml);
   const split=full.filter(id=>/-SPLIT-\d+-\d+$/.test(id)).map(id=>Number(id.split('-').at(-1)));
   const commentPart=/^(\d+)(?:\/|$)/.exec(comment)?.[1];

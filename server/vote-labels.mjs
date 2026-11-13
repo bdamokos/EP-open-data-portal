@@ -77,10 +77,13 @@ const segment = part => {
   return part;
 };
 
+// Language-neutral references read the same in every language.
+const NEUTRAL = /^(?:§ ?\d+[a-z]?|Am \d+|(?:RC-)?[AB]\d+-\d+\/\d{4}(?:\/REV\d*)?)$/;
+
 /** The label's English text, or its French text through the table above.
  * Compound labels ("A10-0211/2026 - Rapporteur - Accord provisoire - Am 36")
- * are mapped segment by segment; names, references and unknown segments pass
- * unchanged, so they cannot match an English label they were not. */
+ * are mapped segment by segment, and their names and references pass
+ * unchanged. Other French text gives null: it is never read as English. */
 export function englishVoteLabel(value) {
   if (typeof value === 'string') return value;
   if (!value || typeof value !== 'object') return null;
@@ -93,8 +96,9 @@ export function englishVoteLabel(value) {
   if (rule !== text) return rule;
   const motion = /^Proposition de résolution (commune )?((?:RC-)?B\d+-\d+\/\d{4}\b.*)$/.exec(text);
   if (motion) return `${motion[1] ? 'Joint motion' : 'Motion'} for a resolution ${motion[2]}`;
-  const parts = text.split(/ [-–—] /);
-  return parts.length > 1 ? parts.map(segment).join(' – ') : text;
+  const parts = text.split(/ [-–—] /), mapped = parts.map(segment);
+  if (parts.length > 1 && mapped.some((part, index) => part !== parts[index])) return mapped.join(' – ');
+  return parts.every(part => NEUTRAL.test(part)) ? text : null;
 }
 
 /** The English label, or the English equivalent of a standard French label
