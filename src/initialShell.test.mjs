@@ -61,3 +61,21 @@ test('the small shell enhancement selects only supported headings and keeps the 
     assert.doesNotThrow(()=>window.eval(script),'a late enhancement must not interfere with the mounted app');
   });
 });
+
+test('the startup script preloads the plenary view code named by the build, only for that view',async t=>{
+  const content='./assets/Legislation-a1.js ./assets/ProcedureContext-b2.js ./assets/Legislation-c3.css https://example.test/x.js ./assets/../x.js';
+  for(const [query,expected] of [
+    ['?view=legislation&pl-mode=dossier&dossier-ref=2025%2F0207%28COD%29',[['modulepreload','./assets/Legislation-a1.js',null],['modulepreload','./assets/ProcedureContext-b2.js',null],['preload','./assets/Legislation-c3.css','style']]],
+    ['?view=legislation&pl-mode=read&doc=A-10-2026-0001',[]],
+    ['?view=questions',[]],
+    ['',[]],
+  ])await t.test(query||'(members)',t=>{
+    const window=page(t,query),{document}=window;
+    const meta=document.createElement('meta');meta.name='view-preload';meta.dataset.view='legislation';meta.content=content;document.head.append(meta);
+    window.happyDOM.settings.disableJavaScriptEvaluation=false;
+    window.eval(script);
+    const links=[...document.head.querySelectorAll('link[rel="modulepreload"],link[rel="preload"]')];
+    assert.deepEqual(links.map(link=>[link.rel,link.getAttribute('href'),link.getAttribute('as')]),expected);
+    for(const link of links)assert.equal(link.getAttribute('crossorigin'),'','matches the credentials mode of the module and stylesheet requests');
+  });
+});

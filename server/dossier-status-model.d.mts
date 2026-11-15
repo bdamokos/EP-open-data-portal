@@ -5,7 +5,7 @@ export type DossierMainVote={id:string;date:string|null;outcome:string|null;meth
 export type DossierCommittee={code:string;name:string;language:string|null};
 export type DossierVotingList={blockVotes:number;blockAmendments:number;individual:number;identical:number};
 export type DossierStatusSlots={committees?:DossierCommittee[];mainVote?:DossierMainVote|null;plenaryDate?:string|null;votingList?:DossierVotingList|null};
-export type DossierStatusResponse={version:number;reference:string;family:string|null;steps:ReturnType<typeof procedureSteps>['steps'];stage:ProcedureStage;indexEvents:IndexEvent[];slots:DossierStatusSlots};
+export type DossierStatusResponse={version:number;reference:string;title:string|null;titleLanguage:string|null;family:string|null;steps:ReturnType<typeof procedureSteps>['steps'];stage:ProcedureStage;indexEvents:IndexEvent[];slots:DossierStatusSlots};
 export type DossierStatusLine={id:string;values?:{date?:string|null;tally?:DossierTally|null;committees?:DossierCommittee[];label?:string;labelLanguage?:string|null}};
 export function votingListLineId(counts:DossierVotingList|null|undefined):string|null;
 export function resolutionStage(vote:DossierMainVote|null|undefined):ProcedureStage;

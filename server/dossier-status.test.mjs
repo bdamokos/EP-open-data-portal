@@ -93,7 +93,7 @@ test('other families get a resolution sentence only from the exact main vote, ot
 const day={sittingId:'MTG-PL-2026-10-22'};
 function service(fixture,{extra,votesRead,sittings=[],agenda,now='2026-11-06T12:00:00Z',reference=fixture.reference}={}) {
   const calls={votes:0,agenda:[]};
-  const activity={procedure:async(id,language,given)=>{assert.equal(given,reference);return {work:work(fixture,extra),procedure:{id,reference}};}};
+  const activity={procedure:async(id,language,given)=>{assert.equal(given,reference);return {work:work(fixture,extra),procedure:{id,reference,title:'Title of '+reference,titleLanguage:language}};}};
   const calendar={catalogue:async()=>({nodes:sittings})};
   const votes=votesRead===null?{snapshot:async()=>{throw Object.assign(new Error('unavailable'),{status:503});}}:{snapshot:async query=>{calls.votes++;assert.equal(query.sitting,'MTG-PL-2026-10-22');return votesRead||{days:[]};}};
   return {calls,status:new DossierStatus({activity,calendar,votes,readAgenda:agenda||(async endpoint=>{calls.agenda.push(endpoint);throw Object.assign(new Error('miss'),{code:'odp_cache_miss'});}),clock:()=>Date.parse(now)})};
@@ -113,6 +113,17 @@ test('a failed vote read drops the tally and leaves the steps',async()=>{
   const result=await status.query({reference:erasmus.reference,language:'en'});
   assert.equal(result.stage,'position-talks');assert.equal(result.slots.mainVote,null);assert.equal(result.family,'COD');
   assert.equal(result.indexEvents.length,erasmus.indexEvents.length);assert.equal(result.indexEvents[0].had_activity_type,'PLENARY_AMEND');
+});
+test('the status carries the procedure title in the language Parliament holds it in',async()=>{
+  const {status}=service(fisheries);
+  const result=await status.query({reference:fisheries.reference,language:'fr'});
+  assert.equal(result.version,3);assert.equal(result.title,'Title of '+fisheries.reference);assert.equal(result.titleLanguage,'fr');
+});
+test('a record without a title of its own sends no title, not its reference',async()=>{
+  const {status}=service(fisheries);
+  status.activity.procedure=async(id)=>({work:work(fisheries),procedure:{id,reference:fisheries.reference,title:fisheries.reference,titleLanguage:null}});
+  const result=await status.query({reference:fisheries.reference,language:'en'});
+  assert.equal(result.title,null);assert.equal(result.titleLanguage,null);
 });
 test('a file with no plenary vote event reads no sitting at all',async()=>{
   const {status,calls}=service(fisheries);

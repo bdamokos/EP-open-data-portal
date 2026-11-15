@@ -11,7 +11,7 @@ import {useExplorerParam,updateExplorerQuery} from './explorerUrl';
 import {PlenaryLiveBanner,ScheduledNow} from './PlenaryLive';
 import {lazy,Suspense,useState,useEffect,useLayoutEffect,useRef,useCallback,useId} from 'react';
 import {plenaryModes,type PlenaryMode,plenaryModeTitlesUi} from './plenaryModes';
-import {prefetchInsightData,useInsightData} from './InsightData';
+import {prefetchInsightData,usePrefetchWhileVisible,useInsightData} from './InsightData';
 import {InsightShell,InsightStatus,InsightPeople,InsightDemographics,humanDate} from './InsightShared';
 import {CountryFilter} from './CountryFilter';
 import {InsightQuestionReader} from './InsightReaders';
@@ -145,6 +145,8 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const topicSitting=selectedTopic?.sittingId||data?.sitting.id||sitting||'';
   const detailRoute=agendaItemRoute(language,topicSitting,topic);
   const selected=useInsightData<LegislationResponse>((((mode==='agenda') && topic) && data) ? detailRoute : null),detail=selected.data?.detail,displayTopic=detail||selectedTopic,detailRef=useRef<HTMLElement>(null),agendaRef=useRef<HTMLElement>(null),detailNavRef=useRef<HTMLDivElement>(null);
+  // A dossier linked from the item on screen is the likely next page: read its status ahead, only while the agenda is viewed.
+  usePrefetchWhileVisible(mode==='agenda'&&detail ? detail.procedures.filter(procedure=>/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(procedure.reference||'')).map(procedure=>'insights/dossier-status?'+new URLSearchParams({reference:procedure.reference!,lang:language})) : []);
   const activeAgendaIds=new Set([topic,detail?.id,...(detail?.scheduledAgendaIds||[])]);
   const agendaSelection=data?.topics.some(item=>item.id===topic)?topic:detail?.scheduledAgendaIds?.[0]||detail?.id||topic;
   const weekResults=useWeekResults(mode==='agenda'&&data?.week?data.week:null,language);

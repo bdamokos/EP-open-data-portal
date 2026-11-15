@@ -4,6 +4,7 @@ import {topicsHref} from './topicPresentation.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {FollowDossierButton} from './DossierControls';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
+import type {DossierStatusResponse} from '../server/dossier-status-model.mjs';
 import {FindInText} from './TextSearch';
 import {useInsightData} from './InsightData';
 import {humanDate} from './InsightCharts';
@@ -29,10 +30,20 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
   // Parliament's own procedure record is missing too, so nothing on the page can describe the file.
   const [recordMissing,setRecordMissing]=useState(false);
   const unknown=officialMissing&&recordMissing&&!fallbackTitle;
-  const title=data ? ({title:data.title,titleLanguage:data.language}) : fallbackTitle;
+  // The dossier page takes its title from the status read it needs anyway (one
+  // shared request), so the heading never waits for the Legislative Observatory.
+  const held=useInsightData<DossierStatusResponse>(showTitle&&children ? 'insights/dossier-status?'+new URLSearchParams({reference,lang:language}) : null).data;
+  const heldTitle=held?.reference===reference&&held.title ? {title:held.title,titleLanguage:held.titleLanguage} : null;
+  const read=heldTitle||(data ? ({title:data.title,titleLanguage:data.language}) : null);
+  // Whichever title this language's reads give first stays, so a later source never swaps the heading.
+  // The activity's title may belong to the previous language, so it shows only until a read answers.
+  const shownTitle=useRef<{reference:string;language:string;title:NonNullable<typeof read>}|null>(null);
+  if(shownTitle.current&&(shownTitle.current.reference!==reference||shownTitle.current.language!==language))shownTitle.current=null;
+  if(!shownTitle.current&&read)shownTitle.current={reference,language,title:read};
+  const title=shownTitle.current?.title||read||fallbackTitle;
   const identity=showIdentity&&<div className="insight-dossier-title">
     {showTitle&&title&&<h2 lang={title.titleLanguage??''}>{title.title}</h2>}
-    <div className="dossier-identity-row"><p lang="">{reference}</p>{(!showTitle||!loading)&&!unknown&&<FollowDossierButton reference={reference} title={title?.title} titleLanguage={title?.titleLanguage}/>}</div>
+    <div className="dossier-identity-row"><p lang="">{reference}</p>{(!showTitle||!loading||Boolean(heldTitle))&&!unknown&&<FollowDossierButton reference={reference} title={title?.title} titleLanguage={title?.titleLanguage}/>}</div>
   </div>;
   const press=<PressMentions key={'press:'+reference+':'+language} reference={reference} language={language} limit={showTitle ? 5 : 3}/>;
   const amendmentLink=<AmendmentTrailLink procedure={reference} language={language}><UiMessage id="batch5.procedurecontext.tsx.27.68"/></AmendmentTrailLink>;

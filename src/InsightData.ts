@@ -7,6 +7,18 @@ import { createDataClient, dataTimeoutFor } from './client.mjs';
 import {isProgressRoute,progressCacheMaxAge,readRefreshingInsight} from './insightRefresh.mjs';
 const client=createDataClient(api,{maxEntries:24,maxAge:5*60_000,maxAgeFor:(data,route)=>/^insights\/dossier-(activity|references)(?:\?|$)/.test(route)?0:progressCacheMaxAge(data,route,calendarCacheMaxAge(data,5*60_000)),timeoutFor:dataTimeoutFor});
 export function prefetchInsightData(routes:string[]) { return client.prefetch(routes); }
+/** Prefetch while the tab is on screen; a hidden tab or an unmount cancels what has not started. */
+export function usePrefetchWhileVisible(routes:string[]) {
+  const key=routes.join('\n');
+  useEffect(()=>{
+    if(!key)return;
+    let cancel:(()=>void)|null=null;
+    const update=()=>{if(document.visibilityState==='visible')cancel??=client.prefetch(key.split('\n'));else{cancel?.();cancel=null;}};
+    update();
+    document.addEventListener('visibilitychange',update);
+    return()=>{document.removeEventListener('visibilitychange',update);cancel?.();};
+  },[key]);
+}
 export function useInsightData<T>(route:string|null,equivalentRoute?:(loaded:string,requested:string,data:T)=>boolean,{retryWhile,retryAtFor}:{retryWhile?:(data:T)=>boolean;retryAtFor?:(data:T)=>number}={}) {
   const [attempt,setAttempt]=useState(0),[state,setState]=useState<{route:string|null;data:T|null;loading:boolean;error:string|null;status?:number;code?:string;retryAt?:number}>({route,data:null,loading:true,error:null});
   const failure=useRef<unknown>(null);

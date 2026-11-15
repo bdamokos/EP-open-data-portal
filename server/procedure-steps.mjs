@@ -13,6 +13,21 @@ const day=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}/.test(value)&&Numb
 // Accept the source's code or its exact namespace form; never match a label.
 const indexCode=value=>typeof value==='string'?value.replace(/^(?:https:\/\/data\.europarl\.europa\.eu\/)?def\/ep-activities\//,''):'';
 
+/** Completed steps in the order they happened: a Council mandate can come
+ * before Parliament's committee vote. An undated completed step (talks) stays
+ * just before the next dated one. A step not yet reached follows the completed
+ * steps that come before it in the fixed order.
+ */
+function chronological(steps) {
+  const rows=steps.map((step,index)=>({step,index})),done=rows.filter(row=>row.step.state==='done');
+  let next='9999-12-31';
+  for(const row of [...done].reverse()){if(row.step.date)next=row.step.date;row.date=row.step.date||next;}
+  done.sort((a,b)=>a.date.localeCompare(b.date)||a.index-b.index);
+  done.forEach((row,at)=>{row.at=at;row.rank=0;});
+  for(const row of rows)if(row.step.state!=='done'){row.at=Math.max(-1,...done.filter(other=>other.index<row.index).map(other=>other.at));row.rank=1;}
+  return rows.sort((a,b)=>a.at-b.at||a.rank-b.rank||a.index-b.index).map(row=>row.step);
+}
+
 /** Pure projection of held events. `latest` retains the original source object.
  * Missing dates remain null. Undated events cannot establish temporal milestones.
  * `asOf` is explicit so replay never depends on the machine's clock.
@@ -52,7 +67,7 @@ export function procedureSteps({reference,indexEvents=[],cellarEvents=[],summari
   // Council mandates can precede Parliament's committee work. They cannot
   // advance Parliament or start negotiations without a referral.
   const current=done.has('journal')?null:done.has('signed')?'journal':has('APR_R1_byCONSIL')||done.has('final')?'signed':done.has('deal')?'final':forTalks?'talks':done.has('parliament')?(done.has('council')?null:'council'):done.has('committee')?'parliament':done.has('proposal')?'committee':'proposal';
-  const steps=keys.filter(key=>!done.has('journal')||done.has(key)).map(key=>({key,state:done.has(key)?'done':key===current?'current':'open',date:done.get(key)?.date??null,partial:done.get(key)?.partial??false}));
+  const steps=chronological(keys.filter(key=>!done.has('journal')||done.has(key)).map(key=>({key,state:done.has(key)?'done':key===current?'current':'open',date:done.get(key)?.date??null,partial:done.get(key)?.partial??false})));
   // Council mandates can precede Parliament's work; only approval of the act
   // changes the status to council-approved.
   const stage=done.has('journal')?'journal':done.has('signed')?'signed':has('APR_R1_byCONSIL')?'council-approved':done.has('final')?'position':done.has('deal')?'deal':done.has('parliament')?(forTalks?'position-talks':'position'):done.has('committee')?'reported':has('COMMITTEE_TABLING_AMENDMENT')||has('COMMITTEE_TABLING_REPORT')?'drafting':has('REFERRAL')?'referred':done.has('proposal')?'proposal':'unknown';

@@ -1,5 +1,19 @@
 // Optional enhancement of the native shell; no app bundle or API is needed.
 (function () {
+  // Fetch the view's lazy code next to the entry, not after it runs. The build
+  // names the files; a page without the list preloads nothing.
+  var preload = document.querySelector('meta[name="view-preload"]'), startup = new URLSearchParams(window.location.search);
+  // The document reader shares the view parameter but not its code.
+  if (preload && startup.get('view') === preload.dataset.view && startup.get('pl-mode') !== 'read') {
+    preload.content.split(' ').forEach(function (href) {
+      if (!/^\.\/assets\/[\w.-]+\.(?:js|css)$/.test(href)) return;
+      var link = document.createElement('link');
+      if (/\.css$/.test(href)) { link.rel = 'preload'; link.as = 'style'; } else link.rel = 'modulepreload';
+      link.crossOrigin = '';
+      link.href = href;
+      document.head.appendChild(link);
+    });
+  }
   var shell = document.getElementById('initial-shell');
   if (!shell) return; // React may already have replaced it.
   var query = new URLSearchParams(window.location.search);
