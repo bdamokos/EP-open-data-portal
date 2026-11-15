@@ -52,9 +52,10 @@ export function DossierStatus({reference,language,summaries,votingList=false,off
   const steps=merged.steps.map(step=>(!status&&state.loading&&step.state==='current') ? {...step,state:'open' as const} : step);
   // Cellar events alone give a sentence only once the held status has failed.
   const known=Boolean(status||cellarEvents.length&&(!state.loading||state.retrying));
-  // The first sentence shown stays: Publications Office events that arrive
-  // later fill the steps but never rewrite the headline under the reader.
-  const shown=useRef<{key:string;lines:typeof lines}|null>(null),key=reference+'\n'+language;
+  // The sentence shown stays while the file's stage stays: Publications Office
+  // events that arrive later fill the steps but rewrite the headline only when
+  // they move the file on (a final vote or signature the index has not caught up with).
+  const shown=useRef<{key:string;lines:typeof lines}|null>(null),key=reference+'\n'+language+'\n'+merged.stage;
   if(shown.current?.key!==key)shown.current=null;
   if(!shown.current&&known&&lines.sentence)shown.current={key,lines};
   const {sentence,next}=shown.current?.lines||lines;

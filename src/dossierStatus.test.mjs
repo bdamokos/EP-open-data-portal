@@ -84,25 +84,29 @@ test('the strip renders at once, Cellar steps fill in, and nothing says Checking
   assert.equal(steps().find(row=>row[1].startsWith('Committee'))[0],'current');
   assert.equal(steps().find(row=>row[1]==='Negotiations')[0],'open');
 });
-test('the title comes with the status, and late sources rewrite neither the title nor the sentence',async t=>{
-  let progress,context;const progressRead=new Promise(resolve=>{progress=resolve;}),contextRead=new Promise(resolve=>{context=resolve;});
-  // A signature only the Publications Office holds would move the file on to "signed".
-  const signed={...progressFor(erasmus)};signed.events=[...signed.events,{id:'sign',dates:['2026-11-01'],date:'2026-11-01',status:'recorded',types:[{id:'SIGN_byEP_CONSIL',code:'SIGN_byEP_CONSIL',label:null,language:null}],label:'Signature',labelLanguage:'en',statuses:[],institutions:[],works:[],milestone:false,issues:[]}];
-  const view=await mount(t,erasmus.reference,{
-    'dossier-status':()=>Response.json(statusFor(erasmus,{},{stage:'position-talks',title:'Erasmus+ from the procedure record',titleLanguage:'en'})),
-    'procedure-progress':()=>progressRead.then(()=>Response.json(signed)),
-    'procedure-context':()=>contextRead.then(()=>Response.json(contextFor(erasmus))),
-  });
-  const {container,steps,settle}=view;
-  const heading=()=>container.querySelector('.insight-dossier-title h2')?.textContent;
-  assert.equal(heading(),'Erasmus+ from the procedure record','no wait for the Legislative Observatory');
-  const sentence=container.querySelector('.dossier-status-sentence').textContent;
-  assert.match(sentence,/^Parliament set its position on Oct 22, 2026/);
-  await act(async()=>{progress();context();});await settle();
-  assert.equal(steps().find(row=>row[1].startsWith('Signed')||row[1].startsWith('Sign'))?.[0],'done','the late signature fills its step');
-  assert.equal(container.querySelector('.dossier-status-sentence').textContent,sentence,'and leaves the sentence as shown');
-  assert.equal(heading(),'Erasmus+ from the procedure record','the Observatory title does not replace it');
-  assert.equal(view.calls.filter(name=>name==='dossier-status').length,1,'title and status share one read');
+for(const late of ['same stage','signature'])test(`the title comes with the status; late sources keep the title and rewrite the sentence only when the stage moves: ${late}`,async t=>{
+  {
+    let progress,context;const progressRead=new Promise(resolve=>{progress=resolve;}),contextRead=new Promise(resolve=>{context=resolve;});
+    // A signature only the Publications Office holds moves the file on to "signed".
+    const body={...progressFor(erasmus)};if(late==='signature')body.events=[...body.events,{id:'sign',dates:['2026-11-01'],date:'2026-11-01',status:'recorded',types:[{id:'SIGN_byEP_CONSIL',code:'SIGN_byEP_CONSIL',label:null,language:null}],label:'Signature',labelLanguage:'en',statuses:[],institutions:[],works:[],milestone:false,issues:[]}];
+    const view=await mount(t,erasmus.reference,{
+      'dossier-status':()=>Response.json(statusFor(erasmus,{},{stage:'position-talks',title:'Erasmus+ from the procedure record',titleLanguage:'en'})),
+      'procedure-progress':()=>progressRead.then(()=>Response.json(body)),
+      'procedure-context':()=>contextRead.then(()=>Response.json(contextFor(erasmus))),
+    });
+    const {container,steps,settle}=view;
+    const heading=()=>container.querySelector('.insight-dossier-title h2')?.textContent;
+    assert.equal(heading(),'Erasmus+ from the procedure record','no wait for the Legislative Observatory');
+    const sentence=container.querySelector('.dossier-status-sentence').textContent;
+    assert.match(sentence,/^Parliament set its position on Oct 22, 2026/);
+    await act(async()=>{progress();context();});await settle();
+    if(late==='signature'){
+      assert.equal(steps().find(row=>row[1].startsWith('Signed'))?.[0],'done','the late signature fills its step');
+      assert.equal(container.querySelector('.dossier-status-sentence').textContent,'Signed on Nov 1, 2026.','a later stage is never hidden behind the first sentence');
+    }else assert.equal(container.querySelector('.dossier-status-sentence').textContent,sentence,'events of the same stage leave the sentence as shown');
+    assert.equal(heading(),'Erasmus+ from the procedure record','the Observatory title does not replace it');
+    assert.equal(view.calls.filter(name=>name==='dossier-status').length,1,'title and status share one read');
+  }
 });
 test('a language change takes the new language title, not the activity title of the previous one',async t=>{
   const view=await mount(t,erasmus.reference,{
