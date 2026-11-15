@@ -119,6 +119,19 @@ test('a language change takes the new language title, not the activity title of 
   await view.render({language:'fr'});await view.settle();
   assert.equal(heading(),'Erasmus+ (fr)');
 });
+test('a sentence from the Publications Office alone gives way when a retried status arrives',async t=>{
+  let reads=0;
+  const view=await mount(t,erasmus.reference,{
+    'dossier-status':()=>++reads===1?Response.json({error:{code:'unavailable',message:'Busy'}},{status:503}):Response.json(statusFor(erasmus,{committees:[],mainVote:{id:'d',date:'2026-10-22',outcome:'ADOPTED',method:'m',ballotStatus:'conducted',totals:tally}},{stage:'position-talks'})),
+    'procedure-progress':()=>Response.json(progressFor(erasmus)),
+    'procedure-context':()=>Response.json(contextFor(erasmus)),
+  });
+  const sentence=()=>view.container.querySelector('.dossier-status-sentence')?.textContent||'';
+  for(let waited=0;reads<2&&waited<20000;waited+=250)await act(async()=>{await new Promise(resolve=>setTimeout(resolve,250));});
+  await view.settle();
+  assert.equal(reads,2,'the client retried the status read');
+  assert.match(sentence(),/454 for, 34 against, 93 abstaining/,'the held tally replaces the first sentence');
+});
 test('a failed Cellar read leaves the index steps with no message',async t=>{
   const {container,steps}=await mount(t,erasmus.reference,{
     'dossier-status':()=>Response.json(statusFor(erasmus,{},{stage:'position-talks'})),

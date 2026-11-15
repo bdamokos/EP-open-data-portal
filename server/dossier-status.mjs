@@ -126,6 +126,8 @@ export class DossierStatus {
     const plenaryDate=stage==='reported'?await this.plenaryDate(id,asOf):null;
     requestSignal()?.throwIfAborted();
     // Parliament's own title in the reader's language, so the page heading needs no second source.
-    return {version:DOSSIER_STATUS_VERSION,reference,title:procedure?.title??null,titleLanguage:procedure?.titleLanguage??null,family,steps,stage,indexEvents,slots:{committees:leadCommittees(work,language),mainVote:vote,plenaryDate,votingList:this.votingList(work,asOf)}};
+    // A record without one names itself by its reference, which is no title.
+    const title=procedure?.titleLanguage&&procedure.title ? procedure.title : null;
+    return {version:DOSSIER_STATUS_VERSION,reference,title,titleLanguage:title?procedure.titleLanguage:null,family,steps,stage,indexEvents,slots:{committees:leadCommittees(work,language),mainVote:vote,plenaryDate,votingList:this.votingList(work,asOf)}};
   }
 }

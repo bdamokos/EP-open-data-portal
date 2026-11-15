@@ -57,7 +57,8 @@ export function DossierStatus({reference,language,summaries,votingList=false,off
   // they move the file on (a final vote or signature the index has not caught up with).
   const shown=useRef<{key:string;lines:typeof lines}|null>(null),key=reference+'\n'+language+'\n'+merged.stage;
   if(shown.current?.key!==key)shown.current=null;
-  if(!shown.current&&known&&lines.sentence)shown.current={key,lines};
+  // Only a sentence the held status backs is kept; one from the Publications Office alone gives way when a retried status arrives.
+  if(!shown.current&&status&&lines.sentence)shown.current={key,lines};
   const {sentence,next}=shown.current?.lines||lines;
   const settled=!state.loading&&!progress.loading;
   const failed=settled&&(!sentence||!known);

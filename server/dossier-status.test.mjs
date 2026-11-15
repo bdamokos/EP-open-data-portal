@@ -119,6 +119,12 @@ test('the status carries the procedure title in the language Parliament holds it
   const result=await status.query({reference:fisheries.reference,language:'fr'});
   assert.equal(result.version,3);assert.equal(result.title,'Title of '+fisheries.reference);assert.equal(result.titleLanguage,'fr');
 });
+test('a record without a title of its own sends no title, not its reference',async()=>{
+  const {status}=service(fisheries);
+  status.activity.procedure=async(id)=>({work:work(fisheries),procedure:{id,reference:fisheries.reference,title:fisheries.reference,titleLanguage:null}});
+  const result=await status.query({reference:fisheries.reference,language:'en'});
+  assert.equal(result.title,null);assert.equal(result.titleLanguage,null);
+});
 test('a file with no plenary vote event reads no sitting at all',async()=>{
   const {status,calls}=service(fisheries);
   const result=await status.query({reference:fisheries.reference,language:'en'});
