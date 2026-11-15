@@ -43,12 +43,12 @@ export function useProcedureProgress(reference:string,language:string) {
 const proposalDated=(event:ProgressEvent,date?:string|null)=>(date&&event.types.some(type=>type.code==='ADP_PROPLEG_byCOM')) ? {...event,date,dates:[date]} : event;
 
 /** `timeline` is the dossier page: the status above already says where the file stands, so only the closed timeline remains. */
-export function ProcedureProgress({reference,language,proposalDate,timeline=false}:{reference:string;language:string;proposalDate?:string|null;timeline?:boolean}) {
+export function ProcedureProgress({reference,language,proposalDate,timeline=false,inRow=false}:{reference:string;language:string;proposalDate?:string|null;timeline?:boolean;inRow?:boolean}) {
   const ui = useUiI18n();
   const params=new URLSearchParams({reference,lang:language}),timelineId=useId(),headingId=useId();
   const state=useProcedureProgress(reference,language),data=state.data;
-  const [expanded,setExpanded]=useState(false),[institution,setInstitution]=useState('all'),[allEvents,setAllEvents]=useState(timeline),[documentsNeeded,setDocumentsNeeded]=useState(false);
-  useEffect(()=>{setExpanded(false);setInstitution('all');setAllEvents(timeline);setDocumentsNeeded(false);},[reference,language,timeline]);
+  const [expanded,setExpanded]=useState(inRow),[institution,setInstitution]=useState('all'),[allEvents,setAllEvents]=useState(timeline),[documentsNeeded,setDocumentsNeeded]=useState(false);
+  useEffect(()=>{setExpanded(inRow);setInstitution('all');setAllEvents(timeline);setDocumentsNeeded(false);},[reference,language,timeline,inRow]);
   const documents=useInsightData<Documents>(documentsNeeded ? ('insights/procedure-progress?'+params+'&detail=documents') : null,undefined,progressRetry);
   // Date-only legislative dates retain their calendar day in every time zone.
   const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -82,7 +82,7 @@ export function ProcedureProgress({reference,language,proposalDate,timeline=fals
         {data.coverage.invalidRows>0&&<p className="procedure-progress-status"><UiMessage id="coverage.timelineUnreadable" values={{count:data.coverage.invalidRows}}/></p>}
         {data.coverage.incompleteEvents>0&&<p className="procedure-progress-status"><UiMessage id="coverage.eventsIncomplete" values={{count:data.coverage.incompleteEvents}}/></p>}
         {data.coverage.timeline==='unavailable'&&<p className="procedure-progress-status"><UiMessage id="coverage.earlierTimeline"/></p>}</>}
-        {events.length>0&&<div className="procedure-progress-overview">
+        {events.length>0&&!inRow&&<div className="procedure-progress-overview">
           {!timeline&&(latest ? <p className="procedure-progress-latest">{latest.institutions.length>0&&<EventInstitutions event={latest}/>}<strong><EventName event={latest}/></strong><EventDate event={latest} language={language}/></p> : <p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.no.dated.milestone.70"/></p>)}
           <button className="procedure-progress-toggle" type="button" aria-expanded={expanded} aria-controls={timelineId} onClick={()=>setExpanded(value=>!value)}>{timeline ? <UiMessage id="batch6.procedureprogress.full_timeline" values={{count:events.length}} counts={{count:events.length}}/> : (expanded ? <UiMessage id="batch6.procedureprogress.hide.timeline.71"/> : <UiMessage id="batch6.procedureprogress.show.timeline.71"/>)}</button>
         </div>}

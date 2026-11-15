@@ -2,8 +2,9 @@
    position or a political group; everything else is ink, muted ink or a line. Serif says, sans counts. */
 .explorer-insights:has(> .vs) { --insight-gutter:var(--gutter); }
 .vs { width:100%; max-width:calc(1280px - 2 * var(--gutter)); margin:0 auto; color:var(--ink); font:16px/1.45 var(--font-sans); }
-:is(.explorer-insights,.explorer-profile-body) .vs :where(h1,h2,h3,p,ul,figure) { margin:0; padding:0; }
-.vs li { list-style:none; }
+/* Content folded into a dossier row keeps its own spacing. */
+:is(.explorer-insights,.explorer-profile-body) .vs :where(h1,h2,h3,p,ul,figure):where(:not(.dossier-rows .fopen *)) { margin:0; padding:0; }
+.vs li:where(:not(.dossier-rows .fopen *)) { list-style:none; }
 :is(.explorer-insights,.explorer-profile-body) .vs a { color:inherit; text-decoration:underline; text-decoration-thickness:1px; text-decoration-color:var(--line-strong); text-underline-offset:3px; }
 .vs a:hover { text-decoration-color:currentColor; }
 .vs :focus-visible { outline:3px solid var(--focus); outline-offset:2px; }

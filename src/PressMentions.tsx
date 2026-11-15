@@ -7,11 +7,17 @@ type PressItem={id:string;url:string;title:string|null;titleLanguage:string;publ
 type Press={reference:string;items:PressItem[];total:number};
 const brusselsDay=(instant:string)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(instant));
 
+const pressRoute=(reference:string,language:string)=>'insights/press-releases?'+new URLSearchParams({reference,lang:language});
+/** How many releases link this dossier, read only once `enabled`; 0 until known. */
+export function usePressMentions(reference:string,language:string,enabled:boolean) {
+  const state=useInsightData<Press>(enabled ? pressRoute(reference,language) : null);
+  return state.data?.reference===reference ? state.data.items.length : 0;
+}
 // Press releases whose own “Further information” list links this dossier.
 // Following began recently and the feeds hold only recent releases.
 export function PressMentions({reference,language,limit}:{reference:string;language:string;limit:number}) {
   const ui = useUiI18n();
-  const headingId=useId(),state=useInsightData<Press>('insights/press-releases?'+new URLSearchParams({reference,lang:language}));
+  const headingId=useId(),state=useInsightData<Press>(pressRoute(reference,language));
   const data=(state.data?.reference===reference) ? state.data : null;
   // A failed read is reported; an empty result shows nothing, which claims no absence.
   if(!data&&state.error)return <p className="press-mentions-scope" role="status" lang={ui.language}><UiMessage id="batch4.pressmentions.tsx.15.1"/> </p>;

@@ -233,6 +233,10 @@ test('plenary mode titles follow headings, gestures and restored queries without
   const {default:App}=await h.load('/src/App.tsx');
   await h.render(createElement(App));
   assert.equal(document.title,'Dossiers — European Parliament data explorer');
+  // A dossier page has only its way back; the plenary modes start from another view.
+  assert.equal(h.container.querySelector('.insight-mode-nav'),null);
+  await act(async()=>{history.replaceState(null,'','?view=legislation&pl-mode=topics');window.dispatchEvent(new window.PopStateEvent('popstate'));});
+  assert.equal(document.title,'Topics — European Parliament data explorer');
   const routes=[];
   for(const [button,title] of [['Agenda','Plenary agenda'],['Word cloud','Plenary word cloud'],['What’s hot','What’s hot'],['Topics','Topics']]) {
     const length=history.length;

@@ -16,8 +16,9 @@ import {resolutionStage} from './dossier-status-model.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {calendarMonday} from './plenary-calendar.mjs';
 import {isLocalRequestFailure,requestSignal} from './request-budget.mjs';
+import {generationGroupOn} from './group-attribution.mjs';
 
-export const DOSSIER_STATUS_VERSION=3;
+export const DOSSIER_STATUS_VERSION=4;
 // Held sittings only: a page view neither requests a source nor queues collection.
 // Chairs are downloaded separately from the request client, and a main vote needs none.
 export const heldVotes=new MemberVotes({request:cachedAgendaRequest,readChairs:async()=>null,limits:{cacheEntries:1},snapshots:{read:(kind,version,id)=>sittingSnapshots.read(kind,version,id,{retained:true}),enqueue(){}}});
@@ -41,6 +42,31 @@ export function committeeLabel(code,language) {
 export function leadCommittees(work,language) {
   const codes=[...new Set(array(work.had_participation).filter(row=>tail(row.participation_role)==='RAPPORTEUR').map(row=>tail(row.participation_in_name_of)).filter(Boolean))];
   return codes.map(code=>committeeLabel(code,language));
+}
+
+const roles=part=>array(part.participation_role).map(tail);
+export const isRapporteur=part=>roles(part).some(role=>role==='RAPPORTEUR'||role==='RAPPORTEUR_CO');
+const personIds=part=>array(part.had_participant_person).map(tail).filter(id=>/^[1-9]\d*$/.test(id));
+const term=part=>Math.max(0,...array(part.parliamentary_term).map(value=>Number(/ep-(\d+)$/.exec(tail(value))?.[1])||0));
+export function leadCommitteeCodes(work) {
+  const lead=array(work?.had_participation).filter(part=>roles(part).includes('COMMITTEE_LEAD')).flatMap(part=>array(part.had_participant_organization).map(tail));
+  const named=array(work?.had_participation).filter(isRapporteur).map(part=>tail(part.participation_in_name_of));
+  return [...new Set((lead.length?lead:named).filter(Boolean))];
+}
+/** The report's own rapporteurs; else the procedure's in its latest term, without an earlier term's. */
+export function rapporteurIds(report,work,leadCodes=[]) {
+  const named=array(report?.workHadParticipation).filter(isRapporteur).flatMap(personIds);
+  if(named.length)return [...new Set(named)];
+  const rows=array(work?.had_participation).filter(part=>isRapporteur(part)&&personIds(part).length&&(!leadCodes.length||!part.participation_in_name_of||leadCodes.includes(tail(part.participation_in_name_of))));
+  const latest=Math.max(0,...rows.map(term));
+  return [...new Set(rows.filter(part=>term(part)===latest).flatMap(personIds))];
+}
+/** A rapporteur as the page names them: the held member record, else the index's label. */
+export function rapporteurPerson(store,activity,generation,groupOn,id,asOf) {
+  const member=JSON.parse(store.db.prepare('SELECT body FROM members WHERE id=?').get(id)?.body??'null');
+  const group=groupOn(id,asOf),name=member?.name||activity.personLabel(id,generation);
+  if(!name)return null;
+  return {id,name,currentMep:Boolean(member),group:typeof group==='object'?group.code:group==='not-serving'?null:member?.groupCode||null};
 }
 
 /** Reports tabled for plenary on this procedure, newest first: event to document, never a title. */
@@ -115,6 +141,15 @@ export class DossierStatus {
     }catch(error){if(isLocalRequestFailure(error))throw error;}
     return null;
   }
+  // The file's rapporteurs from saved records only. A failed read leaves the line out.
+  rapporteurs(work,asOf) {
+    const store=this.activity.store;
+    if(!store?.db||!this.activity.personLabel)return [];
+    try {
+      const generation=store.status().servingGeneration,groupOn=generationGroupOn(store,generation);
+      return rapporteurIds(null,work,leadCommitteeCodes(work)).map(id=>rapporteurPerson(store,this.activity,generation,groupOn,id,asOf)).filter(Boolean);
+    }catch(error){if(isLocalRequestFailure(error))throw error;return [];}
+  }
   async query({reference,language}) {
     const id=reference.split('(')[0].replace('/','-'),asOf=brusselsDay(this.clock());
     const {work,procedure}=await this.activity.procedure(id,language,reference);
@@ -123,11 +158,12 @@ export class DossierStatus {
     const relevant=mainVoteEvents({indexEvents,family,steps,asOf});
     const vote=relevant.length?await this.voteOnDate(relevant,language):null;
     const stage=family==='COD'?derived:resolutionStage(vote);
-    const plenaryDate=stage==='reported'?await this.plenaryDate(id,asOf):null;
+    // A reported file and a deal both wait for a plenary vote.
+    const plenaryDate=stage==='reported'||stage==='deal'?await this.plenaryDate(id,asOf):null;
     requestSignal()?.throwIfAborted();
     // Parliament's own title in the reader's language, so the page heading needs no second source.
     // A record without one names itself by its reference, which is no title.
     const title=procedure?.titleLanguage&&procedure.title ? procedure.title : null;
-    return {version:DOSSIER_STATUS_VERSION,reference,title,titleLanguage:title?procedure.titleLanguage:null,family,steps,stage,indexEvents,slots:{committees:leadCommittees(work,language),mainVote:vote,plenaryDate,votingList:this.votingList(work,asOf)}};
+    return {version:DOSSIER_STATUS_VERSION,reference,title,titleLanguage:title?procedure.titleLanguage:null,family,steps,stage,indexEvents,rapporteurs:this.rapporteurs(work,asOf),slots:{committees:leadCommittees(work,language),mainVote:vote,plenaryDate,votingList:this.votingList(work,asOf)}};
   }
 }

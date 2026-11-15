@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import https from 'node:https';
-import {DossierStatus,dossierStatusQuery,heldVotes,leadCommittees} from './dossier-status.mjs';
+import {DOSSIER_STATUS_VERSION,DossierStatus,dossierStatusQuery,heldVotes,leadCommittees} from './dossier-status.mjs';
 import {sittingSnapshotHints} from './sitting-snapshot-store.mjs';
-import {dossierStatusLines,mergeDossierStatus,resolutionStage,votingListLineId} from './dossier-status-model.mjs';
+import {dossierAnswerLines,dossierStatusLines,mergeDossierStatus,projectedPlenaryVote,resolutionStage,votingListAnswerId} from './dossier-status-model.mjs';
 
 const {procedures,votes}=JSON.parse(readFileSync(new URL('./fixtures/reader-first-helpers.json',import.meta.url)));
 const [erasmus,fisheries]=procedures;
@@ -117,7 +117,7 @@ test('a failed vote read drops the tally and leaves the steps',async()=>{
 test('the status carries the procedure title in the language Parliament holds it in',async()=>{
   const {status}=service(fisheries);
   const result=await status.query({reference:fisheries.reference,language:'fr'});
-  assert.equal(result.version,3);assert.equal(result.title,'Title of '+fisheries.reference);assert.equal(result.titleLanguage,'fr');
+  assert.equal(result.version,DOSSIER_STATUS_VERSION);assert.equal(result.title,'Title of '+fisheries.reference);assert.equal(result.titleLanguage,'fr');
 });
 test('a record without a title of its own sends no title, not its reference',async()=>{
   const {status}=service(fisheries);
@@ -151,6 +151,42 @@ test('the plenary date needs the exact procedure on a foreseen vote in the next 
   assert.equal(debate.slots.plenaryDate,null,'a debate is not a vote');
   const missing=await service(reported,{sittings}).status.query({reference:reported.reference,language:'en'});
   assert.equal(missing.slots.plenaryDate,null,'an agenda that is not held leaves the date out');
+});
+test('a deal waits for the plenary vote too, so its date is read',async()=>{
+  const dealEvents=[{activity_id:'A',activity_date:'2026-04-15',had_activity_type:'def/ep-activities/COMMITTEE_ADOPTING_REPORT'},{activity_id:'B',activity_date:'2026-09-10',had_activity_type:'def/ep-activities/COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT'}];
+  const deal={...fisheries,reference:'2025/0235(COD)',indexEvents:dealEvents};
+  const sittings=['2026-11-11','2026-11-12'].map(sitting);
+  const result=await service(deal,{sittings,agenda:async endpoint=>agendaFor(endpoint.match(/MTG-PL-([\d-]+)\//)[1],'2025-0235')}).status.query({reference:deal.reference,language:'en'});
+  assert.equal(result.stage,'deal');assert.equal(result.slots.plenaryDate,'2026-11-11');
+});
+test('rapporteurs come from saved member records, with their group on the day',async()=>{
+  const {status}=service(fisheries);
+  const members={'1':{name:'Ana Example',groupCode:'S&D'}};
+  status.activity.store={db:{prepare:()=>({get:id=>members[id]?{body:JSON.stringify(members[id])}:undefined})},status:()=>({servingGeneration:1})};
+  status.activity.personLabel=id=>id==='2'?'Former Member':null;
+  const work={had_participation:[
+    {participation_role:['def/ep-roles/RAPPORTEUR'],had_participant_person:['person/1'],participation_in_name_of:'org/ENVI',parliamentary_term:['term/ep-10']},
+    {participation_role:['def/ep-roles/RAPPORTEUR'],had_participant_person:['person/3'],participation_in_name_of:'org/ENVI',parliamentary_term:['term/ep-9']},
+    {participation_role:['def/ep-roles/RAPPORTEUR_CO'],had_participant_person:['person/2'],participation_in_name_of:'org/ENVI',parliamentary_term:['term/ep-10']},
+  ]};
+  assert.deepEqual(status.rapporteurs(work,'2026-11-11').map(row=>[row.id,row.name,row.currentMep]),[['1','Ana Example',true],['2','Former Member',false]],'the latest term only');
+  status.activity.store=null;assert.deepEqual(status.rapporteurs(work,'2026-11-11'),[],'no saved records, no line');
+});
+test('the dossier page lines: the plenary day from the agenda or the Publications Office, and an earlier tally',()=>{
+  const steps=[{key:'parliament',state:'done',date:'2026-04-29'},{key:'deal',state:'done',date:'2026-09-10'},{key:'final',state:'current',date:null}];
+  const vote={id:'v',date:'2026-04-29',outcome:'ADOPTED',method:'m',ballotStatus:'conducted',totals:{for:526,against:56,abstaining:69}};
+  const projected=[{status:'projected',date:'2026-11-12',types:[{code:'VOTE_byEP'}]},{status:'projected',date:'2026-10-01',types:[{code:'VOTE_byEP'}]},{status:'projected',date:'2026-12-01',types:[{code:'SIGN_byEP_CONSIL'}]}];
+  assert.equal(projectedPlenaryVote(projected,'2026-11-11'),'2026-11-12','only a coming plenary vote');
+  const deal=dossierAnswerLines({stage:'deal',steps,slots:{mainVote:vote,plenaryDate:null},cellarEvents:projected,asOf:'2026-11-11'});
+  assert.equal(deal.now.id,'dossierstatus.deal');
+  assert.deepEqual(deal.next,{id:'dossierstatus.answer.next_deal_vote_on',values:{date:'2026-11-12'}});
+  assert.deepEqual(deal.earlier,{id:'dossierstatus.answer.earlier_position',values:{date:'2026-04-29',tally:vote.totals}});
+  const agenda=dossierAnswerLines({stage:'deal',steps,slots:{mainVote:null,plenaryDate:'2026-11-25'},cellarEvents:projected,asOf:'2026-11-11'});
+  assert.equal(agenda.next.values.date,'2026-11-25','the agenda comes first');assert.equal(agenda.earlier,null,'no held tally, no line');
+  const undated=dossierAnswerLines({stage:'reported',steps:[{key:'committee',state:'done',date:'2026-10-01'}],slots:{},asOf:'2026-11-11'});
+  assert.deepEqual(undated.next,{id:'dossierstatus.answer.next_plenary_vote',values:undefined});
+  assert.equal(dossierAnswerLines({stage:'position-talks',steps,slots:{mainVote:vote},asOf:'2026-11-11'}).next.id,'dossierstatus.answer.next_talks');
+  assert.equal(dossierAnswerLines({stage:'position-talks',steps,slots:{mainVote:vote},asOf:'2026-11-11'}).earlier,null,'the Now line already holds the tally');
 });
 test('every held agenda page counts for the plenary date, and a repeated page ends the read',async()=>{
   const sittings=[sitting('2026-11-11')];
@@ -213,13 +249,13 @@ test('the status carries the newest tabled report\'s upcoming voting list, and n
   assert.equal((await read(()=>null).status.query({reference:'2025/0223(COD)',language:'en'})).slots.votingList,null);
   assert.equal((await read(()=>{throw new Error('locked');}).status.query({reference:'2025/0223(COD)',language:'en'})).slots.votingList,null,'a failed read leaves the line out');
 });
-test('the voting-list sentence follows what the counts hold',()=>{
-  const line=(blockAmendments,individual,identical)=>votingListLineId({blockVotes:blockAmendments?1:0,blockAmendments,individual,identical});
-  assert.equal(line(309,48,2),'dossierstatus.voting_list.block_then_identical');
-  assert.equal(line(84,5,0),'dossierstatus.voting_list.block_then');
-  assert.equal(line(84,0,0),'dossierstatus.voting_list.block_only');
-  assert.equal(line(0,14,2),'dossierstatus.voting_list.individual_identical');
-  assert.equal(line(0,20,0),'dossierstatus.voting_list.individual_line');
+test('the vote line follows what the counts hold',()=>{
+  const line=(blockAmendments,individual,identical)=>votingListAnswerId({blockVotes:blockAmendments?1:0,blockAmendments,individual,identical});
+  assert.equal(line(309,48,2),'dossierstatus.answer.vote.block_then_duplicates');
+  assert.equal(line(84,5,0),'dossierstatus.answer.vote.block_then');
+  assert.equal(line(84,0,0),'dossierstatus.answer.vote.block_only');
+  assert.equal(line(0,14,2),'dossierstatus.answer.vote.individual_duplicates');
+  assert.equal(line(0,20,0),'dossierstatus.answer.vote.individual_only');
   assert.equal(line(0,0,0),null);
-  assert.equal(votingListLineId(null),null);
+  assert.equal(votingListAnswerId(null),null);
 });

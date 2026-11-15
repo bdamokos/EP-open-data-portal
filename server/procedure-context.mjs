@@ -2,11 +2,22 @@ import {odpLanguage} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {parseProcedurePage,parseSummaryPage,procedureReference} from './official-context.mjs';
 
+const PROPOSAL_FIRST=Object.freeze(['proposal','first-reading','parliament-decision','final-act','document']);
+/** The Commission's one-line aim: the opening PURPOSE (OBJECTIF) paragraph of its proposal summary. */
+export function summaryPurpose(text,language) {
+  if(text?.stage!=='proposal')return null;
+  const first=text.blocks?.find(block=>block.kind!=='heading'),match=/^\s*(?:PURPOSE|OBJECTIF)\s*:\s*(\S[\s\S]*)$/.exec(first?.text||'');
+  const body=match?.[1].trim();
+  return body?body.charAt(0).toLocaleUpperCase(language)+body.slice(1):null;
+}
+
 export function procedureContextQuery(search) {
-  for(const key of search.keys())if(!['lang','reference','summary'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated summary query.');
-  const reference=procedureReference(search.get('reference')),language=odpLanguage(search.get('lang')||'en'),summary=search.get('summary');
+  for(const key of search.keys())if(!['lang','reference','summary','start'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated summary query.');
+  const reference=procedureReference(search.get('reference')),language=odpLanguage(search.get('lang')||'en'),summary=search.get('summary'),start=search.get('start');
   if(summary&&!/^\d{1,12}$/.test(summary))throw new HttpError(400,'invalid_summary','Choose a published summary.');
-  return {reference,language,summary};
+  if(start!==null&&start!=='proposal')throw new HttpError(400,'invalid_start','Unsupported summary stage.');
+  // The dossier page opens on the Commission's proposal, whose summary states its purpose.
+  return {reference,language,summary,...(start?{order:PROPOSAL_FIRST}:{})};
 }
 export class ProcedureContext {
   constructor(sources,catalog){Object.assign(this,{sources,catalog});}
@@ -22,7 +33,7 @@ export class ProcedureContext {
     if(body){const parsed=parseSummaryPage(body.html,reference);if(selected.date&&parsed.date!==selected.date)throw new HttpError(502,'summary_date','The summary date does not match the procedure.');text={...selected,...parsed,source:{url:body.url,fetchedAt:body.fetchedAt,stale:Boolean(body.viewCache?.stale)}};}
     const id=reference.match(/^(\d{4})\/(\d{4}[A-Z]?)/).slice(1).join('-');let topics=null,topicError=false;
     try{const known=await this.catalog.known([id],language);topics=known.get(id);if(!topics||topics.stale)topics=(await this.catalog.load([id],language,{priority})).get(id);if(topics.reference!==reference)topics={...topics,state:'ambiguous',concepts:[]};}catch{topicError=true;}
-    return {view:'procedure-context',reference,title:procedure.title,language:sourceLanguage,summaries:procedure.summaries,summary:text,subjects:procedure.subjects,topics:topics?.concepts||[],topicState:topics?.state||'unavailable',topicError,topicSource:topics?.source?{...topics.source,stale:Boolean(topics.stale||topics.source.stale)}:null,source:{url:page.url,fetchedAt:page.fetchedAt,stale:Boolean(page.viewCache?.stale)}};
+    return {view:'procedure-context',reference,title:procedure.title,language:sourceLanguage,summaries:procedure.summaries,summary:text,purpose:summaryPurpose(text,sourceLanguage),subjects:procedure.subjects,topics:topics?.concepts||[],topicState:topics?.state||'unavailable',topicError,topicSource:topics?.source?{...topics.source,stale:Boolean(topics.stale||topics.source.stale)}:null,source:{url:page.url,fetchedAt:page.fetchedAt,stale:Boolean(page.viewCache?.stale)}};
   }
 }
 // A cited act is best described by its final-act summary, then by the proposal.

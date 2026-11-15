@@ -1,9 +1,10 @@
 import {useEffect,useState,type ReactNode} from 'react';
 
-// A serif word with a caret, its value on the right. Content mounts on first open and stays.
-export function FoldRow({title,value,open,onOpenChange,id,children}:{title:ReactNode;value?:ReactNode;open?:boolean;onOpenChange?:(open:boolean)=>void;id?:string;children:ReactNode}) {
-  const [own,setOwn]=useState(Boolean(open)),shown=open??own,[mounted,setMounted]=useState(shown);
-  useEffect(()=>{if(shown)setMounted(true);},[shown]);
+// A serif word with a caret, its value on the right. Content mounts on first open, or
+// earlier with `preload` so its count can show, and stays.
+export function FoldRow({title,value,open,onOpenChange,id,preload=false,children}:{title:ReactNode;value?:ReactNode;open?:boolean;onOpenChange?:(open:boolean)=>void;id?:string;preload?:boolean;children:ReactNode}) {
+  const [own,setOwn]=useState(Boolean(open)),shown=open??own,[mounted,setMounted]=useState(shown||preload);
+  useEffect(()=>{if(shown||preload)setMounted(true);},[shown,preload]);
   return <details className="frow" id={id} open={shown} onToggle={event=>{const next=event.currentTarget.open;if(next===shown)return;setOwn(next);onOpenChange?.(next);}}>
     <summary><span className="t">{title}<i className="car" aria-hidden="true"/></span>{value!==undefined&&<span className="val">{value}</span>}</summary>
     <div className="fopen">{mounted&&children}</div>
