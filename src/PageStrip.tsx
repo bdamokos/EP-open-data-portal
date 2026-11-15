@@ -1,9 +1,9 @@
 import type {MouseEventHandler,ReactNode} from 'react';
 
 // A strip link; on a phone only its narrow form shows.
-export function StripLink({href,onClick,wide,narrow,label}:{href:string|null;onClick?:MouseEventHandler<HTMLAnchorElement>;wide:ReactNode;narrow:ReactNode;label?:string}) {
+export function StripLink({href,onClick,wide,narrow,label,className}:{href:string|null;onClick?:MouseEventHandler<HTMLAnchorElement>;wide:ReactNode;narrow:ReactNode;label?:string;className?:string}) {
   const body=<span><span className="on-wide">{wide}</span><span className="on-narrow">{narrow}</span></span>;
-  return href?<a className="c" href={href} onClick={onClick} aria-label={label}>{body}</a>:<span className="c muted" aria-disabled="true">{body}</span>;
+  return href?<a className={className?'c '+className:'c'} href={href} onClick={onClick} aria-label={label}>{body}</a>:<span className="c muted" aria-disabled="true">{body}</span>;
 }
 // The top row: back link on the left, stepper on the right.
 export function PageStrip({back,children}:{back:ReactNode;children?:ReactNode}) {

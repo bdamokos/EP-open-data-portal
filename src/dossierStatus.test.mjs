@@ -27,44 +27,108 @@ async function mount(t,reference,handlers,props={}) {
     return Response.json({error:{code:'absent',message:'Absent'}},{status:404});
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
+  const {DossierPage}=await loadModule('/src/DossierPage.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  const render=extra=>act(async()=>root.render(createElement(ProcedureContext,{reference,language:'en',showTitle:true,...props,...extra},createElement('div',{id:'people'},'People'))));
+  const render=extra=>act(async()=>root.render(createElement(DossierPage,{reference,language:'en',...props,...extra})));
   await render();
   const settle=()=>act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
   await settle();
-  return {container,calls,settle,render,steps:()=>[...container.querySelectorAll('.dossier-steps>li')].map(row=>[row.dataset.state,row.textContent.replace('✓','')])};
+  const rows=()=>[...container.querySelectorAll('.dossier-rows>.frow')].map(row=>[row.querySelector('.t').textContent,row.querySelector('.val')?.textContent??null]);
+  const open=title=>act(async()=>{const row=[...container.querySelectorAll('.dossier-rows>details')].find(item=>item.querySelector('.t').textContent===title);row.open=true;row.dispatchEvent(new window.Event('toggle'));});
+  return {container,calls,settle,render,rows,open,steps:()=>[...container.querySelectorAll('.dossier-steps>li')].map(row=>[row.dataset.state,row.textContent.replace('✓','')])};
 }
 const before=(a,b)=>Boolean(a.compareDocumentPosition(b)&4);
 
-test('the dossier answers first: status, strip, summary, closed timeline, people, then topics',async t=>{
+test('the dossier answers first: labelled lines, a step bar, then folded rows that read nothing until opened',async t=>{
   const view=await mount(t,erasmus.reference,{
-    'dossier-status':()=>Response.json(statusFor(erasmus,{committees:[{code:'CULT',name:'Committee on Culture and Education',language:'en'}],mainVote:{id:'d',date:'2026-10-22',outcome:'ADOPTED',method:'m',ballotStatus:'conducted',totals:tally}},{stage:'position-talks'})),
+    'dossier-status':()=>Response.json(statusFor(erasmus,{committees:[{code:'CULT',name:'Committee on Culture and Education',language:'en'}],mainVote:{id:'d',date:'2026-10-22',outcome:'ADOPTED',method:'m',ballotStatus:'conducted',totals:tally}},{stage:'position-talks',title:'Erasmus+',titleLanguage:'en'})),
     'procedure-progress':()=>Response.json(progressFor(erasmus)),
-    'procedure-context':()=>Response.json(contextFor(erasmus)),
+    'procedure-context':()=>Response.json({...contextFor(erasmus),purpose:'To fund education and training.'}),
   });
-  const {container,steps}=view;
+  const {container,steps,rows,open}=view;
+  assert.equal(container.querySelector('.insight-dossier-title h1').textContent,'Erasmus+');
+  assert.equal(container.querySelector('.dossier-purpose').textContent,'To fund education and training.');
+  assert.deepEqual([...container.querySelectorAll('.dossier-answer dt')].map(row=>row.textContent),['Now','Next']);
   assert.equal(container.querySelector('.dossier-status-sentence').textContent,'Parliament set its position on Oct 22, 2026: 454 for, 34 against, 93 abstaining. The file went back to committee for talks with the Council.');
-  assert.equal(container.querySelector('.dossier-status-next').textContent,'Next step: talks with the Council.');
+  assert.equal(container.querySelector('.dossier-status-next').textContent,'Talks with the Council.');
   assert.deepEqual(steps().map(row=>row[0]),['done','done','done','done','current','open','open','open','open']);
   assert.equal(container.querySelector('.dossier-steps [aria-current="step"]').textContent,'Negotiations');
   // Council's partial mandate came before the committee vote, so its step comes first.
   assert.deepEqual(steps().slice(0,4).map(row=>row[1].replace(/[A-Z][a-z]{2} \d+, \d{4}.*$/,'')),['Commission proposes','Council sets position','Committee reports','Parliament sets position']);
   assert.match(steps()[1][1],/May 11, 2026 · partial/);
   assert.match(steps()[0][1],/Jul 16, 2025/,'the OEIL proposal date, not the 17 July registration');
-  const [status,summary,timeline,people,topics]=['.dossier-status','.insight-official-summary','.procedure-progress','#people','.insight-official-topics'].map(selector=>container.querySelector(selector));
-  assert(before(status,summary));assert(before(summary,timeline));assert(before(timeline,people));assert(before(people,topics));
-  assert(before(container.querySelector('.insight-dossier-title'),status));
+  assert.equal(container.querySelector('.dossier-step-count p').textContent,'Step 5 of 9: NegotiationsAll steps');
+  assert.deepEqual(rows().map(row=>row[0]),['Summary','People','Topics','Full timeline']);
+  assert.deepEqual(rows().slice(2).map(row=>row[1]),['1','34 events']);
+  const [title,status,folded]=['.insight-dossier-title','.dossier-status','.dossier-rows'].map(selector=>container.querySelector(selector));
+  assert(before(title,status));assert(before(status,folded));
+  assert.equal(container.querySelector('.insight-official-summary'),null,'a closed row mounts nothing');
+  assert.deepEqual([...new Set(view.calls)].sort(),['dossier-status','procedure-context','procedure-progress'],'a first visit makes three reads');
+  await open('Summary');
   assert.equal(container.querySelectorAll('.insight-official-summary>p').length,2);
-  const toggle=container.querySelector('.procedure-progress-toggle');
-  assert.equal(toggle.textContent,'Full timeline (34 events)');assert.equal(toggle.getAttribute('aria-expanded'),'false');
-  assert.equal(container.querySelector('.procedure-progress-timeline'),null);
-  assert.equal(container.querySelector('.procedure-progress-latest'),null);
-  await act(async()=>toggle.click());
-  const rows=[...container.querySelectorAll('.procedure-progress-timeline>li')];
-  assert.equal(rows.length,34,'the opened timeline holds every counted event');
-  assert.equal(rows.find(row=>row.textContent.includes('ADP_PROPLEG_byCOM')).querySelector('time').textContent,'Jul 16, 2025');
+  await open('Full timeline');
+  assert.equal(container.querySelector('.procedure-progress-toggle'),null,'the row is the toggle');
+  const events=[...container.querySelectorAll('.procedure-progress-timeline>li')];
+  assert.equal(events.length,34,'the opened timeline holds every counted event');
+  assert.equal(events.find(row=>row.textContent.includes('ADP_PROPLEG_byCOM')).querySelector('time').textContent,'Jul 16, 2025');
   assert.equal(view.calls.filter(name=>name==='procedure-progress').length,1,'status and timeline share one read');
+  assert.equal(view.calls.filter(name=>name==='procedure-context').length,1);
+});
+test('a deal names its vote day, the voting list in plain words and the earlier tally',async t=>{
+  const indexEvents=[{had_activity_type:'COMMITTEE_ADOPTING_REPORT',activity_date:'2026-04-15'},{had_activity_type:'PLENARY_REFER_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS',activity_date:'2026-04-29'},{had_activity_type:'COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT',activity_date:'2026-09-10'}];
+  const fixture={reference:'2025/0207(COD)',indexEvents,cellarEvents:[],summaries:[]};
+  const view=await mount(t,fixture.reference,{
+    'dossier-status':()=>Response.json(statusFor(fixture,{mainVote:{id:'v',date:'2026-04-29',outcome:'ADOPTED',method:'m',ballotStatus:'conducted',totals:{for:526,against:56,abstaining:69}},plenaryDate:'2099-11-12',votingList:{blockVotes:1,blockAmendments:1,individual:12,identical:3}},{stage:'deal',title:'Chemicals',titleLanguage:'en'})),
+    'procedure-progress':()=>Response.json({reference:fixture.reference,language:'en',state:'unmapped',dossier:null,events:[],coverage,source}),
+    'procedure-context':()=>Response.json(contextFor(fixture)),
+  });
+  const lines=Object.fromEntries([...view.container.querySelectorAll('.dossier-answer dt')].map(term=>[term.textContent,term.nextElementSibling.textContent]));
+  assert.deepEqual(Object.keys(lines),['Now','Next','The vote','Earlier']);
+  assert.equal(lines.Next,'Parliament votes on the deal on Thursday 12 November.');
+  assert.equal(lines['The vote'],'one block vote on 1 committee amendment, then 12 amendments, 3 of them duplicates.');
+  assert.equal(lines.Earlier,'Parliament set its position on Apr 29, 2026: 526 for, 56 against, 69 abstaining.');
+  assert.equal(view.container.querySelector('.dossier-step-count p').textContent,'Step 7 of 9: Deal votedAll steps');
+});
+const dealFixture={reference:'2025/0207(COD)',indexEvents:[{had_activity_type:'COMMITTEE_ADOPTING_REPORT',activity_date:'2026-04-15'},{had_activity_type:'PLENARY_REFER_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS',activity_date:'2026-04-29'},{had_activity_type:'COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT',activity_date:'2026-09-10'}],cellarEvents:[],summaries:[]};
+const scrollInside=view=>act(async()=>{const inner=view.container.querySelector('.dossier-rows');inner.dispatchEvent(new window.Event('scroll',{bubbles:false}));await new Promise(resolve=>setTimeout(resolve,20));});
+test('a scroll inside the page, whose scroll events do not bubble, loads the rows near it',async t=>{
+  const view=await mount(t,dealFixture.reference,{
+    'dossier-status':()=>Response.json(statusFor(dealFixture,{},{stage:'deal',title:'Chemicals',titleLanguage:'en'})),
+    'procedure-progress':()=>Response.json({reference:dealFixture.reference,language:'en',state:'unmapped',dossier:null,events:[],coverage,source}),
+    'procedure-context':()=>Response.json(contextFor(dealFixture)),
+    'press-releases':()=>Response.json({reference:dealFixture.reference,total:1,items:[{id:'pr1',url:'https://www.europarl.europa.eu/news/en/press-room/x',title:'Deal on chemicals',titleLanguage:'en',publishedAt:'2026-09-10T10:00:00Z',links:[]}]}),
+    'record-topics':()=>Response.json({ready:true,records:[]}),
+  });
+  assert(!view.calls.includes('press-releases'),'nothing before the reader scrolls');
+  await scrollInside(view);await view.settle();
+  assert(view.calls.includes('press-releases'));
+  assert.deepEqual(view.rows().find(row=>row[0]==='Press releases'),['Press releases','1']);
+});
+test('a vote day the Publications Office gives after the status fills in the Next line',async t=>{
+  let progress;const progressRead=new Promise(resolve=>{progress=resolve;});
+  const fixture={...dealFixture,cellarEvents:[{id:'v',date:'2099-11-12',dates:['2099-11-12'],status:'projected',types:[{code:'VOTE_byEP'}]}]};
+  const view=await mount(t,fixture.reference,{
+    'dossier-status':()=>Response.json(statusFor(fixture,{plenaryDate:null},{stage:'deal',title:'Chemicals',titleLanguage:'en'})),
+    'procedure-progress':()=>progressRead.then(()=>Response.json(progressFor(fixture))),
+    'procedure-context':()=>Response.json(contextFor(fixture)),
+  });
+  const next=()=>view.container.querySelector('.dossier-status-next').textContent;
+  assert.equal(next(),'Parliament votes on the deal.');
+  const now=view.container.querySelector('.dossier-status-sentence').textContent;
+  await act(async()=>progress());await view.settle();
+  assert.equal(next(),'Parliament votes on the deal on Thursday 12 November.');
+  assert.equal(view.container.querySelector('.dossier-status-sentence').textContent,now,'the Now line stays');
+});
+test('Parliament own topics keep the Topics row when the Observatory has none',async t=>{
+  const view=await mount(t,dealFixture.reference,{
+    'dossier-status':()=>Response.json(statusFor(dealFixture,{},{stage:'deal',title:'Chemicals',titleLanguage:'en'})),
+    'procedure-progress':()=>Response.json({reference:dealFixture.reference,language:'en',state:'unmapped',dossier:null,events:[],coverage,source}),
+    'procedure-context':()=>Response.json({error:{code:'official_source_not_found',message:'Missing'}},{status:404}),
+    'record-topics':()=>Response.json({ready:true,records:[{id:'2025-0207',status:'ready',topics:[{key:'eurovoc:1',label:'chemical product',language:'en'}],places:[],keywords:[]}]}),
+  });
+  assert(!view.rows().some(row=>row[0]==='Topics'));
+  await scrollInside(view);await view.settle();
+  assert.deepEqual(view.rows().find(row=>row[0]==='Topics'),['Topics',null]);
 });
 test('the strip renders at once, Cellar steps fill in, and nothing says Checking',async t=>{
   let answer;const deferred=new Promise(resolve=>{answer=resolve;});
@@ -77,7 +141,7 @@ test('the strip renders at once, Cellar steps fill in, and nothing says Checking
   assert.equal(steps().length,9);assert.doesNotMatch(container.textContent,/Checking/);
   assert.equal(steps().find(row=>row[1].startsWith('Council'))[0],'open','nothing from Cellar yet');
   assert.equal(container.querySelector('.dossier-status-sentence').textContent,'With the Committee on Fisheries (PECH). Amendments tabled on Jun 10, 2026.');
-  assert.equal(container.querySelector('.dossier-status-next').textContent,'Next step: committee vote.');
+  assert.equal(container.querySelector('.dossier-status-next').textContent,'The committee votes on its report.');
   await act(async()=>answer());await settle();
   const council=steps().find(row=>row[1].startsWith('Council'));
   assert.equal(council[0],'done');assert.match(council[1],/Sep 29, 2026 · partial/,'cancelled rows of 22 June and 28 September do not count');
@@ -85,36 +149,34 @@ test('the strip renders at once, Cellar steps fill in, and nothing says Checking
   assert.equal(steps().find(row=>row[1]==='Negotiations')[0],'open');
 });
 for(const late of ['same stage','signature'])test(`the title comes with the status; late sources keep the title and rewrite the sentence only when the stage moves: ${late}`,async t=>{
-  {
-    let progress,context;const progressRead=new Promise(resolve=>{progress=resolve;}),contextRead=new Promise(resolve=>{context=resolve;});
-    // A signature only the Publications Office holds moves the file on to "signed".
-    const body={...progressFor(erasmus)};if(late==='signature')body.events=[...body.events,{id:'sign',dates:['2026-11-01'],date:'2026-11-01',status:'recorded',types:[{id:'SIGN_byEP_CONSIL',code:'SIGN_byEP_CONSIL',label:null,language:null}],label:'Signature',labelLanguage:'en',statuses:[],institutions:[],works:[],milestone:false,issues:[]}];
-    const view=await mount(t,erasmus.reference,{
-      'dossier-status':()=>Response.json(statusFor(erasmus,{},{stage:'position-talks',title:'Erasmus+ from the procedure record',titleLanguage:'en'})),
-      'procedure-progress':()=>progressRead.then(()=>Response.json(body)),
-      'procedure-context':()=>contextRead.then(()=>Response.json(contextFor(erasmus))),
-    });
-    const {container,steps,settle}=view;
-    const heading=()=>container.querySelector('.insight-dossier-title h2')?.textContent;
-    assert.equal(heading(),'Erasmus+ from the procedure record','no wait for the Legislative Observatory');
-    const sentence=container.querySelector('.dossier-status-sentence').textContent;
-    assert.match(sentence,/^Parliament set its position on Oct 22, 2026/);
-    await act(async()=>{progress();context();});await settle();
-    if(late==='signature'){
-      assert.equal(steps().find(row=>row[1].startsWith('Signed'))?.[0],'done','the late signature fills its step');
-      assert.equal(container.querySelector('.dossier-status-sentence').textContent,'Signed on Nov 1, 2026.','a later stage is never hidden behind the first sentence');
-    }else assert.equal(container.querySelector('.dossier-status-sentence').textContent,sentence,'events of the same stage leave the sentence as shown');
-    assert.equal(heading(),'Erasmus+ from the procedure record','the Observatory title does not replace it');
-    assert.equal(view.calls.filter(name=>name==='dossier-status').length,1,'title and status share one read');
-  }
+  let progress,context;const progressRead=new Promise(resolve=>{progress=resolve;}),contextRead=new Promise(resolve=>{context=resolve;});
+  // A signature only the Publications Office holds moves the file on to "signed".
+  const body={...progressFor(erasmus)};if(late==='signature')body.events=[...body.events,{id:'sign',dates:['2026-11-01'],date:'2026-11-01',status:'recorded',types:[{id:'SIGN_byEP_CONSIL',code:'SIGN_byEP_CONSIL',label:null,language:null}],label:'Signature',labelLanguage:'en',statuses:[],institutions:[],works:[],milestone:false,issues:[]}];
+  const view=await mount(t,erasmus.reference,{
+    'dossier-status':()=>Response.json(statusFor(erasmus,{},{stage:'position-talks',title:'Erasmus+ from the procedure record',titleLanguage:'en'})),
+    'procedure-progress':()=>progressRead.then(()=>Response.json(body)),
+    'procedure-context':()=>contextRead.then(()=>Response.json(contextFor(erasmus))),
+  });
+  const {container,steps,settle}=view;
+  const heading=()=>container.querySelector('.insight-dossier-title h1')?.textContent;
+  assert.equal(heading(),'Erasmus+ from the procedure record','no wait for the Legislative Observatory');
+  const sentence=container.querySelector('.dossier-status-sentence').textContent;
+  assert.match(sentence,/^Parliament set its position on Oct 22, 2026/);
+  await act(async()=>{progress();context();});await settle();
+  if(late==='signature'){
+    assert.equal(steps().find(row=>row[1].startsWith('Signed'))?.[0],'done','the late signature fills its step');
+    assert.equal(container.querySelector('.dossier-status-sentence').textContent,'Signed on Nov 1, 2026.','a later stage is never hidden behind the first sentence');
+  }else assert.equal(container.querySelector('.dossier-status-sentence').textContent,sentence,'events of the same stage leave the sentence as shown');
+  assert.equal(heading(),'Erasmus+ from the procedure record','the Observatory title does not replace it');
+  assert.equal(view.calls.filter(name=>name==='dossier-status').length,1,'title and status share one read');
 });
-test('a language change takes the new language title, not the activity title of the previous one',async t=>{
+test('a language change takes the new language title',async t=>{
   const view=await mount(t,erasmus.reference,{
     'dossier-status':url=>Response.json(statusFor(erasmus,{},{stage:'position-talks',title:url.searchParams.get('lang')==='fr'?'Erasmus+ (fr)':'Erasmus+ (en)',titleLanguage:url.searchParams.get('lang')})),
     'procedure-progress':()=>Response.json(progressFor(erasmus)),
     'procedure-context':()=>Response.json(contextFor(erasmus)),
-  },{fallbackTitle:{title:'Erasmus+ (en, from the activity)',titleLanguage:'en'}});
-  const heading=()=>view.container.querySelector('.insight-dossier-title h2')?.textContent;
+  });
+  const heading=()=>view.container.querySelector('.insight-dossier-title h1')?.textContent;
   assert.equal(heading(),'Erasmus+ (en)');
   await view.render({language:'fr'});await view.settle();
   assert.equal(heading(),'Erasmus+ (fr)');
@@ -183,7 +245,7 @@ test('a procedure only the Legislative Observatory holds keeps its strip and peo
     'procedure-progress':()=>Response.json({reference:erasmus.reference,language:'en',state:'unmapped',dossier:null,events:[],coverage,source}),
     'procedure-context':()=>Response.json(contextFor(erasmus)),
   });
-  assert.equal(container.querySelector('.insight-dossier-title h2').textContent,'A dossier');
+  assert.equal(container.querySelector('.insight-dossier-title h1').textContent,'A dossier');
   assert.equal(steps().length,9);assert.match(steps()[0][1],/Jul 16, 2025/);
   assert.doesNotMatch(container.textContent,/No record of this procedure/);
   assert.equal(container.querySelector('#people').textContent,'People');
@@ -201,12 +263,13 @@ test('other families get a sentence and no strip',async t=>{
 });
 
 for(const [counts,expected] of [
-  [{blockVotes:2,blockAmendments:318,individual:48,identical:2},'On the voting list: block votes on 318 committee amendments, then 48 individual amendments, 2 of them identical.'],
-  [{blockVotes:1,blockAmendments:84,individual:5,identical:0},'On the voting list: a block vote on 84 committee amendments, then 5 individual amendments.'],
-  [{blockVotes:0,blockAmendments:0,individual:20,identical:0},'On the voting list: 20 individual amendments.'],
-  [{blockVotes:0,blockAmendments:0,individual:1,identical:0},'On the voting list: 1 individual amendment.'],
+  [{blockVotes:3,blockAmendments:312,individual:54,identical:2},'3 block votes on 312 committee amendments, then 54 amendments, 2 of them duplicates.'],
+  [{blockVotes:1,blockAmendments:84,individual:5,identical:0},'one block vote on 84 committee amendments, then 5 amendments.'],
+  [{blockVotes:1,blockAmendments:84,individual:0,identical:0},'one block vote on 84 committee amendments.'],
+  [{blockVotes:0,blockAmendments:0,individual:20,identical:1},'20 amendments, each voted on its own, 1 of them a duplicate.'],
+  [{blockVotes:0,blockAmendments:0,individual:1,identical:0},'1 amendment, each voted on its own.'],
   [null,null],
-])test(`a held voting list adds one plain line: ${expected}`,async t=>{
+])test(`a held voting list adds The vote line: ${expected}`,async t=>{
   const view=await mount(t,erasmus.reference,{
     'dossier-status':()=>Response.json(statusFor(erasmus,{committees:[],mainVote:null,plenaryDate:null,votingList:counts})),
     'procedure-progress':()=>Response.json(progressFor(erasmus)),

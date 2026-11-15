@@ -1,0 +1,52 @@
+/* The dossier page, answer first: title and purpose, four labelled lines, a slim step bar, then folded rows. */
+.vs.dossier-page { padding-bottom:var(--s6); }
+.vs.dossier-page .insight-dossier-title { max-width:none; margin:0; }
+:is(.explorer-insights,.explorer-profile-body) .vs.dossier-page h1 { font-size:var(--t-h2); line-height:1.2; max-width:30em; }
+.vs.dossier-page .dossier-title-pending { color:var(--ink-muted); font-weight:400; }
+.vs .dossier-purpose { min-height:2.6em; }
+.vs .dossier-purpose:not(:empty) { min-height:0; }
+.vs.dossier-page .dossier-identity-row { margin-top:var(--s2); }
+.vs.dossier-page .dossier-identity-row > p { font-size:var(--t-meta); }
+.vs.dossier-page .explorer-amendment-trail-link { font-size:var(--t-meta); }
+.vs .dossier-rapporteurs { padding-top:var(--s1); }
+
+/* Now, Next, The vote, Earlier: a label column on wide screens, a small caps label above on a phone. */
+.vs .dossier-answer { margin:var(--s4) 0 0; }
+.vs .dossier-answer .dossier-status-lines { display:grid; grid-template-columns:8.5em minmax(0,1fr); gap:var(--s2) var(--s5); margin:0; padding:var(--s4) 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); max-width:none; min-height:0; }
+.vs .dossier-answer dt { font-size:var(--t-meta); line-height:1.45; color:var(--ink-muted); padding-top:.1em; }
+.vs .dossier-answer dd { margin:0; font-size:var(--t-row); line-height:1.45; color:var(--ink); max-width:46em; overflow-wrap:anywhere; }
+.vs .dossier-answer dd.dossier-status-sentence { font-weight:600; }
+.vs .dossier-answer dd a { font-size:var(--t-meta); font-weight:400; }
+.vs .dossier-answer .dossier-status-lines:empty { display:none; }
+/* Without a step bar the rows' own rule closes the lines. */
+.vs .dossier-answer:not(:has(.dossier-steps)) .dossier-status-lines { border-bottom:0; }
+.vs .dossier-answer:not(:has(.dossier-steps)) + .dossier-rows { margin-top:0; }
+
+/* The step bar: slim on wide screens, a count with the whole list a tap away on a phone. */
+.vs .dossier-answer .dossier-steps { margin:var(--s4) 0 0; }
+.vs .dossier-answer .dossier-steps > li { list-style:none; }
+.vs .dossier-step-count { display:none; }
+.vs .dossier-step-bar { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:3px; margin-bottom:var(--s2); }
+.vs .dossier-step-bar i { height:5px; border-radius:2px; background:var(--line); }
+.vs .dossier-step-bar i[data-state=done] { background:var(--accent); }
+.vs .dossier-step-bar i[data-state=current] { background:var(--accent-strong); outline:2px solid var(--accent-soft); }
+.vs .dossier-step-count p { display:flex; justify-content:space-between; align-items:center; gap:var(--s3); font-size:var(--t-meta); color:var(--ink-muted); }
+.vs .dossier-step-count b { color:var(--ink); font-weight:600; }
+
+.vs .dossier-rows { margin-top:var(--s5); }
+.vs .dossier-rows .flink { margin:0; }
+.vs .dossier-rows .fopen { padding-top:var(--s2); }
+.vs .dossier-rows .procedure-progress { border-bottom:0; margin:0; padding:0; }
+.vs .dossier-rows .insight-official-topics { margin-top:var(--s3); }
+.vs .dossier-summary header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--s3); }
+.vs.dossier-page .dossier-source { padding-top:var(--s4); font-size:var(--t-meta); }
+
+@media(max-width:680px){
+  .vs .dossier-answer .dossier-status-lines { grid-template-columns:minmax(0,1fr); gap:2px; }
+  .vs .dossier-answer dt { font-size:var(--t-small); letter-spacing:.04em; text-transform:uppercase; padding-top:var(--s3); }
+  .vs .dossier-answer dt:first-child { padding-top:0; }
+  .vs .dossier-answer .dossier-steps:not([data-open]) { display:none; }
+  .vs .dossier-step-count { display:block; margin-top:var(--s4); }
+}
+/* The row already says People; the panel's own heading stays only for one person's work. */
+.vs .dossier-rows [data-dossier-person=""] .dossier-scope > h3 { display:none; }

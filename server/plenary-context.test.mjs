@@ -8,7 +8,7 @@ import {projectDocument,projectProcedure} from './activity-index-model.mjs';
 import {SpeechCloudInsights,speechCloudQuery,analyzeSpeechCloud,meaningfulSpeakerName,CLOUD_SORT} from './speech-cloud.mjs';
 import {OfficialContextSources,officialSourceUrl,parseProcedurePage,parseSummaryPage} from './official-context.mjs';
 import {parseEurovoc,eurovocQuery,EurovocCatalog} from './eurovoc.mjs';
-import {ProcedureContext,procedureContextQuery} from './procedure-context.mjs';
+import {ProcedureContext,procedureContextQuery,summaryPurpose} from './procedure-context.mjs';
 import {TopicTrends,topicTrendsQuery,savedProcedureEvents,topicTimeline,procedureTitle,procedureStatus} from './topic-trends.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {QuestionInsights,insightQuery} from './insights-store.mjs';
@@ -135,6 +135,16 @@ test('summary service defaults to real first reading and fetches only actual lin
   let reads=[];const sources={get:async url=>{reads.push(url);return {url,fetchedAt:new Date(now()).toISOString(),html:url.includes('document-summary')?summaryHtml:procedureHtml};}},catalog={known:async()=>parseEurovoc(fixture.topics,['2025-0407'],'en')};
   const service=new ProcedureContext(sources,catalog),result=await service.query(procedureContextQuery(new URLSearchParams('reference=2025%2F0407(COD)')));assert.equal(result.summary.id,'1908635');assert.equal(result.topics.length,11);assert.equal(reads.length,2);
   reads=[];await assert.rejects(()=>service.query({reference:'2025/0407(COD)',language:'en',summary:'99999'}),error=>error.status===400);assert.equal(reads.length,1);
+});
+test('the dossier page opens on the proposal summary, whose PURPOSE paragraph is the purpose line',()=>{
+  assert.deepEqual(procedureContextQuery(new URLSearchParams('reference=2025%2F0207(COD)&start=proposal')).order.slice(0,2),['proposal','first-reading']);
+  assert.equal(procedureContextQuery(new URLSearchParams('reference=2025%2F0207(COD)')).order,undefined,'other readers keep the first-reading default');
+  assert.throws(()=>procedureContextQuery(new URLSearchParams('reference=2025%2F0207(COD)&start=final-act')),error=>error.status===400);
+  const proposal={stage:'proposal',blocks:[{kind:'paragraph',text:'PURPOSE: to establish an updated and improved legal framework for the European Chemicals Agency (ECHA).'},{kind:'paragraph',text:'PROPOSED ACT: Regulation.'}]};
+  assert.equal(summaryPurpose(proposal,'en'),'To establish an updated and improved legal framework for the European Chemicals Agency (ECHA).');
+  assert.equal(summaryPurpose({stage:'proposal',blocks:[{kind:'paragraph',text:'OBJECTIF : établir un cadre.'}]},'fr'),'Établir un cadre.');
+  assert.equal(summaryPurpose({...proposal,stage:'first-reading'},'en'),null,'only the Commission proposal states its purpose');
+  assert.equal(summaryPurpose({stage:'proposal',blocks:[{kind:'paragraph',text:'The Commission proposes a regulation.'}]},'en'),null,'no PURPOSE paragraph, no line');
 });
 test('EuroVoc catalogue coalesces identical batches and persists reproducible per-dossier results',async()=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'eurovoc-test-'));let calls=0;const sources={get:async url=>{calls++;await new Promise(resolve=>setImmediate(resolve));return {url,fetchedAt:new Date(now()).toISOString(),data:fixture.topics};}};

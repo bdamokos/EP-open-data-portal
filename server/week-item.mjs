@@ -4,7 +4,8 @@ import {odpLanguage} from './odp.mjs';
 import {array,tail} from './activity-index-model.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {amendmentsPage} from './amendments-store.mjs';
-import {committeeLabel,mainVoteEvents,statusIndexEvents,tabledReports} from './dossier-status.mjs';
+import {committeeLabel,isRapporteur,leadCommitteeCodes,mainVoteEvents,rapporteurIds,rapporteurPerson,statusIndexEvents,tabledReports} from './dossier-status.mjs';
+export {leadCommitteeCodes,rapporteurIds} from './dossier-status.mjs';
 import {dossierStatusLines,resolutionStage} from './dossier-status-model.mjs';
 import {cachedAgendaRequest} from './parliament-search.mjs';
 import {procedureSteps} from './procedure-steps.mjs';
@@ -18,10 +19,6 @@ const LIMITS=Object.freeze({procedures:2,documents:6,sittings:5});
 const reportId=/^(?:A|B|RC)-\d{1,2}-\d{4}-\d{4,6}$/;
 const sittingId=/^MTG-PL-\d{4}-\d{2}-\d{2}$/;
 const procedureId=/^\d{4}-\d{4}[A-Z]?$/;
-const roles=part=>array(part.participation_role).map(tail);
-const rapporteur=part=>roles(part).some(role=>role==='RAPPORTEUR'||role==='RAPPORTEUR_CO');
-const personIds=part=>array(part.had_participant_person).map(tail).filter(id=>/^[1-9]\d*$/.test(id));
-const term=part=>Math.max(0,...array(part.parliamentary_term).map(value=>Number(/ep-(\d+)$/.exec(tail(value))?.[1])||0));
 
 export function weekItemQuery(search) {
   for(const key of search.keys())if(!['procedures','documents','sittings','lang'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated item parameter.');
@@ -37,19 +34,6 @@ export function weekItemQuery(search) {
 }
 
 /** The committees responsible, from the procedure's own participation rows. */
-export function leadCommitteeCodes(work) {
-  const lead=array(work?.had_participation).filter(part=>roles(part).includes('COMMITTEE_LEAD')).flatMap(part=>array(part.had_participant_organization).map(tail));
-  const named=array(work?.had_participation).filter(rapporteur).map(part=>tail(part.participation_in_name_of));
-  return [...new Set((lead.length?lead:named).filter(Boolean))];
-}
-/** The report's own rapporteurs; else the procedure's in its latest term, without an earlier term's. */
-export function rapporteurIds(report,work,leadCodes=[]) {
-  const named=array(report?.workHadParticipation).filter(rapporteur).flatMap(personIds);
-  if(named.length)return [...new Set(named)];
-  const rows=array(work?.had_participation).filter(part=>rapporteur(part)&&personIds(part).length&&(!leadCodes.length||!part.participation_in_name_of||leadCodes.includes(tail(part.participation_in_name_of))));
-  const latest=Math.max(0,...rows.map(term));
-  return [...new Set(rows.filter(part=>term(part)===latest).flatMap(personIds))];
-}
 /** Where the item stands before this week. Only ordinary legislation has steps; other files have their committee report or adopted vote. */
 export function standingLines({family,steps,stage,indexEvents,committees,vote,councilApproval=null}) {
   const slots={committees,mainVote:vote};
@@ -67,12 +51,6 @@ async function heldProcedure(activity,id,request) {
   try {return activity.identified(await request('/procedures/'+id,{},{}),id,'en');}
   catch(error){if(isLocalRequestFailure(error))throw error;return null;}
 }
-function person(store,activity,generation,groupOn,id,asOf) {
-  const member=JSON.parse(store.db.prepare('SELECT body FROM members WHERE id=?').get(id)?.body??'null');
-  const group=groupOn(id,asOf),name=member?.name||activity.personLabel(id,generation);
-  if(!name)return null;
-  return {id,name,currentMep:Boolean(member),group:typeof group==='object'?group.code:group==='not-serving'?null:member?.groupCode||null};
-}
 
 /**
  * What a reader wants to know about a coming agenda item, on one small reply.
@@ -86,8 +64,8 @@ export async function weekItem(query,{store,activity,status,groupOn=()=>'unavail
   const primary=works[0]?.work||null,reference=works[0]?.procedure.reference||null;
   const leadCodes=leadCommitteeCodes(primary),committees=leadCodes.map(code=>committeeLabel(code,query.language));
   const documents=query.documents.length?query.documents:tabledReports(primary).slice(0,1);
-  const report=documents.map(id=>store.source?.(generation,'/plenary-documents/'+id)?.work).find(work=>array(work?.workHadParticipation).some(rapporteur));
-  const rapporteurs=rapporteurIds(report,primary,leadCodes).map(id=>person(store,activity,generation,groupOn,id,asOf)).filter(Boolean);
+  const report=documents.map(id=>store.source?.(generation,'/plenary-documents/'+id)?.work).find(work=>array(work?.workHadParticipation).some(isRapporteur));
+  const rapporteurs=rapporteurIds(report,primary,leadCodes).map(id=>rapporteurPerson(store,activity,generation,groupOn,id,asOf)).filter(Boolean);
   const lists=query.sittings.flatMap(sitting=>(store.votingListsForSitting?.(sitting)||[]).map(list=>({sitting,list})));
   const rows=documents.map(id=>{
     const found=lists.find(row=>row.list.documentId===id);

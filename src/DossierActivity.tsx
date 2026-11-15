@@ -18,7 +18,7 @@ import {humanDate,insightMemberHref,roleName} from './InsightShared';
 import {memberVoteLabel,memberVoteOutcome} from './memberVotesPresentation.mjs';
 import {useExplorerParam} from './explorerUrl';
 import {dossierPeopleCountExact,dossierCoverageNotices,dossierEmptyLabel,dossierUnrenderedDecisions,dossierVoteCards,dossierFilters,dossierHref,dossierTimeline,fullDossierReference,mergeDossierPage,retainDossierContributors,validDossierPerson} from './dossierActivityModel.mjs';
-import {dossierBackHref,dossierLinkClick,navigateDossier,useDossierReaderState} from './dossierJourney';
+import {dossierLinkClick,navigateDossier,useDossierReaderState} from './dossierJourney';
 import {voteHref} from './votePagePresentation.mjs';
 import type {DossierActivityResponse,DossierAmendment,DossierCoverage,DossierCursor,DossierFilter,DossierItem,DossierReference,DossierReferencesResponse,DossierRole,DossierSection,DossierSource,DossierSpeech,DossierVote} from './DossierActivityTypes';
 import {useInsightData} from './InsightData';
@@ -144,7 +144,7 @@ function Speech({item,language}:{item:DossierSpeech;language:string}) {
   return <article className="dossier-speech"><h4 lang={item.titleLanguage??''}>{item.title||ui.t("dossieractivity.speech")}</h4>{item.jointDebate&&<p className="dossier-muted"><UiMessage id="dossieractivity.joint_debate"/></p>}<details open={open} onToggle={event=>setOpen(event.currentTarget.open)}><summary><UiMessage id="dossieractivity.read_speech"/></summary>{open&&<InsightSpeechReader id={item.id} language={language}/>}</details></article>;
 }
 
-export function DossierActivity({reference,language='en',onProcedure}:{reference:string;language?:string;onProcedure?:(procedure:DossierReference)=>void}) {
+export function DossierActivity({reference,language='en',onProcedure,onPeople}:{reference:string;language?:string;onProcedure?:(procedure:DossierReference)=>void;onPeople?:(count:number|null)=>void}) {
   const ui = useUiI18n();
   const [rawPerson]=useExplorerParam<string|null>('dossier-person',null),[filter]=useExplorerParam<DossierFilter>('dossier-show','all',dossierFilters);
   const [stage]=useExplorerParam<AmendmentStage>('dossier-stage','all',amendmentStages),[rawCommittee]=useExplorerParam('dossier-committee','');
@@ -171,9 +171,10 @@ export function DossierActivity({reference,language='en',onProcedure}:{reference
   const renderedVotes=new Set([...inlineVotes.values()].flatMap(group=>group.votes.map(row=>row.id)));
   const remaining=(filter==='votes') ? voteRows : ((filter==='all') ? voteRows.filter(row=>!renderedVotes.has(row.id)) : ([]));
   const sittings=new Map<string,DossierVote[]>();for(const row of remaining){const key=row.vote.sittingId;const group=sittings.get(key)||[];group.push(row);sittings.set(key,group);}
-  const back=dossierBackHref();
+  // The page shows how many people the file has once the list is complete.
+  const peopleCount=roles.data&&dossierPeopleCountExact(roles.data) ? participants.length : null;
+  useEffect(()=>{onPeople?.(peopleCount);},[peopleCount,onPeople]);
   return <section className="dossier-activity" lang={ui.language} data-dossier-reference={reference} data-dossier-person={person||''} data-dossier-stage={stage} data-dossier-committee={committee} data-dossier-pending={(roles.loading||visibleSections.some(section=>states[section].loading)) ? 'true' : undefined}>
-    {back&&<a className="dossier-back" href={back} onClick={dossierLinkClick}><UiMessage id="dossieractivity.back_to_where_you_were"/></a>}
     {rawPerson&&!person&&<p role="alert"><UiMessage id="dossieractivity.person_not_found_choose_a_participant"/></p>}
     <div className="dossier-scope"><h3>{person ? <UiMessage id="dossieractivity.work_on_this_dossier"/> : <UiMessage id="dossieractivity.people_on_this_dossier"/>}</h3>{person&&<><span className="dossier-person-chip"><a href={insightMemberHref(person,language)} onClick={dossierLinkClick}><PersonName id={person} label={personLabel} fallback={ui.t('insightshared.name_unavailable')}/></a><RecordMemberAffiliation id={person} language={language}/><a href={dossierHref(reference,null,language)} onClick={dossierLinkClick} aria-label={ui.t("dossieractivity.clear_person_selection")}>×</a></span><div className="dossier-exits"><a href={dossierHref(reference,null,language)} onClick={dossierLinkClick}><UiMessage id="dossieractivity.full_dossier"/></a><a href={insightMemberHref(person,language)} onClick={dossierLinkClick}><UiMessage id="dossieractivity.member_profile"/></a></div></>}</div>
     {person&&<nav className="dossier-filters" aria-label={ui.t("dossieractivity.dossier_activity_type")}>{dossierFilters.map(value=><button type="button" key={value} aria-pressed={filter===value} onClick={()=>{const url=new URL(location.href);(value==='all') ? url.searchParams.delete('dossier-show') : url.searchParams.set('dossier-show',value);navigateDossier(url.href);}}><span>{labelsUi(ui)[value]}</span>{' '}<small>{(value==='all') ? ui.t("dossieractivity.all_activity.18524b") : dossierChipLabel(states[value].data,ui)}</small></button>)}</nav>}

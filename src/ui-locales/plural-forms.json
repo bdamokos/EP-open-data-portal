@@ -569,21 +569,25 @@
       "one": "{count} оратор",
       "other": "{count} оратори"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "гласуване в блок на {count} изменение на комисията",
-      "other": "гласуване в блок на {count} изменения на комисията"
+    "dossierpage.events": {
+      "one": "{count} събитие",
+      "other": "{count} събития"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "гласувания в блок на {count} изменение на комисията",
-      "other": "гласувания в блок на {count} изменения на комисията"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} гласуване в блок",
+      "other": "{count} гласувания в блок"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} отделно изменение",
-      "other": "{count} отделни изменения"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} за {count} изменение на комисията",
+      "other": "{votes} за {count} изменения на комисията"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "{count} от тях идентично",
-      "other": "{count} от тях идентични"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} изменение",
+      "other": "{count} изменения"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} от него е дубликат",
+      "other": "{count} от тях са дубликати"
     }
   },
   "cs": {
@@ -1394,29 +1398,35 @@
       "many": "{count} řečníka",
       "other": "{count} řečníků"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "společné hlasování o {count} pozměňovacím návrhu výboru",
-      "few": "společné hlasování o {count} pozměňovacích návrzích výboru",
-      "many": "společné hlasování o {count} pozměňovacích návrzích výboru",
-      "other": "společné hlasování o {count} pozměňovacích návrzích výboru"
+    "dossierpage.events": {
+      "one": "{count} událost",
+      "few": "{count} události",
+      "many": "{count} události",
+      "other": "{count} událostí"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "společná hlasování o {count} pozměňovacím návrhu výboru",
-      "few": "společná hlasování o {count} pozměňovacích návrzích výboru",
-      "many": "společná hlasování o {count} pozměňovacích návrzích výboru",
-      "other": "společná hlasování o {count} pozměňovacích návrzích výboru"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} hlasování en bloc",
+      "few": "{count} hlasování en bloc",
+      "many": "{count} hlasování en bloc",
+      "other": "{count} hlasování en bloc"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} samostatný pozměňovací návrh",
-      "few": "{count} samostatné pozměňovací návrhy",
-      "many": "{count} samostatného pozměňovacího návrhu",
-      "other": "{count} samostatných pozměňovacích návrhů"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} o {count} pozměňovacím návrhu výboru",
+      "few": "{votes} o {count} pozměňovacích návrzích výboru",
+      "many": "{votes} o {count} pozměňovacích návrzích výboru",
+      "other": "{votes} o {count} pozměňovacích návrzích výboru"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "z toho {count} totožný",
-      "few": "z toho {count} totožné",
-      "many": "z toho {count} totožného",
-      "other": "z toho {count} totožných"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} pozměňovací návrh",
+      "few": "{count} pozměňovací návrhy",
+      "many": "{count} pozměňovacího návrhu",
+      "other": "{count} pozměňovacích návrhů"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} z nich je duplicitní",
+      "few": "{count} z nich jsou duplicitní",
+      "many": "{count} z nich jsou duplicitní",
+      "other": "{count} z nich jsou duplicitní"
     }
   },
   "da": {
@@ -2020,21 +2030,25 @@
       "one": "{count} taler",
       "other": "{count} talere"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "en samlet afstemning om {count} ændringsforslag fra udvalget",
-      "other": "en samlet afstemning om {count} ændringsforslag fra udvalget"
+    "dossierpage.events": {
+      "one": "{count} begivenhed",
+      "other": "{count} begivenheder"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "samlede afstemninger om {count} ændringsforslag fra udvalget",
-      "other": "samlede afstemninger om {count} ændringsforslag fra udvalget"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} samlet afstemning",
+      "other": "{count} samlede afstemninger"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} enkeltstående ændringsforslag",
-      "other": "{count} enkeltstående ændringsforslag"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} om {count} udvalgsændringsforslag",
+      "other": "{votes} om {count} udvalgsændringsforslag"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "{count} af dem identisk",
-      "other": "{count} af dem identiske"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} ændringsforslag",
+      "other": "{count} ændringsforslag"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} af dem er en dublet",
+      "other": "{count} af dem er dubletter"
     }
   },
   "de": {
@@ -2638,21 +2652,25 @@
       "one": "{count} sprechende Person",
       "other": "{count} sprechende Personen"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "eine Abstimmung en bloc über {count} Änderungsantrag des Ausschusses",
-      "other": "eine Abstimmung en bloc über {count} Änderungsanträge des Ausschusses"
+    "dossierpage.events": {
+      "one": "{count} Ereignis",
+      "other": "{count} Ereignisse"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "Abstimmungen en bloc über {count} Änderungsantrag des Ausschusses",
-      "other": "Abstimmungen en bloc über {count} Änderungsanträge des Ausschusses"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} Blockabstimmung",
+      "other": "{count} Blockabstimmungen"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} einzelner Änderungsantrag",
-      "other": "{count} einzelne Änderungsanträge"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} über {count} Ausschussänderungsantrag",
+      "other": "{votes} über {count} Ausschussänderungsanträge"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "davon {count} identisch",
-      "other": "davon {count} identisch"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} Änderungsantrag",
+      "other": "{count} Änderungsanträge"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} davon ein Duplikat",
+      "other": "{count} davon Duplikate"
     }
   },
   "el": {
@@ -3224,21 +3242,25 @@
       "one": "{count} ομιλητής",
       "other": "{count} ομιλητές"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "συνολική ψηφοφορία για {count} τροπολογία της επιτροπής",
-      "other": "συνολική ψηφοφορία για {count} τροπολογίες της επιτροπής"
+    "dossierpage.events": {
+      "one": "{count} γεγονός",
+      "other": "{count} γεγονότα"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "συνολικές ψηφοφορίες για {count} τροπολογία της επιτροπής",
-      "other": "συνολικές ψηφοφορίες για {count} τροπολογίες της επιτροπής"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} ψηφοφορία en bloc",
+      "other": "{count} ψηφοφορίες en bloc"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} μεμονωμένη τροπολογία",
-      "other": "{count} μεμονωμένες τροπολογίες"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} για {count} τροπολογία της επιτροπής",
+      "other": "{votes} για {count} τροπολογίες της επιτροπής"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "εκ των οποίων {count} ταυτόσημη",
-      "other": "εκ των οποίων {count} ταυτόσημες"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} τροπολογία",
+      "other": "{count} τροπολογίες"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} από αυτές είναι διπλότυπη",
+      "other": "{count} από αυτές είναι διπλότυπες"
     }
   },
   "es": {
@@ -3924,25 +3946,30 @@
       "many": "{count} de oradores",
       "other": "{count} oradores"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "una votación en bloque de {count} enmienda de la comisión",
-      "many": "una votación en bloque de {count} de enmiendas de la comisión",
-      "other": "una votación en bloque de {count} enmiendas de la comisión"
+    "dossierpage.events": {
+      "one": "{count} evento",
+      "many": "{count} de eventos",
+      "other": "{count} eventos"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "votaciones en bloque de {count} enmienda de la comisión",
-      "many": "votaciones en bloque de {count} de enmiendas de la comisión",
-      "other": "votaciones en bloque de {count} enmiendas de la comisión"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} votación en bloque",
+      "many": "{count} de votaciones en bloque",
+      "other": "{count} votaciones en bloque"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} enmienda individual",
-      "many": "{count} de enmiendas individuales",
-      "other": "{count} enmiendas individuales"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} sobre {count} enmienda de comisión",
+      "many": "{votes} sobre {count} de enmiendas de comisión",
+      "other": "{votes} sobre {count} enmiendas de comisión"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "{count} de ellas idéntica",
-      "many": "{count} de ellas idénticas",
-      "other": "{count} de ellas idénticas"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} enmienda",
+      "many": "{count} de enmiendas",
+      "other": "{count} enmiendas"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} de ellas es un duplicado",
+      "many": "{count} de ellas son duplicados",
+      "other": "{count} de ellas son duplicados"
     }
   },
   "et": {
@@ -4515,21 +4542,25 @@
       "one": "{count} sõnavõtja",
       "other": "{count} sõnavõtjat"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "ühishääletus {count} komisjoni muudatusettepaneku kohta",
-      "other": "ühishääletus {count} komisjoni muudatusettepaneku kohta"
+    "dossierpage.events": {
+      "one": "{count} sündmus",
+      "other": "{count} sündmust"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "ühishääletused {count} komisjoni muudatusettepaneku kohta",
-      "other": "ühishääletused {count} komisjoni muudatusettepaneku kohta"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} ühishääletus",
+      "other": "{count} ühishääletust"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} eraldi muudatusettepanek",
-      "other": "{count} eraldi muudatusettepanekut"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} {count} komisjoni muudatusettepaneku kohta",
+      "other": "{votes} {count} komisjoni muudatusettepaneku kohta"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "neist {count} identne",
-      "other": "neist {count} identset"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} muudatusettepanek",
+      "other": "{count} muudatusettepanekut"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} neist on duplikaat",
+      "other": "{count} neist on duplikaadid"
     }
   },
   "fi": {
@@ -5133,21 +5164,25 @@
       "one": "{count} puhuja",
       "other": "{count} puhujaa"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "yhteisäänestys {count} valiokunnan tarkistuksesta",
-      "other": "yhteisäänestys {count} valiokunnan tarkistuksesta"
+    "dossierpage.events": {
+      "one": "{count} tapahtuma",
+      "other": "{count} tapahtumaa"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "yhteisäänestykset {count} valiokunnan tarkistuksesta",
-      "other": "yhteisäänestykset {count} valiokunnan tarkistuksesta"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} yhteisäänestys",
+      "other": "{count} yhteisäänestystä"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} erillinen tarkistus",
-      "other": "{count} erillistä tarkistusta"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} koskien {count} valiokunnan tarkistusta",
+      "other": "{votes} koskien {count} valiokunnan tarkistusta"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "joista {count} identtinen",
-      "other": "joista {count} identtistä"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} tarkistus",
+      "other": "{count} tarkistusta"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} niistä on kaksoiskappale",
+      "other": "{count} niistä on kaksoiskappaleita"
     }
   },
   "fr": {
@@ -5833,25 +5868,30 @@
       "other": "{count} orateurs",
       "many": "{count} d’orateurs"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "un vote en bloc sur {count} amendement de la commission",
-      "many": "un vote en bloc sur {count} d’amendements de la commission",
-      "other": "un vote en bloc sur {count} amendements de la commission"
+    "dossierpage.events": {
+      "one": "{count} événement",
+      "many": "{count} d’événements",
+      "other": "{count} événements"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "des votes en bloc sur {count} amendement de la commission",
-      "many": "des votes en bloc sur {count} d’amendements de la commission",
-      "other": "des votes en bloc sur {count} amendements de la commission"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} vote en bloc",
+      "many": "{count} de votes en bloc",
+      "other": "{count} votes en bloc"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} amendement individuel",
-      "many": "{count} d’amendements individuels",
-      "other": "{count} amendements individuels"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} sur {count} amendement de commission",
+      "many": "{votes} sur {count} d’amendements de commission",
+      "other": "{votes} sur {count} amendements de commission"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "dont {count} identique",
-      "many": "dont {count} identiques",
-      "other": "dont {count} identiques"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} amendement",
+      "many": "{count} d’amendements",
+      "other": "{count} amendements"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} d’entre eux est un doublon",
+      "many": "{count} d’entre eux sont des doublons",
+      "other": "{count} d’entre eux sont des doublons"
     }
   },
   "ga": {
@@ -6762,33 +6802,40 @@
       "few": "{count} cainteoir",
       "many": "{count} cainteoir"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "vóta bloc ar leasú ón gcoiste: {count}",
-      "two": "vóta bloc ar leasuithe ón gcoiste: {count}",
-      "few": "vóta bloc ar leasuithe ón gcoiste: {count}",
-      "many": "vóta bloc ar leasuithe ón gcoiste: {count}",
-      "other": "vóta bloc ar leasuithe ón gcoiste: {count}"
+    "dossierpage.events": {
+      "one": "{count} imeacht",
+      "two": "{count} imeacht",
+      "few": "{count} imeacht",
+      "many": "{count} imeacht",
+      "other": "{count} imeacht"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "vótaí bloc ar leasú ón gcoiste: {count}",
-      "two": "vótaí bloc ar leasuithe ón gcoiste: {count}",
-      "few": "vótaí bloc ar leasuithe ón gcoiste: {count}",
-      "many": "vótaí bloc ar leasuithe ón gcoiste: {count}",
-      "other": "vótaí bloc ar leasuithe ón gcoiste: {count}"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} vótáil bhloc",
+      "two": "{count} vótáil bhloc",
+      "few": "{count} vótáil bhloc",
+      "many": "{count} vótáil bhloc",
+      "other": "{count} vótáil bhloc"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "leasú aonair: {count}",
-      "two": "leasuithe aonair: {count}",
-      "few": "leasuithe aonair: {count}",
-      "many": "leasuithe aonair: {count}",
-      "other": "leasuithe aonair: {count}"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} ar {count} leasú coiste",
+      "two": "{votes} ar {count} leasú coiste",
+      "few": "{votes} ar {count} leasú coiste",
+      "many": "{votes} ar {count} leasú coiste",
+      "other": "{votes} ar {count} leasú coiste"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "díobh sin, comhionann: {count}",
-      "two": "díobh sin, comhionann: {count}",
-      "few": "díobh sin, comhionann: {count}",
-      "many": "díobh sin, comhionann: {count}",
-      "other": "díobh sin, comhionann: {count}"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} leasú",
+      "two": "{count} leasú",
+      "few": "{count} leasú",
+      "many": "{count} leasú",
+      "other": "{count} leasú"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} acu ina dhúbailt",
+      "two": "{count} acu ina ndúbailtí",
+      "few": "{count} acu ina ndúbailtí",
+      "many": "{count} acu ina ndúbailtí",
+      "other": "{count} acu ina ndúbailtí"
     }
   },
   "hr": {
@@ -7472,25 +7519,30 @@
       "few": "{count} govornika",
       "other": "{count} govornika"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "glasovanje en bloc o {count} amandmanu odbora",
-      "few": "glasovanje en bloc o {count} amandmana odbora",
-      "other": "glasovanje en bloc o {count} amandmana odbora"
+    "dossierpage.events": {
+      "one": "{count} događaj",
+      "few": "{count} događaja",
+      "other": "{count} događaja"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "glasovanja en bloc o {count} amandmanu odbora",
-      "few": "glasovanja en bloc o {count} amandmana odbora",
-      "other": "glasovanja en bloc o {count} amandmana odbora"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} glasovanje u bloku",
+      "few": "{count} glasovanja u bloku",
+      "other": "{count} glasovanja u bloku"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} pojedinačni amandman",
-      "few": "{count} pojedinačna amandmana",
-      "other": "{count} pojedinačnih amandmana"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} o {count} amandmanu odbora",
+      "few": "{votes} o {count} amandmana odbora",
+      "other": "{votes} o {count} amandmana odbora"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "od toga {count} istovjetan",
-      "few": "od toga {count} istovjetna",
-      "other": "od toga {count} istovjetnih"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} amandman",
+      "few": "{count} amandmana",
+      "other": "{count} amandmana"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} od njih je duplikat",
+      "few": "{count} od njih su duplikati",
+      "other": "{count} od njih su duplikati"
     }
   },
   "hu": {
@@ -8059,21 +8111,25 @@
       "one": "{count} felszólaló",
       "other": "{count} felszólaló"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "együttes szavazás {count} bizottsági módosításról",
-      "other": "együttes szavazás {count} bizottsági módosításról"
+    "dossierpage.events": {
+      "one": "{count} esemény",
+      "other": "{count} esemény"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "együttes szavazások {count} bizottsági módosításról",
-      "other": "együttes szavazások {count} bizottsági módosításról"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} blokkszavazás",
+      "other": "{count} blokkszavazás"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} egyedi módosítás",
-      "other": "{count} egyedi módosítás"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} {count} bizottsági módosításról",
+      "other": "{votes} {count} bizottsági módosításról"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "ebből {count} azonos",
-      "other": "ebből {count} azonos"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} módosítás",
+      "other": "{count} módosítás"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} közülük duplikátum",
+      "other": "{count} közülük duplikátum"
     }
   },
   "it": {
@@ -8759,25 +8815,30 @@
       "many": "{count} di oratori",
       "other": "{count} oratori"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "una votazione in blocco su {count} emendamento della commissione",
-      "many": "una votazione in blocco su {count} di emendamenti della commissione",
-      "other": "una votazione in blocco su {count} emendamenti della commissione"
+    "dossierpage.events": {
+      "one": "{count} evento",
+      "many": "{count} di eventi",
+      "other": "{count} eventi"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "votazioni in blocco su {count} emendamento della commissione",
-      "many": "votazioni in blocco su {count} di emendamenti della commissione",
-      "other": "votazioni in blocco su {count} emendamenti della commissione"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} votazione in blocco",
+      "many": "{count} di votazioni in blocco",
+      "other": "{count} votazioni in blocco"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} emendamento singolo",
-      "many": "{count} di emendamenti singoli",
-      "other": "{count} emendamenti singoli"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} su {count} emendamento di commissione",
+      "many": "{votes} su {count} di emendamenti di commissione",
+      "other": "{votes} su {count} emendamenti di commissione"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "di cui {count} identico",
-      "many": "di cui {count} identici",
-      "other": "di cui {count} identici"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} emendamento",
+      "many": "{count} di emendamenti",
+      "other": "{count} emendamenti"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} di essi è un duplicato",
+      "many": "{count} di essi sono duplicati",
+      "other": "{count} di essi sono duplicati"
     }
   },
   "lt": {
@@ -9575,29 +9636,35 @@
       "few": "{count} kalbėtojai",
       "many": "Kalbėtojų skaičius: {count}"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "balsavimas bloku dėl {count} komiteto pakeitimo",
-      "few": "balsavimas bloku dėl {count} komiteto pakeitimų",
-      "many": "balsavimas bloku dėl {count} komiteto pakeitimo",
-      "other": "balsavimas bloku dėl {count} komiteto pakeitimų"
+    "dossierpage.events": {
+      "one": "{count} įvykis",
+      "few": "{count} įvykiai",
+      "many": "{count} įvykio",
+      "other": "{count} įvykių"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "balsavimai bloku dėl {count} komiteto pakeitimo",
-      "few": "balsavimai bloku dėl {count} komiteto pakeitimų",
-      "many": "balsavimai bloku dėl {count} komiteto pakeitimo",
-      "other": "balsavimai bloku dėl {count} komiteto pakeitimų"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} balsavimas bloku",
+      "few": "{count} balsavimai bloku",
+      "many": "{count} balsavimo bloku",
+      "other": "{count} balsavimų bloku"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} atskiras pakeitimas",
-      "few": "{count} atskiri pakeitimai",
-      "many": "{count} atskiro pakeitimo",
-      "other": "{count} atskirų pakeitimų"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} dėl {count} komiteto pakeitimo",
+      "few": "{votes} dėl {count} komiteto pakeitimų",
+      "many": "{votes} dėl {count} komiteto pakeitimo",
+      "other": "{votes} dėl {count} komiteto pakeitimų"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "iš jų {count} vienodas",
-      "few": "iš jų {count} vienodi",
-      "many": "iš jų {count} vienodo",
-      "other": "iš jų {count} vienodų"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} pakeitimas",
+      "few": "{count} pakeitimai",
+      "many": "{count} pakeitimo",
+      "other": "{count} pakeitimų"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} iš jų – dublikatas",
+      "few": "{count} iš jų – dublikatai",
+      "many": "{count} iš jų – dublikato",
+      "other": "{count} iš jų – dublikatų"
     }
   },
   "lv": {
@@ -10280,25 +10347,30 @@
       "other": "{count} runātāji",
       "zero": "{count} runātāju"
     },
-    "dossierstatus.voting_list.block": {
-      "zero": "balsojums blokā par {count} komitejas grozījumiem",
-      "one": "balsojums blokā par {count} komitejas grozījumu",
-      "other": "balsojums blokā par {count} komitejas grozījumiem"
+    "dossierpage.events": {
+      "zero": "{count} notikumu",
+      "one": "{count} notikums",
+      "other": "{count} notikumi"
     },
-    "dossierstatus.voting_list.blocks": {
-      "zero": "balsojumi blokā par {count} komitejas grozījumiem",
-      "one": "balsojumi blokā par {count} komitejas grozījumu",
-      "other": "balsojumi blokā par {count} komitejas grozījumiem"
+    "dossierstatus.answer.vote.block_votes": {
+      "zero": "{count} bloka balsojumu",
+      "one": "{count} bloka balsojums",
+      "other": "{count} bloka balsojumi"
     },
-    "dossierstatus.voting_list.individual": {
-      "zero": "{count} atsevišķu grozījumu",
-      "one": "{count} atsevišķs grozījums",
-      "other": "{count} atsevišķi grozījumi"
+    "dossierstatus.answer.vote.block": {
+      "zero": "{votes} par {count} komitejas grozījumiem",
+      "one": "{votes} par {count} komitejas grozījumu",
+      "other": "{votes} par {count} komitejas grozījumiem"
     },
-    "dossierstatus.voting_list.identical": {
-      "zero": "no tiem {count} identisku",
-      "one": "no tiem {count} identisks",
-      "other": "no tiem {count} identiski"
+    "dossierstatus.answer.vote.individual": {
+      "zero": "{count} grozījumu",
+      "one": "{count} grozījums",
+      "other": "{count} grozījumi"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "zero": "{count} no tiem ir dublikāti",
+      "one": "{count} no tiem ir dublikāts",
+      "other": "{count} no tiem ir dublikāti"
     }
   },
   "mt": {
@@ -11209,33 +11281,40 @@
       "few": "{count} kelliema",
       "many": "{count}-il kelliem"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "votazzjoni f’blokk dwar emendi tal-kumitat: {count}",
-      "two": "votazzjoni f’blokk dwar emendi tal-kumitat: {count}",
-      "few": "votazzjoni f’blokk dwar emendi tal-kumitat: {count}",
-      "many": "votazzjoni f’blokk dwar emendi tal-kumitat: {count}",
-      "other": "votazzjoni f’blokk dwar emendi tal-kumitat: {count}"
+    "dossierpage.events": {
+      "one": "{count} avveniment",
+      "two": "{count} avvenimenti",
+      "few": "{count} avvenimenti",
+      "many": "{count} avveniment",
+      "other": "{count} avveniment"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "votazzjonijiet f’blokk dwar emendi tal-kumitat: {count}",
-      "two": "votazzjonijiet f’blokk dwar emendi tal-kumitat: {count}",
-      "few": "votazzjonijiet f’blokk dwar emendi tal-kumitat: {count}",
-      "many": "votazzjonijiet f’blokk dwar emendi tal-kumitat: {count}",
-      "other": "votazzjonijiet f’blokk dwar emendi tal-kumitat: {count}"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} vot f’blokk",
+      "two": "{count} voti f’blokk",
+      "few": "{count} voti f’blokk",
+      "many": "{count} vot f’blokk",
+      "other": "{count} vot f’blokk"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "emendi individwali: {count}",
-      "two": "emendi individwali: {count}",
-      "few": "emendi individwali: {count}",
-      "many": "emendi individwali: {count}",
-      "other": "emendi individwali: {count}"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} fuq {count} emenda tal-kumitat",
+      "two": "{votes} fuq {count} emendi tal-kumitat",
+      "few": "{votes} fuq {count} emendi tal-kumitat",
+      "many": "{votes} fuq {count} emenda tal-kumitat",
+      "other": "{votes} fuq {count} emenda tal-kumitat"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "minnhom, identiċi: {count}",
-      "two": "minnhom, identiċi: {count}",
-      "few": "minnhom, identiċi: {count}",
-      "many": "minnhom, identiċi: {count}",
-      "other": "minnhom, identiċi: {count}"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} emenda",
+      "two": "{count} emendi",
+      "few": "{count} emendi",
+      "many": "{count} emenda",
+      "other": "{count} emenda"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} minnhom huwa duplikat",
+      "two": "{count} minnhom huma duplikati",
+      "few": "{count} minnhom huma duplikati",
+      "many": "{count} minnhom huma duplikati",
+      "other": "{count} minnhom huma duplikati"
     }
   },
   "nl": {
@@ -11839,21 +11918,25 @@
       "one": "{count} spreker",
       "other": "{count} sprekers"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "een stemming en bloc over {count} commissieamendement",
-      "other": "een stemming en bloc over {count} commissieamendementen"
+    "dossierpage.events": {
+      "one": "{count} gebeurtenis",
+      "other": "{count} gebeurtenissen"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "stemmingen en bloc over {count} commissieamendement",
-      "other": "stemmingen en bloc over {count} commissieamendementen"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} blokstemming",
+      "other": "{count} blokstemmingen"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} afzonderlijk amendement",
-      "other": "{count} afzonderlijke amendementen"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} over {count} commissieamendement",
+      "other": "{votes} over {count} commissieamendementen"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "waarvan {count} identiek",
-      "other": "waarvan {count} identiek"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} amendement",
+      "other": "{count} amendementen"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} daarvan is een dubbel",
+      "other": "{count} daarvan zijn dubbels"
     }
   },
   "pl": {
@@ -12652,29 +12735,35 @@
       "many": "{count} mówców",
       "other": "{count} mówcy"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "głosowanie łączne nad {count} poprawką komisji",
-      "few": "głosowanie łączne nad {count} poprawkami komisji",
-      "many": "głosowanie łączne nad {count} poprawkami komisji",
-      "other": "głosowanie łączne nad {count} poprawki komisji"
+    "dossierpage.events": {
+      "one": "{count} zdarzenie",
+      "few": "{count} zdarzenia",
+      "many": "{count} zdarzeń",
+      "other": "{count} zdarzenia"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "głosowania łączne nad {count} poprawką komisji",
-      "few": "głosowania łączne nad {count} poprawkami komisji",
-      "many": "głosowania łączne nad {count} poprawkami komisji",
-      "other": "głosowania łączne nad {count} poprawki komisji"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} głosowanie blokowe",
+      "few": "{count} głosowania blokowe",
+      "many": "{count} głosowań blokowych",
+      "other": "{count} głosowania blokowego"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} odrębna poprawka",
-      "few": "{count} odrębne poprawki",
-      "many": "{count} odrębnych poprawek",
-      "other": "{count} odrębnej poprawki"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} nad {count} poprawką komisji",
+      "few": "{votes} nad {count} poprawkami komisji",
+      "many": "{votes} nad {count} poprawkami komisji",
+      "other": "{votes} nad {count} poprawki komisji"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "w tym {count} identyczna",
-      "few": "w tym {count} identyczne",
-      "many": "w tym {count} identycznych",
-      "other": "w tym {count} identycznej"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} poprawka",
+      "few": "{count} poprawki",
+      "many": "{count} poprawek",
+      "other": "{count} poprawki"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} z nich to duplikat",
+      "few": "{count} z nich to duplikaty",
+      "many": "{count} z nich to duplikaty",
+      "other": "{count} z nich to duplikaty"
     }
   },
   "pt": {
@@ -13360,25 +13449,30 @@
       "many": "{count} de oradores",
       "other": "{count} oradores"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "uma votação em bloco de {count} alteração da comissão",
-      "many": "uma votação em bloco de {count} de alterações da comissão",
-      "other": "uma votação em bloco de {count} alterações da comissão"
+    "dossierpage.events": {
+      "one": "{count} evento",
+      "many": "{count} de eventos",
+      "other": "{count} eventos"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "votações em bloco de {count} alteração da comissão",
-      "many": "votações em bloco de {count} de alterações da comissão",
-      "other": "votações em bloco de {count} alterações da comissão"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} votação em bloco",
+      "many": "{count} de votações em bloco",
+      "other": "{count} votações em bloco"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} alteração individual",
-      "many": "{count} de alterações individuais",
-      "other": "{count} alterações individuais"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} sobre {count} alteração da comissão",
+      "many": "{votes} sobre {count} de alterações da comissão",
+      "other": "{votes} sobre {count} alterações da comissão"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "das quais {count} idêntica",
-      "many": "das quais {count} idênticas",
-      "other": "das quais {count} idênticas"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} alteração",
+      "many": "{count} de alterações",
+      "other": "{count} alterações"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} delas é um duplicado",
+      "many": "{count} delas são duplicados",
+      "other": "{count} delas são duplicados"
     }
   },
   "ro": {
@@ -14064,25 +14158,30 @@
       "few": "{count} vorbitori",
       "other": "{count} de vorbitori"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "un vot în bloc pentru {count} amendament al comisiei",
-      "few": "un vot în bloc pentru {count} amendamente ale comisiei",
-      "other": "un vot în bloc pentru {count} de amendamente ale comisiei"
+    "dossierpage.events": {
+      "one": "{count} eveniment",
+      "few": "{count} evenimente",
+      "other": "{count} de evenimente"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "voturi în bloc pentru {count} amendament al comisiei",
-      "few": "voturi în bloc pentru {count} amendamente ale comisiei",
-      "other": "voturi în bloc pentru {count} de amendamente ale comisiei"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} vot în bloc",
+      "few": "{count} voturi în bloc",
+      "other": "{count} de voturi în bloc"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} amendament individual",
-      "few": "{count} amendamente individuale",
-      "other": "{count} de amendamente individuale"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} pentru {count} amendament al comisiei",
+      "few": "{votes} pentru {count} amendamente ale comisiei",
+      "other": "{votes} pentru {count} de amendamente ale comisiei"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "dintre care {count} identic",
-      "few": "dintre care {count} identice",
-      "other": "dintre care {count} identice"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} amendament",
+      "few": "{count} amendamente",
+      "other": "{count} de amendamente"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} dintre ele este un duplicat",
+      "few": "{count} dintre ele sunt duplicate",
+      "other": "{count} dintre ele sunt duplicate"
     }
   },
   "sk": {
@@ -14893,29 +14992,35 @@
       "many": "{count} rečníka",
       "other": "{count} rečníkov"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "hlasovanie en bloc o {count} pozmeňujúcom návrhu výboru",
-      "few": "hlasovanie en bloc o {count} pozmeňujúcich návrhoch výboru",
-      "many": "hlasovanie en bloc o {count} pozmeňujúcich návrhoch výboru",
-      "other": "hlasovanie en bloc o {count} pozmeňujúcich návrhoch výboru"
+    "dossierpage.events": {
+      "one": "{count} udalosť",
+      "few": "{count} udalosti",
+      "many": "{count} udalosti",
+      "other": "{count} udalostí"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "hlasovania en bloc o {count} pozmeňujúcom návrhu výboru",
-      "few": "hlasovania en bloc o {count} pozmeňujúcich návrhoch výboru",
-      "many": "hlasovania en bloc o {count} pozmeňujúcich návrhoch výboru",
-      "other": "hlasovania en bloc o {count} pozmeňujúcich návrhoch výboru"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} blokové hlasovanie",
+      "few": "{count} blokové hlasovania",
+      "many": "{count} blokového hlasovania",
+      "other": "{count} blokových hlasovaní"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} samostatný pozmeňujúci návrh",
-      "few": "{count} samostatné pozmeňujúce návrhy",
-      "many": "{count} samostatného pozmeňujúceho návrhu",
-      "other": "{count} samostatných pozmeňujúcich návrhov"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} o {count} pozmeňujúcom návrhu výboru",
+      "few": "{votes} o {count} pozmeňujúcich návrhoch výboru",
+      "many": "{votes} o {count} pozmeňujúcich návrhoch výboru",
+      "other": "{votes} o {count} pozmeňujúcich návrhoch výboru"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "z toho {count} totožný",
-      "few": "z toho {count} totožné",
-      "many": "z toho {count} totožného",
-      "other": "z toho {count} totožných"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} pozmeňujúci návrh",
+      "few": "{count} pozmeňujúce návrhy",
+      "many": "{count} pozmeňujúceho návrhu",
+      "other": "{count} pozmeňujúcich návrhov"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} z nich je duplicitný",
+      "few": "{count} z nich sú duplicitné",
+      "many": "{count} z nich sú duplicitné",
+      "other": "{count} z nich sú duplicitné"
     }
   },
   "sl": {
@@ -15726,29 +15831,35 @@
       "few": "{count} govorci",
       "other": "{count} govorcev"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "skupno glasovanje o {count} predlogu spremembe odbora",
-      "two": "skupno glasovanje o {count} predlogih sprememb odbora",
-      "few": "skupno glasovanje o {count} predlogih sprememb odbora",
-      "other": "skupno glasovanje o {count} predlogih sprememb odbora"
+    "dossierpage.events": {
+      "one": "{count} dogodek",
+      "two": "{count} dogodka",
+      "few": "{count} dogodki",
+      "other": "{count} dogodkov"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "skupna glasovanja o {count} predlogu spremembe odbora",
-      "two": "skupna glasovanja o {count} predlogih sprememb odbora",
-      "few": "skupna glasovanja o {count} predlogih sprememb odbora",
-      "other": "skupna glasovanja o {count} predlogih sprememb odbora"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} glasovanje v bloku",
+      "two": "{count} glasovanji v bloku",
+      "few": "{count} glasovanja v bloku",
+      "other": "{count} glasovanj v bloku"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} posamezen predlog spremembe",
-      "two": "{count} posamezna predloga sprememb",
-      "few": "{count} posamezni predlogi sprememb",
-      "other": "{count} posameznih predlogov sprememb"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} o {count} predlogu spremembe odbora",
+      "two": "{votes} o {count} predlogih sprememb odbora",
+      "few": "{votes} o {count} predlogih sprememb odbora",
+      "other": "{votes} o {count} predlogih sprememb odbora"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "od tega {count} enak",
-      "two": "od tega {count} enaka",
-      "few": "od tega {count} enaki",
-      "other": "od tega {count} enakih"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} predlog spremembe",
+      "two": "{count} predloga sprememb",
+      "few": "{count} predlogi sprememb",
+      "other": "{count} predlogov sprememb"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} med njimi je dvojnik",
+      "two": "{count} med njimi sta dvojnika",
+      "few": "{count} med njimi so dvojniki",
+      "other": "{count} med njimi so dvojniki"
     }
   },
   "sv": {
@@ -16352,21 +16463,25 @@
       "one": "{count} talare",
       "other": "{count} talare"
     },
-    "dossierstatus.voting_list.block": {
-      "one": "en gemensam omröstning om {count} utskottsändringsförslag",
-      "other": "en gemensam omröstning om {count} utskottsändringsförslag"
+    "dossierpage.events": {
+      "one": "{count} händelse",
+      "other": "{count} händelser"
     },
-    "dossierstatus.voting_list.blocks": {
-      "one": "gemensamma omröstningar om {count} utskottsändringsförslag",
-      "other": "gemensamma omröstningar om {count} utskottsändringsförslag"
+    "dossierstatus.answer.vote.block_votes": {
+      "one": "{count} blockomröstning",
+      "other": "{count} blockomröstningar"
     },
-    "dossierstatus.voting_list.individual": {
-      "one": "{count} enskilt ändringsförslag",
-      "other": "{count} enskilda ändringsförslag"
+    "dossierstatus.answer.vote.block": {
+      "one": "{votes} om {count} utskottsändringsförslag",
+      "other": "{votes} om {count} utskottsändringsförslag"
     },
-    "dossierstatus.voting_list.identical": {
-      "one": "varav {count} identiskt",
-      "other": "varav {count} identiska"
+    "dossierstatus.answer.vote.individual": {
+      "one": "{count} ändringsförslag",
+      "other": "{count} ändringsförslag"
+    },
+    "dossierstatus.answer.vote.duplicates": {
+      "one": "{count} av dem är en dubblett",
+      "other": "{count} av dem är dubbletter"
     }
   }
 }

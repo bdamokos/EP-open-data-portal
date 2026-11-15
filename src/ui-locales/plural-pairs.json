@@ -480,26 +480,6 @@
     "count": "count"
   },
   {
-    "one": "dossierstatus.voting_list.block.one",
-    "other": "dossierstatus.voting_list.block",
-    "count": "count"
-  },
-  {
-    "one": "dossierstatus.voting_list.blocks.one",
-    "other": "dossierstatus.voting_list.blocks",
-    "count": "count"
-  },
-  {
-    "one": "dossierstatus.voting_list.individual.one",
-    "other": "dossierstatus.voting_list.individual",
-    "count": "count"
-  },
-  {
-    "one": "dossierstatus.voting_list.identical.one",
-    "other": "dossierstatus.voting_list.identical",
-    "count": "count"
-  },
-  {
     "one": "week.coming.others.one",
     "other": "week.coming.others",
     "count": "count"
@@ -527,6 +507,31 @@
   {
     "one": "week.speakers.one",
     "other": "week.speakers",
+    "count": "count"
+  },
+  {
+    "one": "dossierpage.events.one",
+    "other": "dossierpage.events",
+    "count": "count"
+  },
+  {
+    "one": "dossierstatus.answer.vote.block_votes.one",
+    "other": "dossierstatus.answer.vote.block_votes",
+    "count": "count"
+  },
+  {
+    "one": "dossierstatus.answer.vote.block.one",
+    "other": "dossierstatus.answer.vote.block",
+    "count": "count"
+  },
+  {
+    "one": "dossierstatus.answer.vote.individual.one",
+    "other": "dossierstatus.answer.vote.individual",
+    "count": "count"
+  },
+  {
+    "one": "dossierstatus.answer.vote.duplicates.one",
+    "other": "dossierstatus.answer.vote.duplicates",
     "count": "count"
   }
 ]

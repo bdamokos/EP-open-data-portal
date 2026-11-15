@@ -9,14 +9,6 @@ export function resolutionStage(vote) {
   return vote?.outcome==='ADOPTED'?'resolution-adopted':'unknown';
 }
 
-/** Which sentence a held voting list takes. With nothing to say there is none. */
-export function votingListLineId(counts) {
-  if(!counts)return null;
-  const stem='dossierstatus.voting_list.',identical=counts.identical>0;
-  if(counts.blockAmendments>0)return stem+(counts.individual>0?(identical?'block_then_identical':'block_then'):'block_only');
-  return counts.individual>0?stem+(identical?'individual_identical':'individual_line'):null;
-}
-
 /** Merge the Council, signature and Journal events the client reads later.
  * Ordinary legislative files recompute; other families keep the server's stage.
  */
@@ -73,4 +65,37 @@ export function dossierStatusLines({stage,steps=[],councilApproval=null,latest=n
       return labelled?{sentence:{id:'dossierstatus.latest',values:{label:labelled.label,labelLanguage:labelled.labelLanguage||null,date:labelled.date}},next:null}:{sentence:null,next:null};
     }
   }
+}
+
+/** The Publications Office's forecast of Parliament's vote, when it is still ahead. */
+export function projectedPlenaryVote(cellarEvents=[],asOf) {
+  return cellarEvents.filter(event=>event.status==='projected'&&event.date&&event.date>=asOf&&(event.types||[]).some(type=>code(type.code||type.id)==='VOTE_byEP')).map(event=>event.date).sort()[0]||null;
+}
+/** Which plain line the voting list takes on the dossier page. With nothing to say there is none. */
+export function votingListAnswerId(counts) {
+  if(!counts)return null;
+  const stem='dossierstatus.answer.vote.',duplicates=counts.identical>0;
+  if(counts.blockAmendments>0)return stem+(counts.individual>0?(duplicates?'block_then_duplicates':'block_then'):'block_only');
+  return counts.individual>0?stem+(duplicates?'individual_duplicates':'individual_only'):null;
+}
+/** The dossier page's labelled lines: Now, Next and Earlier. Next names the
+ * plenary day when the agenda or the Publications Office holds it. Earlier
+ * states a held tally the Now line does not already carry.
+ */
+export function dossierAnswerLines(input) {
+  const {sentence,next}=dossierStatusLines(input),{stage,steps=[],slots={},cellarEvents=[],asOf}=input;
+  const stepDate=key=>steps.find(step=>step.key===key)?.date||null,vote=slots.mainVote||null;
+  let nextLine=null;
+  if(next){
+    const plenary=next.id==='dossierstatus.next_plenary_vote'||next.id==='dossierstatus.next_plenary_vote_on';
+    if(plenary){
+      const date=slots.plenaryDate||projectedPlenaryVote(cellarEvents,asOf),deal=stage==='deal';
+      nextLine={id:'dossierstatus.answer.next_'+(deal?'deal_vote':'plenary_vote')+(date?'_on':''),values:date?{date}:undefined};
+    }else nextLine={id:next.id.replace('dossierstatus.next_','dossierstatus.answer.next_')};
+  }
+  let earlier=null;
+  const tally=vote?.date&&hasTally(vote)&&vote.outcome!=='REJECTED'?vote.totals:null;
+  if(tally&&stage==='deal'&&vote.date===stepDate('parliament'))earlier={id:'dossierstatus.answer.earlier_position',values:{date:vote.date,tally}};
+  else if(tally&&['council-approved','signed','journal'].includes(stage)&&vote.date===stepDate('final'))earlier={id:'dossierstatus.final_vote',values:{date:vote.date,tally}};
+  return {now:sentence,next:nextLine,earlier};
 }

@@ -4,7 +4,6 @@ import {topicsHref} from './topicPresentation.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {FollowDossierButton} from './DossierControls';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
-import type {DossierStatusResponse} from '../server/dossier-status-model.mjs';
 import {FindInText} from './TextSearch';
 import {useInsightData} from './InsightData';
 import {humanDate} from './InsightCharts';
@@ -12,38 +11,24 @@ import './TopicContext.css';
 import {AmendmentTrailLink} from './AmendmentTrailLink';
 import {SourceLink} from './SourceLink';
 import {ProcedureProgress} from './ProcedureProgress';
-import {DossierStatus} from './DossierStatus';
 import {PressMentions} from './PressMentions';
 import {summaryStage,compoundLanguage} from './terms.mjs';
 
 export type OfficialTopic={id:string;label:string;language:string};
-type Context={reference:string;title:string;language:string;summaries:{id:string;stage:string;date:string|null;documentReference?:string|null}[];summary:null|{id:string;stage:string;date:string;blocks:{kind:string;text:string}[];method:string|null;source:{url:string}};subjects:{code:string;label:string}[];topics:OfficialTopic[];source:{url:string}};
+export type ProcedureContextResponse={reference:string;title:string;language:string;purpose?:string|null;summaries:{id:string;stage:string;date:string|null;documentReference?:string|null}[];summary:null|{id:string;stage:string;date:string;blocks:{kind:string;text:string}[];method:string|null;source:{url:string}};subjects:{code:string;label:string}[];topics:OfficialTopic[];source:{url:string}};
 
 export function ProcedureContext({reference,language='en',onTopic,showTitle=false,showIdentity=true,initialSummary='',children,fallbackTitle}:{reference:string;language?:string;onTopic?:(topic:OfficialTopic)=>void;showTitle?:boolean;showIdentity?:boolean;initialSummary?:string;children?:ReactNode;fallbackTitle?:{title:string;titleLanguage:string|null}|null}) {
   const ui = useUiI18n();
   const [summary,setSummary]=useState(initialSummary),[expanded,setExpanded]=useState(false),summaryText=useRef<HTMLDivElement>(null);
   useEffect(()=>{setSummary(initialSummary);setExpanded(false);},[reference,initialSummary]);
   const params=new URLSearchParams({reference,lang:language});if(summary)params.set('summary',summary);
-  const {data,loading,error,status,code}=useInsightData<Context>('insights/procedure-context?'+params);
+  const {data,loading,error,status,code}=useInsightData<ProcedureContextResponse>('insights/procedure-context?'+params);
   // The Legislative Observatory has no file under this reference: no link leads there.
   const officialMissing=!data&&!loading&&status===404&&code==='official_source_not_found';
-  // Parliament's own procedure record is missing too, so nothing on the page can describe the file.
-  const [recordMissing,setRecordMissing]=useState(false);
-  const unknown=officialMissing&&recordMissing&&!fallbackTitle;
-  // The dossier page takes its title from the status read it needs anyway (one
-  // shared request), so the heading never waits for the Legislative Observatory.
-  const held=useInsightData<DossierStatusResponse>(showTitle&&children ? 'insights/dossier-status?'+new URLSearchParams({reference,lang:language}) : null).data;
-  const heldTitle=held?.reference===reference&&held.title ? {title:held.title,titleLanguage:held.titleLanguage} : null;
-  const read=heldTitle||(data ? ({title:data.title,titleLanguage:data.language}) : null);
-  // Whichever title this language's reads give first stays, so a later source never swaps the heading.
-  // The activity's title may belong to the previous language, so it shows only until a read answers.
-  const shownTitle=useRef<{reference:string;language:string;title:NonNullable<typeof read>}|null>(null);
-  if(shownTitle.current&&(shownTitle.current.reference!==reference||shownTitle.current.language!==language))shownTitle.current=null;
-  if(!shownTitle.current&&read)shownTitle.current={reference,language,title:read};
-  const title=shownTitle.current?.title||read||fallbackTitle;
+  const title=data ? ({title:data.title,titleLanguage:data.language}) : fallbackTitle;
   const identity=showIdentity&&<div className="insight-dossier-title">
     {showTitle&&title&&<h2 lang={title.titleLanguage??''}>{title.title}</h2>}
-    <div className="dossier-identity-row"><p lang="">{reference}</p>{(!showTitle||!loading||Boolean(heldTitle))&&!unknown&&<FollowDossierButton reference={reference} title={title?.title} titleLanguage={title?.titleLanguage}/>}</div>
+    <div className="dossier-identity-row"><p lang="">{reference}</p>{(!showTitle||!loading)&&<FollowDossierButton reference={reference} title={title?.title} titleLanguage={title?.titleLanguage}/>}</div>
   </div>;
   const press=<PressMentions key={'press:'+reference+':'+language} reference={reference} language={language} limit={showTitle ? 5 : 3}/>;
   const amendmentLink=<AmendmentTrailLink procedure={reference} language={language}><UiMessage id="batch5.procedurecontext.tsx.27.68"/></AmendmentTrailLink>;
@@ -58,20 +43,6 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
     {data.topics.length>0&&<div className="insight-official-topics"><h4><UiMessage id="batch4.questiontopics.tsx.topics"/> </h4><div>{data.topics.map(topic=>onTopic ? <button key={topic.id} lang={topic.language??''} onClick={()=>onTopic(topic)}>{topic.label} <span aria-hidden="true">↗</span></button> : <SourceLink key={topic.id} url={topic.id} language={language} contentLanguage={topic.language??''}>{topic.label}</SourceLink>)}</div></div>}
     {data.subjects.length>0&&<section className="insight-subject-classification" aria-label={ui.t("procedurecontext.subject_classification.eaa65a")}><h4><UiMessage id="procedurecontext.subject_classification.eaa65a"/></h4><ul>{data.subjects.map(subject=><li key={subject.code} lang={data.language??''}><a onClick={dossierLinkClick} href={topicsHref('oeil:'+subject.code)}>{subject.label}</a></li>)}</ul></section>}
   </>;
-  // The dossier page answers first and keeps one tree, so nothing remounts when the context arrives.
-  if(showTitle&&children)return <section lang={ui.language} className="insight-procedure-context" data-procedure-context-pending={(!data && loading && (!fallbackTitle)) ? "true" : undefined}>
-    {identity}{recordTopics}{!unknown&&amendmentLink}
-    <DossierStatus reference={reference} language={language} summaries={data?.summaries} votingList officialMissing={officialMissing} onMissing={setRecordMissing}/>
-    {summaryBlock}
-    {data&&!data.summary&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
-    {!data&&loading&&<p role="status"><UiMessage id="batch5.procedurecontext.tsx.28.69"/></p>}
-    {!data&&!loading&&error&&!unknown&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
-    <ProcedureProgress key={reference+':'+language} reference={reference} language={language} proposalDate={proposalDate} timeline/>
-    {!unknown&&children}
-    {press}
-    {classification}
-    {data&&!data.summary&&!data.topics.length&&!data.subjects.length&&<a href={data.source.url} target="_blank" rel="noreferrer"><UiMessage id="procedurecontext.open_procedure_file.41bcb5"/></a>}
-  </section>;
   if(!data)return <section lang={ui.language} className="insight-procedure-context insight-procedure-fallback" data-procedure-context-pending={(loading && (!fallbackTitle)) ? "true" : undefined}>{identity}{amendmentLink}{children}<ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>{loading&&<p role="status"><UiMessage id="batch5.procedurecontext.tsx.28.69"/></p>}{press}{!loading&&error&&<p>{officialMissing ? <UiMessage id="procedurecontext.summary_unavailable.9f4198"/> : <a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.28.70"/></a>}</p>}</section>;
   return <section lang={ui.language} className="insight-procedure-context">{recordTopics}
     {identity}{amendmentLink}{children}

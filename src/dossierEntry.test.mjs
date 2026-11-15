@@ -54,7 +54,7 @@ test('member Activities exact resolver link opens the real dossier inside App an
   const link=[...h.container.querySelectorAll('.dossier-work-links a')].find(node=>node.textContent==='Work on this dossier');assert(link);
   const origin=location.href;h.container.querySelector('main.explorer').scrollTop=400;h.container.querySelector('.explorer-profile-body').scrollTop=660;
   await h.click(link);assert.equal(new URL(location.href).searchParams.get('view'),'legislation');assert.equal(new URL(location.href).searchParams.get('dossier-person'),'257727');
-  assert.equal(h.container.querySelectorAll('.insight-dossier-title').length,1);assert.equal(h.container.querySelector('.insight-dossier-title h2').textContent,procedure.title);
+  assert.equal(h.container.querySelectorAll('.insight-dossier-title').length,1);assert.equal(h.container.querySelector('.insight-dossier-title h1').textContent,procedure.title);
   assert.equal(h.container.querySelectorAll('.explorer-tabs').length,0);
   await h.click(h.container.querySelector('.dossier-back'));assert.equal(location.href,origin);assert.equal(h.container.querySelector('.explorer-speech-toggle').getAttribute('aria-expanded'),'true');
   assert.equal(h.container.querySelector('main.explorer').scrollTop,400);assert.equal(h.container.querySelector('.explorer-profile-body').scrollTop,660);assert.equal(document.activeElement.textContent,'Work on this dossier');

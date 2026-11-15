@@ -94,9 +94,12 @@ export function useDossierReaderState<T>(name:string,initial:T):[T,Dispatch<SetS
 function destinationMounted() {
   const query=new URLSearchParams(window.location.search);
   if(query.get('view')==='legislation'&&query.get('pl-mode')==='dossier'){
-    const panel=document.querySelector<HTMLElement>('[data-dossier-reference]');
-    if(panel?.dataset.dossierReference!==query.get('dossier-ref')||panel.dataset.dossierPerson!==(query.get('dossier-person')||''))return false;
-    if((panel.dataset.dossierStage||'all')!==(query.get('dossier-stage')||'all')||(panel.dataset.dossierCommittee||'')!==(query.get('dossier-committee')||''))return false;
+    // The people panel mounts only once its row opens, so the page itself says which file is shown.
+    const page=document.querySelector<HTMLElement>('[data-dossier-page]'),panel=document.querySelector<HTMLElement>('[data-dossier-reference]');
+    if(page&&page.dataset.dossierPage!==query.get('dossier-ref'))return false;
+    if(!panel&&(!page||query.get('dossier-person')))return false;
+    if(panel&&(panel.dataset.dossierReference!==query.get('dossier-ref')||panel.dataset.dossierPerson!==(query.get('dossier-person')||'')))return false;
+    if(panel&&((panel.dataset.dossierStage||'all')!==(query.get('dossier-stage')||'all')||(panel.dataset.dossierCommittee||'')!==(query.get('dossier-committee')||'')))return false;
   }else if(query.get('view')==='legislation'&&query.get('pl-mode')==='vote'){
     if(document.querySelector<HTMLElement>('[data-vote-page]')?.dataset.votePage!==query.get('pl-vote'))return false;
   }else if(query.get('view')==='legislation'&&query.get('pl-mode')==='read'){
@@ -138,7 +141,7 @@ export function useDossierJourney() {
           const target=saved.focus?document.querySelector<HTMLElement>(saved.focus):null;target?.focus({preventScroll:true});
         }else{
           const person=new URLSearchParams(window.location.search).get('dossier-person');
-          const heading=(person?document.querySelector<HTMLElement>('[data-dossier-reference] h3'):null)||document.querySelector<HTMLElement>('.insight-dossier-title h2')||document.querySelector<HTMLElement>('[data-dossier-reference] h3')||document.querySelector<HTMLElement>('main h1');
+          const heading=(person?document.querySelector<HTMLElement>('[data-dossier-reference] h3'):null)||document.querySelector<HTMLElement>('.insight-dossier-title :is(h1,h2)')||document.querySelector<HTMLElement>('[data-dossier-reference] h3')||document.querySelector<HTMLElement>('main h1');
           if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});journeyScrollTarget(heading).scrollIntoView({block:'start'});}
         }
         pending=null;destination=null;
