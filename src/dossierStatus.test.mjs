@@ -89,6 +89,47 @@ test('a deal names its vote day, the voting list in plain words and the earlier 
   assert.equal(lines.Earlier,'Parliament set its position on Apr 29, 2026: 526 for, 56 against, 69 abstaining.');
   assert.equal(view.container.querySelector('.dossier-step-count p').textContent,'Step 7 of 9: Deal votedAll steps');
 });
+const dealFixture={reference:'2025/0207(COD)',indexEvents:[{had_activity_type:'COMMITTEE_ADOPTING_REPORT',activity_date:'2026-04-15'},{had_activity_type:'PLENARY_REFER_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS',activity_date:'2026-04-29'},{had_activity_type:'COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT',activity_date:'2026-09-10'}],cellarEvents:[],summaries:[]};
+const scrollInside=view=>act(async()=>{const inner=view.container.querySelector('.dossier-rows');inner.dispatchEvent(new window.Event('scroll',{bubbles:false}));await new Promise(resolve=>setTimeout(resolve,20));});
+test('a scroll inside the page, whose scroll events do not bubble, loads the rows near it',async t=>{
+  const view=await mount(t,dealFixture.reference,{
+    'dossier-status':()=>Response.json(statusFor(dealFixture,{},{stage:'deal',title:'Chemicals',titleLanguage:'en'})),
+    'procedure-progress':()=>Response.json({reference:dealFixture.reference,language:'en',state:'unmapped',dossier:null,events:[],coverage,source}),
+    'procedure-context':()=>Response.json(contextFor(dealFixture)),
+    'press-releases':()=>Response.json({reference:dealFixture.reference,total:1,items:[{id:'pr1',url:'https://www.europarl.europa.eu/news/en/press-room/x',title:'Deal on chemicals',titleLanguage:'en',publishedAt:'2026-09-10T10:00:00Z',links:[]}]}),
+    'record-topics':()=>Response.json({ready:true,records:[]}),
+  });
+  assert(!view.calls.includes('press-releases'),'nothing before the reader scrolls');
+  await scrollInside(view);await view.settle();
+  assert(view.calls.includes('press-releases'));
+  assert.deepEqual(view.rows().find(row=>row[0]==='Press releases'),['Press releases','1']);
+});
+test('a vote day the Publications Office gives after the status fills in the Next line',async t=>{
+  let progress;const progressRead=new Promise(resolve=>{progress=resolve;});
+  const fixture={...dealFixture,cellarEvents:[{id:'v',date:'2099-11-12',dates:['2099-11-12'],status:'projected',types:[{code:'VOTE_byEP'}]}]};
+  const view=await mount(t,fixture.reference,{
+    'dossier-status':()=>Response.json(statusFor(fixture,{plenaryDate:null},{stage:'deal',title:'Chemicals',titleLanguage:'en'})),
+    'procedure-progress':()=>progressRead.then(()=>Response.json(progressFor(fixture))),
+    'procedure-context':()=>Response.json(contextFor(fixture)),
+  });
+  const next=()=>view.container.querySelector('.dossier-status-next').textContent;
+  assert.equal(next(),'Parliament votes on the deal.');
+  const now=view.container.querySelector('.dossier-status-sentence').textContent;
+  await act(async()=>progress());await view.settle();
+  assert.equal(next(),'Parliament votes on the deal on Thursday 12 November.');
+  assert.equal(view.container.querySelector('.dossier-status-sentence').textContent,now,'the Now line stays');
+});
+test('Parliament own topics keep the Topics row when the Observatory has none',async t=>{
+  const view=await mount(t,dealFixture.reference,{
+    'dossier-status':()=>Response.json(statusFor(dealFixture,{},{stage:'deal',title:'Chemicals',titleLanguage:'en'})),
+    'procedure-progress':()=>Response.json({reference:dealFixture.reference,language:'en',state:'unmapped',dossier:null,events:[],coverage,source}),
+    'procedure-context':()=>Response.json({error:{code:'official_source_not_found',message:'Missing'}},{status:404}),
+    'record-topics':()=>Response.json({ready:true,records:[{id:'2025-0207',status:'ready',topics:[{key:'eurovoc:1',label:'chemical product',language:'en'}],places:[],keywords:[]}]}),
+  });
+  assert(!view.rows().some(row=>row[0]==='Topics'));
+  await scrollInside(view);await view.settle();
+  assert.deepEqual(view.rows().find(row=>row[0]==='Topics'),['Topics',null]);
+});
 test('the strip renders at once, Cellar steps fill in, and nothing says Checking',async t=>{
   let answer;const deferred=new Promise(resolve=>{answer=resolve;});
   const view=await mount(t,fisheries.reference,{

@@ -77,7 +77,9 @@ export function DossierStatus({reference,language,summaries,votingList=false,lab
   if(shown.current?.key!==key)shown.current=null;
   // Only a sentence the held status backs is kept; one from the Publications Office alone gives way when a retried status arrives.
   if(!shown.current&&status&&lines.sentence)shown.current={key,lines};
-  const {sentence,next,answer}=shown.current?.lines||lines;
+  const {sentence,next}=shown.current?.lines||lines;
+  // The labelled Next line follows the latest reads: a vote day the Publications Office gives later fills it in.
+  const answer={...(shown.current?.lines||lines).answer,next:lines.answer.next};
   const settled=!state.loading&&!progress.loading;
   const failed=settled&&(!sentence||!known);
   const missing=procedureNotFound(state);

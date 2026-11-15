@@ -9,6 +9,7 @@ import {summaryStage,compoundLanguage} from './terms.mjs';
 import {weekHref} from './weekAddress.mjs';
 import type {DossierStatusResponse} from '../server/dossier-status-model.mjs';
 import type {DossierReference} from './DossierActivityTypes';
+import type {RecordTopic} from './TopicsTypes';
 import {FoldRow} from './FoldRow';
 import {PageStrip,StripLink} from './PageStrip';
 import {PersonName} from './PersonName';
@@ -93,13 +94,14 @@ export function DossierPage({reference,language,onTopic}:{reference:string;langu
     const node=rows.current;if(!node)return;
     let observer:IntersectionObserver|null=null;
     const arm=()=>{
-      window.removeEventListener('scroll',arm);
+      document.removeEventListener('scroll',arm,{capture:true});
       if(typeof IntersectionObserver==='undefined'){setNear(true);return;}
       observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))setNear(true);},{rootMargin:'0px 0px 300px 0px'});
       observer.observe(node);
     };
-    window.addEventListener('scroll',arm,{passive:true});
-    return ()=>{window.removeEventListener('scroll',arm);observer?.disconnect();};
+    // The page scrolls inside its main element, whose scroll events do not bubble: listen in the capture phase.
+    document.addEventListener('scroll',arm,{capture:true,passive:true});
+    return ()=>{document.removeEventListener('scroll',arm,{capture:true});observer?.disconnect();};
   },[near,Boolean(context)||!loading]);
   const press=usePressMentions(reference,language,near);
 
@@ -113,11 +115,15 @@ export function DossierPage({reference,language,onTopic}:{reference:string;langu
     <div className="insight-summary-footer">{blocks.length>2&&<button onClick={()=>setExpanded(value=>!value)} aria-expanded={expanded}>{expanded ? <UiMessage id="procedurecontext.show_less.4c852b"/> : <UiMessage id="procedurecontext.continue_reading.4f4840"/>}</button>}<small><span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(context.language)}</span>{context.summary.method ? (' · '+context.summary.method) : ''}</small></div>
   </div>;
   const topicCount=context ? (context.topics.length||context.subjects.length) : 0;
-  const recordTopics=<RecordTopics id={reference.replace(/^(\d{4})\/(\d{4}[A-Z]?).*$/,'$1-$2')} full language={language}/>;
-  const topics=context&&<>
+  const recordId=reference.replace(/^(\d{4})\/(\d{4}[A-Z]?).*$/,'$1-$2');
+  const recordTopics=<RecordTopics id={recordId} full language={language}/>;
+  // Parliament's own topics, places and keywords stand on their own when the Observatory holds none.
+  const record=useInsightData<{ready:boolean;records:RecordTopic[]}>(near ? 'insights/record-topics?'+new URLSearchParams({ids:recordId,lang:language}) : null).data?.records?.[0];
+  const recordHeld=Boolean(record&&(record.topics.length||record.places.length||record.keywords.length));
+  const topics=<>
     {recordTopics}
-    {context.topics.length>0&&<div className="insight-official-topics"><div>{context.topics.map(topic=>onTopic ? <button key={topic.id} lang={topic.language??''} onClick={()=>onTopic(topic)}>{topic.label} <span aria-hidden="true">↗</span></button> : <SourceLink key={topic.id} url={topic.id} language={language} contentLanguage={topic.language??''}>{topic.label}</SourceLink>)}</div></div>}
-    {context.subjects.length>0&&<section className="insight-subject-classification" aria-label={ui.t("procedurecontext.subject_classification.eaa65a")}><h4><UiMessage id="procedurecontext.subject_classification.eaa65a"/></h4><ul>{context.subjects.map(subject=><li key={subject.code} lang={context.language??''}><a onClick={dossierLinkClick} href={topicsHref('oeil:'+subject.code)}>{subject.label}</a></li>)}</ul></section>}
+    {context&&context.topics.length>0&&<div className="insight-official-topics"><div>{context.topics.map(topic=>onTopic ? <button key={topic.id} lang={topic.language??''} onClick={()=>onTopic(topic)}>{topic.label} <span aria-hidden="true">↗</span></button> : <SourceLink key={topic.id} url={topic.id} language={language} contentLanguage={topic.language??''}>{topic.label}</SourceLink>)}</div></div>}
+    {context&&context.subjects.length>0&&<section className="insight-subject-classification" aria-label={ui.t("procedurecontext.subject_classification.eaa65a")}><h4><UiMessage id="procedurecontext.subject_classification.eaa65a"/></h4><ul>{context.subjects.map(subject=><li key={subject.code} lang={context.language??''}><a onClick={dossierLinkClick} href={topicsHref('oeil:'+subject.code)}>{subject.label}</a></li>)}</ul></section>}
   </>;
   const reservePurpose=!purpose&&proposalFamily(reference)&&loading&&!context;
   const pending=!title&&!unknown&&(loading||heldRead.loading);
@@ -137,7 +143,7 @@ export function DossierPage({reference,language,onTopic}:{reference:string;langu
       <FoldRow id="people" title={<UiMessage id="dossierpage.people"/>} value={people??undefined} open={peopleOpen} onOpenChange={setPeopleOpen} preload={near}>
         <DossierActivity key={'activity:'+reference+':'+language} reference={reference} language={language} onProcedure={setMetadata} onPeople={setPeople}/>
       </FoldRow>
-      {topicCount>0&&<FoldRow title={<UiMessage id="batch4.questiontopics.tsx.topics"/>} value={topicCount} preload={near}>{topics}</FoldRow>}
+      {(topicCount>0||recordHeld)&&<FoldRow title={<UiMessage id="batch4.questiontopics.tsx.topics"/>} value={topicCount||undefined} preload={near}>{topics}</FoldRow>}
       {press>0&&<FoldRow title={<UiMessage id="dossierpage.press"/>} value={press}><PressMentions reference={reference} language={language} limit={5}/></FoldRow>}
       {events>0&&<FoldRow title={<UiMessage id="dossierpage.timeline"/>} value={<UiMessage id="dossierpage.events" values={{count:events}} counts={{count:events}}/>}><ProcedureProgress key={reference+':'+language} reference={reference} language={language} proposalDate={proposalDate} timeline inRow/></FoldRow>}
     </div>}
