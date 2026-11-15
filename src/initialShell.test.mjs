@@ -66,6 +66,7 @@ test('the startup script preloads the plenary view code named by the build, only
   const content='./assets/Legislation-a1.js ./assets/ProcedureContext-b2.js ./assets/Legislation-c3.css https://example.test/x.js ./assets/../x.js';
   for(const [query,expected] of [
     ['?view=legislation&pl-mode=dossier&dossier-ref=2025%2F0207%28COD%29',[['modulepreload','./assets/Legislation-a1.js',null],['modulepreload','./assets/ProcedureContext-b2.js',null],['preload','./assets/Legislation-c3.css','style']]],
+    ['?view=legislation&pl-mode=read&doc=A-10-2026-0001',[]],
     ['?view=questions',[]],
     ['',[]],
   ])await t.test(query||'(members)',t=>{

@@ -34,12 +34,13 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
   // shared request), so the heading never waits for the Legislative Observatory.
   const held=useInsightData<DossierStatusResponse>(showTitle&&children ? 'insights/dossier-status?'+new URLSearchParams({reference,lang:language}) : null).data;
   const heldTitle=held?.reference===reference&&held.title ? {title:held.title,titleLanguage:held.titleLanguage} : null;
-  const latest=heldTitle||(data ? ({title:data.title,titleLanguage:data.language}) : fallbackTitle);
-  // Whichever title shows first stays, so a later source never swaps the heading.
-  const shownTitle=useRef<{reference:string;language:string;title:NonNullable<typeof latest>}|null>(null);
+  const read=heldTitle||(data ? ({title:data.title,titleLanguage:data.language}) : null);
+  // Whichever title this language's reads give first stays, so a later source never swaps the heading.
+  // The activity's title may belong to the previous language, so it shows only until a read answers.
+  const shownTitle=useRef<{reference:string;language:string;title:NonNullable<typeof read>}|null>(null);
   if(shownTitle.current&&(shownTitle.current.reference!==reference||shownTitle.current.language!==language))shownTitle.current=null;
-  if(!shownTitle.current&&latest)shownTitle.current={reference,language,title:latest};
-  const title=shownTitle.current?.title||latest;
+  if(!shownTitle.current&&read)shownTitle.current={reference,language,title:read};
+  const title=shownTitle.current?.title||read||fallbackTitle;
   const identity=showIdentity&&<div className="insight-dossier-title">
     {showTitle&&title&&<h2 lang={title.titleLanguage??''}>{title.title}</h2>}
     <div className="dossier-identity-row"><p lang="">{reference}</p>{(!showTitle||!loading||Boolean(heldTitle))&&!unknown&&<FollowDossierButton reference={reference} title={title?.title} titleLanguage={title?.titleLanguage}/>}</div>

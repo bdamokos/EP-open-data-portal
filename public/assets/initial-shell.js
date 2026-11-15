@@ -2,8 +2,9 @@
 (function () {
   // Fetch the view's lazy code next to the entry, not after it runs. The build
   // names the files; a page without the list preloads nothing.
-  var preload = document.querySelector('meta[name="view-preload"]');
-  if (preload && new URLSearchParams(window.location.search).get('view') === preload.dataset.view) {
+  var preload = document.querySelector('meta[name="view-preload"]'), startup = new URLSearchParams(window.location.search);
+  // The document reader shares the view parameter but not its code.
+  if (preload && startup.get('view') === preload.dataset.view && startup.get('pl-mode') !== 'read') {
     preload.content.split(' ').forEach(function (href) {
       if (!/^\.\/assets\/[\w.-]+\.(?:js|css)$/.test(href)) return;
       var link = document.createElement('link');

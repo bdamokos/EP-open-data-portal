@@ -13,7 +13,7 @@ const progressFor=fixture=>({reference:fixture.reference,language:'en',state:'ma
 const statusFor=(fixture,slots={},extra={})=>({version:1,reference:fixture.reference,family:'COD',steps:[],stage:'unknown',indexEvents:fixture.indexEvents,slots,...extra});
 const contextFor=fixture=>({reference:fixture.reference,title:'A dossier',language:'en',summaries:fixture.summaries.map((row,index)=>({id:String(index),...row})),summary:{id:'0',stage:'proposal',date:'2025-07-16',blocks:[{kind:'p',text:'One'},{kind:'p',text:'Two'},{kind:'p',text:'Three'}],method:null,source:{url:'u'}},subjects:[],topics:[{id:'t',label:'A topic',language:'en'}],source:{url:'https://oeil.europarl.europa.eu/x'}});
 
-async function mount(t,reference,handlers) {
+async function mount(t,reference,handlers,props={}) {
   const window=new Window({url:'http://localhost/?view=legislation&pl-mode=dossier'});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -29,10 +29,11 @@ async function mount(t,reference,handlers) {
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {ProcedureContext}=await loadModule('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  await act(async()=>root.render(createElement(ProcedureContext,{reference,language:'en',showTitle:true},createElement('div',{id:'people'},'People'))));
+  const render=extra=>act(async()=>root.render(createElement(ProcedureContext,{reference,language:'en',showTitle:true,...props,...extra},createElement('div',{id:'people'},'People'))));
+  await render();
   const settle=()=>act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
   await settle();
-  return {container,calls,settle,steps:()=>[...container.querySelectorAll('.dossier-steps>li')].map(row=>[row.dataset.state,row.textContent.replace('✓','')])};
+  return {container,calls,settle,render,steps:()=>[...container.querySelectorAll('.dossier-steps>li')].map(row=>[row.dataset.state,row.textContent.replace('✓','')])};
 }
 const before=(a,b)=>Boolean(a.compareDocumentPosition(b)&4);
 
@@ -102,6 +103,17 @@ test('the title comes with the status, and late sources rewrite neither the titl
   assert.equal(container.querySelector('.dossier-status-sentence').textContent,sentence,'and leaves the sentence as shown');
   assert.equal(heading(),'Erasmus+ from the procedure record','the Observatory title does not replace it');
   assert.equal(view.calls.filter(name=>name==='dossier-status').length,1,'title and status share one read');
+});
+test('a language change takes the new language title, not the activity title of the previous one',async t=>{
+  const view=await mount(t,erasmus.reference,{
+    'dossier-status':url=>Response.json(statusFor(erasmus,{},{stage:'position-talks',title:url.searchParams.get('lang')==='fr'?'Erasmus+ (fr)':'Erasmus+ (en)',titleLanguage:url.searchParams.get('lang')})),
+    'procedure-progress':()=>Response.json(progressFor(erasmus)),
+    'procedure-context':()=>Response.json(contextFor(erasmus)),
+  },{fallbackTitle:{title:'Erasmus+ (en, from the activity)',titleLanguage:'en'}});
+  const heading=()=>view.container.querySelector('.insight-dossier-title h2')?.textContent;
+  assert.equal(heading(),'Erasmus+ (en)');
+  await view.render({language:'fr'});await view.settle();
+  assert.equal(heading(),'Erasmus+ (fr)');
 });
 test('a failed Cellar read leaves the index steps with no message',async t=>{
   const {container,steps}=await mount(t,erasmus.reference,{
