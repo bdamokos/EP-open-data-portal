@@ -161,7 +161,8 @@ test('production server serves HTTP during a two-second real activity writer ite
   await waitFor(()=>output.includes('listening on')&&existsSync(`${marker}.ready`));
   const request=()=>new Promise((resolve,reject)=>{
     const started=performance.now();
-    http.get({host:'127.0.0.1',port,path:'/healthz'},response=>{
+    // A stalled server must fail the test, not hold the test process open.
+    http.get({host:'127.0.0.1',port,path:'/healthz',signal:AbortSignal.timeout(10000)},response=>{
       response.resume();response.once('end',()=>{
         assert.equal(response.statusCode,200);resolve(performance.now()-started);
       });
@@ -200,7 +201,7 @@ test('a cold HTTP sitting read reaches the production worker collector high-prio
   await waitFor(()=>output.includes('listening on')&&existsSync(`${marker}.ready`));
   assert.equal(existsSync(marker),false,'collector has no foreground hint before HTTP');
   await new Promise((resolve,reject)=>{
-    http.get({host:'127.0.0.1',port,path:`/api/member-votes/${SNAPSHOT_MEMBER}?sitting=${SNAPSHOT_SITTING}`},response=>{
+    http.get({host:'127.0.0.1',port,path:`/api/member-votes/${SNAPSHOT_MEMBER}?sitting=${SNAPSHOT_SITTING}`,signal:AbortSignal.timeout(10000)},response=>{
       let body='';response.on('data',chunk=>body+=chunk);response.once('end',()=>{
         try{assert.equal(response.statusCode,200,body);assert(JSON.parse(body).items.length>0);resolve();}catch(error){reject(error);}
       });

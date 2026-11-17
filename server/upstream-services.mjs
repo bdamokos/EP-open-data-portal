@@ -11,8 +11,11 @@ export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregrou
 export const UPSTREAM_SOURCES=Object.freeze(['wikidata','odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu','https://data.consilium.europa.eu']);
 
 // Each call builds an independent set of queues; a process normally holds one (see defaultUpstreamServices).
-export function createUpstreamServices() {
-  const pacing=odpPacing(process.env.ODP_REQUEST_MODE||'normal');
+// Tests that replay recorded responses pass paced:false: concurrency, priorities and quotas
+// stay, but no request waits for a start interval meant to protect the real sources.
+export function createUpstreamServices({paced=true}={}) {
+  const pace=ms=>paced?ms:0;
+  const pacing=odpPacing(process.env.ODP_REQUEST_MODE||'normal');pacing.interval=pace(pacing.interval);
   const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing,backgroundPacing:pacing.mode==='backfill'});
   const observations=new OdpObservations({queue:()=>({...upstreamQueue.quotaSnapshot(),mode:pacing.mode}),onResponse:status=>upstreamQueue.recordResponse(status)});
   const odpObservations=()=>observations.snapshot();
@@ -36,9 +39,9 @@ export function createUpstreamServices() {
   }
   function localSourceQueue(source,{backgroundRank=0}={}) {
     assertUpstreamSource(source);
-    if(!sourceQueues.has(source))sourceQueues.set(source,wireCollectorAdmission(new UpstreamQueue(source==='wikidata'?{interval:1000,maximum:1,backgroundMaximum:1}:source==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:source==='https://publications.europa.eu'?{rateLimit:{maximum:500,windowMs:300_000,foregroundReserve:100},interval:750,adaptive:true,backgroundPacing:true}:{})));
+    if(!sourceQueues.has(source))sourceQueues.set(source,wireCollectorAdmission(new UpstreamQueue(source==='wikidata'?{interval:pace(1000),maximum:1,backgroundMaximum:1}:source==='https://oeil.europarl.europa.eu'?{interval:pace(1000),maximum:1,backgroundMaximum:1}:source==='https://publications.europa.eu'?{rateLimit:{maximum:500,windowMs:300_000,foregroundReserve:100},interval:pace(750),adaptive:true,backgroundPacing:true}:{})));
     const queue=sourceQueues.get(source);
-    if(source==='odp'&&backgroundRank>0&&!queue.adaptive){const mode=odpPacing('backfill');Object.assign(pacing,mode);queue.adaptive=true;queue.backgroundPacing=true;queue.interval=Math.max(queue.interval,mode.interval);queue.minimumInterval=queue.interval;}
+    if(source==='odp'&&backgroundRank>0&&!queue.adaptive){const mode=odpPacing('backfill');mode.interval=pace(mode.interval);Object.assign(pacing,mode);queue.adaptive=true;queue.backgroundPacing=true;queue.interval=Math.max(queue.interval,mode.interval);queue.minimumInterval=queue.interval;}
     return queue;
   }
   return {observations,odpObservations,odpHeaderStatus,startOdpMonitoring,assertUpstreamSource,localSourceQueue,
@@ -50,7 +53,7 @@ export function createUpstreamServices() {
 // that never loads odp.mjs creates its set on first use.
 let defaultServices;
 export const defaultUpstreamServices=()=>defaultServices??=createUpstreamServices();
+// First adoption wins, so a test can install its set before odp.mjs loads.
 export function adoptUpstreamServices(services) {
-  defaultServices??=services;
-  return services;
+  return defaultServices??=services;
 }

@@ -1,3 +1,4 @@
+import './test-support/unpaced-upstream.mjs';
 import {resolutionBoundaryNative,boundaryParagraph} from '../scripts/fixtures/resolution-boundary-native.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
