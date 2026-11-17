@@ -6,6 +6,8 @@ import {parse} from 'acorn';
 // Preserve the original inventory's file admission rule, including re-exports
 // only when their file also contains a direct response-version declaration.
 const admitted = /\bexport\s+(?:const|let|var)\s+\w+_VERSION\b/;
+// Process-wide, so fresh module instances share it. Keyed by path, valid only for identical source.
+const parsedModules = globalThis[Symbol.for('parliament-explorer.api-contract.parsed')] ??= new Map();
 
 // Shared by server startup, the client build and inventory tests. Never execute
 // endpoint modules: imports can have side effects or depend on API_VERSION.
@@ -19,9 +21,17 @@ export function contractDigest(root) {
   function moduleInfo(file) {
     if (modules.has(file)) return modules.get(file);
     const source = readFileSync(file, 'utf8');
+    // Test harnesses evaluate fresh module instances many times per process; reuse the
+    // analysis of byte-identical source instead of parsing it again.
+    const cached = parsedModules.get(file);
+    if (cached?.source === source) {
+      modules.set(file, cached);
+      return cached;
+    }
     const ast = parse(source, {ecmaVersion:'latest', sourceType:'module'});
     const info = {source, locals:new Map(), exports:new Map(), stars:[]};
     modules.set(file, info);
+    parsedModules.set(file, info);
     function declaration(node, exported) {
       if (node.type === 'VariableDeclaration') {
         for (const item of node.declarations) {

@@ -14,7 +14,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test-and-build:
+  # The suite in four parallel parts: about two minutes each instead of six to eight in one job.
+  # Setup is about 20 seconds per part, so more parts would mostly repeat setup.
+  tests:
+    name: tests (${{ matrix.shard }}/4)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -27,11 +34,39 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: npm test
+      - run: npm test -- --test-shard=${{ matrix.shard }}/4
         env:
           ACTIVITY_INDEX_ENABLED: 'false'
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
       - run: npm run check
       - run: npm run build
+
+  # Release tooling requires this job by name: it succeeds only when every test part and the build did.
+  test-and-build:
+    needs: [tests, build]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require all test parts and the build
+        env:
+          TESTS: ${{ needs.tests.result }}
+          BUILD: ${{ needs.build.result }}
+        run: |
+          echo "tests: $TESTS, build: $BUILD"
+          [ "$TESTS" = success ] && [ "$BUILD" = success ]
 
   # Built natively on arm64, the production host's architecture. On main, the checked image is
   # kept as an artifact so a release can load it instead of building the same commit again.

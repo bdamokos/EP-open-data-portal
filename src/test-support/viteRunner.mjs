@@ -25,7 +25,9 @@ export async function freshLoader(options,{sharedServerKey}={}) {
   }
   const vite=await server;
   let runner;
-  try {runner=createServerModuleRunner(vite.environments.ssr,{hmr:false});}
+  // Source-mapped stacks make Node decode every evaluated module's map, which was about a tenth
+  // of frontend test CPU. TEST_SOURCE_MAPS=1 restores .tsx line numbers when debugging a failure.
+  try {runner=createServerModuleRunner(vite.environments.ssr,{hmr:false,sourcemapInterceptor:process.env.TEST_SOURCE_MAPS==='1'?'node':false});}
   catch(error) {if(isolated)await vite.close();throw error;}
   const load=path=>runner.import(path);
   load.close=async()=>{
