@@ -19,7 +19,7 @@ npm run build
 | `npm run test:server`, `test:frontend`, `-- --scripts` | One directory; combine with a profile, e.g. `npm run test:fast -- --server` |
 | `npm test -- path/to/file.test.mjs` | Named files only |
 
-`TEST_CONCURRENCY` and `TEST_TIMEOUT_MS` (default 120 s) override the runner. On a 4 GB machine, `npm test -- --max-old-space-size=1024` bounds each test process.
+`TEST_CONCURRENCY` and `TEST_TIMEOUT_MS` (default 120 s) override the runner. Frontend stack traces show transformed code; set `TEST_SOURCE_MAPS=1` to map them back to source lines. On a 4 GB machine, `npm test -- --max-old-space-size=1024` bounds each test process.
 
 - Outbound network is blocked in tests, including subprocesses; use fixtures or a mocked fetch.
 - Share Vite transform servers through `src/test-support/viteRunner.mjs` instead of creating one per test.
