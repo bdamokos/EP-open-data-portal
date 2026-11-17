@@ -11,9 +11,13 @@ export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregrou
 export const UPSTREAM_SOURCES=Object.freeze(['wikidata','odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu','https://data.consilium.europa.eu']);
 
 // Each call builds an independent set of queues; a process normally holds one (see defaultUpstreamServices).
-// Tests that replay recorded responses pass paced:false: concurrency, priorities and quotas
-// stay, but no request waits for a start interval meant to protect the real sources.
-export function createUpstreamServices({paced=true}={}) {
+// Tests that replay recorded responses call this before loading odp.mjs (see
+// test-support/unpaced-upstream.mjs). Concurrency, priorities and quotas stay, but no
+// request waits for a start interval meant to protect the real sources.
+let pacedByDefault=true;
+export function disableUpstreamPacingForTests() {pacedByDefault=false;}
+
+export function createUpstreamServices({paced=pacedByDefault}={}) {
   const pace=ms=>paced?ms:0;
   const pacing=odpPacing(process.env.ODP_REQUEST_MODE||'normal');pacing.interval=pace(pacing.interval);
   const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing,backgroundPacing:pacing.mode==='backfill'});
@@ -53,7 +57,7 @@ export function createUpstreamServices({paced=true}={}) {
 // that never loads odp.mjs creates its set on first use.
 let defaultServices;
 export const defaultUpstreamServices=()=>defaultServices??=createUpstreamServices();
-// First adoption wins, so a test can install its set before odp.mjs loads.
 export function adoptUpstreamServices(services) {
-  return defaultServices??=services;
+  defaultServices??=services;
+  return services;
 }
