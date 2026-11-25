@@ -7,7 +7,7 @@ import {identifiedPlenarySitting} from './plenary-calendar.mjs';
 import {brusselsMidnight} from './plenary-cache-policy.mjs';
 
 export const EBS_PLUS_URL='https://8hwk2cyeyb.execute-api.eu-west-1.amazonaws.com/parrotfish-prod/ebs/live/EBSPLUS';
-export const PLENARY_LIVE_VERSION='plenary-live-v2';
+export const PLENARY_LIVE_VERSION='plenary-live-v3';
 export const EBS_PLUS_CHANNEL='6082c9bb97ad8b2acf7fcc98';
 export const EBS_PLUS_EMBED='https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN';
 export const liveDebateUrl=day=>'https://www.europarl.europa.eu/plenary/en/getSpeakerListAndPlenaryMessages.html?dateSys='+day.replaceAll('-','');
@@ -82,22 +82,25 @@ export function scheduledAgenda(rows,day,now) {
   const sitting='MTG-PL-'+day,prefix=sitting+'-OJ-ITM-',byId=new Map(rows.map(row=>[tail(row.id),row]));
   const parts=rows.filter(row=>tail(row.had_activity_type)==='MEETING_PART'&&row.activity_id?.startsWith(sitting+'-TF-'));
   // The opening block of each half-day lists two ends: its own and the end of
-  // the half-day sitting. Its own end is the one where the next block starts.
-  const startOf=row=>new Set(list(row.activity_start_date).map(Date.parse).filter(Number.isFinite));
+  // the half-day sitting. Its own end is the earlier one, and only when another
+  // block has that instant as its single published start.
+  const singleStart=row=>{const starts=[...new Set(list(row.activity_start_date).map(Date.parse))];return starts.length===1&&Number.isFinite(starts[0])?starts[0]:NaN;};
   const ownEnd=(row,ends)=>{
-    if(ends.length<2)return ends;
-    const handover=ends.filter(end=>parts.some(other=>other!==row&&startOf(other).has(Date.parse(end))));
-    return handover.length===1?handover:ends;
+    const instants=[...new Set(ends.map(Date.parse))];
+    if(instants.length<2||!instants.every(Number.isFinite))return null;
+    const earliest=Math.min(...instants);
+    return parts.some(other=>other!==row&&singleStart(other)===earliest)?earliest:null;
   };
   const blocks=parts.flatMap(row=>{
-    const starts=[...new Set(list(row.activity_start_date))],ends=ownEnd(row,[...new Set(list(row.activity_end_date))]);
-    const parsedStarts=starts.map(Date.parse),parsedEnds=ends.map(Date.parse);
+    const starts=[...new Set(list(row.activity_start_date))],ends=[...new Set(list(row.activity_end_date))];
+    const handover=ownEnd(row,ends);
+    const parsedStarts=starts.map(Date.parse),parsedEnds=handover===null?ends.map(Date.parse):[handover];
     // Only discard a block when every published possibility rules out now.
     // Missing or conflicting timing must not make a competing block disappear.
     if(parsedStarts.length&&parsedStarts.every(start=>Number.isFinite(start)&&start>now)||parsedEnds.length&&parsedEnds.every(end=>Number.isFinite(end)&&end<=now))return [];
     const children=[...new Set(list(row.consists_of).map(tail))];
     const items=children.map(id=>byId.get(id)).filter(item=>item?.activity_id?.startsWith(prefix)&&item.activity_date===day&&['PLENARY_DEBATE','PLENARY_VOTE'].includes(tail(item.had_activity_type))).map(item=>({id:item.activity_id,titles:item.activity_label||{},kind:tail(item.had_activity_type)}));
-    const timingCertain=starts.length===1&&ends.length===1&&Number.isFinite(parsedStarts[0])&&Number.isFinite(parsedEnds[0])&&parsedEnds[0]>parsedStarts[0];
+    const timingCertain=starts.length===1&&parsedEnds.length===1&&Number.isFinite(parsedStarts[0])&&Number.isFinite(parsedEnds[0])&&parsedEnds[0]>parsedStarts[0];
     const childrenCertain=children.length===1&&items.length===1&&rows.filter(candidate=>tail(candidate.id)===children[0]).length===1;
     return [{id:row.activity_id,starts,ends,items,conflict:!timingCertain||!childrenCertain}];
   });
