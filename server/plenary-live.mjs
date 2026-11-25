@@ -80,8 +80,17 @@ export function liveBroadcast(programme,day,now) {
 export function scheduledAgenda(rows,day,now) {
   if(!Array.isArray(rows)||rows.length>100||rows.some(row=>!row||typeof row!=='object'))return {state:'unavailable',items:[]};
   const sitting='MTG-PL-'+day,prefix=sitting+'-OJ-ITM-',byId=new Map(rows.map(row=>[tail(row.id),row]));
-  const blocks=rows.filter(row=>tail(row.had_activity_type)==='MEETING_PART'&&row.activity_id?.startsWith(sitting+'-TF-')).flatMap(row=>{
-    const starts=[...new Set(list(row.activity_start_date))],ends=[...new Set(list(row.activity_end_date))];
+  const parts=rows.filter(row=>tail(row.had_activity_type)==='MEETING_PART'&&row.activity_id?.startsWith(sitting+'-TF-'));
+  // The opening block of each half-day lists two ends: its own and the end of
+  // the half-day sitting. Its own end is the one where the next block starts.
+  const startOf=row=>new Set(list(row.activity_start_date).map(Date.parse).filter(Number.isFinite));
+  const ownEnd=(row,ends)=>{
+    if(ends.length<2)return ends;
+    const handover=ends.filter(end=>parts.some(other=>other!==row&&startOf(other).has(Date.parse(end))));
+    return handover.length===1?handover:ends;
+  };
+  const blocks=parts.flatMap(row=>{
+    const starts=[...new Set(list(row.activity_start_date))],ends=ownEnd(row,[...new Set(list(row.activity_end_date))]);
     const parsedStarts=starts.map(Date.parse),parsedEnds=ends.map(Date.parse);
     // Only discard a block when every published possibility rules out now.
     // Missing or conflicting timing must not make a competing block disappear.
@@ -99,10 +108,14 @@ export function scheduledAgenda(rows,day,now) {
 
 // www.europarl.europa.eu answers 403 to other agent forms (see user-agent.mjs).
 export const liveSourceAgent=url=>new URL(url).hostname==='www.europarl.europa.eu'?browserCompatibleUserAgent('live plenary metadata'):userAgent('live plenary metadata');
+// EbS+ is not the Parliament website: it gets its own queue, so website
+// warm-up reads after a cold start cannot hold back the broadcast status.
+export const liveSource=url=>new URL(url).hostname==='www.europarl.europa.eu'?'website':'ebs';
 async function readJson(url,signal) {
+  const source=liveSource(url);
   return boundedUpstream(async()=>{
     const response=await fetch(url,{headers:{Accept:'application/json','User-Agent':liveSourceAgent(url)},redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(8000)])});
-    const limited=upstreamResponseError(response,{source:'website'});
+    const limited=upstreamResponseError(response,{source});
     if(limited){await response.body?.cancel();throw limited;}
     if(!response.ok||!/^application\/(?:[\w.+-]*\+)?json\b/i.test(response.headers.get('content-type')||'')){await response.body?.cancel();throw new Error('Live source unavailable.');}
     const reader=response.body.getReader();let bytes=0;const chunks=[];
@@ -111,7 +124,7 @@ async function readJson(url,signal) {
     // EbS+ answers an empty body when it lists no current programme.
     if(!bytes)return {};
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  },{source:'website',signal});
+  },{source,signal});
 }
 
 export class PlenaryLive {

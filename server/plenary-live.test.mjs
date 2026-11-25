@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {PlenaryLive,liveSourceAgent,EBS_PLUS_URL,liveDebateUrl,currentDebate,liveBroadcast,scheduledAgenda,brusselsTime,EBS_PLUS_CHANNEL,plenaryLiveCachePolicy,retainedSittingDates} from './plenary-live.mjs';
+import {PlenaryLive,liveSource,liveSourceAgent,EBS_PLUS_URL,liveDebateUrl,currentDebate,liveBroadcast,scheduledAgenda,brusselsTime,EBS_PLUS_CHANNEL,plenaryLiveCachePolicy,retainedSittingDates} from './plenary-live.mjs';
 
 const day='2026-10-20',now=Date.parse(day+'T07:10:00Z'),sitting='MTG-PL-'+day;
 const feed={currentDate:'20-10-2026',lastUpdate:'20-10-2026 - 09:10',type:'DEB',debateId:'D27530',currentTitle:'A published debate',plenaryMessages:null};
@@ -44,6 +44,8 @@ test('a Brussels plenary programme lists no transmissions and still plays',()=>{
 test('the Parliament website gets the agent form it accepts; EbS+ keeps the plain one',()=>{
   assert.match(liveSourceAgent(liveDebateUrl(day)),/^Mozilla\/5\.0 \(compatible; EP-OpenData-Explorer\//);
   assert.match(liveSourceAgent(EBS_PLUS_URL),/^EP-OpenData-Explorer\//);
+  assert.equal(liveSource(liveDebateUrl(day)),'website');
+  assert.equal(liveSource(EBS_PLUS_URL),'ebs','EbS+ does not wait behind website reads');
 });
 
 test('scheduled markers require one timed container and one exact agenda child; ambiguity is preserved',()=>{
@@ -56,6 +58,12 @@ test('scheduled markers require one timed container and one exact agenda child; 
     assert.equal(scheduledAgenda([block(),{...block([2]),activity_id:sitting+'-TF-0905',...timing},item(1),item(2)],day,now).state,'ambiguous','Uncertain competing block must remain visible');
   }
   assert.equal(scheduledAgenda([{...block(),activity_end_date:[day+'T10:30:00+02:00',day+'T11:50:00+02:00']},item(1)],day,now).state,'ambiguous');
+  // As published: the opening block also lists the end of the half-day sitting.
+  const opening={...block(),activity_end_date:[day+'T11:50:00+02:00',day+'T10:30:00+02:00']},next={...block([2],'10:30','11:50'),id:sitting+'-TF-1030',activity_id:sitting+'-TF-1030'};
+  assert.deepEqual(scheduledAgenda([opening,next,item(1),item(2)],day,now).items.map(i=>i.id),[sitting+'-OJ-ITM-D-1']);
+  assert.equal(scheduledAgenda([opening,next,item(1),item(2)],day,now).state,'presumed');
+  const later=scheduledAgenda([opening,next,item(1),item(2)],day,Date.parse(day+'T08:45:00Z'));
+  assert.equal(later.state,'presumed');assert.equal(later.items[0].id,sitting+'-OJ-ITM-D-2');
   assert.equal(scheduledAgenda([block(),{...block([2]),activity_id:sitting+'-TF-0905'},item(1),item(2)],day,now).state,'ambiguous');
   assert.equal(scheduledAgenda(null,day,now).state,'unavailable');
   assert.equal(scheduledAgenda([block(),{...item(1),activity_date:'2026-10-19'}],day,now).state,'ambiguous');
