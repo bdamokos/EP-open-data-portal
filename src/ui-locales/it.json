@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Votazione senza titolo",
   "membervoterecord.departures.range": "{start}–{end} di {total}",
   "membervoterecord.departures.more": "Mostra altro",
-  "membervoterecord.votesByWeek": "Votazioni per settimana"
+  "membervoterecord.votesByWeek": "Votazioni per settimana",
+  "plenarylive.tsx.voting.time": "Turno di votazioni · apri l’ordine del giorno di oggi"
 }

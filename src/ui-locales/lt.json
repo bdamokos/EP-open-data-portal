@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Balsavimas be pavadinimo",
   "membervoterecord.departures.range": "{start}–{end} iš {total}",
   "membervoterecord.departures.more": "Rodyti daugiau",
-  "membervoterecord.votesByWeek": "Balsavimai pagal savaitę"
+  "membervoterecord.votesByWeek": "Balsavimai pagal savaitę",
+  "plenarylive.tsx.voting.time": "Balsavimo laikas · atverti šiandienos darbotvarkę"
 }

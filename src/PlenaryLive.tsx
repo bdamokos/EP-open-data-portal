@@ -7,7 +7,7 @@ import {api} from './data';
 import {selectLanguageText} from './language.mjs';
 import './PlenaryLive.css';
 
-export type LiveState={status:'live'|'off-air'|'unavailable';checkedAt:string;validUntil:string;nextCheckAt?:string;current:{id:string;title:string;language:string;updatedAt:string;sourceUrl:string}|null;broadcast:{id:string;channel:string;title:string;embedUrl:string;websiteUrl:string;languages:string[]}|null;agenda:{state:'presumed'|'ambiguous'|'none'|'unavailable';sittingId?:string;items:{id:string;titles:Record<string,string>;kind:string}[]};sources:{url:string;fetchedAt:string;available:boolean}[]};
+export type LiveState={status:'live'|'off-air'|'unavailable';checkedAt:string;validUntil:string;nextCheckAt?:string;current:{id:string;title:string;language:string;updatedAt:string;sourceUrl:string}|null;broadcast:{id:string;channel:string;title:string;embedUrl:string;websiteUrl:string;languages:string[]}|null;agenda:{state:'presumed'|'votes'|'ambiguous'|'none'|'unavailable';sittingId?:string;items:{id:string;titles:Record<string,string>;kind:string}[]};sources:{url:string;fetchedAt:string;available:boolean}[]};
 type LiveContextValue={data:LiveState|null;fresh:boolean;open:()=>void;opened:boolean;setUiLanguage?:(language:string)=>void};
 const LiveContext=createContext<LiveContextValue>({data:null,fresh:false,open:()=>{},opened:false});
 export const usePlenaryLive=()=>useContext(LiveContext);
@@ -100,7 +100,7 @@ export function PlenaryLiveBanner({language='en'}:{language?:string}) {
   const item=(data.agenda.state==='presumed') ? data.agenda.items[0] : null;
   const label=item ? selectLanguageText(item.titles,language,item.id) : null;
   return <section className="plenary-live-banner" aria-label={ui.t("plenarylive.tsx.plenary.now")} lang={ui.language}>
-    <div><div className="plenary-live-eyebrow"><span className="plenary-live-dot"/>{data.broadcast ? ui.t("plenarylive.tsx.plenary.live") : ui.t("plenarylive.tsx.plenary.now")}<span><UiMessage id="plenarylive.tsx.updated.time.brussels" values={{time: clockText(data.current?.updatedAt||data.checkedAt)}}/></span></div><p title={data.current?.title||data.broadcast?.title}>{data.current?.title||data.broadcast?.title}</p>{item&&label&&<small><AgendaLink data={data} id={item.id}><UiMessage id="plenarylive.tsx.open.scheduled.agenda.item"/></AgendaLink></small>}{data.agenda.state==='ambiguous'&&<small><UiMessage id="plenarylive.tsx.current.agenda.item.unclear"/></small>}</div>
+    <div><div className="plenary-live-eyebrow"><span className="plenary-live-dot"/>{data.broadcast ? ui.t("plenarylive.tsx.plenary.live") : ui.t("plenarylive.tsx.plenary.now")}<span><UiMessage id="plenarylive.tsx.updated.time.brussels" values={{time: clockText(data.current?.updatedAt||data.checkedAt)}}/></span></div><p title={data.current?.title||data.broadcast?.title}>{data.current?.title||data.broadcast?.title}</p>{item&&label&&<small><AgendaLink data={data} id={item.id}><UiMessage id="plenarylive.tsx.open.scheduled.agenda.item"/></AgendaLink></small>}{data.agenda.state==='votes'&&<small><AgendaLink data={data}><UiMessage id="plenarylive.tsx.voting.time"/></AgendaLink></small>}{data.agenda.state==='ambiguous'&&<small><UiMessage id="plenarylive.tsx.current.agenda.item.unclear"/></small>}</div>
     {data.broadcast&&<button onClick={open}>{ui.t(opened ? 'plenarylive.tsx.show.player' : 'plenarylive.tsx.watch.live')}</button>}
   </section>;
 }

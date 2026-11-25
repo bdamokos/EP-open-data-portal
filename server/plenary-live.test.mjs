@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {PlenaryLive,liveSource,liveSourceAgent,EBS_PLUS_URL,liveDebateUrl,currentDebate,liveBroadcast,scheduledAgenda,brusselsTime,EBS_PLUS_CHANNEL,plenaryLiveCachePolicy,retainedSittingDates} from './plenary-live.mjs';
+import {PlenaryLive,ebsPlusGridUrl,gridProgramme,liveSource,liveSourceAgent,EBS_PLUS_URL,liveDebateUrl,currentDebate,liveBroadcast,scheduledAgenda,brusselsTime,EBS_PLUS_CHANNEL,plenaryLiveCachePolicy,retainedSittingDates} from './plenary-live.mjs';
 
 const day='2026-10-20',now=Date.parse(day+'T07:10:00Z'),sitting='MTG-PL-'+day;
 const feed={currentDate:'20-10-2026',lastUpdate:'20-10-2026 - 09:10',type:'DEB',debateId:'D27530',currentTitle:'A published debate',plenaryMessages:null};
@@ -72,6 +72,14 @@ test('scheduled markers require one timed container and one exact agenda child; 
   const unsure={...next,activity_start_date:[day+'T10:30:00+02:00',day+'T10:45:00+02:00']};
   assert.equal(scheduledAgenda([opening,unsure,item(1),item(2)],day,now).state,'ambiguous','A handover needs a single published start');
   assert.equal(scheduledAgenda([block(),{...block([2]),activity_id:sitting+'-TF-0905'},item(1),item(2)],day,now).state,'ambiguous');
+  const vote=n=>({...item(n),id:'eli/dl/event/'+sitting+'-OJ-ITM-V-'+n,activity_id:sitting+'-OJ-ITM-V-'+n,had_activity_type:'def/ep-activities/PLENARY_VOTE'});
+  const voting={...block(),consists_of:[1,2].map(n=>'eli/dl/event/'+sitting+'-OJ-ITM-V-'+n)};
+  assert.equal(scheduledAgenda([voting,vote(1),vote(2)],day,now).state,'votes','A timed block of votes is voting time');
+  assert.equal(scheduledAgenda([voting,vote(1),vote(2)],day,now).items.length,2);
+  assert.equal(scheduledAgenda([voting,vote(1)],day,now).state,'ambiguous','An unresolved vote leaves the block unclear');
+  assert.equal(scheduledAgenda([{...voting,consists_of:[...voting.consists_of,'eli/dl/event/'+sitting+'-OJ-ITM-D-1']},vote(1),vote(2),item(1)],day,now).state,'ambiguous','Votes mixed with a debate stay unclear');
+  assert.equal(scheduledAgenda([voting,{...block([1]),id:sitting+'-TF-0930',activity_id:sitting+'-TF-0930'},vote(1),vote(2),item(1)],day,now).state,'ambiguous','A competing block stays unclear');
+  assert.equal(scheduledAgenda([{...voting,activity_end_date:[]},vote(1),vote(2)],day,now).state,'ambiguous','Untimed votes stay unclear');
   assert.equal(scheduledAgenda(null,day,now).state,'unavailable');
   assert.equal(scheduledAgenda([block(),{...item(1),activity_date:'2026-10-19'}],day,now).state,'ambiguous');
 });
@@ -101,6 +109,25 @@ test('an empty EbS+ reply is off-air, bridged for two minutes after a live plena
   answer={};clock+=31_000;assert.equal((await service.snapshot()).status,'off-air','Coverage that EbS+ ended is not bridged back');
   const fresh=new PlenaryLive({clock:()=>now,read:async url=>url.includes('getSpeaker')?feed:{},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])});
   r=await fresh.snapshot();assert.equal(r.status,'off-air');assert.equal(r.current.id,'D27530','The debate feed still shows the sitting');
+});
+
+test('a press conference on EbS does not hide the plenary the EbS+ grid shows on air',async()=>{
+  const press={...programme,id:'6aff0a40930bce3f2c865efb',channelId:'60771dc55de36aa6eb4759c6',titles:[{language:'EN',content:'<p>EP Press Conference </p><p>Budget</p>'}]};
+  const earlier={...programme,id:'6acf44004cda7d4921da4b30',startDatetime:day+'T06:00:00Z'},later={...programme,id:'6acf44004cda7d4921da4b39',startDatetime:day+'T09:00:00Z'};
+  const onAir={...programme,transmissions:[{status:'PUBLISHED',media:{status:'PUBLISHED',locked:null,institutions:[{id:'2618'}]}}]};
+  const grid=[{date:'20261020',channel:{id:EBS_PLUS_CHANNEL,name:'EBS+'},programs:[earlier,onAir,later]}];
+  let debate=feed;const reads=[];
+  const service=new PlenaryLive({clock:()=>now,read:async url=>{reads.push(url);if(url.includes('getSpeaker'))return debate;return url===ebsPlusGridUrl(day)?grid:press;},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])});
+  const r=await service.snapshot();
+  assert.equal(r.status,'live');assert.equal(r.broadcast.id,programme.id,'The EbS+ programme that started last is on air');
+  assert(reads.includes(ebsPlusGridUrl(day)));assert(r.sources.some(source=>source.url===ebsPlusGridUrl(day)&&source.available));
+  assert.equal(gridProgramme(grid,Date.parse(day+'T05:00:00Z')),null,'Nothing is on air before the first slot');
+  debate=null;
+  const quiet=new PlenaryLive({clock:()=>now,read:async url=>url.includes('getSpeaker')?debate:url===ebsPlusGridUrl(day)?grid:press,readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])});
+  assert.equal((await quiet.snapshot()).status,'off-air','A grid slot without a sitting in progress is not live');
+  const direct=[];
+  await new PlenaryLive({clock:()=>now,read:async url=>{direct.push(url);return url.includes('getSpeaker')?feed:programme;},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])}).snapshot();
+  assert(!direct.includes(ebsPlusGridUrl(day)),'The grid is read only when the live endpoint shows another channel');
 });
 
 test('midnight cannot reuse the previous sitting or a stale live programme',async()=>{

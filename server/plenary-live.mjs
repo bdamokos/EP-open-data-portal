@@ -7,6 +7,8 @@ import {identifiedPlenarySitting} from './plenary-calendar.mjs';
 import {brusselsMidnight} from './plenary-cache-policy.mjs';
 
 export const EBS_PLUS_URL='https://8hwk2cyeyb.execute-api.eu-west-1.amazonaws.com/parrotfish-prod/ebs/live/EBSPLUS';
+// The day's EbS+ schedule, as shown on the broadcaster's grid page.
+export const ebsPlusGridUrl=day=>'https://8hwk2cyeyb.execute-api.eu-west-1.amazonaws.com/parrotfish-prod/ebs/grid?channelName=EBSPLUS&date='+day;
 export const PLENARY_LIVE_VERSION='plenary-live-v3';
 export const EBS_PLUS_CHANNEL='6082c9bb97ad8b2acf7fcc98';
 export const EBS_PLUS_EMBED='https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN';
@@ -71,10 +73,18 @@ export function liveBroadcast(programme,day,now) {
   if(typeof paragraphs[0]!=='string'||paragraphs[0].trim()!=='EP Plenary Session')return null;
   const transmissions=list(programme.transmissions);
   // Brussels sittings are published without transmissions; any that are listed must be the EP's own.
-  if(transmissions.some(t=>t?.status!=='PUBLISHED'||t.media?.status!=='PUBLISHED'||t.media?.locked!==false||!list(t.media?.institutions).some(i=>i?.id==='2618')))return null;
+  if(transmissions.some(t=>t?.status!=='PUBLISHED'||t.media?.status!=='PUBLISHED'||t.media?.locked===true||!list(t.media?.institutions).some(i=>i?.id==='2618')))return null;
   const languages=list(programme.languages).filter(l=>typeof l==='string'&&/^[A-Z]{2,3}$/.test(l)).slice(0,30);
   if(!languages.includes('EN'))return null;
   return {id:programme.id,channel:'EbS+',title:paragraphs.filter(p=>typeof p==='string').map(p=>p.trim()).join(' — '),language:'en',languages,start:stamp(start),embedUrl:EBS_PLUS_EMBED,websiteUrl:'https://audiovisual.ec.europa.eu/en/ebs/grid?ebs=no&ebsplus=yes',sourceUrl:EBS_PLUS_URL};
+}
+
+// The live endpoint names the newest live programme on any EbS channel, so a
+// press conference on EbS hides the plenary on EbS+. The grid lists the day's
+// EbS+ programmes with open-ended durations: the one on air started last.
+export function gridProgramme(grid,now) {
+  const programmes=list(list(grid).find(entry=>entry?.channel?.id===EBS_PLUS_CHANNEL)?.programs).filter(programme=>programme?.channelId===EBS_PLUS_CHANNEL&&Date.parse(programme.startDatetime)<=now+60_000);
+  return programmes.length>500?null:programmes.reduce((latest,programme)=>!latest||Date.parse(programme.startDatetime)>Date.parse(latest.startDatetime)?programme:latest,null);
 }
 
 export function scheduledAgenda(rows,day,now) {
@@ -101,12 +111,16 @@ export function scheduledAgenda(rows,day,now) {
     const children=[...new Set(list(row.consists_of).map(tail))];
     const items=children.map(id=>byId.get(id)).filter(item=>item?.activity_id?.startsWith(prefix)&&item.activity_date===day&&['PLENARY_DEBATE','PLENARY_VOTE'].includes(tail(item.had_activity_type))).map(item=>({id:item.activity_id,titles:item.activity_label||{},kind:tail(item.had_activity_type)}));
     const timingCertain=starts.length===1&&parsedEnds.length===1&&Number.isFinite(parsedStarts[0])&&Number.isFinite(parsedEnds[0])&&parsedEnds[0]>parsedStarts[0];
-    const childrenCertain=children.length===1&&items.length===1&&rows.filter(candidate=>tail(candidate.id)===children[0]).length===1;
-    return [{id:row.activity_id,starts,ends,items,conflict:!timingCertain||!childrenCertain}];
+    const childrenResolved=children.length===items.length&&children.every(id=>rows.filter(candidate=>tail(candidate.id)===id).length===1);
+    // Votes run in order within their block without times of their own: a
+    // timed block of votes only is voting time, not an unclear item.
+    const votes=timingCertain&&childrenResolved&&items.length>0&&items.every(item=>item.kind==='PLENARY_VOTE');
+    return [{id:row.activity_id,starts,ends,items,votes,conflict:!timingCertain||!childrenResolved||items.length!==1}];
   });
   const items=[...new Map(blocks.flatMap(block=>block.items).map(item=>[item.id,item])).values()];
   const unique=blocks.length===1&&!blocks[0].conflict&&items.length===1;
-  return {state:unique?'presumed':blocks.length?'ambiguous':'none',sittingId:sitting,items,blocks:blocks.map(({items,...block})=>block)};
+  const state=unique?'presumed':blocks.length===1&&blocks[0].votes?'votes':blocks.length?'ambiguous':'none';
+  return {state,sittingId:sitting,items,blocks:blocks.map(({items,votes,...block})=>block)};
 }
 
 // www.europarl.europa.eu answers 403 to other agent forms (see user-agent.mjs).
@@ -157,8 +171,10 @@ export class PlenaryLive {
           collect(EBS_PLUS_URL,()=>this.read(EBS_PLUS_URL,signal)),
           agenda()
         ]);
+        // Only when the live endpoint shows no EbS+ programme: read the EbS+ grid.
+        const grid=programme&&programme.channelId!==EBS_PLUS_CHANNEL?await collect(ebsPlusGridUrl(day),()=>this.read(ebsPlusGridUrl(day),signal)):null;
         signal.throwIfAborted();
-        this.saved={day,at:this.clock(),feed,programme,rows,sources};
+        this.saved={day,at:this.clock(),feed,programme,grid,rows,sources};
       },12_000).finally(()=>{this.pending=null;});
       try{await waitForRequest(this.pending);}catch{return {status:'unavailable',checkedAt:stamp(now),validUntil:stamp(now),nextCheckAt:stamp(now+CHECK_MS),current:null,broadcast:null,agenda:{state:'unavailable',items:[]},sources:[]};}
     }
@@ -169,8 +185,12 @@ export class PlenaryLive {
     // such a gap from a plenary seen live in the last two minutes; a failed read
     // or a different programme is never bridged.
     const bridged=saved.programme&&!saved.programme.id&&this.lastLive?.day===day&&saved.at-this.lastLive.at<=120_000;
-    const current=currentDebate(saved.feed,day,this.clock()),broadcast=liveBroadcast(bridged?this.lastLive.programme:saved.programme,day,this.clock());
-    if(broadcast&&!bridged)this.lastLive={day,at:saved.at,programme:saved.programme};
+    const current=currentDebate(saved.feed,day,this.clock());
+    // A grid slot is scheduled, not observed: it counts only while the debate feed shows a sitting in progress.
+    const scheduled=!bridged&&current&&saved.grid?gridProgramme(saved.grid,this.clock()):null;
+    const used=bridged?this.lastLive.programme:liveBroadcast(saved.programme,day,this.clock())?saved.programme:scheduled;
+    const broadcast=liveBroadcast(used,day,this.clock());
+    if(broadcast&&!bridged)this.lastLive={day,at:saved.at,programme:used};
     else if(saved.programme?.id&&!broadcast)this.lastLive=null; // EbS+ named another programme: coverage ended.
     let sittings=null;try{sittings=this.sittingDates(Number(day.slice(0,4)));}catch{/* No calendar: check as on a sitting day. */}
     // Only an observed off-air programme is quiet: a live broadcast or debate

@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Гласуване без заглавие",
   "membervoterecord.departures.range": "{start}–{end} от {total}",
   "membervoterecord.departures.more": "Покажи още",
-  "membervoterecord.votesByWeek": "Гласувания по седмици"
+  "membervoterecord.votesByWeek": "Гласувания по седмици",
+  "plenarylive.tsx.voting.time": "Време за гласуване · отваряне на днешния дневен ред"
 }

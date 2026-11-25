@@ -80,6 +80,12 @@ const timers=[],originalTimeout=globalThis.setTimeout;
   assert.equal(popup.opener,null,'The broadcaster page gets no handle on the explorer tab');
   assert.equal(popup.location.href,'https://audiovisual.ec.europa.eu/embed/ebsplus?language=EN');
   assert.equal(container.querySelector('.plenary-live-player'),null,'The popup takes over playback from the inline player');
+  payload.agenda={state:'votes',sittingId:'MTG-PL-2026-10-20',items:[{id:'MTG-PL-2026-10-20-OJ-ITM-V-1',titles:{en:'A vote'},kind:'PLENARY_VOTE'},{id:'MTG-PL-2026-10-20-OJ-ITM-V-2',titles:{en:'Another vote'},kind:'PLENARY_VOTE'}]};
+  await act(async()=>document.dispatchEvent(new window.Event('visibilitychange')));
+  const votes=container.querySelector('.plenary-live-banner small a');
+  assert(votes,'Voting time links to the sitting agenda');
+  assert.match(votes.getAttribute('href'),/agenda-period=sitting%3AMTG-PL-2026-10-20/);assert.doesNotMatch(votes.getAttribute('href'),/agenda-topic/);
+  assert.doesNotMatch(container.textContent,/unclear/);assert.equal(container.querySelector('.plenary-scheduled-now'),null,'No single vote is marked as scheduled now');
 });
 
 test('a quiet-day wait ends by the wall clock, even when a suspended machine holds the timer',async t=>{

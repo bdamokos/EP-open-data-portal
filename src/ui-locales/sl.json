@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Glasovanje brez naslova",
   "membervoterecord.departures.range": "{start}–{end} od {total}",
   "membervoterecord.departures.more": "Pokaži več",
-  "membervoterecord.votesByWeek": "Glasovanja po tednih"
+  "membervoterecord.votesByWeek": "Glasovanja po tednih",
+  "plenarylive.tsx.voting.time": "Čas glasovanja · odpri današnji dnevni red"
 }

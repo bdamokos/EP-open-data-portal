@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Hlasování bez názvu",
   "membervoterecord.departures.range": "{start}–{end} z {total}",
   "membervoterecord.departures.more": "Zobrazit další",
-  "membervoterecord.votesByWeek": "Hlasování podle týdnů"
+  "membervoterecord.votesByWeek": "Hlasování podle týdnů",
+  "plenarylive.tsx.voting.time": "Hlasování · otevřít dnešní pořad jednání"
 }

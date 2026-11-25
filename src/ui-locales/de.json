@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Abstimmung ohne Titel",
   "membervoterecord.departures.range": "{start}–{end} von {total}",
   "membervoterecord.departures.more": "Mehr anzeigen",
-  "membervoterecord.votesByWeek": "Abstimmungen nach Woche"
+  "membervoterecord.votesByWeek": "Abstimmungen nach Woche",
+  "plenarylive.tsx.voting.time": "Abstimmungsstunde · heutige Tagesordnung öffnen"
 }

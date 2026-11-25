@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Hlasovanie bez názvu",
   "membervoterecord.departures.range": "{start}–{end} z {total}",
   "membervoterecord.departures.more": "Zobraziť viac",
-  "membervoterecord.votesByWeek": "Hlasovania podľa týždňov"
+  "membervoterecord.votesByWeek": "Hlasovania podľa týždňov",
+  "plenarylive.tsx.voting.time": "Hlasovanie · otvoriť dnešný program"
 }

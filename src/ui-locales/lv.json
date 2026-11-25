@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Balsojums bez nosaukuma",
   "membervoterecord.departures.range": "{start}–{end} no {total}",
   "membervoterecord.departures.more": "Rādīt vairāk",
-  "membervoterecord.votesByWeek": "Balsojumi pa nedēļām"
+  "membervoterecord.votesByWeek": "Balsojumi pa nedēļām",
+  "plenarylive.tsx.voting.time": "Balsošanas laiks · atvērt šodienas darba kārtību"
 }
