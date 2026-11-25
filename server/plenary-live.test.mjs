@@ -69,6 +69,9 @@ test('scheduled markers require one timed container and one exact agenda child; 
   assert.equal(scheduledAgenda([sameInstant,next,item(1),item(2)],day,now).state,'presumed','One instant in two spellings is one end');
   const afternoon={...block([2],'11:50','13:00'),id:sitting+'-TF-1150',activity_id:sitting+'-TF-1150'};
   assert.equal(scheduledAgenda([opening,afternoon,item(1),item(2)],day,Date.parse(day+'T08:45:00Z')).state,'ambiguous','A later end matching a start does not settle an earlier one');
+  const three={...opening,activity_end_date:[...opening.activity_end_date,day+'T10:45:00+02:00']};
+  assert.equal(scheduledAgenda([three,next,item(1),item(2)],day,Date.parse(day+'T08:35:00Z')).state,'ambiguous','Three ends are not one handover');
+  assert.equal(scheduledAgenda([{...block(),activity_start_date:[day+'T09:00:00+02:00',day+'T07:00:00Z'],activity_end_date:[day+'T10:30:00+02:00',day+'T08:30:00Z']},item(1)],day,now).state,'presumed','One instant written two ways is one time');
   const unsure={...next,activity_start_date:[day+'T10:30:00+02:00',day+'T10:45:00+02:00']};
   assert.equal(scheduledAgenda([opening,unsure,item(1),item(2)],day,now).state,'ambiguous','A handover needs a single published start');
   assert.equal(scheduledAgenda([block(),{...block([2]),activity_id:sitting+'-TF-0905'},item(1),item(2)],day,now).state,'ambiguous');
@@ -128,6 +131,34 @@ test('a press conference on EbS does not hide the plenary the EbS+ grid shows on
   const direct=[];
   await new PlenaryLive({clock:()=>now,read:async url=>{direct.push(url);return url.includes('getSpeaker')?feed:programme;},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])}).snapshot();
   assert(!direct.includes(ebsPlusGridUrl(day)),'The grid is read only when the live endpoint shows another channel');
+});
+
+test('a grid slot is never bridged, never early, never cached as a quiet day, and cannot sink the other reads',async()=>{
+  const press={...programme,id:'6aff0a40930bce3f2c865efb',channelId:'60771dc55de36aa6eb4759c6',titles:[{language:'EN',content:'<p>EP Press Conference </p><p>Budget</p>'}]};
+  const other={...programme,id:'6acf44004cda7d4921da4b39',startDatetime:day+'T07:09:30Z',titles:[{language:'EN',content:'<p>Stockshots</p>'}]};
+  const grid=[{channel:{id:EBS_PLUS_CHANNEL},programs:[programme,{...other,startDatetime:day+'T07:10:30Z'}]}];
+  assert.equal(gridProgramme(grid,now).id,programme.id,'A slot thirty seconds ahead is not on air yet');
+  let clock=now,live=press,debate=feed,currentGrid=grid;
+  const service=new PlenaryLive({clock:()=>clock,read:async url=>url.includes('getSpeaker')?debate:url===ebsPlusGridUrl(day)?currentGrid:live,readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])});
+  assert.equal((await service.snapshot()).status,'live');
+  live={};debate=null;currentGrid=[{channel:{id:EBS_PLUS_CHANNEL},programs:[programme,other]}];clock+=31_000;
+  assert.equal((await service.snapshot()).status,'off-air','A grid inference is not bridged once the sitting stops');
+  const failing=new PlenaryLive({clock:()=>now,read:async url=>{if(url===ebsPlusGridUrl(day))throw new Error('offline');return url.includes('getSpeaker')?null:press;},readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set()});
+  const unknown=await failing.snapshot();
+  assert.equal(unknown.validUntil,new Date(now+75_000).toISOString(),'EbS+ unknown is not a quiet day');
+  let slow=now;
+  const budget=new PlenaryLive({clock:()=>slow,read:(url,signal)=>{
+    if(url.includes('getSpeaker'))return Promise.resolve(feed);
+    if(url!==ebsPlusGridUrl(day)){slow+=11_000;return Promise.resolve(press);}
+    return new Promise((resolve,reject)=>{if(signal.aborted)reject(signal.reason);signal.addEventListener('abort',()=>reject(signal.reason));});
+  },readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])});
+  const kept=await budget.snapshot();
+  assert.equal(kept.current.id,'D27530','A slow grid gives up before the shared budget');assert(kept.sources.some(source=>source.url===ebsPlusGridUrl(day)&&!source.available));
+  const inferred=await new PlenaryLive({clock:()=>now,read:async url=>url.includes('getSpeaker')?feed:url===ebsPlusGridUrl(day)?grid:press,readAgenda:async()=>({payload:{data:[]}}),sittingDates:()=>new Set([day])}).snapshot();
+  assert.equal(inferred.broadcast.sourceUrl,ebsPlusGridUrl(day),'A grid inference cites the grid');
+  assert.equal(liveBroadcast({...programme,transmissions:[{status:'PUBLISHED',media:{status:'PUBLISHED',locked:'true',institutions:[{id:'2618'}]}}]},day,now),null);
+  assert.equal(gridProgramme([{channel:{id:EBS_PLUS_CHANNEL},programs:Array.from({length:501},()=>({...other,startDatetime:day+'T23:00:00Z'}))}],now),null);
+  assert.equal(gridProgramme([{channel:{id:EBS_PLUS_CHANNEL},programs:[{...programme,startDatetime:{}}]}],now),null);
 });
 
 test('midnight cannot reuse the previous sitting or a stale live programme',async()=>{
