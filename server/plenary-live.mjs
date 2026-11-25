@@ -166,13 +166,18 @@ export class PlenaryLive {
             throw new Error('Agenda exceeds live-view bound.');
           }catch{sources.push({url:agendaUrl,fetchedAt:stamp(this.clock()),available:false});return null;}
         };
-        const [feed,programme,rows]=await Promise.all([
+        // Only when the live endpoint shows no EbS+ programme: read the EbS+ grid,
+        // alongside the other reads.
+        const broadcastRead=async()=>{
+          const programme=await collect(EBS_PLUS_URL,()=>this.read(EBS_PLUS_URL,signal));
+          const grid=programme&&programme.channelId!==EBS_PLUS_CHANNEL?await collect(ebsPlusGridUrl(day),()=>this.read(ebsPlusGridUrl(day),signal)):null;
+          return {programme,grid};
+        };
+        const [feed,{programme,grid},rows]=await Promise.all([
           collect(liveDebateUrl(day),()=>this.read(liveDebateUrl(day),signal)),
-          collect(EBS_PLUS_URL,()=>this.read(EBS_PLUS_URL,signal)),
+          broadcastRead(),
           agenda()
         ]);
-        // Only when the live endpoint shows no EbS+ programme: read the EbS+ grid.
-        const grid=programme&&programme.channelId!==EBS_PLUS_CHANNEL?await collect(ebsPlusGridUrl(day),()=>this.read(ebsPlusGridUrl(day),signal)):null;
         signal.throwIfAborted();
         this.saved={day,at:this.clock(),feed,programme,grid,rows,sources};
       },12_000).finally(()=>{this.pending=null;});
