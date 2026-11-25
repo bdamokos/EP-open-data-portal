@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Untitled vote",
   "membervoterecord.departures.range": "{start}–{end} of {total}",
   "membervoterecord.departures.more": "Show more",
-  "membervoterecord.votesByWeek": "Votes by week"
+  "membervoterecord.votesByWeek": "Votes by week",
+  "plenarylive.tsx.voting.time": "Voting time · open today’s agenda"
 }

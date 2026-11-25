@@ -8,7 +8,7 @@ import {OdpObservations,odpPacing} from './odp-observability.mjs';
 // The published 500/5min endpoint ceiling is conservatively shared across ALL
 // API v2 paths/IDs/queries. Reserve 100 starts (20%) for readers and other foreground work.
 export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:100});
-export const UPSTREAM_SOURCES=Object.freeze(['wikidata','odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu','https://data.consilium.europa.eu']);
+export const UPSTREAM_SOURCES=Object.freeze(['wikidata','odp','website','documents','document-files','multimedia','player','ebs','https://oeil.europarl.europa.eu','https://publications.europa.eu','https://data.consilium.europa.eu']);
 
 // Each call builds an independent set of queues; a process normally holds one (see defaultUpstreamServices).
 // Tests that replay recorded responses call this before loading odp.mjs (see

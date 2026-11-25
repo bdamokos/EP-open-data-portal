@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Nimetön äänestys",
   "membervoterecord.departures.range": "{start}–{end} / {total}",
   "membervoterecord.departures.more": "Näytä lisää",
-  "membervoterecord.votesByWeek": "Äänestykset viikoittain"
+  "membervoterecord.votesByWeek": "Äänestykset viikoittain",
+  "plenarylive.tsx.voting.time": "Äänestysaika · avaa tämän päivän esityslista"
 }

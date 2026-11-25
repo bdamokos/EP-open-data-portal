@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Cím nélküli szavazás",
   "membervoterecord.departures.range": "{start}–{end} / {total}",
   "membervoterecord.departures.more": "Továbbiak megjelenítése",
-  "membervoterecord.votesByWeek": "Szavazások hetente"
+  "membervoterecord.votesByWeek": "Szavazások hetente",
+  "plenarylive.tsx.voting.time": "Szavazások órája · a mai napirend megnyitása"
 }

@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Afstemning uden titel",
   "membervoterecord.departures.range": "{start}–{end} af {total}",
   "membervoterecord.departures.more": "Vis flere",
-  "membervoterecord.votesByWeek": "Afstemninger pr. uge"
+  "membervoterecord.votesByWeek": "Afstemninger pr. uge",
+  "plenarylive.tsx.voting.time": "Afstemningstid · åbn dagens dagsorden"
 }

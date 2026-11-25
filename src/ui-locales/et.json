@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Pealkirjata hääletus",
   "membervoterecord.departures.range": "{start}–{end} / {total}",
   "membervoterecord.departures.more": "Näita rohkem",
-  "membervoterecord.votesByWeek": "Hääletused nädalate kaupa"
+  "membervoterecord.votesByWeek": "Hääletused nädalate kaupa",
+  "plenarylive.tsx.voting.time": "Hääletuste aeg · ava tänane päevakord"
 }

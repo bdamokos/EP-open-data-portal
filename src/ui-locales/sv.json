@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Omröstning utan titel",
   "membervoterecord.departures.range": "{start}–{end} av {total}",
   "membervoterecord.departures.more": "Visa fler",
-  "membervoterecord.votesByWeek": "Omröstningar per vecka"
+  "membervoterecord.votesByWeek": "Omröstningar per vecka",
+  "plenarylive.tsx.voting.time": "Omröstningstid · öppna dagens dagordning"
 }

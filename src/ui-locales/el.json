@@ -2765,5 +2765,6 @@
   "membervoterecord.departures.untitled": "Ψηφοφορία χωρίς τίτλο",
   "membervoterecord.departures.range": "{start}–{end} από {total}",
   "membervoterecord.departures.more": "Εμφάνιση περισσότερων",
-  "membervoterecord.votesByWeek": "Ψηφοφορίες ανά εβδομάδα"
+  "membervoterecord.votesByWeek": "Ψηφοφορίες ανά εβδομάδα",
+  "plenarylive.tsx.voting.time": "Ώρα των ψηφοφοριών · άνοιγμα σημερινής ημερήσιας διάταξης"
 }
